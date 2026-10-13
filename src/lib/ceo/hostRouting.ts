@@ -15,6 +15,9 @@ const CEO_SURFACE_PATHS = [
   // app and next to pace (founder 2026-10-06, CP3 A; decisions log N56.3).
   "/admin/library",
   "/admin/errors",
+  // Booking page settings (founder 2026-10-13). The public /book pages stay
+  // on the main host.
+  "/admin/booking",
 ];
 const CEO_API_PATHS = [
   "/api/v2/admin/ceo",
@@ -23,6 +26,7 @@ const CEO_API_PATHS = [
   "/api/v2/admin/project-deletions",
   "/api/v2/admin/rings",
   "/api/v2/admin/learning",
+  "/api/v2/admin/booking",
   "/api/v2/research",
 ];
 /** BFF routes the CEO host serves WITHOUT taking them off the main host: the
