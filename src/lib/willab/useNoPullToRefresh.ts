@@ -17,7 +17,7 @@ import { useEffect } from "react";
 /*  values come back when the last active user lets go, so two screens that   */
 /*  both ask (the recording screen, then the upload hand-off) never restore   */
 /*  each other's value too early. iOS < 16 ignores the root property; the    */
-/*  recording stage's own touchmove belt covers it (RecordingRoadmap).        */
+/*  touch belt below covers it for the same span (labNoPull).               */
 /* -------------------------------------------------------------------------- */
 
 let holders = 0;
@@ -57,8 +57,8 @@ export function useNoPullToRefresh(active: boolean): void {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  The belt, for a screen with no gesture hook of its own (build plan        */
-/*  D-RC-3: "Getting your mic ready" before a later Take). iOS < 16 ignores    */
+/*  The belt, worn with the hold above (labNoPull): the mic wait and the      */
+/*  processing screen have no gesture hook of their own. iOS < 16 ignores     */
 /*  the root's overscroll-behavior, so a touch move that no inner scroller    */
 /*  can take is cancelled at the document. A scroller that can still move    */
 /*  the way the finger asks keeps its scroll (the training question scrolls). */
