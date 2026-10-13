@@ -351,17 +351,21 @@ export function practiseThreadItem(
   step: WalkStep,
   moment: FeedbackWalkMoment<unknown>,
   current: boolean,
+  firstTry = true,
 ): ReactNode {
   switch (step.key) {
     case "practise":
       return (
         <>
-          <WalkMessage coach={step.kind === "instruction" && moment.exercise?.byCoach === true} wide>
-            <span>{lineAbove(step, moment)}</span>
-            <span>
-              “<span data-walk-say>{wordsToSay(step, moment)}</span>”
-            </span>
-          </WalkMessage>
+          {/* What to say, before the first try only (founder 2026-10-13). */}
+          {firstTry ? (
+            <WalkMessage coach={step.kind === "instruction" && moment.exercise?.byCoach === true} wide>
+              <span>{lineAbove(step, moment)}</span>
+              <span>
+                “<span data-walk-say>{wordsToSay(step, moment)}</span>”
+              </span>
+            </WalkMessage>
+          ) : null}
           {current ? <LiveTry attempt={step.attempt} /> : <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />}
         </>
       );

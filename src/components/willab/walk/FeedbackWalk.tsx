@@ -781,6 +781,7 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
 function Thread<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>, practiseCtx: PractiseScreenCtx) {
   const at = ctx.at(step);
   const steps = ctx.walk.plan.slice(Math.max(0, threadStart(ctx.walk.plan, at)), at + 1);
+  const firstTry = steps.find((s) => s.key === "practise");
   const footer =
     step.key === "exVideo" ? <ExerciseFooter ctx={ctx} step={step} outline /> : practiseThreadFooter(practiseCtx, step);
   return (
@@ -795,7 +796,7 @@ function Thread<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment
           {s.key === "exVideo" ? (
             <ExerciseBody ctx={ctx} step={s} moment={moment} />
           ) : (
-            practiseThreadItem(practiseCtx, s, moment as FeedbackWalkMoment<unknown>, s === step)
+            practiseThreadItem(practiseCtx, s, moment as FeedbackWalkMoment<unknown>, s === step, s === firstTry)
           )}
         </Fragment>
       ))}
