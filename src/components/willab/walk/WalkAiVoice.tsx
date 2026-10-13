@@ -1,6 +1,6 @@
 "use client";
 
-import { WALK_COPY } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY, WALK_COPY } from "../idealEditCopy";
 import LoadingState from "../LoadingState";
 import WalkMessage from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
@@ -44,6 +44,29 @@ export function aiShownBefore(plan: readonly WalkStep[], at: number, moment: num
     if (s?.key === "encourage" && s.moment === moment) shown += 1;
   }
   return shown;
+}
+
+/** What an AI bubble says around its clip. */
+export type AiVoiceLines = { title?: string; line: string; then?: string };
+
+/** The AI bubble step `at` shows in place of the locked one, for the screen
+ *  and the chat alike: its lines, "pending" while the Exercise screen waits
+ *  on the clip, or null (the locked screen). */
+export function aiVoiceShown(
+  plan: readonly WalkStep[],
+  at: number,
+  state: AiVoiceState | undefined,
+): AiVoiceLines | "pending" | null {
+  const step = plan[at];
+  if (!step || step.moment == null) return null;
+  if (step.key === "exVideo") {
+    if (aiOnExercise(state)) return { title: CHUNK_SHEET_COPY.titleExercise, line: WALK_COPY.aiVoiceExercise, then: WALK_COPY.aiVoiceNow };
+    return aiPendingOnExercise(state) ? "pending" : null;
+  }
+  if (step.key !== "encourage" || state?.clip?.state !== "ready" || !inVoiceLane(plan, at, step.moment)) return null;
+  const shown = aiShownBefore(plan, at, step.moment, aiOnExercise(state));
+  if (shown >= AI_VOICE_MAX) return null;
+  return shown === 0 ? { line: WALK_COPY.aiVoiceFirst, then: WALK_COPY.aiVoiceNow } : { line: WALK_COPY.aiVoiceAgain };
 }
 
 export default function WalkAiVoice({

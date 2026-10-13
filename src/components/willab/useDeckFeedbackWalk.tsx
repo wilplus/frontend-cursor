@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { answerBody, momentChat, shownStep, walkStepDraft, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { aiVoiceChat, answerBody, momentChat, shownStep, walkStepDraft, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkStep } from "@/lib/willab/walkPlan";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import FeedbackWalk, {
   type FeedbackWalkHelperWords,
   type FeedbackWalkPractiseWords,
   type FeedbackWalkRequest,
+  type WalkAiShown,
 } from "./walk/FeedbackWalk";
 import type { WalkJudgementSave } from "./walk/useWalkJudging";
 import { useWalkJournalPost } from "./useWalkJournalPost";
@@ -756,14 +757,16 @@ export function useDeckFeedbackWalk(args: {
   /** The walk showed the coach's note or a moment: the server hears it once
    *  per opening, behind the screen, and the Lounge's "new" clears. */
   const onShown = useCallback(
-    (step: WalkStep, moment: FeedbackWalkMoment<DocumentSuggestion> | null) => {
+    (step: WalkStep, moment: FeedbackWalkMoment<DocumentSuggestion> | null, ai?: WalkAiShown | null) => {
       const { chunks: now, pendingOf: openOf, coachMessage: coach } = live.current;
       const at = { moment: step.moment ?? null, attempt: step.attempt ?? null };
-      const said = shownStep(step, moment, coach?.text ?? null);
+      // The AI bubble in the locked one's place (N71) says what the screen said.
+      const aiSaid = ai ? aiVoiceChat(ai) : null;
+      const said = aiSaid ?? shownStep(step, moment, coach?.text ?? null);
       // The label above a moment, and the speaker's clip before its bubble.
       const chat = said ? momentChat(walkModel.plan, step, moment) : null;
       if (chat?.clip) post({ key: `clip:${step.key}`, ...at, author: "speaker", body: "", extra: { ...chat.label, clip: chat.clip } });
-      if (said) post({ key: step.key, ...at, ...said, extra: chat?.clip ? undefined : chat?.label });
+      if (said) post({ key: step.key, ...at, ...said, extra: { ...(chat?.clip ? undefined : chat?.label), ...aiSaid?.extra } });
       if (step.key === "processing") {
         post({ key: "try", ...at, author: "speaker", body: WALK_COPY.practiseN(step.attempt ?? 1) });
       }

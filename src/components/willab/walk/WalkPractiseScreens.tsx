@@ -14,7 +14,7 @@ import { encourageLine, improvedLine, thanksLine, triesLeft } from "@/lib/willab
 import type { WalkTry } from "./useWalkPractise";
 import type { SayLine } from "@/lib/willab/walkLines";
 import type { AiVoiceState } from "@/services/api/aiVoice";
-import WalkAiVoice, { AI_VOICE_MAX, aiOnExercise, aiShownBefore, inVoiceLane } from "./WalkAiVoice";
+import WalkAiVoice, { aiVoiceShown } from "./WalkAiVoice";
 
 /* -------------------------------------------------------------------------- */
 /*  The practise loop's screens (build plan D-FW-16; founder lock 2026-10-12,  */
@@ -246,19 +246,14 @@ function Encourage(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkM
  *  at most AI_VOICE_MAX per exercise (N71): L4 and L3 the first time after
  *  a try, L5 every later time. Anything else: the locked encouragement. */
 function aiInstead(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
-  const at = ctx.at(step);
   const state = ctx.aiVoiceOf?.(moment.index);
-  if (state?.clip?.state !== "ready" || !inVoiceLane(ctx.plan, at, moment.index)) return null;
-  const onExercise = aiOnExercise(state);
-  const shown = aiShownBefore(ctx.plan, at, moment.index, onExercise);
-  if (shown >= AI_VOICE_MAX) return null;
-  const first = shown === 0;
+  const ai = aiVoiceShown(ctx.plan, ctx.at(step), state);
+  if (!ai || ai === "pending") return null;
   return (
     <WalkAiVoice
       seed={`ai-${moment.index}-${step.attempt ?? 1}`}
       state={state}
-      line={first ? WALK_COPY.aiVoiceFirst : WALK_COPY.aiVoiceAgain}
-      then={first ? WALK_COPY.aiVoiceNow : undefined}
+      {...ai}
       onPlay={() => ctx.aiVoicePlayed?.(moment.index)}
     />
   );
