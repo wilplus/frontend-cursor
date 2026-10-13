@@ -2032,14 +2032,22 @@ function LoungeEmptyState({ onStart }: { onStart: () => void }) {
 /** The project whose review waits in the thread: the newest walk step's,
  *  unless it is the review's end or its closing summary (the summary is the
  *  last step: seen, the review is finished). Null: nothing to continue. */
+/** The next Take has begun: its sharing question or its recording. */
+function movedOn(m: LoungeMessage): boolean {
+  return m.kind === "recording_summary" || (m.kind === "walk_step" && m.metadata?.step === "share");
+}
+
 export function continueReviewArc(items: readonly ThreadItem[]): string | null {
   for (let i = items.length - 1; i >= 0; i -= 1) {
     const item = items[i];
     if (item.kind !== "message") continue;
     if (item.message.metadata?.summary === true) return null;
+    // The speaker moved on to the next Take (its sharing question, or its
+    // recording): the older review is over, finished or not.
+    if (movedOn(item.message)) return null;
     if (item.message.kind !== "walk_step") continue;
     const meta = item.message.metadata ?? {};
-    if (meta.step === "share" || meta.coach_update === true) continue;
+    if (meta.coach_update === true) continue;
     if (meta.step === "end") return null;
     return typeof meta.arc_id === "string" ? meta.arc_id : null;
   }
@@ -2054,7 +2062,8 @@ export function waitingStepId(items: readonly ThreadItem[], arc: string | null):
   for (let i = items.length - 1; i >= 0; i -= 1) {
     const m = items[i].message;
     const meta = m.metadata ?? {};
-    if (m.kind !== "walk_step" || meta.step === "share" || meta.coach_update === true) continue;
+    if (movedOn(m)) return null;
+    if (m.kind !== "walk_step" || meta.coach_update === true) continue;
     return m.role === "bot" && meta.arc_id === arc ? m.client_id : null;
   }
   return null;
