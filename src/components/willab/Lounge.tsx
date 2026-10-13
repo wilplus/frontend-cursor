@@ -102,6 +102,8 @@ import {
 } from "@/lib/productDiscovery";
 import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
 import { usePinThreadBottom } from "./usePinThreadBottom";
+import { clearerPieces, type ClearerPiece } from "@/lib/willab/clearerPieces";
+import WalkOverlay from "./walk/WalkOverlay";
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
@@ -277,6 +279,10 @@ export default function Lounge({
     waitingStep === m.client_id || (m.metadata?.coach_update === true && !seenUpdates.has(m.client_id));
   // Helper words a later pick replaced: struck in the chat (prototype v31).
   const replacedWords = useMemo(() => replacedWordIds(threadItems), [threadItems]);
+  const olderNewWords = useMemo(() => clearerNewWordsOf(threadItems), [threadItems]);
+  // An older Take's review, reopened from one of its bubbles: its steps as
+  // they were, read only.
+  const [olderReview, setOlderReview] = useState<{ take: number; session: string } | null>(null);
 
   // U6 — opening the in-thread insight card is the single "mark read" path now
   // that the top banner is gone: open the overlay, and if we were in the unread
@@ -1273,8 +1279,10 @@ export default function Lounge({
               message={item.message}
               card={reviewCardOf(item.message, threadItems)}
               replaced={replacedWords.has(item.message.client_id)}
+              newWords={olderNewWords.get(item.message.client_id)}
               waiting={stepWaits(item.message)}
               lockedTake={olderTake(item.message.metadata)}
+              onOpenOlder={setOlderReview}
               onOpened={() => setSeenUpdates(keepSeenUpdate(item.message.client_id))}
               onOpenIdealText={openIdealText}
             />
@@ -1350,6 +1358,13 @@ export default function Lounge({
       {/* Async analysis (delivery layer): a take left mid-analysis (closed tab /
           locked phone) keeps finishing server-side — this chip resumes a calm
           indicator from the persisted marker and clears itself when done. */}
+      <OlderTakeReview
+        older={olderReview}
+        items={threadItems}
+        replaced={replacedWords}
+        newWords={olderNewWords}
+        onClose={() => setOlderReview(null)}
+      />
       {processingResume?.status === "failed" ? (
         <p className="mb-1.5 flex items-center justify-center gap-2 rounded-full bg-destructive/10 px-4 py-1.5 text-center text-[13px] text-destructive">
           {FLOW_COPY.failed}
@@ -2079,8 +2094,10 @@ function WalkStepBubble({
   message,
   card,
   replaced = false,
+  newWords,
   waiting = false,
   lockedTake = null,
+  onOpenOlder,
   onOpened,
   onOpenIdealText,
 }: {
@@ -2089,10 +2106,15 @@ function WalkStepBubble({
   card: { title: string; take: number | null } | null;
   /** Helper words a later pick replaced: struck through. */
   replaced?: boolean;
+  /** A clearer version posted before its new words were stored: worked
+   *  out from the speaker's words above it. */
+  newWords?: ClearerPiece[];
   /** The step still waits, or a coach update not yet opened: the orange outline. */
   waiting?: boolean;
   /** An older Take's step, its number: history, with no ›. */
   lockedTake?: number | null;
+  /** An older Take's bubble tapped: that Take's review, read only. */
+  onOpenOlder?: (older: { take: number; session: string }) => void;
   onOpened?: () => void;
   onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode, at?: WalkStepTarget | null) => void;
 }) {
@@ -2109,7 +2131,7 @@ function WalkStepBubble({
   const clip = walkClipOf(meta.clip);
   if (!message.body.trim() && !clip) return null;
   const mine = message.role === "user";
-  const open = arc ? stepTap(meta, arc, lockedTake, onOpenIdealText, onOpened) : undefined;
+  const open = bubbleTap(meta, lockedTake, onOpenIdealText, onOpened, onOpenOlder);
   const hint = helpersHint(meta, lockedTake);
   const label = chatLabelOf(meta);
   const ai = clip || mine ? null : aiVoiceOfMeta(meta);
@@ -2139,7 +2161,7 @@ function WalkStepBubble({
           </button>
         </div>
       ) : (
-        <AppStepBubble message={message} open={open} hint={hint} waiting={waiting && open !== undefined} />
+        <AppStepBubble message={message} newWords={newWords} open={open} hint={hint} waiting={waiting && open !== undefined} />
       )}
     </>
   );
@@ -2151,6 +2173,61 @@ function WalkStepBubble({
  *  (prototype v31); an old judging bubble opens Other speakers afresh
  *  (founder 2026-10-13), and a coach update the coach's word on the latest
  *  Take's page. Sharing opens the sharing step. */
+/** What a tap on a step's bubble does: its step in the lens, or for an
+ *  older Take, that Take's review read only. None without a way to open. */
+function bubbleTap(
+  meta: Record<string, unknown>,
+  lockedTake: number | null,
+  onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode, at?: WalkStepTarget | null) => void,
+  onOpened?: () => void,
+  onOpenOlder?: (older: { take: number; session: string }) => void,
+): (() => void) | undefined {
+  const arc = typeof meta.arc_id === "string" ? meta.arc_id : null;
+  if (!arc || !onOpenIdealText) return undefined;
+  const session = typeof meta.take_session_id === "string" ? meta.take_session_id : null;
+  const older = lockedTake !== null && session && onOpenOlder ? () => onOpenOlder({ take: lockedTake, session }) : undefined;
+  return stepTap(meta, arc, lockedTake, onOpenIdealText, onOpened) ?? older;
+}
+
+/** An older Take's review, reopened from one of its bubbles: its steps as
+ *  they were in the chat, read only, in the walk's frame. */
+function OlderTakeReview({
+  older,
+  items,
+  replaced,
+  newWords,
+  onClose,
+}: {
+  older: { take: number; session: string } | null;
+  items: readonly ThreadItem[];
+  replaced: ReadonlySet<string>;
+  newWords: ReadonlyMap<string, ClearerPiece[]>;
+  onClose: () => void;
+}) {
+  if (!older) return null;
+  const steps = items.filter(
+    (item) => item.message.kind === "walk_step" && item.message.metadata?.take_session_id === older.session,
+  );
+  return (
+    <div className="fixed inset-0 z-[90] flex flex-col bg-background">
+      <WalkOverlay testId="older-take-review" caption={`${CHUNK_SHEET_COPY.historyTake} ${older.take}`} onClose={onClose}>
+        <div className="flex flex-col gap-2">
+          {steps.map((item) => (
+            <WalkStepBubble
+              key={item.reactKey}
+              message={item.message}
+              card={null}
+              replaced={replaced.has(item.message.client_id)}
+              newWords={newWords.get(item.message.client_id)}
+              lockedTake={older.take}
+            />
+          ))}
+        </div>
+      </WalkOverlay>
+    </div>
+  );
+}
+
 function stepTap(
   meta: Record<string, unknown>,
   arc: string,
@@ -2188,18 +2265,20 @@ function helpersHint(meta: Record<string, unknown>, lockedTake: number | null): 
  *  `vthumb`, the lens plays it), and the small hint line under it. */
 function AppStepBubble({
   message,
+  newWords,
   open,
   hint: shownHint,
   waiting = false,
 }: {
   message: LoungeMessage;
+  newWords?: ClearerPiece[];
   open?: () => void;
   hint?: string;
   waiting?: boolean;
 }) {
   const meta = message.metadata ?? {};
   const hint = shownHint ?? (typeof meta.hint === "string" ? meta.hint : null);
-  const fresh = freshWordsOf(meta.new_words, message.body);
+  const fresh = freshWordsOf(meta.new_words ?? newWords, message.body);
   const video = typeof meta.video === "string" && meta.video ? meta.video : null;
   const nl = message.body.indexOf("\n");
   const cut = video ? (nl >= 0 ? nl : message.body.length) : -1;
@@ -2339,6 +2418,26 @@ function ExerciseThumb({ src }: { src: string }) {
 
 /** The helper words a later pick for the same paragraph of the same Take
  *  replaced (prototype v31: the old pick stays, struck through). */
+/** Clearer-version bubbles posted before their new words were stored: the
+ *  orange words, worked out from the speaker's words in the clip just above
+ *  (the same moment of the same Take). */
+export function clearerNewWordsOf(items: readonly ThreadItem[]): Map<string, ClearerPiece[]> {
+  const out = new Map<string, ClearerPiece[]>();
+  const said = new Map<string, string>();
+  for (const item of items) {
+    const m = item.message.metadata ?? {};
+    if (item.message.kind !== "walk_step") continue;
+    const key = `${String(m.take_session_id)}|${String(m.moment)}`;
+    const words = walkClipOf(m.clip)?.words;
+    if (words?.length) said.set(key, words.map((w) => w.text).join(""));
+    if (m.step !== "clearer" || item.message.role === "user" || Array.isArray(m.new_words)) continue;
+    const body = item.message.body;
+    const after = clearerPieces(said.get(key), body.slice(body.lastIndexOf("\n") + 1))?.after;
+    if (after) out.set(item.message.client_id, after);
+  }
+  return out;
+}
+
 export function replacedWordIds(items: readonly ThreadItem[]): Set<string> {
   const latest = new Map<string, string>();
   const all: [string, string][] = [];
