@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
 import CoachWalkEntry from "./coachwalk/CoachWalkEntry";
 import SnippetWavePlayer from "./SnippetWavePlayer";
+import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "./LoungeAiVoiceBubble";
 import { CHUNK_SHEET_COPY } from "./idealEditCopy";
 import { postChatQuery } from "@/services/api/chatQuery";
 import { refreshNewCoachFeedback, type LoungeMessage } from "@/services/api/loungeMessages";
@@ -2051,10 +2052,20 @@ function WalkStepBubble({
   const moment = typeof meta.moment === "number" ? meta.moment : null;
   const open = arc ? () => onOpenIdealText?.(arc, "review", step ? { step, moment } : null) : undefined;
   const label = chatLabelOf(meta);
+  const ai = clip || mine ? null : aiVoiceOfMeta(meta);
   return (
     <>
       {label ? <div className="self-center pt-1.5 text-[11.5px] text-muted-foreground">{label}</div> : null}
-      {clip ? (
+      {ai ? (
+        <LoungeAiVoiceBubble
+          body={message.body}
+          practiceId={ai.practiceId}
+          then={ai.then}
+          seed={message.client_id}
+          avatar={<ChatAvatar />}
+          onOpen={open}
+        />
+      ) : clip ? (
         <ClipBubble clip={clip} seed={message.client_id} />
       ) : mine ? (
         <div className="flex justify-end">
