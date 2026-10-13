@@ -147,7 +147,7 @@ function BookingAdmin() {
               Page is on
             </label>
             <p className="-mt-2 text-[13px] text-muted-foreground">
-              {s.enabled ? <>Live at <a className="underline" href={`/book/${s.slug}`} target="_blank" rel="noreferrer">{pageUrl}</a></> : "Nobody can book while the page is off."}
+              {s.enabled ? <>Live at <a className="underline" href={`https://www.willpowerlab.com/book/${s.slug}`} target="_blank" rel="noreferrer">{pageUrl}</a></> : "Nobody can book while the page is off."}
             </p>
             <label className={label} htmlFor="bk-slug">
               Link
