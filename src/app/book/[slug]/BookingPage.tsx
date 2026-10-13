@@ -33,6 +33,7 @@ export interface Offer {
   price_cents: number;
   currency: string;
   bonus_tokens: number;
+  allow_skip_payment?: boolean;
   preview: boolean;
   email?: string;
   name?: string;
@@ -162,7 +163,7 @@ export default function BookingPage({ info }: { info: PageInfo }) {
   const zones = useMemo(() => allZones([tz, info.host_timezone]), [tz, info.host_timezone]);
 
   const submit = useCallback(
-    async (e: FormEvent) => {
+    async (e: FormEvent, skipPayment = false) => {
       e.preventDefault();
       if (slot === null) return;
       const name = form.name.trim();
@@ -174,7 +175,8 @@ export default function BookingPage({ info }: { info: PageInfo }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            start: new Date(slot).toISOString(), name, note: form.note, timezone: tz, embedded: !!stripePromise,
+            start: new Date(slot).toISOString(), name, note: form.note, timezone: tz,
+            embedded: !!stripePromise && !skipPayment, skip_payment: skipPayment,
           }),
         });
         const body = (await res.json().catch(() => ({}))) as { url?: string; client_secret?: string; code?: string };
@@ -248,6 +250,12 @@ export default function BookingPage({ info }: { info: PageInfo }) {
                   className="rounded-[10px] bg-foreground px-[18px] py-3 font-semibold text-background disabled:opacity-60">
                   {sending ? "Opening payment…" : `Continue to payment · ${money(signedIn?.price_cents ?? info.price_cents, info.currency)}`}
                 </button>
+                {signedIn?.allow_skip_payment && (
+                  <button type="button" disabled={sending || !!signedIn?.preview} onClick={(e) => void submit(e, true)}
+                    className="ml-2 rounded-[10px] border border-border px-[18px] py-3 font-semibold disabled:opacity-60">
+                    Book without paying
+                  </button>
+                )}
               </div>
               <p className="text-[13px] text-muted-foreground">
                 You&apos;ll get a calendar invite with the Google Meet link by email.

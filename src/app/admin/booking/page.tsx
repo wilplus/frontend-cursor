@@ -27,6 +27,8 @@ interface Settings {
   meet_url: string;
   enabled: boolean;
   bonus_tokens: number;
+  new_user_discount_pct: number;
+  allow_skip_payment: boolean;
 }
 
 interface Booking {
@@ -152,6 +154,10 @@ function BookingAdmin() {
               <input id="bk-enabled" type="checkbox" checked={s.enabled} onChange={(e) => set("enabled", e.target.checked)} />
               Page is on
             </label>
+            <label className="flex items-center gap-2 font-medium" htmlFor="bk-skip">
+              <input id="bk-skip" type="checkbox" checked={!!s.allow_skip_payment} onChange={(e) => set("allow_skip_payment", e.target.checked)} />
+              Allow booking without paying
+            </label>
             <p className="-mt-2 text-[13px] text-muted-foreground">
               {s.enabled ? <>Live at <a className="underline" href={`https://www.willpowerlab.com/book/${s.slug}`} target="_blank" rel="noreferrer">{pageUrl}</a></> : "Nobody can book while the page is off."}
             </p>
@@ -169,6 +175,11 @@ function BookingAdmin() {
             </label>
             <div className="grid gap-3.5 sm:grid-cols-2">
               {numSelect("duration_min", [30, 45, 60, 90], "min", "Length")}
+              <label className={label} htmlFor="bk-newpct">
+                First lesson off for new people (%)
+                <input id="bk-newpct" className={field} type="number" min="0" max="100" step="5" value={s.new_user_discount_pct ?? 0}
+                  onChange={(e) => set("new_user_discount_pct", Math.min(100, Math.max(0, Number(e.target.value) || 0)))} />
+              </label>
               <label className={label} htmlFor="bk-bonus">
                 Tokens with each lesson
                 <input id="bk-bonus" className={field} type="number" min="0" step="1000" value={s.bonus_tokens}
@@ -231,11 +242,12 @@ function BookingAdmin() {
           <h2 className={h3}>Calendar and meeting</h2>
           <div className={box}>
             <label className={label} htmlFor="bk-ics">
-              Proton Calendar share link
-              <input id="bk-ics" className={field} value={s.calendar_ics_url} onChange={(e) => set("calendar_ics_url", e.target.value)} />
+              Calendar share links (one per line)
+              <textarea id="bk-ics" rows={3} className={field} value={s.calendar_ics_url}
+                onChange={(e) => set("calendar_ics_url", e.target.value)} />
             </label>
             <p className="-mt-2 text-[13px] text-muted-foreground">
-              Your busy times are read from this link, so nobody can book over them. In Proton: Calendar settings → Share →
+              Busy times from every calendar listed block the booking page. In Proton: Calendar settings → Share →
               Share with anyone → Full view. Each booking is also sent to you as an invite you add with one click.
             </p>
             <label className={label} htmlFor="bk-meet">
