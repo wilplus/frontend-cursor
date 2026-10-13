@@ -5,6 +5,7 @@ import LoadingState from "../LoadingState";
 import WalkMessage from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
 import type { WalkStep } from "@/lib/willab/walkPlan";
+import { missLine } from "@/lib/willab/walkPractise";
 import type { AiVoiceState } from "@/services/api/aiVoice";
 
 /* -------------------------------------------------------------------------- */
@@ -47,8 +48,9 @@ export function aiShownBefore(plan: readonly WalkStep[], at: number, moment: num
   return shown;
 }
 
-/** What an AI bubble says around its clip. */
-export type AiVoiceLines = { title?: string; line: string; then?: string };
+/** What an AI bubble says around its clip; `lead` is the reading's line a
+ *  "not yet" opens with (founder 2026-10-13, B). */
+export type AiVoiceLines = { title?: string; lead?: string; line: string; then?: string };
 
 /** The AI bubble step `at` shows in place of the locked one, for the screen
  *  and the chat alike: its lines, "pending" while the Exercise screen waits
@@ -68,20 +70,25 @@ export function aiVoiceShown(
   if (aiShownBefore(plan, at, step.moment, aiOnExercise(state)) >= AI_VOICE_MAX) return null;
   // The first "not yet" says L4 and L3, even after the Exercise's own clip;
   // every later one L5 (founder 2026-10-13, P3 B).
+  // It opens with the line for the reading that went the wrong way, when one
+  // clearly did (founder 2026-10-13, B).
+  const lead = missLine(plan, at) ?? undefined;
   return aiShownBefore(plan, at, step.moment, false) === 0
-    ? { line: WALK_COPY.aiVoiceFirst, then: WALK_COPY.aiVoiceNow }
-    : { line: WALK_COPY.aiVoiceAgain };
+    ? { lead, line: WALK_COPY.aiVoiceFirst, then: WALK_COPY.aiVoiceNow }
+    : { lead, line: WALK_COPY.aiVoiceAgain };
 }
 
 export default function WalkAiVoice({
   seed,
   state,
   title,
+  lead,
   line,
   then,
   onPlay,
 }: {
   seed: string;
+  lead?: string;
   /** "Exercise" on the Exercise screen. */
   title?: string;
   state: AiVoiceState | undefined;
@@ -93,6 +100,7 @@ export default function WalkAiVoice({
   return (
     <WalkMessage wide>
       {title ? <span>{title}</span> : null}
+      {lead ? <span>{lead}</span> : null}
       <span>{line}</span>
       <span data-walk-ai-voice className="mt-2 flex items-center gap-[7px] text-[14px] font-semibold">
         <span

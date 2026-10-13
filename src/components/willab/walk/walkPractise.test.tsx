@@ -7,7 +7,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CHUNK_SHEET_COPY as COPY, WALK_COPY, WALK_LINE_BANK } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, PRACTISE_LINES, WALK_COPY } from "../idealEditCopy";
 import FeedbackWalk, { type FeedbackWalkPractiseWords } from "./FeedbackWalk";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 import { walkPractiseIO } from "@/services/api/walkPractise";
@@ -243,13 +243,13 @@ describe("the practise screen", () => {
 });
 
 describe("the machine's answer", () => {
-  it("praise on try 1: a line of the signed bank, then helper words from the try's own words", async () => {
+  it("praise on try 1: the line for the reading that moved, then helper words from the try's own words", async () => {
     draw();
     await accept();
     answers = [{ next: "praise", key: "cue:landed_ending" }];
     await tryAndRead();
     expect(screen()).toBe("walk-screen-improved");
-    expect(message()).toBe(`${COPY.titlePraise}${WALK_LINE_BANK.B07.lines[0]}`);
+    expect(PRACTISE_LINES.better.landed_ending.map((l) => `${COPY.titlePraise}${l}`)).toContain(message());
     expect(live()!.querySelector("[data-walk-player][data-walk-me]")).not.toBeNull();
     forward();
     expect(screen()).toBe("walk-screen-helpers");
