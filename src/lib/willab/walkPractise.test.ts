@@ -33,6 +33,8 @@ describe("the practise loop's plan", () => {
       thanksLine(capped.plan, capped.at),
     ];
     for (const line of lines) expect(line).not.toMatch(/\d/);
-    expect(lines).toEqual([PRACTISE_LINES.notYet.settled_pitch, PRACTISE_LINES.better.kept_moving[0], PRACTISE_LINES.movedOn]);
+    expect(PRACTISE_LINES.notYet.settled_pitch).toContain(lines[0]);
+    expect(PRACTISE_LINES.better.kept_moving).toContain(lines[1]);
+    expect(lines[2]).toBe(PRACTISE_LINES.movedOn);
   });
 });

@@ -448,9 +448,8 @@ export const WALK_COPY = {
    loudness, pauses, pitch, pace, ending, start) and says the line for what
    moved, never a rotation and never a number (AC-9). The key is the
    confident direction's; under notYet it names the reading that went the
-   other way ("settled_pitch": the pitch went higher). The Good job lines
-   are signed; the "not yet" lines and movedOn are DRAFTS until the founder
-   signs them, not to ship before. */
+   other way ("settled_pitch": the pitch went higher). All signed by the
+   founder 2026-10-13. */
 export const PRACTISE_LINES = {
   /* Signed by the founder 2026-10-13 ("accepted"): three per reading, said
      in turn within that reading only. */
@@ -496,16 +495,51 @@ export const PRACTISE_LINES = {
       "That one? Pure confidence. You know it, I know it. 💪",
     ],
   },
+  /* Signed by the founder 2026-10-13 ("accepted"): three per reading that
+     went the wrong way, said in turn within that reading only. */
   notYet: {
-    wide_range: "Your voice stayed on one note this time. Let it go up and down.",
-    full_volume: "Your volume stayed flat. Let a few words come out louder.",
-    no_hesitation: "There were more pauses this time. Try it in one breath.",
-    settled_pitch: "Your voice went a bit higher. Let it settle lower and calmer.",
-    kept_moving: "You slowed down this time. Keep it moving.",
-    landed_ending: "Your ending went up, like a question. Bring the last word down.",
-    opened_strong: "The start was quieter. Give the first words more energy.",
-    general: "Not quite yet. Let's try it once more!",
+    wide_range: [
+      "Hey, I know you're trying. Let your voice go up and down. Let it go crazy, I know you can! 🎢",
+      "Your voice stayed on one note. Take it on a rollercoaster this time! 🎢",
+      "Flat like a pancake 🥞 Let it go up and down, I know you've got it in you.",
+    ],
+    full_volume: [
+      "Come on, you can scream a little! 📣",
+      "Turn it up! Let a few words come out loud. 🔊",
+      "Don't be shy. Give it some volume this time! 📣",
+    ],
+    no_hesitation: [
+      "I know you like the strategic pause 😏 But what if we went through this one like a blast? 💥",
+      "Pauses are your thing, I get it 😏 This time, blast through it in one go! 💥",
+      "No brakes this time 🚀 Just blast through it, start to finish!",
+    ],
+    settled_pitch: [
+      "You know Flo Rida? \"Low, low, low\"? Yeah, so go that low! 🎵",
+      "Your voice climbed up a bit. Bring it down low and calm. ⬇️",
+      "Think deep and low, like a late-night radio host. 📻",
+    ],
+    kept_moving: [
+      "It's okay. If you're tired, you can slow down. But if you're not, give it a little speed boost! 🏎️",
+      "You slowed down there. Put your foot on the gas this time! 🏎️",
+      "A bit sleepy that time 😴 Wake it up and keep it moving.",
+    ],
+    landed_ending: [
+      "If that's a question, I can answer it. But if it's not, try again. Lol 😄",
+      "That ended like a question ❓ Bring the last word down like a statement.",
+      "Was that a question or an answer? 🤔 Land the last word low.",
+    ],
+    opened_strong: [
+      "You know, like an engine in cold weather. I know you have this heat inside, you just need to warm it up. Try it again! 🔥",
+      "Slow start there 🥶 Kick it off with energy from the very first word.",
+      "The first words were a bit shy. Start it like you mean it! 🚀",
+    ],
+    general: [
+      "You know Whiplash? It's not quite my tempo yet. Lol, try again! 🥁",
+      "Not quite my tempo 🥁 One more time!",
+      "Close, but not there yet. Give it another go! 💪",
+    ],
   },
+  /* Kept as drafted, founder 2026-10-13 ("keep the draft for the 3rd try"). */
   movedOn: "Great effort! Let's move on and come back to this one later.",
 } as const;
 

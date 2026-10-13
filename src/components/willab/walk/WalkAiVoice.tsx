@@ -72,7 +72,7 @@ export function aiVoiceShown(
   // every later one L5 (founder 2026-10-13, P3 B).
   // It opens with the line for the reading that went the wrong way, when one
   // clearly did (founder 2026-10-13, B).
-  const lead = missLine(step.kind) ?? undefined;
+  const lead = missLine(plan, at) ?? undefined;
   return aiShownBefore(plan, at, step.moment, false) === 0
     ? { lead, line: WALK_COPY.aiVoiceFirst, then: WALK_COPY.aiVoiceNow }
     : { lead, line: WALK_COPY.aiVoiceAgain };

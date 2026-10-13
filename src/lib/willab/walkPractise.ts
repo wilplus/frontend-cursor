@@ -153,30 +153,47 @@ function cueOf(key: string | null | undefined, prefix: "cue:" | "miss:"): Practi
   return cue in PRACTISE_LINES.better && cue !== "general" ? (cue as PractiseCueKey) : null;
 }
 
+/** A reading's three lines in turn, from a random start (founder
+ *  2026-10-13: three per reading, mixed, never another reading's). */
+function inTurn(
+  plan: readonly WalkStep[],
+  at: number,
+  key: "improved" | "encourage",
+  prefix: "cue:" | "miss:",
+  lines: readonly string[],
+): string {
+  const cue = cueOf(plan[at]?.kind, prefix) ?? "general";
+  const turn = plan
+    .slice(0, Math.max(0, at))
+    .filter((s) => s.key === key && (cueOf(s.kind, prefix) ?? "general") === cue).length;
+  return lines[(START + turn) % lines.length];
+}
+
+/** Where a reading's turns start on this page: random, so all three lines
+ *  come up across walks (founder 2026-10-13, "use all 3 interchangeably");
+ *  fixed for the page, so a line never changes while it is on screen and
+ *  never repeats back to back. */
+const START = Math.floor(Math.random() * 3);
+
 /** The praise after a try at `at`: a line for the reading that moved
- *  toward confident, else a general one (founder 2026-10-13, option A:
- *  the reading decides; its own three lines take turns). */
+ *  toward confident, else a general one (founder 2026-10-13, option A). */
 export function improvedLine(plan: readonly WalkStep[], at: number, _say?: SayLine): string {
   const cue = cueOf(plan[at]?.kind, "cue:");
-  const lines = PRACTISE_LINES.better[cue ?? "general"];
-  // The reading's three lines in turn, counted over its earlier praises.
-  const turn = plan.slice(0, Math.max(0, at)).filter((s) => s.key === "improved" && (cueOf(s.kind, "cue:") ?? "general") === (cue ?? "general")).length;
-  return lines[turn % lines.length];
+  return inTurn(plan, at, "improved", "cue:", PRACTISE_LINES.better[cue ?? "general"]);
 }
 
-/** The line for the reading a "not yet" named, or null when none clearly
- *  moved: the voice Exercise's AI bubble opens with it (founder
+/** The line for the reading the "not yet" at `at` named, or null when none
+ *  clearly moved: the voice Exercise's AI bubble opens with it (founder
  *  2026-10-13, B). */
-export function missLine(kind: string | null | undefined): string | null {
-  const cue = cueOf(kind, "miss:");
-  return cue ? PRACTISE_LINES.notYet[cue] : null;
+export function missLine(plan: readonly WalkStep[], at: number): string | null {
+  const cue = cueOf(plan[at]?.kind, "miss:");
+  return cue ? inTurn(plan, at, "encourage", "miss:", PRACTISE_LINES.notYet[cue]) : null;
 }
 
-/** The "not yet" at `at`: the line for the reading that went the wrong way,
- *  else the general one (option A). */
+/** The "not yet" at `at`: a line for the reading that went the wrong way,
+ *  else a general one (option A). */
 export function encourageLine(plan: readonly WalkStep[], at: number, _say?: SayLine): string {
-  const cue = cueOf(plan[at]?.kind, "miss:");
-  return cue ? PRACTISE_LINES.notYet[cue] : PRACTISE_LINES.notYet.general;
+  return missLine(plan, at) ?? inTurn(plan, at, "encourage", "miss:", PRACTISE_LINES.notYet.general);
 }
 
 /** The line after the third try that is not praise (CM3b A): one line. */

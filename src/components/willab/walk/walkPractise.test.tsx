@@ -249,7 +249,7 @@ describe("the machine's answer", () => {
     answers = [{ next: "praise", key: "cue:landed_ending" }];
     await tryAndRead();
     expect(screen()).toBe("walk-screen-improved");
-    expect(message()).toBe(`${COPY.titlePraise}${PRACTISE_LINES.better.landed_ending[0]}`);
+    expect(PRACTISE_LINES.better.landed_ending.map((l) => `${COPY.titlePraise}${l}`)).toContain(message());
     expect(live()!.querySelector("[data-walk-player][data-walk-me]")).not.toBeNull();
     forward();
     expect(screen()).toBe("walk-screen-helpers");
