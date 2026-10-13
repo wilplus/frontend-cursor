@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { cn } from "@/lib/utils";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
@@ -10,6 +9,7 @@ import WalkMessage from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import WalkLoading from "./WalkLoading";
+import WalkFaces, { WalkUnclear } from "./WalkFaces";
 import { answerOtherClip, fetchOtherClips, type OtherClip } from "@/services/api/otherSpeakers";
 import { othersBridge } from "@/lib/willab/walkThread";
 
@@ -24,12 +24,6 @@ import { othersBridge } from "@/lib/willab/walkThread";
 /*  holds 0.28 s and moves on; it stays locked once given, and the step       */
 /*  reopened shows "✓ Answered" and "Next". Audio only, no number (AC-9).     */
 /* -------------------------------------------------------------------------- */
-
-const FACES: readonly { value: ConfidenceRatingValue; face: string; label: string }[] = [
-  { value: "yes", face: "👍", label: WALK_COPY.judgeYes },
-  { value: "in_between", face: "😐", label: WALK_COPY.judgeInBetween },
-  { value: "no", face: "👎", label: WALK_COPY.judgeNo },
-];
 
 export default function WalkOthers({
   testId,
@@ -145,41 +139,8 @@ export default function WalkOthers({
             </div>
             <span>{COPY.confidenceQuestion}</span>
           </WalkMessage>
-          <div data-walk-judgement className="flex min-h-0 flex-1 flex-col gap-2.5">
-            {FACES.map((o) => {
-              const on = answered === o.value;
-              return (
-                <button
-                  key={o.value}
-                  type="button"
-                  data-walk-answer={o.value}
-                  aria-pressed={on}
-                  disabled={answered !== null}
-                  onClick={() => pick(o.value)}
-                  className={cn(
-                    "walk-press walk-fill flex max-h-[120px] min-h-[72px] flex-1 items-center gap-[18px] rounded-2xl border-[1.5px] bg-background px-[22px] text-left text-[21px] font-semibold text-foreground",
-                    on ? "border-foreground" : "border-border",
-                    answered !== null && !on && "opacity-35",
-                  )}
-                >
-                  <span aria-hidden="true" className="text-[36px] leading-none">
-                    {o.face}
-                  </span>
-                  {o.label}
-                </button>
-              );
-            })}
-          </div>
-          {answered === null ? (
-            <button
-              type="button"
-              data-walk-answer="audio_unclear"
-              onClick={() => pick("audio_unclear")}
-              className="walk-press flex h-[34px] w-full items-center justify-center text-[14px] text-muted-foreground"
-            >
-              {WALK_COPY.judgeUnclear}
-            </button>
-          ) : null}
+          <WalkFaces answered={answered} onPick={pick} />
+          {answered === null ? <WalkUnclear onPick={() => pick("audio_unclear")} /> : null}
         </>
       )}
     </WalkOverlay>

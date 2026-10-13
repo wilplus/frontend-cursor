@@ -17,7 +17,11 @@ import { coachWrite } from "./coachAuth";
 export type ExerciseRequestResolution =
   | "exercise_chosen"
   | "exercise_authored"
-  | "no_safe_match";
+  | "no_safe_match"
+  /* an answer in words (0402, 0403): praise, a clearer version, a note */
+  | "line_written"
+  | "version_written"
+  | "note_written";
 
 export interface ExerciseRequestExercise {
   exerciseId: string;
@@ -61,6 +65,7 @@ export type ExerciseRequestAnswer =
 
 const RESOLUTIONS: readonly string[] = [
   "exercise_chosen", "exercise_authored", "no_safe_match",
+  "line_written", "version_written", "note_written",
 ];
 
 function str(value: unknown): string | null {

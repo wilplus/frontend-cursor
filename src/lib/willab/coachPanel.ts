@@ -1,32 +1,36 @@
 /* -------------------------------------------------------------------------- */
-/*  The coach panel, redrawn — the pure half of P1 (founder lock 2026-10-06,   */
-/*  FOUNDER-LOCK-coach-panel-redesign-2026-10-06, flow steps 1 to 5).          */
+/*  The coach panel, redrawn — the pure half (founder lock 2026-10-06,         */
+/*  FOUNDER-LOCK-coach-panel-redesign-2026-10-06, flow steps 1 to 13).        */
 /*                                                                            */
 /*    lounge → Your queue → a speaker → Judge this moment → What happened     */
+/*      → (an error) What kind of error is it? / Name the error               */
+/*      → Choose exercise / What will you do? → Swap it → Details             */
+/*      → Your words → Your video → the kind question → Ready for {p}         */
+/*      → the next open moment, or A word for this Take → its video           */
+/*    an answered moment opens on Summary; Change my answer reopens it        */
 /*    lounge → Your speakers (the pinned button) → a speaker → …              */
 /*    lounge → Training corpus (the pinned button) → Import audio / Finish    */
 /*             the set-up → Analysing → Judge this moment (D-CP-20)           */
 /*                                                                            */
 /*  One reducer, no fetch, no React, so every rule is a unit test:             */
 /*    - ‹ goes back through a history stack, as the prototype's back();      */
-/*      the queue is the first screen and has no ‹;                           */
+/*      the queue is the first screen and has no ‹; ‹ into a step of another  */
+/*      moment already answered reopens that moment's choice (prototype);    */
 /*    - the counter counts moments only ("moment 1 of 4");                    */
-/*    - ‹ › onto a moment this coach has not rated lands on Judge, onto a     */
-/*      rated one on What happened;                                           */
+/*    - a moment this coach has not rated lands on Judge, an answered one on  */
+/*      Summary, any other rated one on What happened;                        */
 /*    - Judge moves on to What happened by itself as the rating is tapped,   */
 /*      with the save in flight (C1, founder 2026-10-08); a failed save     */
 /*      un-rates the moment and goes back to its Judge screen.               */
 /*                                                                            */
-/*  BLIND COACH: What happened is reachable ONLY for a rated moment. A ‹ that */
-/*  would land on the Judge screen of a moment already rated lands on its     */
-/*  What happened instead: once the coach has seen the passage and the        */
-/*  machine's read, the blind answer cannot be given again.                   */
+/*  BLIND COACH: no screen after Judge is reachable for an unrated moment. A  */
+/*  ‹ that would land on the Judge screen of a moment already rated lands on  */
+/*  What happened (or Summary) instead: once the coach has seen the passage   */
+/*  and the machine's read, the blind answer cannot be given again.           */
 /* -------------------------------------------------------------------------- */
 
 import {
-  afterJudged,
-  nextOpenIndex,
-  replaceMoment,
+  isOpen,
   type AnswerValue,
   type QueueMoment,
   type QueueSpeaker,
@@ -34,13 +38,34 @@ import {
 } from "./coachWalk";
 import type { WalkDir, WalkScreen } from "./walkMotion";
 
+/** Every screen about one moment, in the lock's order. */
+export type MomentKey =
+  | "judge" | "reveal" | "diagnose" | "nameerr" | "decide" | "swap" | "exdetail"
+  | "words" | "video" | "kind" | "share" | "summary";
+
+const MOMENT_KEYS: ReadonlySet<string> = new Set<MomentKey>([
+  "judge", "reveal", "diagnose", "nameerr", "decide", "swap", "exdetail",
+  "words", "video", "kind", "share", "summary",
+]);
+
+/** The steps of an answer: a ‹ into one of these, on a moment answered
+ *  since, reopens that moment's choice instead (prototype back()). */
+const ANSWER_STEPS: ReadonlySet<string> = new Set<MomentKey>([
+  "diagnose", "nameerr", "decide", "swap", "exdetail", "words", "video", "kind", "share",
+]);
+
 export type MomentScreen = {
-  key: "judge" | "reveal";
+  key: MomentKey;
   speaker: QueueSpeaker;
   take: QueueTake;
   /** Which moment of the take, 0-based. */
   index: number;
+  /** Details: the exercise shown. */
+  exerciseId?: string;
 };
+
+/** A word for this Take, and its video (flow step 13). */
+export type TakeScreen = { key: "takeword" | "takevideo"; speaker: QueueSpeaker; take: QueueTake };
 
 export type PanelScreen =
   | { key: "lounge" }
@@ -55,7 +80,12 @@ export type PanelScreen =
   | { key: "corpusimport"; setupOf: string | null }
   | { key: "corpusanalyse" }
   | { key: "corpus"; importId: string; topic: string }
-  | MomentScreen;
+  | MomentScreen
+  | TakeScreen;
+
+/** Where this visit has left a moment: answered ("done"), reopened by Change
+ *  my answer ("open"), or passed with nothing to answer ("passed"). */
+export type MomentMark = "done" | "open" | "passed";
 
 export type PanelState = {
   screen: PanelScreen;
@@ -64,6 +94,8 @@ export type PanelState = {
   dir?: WalkDir;
   /** The ratings this coach saved on this visit, by snippet. */
   rated: Record<string, AnswerValue>;
+  /** This visit's answers, by snippet; the queue's state otherwise. */
+  marks: Record<string, MomentMark>;
 };
 
 export type PanelAction =
@@ -88,11 +120,20 @@ export type PanelAction =
   /** The rating's save failed (C1): the moment is not rated after all, and
    *  its What happened, if on screen, goes back to its Judge screen. */
   | { type: "unrated"; snippetId: string }
-  /** Back from the old answer flow (P1's hand-over): the moment after
-   *  `index` that is still open, or the speaker's Takes when none is. */
-  | { type: "resume"; speaker: QueueSpeaker; take: QueueTake; index: number };
+  /** The next screen of the moment on screen. */
+  | { type: "step"; key: MomentKey; exerciseId?: string }
+  /** The moment on screen is answered: on to the next open one. */
+  | { type: "finish" }
+  /** Nothing reached the coach from this moment: on, nothing written. */
+  | { type: "pass" }
+  /** Summary's Next: on to the next open moment, or the Take's word. */
+  | { type: "onward" }
+  /** Change my answer: the moment opens again at its choice. */
+  | { type: "changeAnswer"; to: "decide" | "diagnose" }
+  /** A word for this Take: on to its video. */
+  | { type: "takeVideo" };
 
-export const PANEL_START: PanelState = { screen: { key: "lounge" }, history: [], rated: {} };
+export const PANEL_START: PanelState = { screen: { key: "lounge" }, history: [], rated: {}, marks: {} };
 
 /** Has this coach rated the moment (before this visit, or on it)? */
 export function isRated(moment: QueueMoment | undefined, rated: Record<string, AnswerValue>): boolean {
@@ -100,31 +141,37 @@ export function isRated(moment: QueueMoment | undefined, rated: Record<string, A
   return moment.state !== "judge_it" || rated[moment.snippetId] !== undefined;
 }
 
-/** Where a moment opens: Judge until rated, then What happened. */
-export function landing(
-  speaker: QueueSpeaker,
-  take: QueueTake,
-  index: number,
-  rated: Record<string, AnswerValue>,
-): MomentScreen {
-  const key = isRated(take.moments[index], rated) ? "reveal" : "judge";
+/** Is the moment answered (on this visit, or before it)? */
+export function isAnswered(moment: QueueMoment | undefined, marks: Record<string, MomentMark>): boolean {
+  if (!moment) return false;
+  const mark = marks[moment.snippetId];
+  if (mark) return mark === "done";
+  return moment.state === "answered" || moment.state === "nothing_to_add";
+}
+
+/** Does the moment still wait on this coach? */
+function waits(moment: QueueMoment, marks: Record<string, MomentMark>): boolean {
+  const mark = marks[moment.snippetId];
+  return mark ? mark === "open" : isOpen(moment.state);
+}
+
+/** Where a moment opens: Judge until rated, Summary once answered, What
+ *  happened in between. */
+export function landing(speaker: QueueSpeaker, take: QueueTake, index: number, state: Pick<PanelState, "rated" | "marks">): MomentScreen {
+  const moment = take.moments[index];
+  const key: MomentKey = !isRated(moment, state.rated) ? "judge"
+    : isAnswered(moment, state.marks) ? "summary" : "reveal";
   return { key, speaker, take, index };
+}
+
+export function isMomentScreen(screen: PanelScreen): screen is MomentScreen {
+  return MOMENT_KEYS.has(screen.key);
 }
 
 /** The moment a screen is about, if any. */
 export function momentOf(screen: PanelScreen): QueueMoment | null {
-  if (screen.key !== "judge" && screen.key !== "reveal") return null;
+  if (!isMomentScreen(screen)) return null;
   return screen.take.moments[screen.index] ?? null;
-}
-
-/** The take with this visit's ratings applied (a rated "Judge it" reads
- *  "Judged"), as the old flow expects it. */
-export function takeWithRatings(take: QueueTake, rated: Record<string, AnswerValue>): QueueTake {
-  let moments = take.moments;
-  for (const m of take.moments) {
-    if (rated[m.snippetId] !== undefined) moments = replaceMoment(moments, afterJudged(m));
-  }
-  return moments === take.moments ? take : { ...take, moments };
 }
 
 function sameScreen(a: PanelScreen, b: PanelScreen): boolean {
@@ -132,6 +179,7 @@ function sameScreen(a: PanelScreen, b: PanelScreen): boolean {
   if (a.key === "speaker" && b.key === "speaker") return a.speaker.pseudonym === b.speaker.pseudonym;
   if (a.key === "corpusimport" && b.key === "corpusimport") return a.setupOf === b.setupOf;
   if (a.key === "corpus" && b.key === "corpus") return a.importId === b.importId;
+  if ((a.key === "takeword" || a.key === "takevideo") && "take" in a && "take" in b) return a.take.sessionId === b.take.sessionId;
   const ma = momentOf(a);
   const mb = momentOf(b);
   return ma?.snippetId === mb?.snippetId;
@@ -141,19 +189,30 @@ function push(state: PanelState, screen: PanelScreen, dir: WalkDir = "forward"):
   return { ...state, screen, dir, history: [...state.history, state.screen] };
 }
 
-/** A screen as it is now: a Judge screen of a rated moment is its What
- *  happened (BLIND COACH), and a What happened of a moment whose save
- *  failed is its Judge screen again (C1). */
-function settle(screen: PanelScreen, rated: Record<string, AnswerValue>): PanelScreen {
-  if (screen.key !== "judge" && screen.key !== "reveal") return screen;
-  return landing(screen.speaker, screen.take, screen.index, rated);
+/** A screen as it is now: a Judge, What happened or Summary screen is where
+ *  its moment lands today (BLIND COACH; C1), and no step after Judge stands
+ *  for a moment that is not rated. */
+function settle(screen: PanelScreen, state: PanelState): PanelScreen {
+  if (!isMomentScreen(screen)) return screen;
+  const fixed = screen.key === "judge" || screen.key === "reveal" || screen.key === "summary";
+  if (fixed || !isRated(momentOf(screen) ?? undefined, state.rated)) {
+    return landing(screen.speaker, screen.take, screen.index, state);
+  }
+  return screen;
 }
 
 function back(state: PanelState): PanelState {
   const history = [...state.history];
+  const here = momentOf(state.screen)?.snippetId;
   while (history.length > 0) {
-    const previous = settle(history.pop() as PanelScreen, state.rated);
+    const previous = settle(history.pop() as PanelScreen, state);
     if (sameScreen(previous, state.screen)) continue;
+    const moment = momentOf(previous);
+    if (moment && moment.snippetId !== here && ANSWER_STEPS.has(previous.key) && isAnswered(moment, state.marks)) {
+      // Back into a moment answered since: its choice, to change it.
+      const marks = { ...state.marks, [moment.snippetId]: "open" as const };
+      return { ...state, marks, screen: { ...(previous as MomentScreen), key: "decide" }, history, dir: "back" };
+    }
     return { ...state, screen: previous, history, dir: "back" };
   }
   return { ...state, screen: { key: "lounge" }, history: [], dir: undefined };
@@ -161,11 +220,11 @@ function back(state: PanelState): PanelState {
 
 function step(state: PanelState): PanelState {
   const { screen } = state;
-  if (screen.key !== "judge" && screen.key !== "reveal") return state;
+  if (!isMomentScreen(screen)) return state;
   const total = screen.take.moments.length;
   if (total < 2) return state;
   const index = (screen.index + 1) % total;
-  return push(state, landing(screen.speaker, screen.take, index, state.rated));
+  return push(state, landing(screen.speaker, screen.take, index, state));
 }
 
 function rated(state: PanelState, snippetId: string, value: AnswerValue): PanelState {
@@ -184,28 +243,59 @@ function unrated(state: PanelState, snippetId: string): PanelState {
   return back(next);
 }
 
-function openTake(state: PanelState, speaker: QueueSpeaker, take: QueueTake): PanelState {
-  if (take.moments.length === 0) return state;
-  const first = nextOpenIndex(take.moments, null);
-  return push(state, landing(speaker, take, first === -1 ? 0 : first, state.rated));
+/** The next moment that still waits, after `from` and round the take, or -1. */
+export function nextWaiting(moments: readonly QueueMoment[], from: number, marks: Record<string, MomentMark>): number {
+  for (let j = 1; j <= moments.length; j += 1) {
+    const k = (from + j) % moments.length;
+    if (k !== from && waits(moments[k], marks)) return k;
+  }
+  return -1;
 }
 
-function resume(state: PanelState, speaker: QueueSpeaker, take: QueueTake, index: number): PanelState {
-  const history: PanelScreen[] = [state.history[0]?.key === "speakers" ? { key: "speakers" } : { key: "queue" }, { key: "speaker", speaker }];
-  const later = nextOpenIndex(take.moments, index);
-  const after = later !== -1 ? later : nextOpenIndex(take.moments, null);
-  if (after === -1) return { ...state, screen: history[1], history: [history[0]], dir: "forward" };
-  return { ...state, screen: landing(speaker, take, after, state.rated), history, dir: "forward" };
+function openTake(state: PanelState, speaker: QueueSpeaker, take: QueueTake): PanelState {
+  if (take.moments.length === 0) return state;
+  const first = take.moments.findIndex((m) => waits(m, state.marks));
+  return push(state, landing(speaker, take, first === -1 ? 0 : first, state));
+}
+
+/** On from the moment on screen: the next one that waits, or the Take's
+ *  word when none does (prototype finishMoment / fromSummary). */
+function onward(state: PanelState, mark?: MomentMark): PanelState {
+  const { screen } = state;
+  if (!isMomentScreen(screen)) return state;
+  const id = momentOf(screen)?.snippetId;
+  const next = mark && id ? { ...state, marks: { ...state.marks, [id]: mark } } : state;
+  const k = nextWaiting(screen.take.moments, screen.index, next.marks);
+  if (k === -1) return push(next, { key: "takeword", speaker: screen.speaker, take: screen.take });
+  return push(next, landing(screen.speaker, screen.take, k, next));
+}
+
+function toStep(state: PanelState, key: MomentKey, exerciseId?: string): PanelState {
+  const { screen } = state;
+  if (!isMomentScreen(screen) || !isRated(momentOf(screen) ?? undefined, state.rated)) return state;
+  return push(state, { ...screen, key, exerciseId });
+}
+
+function changeAnswer(state: PanelState, to: "decide" | "diagnose"): PanelState {
+  const { screen } = state;
+  const id = momentOf(screen)?.snippetId;
+  if (!id || !isMomentScreen(screen)) return state;
+  const next = { ...state, marks: { ...state.marks, [id]: "open" as const } };
+  return push(next, { ...screen, key: to }, "back");
+}
+
+function fresh(state: PanelState, screen: PanelScreen, dir?: WalkDir): PanelState {
+  return { ...state, screen, history: [], dir };
 }
 
 export function panelReducer(state: PanelState, action: PanelAction): PanelState {
   switch (action.type) {
     case "open":
-      return { ...state, screen: { key: "queue" }, history: [], dir: undefined };
+      return fresh(state, { key: "queue" });
     case "speakers":
-      return { ...state, screen: { key: "speakers" }, history: [], dir: undefined };
+      return fresh(state, { key: "speakers" });
     case "corpus":
-      return { ...state, screen: { key: "corpushome" }, history: [], dir: undefined };
+      return fresh(state, { key: "corpushome" });
     case "corpusImport":
       return push(state, { key: "corpusimport", setupOf: action.setupOf ?? null });
     case "corpusAnalyse":
@@ -213,11 +303,11 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
     case "corpusJudge":
       return push(state, { key: "corpus", importId: action.importId, topic: action.topic });
     case "corpusSetUp":
-      return { ...state, screen: { key: "corpus", importId: action.importId, topic: action.topic }, history: [], dir: "fade" };
+      return fresh(state, { key: "corpus", importId: action.importId, topic: action.topic }, "fade");
     case "corpusHome":
-      return { ...state, screen: { key: "corpushome" }, history: [], dir: "back" };
+      return fresh(state, { key: "corpushome" }, "back");
     case "close":
-      return { ...state, screen: { key: "lounge" }, history: [], dir: undefined };
+      return fresh(state, { key: "lounge" });
     case "speaker":
       return push(state, { key: "speaker", speaker: action.speaker });
     case "take":
@@ -230,8 +320,18 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
       return rated(state, action.snippetId, action.value);
     case "unrated":
       return unrated(state, action.snippetId);
-    case "resume":
-      return resume(state, action.speaker, action.take, action.index);
+    case "step":
+      return toStep(state, action.key, action.exerciseId);
+    case "finish":
+      return onward(state, "done");
+    case "pass":
+      return onward(state, "passed");
+    case "onward":
+      return onward(state);
+    case "changeAnswer":
+      return changeAnswer(state, action.to);
+    case "takeVideo":
+      return state.screen.key === "takeword" ? push(state, { ...state.screen, key: "takevideo" }) : state;
     default:
       return state;
   }
@@ -246,7 +346,8 @@ export function walkScreenOf(screen: PanelScreen): WalkScreen {
   if (screen.key === "corpusimport") return { key: "corpusimport", kind: screen.setupOf ?? "new" };
   if (screen.key === "corpus") return { key: "corpus", kind: screen.importId };
   if (screen.key === "speaker") return { key: "speaker", kind: screen.speaker.pseudonym };
-  return { key: screen.key, moment: screen.index, kind: screen.take.sessionId };
+  if (!isMomentScreen(screen)) return { key: screen.key, kind: screen.take.sessionId };
+  return { key: screen.key, moment: screen.index, kind: `${screen.take.sessionId}${screen.exerciseId ? `:${screen.exerciseId}` : ""}` };
 }
 
 /** The next piece of an import the coach has not labelled, after `at`, in

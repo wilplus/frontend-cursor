@@ -44,8 +44,8 @@ const SIGNED_CP2_A = [
  *  prototype shows is signed with its design. Where a signed list differs,
  *  the list wins"). The set-up fields are the corpus page's own words. */
 const PROTOTYPE_Q_B4_A = [
-  "lounge: Library · Lounge",
-  "summary: Summary",
+  "lounge: Library · Lounge · new",
+  "summary: Summary · Kept · Swapped · Kept: {exercise} · Swapped: {exercise} · Shared · in the library · Shared",
   "reveal: — · nothing",
   "kind: confident read · opened strong · landed the ending · kept moving · settled pitch · no hesitation · full volume · wide range",
   "speakers: All answered · {n} Takes",

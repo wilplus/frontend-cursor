@@ -8,9 +8,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchMomentRead = vi.fn();
 const saveStateRating = vi.fn();
+const answerInWords = vi.fn();
 vi.mock("@/services/api/coachWalk", async (orig) => ({
   ...(await orig<typeof import("@/services/api/coachWalk")>()),
   fetchMomentRead: (...a: unknown[]) => fetchMomentRead(...a),
+  draftForRequest: vi.fn(async () => ({ surface: "exercise_script", text: "Slow down on the last words.", modelVersion: null })),
+  answerInWords: (...a: unknown[]) => answerInWords(...a),
 }));
 vi.mock("@/services/api/stateRatings", async (orig) => ({
   ...(await orig<typeof import("@/services/api/stateRatings")>()),
@@ -27,6 +30,14 @@ vi.mock("@/services/api/coachPanel", () => ({
   fetchBlockPicks: vi.fn(async () => null),
   fetchV4MomentPicks: vi.fn(async () => null),
   fetchV4SurerPairs: vi.fn(async () => null),
+  fetchDiagnosis: vi.fn(async () => ({
+    errors: [{ kind: "error", id: "rushing", label: "Rushing", machineHeard: true }],
+    current: { kind: "error", id: "rushing" },
+  })),
+  saveDiagnosis: vi.fn(),
+  fetchExercisePreference: vi.fn(async () => null),
+  recordExercisePreference: vi.fn(),
+  draftTakeWord: vi.fn(async () => null),
 }));
 vi.mock("../coachwalk/useConfidenceChainReceipt", () => ({
   useConfidenceChainReceipt: () => ({ current: null }),
@@ -52,6 +63,7 @@ beforeEach(() => {
   root = createRoot(host);
   fetchMomentRead.mockReset();
   saveStateRating.mockReset();
+  answerInWords.mockReset();
 });
 afterEach(() => {
   act(() => root.unmount());
@@ -81,12 +93,12 @@ const READ: MomentRead = {
 
 describe("the screens", () => {
 
-  it("Judge: the player, the question, the five answers in the coach's words, nothing else", () => {
+  it("Judge: the player, the question, 👍 😐 👎 and Audio unclear (lock 2026-10-12 §7), nothing else", () => {
     draw(<JudgeScreen nav={NAV} momentId="s1" clip={null} error={null} attempt={0} onAnswer={() => {}} onClose={() => {}} />);
     expect(q("h2")!.textContent).toBe(COPY.judgeTitle);
     expect(host.textContent).toContain(COPY.judgeQuestion);
     expect(qa("[data-walk-answer]").map((b) => b.textContent)).toEqual([
-      "Yes — Confident", "In-between", "No — Not confident", "Not sure", "Audio unclear",
+      "👍Yes", "😐In-between", "👎No", "Audio unclear",
     ]);
     expect(qa("[data-walk-player]")).toHaveLength(1);
     // No passage, no kind, no machine read, no slide, no orange training line.
@@ -101,7 +113,7 @@ describe("the screens", () => {
 function Host({ start }: { start: PanelState }) {
   const [state, setState] = useState(start);
   const dispatch = (a: PanelAction) => setState((s: PanelState) => panelReducer(s, a));
-  return <CoachPanel state={state} dispatch={dispatch} speakers={[HERON]} loading={false} onHandover={() => {}} />;
+  return <CoachPanel state={state} dispatch={dispatch} speakers={[HERON]} loading={false} />;
 }
 
 describe("CoachPanel", () => {
@@ -144,5 +156,34 @@ describe("CoachPanel", () => {
     expect(document.querySelector("[role='alert']")!.textContent).toBe(COPY.judgeFail);
     expect(document.querySelector("[data-walk-answer='yes']")!.getAttribute("aria-pressed")).toBe("false");
     expect(fetchMomentRead).not.toHaveBeenCalled();
+  });
+});
+
+describe("the answer", () => {
+  it("an error answered without a video still goes to the speaker, without the library (lock flow 9)", async () => {
+    fetchMomentRead.mockResolvedValue({
+      ...READ,
+      request: { id: "r1", kind: "error", spotted: [], resolution: null, resolvedExerciseId: null, shared: false } as unknown as MomentRead["request"],
+    });
+    answerInWords.mockResolvedValue({ ok: true });
+    const start = ([
+      { type: "open" }, { type: "take", speaker: HERON, take: TAKE },
+      { type: "rated", snippetId: "s1", value: "no" }, { type: "step", key: "words" },
+    ] as PanelAction[]).reduce(panelReducer, PANEL_START);
+    draw(<Host start={start} />);
+    await flush();
+    await flush();
+    act(() => (document.querySelector("[data-testid='coach-panel-words-next']") as HTMLElement).click());
+    await flush();
+    act(() => (document.querySelector("[data-testid='coach-panel-video-skip']") as HTMLElement).click());
+    await flush();
+    expect(document.querySelector("[data-testid='coach-panel-share-note']")!.textContent).toBe(COPY.withoutAVideo("Quiet Heron"));
+    expect(document.querySelector("[data-testid='coach-panel-share-only']")).toBeNull();
+    await act(async () => (document.querySelector("[data-testid='coach-panel-share-pill']") as HTMLElement).click());
+    await flush();
+    expect(answerInWords).toHaveBeenCalledWith("t2", "s1", expect.objectContaining({
+      resolution: "note_written", answerText: "Slow down on the last words.", share: true,
+    }));
+    expect(document.querySelector("[data-testid='coach-panel-judge']")).not.toBeNull(); // on to s2
   });
 });
