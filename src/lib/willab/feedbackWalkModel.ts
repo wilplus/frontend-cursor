@@ -315,14 +315,20 @@ export function walkStart(model: FeedbackWalkModel<unknown>): number | null {
 }
 
 /** A step tapped in the Lounge (lock 2026-10-12, section 1): where that
- *  step sits in the walk. Null when this walk has no such step. */
-export type WalkStepTarget = { step: string; moment: number | null };
+ *  step sits in the walk. `take`: the Take the bubble belongs to; `part`:
+ *  its moment's paragraph, which finds the moment once others before it are
+ *  answered (a moment's number is its place among the open ones). Null when
+ *  this walk has no such step. */
+export type WalkStepTarget = { step: string; moment: number | null; take?: string | null; part?: string | null };
 export function walkStepAt(model: FeedbackWalkModel<unknown>, target: WalkStepTarget | null | undefined): number | null {
   if (!target) return null;
-  const at = model.plan.findIndex(
-    (s) => s.overlay !== false && s.key === target.step && (s.moment ?? null) === target.moment,
-  );
-  return at >= 0 ? at : null;
+  const at = (same: (s: WalkStep) => boolean) => model.plan.findIndex((s) => s.overlay !== false && s.key === target.step && same(s));
+  const byPart = (s: WalkStep) => s.moment != null && model.moments[s.moment]?.partId === target.part;
+  const byMoment = (s: WalkStep) => (s.moment ?? null) === target.moment;
+  const found = target.part
+    ? [at((s) => byPart(s) && byMoment(s)), at(byPart)].find((i) => i >= 0) ?? -1
+    : at(byMoment);
+  return found >= 0 ? found : null;
 }
 
 /** Where a tap on a paragraph opens the walk (Q-B3 A): its moment's first

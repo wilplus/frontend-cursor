@@ -20,7 +20,6 @@ import {
 } from "./willabHelpers";
 import { useLabReadoutLive } from "./useLabReadoutLive";
 import { useDocumentSettle } from "./useDocumentSettle";
-import { postJourneyForSavedTake } from "@/services/api/journeyNextSteps";
 import {
   useFailedTakeRecheck,
   probeTakeVerdict,
@@ -52,6 +51,7 @@ import { latestIdealBubbleIds } from "./unreadFeedback";
 import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports";
 import { FLOW_COPY } from "./flowCopy";
 import LoadingState, { VoiceMark } from "./LoadingState";
+import { PROCESSING_STAGES } from "./ProcessingWait";
 import FeedbackOverlay from "./FeedbackOverlay";
 import DeckSlidePreview from "./DeckSlidePreview";
 import IdealTextOverlay, { type IdealTextLaunchMode } from "./IdealTextOverlay";
@@ -258,7 +258,7 @@ export default function Lounge({
     // SD — the audit-progress line ("N more takes to the full training") is
     // retired with the 3-take arc: takes are open-ended now.
     items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-    return items;
+    return cardBeforeSummary(items);
   }, [messages]);
   // Each project's latest Ideal Text bubble wears the unread-feedback dot
   // (founder 2026-09-25, Q39 B).
@@ -266,6 +266,15 @@ export default function Lounge({
   // "Continue review" (founder lock 2026-10-12, section 1): the newest walk
   // step names its project and is not the review's end.
   const reviewToContinue = useMemo(() => continueReviewArc(threadItems), [threadItems]);
+  // The step it waits on wears the orange outline (same section).
+  const waitingStep = useMemo(() => waitingStepId(threadItems, reviewToContinue), [threadItems, reviewToContinue]);
+  // Each bubble's Take, and each project's newest: an older Take's steps are
+  // history ("🔒 Take N" on its helper words, section 2.3).
+  const olderTake = useMemo(() => olderTakeOf(threadItems), [threadItems]);
+  // A coach update is new (orange) until it is opened.
+  const [seenUpdates, setSeenUpdates] = useState<ReadonlySet<string>>(readSeenUpdates);
+  const stepWaits = (m: LoungeMessage) =>
+    waitingStep === m.client_id || (m.metadata?.coach_update === true && !seenUpdates.has(m.client_id));
   // Helper words a later pick replaced: struck in the chat (prototype v31).
   const replacedWords = useMemo(() => replacedWordIds(threadItems), [threadItems]);
 
@@ -325,18 +334,6 @@ export default function Lounge({
     }
     setIdealTextLaunchMode(mode);
     setIdealTextArcId(arcId);
-  }
-
-  function continueJourneyProject(arcId: string, completedTake: number): void {
-    const cached = readExploreArc(userId);
-    writeExploreArc(
-      userId,
-      arcId,
-      Math.max(1, completedTake + 1),
-      cached?.arcId === arcId ? cached.deck : undefined,
-      latestArcSessionId(arcId),
-    );
-    (onStartInProject ?? onStart)();
   }
 
   // D3 — user results email deep-link (/chat?insight=<id>): open the insights
@@ -776,13 +773,10 @@ export default function Lounge({
           version: take.takeIndex,
         }));
       }
-      // LEAVE AND COME BACK (J2, founder 2026-09-29; Phase 7): the text no
-      // longer opens by itself when the Take settles -- the speaker may be
-      // anywhere. The reload brings the Take's bubble with its button to the
-      // text, where "Review feedback" waits (J1). On Takes 1-3 a signed-in
-      // speaker's journey message is posted first, so the same reload brings
-      // it (Q-IT643 A).
-      void postJourneyForSavedTake(take, thread.signedIn).then(() => reload().catch(() => undefined));
+      // The reload brings the Take's bubble. The journey message is no
+      // longer posted: the closing summary takes over from its words (lock
+      // 2026-10-12, section 3).
+      void reload().catch(() => undefined);
     },
     onExpired: (take) => {
       if (take.arcId && take.takeIndex === 1) {
@@ -1277,6 +1271,9 @@ export default function Lounge({
               message={item.message}
               card={reviewCardOf(item.message, threadItems)}
               replaced={replacedWords.has(item.message.client_id)}
+              waiting={stepWaits(item.message)}
+              lockedTake={olderTake(item.message.metadata)}
+              onOpened={() => setSeenUpdates(keepSeenUpdate(item.message.client_id))}
               onOpenIdealText={openIdealText}
             />
           ) : item.message.metadata?.summary === true ? (
@@ -1302,7 +1299,6 @@ export default function Lounge({
               latestForArc={latestIdealIds.has(item.message.client_id)}
               onRetryIdealText={retryIdealTextFromCard}
               onOpenConfidencePractice={setConfidencePracticeId}
-              onContinueProject={continueJourneyProject}
               onChip={onChip}
               activeOffer={activeOffer}
               onOpenOffer={setActiveOffer}
@@ -1314,6 +1310,25 @@ export default function Lounge({
             />
           ))
         )}
+
+        {/* While a Take processes (founder lock 2026-10-12, section 1): a
+            bubble in the chat with the breathing mark; its tap opens the
+            processing view. */}
+        {processingResume?.status === "analyzing" ? (
+          <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
+            <ChatAvatar />
+            <button
+              ref={processingTriggerRef}
+              type="button"
+              aria-haspopup="dialog"
+              onClick={() => setOpenedProcessingSessionId(processingResume.sessionId)}
+              className="flex items-center gap-2.5 rounded-[16px] bg-muted px-3 py-2 text-left text-[15px] leading-[1.45] text-foreground"
+            >
+              <VoiceMark size={64} />
+              <span>{PROCESSING_STAGES[0]}</span>
+            </button>
+          </div>
+        ) : null}
 
         {/* Out of tokens — the paid plans as tappable chips, one tap to
             Stripe. FIRST of the in-thread cards on purpose: being unable to
@@ -1333,20 +1348,7 @@ export default function Lounge({
       {/* Async analysis (delivery layer): a take left mid-analysis (closed tab /
           locked phone) keeps finishing server-side — this chip resumes a calm
           indicator from the persisted marker and clears itself when done. */}
-      {processingResume?.status === "analyzing" ? (
-        <button
-          ref={processingTriggerRef}
-          type="button"
-          aria-haspopup="dialog"
-          onClick={() =>
-            setOpenedProcessingSessionId(processingResume.sessionId)
-          }
-          className="mb-1.5 flex w-full items-center justify-center gap-2 rounded-full bg-muted px-4 py-1.5 text-center text-[13px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-        >
-          <VoiceMark size={18} />
-          {FLOW_COPY.analysing}
-        </button>
-      ) : processingResume ? (
+      {processingResume?.status === "failed" ? (
         <p className="mb-1.5 flex items-center justify-center gap-2 rounded-full bg-destructive/10 px-4 py-1.5 text-center text-[13px] text-destructive">
           {FLOW_COPY.failed}
         </p>
@@ -1778,7 +1780,6 @@ function Bubble({
   onOpenIdealText,
   onRetryIdealText,
   onOpenConfidencePractice,
-  onContinueProject,
   onChip,
   activeOffer,
   onOpenOffer,
@@ -1802,8 +1803,6 @@ function Bubble({
   ) => boolean | Promise<boolean>;
   /** Coach-shared exercise opens independently of the three-take journey. */
   onOpenConfidencePractice?: (practiceId: string) => void;
-  /** Begin an additional take on the exact project named by the journey. */
-  onContinueProject?: (arcId: string, completedTake: number) => void;
   onChip?: (action: ChipAction) => void;
   /** F1/F2/F7 — which offer's action pair is currently armed (for the ring). */
   activeOffer?: OfferType | null;
@@ -1873,48 +1872,6 @@ function Bubble({
       typeof message.metadata?.practice_id === "string"
         ? message.metadata.practice_id
         : null;
-    const journey =
-      message.kind === "cadence" && message.metadata?.journey === true;
-    const journeyActions =
-      journey && Array.isArray(message.metadata?.actions)
-        ? message.metadata.actions.filter(
-            // J5 (founder 2026-09-29; Phase 7): Presentation Mode is entered
-            // from the text's ⋯ menu only.
-            (value): value is string =>
-              typeof value === "string" && value !== "presentation_mode",
-          )
-        : [];
-    const journeyArc =
-      journey && typeof message.metadata?.arc_id === "string"
-        ? message.metadata.arc_id
-        : null;
-    const journeyTake =
-      journey && typeof message.metadata?.take_index === "number"
-        ? message.metadata.take_index
-        : null;
-    const journeyLabel: Record<string, string> = {
-      prepare_take_2: "Prepare Take 2",
-      prepare_take_3: "Prepare Take 3",
-      presentation_mode: "Use Presentation Mode",
-      export: "Export",
-      // "Practise again", the Lounge's door back to the walk (J4; founder
-      // 2026-10-05, N48.3 Q8 A; it read "Keep practising" until then).
-      keep_practising: "Practise again",
-    };
-    const runJourneyAction = (action: string) => {
-      if (action === "keep_practising" && journeyArc && journeyTake !== null) {
-        onContinueProject?.(journeyArc, journeyTake);
-        return;
-      }
-      if (!journeyArc) return;
-      if (action === "presentation_mode") {
-        onOpenIdealText?.(journeyArc, "presentation");
-      } else if (action === "export") {
-        onOpenIdealText?.(journeyArc, "export");
-      } else {
-        onOpenIdealText?.(journeyArc, "notebook");
-      }
-    };
     // B-1 — read the persisted action from metadata; render below the bubbles.
     const actions =
       onChip && message.metadata
@@ -1973,23 +1930,6 @@ function Bubble({
             </Button>
           </div>
         ) : null}
-        {journeyActions.length > 0 ? (
-          <div className="mr-auto flex max-w-[90%] flex-wrap gap-2 pt-1">
-            {journeyActions.map((action) =>
-              journeyLabel[action] ? (
-                <Button
-                  key={action}
-                  type="button"
-                  variant="outline"
-                  className="h-9 rounded-full px-4 text-[13px]"
-                  onClick={() => runJourneyAction(action)}
-                >
-                  {journeyLabel[action]}
-                </Button>
-              ) : null,
-            )}
-          </div>
-        ) : null}
         {actions.length > 0 ? (
           <div className="mr-auto flex max-w-[90%] flex-wrap gap-2 pt-1">
             {actions.map((action) => (
@@ -2042,11 +1982,88 @@ export function continueReviewArc(items: readonly ThreadItem[]): string | null {
     const item = items[i];
     if (item.kind !== "message" || item.message.kind !== "walk_step") continue;
     const meta = item.message.metadata ?? {};
-    if (meta.step === "share") continue;
+    if (meta.step === "share" || meta.coach_update === true) continue;
     if (meta.step === "end") return null;
     return typeof meta.arc_id === "string" ? meta.arc_id : null;
   }
   return null;
+}
+
+/** The step the review `arc` waits on (lock 2026-10-12, section 1, the
+ *  orange outline): its newest step, while that is the app's or the
+ *  coach's. Null: none. */
+export function waitingStepId(items: readonly ThreadItem[], arc: string | null): string | null {
+  if (!arc) return null;
+  for (let i = items.length - 1; i >= 0; i -= 1) {
+    const m = items[i].message;
+    const meta = m.metadata ?? {};
+    if (m.kind !== "walk_step" || meta.step === "share" || meta.coach_update === true) continue;
+    return m.role === "bot" && meta.arc_id === arc ? m.client_id : null;
+  }
+  return null;
+}
+
+/** The review's Ideal Text card before its summary (lock 2026-10-12,
+ *  section 3): the summary is written while its step shows, the card when
+ *  the speaker moves past it, so the card is moved up to the summary. */
+export function cardBeforeSummary(items: ThreadItem[]): ThreadItem[] {
+  const out = [...items];
+  for (let i = 0; i < out.length; i += 1) {
+    const take = out[i].message.metadata?.summary === true ? out[i].message.metadata?.take_session_id : null;
+    if (typeof take !== "string") continue;
+    const end = out.findIndex(
+      (x, j) => j > i && x.message.kind === "walk_step" && x.message.metadata?.step === "end" && x.message.metadata?.take_session_id === take,
+    );
+    if (end < 0) continue;
+    out.splice(i, 0, ...out.splice(end, 1));
+    i += 1;
+  }
+  return out;
+}
+
+/** The Take of an older review, once the thread holds a newer Take of the
+ *  same project (lock 2026-10-12, section 2.3: "🔒 Take N"); null for the
+ *  newest Take or one whose number is not known. The numbers come from the
+ *  review steps and the summaries. */
+export function olderTakeOf(items: readonly ThreadItem[]): (meta?: Record<string, unknown> | null) => number | null {
+  const of = new Map<string, number>();
+  const newest = new Map<string, number>();
+  for (const { message } of items) {
+    const m = message.metadata ?? {};
+    if (typeof m.take_index !== "number" || typeof m.take_session_id !== "string" || typeof m.arc_id !== "string") continue;
+    of.set(m.take_session_id, m.take_index);
+    newest.set(m.arc_id, Math.max(newest.get(m.arc_id) ?? 0, m.take_index));
+  }
+  return (meta) => {
+    const n = typeof meta?.take_session_id === "string" ? of.get(meta.take_session_id) : undefined;
+    const last = typeof meta?.arc_id === "string" ? newest.get(meta.arc_id) : undefined;
+    return n !== undefined && last !== undefined && n < last ? n : null;
+  };
+}
+
+const SEEN_UPDATES = "lounge-coach-updates-seen";
+
+/** The coach updates this browser has opened (their orange outline goes). */
+function readSeenUpdates(): ReadonlySet<string> {
+  try {
+    const list: unknown = JSON.parse(window.localStorage.getItem(SEEN_UPDATES) ?? "[]");
+    return new Set(Array.isArray(list) ? list.filter((x): x is string => typeof x === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function keepSeenUpdate(id: string): (seen: ReadonlySet<string>) => ReadonlySet<string> {
+  return (seen) => {
+    if (seen.has(id)) return seen;
+    const next = new Set([...seen, id]);
+    try {
+      window.localStorage.setItem(SEEN_UPDATES, JSON.stringify([...next].slice(-200)));
+    } catch {
+      // Not kept: it shows as new again next time.
+    }
+    return next;
+  };
 }
 
 /** One step of a review, lens off (founder lock 2026-10-12, section 1): the
@@ -2057,6 +2074,9 @@ function WalkStepBubble({
   message,
   card,
   replaced = false,
+  waiting = false,
+  lockedTake = null,
+  onOpened,
   onOpenIdealText,
 }: {
   message: LoungeMessage;
@@ -2064,6 +2084,11 @@ function WalkStepBubble({
   card: { title: string; take: number | null } | null;
   /** Helper words a later pick replaced: struck through. */
   replaced?: boolean;
+  /** The step still waits, or a coach update not yet opened: the orange outline. */
+  waiting?: boolean;
+  /** An older Take's step, its number: history, with no ›. */
+  lockedTake?: number | null;
+  onOpened?: () => void;
   onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode, at?: WalkStepTarget | null) => void;
 }) {
   const meta = message.metadata ?? {};
@@ -2079,14 +2104,8 @@ function WalkStepBubble({
   const clip = walkClipOf(meta.clip);
   if (!message.body.trim() && !clip) return null;
   const mine = message.role === "user";
-  const step = typeof meta.step === "string" ? meta.step : null;
-  const moment = typeof meta.moment === "number" ? meta.moment : null;
-  // Sharing has no step in the walk: its › opens the Ideal Text page.
-  const open = !arc
-    ? undefined
-    : step === "share"
-      ? () => onOpenIdealText?.(arc)
-      : () => onOpenIdealText?.(arc, "review", step ? { step, moment } : null);
+  const open = arc ? stepTap(meta, arc, lockedTake, onOpenIdealText, onOpened) : undefined;
+  const hint = helpersHint(meta, lockedTake);
   const label = chatLabelOf(meta);
   const ai = clip || mine ? null : aiVoiceOfMeta(meta);
   return (
@@ -2115,19 +2134,67 @@ function WalkStepBubble({
           </button>
         </div>
       ) : (
-        <AppStepBubble message={message} open={open} />
+        <AppStepBubble message={message} open={open} hint={hint} waiting={waiting && open !== undefined} />
       )}
     </>
   );
 }
 
 
+/** What a step's tap opens: that Take's step, found by its paragraph,
+ *  answered or not. An older Take's steps are history, with no ›
+ *  (prototype v31); an old judging bubble opens Other speakers afresh
+ *  (founder 2026-10-13), and a coach update the coach's word on the latest
+ *  Take's page. Sharing opens the sharing step. */
+function stepTap(
+  meta: Record<string, unknown>,
+  arc: string,
+  lockedTake: number | null,
+  onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode, at?: WalkStepTarget | null) => void,
+  onOpened?: () => void,
+): (() => void) | undefined {
+  const step = typeof meta.step === "string" ? meta.step : null;
+  const free = step === "others" || meta.coach_update === true;
+  if (lockedTake !== null && !free) return undefined;
+  if (step === "share") return () => onOpenIdealText?.(arc, "share");
+  const target: WalkStepTarget | null = step
+    ? {
+        step,
+        moment: typeof meta.moment === "number" ? meta.moment : null,
+        take: free || typeof meta.take_session_id !== "string" ? null : meta.take_session_id,
+        part: typeof meta.part_id === "string" ? meta.part_id : null,
+      }
+    : null;
+  return () => {
+    onOpened?.();
+    onOpenIdealText?.(arc, "review", target);
+  };
+}
+
+/** The helper words' hint: "Tap the words", or "🔒 Take N" once a newer
+ *  Take exists (lock 2026-10-12, section 2.3). */
+function helpersHint(meta: Record<string, unknown>, lockedTake: number | null): string | undefined {
+  if (meta.step !== "helpers") return undefined;
+  return lockedTake !== null ? `🔒 Take ${lockedTake}` : CHUNK_SHEET_COPY.cardTapWords;
+}
+
 /** The app's or the coach's step in the chat: light grey on the left; the
  *  exercise's video as a thumb under its first line (prototype v31
  *  `vthumb`, the lens plays it), and the small hint line under it. */
-function AppStepBubble({ message, open }: { message: LoungeMessage; open?: () => void }) {
+function AppStepBubble({
+  message,
+  open,
+  hint: shownHint,
+  waiting = false,
+}: {
+  message: LoungeMessage;
+  open?: () => void;
+  hint?: string;
+  waiting?: boolean;
+}) {
   const meta = message.metadata ?? {};
-  const hint = typeof meta.hint === "string" ? meta.hint : null;
+  const hint = shownHint ?? (typeof meta.hint === "string" ? meta.hint : null);
+  const fresh = freshWordsOf(meta.new_words, message.body);
   const video = typeof meta.video === "string" && meta.video ? meta.video : null;
   const nl = message.body.indexOf("\n");
   const cut = video ? (nl >= 0 ? nl : message.body.length) : -1;
@@ -2138,13 +2205,22 @@ function AppStepBubble({ message, open }: { message: LoungeMessage; open?: () =>
         type="button"
         data-walk-step-bubble
         onClick={open}
-        className={`relative whitespace-pre-wrap break-words rounded-[16px] bg-muted py-2 pl-3 text-left text-[15px] leading-[1.45] text-foreground ${open ? "pr-[30px]" : "pr-3"}`}
+        className={`relative whitespace-pre-wrap break-words rounded-[16px] bg-muted py-2 pl-3 text-left text-[15px] leading-[1.45] text-foreground ${open ? "pr-[30px]" : "pr-3"} ${waiting ? "ring-2 ring-primary" : ""}`}
       >
         {cut > 0 ? (
           <>
             {message.body.slice(0, cut)}
             <ExerciseThumb src={video as string} />
             {message.body.slice(cut + 1)}
+          </>
+        ) : fresh ? (
+          <>
+            {fresh.head}
+            {fresh.pieces.map((p, i) => (
+              <span key={i} className={p.fresh ? "text-primary" : undefined}>
+                {p.text}
+              </span>
+            ))}
           </>
         ) : (
           message.body
@@ -2158,6 +2234,18 @@ function AppStepBubble({ message, open }: { message: LoungeMessage; open?: () =>
       </button>
     </div>
   );
+}
+
+/** A clearer version's last line as its pieces, the words that arrive
+ *  orange (prototype v31 `.new em`); null when the bubble has none or its
+ *  words are not the pieces'. */
+function freshWordsOf(value: unknown, body: string): { head: string; pieces: { text: string; fresh?: boolean }[] } | null {
+  if (!Array.isArray(value)) return null;
+  const pieces = value.filter(
+    (p): p is { text: string; fresh?: boolean } => !!p && typeof p === "object" && typeof (p as { text?: unknown }).text === "string",
+  );
+  const head = body.slice(0, body.lastIndexOf("\n") + 1);
+  return pieces.map((p) => p.text).join("").trim() === body.slice(head.length).trim() ? { head, pieces } : null;
 }
 
 type WalkChatClip = {
@@ -2340,9 +2428,9 @@ export function reviewCardOf(
 }
 
 /** The closing summary after a review (founder lock 2026-10-12, section 3):
- *  one plain bubble that is not tapped. After a coach update it reads
- *  "Later · from your coach", is outlined in orange, and keeps the earlier
- *  words one tap away. */
+ *  one plain bubble that is not tapped. Rewritten by a coach update, it
+ *  keeps the earlier words one tap away; the update itself is its own
+ *  bubble under "Later · from your coach". */
 function SummaryBubble({ message }: { message: LoungeMessage }) {
   const [earlierOpen, setEarlierOpen] = useState(false);
   const meta = message.metadata ?? {};

@@ -21,7 +21,6 @@ import {
 } from "@/services/api/projects";
 import { useLabReadoutLive } from "./useLabReadoutLive";
 import { useDocumentSettle } from "./useDocumentSettle";
-import { postJourneyForSavedTake } from "@/services/api/journeyNextSteps";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
 import { fetchArcSetup } from "@/services/api/arcSetup";
 import { takeLabUpload } from "./labUploadStage";
@@ -1014,11 +1013,6 @@ export default function LabOverlay({
           topic: context?.topic,
         }));
       }
-      // The Take is saved: a signed-in speaker's Take 1-3 journey message
-      // goes to the Lounge now, not from a button (Q-IT643 A, Q-B10 A).
-      void postJourneyForSavedTake(take, signedIn).then((posted) => {
-        if (posted) void reloadThread().catch(() => undefined);
-      });
     },
     onExpired: (take) => {
       if (take.arcId && take.takeIndex === 1) {

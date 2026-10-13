@@ -34,12 +34,15 @@ export default function NextTakeShareScreen({
   takeCount = null,
   arcId = null,
   onDone,
+  onCancel,
 }: {
   /** The Take just reviewed, for the top bar ("Take 2"). */
   takeCount?: number | null;
   /** The project: its chat bubbles open its Ideal Text (›). */
   arcId?: string | null;
   onDone: () => void;
+  /** ✕ when the step was opened from the chat: back to it, no recording. */
+  onCancel?: () => void;
 }) {
   const [saved, setSaved] = useState<Community[] | null>(null);
   const [ticks, setTicks] = useState<string[]>([]);
@@ -55,7 +58,7 @@ export default function NextTakeShareScreen({
     void fetchCommunities().then((res) => {
       if (!live) return;
       if (!res.ok) {
-        onDone();
+        (onCancel ?? onDone)();
         return;
       }
       const own = res.data.filter((c) => c.kind === "private");
@@ -75,7 +78,7 @@ export default function NextTakeShareScreen({
 
   const close = () => {
     keepNextTakeShare(null);
-    onDone();
+    (onCancel ?? onDone)();
   };
 
   const add = async () => {
@@ -104,8 +107,9 @@ export default function NextTakeShareScreen({
     void (async () => {
       for (const draft of shareChat(next, ticks, names, arcId)) await thread?.append(draft);
     })().catch(() => undefined);
-    if (ticks.includes("none")) return close();
-    keepNextTakeShare({ general: ticks.includes("general"), communityIds: ticks.includes("mine") ? mine : [] });
+    keepNextTakeShare(
+      ticks.includes("none") ? null : { general: ticks.includes("general"), communityIds: ticks.includes("mine") ? mine : [] },
+    );
     onDone();
   };
 

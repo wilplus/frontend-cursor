@@ -108,7 +108,10 @@ export type IdealTextLaunchMode =
   /** The lens back on (founder lock 2026-10-12, moment and feedback chat,
    *  section 1): a walk step tapped in the Lounge, or "Continue review",
    *  opens the walk, or plays the finished one again. */
-  | "review";
+  | "review"
+  /** The sharing bubble tapped in the Lounge: the sharing step before the
+   *  next recording (prototype v31, the share step). */
+  | "share";
 
 export default function IdealTextOverlay({
   arcId,
@@ -908,6 +911,7 @@ export default function IdealTextOverlay({
         onReviewAgain={replayReady ? () => setReplayRequest((n) => n + 1) : null}
         onNewTake={() => onReadAloud(sd.version)}
         onClose={onClose}
+        shareFirst={!endCard && initialMode === "share"}
       />
     );
   }
