@@ -70,7 +70,7 @@ describe("useSaveBehind", () => {
 describe("helperWordsBehind (Use this phrase)", () => {
   const chunk = { part: { text: "We should ship it now." } };
 
-  it("saves the words and locks the untouched paragraph together", async () => {
+  it("locks the untouched paragraph first, then saves the words", async () => {
     const order: string[] = [];
     const setRoot = vi.fn(async () => {
       order.push("root");
@@ -81,7 +81,7 @@ describe("helperWordsBehind (Use this phrase)", () => {
       return { outcome: "ok" };
     });
     expect(await helperWordsBehind(setRoot, lock, chunk, "span")).toBe("ok");
-    // Both writes ran, and the lock carried the untouched paragraph.
-    expect(order).toEqual(["root", "lock:We should ship it now."]);
+    // The lock stores the paragraphs a fresh Take lacks, so it goes first.
+    expect(order).toEqual(["lock:We should ship it now.", "root"]);
   });
 });

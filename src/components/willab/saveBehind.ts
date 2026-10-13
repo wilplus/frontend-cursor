@@ -64,8 +64,11 @@ export function useSaveBehind(): {
   return { saveBehind, notice, dismiss };
 }
 
-/** "Use this phrase" in the paragraph sheet, run behind it: the words and
- *  the lock together. A lock the server blocks cannot be retried away. */
+/** "Use this phrase" in the paragraph sheet, run behind it: the lock, then
+ *  the words. The lock goes first because on a fresh Take it is the request
+ *  that stores the paragraphs on the server; the words sent at the same
+ *  time found none and were refused ("Couldn't save those words"). A lock
+ *  the server blocks cannot be retried away. */
 export async function helperWordsBehind<
   C extends { part: { text: string } },
   S,
@@ -75,17 +78,15 @@ export async function helperWordsBehind<
   chunk: C,
   span: S,
 ): Promise<BehindOutcome> {
-  const [saved, result] = await Promise.all([
-    setRoot(chunk, span),
-    lock(chunk, chunk.part.text),
-  ]);
+  const result = await lock(chunk, chunk.part.text);
   if (result.outcome === "blocked") return "final";
-  return saved && result.outcome === "ok" ? "ok" : "failed";
+  if (result.outcome !== "ok") return "failed";
+  return (await setRoot(chunk, span)) ? "ok" : "failed";
 }
 
 /** Helper words from an earlier Take, then the lock (founder lock
- *  2026-09-30, B4, D5): the words go to the Slide, the lock to the
- *  paragraph as it is. A blocked lock is final. */
+ *  2026-09-30, B4, D5): the lock to the paragraph as it is, then the
+ *  words to the Slide. A blocked lock is final. */
 export async function helperWordsFromTakeBehind<
   C extends { part: { text: string } },
 >(
@@ -95,11 +96,11 @@ export async function helperWordsFromTakeBehind<
   phrase: string,
   takeIndex: number,
 ): Promise<BehindOutcome> {
-  const saved = await setFromTake(chunk, phrase, takeIndex);
-  if (!saved) return "failed";
+  // The lock first, for the same reason as above.
   const result = await lock(chunk, chunk.part.text);
   if (result.outcome === "blocked") return "final";
-  return result.outcome === "ok" ? "ok" : "failed";
+  if (result.outcome !== "ok") return "failed";
+  return (await setFromTake(chunk, phrase, takeIndex)) ? "ok" : "failed";
 }
 
 /** Delete the helper words (founder lock 2026-09-30, D4): the paragraph's
