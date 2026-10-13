@@ -14,7 +14,7 @@ import { renderPractiseScreen, type PractiseScreenCtx } from "./WalkPractiseScre
 import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
 import WalkSummary from "./WalkSummary";
-import WalkAiVoice, { aiOnExercise, aiPendingOnExercise } from "./WalkAiVoice";
+import WalkAiVoice, { aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
@@ -149,8 +149,15 @@ type Props<R> = {
   lines?: WalkLinesIO | null;
   /** A screen of the walk is on: the coach's note, or a screen of moment
    *  `moment`. The host tells the server what was shown (the Lounge's
-   *  "new", D-FW-19). Nothing is drawn from it. */
-  onShown?: (step: WalkStep, moment: FeedbackWalkMoment<R> | null, say: (bank: WalkBankKey) => string) => void;
+   *  "new", D-FW-19). Nothing is drawn from it. `ai`: the AI bubble the
+   *  screen shows in place of the locked one (N71), so the chat says the
+   *  same; a screen still waiting on its clip is told once the clip is in. */
+  onShown?: (
+    step: WalkStep,
+    moment: FeedbackWalkMoment<R> | null,
+    say: (bank: WalkBankKey) => string,
+    ai?: WalkAiShown | null,
+  ) => void;
   /** The speaker answered a step (not a replay): the host shows the answer
    *  as their own bubble in the chat. Nothing is drawn from it. */
   onAnswer?: (step: WalkStep, value: string) => void;
@@ -158,6 +165,9 @@ type Props<R> = {
    *  posts it to the chat. Nothing is drawn from it. */
   onOthers?: (at: number, of: number, from: string | null, answer: string | null) => void;
 };
+
+/** The AI bubble a screen showed, for the chat. */
+export type WalkAiShown = AiVoiceLines & { practiceId: string };
 
 const testId = (step: WalkStep) => `walk-screen-${step.key}`;
 
@@ -222,7 +232,6 @@ export default function FeedbackWalk<R = unknown>({
 
   const plan = walk.plan;
   const step = plan[at] ?? plan[0];
-
 
   const go = useCallback(
     (to: number, how: WalkDir | undefined) => {
@@ -289,7 +298,28 @@ export default function FeedbackWalk<R = unknown>({
     relay,
     readLimitMs,
   });
+  // What the speaker now sees, for the host (D-FW-19): only once the walk
+  // was asked open, and only an overlay screen; with its AI bubble, once
+  // the screen knows whether it has one.
+  const ai = step?.moment != null ? aiVoiceShown(plan, at, practise.aiVoiceOf(step.moment)) : null;
+  const aiPractice = step?.moment != null && ai && ai !== "pending" ? practise.aiVoicePracticeOf(step.moment) : undefined;
+  const aiState = step?.moment != null ? practise.aiVoiceOf(step.moment) : undefined;
+  const aiKey = ai === "pending" ? "pending" : `${aiState?.demo ?? ""}|${aiState?.clip?.state ?? ""}|${aiPractice ?? ""}|${ai?.line ?? ""}`;
   const walkLines = useWalkLines(linesIO);
+  const { say: sayLine } = walkLines;
+  const aiRef = useRef<WalkAiShown | null>(null);
+  aiRef.current = ai && ai !== "pending" && aiPractice ? { ...ai, practiceId: aiPractice } : null;
+  const shownRef = useRef(onShown);
+  shownRef.current = onShown;
+  useEffect(() => {
+    if (seq === null || !step || step.overlay === false || aiKey === "pending") return;
+    // The Exercise screen's clip is still being asked: told once it is known.
+    if (step.key === "exVideo" && step.moment != null && practise.aiVoiceAsking(step.moment)) return;
+    const moment = step.moment != null ? (walk.moments[step.moment] ?? null) : null;
+    shownRef.current?.(step, moment, (bank) => sayLine(step, bank), aiRef.current);
+    // practise.aiVoiceAsking is stable; aiKey changes when the answer lands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seq, step, walk.moments, aiKey]);
   resetRef.current = () => {
     practise.reset();
     walkLines.reopen();
@@ -299,16 +329,6 @@ export default function FeedbackWalk<R = unknown>({
   useEffect(() => {
     if (seq !== null && step && step.overlay !== false) onScreen(step);
   }, [seq, step, onScreen]);
-  // What the speaker now sees, for the host (D-FW-19): only once the walk
-  // was asked open, and only an overlay screen; with the lines it said.
-  const shownRef = useRef(onShown);
-  shownRef.current = onShown;
-  const { say: sayLine } = walkLines;
-  useEffect(() => {
-    if (seq === null || !step || step.overlay === false) return;
-    const moment = step.moment != null ? (walk.moments[step.moment] ?? null) : null;
-    shownRef.current?.(step, moment, (bank) => sayLine(step, bank));
-  }, [seq, step, walk.moments, sayLine]);
   const close = useCallback(() => {
     practise.cancel();
     go(0, undefined);
@@ -734,14 +754,14 @@ function Exercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMome
  *  breathing mark while it is being made. Otherwise the locked Exercise. */
 function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
   const state = ctx.practise.aiVoiceOf(moment.index);
-  if (!aiOnExercise(state) && !aiPendingOnExercise(state)) return null;
+  const ai = aiVoiceShown(ctx.walk.plan, ctx.at(step), state);
+  if (!ai) return null;
+  const lines = ai === "pending" ? { title: COPY.titleExercise, line: WALK_COPY.aiVoiceExercise, then: WALK_COPY.aiVoiceNow } : ai;
   return (
     <WalkAiVoice
       seed={`ai-ex-${moment.index}`}
       state={state}
-      title={COPY.titleExercise}
-      line={WALK_COPY.aiVoiceExercise}
-      then={WALK_COPY.aiVoiceNow}
+      {...lines}
       onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
     />
   );

@@ -113,6 +113,10 @@ export type WalkPractise = {
   aiVoiceOf: (moment: number) => AiVoiceState | undefined;
   /** The speaker pressed play on the AI clip. */
   aiVoicePlayed: (moment: number) => void;
+  /** The practice the moment's AI clip belongs to; the chat fetches it by it. */
+  aiVoicePracticeOf: (moment: number) => string | undefined;
+  /** The moment's clip is being asked and not yet answered. */
+  aiVoiceAsking: (moment: number) => boolean;
 };
 
 export function useWalkPractise<R>(args: {
@@ -142,6 +146,8 @@ export function useWalkPractise<R>(args: {
   const [aiVoice, setAiVoice] = useState<Record<number, AiVoiceState>>({});
   const aiAsked = useRef(new Set<number>());
   const aiPractice = useRef(new Map<number, string>());
+  // Moments whose clip is being asked and not yet answered.
+  const aiWaiting = useRef(new Set<number>());
   const aiTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
 
   const step = plan[at];
@@ -187,23 +193,33 @@ export function useWalkPractise<R>(args: {
       opened.current.set(index, practiseIO.open(what.item, what.passage).catch(() => null));
     }
     let tries = 0;
-    const keep = (state: AiVoiceState) => setAiVoice((v) => ({ ...v, [index]: state }));
+    aiWaiting.current.add(index);
+    const keep = (state: AiVoiceState) => {
+      aiWaiting.current.delete(index);
+      setAiVoice((v) => ({ ...v, [index]: state }));
+    };
+    const none: AiVoiceState = { demo: "none", clip: null };
     const poll = (practiceId: string) => {
       const timer = setTimeout(async () => {
         aiTimers.current.delete(timer);
         tries += 1;
         const read = await readAiVoice(practiceId);
-        if (!read.ok) return;
-        keep(read.data);
-        if (read.data.clip?.state === "pending" && tries < AI_VOICE_POLL_TRIES) poll(practiceId);
+        const pending = !read.ok || read.data.clip?.state === "pending";
+        if (pending && tries < AI_VOICE_POLL_TRIES) {
+          if (read.ok) keep(read.data);
+          poll(practiceId);
+          return;
+        }
+        // Still not made when the asking ends: no clip, the locked screen.
+        keep(read.ok && !pending ? read.data : { demo: "ai_voice", clip: { state: "unavailable", url: null, durationMs: null } });
       }, AI_VOICE_POLL_MS);
       aiTimers.current.add(timer);
     };
     void (opened.current.get(index) ?? Promise.resolve(null)).then(async (practiceId) => {
-      if (!practiceId) return;
+      if (!practiceId) return keep(none);
       aiPractice.current.set(index, practiceId);
       const asked = await ensureAiVoice(practiceId);
-      if (!asked.ok) return;
+      if (!asked.ok) return keep(none);
       keep(asked.data);
       if (asked.data.clip?.state === "pending") poll(practiceId);
     });
@@ -358,6 +374,7 @@ export function useWalkPractise<R>(args: {
     aiTimers.current.clear();
     aiAsked.current = new Set();
     aiPractice.current = new Map();
+    aiWaiting.current = new Set();
     setAiVoice({});
   }, [cancel]);
 
@@ -368,5 +385,8 @@ export function useWalkPractise<R>(args: {
     if (practiceId) void noteAiVoicePlay(practiceId);
   }, []);
 
-  return { elapsed, stop, skip, again, tryOf, cancel, reset, aiVoiceOf, aiVoicePlayed };
+  const aiVoicePracticeOf = useCallback((moment: number) => aiPractice.current.get(moment), []);
+  const aiVoiceAsking = useCallback((moment: number) => aiWaiting.current.has(moment), []);
+
+  return { elapsed, stop, skip, again, tryOf, cancel, reset, aiVoiceOf, aiVoicePlayed, aiVoicePracticeOf, aiVoiceAsking };
 }

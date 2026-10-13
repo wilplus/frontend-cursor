@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
 import CoachWalkEntry from "./coachwalk/CoachWalkEntry";
 import SnippetWavePlayer from "./SnippetWavePlayer";
+import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "./LoungeAiVoiceBubble";
 import { CHUNK_SHEET_COPY } from "./idealEditCopy";
 import { postChatQuery } from "@/services/api/chatQuery";
 import { refreshNewCoachFeedback, type LoungeMessage } from "@/services/api/loungeMessages";
@@ -2056,15 +2057,20 @@ function WalkStepBubble({
       ? () => onOpenIdealText?.(arc)
       : () => onOpenIdealText?.(arc, "review", step ? { step, moment } : null);
   const label = chatLabelOf(meta);
-  const hint = typeof meta.hint === "string" ? meta.hint : null;
-  // The exercise's video as a thumb under its first line (prototype v31
-  // `vthumb`); the lens plays it.
-  const video = typeof meta.video === "string" && meta.video ? meta.video : null;
-  const cut = video ? message.body.indexOf("\n") : -1;
+  const ai = clip || mine ? null : aiVoiceOfMeta(meta);
   return (
     <>
       {label ? <div className="self-center pt-1.5 text-[11.5px] text-muted-foreground">{label}</div> : null}
-      {clip ? (
+      {ai ? (
+        <LoungeAiVoiceBubble
+          body={message.body}
+          practiceId={ai.practiceId}
+          then={ai.then}
+          seed={message.client_id}
+          avatar={<ChatAvatar />}
+          onOpen={open}
+        />
+      ) : clip ? (
         <ClipBubble clip={clip} seed={message.client_id} caption={message.body.trim() || null} />
       ) : mine ? (
         <div className="flex justify-end">
@@ -2078,33 +2084,47 @@ function WalkStepBubble({
           </button>
         </div>
       ) : (
-        <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
-          <ChatAvatar coach={meta.author === "coach"} />
-          <button
-            type="button"
-            data-walk-step-bubble
-            onClick={open}
-            className={`relative whitespace-pre-wrap break-words rounded-[16px] bg-muted py-2 pl-3 text-left text-[15px] leading-[1.45] text-foreground ${open ? "pr-[30px]" : "pr-3"}`}
-          >
-            {cut > 0 ? (
-              <>
-                {message.body.slice(0, cut)}
-                <ExerciseThumb />
-                {message.body.slice(cut + 1)}
-              </>
-            ) : (
-              message.body
-            )}
-            {hint ? <span className="mt-[3px] block text-[12.5px] text-muted-foreground">{hint}</span> : null}
-            {open ? (
-              <span aria-hidden="true" className="absolute right-[11px] top-1/2 -translate-y-1/2 text-[20px] text-muted-foreground">
-                ›
-              </span>
-            ) : null}
-          </button>
-        </div>
+        <AppStepBubble message={message} open={open} />
       )}
     </>
+  );
+}
+
+
+/** The app's or the coach's step in the chat: light grey on the left; the
+ *  exercise's video as a thumb under its first line (prototype v31
+ *  `vthumb`, the lens plays it), and the small hint line under it. */
+function AppStepBubble({ message, open }: { message: LoungeMessage; open?: () => void }) {
+  const meta = message.metadata ?? {};
+  const hint = typeof meta.hint === "string" ? meta.hint : null;
+  const video = typeof meta.video === "string" && meta.video ? meta.video : null;
+  const cut = video ? message.body.indexOf("\n") : -1;
+  return (
+    <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
+      <ChatAvatar coach={meta.author === "coach"} />
+      <button
+        type="button"
+        data-walk-step-bubble
+        onClick={open}
+        className={`relative whitespace-pre-wrap break-words rounded-[16px] bg-muted py-2 pl-3 text-left text-[15px] leading-[1.45] text-foreground ${open ? "pr-[30px]" : "pr-3"}`}
+      >
+        {cut > 0 ? (
+          <>
+            {message.body.slice(0, cut)}
+            <ExerciseThumb />
+            {message.body.slice(cut + 1)}
+          </>
+        ) : (
+          message.body
+        )}
+        {hint ? <span className="mt-[3px] block text-[12.5px] text-muted-foreground">{hint}</span> : null}
+        {open ? (
+          <span aria-hidden="true" className="absolute right-[11px] top-1/2 -translate-y-1/2 text-[20px] text-muted-foreground">
+            ›
+          </span>
+        ) : null}
+      </button>
+    </div>
   );
 }
 
