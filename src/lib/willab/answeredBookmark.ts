@@ -46,6 +46,19 @@ export function helperWordRanges(
   return out.length > 0 ? out : undefined;
 }
 
+/** The helper words the latest Take no longer says (founder 2026-10-14,
+ *  scenarios B and C): shown before the paragraph with the HELPERS label,
+ *  never as part of the speaker's words (rule 5). Empty when every phrase
+ *  is still in the text (scenario A: orange in place). */
+export function missingHelperWords(text: string, headline: string | null | undefined): string[] {
+  if (!headline) return [];
+  const hay = text.toLowerCase();
+  return headline
+    .split(" · ")
+    .map((phrase) => phrase.trim())
+    .filter((phrase) => phrase && !hay.includes(phrase.toLowerCase()));
+}
+
 /** Which paragraphs open their own sheet rather than the judgement: nothing
  *  on them is waiting. Answered (Q19 A), locked (Q26 B) — and, since founder
  *  2026-09-26 (J10), a paragraph nobody gave feedback on, which opens on its
