@@ -1329,7 +1329,11 @@ export default function TranscriptReviewDeck({
                           const onWords = target instanceof Element && target.closest(".walk-helper-word") !== null;
                           if (onWords && feedbackWalk.openHelpers(c.part.id)) return;
                           if (feedbackWalk.tapPart(c.part.id, unsettled)) return;
-                          feedbackWalk.replayPart(c.part.id);
+                          if (feedbackWalk.replayPart(c.part.id)) return;
+                          // A bookmark always opens something: with no moment
+                          // of this Take on it, its helper words (founder
+                          // 2026-10-14).
+                          feedbackWalk.openHelpers(c.part.id);
                         },
                       )}
                       data-settled={unsettled ? undefined : "true"}
