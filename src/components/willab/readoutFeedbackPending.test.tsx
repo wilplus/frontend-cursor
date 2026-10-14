@@ -76,8 +76,13 @@ function route() {
           headers: { "Content-Type": "application/json" },
         });
       if (String(url).includes("/ideal-text/enrichment")) {
+        // Two lanes (prompt + marks) ask at once; the server answers both.
         return new Promise<Response>((resolve) => {
-          finishEnrichment = (body, status = 200) => resolve(json(body, status));
+          const previous = finishEnrichment;
+          finishEnrichment = (body, status = 200) => {
+            previous(body, status);
+            resolve(json(body, status));
+          };
         });
       }
       if (String(url).includes("/ideal-text")) return Promise.resolve(json(CORE));
@@ -91,6 +96,7 @@ let root: Root;
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   seen.length = 0;
+  finishEnrichment = () => undefined;
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
