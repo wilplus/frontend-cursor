@@ -58,7 +58,7 @@ function Fail({ text }: { text: string | null }) {
 export function CoachMessage({ children }: { children: ReactNode }) {
   return (
     <div data-coach-message className="flex items-start gap-2.5 text-[17px] leading-[1.55] text-foreground">
-      <WalkAvatar />
+      <WalkAvatar coach />
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">{children}</div>
     </div>
   );

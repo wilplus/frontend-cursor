@@ -290,6 +290,7 @@ export default function IdealTextOverlay({
   useEffect(() => {
     reviewOpenedRef.current = false;
   }, [arcId, initialMode]);
+  const walkCover = useWalkCover(arcId, initialMode, reviewOpenedRef, reviewRequest + replayRequest);
   useEffect(() => {
     // The coach-feedback email and bubble open the review too: only helper
     // words and moment sentences open anything (lock 2026-10-12, section 4).
@@ -932,6 +933,7 @@ export default function IdealTextOverlay({
       {...aiGeneratedAttrs("ideal-text")}
       className="fixed inset-0 z-40 flex flex-col overscroll-none bg-background"
     >
+      <WalkCover on={walkCover} />
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-4 py-2.5">
         {/* The project's name and its verification state, from the shared
             head, with the Article 50(2) notice as a caption under it
@@ -1201,3 +1203,28 @@ export default function IdealTextOverlay({
  * with that pencil (founder 2026-08-11: "The edits should not be in the top
  * bar"). Its one non-legacy job — editing the SD document — is what the
  * deck's chunk modal does now: per chunk, in front of the words. */
+
+/** A bubble or "Continue review" lands on the walk: the text stays covered
+ *  until the walk is up, so it never flashes first (founder 2026-10-14). */
+function useWalkCover(
+  arcId: string,
+  initialMode: IdealTextLaunchMode | undefined,
+  opened: { current: boolean },
+  requests: number,
+): boolean {
+  const opensWalk = initialMode === "review" || initialMode === "feedback";
+  const [cover, setCover] = useState(opensWalk);
+  useEffect(() => {
+    setCover(opensWalk);
+  }, [arcId, opensWalk]);
+  useEffect(() => {
+    if (!cover) return;
+    const t = setTimeout(() => setCover(false), opened.current ? 400 : 5000);
+    return () => clearTimeout(t);
+  }, [cover, requests, opened]);
+  return cover;
+}
+
+function WalkCover({ on }: { on: boolean }) {
+  return on ? <div aria-hidden="true" className="absolute inset-0 z-[45] bg-background" /> : null;
+}

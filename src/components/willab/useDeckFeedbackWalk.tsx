@@ -520,6 +520,8 @@ export function useDeckFeedbackWalk(args: {
   /** Nothing of this Take waits on the speaker: the walk is finished, and
    *  "Review feedback" under "Record Take N" plays it again. */
   finished?: boolean;
+  /** The Take's moments may still land (the readout is not in yet). */
+  feedbackPending?: boolean;
 }): {
   review: (target?: WalkStepTarget | null) => boolean;
   tapPart: (partId: string, open: boolean) => boolean;
@@ -838,14 +840,31 @@ export function useDeckFeedbackWalk(args: {
   }, []);
   // A paragraph's practise ends on the page quietly; the review's end tells
   // the Lounge ("Continue review" leaves it) and lands on the Ideal Text.
+  // The review's end is written once per Take, also when the walk closes
+  // with nothing left to answer, so "Continue review" goes (founder 2026-10-14).
+  const endedRef = useRef<string | null>(null);
+  const postEnd = useCallback(() => {
+    const { thread: to, take: on } = threadRef.current;
+    if (!on || endedRef.current === on) return;
+    endedRef.current = on;
+    const written = to?.messages.some(
+      (m) => m.kind === "walk_step" && m.metadata?.step === "end" && m.metadata?.take_session_id === on,
+    );
+    if (!written) post({ key: "end", moment: null, attempt: null, author: "app", body: "" });
+  }, [post]);
+  const ended = finished && !args.feedbackPending && thread !== null && !thread.loading;
+  useEffect(() => {
+    if (ended && request === null) postEnd();
+  }, [ended, request, postEnd]);
   const onEnd = useCallback(() => {
     if (practisingRef.current) return;
-    post({ key: "end", moment: null, attempt: null, author: "app", body: "" });
+    postEnd();
     live.current.onEnd?.();
-  }, [post]);
+  }, [postEnd]);
   const onClose = useCallback(() => {
+    if (!practisingRef.current && live.current.finished && !live.current.feedbackPending) postEnd();
     if (lensRef.current) live.current.onLensClose?.();
-  }, []);
+  }, [postEnd]);
   // NEXT GOES TO WHAT STILL WAITS (founder 2026-10-14, walk first): on a
   // step played again, while a moment of this Take still waits, Next goes
   // to the live walk's first waiting step; with nothing waiting it plays on.

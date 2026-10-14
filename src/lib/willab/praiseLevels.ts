@@ -20,11 +20,12 @@ export const PRAISE_LEVELS: Record<string, { icon: string; lines: readonly [stri
 };
 
 /** The moment's opening line for its level, one of three chosen by `seed`
- *  (the moment's id); null when no level was sent. */
+ *  (the moment's id), its icon at the end (founder 2026-10-14); null when
+ *  no level was sent. */
 export function praiseTitleFor(levelKey: string | null | undefined, seed: string): string | null {
   const level = levelKey ? PRAISE_LEVELS[levelKey] : undefined;
   if (!level) return null;
   let h = 0;
   for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return `${level.icon} ${level.lines[h % 3]}`;
+  return `${level.lines[h % 3].replace(/\.$/, "")} ${level.icon}`;
 }

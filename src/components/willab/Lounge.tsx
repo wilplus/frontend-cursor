@@ -2075,9 +2075,21 @@ export function continueReviewArc(items: readonly ThreadItem[]): string | null {
     const meta = item.message.metadata ?? {};
     if (meta.coach_update === true) continue;
     if (meta.step === "end") return null;
-    return typeof meta.arc_id === "string" ? meta.arc_id : null;
+    const arc = typeof meta.arc_id === "string" ? meta.arc_id : null;
+    // A step written after this Take's end (its review reached the Ideal
+    // Text already): nothing to continue (founder 2026-10-14).
+    return arc && !reviewEnded(items.slice(0, i), meta.take_session_id) ? arc : null;
   }
   return null;
+}
+
+function reviewEnded(items: readonly ThreadItem[], take: unknown): boolean {
+  for (let i = items.length - 1; i >= 0; i -= 1) {
+    const m = items[i].message;
+    if (movedOn(m)) return false;
+    if (m.kind === "walk_step" && m.metadata?.step === "end" && m.metadata?.take_session_id === take) return true;
+  }
+  return false;
 }
 
 /** The step the review `arc` waits on (lock 2026-10-12, section 1, the
