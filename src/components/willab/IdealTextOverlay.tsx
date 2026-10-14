@@ -295,6 +295,8 @@ export default function IdealTextOverlay({
     // The coach-feedback email and bubble open the review too: only helper
     // words and moment sentences open anything (lock 2026-10-12, section 4).
     if ((initialMode !== "review" && initialMode !== "feedback") || reviewOpenedRef.current) return;
+    // A helper-words bubble: the deck opens the words itself, at once.
+    if (reviewAt?.step === "helpers") return;
     // After a Take (no step asked for) the review is the live walk: wait
     // for its moments, which can land after the text, rather than settle
     // on the finished one. An answered step tapped in the chat replays.
@@ -1217,14 +1219,24 @@ function useWalkCover(
   useEffect(() => {
     setCover(opensWalk);
   }, [arcId, opensWalk]);
+  // Down once the walk is on screen; with no walk to open, after a while.
   useEffect(() => {
     if (!cover) return;
-    const t = setTimeout(() => setCover(false), opened.current ? 400 : 5000);
-    return () => clearTimeout(t);
+    const started = Date.now();
+    const t = setInterval(() => {
+      const up = document.querySelector("[data-feedback-walk]") !== null;
+      if (up || Date.now() - started > (opened.current ? 8000 : 6000)) setCover(false);
+    }, 100);
+    return () => clearInterval(t);
   }, [cover, requests, opened]);
   return cover;
 }
 
+/** The walk's place while the text loads: never the text first. */
 function WalkCover({ on }: { on: boolean }) {
-  return on ? <div aria-hidden="true" className="absolute inset-0 z-[45] bg-background" /> : null;
+  return on ? (
+    <div aria-hidden="true" className="absolute inset-0 z-[45] flex bg-background">
+      <LoadingState placement="surface" />
+    </div>
+  ) : null;
 }

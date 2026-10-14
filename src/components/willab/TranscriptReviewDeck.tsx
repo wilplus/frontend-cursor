@@ -737,6 +737,15 @@ export default function TranscriptReviewDeck({
   useEffect(() => {
     onReviewWaiting?.(deckReady && (firstWaiting >= 0 || coachWordWaiting));
   }, [deckReady, firstWaiting, coachWordWaiting, onReviewWaiting]);
+  // A helper-words bubble opens its helper words as soon as the deck is
+  // up, without waiting on the moments or the answers (founder 2026-10-14).
+  const helpersOpenedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const part = reviewAt?.step === "helpers" ? reviewAt.part : null;
+    if (!deckReady || !part || helpersOpenedRef.current === part) return;
+    helpersOpenedRef.current = part;
+    feedbackWalk.openHelpers(part);
+  }, [deckReady, reviewAt, feedbackWalk]);
   const reviewSeenRef = useRef(reviewRequest);
   useEffect(() => {
     if (reviewRequest === reviewSeenRef.current) return;
