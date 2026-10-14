@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchTokenHistory, type TokenLedgerEntry } from "@/services/api/tokens";
 import type { TokenWallet } from "@/hooks/useTokenWallet";
 import TokenPlanCards from "./TokenPlanCards";
-import LessonCard from "./LessonCard";
 import type { MyOffers } from "@/lib/booking/offers";
 import { TOKENS_COPY, actionLabel, formatShortDate, formatTokens } from "./copy";
 
@@ -75,12 +74,12 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
   // Collapsed by default: the plans are the screen, the mechanics are reference.
   const [detailsOpen, setDetailsOpen] = useState(false);
 
-  // This person's plan promotion and lesson card (step 3). Missing = none.
-  const [offers, setOffers] = useState<MyOffers>({ promotion: null, lesson: null });
+  // This person's plan promotion (step 3). Missing = none.
+  const [promotion, setPromotion] = useState<MyOffers["promotion"]>(null);
   useEffect(() => {
     fetch("/api/v2/user/offers", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((b: MyOffers | null) => b && setOffers({ promotion: b.promotion ?? null, lesson: b.lesson ?? null }))
+      .then((b: MyOffers | null) => b && setPromotion(b.promotion ?? null))
       .catch(() => undefined);
   }, []);
 
@@ -124,13 +123,11 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
               <TokenPlanCards
                 tiers={prices.tiers}
                 currentTier={ready?.tier ?? null}
-                promotion={offers.promotion}
+                promotion={promotion}
               />
             </div>
           </section>
         ) : null}
-
-        {offers.lesson ? <LessonCard lesson={offers.lesson} /> : null}
 
 
         {/* --------------------------- show more --------------------------- */}
