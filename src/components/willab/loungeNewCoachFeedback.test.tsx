@@ -78,18 +78,17 @@ async function draw(arcId: string, latest: boolean) {
   });
 }
 
-const tag = () => container.querySelector('[data-testid="new-coach-feedback-tag"]');
-const card = () => container.querySelector<HTMLElement>("[data-marked]");
-const dot = () => container.querySelector('[data-testid="unread-feedback-dot"]');
+// The project's one Ideal Text card carries the coach's "new" dot
+// (founder 2026-10-14, walk first).
+const dot = () => container.querySelector('[data-testid="new-coach-feedback-dot"]');
 
 describe("the bubble (walk lock flow 1)", () => {
 
   it("clears when the flag clears", async () => {
     setNewCoachFeedback({ "arc-1": true });
     await draw("arc-1", true);
-    expect(tag()).not.toBeNull();
+    expect(dot()).not.toBeNull();
     await act(async () => setNewCoachFeedback({ "arc-1": false }));
-    expect(tag()).toBeNull();
-    expect(card()).toBeNull();
+    expect(dot()).toBeNull();
   });
 });

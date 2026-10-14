@@ -22,7 +22,9 @@ export function latestIdealBubbleIds(
   for (let i = items.length - 1; i >= 0; i -= 1) {
     const message = items[i].message;
     if (items[i].kind !== "message" || !message) continue;
-    if (message.kind !== "ideal_text") continue;
+    // A review's own Ideal Text card counts as the project's card too.
+    const reviewCard = message.kind === "walk_step" && message.metadata?.step === "end";
+    if (message.kind !== "ideal_text" && !reviewCard) continue;
     const arcId = message.metadata?.arc_id;
     const variant = message.metadata?.variant;
     if (typeof arcId !== "string" || seenArcs.has(arcId)) continue;
@@ -31,4 +33,25 @@ export function latestIdealBubbleIds(
     ids.add(message.client_id);
   }
   return ids;
+}
+
+/** ONE IDEAL TEXT BUBBLE PER TAKE (founder 2026-10-14, walk first): a
+ *  version bubble whose Take already has its review's card is not drawn.
+ *  A Take with no review yet keeps it, drawn as the same small card. */
+export function versionBubblesWithReviewCard(
+  items: readonly { kind: string; message?: LoungeMessage }[],
+): Set<string> {
+  const cards = new Set<string>();
+  for (const { message } of items) {
+    const m = message?.metadata;
+    if (message?.kind === "walk_step" && m?.step === "end") cards.add(`${String(m.arc_id)}|${String(m.take_index)}`);
+  }
+  const hidden = new Set<string>();
+  for (const { message } of items) {
+    const m = message?.metadata;
+    if (message?.kind !== "ideal_text" || !m) continue;
+    if (typeof m.variant === "string" && NOT_A_VERSION_BUBBLE.has(m.variant)) continue;
+    if (cards.has(`${String(m.arc_id)}|${String(m.version)}`)) hidden.add(message.client_id);
+  }
+  return hidden;
 }
