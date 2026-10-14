@@ -256,7 +256,7 @@ export default function BookingPage({ info }: { info: PageInfo }) {
                 <div className="flex flex-wrap gap-2">
                   <button type="submit" disabled={sending || !!signedIn?.preview}
                     className="rounded-[10px] border border-foreground bg-foreground px-[18px] py-3 font-semibold text-background disabled:opacity-60">
-                    {sending ? "Opening payment…" : `Pay now · ${money(signedIn?.price_cents ?? info.price_cents, info.currency)}`}
+                    {sending ? "Opening payment…" : `Book and pay ${money(signedIn?.price_cents ?? info.price_cents, info.currency)}`}
                   </button>
                   <button type="button" disabled={sending || !!signedIn?.preview} onClick={(e) => void submit(e, true)}
                     className="rounded-[10px] border border-foreground bg-background px-[18px] py-3 font-semibold text-foreground disabled:opacity-60">
