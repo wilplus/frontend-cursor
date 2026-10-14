@@ -38,6 +38,20 @@ export function formatShortDate(iso: string | null): string | null {
   return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(d);
 }
 
+/** What a plan is called on screen (founder 2026-10-14: plans differ by
+ *  tokens only, so they are named by size). The keys stay as the backend and
+ *  Stripe know them. */
+const PLAN_LABELS: Record<string, string> = {
+  practice: "Starter",
+  coaching: "Plus",
+  intensive: "Pro",
+};
+
+export function planLabel(tier: string): string {
+  const key = String(tier ?? "");
+  return PLAN_LABELS[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
+}
+
 export const TOKENS_COPY = {
   /* ------------------------------- the row ------------------------------- */
 
@@ -57,7 +71,7 @@ export const TOKENS_COPY = {
   walletPageTitle: "Tokens and plans",
   walletPageIntro:
     "What you have left, what things cost, and where it went.",
-  walletTier: (tier: string) => `${tier} plan`,
+  walletTier: (tier: string) => `${planLabel(tier)} plan`,
   walletBalanceUnknown: "Balance unavailable right now.",
   walletPricesTitle: "What things cost",
   /** The one disclosure that keeps this page a single view: prices, coach
@@ -80,22 +94,14 @@ export const TOKENS_COPY = {
   // Legacy payload fields still say `usdPerMonth`; Stripe charges once and
   // the surface must describe what the customer actually buys.
   planCardPerMonth: "one-time purchase",
-  planCardReviews: (n: number) =>
-    n === 0
-      ? "No coach reviews"
-      : n === 1
-        ? "1 coach review"
-        : `${n} coach reviews`,
-  planCardCta: (tier: string) => `Choose ${tier}`,
+  planCardCta: (tier: string) => `Choose ${planLabel(tier)}`,
   /** You are on this one already. */
   planCardCurrent: "Your plan",
   /** The free tier is never a card with a CTA — you do not check out to pay
    *  nothing. It is stated as a line so the ladder still starts somewhere. */
-  planFreeLine: (tokens: string) => `Free plan: ${tokens} tokens included, no coach reviews.`,
+  planFreeLine: (tokens: string) => `Free plan: ${tokens} tokens included.`,
   walletPerMonth: (usd: number) => (usd === 0 ? "Free" : `$${usd} one time`),
   walletTierTokens: (tokens: string) => `${tokens} tokens`,
-  walletTierReviews: (n: number) =>
-    n === 0 ? "No coach reviews" : n === 1 ? "1 coach review" : `${n} coach reviews`,
   /** Shown against the plan list because there is no subscription checkout in
    *  the product yet. Honest beats a button that goes nowhere. */
   /** The CTA on a plan you can actually buy. */
@@ -136,23 +142,6 @@ export const TOKENS_COPY = {
   walletLoadFailed: "Couldn't load plans right now.",
   walletRetry: "Try again",
 
-  /* --------------------------- coach reviews ----------------------------- */
-
-  /** A COUNT, never converted to tokens. The cap protects the founder's
-   *  calendar and cannot be bought past, so there is no "buy more" here at
-   *  any balance. */
-  coachReviewsTitle: "Coach reviews",
-  coachReviewsUsed: (used: number, allowed: number) =>
-    // A zero allowance is a property of the PLAN, not a tally. "0 of 0 used"
-    // reads as a broken counter, so say what is actually true.
-    allowed === 0
-      ? "Not included on your plan"
-      : `${used} of ${allowed} used`,
-  /** The one place two limits can disagree: plenty of tokens AND no reviews
-   *  left. Say why plainly or it reads as a bug. */
-  coachReviewsExhausted: (_renewsOn: string | null) =>
-    "You've used all coach reviews included in this purchase.",
-
   /* ------------------------------ recording ------------------------------ */
 
   /** Out of tokens. No reset is promised: recording remains available and the
@@ -169,8 +158,6 @@ export const TOKENS_COPY = {
 
   unlockPrice: (price: string) => `${price} tokens`,
   unlockInsufficient: (_renewsOn: string | null) => "Not enough tokens.",
-  unlockCoachCap: (_renewsOn: string | null) =>
-    "You've used all coach reviews included in this purchase.",
 } as const;
 
 /* ------------------------- action → human label --------------------------- */

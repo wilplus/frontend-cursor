@@ -5,6 +5,7 @@ import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMes
 import { offerDraft, type OfferType } from "./loungeOffers";
 import { shortDate, type LessonOffer, type PlanPromotion } from "@/lib/booking/offers";
 import { money } from "@/lib/booking/time";
+import { planLabel } from "@/components/tokens/copy";
 
 /* -------------------------------------------------------------------------- */
 /*  An ask the admin sent this person from their profile (founder 2026-10-13,  */
@@ -46,13 +47,11 @@ const OFFER_FOR: Record<AdminAsk["kind"], OfferType> = {
   lesson: "lesson",
 };
 
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-
 /** The bubble for a price ask, with the exact price it tells them about. */
 function askBody(ask: AdminAsk): string | undefined {
   const p = ask.promotion;
   if (ask.kind === "promo" && p) {
-    return `Artur set a price for you: ${cap(p.plan)} for ${money(p.price_cents, "usd")} instead of ${money(p.list_cents, "usd")}, until ${shortDate(p.ends_at)}.`;
+    return `Artur set a price for you: ${planLabel(p.plan)} for ${money(p.price_cents, "usd")} instead of ${money(p.list_cents, "usd")}, until ${shortDate(p.ends_at)}.`;
   }
   const l = ask.lesson;
   if (ask.kind === "lesson" && l) {
