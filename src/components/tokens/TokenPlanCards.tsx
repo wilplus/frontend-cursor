@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { startPlanCheckout } from "@/services/api/subscribe";
 import type { TokenTier } from "@/services/api/tokens";
-import { TOKENS_COPY, formatTokens } from "./copy";
+import { TOKENS_COPY, formatTokens, planLabel } from "./copy";
 import { shortDate, type PlanPromotion } from "@/lib/booking/offers";
 import { money } from "@/lib/booking/time";
 
@@ -126,7 +126,7 @@ export default function TokenPlanCards({
                 </span>
               ) : null}
               <h3 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {name}
+                {planLabel(name)}
               </h3>
               <p className="mt-2 text-4xl font-bold tracking-tight text-foreground">
                 {promotion?.plan === name ? (
@@ -144,9 +144,6 @@ export default function TokenPlanCards({
               <div className="mt-4 flex-1 space-y-1 border-t border-border pt-4">
                 <p className="text-sm font-medium text-foreground">
                   {TOKENS_COPY.planCardTokens(formatTokens(tier.tokensPerMonth))}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {TOKENS_COPY.planCardReviews(tier.coachReviewsPerMonth)}
                 </p>
               </div>
 

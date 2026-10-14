@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import AdminGate from "@/components/admin/AdminGate";
 import TakesExplorer from "./TakesExplorer";
+import { planLabel } from "@/components/tokens/copy";
 
 /* -------------------------------------------------------------------------- */
 /*  /admin/users/<id> — one person's profile (founder 2026-10-13, step 1).     */
@@ -343,7 +344,7 @@ function PromotionSection({ id, promotion, sendAsk, reload }: {
           {promotion && (
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <span>
-                Live now: <span className="capitalize">{promotion.plan}</span>{" "}
+                Live now: {planLabel(promotion.plan)}{" "}
                 <s className="text-muted-foreground">${promotion.list_cents / 100}</s> <b>${promotion.price_cents / 100}</b>{" "}
                 <span className="text-muted-foreground">until {day(promotion.ends_at)}</span>
               </span>
@@ -354,7 +355,7 @@ function PromotionSection({ id, promotion, sendAsk, reload }: {
             <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-plan">
               Plan
               <select id="pr-plan" className={FIELD} value={promo.plan} onChange={(e) => setPromo({ ...promo, plan: e.target.value })}>
-                {plans.map(([k, usd]) => <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)} · ${usd}</option>)}
+                {plans.map(([k, usd]) => <option key={k} value={k}>{planLabel(k)} · ${usd}</option>)}
               </select>
             </label>
             <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-price">

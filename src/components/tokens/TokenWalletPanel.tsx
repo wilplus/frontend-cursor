@@ -146,31 +146,6 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
           {detailsOpen ? (
             <div className="mt-2 text-left">
 
-          {/* ------------------------- coach reviews ------------------------- */}
-          {ready?.coachReviews ? (
-            <section className="mt-7">
-              <h3 className="text-[13px] font-semibold">{TOKENS_COPY.coachReviewsTitle}</h3>
-              <p className="mt-1 text-[13px] text-muted-foreground">
-                {TOKENS_COPY.coachReviewsUsed(
-                  ready.coachReviews.used,
-                  ready.coachReviews.allowed
-                )}
-              </p>
-              {/* The one place two limits legitimately disagree: a full balance
-                  and no reviews left. Said plainly, or it reads as a bug.
-
-                  GATED ON allowed > 0. On free the allowance IS zero, so a bare
-                  `remaining <= 0` told those users they had "used your coach
-                  reviews" directly under "0 of 0 used" — claiming
-                  they spent something they never had. Exhausted means they had
-                  some and spent them; having none is a property of the plan. */}
-              {ready.coachReviews.allowed > 0 && ready.coachReviews.remaining <= 0 ? (
-                <p className="mt-1 text-[13px] text-muted-foreground">
-                  {TOKENS_COPY.coachReviewsExhausted(null)}
-                </p>
-              ) : null}
-            </section>
-          ) : null}
           {/* ----------------------------- prices ---------------------------- */}
           {prices && Object.keys(prices.actions).length > 0 ? (
             <section className="mt-7">
