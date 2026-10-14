@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { loadBookingPage as loadPage } from "@/lib/booking/server";
 import BookingPage, { type PageInfo } from "./BookingPage";
@@ -13,5 +14,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 export default async function Page({ params }: { params: { slug: string } }) {
   const info = await loadPage(params.slug);
   if (!info) notFound();
-  return <BookingPage info={info} />;
+  // Vercel names the visitor's time zone from their IP; the page starts there.
+  const ipZone = headers().get("x-vercel-ip-timezone") || undefined;
+  return <BookingPage info={info} ipZone={ipZone} />;
 }
