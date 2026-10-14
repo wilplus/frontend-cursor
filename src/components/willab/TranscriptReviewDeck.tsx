@@ -208,6 +208,11 @@ function liveOpenPartId(
   return openChunk?.part.id ?? openPart.id;
 }
 
+/** THE IDEAL TEXT IS ONE PAGE (founder 2026-10-14): every slide and its
+ *  words in one natural scroll, without a scroller per slide or the wheel
+ *  and touch steps between slides. */
+const ONE_PAGE = true;
+
 export default function TranscriptReviewDeck({
   title = "",
   statusChip = null,
@@ -463,8 +468,9 @@ export default function TranscriptReviewDeck({
     () =>
       buildScreens(
         groups,
-        SCREEN_MAX_CHUNKS,
-        fit
+        // One page: one block per slide, never split (founder 2026-10-14).
+        ONE_PAGE ? Number.MAX_SAFE_INTEGER : SCREEN_MAX_CHUNKS,
+        fit && !ONE_PAGE
           ? {
               fit,
               textOf: (c: DeckChunk) => c.part.text,
@@ -844,7 +850,8 @@ export default function TranscriptReviewDeck({
   // swallowed. This avoids both page leakage and queued smooth animations.
   useEffect(() => {
     const stage = stageRef.current;
-    if (!stage) return;
+    // ONE PAGE (founder 2026-10-14): the text scrolls natively, no slide steps.
+    if (!stage || ONE_PAGE) return;
     const owner =
       stage.closest<HTMLElement>("[data-ideal-text-wheel-owner]") ?? stage;
     const onWheel = (e: WheelEvent) => {
@@ -897,7 +904,7 @@ export default function TranscriptReviewDeck({
   // inner scroller's overscroll containment already stops the chain).
   useEffect(() => {
     const stage = stageRef.current;
-    if (!stage) return;
+    if (!stage || ONE_PAGE) return;
     const onStart = (e: TouchEvent) => {
       touchRef.current = { y: e.touches[0]?.clientY ?? 0, consumed: false };
     };
@@ -1195,7 +1202,7 @@ export default function TranscriptReviewDeck({
           // PROGRAMMATIC-ONLY (§11.3): native scroll on the slide track
           // would bypass the chunk gate through the kicker area, so the
           // track only moves via goTo/dots/keys.
-          className={deckReady ? "h-full overflow-hidden" : "hidden"}
+          className={deckReady ? "h-full overflow-y-auto overscroll-y-contain" : "hidden"}
         >
           {screens.map((g, gi) => (
             <section
@@ -1208,7 +1215,7 @@ export default function TranscriptReviewDeck({
               // ONE CENTRED READING COLUMN on desktop (founder 2026-09-28),
               // about 65 characters of the deck's type; a phone keeps its
               // full width.
-              className="mx-auto flex h-full w-full max-w-[56rem] flex-col gap-4 px-6 py-8 sm:px-10"
+              className="mx-auto flex w-full max-w-[56rem] flex-col gap-4 px-6 py-6 sm:px-10"
             >
               {/* ONE COMPACT ROW (founder 2026-09-26, Ideal Text redesign
                   B): the slide as a small tile, its kicker, and the pencil.
@@ -1266,7 +1273,7 @@ export default function TranscriptReviewDeck({
                 }}
                 // -ml-4 pl-4: room in the margin for the paragraph bars, so
                 // the text starts flush with the column (founder 2026-09-28).
-                className="scrollbar-none relative -ml-4 min-h-0 flex-1 overflow-y-auto overscroll-y-contain pl-4"
+                className="relative -ml-4 pl-4"
               >
                 {/* THE WORDS START AT THE TOP (founder 2026-09-17: "this
                     screen misalignment, it is impossible to work that way").

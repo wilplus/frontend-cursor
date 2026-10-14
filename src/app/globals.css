@@ -577,3 +577,40 @@ button,
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* THE TAIL ON THE LAST BUBBLE OF A RUN (founder 2026-10-14, WhatsApp-like):
+   a row is the app's (`data-row="app"`, left) or the speaker's ("me",
+   right); the bubble (`data-bubble`) of a row whose next sibling is not of
+   the same side gets a small tail at its bottom corner. */
+[data-row="app"]:not(:has(+ [data-row="app"])) [data-bubble],
+[data-row="app"][data-bubble]:not(:has(+ [data-row="app"])) {
+  position: relative;
+  border-bottom-left-radius: 4px;
+}
+[data-row="app"]:not(:has(+ [data-row="app"])) [data-bubble]::before,
+[data-row="app"][data-bubble]:not(:has(+ [data-row="app"]))::before {
+  content: "";
+  position: absolute;
+  left: -7px;
+  bottom: 0;
+  width: 10px;
+  height: 14px;
+  background: inherit;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+[data-row="me"]:not(:has(+ [data-row="me"])) [data-bubble],
+[data-row="me"][data-bubble]:not(:has(+ [data-row="me"])) {
+  position: relative;
+  border-bottom-right-radius: 4px;
+}
+[data-row="me"]:not(:has(+ [data-row="me"])) [data-bubble]::before,
+[data-row="me"][data-bubble]:not(:has(+ [data-row="me"]))::before {
+  content: "";
+  position: absolute;
+  right: -7px;
+  bottom: 0;
+  width: 10px;
+  height: 14px;
+  background: inherit;
+  clip-path: polygon(0 0, 0 100%, 100% 100%);
+}

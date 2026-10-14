@@ -125,7 +125,9 @@ export function shareChat(
     .join(", ");
   return [
     ...(nextTake ? [say("user", `Record Take ${nextTake}`)] : []),
-    say("bot", `${WALK_COPY.shareTitle}\n${WALK_COPY.nextShareAsk}`),
+    say("bot", WALK_COPY.shareBefore),
+    say("bot", WALK_COPY.shareTitle),
+    say("bot", WALK_COPY.shareAudience),
     say("user", choice),
   ];
 }

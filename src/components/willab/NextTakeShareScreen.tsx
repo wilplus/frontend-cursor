@@ -185,13 +185,10 @@ export default function NextTakeShareScreen({
           <WalkFooter pill={{ label: COPY.pillContinue, onClick: submit, disabled: !ready, testId: "share-continue" }} />
         }
       >
-        <WalkMessage>
-          <span>
-            {WALK_COPY.shareTitle}
-            <br />
-            {WALK_COPY.nextShareAsk}
-          </span>
-        </WalkMessage>
+        {/* Three bubbles (founder 2026-10-14). */}
+        <WalkMessage>{WALK_COPY.shareBefore}</WalkMessage>
+        <WalkMessage>{WALK_COPY.shareTitle}</WalkMessage>
+        <WalkMessage>{WALK_COPY.shareAudience}</WalkMessage>
         {saved ? <WalkOptions options={options} selected={ticks} onChange={setTicks} /> : null}
       </WalkOverlay>
       </div>
