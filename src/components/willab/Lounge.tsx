@@ -1245,6 +1245,14 @@ export default function Lounge({
           if (resp.persisted) {
             announceDiscoveriesFromPersistedMessages([botMessage]);
           }
+          // The speaker asked Will for a feature the Lounge offers (founder
+          // 2026-10-14): the BE stored its offer bubble after the reply, so
+          // show it now and open its form, as a tap on the bubble would.
+          const chatOffer = readOfferType({ offer: resp.offer });
+          if (chatOffer) {
+            thread.appendLocalOnly(offerDraft(chatOffer));
+            setActiveOffer(chatOffer);
+          }
         } else {
           await thread.append(botDraft);
         }
