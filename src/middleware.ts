@@ -357,12 +357,15 @@ export async function middleware(req: NextRequest) {
   // (user must set new password there after clicking the reset link)
   if (session && isAuthRoute(pathname) && pathname !== "/update-password") {
     // Signed in already: go where the link asked (e.g. the booking page).
-    const back = searchParams.get("redirectTo");
-    const target = back && back.startsWith("/") && !back.startsWith("//") ? back : "/chat";
-    return applyCsp(NextResponse.redirect(new URL(target, req.url)), cspDirectives);
+    return applyCsp(NextResponse.redirect(new URL(sameSitePath(searchParams.get("redirectTo")), req.url)), cspDirectives);
   }
 
   return res;
+}
+
+/** A same-site path to go to after sign-in, else /chat. */
+function sameSitePath(back: string | null): string {
+  return back && back.startsWith("/") && !back.startsWith("//") ? back : "/chat";
 }
 
 export const config = {

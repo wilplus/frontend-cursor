@@ -85,10 +85,6 @@ function PersonProfile({ id }: { id: string }) {
   const [price, setPrice] = useState("");
   const [note, setNote] = useState<string | null>(null);
   const [tellLesson, setTellLesson] = useState(false);
-  // Step 3: a plan price for this person on their pricing screen.
-  const [plans, setPlans] = useState<[string, number][]>([]);
-  const [promo, setPromo] = useState({ plan: "coaching", price: "", until: "", tell: true });
-  const [promoNote, setPromoNote] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -106,16 +102,7 @@ function PersonProfile({ id }: { id: string }) {
     void load();
   }, [load]);
 
-  useEffect(() => {
-    fetch("/api/v2/tokens/prices", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((b: { tiers?: Record<string, { usd_per_month: number }> } | null) => {
-        const paid = Object.entries(b?.tiers || {}).filter(([, t]) => t.usd_per_month > 0)
-          .map(([k, t]) => [k, t.usd_per_month] as [string, number]).sort((a, c) => a[1] - c[1]);
-        setPlans(paid);
-      })
-      .catch(() => undefined);
-  }, []);
+
 
   const grant = async () => {
     const amount = Number.parseInt(tokens, 10);
@@ -155,24 +142,7 @@ function PersonProfile({ id }: { id: string }) {
     if (res?.ok && tellLesson && price.trim() !== "" && normal !== null && cents < normal) void sendAsk("lesson");
   };
 
-  const savePromo = async () => {
-    const res = await fetch(`/api/v2/admin/people/${encodeURIComponent(id)}/promotion`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan: promo.plan, price_cents: Math.round(Number(promo.price) * 100), ends_on: promo.until }),
-    }).catch(() => null);
-    const body = res ? await res.json().catch(() => ({})) : {};
-    if (!res?.ok) return setPromoNote(body.error || "Could not save the promotion. Try again.");
-    setPromoNote("Promotion is on their pricing screen.");
-    if (promo.tell) await sendAsk("promo");
-    else void load();
-  };
 
-  const endPromo = async () => {
-    const res = await fetch(`/api/v2/admin/people/${encodeURIComponent(id)}/promotion`, { method: "DELETE" }).catch(() => null);
-    setPromoNote(res?.ok ? "Promotion ended." : "Could not end the promotion. Try again.");
-    if (res?.ok) void load();
-  };
 
   const askLabel = (a: Ask) =>
     a.kind === "whatsapp" ? "Phone number" : a.kind === "home_screen" ? "Add to home screen"
@@ -248,50 +218,7 @@ function PersonProfile({ id }: { id: string }) {
         </div>
       </section>
 
-      <section>
-        <h2 className={h2}>Promotion on their pricing screen</h2>
-        <div className={`${box} grid gap-3 py-4`}>
-          {p.promotion && (
-            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span>
-                Live now: <span className="capitalize">{p.promotion.plan}</span>{" "}
-                <s className="text-muted-foreground">${p.promotion.list_cents / 100}</s> <b>${p.promotion.price_cents / 100}</b>{" "}
-                <span className="text-muted-foreground">until {day(p.promotion.ends_at)}</span>
-              </span>
-              <button type="button" onClick={() => void endPromo()} className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium">End</button>
-            </div>
-          )}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-plan">
-              Plan
-              <select id="pr-plan" className={field} value={promo.plan} onChange={(e) => setPromo({ ...promo, plan: e.target.value })}>
-                {plans.map(([k, usd]) => <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)} · ${usd}</option>)}
-              </select>
-            </label>
-            <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-price">
-              Their price
-              <input id="pr-price" type="number" min="1" className={field} value={promo.price} onChange={(e) => setPromo({ ...promo, price: e.target.value })} />
-            </label>
-            <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-until">
-              Until
-              <input id="pr-until" type="date" className={field} value={promo.until} onChange={(e) => setPromo({ ...promo, until: e.target.value })} />
-            </label>
-            <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-tell">
-              Also tell them in the app
-              <select id="pr-tell" className={field} value={promo.tell ? "yes" : "no"} onChange={(e) => setPromo({ ...promo, tell: e.target.value === "yes" })}>
-                <option value="yes">Yes, after their next take</option>
-                <option value="no">No, only on the pricing screen</option>
-              </select>
-            </label>
-          </div>
-          <div>
-            <button type="button" onClick={() => void savePromo()} className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background">
-              {p.promotion ? "Replace promotion" : "Start promotion"}
-            </button>
-          </div>
-          {promoNote && <p className="text-sm">{promoNote}</p>}
-        </div>
-      </section>
+      <PromotionSection id={id} promotion={p.promotion} sendAsk={sendAsk} reload={load} />
 
       <section>
         <h2 className={h2}>What we know</h2>
@@ -355,5 +282,98 @@ function PersonProfile({ id }: { id: string }) {
         </div>
       </section>
     </main>
+  );
+}
+
+const H2 = "mb-2 text-xs font-semibold uppercase tracking-[0.07em] text-muted-foreground";
+const BOX = "rounded-2xl border border-border px-4";
+const FIELD = "w-full min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm tabular-nums outline-none focus:border-foreground";
+
+/** Step 3: a plan price for this person on their pricing screen. */
+function PromotionSection({ id, promotion, sendAsk, reload }: {
+  id: string;
+  promotion: Person["promotion"];
+  sendAsk: (kind: Ask["kind"]) => Promise<void>;
+  reload: () => Promise<void>;
+}) {
+  const [plans, setPlans] = useState<[string, number][]>([]);
+  const [promo, setPromo] = useState({ plan: "coaching", price: "", until: "", tell: true });
+  const [note, setNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/v2/tokens/prices", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: { tiers?: Record<string, { usd_per_month: number }> } | null) => {
+        const paid = Object.entries(b?.tiers || {}).filter(([, t]) => t.usd_per_month > 0)
+          .map(([k, t]) => [k, t.usd_per_month] as [string, number]).sort((a, c) => a[1] - c[1]);
+        setPlans(paid);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const savePromo = async () => {
+    const res = await fetch(`/api/v2/admin/people/${encodeURIComponent(id)}/promotion`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan: promo.plan, price_cents: Math.round(Number(promo.price) * 100), ends_on: promo.until }),
+    }).catch(() => null);
+    const body = res ? await res.json().catch(() => ({})) : {};
+    if (!res?.ok) return setNote(body.error || "Could not save the promotion. Try again.");
+    setNote("Promotion is on their pricing screen.");
+    if (promo.tell) await sendAsk("promo");
+    else void reload();
+  };
+
+  const endPromo = async () => {
+    const res = await fetch(`/api/v2/admin/people/${encodeURIComponent(id)}/promotion`, { method: "DELETE" }).catch(() => null);
+    setNote(res?.ok ? "Promotion ended." : "Could not end the promotion. Try again.");
+    if (res?.ok) void reload();
+  };
+
+  return (
+      <section>
+        <h2 className={H2}>Promotion on their pricing screen</h2>
+        <div className={`${BOX} grid gap-3 py-4`}>
+          {promotion && (
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span>
+                Live now: <span className="capitalize">{promotion.plan}</span>{" "}
+                <s className="text-muted-foreground">${promotion.list_cents / 100}</s> <b>${promotion.price_cents / 100}</b>{" "}
+                <span className="text-muted-foreground">until {day(promotion.ends_at)}</span>
+              </span>
+              <button type="button" onClick={() => void endPromo()} className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium">End</button>
+            </div>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-plan">
+              Plan
+              <select id="pr-plan" className={FIELD} value={promo.plan} onChange={(e) => setPromo({ ...promo, plan: e.target.value })}>
+                {plans.map(([k, usd]) => <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)} · ${usd}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-price">
+              Their price
+              <input id="pr-price" type="number" min="1" className={FIELD} value={promo.price} onChange={(e) => setPromo({ ...promo, price: e.target.value })} />
+            </label>
+            <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-until">
+              Until
+              <input id="pr-until" type="date" className={FIELD} value={promo.until} onChange={(e) => setPromo({ ...promo, until: e.target.value })} />
+            </label>
+            <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-tell">
+              Also tell them in the app
+              <select id="pr-tell" className={FIELD} value={promo.tell ? "yes" : "no"} onChange={(e) => setPromo({ ...promo, tell: e.target.value === "yes" })}>
+                <option value="yes">Yes, after their next take</option>
+                <option value="no">No, only on the pricing screen</option>
+              </select>
+            </label>
+          </div>
+          <div>
+            <button type="button" onClick={() => void savePromo()} className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background">
+              {promotion ? "Replace promotion" : "Start promotion"}
+            </button>
+          </div>
+          {note && <p className="text-sm">{note}</p>}
+        </div>
+      </section>
   );
 }
