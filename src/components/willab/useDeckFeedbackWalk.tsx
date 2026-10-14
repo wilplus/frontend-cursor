@@ -174,6 +174,9 @@ export function deckReplayItems(
   return out;
 }
 
+/** The screens a moment's coach answer is drawn on. */
+const COACH_ANSWER_STEPS: ReadonlySet<string> = new Set(["coach", "praise", "clearer", "exVideo"]);
+
 /** One served item as the walk reads it. Pure. */
 function walkItemOf(
   item: DocumentSuggestion,
@@ -207,6 +210,7 @@ function walkItemOf(
     item: suggestionSource(item) ? item : null,
     exercise,
     judge: reopensJudgement(item) ? item : null,
+    ...(item.coachAnswer ? { coachAnswered: true, coachAnswer: item.coachAnswer, coachItem: item } : {}),
   };
 }
 
@@ -323,6 +327,7 @@ export function coachShownOn(
     moment.practiseItem,
     moment.clearer?.item,
     moment.exercise?.item,
+    moment.coachItem,
     ...openOn,
   ];
   const out = new Map<string, CoachFeedbackShown>();
@@ -514,6 +519,9 @@ export function useDeckFeedbackWalk(args: {
   onLensClose?: () => void;
   /** The walk was closed (✕), however it was opened. */
   onWalkClose?: () => void;
+  /** Opened from the coach's bubble: only what the coach sent (founder
+   *  2026-10-14). */
+  coachOnly?: boolean;
   /** The answered items on a paragraph (the replay reads them with the
    *  waiting ones, Q-IT643b A). */
   answeredOf?: (chunk: DeckChunk) => readonly DocumentSuggestion[];
@@ -584,10 +592,11 @@ export function useDeckFeedbackWalk(args: {
       buildFeedbackWalk({
         items,
         coachNote: coachMessage !== null,
+        coachOnly: args.coachOnly === true,
         practiceOn,
         guest: false,
       }),
-    [items, coachMessage, practiceOn],
+    [items, coachMessage, practiceOn, args.coachOnly],
   );
 
   /* THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A): the
@@ -877,7 +886,8 @@ export function useDeckFeedbackWalk(args: {
   }, [ended, request, postEnd]);
   const onEnd = useCallback(() => {
     if (practisingRef.current) return;
-    postEnd();
+    // The coach-only walk is not the review: it ends nothing.
+    if (!live.current.coachOnly) postEnd();
     live.current.onEnd?.();
   }, [postEnd]);
   const onClose = useCallback(() => {
@@ -920,6 +930,11 @@ export function useDeckFeedbackWalk(args: {
       const part = { part_id: moment?.partId ?? null };
       if (chat?.clip) post({ key: `clip:${step.key}`, ...at, author: "speaker", body: "", extra: { ...chat.label, clip: chat.clip, ...part } });
       if (said) post({ key: step.key, ...at, ...said, extra: { ...(chat?.clip ? {} : chat?.label), ...said.extra, ...part } });
+      // The coach's answer on the moment: their bubble in the chat too.
+      const answer = moment?.coachAnswer;
+      if (answer && COACH_ANSWER_STEPS.has(step.key)) {
+        post({ key: "coach-answer", moment: at.moment, attempt: null, author: "coach", body: `${CHUNK_SHEET_COPY.titleCoach}\n${answer.text}`, extra: { ...(answer.videoUrl ? { video: answer.videoUrl } : {}), ...part } });
+      }
       const parts = moment ? (walkModel.partsOf[moment.index] ?? []) : [];
       const openOn = now.filter((c) => parts.includes(c.part.id)).flatMap((c) => openOf(c));
       for (const shown of coachShownOn(step, moment, coach, openOn)) {
