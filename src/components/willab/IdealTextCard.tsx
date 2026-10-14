@@ -17,6 +17,7 @@ export default function IdealTextCard({
   arcId = null,
   latest = false,
   onOpen,
+  onOpenFeedback,
 }: {
   title: string;
   /** The Take this text came from: the tag reads "N.0". */
@@ -27,16 +28,44 @@ export default function IdealTextCard({
   arcId?: string | null;
   latest?: boolean;
   onOpen: () => void;
+  /** The coach's new feedback: its own bubble, opening the walk. */
+  onOpenFeedback?: () => void;
 }) {
   const fresh = useNewCoachFeedback(arcId);
+  const card = { title, version, slideRef };
+  return (
+    <>
+      <CardButton {...card} onOpen={onOpen} />
+      {/* THE COACH'S FEEDBACK IS ITS OWN BUBBLE (founder 2026-10-14): the
+          same card with the orange outline and the dot, opening the walk
+          where the feedback is; the card above opens the text. */}
+      {latest && fresh && onOpenFeedback ? <CardButton {...card} onOpen={onOpenFeedback} coach /> : null}
+    </>
+  );
+}
+
+function CardButton({
+  title,
+  version,
+  slideRef,
+  onOpen,
+  coach = false,
+}: {
+  title: string;
+  version: number | null;
+  slideRef?: string | null;
+  onOpen: () => void;
+  coach?: boolean;
+}) {
   return (
     <button
       type="button"
-      data-review-card
+      data-review-card={coach ? undefined : true}
+      data-coach-feedback-card={coach ? true : undefined}
       onClick={onOpen}
-      className="relative mr-auto flex w-[80%] max-w-sm items-center gap-2.5 rounded-[18px] border border-border bg-background p-2.5 pr-7 text-left transition-transform active:scale-[0.98]"
+      className={`relative mr-auto flex w-[80%] max-w-sm items-center gap-2.5 rounded-[18px] border border-border bg-background p-2.5 pr-7 text-left transition-transform active:scale-[0.98]${coach ? " ring-2 ring-primary" : ""}`}
     >
-      {latest && fresh ? (
+      {coach ? (
         <span aria-hidden="true" data-testid="new-coach-feedback-dot" className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-primary" />
       ) : null}
       <span aria-hidden="true" className="aspect-video w-[72px] flex-none overflow-hidden rounded-md bg-gradient-to-br from-[#dde3ee] to-[#c7d0e0]">

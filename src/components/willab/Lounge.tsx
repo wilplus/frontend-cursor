@@ -2225,7 +2225,7 @@ function WalkStepBubble({
     const deck = meta.deck && typeof meta.deck === "object" ? (meta.deck as { presentation_ref?: unknown }) : null;
     const slideRef = deck ? (typeof deck.presentation_ref === "string" ? deck.presentation_ref : null) : undefined;
     return arc && card ? (
-      <IdealTextCard title={card.title} version={card.take} slideRef={slideRef} arcId={arc} latest={latest} onOpen={() => onOpenIdealText?.(arc)} />
+      <IdealTextCard title={card.title} version={card.take} slideRef={slideRef} arcId={arc} latest={latest} onOpen={() => onOpenIdealText?.(arc)} onOpenFeedback={() => onOpenIdealText?.(arc, "feedback")} />
     ) : null;
   }
   const clip = walkClipOf(meta.clip);
