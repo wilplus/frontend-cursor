@@ -27,6 +27,7 @@ import {
   readoutView,
 } from "./loungeReports";
 import ArcActionPrice from "@/components/tokens/ArcActionPrice";
+import IdealTextCard from "./IdealTextCard";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 
 /* -------------------------------------------------------------------------- */
@@ -412,6 +413,7 @@ function renderIdealTextReportCard(
       date={reportDateLabel(message.client_created_at)}
       onOpen={openable ? open : null}
       latest={latest}
+      slideRef={deckRefOf(message.metadata)}
     />
   );
 }
@@ -559,6 +561,14 @@ function renderInsightOrRecordingSummaryReportCard(
       ) : null}
     </div>
   );
+}
+
+/** The project's first slide on an Ideal Text card, as the Lounge read
+ *  attaches it: undefined when not attached. */
+function deckRefOf(meta: LoungeMessage["metadata"]): string | null | undefined {
+  const deck = (meta as { deck?: { presentation_ref?: unknown } } | null | undefined)?.deck;
+  if (!deck || typeof deck !== "object") return undefined;
+  return typeof deck.presentation_ref === "string" ? deck.presentation_ref : null;
 }
 
 /** The Take's own recording, signed by the Lounge read; null without one. */
@@ -825,10 +835,14 @@ function LiveStatusIdealTextCard({
   date,
   onOpen,
   latest = false,
+  slideRef,
 }: {
   /** This is the project's latest Ideal Text bubble: the one that wears the
    *  "new" mark (D-FW-19). */
   latest?: boolean;
+  /** The project's first slide, signed by the Lounge read (null: the default
+   *  deck); undefined: not known, the plain tile. */
+  slideRef?: string | null;
   arcId: string | null;
   /** The project name the BE stamped on this row at write time. Null on rows
    *  written before 2026-08-15 — the cache and then the generic cover those. */
@@ -887,10 +901,11 @@ function LiveStatusIdealTextCard({
   // while the coach's feedback waits for the walk, on the project's latest
   // bubble only; a tap opens the text, where "Review feedback" starts the
   // walk (Six Journey Questions 1).
-  const fresh = useNewCoachFeedback(arcId);
-  const marked = latest && fresh;
+  // ONE IDEAL TEXT BUBBLE PER TAKE (founder 2026-10-14, walk first): the
+  // big "Open your ideal text" card is gone; a Take whose review has not
+  // posted its own card yet shows this same small card in its place.
   return (
-    <IdealRecordingCard
+    <IdealTextCard
       /* Live → stamped-on-the-row → remembered → the generic. The generic is
        * the honest answer ONLY for an arc nobody has ever opened and whose
        * bubble predates the stamp; everywhere else it was just the wrong
@@ -901,12 +916,11 @@ function LiveStatusIdealTextCard({
         cachedTitle ||
         "Your ideal text"
       }
-      meta={date}
-      badge={version !== null ? `${version}.0` : null}
-      ctaLabel="Open your ideal text"
-      marked={marked}
-      onOpen={onOpen}
-      onWarm={arcId ? () => prefetchIdealTextDisplay(arcId) : undefined}
+      version={version}
+      slideRef={slideRef}
+      arcId={arcId}
+      latest={latest}
+      onOpen={onOpen ?? (() => undefined)}
     />
   );
 }

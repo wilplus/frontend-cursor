@@ -844,6 +844,17 @@ export function useDeckFeedbackWalk(args: {
   const onClose = useCallback(() => {
     if (lensRef.current) live.current.onLensClose?.();
   }, []);
+  // NEXT GOES TO WHAT STILL WAITS (founder 2026-10-14, walk first): on a
+  // step played again, while a moment of this Take still waits, Next goes
+  // to the live walk's first waiting step; with nothing waiting it plays on.
+  const onForward = useCallback((): boolean => {
+    if (!replaying || items.length === 0) return false;
+    const at = walkStart(model);
+    if (at === null) return false;
+    setReplaying(null);
+    openAt(at, false, lensRef.current);
+    return true;
+  }, [replaying, items.length, model, openAt]);
   /** The walk showed the coach's note or a moment: the server hears it once
    *  per opening, behind the screen, and the Lounge's "new" clears. */
   const onShown = useCallback(
@@ -916,6 +927,7 @@ export function useDeckFeedbackWalk(args: {
           journal={journal}
           summary={summary}
           onEnd={onEnd}
+          onForward={onForward}
           onClose={onClose}
           lines={lineBankIO}
           onShown={onShown}
@@ -938,6 +950,7 @@ export function useDeckFeedbackWalk(args: {
       skipJudging,
       journal,
       onEnd,
+      onForward,
       onClose,
       onShown,
       onAnswer,

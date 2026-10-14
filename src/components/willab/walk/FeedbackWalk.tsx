@@ -131,6 +131,9 @@ type Props<R> = {
   summary?: (() => Promise<string | null>) | null;
   /** The walk ran out: the page underneath. */
   onEnd: () => void;
+  /** Next on a step played again: true when the host moved the walk itself
+   *  (a step still waits, so Next goes there; founder 2026-10-14). */
+  onForward?: () => boolean;
   /** ✕: the overlay sinks back to the page. */
   onClose?: () => void;
   /** The line bank's memory (D-FW-3): the walk reads which line each bank
@@ -187,6 +190,7 @@ export default function FeedbackWalk<R = unknown>({
   readLimitMs,
   summary = null,
   onEnd,
+  onForward,
   onClose,
   lines: linesIO = null,
   onShown,
@@ -238,7 +242,10 @@ export default function FeedbackWalk<R = unknown>({
     },
     [go, onEnd],
   );
-  const forward = useCallback(() => land(plan, at + 1, "forward"), [at, plan, land]);
+  const forward = useCallback(() => {
+    if (onForward?.()) return;
+    land(plan, at + 1, "forward");
+  }, [at, plan, land, onForward]);
   const atNow = useRef(at);
   atNow.current = at;
   /** Moves on from `step` only while the walk still stands on it: a screen

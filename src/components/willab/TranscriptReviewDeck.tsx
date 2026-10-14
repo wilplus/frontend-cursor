@@ -1328,8 +1328,12 @@ export default function TranscriptReviewDeck({
                       data-untouched={c.status === "untouched" ? "true" : undefined}
                       className={`relative rounded-md text-[clamp(1.0625rem,0.98rem+0.34vw,1.25rem)] leading-[1.65] text-foreground${
                         /* Only text that opens a step greys while pressed
-                           (lock 2026-10-12, section 9). */
-                        opens ? " active:bg-muted" : ""
+                           (lock 2026-10-12, section 9), and it carries the
+                           black line in the margin, its bookmark (founder
+                           2026-10-14, walk first). */
+                        opens
+                          ? " active:bg-muted before:absolute before:-left-[13px] before:bottom-[3px] before:top-[3px] before:w-[3px] before:rounded-full before:bg-foreground"
+                          : ""
                       }`}
                     >
                       {/* DISPLAY TEXT, which is the whole paragraph unless it
