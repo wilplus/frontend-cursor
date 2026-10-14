@@ -8,7 +8,7 @@ import {
   Menu, PanelLeft, Target, Trash2, TrendingUp, Users, X,
 } from "lucide-react";
 import Logo from "@/components/Logo";
-import { rememberedAdmin } from "@/components/admin/AdminGate";
+import { probeAdmin, rememberedAdmin } from "@/components/admin/AdminGate";
 import { cn } from "@/lib/utils";
 
 /* -------------------------------------------------------------------------- */
@@ -51,9 +51,7 @@ export default function AdminMenu({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (rememberedAdmin()) setAdmin(true);
     let live = true;
-    fetch("/api/v2/admin/whoami", { cache: "no-store" })
-      .then((r) => live && setAdmin(r.ok))
-      .catch(() => live && setAdmin(false));
+    void probeAdmin().then((ok) => live && setAdmin(ok));
     try {
       setCollapsed(localStorage.getItem(COLLAPSED_KEY) === "1");
     } catch {

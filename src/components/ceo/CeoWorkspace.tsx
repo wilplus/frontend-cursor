@@ -36,6 +36,25 @@ function initialState(rows: CeoViewState[]): CeoViewState {
   return rows.find((row) => row.project_key === project) ?? defaultCeoViewState(project);
 }
 
+const BOOTSTRAP_KEY = "ceo-bootstrap:v1";
+
+function readCachedBootstrap(): CeoBootstrap | null {
+  try {
+    const raw = window.localStorage.getItem(BOOTSTRAP_KEY);
+    return raw ? (JSON.parse(raw) as CeoBootstrap) : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheBootstrap(data: CeoBootstrap) {
+  try {
+    window.localStorage.setItem(BOOTSTRAP_KEY, JSON.stringify(data));
+  } catch {
+    /* too big or blocked: the next open waits for the backend, as before */
+  }
+}
+
 async function readJson(response: Response): Promise<Record<string, unknown>> {
   try {
     return (await response.json()) as Record<string, unknown>;
@@ -51,6 +70,14 @@ export default function CeoWorkspace() {
   const [bugDraft, setBugDraft] = useState("");
   useEffect(() => {
     setBugDraft(window.localStorage.getItem(`ceo-bug-draft-${project}`) ?? "");
+    // SPEED (founder 2026-10-14): open on the last copy at once and refresh
+    // it in the background, so the home-screen app is not blank while the
+    // backend answers.
+    const cached = readCachedBootstrap();
+    if (cached) {
+      setData(cached);
+      setState(initialState(cached.view_state ?? []));
+    }
     const controller = new AbortController();
     void fetch("/api/v2/admin/ceo/bootstrap", {
       cache: "no-store",
@@ -66,11 +93,12 @@ export default function CeoWorkspace() {
           );
         }
         const bootstrap = body as unknown as CeoBootstrap;
+        cacheBootstrap(bootstrap);
         setData(bootstrap);
         setState(initialState(bootstrap.view_state ?? []));
       })
       .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || cached) return;
         setLoadError(
           error instanceof Error ? error.message : "CEO could not be loaded."
         );
