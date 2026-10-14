@@ -29,6 +29,8 @@ import {
 } from "@/lib/ceo/workItems";
 import { useCeoTaskReorder } from "./useCeoTaskReorder";
 
+// One name per lane, used by the tabs AND by the card buttons that move a
+// task there (founder 2026-10-14: "unify these names").
 const VIEW_LABELS: Record<CeoTaskStatus, string> = {
   active: "Active",
   in_progress: "In progress",
@@ -429,14 +431,14 @@ export default function CeoTasks({
                       />
                       {view === "active" ? (
                         <TaskButton
-                          label={moveLabel("Start", task)}
+                          label={moveLabel(VIEW_LABELS.in_progress, task)}
                           icon={Play}
                           onClick={() => move(task, "start", "Moved to In progress.")}
                         />
                       ) : null}
                       {view === "active" || view === "in_progress" ? (
                         <TaskButton
-                          label={moveLabel("Done", task)}
+                          label={moveLabel(VIEW_LABELS.done, task)}
                           icon={Check}
                           primary
                           onClick={() =>
@@ -452,7 +454,7 @@ export default function CeoTasks({
                       )}
                       {view === "in_progress" ? (
                         <TaskButton
-                          label={moveLabel("Back to Active", task)}
+                          label={moveLabel(VIEW_LABELS.active, task)}
                           icon={RotateCcw}
                           onClick={() => move(task, "restore")}
                         />
