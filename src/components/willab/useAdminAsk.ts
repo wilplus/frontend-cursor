@@ -56,8 +56,7 @@ function askBody(ask: AdminAsk): string | undefined {
   }
   const l = ask.lesson;
   if (ask.kind === "lesson" && l) {
-    const tokens = l.bonus_tokens > 0 ? `, with ${l.bonus_tokens.toLocaleString("en-US")} tokens included` : "";
-    return `Artur set a price for you: a 1-on-1 lesson for ${money(l.price_cents, l.currency)} instead of ${money(l.list_price_cents, l.currency)}${tokens}.`;
+    return `Artur set a price for you: a 1-on-1 lesson for ${money(l.price_cents, l.currency)} instead of ${money(l.list_price_cents, l.currency)}.`;
   }
   return undefined;
 }

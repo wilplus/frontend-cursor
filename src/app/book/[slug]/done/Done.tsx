@@ -14,7 +14,6 @@ export interface Confirmation {
   price_cents: number;
   currency: string;
   list_price_cents: number;
-  bonus_tokens: number;
   due_cents?: number;
 }
 
@@ -83,12 +82,6 @@ export default function Done({ info, booking }: { info: PageInfo; booking: Confi
               </div>
             );
           })()}
-          {booking.bonus_tokens > 0 && (
-            <div className={row}>
-              <dt className="text-muted-foreground">Tokens</dt>
-              <dd>{booking.bonus_tokens.toLocaleString("en-US")} added to your account</dd>
-            </div>
-          )}
         </dl>
         <p className="text-sm text-muted-foreground">Need to cancel or move it? Reply to the confirmation email.</p>
       </div>

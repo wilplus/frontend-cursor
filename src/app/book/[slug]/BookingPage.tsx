@@ -25,7 +25,6 @@ export interface PageInfo {
   currency: string;
   horizon_days: number;
   host_timezone: string;
-  bonus_tokens: number;
   new_user_price_cents?: number;
 }
 
@@ -34,10 +33,6 @@ export interface Offer {
   list_price_cents: number;
   price_cents: number;
   currency: string;
-  bonus_tokens: number;
-  allow_skip_payment?: boolean;
-  /** Pays by card now (card payment is on for this account). */
-  pay?: boolean;
   preview: boolean;
   email?: string;
   name?: string;
@@ -63,7 +58,6 @@ export function Meta({ info, tz, offer, children }: { info: PageInfo; tz: string
   // Signed out: show the first-time price (most visitors are new).
   const price = offer ? offer.price_cents : info.new_user_price_cents ?? info.price_cents;
   const list = offer ? offer.list_price_cents : info.price_cents;
-  const tokens = offer ? offer.bonus_tokens : info.bonus_tokens;
   return (
     <div className="min-w-0 p-5 md:p-7">
       <a href="/" className="no-underline" aria-label="WillpowerLab home"><Logo /></a>
@@ -79,7 +73,6 @@ export function Meta({ info, tz, offer, children }: { info: PageInfo; tz: string
           {price < list && <s>{money(list, info.currency)}</s>}
           <span className={price < list ? "font-semibold text-foreground" : ""}>{money(price, info.currency)}</span>
         </span></div>
-        {tokens > 0 && <div className={row}><Icon d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z" />Includes {tokens.toLocaleString("en-US")} tokens</div>}
         <div className={row}><Icon d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />{city(tz)}</div>
       </div>
       {children}
@@ -241,7 +234,7 @@ export default function BookingPage({ info }: { info: PageInfo }) {
                 </EmbeddedCheckoutProvider>
               </div>
             ) : (
-            <form className="grid max-w-[460px] gap-4" onSubmit={(e) => void submit(e, !signedIn?.pay)} noValidate>
+            <form className="grid max-w-[460px] gap-4" onSubmit={submit} noValidate>
               <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="bk-name">
                 Your name
                 <input id="bk-name" className={field} autoComplete="name" value={form.name}
@@ -260,25 +253,16 @@ export default function BookingPage({ info }: { info: PageInfo }) {
               </label>
               {error && <p className="text-[13px] text-destructive">{error}</p>}
               <div>
-                {signedIn?.pay ? (
-                  <>
-                    <button type="submit" disabled={sending || !!signedIn?.preview}
-                      className="rounded-[10px] bg-foreground px-[18px] py-3 font-semibold text-background disabled:opacity-60">
-                      {sending ? "Opening payment…" : `Continue to payment · ${money(signedIn.price_cents, info.currency)}`}
-                    </button>
-                    {signedIn.allow_skip_payment && (
-                      <button type="button" disabled={sending || !!signedIn.preview} onClick={(e) => void submit(e, true)}
-                        className="ml-2 rounded-[10px] border border-border px-[18px] py-3 font-semibold disabled:opacity-60">
-                        Book without paying
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  <button type="button" disabled={sending || !!signedIn?.preview} onClick={(e) => void submit(e, true)}
-                    className="rounded-[10px] bg-foreground px-[18px] py-3 font-semibold text-background disabled:opacity-60">
-                    Book without paying
+                <div className="flex flex-wrap gap-2">
+                  <button type="submit" disabled={sending || !!signedIn?.preview}
+                    className="rounded-[10px] border border-foreground bg-foreground px-[18px] py-3 font-semibold text-background disabled:opacity-60">
+                    {sending ? "Opening payment…" : `Pay now · ${money(signedIn?.price_cents ?? info.price_cents, info.currency)}`}
                   </button>
-                )}
+                  <button type="button" disabled={sending || !!signedIn?.preview} onClick={(e) => void submit(e, true)}
+                    className="rounded-[10px] border border-foreground bg-background px-[18px] py-3 font-semibold text-foreground disabled:opacity-60">
+                    Book and pay later
+                  </button>
+                </div>
               </div>
               <p className="text-[13px] text-muted-foreground">
                 You&apos;ll get a calendar invite with the Google Meet link by email.
