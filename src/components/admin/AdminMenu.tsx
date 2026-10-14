@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  AlertTriangle, BookOpen, CalendarDays, CircleDollarSign, FlaskConical, Home,
+  AlertTriangle, BookOpen, CalendarDays, FlaskConical, Home,
   Menu, PanelLeft, Target, Trash2, TrendingUp, Users, X,
 } from "lucide-react";
 import Logo from "@/components/Logo";
@@ -26,7 +26,6 @@ const GROUPS: [string, Item[]][] = [
   ["People", [
     ["/admin/users", "Users", Users],
     ["/admin/booking", "Bookings", CalendarDays],
-    ["/admin/tokens", "Tokens and prices", CircleDollarSign],
   ]],
   ["Product", [
     ["/admin/rings", "Rings", Target],

@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 /* -------------------------------------------------------------------------- */
@@ -124,15 +123,7 @@ export function ProjectDeletionQueue() {
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-10">
-      <Link
-        href="/admin/ceo"
-        className="inline-flex items-center gap-1.5 text-sm text-foreground/60 hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden />
-        Back to CEO
-      </Link>
-
-      <div className="mt-5">
+      <div className="">
         <h1 className="text-2xl font-semibold tracking-tight">
           Project deletions
         </h1>

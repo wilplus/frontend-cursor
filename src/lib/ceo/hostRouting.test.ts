@@ -23,7 +23,6 @@ describe("CEO hostname routing", () => {
       decide(CEO_CANONICAL_HOST, "/api/v2/admin/ceo/bootstrap").action
     ).toBe("allow");
     expect(decide(CEO_CANONICAL_HOST, "/admin/users").action).toBe("allow");
-    expect(decide(CEO_CANONICAL_HOST, "/admin/tokens").action).toBe("allow");
     expect(decide(CEO_CANONICAL_HOST, "/admin/rings").action).toBe("allow");
     expect(decide(CEO_CANONICAL_HOST, "/admin/pace").action).toBe("allow");
     expect(decide(CEO_CANONICAL_HOST, "/admin/research").action).toBe("allow");
@@ -40,7 +39,7 @@ describe("CEO hostname routing", () => {
       "allow"
     );
     expect(
-      decide(CEO_CANONICAL_HOST, "/api/v2/admin/tokens/lookup").action
+      decide(CEO_CANONICAL_HOST, "/api/v2/admin/tokens/grant").action
     ).toBe("allow");
     expect(decide(CEO_CANONICAL_HOST, "/dashboard").action).toBe(
       "redirect-to-ceo"

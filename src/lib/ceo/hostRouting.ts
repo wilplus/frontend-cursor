@@ -4,7 +4,6 @@ export const CEO_ROOT_PATH = "/admin/ceo";
 const CEO_SURFACE_PATHS = [
   CEO_ROOT_PATH,
   "/admin/users",
-  "/admin/tokens",
   "/admin/project-deletions",
   // The rings panel (founder 2026-09-29): launches, rings, kill switches.
   "/admin/rings",
