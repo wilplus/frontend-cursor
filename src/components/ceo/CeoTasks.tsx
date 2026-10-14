@@ -85,7 +85,6 @@ export default function CeoTasks({
 }) {
   const [tasks, setTasks] = useState<CeoTask[]>([]);
   const [view, setView] = useState<CeoTaskStatus>("active");
-  const [featureId, setFeatureId] = useState("");
   const [sort, setSort] = useState<CeoTaskSort>("priority");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -99,16 +98,15 @@ export default function CeoTasks({
     if (!quiet) setLoading(true);
     setError(null);
     try {
-      setTasks(await listCeoTasks(project, view, featureId || null));
+      setTasks(await listCeoTasks(project, view, null));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load tasks.");
     } finally {
       setLoading(false);
     }
-  }, [featureId, project, view]);
+  }, [project, view]);
 
   useEffect(() => {
-    setFeatureId("");
     setView("active");
   }, [project]);
 
@@ -119,7 +117,7 @@ export default function CeoTasks({
   // A selection belongs to the lane it was made in.
   useEffect(() => {
     setSelected(new Set());
-  }, [featureId, project, view]);
+  }, [project, view]);
 
   useEffect(() => {
     if (!tasks.some((task) => task.generation_status === "pending")) return;
@@ -217,7 +215,6 @@ export default function CeoTasks({
     setError(null);
     try {
       const query = new URLSearchParams({ project });
-      if (featureId) query.set("feature_id", featureId);
       const response = await fetch(
         `/api/v2/admin/ceo/work-items/tasks/export?${query}`
       );
@@ -237,14 +234,7 @@ export default function CeoTasks({
   return (
     <div className="mx-auto max-w-4xl">
       <div className="flex flex-col gap-4 border-b border-border pb-4">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <p className="text-xs text-muted-foreground">
-              {project === "product" ? "Product" : "Research"}
-            </p>
-            <h2 className="mt-1 text-2xl font-semibold tracking-tight">Tasks</h2>
-          </div>
-        </div>
+        <h2 className="text-2xl font-semibold tracking-tight">Tasks</h2>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-lg bg-muted p-1">
             {(["active", "in_progress", "done", "archived"] as CeoTaskStatus[]).map((item) => (
@@ -261,19 +251,8 @@ export default function CeoTasks({
               </button>
             ))}
           </div>
-          <select
-            aria-label="Filter tasks by feature"
-            value={featureId}
-            onChange={(event) => setFeatureId(event.target.value)}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-xs"
-          >
-            <option value="">All features</option>
-            {features.map((feature) => (
-              <option key={feature.id} value={feature.id}>
-                {feature.name}
-              </option>
-            ))}
-          </select>
+        </div>
+        <div className="flex items-center justify-between gap-2">
           <label className="inline-flex items-center gap-2 px-1 text-xs font-medium">
             <input
               type="checkbox"
@@ -658,7 +637,7 @@ function TasksMenu({ sort, onSort, copyLabel, canCopy, onCopy, onExport }: {
         <MoreHorizontal className="h-4 w-4" aria-hidden />
       </button>
       {open ? (
-        <div className="absolute left-0 z-20 mt-1 w-56 rounded-xl border border-border bg-background p-1 shadow-lg">
+        <div className="absolute right-0 z-20 mt-1 w-56 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-background p-1 shadow-lg">
           {(["priority", "manual"] as CeoTaskSort[]).map((value) => (
             <button key={value} type="button" className={item}
               onClick={() => { onSort(value); setOpen(false); }}>
