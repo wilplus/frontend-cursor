@@ -6,6 +6,7 @@ import {
   ClipboardCopy,
   Download,
   GripVertical,
+  MoreHorizontal,
   Pencil,
   Play,
   Plus,
@@ -98,8 +99,10 @@ export default function CeoTasks({
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // `quiet`: the background re-read while a task is being written. It swaps
+  // the list in place instead of blanking it to "Loading…" every few seconds.
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true);
     setError(null);
     try {
       setTasks(await listCeoTasks(project, view, featureId || null));
@@ -126,7 +129,7 @@ export default function CeoTasks({
 
   useEffect(() => {
     if (!tasks.some((task) => task.generation_status === "pending")) return;
-    const timer = window.setTimeout(() => void load(), 3000);
+    const timer = window.setTimeout(() => void load(true), 3000);
     return () => window.clearTimeout(timer);
   }, [load, tasks]);
 
@@ -285,15 +288,6 @@ export default function CeoTasks({
               </option>
             ))}
           </select>
-          <select
-            aria-label="Sort tasks"
-            value={sort}
-            onChange={(event) => setSort(event.target.value as CeoTaskSort)}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-xs"
-          >
-            <option value="priority">Highest priority first</option>
-            <option value="manual">My order</option>
-          </select>
           <label className="inline-flex items-center gap-2 px-1 text-xs font-medium">
             <input
               type="checkbox"
@@ -308,25 +302,14 @@ export default function CeoTasks({
             />
             Select all
           </label>
-          <div className="ml-auto flex gap-1">
-            <button
-              type="button"
-              onClick={() => void copyAll()}
-              disabled={!shown.length}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium disabled:opacity-35"
-            >
-              <ClipboardCopy className="h-3.5 w-3.5" aria-hidden />
-              {picked.length ? `Copy selected (${picked.length})` : "Copy all"}
-            </button>
-            <button
-              type="button"
-              onClick={() => void downloadExport()}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium"
-            >
-              <Download className="h-3.5 w-3.5" aria-hidden />
-              Export
-            </button>
-          </div>
+          <TasksMenu
+            sort={sort}
+            onSort={setSort}
+            copyLabel={picked.length ? `Copy selected (${picked.length})` : "Copy all"}
+            canCopy={shown.length > 0}
+            onCopy={() => void copyAll()}
+            onExport={() => void downloadExport()}
+          />
         </div>
       </div>
 
@@ -709,6 +692,60 @@ function TaskEditor({
         </button>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+    </div>
+  );
+}
+
+/** Sorting, copy and export behind one "⋯" button (founder 2026-10-14). */
+function TasksMenu({ sort, onSort, copyLabel, canCopy, onCopy, onExport }: {
+  sort: CeoTaskSort;
+  onSort: (sort: CeoTaskSort) => void;
+  copyLabel: string;
+  canCopy: boolean;
+  onCopy: () => void;
+  onExport: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [open]);
+  const item = "flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs font-medium hover:bg-muted disabled:opacity-35";
+  return (
+    <div className="relative" onClick={(event) => event.stopPropagation()}>
+      <button
+        type="button"
+        aria-label="More task actions"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="grid h-8 w-8 place-items-center rounded-lg border border-border"
+      >
+        <MoreHorizontal className="h-4 w-4" aria-hidden />
+      </button>
+      {open ? (
+        <div className="absolute left-0 z-20 mt-1 w-56 rounded-xl border border-border bg-background p-1 shadow-lg">
+          {(["priority", "manual"] as CeoTaskSort[]).map((value) => (
+            <button key={value} type="button" className={item}
+              onClick={() => { onSort(value); setOpen(false); }}>
+              <Check className={cn("h-3.5 w-3.5", sort === value ? "opacity-100" : "opacity-0")} aria-hidden />
+              {value === "priority" ? "Highest priority first" : "My order"}
+            </button>
+          ))}
+          <div className="my-1 border-t border-border" />
+          <button type="button" className={item} disabled={!canCopy}
+            onClick={() => { onCopy(); setOpen(false); }}>
+            <ClipboardCopy className="h-3.5 w-3.5" aria-hidden />
+            {copyLabel}
+          </button>
+          <button type="button" className={item}
+            onClick={() => { onExport(); setOpen(false); }}>
+            <Download className="h-3.5 w-3.5" aria-hidden />
+            Export
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
