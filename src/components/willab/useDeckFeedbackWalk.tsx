@@ -532,6 +532,8 @@ export function useDeckFeedbackWalk(args: {
   /** Plays the walk again from this paragraph's first moment. False when
    *  the paragraph has none in the replay. */
   replayPart: (partId: string) => boolean;
+  /** The paragraph has a moment of this Take to open (its bookmark). */
+  hasMoment: (partId: string) => boolean;
   /** Plays the finished walk again (Q-IT643b A). False when there is
    *  nothing to play. */
   replay: (target?: WalkStepTarget | null) => boolean;
@@ -696,6 +698,15 @@ export function useDeckFeedbackWalk(args: {
     });
     return true;
   }, [canReplay, pageTake, buildReplay, openAt, otherTake]);
+
+  // The paragraph has a moment of this Take to open, waiting or answered:
+  // only such a paragraph wears the bookmark (founder 2026-10-14).
+  const replayNow = useMemo(() => (replayReady ? buildReplay(ownAnswers) : null), [replayReady, buildReplay, ownAnswers]);
+  const hasMoment = useCallback(
+    (partId: string): boolean =>
+      walkStepForPart(model, partId) !== null || (replayNow !== null && walkStepForPart(replayNow, partId) !== null),
+    [model, replayNow],
+  );
 
   const replayPart = useCallback(
     (partId: string): boolean => {
@@ -986,8 +997,8 @@ export function useDeckFeedbackWalk(args: {
   );
 
   return useMemo(
-    () => ({ review, tapPart, openHelpers, replayPart, replay, canReplay, practisePart, element }),
-    [review, tapPart, openHelpers, replayPart, replay, canReplay, practisePart, element],
+    () => ({ review, tapPart, openHelpers, replayPart, hasMoment, replay, canReplay, practisePart, element }),
+    [review, tapPart, openHelpers, replayPart, hasMoment, replay, canReplay, practisePart, element],
   );
 }
 

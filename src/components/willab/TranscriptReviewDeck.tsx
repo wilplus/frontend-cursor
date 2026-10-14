@@ -1308,9 +1308,11 @@ export default function TranscriptReviewDeck({
                        that carries it (24f) — and a paragraph saved with
                        helper words draws none (B7, Q3; `barWaiting`). */
                     const unsettled = barWaiting(c);
-                    const opens =
-                      opensFromPage(bookmarkIds, c.part.id, unsettled || opensOwnSheet(c)) ||
-                      Boolean(headlines.get(c.part.id));
+                    // The bookmark is a moment to open; orange words open
+                    // the helper words; both: the moment, then the words
+                    // (founder 2026-10-14).
+                    const moment = feedbackWalk.hasMoment(c.part.id);
+                    const opens = moment || Boolean(headlines.get(c.part.id));
                     return (
                     /* TEXT SIZE (founder 2026-09-30, "D"): 17px on a phone
                        rising to 20px on desktop, down from 21–30px. Only the
@@ -1321,18 +1323,10 @@ export default function TranscriptReviewDeck({
                       data-chunk
                       {...paragraphTap(
                         opens,
-                        (target) => {
-                          // Helper words open that slide's helper-words step
-                          // in the walk; a moment opens its step (an answered
-                          // one plays it again); other text does nothing
-                          // (lock 2026-10-12, section 4).
-                          const onWords = target instanceof Element && target.closest(".walk-helper-word") !== null;
-                          if (onWords && feedbackWalk.openHelpers(c.part.id)) return;
-                          if (feedbackWalk.tapPart(c.part.id, unsettled)) return;
-                          if (feedbackWalk.replayPart(c.part.id)) return;
-                          // A bookmark always opens something: with no moment
-                          // of this Take on it, its helper words (founder
-                          // 2026-10-14).
+                        () => {
+                          // A moment opens its step (an answered one plays it
+                          // again), its helper words follow in the walk.
+                          if (moment && (feedbackWalk.tapPart(c.part.id, true) || feedbackWalk.replayPart(c.part.id))) return;
                           feedbackWalk.openHelpers(c.part.id);
                         },
                       )}
@@ -1343,7 +1337,7 @@ export default function TranscriptReviewDeck({
                            (lock 2026-10-12, section 9), and it carries the
                            black line in the margin, its bookmark (founder
                            2026-10-14, walk first). */
-                        opens
+                        moment
                           ? " active:bg-muted before:absolute before:-left-[13px] before:bottom-[3px] before:top-[3px] before:w-[3px] before:rounded-full before:bg-foreground"
                           : ""
                       }`}
