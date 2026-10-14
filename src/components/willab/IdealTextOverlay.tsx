@@ -3,6 +3,8 @@
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import { useDeliveryHeadlines } from "@/components/willab/useSlideHeadlines";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import OverlayCloseButton from "./OverlayCloseButton";
 import { Sparkles } from "lucide-react";
 import { MediaRefreshProvider, useMediaRefresher } from "@/lib/media/mediaRefresh";
 import ProcessingWait from "./ProcessingWait";
@@ -290,7 +292,7 @@ export default function IdealTextOverlay({
   useEffect(() => {
     reviewOpenedRef.current = false;
   }, [arcId, initialMode]);
-  const walkCover = useWalkCover(arcId, initialMode, reviewOpenedRef, reviewRequest + replayRequest);
+  const lens = useLensScreen(arcId, initialMode);
   useEffect(() => {
     // The coach-feedback email and bubble open the review too: only helper
     // words and moment sentences open anything (lock 2026-10-12, section 4).
@@ -933,9 +935,9 @@ export default function IdealTextOverlay({
     <div
       data-ideal-text-wheel-owner
       {...aiGeneratedAttrs("ideal-text")}
-      className="fixed inset-0 z-40 flex flex-col overscroll-none bg-background"
+      className={lensHides(lens.on)}
     >
-      <WalkCover on={walkCover} />
+      <LensFrame on={lens.on} onClose={onClose} />
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-4 py-2.5">
         {/* The project's name and its verification state, from the shared
             head, with the Article 50(2) notice as a caption under it
@@ -996,6 +998,10 @@ export default function IdealTextOverlay({
             replayRequest={replayRequest}
             onReplayReady={setReplayReady}
             onLensClose={onClose}
+            onWalkEnd={lens.reveal}
+            onWalkClose={() => {
+              if (lens.onRef.current) onClose();
+            }}
             renderNextStep={() => nextStep(false, true)}
             chrome="stage"
             document={displayText}
@@ -1206,37 +1212,51 @@ export default function IdealTextOverlay({
  * bar"). Its one non-legacy job — editing the SD document — is what the
  * deck's chunk modal does now: per chunk, in front of the words. */
 
-/** A bubble or "Continue review" lands on the walk: the text stays covered
- *  until the walk is up, so it never flashes first (founder 2026-10-14). */
-function useWalkCover(
-  arcId: string,
-  initialMode: IdealTextLaunchMode | undefined,
-  opened: { current: boolean },
-  requests: number,
-): boolean {
+/** THE LENS SCREEN (founder 2026-10-14): a step bubble, "Continue review"
+ *  and a finished Take open the walk as its own screen. The Ideal Text stays
+ *  out of sight until the walk runs onto it; ✕ on the walk goes back to the
+ *  chat. With no walk to show, the text appears after a while. */
+function useLensScreen(arcId: string, initialMode: IdealTextLaunchMode | undefined) {
   const opensWalk = initialMode === "review" || initialMode === "feedback";
-  const [cover, setCover] = useState(opensWalk);
+  const [on, setOn] = useState(opensWalk);
+  const onRef = useRef(opensWalk);
+  const reveal = useCallback(() => {
+    onRef.current = false;
+    setOn(false);
+  }, []);
   useEffect(() => {
-    setCover(opensWalk);
+    onRef.current = opensWalk;
+    setOn(opensWalk);
   }, [arcId, opensWalk]);
-  // Down once the walk is on screen; with no walk to open, after a while.
   useEffect(() => {
-    if (!cover) return;
+    if (!on) return;
     const started = Date.now();
+    let seen = false;
     const t = setInterval(() => {
-      const up = document.querySelector("[data-feedback-walk]") !== null;
-      if (up || Date.now() - started > (opened.current ? 8000 : 6000)) setCover(false);
-    }, 100);
+      seen ||= document.querySelector("[data-feedback-walk]") !== null;
+      if (!seen && Date.now() - started > 8000) reveal();
+    }, 200);
     return () => clearInterval(t);
-  }, [cover, requests, opened]);
-  return cover;
+  }, [on, reveal]);
+  return { on, onRef, reveal };
 }
 
-/** The walk's place while the text loads: never the text first. */
-function WalkCover({ on }: { on: boolean }) {
-  return on ? (
-    <div aria-hidden="true" className="absolute inset-0 z-[45] flex bg-background">
+/** The lens screen's own frame while the walk loads: the walk's loader and
+ *  its ✕, never the text. */
+function LensFrame({ on, onClose }: { on: boolean; onClose: () => void }) {
+  if (!on || typeof document === "undefined") return null;
+  return createPortal(
+    <div data-lens-screen className="fixed inset-0 z-[45] flex flex-col bg-background">
+      <div className="mx-auto flex w-full justify-end px-4 py-3 md:max-w-[430px]">
+        <OverlayCloseButton onClick={onClose} />
+      </div>
       <LoadingState placement="surface" />
-    </div>
-  ) : null;
+    </div>,
+    document.body,
+  );
+}
+
+/** The Ideal Text's own layer: out of sight while the lens screen is on. */
+function lensHides(on: boolean): string {
+  return `fixed inset-0 z-40 flex flex-col overscroll-none bg-background${on ? " invisible" : ""}`;
 }
