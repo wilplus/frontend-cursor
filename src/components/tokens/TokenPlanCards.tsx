@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import { startPlanCheckout } from "@/services/api/subscribe";
 import type { TokenTier } from "@/services/api/tokens";
 import { TOKENS_COPY, formatTokens } from "./copy";
+import { shortDate, type PlanPromotion } from "@/lib/booking/offers";
+import { money } from "@/lib/booking/time";
 
 /* -------------------------------------------------------------------------- */
 /*  TokenPlanCards — the three paid plans as real pricing cards                 */
@@ -43,11 +45,14 @@ import { TOKENS_COPY, formatTokens } from "./copy";
 export default function TokenPlanCards({
   tiers,
   currentTier,
+  promotion = null,
 }: {
   /** The served tier list, name → allowance/price. */
   tiers: Record<string, TokenTier>;
   /** From the balance read; marks the card the account's tier names. */
   currentTier: string | null;
+  /** A price the admin set for this person on one plan (step 3). */
+  promotion?: PlanPromotion | null;
 }) {
   const [busyTier, setBusyTier] = useState<string | null>(null);
   // Starts true and only ever goes false, when the server tells us it cannot
@@ -115,11 +120,23 @@ export default function TokenPlanCards({
                   : "border-border"
               )}
             >
+              {promotion?.plan === name ? (
+                <span className="mb-2 self-start rounded-full bg-foreground px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-background">
+                  Your price until {shortDate(promotion.ends_at)}
+                </span>
+              ) : null}
               <h3 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {name}
               </h3>
               <p className="mt-2 text-4xl font-bold tracking-tight text-foreground">
-                ${tier.usdPerMonth}
+                {promotion?.plan === name ? (
+                  <>
+                    <s className="mr-2 text-xl font-medium text-muted-foreground">${tier.usdPerMonth}</s>
+                    {money(promotion.price_cents, "usd")}
+                  </>
+                ) : (
+                  <>${tier.usdPerMonth}</>
+                )}
               </p>
               <p className="text-[13px] text-muted-foreground">
                 {TOKENS_COPY.planCardPerMonth}

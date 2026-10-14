@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import { offerDraft, type OfferType } from "./loungeOffers";
+import { shortDate, type LessonOffer, type PlanPromotion } from "@/lib/booking/offers";
+import { money } from "@/lib/booking/time";
 
 /* -------------------------------------------------------------------------- */
 /*  An ask the admin sent this person from their profile (founder 2026-10-13,  */
@@ -11,14 +13,18 @@ import { offerDraft, type OfferType } from "./loungeOffers";
 /*    whatsapp     → the WhatsApp offer                                         */
 /*    home_screen  → the add-to-home-screen offer (only where it can install)   */
 /*    consent      → a pointer to the Data & consent page                       */
+/*    promo        → their plan price, pointing to the pricing screen (step 3)  */
+/*    lesson       → their lesson price, pointing to the booking page (step 3)  */
 /*  While an ask is open the automatic offers hold back, so a Take never gets   */
 /*  two questions.                                                             */
 /* -------------------------------------------------------------------------- */
 
 export interface AdminAsk {
   id: string;
-  kind: "whatsapp" | "home_screen" | "consent";
+  kind: "whatsapp" | "home_screen" | "consent" | "promo" | "lesson";
   consent_key: string | null;
+  promotion?: PlanPromotion | null;
+  lesson?: LessonOffer | null;
 }
 
 interface Inputs {
@@ -36,7 +42,25 @@ const OFFER_FOR: Record<AdminAsk["kind"], OfferType> = {
   whatsapp: "whatsapp",
   home_screen: "install",
   consent: "consent",
+  promo: "promo",
+  lesson: "lesson",
 };
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** The bubble for a price ask, with the exact price it tells them about. */
+function askBody(ask: AdminAsk): string | undefined {
+  const p = ask.promotion;
+  if (ask.kind === "promo" && p) {
+    return `Artur set a price for you: ${cap(p.plan)} for ${money(p.price_cents, "usd")} instead of ${money(p.list_cents, "usd")}, until ${shortDate(p.ends_at)}.`;
+  }
+  const l = ask.lesson;
+  if (ask.kind === "lesson" && l) {
+    const tokens = l.bonus_tokens > 0 ? `, with ${l.bonus_tokens.toLocaleString("en-US")} tokens included` : "";
+    return `Artur set a price for you: a 1-on-1 lesson for ${money(l.price_cents, l.currency)} instead of ${money(l.list_price_cents, l.currency)}${tokens}.`;
+  }
+  return undefined;
+}
 
 function report(id: string, event: "shown" | "opened") {
   void fetch(`/api/v2/user/asks/${encodeURIComponent(id)}`, {
@@ -72,7 +96,7 @@ export function useAdminAsk(inputs: Inputs) {
     if (!fresh) return;
     shownRef.current = ask.id;
     const type = OFFER_FOR[ask.kind];
-    void append(offerDraft(type));
+    void append(offerDraft(type, askBody(ask)));
     openOffer(type);
     report(ask.id, "shown");
   }, [ask, state, activeOffer, installCanOffer, threadLoading, messages, append, openOffer, settleTimeRef]);
@@ -81,6 +105,11 @@ export function useAdminAsk(inputs: Inputs) {
     if (ask) report(ask.id, "opened");
   }, [ask]);
 
-  /** Hold the automatic offers while an ask is pending or loading. */
-  return { held: ask !== null, opened };
+  /** Hold the automatic offers while an ask is pending or loading. `bookHref`
+   *  is where a lesson ask's "See times" goes. */
+  return {
+    held: ask !== null,
+    opened,
+    bookHref: ask?.lesson ? `/book/${encodeURIComponent(ask.lesson.slug)}` : "/book/artur",
+  };
 }

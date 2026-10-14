@@ -20,9 +20,9 @@ import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMes
  *  `can_start_analysis: True` ("every arc records/analyzes/sends free"), so the
  *  gate could not fire. Legacy `offer: "credit"` bubbles in old threads still
  *  render as ordinary bot text, which is exactly what the fallback was for. */
-export type OfferType = "install" | "whatsapp" | "joke" | "consent";
+export type OfferType = "install" | "whatsapp" | "joke" | "consent" | "promo" | "lesson";
 
-const OFFER_TYPES: readonly OfferType[] = ["install", "whatsapp", "joke", "consent"];
+const OFFER_TYPES: readonly OfferType[] = ["install", "whatsapp", "joke", "consent", "promo", "lesson"];
 
 /** The bubble prompt persisted as the message body. No em-dashes (house style). */
 export const OFFER_PROMPT: Record<OfferType, string> = {
@@ -35,17 +35,22 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
   // points to the Data & consent page, where they answer on the locked screen.
   consent:
     "One question about how we use your data is still open. You can look at it and answer yes or no.",
+  // Promo / lesson (founder 2026-10-14, step 3): sent by the admin to one
+  // person. The bubble carries the exact price (useAdminAsk builds it); these
+  // are only the fallback if that body is ever missing.
+  promo: "Artur set a price for you. See it on the pricing screen.",
+  lesson: "Artur set a price for you for a 1-on-1 lesson.",
   joke:
     "I'm just a simple system, but I noticed you weren't feeling great before this presentation. Want me to crack a joke?",
 };
 
 /** Build the persisted offer message. role "bot" so a fallback render (if the
  *  metadata is ever stripped) still reads as an ordinary Will bubble. */
-export function offerDraft(type: OfferType): LoungeMessageDraft {
+export function offerDraft(type: OfferType, body?: string): LoungeMessageDraft {
   return {
     role: "bot",
     kind: "text",
-    body: OFFER_PROMPT[type],
+    body: body || OFFER_PROMPT[type],
     metadata: { offer: type },
   };
 }
