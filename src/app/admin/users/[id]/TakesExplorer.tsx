@@ -72,6 +72,22 @@ const fmt = (v: number | string | null | undefined) =>
     : typeof v === "number" ? (Number.isInteger(v) ? v.toLocaleString("en-US") : v.toFixed(2)) : String(v);
 const day = (v: string | null) => (v ? new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" }) : "—");
 
+/** Every Take, every column, as a CSV file. */
+function exportCsv(rows: TakeRow[], id: string) {
+  const cell = (v: number | string | null) => {
+    const t = v === null || v === undefined ? "" : String(v);
+    return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  const lines = [["take_id", ...COLS.map((c) => c.key)].join(",")]
+    .concat(rows.map((r) => [r.id, ...COLS.map((c) => c.get(r))].map(cell).join(",")));
+  const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `takes-${id}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function TakesExplorer({ id }: { id: string }) {
   const [rows, setRows] = useState<TakeRow[] | null>(null);
   const [baseline, setBaseline] = useState<Baseline | null>(null);
@@ -149,6 +165,8 @@ export default function TakesExplorer({ id }: { id: string }) {
               <input aria-label="Min" type="number" placeholder="min" className={`${field} w-20`} value={f.min} onChange={(e) => setF({ ...f, min: e.target.value })} />
               <input aria-label="Max" type="number" placeholder="max" className={`${field} w-20`} value={f.max} onChange={(e) => setF({ ...f, max: e.target.value })} />
               <span className="ml-auto text-xs text-muted-foreground">{shown.length} of {rows.length} Takes</span>
+              <button type="button" onClick={() => exportCsv(rows, id)}
+                className="rounded-lg border border-border px-2.5 py-1.5 text-sm font-medium">Export CSV</button>
             </div>
 
             <div className="overflow-x-auto">
