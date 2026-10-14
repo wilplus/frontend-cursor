@@ -3,12 +3,10 @@
 import Link from "next/link";
 import {
   ArrowUpRight,
-  Settings,
   Users,
   WalletCards,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Logo from "@/components/Logo";
 import CeoOverview from "@/components/ceo/CeoOverview";
 import CeoBugCapture from "@/components/ceo/CeoBugCapture";
 import CeoTasks from "@/components/ceo/CeoTasks";
@@ -165,37 +163,15 @@ export default function CeoWorkspace() {
 
   return (
     <div className="min-h-dvh bg-background">
-      <header className="border-b border-border">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-3">
-            <Logo size="sm" />
-            <span className="h-4 w-px bg-border" aria-hidden />
-            <h1 className="text-sm font-semibold tracking-tight">CEO</h1>
-          </div>
-          <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => updateState({ surface: "settings" })}
-            aria-label="Open Settings"
-            aria-pressed={state.surface === "settings"}
-            className={cn(
-              "grid h-9 w-9 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-              state.surface === "settings" && "bg-foreground text-background"
-            )}
-          >
-            <Settings className="h-4 w-4" aria-hidden />
-          </button>
-          </div>
-        </div>
-      </header>
-
       <div className="mx-auto max-w-6xl px-4 pb-10 pt-5 sm:px-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+        {/* Centred and small (founder 2026-10-14); Settings is a tab now that
+            the CEO header with its gear is gone. */}
+        <div className="flex justify-center">
           <nav
-            className="flex items-center rounded-xl bg-muted p-1"
+            className="flex items-center rounded-lg bg-muted p-0.5"
             aria-label="CEO surfaces"
           >
-            {CEO_SURFACES.filter((surface) => surface !== "settings").map(
+            {CEO_SURFACES.map(
               (surface) => (
                 <button
                   key={surface}
@@ -203,7 +179,7 @@ export default function CeoWorkspace() {
                   onClick={() => updateState({ surface })}
                   aria-current={state.surface === surface ? "page" : undefined}
                   className={cn(
-                    "min-w-20 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors",
+                    "rounded-md px-3 py-1 text-[13px] font-medium text-muted-foreground transition-colors",
                     state.surface === surface &&
                       "bg-background text-foreground shadow-sm"
                   )}
