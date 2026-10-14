@@ -347,6 +347,7 @@ export default function Lounge({
     }
     setIdealTextLaunchMode(mode);
     setIdealTextArcId(arcId);
+    lensAddress(mode === "review" || mode === "feedback" ? arcId : null);
   }
 
   // D3 — user results email deep-link (/chat?insight=<id>): open the insights
@@ -1608,6 +1609,7 @@ export default function Lounge({
             if (thread.signedIn) void refreshNewCoachFeedback();
             setIdealTextArcId(null);
             setIdealTextLaunchMode("notebook");
+            lensAddress(null);
           }}
           // SD — "Read it aloud": the re-read is just another recording. Seed
           // THIS presentation (only when the cache holds a different arc; the
@@ -2631,4 +2633,14 @@ export function forwardMarginWheel(scroller: () => HTMLElement | null): () => vo
   };
   window.addEventListener("wheel", onWheel, { passive: true });
   return () => window.removeEventListener("wheel", onWheel);
+}
+
+/** The lens screen's address in the bar (`?lens=<arc_id>`), set while it is
+ *  open, so it can be reopened from the link (founder 2026-10-14). */
+function lensAddress(arcId: string | null): void {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (arcId) url.searchParams.set("lens", arcId);
+  else url.searchParams.delete("lens");
+  window.history.replaceState(window.history.state, "", url);
 }

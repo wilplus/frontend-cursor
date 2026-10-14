@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, Copy } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import DeckChunkModal, {
@@ -249,6 +250,8 @@ export default function TranscriptReviewDeck({
   replayRequest,
   onReplayReady,
   onLensClose,
+  onWalkEnd,
+  onWalkClose,
   renderNextStep,
   feedbackPending = false,
   takeCount = null,
@@ -347,6 +350,10 @@ export default function TranscriptReviewDeck({
   onReplayReady?: (ready: boolean) => void;
   /** ✕ on the review: the host shows the chat (lock 2026-10-12, section 1). */
   onLensClose?: () => void;
+  /** The walk ran out onto the Ideal Text, or was closed (the lens screen,
+   *  founder 2026-10-14). */
+  onWalkEnd?: () => void;
+  onWalkClose?: () => void;
   /** The host's next step (the next take, or See next steps), drawn on the
    *  card after the last moment of the walk. Absent → the card offers only
    *  the way back to the text. */
@@ -729,6 +736,8 @@ export default function TranscriptReviewDeck({
     finished: walkFinished(deckReady, firstWaiting, coachStep.unseen),
     feedbackPending,
     onLensClose,
+    onEnd: onWalkEnd,
+    onWalkClose,
   });
   /* AN UNSEEN COACH WORD IS WAITING TOO (founder 2026-10-05, N48.3 Q11 A):
      "Review feedback" stays for it after every moment is answered, and opens
@@ -1515,7 +1524,9 @@ export default function TranscriptReviewDeck({
           }}
         />
       ) : null}
-      {feedbackWalk.element}
+      {/* The walk is its own screen over everything, never inside the
+          Ideal Text (founder 2026-10-14). */}
+      {typeof document === "undefined" ? feedbackWalk.element : createPortal(feedbackWalk.element, document.body)}
       <CoachStepLayer
         step={coachStep}
         message={coachMessage}

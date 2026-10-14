@@ -512,6 +512,8 @@ export function useDeckFeedbackWalk(args: {
    *  2026-10-12, section 1). A step opened from the page closes onto the
    *  page instead. */
   onLensClose?: () => void;
+  /** The walk was closed (✕), however it was opened. */
+  onWalkClose?: () => void;
   /** The answered items on a paragraph (the replay reads them with the
    *  waiting ones, Q-IT643b A). */
   answeredOf?: (chunk: DeckChunk) => readonly DocumentSuggestion[];
@@ -881,6 +883,7 @@ export function useDeckFeedbackWalk(args: {
   const onClose = useCallback(() => {
     if (!practisingRef.current && live.current.finished && !live.current.feedbackPending) postEnd();
     if (lensRef.current) live.current.onLensClose?.();
+    live.current.onWalkClose?.();
   }, [postEnd]);
   // NEXT GOES TO WHAT STILL WAITS (founder 2026-10-14, walk first): on a
   // step played again, while a moment of this Take still waits, Next goes
