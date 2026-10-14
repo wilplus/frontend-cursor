@@ -121,8 +121,7 @@ function UserDirectory() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
           <p className="mt-1 text-sm text-foreground/60">
-            Review registered accounts and open token top-up with the email
-            already selected.
+            Review registered accounts. Open a profile to add tokens.
           </p>
         </div>
         <p className="text-xs text-foreground/50">
