@@ -79,21 +79,6 @@ export async function listCeoTasks(
   return Array.isArray(body.tasks) ? (body.tasks as CeoTask[]) : [];
 }
 
-export async function createCeoTask(
-  project: CeoProjectKey,
-  input: Pick<CeoTask, "title" | "body"> &
-    Partial<Pick<CeoTask, "user_story" | "priority" | "feature_id">>
-): Promise<CeoTask> {
-  const body = await json(
-    await fetch("/api/v2/admin/ceo/work-items/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ project, ...input }),
-    })
-  );
-  return body.task as CeoTask;
-}
-
 export async function updateCeoTask(
   project: CeoProjectKey,
   taskId: string,

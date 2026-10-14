@@ -9,7 +9,6 @@ import {
   MoreHorizontal,
   Pencil,
   Play,
-  Plus,
   RotateCcw,
   Trash2,
   X,
@@ -20,7 +19,6 @@ import type { CeoFeature, CeoProjectKey } from "@/lib/ceo/domain";
 import {
   actOnCeoTask,
   ceoTaskAgentText,
-  createCeoTask,
   deleteCeoTask,
   listCeoTasks,
   moveCeoTask,
@@ -96,7 +94,6 @@ export default function CeoTasks({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // `quiet`: the background re-read while a task is being written. It swaps
@@ -250,14 +247,6 @@ export default function CeoTasks({
             </p>
             <h2 className="mt-1 text-2xl font-semibold tracking-tight">Tasks</h2>
           </div>
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background"
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-            Task
-          </button>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-lg bg-muted p-1">
@@ -312,19 +301,6 @@ export default function CeoTasks({
           />
         </div>
       </div>
-
-      {creating ? (
-        <TaskEditor
-          features={features}
-          submitLabel="Create task"
-          onCancel={() => setCreating(false)}
-          onSave={async (draft) => {
-            await createCeoTask(project, draft);
-            setCreating(false);
-            await load();
-          }}
-        />
-      ) : null}
 
       {note ? <p className="mt-4 text-sm text-muted-foreground">{note}</p> : null}
       {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
@@ -400,27 +376,6 @@ export default function CeoTasks({
                             <option value={1}>P1</option>
                             <option value={2}>P2</option>
                             <option value={3}>P3</option>
-                          </select>
-                          <select
-                            aria-label={`Feature for ${task.title}`}
-                            value={task.feature_id ?? ""}
-                            onChange={(event) =>
-                              void run(
-                                () =>
-                                  updateCeoTask(project, task.id, {
-                                    feature_id: event.target.value || null,
-                                  }).then(() => undefined),
-                                "Feature updated."
-                              )
-                            }
-                            className="max-w-52 rounded-full border border-border bg-background px-2 py-1 text-[11px]"
-                          >
-                            <option value="">Unassigned</option>
-                            {features.map((feature) => (
-                              <option key={feature.id} value={feature.id}>
-                                {feature.name}
-                              </option>
-                            ))}
                           </select>
                           {task.generation_status !== "ready" &&
                           task.generation_status !== "manual" ? (
