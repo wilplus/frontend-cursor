@@ -63,6 +63,7 @@ import {
   type IdealTextSd,
 } from "./idealTextLoad";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
+import { LENS_IDLE_MS, LENS_WATCHDOG_MS, WALK_STEP_SELECTOR, lensIdle } from "@/lib/willab/lensScreen";
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
 import IdealTextMenu, { FeedbackLoadingLine } from "./IdealTextMenu";
@@ -292,7 +293,15 @@ export default function IdealTextOverlay({
   useEffect(() => {
     reviewOpenedRef.current = false;
   }, [arcId, initialMode]);
-  const lens = useLensScreen(arcId, initialMode);
+  // The lens comes down as soon as the page knows there is nothing to walk
+  // (founder 2026-10-14): the feedback settled and no step is opening.
+  const lens = useLensScreen(arcId, initialMode, lensIdle({
+    status,
+    feedbackPending,
+    reviewWaiting,
+    walkRequested: reviewOpenedRef.current,
+    opensHelpers: reviewAt?.step === "helpers",
+  }));
   useEffect(() => {
     // The coach-feedback email and bubble open the review too: only helper
     // words and moment sentences open anything (lock 2026-10-12, section 4).
@@ -1215,8 +1224,10 @@ export default function IdealTextOverlay({
 /** THE LENS SCREEN (founder 2026-10-14): a step bubble, "Continue review"
  *  and a finished Take open the walk as its own screen. The Ideal Text stays
  *  out of sight until the walk runs onto it; ✕ on the walk goes back to the
- *  chat. With no walk to show, the text appears after a while. */
-function useLensScreen(arcId: string, initialMode: IdealTextLaunchMode | undefined) {
+ *  chat. With no walk to show, the text appears as soon as the page knows
+ *  so (`idle`, the rule in lib/willab/lensScreen), and by the watchdog at
+ *  the latest. */
+function useLensScreen(arcId: string, initialMode: IdealTextLaunchMode | undefined, idle: boolean) {
   const opensWalk = initialMode === "review" || initialMode === "feedback";
   const [on, setOn] = useState(opensWalk);
   const onRef = useRef(opensWalk);
@@ -1228,17 +1239,33 @@ function useLensScreen(arcId: string, initialMode: IdealTextLaunchMode | undefin
     onRef.current = opensWalk;
     setOn(opensWalk);
   }, [arcId, opensWalk]);
+  // Nothing to walk: the text, one paint later (a step that is just opening
+  // keeps the screen).
+  useEffect(() => {
+    if (!on || !idle) return;
+    const t = setTimeout(() => {
+      if (!walkStepOnScreen()) reveal();
+    }, LENS_IDLE_MS);
+    return () => clearTimeout(t);
+  }, [on, idle, reveal]);
+  // The last resort: no step ever came and the page never said so.
   useEffect(() => {
     if (!on) return;
     const started = Date.now();
     let seen = false;
     const t = setInterval(() => {
-      seen ||= document.querySelector("[data-feedback-walk]") !== null;
-      if (!seen && Date.now() - started > 8000) reveal();
+      seen ||= walkStepOnScreen();
+      if (!seen && Date.now() - started > LENS_WATCHDOG_MS) reveal();
     }, 200);
     return () => clearInterval(t);
   }, [on, reveal]);
   return { on, onRef, reveal };
+}
+
+/** A walk step actually on screen, not the walk's idle root (which the deck
+ *  mounts with the text and would keep the lens screen up forever). */
+function walkStepOnScreen(): boolean {
+  return typeof document !== "undefined" && document.querySelector(WALK_STEP_SELECTOR) !== null;
 }
 
 /** The lens screen's own frame while the walk loads: the walk's loader and
