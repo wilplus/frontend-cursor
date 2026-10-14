@@ -22,7 +22,7 @@ interface Consent {
 
 interface Ask {
   id: string;
-  kind: "whatsapp" | "home_screen" | "consent";
+  kind: "whatsapp" | "home_screen" | "consent" | "promo" | "lesson";
   consent_key: string | null;
   status: "waiting" | "shown" | "opened" | "answered";
   created_at: string;
@@ -46,6 +46,7 @@ interface Person {
   lesson_price_cents: number | null;
   list_price_cents: number | null;
   asks: Ask[];
+  promotion: { plan: string; price_cents: number; list_cents: number; ends_at: string } | null;
 }
 
 const WAIT_DAYS = 30;
@@ -83,6 +84,11 @@ function PersonProfile({ id }: { id: string }) {
   const [tokens, setTokens] = useState("100000");
   const [price, setPrice] = useState("");
   const [note, setNote] = useState<string | null>(null);
+  const [tellLesson, setTellLesson] = useState(false);
+  // Step 3: a plan price for this person on their pricing screen.
+  const [plans, setPlans] = useState<[string, number][]>([]);
+  const [promo, setPromo] = useState({ plan: "coaching", price: "", until: "", tell: true });
+  const [promoNote, setPromoNote] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -99,6 +105,17 @@ function PersonProfile({ id }: { id: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    fetch("/api/v2/tokens/prices", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: { tiers?: Record<string, { usd_per_month: number }> } | null) => {
+        const paid = Object.entries(b?.tiers || {}).filter(([, t]) => t.usd_per_month > 0)
+          .map(([k, t]) => [k, t.usd_per_month] as [string, number]).sort((a, c) => a[1] - c[1]);
+        setPlans(paid);
+      })
+      .catch(() => undefined);
+  }, []);
 
   const grant = async () => {
     const amount = Number.parseInt(tokens, 10);
@@ -133,10 +150,33 @@ function PersonProfile({ id }: { id: string }) {
       body: JSON.stringify({ user_id: id, price_cents: price.trim() === "" ? null : Math.round(Number(price) * 100) }),
     }).catch(() => null);
     setNote(res?.ok ? "Lesson price saved." : "Could not save the lesson price. Try again.");
+    const cents = Math.round(Number(price) * 100);
+    const normal = p?.list_price_cents ?? null;
+    if (res?.ok && tellLesson && price.trim() !== "" && normal !== null && cents < normal) void sendAsk("lesson");
+  };
+
+  const savePromo = async () => {
+    const res = await fetch(`/api/v2/admin/people/${encodeURIComponent(id)}/promotion`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan: promo.plan, price_cents: Math.round(Number(promo.price) * 100), ends_on: promo.until }),
+    }).catch(() => null);
+    const body = res ? await res.json().catch(() => ({})) : {};
+    if (!res?.ok) return setPromoNote(body.error || "Could not save the promotion. Try again.");
+    setPromoNote("Promotion is on their pricing screen.");
+    if (promo.tell) await sendAsk("promo");
+    else void load();
+  };
+
+  const endPromo = async () => {
+    const res = await fetch(`/api/v2/admin/people/${encodeURIComponent(id)}/promotion`, { method: "DELETE" }).catch(() => null);
+    setPromoNote(res?.ok ? "Promotion ended." : "Could not end the promotion. Try again.");
+    if (res?.ok) void load();
   };
 
   const askLabel = (a: Ask) =>
     a.kind === "whatsapp" ? "Phone number" : a.kind === "home_screen" ? "Add to home screen"
+      : a.kind === "promo" ? "Price on the pricing screen" : a.kind === "lesson" ? "Lesson price"
       : `Consent: ${p?.consents.find((c) => c.key === a.consent_key)?.label || a.consent_key}`;
 
   if (error) return <main className="mx-auto max-w-3xl px-5 py-10 text-sm text-destructive">{error}</main>;
@@ -190,6 +230,13 @@ function PersonProfile({ id }: { id: string }) {
               <input id="pp-price" type="number" min="0" className={field} value={price} placeholder={list !== null ? String(list / 100) : ""}
                 onChange={(e) => setPrice(e.target.value)} />
             </label>
+            <label className="grid gap-1.5 text-[13px] font-medium sm:col-span-2" htmlFor="pp-tell">
+              Tell them about the lesson price
+              <select id="pp-tell" className={field} value={tellLesson ? "yes" : "no"} onChange={(e) => setTellLesson(e.target.value === "yes")}>
+                <option value="no">No, they see it on the pricing screen and booking page</option>
+                <option value="yes">Yes, also after their next take</option>
+              </select>
+            </label>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => void grant()} className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background">Add tokens</button>
@@ -198,6 +245,51 @@ function PersonProfile({ id }: { id: string }) {
               href={`https://www.willpowerlab.com/book/artur?as=${encodeURIComponent(p.user_id)}`}>See their booking page</a>
           </div>
           {note && <p className="text-sm">{note}</p>}
+        </div>
+      </section>
+
+      <section>
+        <h2 className={h2}>Promotion on their pricing screen</h2>
+        <div className={`${box} grid gap-3 py-4`}>
+          {p.promotion && (
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span>
+                Live now: <span className="capitalize">{p.promotion.plan}</span>{" "}
+                <s className="text-muted-foreground">${p.promotion.list_cents / 100}</s> <b>${p.promotion.price_cents / 100}</b>{" "}
+                <span className="text-muted-foreground">until {day(p.promotion.ends_at)}</span>
+              </span>
+              <button type="button" onClick={() => void endPromo()} className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium">End</button>
+            </div>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-plan">
+              Plan
+              <select id="pr-plan" className={field} value={promo.plan} onChange={(e) => setPromo({ ...promo, plan: e.target.value })}>
+                {plans.map(([k, usd]) => <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)} · ${usd}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-price">
+              Their price
+              <input id="pr-price" type="number" min="1" className={field} value={promo.price} onChange={(e) => setPromo({ ...promo, price: e.target.value })} />
+            </label>
+            <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-until">
+              Until
+              <input id="pr-until" type="date" className={field} value={promo.until} onChange={(e) => setPromo({ ...promo, until: e.target.value })} />
+            </label>
+            <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-tell">
+              Also tell them in the app
+              <select id="pr-tell" className={field} value={promo.tell ? "yes" : "no"} onChange={(e) => setPromo({ ...promo, tell: e.target.value === "yes" })}>
+                <option value="yes">Yes, after their next take</option>
+                <option value="no">No, only on the pricing screen</option>
+              </select>
+            </label>
+          </div>
+          <div>
+            <button type="button" onClick={() => void savePromo()} className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background">
+              {p.promotion ? "Replace promotion" : "Start promotion"}
+            </button>
+          </div>
+          {promoNote && <p className="text-sm">{promoNote}</p>}
         </div>
       </section>
 
@@ -257,7 +349,7 @@ function PersonProfile({ id }: { id: string }) {
           {p.asks.length ? p.asks.map((a) => (
             <div key={a.id} className={row}>
               <span className="text-muted-foreground">{day(a.created_at)}</span>
-              <span>{askLabel(a)} · <span className="text-muted-foreground">{ASK_STATUS[a.status]}</span></span>
+              <span>{askLabel(a)} · <span className="text-muted-foreground">{a.status === "opened" && a.kind !== "consent" ? "Opened it" : ASK_STATUS[a.status]}</span></span>
             </div>
           )) : <p className="py-3 text-sm text-muted-foreground">Nothing sent yet.</p>}
         </div>

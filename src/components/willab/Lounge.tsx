@@ -1005,7 +1005,7 @@ export default function Lounge({
     // SD/FE-4 — the joke onboarding is deleted; a legacy joke bubble in an old
     // thread stays visible but inert.
     if (type === "joke") return;
-    const rank: Record<OfferType, number> = { joke: 2, install: 1, consent: 1, whatsapp: 0 };
+    const rank: Record<OfferType, number> = { joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0 };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
 
@@ -1418,6 +1418,7 @@ export default function Lounge({
           install={install}
           whatsapp={whatsapp}
           onConsentOpen={adminAsk.opened}
+          bookHref={adminAsk.bookHref}
           onResolve={() => setActiveOffer(null)}
         />
       ) : uploadAskActive ? (
@@ -1711,12 +1712,15 @@ function OfferActions({
   install,
   whatsapp,
   onConsentOpen,
+  bookHref,
   onResolve,
 }: {
   type: OfferType;
   install: InstallOffer;
   whatsapp: WhatsAppOffer;
+  /** An admin ask was tapped through (consent, promo or lesson). */
   onConsentOpen: () => void;
+  bookHref: string;
   onResolve: () => void;
 }) {
   const router = useRouter();
@@ -1737,6 +1741,21 @@ function OfferActions({
           onConsentOpen();
           onResolve();
           router.push("/account/data-consent");
+        }}
+      />
+    );
+  }
+  if (type === "promo" || type === "lesson") {
+    // Step 3: the admin's price for this person; the button opens where it shows.
+    return (
+      <SymmetricPair
+        closeLabel="Not now"
+        onClose={onResolve}
+        actionLabel={type === "promo" ? "See prices" : "See times"}
+        onAction={() => {
+          onConsentOpen();
+          onResolve();
+          router.push(type === "promo" ? "/dashboard/pricing" : bookHref);
         }}
       />
     );
