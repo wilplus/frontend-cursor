@@ -412,6 +412,7 @@ function renderIdealTextReportCard(
       // founder 2026-08-05 cut it to "just the title, date and the CTA".
       date={reportDateLabel(message.client_created_at)}
       onOpen={openable ? open : null}
+      onOpenFeedback={openable ? () => onOpenIdealText?.(arcId as string, "feedback") : undefined}
       latest={latest}
       slideRef={deckRefOf(message.metadata)}
     />
@@ -834,9 +835,12 @@ function LiveStatusIdealTextCard({
   version,
   date,
   onOpen,
+  onOpenFeedback,
   latest = false,
   slideRef,
 }: {
+  /** The coach's new feedback bubble: opens the walk (founder 2026-10-14). */
+  onOpenFeedback?: () => void;
   /** This is the project's latest Ideal Text bubble: the one that wears the
    *  "new" mark (D-FW-19). */
   latest?: boolean;
@@ -921,6 +925,7 @@ function LiveStatusIdealTextCard({
       arcId={arcId}
       latest={latest}
       onOpen={onOpen ?? (() => undefined)}
+      onOpenFeedback={onOpenFeedback}
     />
   );
 }
