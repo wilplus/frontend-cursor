@@ -1835,10 +1835,11 @@ function SequentialBotBubbles({
   const stillTyping = shouldAnimate && revealed < chunks.length;
 
   return (
-    <div className="mr-auto flex max-w-[85%] flex-col gap-1.5">
+    <div data-row="app" className="mr-auto flex max-w-[85%] flex-col gap-1.5">
       {chunks.slice(0, revealed).map((part, i) => (
         <div
           key={`${i}-${part.slice(0, 12)}`}
+          data-bubble={i === revealed - 1 ? "" : undefined}
           className="whitespace-pre-wrap break-words rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground"
         >
           {/* FE-13 — Will's replies carry booking links; they were dead text. */}
@@ -1924,7 +1925,7 @@ function Bubble({
   }
   if (message.role === "user") {
     return (
-      <div className="ml-auto max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-primary px-3 py-2 text-[15px] text-primary-foreground">
+      <div data-row="me" data-bubble="" className="ml-auto max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-primary px-3 py-2 text-[15px] text-primary-foreground">
         {/* FE-13 — both sides of the thread, so a link the user pasted works
             the same as one Will sent. */}
         <Linkified text={message.body} />
@@ -2224,11 +2225,12 @@ function WalkStepBubble({
       ) : clip ? (
         <ClipBubble clip={clip} seed={message.client_id} caption={message.body.trim() || null} />
       ) : mine ? (
-        <div className="flex justify-end">
+        <div data-row="me" className="flex justify-end">
           <button
             type="button"
             data-walk-step-bubble
             onClick={open}
+            data-bubble=""
             className="max-w-[85%] whitespace-pre-wrap break-words rounded-[16px] bg-primary px-3 py-2 text-left text-[15px] leading-[1.45] text-primary-foreground"
           >
             <span className={replaced ? "line-through opacity-70" : undefined}>{message.body}</span>
@@ -2359,10 +2361,11 @@ function AppStepBubble({
   const nl = message.body.indexOf("\n");
   const cut = video ? (nl >= 0 ? nl : message.body.length) : -1;
   return (
-    <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
+    <div data-row="app" className="mr-auto flex max-w-[88%] items-end gap-1.5">
       <ChatAvatar coach={meta.author === "coach"} />
       <button
         type="button"
+        data-bubble=""
         data-walk-step-bubble
         onClick={open}
         className={`relative whitespace-pre-wrap break-words rounded-[16px] bg-muted py-2 pl-3 text-left text-[15px] leading-[1.45] text-foreground ${open ? "pr-[30px]" : "pr-3"} ${waiting ? "ring-2 ring-primary" : ""}`}
@@ -2443,8 +2446,8 @@ export function chatLabelOf(meta: Record<string, unknown>): string | null {
  *  the feedback is about them, with what goes struck. */
 function ClipBubble({ clip, seed, caption = null }: { clip: WalkChatClip; seed: string; caption?: string | null }) {
   return (
-    <div className="flex justify-end">
-      <div className="flex w-[78%] flex-col gap-1 rounded-[16px] bg-primary px-3 py-2 text-primary-foreground">
+    <div data-row="me" className="flex justify-end">
+      <div data-bubble="" className="flex w-[78%] flex-col gap-1 rounded-[16px] bg-primary px-3 py-2 text-primary-foreground">
         {caption ? <span className="text-[13px] leading-[1.45] opacity-[0.92]">{caption}</span> : null}
         {clip.words ? (
           <span className="text-[13px] leading-[1.45] opacity-[0.92] [&_s]:text-white/[0.72] [&_s]:decoration-[1.5px]">
@@ -2530,6 +2533,8 @@ export function replacedWordIds(items: readonly ThreadItem[]): Set<string> {
 /** The small grey silhouette beside the app's and the coach's bubbles (the
  *  coach's grey-blue). Phones only (founder 2026-10-12). */
 function ChatAvatar({ coach = false }: { coach?: boolean }) {
+  // The app's own avatar is gone (founder 2026-10-14): only the coach keeps one.
+  if (!coach) return null;
   return (
     <span
       aria-hidden="true"
@@ -2574,9 +2579,9 @@ function SummaryBubble({ message }: { message: LoungeMessage }) {
   const meta = message.metadata ?? {};
   const earlier = meta.coach_update === true && typeof meta.earlier === "string" ? meta.earlier : null;
   return (
-    <div data-summary-bubble className="mr-auto flex max-w-[88%] items-end gap-1.5">
+    <div data-summary-bubble data-row="app" className="mr-auto flex max-w-[88%] items-end gap-1.5">
       <ChatAvatar />
-      <div className="whitespace-pre-wrap break-words rounded-[16px] bg-muted px-3 py-2 text-[15px] leading-[1.45] text-foreground">
+      <div data-bubble="" className="whitespace-pre-wrap break-words rounded-[16px] bg-muted px-3 py-2 text-[15px] leading-[1.45] text-foreground">
         {message.body}
         {earlier ? (
           <>

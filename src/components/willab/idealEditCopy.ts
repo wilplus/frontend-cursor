@@ -393,6 +393,9 @@ export const WALK_COPY = {
   /* Sharing, asked before the next recording from Take 2 on (founder lock
      2026-10-12, moment and feedback chat, sections 5, 8 and 9). */
   nextShareAsk: "Do you agree to share your next take with others?",
+  /* The sharing step as three bubbles (founder 2026-10-14). */
+  shareBefore: "Before we start the new take!",
+  shareAudience: "How big you want your audience?",
   shareOnlyMe: "Only me",
   shareAddCommunity: "+ Add a community with a passcode",
   sharePasscode: "Passcode",

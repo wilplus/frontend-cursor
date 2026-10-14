@@ -49,13 +49,17 @@ export default function WalkMessage({
   return (
     <div
       data-walk-message
+      data-row="app"
       data-walk-coach={coach ? "true" : undefined}
       className={cn("flex items-end gap-[7px] text-[18.5px] leading-[1.45] text-foreground", wide ? "max-w-full" : "max-w-[94%]")}
     >
-      <span className="md:hidden">
-        <WalkAvatar coach={coach} />
-      </span>
-      <div className={cn("flex min-w-0 flex-col rounded-[22px] bg-muted px-[17px] py-[13px] font-normal", wide && "flex-1")}>
+      {/* Only the coach has an avatar (founder 2026-10-14). */}
+      {coach ? (
+        <span className="md:hidden">
+          <WalkAvatar coach />
+        </span>
+      ) : null}
+      <div data-bubble="" className={cn("flex min-w-0 flex-col rounded-[22px] bg-muted px-[17px] py-[13px] font-normal", wide && "flex-1")}>
         {children}
       </div>
     </div>

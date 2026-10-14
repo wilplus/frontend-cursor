@@ -59,6 +59,8 @@ export default function WalkPlayer({
     <div
       data-walk-player
       data-walk-me={look === "me" ? "true" : undefined}
+      data-row={look === "me" ? "me" : undefined}
+      data-bubble={look === "me" ? "" : undefined}
       className={cn(
         "flex flex-col",
         look === "me"
