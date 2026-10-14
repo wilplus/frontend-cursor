@@ -70,8 +70,18 @@ export function gmtLabel(tz: string, at = Date.now()): string {
   return `GMT${o < 0 ? "-" : "+"}${Math.floor(a / 60)}${a % 60 ? ":" + String(a % 60).padStart(2, "0") : ""}`;
 }
 
-export function detectedZone(): string {
+/** The visitor's zone: from their IP when the host gave one (and it is a real
+ *  zone), else the browser's own setting. */
+export function detectedZone(ipZone?: string): string {
   try {
+    if (ipZone) {
+      try {
+        new Intl.DateTimeFormat("en-US", { timeZone: ipZone });
+        return ipZone;
+      } catch {
+        /* unknown zone name: fall back to the browser */
+      }
+    }
     return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   } catch {
     return "UTC";

@@ -136,7 +136,7 @@ function Icon({ d }: { d: string }) {
   );
 }
 
-export default function BookingPage({ info }: { info: PageInfo }) {
+export default function BookingPage({ info, ipZone }: { info: PageInfo; ipZone?: string }) {
   const [tz, setTz] = useState("UTC");
   const [h12, setH12] = useState(true);
   const [month, setMonth] = useState<{ y: number; m: number } | null>(null);
@@ -152,7 +152,7 @@ export default function BookingPage({ info }: { info: PageInfo }) {
   const timesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const z = detectedZone();
+    const z = detectedZone(ipZone);
     setTz(z);
     setH12(prefers12h());
     const p = parts(Date.now(), z);
@@ -172,7 +172,7 @@ export default function BookingPage({ info }: { info: PageInfo }) {
         if (chosen && chosen > Date.now()) setSlot(chosen);
       })
       .catch(() => setOffer("signed-out"));
-  }, [info.slug]);
+  }, [info.slug, ipZone]);
 
   const signedIn = offer !== null && offer !== "signed-out" ? offer : null;
   const signUpFor = (chosen: number | null) => {
