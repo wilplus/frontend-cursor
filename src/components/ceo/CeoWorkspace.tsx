@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import CeoOverview from "@/components/ceo/CeoOverview";
 import CeoBugCapture from "@/components/ceo/CeoBugCapture";
 import CeoTasks from "@/components/ceo/CeoTasks";
 import { cn } from "@/lib/utils";
@@ -26,8 +25,9 @@ const project = "product";
 
 function initialState(rows: CeoViewState[]): CeoViewState {
   const saved = rows.find((row) => row.project_key === project) ?? defaultCeoViewState(project);
-  // Settings left the tabs (founder 2026-10-14): a remembered Settings opens Overview.
-  return saved.surface === "settings" ? { ...saved, surface: "overview" } : saved;
+  // Overview and Settings left the tabs (founder 2026-10-14): a remembered
+  // one opens Bugs.
+  return saved.surface === "bugs" || saved.surface === "tasks" ? saved : { ...saved, surface: "bugs" };
 }
 
 const BOOTSTRAP_KEY = "ceo-bootstrap:v1";
@@ -166,7 +166,7 @@ export default function CeoWorkspace() {
             className="flex items-center rounded-lg bg-muted p-0.5"
             aria-label="CEO surfaces"
           >
-            {CEO_SURFACES.filter((surface) => surface !== "settings").map(
+            {CEO_SURFACES.filter((surface) => surface === "bugs" || surface === "tasks").map(
               (surface) => (
                 <button
                   key={surface}
@@ -193,18 +193,6 @@ export default function CeoWorkspace() {
               value={bugDraft}
               onChange={updateBugDraft}
             />
-          ) : null}
-          {state.surface === "overview" ? (
-            <div className="space-y-10">
-              <CeoOverview
-                data={data}
-                project={project}
-                state={state}
-                features={features}
-                updateState={updateState}
-                onBootstrap={setData}
-              />
-            </div>
           ) : null}
           {state.surface === "tasks" ? (
             <CeoTasks project={project} features={features} />
