@@ -29,6 +29,34 @@ import {
 } from "@/lib/ceo/workItems";
 import { useCeoTaskReorder } from "./useCeoTaskReorder";
 
+const LANES: CeoTaskStatus[] = ["active", "in_progress", "done", "archived"];
+const laneCache = new Map<string, CeoTask[]>();
+
+/** The last list seen for a lane: this page load first, then this device. */
+function readLane(project: string, view: CeoTaskStatus): CeoTask[] | null {
+  const key = `ceo-tasks:${project}:${view}`;
+  const hit = laneCache.get(key);
+  if (hit) return hit;
+  try {
+    const raw = window.localStorage.getItem(key);
+    const rows = raw ? (JSON.parse(raw) as CeoTask[]) : null;
+    if (rows) laneCache.set(key, rows);
+    return rows;
+  } catch {
+    return null;
+  }
+}
+
+function writeLane(project: string, view: CeoTaskStatus, rows: CeoTask[]) {
+  const key = `ceo-tasks:${project}:${view}`;
+  laneCache.set(key, rows);
+  try {
+    window.localStorage.setItem(key, JSON.stringify(rows));
+  } catch {
+    /* too big (pasted images) or blocked: kept for this page load only */
+  }
+}
+
 // One name per lane, used by the tabs AND by the card buttons that move a
 // task there (founder 2026-10-14: "unify these names").
 const VIEW_LABELS: Record<CeoTaskStatus, string> = {
@@ -96,15 +124,26 @@ export default function CeoTasks({
 
   // `quiet`: the background re-read while a task is being written. It swaps
   // the list in place instead of blanking it to "Loading…" every few seconds.
+  // SPEED (founder 2026-10-14): a lane opens on its last copy at once and
+  // refreshes behind it; the other lanes are read ahead after the first.
   const load = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true);
+    const cached = readLane(project, view);
+    if (cached) setTasks(cached);
+    if (!quiet && !cached) setLoading(true);
     setError(null);
     try {
-      setTasks(await listCeoTasks(project, view, null));
+      const fresh = await listCeoTasks(project, view, null);
+      writeLane(project, view, fresh);
+      setTasks(fresh);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not load tasks.");
+      if (!cached) setError(cause instanceof Error ? cause.message : "Could not load tasks.");
     } finally {
       setLoading(false);
+    }
+    for (const other of LANES) {
+      if (other !== view && !readLane(project, other)) {
+        void listCeoTasks(project, other, null).then((rows) => writeLane(project, other, rows)).catch(() => undefined);
+      }
     }
   }, [project, view]);
 
@@ -239,7 +278,7 @@ export default function CeoTasks({
         <h2 className="text-2xl font-semibold tracking-tight">Tasks</h2>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-lg bg-muted p-1">
-            {(["active", "in_progress", "done", "archived"] as CeoTaskStatus[]).map((item) => (
+            {LANES.map((item) => (
               <button
                 key={item}
                 type="button"
