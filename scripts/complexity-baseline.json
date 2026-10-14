@@ -3,7 +3,6 @@
   "src/app/dev/corpus/page.tsx:Async arrow function#1": 28,
   "src/app/dev/deck/page.tsx:Async arrow function#1": 29,
   "src/components/auth/UpdatePasswordForm.tsx:Async arrow function#1": 33,
-  "src/components/ceo/CeoIntelligence.tsx:Function 'CeoIntelligence'": 26,
   "src/components/life/PanelUpload.tsx:Function 'PanelUpload'": 30,
   "src/components/willab/DeckChunkModal.tsx:Function 'DeckChunkModal'": 33,
   "src/components/willab/IdealTextOverlay.tsx:Function 'IdealTextOverlay'": 43,
