@@ -33,7 +33,7 @@ export const aiPendingOnExercise = (state: AiVoiceState | undefined): boolean =>
 export function inVoiceLane(plan: readonly WalkStep[], at: number, moment: number): boolean {
   for (let i = at - 1; i >= 0; i -= 1) {
     const s = plan[i];
-    if (s?.key === "practise" && s.moment === moment) return s.kind === "instruction";
+    if (s?.key === "practise" && s.moment === moment) return s.kind === "instruction" || s.kind === "moment";
   }
   return false;
 }

@@ -181,12 +181,14 @@ export function useWalkPractise<R>(args: {
     const here = p[i];
     // A replayed or read-only walk asks nothing: it only shows what was.
     if (!practiseIO || here?.moment == null || guestOnly(here) || here.replay || here.readOnly) return;
-    const inLane = here.key === "exVideo" || (here.key === "practise" && here.kind === "instruction");
+    const inLane = here.key === "exVideo" || (here.key === "practise" && (here.kind === "instruction" || here.kind === "moment"));
     const moment = ms[here.moment];
-    if (!inLane || !moment?.exercise || aiAsked.current.has(here.moment)) return;
+    // The voice Exercise, with or without an exercise attached: the moment
+    // said again asks for the AI voice too (founder 2026-10-14).
+    if (!inLane || !(moment?.exercise || moment?.practiseItem != null) || aiAsked.current.has(here.moment)) return;
     const index = here.moment;
     aiAsked.current.add(index);
-    const what = passageOf({ ...here, kind: "instruction" }, moment);
+    const what = passageOf({ ...here, kind: moment.exercise ? "instruction" : "moment" }, moment);
     if (!what) return;
     if (!opened.current.has(index)) {
       opened.current.set(index, practiseIO.open(what.item, what.passage).catch(() => null));
