@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Archive,
   Check,
   ClipboardCopy,
   Download,
@@ -10,7 +9,6 @@ import {
   Pencil,
   Play,
   RotateCcw,
-  Trash2,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -19,7 +17,6 @@ import type { CeoFeature, CeoProjectKey } from "@/lib/ceo/domain";
 import {
   actOnCeoTask,
   ceoTaskAgentText,
-  deleteCeoTask,
   listCeoTasks,
   moveCeoTask,
   reorderCeoTask,
@@ -422,7 +419,9 @@ export default function CeoTasks({
                         ) : null}
                       </div>
                     </div>
-                    <div className="mt-4 flex flex-wrap justify-end gap-1 border-t border-border pt-3">
+                    {/* The four buttons that decide what happens to the card next
+                        (founder 2026-10-14); Archive and Delete left the card. */}
+                    <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border pt-3 sm:grid-cols-4">
                       {task.generation_status === "failed" && task.bug_id ? (
                         <TaskButton
                           label="Retry"
@@ -460,6 +459,7 @@ export default function CeoTasks({
                         <TaskButton
                           label={moveLabel("Done", task)}
                           icon={Check}
+                          primary
                           onClick={() =>
                             move(task, "done", "Marked done. Overview reevaluation requested.")
                           }
@@ -478,30 +478,6 @@ export default function CeoTasks({
                           onClick={() => move(task, "restore")}
                         />
                       ) : null}
-                      {view !== "archived" ? (
-                        <TaskButton
-                          label={moveLabel("Archive", task)}
-                          icon={Archive}
-                          onClick={() => move(task, "archive")}
-                        />
-                      ) : null}
-                      <TaskButton
-                        label="Delete"
-                        icon={Trash2}
-                        danger
-                        onClick={() => {
-                          const linked = task.bug_id
-                            ? " This also deletes its source bug."
-                            : "";
-                          if (
-                            window.confirm(
-                              `Permanently delete this task?${linked} This cannot be undone.`
-                            )
-                          ) {
-                            void run(() => deleteCeoTask(project, task.id));
-                          }
-                        }}
-                      />
                     </div>
                   </>
                 )}
@@ -518,23 +494,25 @@ function TaskButton({
   label,
   icon: Icon,
   onClick,
-  danger = false,
+  primary = false,
 }: {
   label: string;
   icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
   onClick: () => void;
-  danger?: boolean;
+  primary?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground",
-        danger && "hover:bg-destructive/10 hover:text-destructive"
+        "inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium",
+        primary
+          ? "border-foreground bg-foreground text-background hover:bg-foreground/90"
+          : "border-border bg-background text-foreground hover:bg-muted"
       )}
     >
-      <Icon className="h-3.5 w-3.5" aria-hidden />
+      <Icon className="h-4 w-4" aria-hidden />
       {label}
     </button>
   );

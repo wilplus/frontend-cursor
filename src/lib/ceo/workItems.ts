@@ -120,17 +120,6 @@ export async function reorderCeoTask(
   );
 }
 
-export async function deleteCeoTask(
-  project: CeoProjectKey,
-  taskId: string
-): Promise<void> {
-  await json(
-    await fetch(`${base(`tasks/${taskId}`, project)}&confirmed=1`, {
-      method: "DELETE",
-    })
-  );
-}
-
 export async function retryCeoBug(
   project: CeoProjectKey,
   bugId: string
