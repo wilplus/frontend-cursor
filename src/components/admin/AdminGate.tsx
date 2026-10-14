@@ -35,23 +35,16 @@ export default function AdminGate({
 
   useEffect(() => {
     let cancelled = false;
-    // SPEED (founder 2026-10-13: "tap and open"). After one confirmed probe in
-    // this tab, the next admin page renders at once and re-checks in the
-    // background; a "no" on the re-check still hides it. The remembered yes
-    // only skips the blank wait: every admin endpoint enforces
-    // @require_admin, so it opens no data.
+    // SPEED (founder 2026-10-13: "tap and open"; 2026-10-14: the CEO app on
+    // the home screen boots straight in). After one confirmed probe on this
+    // device, admin pages render at once and re-check in the background; a
+    // "no" on the re-check still hides them. The remembered yes only skips
+    // the blank wait: every admin endpoint enforces @require_admin, so it
+    // opens no data.
     if (rememberedAdmin()) setAllowed(true);
-    void fetch("/api/v2/admin/whoami", { cache: "no-store" })
-      .then((r) => {
-        if (cancelled) return;
-        remember(r.ok);
-        setAllowed(r.ok);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        remember(false);
-        setAllowed(false);
-      });
+    void probeAdmin().then((ok) => {
+      if (!cancelled) setAllowed(ok);
+    });
     return () => {
       cancelled = true;
     };
@@ -71,11 +64,13 @@ export default function AdminGate({
   return <>{children}</>;
 }
 
-const REMEMBER_KEY = "willab:admin-confirmed:v1";
+// localStorage, not sessionStorage: an app opened from the home screen
+// starts a new session every time, so a per-session memory never helped it.
+const REMEMBER_KEY = "willab:admin-confirmed:v2";
 
 export function rememberedAdmin(): boolean {
   try {
-    return sessionStorage.getItem(REMEMBER_KEY) === "1";
+    return localStorage.getItem(REMEMBER_KEY) === "1";
   } catch {
     return false;
   }
@@ -83,9 +78,25 @@ export function rememberedAdmin(): boolean {
 
 function remember(ok: boolean) {
   try {
-    if (ok) sessionStorage.setItem(REMEMBER_KEY, "1");
-    else sessionStorage.removeItem(REMEMBER_KEY);
+    if (ok) localStorage.setItem(REMEMBER_KEY, "1");
+    else localStorage.removeItem(REMEMBER_KEY);
   } catch {
     /* storage blocked: every page probes, as before */
   }
+}
+
+// One probe per page load, shared by the gate and the admin menu.
+let probe: Promise<boolean> | null = null;
+
+/** Whether the backend says this account is an admin. A failed probe is a no. */
+export function probeAdmin(): Promise<boolean> {
+  probe ??= fetch("/api/v2/admin/whoami", { cache: "no-store" })
+    .then((r) => r.ok)
+    .catch(() => false)
+    .then((ok) => {
+      remember(ok);
+      if (!ok) probe = null;
+      return ok;
+    });
+  return probe;
 }
