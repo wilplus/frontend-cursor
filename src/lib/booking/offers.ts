@@ -13,7 +13,6 @@ export interface LessonOffer {
   price_cents: number;
   list_price_cents: number;
   currency: string;
-  bonus_tokens: number;
 }
 
 export interface MyOffers {

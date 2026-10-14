@@ -26,9 +26,7 @@ interface Settings {
   calendar_ics_url: string;
   meet_url: string;
   enabled: boolean;
-  bonus_tokens: number;
   new_user_discount_pct: number;
-  allow_skip_payment: boolean;
 }
 
 interface Booking {
@@ -42,8 +40,7 @@ interface Booking {
   price_cents: number;
   list_price_cents: number | null;
   currency: string;
-  bonus_tokens: number;
-  tokens_granted_at: string | null;
+  due_cents: number | null;
 }
 
 const DAYS: [string, string][] = [["1", "Mon"], ["2", "Tue"], ["3", "Wed"], ["4", "Thu"], ["5", "Fri"], ["6", "Sat"], ["0", "Sun"]];
@@ -136,9 +133,8 @@ function BookingAdmin() {
               <span className="font-semibold">{fmtShortDay(st, s.timezone)} · {fmtTime(st, s.timezone, true)} – {fmtTime(en, s.timezone, true)}</span>
               <span>{b.guest_name} · {b.guest_email}</span>
               <span className="text-[13px] text-muted-foreground">
-                {fmtTime(st, b.guest_timezone, true)} their time ({city(b.guest_timezone)}) · paid {money(b.price_cents, b.currency)}
-                {b.list_price_cents && b.price_cents < b.list_price_cents ? ` (list ${money(b.list_price_cents, b.currency)})` : ""}
-                {b.bonus_tokens ? ` · ${b.bonus_tokens.toLocaleString("en-US")} tokens${b.tokens_granted_at ? " added" : " pending"}` : ""}
+                {fmtTime(st, b.guest_timezone, true)} their time ({city(b.guest_timezone)}) · {b.price_cents === 0 && b.due_cents ? `to be paid ${money(b.due_cents, b.currency)}` : `paid ${money(b.price_cents, b.currency)}`}
+                {b.list_price_cents && b.price_cents < b.list_price_cents && !b.due_cents ? ` (list ${money(b.list_price_cents, b.currency)})` : ""}
               </span>
               {b.note && <span className="text-[13px] text-muted-foreground">“{b.note}”</span>}
             </div>
@@ -153,10 +149,6 @@ function BookingAdmin() {
             <label className="flex items-center gap-2 font-medium" htmlFor="bk-enabled">
               <input id="bk-enabled" type="checkbox" checked={s.enabled} onChange={(e) => set("enabled", e.target.checked)} />
               Page is on
-            </label>
-            <label className="flex items-center gap-2 font-medium" htmlFor="bk-skip">
-              <input id="bk-skip" type="checkbox" checked={!!s.allow_skip_payment} onChange={(e) => set("allow_skip_payment", e.target.checked)} />
-              Allow booking without paying
             </label>
             <p className="-mt-2 text-[13px] text-muted-foreground">
               {s.enabled ? <>Live at <a className="underline" href={`https://www.willpowerlab.com/book/${s.slug}`} target="_blank" rel="noreferrer">{pageUrl}</a></> : "Nobody can book while the page is off."}
@@ -179,11 +171,6 @@ function BookingAdmin() {
                 First lesson off for new people (%)
                 <input id="bk-newpct" className={field} type="number" min="0" max="100" step="5" value={s.new_user_discount_pct ?? 0}
                   onChange={(e) => set("new_user_discount_pct", Math.min(100, Math.max(0, Number(e.target.value) || 0)))} />
-              </label>
-              <label className={label} htmlFor="bk-bonus">
-                Tokens with each lesson
-                <input id="bk-bonus" className={field} type="number" min="0" step="1000" value={s.bonus_tokens}
-                  onChange={(e) => set("bonus_tokens", Math.max(0, Number(e.target.value) || 0))} />
               </label>
               <label className={label} htmlFor="bk-price">
                 Price

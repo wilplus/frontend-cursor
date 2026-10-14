@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { formatTokens } from "./copy";
 import { money } from "@/lib/booking/time";
 import type { LessonOffer } from "@/lib/booking/offers";
 
@@ -32,9 +31,6 @@ export default function LessonCard({ lesson }: { lesson: LessonOffer }) {
           ) : null}
           {money(lesson.price_cents, lesson.currency)}
         </p>
-        {lesson.bonus_tokens > 0 ? (
-          <p className="mt-1 text-sm text-muted-foreground">Includes {formatTokens(lesson.bonus_tokens)} tokens</p>
-        ) : null}
         <Link
           href={`/book/${encodeURIComponent(lesson.slug)}`}
           className="mt-5 self-start rounded-full border border-foreground px-5 py-2 text-sm font-semibold text-foreground no-underline hover:bg-foreground hover:text-background"
