@@ -55,6 +55,8 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
   /** On a praise: its words, the coach's or the signed line the item
    *  carries. Never made up here; none means none is shown. */
   praiseWords?: readonly string[] | null;
+  /** The praise's opening line by level (founder 2026-10-14); null: "Good job". */
+  praiseTitle?: string | null;
   clip?: WalkClip | null;
   /** On a served rewrite: the speaker's words it anchors on (`quote`), the
    *  words offered in their place (`proposedText`), and the item itself for
@@ -128,6 +130,7 @@ export type FeedbackWalkMoment<R = unknown> = {
   paragraphText: string;
   slideLabel: string | null;
   praiseWords: readonly string[];
+  praiseTitle?: string | null;
   clip: WalkClip | null;
   /** The clearer version, when the moment has a served rewrite. */
   clearer: FeedbackWalkClearer<R> | null;
@@ -243,6 +246,7 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     paragraphText: lead.paragraphText,
     slideLabel: lead.slideLabel,
     praiseWords: praise?.praiseWords ?? [],
+    praiseTitle: praise?.praiseTitle ?? null,
     clip,
     clearer: clearerOf(group),
     practiseItem:

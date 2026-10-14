@@ -607,7 +607,7 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
     >
       <Clip moment={moment} />
       <WalkMessage>
-        <span>{COPY.titlePraise}</span>
+        <span>{moment.praiseTitle ?? COPY.titlePraise}</span>
         {moment.praiseWords.length > 0 ? <span>{moment.praiseWords.join(" ")}</span> : null}
       </WalkMessage>
     </WalkOverlay>

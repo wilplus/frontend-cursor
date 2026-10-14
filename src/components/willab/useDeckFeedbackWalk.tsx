@@ -55,6 +55,7 @@ import {
 } from "@/services/api/coachFeedbackSeen";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import type { LockResult } from "./DeckChunkModal";
+import { praiseTitleFor } from "@/lib/willab/praiseLevels";
 
 /* -------------------------------------------------------------------------- */
 /*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
@@ -198,6 +199,7 @@ function walkItemOf(
     paragraphText: chunk.part.text,
     slideLabel: label,
     praiseWords: praise ? praiseWordsOf(item) : null,
+    praiseTitle: praise ? praiseTitleFor(item.levelKey, item.id) : null,
     clip: item.snippetAudioRef
       ? { src: item.snippetAudioRef, startOffsetMs: item.startOffsetMs, durationMs: item.durationMs, snippetId: item.snippetId }
       : null,
