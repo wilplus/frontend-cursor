@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
  *  one for the coach, no photos (founder NX2 B, 2026-10-06; lock 2026-10-12).
  *  aria-hidden; still no sender label. */
 export function WalkAvatar({ coach = false }: { coach?: boolean }) {
+  // The app's own picture is gone everywhere (founder 2026-10-14).
+  if (!coach) return null;
   return (
     <span
       aria-hidden="true"

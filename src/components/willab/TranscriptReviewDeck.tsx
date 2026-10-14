@@ -727,6 +727,7 @@ export default function TranscriptReviewDeck({
     answeredOf,
     helperWordsOf,
     finished: walkFinished(deckReady, firstWaiting, coachStep.unseen),
+    feedbackPending,
     onLensClose,
   });
   /* AN UNSEEN COACH WORD IS WAITING TOO (founder 2026-10-05, N48.3 Q11 A):
