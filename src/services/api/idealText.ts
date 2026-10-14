@@ -260,6 +260,9 @@ export interface DocumentSuggestion {
    *  bookmark this is and sends only that word. Safe-ahead — absent/null on an
    *  older backend renders exactly today's single colour. */
   bookmarkTier?: BookmarkTierName | null;
+  /** The green moment's level key ("W1".."W10"), for its opening line
+   *  (founder 2026-10-14); never a number. */
+  levelKey?: string | null;
   /** "Let's practice" with no exercise attached (24f). Every item below the
    *  neutral read offers practice; only the weakest carries the drill, because
    *  an exercise is work the user must go and do and a list of them is a list
@@ -716,6 +719,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     feedbackFamily: readEnum(record.feedback_family, FEEDBACK_FAMILIES),
     tentative: record.tentative === true,
     bookmarkTier: readBookmarkTier(record.bookmark_tier),
+    levelKey: readNonEmptyString(record.level_key),
     practicePrompt: record.practice_prompt === true,
     coachRequest: mapCoachRequest(record.coach_request),
     openCard: readEnum(record.open_card, OPEN_CARDS),
