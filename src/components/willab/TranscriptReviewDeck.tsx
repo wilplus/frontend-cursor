@@ -21,6 +21,7 @@ import {
 } from "@/components/willab/feedbackPager";
 import {
   helperWordRanges,
+  missingHelperWords,
   opensParagraphSheet,
 } from "@/lib/willab/answeredBookmark";
 import {
@@ -1367,6 +1368,7 @@ export default function TranscriptReviewDeck({
                           untouched. */}
                       {/* HELPER WORDS ARE SIMPLY ORANGE IN THE TEXT (founder
                           lock 2026-10-12, section 4): no headline above it. */}
+                      <HelpersLabel phrases={missingHelperWords(c.part.text, headlines.get(c.part.id))} />
                       <RichText
                         text={c.displayText ?? c.part.text}
                         accent={false}
@@ -1737,4 +1739,19 @@ function headlineOfChunk(
   partId: string,
 ): string | null {
   return headlines.get(partId) ?? null;
+}
+
+/** Helper words the latest Take no longer says, before the paragraph: the
+ *  orange HELPERS label and the words (founder 2026-10-14, scenarios B/C).
+ *  Not the speaker's text; a tap on the paragraph opens them. */
+function HelpersLabel({ phrases }: { phrases: string[] }) {
+  if (phrases.length === 0) return null;
+  return (
+    <span data-helpers-label>
+      <span className="mr-2 inline-block rounded-md bg-primary px-2 py-[2px] align-[2px] text-[12px] font-bold uppercase tracking-[0.06em] text-primary-foreground">
+        {CHUNK_SHEET_COPY.helpersLabel}
+      </span>
+      <span className="font-semibold text-primary">{phrases.join(" · ")}</span>{" "}
+    </span>
+  );
 }
