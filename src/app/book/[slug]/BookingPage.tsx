@@ -87,11 +87,11 @@ const ICONS = {
   globe: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18",
 };
 
-/** The confirm step's summary on a phone (founder 2026-10-14, option B):
- *  logo and Back on one row, the time in a grey box, the details in a grid,
- *  so the whole step fits one screen. A computer keeps the Meta column. */
-function PhoneSummary({ info, tz, offer, when, onBack }: {
-  info: PageInfo; tz: string; offer: Offer | null; when: [string, string]; onBack: () => void;
+/** The summary on a phone (founder 2026-10-14, option B; the calendar step
+ *  too): logo and an action on one row, the chosen time in a grey box, the
+ *  details in a grid, so each step fits one screen. A computer keeps Meta. */
+function PhoneSummary({ info, tz, offer, when, action }: {
+  info: PageInfo; tz: string; offer: Offer | null; when?: [string, string]; action?: React.ReactNode;
 }) {
   const price = offer ? offer.price_cents : info.new_user_price_cents ?? info.price_cents;
   const list = offer ? offer.list_price_cents : info.price_cents;
@@ -100,7 +100,7 @@ function PhoneSummary({ info, tz, offer, when, onBack }: {
     <div className="grid gap-3.5 pb-4 md:hidden">
       <div className="flex items-center justify-between">
         <a href="/" className="no-underline" aria-label="WillpowerLab home"><Logo /></a>
-        <button className="text-sm text-muted-foreground" onClick={onBack}>← Back</button>
+        {action}
       </div>
       <div className="grid gap-1">
         <h1 className="text-[22px] font-bold tracking-tight [text-wrap:balance]">{info.title}</h1>
@@ -109,10 +109,12 @@ function PhoneSummary({ info, tz, offer, when, onBack }: {
           with {info.host_name}
         </div>
       </div>
-      <div className="grid gap-0.5 rounded-xl bg-muted px-3.5 py-3 text-[15px]">
-        <strong className="font-semibold">{when[0]}</strong>
-        <span>{when[1]}</span>
-      </div>
+      {when && (
+        <div className="grid gap-0.5 rounded-xl bg-muted px-3.5 py-3 text-[15px]">
+          <strong className="font-semibold">{when[0]}</strong>
+          <span>{when[1]}</span>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
         <div className={row}><Icon d={ICONS.clock} />{info.duration_min} min</div>
         <div className={row}><Icon d={ICONS.video} />Google Meet</div>
@@ -264,7 +266,8 @@ export default function BookingPage({ info }: { info: PageInfo }) {
     return (
       <Shell preview={!!signedIn?.preview}>
         <div className="grid md:grid-cols-[260px_1fr] md:rounded-[14px] md:border md:border-border">
-          <PhoneSummary info={info} tz={tz} offer={signedIn} onBack={back}
+          <PhoneSummary info={info} tz={tz} offer={signedIn}
+            action={<button className="text-sm text-muted-foreground" onClick={back}>← Back</button>}
             when={[fmtDay(slot, tz), `${fmtTime(slot, tz, h12)} – ${fmtTime(end, tz, h12)}`]} />
           <div className="hidden md:block">
             <Meta info={info} tz={tz} offer={signedIn}>
@@ -334,21 +337,23 @@ export default function BookingPage({ info }: { info: PageInfo }) {
   const dayTimes = selDay ? byDay.get(selDay) || [] : [];
   const monthName = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" })
     .format(Date.UTC(y, m - 1, 1));
-  const iconBtn = "grid h-[34px] w-[34px] place-items-center rounded-lg hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent";
+  const signIn = (size: string) => offer === "signed-out" && (
+    <a href={`/signup?redirectTo=${encodeURIComponent(`/book/${info.slug}`)}`}
+      onClick={(e) => { e.preventDefault(); signUpFor(null); }} className={`inline-block rounded-[10px] bg-foreground font-semibold text-background no-underline ${size}`}>
+      Sign in to book
+    </a>
+  );
+  const iconBtn = "grid h-8 w-8 md:h-[34px] md:w-[34px] place-items-center rounded-lg hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent";
 
   return (
     <Shell preview={!!signedIn?.preview}>
-      <div className="grid rounded-[14px] border border-border md:grid-cols-[260px_1fr_240px]">
-        <Meta info={info} tz={tz} offer={signedIn}>
-          {offer === "signed-out" && (
-            <a href={`/signup?redirectTo=${encodeURIComponent(`/book/${info.slug}`)}`}
-              onClick={(e) => { e.preventDefault(); signUpFor(null); }} className="mt-5 inline-block rounded-[10px] bg-foreground px-4 py-2.5 text-sm font-semibold text-background no-underline">
-              Sign in to book
-            </a>
-          )}
-        </Meta>
-        <div className="min-w-0 border-t border-border p-5 md:border-l md:border-t-0 md:p-7">
-          <div className="mb-3 flex items-center justify-between">
+      <div className="grid md:grid-cols-[260px_1fr_240px] md:rounded-[14px] md:border md:border-border">
+        <PhoneSummary info={info} tz={tz} offer={signedIn} action={signIn("px-3 py-2 text-[13px]")} />
+        <div className="hidden md:block">
+          <Meta info={info} tz={tz} offer={signedIn}>{signIn("mt-5 px-4 py-2.5 text-sm")}</Meta>
+        </div>
+        <div className="min-w-0 border-t border-border py-4 md:border-l md:border-t-0 md:p-7">
+          <div className="mb-1.5 flex items-center justify-between md:mb-3">
             <b className="font-semibold">{monthName}</b>
             <div className="flex gap-1">
               <button className={iconBtn} disabled={atStart} aria-label="Previous month"
@@ -363,7 +368,7 @@ export default function BookingPage({ info }: { info: PageInfo }) {
           </div>
           <div className="grid grid-cols-7 gap-1 text-center">
             {DOW.map((d) => (
-              <span key={d} className="py-1 text-[11px] uppercase tracking-wider text-muted-foreground">{d}</span>
+              <span key={d} className="py-0.5 text-[10px] md:py-1 md:text-[11px] uppercase tracking-wider text-muted-foreground">{d}</span>
             ))}
             {Array.from({ length: lead }, (_, i) => <span key={`l${i}`} />)}
             {Array.from({ length: days }, (_, i) => {
@@ -378,27 +383,27 @@ export default function BookingPage({ info }: { info: PageInfo }) {
                     setSelDay(key);
                     if (window.innerWidth < 768) timesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
-                  className={`relative aspect-square rounded-[10px] tabular-nums transition-colors ${
+                  className={`relative h-[38px] rounded-[10px] md:aspect-square md:h-auto tabular-nums transition-colors ${
                     sel ? "bg-foreground font-semibold text-background"
                       : open ? "bg-muted font-semibold text-foreground hover:outline hover:outline-1 hover:outline-foreground"
                         : "text-muted-foreground"
                   }`}>
                   {d}
-                  {isToday && <span className="absolute bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" />}
+                  {isToday && <span className="absolute bottom-1 left-1/2 md:bottom-1.5 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" />}
                 </button>
               );
             })}
           </div>
-          <div className="mt-[18px] flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground md:mt-[18px]">
             <label htmlFor="bk-tz">Time zone</label>
             <select id="bk-tz" value={tz} onChange={(e) => { setTz(e.target.value); setSelDay(null); }}
-              className="min-w-0 max-w-full flex-[1_1_200px] rounded-lg border border-border bg-background px-2 py-[7px]">
+              className="min-w-0 max-w-full flex-[1_1_200px] rounded-lg border border-border bg-background px-2 py-1.5 md:py-[7px]">
               {zones.map((z) => <option key={z} value={z}>{z.replace(/_/g, " ")} ({gmtLabel(z)})</option>)}
             </select>
           </div>
         </div>
-        <div ref={timesRef} className="min-w-0 border-t border-border p-5 md:border-l md:border-t-0 md:p-7">
-          <div className="mb-3 flex items-center justify-between gap-2">
+        <div ref={timesRef} className="min-w-0 border-t border-border py-4 md:border-l md:border-t-0 md:p-7">
+          <div className="mb-2 md:mb-3 flex items-center justify-between gap-2">
             <b className="font-semibold">{dayTimes.length ? fmtShortDay(dayTimes[0], tz) : "Pick a day"}</b>
             <div className="inline-flex rounded-lg border border-border text-xs" role="group" aria-label="Clock format">
               {[true, false].map((v) => (
@@ -412,7 +417,7 @@ export default function BookingPage({ info }: { info: PageInfo }) {
           {slots === null ? (
             <p className="text-sm text-muted-foreground">Loading times…</p>
           ) : dayTimes.length ? (
-            <div className="grid max-h-[420px] grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-2 overflow-auto md:grid-cols-1">
+            <div className="grid max-h-[420px] grid-cols-4 gap-1.5 overflow-auto md:grid-cols-1 md:gap-2">
               {dayTimes.map((s) => (
                 <button key={s} onClick={() => {
                     if (offer === "signed-out") {
@@ -422,7 +427,7 @@ export default function BookingPage({ info }: { info: PageInfo }) {
                     setSlot(s);
                     window.scrollTo(0, 0);
                   }}
-                  className="rounded-[10px] border border-border bg-background px-2 py-[11px] font-medium tabular-nums hover:border-foreground">
+                  className="h-11 rounded-[10px] border border-border bg-background px-1 font-medium md:h-auto md:px-2 md:py-[11px] tabular-nums hover:border-foreground">
                   {fmtTime(s, tz, h12)}
                 </button>
               ))}
