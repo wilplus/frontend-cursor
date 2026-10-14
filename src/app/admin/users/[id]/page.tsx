@@ -47,6 +47,7 @@ interface Person {
   list_price_cents: number | null;
   asks: Ask[];
   promotion: { plan: string; price_cents: number; list_cents: number; ends_at: string } | null;
+  deletion: { request_id: string; state: string; completes_after: string | null; cancellable: boolean } | null;
 }
 
 const WAIT_DAYS = 30;
@@ -281,6 +282,8 @@ function PersonProfile({ id }: { id: string }) {
           )) : <p className="py-3 text-sm text-muted-foreground">Nothing sent yet.</p>}
         </div>
       </section>
+
+      <DeleteSection id={id} email={p.email} deletion={p.deletion} reload={load} />
     </main>
   );
 }
@@ -375,5 +378,63 @@ function PromotionSection({ id, promotion, sendAsk, reload }: {
           {note && <p className="text-sm">{note}</p>}
         </div>
       </section>
+  );
+}
+
+/** At the bottom: delete this account. Same road as the person's own
+ *  "Delete my account": stopped now, deleted after seven days, cancellable
+ *  until then. */
+function DeleteSection({ id, email, deletion, reload }: {
+  id: string;
+  email: string | null;
+  deletion: Person["deletion"];
+  reload: () => Promise<void>;
+}) {
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const post = async (path: string) => {
+    setBusy(true);
+    const res = await fetch(`/api/v2/admin/people/${encodeURIComponent(id)}/${path}`, { method: "POST" }).catch(() => null);
+    const body = res ? await res.json().catch(() => ({})) : {};
+    setBusy(false);
+    if (!res?.ok) return setNote(body.error || "Could not do that. Try again.");
+    // No data agreement yet: only the login existed, and it is gone now.
+    if (body.deletion?.kind === "login_only") return window.location.assign("/admin/users");
+    setNote(null);
+    void reload();
+  };
+
+  const remove = () => {
+    if (!window.confirm(`Delete ${email || "this user"}? Their account stops now and all their data is deleted after 7 days. You can cancel until then.`)) return;
+    void post("delete");
+  };
+
+  return (
+    <section>
+      <h2 className={H2}>Delete user</h2>
+      <div className={`${BOX} grid gap-3 py-4`}>
+        {deletion && deletion.state !== "cancelled" ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span>
+              Deletion requested
+              {deletion.completes_after ? `, data deleted after ${new Date(deletion.completes_after).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}.
+            </span>
+            {deletion.cancellable && (
+              <button type="button" disabled={busy} onClick={() => void post(`delete/${encodeURIComponent(deletion.request_id)}/cancel`)}
+                className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium">Cancel deletion</button>
+            )}
+          </div>
+        ) : (
+          <div>
+            <button type="button" disabled={busy} onClick={remove}
+              className="rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground disabled:opacity-60">
+              Delete user
+            </button>
+          </div>
+        )}
+        {note && <p className="text-sm text-destructive">{note}</p>}
+      </div>
+    </section>
   );
 }
