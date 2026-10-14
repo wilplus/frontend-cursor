@@ -25,9 +25,9 @@ const project = "product";
 
 function initialState(rows: CeoViewState[]): CeoViewState {
   const saved = rows.find((row) => row.project_key === project) ?? defaultCeoViewState(project);
-  // Overview and Settings left the tabs (founder 2026-10-14): a remembered
-  // one opens Bugs.
-  return saved.surface === "bugs" || saved.surface === "tasks" ? saved : { ...saved, surface: "bugs" };
+  // The panel always opens on Bugs (founder 2026-10-14); the rest of the
+  // remembered view (filters, sort) stays.
+  return { ...saved, surface: "bugs" };
 }
 
 const BOOTSTRAP_KEY = "ceo-bootstrap:v1";
