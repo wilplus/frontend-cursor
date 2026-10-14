@@ -1,11 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import {
-  ArrowUpRight,
-  Users,
-  WalletCards,
-} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import CeoOverview from "@/components/ceo/CeoOverview";
 import CeoBugCapture from "@/components/ceo/CeoBugCapture";
@@ -31,7 +25,9 @@ const SURFACE_LABELS: Record<CeoSurface, string> = {
 const project = "product";
 
 function initialState(rows: CeoViewState[]): CeoViewState {
-  return rows.find((row) => row.project_key === project) ?? defaultCeoViewState(project);
+  const saved = rows.find((row) => row.project_key === project) ?? defaultCeoViewState(project);
+  // Settings left the tabs (founder 2026-10-14): a remembered Settings opens Overview.
+  return saved.surface === "settings" ? { ...saved, surface: "overview" } : saved;
 }
 
 const BOOTSTRAP_KEY = "ceo-bootstrap:v1";
@@ -164,14 +160,13 @@ export default function CeoWorkspace() {
   return (
     <div className="min-h-dvh bg-background">
       <div className="mx-auto max-w-6xl px-4 pb-10 pt-5 sm:px-6">
-        {/* Centred and small (founder 2026-10-14); Settings is a tab now that
-            the CEO header with its gear is gone. */}
+        {/* Centred and small (founder 2026-10-14). */}
         <div className="flex justify-center">
           <nav
             className="flex items-center rounded-lg bg-muted p-0.5"
             aria-label="CEO surfaces"
           >
-            {CEO_SURFACES.map(
+            {CEO_SURFACES.filter((surface) => surface !== "settings").map(
               (surface) => (
                 <button
                   key={surface}
@@ -214,86 +209,8 @@ export default function CeoWorkspace() {
           {state.surface === "tasks" ? (
             <CeoTasks project={project} features={features} />
           ) : null}
-          {state.surface === "settings" ? <CeoSettings data={data} /> : null}
         </section>
       </div>
-    </div>
-  );
-}
-
-function CeoSettings({ data }: { data: CeoBootstrap }) {
-  return (
-    <div className="mx-auto max-w-3xl">
-      <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <Link
-          href="/admin/users"
-          className="group rounded-2xl border border-border p-5 transition-colors hover:bg-muted/50"
-        >
-          <div className="flex items-center justify-between">
-            <Users className="h-5 w-5 text-muted-foreground" aria-hidden />
-            <ArrowUpRight
-              className="h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-              aria-hidden
-            />
-          </div>
-          <h3 className="mt-5 font-semibold">Users</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Review registered accounts and open a top-up by email.
-          </p>
-        </Link>
-        <Link
-          href="/admin/tokens"
-          className="group rounded-2xl border border-border p-5 transition-colors hover:bg-muted/50"
-        >
-          <div className="flex items-center justify-between">
-            <WalletCards
-              className="h-5 w-5 text-muted-foreground"
-              aria-hidden
-            />
-            <ArrowUpRight
-              className="h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-              aria-hidden
-            />
-          </div>
-          <h3 className="mt-5 font-semibold">Tokens</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Look up balances and grant non-expiring tokens.
-          </p>
-        </Link>
-        <div className="rounded-2xl border border-border p-5 sm:col-span-2">
-          <h3 className="font-semibold">CEO Intelligence usage</h3>
-          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <UsageMetric label="Runs" value={data.intelligence_usage?.runs ?? 0} />
-            <UsageMetric
-              label="Input tokens"
-              value={data.intelligence_usage?.prompt_tokens ?? 0}
-            />
-            <UsageMetric
-              label="Output tokens"
-              value={data.intelligence_usage?.completion_tokens ?? 0}
-            />
-            <UsageMetric
-              label="Total tokens"
-              value={data.intelligence_usage?.total_tokens ?? 0}
-            />
-          </div>
-          <p className="mt-4 text-xs text-muted-foreground">
-            Counts include completed CEO Architecture and ML proposal runs only.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function UsageMetric({ label, value }: { label: string; value: number }) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-lg font-semibold tabular-nums">
-        {new Intl.NumberFormat().format(value)}
-      </p>
     </div>
   );
 }
