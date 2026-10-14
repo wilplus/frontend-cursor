@@ -10,18 +10,14 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Logo from "@/components/Logo";
 import CeoOverview from "@/components/ceo/CeoOverview";
-import CeoSegmentedControl from "@/components/ceo/CeoSegmentedControl";
 import CeoBugCapture from "@/components/ceo/CeoBugCapture";
 import CeoTasks from "@/components/ceo/CeoTasks";
-import CeoLearningReadiness from "@/components/ceo/CeoLearningReadiness";
 import { cn } from "@/lib/utils";
 import {
-  CEO_PROJECT_KEYS,
   CEO_SURFACES,
   activeCeoFeatures,
   defaultCeoViewState,
   type CeoBootstrap,
-  type CeoProjectKey,
   type CeoSurface,
   type CeoViewState,
 } from "@/lib/ceo/domain";
@@ -33,18 +29,11 @@ const SURFACE_LABELS: Record<CeoSurface, string> = {
   settings: "Settings",
 };
 
-type StateByProject = Record<CeoProjectKey, CeoViewState>;
-type DraftByProject = Record<CeoProjectKey, string>;
+/* One project: Product. Research left the CEO panel (founder 2026-10-14). */
+const project = "product";
 
-function initialStates(rows: CeoViewState[]): StateByProject {
-  return {
-    product:
-      rows.find((row) => row.project_key === "product") ??
-      defaultCeoViewState("product"),
-    research:
-      rows.find((row) => row.project_key === "research") ??
-      defaultCeoViewState("research"),
-  };
+function initialState(rows: CeoViewState[]): CeoViewState {
+  return rows.find((row) => row.project_key === project) ?? defaultCeoViewState(project);
 }
 
 async function readJson(response: Response): Promise<Record<string, unknown>> {
@@ -58,23 +47,10 @@ async function readJson(response: Response): Promise<Record<string, unknown>> {
 export default function CeoWorkspace() {
   const [data, setData] = useState<CeoBootstrap | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [project, setProject] = useState<CeoProjectKey>("product");
-  const [states, setStates] = useState<StateByProject>(() =>
-    initialStates([])
-  );
-  const [bugDrafts, setBugDrafts] = useState<DraftByProject>({
-    product: "",
-    research: "",
-  });
+  const [state, setState] = useState<CeoViewState>(() => initialState([]));
+  const [bugDraft, setBugDraft] = useState("");
   useEffect(() => {
-    const remembered = window.localStorage.getItem("ceo-active-project");
-    if (remembered === "product" || remembered === "research") {
-      setProject(remembered);
-    }
-    setBugDrafts({
-      product: window.localStorage.getItem("ceo-bug-draft-product") ?? "",
-      research: window.localStorage.getItem("ceo-bug-draft-research") ?? "",
-    });
+    setBugDraft(window.localStorage.getItem(`ceo-bug-draft-${project}`) ?? "");
     const controller = new AbortController();
     void fetch("/api/v2/admin/ceo/bootstrap", {
       cache: "no-store",
@@ -91,7 +67,7 @@ export default function CeoWorkspace() {
         }
         const bootstrap = body as unknown as CeoBootstrap;
         setData(bootstrap);
-        setStates(initialStates(bootstrap.view_state ?? []));
+        setState(initialState(bootstrap.view_state ?? []));
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
@@ -102,18 +78,10 @@ export default function CeoWorkspace() {
     return () => controller.abort();
   }, []);
 
-  const rememberProject = useCallback((next: CeoProjectKey) => {
-    setProject(next);
-    window.localStorage.setItem("ceo-active-project", next);
+  const updateBugDraft = useCallback((value: string) => {
+    setBugDraft(value);
+    window.localStorage.setItem(`ceo-bug-draft-${project}`, value);
   }, []);
-
-  const updateBugDraft = useCallback(
-    (value: string) => {
-      setBugDrafts((current) => ({ ...current, [project]: value }));
-      window.localStorage.setItem(`ceo-bug-draft-${project}`, value);
-    },
-    [project]
-  );
 
   const persistState = useCallback((next: CeoViewState) => {
     void fetch(
@@ -135,19 +103,18 @@ export default function CeoWorkspace() {
 
   const updateState = useCallback(
     (patch: Partial<Omit<CeoViewState, "project_key">>) => {
-      setStates((current) => {
-        const next = { ...current[project], ...patch };
+      setState((current) => {
+        const next = { ...current, ...patch };
         persistState(next);
-        return { ...current, [project]: next };
+        return next;
       });
     },
-    [persistState, project]
+    [persistState]
   );
 
-  const state = states[project];
   const features = useMemo(
     () => activeCeoFeatures(data?.features ?? [], project),
-    [data?.features, project]
+    [data?.features]
   );
 
   if (loadError) {
@@ -195,16 +162,7 @@ export default function CeoWorkspace() {
       </header>
 
       <div className="mx-auto max-w-6xl px-4 pb-10 pt-5 sm:px-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CeoSegmentedControl
-            label="Project"
-            items={CEO_PROJECT_KEYS.map((key) => ({
-              key,
-              label: key === "product" ? "Product" : "Research",
-            }))}
-            value={project}
-            onChange={(value) => rememberProject(value as CeoProjectKey)}
-          />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
           <nav
             className="flex items-center rounded-xl bg-muted p-1"
             aria-label="CEO surfaces"
@@ -233,15 +191,12 @@ export default function CeoWorkspace() {
           {state.surface === "bugs" ? (
             <CeoBugCapture
               project={project}
-              value={bugDrafts[project]}
+              value={bugDraft}
               onChange={updateBugDraft}
             />
           ) : null}
           {state.surface === "overview" ? (
             <div className="space-y-10">
-              {project === "research" ? (
-                <CeoLearningReadiness report={data.learning_readiness} />
-              ) : null}
               <CeoOverview
                 data={data}
                 project={project}
