@@ -653,8 +653,12 @@ export function useDeckFeedbackWalk(args: {
     (target?: WalkStepTarget | null) => Boolean(target?.take && pageTake && target.take !== pageTake),
     [pageTake],
   );
+  // A helper-words bubble opens that paragraph's helper words, as a tap on
+  // the words in the text does (founder 2026-10-14).
+  const openHelpersRef = useRef<(partId: string) => boolean>(() => false);
   const review = useCallback((target?: WalkStepTarget | null): boolean => {
     if (otherTake(target)) return true;
+    if (target?.step === "helpers" && target.part && openHelpersRef.current(target.part)) return true;
     setReplaying(null);
     const liveAt = walkStepAt(model, target);
     // An answered step opens as given, read-only (prototype v31).
@@ -680,6 +684,7 @@ export function useDeckFeedbackWalk(args: {
 
   const replay = useCallback((target?: WalkStepTarget | null): boolean => {
     if (otherTake(target)) return true;
+    if (target?.step === "helpers" && target.part && openHelpersRef.current(target.part)) return true;
     if (!canReplay) return false;
     void ownAnswersOf(pageTake).then((answers) => {
       const again = buildReplay(answers);
@@ -735,6 +740,7 @@ export function useDeckFeedbackWalk(args: {
     },
     [model, replayReady, buildReplay, ownAnswers, openAt],
   );
+  openHelpersRef.current = openHelpers;
 
   const practisePart = useCallback(
     (partId: string, card: PractiseCard, moment: DocumentSuggestion | null): boolean => {
