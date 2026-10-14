@@ -87,6 +87,9 @@ export interface ChatQueryResponse {
   suggested_actions?: string[];
   /** Explicit, versioned product destination. Copy never controls routing. */
   product_action?: import("@/lib/productDiscovery").ProductAction;
+  /** The Lounge offer the chat opened this turn ("whatsapp", "install"),
+   *  signed-in only. The backend already stored its bubble after the reply. */
+  offer?: string | null;
   /** True only when the backend durably stored the signed-in bot turn. */
   persisted?: boolean;
   /** Optional stress-contrast block (BE-3). null / absent → omit
