@@ -49,6 +49,8 @@ export type WalkMoment = {
   practise?: boolean;
   /** Already judged: no judgement step is planned for it. */
   judged?: boolean;
+  /** The coach answered it in words (founder 2026-10-14). */
+  coach?: boolean;
 };
 
 export type WalkPlanInput = {
@@ -62,12 +64,18 @@ export type WalkPlanInput = {
   /** A guest: every screen is shown read-only, and any answer, pick or
    *  practise opens sign-up instead of writing (N32.5). */
   guest: boolean;
+  /** Opened from the coach's bubble: only what the coach sent (founder
+   *  2026-10-14): their word for the Take, then the moments they answered. */
+  coachOnly?: boolean;
 };
 
 /** Every screen the plan can name. */
 export type WalkStepKey =
   | "page"
   | "coachnote"
+  /** The coach's answer on a moment no other screen shows, and every
+   *  answered moment in the coach-only walk (founder 2026-10-14). */
+  | "coach"
   | "praise"
   | "helpers"
   | "clearer"
@@ -135,9 +143,18 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
   const moments = [...input.moments].sort((a, b) => a.index - b.index);
   const steps: WalkStep[] = [{ key: "page", overlay: false }];
   if (input.coachNote) steps.push({ key: "coachnote" });
+  if (input.coachOnly) {
+    for (const m of moments) if (m.coach) steps.push(momentStep(m, "coach"));
+    steps.push({ key: "end", overlay: false });
+    return steps;
+  }
   for (const m of moments) {
     if (!m.praise) continue;
     steps.push(momentStep(m, "praise"), momentStep(m, "helpers"));
+  }
+  // A moment only the coach speaks to gets its own screen.
+  for (const m of moments) {
+    if (m.coach && !m.praise && !isPractiseMoment(m)) steps.push(momentStep(m, "coach"));
   }
   for (const m of moments) {
     if (isPractiseMoment(m)) steps.push(...practiseOpening(m, input.practiceOn));
@@ -232,6 +249,8 @@ export type WalkFeedbackItem = {
   hasRewrite?: boolean;
   /** Served by a backend that names green moments (`bookmarkTier` set). */
   tiered?: boolean;
+  /** The coach answered this moment in words. */
+  coachAnswered?: boolean;
 };
 
 /** The feedback items grouped into the Take's moments, in page order: one
@@ -267,6 +286,7 @@ export function walkMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
       ...(exercise ? { exercise } : {}),
       ...(practise ? { practise } : {}),
       ...(has((i) => Boolean(i.judged)) ? { judged: true } : {}),
+      ...(has((i) => Boolean(i.coachAnswered)) ? { coach: true } : {}),
     };
   });
 }
@@ -290,6 +310,7 @@ function lockedMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
       ...(exercise ? { exercise } : {}),
       ...(practise ? { practise } : {}),
       judged: true,
+      ...(has((i) => Boolean(i.coachAnswered)) ? { coach: true } : {}),
     };
   });
 }

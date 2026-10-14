@@ -275,6 +275,11 @@ export interface DocumentSuggestion {
    *  item says the coach is working on it until an exercise arrives
    *  (`practiceExercise` with `chosenByCoach`). `open` while unanswered;
    *  `answered` once the coach replied without sharing. */
+  /** The coach's shared answer on this moment, in words (founder
+   *  2026-10-14; backend `coach_shared_answer`): a praise line, a clearer
+   *  version or a note, with their video when they sent one. Never a draft,
+   *  never a score. */
+  coachAnswer?: CoachAnswer | null;
   coachRequest?: {
     status: "open" | "answered";
     /** Why it reached the coach (the follow-up matrix, founder 2026-09-29).
@@ -596,6 +601,20 @@ function mapSuggestionEvidence(value: unknown): SuggestionEvidence | null {
   };
 }
 
+export type CoachAnswer = { kind: "line" | "version" | "note"; text: string; videoUrl: string | null };
+
+/** The coach's shared answer; none when its words are empty or its kind is
+ *  unknown. */
+export function mapCoachAnswer(value: unknown): CoachAnswer | null {
+  const answer = asRecord(value);
+  if (!answer) return null;
+  const kind = answer.kind === "line" || answer.kind === "version" || answer.kind === "note" ? answer.kind : null;
+  const text = typeof answer.text === "string" ? answer.text.trim() : "";
+  if (!kind || !text) return null;
+  const video = typeof answer.video_url === "string" && answer.video_url.trim() ? answer.video_url.trim() : null;
+  return { kind, text, videoUrl: video };
+}
+
 function mapCoachRequest(
   value: unknown,
 ): DocumentSuggestion["coachRequest"] {
@@ -724,6 +743,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     levelKey: readNonEmptyString(record.level_key),
     practicePrompt: record.practice_prompt === true,
     coachRequest: mapCoachRequest(record.coach_request),
+    coachAnswer: mapCoachAnswer(record.coach_answer),
     openCard: readEnum(record.open_card, OPEN_CARDS),
     problemRecognised: record.problem_recognised === true,
     blockId: readNonEmptyString(record.block_id),

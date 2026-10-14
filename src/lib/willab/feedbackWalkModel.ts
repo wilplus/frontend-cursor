@@ -80,6 +80,10 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
    *  exercise cell, or one the coach chose), with the served item it is
    *  practised on. Only from the served offer; never made up. */
   exercise?: FeedbackWalkItemExercise<R> | null;
+  /** The coach's answer on this item, in words (founder 2026-10-14), and the
+   *  item it rides, so the walk can say it was seen. */
+  coachAnswer?: FeedbackWalkCoachAnswer | null;
+  coachItem?: R | null;
   /** On the Confident Voice item still waiting for the speaker's judgement:
    *  the item itself, the one the speaker's own answer is saved on (L3).
    *  Only handed back. */
@@ -123,6 +127,9 @@ export type FeedbackWalkClearer<R = unknown> = ClearerPieces & {
   item: R;
 };
 
+/** The coach's answer on a moment: their words, and their video if any. */
+export type FeedbackWalkCoachAnswer = { kind: "line" | "version" | "note"; text: string; videoUrl: string | null };
+
 /** One moment of the walk, ready to draw. */
 export type FeedbackWalkMoment<R = unknown> = {
   index: number;
@@ -142,6 +149,10 @@ export type FeedbackWalkMoment<R = unknown> = {
   /** The Confident Voice item the moment's judgement is saved on (D-FW-18).
    *  None: the moment has no judgement screen. */
   judgeItem: R | null;
+  /** The coach's answer, drawn as the moment's last bubble (founder
+   *  2026-10-14), and the item it rides. */
+  coachAnswer?: FeedbackWalkCoachAnswer | null;
+  coachItem?: R | null;
 };
 
 export type FeedbackWalkModel<R = unknown> = {
@@ -168,6 +179,7 @@ export type FeedbackWalkReplay = {
 export const WALK_PHASE_SCREENS: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>([
   "page",
   "coachnote",
+  "coach",
   "praise",
   "helpers",
   "clearer",
@@ -253,6 +265,8 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
       group.find((i) => i.item != null && (i.rewrite != null || i.openCard === "coach_request"))?.item ?? null,
     exercise: pickExercise(group.flatMap((i) => (i.exercise ? [i.exercise] : []))),
     judgeItem: group.find((i) => i.judge != null)?.judge ?? null,
+    coachAnswer: group.find((i) => i.coachAnswer)?.coachAnswer ?? null,
+    coachItem: group.find((i) => i.coachAnswer)?.coachItem ?? null,
   };
 }
 
@@ -278,6 +292,7 @@ export function buildFeedbackWalk<R = unknown>(input: {
   coachNote: boolean;
   practiceOn: boolean;
   guest: boolean;
+  coachOnly?: boolean;
 }): FeedbackWalkModel<R> {
   const groups = walkMomentGroups(input.items);
   const moments = groups.map((group, index) => momentOf(group, index));
@@ -286,6 +301,7 @@ export function buildFeedbackWalk<R = unknown>(input: {
     coachNote: input.coachNote,
     practiceOn: input.practiceOn,
     guest: input.guest,
+    coachOnly: input.coachOnly,
   }).filter((step) => {
     const moment = step.moment == null ? undefined : moments[step.moment];
     return (
@@ -293,6 +309,7 @@ export function buildFeedbackWalk<R = unknown>(input: {
       drawnPractise(step, moment) &&
       (step.key !== "exVideo" || moment?.exercise != null || moment?.practiseItem != null) &&
       (step.key !== "clearer" || moment?.clearer != null) &&
+      (step.key !== "coach" || moment?.coachAnswer != null) &&
       (step.key !== "judge" || moment?.judgeItem != null)
     );
   });

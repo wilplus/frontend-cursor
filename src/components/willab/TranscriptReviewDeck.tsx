@@ -253,6 +253,7 @@ export default function TranscriptReviewDeck({
   onLensClose,
   onWalkEnd,
   onWalkClose,
+  coachOnly = false,
   renderNextStep,
   feedbackPending = false,
   takeCount = null,
@@ -355,6 +356,9 @@ export default function TranscriptReviewDeck({
    *  founder 2026-10-14). */
   onWalkEnd?: () => void;
   onWalkClose?: () => void;
+  /** Opened from the coach's bubble: the walk shows only what the coach
+   *  sent, and opens on it at once (founder 2026-10-14). */
+  coachOnly?: boolean;
   /** The host's next step (the next take, or See next steps), drawn on the
    *  card after the last moment of the walk. Absent → the card offers only
    *  the way back to the text. */
@@ -739,6 +743,7 @@ export default function TranscriptReviewDeck({
     onLensClose,
     onEnd: onWalkEnd,
     onWalkClose,
+    coachOnly,
   });
   /* AN UNSEEN COACH WORD IS WAITING TOO (founder 2026-10-05, N48.3 Q11 A):
      "Review feedback" stays for it after every moment is answered, and opens
@@ -749,6 +754,13 @@ export default function TranscriptReviewDeck({
   }, [deckReady, firstWaiting, coachWordWaiting, onReviewWaiting]);
   // A helper-words bubble opens its helper words as soon as the deck is
   // up, without waiting on the moments or the answers (founder 2026-10-14).
+  // The coach-only walk opens on the coach's first word as soon as there is
+  // one (founder 2026-10-14).
+  const coachOpenedRef = useRef(false);
+  useEffect(() => {
+    if (!coachOnly || !deckReady || coachOpenedRef.current) return;
+    if (feedbackWalk.review(null)) coachOpenedRef.current = true;
+  }, [coachOnly, deckReady, feedbackWalk]);
   const helpersOpenedRef = useRef<string | null>(null);
   useEffect(() => {
     const part = reviewAt?.step === "helpers" ? reviewAt.part : null;

@@ -306,8 +306,8 @@ export default function IdealTextOverlay({
     // The coach-feedback email and bubble open the review too: only helper
     // words and moment sentences open anything (lock 2026-10-12, section 4).
     if ((initialMode !== "review" && initialMode !== "feedback") || reviewOpenedRef.current) return;
-    // A helper-words bubble: the deck opens the words itself, at once.
-    if (reviewAt?.step === "helpers") return;
+    // A helper-words bubble, or the coach's: the deck opens it itself.
+    if (reviewAt?.step === "helpers" || initialMode === "feedback") return;
     // After a Take (no step asked for) the review is the live walk: wait
     // for its moments, which can land after the text, rather than settle
     // on the finished one. An answered step tapped in the chat replays.
@@ -1007,7 +1007,8 @@ export default function IdealTextOverlay({
             replayRequest={replayRequest}
             onReplayReady={setReplayReady}
             onLensClose={onClose}
-            onWalkEnd={lens.reveal}
+            coachOnly={initialMode === "feedback"}
+            onWalkEnd={walkEndFor(initialMode, onClose, lens.reveal)}
             onWalkClose={() => {
               if (lens.onRef.current) onClose();
             }}
@@ -1286,4 +1287,10 @@ function LensFrame({ on, onClose }: { on: boolean; onClose: () => void }) {
 /** The Ideal Text's own layer: out of sight while the lens screen is on. */
 function lensHides(on: boolean): string {
   return `fixed inset-0 z-40 flex flex-col overscroll-none bg-background${on ? " invisible" : ""}`;
+}
+
+/** Where the walk's end lands: the coach-only walk goes back to the chat,
+ *  every other walk runs onto the Ideal Text (founder 2026-10-14). */
+function walkEndFor(mode: IdealTextLaunchMode | undefined, close: () => void, reveal: () => void): () => void {
+  return mode === "feedback" ? close : reveal;
 }

@@ -56,3 +56,18 @@ describe("recording roots payload", () => {
     ).toBeNull();
   });
 });
+
+describe("the coach's answer in words (founder 2026-10-14)", () => {
+  it("keeps a shared answer and drops an empty or unknown one", async () => {
+    const { mapCoachAnswer } = await import("./idealText");
+    expect(mapCoachAnswer({ kind: "note", text: " Keep the last word up. ", video_url: "https://v/x.mp4" })).toEqual({
+      kind: "note",
+      text: "Keep the last word up.",
+      videoUrl: "https://v/x.mp4",
+    });
+    expect(mapCoachAnswer({ kind: "line", text: "Exactly it." })).toEqual({ kind: "line", text: "Exactly it.", videoUrl: null });
+    expect(mapCoachAnswer({ kind: "line", text: "  " })).toBeNull();
+    expect(mapCoachAnswer({ kind: "score", text: "8/10" })).toBeNull();
+    expect(mapCoachAnswer(null)).toBeNull();
+  });
+});

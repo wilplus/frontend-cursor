@@ -610,6 +610,7 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
         <span>{moment.praiseTitle ?? COPY.titlePraise}</span>
         {moment.praiseWords.length > 0 ? <span>{moment.praiseWords.join(" ")}</span> : null}
       </WalkMessage>
+      <CoachAnswerBubble moment={moment} />
     </WalkOverlay>
   );
 }
@@ -705,6 +706,7 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
         <WalkNewWords>{pieces(clearer.after)}</WalkNewWords>
         {practiseOff ? null : <span>{ctx.say(step, "B14")}</span>}
       </WalkMessage>
+      <CoachAnswerBubble moment={moment} />
     </WalkOverlay>
   );
 }
@@ -766,7 +768,43 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
           <span>{exercise?.instruction ?? WALK_COPY.lineA}</span>
         </WalkMessage>
       )}
+      <CoachAnswerBubble moment={moment} />
     </>
+  );
+}
+
+/** The coach's answer on a moment, its last bubble (founder 2026-10-14):
+ *  "Your coach", their video when they sent one, their words. No picture
+ *  beside it; the whole-Take word keeps the coach's. */
+function CoachAnswerBubble({ moment }: { moment: FeedbackWalkMoment<unknown> }) {
+  const answer = moment.coachAnswer;
+  if (!answer) return null;
+  return (
+    <WalkMessage wide>
+      <span>{COPY.titleCoach}</span>
+      {answer.videoUrl ? <CoachVideo src={answer.videoUrl} className="my-2 w-full flex-none" /> : null}
+      <span>{answer.text}</span>
+    </WalkMessage>
+  );
+}
+
+/** A moment only the coach speaks to (and every answered moment in the
+ *  coach-only walk): the speaker's clip, then the coach's answer; Next. */
+function CoachAnswer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
+  const ok = () => {
+    ctx.answer(step, "ok");
+    ctx.forward();
+  };
+  return (
+    <WalkOverlay
+      testId={testId(step)}
+      nav={ctx.nav(step, moment)}
+      onClose={ctx.close}
+      footer={<WalkFooter pill={{ label: COPY.pagerNext, onClick: ok, testId: "walk-forward" }} />}
+    >
+      <Clip moment={moment} />
+      <CoachAnswerBubble moment={moment} />
+    </WalkOverlay>
   );
 }
 
@@ -865,6 +903,7 @@ function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep, backFromPractise: ()
   if (step.key === "summary") return Summary(ctx, step);
   const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];
   if (!moment) return null;
+  if (step.key === "coach") return CoachAnswer(ctx, step, moment);
   if (step.key === "praise") return Praise(ctx, step, moment);
   if (step.key === "helpers") return Helpers(ctx, step, moment);
   if (step.key === "clearer") return Clearer(ctx, step, moment);
