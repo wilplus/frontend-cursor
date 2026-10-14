@@ -198,14 +198,16 @@ describe("the walk on the deck", () => {
     expect(chunkOf(lockCall)).toBe("p2");
     expect(lockCall[1]).toBe(SLIDES[1]);
     // Nobody to judge and no summary to read: the walk lands on the page.
-    // The chosen words are orange in the text at once, and a tap on them
-    // opens that slide's helper-words step in the same walk (lock
-    // 2026-10-12, section 4), never the old helper-words sheet.
+    // The chosen words are orange in the text at once. With the moment's
+    // bookmark on the paragraph, a tap opens the moment first and then its
+    // helper-words step (founder 2026-10-14), never the old sheet.
     await act(async () => undefined);
     expect(live()).toBeNull();
     const orange = paragraph("retention went up")!.querySelector<HTMLElement>(".walk-helper-word");
     expect(orange?.textContent).toBe("retention went");
     await click(orange);
+    expect(screen()).toBe("walk-screen-praise");
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
     expect(screen()).toBe("walk-screen-helpers");
     expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe(`Slide 2 · ${WALK_COPY.navHelperWords}`);
     expect(document.querySelector("[data-testid='helper-words-card']")).toBeNull();
