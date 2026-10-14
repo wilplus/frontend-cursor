@@ -3,6 +3,8 @@ import { guestOwnerHeaders } from "@/services/api/projects";
 import type { Part } from "@/lib/willab/documentParts";
 import { MAX_DOCUMENT_CHARS } from "@/lib/willab/documentSegments";
 import {
+  PROMPT_LANE,
+  SLOW_LANE,
   nextSettleDelayMs,
   retryableMarkSections,
 } from "@/lib/willab/enrichmentSettle";
@@ -2020,8 +2022,25 @@ export async function fetchRecordingRoots(
   return mapRecordingRootsPayload(body) ?? { kind: "error" };
 }
 
-/** Fetch optional sections for one immutable core revision. */
+/** Fetch optional sections for one immutable core revision. A request the
+ *  settle hand-over already started for exactly this arc, snapshot and
+ *  section split (`primeIdealTextEnrichment`) is reused instead of sent
+ *  again; anything else is a fresh network read. */
 export async function fetchIdealTextEnrichment(
+  arcId: string,
+  documentSnapshotId: string,
+  sections?: readonly string[],
+): Promise<IdealTextEnrichmentResult> {
+  const primed = await takePrimedIdealTextEnrichment(
+    arcId,
+    documentSnapshotId,
+    sections,
+  );
+  return primed ?? requestIdealTextEnrichment(arcId, documentSnapshotId, sections);
+}
+
+/** The enrichment request itself, always on the network. */
+async function requestIdealTextEnrichment(
   arcId: string,
   documentSnapshotId: string,
   sections?: readonly string[],
@@ -2154,7 +2173,8 @@ export async function settleIdealTextEnrichment(
       return current;
     }
     await wait(delay);
-    const next = await fetchIdealTextEnrichment(
+    // A follow-up asks the server again by definition: never a primed answer.
+    const next = await requestIdealTextEnrichment(
       arcId,
       documentSnapshotId,
       retryable,
@@ -2435,9 +2455,130 @@ export async function fetchIdealTextForOpen(
 
 /** Mutation and test fence. Most entries are consumed immediately; this is
  * the explicit escape hatch for a caller that invalidates the document before
- * navigation completes. */
+ * navigation completes. Drops the arc's primed enrichment with it. */
 export function invalidateIdealTextDisplay(arcId: string): void {
   idealTextDisplayHandoffs.delete(arcId);
+  for (const key of primedIdealTextEnrichment.keys()) {
+    if (key.startsWith(`${arcId}\u0000`)) primedIdealTextEnrichment.delete(key);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Ideal Text enrichment hand-over                                            */
+/*                                                                            */
+/*  The settle probe that hands the core across (`primeIdealTextDisplay`)     */
+/*  knows the snapshot the next screen will enrich, so it starts the two      */
+/*  enrichment lanes there and then, and whichever surface opens — the Lounge */
+/*  page asking lane by lane, the in-Lab readout asking for everything in one */
+/*  request — picks up the answers already in flight instead of paying the    */
+/*  Manager's round trip again after its own core read. One use, exact        */
+/*  match only (arc, snapshot, section split): a settle's follow-up, a        */
+/*  refetch and every other snapshot still go to the network.                 */
+/* -------------------------------------------------------------------------- */
+
+/** How long a primed lane may still serve. A snapshot is immutable, so the
+ *  risk is only in the sections that live beside it (journey, history,
+ *  entitlement), and the page that opens on settle reads within seconds. */
+export const IDEAL_TEXT_ENRICHMENT_PRIMED_MS = 30_000;
+
+const primedIdealTextEnrichment = new Map<
+  string,
+  { createdAt: number; result: Promise<IdealTextEnrichmentResult> }
+>();
+
+const sectionsKey = (sections?: readonly string[]): string =>
+  [...(sections ?? [])].sort().join(",");
+
+const primedKey = (
+  arcId: string,
+  documentSnapshotId: string,
+  sections?: readonly string[],
+): string => `${arcId}\u0000${documentSnapshotId}\u0000${sectionsKey(sections)}`;
+
+/** Start one lane of enrichment ahead of the screen that will ask for it.
+ *  Deduped: a lane already primed within the window is left alone. */
+export function primeIdealTextEnrichment(
+  arcId: string,
+  documentSnapshotId: string,
+  sections: readonly string[],
+  now: number = Date.now(),
+): void {
+  if (!arcId || !documentSnapshotId) return;
+  const key = primedKey(arcId, documentSnapshotId, sections);
+  const existing = primedIdealTextEnrichment.get(key);
+  if (existing && now - existing.createdAt <= IDEAL_TEXT_ENRICHMENT_PRIMED_MS) {
+    return;
+  }
+  primedIdealTextEnrichment.set(key, {
+    createdAt: now,
+    result: requestIdealTextEnrichment(arcId, documentSnapshotId, sections),
+  });
+}
+
+/** Both lanes the Ideal Text page opens with, started together. */
+export function primeIdealTextEnrichmentLanes(
+  arcId: string,
+  documentSnapshotId: string,
+): void {
+  primeIdealTextEnrichment(arcId, documentSnapshotId, PROMPT_LANE);
+  primeIdealTextEnrichment(arcId, documentSnapshotId, SLOW_LANE);
+}
+
+/** Take (and delete) one primed lane while it may still serve. */
+function takePrimedLane(
+  key: string,
+): Promise<IdealTextEnrichmentResult> | null {
+  const entry = primedIdealTextEnrichment.get(key);
+  if (!entry) return null;
+  primedIdealTextEnrichment.delete(key);
+  return Date.now() - entry.createdAt <= IDEAL_TEXT_ENRICHMENT_PRIMED_MS
+    ? entry.result
+    : null;
+}
+
+/** The two primed lanes as the one answer an all-sections request gets. The
+ *  server reads every allowed section for an empty ask, and the two lanes
+ *  name exactly those sections for the same snapshot, so the union is the
+ *  same document; the marks lane simply had its own budget. Stale in either
+ *  is stale; an error in either means ask fresh. */
+function combinePrimedLanes(
+  prompt: IdealTextEnrichmentResult,
+  slow: IdealTextEnrichmentResult,
+): IdealTextEnrichmentResult | null {
+  if (prompt.kind === "stale") return prompt;
+  if (slow.kind === "stale") return slow;
+  if (prompt.kind !== "ready" || slow.kind !== "ready") return null;
+  if (prompt.documentSnapshotId !== slow.documentSnapshotId) return null;
+  return { ...prompt, sections: { ...prompt.sections, ...slow.sections } };
+}
+
+/** The primed answer for this exact request, or null for a fresh read. An
+ *  all-sections request is served from the two lanes together when both are
+ *  primed; a request for one split is served only by that split. */
+async function takePrimedIdealTextEnrichment(
+  arcId: string,
+  documentSnapshotId: string,
+  sections?: readonly string[],
+): Promise<IdealTextEnrichmentResult | null> {
+  if (!arcId || !documentSnapshotId) return null;
+  if (sections?.length) {
+    const lane = takePrimedLane(primedKey(arcId, documentSnapshotId, sections));
+    if (!lane) return null;
+    const result = await lane;
+    return result.kind === "error" ? null : result;
+  }
+  const promptKey = primedKey(arcId, documentSnapshotId, PROMPT_LANE);
+  const slowKey = primedKey(arcId, documentSnapshotId, SLOW_LANE);
+  if (
+    !primedIdealTextEnrichment.has(promptKey) ||
+    !primedIdealTextEnrichment.has(slowKey)
+  ) {
+    return null;
+  }
+  const prompt = takePrimedLane(promptKey);
+  const slow = takePrimedLane(slowKey);
+  if (!prompt || !slow) return null;
+  return combinePrimedLanes(await prompt, await slow);
 }
 
 /** The user-edit 409s that mean "the document moved under you": the edit

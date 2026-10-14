@@ -17,6 +17,7 @@ import {
 import {
   fetchIdealTextCore,
   primeIdealTextDisplay,
+  primeIdealTextEnrichmentLanes,
 } from "@/services/api/idealText";
 import { useUserId } from "./useUserId";
 
@@ -288,6 +289,12 @@ export function useDocumentSettle({
         // canonical payload across once instead of immediately downloading
         // the same enriched packet again.
         primeIdealTextDisplay(arcId, r);
+        // And its enrichment, in the page's two lanes, so the surface that
+        // opens finds the marks already on their way rather than asking for
+        // them only after its own core read lands.
+        if (r.kind === "single" && r.documentSnapshotId) {
+          primeIdealTextEnrichmentLanes(arcId, r.documentSnapshotId);
+        }
         settle(marker);
       }
       if (verdict === "expired") expire(marker);

@@ -6,10 +6,7 @@ import { Button } from "@/components/ui/button";
 import { sendTakeToCoach } from "@/services/api/sendTakeToCoach";
 import {
   fetchIdealTextCore,
-  fetchIdealTextEnrichment,
   fetchIdealTextForDisplay,
-  mergeIdealTextEnrichment,
-  settleIdealTextEnrichment,
   saveIdealUserEdit,
   type DecisionHistoryEntry,
   type DocumentSuggestion,
@@ -77,7 +74,7 @@ import type {
   ConfidentMomentOwnerEdit,
   ConfidentMomentSummary,
 } from "@/services/api/confidentMomentBundles";
-import { feedbackStillComing } from "@/lib/willab/enrichmentSettle";
+import { loadIdealTextEnrichment } from "./idealTextLoad";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextReadout — the post-recording screen IS the ideal text (SD)        */
@@ -423,37 +420,15 @@ export default function IdealTextReadout({
       if (r.kind === "single") {
         applySingle(r, true);
         setFeedbackPending(Boolean(r.documentSnapshotId));
-        if (r.documentSnapshotId) {
-          const enrichment = await fetchIdealTextEnrichment(
-            arcId,
-            r.documentSnapshotId,
-          );
-          if (!active || gen !== sdGenRef.current) return;
-          if (enrichment.kind === "ready") {
-            let merged = mergeIdealTextEnrichment(r, enrichment);
-            applySingle(merged, false);
-            // The marks may already be here while a non-mark section is
-            // still retried; judged again once the settle ends.
-            setFeedbackPending(feedbackStillComing(enrichment.sections));
-            const settled = await settleIdealTextEnrichment(
-              arcId,
-              r.documentSnapshotId,
-              enrichment,
-            );
-            if (!active || gen !== sdGenRef.current) return;
-            if (settled.kind === "ready") {
-              merged = mergeIdealTextEnrichment(merged, settled);
-              applySingle(merged, false);
-              setFeedbackPending(feedbackStillComing(settled.sections));
-            } else if (settled.kind === "stale") {
-              setSdNonce((value) => value + 1);
-            }
-          } else {
-            // Nothing more is coming for this revision: stop holding taps.
-            setFeedbackPending(false);
-            if (enrichment.kind === "stale") setSdNonce((value) => value + 1);
-          }
-        }
+        // Two lanes, as the Lounge page asks (founder 2026-10-14): the coach
+        // message and key moments no longer wait behind the marks' budget.
+        await loadIdealTextEnrichment(arcId, r, {
+          isCurrent: () => active && gen === sdGenRef.current,
+          apply: (merged) => applySingle(merged, false),
+          setPending: setFeedbackPending,
+          refetch: () => setSdNonce((value) => value + 1),
+        });
+        if (!active || gen !== sdGenRef.current) return;
       }
       // Resolve the gate whatever the outcome — flag OFF / pending must not
       // hang the screen on the loading state forever.
