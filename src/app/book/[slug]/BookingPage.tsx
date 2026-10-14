@@ -80,6 +80,52 @@ export function Meta({ info, tz, offer, children }: { info: PageInfo; tz: string
   );
 }
 
+const ICONS = {
+  clock: "M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
+  video: "M3 8a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM16 10l5-3v10l-5-3",
+  card: "M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18",
+  globe: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18",
+};
+
+/** The confirm step's summary on a phone (founder 2026-10-14, option B):
+ *  logo and Back on one row, the time in a grey box, the details in a grid,
+ *  so the whole step fits one screen. A computer keeps the Meta column. */
+function PhoneSummary({ info, tz, offer, when, onBack }: {
+  info: PageInfo; tz: string; offer: Offer | null; when: [string, string]; onBack: () => void;
+}) {
+  const price = offer ? offer.price_cents : info.new_user_price_cents ?? info.price_cents;
+  const list = offer ? offer.list_price_cents : info.price_cents;
+  const row = "flex items-center gap-1.5";
+  return (
+    <div className="grid gap-3.5 pb-4 md:hidden">
+      <div className="flex items-center justify-between">
+        <a href="/" className="no-underline" aria-label="WillpowerLab home"><Logo /></a>
+        <button className="text-sm text-muted-foreground" onClick={onBack}>← Back</button>
+      </div>
+      <div className="grid gap-1">
+        <h1 className="text-[22px] font-bold tracking-tight [text-wrap:balance]">{info.title}</h1>
+        <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+          <span className="grid h-5 w-5 place-items-center rounded-full border border-border bg-muted text-[8px] text-foreground">AW</span>
+          with {info.host_name}
+        </div>
+      </div>
+      <div className="grid gap-0.5 rounded-xl bg-muted px-3.5 py-3 text-[15px]">
+        <strong className="font-semibold">{when[0]}</strong>
+        <span>{when[1]}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
+        <div className={row}><Icon d={ICONS.clock} />{info.duration_min} min</div>
+        <div className={row}><Icon d={ICONS.video} />Google Meet</div>
+        <div className={row}><Icon d={ICONS.globe} />{city(tz)}</div>
+        <div className={row}><Icon d={ICONS.card} />
+          {price < list && <s>{money(list, info.currency)}</s>}
+          <span className={price < list ? "font-semibold text-foreground" : ""}>{money(price, info.currency)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Icon({ d }: { d: string }) {
   return (
     <svg className="h-4 w-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
@@ -214,17 +260,22 @@ export default function BookingPage({ info }: { info: PageInfo }) {
   if (slot !== null) {
     const end = slot + info.duration_min * 60000;
     const field = "w-full min-w-0 rounded-[10px] border border-border bg-background px-3 py-2.5 focus:border-foreground focus:outline-none";
+    const back = () => { setSlot(null); setError(null); setClientSecret(null); };
     return (
       <Shell preview={!!signedIn?.preview}>
-        <div className="grid rounded-[14px] border border-border md:grid-cols-[260px_1fr]">
-          <Meta info={info} tz={tz} offer={signedIn}>
-            <div className="mt-4 border-t border-border pt-4 text-sm">
-              <strong className="block font-semibold">{fmtDay(slot, tz)}</strong>
-              {fmtTime(slot, tz, h12)} – {fmtTime(end, tz, h12)}
-            </div>
-          </Meta>
-          <div className="min-w-0 border-t border-border p-5 md:border-l md:border-t-0 md:p-7">
-            <button className="mb-3.5 text-sm text-muted-foreground" onClick={() => { setSlot(null); setError(null); setClientSecret(null); }}>
+        <div className="grid md:grid-cols-[260px_1fr] md:rounded-[14px] md:border md:border-border">
+          <PhoneSummary info={info} tz={tz} offer={signedIn} onBack={back}
+            when={[fmtDay(slot, tz), `${fmtTime(slot, tz, h12)} – ${fmtTime(end, tz, h12)}`]} />
+          <div className="hidden md:block">
+            <Meta info={info} tz={tz} offer={signedIn}>
+              <div className="mt-4 border-t border-border pt-4 text-sm">
+                <strong className="block font-semibold">{fmtDay(slot, tz)}</strong>
+                {fmtTime(slot, tz, h12)} – {fmtTime(end, tz, h12)}
+              </div>
+            </Meta>
+          </div>
+          <div className="min-w-0 border-t border-border pt-4 md:border-l md:border-t-0 md:p-7">
+            <button className="mb-3.5 hidden text-sm text-muted-foreground md:block" onClick={back}>
               ← Back
             </button>
             {clientSecret && stripePromise ? (
@@ -234,7 +285,7 @@ export default function BookingPage({ info }: { info: PageInfo }) {
                 </EmbeddedCheckoutProvider>
               </div>
             ) : (
-            <form className="grid max-w-[460px] gap-4" onSubmit={submit} noValidate>
+            <form className="grid gap-3 md:max-w-[460px] md:gap-4" onSubmit={submit} noValidate>
               <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="bk-name">
                 Your name
                 <input id="bk-name" className={field} autoComplete="name" value={form.name}
@@ -248,21 +299,19 @@ export default function BookingPage({ info }: { info: PageInfo }) {
               )}
               <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="bk-note">
                 <span>Anything {info.host_name.split(" ")[0]} should know? <span className="text-muted-foreground">(optional)</span></span>
-                <textarea id="bk-note" className={`${field} min-h-[84px]`} value={form.note}
+                <textarea id="bk-note" className={`${field} h-16 md:h-auto md:min-h-[84px]`} value={form.note}
                   onChange={(e) => setForm({ ...form, note: e.target.value })} />
               </label>
               {error && <p className="text-[13px] text-destructive">{error}</p>}
-              <div>
-                <div className="flex flex-wrap gap-2">
-                  <button type="submit" disabled={sending || !!signedIn?.preview}
-                    className="rounded-[10px] border border-foreground bg-foreground px-[18px] py-3 font-semibold text-background disabled:opacity-60">
-                    {sending ? "Opening payment…" : `Book and pay ${money(signedIn?.price_cents ?? info.price_cents, info.currency)}`}
-                  </button>
-                  <button type="button" disabled={sending || !!signedIn?.preview} onClick={(e) => void submit(e, true)}
-                    className="rounded-[10px] border border-foreground bg-background px-[18px] py-3 font-semibold text-foreground disabled:opacity-60">
-                    Book and pay later
-                  </button>
-                </div>
+              <div className="grid gap-2">
+                <button type="submit" disabled={sending || !!signedIn?.preview}
+                  className="min-h-[50px] w-full rounded-xl border border-foreground bg-foreground px-[18px] py-3 font-semibold text-background disabled:opacity-60">
+                  {sending ? "Opening payment…" : `Book and pay ${money(signedIn?.price_cents ?? info.price_cents, info.currency)}`}
+                </button>
+                <button type="button" disabled={sending || !!signedIn?.preview} onClick={(e) => void submit(e, true)}
+                  className="min-h-[50px] w-full rounded-xl border border-foreground bg-background px-[18px] py-3 font-semibold text-foreground disabled:opacity-60">
+                  Book &amp; pay after the lesson
+                </button>
               </div>
               <p className="text-[13px] text-muted-foreground">
                 You&apos;ll get a calendar invite with the Google Meet link by email.
