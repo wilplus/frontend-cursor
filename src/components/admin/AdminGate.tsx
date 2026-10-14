@@ -73,7 +73,7 @@ export default function AdminGate({
 
 const REMEMBER_KEY = "willab:admin-confirmed:v1";
 
-function rememberedAdmin(): boolean {
+export function rememberedAdmin(): boolean {
   try {
     return sessionStorage.getItem(REMEMBER_KEY) === "1";
   } catch {
