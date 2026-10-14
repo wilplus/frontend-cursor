@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import AdminGate from "@/components/admin/AdminGate";
+import TakesExplorer from "./TakesExplorer";
 
 /* -------------------------------------------------------------------------- */
 /*  /admin/users/<id> — one person's profile (founder 2026-10-13, step 1).     */
@@ -169,7 +170,7 @@ function PersonProfile({ id }: { id: string }) {
   const row3 = "grid grid-cols-[minmax(0,10rem)_minmax(0,1fr)_auto] items-center gap-3 border-b border-border py-2.5 text-sm last:border-b-0";
 
   return (
-    <main className="mx-auto grid max-w-3xl gap-7 px-5 pb-12 pt-8">
+    <main className="mx-auto grid max-w-5xl gap-7 px-5 pb-12 pt-8">
       <div>
         <Link href="/admin/users" className="text-sm text-muted-foreground">← Users</Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">{p.name || p.email || "Unnamed account"}</h1>
@@ -282,6 +283,8 @@ function PersonProfile({ id }: { id: string }) {
           )) : <p className="py-3 text-sm text-muted-foreground">Nothing sent yet.</p>}
         </div>
       </section>
+
+      <TakesExplorer id={id} />
 
       <DeleteSection id={id} email={p.email} deletion={p.deletion} reload={load} />
     </main>
