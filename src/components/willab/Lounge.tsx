@@ -49,6 +49,7 @@ import ReportCard, {
 } from "./ReportCard";
 import { latestIdealBubbleIds, versionBubblesWithReviewCard } from "./unreadFeedback";
 import IdealTextCard from "./IdealTextCard";
+import { openedNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
 import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports";
 import { FLOW_COPY } from "./flowCopy";
 import LoadingState, { VoiceMark } from "./LoadingState";
@@ -282,8 +283,9 @@ export default function Lounge({
   const olderTake = useMemo(() => olderTakeOf(threadItems), [threadItems]);
   // A coach update is new (orange) until it is opened.
   const [seenUpdates, setSeenUpdates] = useState<ReadonlySet<string>>(readSeenUpdates);
+  // Once opened, a bubble loses its orange outline (founder 2026-10-14).
   const stepWaits = (m: LoungeMessage) =>
-    waitingStep === m.client_id || (m.metadata?.coach_update === true && !seenUpdates.has(m.client_id));
+    !seenUpdates.has(m.client_id) && (waitingStep === m.client_id || m.metadata?.coach_update === true);
   // Helper words a later pick replaced: struck in the chat (prototype v31).
   const replacedWords = useMemo(() => replacedWordIds(threadItems), [threadItems]);
   const olderNewWords = useMemo(() => clearerNewWordsOf(threadItems), [threadItems]);
@@ -341,6 +343,7 @@ export default function Lounge({
     at: WalkStepTarget | null = null,
   ): void {
     setIdealTextReviewAt(at);
+    openedNewCoachFeedback(arcId);
     if (state === "insights_ready") {
       clearInsightsReady();
       dispatch("insights_opened");

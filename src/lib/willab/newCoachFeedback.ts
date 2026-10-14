@@ -13,6 +13,9 @@ import { useSyncExternalStore } from "react";
 /* -------------------------------------------------------------------------- */
 
 let flags: Readonly<Record<string, boolean>> = {};
+// Projects whose feedback was opened: their mark stays off until the server
+// has cleared it too, so a read in between cannot bring it back.
+const opened = new Set<string>();
 const listeners = new Set<() => void>();
 
 /** The served map, `{project id: bool}`. Anything else is no flag at all. */
@@ -27,12 +30,13 @@ export function readNewCoachFeedback(raw: unknown): Record<string, boolean> | nu
 
 /** Replace what is known with a fresh read. */
 export function setNewCoachFeedback(next: Record<string, boolean>): void {
+  for (const arc of [...opened]) if (next[arc] !== true) opened.delete(arc);
   flags = next;
   for (const listener of listeners) listener();
 }
 
 export function newCoachFeedbackFor(arcId: string | null): boolean {
-  return arcId !== null && flags[arcId] === true;
+  return arcId !== null && flags[arcId] === true && !opened.has(arcId);
 }
 
 function subscribe(listener: () => void): () => void {
@@ -49,7 +53,16 @@ export function useNewCoachFeedback(arcId: string | null): boolean {
   );
 }
 
+/** The project's feedback was opened: its "new" mark goes at once (founder
+ *  2026-10-14), before the server is read again. */
+export function openedNewCoachFeedback(arcId: string): void {
+  if (flags[arcId] !== true) return;
+  opened.add(arcId);
+  for (const listener of listeners) listener();
+}
+
 /** Tests: forget everything. */
 export function forgetNewCoachFeedback(): void {
+  opened.clear();
   setNewCoachFeedback({});
 }
