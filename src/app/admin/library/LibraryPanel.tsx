@@ -5,7 +5,7 @@
 /*  design locked 2026-10-07, N57; build plan D-CP-21), drawn to the          */
 /*  prototype's screens:                                                      */
 /*                                                                            */
-/*    library    "‹ Lounge", Your library: every exercise (what it treats,     */
+/*    library    Your library: every exercise (what it treats,                */
 /*               transcribed / transcribing… / retired) and the praise lines  */
 /*               by cue; the pinned pill "New"                                */
 /*    libitem    one exercise: its video, its instruction as a speaker sees   */
@@ -24,8 +24,6 @@
 /* -------------------------------------------------------------------------- */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
 import { useUserProfile } from "@/components/willab/useUserProfile";
 import LoadingState from "@/components/willab/LoadingState";
 import CoachVideo from "@/components/willab/CoachVideo";
@@ -340,13 +338,6 @@ export default function LibraryClient() {
 
   return (
     <main className="mx-auto flex min-h-[100dvh] w-full max-w-lg flex-col bg-background text-foreground" data-testid="admin-library">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2.5 text-[16px] font-semibold">
-        <Link href="/chat" className="flex items-center gap-0.5 text-[15px] font-normal text-muted-foreground" data-testid="library-lounge">
-          <ChevronLeft className="h-4 w-4" aria-hidden />
-          {COPY.lounge}
-        </Link>
-        <span />
-      </div>
       <div className="flex flex-1 flex-col gap-3 px-5 pb-[120px] pt-3.5">
         <h1 className="m-0 text-[24px] font-bold tracking-[-0.01em]">{COPY.libraryTitle}</h1>
         {loadError ? <p role="alert" className="m-0 text-[13px] text-destructive">{loadError}</p> : null}
