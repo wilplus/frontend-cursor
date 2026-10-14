@@ -89,7 +89,8 @@ export default function CeoWorkspace() {
         const bootstrap = body as unknown as CeoBootstrap;
         cacheBootstrap(bootstrap);
         setData(bootstrap);
-        setState(initialState(bootstrap.view_state ?? []));
+        // The fresh copy never moves someone off the tab they already tapped.
+        setState((prev) => ({ ...initialState(bootstrap.view_state ?? []), surface: prev.surface }));
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted || cached) return;
