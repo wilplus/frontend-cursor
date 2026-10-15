@@ -258,7 +258,9 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     paragraphText: lead.paragraphText,
     slideLabel: lead.slideLabel,
     praiseWords: praise?.praiseWords ?? [],
-    praiseTitle: praise?.praiseTitle ?? null,
+    // The level rides the green row; the praise words may ride a separate
+    // wording note. Whichever row carries the level names the screen.
+    praiseTitle: group.find((i) => i.praiseTitle)?.praiseTitle ?? null,
     clip,
     clearer: clearerOf(group),
     practiseItem:
