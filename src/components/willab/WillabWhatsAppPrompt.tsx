@@ -33,15 +33,21 @@ export const WHATSAPP_COPY = {
   saving: "Saving…",
   invalid: "Enter the number with its country code, for example +44 7700 900123.",
   failed: "Could not save the number. Try again.",
+  // After Save (founder 2026-10-15, approved in chat): the confirmation
+  // bubble, with the saved number.
+  saved: (phone: string) =>
+    `Saved ✓ We'll message you on WhatsApp at ${phone} when your coach's feedback is in.`,
 } as const;
 
 export interface WhatsAppOffer {
   /** Signed in, no number saved yet, not turned down this session. */
   canOffer: boolean;
+  /** The number saved so far, shown in the form so a change starts from it. */
+  phone: string | null;
   /** Hide for now (this session). */
   softDismiss: () => void;
-  /** A number was saved: never offer again. */
-  markSaved: () => void;
+  /** A number was saved: never offer again, and say so in the thread. */
+  markSaved: (phone: string) => void;
 }
 
 interface TriggerInputs {
@@ -76,12 +82,22 @@ export function useWhatsAppOffer(inputs: TriggerInputs): WhatsAppOffer {
     };
   }, []);
 
+  const { append } = inputs;
   const canOffer = phone === null && !dismissed;
   const softDismiss = useCallback(() => setDismissed(true), []);
-  const markSaved = useCallback(() => setDismissed(true), []);
+  const markSaved = useCallback(
+    (saved: string) => {
+      setDismissed(true);
+      setPhone(saved);
+      // The confirmation the speaker asked for (founder 2026-10-15): a
+      // bubble in the thread, so it survives reload like every other turn.
+      void append({ role: "bot", kind: "text", body: WHATSAPP_COPY.saved(saved) });
+    },
+    [append],
+  );
 
   useAutoOffer(inputs, canOffer);
-  return { canOffer, softDismiss, markSaved };
+  return { canOffer, phone: phone ?? null, softDismiss, markSaved };
 }
 
 /** Append + arm the offer once, after a fresh send that brought no other
@@ -143,7 +159,7 @@ export function WhatsAppOfferActions({
   offer: WhatsAppOffer;
   onResolve: () => void;
 }) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(offer.phone ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -162,7 +178,7 @@ export function WhatsAppOfferActions({
       setError(WHATSAPP_COPY.failed);
       return;
     }
-    offer.markSaved();
+    offer.markSaved(phone);
     onResolve();
   };
 
