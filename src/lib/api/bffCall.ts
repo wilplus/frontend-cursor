@@ -1,4 +1,5 @@
 import { bffFetch } from "@/lib/api/bffFetch";
+import { withSessionBearer } from "@/lib/api/sessionBearer";
 
 /* -------------------------------------------------------------------------- */
 /*  The three result shapes the service clients answer with, each written     */
@@ -33,7 +34,7 @@ export async function codedCall<T>(
   pick: (body: Record<string, unknown>) => T,
 ): Promise<CodedResult<T>> {
   try {
-    const response = await fetch(path, init);
+    const response = await fetch(path, await withSessionBearer(init));
     const body = await readJsonObject(response);
     if (!response.ok) {
       return { ok: false, code: String(body.code ?? `HTTP_${response.status}`), status: response.status };
@@ -94,7 +95,7 @@ export async function messageCall<T>(
   let res: Response;
   let data: unknown;
   try {
-    res = await fetch(path, init);
+    res = await fetch(path, await withSessionBearer(init));
     data = await res.json().catch(() => ({}));
   } catch {
     return { ok: false, status: 0, message: "Network error. Try again." };

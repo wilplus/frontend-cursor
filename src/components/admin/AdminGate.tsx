@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { withSessionBearer } from "@/lib/api/sessionBearer";
 
 /* -------------------------------------------------------------------------- */
 /*  AdminGate — nothing renders until the backend says you are an admin.       */
@@ -90,7 +91,8 @@ let probe: Promise<boolean> | null = null;
 
 /** Whether the backend says this account is an admin. A failed probe is a no. */
 export function probeAdmin(): Promise<boolean> {
-  probe ??= fetch("/api/v2/admin/whoami", { cache: "no-store" })
+  probe ??= withSessionBearer({ cache: "no-store" })
+    .then((init) => fetch("/api/v2/admin/whoami", init))
     .then((r) => r.ok)
     .catch(() => false)
     .then((ok) => {

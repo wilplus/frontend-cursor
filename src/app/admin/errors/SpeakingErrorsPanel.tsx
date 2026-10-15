@@ -40,6 +40,7 @@ import { listCoachExercises, type CoachExercise } from "@/services/api/coachExer
 import { mainTargetOf } from "../library/LibraryPanel";
 import type { WalkDir, WalkScreen } from "@/lib/willab/walkMotion";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
+import { readLastCopy, writeLastCopy } from "@/lib/lastCopy";
 
 /* ── the pure parts ──────────────────────────────────────────────────── */
 
@@ -145,6 +146,9 @@ export function ErrorWords({ entry, onSaved }: { entry: SpeakingError; onSaved: 
 
 type Stage = WalkScreen & { err: ErrorsScreen };
 
+const LAST_ERRORS = "admin-speaking-errors";
+const LAST_EXERCISES = "admin-library-exercises";
+
 export default function SpeakingErrorsClient({ founder = false }: { founder?: boolean }) {
   const router = useRouter();
   const { isCoach, loading: profileLoading } = useUserProfile();
@@ -155,16 +159,25 @@ export default function SpeakingErrorsClient({ founder = false }: { founder?: bo
   const [screen, setScreen] = useState<ErrorsScreen>({ key: "errors" });
   const [dir, setDir] = useState<WalkDir | undefined>(undefined);
 
+  // Speed plan (founder 2026-10-14): the list shows as soon as the errors
+  // arrive; the exercises (only needed inside one error) come on their own.
   const refresh = useCallback(async () => {
     setLoadError(null);
-    const [result, library] = await Promise.all([listSpeakingErrors(), listCoachExercises()]);
+    const library = listCoachExercises().then((r) => {
+      if (r.ok) {
+        setExercises(r.data.exercises);
+        writeLastCopy(LAST_EXERCISES, r.data.exercises);
+      }
+    });
+    const result = await listSpeakingErrors();
     if (!result.ok) {
       setLoadError(result.message);
-      setEntries([]);
+      setEntries((prev) => prev ?? []);
     } else {
       setEntries(result.data);
+      writeLastCopy(LAST_ERRORS, result.data);
     }
-    if (library.ok) setExercises(library.data.exercises);
+    await library;
   }, []);
 
   useEffect(() => {
@@ -176,9 +189,15 @@ export default function SpeakingErrorsClient({ founder = false }: { founder?: bo
     return () => { live = false; };
   }, [founder]);
 
+  // Open on the last copy and ask at once, without waiting for the profile
+  // read (page.tsx already let only the founder in; the backend gates again).
   useEffect(() => {
-    if (isCoach) void refresh();
-  }, [isCoach, refresh]);
+    const lastErrors = readLastCopy<SpeakingError[]>(LAST_ERRORS);
+    if (Array.isArray(lastErrors)) setEntries(lastErrors);
+    const lastExercises = readLastCopy<CoachExercise[]>(LAST_EXERCISES);
+    if (Array.isArray(lastExercises)) setExercises(lastExercises);
+    void refresh();
+  }, [refresh]);
 
   const stage: Stage = useMemo(() => ({ ...walkScreenOf(screen), err: screen }), [screen]);
   const close = () => router.push("/chat");
@@ -231,9 +250,8 @@ export default function SpeakingErrorsClient({ founder = false }: { founder?: bo
     );
   }
 
-  if (profileLoading) return <LoadingState placement="viewport" />;
   // Founder only (page.tsx); a non-coach session draws nothing at all.
-  if (!isCoach) return null;
+  if (!profileLoading && !isCoach) return null;
   if (entries === null) return <LoadingState placement="viewport" />;
 
   return (

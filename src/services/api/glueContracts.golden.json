@@ -106,6 +106,7 @@
           "url": "/api/v2/admin/rings/features/f1",
           "method": "PUT",
           "headers": {
+            "authorization": "Bearer tok",
             "content-type": "application/json"
           },
           "body": "{\"feature\":\"f1\"}",
@@ -147,7 +148,9 @@
         {
           "url": "/api/v2/admin/rings/features",
           "method": "GET",
-          "headers": {},
+          "headers": {
+            "authorization": "Bearer tok"
+          },
           "body": null,
           "credentials": null,
           "cache": "no-store"
@@ -184,6 +187,7 @@
           "url": "/api/v2/research/golden/cv/judgements",
           "method": "POST",
           "headers": {
+            "authorization": "Bearer tok",
             "content-type": "application/json"
           },
           "body": "{\"snippet_id\":\"s1\",\"take_session_id\":null,\"value\":\"yes\"}",
@@ -224,6 +228,7 @@
           "url": "/api/v2/internal/journal/posts/get",
           "method": "POST",
           "headers": {
+            "authorization": "Bearer tok",
             "content-type": "application/json"
           },
           "body": "{\"password\":\"pw\",\"id\":\"id1\"}",
@@ -264,6 +269,7 @@
           "url": "/api/v2/internal/journal/posts/list",
           "method": "POST",
           "headers": {
+            "authorization": "Bearer tok",
             "content-type": "application/json"
           },
           "body": "{\"password\":\"pw\"}",
@@ -301,7 +307,9 @@
         {
           "url": "/api/v2/coach/exercises",
           "method": "GET",
-          "headers": {},
+          "headers": {
+            "authorization": "Bearer tok"
+          },
           "body": null,
           "credentials": null,
           "cache": null
@@ -337,7 +345,9 @@
         {
           "url": "/api/v2/coach/speaking-errors",
           "method": "GET",
-          "headers": {},
+          "headers": {
+            "authorization": "Bearer tok"
+          },
           "body": null,
           "credentials": null,
           "cache": null

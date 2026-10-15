@@ -16,6 +16,7 @@ import { useCallback, useEffect, useState } from "react";
 import { founderLearning, type GoldenCounts } from "@/services/api/founderLearning";
 import { FounderFrame, Panel, Refusal } from "./FounderFrame";
 import GoldenJudging from "./GoldenJudging";
+import { dropLastCopy, readLastCopy, writeLastCopy } from "@/lib/lastCopy";
 
 type Raw = Record<string, unknown>;
 
@@ -188,6 +189,8 @@ function Promotions({ rows }: { rows: Raw[] }) {
   );
 }
 
+const LAST_COPY = "research-overview";
+
 export default function ResearchPanel({ founder }: { founder: boolean }) {
   const [view, setView] = useState<Raw | null>(null);
   const [golden, setGolden] = useState<Record<string, GoldenCounts>>({});
@@ -197,14 +200,22 @@ export default function ResearchPanel({ founder }: { founder: boolean }) {
     const [overview, sets] = await Promise.all([founderLearning.overview(), founderLearning.golden()]);
     if (!overview.ok) {
       setRefusal(overview.code);
+      dropLastCopy(LAST_COPY);
       return;
     }
     setRefusal(null);
     setView(overview.value);
     if (sets.ok) setGolden(sets.value);
+    writeLastCopy(LAST_COPY, { view: overview.value, golden: sets.ok ? sets.value : {} });
   }, []);
 
   useEffect(() => {
+    // Open on the last copy, refresh behind it (founder 2026-10-14).
+    const last = readLastCopy<{ view: Raw; golden: Record<string, GoldenCounts> }>(LAST_COPY);
+    if (last?.view) {
+      setView(last.view);
+      setGolden(last.golden ?? {});
+    }
     void load();
   }, [load]);
 
