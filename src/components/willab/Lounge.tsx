@@ -66,7 +66,7 @@ import {
 import { clearInsightsReady } from "./sendStatus";
 import { isLabOverlay, type WillabEvent, type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
-import LoungeTopUpCard from "./LoungeTopUpCard";
+import { TopUpBubble, TopUpSlot, useTopUpOffer } from "./LoungeTopUpCard";
 import {
   useInstallOffer,
   InstallOfferActions,
@@ -83,6 +83,7 @@ import { useAdminAsk } from "./useAdminAsk";
 import OfferBubble from "./OfferBubble";
 import {
   PolicyUpdateBubble,
+  PolicyUpdateComposer,
   PolicyUpdateSlot,
   usePresentPolicyUpdate,
 } from "./PolicyUpdate";
@@ -228,6 +229,9 @@ export default function Lounge({
   // While the Lounge is on screen it presents the policy update prompt
   // itself; elsewhere the prompt is one screen (PolicyUpdate.tsx).
   usePresentPolicyUpdate();
+  // The out-of-tokens ask: Will's message in the thread, the plans in the
+  // footer (LoungeTopUpCard.tsx).
+  const topUp = useTopUpOffer({ state, threadLoading: thread.loading });
   // E3 — coach-only student roster overlay.
   // U1 (native scroll): scroll the thread CONTAINER, and stick to the bottom
   // only when the user is already there. The old code called scrollIntoView on
@@ -1397,7 +1401,7 @@ export default function Lounge({
             allowed and needs no logic (founder ruling) — if someone qualifies
             for two cards they render as two bubbles, each with its own gate,
             neither knowing the other exists. */}
-        <LoungeTopUpCard state={state} threadLoading={thread.loading} />
+        <TopUpBubble offer={topUp} />
 
         {/* The policy update prompt (founder 2026-10-15): Will's message;
             its controls replace the record button below. */}
@@ -1450,6 +1454,7 @@ export default function Lounge({
           black record button; resolving it returns the record button (U2). The
           offer's prompt + outcome live in the thread as durable bubbles. */}
       <PolicyUpdateSlot>
+      <TopUpSlot offer={topUp}>
       {activeOffer ? (
         <OfferActions
           type={activeOffer}
@@ -1508,6 +1513,8 @@ export default function Lounge({
       // full-width button: it is a different action, and it only appears when
       // the user has asked to upload.
       null}
+      </TopUpSlot>
+      </PolicyUpdateSlot>
 
       {/* Wave-3 — no standing chip row above the composer; quick actions are
           single in-thread buttons (A-4 / B-1). Footer is just the CTA + input. */}
@@ -1547,6 +1554,7 @@ export default function Lounge({
           Continue review
         </button>
       ) : null}
+      <PolicyUpdateComposer>
       <form onSubmit={handleSend} className="flex items-end gap-1">
         {/* THE "+" (founder 2026-10-12, WhatsApp-like): it opens the
             projects, where "Start a new project" starts one. It replaced the
@@ -1611,7 +1619,7 @@ export default function Lounge({
           ) : null}
         </div>
       </form>
-      </PolicyUpdateSlot>
+      </PolicyUpdateComposer>
 
       {/* Delivery layer — the 4 bubbles' destinations. */}
       {feedbackTarget && (

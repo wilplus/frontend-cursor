@@ -55,8 +55,6 @@ import { prefilledCountry, safeLocale } from "@/lib/legal/acceptanceSteps";
 export const POLICY_UPDATE_COPY = {
   bubble:
     "We've updated our Terms and Privacy Policy. Accept the new versions to keep using WillpowerLab.",
-  title: "We've updated our Terms and Privacy Policy",
-  lead: "Accept the new versions to keep using WillpowerLab.",
   whatsNew:
     "New: the AI version of your voice, talking to Will, WhatsApp messages, lessons with a coach, sharing with a community, and California.",
   terms: "Terms",
@@ -66,7 +64,6 @@ export const POLICY_UPDATE_COPY = {
   accept: "Accept the update",
   accepting: "Accepting…",
   failed: "Couldn't save that. Try again.",
-  closedTitle: "WillpowerLab needs the update",
   closedLead:
     "Accept the new Terms and Privacy Policy to record and get feedback. Your Takes and Ideal Texts are kept.",
 } as const;
@@ -96,6 +93,8 @@ interface Pending {
 interface PolicyUpdateApi {
   /** The Lounge shows the prompt as its offer (bubble + footer). */
   loungeOffer: boolean;
+  /** Close the app was pressed: the card says why, with one Accept. */
+  closed: boolean;
   /** The Lounge is on screen and presents the offer itself. */
   presentInLounge: () => () => void;
   /** A refusal came back: read the status, show the prompt if an update is
@@ -254,7 +253,8 @@ export function PolicyUpdateProvider({
   }, []);
 
   const api = useMemo<PolicyUpdateApi>(() => ({
-    loungeOffer: phase === "needed" && !screen && presenters > 0,
+    loungeOffer: (phase === "needed" || phase === "closed") && !screen && presenters > 0,
+    closed: phase === "closed",
     presentInLounge,
     refused,
     accept,
@@ -263,14 +263,12 @@ export function PolicyUpdateProvider({
     failed,
     policy: pending?.policy ?? null,
   }), [phase, screen, presenters, presentInLounge, refused, accept, close, saving, failed, pending]);
+  const outstanding = phase === "needed" || phase === "closed";
 
   return (
     <PolicyUpdateContext.Provider value={api}>
       {children}
-      {phase === "needed" && (screen || presenters === 0) ? (
-        <Takeover><UpdateScreen /></Takeover>
-      ) : null}
-      {phase === "closed" ? <Takeover><ClosedScreen /></Takeover> : null}
+      {outstanding && (screen || presenters === 0) ? <Sheet /> : null}
       {phase === "flow" && pending ? (
         <Takeover>
           <Phase1AcceptanceFlow
@@ -297,9 +295,8 @@ function Takeover({ children }: { children: React.ReactNode }) {
 
 /* ------------------------------------------------------------- pieces -- */
 
-/** Will's message in the Lounge thread, a plain grey bot bubble. */
-export function PolicyUpdateBubble() {
-  if (!usePolicyUpdate()?.loungeOffer) return null;
+/** Will's message, a plain grey bot bubble, as every ask's. */
+function Bubble() {
   return (
     <div className="mr-auto block max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-left text-[15px] leading-relaxed text-foreground">
       {POLICY_UPDATE_COPY.bubble}
@@ -307,14 +304,44 @@ export function PolicyUpdateBubble() {
   );
 }
 
-/** The footer in place of the record button: the grey card, then the pair. */
+/** Will's message in the Lounge thread. */
+export function PolicyUpdateBubble() {
+  if (!usePolicyUpdate()?.loungeOffer) return null;
+  return <Bubble />;
+}
+
+/** The ask's footer, as the WhatsApp ask (founder 2026-10-15, unified asks,
+ *  https://claude.ai/artifact/CzVL6JWK85tZDVpU9JRtgY): the grey card, then
+ *  Close the app | Accept the update; after Close the app, the card says why
+ *  and one Accept the update stays. */
 export function PolicyUpdateActions() {
   const update = usePolicyUpdate();
   if (!update) return null;
   return (
     <div className="flex flex-col gap-3">
-      <WhatsNewCard policy={update.policy} />
+      <WhatsNewCard policy={update.policy} closed={update.closed} />
       <Pair />
+    </div>
+  );
+}
+
+/** Over a Take, or anywhere the Lounge is not on screen: the same ask as a
+ *  sheet from the bottom (a window on a computer). Whatever is open stays
+ *  underneath and carries on once the update is accepted. */
+function Sheet() {
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-foreground/35 md:items-center md:p-6">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={POLICY_UPDATE_COPY.bubble}
+        className="w-full max-w-[30rem] rounded-t-[20px] bg-background px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 md:rounded-[20px] md:pb-5"
+      >
+        <div className="flex flex-col gap-3">
+          <Bubble />
+          <PolicyUpdateActions />
+        </div>
+      </div>
     </div>
   );
 }
@@ -322,14 +349,25 @@ export function PolicyUpdateActions() {
 function Pair() {
   const update = usePolicyUpdate();
   if (!update) return null;
+  const acceptLabel = update.saving ? POLICY_UPDATE_COPY.accepting : POLICY_UPDATE_COPY.accept;
   return (
     <>
-      <SymmetricPair
-        closeLabel={POLICY_UPDATE_COPY.close}
-        onClose={update.close}
-        actionLabel={update.saving ? POLICY_UPDATE_COPY.accepting : POLICY_UPDATE_COPY.accept}
-        onAction={update.accept}
-      />
+      {update.closed ? (
+        <button
+          type="button"
+          onClick={update.accept}
+          className="flex h-11 w-full items-center justify-center rounded-full bg-foreground text-[15px] font-medium text-background transition-colors hover:bg-foreground/90"
+        >
+          {acceptLabel}
+        </button>
+      ) : (
+        <SymmetricPair
+          closeLabel={POLICY_UPDATE_COPY.close}
+          onClose={update.close}
+          actionLabel={acceptLabel}
+          onAction={update.accept}
+        />
+      )}
       {update.failed ? (
         <p role="alert" className="text-[13px] text-destructive">
           {POLICY_UPDATE_COPY.failed}
@@ -347,7 +385,7 @@ const DOC_TITLE: Record<DocKey, string> = {
   ai: "How AI is used here",
 };
 
-function WhatsNewCard({ policy }: { policy: ProcessingPolicy | null }) {
+function WhatsNewCard({ policy, closed }: { policy: ProcessingPolicy | null; closed: boolean }) {
   const [open, setOpen] = useState<DocKey | null>(null);
   if (!policy) return null;
   const docs: Record<DocKey, PolicyDocument> = {
@@ -366,7 +404,7 @@ function WhatsNewCard({ policy }: { policy: ProcessingPolicy | null }) {
   );
   return (
     <div className="rounded-xl bg-muted p-3 text-left text-[14px] leading-relaxed text-foreground">
-      <p>{POLICY_UPDATE_COPY.whatsNew}</p>
+      <p>{closed ? POLICY_UPDATE_COPY.closedLead : POLICY_UPDATE_COPY.whatsNew}</p>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
         {link("terms", POLICY_UPDATE_COPY.terms)}
         {link("privacy", POLICY_UPDATE_COPY.privacy)}
@@ -439,52 +477,6 @@ function DocumentWindow({
   );
 }
 
-function UpdateScreen() {
-  const update = usePolicyUpdate();
-  return (
-    <div className="mx-auto flex w-full max-w-[28rem] flex-1 flex-col justify-center px-6 py-8">
-      <h1 className="text-balance text-[26px] font-semibold leading-tight tracking-tight text-foreground">
-        {POLICY_UPDATE_COPY.title}
-      </h1>
-      <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-        {POLICY_UPDATE_COPY.lead}
-      </p>
-      <div className="mt-5 flex flex-col gap-3">
-        <WhatsNewCard policy={update?.policy ?? null} />
-        <Pair />
-      </div>
-    </div>
-  );
-}
-
-function ClosedScreen() {
-  const update = usePolicyUpdate();
-  if (!update) return null;
-  return (
-    <div className="mx-auto flex w-full max-w-[28rem] flex-1 flex-col justify-center px-6 py-8">
-      <h1 className="text-balance text-[26px] font-semibold leading-tight tracking-tight text-foreground">
-        {POLICY_UPDATE_COPY.closedTitle}
-      </h1>
-      <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-        {POLICY_UPDATE_COPY.closedLead}
-      </p>
-      <button
-        type="button"
-        onClick={update.accept}
-        className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[15px] font-medium text-background transition hover:bg-foreground/90"
-      >
-        {update.saving ? POLICY_UPDATE_COPY.accepting : POLICY_UPDATE_COPY.accept}
-        <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
-      </button>
-      {update.failed ? (
-        <p role="alert" className="mt-2 text-[13px] text-destructive">
-          {POLICY_UPDATE_COPY.failed}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 /** The Lounge presents the prompt itself while it is on screen. */
 export function usePresentPolicyUpdate(): void {
   const present = usePolicyUpdate()?.presentInLounge;
@@ -496,4 +488,15 @@ export function usePresentPolicyUpdate(): void {
 export function PolicyUpdateSlot({ children }: { children: React.ReactNode }) {
   const update = usePolicyUpdate();
   return update?.loungeOffer ? <PolicyUpdateActions /> : <>{children}</>;
+}
+
+/** The box to write to Will stays on screen but cannot send while the update
+ *  is outstanding: Will cannot answer before it is accepted. */
+export function PolicyUpdateComposer({ children }: { children: React.ReactNode }) {
+  const update = usePolicyUpdate();
+  return (
+    <fieldset disabled={update?.loungeOffer ?? false} className="m-0 min-w-0 border-0 p-0">
+      {children}
+    </fieldset>
+  );
 }
