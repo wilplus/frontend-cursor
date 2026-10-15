@@ -63,8 +63,6 @@ export default function AdminMenu({ children }: { children: React.ReactNode }) {
 
   useEffect(() => setOpen(false), [pathname]);
 
-  if (!admin) return <>{children}</>;
-
   const toggleCollapsed = () => {
     setCollapsed((c) => {
       try {
@@ -107,34 +105,41 @@ export default function AdminMenu({ children }: { children: React.ReactNode }) {
     </nav>
   );
 
+  // One tree whether or not the menu shows (founder 2026-10-14, speed plan):
+  // the page always sits in the same wrapper, so the menu appearing after the
+  // admin check never remounts the page and its requests never run twice.
   return (
-    <div className="flex min-h-dvh flex-col md:flex-row">
-      {/* Phone: a top bar with the menu button. */}
-      <div className="sticky top-0 z-20 flex h-14 items-center gap-2.5 border-b border-border bg-background px-4 md:hidden">
-        <button type="button" aria-label="Menu" aria-expanded={open} onClick={() => setOpen(true)}
-          className="grid h-9 w-9 place-items-center rounded-[10px] hover:bg-muted">
-          <Menu className="h-5 w-5" aria-hidden />
-        </button>
-        <Logo size="sm" />
-        <span className="rounded-full border border-border px-2 text-[13px] font-medium text-muted-foreground">Admin</span>
-      </div>
-      {open && (
-        <div className="fixed inset-0 z-30 md:hidden">
-          <button type="button" aria-label="Close menu" className="absolute inset-0 bg-black/35" onClick={() => setOpen(false)} />
-          <div className="absolute inset-y-0 left-0 w-[280px] border-r border-border bg-background">
-            <button type="button" aria-label="Close menu" onClick={() => setOpen(false)}
-              className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-[10px] hover:bg-muted">
-              <X className="h-5 w-5" aria-hidden />
+    <div className={admin ? "flex min-h-dvh flex-col md:flex-row" : undefined}>
+      {admin && (
+        <>
+          {/* Phone: a top bar with the menu button. */}
+          <div className="sticky top-0 z-20 flex h-14 items-center gap-2.5 border-b border-border bg-background px-4 md:hidden">
+            <button type="button" aria-label="Menu" aria-expanded={open} onClick={() => setOpen(true)}
+              className="grid h-9 w-9 place-items-center rounded-[10px] hover:bg-muted">
+              <Menu className="h-5 w-5" aria-hidden />
             </button>
-            {nav}
+            <Logo size="sm" />
+            <span className="rounded-full border border-border px-2 text-[13px] font-medium text-muted-foreground">Admin</span>
           </div>
-        </div>
+          {open && (
+            <div className="fixed inset-0 z-30 md:hidden">
+              <button type="button" aria-label="Close menu" className="absolute inset-0 bg-black/35" onClick={() => setOpen(false)} />
+              <div className="absolute inset-y-0 left-0 w-[280px] border-r border-border bg-background">
+                <button type="button" aria-label="Close menu" onClick={() => setOpen(false)}
+                  className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-[10px] hover:bg-muted">
+                  <X className="h-5 w-5" aria-hidden />
+                </button>
+                {nav}
+              </div>
+            </div>
+          )}
+          {/* Computer: the left column. */}
+          <aside className={cn("sticky top-0 hidden h-dvh shrink-0 border-r border-border md:block", collapsed ? "w-16" : "w-60")}>
+            {nav}
+          </aside>
+        </>
       )}
-      {/* Computer: the left column. */}
-      <aside className={cn("sticky top-0 hidden h-dvh shrink-0 border-r border-border md:block", collapsed ? "w-16" : "w-60")}>
-        {nav}
-      </aside>
-      <div className="min-w-0 flex-1">{children}</div>
+      <div className={admin ? "min-w-0 flex-1" : undefined}>{children}</div>
     </div>
   );
 }
