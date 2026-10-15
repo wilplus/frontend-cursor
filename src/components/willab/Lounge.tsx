@@ -112,6 +112,7 @@ import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
 import { usePinThreadBottom } from "./usePinThreadBottom";
 import { clearerPieces, type ClearerPiece } from "@/lib/willab/clearerPieces";
 import WalkOverlay from "./walk/WalkOverlay";
+import TypingDots, { CHUNK_DELAY_MS } from "./TypingDots";
 
 // Opened on a tap, never on first paint: loaded then, off the boot bundle.
 const CoachWalkEntry = dynamic(() => import("./coachwalk/CoachWalkEntry"), { ssr: false });
@@ -1820,26 +1821,6 @@ function OfferActions({
   );
 }
 
-/** U4 — animated "librarian is typing" indicator. Three dots bouncing out of
- *  phase (staggered negative animation-delays) in a bot-side bubble. Replaces
- *  the static "…" so the wait reads as a live, responsive chat — and pairs with
- *  the U3 bubble-split (typing → a few short bubbles land). */
-function TypingDots() {
-  return (
-    <div
-      role="status"
-      aria-label="Librarian is typing"
-      className="mr-auto flex items-center gap-1 rounded-2xl bg-muted px-3.5 py-3"
-    >
-      <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.3s]" />
-      <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.15s]" />
-      <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/60" />
-    </div>
-  );
-}
-
-/** U3 — gap between sequentially-revealed bubbles (ms of "typing"). */
-const CHUNK_DELAY_MS = 350;
 
 /** U3 — render a bot message's split chunks. A freshly-arrived reply
  *  (`animate`) reveals them one at a time with a typing indicator between, so
@@ -2278,7 +2259,7 @@ function WalkStepBubble({
           onOpen={open}
         />
       ) : clip ? (
-        <ClipBubble clip={clip} seed={message.client_id} caption={message.body.trim() || null} />
+        <ClipBubble clip={clip} seed={message.client_id} caption={message.body.trim() || null} onOpen={open} />
       ) : mine ? (
         <div data-row="me" className="flex justify-end">
           <button
@@ -2375,7 +2356,7 @@ function stepTap(
   if (step === "share") return () => onOpenIdealText?.(arc, "share");
   const target: WalkStepTarget | null = step
     ? {
-        step,
+        step: exerciseStepOf(step),
         moment: typeof meta.moment === "number" ? meta.moment : null,
         take: free || typeof meta.take_session_id !== "string" ? null : meta.take_session_id,
         part: typeof meta.part_id === "string" ? meta.part_id : null,
@@ -2385,6 +2366,12 @@ function stepTap(
     onOpened?.();
     onOpenIdealText?.(arc, "review", target);
   };
+}
+
+/** A try ("Practise N") or the answer it got opens its exercise, the whole
+ *  thread with every try (walk first, 2026-10-14). */
+function exerciseStepOf(step: string): string {
+  return step.startsWith("try:") || ["improved", "encourage", "thanks"].includes(step) ? "exVideo" : step;
 }
 
 /** The helper words' hint: "Tap the words", or "🔒 Take N" once a newer
@@ -2503,11 +2490,28 @@ export function chatLabelOf(meta: Record<string, unknown>): string | null {
 /** The speaker's own clip in the chat (prototype v31 `.lb.me.aud`): an
  *  orange bubble on the right, 78% wide, their words above the player where
  *  the feedback is about them, with what goes struck. */
-function ClipBubble({ clip, seed, caption = null }: { clip: WalkChatClip; seed: string; caption?: string | null }) {
+function ClipBubble({
+  clip,
+  seed,
+  caption = null,
+  onOpen,
+}: {
+  clip: WalkChatClip;
+  seed: string;
+  caption?: string | null;
+  /** A tap on the caption ("Practise N") opens its step in the lens. */
+  onOpen?: () => void;
+}) {
   return (
     <div data-row="me" className="flex justify-end">
       <div data-bubble="" className="flex w-[78%] flex-col gap-1 rounded-[16px] bg-primary px-3 py-2 text-primary-foreground">
-        {caption ? <span className="text-[13px] leading-[1.45] opacity-[0.92]">{caption}</span> : null}
+        {caption && onOpen ? (
+          <button type="button" data-walk-step-bubble onClick={onOpen} className="text-left text-[13px] leading-[1.45] opacity-[0.92]">
+            {caption}
+          </button>
+        ) : caption ? (
+          <span className="text-[13px] leading-[1.45] opacity-[0.92]">{caption}</span>
+        ) : null}
         {clip.words ? (
           <span className="text-[13px] leading-[1.45] opacity-[0.92] [&_s]:text-white/[0.72] [&_s]:decoration-[1.5px]">
             {clip.words.map((p, i) => (p.cut ? <s key={i}>{p.text}</s> : <span key={i}>{p.text}</span>))}

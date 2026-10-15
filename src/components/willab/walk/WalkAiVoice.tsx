@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { CHUNK_SHEET_COPY, WALK_COPY } from "../idealEditCopy";
-import LoadingState from "../LoadingState";
+import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "../TypingDots";
 import WalkMessage from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
 import type { WalkStep } from "@/lib/willab/walkPlan";
@@ -16,6 +17,11 @@ import type { AiVoiceState } from "@/services/api/aiVoice";
 /*  audio only, never the words; it never plays by itself. At most three per  */
 /*  exercise. Only the voice Exercise: never praise, never a clearer version.*/
 /*  The first "not yet" always says L4 then L3 (founder 2026-10-13, P3 B).    */
+/*                                                                            */
+/*  The Exercise bubble is there at once (founder 2026-10-15): the Lounge's   */
+/*  typing dots alone first, then the bubble lands with the dots where the    */
+/*  player goes, and the player takes their place when the clip is ready.    */
+/*  No white box: the dots stand on the bubble's own grey.                    */
 /* -------------------------------------------------------------------------- */
 
 export const AI_VOICE_MAX = 3;
@@ -24,9 +30,10 @@ export const AI_VOICE_MAX = 3;
 export const aiOnExercise = (state: AiVoiceState | undefined): boolean =>
   state?.demo === "ai_voice" && state.clip?.state === "ready" && Boolean(state.clip.url);
 
-/** The Exercise screen waits on the clip: the breathing mark in the video's place. */
+/** The Exercise screen waits on the clip: the typing dots in the video's
+ *  place, from the moment it is asked for (whatever `demo` says meanwhile). */
 export const aiPendingOnExercise = (state: AiVoiceState | undefined): boolean =>
-  state?.demo === "ai_voice" && state.clip?.state === "pending";
+  state?.clip?.state === "pending";
 
 /** This "not yet" is in the voice Exercise lane: the practise before it on
  *  the same moment was the exercise's. */
@@ -78,6 +85,25 @@ export function aiVoiceShown(
     : { lead, line: WALK_COPY.aiVoiceAgain };
 }
 
+/** The bubbles that already landed in this page's life: a screen drawn
+ *  again (the stage's leaving copy, ‹ and ›) shows its bubble at once. */
+const landed = new Set<string>();
+
+/** The two beats of the Exercise bubble's arrival: the typing dots alone,
+ *  then the bubble, once per seed. */
+function useArrival(seed: string, arrive: boolean): boolean {
+  const [shown, setShown] = useState(!arrive || landed.has(seed));
+  useEffect(() => {
+    if (shown) return;
+    const timer = setTimeout(() => {
+      landed.add(seed);
+      setShown(true);
+    }, CHUNK_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [shown, seed]);
+  return shown;
+}
+
 export default function WalkAiVoice({
   seed,
   state,
@@ -85,6 +111,7 @@ export default function WalkAiVoice({
   lead,
   line,
   then,
+  arrive = false,
   onPlay,
 }: {
   seed: string;
@@ -94,11 +121,21 @@ export default function WalkAiVoice({
   state: AiVoiceState | undefined;
   line: string;
   then?: string;
+  /** The Exercise screen: the typing dots first, then the bubble lands. */
+  arrive?: boolean;
   onPlay?: () => void;
 }) {
   const clip = state?.clip;
+  const shown = useArrival(seed, arrive);
+  if (!shown) {
+    return (
+      <div data-walk-ai-typing className="flex">
+        <TypingDots label={WALK_COPY.aiVoiceLabel} />
+      </div>
+    );
+  }
   return (
-    <WalkMessage wide>
+    <WalkMessage wide className={arrive ? "walk-bubble-in" : undefined}>
       {title ? <span>{title}</span> : null}
       {lead ? <span>{lead}</span> : null}
       <span>{line}</span>
@@ -116,8 +153,8 @@ export default function WalkAiVoice({
           <WalkPlayer look="bare" seed={seed} src={clip.url} durationMs={clip.durationMs} label={WALK_COPY.aiVoiceLabel} />
         </div>
       ) : (
-        <div className="flex justify-center py-3">
-          <LoadingState placement="surface" />
+        <div data-walk-ai-waiting className="mt-2 flex min-h-8 items-center justify-center">
+          <TypingGlyph />
         </div>
       )}
       {then ? <span className="mt-2.5">{then}</span> : null}

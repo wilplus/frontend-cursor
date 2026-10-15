@@ -132,8 +132,25 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
       }),
     );
   }
+  // The AI version of your voice (N71): asked for once, ready on the next read.
+  if (url.endsWith("/ai-voice")) {
+    const ready = method === "GET";
+    return Promise.resolve(
+      json({ demo: "ai_voice", clip: ready ? { state: "ready", url: "https://media.example/ai.mp3", duration_ms: 3000 } : { state: "pending", url: null } }),
+    );
+  }
   return Promise.resolve(json({}, 404));
 }
+
+/** A voice Exercise with no video to show: the AI clip takes its place. */
+const EXERCISE_ITEMS: FeedbackWalkItem<string>[] = [
+  {
+    partId: "p5", start: 300, slide: 1, blockId: "b5", openCard: "exercise", hasExercise: true,
+    paragraphText: EXERCISE_OFFER.passage, slideLabel: "Slide 2",
+    clip: { src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 9000 },
+    exercise: { video: null, byCoach: false, instruction: EXERCISE_OFFER.instruction, say: EXERCISE_OFFER.passage, item: "s-ex" },
+  },
+];
 
 let host: HTMLDivElement;
 let root: Root;
@@ -251,6 +268,30 @@ describe("the machine's answer", () => {
     forward();
     await act(async () => {}); // nobody to judge after practice: it moves on
     expect(ended).toBe(1);
+  });
+});
+
+describe("the AI version of your voice on the Exercise (founder 2026-10-15)", () => {
+  it("the bubble is there at once: the typing dots alone, then the bubble with the dots where the player goes, then the player; never the white box", async () => {
+    draw({ items: EXERCISE_ITEMS, at: 1 });
+    expect(screen()).toBe("walk-screen-exVideo");
+    // Before anything answers: the Lounge's typing dots, no breathing mark.
+    expect(live()!.querySelector("[data-walk-ai-typing] [data-typing-glyph]")).not.toBeNull();
+    expect(live()!.querySelector("[data-voice-mark]")).toBeNull();
+    expect(live()!.textContent).not.toContain(WALK_COPY.lineA);
+    // The bubble lands while the clip is still being made.
+    await settle(60);
+    expect(live()!.querySelector("[data-walk-ai-typing]")).toBeNull();
+    expect(live()!.querySelector("[data-walk-ai-voice]")).not.toBeNull();
+    expect(live()!.querySelector("[data-walk-ai-waiting] [data-typing-glyph]")).not.toBeNull();
+    expect(live()!.querySelector("[data-voice-mark]")).toBeNull();
+    expect(live()!.textContent).toContain(WALK_COPY.aiVoiceExercise);
+    expect(calls.filter((c) => c.url.endsWith("/ai-voice") && c.method === "POST")).toHaveLength(1);
+    // The player takes the dots' place once the clip is ready (read every second).
+    await settle(150);
+    expect(live()!.querySelector("[data-walk-ai-waiting]")).toBeNull();
+    expect(live()!.querySelector("[data-walk-message] [data-walk-player] audio")!.getAttribute("src")).toBe("https://media.example/ai.mp3");
+    expect(calls.filter((c) => c.url.endsWith("/ai-voice") && c.method === "GET")).toHaveLength(1);
   });
 });
 

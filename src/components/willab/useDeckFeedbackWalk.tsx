@@ -36,6 +36,7 @@ import {
   type WalkStepTarget,
   type FeedbackWalkItem,
   type FeedbackWalkItemExercise,
+  type ReplayTries,
 } from "@/lib/willab/feedbackWalkModel";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
 import type { PractiseCard } from "@/lib/willab/paragraphOverlay";
@@ -46,6 +47,8 @@ import { PRAISE_LEAD, praiseLines } from "@/lib/willab/trackedChangeWhy";
 import { practiseOfferedNow, readPractiseOffered } from "@/services/api/consentChoices";
 import type { CoachMessage, DocumentSuggestion } from "@/services/api/idealText";
 import { suggestionSource, walkPractiseIO } from "@/services/api/walkPractise";
+import { fetchConfidencePractice } from "@/services/api/confidentVoicePractice";
+import { practiceTries, threadTries } from "@/lib/willab/walkTries";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { reportMomentEvent } from "@/services/api/momentEvents";
 import { lineBankIO } from "@/services/api/lineBank";
@@ -178,6 +181,9 @@ export function deckReplayItems(
 /** The screens a moment's coach answer is drawn on. */
 const COACH_ANSWER_STEPS: ReadonlySet<string> = new Set(["coach", "praise", "clearer", "exVideo"]);
 
+/** The machine's answers on a try, posted as the try is made. */
+const TRY_ANSWER_STEPS: ReadonlySet<string> = new Set(["improved", "encourage", "thanks"]);
+
 /** One served item as the walk reads it. Pure. */
 function walkItemOf(
   item: DocumentSuggestion,
@@ -293,6 +299,20 @@ export function skipJudgements(
     }
     settle(item);
   }
+}
+
+/** The practice an item's exercise was opened on, when the server named
+ *  one (its tries are read by it); null: none yet. Pure. */
+function practiceIdOf(item: FeedbackWalkItem<DocumentSuggestion>): string | null {
+  const served = item.exercise?.item ?? item.item ?? item.rewrite?.item ?? null;
+  return served?.practiceExercise?.practiceId ?? null;
+}
+
+/** The practice a moment's practise was opened on, from the items it
+ *  carries. Pure. */
+function momentPracticeId(moment: FeedbackWalkMoment<DocumentSuggestion>): string | null {
+  const served = moment.exercise?.item ?? moment.practiseItem ?? moment.clearer?.item ?? null;
+  return served?.practiceExercise?.practiceId ?? null;
 }
 
 /** The Take the walk reviews: the one its feedback items were served on,
@@ -618,19 +638,52 @@ export function useDeckFeedbackWalk(args: {
       live = false;
     };
   }, [replayReady, pageTake]);
+  const replayItems = useMemo(
+    () =>
+      replayReady && answeredOf
+        ? deckReplayItems(chunks, groups, (c) => [...pendingOf(c), ...answeredOf(c)], slideLabel)
+        : [],
+    [replayReady, answeredOf, chunks, groups, pendingOf, slideLabel],
+  );
+  /* THE TRIES ALREADY HAD (walk first, 2026-10-14): read from the Take's
+     thread (each "Practise N" and the answer it got); where the thread has
+     none for a practice the walk knows, from the practice itself, read
+     once. Nothing is written. */
+  const threadMessages = thread?.messages;
+  const threadLoaded = thread !== null && !thread.loading;
+  const triedByPart = useMemo(
+    () => (threadMessages && take ? threadTries(threadMessages, take) : new Map<string, ReplayTries>()),
+    [threadMessages, take],
+  );
+  const [triedByPractice, setTriedByPractice] = useState<Readonly<Record<string, ReplayTries | null>>>({});
+  const askedPractices = useRef(new Set<string>());
+  useEffect(() => {
+    if (!replayReady || (thread !== null && !threadLoaded)) return;
+    for (const item of replayItems) {
+      const practiceId = practiceIdOf(item);
+      if (!practiceId || triedByPart.has(item.partId) || askedPractices.current.has(practiceId)) continue;
+      askedPractices.current.add(practiceId);
+      void fetchConfidencePractice(practiceId).then((r) => {
+        setTriedByPractice((t) => ({ ...t, [practiceId]: r.ok ? practiceTries(r.practice) : null }));
+      });
+    }
+  }, [replayReady, thread, threadLoaded, replayItems, triedByPart]);
   const buildReplay = useCallback(
     (answers: readonly OwnerAnswer[]) =>
       buildFeedbackReplay({
-        items:
-          replayReady && answeredOf
-            ? deckReplayItems(chunks, groups, (c) => [...pendingOf(c), ...answeredOf(c)], slideLabel)
-            : [],
+        items: replayItems,
         coachNote: replayReady && coachMessage !== null,
         practiceOn,
         answerOf: (item) => latestAnswerOf(item.id, answers),
         helperWordsOf: (partId) => helperWordsOf?.(partId) ?? null,
+        triesOf: (moment) => {
+          const fromThread = triedByPart.get(moment.partId);
+          if (fromThread) return fromThread;
+          const practiceId = momentPracticeId(moment);
+          return practiceId ? (triedByPractice[practiceId] ?? null) : null;
+        },
       }),
-    [replayReady, answeredOf, chunks, groups, pendingOf, slideLabel, coachMessage, practiceOn, helperWordsOf],
+    [replayItems, replayReady, coachMessage, practiceOn, helperWordsOf, triedByPart, triedByPractice],
   );
   const canReplay = useMemo(
     () => replayable && walkStart(buildReplay(ownAnswers)) !== null,
@@ -639,6 +692,8 @@ export function useDeckFeedbackWalk(args: {
   // The model the walk is opened on: the replay's while it plays.
   const [replaying, setReplaying] = useState<typeof model | null>(null);
   const walkModel = replaying ?? model;
+  const walkModelRef = useRef(walkModel);
+  walkModelRef.current = walkModel;
 
   const seqRef = useRef(0);
   const [request, setRequest] = useState<FeedbackWalkRequest | null>(null);
@@ -820,35 +875,52 @@ export function useDeckFeedbackWalk(args: {
   }, []);
   const practise = useMemo(() => {
     const io = walkPractiseIO<DocumentSuggestion>(suggestionSource);
+    // The moment each practice was opened on, so its tries name their
+    // paragraph (a tap in the chat finds the exercise by it).
+    const openedOn = new Map<string, { moment: number | null; part_id: string | null }>();
+    const open: typeof io.open = async (item, passage) => {
+      const practiceId = await io.open(item, passage);
+      if (practiceId) {
+        const moment = walkModelRef.current.moments.find(
+          (m) => m.exercise?.item.id === item.id || m.practiseItem?.id === item.id || m.clearer?.item.id === item.id,
+        );
+        openedOn.set(practiceId, { moment: moment?.index ?? null, part_id: moment?.partId ?? null });
+      }
+      return practiceId;
+    };
     // Each try, once uploaded, is the speaker's orange bubble "Practise N"
     // with its voice (prototype v31 `try`); the practice and attempt ids
     // find the signed link again.
     const upload: typeof io.upload = async (practiceId, ...rest) => {
       const sent = await io.upload(practiceId, ...rest);
       if (sent) {
+        const on = openedOn.get(practiceId) ?? { moment: null, part_id: null };
         post({
           key: `try:${practiceId}`,
-          moment: null,
+          moment: on.moment,
           attempt: sent.attempt,
           author: "speaker",
           body: WALK_COPY.practiseN(sent.attempt),
-          extra: sent.audio
-            ? {
-                clip: {
-                  src: sent.audio.url,
-                  start_ms: null,
-                  duration_ms: sent.audio.durationMs,
-                  practice_id: practiceId,
-                  attempt_id: sent.attemptId,
-                  words: null,
-                },
-              }
-            : undefined,
+          extra: {
+            part_id: on.part_id,
+            ...(sent.audio
+              ? {
+                  clip: {
+                    src: sent.audio.url,
+                    start_ms: null,
+                    duration_ms: sent.audio.durationMs,
+                    practice_id: practiceId,
+                    attempt_id: sent.attemptId,
+                    words: null,
+                  },
+                }
+              : {}),
+          },
         });
       }
       return sent;
     };
-    return { ...io, upload };
+    return { ...io, open, upload };
   }, [post]);
   // The closing summary, the walk's last step (lock 2026-10-12, sections
   // 2.7 and 3): written once per Take and read back for the bubble, then
@@ -939,7 +1011,9 @@ export function useDeckFeedbackWalk(args: {
       const at = { moment: step.moment ?? null, attempt: step.attempt ?? null };
       // The AI bubble in the locked one's place (N71) says what the screen said.
       const aiSaid = ai ? aiVoiceChat(ai) : null;
-      let said = aiSaid ?? shownStep(step, moment, coach?.text ?? null, say);
+      // A try's answer played again was said once, as the try was made.
+      const replayedTry = step.replay === true && TRY_ANSWER_STEPS.has(step.key);
+      let said = replayedTry ? null : (aiSaid ?? shownStep(step, moment, coach?.text ?? null, say));
       // The coach's video as a thumb in their bubble (prototype v31).
       if (step.key === "coachnote" && coach?.videoUrl) {
         said = { author: "coach", body: said?.body ?? CHUNK_SHEET_COPY.titleCoach, extra: { video: coach.videoUrl } };

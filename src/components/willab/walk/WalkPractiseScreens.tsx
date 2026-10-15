@@ -9,7 +9,7 @@ import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import RecordingStrip from "./RecordingStrip";
 import type { WalkStep, WalkStepKey } from "@/lib/willab/walkPlan";
-import type { FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
+import type { FeedbackWalkMoment, ReplayTries } from "@/lib/willab/feedbackWalkModel";
 import { encourageLine, improvedLine, thanksLine, triesLeft } from "@/lib/willab/walkPractise";
 import type { WalkTry } from "./useWalkPractise";
 import type { SayLine } from "@/lib/willab/walkLines";
@@ -56,6 +56,9 @@ export type PractiseScreenCtx = {
   skip: () => void;
   again: () => void;
   tryOf: (moment: number) => WalkTry | undefined;
+  /** The tries a practise played again already had, by moment: each try's
+   *  voice by its number (walk first, 2026-10-14). */
+  replayTries?: Readonly<Record<number, ReplayTries>>;
   /** The signed line a screen says, never the one said just before
    *  (D-FW-3). Absent: the plan's own turn. */
   say?: SayLine;
@@ -78,7 +81,8 @@ function TryBubble({
   attempt?: number;
 }) {
   const own = ctx.tryOf(moment.index);
-  const tried = (attempt != null ? own?.audios?.[attempt] : undefined) ?? own?.audio ?? null;
+  const played = attempt != null ? ctx.replayTries?.[moment.index]?.audios?.[attempt] : undefined;
+  const tried = (attempt != null ? own?.audios?.[attempt] : undefined) ?? played ?? own?.audio ?? null;
   const clip = tried
     ? { src: tried.url, startOffsetMs: 0, durationMs: tried.durationMs }
     : moment.clip

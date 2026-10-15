@@ -15,9 +15,14 @@ import {
 import type { WalkPractiseIO, WalkPractisePassage } from "@/services/api/walkPractise";
 import { ensureAiVoice, noteAiVoicePlay, readAiVoice, type AiVoiceState } from "@/services/api/aiVoice";
 
-/** How often, and how long, a clip being made is asked after (N71). */
-const AI_VOICE_POLL_MS = 2000;
-const AI_VOICE_POLL_TRIES = 20;
+/** How often, and how long, a clip being made is asked after (N71; every
+ *  second for a minute, founder 2026-10-15). */
+const AI_VOICE_POLL_MS = 1000;
+const AI_VOICE_POLL_TRIES = 60;
+
+/** The clip as the screen holds it from the moment it is asked for: the
+ *  bubble shows at once, with the typing dots (founder 2026-10-15). */
+const AI_VOICE_ASKING: AiVoiceState = { demo: "ai_voice", clip: { state: "pending", url: null, durationMs: null } };
 
 /* -------------------------------------------------------------------------- */
 /*  useWalkPractise — the practise loop's live half (build plan D-FW-16;       */
@@ -128,15 +133,19 @@ export function useWalkPractise<R>(args: {
   /** Lay a new plan and move to `to`. */
   relay: (plan: WalkStep[], to: number, dir: WalkDir) => void;
   readLimitMs?: number;
+  /** The practice a replayed exercise's clip belongs to, when the walk
+   *  knows it (the thread kept it): its clip is read, never made again. */
+  replayPracticeOf?: (moment: number) => string | null | undefined;
 }): WalkPractise {
   const { io, plan, at, moments, blocked, relay } = args;
   const readLimit = args.readLimitMs ?? PRACTISE_READ_LIMIT_MS;
+  const replayPracticeOf = args.replayPracticeOf ?? (() => null);
   const mic = useDualCaptureMic({ transcript: false });
   const [tries, setTries] = useState<Record<number, WalkTry>>({});
   const [elapsed, setElapsed] = useState(0);
 
-  const live = useRef({ io, plan, at, moments, blocked, relay, readLimit });
-  live.current = { io, plan, at, moments, blocked, relay, readLimit };
+  const live = useRef({ io, plan, at, moments, blocked, relay, readLimit, replayPracticeOf });
+  live.current = { io, plan, at, moments, blocked, relay, readLimit, replayPracticeOf };
   const micOn = useRef(false);
   const run = useRef(0);
   const opened = useRef(new Map<number, Promise<string | null>>());
@@ -159,7 +168,8 @@ export function useWalkPractise<R>(args: {
     const { io: practiseIO, plan: p, at: i, moments: ms, blocked: guestOnly } = live.current;
     const here = p[i];
     if (!practiseIO || here?.key !== "practise" || here.moment == null) return;
-    if (guestOnly(here)) return;
+    // A try played again is only listened to (walk first, 2026-10-14).
+    if (here.replay || guestOnly(here)) return;
     const moment = ms[here.moment];
     const what = moment ? passageOf(here, moment) : null;
     if (!what) return;
@@ -177,10 +187,23 @@ export function useWalkPractise<R>(args: {
   // moment, when its Exercise screen opens (no video may fit) or its
   // practise starts. Only this lane: a clearer version never asks.
   useEffect(() => {
-    const { io: practiseIO, plan: p, at: i, moments: ms, blocked: guestOnly } = live.current;
+    const { io: practiseIO, plan: p, at: i, moments: ms, blocked: guestOnly, replayPracticeOf: replayOf } = live.current;
     const here = p[i];
-    // A replayed or read-only walk asks nothing: it only shows what was.
-    if (!practiseIO || here?.moment == null || guestOnly(here) || here.replay || here.readOnly) return;
+    if (here?.moment == null || guestOnly(here)) return;
+    // A replayed exercise only reads the clip it already has (founder
+    // 2026-10-15: an exercise already done plays its tries); nothing is
+    // made, and a play is not counted. A read-only walk asks nothing.
+    if (here.replay || here.readOnly) {
+      const practiceId = here.replay && here.key === "exVideo" ? replayOf(here.moment) : null;
+      if (!practiceId || aiAsked.current.has(here.moment)) return;
+      const index = here.moment;
+      aiAsked.current.add(index);
+      void readAiVoice(practiceId).then((read) => {
+        if (read.ok && read.data.clip?.state === "ready") setAiVoice((v) => ({ ...v, [index]: read.data }));
+      });
+      return;
+    }
+    if (!practiseIO) return;
     const inLane = here.key === "exVideo" || (here.key === "practise" && (here.kind === "instruction" || here.kind === "moment"));
     const moment = ms[here.moment];
     // The voice Exercise, with or without an exercise attached: the moment
@@ -195,6 +218,8 @@ export function useWalkPractise<R>(args: {
     }
     let tries = 0;
     aiWaiting.current.add(index);
+    // The bubble is on screen from here, the typing dots in it.
+    setAiVoice((v) => ({ ...v, [index]: AI_VOICE_ASKING }));
     const keep = (state: AiVoiceState) => {
       aiWaiting.current.delete(index);
       setAiVoice((v) => ({ ...v, [index]: state }));
