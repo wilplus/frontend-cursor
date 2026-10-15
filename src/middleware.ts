@@ -353,14 +353,33 @@ export async function middleware(req: NextRequest) {
     return applyCsp(NextResponse.redirect(loginUrl), cspDirectives);
   }
 
-  // Redirect logged-in users away from login/signup/reset-password, but NOT from /update-password
-  // (user must set new password there after clicking the reset link)
-  if (session && isAuthRoute(pathname) && pathname !== "/update-password") {
-    // Signed in already: go where the link asked (e.g. the booking page).
-    return applyCsp(NextResponse.redirect(new URL(sameSitePath(searchParams.get("redirectTo")), req.url)), cspDirectives);
+  // Signed in already: away from the landing and the auth pages. The
+  // refreshed session cookies ride the redirect.
+  const signedInTo = session ? signedInDestination(pathname, searchParams, ceoHostRoute.isCeoHost) : null;
+  if (signedInTo) {
+    const redirect = NextResponse.redirect(new URL(signedInTo, req.url));
+    res.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+    return applyCsp(redirect, cspDirectives);
   }
 
   return res;
+}
+
+/** Where a signed-in visitor goes instead of this page, or null to stay.
+ *  The landing "/" goes to the app (page.client.tsx keeps the client
+ *  fallback). Login, signup and reset-password go where the link asked (e.g.
+ *  the booking page), but NOT /update-password: the user must set the new
+ *  password there after clicking the reset link. */
+function signedInDestination(
+  pathname: string,
+  searchParams: URLSearchParams,
+  isCeoHost: boolean,
+): string | null {
+  if (pathname === "/") return isCeoHost ? null : "/chat";
+  if (isAuthRoute(pathname) && pathname !== "/update-password") {
+    return sameSitePath(searchParams.get("redirectTo"));
+  }
+  return null;
 }
 
 /** A same-site path to go to after sign-in, else /chat. */

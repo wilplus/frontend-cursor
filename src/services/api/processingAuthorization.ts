@@ -5,6 +5,7 @@ import {
   markGuestOwnerUsed,
 } from "./projects";
 import { mapPendingDeletion, type PendingDeletion } from "./accountDeletion";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  Phase-1 processing authorization — the client half (Task 3).               */
@@ -153,12 +154,14 @@ async function headers(): Promise<Record<string, string>> {
 
 async function readAuthorizationRow(): Promise<Record<string, unknown> | null> {
   const sent = await headers();
-  const response = await fetch("/api/v2/processing-authorization", {
-    method: "GET",
+  // bffFetch adds the session's Bearer, so the BFF need not ask Supabase.
+  const result = await bffFetch("/api/v2/processing-authorization", {
+    auth: "optional",
     headers: sent,
     cache: "no-store",
   });
-  return asRecord(await response.json().catch(() => null));
+  if (result.kind !== "response") throw new Error("network");
+  return asRecord(result.body);
 }
 
 export async function fetchAuthorization(): Promise<AuthorizationStatus> {

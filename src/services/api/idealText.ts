@@ -2425,6 +2425,18 @@ export function prefetchIdealTextDisplay(
   idealTextDisplayHandoffs.set(arcId, entry);
 }
 
+/** A press on anything that opens the Ideal Text: start its read and, once
+ *  the snapshot is known, both enrichment lanes. Both are deduped. */
+export function warmIdealTextOpen(arcId: string | null | undefined): void {
+  if (!arcId) return;
+  prefetchIdealTextDisplay(arcId);
+  void idealTextDisplayHandoffs.get(arcId)?.result.then((r) => {
+    if (r.kind === "single" && r.documentSnapshotId) {
+      primeIdealTextEnrichmentLanes(arcId, r.documentSnapshotId);
+    }
+  }, () => undefined);
+}
+
 /** Take (and delete) the arc's handover when it may still paint. */
 function takeIdealTextDisplayHandoff(
   arcId: string,

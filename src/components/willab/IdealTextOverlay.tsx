@@ -37,17 +37,10 @@ import {
   withSuggestionStatus,
 } from "@/lib/willab/idealTextDecisions";
 import {
-  fetchBlockVariants,
   fetchIdealTextRevisions,
-  selectBlockVariant,
-  type BlockVariant,
   type IdealTextRevision,
-  type VariantBlock,
 } from "@/services/api/blockVariants";
-import {
-  BlockVariantSheet,
-  RevisionTimelineSheet,
-} from "./BlockVariantPicker";
+import { RevisionTimelineSheet } from "./BlockVariantPicker";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
 import type { LockResult } from "./DeckChunkModal";
@@ -200,47 +193,26 @@ export default function IdealTextOverlay({
     visibilityKey: `ideal-text:${arcId}:${sd?.version ?? "unknown"}`,
     enabled: status === "ready" && ideal !== null && sd !== null,
   });
-  // BLOCK_VARIANTS — the picker pool, the revision timeline, and their open
-  // sheets. null = feature off (the GET 404s) / not loaded: nothing new
-  // renders anywhere.
-  const [variantBlocks, setVariantBlocks] = useState<VariantBlock[] | null>(
-    null,
-  );
+  // The History under ⋯: the document's versions, Take by Take (lock
+  // 2026-10-12, section 4), read only when the sheet opens. A read failure
+  // keeps the list already shown.
   const [revisions, setRevisions] = useState<IdealTextRevision[] | null>(null);
-  const [pickerBlock, setPickerBlock] = useState<VariantBlock | null>(null);
   const [timelineOpen, setTimelineOpen] = useState(false);
-  // Staleness fence for the variants/revisions GETs (same rule as the
-  // document GET): a select/restore bumps the generation so an in-flight
-  // pre-write read can never land on top of the post-write pool.
-  const variantsGenRef = useRef(0);
-
-  /** BLOCK_VARIANTS — pull the picker pool, then the timeline, AFTER the
-   *  document GET (§5 refetch order). 404 = feature off → clear (render
-   *  nothing new, never an error). A read FAILURE keeps the previous pool:
-   *  the pool is append-only so every id in it stays valid, and an empty
-   *  picker would lie (§4.1). */
-  const refreshVariants = useCallback(() => {
-    const gen = ++variantsGenRef.current;
-    void fetchBlockVariants(arcId).then((v) => {
-      if (gen !== variantsGenRef.current) return;
-      if (v.kind === "off") setVariantBlocks(null);
-      else if (v.kind === "ready") setVariantBlocks(v.blocks);
-    });
-    // The History under ⋯ is the document's versions, Take by Take; it does
-    // not hang on the variant pool (lock 2026-10-12, section 4).
+  const revisionsGenRef = useRef(0);
+  const openHistory = useCallback(() => {
+    setTimelineOpen(true);
+    const gen = ++revisionsGenRef.current;
     void fetchIdealTextRevisions(arcId).then((rv) => {
-      if (gen !== variantsGenRef.current) return;
+      if (gen !== revisionsGenRef.current) return;
       if (rv.kind === "ready") setRevisions(rv.revisions);
       else if (rv.kind === "off") setRevisions(null);
     });
   }, [arcId]);
 
-  // A different arc = a fresh pool; nothing renders until ITS reads land.
+  // A different arc = a fresh history.
   useEffect(() => {
-    variantsGenRef.current++;
-    setVariantBlocks(null);
+    revisionsGenRef.current++;
     setRevisions(null);
-    setPickerBlock(null);
     setTimelineOpen(false);
   }, [arcId]);
   // Notebook state: the personal copy wins for display once saved.
@@ -362,7 +334,7 @@ export default function IdealTextOverlay({
     const read = firstLoad ? fetchIdealTextForOpen : readFreshCore;
     const applySingle = (
       r: Extract<IdealTextResult, { kind: "single" }>,
-      refreshDocumentVariants: boolean,
+      markCorePainted: boolean,
     ): boolean => {
       // F2 — a refetch of the Take on screen keeps its bars, coach note and
       // key moments (with any status just decided) until each is replaced.
@@ -386,8 +358,7 @@ export default function IdealTextOverlay({
             r.parts ??
             reconcileParts(r.ideal.text));
       setStatus("ready");
-      if (refreshDocumentVariants) {
-        refreshVariants();
+      if (markCorePainted) {
         if (typeof requestAnimationFrame === "function") {
           requestAnimationFrame(() => {
             performance.mark("willab.ideal_text.core_painted");
@@ -452,7 +423,7 @@ export default function IdealTextOverlay({
     return () => {
       active = false;
     };
-  }, [arcId, analysisPending, refetchNonce, refreshVariants, mediaNonce, mediaSettled]);
+  }, [arcId, analysisPending, refetchNonce, mediaNonce, mediaSettled]);
 
   const displayText = notes ?? ideal?.text ?? "";
   // The page's helper words by part id for Presentation Mode and export,
@@ -634,9 +605,6 @@ export default function IdealTextOverlay({
             ? { ...prev, version: versionRef.current, userEdited: true }
             : prev,
         );
-        // BLOCK_VARIANTS (§5) — a saved edit also lands block-level in the
-        // pool, so the picker may have grown a "My edit" entry.
-        refreshVariants();
         return true;
       }
       if (r.reason === "superseded") {
@@ -665,7 +633,7 @@ export default function IdealTextOverlay({
       setSaveFailed(true);
       return false;
     },
-    [arcId, ideal?.text, refreshVariants],
+    [arcId, ideal?.text],
   );
 
   // THE DECK's lock: save the modal draft first when it changed, then call the
@@ -807,33 +775,6 @@ export default function IdealTextOverlay({
     [displayText, saveDocument],
   );
 
-  /** BLOCK_VARIANTS — pick one variant for one block (fear 3: mix & match).
-   *  Non-destructive always (the displaced text heals back into the pool),
-   *  silent by design (no bubble — the student did it themselves, in place):
-   *  the refetch is the update. ok/gone/stale all close the sheet and
-   *  refetch in §5 order; only a transport failure keeps it open on the
-   *  retry line. */
-  const selectVariant = useCallback(
-    async (block: VariantBlock, variant: BlockVariant): Promise<boolean> => {
-      // Display-only rows never render a select button; belt-and-braces.
-      if (block.blockKey === null || !variant.variantId) return true;
-      const r = await selectBlockVariant(
-        arcId,
-        block.blockKey,
-        variant.variantId,
-      );
-      if (r.kind === "error") return false;
-      setPickerBlock(null);
-      // ok → the document reassembled synchronously inside the POST. gone /
-      // stale → the pool changed under us (rare) — the same silent recovery,
-      // never an error toast (§9). Either way: document GET first, then the
-      // pool + timeline (the main effect chains them).
-      fetchGenRef.current++;
-      setRefetchNonce((n) => n + 1);
-      return true;
-    },
-    [arcId],
-  );
 
   // The held version to offer back: the BE's `prior_edit` once it ships, else
   // the local buffer from the supersede we just handled.
@@ -980,7 +921,7 @@ export default function IdealTextOverlay({
               onSaved={() => setRefetchNonce((n) => n + 1)}
               onPresent={() => setPresenting(true)}
               onExport={() => setExportChooserOpen(true)}
-              onHistory={revisions?.length ? () => setTimelineOpen(true) : null}
+              onHistory={historyEntry(sd.version, openHistory)}
               onCopy={copyText}
               copied={copied}
             />
@@ -1210,15 +1151,6 @@ export default function IdealTextOverlay({
         />
       ) : null}
 
-      {/* BLOCK_VARIANTS — the per-block picker (neutral, chronological — the
-          student browses and chooses) and the revision timeline with restore.
-          Kept separate from the offer sheet above BY DESIGN (§6): the offer
-          pushes, the picker pulls. */}
-      <BlockVariantSheet
-        block={pickerBlock}
-        onSelect={selectVariant}
-        onClose={() => setPickerBlock(null)}
-      />
       <RevisionTimelineSheet
         open={timelineOpen}
         revisions={revisions ?? []}
@@ -1227,6 +1159,11 @@ export default function IdealTextOverlay({
     </div>
     </MediaRefreshProvider>
   );
+}
+
+/** The History under ⋯ once there is more than one version to show. */
+function historyEntry(version: number | null, open: () => void): (() => void) | null {
+  return (version ?? 0) > 1 ? open : null;
 }
 
 /* NotebookEditor lived here — a whole-document textarea behind the header's
