@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { getAuthToken } from "@/lib/api/auth-client";
 import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
 import LoadingState from "./LoadingState";
+import { usePolicyUpdate } from "./PolicyUpdate";
 import TrainingReadMore from "@/components/legal/TrainingReadMore";
 import {
   fetchTrainingConsent,
@@ -136,6 +137,7 @@ export default function TrainingAsk({ onDone }: { onDone: () => void }) {
   );
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const policyUpdate = usePolicyUpdate();
 
   useEffect(() => {
     if (settled) {
@@ -167,7 +169,10 @@ export default function TrainingAsk({ onDone }: { onDone: () => void }) {
     setBusy(false);
     if (!next || "ok" in next) {
       setFailed(true);
-      reportTrainingRefusal(trainingRefusalCode(next) ?? "NO_STATE", "ask");
+      const code = trainingRefusalCode(next) ?? "NO_STATE";
+      reportTrainingRefusal(code, "ask");
+      // An out-of-date acceptance: the update prompt (PolicyUpdate.tsx).
+      policyUpdate?.refused(code);
       return;
     }
     if (next.active) {

@@ -84,6 +84,7 @@ import { deckForRecording } from "@/lib/willab/defaultDeck";
 import { restoredSetupFor } from "./restoredSetup";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import { LAB_FADE_IN_CLASS, useRecordingEntryFade } from "./labFade";
+import { usePolicyUpdate } from "./PolicyUpdate";
 
 /* -------------------------------------------------------------------------- */
 /*  LabOverlay — the official-recording training zone (§4)                     */
@@ -456,6 +457,12 @@ export default function LabOverlay({
   // later take's joke offer can't read a stale value; stamped on the readout.
   const recordedFeelingRef = useRef<Feeling | null>(null);
   const [rejectedMsg, setRejectedMsg] = useState<string | null>(null);
+  // The policy update prompt (PolicyUpdate.tsx); refs, so the upload effect
+  // reads the current ones without re-running.
+  const policyUpdate = usePolicyUpdate();
+  const policyUpdateRef = useRef(policyUpdate);
+  policyUpdateRef.current = policyUpdate;
+  const retryProcessingRef = useRef<() => void>(() => {});
   const [uploadError, setUploadError] = useState<string | null>(null);
   // §A2 — PROCESSING_TIMEOUT with no session_id to poll: the take is stored
   // and still processing server-side. Neutral panel, NO retry/re-record — a
@@ -877,6 +884,8 @@ export default function LabOverlay({
         // Branch on `code`, never on the copy (§A1/C4). A timeout is not a
         // failure — the calm panel replaces the destructive retry one.
         setUploadStillProcessing(result.code === "PROCESSING_TIMEOUT");
+        // An out-of-date acceptance: the update prompt, then this Take again.
+        policyUpdateRef.current?.refused(result.code, () => retryProcessingRef.current());
       }
     })();
     return () => {
@@ -1374,6 +1383,57 @@ export default function LabOverlay({
     onClose();
   }
 
+  // Try processing again. Also run once a policy update is accepted after
+  // the upload was refused for an out-of-date acceptance (PolicyUpdate.tsx).
+  const retryProcessing = async () => {
+    if (labSessionId) {
+      const restarted = await retryLabProcessing(labSessionId);
+      if (restarted) {
+        const now = Date.now();
+        const marker = readProcessingTake(userId);
+        if (marker?.sessionId === labSessionId) {
+          writeProcessingTake(userId, {
+            ...marker,
+            status: "processing",
+            phase: "analysis",
+            startedAt: now,
+            phaseStartedAt: now,
+            progress: {
+              stage: "processing_recording",
+              percent: 0,
+            },
+          });
+        }
+        setUploadError(null);
+        setUploadStillProcessing(false);
+        setPollSlow(false);
+        setProcessingReady(false);
+        setProcessingProgress({
+          stage: "processing_recording",
+          percent: 0,
+        });
+        setProcessingCycleStartedAt(now);
+        setPollSessionId(labSessionId);
+        return;
+      }
+      setUploadError(
+        "We couldn’t restart processing just now. Your recording is still safe.",
+      );
+      return;
+    }
+    setUploadError(null);
+    setUploadStillProcessing(false);
+    setPollSlow(false);
+    setProcessingReady(false);
+    setProcessingProgress({
+      stage: "processing_recording",
+      percent: 5,
+    });
+    uploadStartedRef.current = false;
+    setRetryNonce((n) => n + 1);
+  };
+  retryProcessingRef.current = () => void retryProcessing();
+
   return (
     // A soft 0.4 s fade into the white screens (Q-B14 A, D-RC-7): the class
     // is paint only; see labFade.tsx.
@@ -1604,53 +1664,7 @@ export default function LabOverlay({
                see discardUploadingTake for why that boundary IS the feature. */
             canDiscard={uploadInFlight}
             onDiscard={() => setDiscardConfirm("upload")}
-            onRetry={async () => {
-              if (labSessionId) {
-                const restarted = await retryLabProcessing(labSessionId);
-                if (restarted) {
-                  const now = Date.now();
-                  const marker = readProcessingTake(userId);
-                  if (marker?.sessionId === labSessionId) {
-                    writeProcessingTake(userId, {
-                      ...marker,
-                      status: "processing",
-                      phase: "analysis",
-                      startedAt: now,
-                      phaseStartedAt: now,
-                      progress: {
-                        stage: "processing_recording",
-                        percent: 0,
-                      },
-                    });
-                  }
-                  setUploadError(null);
-                  setUploadStillProcessing(false);
-                  setPollSlow(false);
-                  setProcessingReady(false);
-                  setProcessingProgress({
-                    stage: "processing_recording",
-                    percent: 0,
-                  });
-                  setProcessingCycleStartedAt(now);
-                  setPollSessionId(labSessionId);
-                  return;
-                }
-                setUploadError(
-                  "We couldn’t restart processing just now. Your recording is still safe.",
-                );
-                return;
-              }
-              setUploadError(null);
-              setUploadStillProcessing(false);
-              setPollSlow(false);
-              setProcessingReady(false);
-              setProcessingProgress({
-                stage: "processing_recording",
-                percent: 5,
-              });
-              uploadStartedRef.current = false;
-              setRetryNonce((n) => n + 1);
-            }}
+            onRetry={retryProcessing}
             onReRecord={askThenReRecord}
             onClose={onClose}
           />

@@ -12,6 +12,7 @@ import {
 import type { PendingDeletion } from "@/services/api/accountDeletion";
 import { takeAuthorization } from "@/services/api/bootPrefetch";
 import { ENDED_STATE_ENABLED } from "@/lib/legal/leavingCopy";
+import { PolicyUpdateProvider } from "./PolicyUpdate";
 
 /* -------------------------------------------------------------------------- */
 /*  The Phase-1 boundary, as a gate (Task 5).                                  */
@@ -50,8 +51,10 @@ import { ENDED_STATE_ENABLED } from "@/lib/legal/leavingCopy";
 
 type State =
   | { kind: "checking" }
-  /** Authorized, no policy, or unreadable — see the fail-open note above. */
-  | { kind: "pass" }
+  /** Authorized, no policy, or unreadable — see the fail-open note above.
+   *  `update`: this person accepted an earlier version; the app opens and
+   *  the policy update prompt asks for the new one (founder 2026-10-15). */
+  | { kind: "pass"; update?: AuthorizationStatus }
   | { kind: "required"; policy: ProcessingPolicy; priorCountry: string | null }
   /** Processing is blocked (PLF-T1, Q19 A): one line, never the acceptance
    *  flow, which a blocked person could never get past. Data & consent stays
@@ -66,6 +69,9 @@ export function gateStateFor(
   status: AuthorizationStatus,
   endedStateEnabled: boolean = ENDED_STATE_ENABLED,
 ): State {
+  if (status.kind === "acceptance_required" && status.acceptedEarlierVersion) {
+    return { kind: "pass", update: status };
+  }
   if (status.kind === "acceptance_required") {
     return {
       kind: "required",
@@ -117,7 +123,11 @@ export default function Phase1AcceptanceGate({
   const onAccepted = useCallback(() => setState({ kind: "pass" }), []);
 
   if (state.kind === "checking") return <LoadingState placement="surface" />;
-  if (state.kind === "pass") return <>{children}</>;
+  if (state.kind === "pass") {
+    return (
+      <PolicyUpdateProvider initial={state.update ?? null}>{children}</PolicyUpdateProvider>
+    );
+  }
   if (state.kind === "ended") {
     return (
       <AccountEndedState
