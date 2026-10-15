@@ -75,4 +75,17 @@ export const DATA_CONSENT_COPY = {
   aiVoiceDeleteConfirm:
     "Delete your AI voice? We delete it at ElevenLabs and here, with every example made from it, and we stop making examples. Your own recordings stay.",
   aiVoiceOff: "Off. Turn it on and we'll make it from your next Take.",
+  // Fixes 2 and 3 (founder, prototype, 2026-10-15: "I approve the 7 fixes as
+  // in the prototype"). Privacy 3.6 §4 and §4d promise both "at any time".
+  whatsappTitle: "WhatsApp",
+  whatsappOn: (phone: string) => `We message ${phone} when your coach’s feedback is in.`,
+  whatsappRemove: "Remove",
+  whatsappConfirmTitle: "Remove your number?",
+  whatsappConfirmBody: "We stop the WhatsApp messages and delete your number.",
+  whatsappOff: "Off. Add your number in the Lounge to get a message when your coach’s feedback is in.",
+  shareTake: (take: number | null) => (take ? `Take ${take}` : "A take"),
+  sharedWith: (where: string) => `shared with ${where}`,
+  generalCommunity: "General community",
+  stopSharing: "Stop sharing",
+  stoppedSharing: "No longer shared. Its clips left every community.",
 } as const;
