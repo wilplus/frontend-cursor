@@ -82,6 +82,11 @@ import SymmetricPair from "./SymmetricPair";
 import { useAdminAsk } from "./useAdminAsk";
 import OfferBubble from "./OfferBubble";
 import {
+  PolicyUpdateBubble,
+  PolicyUpdateSlot,
+  usePresentPolicyUpdate,
+} from "./PolicyUpdate";
+import {
   offerDraft,
   readOfferType,
   hasOffer,
@@ -220,6 +225,9 @@ export default function Lounge({
   // The offers themselves persist as thread bubbles (loungeOffers); this only
   // tracks which one is currently "armed".
   const [activeOffer, setActiveOffer] = useState<OfferType | null>(null);
+  // While the Lounge is on screen it presents the policy update prompt
+  // itself; elsewhere the prompt is one screen (PolicyUpdate.tsx).
+  usePresentPolicyUpdate();
   // E3 — coach-only student roster overlay.
   // U1 (native scroll): scroll the thread CONTAINER, and stick to the bottom
   // only when the user is already there. The old code called scrollIntoView on
@@ -1391,6 +1399,10 @@ export default function Lounge({
             neither knowing the other exists. */}
         <LoungeTopUpCard state={state} threadLoading={thread.loading} />
 
+        {/* The policy update prompt (founder 2026-10-15): Will's message;
+            its controls replace the record button below. */}
+        <PolicyUpdateBubble />
+
         {botThinking && <TypingDots />}
       </div>
 
@@ -1437,6 +1449,7 @@ export default function Lounge({
           or re-opened by tapping its thread bubble) its action pair REPLACES the
           black record button; resolving it returns the record button (U2). The
           offer's prompt + outcome live in the thread as durable bubbles. */}
+      <PolicyUpdateSlot>
       {activeOffer ? (
         <OfferActions
           type={activeOffer}
@@ -1598,6 +1611,7 @@ export default function Lounge({
           ) : null}
         </div>
       </form>
+      </PolicyUpdateSlot>
 
       {/* Delivery layer — the 4 bubbles' destinations. */}
       {feedbackTarget && (
