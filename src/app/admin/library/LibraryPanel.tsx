@@ -44,6 +44,7 @@ import type { SpeakingError } from "@/services/api/speakingErrors";
 import { slugFor } from "@/lib/willab/coachAnswer";
 import type { WalkDir, WalkScreen } from "@/lib/willab/walkMotion";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
+import { readLastCopy, writeLastCopy } from "@/lib/lastCopy";
 
 /* ── the pure parts ──────────────────────────────────────────────────── */
 
@@ -132,6 +133,8 @@ function walkScreenOf(screen: LibraryScreen): WalkScreen {
 
 type Stage = WalkScreen & { lib: LibraryScreen };
 
+const LAST_COPY = "admin-library";
+
 export default function LibraryClient() {
   const { isCoach, loading: profileLoading } = useUserProfile();
   const [exercises, setExercises] = useState<CoachExercise[]>([]);
@@ -150,6 +153,8 @@ export default function LibraryClient() {
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const recorder = useCoachVideoRecorder();
 
+  const [loaded, setLoaded] = useState(false);
+
   const refresh = useCallback(async () => {
     setLoadError(null);
     const [library, catalogue] = await Promise.all([listCoachExercises(), listCatalogue()]);
@@ -157,13 +162,27 @@ export default function LibraryClient() {
     else {
       setExercises(library.data.exercises);
       setErrors(library.data.speakingErrors);
+      writeLastCopy(LAST_COPY, { exercises: library.data.exercises,
+        errors: library.data.speakingErrors, lines: catalogue });
     }
     setLines(catalogue);
+    setLoaded(true);
   }, []);
 
+  // Speed plan (founder 2026-10-14): open on the last copy and ask at once,
+  // without waiting for the profile read (page.tsx already let only the
+  // founder in; the backend gates every call again).
   useEffect(() => {
-    if (isCoach) void refresh();
-  }, [isCoach, refresh]);
+    const last = readLastCopy<{ exercises: CoachExercise[]; errors: SpeakingError[];
+      lines: CatalogueLine[] }>(LAST_COPY);
+    if (last?.exercises) {
+      setExercises(last.exercises);
+      setErrors(last.errors ?? []);
+      setLines(last.lines ?? []);
+      setLoaded(true);
+    }
+    void refresh();
+  }, [refresh]);
 
   const go = useCallback((next: LibraryScreen, d: WalkDir = "forward") => {
     setHistory((h) => [...h, screen]);
@@ -327,9 +346,9 @@ export default function LibraryClient() {
     return null;
   }
 
-  if (profileLoading) return <LoadingState placement="viewport" />;
+  if (profileLoading && !loaded) return <LoadingState placement="viewport" />;
   // Founder only (page.tsx); a non-coach session draws nothing at all.
-  if (!isCoach) return null;
+  if (!profileLoading && !isCoach) return null;
 
   const choices: WalkChoice[] = [
     ...exercises.map((e) => exerciseChoice(e, labels)),

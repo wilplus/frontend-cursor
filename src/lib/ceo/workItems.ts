@@ -1,4 +1,10 @@
 import type { CeoProjectKey } from "./domain";
+import { withSessionBearer } from "@/lib/api/sessionBearer";
+
+/** A CEO call with the session's Bearer token (skips the BFF's auth hop). */
+async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(url, await withSessionBearer(init));
+}
 
 export interface CeoAttachment {
   kind: "image" | "audio";
@@ -55,7 +61,7 @@ export async function createCeoBug(input: {
   attachments: CeoAttachment[];
 }): Promise<{ bugId: string; taskId: string }> {
   const body = await json(
-    await fetch("/api/v2/admin/ceo/work-items/bugs", {
+    await authedFetch("/api/v2/admin/ceo/work-items/bugs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
@@ -72,7 +78,7 @@ export async function listCeoTasks(
   const query = new URLSearchParams({ project, view });
   if (featureId) query.set("feature_id", featureId);
   const body = await json(
-    await fetch(`/api/v2/admin/ceo/work-items/tasks?${query}`, {
+    await authedFetch(`/api/v2/admin/ceo/work-items/tasks?${query}`, {
       cache: "no-store",
     })
   );
@@ -87,7 +93,7 @@ export async function updateCeoTask(
   >
 ): Promise<CeoTask> {
   const body = await json(
-    await fetch(base(`tasks/${taskId}`, project), {
+    await authedFetch(base(`tasks/${taskId}`, project), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
@@ -102,7 +108,7 @@ export async function actOnCeoTask(
   action: "start" | "done" | "archive" | "restore"
 ): Promise<void> {
   await json(
-    await fetch(base(`tasks/${taskId}/${action}`, project), { method: "POST" })
+    await authedFetch(base(`tasks/${taskId}/${action}`, project), { method: "POST" })
   );
 }
 
@@ -112,7 +118,7 @@ export async function reorderCeoTask(
   afterId: string | null
 ): Promise<void> {
   await json(
-    await fetch(base(`tasks/${taskId}/reorder`, project), {
+    await authedFetch(base(`tasks/${taskId}/reorder`, project), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ after_id: afterId }),
@@ -125,7 +131,7 @@ export async function retryCeoBug(
   bugId: string
 ): Promise<void> {
   await json(
-    await fetch(base(`bugs/${bugId}/retry`, project), { method: "POST" })
+    await authedFetch(base(`bugs/${bugId}/retry`, project), { method: "POST" })
   );
 }
 

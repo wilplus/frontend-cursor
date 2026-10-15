@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import {
   canTap,
   nextSelection,
-  selectionLength,
+  isPicked,
   type PhraseSelection,
 } from "@/lib/willab/phraseTokens";
 import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
@@ -17,9 +17,8 @@ import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
 /*  words at 25px with no borders, the chosen ones orange at 600.             */
 /*                                                                            */
 /*  ONE RULE FOR EVERY PICKER (build plan D-IT-5; N51.5 QA4 A, N63 Q-B5 A):    */
-/*  `nextSelection` — each tap adds one word next to the others, up to the    */
-/*  cap, so the pick is always one connected phrase. A word a tap cannot      */
-/*  reach is greyed and does nothing.                                         */
+/*  `nextSelection` — a tap adds any word or takes a picked one away, up to   */
+/*  the cap (founder 2026-10-15). Past the cap the rest grey out.             */
 /* -------------------------------------------------------------------------- */
 
 export default function WalkWordPicker({
@@ -36,13 +35,12 @@ export default function WalkWordPicker({
       data-walk-word-picker
       className="flex min-h-0 flex-1 flex-col gap-3.5 rounded-[24px] border-[1.5px] border-border px-4 py-[18px]"
     >
-      <div className="flex justify-between text-[13px] uppercase tracking-[0.12em] text-muted-foreground">
+      <div className="text-[13px] uppercase tracking-[0.12em] text-muted-foreground">
         <span>{COPY.cardTapWords}</span>
-        <span>{COPY.emphasisCount(selectionLength(selection))}</span>
       </div>
       <div className="flex min-h-0 flex-wrap content-start gap-1.5 overflow-y-auto text-[25px] leading-[1.3]">
         {words.map((word, index) => {
-          const on = selection !== null && index >= selection.from && index <= selection.to;
+          const on = isPicked(selection, index);
           const reachable = canTap(selection, index);
           return (
             <button

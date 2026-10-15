@@ -6,6 +6,7 @@ import { offerDraft, type OfferType } from "./loungeOffers";
 import { shortDate, type LessonOffer, type PlanPromotion } from "@/lib/booking/offers";
 import { money } from "@/lib/booking/time";
 import { planLabel } from "@/components/tokens/copy";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  An ask the admin sent this person from their profile (founder 2026-10-13,  */
@@ -76,10 +77,10 @@ export function useAdminAsk(inputs: Inputs) {
 
   useEffect(() => {
     let live = true;
-    fetch("/api/v2/user/asks/next", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : { ask: null }))
-      .then((b: { ask?: AdminAsk | null }) => live && setAsk(b.ask ?? null))
-      .catch(() => live && setAsk(null));
+    void bffFetch("/api/v2/user/asks/next", { auth: "optional", cache: "no-store" }).then((r) => {
+      const body = r.kind === "response" && r.ok ? (r.body as { ask?: AdminAsk | null } | null) : null;
+      if (live) setAsk(body?.ask ?? null);
+    });
     return () => {
       live = false;
     };

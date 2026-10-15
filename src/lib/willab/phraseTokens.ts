@@ -1,8 +1,8 @@
 /** Tap-to-select for the rooting phrase, in RAW-DRAFT coordinates.
  *
  *  Founder 2026-09-15: the text field is gone. The paragraph renders as
- *  tappable words — tap to start a run, tap an adjacent word to extend it, tap
- *  inside to shorten it — and the tapped words render in the accent, because
+ *  tappable words — tap a word to pick it, tap it again to drop it (any words
+ *  since 2026-10-15) — and the tapped words render in the accent, because
  *  that is literally how a rooting phrase renders while recording. It is a
  *  preview, not a selection colour.
  *
@@ -36,9 +36,33 @@ export interface PhraseToken {
   end: number;
 }
 
-export interface PhraseSelection {
-  from: number;
-  to: number;
+/** The picked words' indices, ascending; never empty (null is "nothing").
+ *  Any words of the paragraph (founder 2026-10-15): neighbours make one
+ *  piece, and the pieces read in the order said, joined with PIECE_SEP. */
+export type PhraseSelection = readonly number[];
+
+/** Between the pieces of one pick, as saved and as shown. */
+export const PIECE_SEP = " · ";
+
+/** The pieces one saved pick holds. */
+export function phrasePieces(phrase: string | null | undefined): string[] {
+  return (phrase ?? "").split(PIECE_SEP.trim()).map((p) => p.trim()).filter(Boolean);
+}
+
+/** Is this word picked? */
+export function isPicked(selection: PhraseSelection | null, index: number): boolean {
+  return selection !== null && selection.includes(index);
+}
+
+/** The picked words as runs of neighbours, in order. */
+function runs(selection: PhraseSelection): number[][] {
+  const out: number[][] = [];
+  for (const index of selection) {
+    const last = out[out.length - 1];
+    if (last && last[last.length - 1] === index - 1) last.push(index);
+    else out.push([index]);
+  }
+  return out;
 }
 
 /** Every displayed character's index in the raw draft, in reading order. */
@@ -126,51 +150,40 @@ export function tokensWithinFragment(
 }
 
 /** A helper-word pick is at most this many words (founder lock 2026-09-30,
- *  B3, contract 13). A cue is read at a glance while recording and has to be
- *  found again in the next Take's words; a sentence does neither. Phrases
- *  saved before the cap are shown as they are — the cap is on the pick.
- *  Raised from four to six 2026-10-12; the backend's HELPER_WORDS_MAX
- *  (services/slide_helper_words.py) must match. */
-export const HELPER_WORDS_MAX = 6;
+ *  B3, contract 13). Phrases saved before the cap are shown as they are —
+ *  the cap is on the pick. Four, six 2026-10-12, eight 2026-10-15; the
+ *  backend's HELPER_WORDS_MAX (services/slide_helper_words.py) must match. */
+export const HELPER_WORDS_MAX = 8;
 
-/** How many words a run holds; 0 for none. */
+/** How many words a pick holds; 0 for none. */
 export function selectionLength(selection: PhraseSelection | null): number {
-  return selection ? selection.to - selection.from + 1 : 0;
+  return selection ? selection.length : 0;
 }
 
-/** What a tap does to the current run: THE ONE HELPER-WORD RULE for every
- *  picker (the paragraph sheet, the helper-words sheet, the practise sheet,
- *  the Feedback sheet and the walk's picker; build plan D-IT-5).
+/** What a tap does to the pick: THE ONE HELPER-WORD RULE for every picker
+ *  (the paragraph sheet, the helper-words sheet, the practise sheet, the
+ *  Feedback sheet and the walk's picker; build plan D-IT-5).
  *
- *  EACH TAP ADDS ONE WORD, ALWAYS ONE CONNECTED PHRASE (founder 2026-10-05,
- *  N51.5 QA4 A; 2026-10-07, N63 Q-B5 A). `null` means nothing is selected:
- *  the first tap marks one word. After that a tap on the word just before or
- *  just after the run adds it, and a tap on the first or last picked word
- *  takes it away, so the phrase grows and shrinks one word at a time and is
- *  never broken in the middle. Taking away the only word clears the pick.
- *
- *  AT MOST SIX WORDS (founder lock 2026-09-30, B3; six since 2026-10-12). A
- *  tap that would make a seventh word does nothing, and so does a tap on any word the run cannot
- *  reach in one step: the same selection comes back, by identity, so a
- *  picker can grey the words a tap cannot reach.
- */
+ *  ANY WORDS, IN ANY ORDER (founder 2026-10-15). A tap on a word adds it, a
+ *  tap on a picked word takes it away; taking away the last clears the pick.
+ *  At most eight: a tap that would make a ninth does nothing and the same
+ *  selection comes back, by identity, so a picker can grey the rest. */
 export function nextSelection(
   selection: PhraseSelection | null,
   index: number,
   max: number = HELPER_WORDS_MAX,
 ): PhraseSelection | null {
-  if (!selection) return { from: index, to: index };
-  const { from, to } = selection;
-  if (index === from && index === to) return null;
-  if (index === from) return { from: from + 1, to };
-  if (index === to) return { from, to: to - 1 };
-  const adjacent = index === from - 1 || index === to + 1;
-  if (!adjacent || selectionLength(selection) >= max) return selection;
-  return { from: Math.min(from, index), to: Math.max(to, index) };
+  if (!selection) return [index];
+  if (selection.includes(index)) {
+    const rest = selection.filter((i) => i !== index);
+    return rest.length > 0 ? rest : null;
+  }
+  if (selection.length >= max) return selection;
+  return [...selection, index].sort((x, y) => x - y);
 }
 
-/** Would a tap on this word change the selection? False for the words a
- *  second tap cannot reach under the cap; the picker greys those. */
+/** Would a tap on this word change the selection? False once the cap is
+ *  reached, for the words not picked; the picker greys those. */
 export function canTap(
   selection: PhraseSelection | null,
   index: number,
@@ -179,11 +192,12 @@ export function canTap(
   return nextSelection(selection, index, max) !== selection;
 }
 
-/** The selected run as the span the backend stores.
+/** The pick as the backend stores it.
  *
- *  `text` is sliced from the RAW draft, markers included, because `start` and
- *  `end` index that same string — a span whose text disagreed with its offsets
- *  would be a different phrase depending on which field a reader trusted.
+ *  One run of neighbours: `text` is sliced from the RAW draft, markers
+ *  included, because `start` and `end` index that same string. Words picked
+ *  apart have no single span: the readable pieces joined with PIECE_SEP and
+ *  no offsets.
  */
 export function selectionSpan(
   raw: string,
@@ -191,8 +205,13 @@ export function selectionSpan(
   selection: PhraseSelection | null,
 ): RootPhraseSpan | null {
   if (!selection) return null;
-  const first = tokens[selection.from];
-  const last = tokens[selection.to];
+  const pieces = runs(selection);
+  if (pieces.length > 1) {
+    const text = selectionText(raw, tokens, selection);
+    return text ? { text, start: null, end: null } : null;
+  }
+  const first = tokens[selection[0]];
+  const last = tokens[selection[selection.length - 1]];
   if (!first || !last || last.end <= first.start) return null;
   return {
     text: raw.slice(first.start, last.end),
@@ -201,7 +220,8 @@ export function selectionSpan(
   };
 }
 
-/** The selected run as a reader sees it — no marker characters.
+/** The pick as a reader sees it — no marker characters, pieces joined with
+ *  PIECE_SEP in the order said.
  *
  *  This is what gets carried to the lock step rather than the raw span,
  *  because the draft can still change between choosing the words and locking
@@ -213,10 +233,18 @@ export function selectionText(
   tokens: readonly PhraseToken[],
   selection: PhraseSelection | null,
 ): string | null {
-  const span = selectionSpan(raw, tokens, selection);
-  if (!span) return null;
-  const readable = stripRichMarkers(span.text).trim();
-  return readable || null;
+  if (!selection) return null;
+  const pieces = runs(selection).map((run) => {
+    const first = tokens[run[0]];
+    const last = tokens[run[run.length - 1]];
+    if (!first || !last) return "";
+    return stripRichMarkers(raw.slice(first.start, last.end)).trim();
+  });
+  if (pieces.some((p) => !p)) return null;
+  if (pieces.length === 1) return pieces[0];
+  // Picked apart, each piece reads as words: no trailing comma or stop.
+  const words = pieces.map((p) => p.replace(/[.,;:!?…]+$/u, ""));
+  return words.every(Boolean) ? words.join(PIECE_SEP) : null;
 }
 
 /** Where a quote sits in the raw draft, for the emphasis -> lock promotion.
@@ -233,6 +261,10 @@ export function selectionText(
 export function quoteSpan(raw: string, quote: string): RootPhraseSpan | null {
   const needle = (quote || "").trim();
   if (!raw || !needle) return null;
+  const pieces = phrasePieces(needle);
+  if (pieces.length > 1) {
+    return pieces.every((p) => quoteSpan(raw, p)) ? { text: pieces.join(PIECE_SEP), start: null, end: null } : null;
+  }
   const spans = parseRichSpans(raw);
   const displayed = spans.map((span) => span.text).join("");
   const at = displayed.indexOf(needle);
@@ -245,17 +277,21 @@ export function quoteSpan(raw: string, quote: string): RootPhraseSpan | null {
 }
 
 /** Saved helper words as a selection of the paragraph's words, so a screen
- *  can draw them pressed (the replayed walk, Q-IT643b A). Null when the
- *  words cannot be found once, or are more than six: nothing is guessed. */
+ *  can draw them pressed (the replayed walk, Q-IT643b A). Null when a piece
+ *  cannot be found once, the pieces are out of order, or there are more than
+ *  eight words: nothing is guessed. */
 export function phraseSelection(raw: string, phrase: string | null | undefined): PhraseSelection | null {
-  const span = quoteSpan(raw, stripRichMarkers(phrase ?? "").trim());
-  if (!span) return null;
   const tokens = phraseTokens(raw);
-  const from = tokens.findIndex((t) => t.end > span.start);
-  let to = -1;
-  tokens.forEach((t, i) => {
-    if (t.start < span.end) to = i;
-  });
-  if (from < 0 || to < from || to - from + 1 > HELPER_WORDS_MAX) return null;
-  return { from, to };
+  const out: number[] = [];
+  for (const piece of phrasePieces(stripRichMarkers(phrase ?? ""))) {
+    const span = quoteSpan(raw, piece);
+    if (!span || span.start === null || span.end === null) return null;
+    const { start, end } = span;
+    tokens.forEach((t, i) => {
+      if (t.end > start && t.start < end) out.push(i);
+    });
+  }
+  const ascending = out.every((v, i) => i === 0 || v > out[i - 1]);
+  if (out.length === 0 || !ascending || out.length > HELPER_WORDS_MAX) return null;
+  return out;
 }

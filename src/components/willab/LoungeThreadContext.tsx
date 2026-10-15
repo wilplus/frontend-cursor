@@ -36,10 +36,19 @@ export function useLoungeThreadMaybe(): UseLoungeThreadReturn | null {
   return useContext(LoungeThreadCtx);
 }
 
-export function LoungeThreadProvider({ children }: { children: React.ReactNode }) {
-  const signedIn = useSignedIn();
+/** `signedIn`: the parent's answer when it already has one, so the thread
+ *  mounts at once instead of waiting a tick behind a full-screen loader. */
+export function LoungeThreadProvider({
+  children,
+  signedIn: known = null,
+}: {
+  children: React.ReactNode;
+  signedIn?: boolean | null;
+}) {
+  const own = useSignedIn();
+  const signedIn = known ?? own;
   if (signedIn === null) {
-    return <LoadingState placement="viewport" />;
+    return <LoadingState placement="surface" />;
   }
   return <LoungeThreadInner signedIn={signedIn}>{children}</LoungeThreadInner>;
 }

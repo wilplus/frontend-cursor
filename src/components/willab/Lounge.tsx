@@ -5,12 +5,13 @@ import Link from "next/link";
 import { Plus, Send, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
-import CoachWalkEntry from "./coachwalk/CoachWalkEntry";
+import dynamic from "next/dynamic";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "./LoungeAiVoiceBubble";
 import { CHUNK_SHEET_COPY } from "./idealEditCopy";
 import { postChatQuery } from "@/services/api/chatQuery";
-import { refreshNewCoachFeedback, type LoungeMessage } from "@/services/api/loungeMessages";
+import { warmIdealTextOpen } from "@/services/api/idealText";
+import { refreshNewCoachFeedback, stampLoungeMessage, type LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import {
   isRetiredLoungeMessage,
@@ -54,10 +55,9 @@ import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports"
 import { FLOW_COPY } from "./flowCopy";
 import LoadingState, { VoiceMark } from "./LoadingState";
 import { PROCESSING_STAGES } from "./ProcessingWait";
-import FeedbackOverlay from "./FeedbackOverlay";
 import IdealTextOverlay, { type IdealTextLaunchMode } from "./IdealTextOverlay";
+import { lensAddress } from "@/lib/willab/lensScreen";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
-import LibraryOverlay from "./LibraryOverlay";
 import {
   clearExploreArc,
   readExploreArc,
@@ -67,7 +67,6 @@ import { clearInsightsReady } from "./sendStatus";
 import { isLabOverlay, type WillabEvent, type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
 import LoungeTopUpCard from "./LoungeTopUpCard";
-import ConfidencePracticeOverlay from "./ConfidencePracticeOverlay";
 import {
   useInstallOffer,
   InstallOfferActions,
@@ -107,6 +106,12 @@ import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
 import { usePinThreadBottom } from "./usePinThreadBottom";
 import { clearerPieces, type ClearerPiece } from "@/lib/willab/clearerPieces";
 import WalkOverlay from "./walk/WalkOverlay";
+
+// Opened on a tap, never on first paint: loaded then, off the boot bundle.
+const CoachWalkEntry = dynamic(() => import("./coachwalk/CoachWalkEntry"), { ssr: false });
+const FeedbackOverlay = dynamic(() => import("./FeedbackOverlay"), { ssr: false });
+const LibraryOverlay = dynamic(() => import("./LibraryOverlay"), { ssr: false });
+const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOverlay"), { ssr: false });
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
@@ -152,7 +157,7 @@ export default function Lounge({
   dispatch,
   initialBestPresentationArcId = null,
   initialIdealTextArcId = null,
-  initialIdealTextFeedback = false,
+  initialIdealTextMode = null,
   recordingProgress = null,
 }: {
   state: WillabState;
@@ -171,8 +176,9 @@ export default function Lounge({
   /** When set (from /chat?idealArc=<arc_id>), open the IdealTextOverlay for
    *  that arc once on mount — the coach-feedback email's CTA. */
   initialIdealTextArcId?: string | null;
-  /** With `&feedback=1`, open that notebook on the coach's feedback. */
-  initialIdealTextFeedback?: boolean;
+  /** With `&feedback=1` or `?lens=`, open that notebook on the coach's
+   *  feedback; with `?lens=&mode=review`, on the review. */
+  initialIdealTextMode?: "feedback" | "review" | null;
   /** Seed from the upload response; reserved for future per-take state. */
   recordingProgress?: RecordingProgress | null;
 }) {
@@ -350,7 +356,6 @@ export default function Lounge({
     }
     setIdealTextLaunchMode(mode);
     setIdealTextArcId(arcId);
-    lensAddress(mode === "review" || mode === "feedback" ? arcId : null);
   }
 
   // D3 — user results email deep-link (/chat?insight=<id>): open the insights
@@ -381,9 +386,12 @@ export default function Lounge({
   useEffect(() => {
     if (idealLinkOpenedRef.current || !initialIdealTextArcId) return;
     idealLinkOpenedRef.current = true;
-    if (initialIdealTextFeedback) setIdealTextLaunchMode("feedback");
+    if (initialIdealTextMode) setIdealTextLaunchMode(initialIdealTextMode);
+    // The link's lens comes off the entry under the overlay, which sets it
+    // on its own: closing it never lands back on the lens.
+    lensAddress(null);
     setIdealTextArcId(initialIdealTextArcId);
-  }, [initialIdealTextArcId, initialIdealTextFeedback]);
+  }, [initialIdealTextArcId, initialIdealTextMode]);
 
   // Wave-3 — no standing / every-visit offer. The proactive strong-sides nudge
   // fires once at the post-send moment (A-4 / B-2); otherwise the bot stays
@@ -1184,17 +1192,16 @@ export default function Lounge({
       const history = loungeToHistory(messages); // snapshot of prior turns (pre-append)
       // The user turn always persists (optimistic + FE write); for signed-in the
       // BE also writes it from the client_id we pass below, and the server dedups
-      // on (user_id, client_id) so it collapses to one row (#2).
-      const userMsg = await thread.append({
-        role: "user",
-        kind: "text",
-        body: q,
-      });
+      // on (user_id, client_id) so it collapses to one row (#2). So the write
+      // and the question go out together, and the dots show at once.
+      const userDraft = { role: "user" as const, kind: "text" as const, body: q };
+      const userMsg = stampLoungeMessage(userDraft);
+      const appended = thread.append({ ...userDraft, clientId: userMsg.client_id });
 
       setBotThinking(true);
       try {
         const activeProject = readExploreArc(userId);
-        const resp = await postChatQuery({
+        const [resp] = await Promise.all([postChatQuery({
           question: q,
           history,
           // #2 — let the BE own persistence for signed-in turns. It writes the
@@ -1210,7 +1217,7 @@ export default function Lounge({
               : 0,
             has_pdf: Boolean(activeProject?.deck?.presentationRef),
           },
-        });
+        }), appended]);
         // B-1 — the one quick-action the BE suggests for this turn (S1),
         // rendered as an in-bubble chip (trainings / audit).
         const suggested = coerceSuggestedAction(resp.suggested_action);
@@ -1620,7 +1627,6 @@ export default function Lounge({
             if (thread.signedIn) void refreshNewCoachFeedback();
             setIdealTextArcId(null);
             setIdealTextLaunchMode("notebook");
-            lensAddress(null);
           }}
           // SD — "Read it aloud": the re-read is just another recording. Seed
           // THIS presentation (only when the cache holds a different arc; the
@@ -1811,7 +1817,7 @@ function TypingDots() {
 }
 
 /** U3 — gap between sequentially-revealed bubbles (ms of "typing"). */
-const CHUNK_DELAY_MS = 750;
+const CHUNK_DELAY_MS = 350;
 
 /** U3 — render a bot message's split chunks. A freshly-arrived reply
  *  (`animate`) reveals them one at a time with a typing indicator between, so
@@ -2232,6 +2238,8 @@ function WalkStepBubble({
   if (!message.body.trim() && !clip) return null;
   const mine = message.role === "user";
   const open = bubbleTap(meta, lockedTake, onOpenIdealText, onOpened, onOpenOlder);
+  // A press starts the Ideal Text's read before the tap lands.
+  const warm = open ? () => warmIdealTextOpen(arc) : undefined;
   const hint = helpersHint(meta, lockedTake);
   const label = chatLabelOf(meta);
   const ai = clip || mine ? null : aiVoiceOfMeta(meta);
@@ -2255,6 +2263,7 @@ function WalkStepBubble({
             type="button"
             data-walk-step-bubble
             onClick={open}
+            onPointerDown={warm}
             data-bubble=""
             className="max-w-[85%] whitespace-pre-wrap break-words rounded-[16px] bg-primary px-3 py-2 text-left text-[15px] leading-[1.45] text-primary-foreground"
           >
@@ -2262,7 +2271,7 @@ function WalkStepBubble({
           </button>
         </div>
       ) : (
-        <AppStepBubble message={message} newWords={newWords} open={open} hint={hint} waiting={waiting && open !== undefined} />
+        <AppStepBubble message={message} newWords={newWords} open={open} warm={warm} hint={hint} waiting={waiting && open !== undefined} />
       )}
     </>
   );
@@ -2370,12 +2379,14 @@ function AppStepBubble({
   message,
   newWords,
   open,
+  warm,
   hint: shownHint,
   waiting = false,
 }: {
   message: LoungeMessage;
   newWords?: ClearerPiece[];
   open?: () => void;
+  warm?: () => void;
   hint?: string;
   waiting?: boolean;
 }) {
@@ -2393,6 +2404,7 @@ function AppStepBubble({
         data-bubble=""
         data-walk-step-bubble
         onClick={open}
+        onPointerDown={warm}
         className={`relative whitespace-pre-wrap break-words rounded-[16px] bg-muted py-2 pl-3 text-left text-[15px] leading-[1.45] text-foreground ${open ? "pr-[30px]" : "pr-3"} ${waiting ? "ring-2 ring-primary" : ""}`}
       >
         {cut > 0 ? (
@@ -2644,14 +2656,4 @@ export function forwardMarginWheel(scroller: () => HTMLElement | null): () => vo
   };
   window.addEventListener("wheel", onWheel, { passive: true });
   return () => window.removeEventListener("wheel", onWheel);
-}
-
-/** The lens screen's address in the bar (`?lens=<arc_id>`), set while it is
- *  open, so it can be reopened from the link (founder 2026-10-14). */
-function lensAddress(arcId: string | null): void {
-  if (typeof window === "undefined") return;
-  const url = new URL(window.location.href);
-  if (arcId) url.searchParams.set("lens", arcId);
-  else url.searchParams.delete("lens");
-  window.history.replaceState(window.history.state, "", url);
 }

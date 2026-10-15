@@ -90,12 +90,14 @@ export function useTokenWallet(active: boolean): TokenWallet {
     setAttempt((n) => n + 1);
   }, []);
 
-  /* Balance: only once prices confirmed the wallet exists, so a flag-off user
-   * never makes this request at all. */
   const enabled = pricesState === "probing" ? null : pricesState === "ready";
+  /* Balance: read beside the prices probe rather than after it, so the menu
+   * has both one round trip sooner; stopped once the probe says the wallet
+   * is off. A flag-off user pays one balance read per page. */
+  const readBalance = active && enabled !== false;
 
   useEffect(() => {
-    if (enabled !== true) return;
+    if (!readBalance) return;
     let cancelled = false;
 
     const read = async () => {
@@ -126,7 +128,7 @@ export function useTokenWallet(active: boolean): TokenWallet {
       window.removeEventListener(WILLAB_TOKENS_SPENT_EVENT, onSpent);
       window.clearInterval(intervalId);
     };
-  }, [enabled]);
+  }, [readBalance]);
 
   return { enabled, pricesState, retryPrices, balance, prices };
 }

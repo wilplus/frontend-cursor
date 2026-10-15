@@ -1,3 +1,5 @@
+import { bffFetch, type BffResult } from "@/lib/api/bffFetch";
+
 export interface Mlc2ConsentStatus {
   applicable: boolean;
   configured: boolean;
@@ -40,13 +42,18 @@ const PHASE2_DISABLED_STATUS: Mlc2ConsentStatus = {
   article_9_treatment: null,
 };
 
-async function readStatus(
-  response: Response,
+const PATH = "/api/v2/user/mlc2-consent";
+
+/** Through bffFetch, which adds the session's Bearer, so the BFF need not ask
+ *  Supabase who this is. */
+function readStatus(
+  response: BffResult,
   options: { phase2DisabledIsNotApplicable?: boolean } = {},
-): Promise<Mlc2ConsentStatus> {
-  const payload = (await response.json().catch(() => ({}))) as
-    | Mlc2ConsentStatus
-    | ErrorEnvelope;
+): Mlc2ConsentStatus {
+  if (response.kind !== "response") {
+    throw new Error("Consent service is unavailable.");
+  }
+  const payload = (response.body ?? {}) as Mlc2ConsentStatus | ErrorEnvelope;
   if (!response.ok) {
     if (
       options.phase2DisabledIsNotApplicable === true &&
@@ -67,10 +74,7 @@ async function readStatus(
 
 export async function fetchMlc2Consent(): Promise<Mlc2ConsentStatus> {
   return readStatus(
-    await fetch("/api/v2/user/mlc2-consent", {
-      method: "GET",
-      cache: "no-store",
-    }),
+    await bffFetch(PATH, { auth: "optional", cache: "no-store" }),
     { phase2DisabledIsNotApplicable: true },
   );
 }
@@ -79,25 +83,25 @@ export async function grantMlc2Consent(
   status: Mlc2ConsentStatus,
 ): Promise<Mlc2ConsentStatus> {
   return readStatus(
-    await fetch("/api/v2/user/mlc2-consent", {
+    await bffFetch(PATH, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+      auth: "optional",
+      json: {
         accepted: true,
         idempotency_key: crypto.randomUUID(),
         consent_policy_version: status.consent_policy_version,
         copy_sha256: status.approved_copy_sha256,
-      }),
+      },
     }),
   );
 }
 
 export async function withdrawMlc2Consent(): Promise<Mlc2ConsentStatus> {
   return readStatus(
-    await fetch("/api/v2/user/mlc2-consent", {
+    await bffFetch(PATH, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idempotency_key: crypto.randomUUID() }),
+      auth: "optional",
+      json: { idempotency_key: crypto.randomUUID() },
     }),
   );
 }

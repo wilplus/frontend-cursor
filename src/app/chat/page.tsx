@@ -41,12 +41,19 @@ export default function ChatPage({
   // coach reviewed this talk" used to land on bare /chat and leave the student
   // hunting the right bubble. Distinct from `?arc=` (best presentation).
   // The lens screen's own address (founder 2026-10-14): `?lens=<arc_id>`
-  // opens that project's walk as its own screen.
+  // opens that project's walk as its own screen, on the coach's feedback
+  // (the WhatsApp link), or the review with `&mode=review`.
   const lensArcId = firstQueryValue(searchParams.lens);
   const idealTextArcId = firstQueryValue(searchParams.idealArc) ?? lensArcId;
   // `&feedback=1` (founder 2026-09-25, Q28 A): open with the sheet already on
   // the coach's first reviewed moment.
-  const idealTextFeedback = firstQueryValue(searchParams.feedback) === "1" || lensArcId !== null;
+  const review = lensArcId !== null && firstQueryValue(searchParams.mode) === "review";
+  const idealTextMode =
+    firstQueryValue(searchParams.feedback) === "1" || (lensArcId !== null && !review)
+      ? "feedback"
+      : review
+        ? "review"
+        : null;
 
   return (
     <Suspense fallback={<LoadingState placement="viewport" />}>
@@ -55,7 +62,7 @@ export default function ChatPage({
         insightSessionId={insightSessionId}
         bestPresentationArcId={bestPresentationArcId}
         idealTextArcId={idealTextArcId}
-        idealTextFeedback={idealTextFeedback}
+        idealTextMode={idealTextMode}
       />
     </Suspense>
   );

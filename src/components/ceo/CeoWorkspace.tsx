@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import CeoBugCapture from "@/components/ceo/CeoBugCapture";
 import CeoTasks from "@/components/ceo/CeoTasks";
 import { cn } from "@/lib/utils";
+import { withSessionBearer } from "@/lib/api/sessionBearer";
 import {
   CEO_SURFACES,
   activeCeoFeatures,
@@ -73,10 +74,8 @@ export default function CeoWorkspace() {
       setState(initialState(cached.view_state ?? []));
     }
     const controller = new AbortController();
-    void fetch("/api/v2/admin/ceo/bootstrap", {
-      cache: "no-store",
-      signal: controller.signal,
-    })
+    void withSessionBearer({ cache: "no-store", signal: controller.signal })
+      .then((init) => fetch("/api/v2/admin/ceo/bootstrap", init))
       .then(async (response) => {
         const body = await readJson(response);
         if (!response.ok) {

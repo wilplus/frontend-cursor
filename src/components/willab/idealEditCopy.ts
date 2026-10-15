@@ -184,9 +184,6 @@ export const CHUNK_SHEET_COPY = {
   cardTapWords: "Tap the words",
   /** Before helper words the latest Take no longer says (founder 2026-10-14). */
   helpersLabel: "Helpers",
-  /** Beside "Tap the words" on both pickers (founder lock 2026-09-30, B3;
-   *  signed with the lock, B9): how many of the six the run holds. */
-  emphasisCount: (picked: number) => `${picked} of 6 words`,
 
   /* --- praise on weak evidence -------------------------------------------
      FOUNDER WORDING, 2026-09-24, replacing "This may be one of the strongest

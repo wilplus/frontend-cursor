@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import LoadingState from "./LoadingState";
@@ -16,9 +17,7 @@ import WelcomeConsent from "./WelcomeConsent";
 import Mlc2FounderConsentGate from "./Mlc2FounderConsentGate";
 import Phase1AcceptanceGate from "./Phase1AcceptanceGate";
 import Lounge from "./Lounge";
-import LabOverlay from "./LabOverlay";
 import { LabFadeOut } from "./labFade";
-import ProjectPicker from "./ProjectPicker";
 import IdealTextOverlay from "./IdealTextOverlay";
 import { useDocumentSettle } from "./useDocumentSettle";
 import {
@@ -32,6 +31,11 @@ import {
   clearActiveSetupDraft,
   resumeSetupDraft,
 } from "@/lib/willab/setupDraft";
+
+// The recording screens are not on first paint: they load after it (warmed
+// below), so a tap on Record finds them ready.
+const LabOverlay = dynamic(() => import("./LabOverlay"), { ssr: false });
+const ProjectPicker = dynamic(() => import("./ProjectPicker"), { ssr: false });
 
 /* -------------------------------------------------------------------------- */
 /*  WillabSurface — restructure SHELL root (feature-flagged)                   */
@@ -49,7 +53,7 @@ export default function WillabSurface({
   insightSessionId,
   bestPresentationArcId,
   idealTextArcId = null,
-  idealTextFeedback = false,
+  idealTextMode = null,
 }: {
   sessionId: string | null;
   /** D3 — user deep-link target from `/chat?insight=<id>`; opens the in-Lounge
@@ -60,8 +64,9 @@ export default function WillabSurface({
   bestPresentationArcId: string | null;
   /** `/chat?idealArc=<id>` — the coach-feedback email CTA. */
   idealTextArcId?: string | null;
-  /** `&feedback=1`: open on the coach's feedback. */
-  idealTextFeedback?: boolean;
+  /** `&feedback=1` or `?lens=`: open on the coach's feedback;
+   *  `?lens=&mode=review`: the review. */
+  idealTextMode?: "feedback" | "review" | null;
 }) {
   const flow = useWillabFlow();
   const [recordingProgress, setRecordingProgress] =
@@ -75,6 +80,10 @@ export default function WillabSurface({
   // their own instances when they own the screen.
   const pickerSettle = useDocumentSettle({ enabled: pickedArcId !== null });
   const signedIn = useSignedIn();
+  useEffect(() => {
+    void import("./LabOverlay");
+    void import("./ProjectPicker");
+  }, []);
   const userId = useUserId();
   const userEmail = useUserEmail();
   const founderConsentEligible =
@@ -173,7 +182,7 @@ export default function WillabSurface({
   // Both share one thread (LoungeThreadProvider) so the Lab can persist a
   // recording's Readout into the same scrollable history.
   return authorizedShell(
-    <LoungeThreadProvider>
+    <LoungeThreadProvider signedIn={signedIn}>
       <Lounge
         state={flow.state}
         onStart={flow.startRecording}
@@ -189,7 +198,7 @@ export default function WillabSurface({
         dispatch={flow.dispatch}
         initialBestPresentationArcId={bestPresentationArcId}
         initialIdealTextArcId={idealTextArcId}
-        initialIdealTextFeedback={idealTextFeedback}
+        initialIdealTextMode={idealTextMode}
         recordingProgress={recordingProgress}
       />
       {/* Context-aware setup — WHICH project, asked before the Lab opens.

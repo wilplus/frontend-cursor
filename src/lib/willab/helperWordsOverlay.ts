@@ -11,7 +11,7 @@
  * differs from the saved words.
  */
 import type { ParagraphHistory } from "@/services/api/bookmarkHistory";
-import { phraseTokens, type PhraseSelection, type PhraseToken } from "./phraseTokens";
+import { phrasePieces, phraseTokens, type PhraseSelection, type PhraseToken } from "./phraseTokens";
 
 export interface TakeChip {
   /** The Take number, or null when the history does not name it. */
@@ -60,26 +60,31 @@ function plainWords(text: string): string[] {
   return text.split(/\s+/).map(plain).filter(Boolean);
 }
 
-/** The saved words as a run of this text's tokens, when they sit in it
- *  whole (B10: the picker opens with them pre-selected); null otherwise. */
+/** The saved words as a pick of this text's tokens, when every piece sits
+ *  in it whole and in order (B10: the picker opens with them pre-selected);
+ *  null otherwise. */
 export function preselect(
   tokens: readonly PhraseToken[],
   headline: string | null,
 ): PhraseSelection | null {
-  if (!headline) return null;
-  const want = plainWords(headline);
-  if (want.length === 0) return null;
-  for (let from = 0; from + want.length <= tokens.length; from += 1) {
-    let match = true;
-    for (let k = 0; k < want.length; k += 1) {
-      if (plain(tokens[from + k].text) !== want[k]) {
-        match = false;
-        break;
-      }
-    }
-    if (match) return { from, to: from + want.length - 1 };
+  const pieces = phrasePieces(headline).map(plainWords).filter((w) => w.length > 0);
+  if (pieces.length === 0) return null;
+  const out: number[] = [];
+  let from = 0;
+  for (const want of pieces) {
+    const at = findRun(tokens, want, from);
+    if (at < 0) return null;
+    for (let k = 0; k < want.length; k += 1) out.push(at + k);
+    from = at + want.length;
   }
-  return null;
+  return out;
+}
+
+function findRun(tokens: readonly PhraseToken[], want: readonly string[], from: number): number {
+  for (let at = from; at + want.length <= tokens.length; at += 1) {
+    if (want.every((word, k) => plain(tokens[at + k].text) === word)) return at;
+  }
+  return -1;
 }
 
 /** Where the overlay opens (B10: "the picker opens with the saved words
