@@ -1,7 +1,7 @@
 "use client";
 
 import { RichText } from "@/components/willab/RichText";
-import { quoteSpan } from "@/lib/willab/phraseTokens";
+import { phrasePieces, quoteSpan } from "@/lib/willab/phraseTokens";
 
 /** The paragraph as it will be committed: its own markers rendered, and the
  *  phrase the speaker just chose painted in the accent.
@@ -34,12 +34,14 @@ export default function LockPreviewText({
   /** The words chosen on the emphasis step, if any. */
   phrase?: string | null;
 }) {
-  const span = phrase ? quoteSpan(text, phrase) : null;
+  const tint = phrasePieces(phrase)
+    .map((piece) => quoteSpan(text, piece))
+    .flatMap((span) => (span && span.start !== null && span.end !== null ? [[span.start, span.end] as [number, number]] : []));
   return (
     <p className="pr-8 text-[15px] leading-relaxed text-foreground">
       <RichText
         text={text}
-        tint={span ? [[span.start, span.end]] : undefined}
+        tint={tint.length > 0 ? tint : undefined}
       />
     </p>
   );

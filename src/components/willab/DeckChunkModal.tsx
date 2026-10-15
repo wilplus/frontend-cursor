@@ -99,7 +99,7 @@ import {
   nextSelection,
   phraseTokens,
   quoteSpan,
-  selectionLength,
+  isPicked,
   selectionText,
   tokensWithinFragment,
   type PhraseSelection,
@@ -1518,14 +1518,11 @@ export default function DeckChunkModal({
          renders while recording — a preview, not a selection colour. */
       <div className="rounded-2xl border border-border px-3 py-4">
         <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
-          {COPY.cardTapWords} · {COPY.emphasisCount(selectionLength(phraseRun))}
+          {COPY.cardTapWords}
         </p>
         <div className="mt-2 flex flex-wrap gap-0.5" data-testid="emphasis-tokens">
           {tokens.map((token, index) => {
-            const picked =
-              phraseRun !== null &&
-              index >= phraseRun.from &&
-              index <= phraseRun.to;
+            const picked = isPicked(phraseRun, index);
             const reachable = canTap(phraseRun, index);
             return (
               <button

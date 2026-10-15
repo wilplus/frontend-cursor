@@ -16,7 +16,7 @@ import {
   canTap,
   nextSelection,
   phraseTokens,
-  selectionLength,
+  isPicked,
   selectionSpan,
   selectionText,
   type PhraseSelection,
@@ -190,7 +190,7 @@ export default function HelperWordsSheet({
       </div>
       {/* THE TAKE CHIPS, newest first, the current one "now". */}
       <p className={EYEBROW}>
-        {COPY.tapWordsFromAnyTake} · {COPY.emphasisCount(selectionLength(run))}
+        {COPY.tapWordsFromAnyTake}
       </p>
       <div className="flex flex-wrap gap-2" data-testid="take-chips">
         {chips.map((c, index) => (
@@ -213,7 +213,7 @@ export default function HelperWordsSheet({
       <div className="rounded-2xl border border-border px-3 py-4">
         <div className="flex flex-wrap gap-0.5" data-testid="picker-tokens">
           {tokens.map((token, index) => {
-            const picked = run !== null && index >= run.from && index <= run.to;
+            const picked = isPicked(run, index);
             const reachable = canTap(run, index);
             return (
               <button

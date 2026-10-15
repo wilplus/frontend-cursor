@@ -39,7 +39,7 @@ import {
   canTap,
   nextSelection,
   phraseTokens,
-  selectionLength,
+  isPicked,
   selectionSpan,
   type PhraseSelection,
 } from "@/lib/willab/phraseTokens";
@@ -629,11 +629,11 @@ function HelperWordsPicker({
       ) : null}
       <div className="rounded-2xl border border-border px-3 py-4">
         <p className={EYEBROW}>
-          {COPY.cardTapWords} · {COPY.emphasisCount(selectionLength(run))}
+          {COPY.cardTapWords}
         </p>
         <div className="mt-2 flex flex-wrap gap-0.5" data-testid="picker-tokens">
           {tokens.map((token, index) => {
-            const picked = run !== null && index >= run.from && index <= run.to;
+            const picked = isPicked(run, index);
             const reachable = canTap(run, index);
             return (
               <button

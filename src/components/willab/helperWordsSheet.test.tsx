@@ -106,20 +106,23 @@ describe("the overlay", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  it("six words at most, from whichever Take is open (B3)", async () => {
+  it("eight words at most, any words, read in the order said (founder 2026-10-15)", async () => {
     await renderSheet(null);
-    // One tap, one word, next to the others (QA4 A, Q-B5 A): six taps make
-    // six words; a word the run cannot reach in one step is greyed.
-    await act(async () => word("The").click());
-    expect(word("window").disabled).toBe(true);
-    expect(word("timing").disabled).toBe(false);
+    // Tapped out of order and apart; saved in the order said, pieces apart.
+    await act(async () => word("price.").click());
     await act(async () => word("timing").click());
     await act(async () => word("matters").click());
-    await act(async () => word("here:").click());
-    await act(async () => word("the").click());
-    await act(async () => word("window").click());
-    expect(container.textContent).toContain("6 of 6 words");
-    // The seventh word cannot be reached.
-    expect(word("shuts").disabled).toBe(true);
+    expect(card().textContent).toContain("timing matters · price");
+    for (const w of ["The", "here:", "window", "shuts", "big"]) {
+      await act(async () => word(w).click());
+    }
+    // Eight are picked; a ninth cannot be.
+    expect(word("players").disabled).toBe(true);
+    await act(async () => use().click());
+    expect(useCurrent.mock.calls[0][0]).toMatchObject({
+      text: "The timing matters here · window shuts · big · price",
+      start: null,
+      end: null,
+    });
   });
 });

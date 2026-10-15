@@ -88,8 +88,9 @@ export async function setPartLock(
 
 export interface RootPhraseSpan {
   text: string;
-  start: number;
-  end: number;
+  /** Null for words picked apart (founder 2026-10-15): no single span. */
+  start: number | null;
+  end: number | null;
 }
 
 function mapRootPhraseSpan(raw: unknown): RootPhraseSpan | null {
