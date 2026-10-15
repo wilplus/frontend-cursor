@@ -35,7 +35,20 @@ vi.mock("@/services/api/consentChoices", async (importOriginal) => ({
   })),
 }));
 
+const training = vi.hoisted(() => ({
+  state: null as null | {
+    available: boolean; active: boolean; policyVersion: string; copy: string; copySha256: string;
+  },
+  set: vi.fn(),
+}));
+vi.mock("@/services/api/trainingConsent", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  fetchTrainingConsent: vi.fn(async () => training.state),
+  setTrainingConsent: training.set,
+}));
+
 import Phase1AcceptanceFlow from "./Phase1AcceptanceFlow";
+import { acceptAuthorization } from "@/services/api/processingAuthorization";
 import {
   type ProcessingPolicy,
 } from "@/services/api/processingAuthorization";
@@ -164,5 +177,66 @@ describe("each step opens at its top", () => {
       expect(host.querySelector("h1")?.textContent).toBe(heading);
       expect(scroller.scrollTop).toBe(0);
     }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  WIL-8 and WIL-9 (founder 2026-10-15).                                      */
+/* -------------------------------------------------------------------------- */
+
+async function walkToConfirm() {
+  await walkToCountry();
+  await click("Poland");
+  await act(async () => {
+    vi.advanceTimersByTime(400);
+  });
+}
+
+describe("the training choice as the third thing", () => {
+  beforeEach(() => {
+    consent.offered = false;
+    training.state = {
+      available: true, active: false, policyVersion: "training-only-v2",
+      copy: "Use my practice text to train.", copySha256: "e".repeat(64),
+    };
+    training.set.mockReset();
+    training.set.mockResolvedValue({ ...training.state, active: true });
+    vi.mocked(acceptAuthorization).mockClear();
+  });
+  afterEach(() => {
+    consent.offered = true;
+    training.state = null;
+  });
+
+  it("is optional: agreeing without it sends no training yes", async () => {
+    await walkToConfirm();
+    expect(host.textContent).toContain("Three things to confirm");
+    await click("I am 18");
+    await click("I agree that");
+    await click("Agree and continue");
+    expect(acceptAuthorization).toHaveBeenCalledTimes(1);
+    expect(training.set).not.toHaveBeenCalled();
+  });
+
+  it("ticked, sends the yes against the sentence shown, after the agreement", async () => {
+    await walkToConfirm();
+    await click("I am 18");
+    await click("I agree that");
+    await click("Use my practice text");
+    await click("Agree and continue");
+    expect(acceptAuthorization).toHaveBeenCalledTimes(1);
+    expect(training.set).toHaveBeenCalledWith(true, training.state);
+  });
+});
+
+describe("Back from the confirm step", () => {
+  it("returns to the country with the answers kept", async () => {
+    await walkToConfirm();
+    await click("I am 18");
+    await click("Back");
+    expect(host.textContent).toContain("Where do you live?");
+    expect(buttonSaying("Poland").getAttribute("aria-pressed")).toBe("true");
+    await click("Continue");
+    expect(buttonSaying("I am 18").getAttribute("aria-pressed")).toBe("true");
   });
 });

@@ -26,6 +26,14 @@ import {
   type Step,
 } from "@/lib/legal/acceptanceSteps";
 import { fetchConsentChoices } from "@/services/api/consentChoices";
+import {
+  fetchTrainingConsent,
+  reportTrainingRefusal,
+  setTrainingConsent,
+  trainingRefusalCode,
+  type TrainingConsent,
+} from "@/services/api/trainingConsent";
+import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  The Phase-1 acceptance screens (Task 5).                                   */
@@ -301,6 +309,22 @@ export default function Phase1AcceptanceFlow({
     });
     return () => { alive = false; };
   }, [policy.policyId]);
+  // Help improve WillpowerLab, offered as the third thing to confirm when
+  // practice is no longer a choice (founder 2026-10-15, WIL-8). Optional,
+  // never pre-ticked and never in `canSubmit`: a training yes that gated the
+  // button would be bundled consent (Art 7(4)). Shown only when the switch
+  // is open and off; a failed read simply leaves it out, and "Turn on the
+  // learning?" still asks before the first Take.
+  const [training, setTraining] = useState<TrainingConsent | null>(null);
+  const [trainingOptIn, setTrainingOptIn] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void fetchTrainingConsent().then((value) => {
+      if (alive && value?.available && value.copy && !value.active) setTraining(value);
+    });
+    return () => { alive = false; };
+  }, [policy.policyId]);
+  const trainingOffered = !practiceOffered && training !== null;
   const [declined, setDeclined] = useState(false);
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -389,6 +413,16 @@ export default function Phase1AcceptanceFlow({
     })
       .then((result) => {
         if (result.kind === "accepted") {
+          // The training yes needs the receipt that now exists, so it is sent
+          // after it. Best effort: a refusal never undoes the agreement, and
+          // the question is asked again before the first Take.
+          if (trainingOffered && trainingOptIn && training) {
+            return setTrainingConsent(true, training).then((saved) => {
+              const code = trainingRefusalCode(saved);
+              if (code) reportTrainingRefusal(code, "ask");
+              onAccepted();
+            });
+          }
           onAccepted();
           return;
         }
@@ -399,7 +433,7 @@ export default function Phase1AcceptanceFlow({
         setFailure(result.message);
       })
       .finally(() => setSaving(false));
-  }, [policy, country, locale, attemptKey, practiceOffered, practiceOptIn, onAccepted, onStale]);
+  }, [policy, country, locale, attemptKey, practiceOffered, practiceOptIn, trainingOffered, trainingOptIn, training, onAccepted, onStale]);
 
   /* EVERY STEP OPENS AT ITS TOP AND FADES IN (consent lock 2026-10-07; the
      prototype's render(): a new step resets the scroller and enters over
@@ -558,7 +592,7 @@ export default function Phase1AcceptanceFlow({
         <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
           <VoiceMark small />
           <h1 className="max-w-[22ch] text-[27px] font-semibold leading-tight tracking-tight text-foreground">
-            {practiceOffered ? "Three things to confirm" : "Two things to confirm"}
+            {practiceOffered || trainingOffered ? "Three things to confirm" : "Two things to confirm"}
           </h1>
           <div className="mt-6 flex w-full max-w-[400px] flex-col gap-2">
             {/* The minimum comes from the policy, never a constant here: a screen
@@ -616,6 +650,29 @@ export default function Phase1AcceptanceFlow({
             </Choice>
           </div> : null}
 
+          {/* The third thing when practice is part of the service: the
+              training switch, as its signed lines and its fingerprinted
+              sentence (the same yes as the Data & consent card). */}
+          {trainingOffered && training ? <div className="mt-5 flex w-full max-w-[400px] flex-col gap-2">
+            <p className="text-left text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
+              Optional
+            </p>
+            <ul className="list-disc space-y-1 pl-5 text-left text-[13px] leading-relaxed text-muted-foreground">
+              {DATA_CONSENT_COPY.trainingBeforeLines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <Choice
+              indicator="check"
+              selected={trainingOptIn}
+              onClick={() => setTrainingOptIn((v) => !v)}
+            >
+              <span className="block text-[14.5px] leading-snug text-foreground">
+                {training.copy}
+              </span>
+            </Choice>
+          </div> : null}
+
           {failure ? (
             <p
               role="alert"
@@ -630,6 +687,8 @@ export default function Phase1AcceptanceFlow({
               {saving ? "Saving…" : "Agree and continue"}
             </Cta>
             <Secondary onClick={() => setDeclined(true)}>Do not agree</Secondary>
+            {/* Back to the country, every tick kept (WIL-9). */}
+            <Secondary onClick={() => go(previousStep("confirm"))}>Back</Secondary>
           </div>
         </div>
       </div>

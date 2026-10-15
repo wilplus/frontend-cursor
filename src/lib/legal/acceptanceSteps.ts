@@ -136,6 +136,10 @@ export function countryChoices(
     } catch {
       label = upper;
     }
+    // The United States is open to California residents only (Terms 3.6
+    // §4, founder 2026-10-15, WIL-7), so the row says so: the code stays
+    // 'us', which is what the policy allows and the receipt records.
+    if (code === SECOND_CHOICE) label = `${label} (California)`;
     rows.push({ code, label });
   }
   // PARTITION, NOT A SPECIAL CASE IN THE COMPARATOR. A comparator that treats

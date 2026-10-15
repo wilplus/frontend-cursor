@@ -54,6 +54,8 @@ describe("the optional practice purposes", () => {
 describe("countryChoices", () => {
   it("lists Poland first and the United States right below it, the rest by name", () => {
     const p = policy({ allowedCountries: ["de", "us", "at", "pl"] });
-    expect(countryChoices(p, "en").map((c) => c.code)).toEqual(["pl", "us", "at", "de"]);
+    const rows = countryChoices(p, "en");
+    expect(rows.map((c) => c.code)).toEqual(["pl", "us", "at", "de"]);
+    expect(rows[1].label).toBe("United States (California)");
   });
 });
