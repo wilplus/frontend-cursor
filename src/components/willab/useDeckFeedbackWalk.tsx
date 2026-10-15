@@ -8,6 +8,7 @@ import type { WalkStep } from "@/lib/willab/walkPlan";
 import type { WalkBankKey } from "@/lib/willab/walkLines";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import FeedbackWalk, {
+  walkBackFrom,
   type FeedbackWalkHelperWords,
   type FeedbackWalkRequest,
   type WalkAiShown,
@@ -907,6 +908,24 @@ export function useDeckFeedbackWalk(args: {
     openAt(at, false, lensRef.current);
     return true;
   }, [replaying, items.length, model, openAt]);
+  // ‹ GOES TO WHAT WAS ANSWERED (founder 2026-10-15, "I can not go there and
+  // back in the walk"): the live walk holds only what still waits, so on its
+  // first screen ‹ plays the step before it again, read only, as the lens
+  // shows it; › from there comes back to what waits (onForward).
+  const before = useCallback(
+    (step: WalkStep, partId: string | null): (() => void) | null => {
+      if (replaying || !replayNow) return null;
+      const here = walkStepAt(replayNow, { step: step.key, moment: null, part: partId ?? undefined });
+      const to = here === null ? null : walkBackFrom(replayNow.plan, here);
+      if (to === null) return null;
+      const again = replayNow;
+      return () => {
+        setReplaying(again);
+        openAt(to, false, lensRef.current);
+      };
+    },
+    [replaying, replayNow, openAt],
+  );
   /** The walk showed the coach's note or a moment: the server hears it once
    *  per opening, behind the screen, and the Lounge's "new" clears. */
   const onShown = useCallback(
@@ -985,6 +1004,7 @@ export function useDeckFeedbackWalk(args: {
           summary={summary}
           onEnd={onEnd}
           onForward={onForward}
+          before={before}
           onClose={onClose}
           lines={lineBankIO}
           onShown={onShown}
@@ -1008,6 +1028,7 @@ export function useDeckFeedbackWalk(args: {
       journal,
       onEnd,
       onForward,
+      before,
       onClose,
       onShown,
       onAnswer,
