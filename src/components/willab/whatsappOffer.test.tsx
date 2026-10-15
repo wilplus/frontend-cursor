@@ -22,7 +22,7 @@ import { WhatsAppOfferActions, WHATSAPP_COPY } from "./WillabWhatsAppPrompt";
 
 let container: HTMLDivElement;
 let root: Root;
-const offer = { canOffer: true, softDismiss: vi.fn(), markSaved: vi.fn() };
+const offer = { canOffer: true, phone: null, softDismiss: vi.fn(), markSaved: vi.fn() };
 const onResolve = vi.fn();
 
 beforeEach(() => {
@@ -64,7 +64,7 @@ describe("WhatsApp offer", () => {
     type("+44 7700 900-123");
     await press(WHATSAPP_COPY.save);
     expect(api.saveWhatsAppPhone).toHaveBeenCalledWith("+447700900123");
-    expect(offer.markSaved).toHaveBeenCalled();
+    expect(offer.markSaved).toHaveBeenCalledWith("+447700900123");
     expect(onResolve).toHaveBeenCalled();
   });
 
