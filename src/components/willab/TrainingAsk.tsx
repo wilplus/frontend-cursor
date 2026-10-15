@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { getAuthToken } from "@/lib/api/auth-client";
 import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
 import LoadingState from "./LoadingState";
+import TrainingReadMore from "@/components/legal/TrainingReadMore";
 import {
   fetchTrainingConsent,
   reportTrainingRefusal,
@@ -23,10 +24,10 @@ import {
 /*  records nothing and is not remembered: the founder chose "each time" over */
 /*  once-and-remember on 2026-10-03 (backend decisions log N28).              */
 /*                                                                            */
-/*  The yes is the signed training consent itself (13-…-SIGNED-2026-10-01):   */
-/*  the eight lines and the backend's sentence render above the question's   */
-/*  answer, and the yes is sent against that sentence's fingerprint, exactly  */
-/*  as the account card sends it. Nothing is pre-ticked.                      */
+/*  The yes is the signed training consent itself (wording v4, 27-…): the    */
+/*  backend's sentence and Read more render above the answer, and the yes is */
+/*  sent against that sentence's fingerprint, exactly as the account card    */
+/*  sends it. Nothing is pre-ticked.                                          */
 /*                                                                            */
 /*  NEVER A GATE ON THE LIVE LOOP: the switch closed, already on, a guest, a  */
 /*  slow or failed read — every one of them passes straight through to the   */
@@ -34,7 +35,8 @@ import {
 /* -------------------------------------------------------------------------- */
 
 export const TRAINING_ASK_COPY = {
-  question: "Turn on the learning?",
+  // Training wording v4 (founder, consent prototype, 2026-10-15).
+  question: DATA_CONSENT_COPY.trainingQuestion,
   yes: "Yes",
   skip: "Skip",
   failed: DATA_CONSENT_COPY.failed,
@@ -184,12 +186,9 @@ export default function TrainingAsk({ onDone }: { onDone: () => void }) {
         <h2 className="text-[20px] font-semibold text-foreground">
           {TRAINING_ASK_COPY.question}
         </h2>
-        <ul className="mt-5 list-disc space-y-1 pl-5 text-[15px] leading-relaxed text-muted-foreground">
-          {DATA_CONSENT_COPY.trainingBeforeLines.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-        <p className="mt-5 text-[15px] leading-[1.65] text-foreground">{shown.copy}</p>
+        <p className="mt-4 text-[15px] leading-[1.65] text-muted-foreground">
+          {shown.copy} <TrainingReadMore />
+        </p>
         <button
           type="button"
           disabled={busy}

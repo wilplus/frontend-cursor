@@ -34,6 +34,7 @@ import {
   type TrainingConsent,
 } from "@/services/api/trainingConsent";
 import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
+import TrainingReadMore from "@/components/legal/TrainingReadMore";
 
 /* -------------------------------------------------------------------------- */
 /*  The Phase-1 acceptance screens (Task 5).                                   */
@@ -247,8 +248,15 @@ function DocumentPane({
      fallback where dvh is unknown. The gate pads the notch
      (env(safe-area-inset-top)), so the pane is that much shorter than the
      screen and its buttons stay on it. */
+  /* ON A COMPUTER, A WINDOW (founder 2026-10-15, consent prototype): the
+     document sits in a fixed-height window in the middle of the screen, so
+     its buttons are always in the same place and only the text scrolls.
+     `supports-[height:100dvh]` makes the phone's real visible height win:
+     two plain h- classes are ordered by the stylesheet, not by this list, and
+     100vh won there, which let a phone's toolbar cover the buttons. */
   return (
-    <div className="flex h-[calc(100vh-env(safe-area-inset-top))] h-[calc(100dvh-env(safe-area-inset-top))] flex-col overflow-hidden px-6 pb-6 pt-8">
+    <div className="flex h-[calc(100vh-env(safe-area-inset-top))] flex-col supports-[height:100dvh]:h-[calc(100dvh-env(safe-area-inset-top))] md:items-center md:justify-center md:bg-muted md:px-6 md:py-8">
+    <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden px-6 pb-6 pt-8 md:max-h-[44rem] md:max-w-[46rem] md:rounded-2xl md:border md:border-border md:bg-background md:shadow-sm">
       <div className="shrink-0 border-b border-border pb-4">
         <h1 className="text-[24px] font-semibold tracking-tight text-foreground">
           {title}
@@ -261,9 +269,10 @@ function DocumentPane({
         {document.copy}
       </div>
       <div className="flex shrink-0 flex-col items-center pt-4">
-        <Cta onClick={onDone}>Done reading</Cta>
+        <Cta onClick={onDone}>Continue</Cta>
         <Secondary onClick={onBack}>Back</Secondary>
       </div>
+    </div>
     </div>
   );
 }
@@ -603,7 +612,7 @@ export default function Phase1AcceptanceFlow({
               onClick={() => setAge((v) => !v)}
             >
               <span className="block text-[14.5px] leading-snug text-foreground">
-                I am {policy.minimumAge} or older.
+                I am {policy.minimumAge} or older. *
               </span>
             </Choice>
             {/* Separate from the age tick on purpose. This is the Art 9(2)(a)
@@ -614,10 +623,11 @@ export default function Phase1AcceptanceFlow({
               onClick={() => setSensitive((v) => !v)}
             >
               <span className="block text-[14.5px] leading-snug text-foreground">
-                I agree that a recording of me speaking may reveal sensitive
-                information about me, and I consent to WillpowerLab processing my
-                recordings where it does. I can withdraw this at any time, which
-                ends my use of recording.
+                {/* The founder's wording (consent prototype, 2026-10-15).
+                    Engineering's note, recorded for counsel in the backend
+                    pack (25 §9): this is the Art 9(2)(a) tick, and it no
+                    longer names sensitive information. */}
+                I agree that WillpowerLab may process my recordings. *
               </span>
             </Choice>
           </div>
@@ -651,24 +661,26 @@ export default function Phase1AcceptanceFlow({
           </div> : null}
 
           {/* The third thing when practice is part of the service: the
-              training switch, as its signed lines and its fingerprinted
-              sentence (the same yes as the Data & consent card). */}
-          {trainingOffered && training ? <div className="mt-5 flex w-full max-w-[400px] flex-col gap-2">
-            <p className="text-left text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-              Optional
+              training choice, as training wording v4 has it (founder,
+              consent prototype, 2026-10-15). The sentence is the backend's,
+              fingerprinted; Read more opens Privacy section 4a. No
+              "Optional" label and no asterisk: it is the one tick that may
+              be left alone. */}
+          {trainingOffered && training ? <div className="mt-8 flex w-full max-w-[400px] flex-col gap-3 text-left">
+            <p className="text-[16px] font-semibold leading-snug text-foreground">
+              {DATA_CONSENT_COPY.trainingQuestion}
             </p>
-            <ul className="list-disc space-y-1 pl-5 text-left text-[13px] leading-relaxed text-muted-foreground">
-              {DATA_CONSENT_COPY.trainingBeforeLines.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
+            <p className="text-[14px] leading-relaxed text-muted-foreground">
+              {training.copy}{" "}
+              <TrainingReadMore privacy={{ copy: policy.privacy.copy, version: policy.privacy.version }} />
+            </p>
             <Choice
               indicator="check"
               selected={trainingOptIn}
               onClick={() => setTrainingOptIn((v) => !v)}
             >
               <span className="block text-[14.5px] leading-snug text-foreground">
-                {training.copy}
+                {DATA_CONSENT_COPY.trainingYes}
               </span>
             </Choice>
           </div> : null}
@@ -687,8 +699,6 @@ export default function Phase1AcceptanceFlow({
               {saving ? "Saving…" : "Agree and continue"}
             </Cta>
             <Secondary onClick={() => setDeclined(true)}>Do not agree</Secondary>
-            {/* Back to the country, every tick kept (WIL-9). */}
-            <Secondary onClick={() => go(previousStep("confirm"))}>Back</Secondary>
           </div>
         </div>
       </div>

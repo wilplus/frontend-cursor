@@ -108,9 +108,9 @@ async function walkToCountry(priorCountry?: string | null) {
     );
   });
   await click("Continue");        // notice -> terms
-  await click("Done reading");    // terms  -> privacy
-  await click("Done reading");    // privacy-> ai
-  await click("Done reading");    // ai     -> country
+  await click("Continue");        // terms  -> privacy
+  await click("Continue");        // privacy-> ai
+  await click("Continue");        // ai     -> country
   expect(host.textContent).toContain("Where do you live?");
 }
 
@@ -170,7 +170,7 @@ describe("each step opens at its top", () => {
     await walkToCountry();
     for (const [action, heading] of [
       ["Back", "How AI is used here"],
-      ["Done reading", "Where do you live?"],
+      ["Continue", "Where do you live?"],
     ] as const) {
       scroller.scrollTop = 600;
       await click(action);
@@ -222,21 +222,9 @@ describe("the training choice as the third thing", () => {
     await walkToConfirm();
     await click("I am 18");
     await click("I agree that");
-    await click("Use my practice text");
+    await click("Yes, make it so much better");
     await click("Agree and continue");
     expect(acceptAuthorization).toHaveBeenCalledTimes(1);
     expect(training.set).toHaveBeenCalledWith(true, training.state);
-  });
-});
-
-describe("Back from the confirm step", () => {
-  it("returns to the country with the answers kept", async () => {
-    await walkToConfirm();
-    await click("I am 18");
-    await click("Back");
-    expect(host.textContent).toContain("Where do you live?");
-    expect(buttonSaying("Poland").getAttribute("aria-pressed")).toBe("true");
-    await click("Continue");
-    expect(buttonSaying("I am 18").getAttribute("aria-pressed")).toBe("true");
   });
 });
