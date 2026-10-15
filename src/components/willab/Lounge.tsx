@@ -56,6 +56,7 @@ import LoadingState, { VoiceMark } from "./LoadingState";
 import { PROCESSING_STAGES } from "./ProcessingWait";
 import FeedbackOverlay from "./FeedbackOverlay";
 import IdealTextOverlay, { type IdealTextLaunchMode } from "./IdealTextOverlay";
+import { lensAddress } from "@/lib/willab/lensScreen";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import LibraryOverlay from "./LibraryOverlay";
 import {
@@ -152,7 +153,7 @@ export default function Lounge({
   dispatch,
   initialBestPresentationArcId = null,
   initialIdealTextArcId = null,
-  initialIdealTextFeedback = false,
+  initialIdealTextMode = null,
   recordingProgress = null,
 }: {
   state: WillabState;
@@ -171,8 +172,9 @@ export default function Lounge({
   /** When set (from /chat?idealArc=<arc_id>), open the IdealTextOverlay for
    *  that arc once on mount — the coach-feedback email's CTA. */
   initialIdealTextArcId?: string | null;
-  /** With `&feedback=1`, open that notebook on the coach's feedback. */
-  initialIdealTextFeedback?: boolean;
+  /** With `&feedback=1` or `?lens=`, open that notebook on the coach's
+   *  feedback; with `?lens=&mode=review`, on the review. */
+  initialIdealTextMode?: "feedback" | "review" | null;
   /** Seed from the upload response; reserved for future per-take state. */
   recordingProgress?: RecordingProgress | null;
 }) {
@@ -350,7 +352,6 @@ export default function Lounge({
     }
     setIdealTextLaunchMode(mode);
     setIdealTextArcId(arcId);
-    lensAddress(mode === "review" || mode === "feedback" ? arcId : null);
   }
 
   // D3 — user results email deep-link (/chat?insight=<id>): open the insights
@@ -381,9 +382,12 @@ export default function Lounge({
   useEffect(() => {
     if (idealLinkOpenedRef.current || !initialIdealTextArcId) return;
     idealLinkOpenedRef.current = true;
-    if (initialIdealTextFeedback) setIdealTextLaunchMode("feedback");
+    if (initialIdealTextMode) setIdealTextLaunchMode(initialIdealTextMode);
+    // The link's lens comes off the entry under the overlay, which sets it
+    // on its own: closing it never lands back on the lens.
+    lensAddress(null);
     setIdealTextArcId(initialIdealTextArcId);
-  }, [initialIdealTextArcId, initialIdealTextFeedback]);
+  }, [initialIdealTextArcId, initialIdealTextMode]);
 
   // Wave-3 — no standing / every-visit offer. The proactive strong-sides nudge
   // fires once at the post-send moment (A-4 / B-2); otherwise the bot stays
@@ -1620,7 +1624,6 @@ export default function Lounge({
             if (thread.signedIn) void refreshNewCoachFeedback();
             setIdealTextArcId(null);
             setIdealTextLaunchMode("notebook");
-            lensAddress(null);
           }}
           // SD — "Read it aloud": the re-read is just another recording. Seed
           // THIS presentation (only when the cache holds a different arc; the
@@ -2644,14 +2647,4 @@ export function forwardMarginWheel(scroller: () => HTMLElement | null): () => vo
   };
   window.addEventListener("wheel", onWheel, { passive: true });
   return () => window.removeEventListener("wheel", onWheel);
-}
-
-/** The lens screen's address in the bar (`?lens=<arc_id>`), set while it is
- *  open, so it can be reopened from the link (founder 2026-10-14). */
-function lensAddress(arcId: string | null): void {
-  if (typeof window === "undefined") return;
-  const url = new URL(window.location.href);
-  if (arcId) url.searchParams.set("lens", arcId);
-  else url.searchParams.delete("lens");
-  window.history.replaceState(window.history.state, "", url);
 }

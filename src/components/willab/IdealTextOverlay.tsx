@@ -63,7 +63,7 @@ import {
   type IdealTextSd,
 } from "./idealTextLoad";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { LENS_IDLE_MS, LENS_WATCHDOG_MS, WALK_STEP_SELECTOR, lensIdle } from "@/lib/willab/lensScreen";
+import { LENS_IDLE_MS, LENS_WATCHDOG_MS, WALK_STEP_SELECTOR, lensAddress, lensIdle } from "@/lib/willab/lensScreen";
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
 import IdealTextMenu, { FeedbackLoadingLine } from "./IdealTextMenu";
@@ -148,6 +148,13 @@ export default function IdealTextOverlay({
   // D-3 invariant — the device Back gesture closes THIS overlay (LIFO with the
   // nested FeedbackOverlay, which pushes its own entry on top).
   useBackDismiss(onClose);
+  // The lens's address goes on the Back entry just pushed, after it exists,
+  // and comes off on every close (✕, Back, the next Take).
+  useEffect(() => {
+    if (initialMode !== "review" && initialMode !== "feedback") return;
+    lensAddress(arcId, initialMode);
+    return () => lensAddress(null);
+  }, [arcId, initialMode]);
   // Founder 2026-07-29 — the notebook is ALWAYS the live, editable document.
   // The old "historical" read-only step (FE-3b, ?version) is gone: a version
   // bubble is a history marker, not a frozen destination.
@@ -290,8 +297,12 @@ export default function IdealTextOverlay({
   const [replayReady, setReplayReady] = useState(false);
   const [replayRequest, setReplayRequest] = useState(0);
   const reviewOpenedRef = useRef(false);
+  // The coach's link opens only what the coach sent; with nothing of theirs
+  // to show once the feedback settled, it is the review.
+  const [coachOnly, setCoachOnly] = useState(initialMode === "feedback");
   useEffect(() => {
     reviewOpenedRef.current = false;
+    setCoachOnly(initialMode === "feedback");
   }, [arcId, initialMode]);
   // The lens comes down as soon as the page knows there is nothing to walk
   // (founder 2026-10-14): the feedback settled and no step is opening.
@@ -307,7 +318,7 @@ export default function IdealTextOverlay({
     // words and moment sentences open anything (lock 2026-10-12, section 4).
     if ((initialMode !== "review" && initialMode !== "feedback") || reviewOpenedRef.current) return;
     // A helper-words bubble, or the coach's: the deck opens it itself.
-    if (reviewAt?.step === "helpers" || initialMode === "feedback") return;
+    if (reviewAt?.step === "helpers" || coachOnly) return;
     // After a Take (no step asked for) the review is the live walk: wait
     // for its moments, which can land after the text, rather than settle
     // on the finished one. An answered step tapped in the chat replays.
@@ -315,7 +326,7 @@ export default function IdealTextOverlay({
     else if (replayReady && reviewAt && !feedbackPending) setReplayRequest((n) => n + 1);
     else return;
     reviewOpenedRef.current = true;
-  }, [initialMode, reviewWaiting, replayReady, reviewAt, feedbackPending]);
+  }, [initialMode, coachOnly, reviewWaiting, replayReady, reviewAt, feedbackPending]);
 
   useEffect(() => {
     let active = true;
@@ -1007,8 +1018,10 @@ export default function IdealTextOverlay({
             replayRequest={replayRequest}
             onReplayReady={setReplayReady}
             onLensClose={onClose}
-            coachOnly={initialMode === "feedback"}
-            onWalkEnd={walkEndFor(initialMode, onClose, lens.reveal)}
+            coachOnly={coachOnly}
+            onCoachOnlyEmpty={() => setCoachOnly(false)}
+            onLensReveal={lens.reveal}
+            onWalkEnd={walkEndFor(coachOnly, onClose, lens)}
             onWalkClose={() => {
               if (lens.onRef.current) onClose();
             }}
@@ -1290,7 +1303,12 @@ function lensHides(on: boolean): string {
 }
 
 /** Where the walk's end lands: the coach-only walk goes back to the chat,
- *  every other walk runs onto the Ideal Text (founder 2026-10-14). */
-function walkEndFor(mode: IdealTextLaunchMode | undefined, close: () => void, reveal: () => void): () => void {
-  return mode === "feedback" ? close : reveal;
+ *  every other walk runs onto the Ideal Text (founder 2026-10-14). A step
+ *  opened from the text, once the lens is off, ends on the text. */
+function walkEndFor(
+  coachOnly: boolean,
+  close: () => void,
+  lens: { onRef: { current: boolean }; reveal: () => void },
+): () => void {
+  return () => (coachOnly && lens.onRef.current ? close() : lens.reveal());
 }

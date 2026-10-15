@@ -254,6 +254,8 @@ export default function TranscriptReviewDeck({
   onWalkEnd,
   onWalkClose,
   coachOnly = false,
+  onCoachOnlyEmpty,
+  onLensReveal,
   renderNextStep,
   feedbackPending = false,
   takeCount = null,
@@ -359,6 +361,10 @@ export default function TranscriptReviewDeck({
   /** Opened from the coach's bubble: the walk shows only what the coach
    *  sent, and opens on it at once (founder 2026-10-14). */
   coachOnly?: boolean;
+  /** The feedback settled and the coach-only walk has nothing to open. */
+  onCoachOnlyEmpty?: () => void;
+  /** The lens screen comes down and the text shows (the host's own). */
+  onLensReveal?: () => void;
   /** The host's next step (the next take, or See next steps), drawn on the
    *  card after the last moment of the walk. Absent → the card offers only
    *  the way back to the text. */
@@ -754,26 +760,31 @@ export default function TranscriptReviewDeck({
   }, [deckReady, firstWaiting, coachWordWaiting, onReviewWaiting]);
   // A helper-words bubble opens its helper words as soon as the deck is
   // up, without waiting on the moments or the answers (founder 2026-10-14).
-  // The coach-only walk opens on the coach's first word as soon as there is
-  // one (founder 2026-10-14).
+  // The coach-only walk opens on the coach's first word (founder
+  // 2026-10-14) once the feedback has settled: the walk keeps the steps it
+  // opens with, and the coach's answers can land with the feedback.
   const coachOpenedRef = useRef(false);
   useEffect(() => {
-    if (!coachOnly || !deckReady || coachOpenedRef.current) return;
-    if (feedbackWalk.review(null)) coachOpenedRef.current = true;
-  }, [coachOnly, deckReady, feedbackWalk]);
+    if (!coachOnly || !deckReady || feedbackPending || coachOpenedRef.current) return;
+    coachOpenedRef.current = true;
+    if (!feedbackWalk.review(null)) onCoachOnlyEmpty?.();
+  }, [coachOnly, deckReady, feedbackPending, feedbackWalk, onCoachOnlyEmpty]);
   const helpersOpenedRef = useRef<string | null>(null);
   useEffect(() => {
     const part = reviewAt?.step === "helpers" ? reviewAt.part : null;
     if (!deckReady || !part || helpersOpenedRef.current === part) return;
     helpersOpenedRef.current = part;
-    feedbackWalk.openHelpers(part);
-  }, [deckReady, reviewAt, feedbackWalk]);
+    if (!feedbackWalk.openHelpers(part)) onLensReveal?.();
+  }, [deckReady, reviewAt, feedbackWalk, onLensReveal]);
   const reviewSeenRef = useRef(reviewRequest);
   useEffect(() => {
     if (reviewRequest === reviewSeenRef.current) return;
     reviewSeenRef.current = reviewRequest;
     // The Feedback walk, when it has a screen to show.
     if (feedbackWalk.review(reviewAt)) return;
+    // The older sheets below open inside the text, under the lens screen:
+    // the text comes up first.
+    onLensReveal?.();
     // Step 0 first when the coach left a message; its Continue opens the walk.
     if (coachStep.show()) return;
     // TOP TO BOTTOM (founder lock 2026-09-30, B8): the walk visits the
@@ -782,7 +793,7 @@ export default function TranscriptReviewDeck({
     if (firstWaiting >= 0) walk.openAt(0);
     // reviewAt rides with the request.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reviewRequest, firstWaiting, walk, coachStep, feedbackWalk]);
+  }, [reviewRequest, firstWaiting, walk, coachStep, feedbackWalk, onLensReveal]);
   /* THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A): the
      link under "Record Take N" is offered only once nothing waits and the
      walk has a screen to play; its tap plays it with the answers as given. */

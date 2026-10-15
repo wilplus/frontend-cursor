@@ -885,9 +885,10 @@ export function useDeckFeedbackWalk(args: {
     if (ended && request === null) postEnd();
   }, [ended, request, postEnd]);
   const onEnd = useCallback(() => {
-    if (practisingRef.current) return;
+    // A paragraph's own practise or helper words end nothing either, but
+    // the page still hears it: a lens opened on them shows the text then.
     // The coach-only walk is not the review: it ends nothing.
-    if (!live.current.coachOnly) postEnd();
+    if (!practisingRef.current && !live.current.coachOnly) postEnd();
     live.current.onEnd?.();
   }, [postEnd]);
   const onClose = useCallback(() => {
