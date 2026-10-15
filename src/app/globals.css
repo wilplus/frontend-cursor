@@ -390,6 +390,12 @@ button,
 .walk-m-dark {
   animation: walk-fade 0.4s ease both;
 }
+/* A bubble that lands inside a screen that stays put (the AI voice's
+   Exercise bubble after the typing dots; founder 2026-10-15): the fade's
+   own lift, no leaving copy. */
+.walk-bubble-in {
+  animation: walk-fade-up 0.34s var(--walk-ease-arrive) both;
+}
 
 /* Desktop (founder 2026-10-08, Q-WALK-DESK A): the Feedback walk is the
    phone's column, centred on the same white. The overlay keeps the whole

@@ -41,19 +41,22 @@ export default function WalkMessage({
   children,
   coach = false,
   wide = false,
+  className,
 }: {
   children: ReactNode;
   /** The coach's bubble: their avatar tone. */
   coach?: boolean;
   /** The bubble takes the whole row (another speaker's clip, a video). */
   wide?: boolean;
+  /** A move of the row's own (the AI bubble landing after the typing dots). */
+  className?: string;
 }) {
   return (
     <div
       data-walk-message
       data-row="app"
       data-walk-coach={coach ? "true" : undefined}
-      className={cn("flex items-end gap-[7px] text-[18.5px] leading-[1.45] text-foreground", wide ? "max-w-full" : "max-w-[94%]")}
+      className={cn("flex items-end gap-[7px] text-[18.5px] leading-[1.45] text-foreground", wide ? "max-w-full" : "max-w-[94%]", className)}
     >
       {/* Only the coach has an avatar (founder 2026-10-14). */}
       {coach ? (

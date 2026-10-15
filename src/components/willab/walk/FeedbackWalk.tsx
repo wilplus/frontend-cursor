@@ -249,10 +249,14 @@ export default function FeedbackWalk<R = unknown>({
     },
     [],
   );
-  /** Move to `to` on `steps`; the page underneath ends the walk. */
+  /** Move to `to` on `steps`; the page underneath ends the walk. A try
+   *  played again is never stood on: its recorder and check are passed over
+   *  to the answer it got (walk first, 2026-10-14). */
   const land = useCallback(
     (steps: readonly WalkStep[], to: number, how: WalkDir | undefined) => {
-      const at2 = Math.max(0, Math.min(to, steps.length - 1));
+      const clamp = (i: number) => Math.max(0, Math.min(i, steps.length - 1));
+      let at2 = clamp(to);
+      while (steps[at2]?.replay && (steps[at2].key === "practise" || steps[at2].key === "processing")) at2 = clamp(at2 + 1);
       go(at2, how);
       if (steps[at2]?.overlay === false) onEnd();
     },
@@ -303,6 +307,7 @@ export default function FeedbackWalk<R = unknown>({
     [guest, onGuest, guestBlock],
   );
 
+  const replayTries = walk.replay?.tries;
   const practise = useWalkPractise<R>({
     io: practiseIO,
     plan,
@@ -311,6 +316,7 @@ export default function FeedbackWalk<R = unknown>({
     blocked,
     relay,
     readLimitMs,
+    replayPracticeOf: (moment) => replayTries?.[moment]?.practiceId,
   });
   // What the speaker now sees, for the host (D-FW-19): only once the walk
   // was asked open, and only an overlay screen; with its AI bubble, once
@@ -362,6 +368,12 @@ export default function FeedbackWalk<R = unknown>({
     if (given) return given;
     if (!s.replay) return null;
     if (s.key === "clearer") return walk.moments[s.moment ?? -1]?.clearer?.decided ?? "answered";
+    // A "not yet" played again: practised again when a try follows it, else
+    // skipped there.
+    if (s.key === "encourage") {
+      const next = plan[plan.indexOf(s) + 1];
+      return next?.key === "practise" && next.moment === s.moment ? "again" : "skip";
+    }
     return "answered";
   };
   /** ✕ on the recorder: back to the step that opened it, unanswered; with
@@ -867,7 +879,8 @@ function ThreadEnd({ count }: { count: number }) {
 }
 
 /** No video fits this problem: the AI clip in the video's place (N71), the
- *  breathing mark while it is being made. Otherwise the locked Exercise. */
+ *  bubble there at once with the typing dots while the clip is being made
+ *  (founder 2026-10-15). Otherwise the locked Exercise. */
 function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
   const state = ctx.practise.aiVoiceOf(moment.index);
   const ai = aiVoiceShown(ctx.walk.plan, ctx.at(step), state);
@@ -878,6 +891,7 @@ function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
       seed={`ai-ex-${moment.index}`}
       state={state}
       {...lines}
+      arrive
       onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
     />
   );
@@ -935,6 +949,7 @@ function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep, backFromPractise: ()
     answered: ctx.answered,
     answer: ctx.answer,
     say: ctx.say,
+    replayTries: ctx.walk.replay?.tries,
     ...ctx.practise,
   };
   if (threadStart(ctx.walk.plan, ctx.at(step)) >= 0) return Thread(ctx, step, moment, practiseCtx);

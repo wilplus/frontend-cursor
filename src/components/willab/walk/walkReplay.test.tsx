@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 /* -------------------------------------------------------------------------- */
-/*  The finished walk, played again (founder 2026-10-08, Q-IT643b A): the      */
-/*  same screens with the answers as given; a tap that would write moves on   */
-/*  instead; a judgement may still be changed (D-FW-9).                        */
+/*  The finished walk, played again (founder 2026-10-08, Q-IT643b A; walk      */
+/*  first, 2026-10-14): the same screens with the answers as given; a tap     */
+/*  that would write moves on instead; an exercise already done plays its     */
+/*  tries and records none.                                                   */
 /* -------------------------------------------------------------------------- */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -10,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WALK_COPY } from "../idealEditCopy";
 import FeedbackWalk from "./FeedbackWalk";
 import type { WalkJudgementSave } from "./useWalkJudging";
-import { buildFeedbackReplay, walkStart, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
+import { buildFeedbackReplay, walkStart, walkStepAt, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 import type { WalkPractiseIO } from "@/services/api/walkPractise";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -73,6 +74,11 @@ function draw() {
     practiceOn: true,
     answerOf: (item) => ({ "cv-1": "yes", "cv-2": "no" } as const)[item as "cv-1" | "cv-2"] ?? null,
     helperWordsOf: (partId) => (partId === "p1" ? "growth doubled" : null),
+    // The exercise was practised twice: "not yet", then praise.
+    triesOf: (moment) =>
+      moment.partId === "p3"
+        ? { practiceId: null, outcomes: ["again", "praise"], audios: { 1: { url: "blob:try-1", durationMs: 4000 }, 2: { url: "blob:try-2", durationMs: 4200 } } }
+        : null,
   });
   const props = {
     model,
@@ -126,7 +132,36 @@ describe("the finished walk, played again", () => {
     click(byTestId("walk-forward"));
     expect(screen()).toBe("walk-screen-exVideo");
     expect(live()!.textContent).toContain(WALK_COPY.answered);
+    // The exercise already done plays its tries (walk first, 2026-10-14):
+    // each "Practise N" with its own voice and the answer it got, the
+    // recorder passed over, nothing recorded and nothing asked.
     click(byTestId("walk-forward"));
+    expect(screen()).toBe("walk-screen-encourage");
+    const voices = () => [...live()!.querySelectorAll("[data-walk-player][data-walk-me] audio")].map((a) => a.getAttribute("src"));
+    expect(voices()).toEqual([clip.src, "blob:try-1"]);
+    expect(live()!.textContent).toContain(WALK_COPY.practiseN(1));
+    expect(live()!.textContent).toContain(WALK_COPY.answeredPractised);
+    expect(byTestId("walk-stop")).toBeNull();
+    click(byTestId("walk-forward"));
+    expect(screen()).toBe("walk-screen-improved");
+    expect(voices()).toEqual([clip.src, "blob:try-1", "blob:try-2"]);
+    expect(live()!.textContent).toContain(WALK_COPY.practiseN(2));
+    click(byTestId("walk-forward"));
+    expect(screen()).not.toBe("walk-screen-practise");
     expect(calls).toEqual(["helpers"]);
+  });
+
+  it("a try tapped in the chat opens its exercise on the last answer, the whole thread on screen", () => {
+    const model = buildFeedbackReplay<string>({
+      items: ITEMS,
+      coachNote: false,
+      practiceOn: true,
+      answerOf: () => null,
+      helperWordsOf: () => null,
+      triesOf: (moment) => (moment.partId === "p3" ? { practiceId: null, outcomes: ["again"], audios: {} } : null),
+    });
+    const at = walkStepAt(model, { step: "exVideo", moment: null, part: "p3" });
+    expect(at).not.toBeNull();
+    expect(model.plan[at!].key).toBe("encourage");
   });
 });
