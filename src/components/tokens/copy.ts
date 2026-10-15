@@ -132,6 +132,8 @@ export const TOKENS_COPY = {
   topUpChip: (tier: string, tokens: string) => `${tier} · ${tokens} tokens`,
   topUpChipPrice: (usd: number) => `$${usd}`,
   topUpDismiss: "Not now",
+  /** The ask's black button (founder 2026-10-15, unified asks). */
+  topUpSeePrices: "See prices",
   topUpFailed: "Couldn't start checkout. Try again.",
 
   /* ------------------------ wallet read failures ------------------------- */

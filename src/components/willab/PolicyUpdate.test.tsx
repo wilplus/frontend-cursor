@@ -8,7 +8,8 @@
 /*       the country they gave last time;                                     */
 /*    2. a Take refused for an out-of-date acceptance shows the prompt and    */
 /*       processes once it is accepted;                                       */
-/*    3. when the last country is no longer allowed, Accept opens the full    */
+/*    3. Close the app keeps the ask, with one Accept the update;            */
+/*    4. when the last country is no longer allowed, Accept opens the full    */
 /*       consent screens instead of choosing for them.                        */
 /* -------------------------------------------------------------------------- */
 import { act, createElement, useEffect } from "react";
@@ -97,7 +98,7 @@ describe("policy update prompt", () => {
 
   it("opens the app with the prompt; one tap accepts with the country given last time", async () => {
     await mount(update("pl"), createElement("p", null, "THE LOUNGE"));
-    expect(document.body.textContent).toContain(POLICY_UPDATE_COPY.title);
+    expect(document.body.textContent).toContain(POLICY_UPDATE_COPY.bubble);
     expect(document.body.textContent).toContain(POLICY.agreementCopy);
     expect(document.querySelector('[data-testid="acceptance-flow"]')).toBeNull();
 
@@ -110,7 +111,7 @@ describe("policy update prompt", () => {
       countryOfResidence: "pl",
       optionalPurposes: [],
     });
-    expect(document.body.textContent).not.toContain(POLICY_UPDATE_COPY.title);
+    expect(document.body.textContent).not.toContain(POLICY_UPDATE_COPY.bubble);
     expect(document.body.textContent).toContain("THE LOUNGE");
   });
 
@@ -127,13 +128,26 @@ describe("policy update prompt", () => {
     }
     io.fetchAuthorization.mockResolvedValue(update("pl"));
     await mount({ kind: "authorized", policy: POLICY }, createElement(RefusedTake));
-    expect(document.body.textContent).toContain(POLICY_UPDATE_COPY.title);
+    expect(document.body.textContent).toContain(POLICY_UPDATE_COPY.bubble);
 
     await act(async () => button(POLICY_UPDATE_COPY.accept)?.click());
     await flush();
 
     expect(processAgain).toHaveBeenCalledTimes(1);
-    expect(document.body.textContent).not.toContain(POLICY_UPDATE_COPY.title);
+    expect(document.body.textContent).not.toContain(POLICY_UPDATE_COPY.bubble);
+  });
+
+  it("Close the app keeps the ask, with one Accept the update that still accepts", async () => {
+    await mount(update("pl"), createElement("p", null, "THE LOUNGE"));
+    await act(async () => button(POLICY_UPDATE_COPY.close)?.click());
+    await flush();
+    expect(document.body.textContent).toContain(POLICY_UPDATE_COPY.closedLead);
+    expect(button(POLICY_UPDATE_COPY.close)).toBeUndefined();
+
+    await act(async () => button(POLICY_UPDATE_COPY.accept)?.click());
+    await flush();
+    expect(io.acceptAuthorization).toHaveBeenCalledTimes(1);
+    expect(document.body.textContent).not.toContain(POLICY_UPDATE_COPY.closedLead);
   });
 
   it("opens the full consent screens when the last country is no longer allowed", async () => {

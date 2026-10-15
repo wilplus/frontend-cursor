@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 import TokenPlanChips from "@/components/tokens/TokenPlanChips";
-import { TOKENS_COPY, formatShortDate } from "@/components/tokens/copy";
+import { TOKENS_COPY } from "@/components/tokens/copy";
 import { useTokenWallet } from "@/hooks/useTokenWallet";
 import { startPlanCheckout } from "@/services/api/subscribe";
 import { fetchRecordingBand, type RecordingBandState } from "@/services/api/tokens";
 import { canMountTopUpCard } from "./topUpCardGate";
 import { type WillabState } from "./useWillabFlow";
+import SymmetricPair from "./SymmetricPair";
 
 /* -------------------------------------------------------------------------- */
 /*  LoungeTopUpCard — the out-of-tokens offer, INSIDE the conversation        */
@@ -17,6 +18,11 @@ import { type WillabState } from "./useWillabFlow";
 /*  running dry was one non-clickable sentence under the record button, and   */
 /*  the strings written for the blocked case were referenced zero times. A    */
 /*  user who ran out had no route to pay from where they were.                */
+/*                                                                            */
+/*  THE ASK PATTERN (founder 2026-10-15, "approved, build the unified        */
+/*  version", https://claude.ai/artifact/CzVL6JWK85tZDVpU9JRtgY): Will's     */
+/*  message in the thread (tap to reopen), the plans in the grey card in the  */
+/*  footer, then Not now | See prices, as the WhatsApp ask.                   */
 /*                                                                            */
 /*  IN-THREAD, NEVER AN OVERLAY. No modal, dialog, sheet, portal or z-index   */
 /*  layer. It renders as an ordinary item in the thread's scroll container,   */
@@ -48,25 +54,41 @@ export interface LoungeTopUpCardProps {
   threadLoading?: boolean;
 }
 
-export default function LoungeTopUpCard({
+export interface TopUpOffer {
+  /** Out of tokens, with plans to offer: Will's message shows. */
+  visible: boolean;
+  /** The footer holds the plans and the pair. */
+  armed: boolean;
+  rearm: () => void;
+  notNow: () => void;
+  choose: (tier: string) => void;
+  tiers: Parameters<typeof TokenPlanChips>[0]["tiers"];
+  busyTier: string | null;
+  error: string | null;
+}
+
+/** The out-of-tokens ask's state, read once by the Lounge for its two
+ *  halves: the bubble in the thread and the footer. */
+export function useTopUpOffer({
   state,
   threadLoading = false,
-}: LoungeTopUpCardProps) {
+}: LoungeTopUpCardProps): TopUpOffer {
   const wallet = useTokenWallet(true);
   const [band, setBand] = useState<RecordingBandState>({ kind: "unknown" });
   const [busyTier, setBusyTier] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Starts as "snoozed for everything" so the card cannot flash before
+  // Starts as "snoozed for everything" so the ask cannot flash before
   // localStorage has been read.
   const [snoozedPeriod, setSnoozedPeriod] = useState<string | null>(null);
   const [storageRead, setStorageRead] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [gone, setGone] = useState(false);
+  const [armed, setArmed] = useState(true);
 
   useEffect(() => {
     try {
       setSnoozedPeriod(window.localStorage.getItem(SNOOZE_KEY));
     } catch {
-      // Private mode / storage disabled: fall through to SHOWING the card.
+      // Private mode / storage disabled: fall through to SHOWING the ask.
       // Being offered again is a smaller cost than never being offered.
       setSnoozedPeriod(null);
     }
@@ -75,7 +97,7 @@ export default function LoungeTopUpCard({
 
   /* The SAME "out of tokens" signal RecordPriceNote already consumes. There
    * is deliberately no second definition of running dry, and no new endpoint:
-   * every signal this card needs already exists. */
+   * every signal this ask needs already exists. */
   useEffect(() => {
     if (wallet.enabled !== true) return;
     let cancelled = false;
@@ -87,81 +109,105 @@ export default function LoungeTopUpCard({
     };
   }, [wallet.enabled]);
 
-  if (!canMountTopUpCard(state, threadLoading)) return null;
-  if (dismissed || !storageRead) return null;
-  if (wallet.enabled !== true) return null;
-  if (band.kind !== "exhausted") return null;
-
   const ready = wallet.balance.kind === "ready" ? wallet.balance : null;
-  // Every purchase is a one-time package (N48.3 Q13 A): there is no live
-  // subscription a second checkout could stack on, so the card always offers.
-
   const tiers = wallet.prices?.tiers ?? {};
   const hasPaidTier = Object.values(tiers).some((t) => t.usdPerMonth > 0);
-  if (!hasPaidTier) return null;
+  const periodEndsAt =
+    (band.kind === "exhausted" ? band.periodEndsAt : null) ?? ready?.periodEndsAt ?? null;
+  // Every purchase is a one-time package (N48.3 Q13 A): there is no live
+  // subscription a second checkout could stack on, so the ask always offers.
+  const visible =
+    canMountTopUpCard(state, threadLoading) &&
+    !gone && storageRead && wallet.enabled === true &&
+    band.kind === "exhausted" && hasPaidTier &&
+    !(periodEndsAt && snoozedPeriod === periodEndsAt);
 
-  const periodEndsAt = band.periodEndsAt ?? ready?.periodEndsAt ?? null;
-  if (periodEndsAt && snoozedPeriod === periodEndsAt) return null;
-
-  const choose = async (tier: string) => {
+  const choose = (tier: string) => {
     if (busyTier) return;
     setBusyTier(tier);
     setError(null);
-    const r = await startPlanCheckout(tier);
-    if (r.ok) {
-      window.location.assign(r.url);
-      return;
-    }
-    setBusyTier(null);
-    // A server that cannot sell should stop offering: hide the card entirely
-    // rather than leave chips that will each fail the same way.
-    if (r.reason === "unavailable") {
-      setDismissed(true);
-      return;
-    }
-    setError(TOKENS_COPY.topUpFailed);
+    void startPlanCheckout(tier).then((r) => {
+      if (r.ok) {
+        window.location.assign(r.url);
+        return;
+      }
+      setBusyTier(null);
+      if (r.reason === "unavailable") {
+        setGone(true);
+        return;
+      }
+      setError(TOKENS_COPY.topUpFailed);
+    });
   };
 
-  const dismiss = () => {
+  // Not now: the footer gives the record button back and the period is
+  // snoozed; Will's message stays in this session and reopens the ask.
+  const notNow = () => {
     try {
-      // No period date (an unreadable balance) still dismisses for this
-      // session; it simply cannot be remembered across a reload.
       if (periodEndsAt) window.localStorage.setItem(SNOOZE_KEY, periodEndsAt);
     } catch {
-      /* non-fatal: worst case we offer again next visit */
+      /* storage blocked: the ask may come back next time, which is fine */
     }
-    setDismissed(true);
+    setArmed(false);
   };
 
-  const renewsOn = formatShortDate(periodEndsAt);
+  return {
+    visible,
+    armed: visible && armed,
+    rearm: () => setArmed(true),
+    notNow,
+    choose,
+    tiers,
+    busyTier,
+    error,
+  };
+}
 
+/** Will's message in the thread: the two lines the card used to carry. */
+export function TopUpBubble({ offer }: { offer: TopUpOffer }) {
+  if (!offer.visible) return null;
   return (
-    <div className="mt-1 w-full rounded-xl border border-border bg-muted/30 p-4">
-      <p className="text-sm font-medium">{TOKENS_COPY.topUpTitle}</p>
-      <p className="mb-3 mt-1 text-xs leading-relaxed text-muted-foreground">
-        {renewsOn ? TOKENS_COPY.topUpRenews(renewsOn) : TOKENS_COPY.topUpNoDate}
-      </p>
+    <button
+      type="button"
+      onClick={offer.rearm}
+      aria-expanded={offer.armed}
+      aria-label="Reopen this option"
+      className="mr-auto block max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-left text-[15px] leading-relaxed text-foreground transition-colors hover:bg-muted/80"
+    >
+      {TOKENS_COPY.topUpTitle} {TOKENS_COPY.topUpNoDate}
+    </button>
+  );
+}
 
-      <TokenPlanChips
-        tiers={tiers}
-        busyTier={busyTier}
-        onChoose={(t) => void choose(t)}
-      />
-
-      {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
-
-      <div className="mt-3 flex justify-end">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={dismiss}
-          disabled={busyTier !== null}
-          className="text-muted-foreground"
-        >
-          {TOKENS_COPY.topUpDismiss}
-        </Button>
+/** The footer while the ask is open: the plans in the grey card, then
+ *  Not now | See prices, in place of the record row. */
+export function TopUpSlot({
+  offer,
+  children,
+}: {
+  offer: TopUpOffer;
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
+  if (!offer.armed) return <>{children}</>;
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="rounded-xl bg-muted p-3">
+        <TokenPlanChips
+          tiers={offer.tiers}
+          busyTier={offer.busyTier}
+          onChoose={offer.choose}
+        />
+        {offer.error ? (
+          <p role="alert" className="mt-2 text-[13px] text-destructive">{offer.error}</p>
+        ) : null}
       </div>
+      <SymmetricPair
+        closeLabel={TOKENS_COPY.topUpDismiss}
+        onClose={offer.notNow}
+        actionLabel={TOKENS_COPY.topUpSeePrices}
+        onAction={() => router.push("/dashboard/pricing")}
+      />
     </div>
   );
 }

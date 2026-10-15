@@ -24,6 +24,8 @@ import SymmetricPair from "./SymmetricPair";
 
 /** Footer and error copy (WhatsApp offer). No em-dashes (house style). */
 export const WHATSAPP_COPY = {
+  // The card's title (founder 2026-10-15), word for word.
+  title: "We will only use it to let you know your coach texted you",
   label: "Phone number for WhatsApp",
   placeholder: "+44 7700 900123",
   notNow: "Not now",
@@ -175,6 +177,9 @@ export function WhatsAppOfferActions({
           void save();
         }}
       >
+        <p className="mb-2 text-[13px] font-medium text-foreground">
+          {WHATSAPP_COPY.title}
+        </p>
         <input
           type="tel"
           inputMode="tel"
