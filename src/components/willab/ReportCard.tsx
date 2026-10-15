@@ -13,8 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   fetchIdealTextCore,
-  prefetchIdealTextDisplay,
   primeIdealTextDisplay,
+  warmIdealTextOpen,
 } from "@/services/api/idealText";
 import {
   cachedIdealTitle,
@@ -173,9 +173,11 @@ function renderFeedbackReportCard(
  *  Copy: founder sign-off 2026-09-25. */
 function CoachFeedbackPublishedCard({
   body,
+  arcId,
   onOpen,
 }: {
   body: string;
+  arcId: string | null;
   onOpen: (() => void) | null;
 }) {
   return (
@@ -191,6 +193,7 @@ function CoachFeedbackPublishedCard({
         <Button
           type="button"
           onClick={onOpen}
+          onPointerDown={() => warmIdealTextOpen(arcId)}
           className="mt-3 h-10 w-full rounded-full"
         >
           See the feedback
@@ -347,6 +350,7 @@ function renderIdealTextReportCard(
     return (
       <CoachFeedbackPublishedCard
         body={message.body}
+        arcId={arcId}
         onOpen={
           openable ? () => onOpenIdealText?.(arcId as string, "feedback") : null
         }
@@ -359,6 +363,7 @@ function renderIdealTextReportCard(
         role={openable ? "button" : undefined}
         tabIndex={openable ? 0 : undefined}
         onClick={openable ? open : undefined}
+        onPointerDown={() => warmIdealTextOpen(arcId)}
         onKeyDown={
           openable
             ? (e) => {

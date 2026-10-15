@@ -2,6 +2,7 @@
 
 import DeckSlidePreview from "./DeckSlidePreview";
 import { useNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
+import { warmIdealTextOpen } from "@/services/api/idealText";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextCard — a Take's one Ideal Text bubble in the chat (founder        */
@@ -32,7 +33,8 @@ export default function IdealTextCard({
   onOpenFeedback?: () => void;
 }) {
   const fresh = useNewCoachFeedback(arcId);
-  const card = { title, version, slideRef };
+  // A press starts the read the opened page needs, before the tap lands.
+  const card = { title, version, slideRef, onWarm: () => warmIdealTextOpen(arcId) };
   return (
     <>
       <CardButton {...card} onOpen={onOpen} />
@@ -49,12 +51,14 @@ function CardButton({
   version,
   slideRef,
   onOpen,
+  onWarm,
   coach = false,
 }: {
   title: string;
   version: number | null;
   slideRef?: string | null;
   onOpen: () => void;
+  onWarm: () => void;
   coach?: boolean;
 }) {
   return (
@@ -63,6 +67,7 @@ function CardButton({
       data-review-card={coach ? undefined : true}
       data-coach-feedback-card={coach ? true : undefined}
       onClick={onOpen}
+      onPointerDown={onWarm}
       className={`relative mr-auto flex w-[80%] max-w-sm items-center gap-2.5 rounded-[18px] border border-border bg-background p-2.5 pr-7 text-left transition-transform active:scale-[0.98]${coach ? " ring-2 ring-primary" : ""}`}
     >
       {coach ? (

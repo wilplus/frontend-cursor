@@ -15,13 +15,13 @@ export default function ChatPageClient({
   insightSessionId,
   bestPresentationArcId,
   idealTextArcId,
-  idealTextFeedback = false,
+  idealTextMode = null,
 }: {
   sessionId: string | null;
   insightSessionId: string | null;
   bestPresentationArcId: string | null;
   idealTextArcId: string | null;
-  idealTextFeedback?: boolean;
+  idealTextMode?: "feedback" | "review" | null;
 }) {
   return (
     <WillabSurface
@@ -29,7 +29,7 @@ export default function ChatPageClient({
       insightSessionId={insightSessionId}
       bestPresentationArcId={bestPresentationArcId}
       idealTextArcId={idealTextArcId}
-      idealTextFeedback={idealTextFeedback}
+      idealTextMode={idealTextMode}
     />
   );
 }

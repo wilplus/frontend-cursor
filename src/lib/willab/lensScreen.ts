@@ -55,3 +55,20 @@ export function lensIdle(page: LensPage): boolean {
     !page.opensHelpers
   );
 }
+
+/** The lens screen's address in the bar, so a reload or a shared link opens
+ *  it again (founder 2026-10-14): `?lens=<arc_id>` alone is the coach's
+ *  feedback (the address the WhatsApp message sends), `&mode=review` the
+ *  review. Null takes both off. The overlay sets it on its own Back entry,
+ *  so the entry under it never holds the lens. */
+export function lensAddress(arcId: string | null, mode: "review" | "feedback" = "feedback"): void {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete("lens");
+  url.searchParams.delete("mode");
+  if (arcId) {
+    url.searchParams.set("lens", arcId);
+    if (mode === "review") url.searchParams.set("mode", "review");
+  }
+  window.history.replaceState(window.history.state, "", url);
+}
