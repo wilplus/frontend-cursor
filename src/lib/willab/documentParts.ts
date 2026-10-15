@@ -51,8 +51,8 @@ export interface Part {
 
 export interface PartRootPhrase {
   text: string;
-  start: number;
-  end: number;
+  start: number | null;
+  end: number | null;
 }
 
 /** Project a server-confirmed exact root onto one part without mutating the
