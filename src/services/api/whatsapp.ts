@@ -34,3 +34,9 @@ export async function saveWhatsAppPhone(phone: string): Promise<boolean> {
   const result = await bffFetch(ENDPOINT, { method: "PUT", json: { phone } });
   return result.kind === "response" && result.ok;
 }
+
+/** Data & consent's Remove: the number is deleted and the messages stop. */
+export async function removeWhatsAppPhone(): Promise<boolean> {
+  const result = await bffFetch(ENDPOINT, { method: "DELETE" });
+  return result.kind === "response" && result.ok;
+}

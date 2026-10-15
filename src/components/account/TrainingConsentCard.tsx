@@ -11,9 +11,8 @@
 /*  The sentence is the backend's, exactly as the database holds it; the yes */
 /*  is sent with that sentence's fingerprint and refused on any other.       */
 /*  Turning off asks first, with the signed wording, and deletes the copies. */
-/*  The eight lines above the sentence are the founder's (v2, signed         */
-/*  2026-10-08; v1's four were counsel's, 2026-10-01). They render before    */
-/*  the switch can be turned on.                                             */
+/*  Above it, the founder's question; after it, Read more (wording v4,       */
+/*  2026-10-15).                                                             */
 /* -------------------------------------------------------------------------- */
 
 import { useEffect, useState } from "react";
@@ -25,6 +24,7 @@ import {
   type TrainingConsent,
 } from "@/services/api/trainingConsent";
 import { DATA_CONSENT_COPY as COPY } from "@/lib/legal/dataConsentCopy";
+import TrainingReadMore from "@/components/legal/TrainingReadMore";
 
 const BUTTON =
   "inline-flex h-10 items-center rounded-full border border-border bg-background px-5 text-sm font-medium text-foreground hover:bg-muted";
@@ -76,12 +76,11 @@ export default function TrainingConsentCard({
     >
       <h2 className="text-base font-semibold">{COPY.trainingTitle}</h2>
       <div className="mt-2 flex flex-col gap-4">
-        <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-muted-foreground">
-          {COPY.trainingBeforeLines.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-        <p className="text-sm leading-relaxed">{state.copy}</p>
+        {/* Training wording v4 (founder, consent prototype, 2026-10-15). */}
+        <p className="text-sm font-medium">{COPY.trainingQuestion}</p>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {state.copy} <TrainingReadMore />
+        </p>
         {confirming ? (
           <div
             className="rounded-xl bg-muted p-4"

@@ -27,8 +27,9 @@ export const DATA_CONSENT_COPY = {
   practiceOn: "Personalised practice is on.",
   failed: "Couldn’t save that. Try again.",
   sensitiveTitle: "Sensitive information in recordings",
+  // Shortened with the confirm step's tick (founder, prototype, 2026-10-15).
   sensitiveText:
-    "You agreed that a recording of you speaking may reveal sensitive information about you. Withdrawing this ends your use of recording. Everything you already made stays readable.",
+    "You agreed that we may process your recordings even if they reveal sensitive information about you. Withdrawing this stops recording. Everything you already made stays readable.",
   withdraw: "Withdraw",
   withdrawConfirm: "Withdraw and stop recording?",
   cancel: "Cancel",
@@ -50,21 +51,15 @@ export const DATA_CONSENT_COPY = {
   trainingOffTitle: "Turn off training?",
   trainingOffBody:
     "Your training copies will be deleted. Anything already used to train stays in that training, but it won’t be used again.",
-  // Signed by the founder 2026-10-08, "with its eight lines" (training switch
-  // wording v2, backend legal/phase1-2026.1/23-training-consent-wording-v2-*.md
-  // and SIGN-3.5-2026-10-08.md; supersedes v1's four lines of 2026-10-01).
-  // The eight lines above the switch, shown before it can be turned on; the
-  // switch's own sentence still comes from the backend, fingerprinted.
-  trainingBeforeLines: [
-    "Text and numbers only. No recording of your voice, and no clip of one, is ever copied or sent for training.",
-    "Off unless you turn it on. Saying no costs you nothing.",
-    "Your coach's words include their line on a moment and their word for a take.",
-    "The numbers are measurements such as your pace and pauses, and whether an exercise helped you. They stay with us.",
-    "A coach may hear a moment of yours, without your name, to answer a question that teaches our software.",
-    "The trained models write feedback for every speaker. We test that they do not repeat your text.",
-    "OpenAI trains the text models for us, in the United States, under the European Commission's standard contractual clauses.",
-    "Turning it off deletes your training copies and keeps you out of any new training. A model already trained stays.",
-  ],
+  // Training wording v4 (founder, on the consent prototype, 2026-10-15:
+  // "this looks perfect"; backend legal/phase1-2026.1/27-…-v4, N73). The same
+  // three parts on every screen that asks: this question, the backend's
+  // fingerprinted sentence with Read more after it, and the yes. Read more
+  // opens Privacy section 4a; "your practice" is defined in Terms §8.
+  trainingQuestion: "Can we make the product so much better for you?",
+  trainingYes: "Yes, make it so much better.",
+  readMore: "Read more",
+  readMoreVersion: (version: string) => `Privacy Policy ${version}, section 4a`,
   // Approved by the founder 2026-09-26 (backend N12, answer 3); wording v2
   // signed 2026-10-08 (SIGN-3.5-2026-10-08.md). Shown in
   // place of `intro` only while the training switch is offered: until then
@@ -80,4 +75,17 @@ export const DATA_CONSENT_COPY = {
   aiVoiceDeleteConfirm:
     "Delete your AI voice? We delete it at ElevenLabs and here, with every example made from it, and we stop making examples. Your own recordings stay.",
   aiVoiceOff: "Off. Turn it on and we'll make it from your next Take.",
+  // Fixes 2 and 3 (founder, prototype, 2026-10-15: "I approve the 7 fixes as
+  // in the prototype"). Privacy 3.6 §4 and §4d promise both "at any time".
+  whatsappTitle: "WhatsApp",
+  whatsappOn: (phone: string) => `We message ${phone} when your coach’s feedback is in.`,
+  whatsappRemove: "Remove",
+  whatsappConfirmTitle: "Remove your number?",
+  whatsappConfirmBody: "We stop the WhatsApp messages and delete your number.",
+  whatsappOff: "Off. Add your number in the Lounge to get a message when your coach’s feedback is in.",
+  shareTake: (take: number | null) => (take ? `Take ${take}` : "A take"),
+  sharedWith: (where: string) => `shared with ${where}`,
+  generalCommunity: "General community",
+  stopSharing: "Stop sharing",
+  stoppedSharing: "No longer shared. Its clips left every community.",
 } as const;

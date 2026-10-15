@@ -26,6 +26,15 @@ import {
   type Step,
 } from "@/lib/legal/acceptanceSteps";
 import { fetchConsentChoices } from "@/services/api/consentChoices";
+import {
+  fetchTrainingConsent,
+  reportTrainingRefusal,
+  setTrainingConsent,
+  trainingRefusalCode,
+  type TrainingConsent,
+} from "@/services/api/trainingConsent";
+import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
+import TrainingReadMore from "@/components/legal/TrainingReadMore";
 
 /* -------------------------------------------------------------------------- */
 /*  The Phase-1 acceptance screens (Task 5).                                   */
@@ -239,8 +248,15 @@ function DocumentPane({
      fallback where dvh is unknown. The gate pads the notch
      (env(safe-area-inset-top)), so the pane is that much shorter than the
      screen and its buttons stay on it. */
+  /* ON A COMPUTER, A WINDOW (founder 2026-10-15, consent prototype): the
+     document sits in a fixed-height window in the middle of the screen, so
+     its buttons are always in the same place and only the text scrolls.
+     `supports-[height:100dvh]` makes the phone's real visible height win:
+     two plain h- classes are ordered by the stylesheet, not by this list, and
+     100vh won there, which let a phone's toolbar cover the buttons. */
   return (
-    <div className="flex h-[calc(100vh-env(safe-area-inset-top))] h-[calc(100dvh-env(safe-area-inset-top))] flex-col overflow-hidden px-6 pb-6 pt-8">
+    <div className="flex h-[calc(100vh-env(safe-area-inset-top))] flex-col supports-[height:100dvh]:h-[calc(100dvh-env(safe-area-inset-top))] md:items-center md:justify-center md:bg-muted md:px-6 md:py-8">
+    <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden px-6 pb-6 pt-8 md:max-h-[44rem] md:max-w-[46rem] md:rounded-2xl md:border md:border-border md:bg-background md:shadow-sm">
       <div className="shrink-0 border-b border-border pb-4">
         <h1 className="text-[24px] font-semibold tracking-tight text-foreground">
           {title}
@@ -253,9 +269,10 @@ function DocumentPane({
         {document.copy}
       </div>
       <div className="flex shrink-0 flex-col items-center pt-4">
-        <Cta onClick={onDone}>Done reading</Cta>
+        <Cta onClick={onDone}>Continue</Cta>
         <Secondary onClick={onBack}>Back</Secondary>
       </div>
+    </div>
     </div>
   );
 }
@@ -301,6 +318,22 @@ export default function Phase1AcceptanceFlow({
     });
     return () => { alive = false; };
   }, [policy.policyId]);
+  // Help improve WillpowerLab, offered as the third thing to confirm when
+  // practice is no longer a choice (founder 2026-10-15, WIL-8). Optional,
+  // never pre-ticked and never in `canSubmit`: a training yes that gated the
+  // button would be bundled consent (Art 7(4)). Shown only when the switch
+  // is open and off; a failed read simply leaves it out, and "Turn on the
+  // learning?" still asks before the first Take.
+  const [training, setTraining] = useState<TrainingConsent | null>(null);
+  const [trainingOptIn, setTrainingOptIn] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void fetchTrainingConsent().then((value) => {
+      if (alive && value?.available && value.copy && !value.active) setTraining(value);
+    });
+    return () => { alive = false; };
+  }, [policy.policyId]);
+  const trainingOffered = !practiceOffered && training !== null;
   const [declined, setDeclined] = useState(false);
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -389,6 +422,16 @@ export default function Phase1AcceptanceFlow({
     })
       .then((result) => {
         if (result.kind === "accepted") {
+          // The training yes needs the receipt that now exists, so it is sent
+          // after it. Best effort: a refusal never undoes the agreement, and
+          // the question is asked again before the first Take.
+          if (trainingOffered && trainingOptIn && training) {
+            return setTrainingConsent(true, training).then((saved) => {
+              const code = trainingRefusalCode(saved);
+              if (code) reportTrainingRefusal(code, "ask");
+              onAccepted();
+            });
+          }
           onAccepted();
           return;
         }
@@ -399,7 +442,7 @@ export default function Phase1AcceptanceFlow({
         setFailure(result.message);
       })
       .finally(() => setSaving(false));
-  }, [policy, country, locale, attemptKey, practiceOffered, practiceOptIn, onAccepted, onStale]);
+  }, [policy, country, locale, attemptKey, practiceOffered, practiceOptIn, trainingOffered, trainingOptIn, training, onAccepted, onStale]);
 
   /* EVERY STEP OPENS AT ITS TOP AND FADES IN (consent lock 2026-10-07; the
      prototype's render(): a new step resets the scroller and enters over
@@ -558,7 +601,7 @@ export default function Phase1AcceptanceFlow({
         <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
           <VoiceMark small />
           <h1 className="max-w-[22ch] text-[27px] font-semibold leading-tight tracking-tight text-foreground">
-            {practiceOffered ? "Three things to confirm" : "Two things to confirm"}
+            {practiceOffered || trainingOffered ? "Three things to confirm" : "Two things to confirm"}
           </h1>
           <div className="mt-6 flex w-full max-w-[400px] flex-col gap-2">
             {/* The minimum comes from the policy, never a constant here: a screen
@@ -569,7 +612,7 @@ export default function Phase1AcceptanceFlow({
               onClick={() => setAge((v) => !v)}
             >
               <span className="block text-[14.5px] leading-snug text-foreground">
-                I am {policy.minimumAge} or older.
+                I am {policy.minimumAge} or older. *
               </span>
             </Choice>
             {/* Separate from the age tick on purpose. This is the Art 9(2)(a)
@@ -580,10 +623,11 @@ export default function Phase1AcceptanceFlow({
               onClick={() => setSensitive((v) => !v)}
             >
               <span className="block text-[14.5px] leading-snug text-foreground">
-                I agree that a recording of me speaking may reveal sensitive
-                information about me, and I consent to WillpowerLab processing my
-                recordings where it does. I can withdraw this at any time, which
-                ends my use of recording.
+                {/* The founder's wording (consent prototype, 2026-10-15).
+                    Engineering's note, recorded for counsel in the backend
+                    pack (25 §9): this is the Art 9(2)(a) tick, and it no
+                    longer names sensitive information. */}
+                I agree that WillpowerLab may process my recordings. *
               </span>
             </Choice>
           </div>
@@ -612,6 +656,31 @@ export default function Phase1AcceptanceFlow({
                 to remember what I am working on so the exercises get more
                 personal. I can turn this off at any time and keep using
                 everything else.
+              </span>
+            </Choice>
+          </div> : null}
+
+          {/* The third thing when practice is part of the service: the
+              training choice, as training wording v4 has it (founder,
+              consent prototype, 2026-10-15). The sentence is the backend's,
+              fingerprinted; Read more opens Privacy section 4a. No
+              "Optional" label and no asterisk: it is the one tick that may
+              be left alone. */}
+          {trainingOffered && training ? <div className="mt-8 flex w-full max-w-[400px] flex-col gap-3 text-left">
+            <p className="text-[16px] font-semibold leading-snug text-foreground">
+              {DATA_CONSENT_COPY.trainingQuestion}
+            </p>
+            <p className="text-[14px] leading-relaxed text-muted-foreground">
+              {training.copy}{" "}
+              <TrainingReadMore privacy={{ copy: policy.privacy.copy, version: policy.privacy.version }} />
+            </p>
+            <Choice
+              indicator="check"
+              selected={trainingOptIn}
+              onClick={() => setTrainingOptIn((v) => !v)}
+            >
+              <span className="block text-[14.5px] leading-snug text-foreground">
+                {DATA_CONSENT_COPY.trainingYes}
               </span>
             </Choice>
           </div> : null}

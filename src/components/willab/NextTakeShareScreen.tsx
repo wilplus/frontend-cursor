@@ -65,7 +65,10 @@ export default function NextTakeShareScreen({
       const own = res.ok ? res.data.filter((c) => c.kind === "private") : [];
       setSaved(own);
       setMine(own.map((c) => c.id));
-      setTicks(own.length > 0 ? ["mine"] : ["general"]);
+      // Nothing is ticked until the speaker chooses (founder 2026-10-15,
+      // fix 1; Privacy 3.6 §4d: a pre-ticked box is not consent). Continue
+      // waits for one choice; "Only me" counts.
+      setTicks([]);
     });
     return () => {
       live = false;

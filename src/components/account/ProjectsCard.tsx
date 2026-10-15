@@ -15,6 +15,7 @@ import {
   PROJECT_DELETION_COPY,
 } from "@/lib/willab/projectDeletionCopy";
 import { PROJECT_ARCHIVE_COPY } from "@/lib/willab/projectArchiveCopy";
+import SharedTakes from "./SharedTakes";
 import { fetchTrainingConsent } from "@/services/api/trainingConsent";
 import {
   LEAVING_COPY,
@@ -233,6 +234,8 @@ export default function ProjectsCard() {
               ))}
             </ul>
           )}
+          {/* Fix 3 (founder 2026-10-15): the Takes shared right now. */}
+          <SharedTakes quietHover={QUIET_HOVER} />
         </>
       )}
       {confirming ? (

@@ -52,6 +52,13 @@ export interface CountryChoice {
  */
 const FIRST_CHOICE = "pl";
 
+/** Shown second, right below Poland (founder 2026-10-15: "add it below
+ *  Poland"), when the policy in force allows it. Pinned for the same reason
+ *  as Poland, and likewise never preselected. */
+const SECOND_CHOICE = "us";
+
+const PINNED = [FIRST_CHOICE, SECOND_CHOICE];
+
 /** The country to show already chosen: the person's own answer from their
  *  last acceptance, when the policy in force still allows it.
  *
@@ -88,7 +95,7 @@ export function safeLocale(locale: string): string {
 }
 
 /** One row per allowed country, named in the reader's own language,
- *  Poland first.
+ *  Poland first, then the United States.
  *
  *  NO REGION ROWS, EVER. `allowed_countries` holds individual lowercase codes
  *  and `accept_phase1_processing_authorization_v1` compares what we send
@@ -129,15 +136,19 @@ export function countryChoices(
     } catch {
       label = upper;
     }
+    // The United States is open to California residents only (Terms 3.6
+    // §4, founder 2026-10-15, WIL-7), so the row says so: the code stays
+    // 'us', which is what the policy allows and the receipt records.
+    if (code === SECOND_CHOICE) label = `${label} (California)`;
     rows.push({ code, label });
   }
   // PARTITION, NOT A SPECIAL CASE IN THE COMPARATOR. A comparator that treats
   // one element as always-smaller is not a total order, and the sort it feeds
   // is free to disagree with itself. Splitting the list says the same thing
   // and cannot.
-  const pinned = rows.filter((row) => row.code === FIRST_CHOICE);
+  const pinned = PINNED.flatMap((code) => rows.filter((row) => row.code === code));
   const rest = rows
-    .filter((row) => row.code !== FIRST_CHOICE)
+    .filter((row) => !PINNED.includes(row.code))
     .sort((a, b) => a.label.localeCompare(b.label, tag));
   return [...pinned, ...rest];
 }
