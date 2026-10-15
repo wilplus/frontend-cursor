@@ -134,6 +134,11 @@ type Props<R> = {
   /** Next on a step played again: true when the host moved the walk itself
    *  (a step still waits, so Next goes there; founder 2026-10-14). */
   onForward?: () => boolean;
+  /** ‹ on the walk's first screen: what the host holds before it (a step
+   *  answered earlier, played again), or null when nothing is. The live walk
+   *  holds only what still waits, so the steps before it are the replay's
+   *  (founder 2026-10-15: back and forth across the walk's screens). */
+  before?: (step: WalkStep, partId: string | null) => (() => void) | null;
   /** ✕: the overlay sinks back to the page. */
   onClose?: () => void;
   /** The line bank's memory (D-FW-3): the walk reads which line each bank
@@ -167,6 +172,16 @@ const testId = (step: WalkStep) => `walk-screen-${step.key}`;
 /** The steps a practise is opened from; ✕ on the recorder goes back there. */
 const OPENERS = new Set(["clearer", "exVideo", "encourage", "late"]);
 
+/** Where ‹ goes from `at` on `plan`: the checking screen, a late read, the
+ *  recorder and the judging are passed over (a try is not checked twice by
+ *  going back, and a judgement stays as given; lock 2026-10-12, section
+ *  2.6). Null on the walk's first screen. Pure. */
+export function walkBackFrom(plan: readonly WalkStep[], at: number): number | null {
+  let to = at - 1;
+  while (to > 0 && ["processing", "late", "practise", "others"].includes(plan[to]?.key)) to -= 1;
+  return to < 0 || plan[to]?.overlay === false ? null : to;
+}
+
 /** The plan with the practise step after `at` set to `kind`: "Accept and
  *  practise" says the new words, "Keep my words" the speaker's own. Null
  *  when no practise follows (nothing to open it on). Pure. */
@@ -191,6 +206,7 @@ export default function FeedbackWalk<R = unknown>({
   summary = null,
   onEnd,
   onForward,
+  before,
   onClose,
   lines: linesIO = null,
   onShown,
@@ -254,15 +270,17 @@ export default function FeedbackWalk<R = unknown>({
     const here = plan.indexOf(step);
     if (here === atNow.current) land(plan, here + 1, "forward");
   };
+  /** The step before `s` that the host holds, on the walk's first screen. */
+  const beforeOf = useCallback(
+    (s: WalkStep): (() => void) | null =>
+      before?.(s, s.moment == null ? null : walk.moments[s.moment]?.partId ?? null) ?? null,
+    [before, walk.moments],
+  );
   const back = useCallback(() => {
-    // The checking screen, a late read, the recorder and the judging are
-    // passed over: a try is not checked twice by going back, and a
-    // judgement stays as given (lock 2026-10-12, section 2.6).
-    let to = at - 1;
-    while (to > 0 && ["processing", "late", "practise", "others"].includes(plan[to]?.key)) to -= 1;
-    if (plan[to]?.overlay === false || to < 0) return;
-    go(to, "back");
-  }, [at, plan, go]);
+    const to = walkBackFrom(plan, at);
+    if (to !== null) go(to, "back");
+    else if (step) beforeOf(step)?.();
+  }, [at, plan, step, go, beforeOf]);
   /** The practise lays a new plan in as the machine answers. */
   const relay = useCallback(
     (steps: WalkStep[], to: number, how: WalkDir) => {
@@ -370,7 +388,7 @@ export default function FeedbackWalk<R = unknown>({
   const ctx: ScreenCtx<R> = {
     walk,
     at: (s) => plan.indexOf(s),
-    first: (s) => plan[plan.indexOf(s) - 1]?.overlay === false,
+    first: (s) => walkBackFrom(plan, plan.indexOf(s)) === null && beforeOf(s) === null,
     coachNote,
     takeIndex,
     forward,
