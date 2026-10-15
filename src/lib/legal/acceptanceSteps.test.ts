@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ProcessingPolicy } from "@/services/api/processingAuthorization";
 import {
   canSubmit,
+  countryChoices,
 } from "./acceptanceSteps";
 
 function policy(overrides: Partial<ProcessingPolicy> = {}): ProcessingPolicy {
@@ -47,5 +48,12 @@ describe("the optional practice purposes", () => {
     // the 2026-09-23 policy exists to remove.
     expect(canSubmit({ ...base, practiceOptIn: false }, p)).toBe(true);
     expect(canSubmit({ ...base, practiceOptIn: true }, p)).toBe(true);
+  });
+});
+
+describe("countryChoices", () => {
+  it("lists Poland first and the United States right below it, the rest by name", () => {
+    const p = policy({ allowedCountries: ["de", "us", "at", "pl"] });
+    expect(countryChoices(p, "en").map((c) => c.code)).toEqual(["pl", "us", "at", "de"]);
   });
 });
