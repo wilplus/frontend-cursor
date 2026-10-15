@@ -100,9 +100,9 @@ describe("FeedbackWalk", () => {
     expect(live()!.querySelector("h2")).toBeNull();
     expect(live()!.querySelector("[data-walk-player][data-walk-me]")).not.toBeNull();
     expect(bubble()).toEqual([COPY.titlePraise, ITEMS[0].praiseWords![0]]);
-    expect(nav().getAttribute("aria-label")).toBe(`Slide 2 · ${COPY.pagerMoment} 1 ${COPY.pagerOf} 2`);
-    // › is off until the step is answered.
-    expect(nextArrow().disabled).toBe(true);
+    expect(nav().getAttribute("aria-label")).toBe("Slide 2");
+    // › browses on, unanswered (founder 2026-10-15); the pill answers.
+    expect(nextArrow().disabled).toBe(false);
     forward();
     expect(screen()).toBe("walk-screen-helpers");
     expect(nav().getAttribute("aria-label")).toBe(`Slide 2 · ${WALK_COPY.navHelperWords}`);

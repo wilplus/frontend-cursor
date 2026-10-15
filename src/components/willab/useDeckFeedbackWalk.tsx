@@ -6,12 +6,15 @@ import { useLoungeThreadMaybe } from "./LoungeThreadContext";
 import { aiVoiceChat, answerBody, momentChat, othersChat, shownStep, walkStepDraft, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkStep } from "@/lib/willab/walkPlan";
 import type { WalkBankKey } from "@/lib/willab/walkLines";
+import type { WalkDir } from "@/lib/willab/walkMotion";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import FeedbackWalk, {
-  walkBackFrom,
+  walkBrowseFrom,
   type FeedbackWalkHelperWords,
   type FeedbackWalkRequest,
   type WalkAiShown,
+  type WalkBrowseDir,
+  type WalkHop,
 } from "./walk/FeedbackWalk";
 import type { WalkJudgementSave } from "./walk/useWalkJudging";
 import { useWalkJournalPost } from "./useWalkJournalPost";
@@ -704,13 +707,13 @@ export function useDeckFeedbackWalk(args: {
   const practisingRef = useRef(false);
   // This opening is the review itself (the lens), not a step from the page.
   const lensRef = useRef(false);
-  const openAt = useCallback((at: number | null, practising = false, lens = false): boolean => {
+  const openAt = useCallback((at: number | null, practising = false, lens = false, how?: WalkDir): boolean => {
     if (at === null) return false;
     practisingRef.current = practising;
     lensRef.current = lens;
     toldRef.current = new Set<string>();
     seqRef.current += 1;
-    setRequest({ seq: seqRef.current, at });
+    setRequest({ seq: seqRef.current, at, how });
     return true;
   }, []);
 
@@ -980,23 +983,47 @@ export function useDeckFeedbackWalk(args: {
     openAt(at, false, lensRef.current);
     return true;
   }, [replaying, items.length, model, openAt]);
-  // ‹ GOES TO WHAT WAS ANSWERED (founder 2026-10-15, "I can not go there and
-  // back in the walk"): the live walk holds only what still waits, so on its
-  // first screen ‹ plays the step before it again, read only, as the lens
-  // shows it; › from there comes back to what waits (onForward).
-  const before = useCallback(
-    (step: WalkStep, partId: string | null): (() => void) | null => {
-      if (replaying || !replayNow) return null;
-      const here = walkStepAt(replayNow, { step: step.key, moment: null, part: partId ?? undefined });
-      const to = here === null ? null : walkBackFrom(replayNow.plan, here);
+  // ‹ › BROWSE EVERY SCREEN OF THE WALK (founder 2026-10-15, "one bar for the
+  // whole walk"): answered and waiting alike, across slides, in walk order.
+  // The replay holds every moment of the Take in that order, so it is the
+  // order; a screen the live walk still holds opens live (its pill answers
+  // it), the rest open as answered. The arrows never answer and never close:
+  // at the walk's first and last screen they are off. The closing summary is
+  // reached only once nothing waits (it is written when it is read). A
+  // paragraph's own practise or helper words, and the coach-only walk,
+  // browse their own screens.
+  const browse = useCallback(
+    (step: WalkStep, partId: string | null, dir: WalkBrowseDir): WalkHop | null => {
+      const shown = replaying ?? model;
+      const whole = practisingRef.current || live.current.coachOnly || !replayNow ? shown : replayNow;
+      const from: WalkStepTarget = { step: step.key, moment: null, part: partId ?? undefined };
+      let order = whole;
+      let here = walkStepAt(order, from);
+      if (here === null) {
+        order = shown;
+        here = walkStepAt(order, from);
+      }
+      if (here === null) return null;
+      const to = walkBrowseFrom(order.plan, here, dir);
       if (to === null) return null;
-      const again = replayNow;
-      return () => {
-        setReplaying(again);
-        openAt(to, false, lensRef.current);
+      const next = order.plan[to];
+      if (next.key === "summary" && items.length > 0) return null;
+      const target: WalkStepTarget = {
+        step: next.key,
+        moment: null,
+        part: next.moment == null ? undefined : order.moments[next.moment]?.partId,
+      };
+      const liveAt = order === model ? to : order === replayNow ? walkStepAt(model, target) : null;
+      return {
+        target,
+        live: liveAt !== null,
+        open: () => {
+          setReplaying(liveAt === null ? order : null);
+          openAt(liveAt ?? to, false, lensRef.current, dir);
+        },
       };
     },
-    [replaying, replayNow, openAt],
+    [replaying, model, replayNow, items.length, openAt],
   );
   /** The walk showed the coach's note or a moment: the server hears it once
    *  per opening, behind the screen, and the Lounge's "new" clears. */
@@ -1078,7 +1105,7 @@ export function useDeckFeedbackWalk(args: {
           summary={summary}
           onEnd={onEnd}
           onForward={onForward}
-          before={before}
+          browse={browse}
           onClose={onClose}
           lines={lineBankIO}
           onShown={onShown}
@@ -1102,7 +1129,7 @@ export function useDeckFeedbackWalk(args: {
       journal,
       onEnd,
       onForward,
-      before,
+      browse,
       onClose,
       onShown,
       onAnswer,

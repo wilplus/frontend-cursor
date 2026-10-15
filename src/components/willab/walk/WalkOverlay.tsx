@@ -10,11 +10,10 @@ import OverlayCloseButton from "../OverlayCloseButton";
 /*  WalkOverlay — one screen of the Feedback walk (founder lock 2026-10-06)    */
 /*                                                                            */
 /*  Full screen, nothing of the page behind it, no backdrop. The top bar       */
-/*  carries the slide and moment bar (‹ Slide 2 · moment 1 of 4 ›) where the  */
-/*  screen has one, and ✕. The top bar is the one part that stays still while */
-/*  the content moves: the motion CSS animates every child of `.walk-ov`       */
-/*  except `.walk-ovtop`, so the title, the body and the footer must stay     */
-/*  direct children.                                                          */
+/*  carries the slide bar (‹ Slide 2 ›) where the screen has one, and ✕. The  */
+/*  top bar is the one part that stays still while the content moves: the     */
+/*  motion CSS animates every child of `.walk-ov` except `.walk-ovtop`, so    */
+/*  the title, the body and the footer must stay direct children.             */
 /* -------------------------------------------------------------------------- */
 
 export type WalkNav = {
@@ -29,8 +28,8 @@ export type WalkNav = {
   onNext: () => void;
   /** Back is off on the first screen. */
   backDisabled?: boolean;
-  /** › is off until the step is answered and a next step exists (lock
-   *  2026-10-12). */
+  /** › is off on the last screen (founder 2026-10-15: ‹ › browse every
+   *  screen of the walk, answered or not). */
   nextDisabled?: boolean;
 };
 

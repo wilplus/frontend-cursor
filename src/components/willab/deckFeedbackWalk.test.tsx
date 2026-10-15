@@ -164,9 +164,56 @@ describe("the walk on the deck", () => {
     expect(live()!.querySelector("[data-walk-message]")!.textContent).toBe(
       [COPY.titlePraise, [PRAISE_LEAD, PRAISE_CUE_COPY.landed_ending].join(" ")].join(""),
     );
-    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe(
-      `Slide 2 · ${COPY.pagerMoment} 1 ${COPY.pagerOf} 1`,
-    );
+    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Slide 2");
+  });
+
+  it("‹ › browse every screen across slides, answered and waiting alike, and never close the walk (founder 2026-10-15)", async () => {
+    // Slide 1's clearer version is answered already; slide 2's praise and
+    // slide 3's clearer version wait. Walk order: praise, helper words,
+    // then the practising, slide by slide.
+    const slide1 = SLIDES[0].indexOf("the pilot");
+    const slide3 = SLIDES[0].length + 2 + SLIDES[1].length + 2 + SLIDES[2].indexOf("one more quarter");
+    const done = {
+      ...rewrite, id: "s-rw1", start: slide1, end: slide1 + "the pilot".length, quote: "the pilot",
+      proposedText: "our pilot", status: "approved", blockId: "block-1", snippetId: "snip-0",
+    } as unknown as DocumentSuggestion;
+    const open = {
+      ...rewrite, id: "s-rw3", start: slide3, end: slide3 + "one more quarter".length, quote: "one more quarter",
+      proposedText: "a fourth quarter", blockId: "block-3", snippetId: "snip-3",
+    } as unknown as DocumentSuggestion;
+    // Its moment: the paragraph waits only with a Confident Voice item on it.
+    const moment3 = { ...judgement, id: "s-cv3", start: slide3, end: open.end, quote: open.quote, blockId: "block-3", snippetId: "snip-3" } as unknown as DocumentSuggestion;
+    const p = props({ suggestions: [judgement, praise, done, open, moment3] });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    const bar = () => live()!.querySelector("[data-walk-nav]")!;
+    const arrow = (label: string) => bar().querySelector<HTMLButtonElement>(`button[aria-label='${label}']`)!;
+    const next = () => click(arrow(COPY.pagerNext));
+    const back = () => click(arrow(COPY.pagerBack));
+    expect(screen()).toBe("walk-screen-praise");
+    expect(bar().getAttribute("aria-label")).toBe("Slide 2");
+    expect(arrow(COPY.pagerBack).disabled).toBe(true);
+    expect(arrow(COPY.pagerNext).disabled).toBe(false);
+    await next();
+    expect(screen()).toBe("walk-screen-helpers");
+    await next();
+    // The answered step, as given: read only, Next.
+    expect(screen()).toBe("walk-screen-clearer");
+    expect(bar().getAttribute("aria-label")).toBe("Slide 1");
+    expect(live()!.textContent).toContain(WALK_COPY.answeredAccepted);
+    await next();
+    // The waiting step, live: its pill answers it.
+    expect(bar().getAttribute("aria-label")).toBe("Slide 3");
+    expect(live()!.querySelector("[data-testid='walk-keep']")).not.toBeNull();
+    expect(arrow(COPY.pagerNext).disabled).toBe(true);
+    await back();
+    expect(bar().getAttribute("aria-label")).toBe("Slide 1");
+    await back();
+    await back();
+    expect(screen()).toBe("walk-screen-praise");
+    expect(arrow(COPY.pagerBack).disabled).toBe(true);
+    expect(p.onAccept).not.toHaveBeenCalled();
+    expect(p.onKeepMine).not.toHaveBeenCalled();
   });
 
   it("a tap on a paragraph with an open moment opens the walk there (Q-B3 A)", async () => {
