@@ -23,7 +23,7 @@ import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import type { WalkStep } from "@/lib/willab/walkPlan";
 import { loopEnd, threadStart } from "@/lib/willab/walkPractise";
 import type { WalkPractiseIO } from "@/services/api/walkPractise";
-import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
+import { walkStepAt, type FeedbackWalkModel, type FeedbackWalkMoment, type WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import type { ClearerPiece } from "@/lib/willab/clearerPieces";
 import { phraseTokens, selectionSpan, type PhraseSelection } from "@/lib/willab/phraseTokens";
 import type { RootPhraseSpan } from "@/services/api/partLock";
@@ -59,10 +59,13 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /*    summary    the closing summary, "Take N"; Next closes the walk onto the */
 /*               Ideal Text (WalkSummary)                                     */
 /*                                                                            */
-/*  › is off until the step is answered and a next step exists. A step        */
-/*  reopened (‹, or the finished walk played again) shows its answer as a     */
-/*  "✓ …" line over a black Next, with the other answers dimmed and inert.    */
-/*  Helper words stay editable (lock, section 2.3).                           */
+/*  ‹ › browse every screen of the whole walk, answered and waiting alike,    */
+/*  across slides, in walk order (founder 2026-10-15, "one bar for the whole  */
+/*  walk"); they never answer and never close: at the first and last screen  */
+/*  they are off. The pill alone moves the journey on, to the next step that  */
+/*  waits. A step reopened (‹, or the finished walk played again) shows its   */
+/*  answer as a "✓ …" line over a black Next, with the other answers dimmed   */
+/*  and inert. Helper words stay editable (lock, section 2.3).                */
 /*                                                                            */
 /*  Every word on these screens is a signed one (CHUNK_SHEET_COPY, WALK_COPY) */
 /*  or the caller's (the coach's note, the praise line the item carries);     */
@@ -73,8 +76,16 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /*  and writes nothing (N32.5).                                               */
 /* -------------------------------------------------------------------------- */
 
-/** "Open the walk at step `at`". A new `seq` is a new request. */
-export type FeedbackWalkRequest = { seq: number; at: number };
+/** "Open the walk at step `at`". A new `seq` is a new request; `how` is the
+ *  move that brought the speaker there (‹ or › across the walk's models). */
+export type FeedbackWalkRequest = { seq: number; at: number; how?: WalkDir };
+
+export type WalkBrowseDir = "back" | "forward";
+
+/** Where ‹ or › goes, as the host names it: the screen by its kind and
+ *  paragraph, whether the live walk still holds it (its pill answers it),
+ *  and how the host opens it when this walk does not hold it. */
+export type WalkHop = { target: WalkStepTarget; live: boolean; open: () => void };
 
 /** The coach's word for the Take, as the walk shows it. */
 export type FeedbackWalkCoachNote = {
@@ -134,11 +145,11 @@ type Props<R> = {
   /** Next on a step played again: true when the host moved the walk itself
    *  (a step still waits, so Next goes there; founder 2026-10-14). */
   onForward?: () => boolean;
-  /** ‹ on the walk's first screen: what the host holds before it (a step
-   *  answered earlier, played again), or null when nothing is. The live walk
-   *  holds only what still waits, so the steps before it are the replay's
-   *  (founder 2026-10-15: back and forth across the walk's screens). */
-  before?: (step: WalkStep, partId: string | null) => (() => void) | null;
+  /** ‹ ›: the screen `dir` of `step` in the whole walk, which the host
+   *  holds (the steps answered earlier in the replay, the waiting ones in
+   *  the live walk), or null at the walk's first or last screen (founder
+   *  2026-10-15). Absent, the arrows browse this walk's own plan. */
+  browse?: (step: WalkStep, partId: string | null, dir: WalkBrowseDir) => WalkHop | null;
   /** ✕: the overlay sinks back to the page. */
   onClose?: () => void;
   /** The line bank's memory (D-FW-3): the walk reads which line each bank
@@ -172,14 +183,28 @@ const testId = (step: WalkStep) => `walk-screen-${step.key}`;
 /** The steps a practise is opened from; ✕ on the recorder goes back there. */
 const OPENERS = new Set(["clearer", "exVideo", "encourage", "late"]);
 
-/** Where ‹ goes from `at` on `plan`: the checking screen, a late read, the
- *  recorder and the judging are passed over (a try is not checked twice by
- *  going back, and a judgement stays as given; lock 2026-10-12, section
- *  2.6). Null on the walk's first screen. Pure. */
+/** The screens ‹ › pass over: the checking screen, a late read, the
+ *  recorder and the judging (a try is not checked twice by going back, and
+ *  a judgement stays as given; lock 2026-10-12, section 2.6). */
+const PASSED: ReadonlySet<string> = new Set(["processing", "late", "practise", "others"]);
+
+/** The screens of a try (the recorder, the check, what the machine said):
+ *  the arrows reckon from the screen that opened them. */
+const TRY: ReadonlySet<string> = new Set(["practise", "processing", "late", "improved", "encourage", "thanks"]);
+
+/** Where ‹ or › goes from `at` on `plan`. Null on the walk's first or last
+ *  screen: the page is never reached by an arrow. Pure. */
+export function walkBrowseFrom(plan: readonly WalkStep[], at: number, dir: WalkBrowseDir): number | null {
+  const by = dir === "back" ? -1 : 1;
+  let to = at + by;
+  while (to > 0 && to < plan.length - 1 && PASSED.has(plan[to]?.key)) to += by;
+  const step = plan[to];
+  return !step || step.overlay === false ? null : to;
+}
+
+/** Where ‹ goes from `at` on `plan`. Pure. */
 export function walkBackFrom(plan: readonly WalkStep[], at: number): number | null {
-  let to = at - 1;
-  while (to > 0 && ["processing", "late", "practise", "others"].includes(plan[to]?.key)) to -= 1;
-  return to < 0 || plan[to]?.overlay === false ? null : to;
+  return walkBrowseFrom(plan, at, "back");
 }
 
 /** The plan with the practise step after `at` set to `kind`: "Accept and
@@ -206,7 +231,7 @@ export default function FeedbackWalk<R = unknown>({
   summary = null,
   onEnd,
   onForward,
-  before,
+  browse,
   onClose,
   lines: linesIO = null,
   onShown,
@@ -235,7 +260,7 @@ export default function FeedbackWalk<R = unknown>({
     setWalk(opened);
     setPicks(replayPicks(opened));
     setAnswers({});
-    setDir(undefined);
+    setDir(asked.how);
     setAt(asked.at);
   }, [seq]);
 
@@ -274,17 +299,38 @@ export default function FeedbackWalk<R = unknown>({
     const here = plan.indexOf(step);
     if (here === atNow.current) land(plan, here + 1, "forward");
   };
-  /** The step before `s` that the host holds, on the walk's first screen. */
-  const beforeOf = useCallback(
-    (s: WalkStep): (() => void) | null =>
-      before?.(s, s.moment == null ? null : walk.moments[s.moment]?.partId ?? null) ?? null,
-    [before, walk.moments],
-  );
-  const back = useCallback(() => {
-    const to = walkBackFrom(plan, at);
-    if (to !== null) go(to, "back");
-    else if (step) beforeOf(step)?.();
-  }, [at, plan, step, go, beforeOf]);
+  /** Where ‹ or › goes from here: through the whole walk when the host
+   *  knows it, else through this plan. A try's screens reckon from the
+   *  screen that opened them. Null at the walk's first or last screen: the
+   *  arrow is off. The arrows answer nothing and never close the walk. */
+  const arrow = (dir: WalkBrowseDir): (() => void) | null => {
+    const opener = TRY.has(step.key) ? walkBackFrom(plan, at) : at;
+    if (opener === null) return null;
+    if (opener !== at && dir === "back") return () => go(opener, "back");
+    let from = opener;
+    while (TRY.has(plan[from].key)) {
+      const up = walkBackFrom(plan, from);
+      if (up === null) return null;
+      from = up;
+    }
+    const s = plan[from];
+    if (!browse) {
+      const to = walkBrowseFrom(plan, from, dir);
+      return to === null ? null : () => go(to, dir);
+    }
+    const hop = browse(s, s.moment == null ? null : walk.moments[s.moment]?.partId ?? null, dir);
+    if (!hop) return null;
+    return () => {
+      // A screen this walk holds is a plain move, its answers kept; a step
+      // the live walk still holds is answered there, so a replay hands over.
+      const here = walkStepAt(walk, hop.target);
+      if (here !== null && (!walk.replay || !hop.live)) go(here, dir);
+      else hop.open();
+    };
+  };
+  const arrows = { back: arrow("back"), next: arrow("forward") };
+  const back = () => arrows.back?.();
+  const next = () => arrows.next?.();
   /** The practise lays a new plan in as the machine answers. */
   const relay = useCallback(
     (steps: WalkStep[], to: number, how: WalkDir) => {
@@ -400,12 +446,13 @@ export default function FeedbackWalk<R = unknown>({
   const ctx: ScreenCtx<R> = {
     walk,
     at: (s) => plan.indexOf(s),
-    first: (s) => walkBackFrom(plan, plan.indexOf(s)) === null && beforeOf(s) === null,
+    arrows,
     coachNote,
     takeIndex,
     forward,
     forwardFrom,
     back,
+    next,
     close,
     picks,
     answer,
@@ -507,13 +554,16 @@ type ScreenCtx<R = unknown> = {
   walk: FeedbackWalkModel<R>;
   /** Where a step sits in the plan. */
   at: (step: WalkStep) => number;
-  /** Back is off on the walk's first screen. */
-  first: (step: WalkStep) => boolean;
+  /** Where ‹ and › go from this screen; null: the arrow is off. */
+  arrows: { back: (() => void) | null; next: (() => void) | null };
   coachNote: FeedbackWalkCoachNote | null;
   takeIndex: number | null;
+  /** The pill: on to the next step that waits. */
   forward: () => void;
   forwardFrom: (step: WalkStep) => void;
+  /** ‹ and ›. */
   back: () => void;
+  next: () => void;
   close: () => void;
   picks: Record<string, PhraseSelection | null>;
   answer: (step: WalkStep, value: string) => void;
@@ -535,32 +585,26 @@ type ScreenCtx<R = unknown> = {
   onOthers?: (at: number, of: number, from: string | null, answer: string | null) => void;
 };
 
-/** The top bar's words for a step (prototype `navOf`): "Slide N · moment n
- *  of N" on a green moment, counting green moments only; "Slide N · helper
- *  words"; "Slide N" on the clearer version, the exercise and the tries. ›
- *  is off until the step is answered and a next step exists. */
+/** The top bar's words for a step: "Slide N" (founder 2026-10-15: no moment
+ *  count), "Slide N · helper words" on the helper words. ‹ › are off at the
+ *  walk's first and last screen only. */
 function stepNav(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment): WalkNav {
-  const plan = ctx.walk.plan;
-  const praises = plan.filter((s) => s.key === "praise").map((s) => s.moment);
-  const here = ctx.at(step);
   const label = moment.slideLabel;
   const position =
-    step.key === "praise"
-      ? undefined
-      : step.key === "helpers"
-        ? label
-          ? `${label} · ${WALK_COPY.navHelperWords}`
-          : WALK_COPY.navHelperWords
-        : label ?? undefined;
+    step.key === "helpers"
+      ? label
+        ? `${label} · ${WALK_COPY.navHelperWords}`
+        : WALK_COPY.navHelperWords
+      : label ?? undefined;
   return {
     label,
-    index: Math.max(0, praises.indexOf(moment.index)),
-    total: Math.max(1, praises.length),
+    index: 0,
+    total: 1,
     position,
     onBack: ctx.back,
-    onNext: ctx.forward,
-    backDisabled: ctx.first(step),
-    nextDisabled: ctx.answered(step) === null || plan[here + 1]?.overlay === false || here + 1 >= plan.length,
+    onNext: ctx.next,
+    backDisabled: ctx.arrows.back === null,
+    nextDisabled: ctx.arrows.next === null,
   };
 }
 
@@ -598,9 +642,9 @@ function CoachNote(ctx: ScreenCtx, step: WalkStep) {
     index: 0,
     total: 1,
     onBack: ctx.back,
-    onNext: ctx.forward,
-    backDisabled: true,
-    nextDisabled: ctx.answered(step) === null,
+    onNext: ctx.next,
+    backDisabled: ctx.arrows.back === null,
+    nextDisabled: ctx.arrows.next === null,
   };
   const ok = () => {
     ctx.answer(step, "ok");
@@ -922,7 +966,7 @@ function Summary(ctx: ScreenCtx, step: WalkStep) {
       takeIndex={ctx.takeIndex}
       fetchText={ctx.summary}
       onBack={ctx.back}
-      backDisabled={ctx.first(step)}
+      backDisabled={ctx.arrows.back === null}
       onNext={() => ctx.forwardFrom(step)}
       onClose={ctx.close}
     />
