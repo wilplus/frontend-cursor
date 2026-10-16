@@ -147,7 +147,7 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
 }
 
 /** The server's sentence under the clip (L15, the pause clip). */
-const AI_WHY = "This version stops for a moment before \u201cthe window closes once\u201d. The pause makes the listener wait for what comes next, so it lands.";
+const AI_WHY = "You ran straight into \u201cthe window closes once\u201d. This version stops for a moment before it. The pause makes the listener wait for what comes next, so it lands.";
 
 /** A voice Exercise with no video to show: the AI clip takes its place. */
 const EXERCISE_ITEMS: FeedbackWalkItem<string>[] = [
