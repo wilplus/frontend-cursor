@@ -20,6 +20,11 @@ import {
 
 export const LOUNGE_LOCAL_KEY = "willab.lounge_thread";
 
+/** A visitor's thread is theirs for one sitting. After this long since the
+ *  last message it is dropped, so the next person on the device (a shared
+ *  phone, a demo) starts clean (founder 2026-10-16). */
+export const LOUNGE_LOCAL_TTL_MS = 60 * 60 * 1000;
+
 /** Read the full local thread (ASC by client_created_at — caller-maintained). */
 export function readLocalLoungeThread(): LoungeMessage[] {
   if (typeof window === "undefined") return [];
@@ -31,6 +36,26 @@ export function readLocalLoungeThread(): LoungeMessage[] {
   } catch {
     return [];
   }
+}
+
+/** The thread for a new sitting: the stored one, or nothing when its newest
+ *  message is older than the TTL (that thread is dropped). The Lounge calls
+ *  this once on load; appends never expire a thread mid-conversation. */
+export function loadLocalLoungeThread(now: number = Date.now()): LoungeMessage[] {
+  const thread = readLocalLoungeThread();
+  if (!isStale(thread, now)) return thread;
+  clearLocalLoungeThread();
+  return [];
+}
+
+/** True when the newest message is older than the TTL. Pure; exported for
+ *  the test. A thread without a readable timestamp is kept. */
+export function isStale(thread: LoungeMessage[], now: number): boolean {
+  const newest = thread.reduce<number>((acc, m) => {
+    const t = Date.parse(m.client_created_at);
+    return Number.isNaN(t) ? acc : Math.max(acc, t);
+  }, 0);
+  return newest > 0 && now - newest > LOUNGE_LOCAL_TTL_MS;
 }
 
 function writeLocalLoungeThread(messages: LoungeMessage[]): void {
