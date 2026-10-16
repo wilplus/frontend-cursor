@@ -44,7 +44,14 @@ const training = vi.hoisted(() => ({
 vi.mock("@/services/api/trainingConsent", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   fetchTrainingConsent: vi.fn(async () => training.state),
+  fetchTrainingWording: vi.fn(async () => training.state),
   setTrainingConsent: training.set,
+}));
+// Signed in unless a test says otherwise (a visitor has no token).
+const auth = vi.hoisted(() => ({ token: "token" as string | null }));
+vi.mock("@/lib/api/auth-client", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  getAuthToken: vi.fn(async () => auth.token),
 }));
 
 import Phase1AcceptanceFlow from "./Phase1AcceptanceFlow";
@@ -226,5 +233,23 @@ describe("the training choice as the third thing", () => {
     await click("Agree and continue");
     expect(acceptAuthorization).toHaveBeenCalledTimes(1);
     expect(training.set).toHaveBeenCalledWith(true, training.state);
+  });
+
+  it("a visitor sees it too; their yes is kept on the device, not sent", async () => {
+    auth.token = null;
+    window.localStorage.clear();
+    try {
+      await walkToConfirm();
+      expect(host.textContent).toContain("Three things to confirm");
+      await click("I am 18");
+      await click("I agree that");
+      await click("Yes, make it so much better");
+      await click("Agree and continue");
+      expect(acceptAuthorization).toHaveBeenCalledTimes(1);
+      expect(training.set).not.toHaveBeenCalled();
+      expect(window.localStorage.getItem("willab.pendingTrainingYes")).toContain("training-only-v2");
+    } finally {
+      auth.token = "token";
+    }
   });
 });

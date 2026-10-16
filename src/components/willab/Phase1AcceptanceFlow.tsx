@@ -28,6 +28,7 @@ import {
 import { fetchConsentChoices } from "@/services/api/consentChoices";
 import {
   fetchTrainingConsent,
+  fetchTrainingWording,
   reportTrainingRefusal,
   setTrainingConsent,
   trainingRefusalCode,
@@ -35,6 +36,8 @@ import {
 } from "@/services/api/trainingConsent";
 import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
 import TrainingReadMore from "@/components/legal/TrainingReadMore";
+import { getAuthToken } from "@/lib/api/auth-client";
+import { keepPendingTrainingYes } from "@/lib/legal/pendingTrainingYes";
 
 /* -------------------------------------------------------------------------- */
 /*  The Phase-1 acceptance screens (Task 5).                                   */
@@ -63,6 +66,26 @@ const CLIENT_VERSION = "phase1-acceptance-web-v1";
  *  bytes and must not replay the earlier receipt. */
 function newAttemptKey(): string {
   return crypto.randomUUID();
+}
+
+/** The training choice to offer: the account's own state when signed in,
+ *  the public words when not (a visitor; founder 2026-10-15). */
+async function readTrainingChoice(): Promise<{ value: TrainingConsent | null; visitor: boolean }> {
+  if (await getAuthToken()) return { value: await fetchTrainingConsent(), visitor: false };
+  return { value: await fetchTrainingWording(), visitor: true };
+}
+
+/** The ticked yes, once the receipt exists: saved for an account, kept on
+ *  the device for a visitor until they sign in (pendingTrainingYes.ts).
+ *  Best effort: a refusal never undoes the agreement, and the question is
+ *  asked again before the first Take. */
+async function sendTrainingYes(shown: TrainingConsent, visitor: boolean): Promise<void> {
+  if (visitor) {
+    keepPendingTrainingYes(shown);
+    return;
+  }
+  const code = trainingRefusalCode(await setTrainingConsent(true, shown));
+  if (code) reportTrainingRefusal(code, "ask");
 }
 
 function readLocale(): string {
@@ -326,10 +349,15 @@ export default function Phase1AcceptanceFlow({
   // learning?" still asks before the first Take.
   const [training, setTraining] = useState<TrainingConsent | null>(null);
   const [trainingOptIn, setTrainingOptIn] = useState(false);
+  // A visitor who is not signed in sees it too (founder 2026-10-15): the
+  // public words, and a yes kept on the device until they sign in.
+  const [visitor, setVisitor] = useState(false);
   useEffect(() => {
     let alive = true;
-    void fetchTrainingConsent().then((value) => {
-      if (alive && value?.available && value.copy && !value.active) setTraining(value);
+    void readTrainingChoice().then(({ value, visitor: isVisitor }) => {
+      if (!alive) return;
+      setVisitor(isVisitor);
+      if (value?.available && value.copy && !value.active) setTraining(value);
     });
     return () => { alive = false; };
   }, [policy.policyId]);
@@ -426,11 +454,7 @@ export default function Phase1AcceptanceFlow({
           // after it. Best effort: a refusal never undoes the agreement, and
           // the question is asked again before the first Take.
           if (trainingOffered && trainingOptIn && training) {
-            return setTrainingConsent(true, training).then((saved) => {
-              const code = trainingRefusalCode(saved);
-              if (code) reportTrainingRefusal(code, "ask");
-              onAccepted();
-            });
+            return sendTrainingYes(training, visitor).then(onAccepted);
           }
           onAccepted();
           return;
@@ -442,7 +466,7 @@ export default function Phase1AcceptanceFlow({
         setFailure(result.message);
       })
       .finally(() => setSaving(false));
-  }, [policy, country, locale, attemptKey, practiceOffered, practiceOptIn, trainingOffered, trainingOptIn, training, onAccepted, onStale]);
+  }, [policy, country, locale, attemptKey, practiceOffered, practiceOptIn, trainingOffered, trainingOptIn, training, visitor, onAccepted, onStale]);
 
   /* EVERY STEP OPENS AT ITS TOP AND FADES IN (consent lock 2026-10-07; the
      prototype's render(): a new step resets the scroller and enters over

@@ -3,12 +3,16 @@
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { claimGuestProjects } from "@/services/api/projects";
+import { sendPendingTrainingYes } from "@/lib/legal/pendingTrainingYes";
 
-/** Completes the guest-owner handoff after any signup or login round-trip. */
+/** Completes the guest-owner handoff after any signup or login round-trip,
+ *  then sends a training yes the visitor gave before signing in. */
 export default function GuestProjectClaim() {
   useEffect(() => {
     const supabase = createClient();
-    const claim = () => void claimGuestProjects();
+    // A visitor's training yes follows the claim: the grant needs the
+    // acceptance the claim brings into the account (pendingTrainingYes.ts).
+    const claim = () => void claimGuestProjects().then(() => sendPendingTrainingYes());
     void supabase.auth.getSession().then(({ data }) => {
       if (data.session?.access_token) claim();
     });

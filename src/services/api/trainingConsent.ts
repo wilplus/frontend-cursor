@@ -60,6 +60,18 @@ export async function fetchTrainingConsent(): Promise<TrainingConsent | null> {
   }
 }
 
+/** The sentence in force for someone who is not signed in: public words,
+ *  no state (founder 2026-10-15). Null when it could not be read. */
+export async function fetchTrainingWording(): Promise<TrainingConsent | null> {
+  try {
+    const res = await fetch("/api/v2/training-consent/wording", { method: "GET" });
+    if (!res.ok) return null;
+    return mapTrainingConsent(await res.json().catch(() => null));
+  } catch {
+    return null;
+  }
+}
+
 function idempotencyKey(): string {
   try {
     return crypto.randomUUID();
