@@ -63,7 +63,10 @@ import {
   readExploreArc,
   writeExploreArc,
 } from "@/lib/willab/exploreArc";
-import { clearInsightsReady } from "./sendStatus";
+import { clearInsightsReady, setPendingSend } from "./sendStatus";
+import { readParked } from "./willabParked";
+import { guestNeedsAccount } from "./GuestSignUpDialog";
+import ReadySignUpScreen from "./ReadySignUpScreen";
 import { isLabOverlay, type WillabEvent, type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
 import { TopUpBubble, TopUpSlot, useTopUpOffer } from "./LoungeTopUpCard";
@@ -154,6 +157,33 @@ function failedNoteSession(
 ): string | null {
   if (labOpen || !resume || resume.status !== "failed") return null;
   return resume.sessionId;
+}
+
+/** SIGN UP BEFORE THE TEXT (founder 2026-10-16): a signed-out reader whose
+ *  Take is processed is asked for an account; a Take still in flight shows
+ *  its wait as before. */
+function guestAsksFirst(signedIn: boolean, takeInFlight: boolean): boolean {
+  return guestNeedsAccount(signedIn) && !takeInFlight;
+}
+
+/** The Ideal Text, or -- for a guest, once the Take is processed -- the ask
+ *  in its place (ReadySignUpScreen). */
+function IdealTextForReader({
+  askFirst,
+  onSignUp,
+  onNotNow,
+  children,
+}: {
+  askFirst: boolean;
+  onSignUp: () => void;
+  onNotNow: () => void;
+  children: React.ReactNode;
+}) {
+  return askFirst ? (
+    <ReadySignUpScreen onSignUp={onSignUp} onNotNow={onNotNow} />
+  ) : (
+    <>{children}</>
+  );
 }
 
 export default function Lounge({
@@ -462,6 +492,7 @@ export default function Lounge({
   const [feedbackTarget, setFeedbackTarget] =
     useState<FeedbackBubbleTarget | null>(null);
   const [idealTextArcId, setIdealTextArcId] = useState<string | null>(null);
+  const router = useRouter();
   const [idealTextReviewAt, setIdealTextReviewAt] = useState<WalkStepTarget | null>(null);
   const [idealTextLaunchMode, setIdealTextLaunchMode] =
     useState<IdealTextLaunchMode>("notebook");
@@ -1058,6 +1089,19 @@ export default function Lounge({
     [messages],
   );
 
+  /* SIGN UP BEFORE THE TEXT (founder 2026-10-16): a guest's "Create an
+     account" from the ready screen hands the Take over the way the Lab's
+     does (startUnsignedSend) -- the pending send names the Take, the claim
+     after sign-up owns the project -- and goes to /signup. */
+  function signUpForIdealText(arcId: string): void {
+    const parked = readParked();
+    const sessionId =
+      parked?.projectId === arcId ? parked.sessionId : latestArcSessionId(arcId) ?? null;
+    if (sessionId) setPendingSend(arcId, sessionId);
+    setIdealTextArcId(null);
+    router.push("/signup");
+  }
+
   // The settle stamp: a recording_summary minted AFTER the thread settled is
   // the "just recorded this session" signal (consumed by the install offer
   // below). The joke onboarding that used to arm here is deleted (SD/FE-4).
@@ -1641,7 +1685,16 @@ export default function Lounge({
           onClose={() => setFeedbackTarget(null)}
         />
       )}
+      {/* A GUEST'S WAY BACK LANDS ON THE ASK (founder 2026-10-16): while
+          signed out, every open of an Ideal Text -- the recording bubble,
+          the ready line, the review that opens by itself -- shows the ready
+          screen, never the text. The wait in flight still shows as a wait. */}
       {idealTextArcId && (
+        <IdealTextForReader
+          askFirst={guestAsksFirst(thread.signedIn, takeInFlight)}
+          onSignUp={() => signUpForIdealText(idealTextArcId)}
+          onNotNow={() => setIdealTextArcId(null)}
+        >
         <IdealTextOverlay
           arcId={idealTextArcId}
           initialMode={idealTextLaunchMode}
@@ -1683,6 +1736,7 @@ export default function Lounge({
             (onStartInProject ?? onStart)();
           }}
         />
+        </IdealTextForReader>
       )}
       {confidencePracticeId && (
         <ConfidencePracticeOverlay

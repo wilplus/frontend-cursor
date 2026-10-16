@@ -126,3 +126,47 @@ describe("useGuestGate — sign-up stands in front of the steps that need an acc
     expect(dialog()?.textContent).toContain(GUEST_SIGN_UP_COPY.title);
   });
 });
+
+/* SIGN UP BEFORE THE TEXT (founder 2026-10-16): once the Take is processed a
+   guest sees the ready screen, not the readout; an account's wait is
+   untouched. */
+describe("ReadySignUpScreen — a guest's processed Take asks for an account first", () => {
+  const onSignUp = vi.fn();
+  const onClose = vi.fn();
+
+  async function mountReadout(signedIn: boolean) {
+    const { default: IdealTextReadout } = await import("./IdealTextReadout");
+    act(() => {
+      root.render(
+        createElement(IdealTextReadout, {
+          payload,
+          sessionId: "sess-1",
+          arcId: "arc-1",
+          signedIn,
+          onAutoSent: () => undefined,
+          onSignUp,
+          onClose,
+        }),
+      );
+    });
+  }
+  const screen = () => host.querySelector("[data-ready-sign-up]");
+
+  it("a guest gets the ready screen; its answers are the dialog's two", async () => {
+    localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
+    await mountReadout(false);
+    const { READY_SIGN_UP_COPY } = await import("./GuestSignUpDialog");
+    expect(screen()?.textContent).toContain(READY_SIGN_UP_COPY.title);
+    expect(screen()?.textContent).toContain(READY_SIGN_UP_COPY.body);
+    const buttons = Array.from(screen()?.querySelectorAll("button") ?? []);
+    act(() => buttons.find((b) => b.textContent === "Create an account")?.click());
+    expect(onSignUp).toHaveBeenCalledTimes(1);
+    act(() => buttons.find((b) => b.textContent === "Not now")?.click());
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("a signed-in speaker never sees it", async () => {
+    await mountReadout(true);
+    expect(screen()).toBeNull();
+  });
+});

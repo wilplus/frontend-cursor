@@ -22,12 +22,36 @@ import { readGuestOwnerToken } from "@/services/api/projects";
  *  `useGuestGate` is the one switch: an account gets every callback back
  *  untouched; a guest gets each one replaced by "ask, and refuse". */
 
+/** The one promise both asks make: the guest's Take follows them into the
+ *  account (GuestProjectClaim). */
+const RECORDING_COMES_WITH_YOU = "Your recording comes with you.";
+
 export const GUEST_SIGN_UP_COPY = {
   title: "Create an account to continue",
-  body: "Practising, recording Take 2 and keeping your changes need an account. Your recording comes with you.",
+  body: `Practising, recording Take 2 and keeping your changes need an account. ${RECORDING_COMES_WITH_YOU}`,
   primary: "Create an account",
   secondary: "Not now",
 } as const;
+
+/** THE SIGN-UP BEFORE THE TEXT (founder 2026-10-16: "sign up before showing
+ *  the ideal text"; "just build the processing is done" screen). A guest
+ *  whose Take has been processed sees ReadySignUpScreen -- the ready line,
+ *  this ask, the same two answers -- instead of the readout. */
+export const READY_SIGN_UP_COPY = {
+  // Founder's words, 2026-10-16 ("Done (title) / Your confidence moments
+  // and practice are ready! (grey)").
+  title: "Done",
+  body: "Your confidence moments and practice are ready!",
+  primary: GUEST_SIGN_UP_COPY.primary,
+  secondary: GUEST_SIGN_UP_COPY.secondary,
+} as const;
+
+/** The one switch for "may this reader open an Ideal Text": a signed-out
+ *  reader is asked to create an account first (ReadySignUpScreen). `null`
+ *  (still resolving) is not a guest. */
+export function guestNeedsAccount(signedIn: boolean | null): boolean {
+  return signedIn === false;
+}
 
 export default function GuestSignUpDialog({
   open,
