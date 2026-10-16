@@ -90,6 +90,11 @@ export interface ChatQueryResponse {
   /** The Lounge offer the chat opened this turn ("whatsapp", "install"),
    *  signed-in only. The backend already stored its bubble after the reply. */
   offer?: string | null;
+  /** The latest Take's Ideal Text card the chat opened this turn (founder
+   *  2026-10-16, "show me my latest take"): the BE stored the same row the
+   *  server posts when a text is ready; the Lounge shows it under the
+   *  answer, and a tap opens that Take's text. */
+  take_card?: { arc_id: string; version?: number | null; topic?: string | null } | null;
   /** True only when the backend durably stored the signed-in bot turn. */
   persisted?: boolean;
   /** Optional stress-contrast block (BE-3). null / absent → omit
