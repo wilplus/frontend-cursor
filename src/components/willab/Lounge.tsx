@@ -1740,7 +1740,10 @@ export default function Lounge({
 
 /** B-1 — a single intent-driven quick-action button (from the BE's
  *  suggested_action, S1). Lives inside the bot bubble it came with, persists
- *  in thread history, and is always clickable (action is idempotent). */
+ *  in thread history, and is always clickable (action is idempotent).
+ *  Drawn like a walk step's card (founder 2026-10-16: "Your presentations"
+ *  in the shape of "Choose your helper words"): the grey bubble with the
+ *  chevron, so every tappable card in the chat looks the same. */
 function ActionButton({
   action,
   onClick,
@@ -1753,9 +1756,12 @@ function ActionButton({
       <button
         type="button"
         onClick={onClick}
-        className="self-start rounded-full border border-border px-3 py-2 text-[15px] text-foreground transition-colors hover:border-primary/50"
+        className="relative self-start rounded-[16px] bg-muted py-2 pl-3 pr-[30px] text-left text-[15px] leading-[1.45] text-foreground"
       >
         {CHIP_LABEL[action]}
+        <span aria-hidden="true" className="absolute right-[11px] top-1/2 -translate-y-1/2 text-[20px] text-muted-foreground">
+          ›
+        </span>
       </button>
     </div>
   );
