@@ -14,6 +14,7 @@ vi.mock("@/services/api/loungeMessages", async (importOriginal) => {
 
 import {
   appendLocalLoungeMessage,
+  loadLocalLoungeThread,
   mergeLocalLoungeThreadToServer,
   readLocalLoungeThread,
 } from "./loungeLocalThread";
@@ -63,5 +64,17 @@ describe("mergeLocalLoungeThreadToServer", () => {
     const passed = vi.mocked(appendAllLoungeMessages).mock.calls[0]?.[0] ?? [];
     expect(passed.map((m) => m.client_id)).toEqual(["a", "b"]); // sorted ASC
     expect(readLocalLoungeThread()).toEqual([]); // cleared after merge
+  });
+});
+
+describe("a visitor's thread expires after a sitting", () => {
+  // Founder 2026-10-16: a new visitor on the same device found last
+  // night's conversation. An hour of silence ends the sitting.
+  it("drops a thread whose newest message is older than the TTL", () => {
+    appendLocalLoungeMessage(msg("a", "2026-10-15T22:00:00.000Z"));
+    appendLocalLoungeMessage(msg("b", "2026-10-15T22:05:00.000Z"));
+    expect(loadLocalLoungeThread(Date.parse("2026-10-15T22:30:00.000Z"))).toHaveLength(2);
+    expect(loadLocalLoungeThread(Date.parse("2026-10-16T06:45:00.000Z"))).toEqual([]);
+    expect(readLocalLoungeThread()).toEqual([]);
   });
 });

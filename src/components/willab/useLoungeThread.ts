@@ -13,7 +13,7 @@ import {
   appendLocalLoungeMessage,
   clearLocalLoungeThread,
   mergeLocalLoungeThreadToServer,
-  readLocalLoungeThread,
+  loadLocalLoungeThread,
 } from "@/lib/funnel/loungeLocalThread";
 import { announceDiscoveriesFromPersistedMessages } from "@/lib/productDiscovery";
 import { takeLoungeHistory } from "@/services/api/bootPrefetch";
@@ -77,7 +77,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
         setHasMore(page.has_more);
         oldestCursorRef.current = page.oldest_cursor;
       } else {
-        const local = readLocalLoungeThread();
+        const local = loadLocalLoungeThread();
         if (cancelled) return;
         setMessages(local);
         setHasMore(false);
