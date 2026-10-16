@@ -132,15 +132,22 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
       }),
     );
   }
-  // The AI version of your voice (N71): asked for once, ready on the next read.
+  // The AI version of your voice (N71): asked for once, ready on the next read,
+  // with the server's one sentence on what changed and why (WIL-82).
   if (url.endsWith("/ai-voice")) {
     const ready = method === "GET";
     return Promise.resolve(
-      json({ demo: "ai_voice", clip: ready ? { state: "ready", url: "https://media.example/ai.mp3", duration_ms: 3000 } : { state: "pending", url: null } }),
+      json({
+        demo: "ai_voice",
+        clip: ready ? { state: "ready", url: "https://media.example/ai.mp3", duration_ms: 3000, why: AI_WHY } : { state: "pending", url: null },
+      }),
     );
   }
   return Promise.resolve(json({}, 404));
 }
+
+/** The server's sentence under the clip (L15, the pause clip). */
+const AI_WHY = "This version stops for a moment before \u201cthe window closes once\u201d. The pause makes the listener wait for what comes next, so it lands.";
 
 /** A voice Exercise with no video to show: the AI clip takes its place. */
 const EXERCISE_ITEMS: FeedbackWalkItem<string>[] = [
@@ -292,6 +299,21 @@ describe("the AI version of your voice on the Exercise (founder 2026-10-15)", ()
     expect(live()!.querySelector("[data-walk-ai-waiting]")).toBeNull();
     expect(live()!.querySelector("[data-walk-message] [data-walk-player] audio")!.getAttribute("src")).toBe("https://media.example/ai.mp3");
     expect(calls.filter((c) => c.url.endsWith("/ai-voice") && c.method === "GET")).toHaveLength(1);
+  });
+
+  it("with the clip, the speaker reads what this version does differently and why: one sentence under the player, before \"Now try\", with no number (WIL-82)", async () => {
+    draw({ items: EXERCISE_ITEMS, at: 1 });
+    await settle(60);
+    // Nothing to explain while the clip is still being made.
+    expect(live()!.querySelector("[data-walk-ai-why]")).toBeNull();
+    await settle(150);
+    const bubble = live()!.querySelector("[data-walk-message]")!;
+    expect(bubble.querySelector("[data-walk-ai-why]")!.textContent).toBe(AI_WHY);
+    const text = bubble.textContent ?? "";
+    expect(text.indexOf(AI_WHY)).toBeGreaterThan(text.indexOf(WALK_COPY.aiVoiceLabel));
+    expect(text.indexOf(AI_WHY)).toBeLessThan(text.indexOf(WALK_COPY.aiVoiceNow));
+    // The player's clock is the only figure.
+    expect(text.replace(/\d+:\d{2}/g, "")).not.toMatch(/\d/);
   });
 });
 
