@@ -156,7 +156,7 @@ describe("ReadySignUpScreen — a guest's processed Take asks for an account fir
     localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
     await mountReadout(false);
     const { READY_SIGN_UP_COPY } = await import("./GuestSignUpDialog");
-    expect(screen()?.textContent).toContain("Your ideal text is ready.");
+    expect(screen()?.textContent).toContain(READY_SIGN_UP_COPY.title);
     expect(screen()?.textContent).toContain(READY_SIGN_UP_COPY.body);
     const buttons = Array.from(screen()?.querySelectorAll("button") ?? []);
     act(() => buttons.find((b) => b.textContent === "Create an account")?.click());

@@ -3,7 +3,6 @@
 import { createContext, useCallback, useContext, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { readGuestOwnerToken } from "@/services/api/projects";
-import { IDEAL_TEXT_READY_BODY } from "./loungeReports";
 
 /** A guest reads the whole page and is asked to sign up at the step that
  *  needs an account (founder 2026-10-04, F1 Repair Plan Phase 0.6):
@@ -39,9 +38,10 @@ export const GUEST_SIGN_UP_COPY = {
  *  whose Take has been processed sees ReadySignUpScreen -- the ready line,
  *  this ask, the same two answers -- instead of the readout. */
 export const READY_SIGN_UP_COPY = {
-  title: IDEAL_TEXT_READY_BODY,
-  // founder 2026-10-16, words to OK
-  body: `Create an account to open it. ${RECORDING_COMES_WITH_YOU}`,
+  // Founder's words, 2026-10-16 ("Done (title) / Your confidence moments
+  // and practice are ready! (grey)").
+  title: "Done",
+  body: "Your confidence moments and practice are ready!",
   primary: GUEST_SIGN_UP_COPY.primary,
   secondary: GUEST_SIGN_UP_COPY.secondary,
 } as const;
