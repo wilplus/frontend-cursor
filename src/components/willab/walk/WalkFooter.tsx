@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 /* -------------------------------------------------------------------------- */
 /*  WalkFooter — one black pill, grey links under it, never beside it          */
 /*  (founder lock 2026-10-06). Anything passed as children (the recording      */
-/*  strip) sits above the pill.                                               */
+/*  strip) sits above the pill. The Exercise thread stacks two pills: the     */
+/*  outlined Practise over a black Next (founder 2026-10-16).                 */
 /* -------------------------------------------------------------------------- */
 
 export type WalkAction = {
@@ -49,12 +50,16 @@ export function WalkLink({ action }: { action: WalkAction }) {
 
 export default function WalkFooter({
   pill,
+  second = null,
   dot = false,
   outline = false,
   links = [],
   children,
 }: {
   pill?: WalkAction | null;
+  /** A black pill under the first: Next under the outlined Practise in the
+   *  Exercise thread (founder 2026-10-16). */
+  second?: WalkAction | null;
   /** The record dot inside the pill ("Record Take N"). */
   dot?: boolean;
   /** White with a black outline: Practise in the voice Exercise's thread
@@ -67,6 +72,7 @@ export default function WalkFooter({
     <div data-walk-footer className="flex flex-col gap-1 px-5 pb-[max(30px,env(safe-area-inset-bottom))] pt-2">
       {children}
       {pill ? <WalkPill action={pill} dot={dot} outline={outline} /> : null}
+      {second ? <WalkPill action={second} /> : null}
       {links.map((link) => (
         <WalkLink key={link.label} action={link} />
       ))}

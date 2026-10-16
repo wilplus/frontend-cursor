@@ -149,6 +149,14 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
 /** The server's sentence under the clip (L15, the pause clip). */
 const AI_WHY = "You ran straight into \u201cthe window closes once\u201d. This version stops for a moment before it. The pause makes the listener wait for what comes next, so it lands.";
 
+/** A praise before the exercise, so ‹ › have somewhere to go. */
+const PRAISE_ITEM: FeedbackWalkItem<string> = {
+  partId: "p1", start: 0, slide: 1, blockId: "b1", openCard: "praise",
+  paragraphText: "We opened with the number and let it sit.", slideLabel: "Slide 2",
+  praiseWords: ["You opened with the number and let it sit."],
+  clip: { src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 6000 },
+};
+
 /** A voice Exercise with no video to show: the AI clip takes its place. */
 const EXERCISE_ITEMS: FeedbackWalkItem<string>[] = [
   {
@@ -314,6 +322,57 @@ describe("the AI version of your voice on the Exercise (founder 2026-10-15)", ()
     expect(text.indexOf(AI_WHY)).toBeLessThan(text.indexOf(WALK_COPY.aiVoiceNow));
     // The player's clock is the only figure.
     expect(text.replace(/\d+:\d{2}/g, "")).not.toMatch(/\d/);
+  });
+});
+
+describe("the Exercise screen as one thread (founder 2026-10-16)", () => {
+  const text = () => live()!.textContent ?? "";
+  const practisePill = () => live()!.querySelector<HTMLElement>("[data-testid='walk-practise']");
+  const nextPill = () => live()!.querySelector<HTMLElement>("[data-testid='walk-forward']");
+  const arrow = (label: string) => click(live()!.querySelector(`[data-walk-nav] button[aria-label='${label}']`));
+
+  it("shows the whole history at once, keeps the outlined Practise above Next until the third try whatever the answer, then Next alone", async () => {
+    draw({ items: [PRAISE_ITEM, ...EXERCISE_ITEMS], at: 3 });
+    await settle(150);
+    expect(screen()).toBe("walk-screen-exVideo");
+    // No tries yet: Practise, white with the black stroke and the dot, above Next; no Skip.
+    expect(practisePill()!.dataset.walkPillOutline).toBe("true");
+    expect(nextPill()!.textContent).toBe(COPY.pagerNext);
+    expect(live()!.querySelector("[data-testid='walk-skip']")).toBeNull();
+    // Try 1 is praised: the try and "Good job" on the screen, Practise still there.
+    answers = [{ next: "praise", key: "cue:landed_ending" }, { next: "again", key: "effort" }, { next: "again", key: "effort" }];
+    click(practisePill());
+    expect(screen()).toBe("walk-screen-practise");
+    await tryAndRead();
+    expect(text()).toContain(WALK_COPY.practiseN(1));
+    expect(text()).toContain(COPY.titlePraise);
+    expect(practisePill()).not.toBeNull();
+    expect(nextPill()).not.toBeNull();
+    // Away with ‹ and back with ›: the history is there at once, no Next needed.
+    arrow(COPY.pagerBack);
+    expect(screen()).toBe("walk-screen-helpers");
+    arrow(COPY.pagerNext);
+    expect(text()).toContain(WALK_COPY.practiseN(1));
+    expect(text()).toContain(COPY.titlePraise);
+    expect(practisePill()).not.toBeNull();
+    // Try 2 after the Good job: not yet. Try 3: the limit, Next alone, all three tries on screen.
+    click(practisePill());
+    expect(screen()).toBe("walk-screen-practise");
+    await tryAndRead();
+    expect(text()).toContain(WALK_COPY.practiseN(2));
+    expect(practisePill()).not.toBeNull();
+    click(practisePill());
+    await tryAndRead();
+    expect(text()).toContain(WALK_COPY.practiseN(1));
+    expect(text()).toContain(WALK_COPY.practiseN(3));
+    expect(text()).toContain(PRACTISE_LINES.movedOn);
+    expect(practisePill()).toBeNull();
+    expect(nextPill()).not.toBeNull();
+    // Each try went to the server; the fourth is never offered.
+    expect(calls.filter((c) => c.url.endsWith("/attempts") && c.method === "POST")).toHaveLength(3);
+    forward();
+    await act(async () => {});
+    expect(ended).toBe(1);
   });
 });
 
