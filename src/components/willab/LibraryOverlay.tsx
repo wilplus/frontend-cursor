@@ -16,7 +16,6 @@ import {
 } from "@/services/api/strengths";
 import { fetchTrainings, type TrainingArc, type TrainingTake } from "@/services/api/trainings";
 import FeedbackOverlay from "./FeedbackOverlay";
-import IdealTextOverlay from "./IdealTextOverlay";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { MediaRefreshProvider } from "@/lib/media/mediaRefresh";
 import { SlideRender } from "./pdfSlides";
@@ -126,7 +125,6 @@ export default function LibraryOverlay({
     takeIndex: number;
     sessionId: string;
   } | null>(null);
-  const [idealArcId, setIdealArcId] = useState<string | null>(null);
   const [nav, setNav] = useState<NavLevel>({ level: "L1" });
   // A take the backend refused to delete (409 TAKE_HAS_LINEAGE): it comes
   // back, with the approved line under it. Nothing was deleted, so the take
@@ -396,7 +394,6 @@ export default function LibraryOverlay({
         ) : nav.level === "T2" ? (
           <TrainingDetail
             arc={nav.arc}
-            onOpenIdeal={() => setIdealArcId(nav.arc.arcId)}
             onOpenTake={(t) =>
               setFeedbackTake({
                 arcId: nav.arc.arcId,
@@ -440,9 +437,6 @@ export default function LibraryOverlay({
           onClose={() => setFeedbackTake(null)}
         />
       ) : null}
-      {idealArcId ? (
-        <IdealTextOverlay arcId={idealArcId} onClose={() => setIdealArcId(null)} />
-      ) : null}
     </div>
     </MediaRefreshProvider>
   );
@@ -483,50 +477,18 @@ function TrainingsList({
 
 function TrainingDetail({
   arc,
-  onOpenIdeal,
   onOpenTake,
   onRecordAnother,
 }: {
   arc: TrainingArc;
-  /** Opens the arc's ideal-text notebook (the delivery-layer deliverable). */
-  onOpenIdeal: () => void;
   /** Opens one take's feedback page. */
   onOpenTake: (t: TrainingTake) => void;
   onRecordAnother: () => void;
 }) {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-6">
-      {/* Delivery layer — no title beyond the navbar: the top is the big cover
-          (the served deck's first page, or a calm mock) with the darker-bg
-          "Open ideal presentation" button directly under it. The button sits
-          BELOW the cover (not overlaid) so it can't hide SlideRender's retry
-          control on a failed PDF or float over the header while it loads. */}
-      <div className="flex flex-col">
-        {arc.coverRef ? (
-          <SlideRender
-            presentationRef={arc.coverRef}
-            pageIndex={0}
-            title={arc.topic}
-            body=""
-            className="w-full"
-          />
-        ) : (
-          <div className="flex aspect-video w-full items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/10">
-            <Mic className="h-10 w-10 text-muted-foreground/40" aria-hidden />
-          </div>
-        )}
-        <div className="px-4 pt-3">
-          <button
-            type="button"
-            onClick={onOpenIdeal}
-            className="w-full rounded-full bg-foreground px-5 py-2.5 text-[14px] font-medium text-background transition hover:bg-foreground/90"
-          >
-            Open ideal presentation
-          </button>
-        </div>
-      </div>
-
-      {/* The take list — each row opens that take's feedback page. */}
+      {/* The take list — founder 2026-10-16: no cover and no "Open ideal
+          presentation" button above it; each row opens that take's page. */}
       <div className="flex flex-col gap-2 px-4">
         {arc.takes.map((t) => (
           <button
