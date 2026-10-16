@@ -131,23 +131,18 @@ describe("the finished walk, played again", () => {
     expect(byTestId("walk-keep")).toBeNull();
     click(byTestId("walk-forward"));
     expect(screen()).toBe("walk-screen-exVideo");
-    expect(live()!.textContent).toContain(WALK_COPY.answered);
-    // The exercise already done plays its tries (walk first, 2026-10-14):
-    // each "Practise N" with its own voice and the answer it got, the
-    // recorder passed over, nothing recorded and nothing asked.
-    click(byTestId("walk-forward"));
-    expect(screen()).toBe("walk-screen-encourage");
+    // The exercise already done shows its whole thread at once (founder
+    // 2026-10-16): each "Practise N" with its own voice and the answer it
+    // got, the recorder passed over, nothing recorded and nothing asked.
+    // Next alone under it: a walk played again never practises.
     const voices = () => [...live()!.querySelectorAll("[data-walk-player][data-walk-me] audio")].map((a) => a.getAttribute("src"));
-    expect(voices()).toEqual([clip.src, "blob:try-1"]);
-    expect(live()!.textContent).toContain(WALK_COPY.practiseN(1));
-    expect(live()!.textContent).toContain(WALK_COPY.answeredPractised);
-    expect(byTestId("walk-stop")).toBeNull();
-    click(byTestId("walk-forward"));
-    expect(screen()).toBe("walk-screen-improved");
     expect(voices()).toEqual([clip.src, "blob:try-1", "blob:try-2"]);
+    expect(live()!.textContent).toContain(WALK_COPY.practiseN(1));
     expect(live()!.textContent).toContain(WALK_COPY.practiseN(2));
+    expect(byTestId("walk-stop")).toBeNull();
+    expect(byTestId("walk-practise")).toBeNull();
     click(byTestId("walk-forward"));
-    expect(screen()).not.toBe("walk-screen-practise");
+    expect(["walk-screen-practise", "walk-screen-encourage", "walk-screen-improved"]).not.toContain(screen());
     expect(calls).toEqual(["helpers"]);
   });
 

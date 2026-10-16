@@ -13,9 +13,12 @@ import type { AiVoiceState } from "@/services/api/aiVoice";
 /*  The AI version of your voice in the walk (founder lock 2026-10-12, N71;    */
 /*  prototype https://claude.ai/artifact/G8Am3fR3f3SzAdTkwyUGKZ v8).           */
 /*                                                                            */
-/*  One grey app bubble: a signed line, the label (L1) and the one player,    */
-/*  audio only, never the words; it never plays by itself. At most three per  */
-/*  exercise. Only the voice Exercise: never praise, never a clearer version.*/
+/*  One grey app bubble: a signed line, the label (L1), the one player and,   */
+/*  under it, the server's one signed sentence on what this version does      */
+/*  differently and why (WIL-82, founder 2026-10-16, L14-L16; it may quote   */
+/*  the target words, nothing else of the sentence). It never plays by       */
+/*  itself. At most three per exercise. Only the voice Exercise: never       */
+/*  praise, never a clearer version.                                         */
 /*  The first "not yet" always says L4 then L3 (founder 2026-10-13, P3 B).    */
 /*                                                                            */
 /*  The Exercise bubble is there at once (founder 2026-10-15): the Lounge's   */
@@ -149,9 +152,16 @@ export default function WalkAiVoice({
         {WALK_COPY.aiVoiceLabel}
       </span>
       {clip?.state === "ready" && clip.url ? (
-        <div onClickCapture={onPlay} className="mt-2">
-          <WalkPlayer look="bare" seed={seed} src={clip.url} durationMs={clip.durationMs} label={WALK_COPY.aiVoiceLabel} />
-        </div>
+        <>
+          <div onClickCapture={onPlay} className="mt-2">
+            <WalkPlayer look="bare" seed={seed} src={clip.url} durationMs={clip.durationMs} label={WALK_COPY.aiVoiceLabel} />
+          </div>
+          {clip.why ? (
+            <span data-walk-ai-why className="mt-2">
+              {clip.why}
+            </span>
+          ) : null}
+        </>
       ) : (
         <div data-walk-ai-waiting className="mt-2 flex min-h-8 items-center justify-center">
           <TypingGlyph />

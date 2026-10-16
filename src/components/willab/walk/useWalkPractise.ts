@@ -22,7 +22,7 @@ const AI_VOICE_POLL_TRIES = 60;
 
 /** The clip as the screen holds it from the moment it is asked for: the
  *  bubble shows at once, with the typing dots (founder 2026-10-15). */
-const AI_VOICE_ASKING: AiVoiceState = { demo: "ai_voice", clip: { state: "pending", url: null, durationMs: null } };
+const AI_VOICE_ASKING: AiVoiceState = { demo: "ai_voice", clip: { state: "pending", url: null, durationMs: null, why: null } };
 
 /* -------------------------------------------------------------------------- */
 /*  useWalkPractise — the practise loop's live half (build plan D-FW-16;       */
@@ -237,7 +237,7 @@ export function useWalkPractise<R>(args: {
           return;
         }
         // Still not made when the asking ends: no clip, the locked screen.
-        keep(read.ok && !pending ? read.data : { demo: "ai_voice", clip: { state: "unavailable", url: null, durationMs: null } });
+        keep(read.ok && !pending ? read.data : { demo: "ai_voice", clip: { state: "unavailable", url: null, durationMs: null, why: null } });
       }, AI_VOICE_POLL_MS);
       aiTimers.current.add(timer);
     };

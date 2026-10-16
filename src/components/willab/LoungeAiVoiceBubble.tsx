@@ -8,8 +8,9 @@ import { noteAiVoicePlay, readAiVoice, type AiVoiceState } from "@/services/api/
 /* -------------------------------------------------------------------------- */
 /*  The AI version of your voice in the Lounge chat, lens off (founder lock    */
 /*  2026-10-12, N71 section 3: "the lens and the chat show the same bubble"). */
-/*  The walk's grey app bubble as a chat bubble: its lines, the label and the */
-/*  one player, audio only, never plays by itself. The clip's link is fetched */
+/*  The walk's grey app bubble as a chat bubble: its lines, the label, the    */
+/*  one player and under it the server's sentence on what changed and why    */
+/*  (WIL-82, 2026-10-16); never plays by itself. The clip's link is fetched   */
 /*  afresh (it expires); a clip that is gone (deleted, off) leaves the lines. */
 /* -------------------------------------------------------------------------- */
 
@@ -106,6 +107,11 @@ export default function LoungeAiVoiceBubble({
                 onError={renew}
               />
             </div>
+            {clip.why ? (
+              <span data-lounge-ai-why className="mt-2 whitespace-pre-wrap break-words">
+                {clip.why}
+              </span>
+            ) : null}
           </>
         ) : null}
         {then ? words(then, "mt-2") : null}

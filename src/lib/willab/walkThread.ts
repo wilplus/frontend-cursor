@@ -176,6 +176,8 @@ export function answerBody(step: WalkStep, value: string): string | null {
   if (value === "skip" && ["helpers", "exVideo", "encourage"].includes(step.key)) return WALK_COPY.skip;
   if (step.key === "exVideo" && value === "go") return WALK_COPY.exercisePractise;
   if (step.key === "encourage" && value === "again") return COPY.pillPractiseAgain;
+  // Practise after a Good job (founder 2026-10-16): the pill's own word.
+  if (step.key === "improved" && value === "again") return WALK_COPY.exercisePractise;
   return null;
 }
 

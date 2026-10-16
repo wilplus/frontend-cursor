@@ -83,6 +83,48 @@ export function threadStart(plan: readonly WalkStep[], at: number): number {
   return underExercise ? -1 : start;
 }
 
+/** The screens that answer one try each. */
+const ANSWERED: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>(["improved", "encourage", "thanks"]);
+
+/** The tries of the thread `at` sits in that the machine has answered: a
+ *  "Good job", a "not yet" or the move-on line each answer one; a late read
+ *  answers none. 0 outside a thread. */
+export function triesMade(plan: readonly WalkStep[], at: number): number {
+  const start = threadStart(plan, at);
+  if (start < 0) return 0;
+  return plan.slice(start, loopEnd(plan, start)).filter((s) => ANSWERED.has(s.key)).length;
+}
+
+/** The last step of the thread the speaker has seen (founder 2026-10-16:
+ *  the whole history on screen, nothing behind Next): the current step, or
+ *  the latest answer after it; never a try planned but not yet made. */
+export function threadShownEnd(plan: readonly WalkStep[], at: number): number {
+  const start = threadStart(plan, at);
+  if (start < 0) return at;
+  let end = at;
+  for (let i = at + 1; i < loopEnd(plan, start); i += 1) {
+    if (ANSWERED.has(plan[i].key) || plan[i].key === "late") end = i;
+  }
+  return end;
+}
+
+/** Practise from an answer in the thread (founder 2026-10-16: up to three
+ *  tries whatever the answers): the plan with the next try after `at`, the
+ *  one already planned after a "not yet", or a new one after a "Good job",
+ *  numbered after the tries made. Null at the limit or outside a thread. */
+export function withNextTry(plan: readonly WalkStep[], at: number): WalkStep[] | null {
+  const start = threadStart(plan, at);
+  const made = triesMade(plan, at);
+  if (start < 0 || made >= WALK_MAX_TRIES) return null;
+  const next = plan[at + 1];
+  if (next?.key === "practise" && next.moment === plan[at].moment) return [...plan];
+  const first = plan.slice(start, loopEnd(plan, start)).find((s) => s.key === "practise");
+  if (!first) return null;
+  const template: WalkStep = { ...first, attempt: made + 1 };
+  delete template.replay;
+  return [...plan.slice(0, at + 1), template, ...plan.slice(at + 1)];
+}
+
 /** Stop on the try at `at`: the checking screen follows it, and whatever
  *  this loop had planned after it is dropped until the machine answers. */
 export function withChecking(plan: readonly WalkStep[], at: number): WalkStep[] {

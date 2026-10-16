@@ -20,8 +20,8 @@ import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
 import type { SayLine, WalkBankKey, WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
-import type { WalkStep } from "@/lib/willab/walkPlan";
-import { loopEnd, threadStart } from "@/lib/willab/walkPractise";
+import { WALK_MAX_TRIES, type WalkStep } from "@/lib/willab/walkPlan";
+import { loopEnd, threadShownEnd, threadStart, triesMade, withNextTry } from "@/lib/willab/walkPractise";
 import type { WalkPractiseIO } from "@/services/api/walkPractise";
 import { walkStepAt, type FeedbackWalkModel, type FeedbackWalkMoment, type WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import type { ClearerPiece } from "@/lib/willab/clearerPieces";
@@ -304,11 +304,14 @@ export default function FeedbackWalk<R = unknown>({
    *  screen that opened them. Null at the walk's first or last screen: the
    *  arrow is off. The arrows answer nothing and never close the walk. */
   const arrow = (dir: WalkBrowseDir): (() => void) | null => {
-    const opener = TRY.has(step.key) ? walkBackFrom(plan, at) : at;
+    // The Exercise thread is one screen (founder 2026-10-16): ‹ leaves it
+    // from its first step, › from the last one the speaker has seen.
+    const thread = threadStart(plan, at);
+    const opener = thread >= 0 ? thread : TRY.has(step.key) ? walkBackFrom(plan, at) : at;
     if (opener === null) return null;
-    if (opener !== at && dir === "back") return () => go(opener, "back");
-    let from = opener;
-    while (TRY.has(plan[from].key)) {
+    if (thread < 0 && opener !== at && dir === "back") return () => go(opener, "back");
+    let from = thread >= 0 && dir === "forward" ? threadShownEnd(plan, at) : opener;
+    while (thread < 0 && TRY.has(plan[from].key)) {
       const up = walkBackFrom(plan, from);
       if (up === null) return null;
       from = up;
@@ -502,6 +505,17 @@ export default function FeedbackWalk<R = unknown>({
       if (practiseIO) forward();
       else pastLoop();
     },
+    practiseAgain: (s) => {
+      // Practise from an answer in the thread (founder 2026-10-16): the next
+      // try, after a "not yet" or a "Good job" alike, until the third.
+      if (s.replay) return pastLoop();
+      if (blocked(s)) return;
+      const here = plan.indexOf(s);
+      const next = practiseIO && here >= 0 ? withNextTry(plan, here) : null;
+      if (!next) return pastLoop();
+      answer(s, "again");
+      relay(next, here + 1, "forward");
+    },
     skipExercise: (s) => {
       if (s.replay) return forward();
       answer(s, "skip");
@@ -574,6 +588,8 @@ type ScreenCtx<R = unknown> = {
   keep(step: WalkStep, moment: FeedbackWalkMoment<R>): void;
   /** "Practise" under an exercise. */
   exercise: (step: WalkStep) => void;
+  /** Practise under an answer in the Exercise thread: the next try. */
+  practiseAgain: (step: WalkStep) => void;
   /** Skip under an exercise: past this moment's practise. */
   skipExercise: (step: WalkStep) => void;
   pastLoop: () => void;
@@ -882,15 +898,20 @@ function CoachAnswer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkM
   );
 }
 
-/** The voice Exercise as one thread (founder 2026-10-13, P1 A): the
- *  Exercise, then every try, check and answer under the one before, in one
- *  overlay that stays put; only the current step has a footer. */
+/** The steps whose footer is the try's own: the recorder, the check, a
+ *  late read. Every other step of the thread has the thread's footer. */
+const TRY_FOOTER: ReadonlySet<string> = new Set(["practise", "processing", "late"]);
+
+/** The voice Exercise as one thread (founder 2026-10-13, P1 A; 2026-10-16):
+ *  the Exercise, then every try, check and answer under the one before, in
+ *  one overlay that stays put. The whole history is on screen whichever of
+ *  its steps the walk stands on, live or come back to; under it the
+ *  thread's footer, or the try's own while one is in progress. */
 function Thread<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>, practiseCtx: PractiseScreenCtx) {
   const at = ctx.at(step);
-  const steps = ctx.walk.plan.slice(Math.max(0, threadStart(ctx.walk.plan, at)), at + 1);
+  const steps = ctx.walk.plan.slice(Math.max(0, threadStart(ctx.walk.plan, at)), threadShownEnd(ctx.walk.plan, at) + 1);
   const firstTry = steps.find((s) => s.key === "practise");
-  const footer =
-    step.key === "exVideo" ? <ExerciseFooter ctx={ctx} step={step} outline /> : practiseThreadFooter(practiseCtx, step);
+  const footer = TRY_FOOTER.has(step.key) ? practiseThreadFooter(practiseCtx, step) : <ThreadFooter ctx={ctx} step={step} />;
   return (
     <WalkOverlay
       testId={testId(step)}
@@ -909,6 +930,34 @@ function Thread<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment
       ))}
       <ThreadEnd count={steps.length} />
     </WalkOverlay>
+  );
+}
+
+/** Under the thread (founder 2026-10-16, prototype
+ *  https://claude.ai/artifact/8nGuDXywGDWAZje3EcFMaj): while fewer than
+ *  three tries were made, the white outlined Practise with the red dot
+ *  above a black Next, after a Good job too; from the third try, Next
+ *  alone. No Skip: Next is the skip. The finished walk played again records
+ *  nothing, so it has Next alone. */
+function ThreadFooter<R>({ ctx, step }: { ctx: ScreenCtx<R>; step: WalkStep }) {
+  const plan = ctx.walk.plan;
+  const at = ctx.at(step);
+  const tries = triesMade(plan, at);
+  const more = !step.replay && tries < WALK_MAX_TRIES;
+  const next = () => {
+    ctx.answer(step, step.key === "improved" || step.key === "thanks" ? "ok" : "skip");
+    ctx.pastLoop();
+  };
+  const practise = () => (tries === 0 ? ctx.exercise(step) : ctx.practiseAgain(plan[threadShownEnd(plan, at)]));
+  const nextPill = { label: COPY.pagerNext, onClick: next, testId: "walk-forward" };
+  if (!more) return <WalkFooter pill={nextPill} />;
+  return (
+    <WalkFooter
+      dot
+      outline
+      pill={{ label: WALK_COPY.exercisePractise, onClick: practise, testId: "walk-practise" }}
+      second={nextPill}
+    />
   );
 }
 

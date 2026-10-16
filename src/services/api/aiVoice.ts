@@ -1,14 +1,16 @@
 import { outcomeCall as call, type Outcome } from "@/lib/api/bffCall";
 
 /* The AI version of your voice (founder lock 2026-10-12, N71). What the walk
-   may know: video or AI clip on the Exercise screen, and the clip's state
-   and short-lived link. No id, setting or check result (AC-9). */
+   may know: video or AI clip on the Exercise screen, the clip's state and
+   short-lived link, and with a ready clip the server's one signed sentence
+   on what it does differently and why (WIL-82, founder 2026-10-16). No id,
+   setting or check result (AC-9). */
 
 export type AiVoiceDemo = "video" | "ai_voice" | "none";
 
 export interface AiVoiceState {
   demo: AiVoiceDemo;
-  clip: { state: "pending" | "ready" | "unavailable"; url: string | null; durationMs: number | null } | null;
+  clip: { state: "pending" | "ready" | "unavailable"; url: string | null; durationMs: number | null; why: string | null } | null;
 }
 
 export function mapAiVoice(data: Record<string, unknown>): AiVoiceState {
@@ -22,6 +24,7 @@ export function mapAiVoice(data: Record<string, unknown>): AiVoiceState {
           state,
           url: typeof raw.url === "string" ? raw.url : null,
           durationMs: typeof raw.duration_ms === "number" ? raw.duration_ms : null,
+          why: typeof raw.why === "string" && raw.why.trim() ? raw.why : null,
         }
       : null,
   };
