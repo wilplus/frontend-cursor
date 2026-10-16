@@ -1276,6 +1276,16 @@ export default function Lounge({
             thread.appendLocalOnly(offerDraft(chatOffer));
             setActiveOffer(chatOffer);
           }
+          // "Show me my latest take" (founder 2026-10-16): the BE stored that
+          // Take's Ideal Text card after the reply; show it now, one tap away.
+          const takeCard = resp.take_card;
+          if (takeCard && typeof takeCard.arc_id === "string" && takeCard.arc_id) {
+            thread.appendLocalOnly(idealTextReadyDraft({
+              arcId: takeCard.arc_id,
+              version: typeof takeCard.version === "number" ? takeCard.version : null,
+              topic: takeCard.topic ?? undefined,
+            }));
+          }
         } else {
           await thread.append(botDraft);
         }
