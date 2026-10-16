@@ -98,6 +98,36 @@ export async function fetchTokenBalance(): Promise<TokenBalance> {
   return getJson("/api/v2/tokens/balance", mapTokenBalance, { kind: "unknown" });
 }
 
+/* ONE BALANCE READ PER PAGE, SHARED (founder 2026-10-16). The header's chip
+   and the Lounge's top-up card each mount a wallet, and each wallet re-read
+   on focus AND on visibilitychange, so a signed-in open paid the balance
+   endpoint four times and a tab switch four more. One in-flight promise now
+   serves every wallet for a short window; a spend drops it, so the chip
+   never re-serves the pre-purchase number. Same shape as the shared profile
+   read (userProfile.ts). */
+const SHARED_BALANCE_TTL_MS = 10_000;
+let sharedBalance: { at: number; promise: Promise<TokenBalance> } | null = null;
+
+/** The balance, from the shared read when one is fresh. */
+export function fetchTokenBalanceShared(): Promise<TokenBalance> {
+  const now = Date.now();
+  if (sharedBalance && now - sharedBalance.at < SHARED_BALANCE_TTL_MS) {
+    return sharedBalance.promise;
+  }
+  const promise = fetchTokenBalance();
+  sharedBalance = { at: now, promise };
+  // An unreadable balance is not worth sharing: the next caller asks again.
+  void promise.then((b) => {
+    if (b.kind === "unknown" && sharedBalance?.promise === promise) sharedBalance = null;
+  });
+  return promise;
+}
+
+/** Forget the shared read (after a spend, or when the account changes). */
+export function forgetSharedTokenBalance(): void {
+  sharedBalance = null;
+}
+
 /** What to display after a refresh lands.
  *
  *  An unreadable read must NOT erase a good one. "Unknown" means we do not

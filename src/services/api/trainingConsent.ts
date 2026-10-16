@@ -10,6 +10,8 @@
 /*  Refusals carry their code; the backend reports them to Sentry.           */
 /* -------------------------------------------------------------------------- */
 
+import { bffFetch } from "@/lib/api/bffFetch";
+
 export interface TrainingConsent {
   available: boolean;
   active: boolean;
@@ -46,18 +48,43 @@ export function mapTrainingConsent(raw: unknown): TrainingConsent | null {
   return state;
 }
 
+const ENDPOINT = "/api/v2/user/training-consent";
+
+/* The bearer goes with every call, as every other service client sends it:
+   without one the BFF route validates the cookie session against Supabase
+   (getUser + getSession) on each hop. `auth: "optional"` keeps the cookie
+   path for a call made without a token, exactly as the plain fetch did. */
+async function readTrainingConsent(): Promise<TrainingConsent | null> {
+  const result = await bffFetch(ENDPOINT, { method: "GET", cache: "no-store", auth: "optional" });
+  if (result.kind !== "response" || !result.ok) return null;
+  return mapTrainingConsent(result.body);
+}
+
+/* ONE READ PER PAGE, SHARED (founder 2026-10-16). The acceptance flow, the
+   Lab's prefetch, the question before the first Take and a visitor's kept
+   yes each read the switch, with no cache between them. One in-flight
+   promise serves them for a short window; a write drops it. */
+const SHARED_CONSENT_TTL_MS = 15_000;
+let sharedConsent: { at: number; promise: Promise<TrainingConsent | null> } | null = null;
+
+/** Forget the shared read (after a write, or when the account changes). */
+export function forgetSharedTrainingConsent(): void {
+  sharedConsent = null;
+}
+
 /** The switch's state, or null when it is closed or could not be read. */
-export async function fetchTrainingConsent(): Promise<TrainingConsent | null> {
-  try {
-    const res = await fetch("/api/v2/user/training-consent", {
-      method: "GET",
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    return mapTrainingConsent(await res.json().catch(() => null));
-  } catch {
-    return null;
+export function fetchTrainingConsent(): Promise<TrainingConsent | null> {
+  const now = Date.now();
+  if (sharedConsent && now - sharedConsent.at < SHARED_CONSENT_TTL_MS) {
+    return sharedConsent.promise;
   }
+  const promise = readTrainingConsent();
+  sharedConsent = { at: now, promise };
+  // A failed read (null) is not worth sharing: the next caller asks again.
+  void promise.then((state) => {
+    if (state === null && sharedConsent?.promise === promise) sharedConsent = null;
+  });
+  return promise;
 }
 
 /** The sentence in force for someone who is not signed in: public words,
@@ -101,21 +128,18 @@ export async function setTrainingConsent(
         idempotency_key: idempotencyKey(),
       }
     : { idempotency_key: idempotencyKey() };
-  try {
-    const res = await fetch("/api/v2/user/training-consent", {
-      method: on ? "POST" : "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      return { ok: false, code: codeFromBody(await res.json().catch(() => null), res.status) };
-    }
-    const mapped = mapTrainingConsent(await res.json().catch(() => null));
-    if (!mapped) return { ok: false, code: "BAD_RESPONSE" };
-    return mapped;
-  } catch {
-    return { ok: false, code: "NETWORK" };
-  }
+  // The state is about to change: no reader may be served the old one.
+  forgetSharedTrainingConsent();
+  const result = await bffFetch(ENDPOINT, {
+    method: on ? "POST" : "DELETE",
+    json: body,
+    auth: "optional",
+  });
+  if (result.kind !== "response") return { ok: false, code: "NETWORK" };
+  if (!result.ok) return { ok: false, code: codeFromBody(result.body, result.status) };
+  const mapped = mapTrainingConsent(result.body);
+  if (!mapped) return { ok: false, code: "BAD_RESPONSE" };
+  return mapped;
 }
 
 /** Null for a saved state, the code for a refusal, `"NO_STATE"` for null/undefined (older test doubles resolve null). */

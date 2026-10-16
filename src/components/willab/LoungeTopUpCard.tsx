@@ -73,7 +73,10 @@ export function useTopUpOffer({
   state,
   threadLoading = false,
 }: LoungeTopUpCardProps): TopUpOffer {
-  const wallet = useTokenWallet(true);
+  // The wallet reads once the thread has painted (founder 2026-10-16, Q1):
+  // the card cannot show above a skeleton anyway (canMountTopUpCard), so
+  // nothing is lost by not racing the thread for the backend's workers.
+  const wallet = useTokenWallet(!threadLoading);
   const [band, setBand] = useState<RecordingBandState>({ kind: "unknown" });
   const [busyTier, setBusyTier] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

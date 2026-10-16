@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchSessionState } from "@/services/api/chatSessionState";
 import { prefetchChatBoot } from "@/services/api/bootPrefetch";
+import { markChatBootStarted } from "@/lib/chatBoot";
 import { hasParkedReadout } from "./willabParked";
 import { clearReviewPending } from "./sendStatus";
 
@@ -216,7 +217,10 @@ export function useWillabFlow(): UseWillabFlowReturn {
 
     // Past Welcome, the Phase-1 gate and the Lounge thread load next; start
     // their reads now, alongside the session state, instead of in series.
+    // The wallet, the menu's gates and the guest claim wait for the thread
+    // instead of joining this burst (chatBoot.ts).
     prefetchChatBoot();
+    markChatBootStarted();
     if (hasParkedReadout()) { setState("parked"); return; }
 
     // Post-intake active state is BE-owned (seam 8). Fetch once on mount;

@@ -17,6 +17,7 @@ import {
 } from "@/lib/funnel/loungeLocalThread";
 import { announceDiscoveriesFromPersistedMessages } from "@/lib/productDiscovery";
 import { takeLoungeHistory } from "@/services/api/bootPrefetch";
+import { markChatBootSettled } from "@/lib/chatBoot";
 
 /* -------------------------------------------------------------------------- */
 /*  useLoungeThread — the willab Lounge's persistent chat history (§3/§11)    */
@@ -83,7 +84,11 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
         setHasMore(false);
         oldestCursorRef.current = null;
       }
-      if (!cancelled) setLoading(false);
+      if (cancelled) return;
+      setLoading(false);
+      // The thread has painted: the reads that waited for it may start
+      // (the wallet chip, the menu's gates, the guest claim — chatBoot.ts).
+      markChatBootSettled();
     })();
     return () => {
       cancelled = true;

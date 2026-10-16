@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  fetchTokenBalance,
+  fetchTokenBalanceShared,
   fetchTokenPricesRead,
+  forgetSharedTokenBalance,
   nextBalance,
   resetTokenPricesCache,
   type TokenBalance,
@@ -20,7 +21,7 @@ import { WILLAB_TOKENS_SPENT_EVENT } from "@/lib/willabWindowEvents";
 /*  balance read has a SECOND failure mode — `available:false`, the account    */
 /*  could not be read — and from an unknown balance you cannot tell "pricing   */
 /*  is off" from "pricing is on and the lookup failed". Guessing wrong in one  */
-/*  direction shows a wallet to a user who has no pricing; guessing wrong in   */
+/*  direction shows a wallet to a user who has no pricing; guessing wrong in  */
 /*  the other hides one that exists.                                           */
 /*                                                                            */
 /*  `/v2/tokens/prices` has no such ambiguity: it is either the published list */
@@ -30,6 +31,10 @@ import { WILLAB_TOKENS_SPENT_EVENT } from "@/lib/willabWindowEvents";
 /*  session its chip and blocks nothing, which is the right way to be wrong.   */
 /*                                                                            */
 /*  Guests probe nothing: signed out, there is no wallet and no request.       */
+/*                                                                            */
+/*  Prices AND balance are memoised in the service, so the header's chip and   */
+/*  the Lounge's top-up card (two instances of this hook) cost one request     */
+/*  each per page, not two (founder 2026-10-16).                               */
 /* -------------------------------------------------------------------------- */
 
 /** The probe, with the three outcomes kept apart.
@@ -57,6 +62,10 @@ export interface TokenWallet {
 /** How often the chip re-reads while the tab is open. Matches the legacy
  *  credits poll so the two never disagree about how fresh "now" is. */
 const POLL_MS = 60_000;
+
+/** A tab switch raises `focus` AND `visibilitychange` within a few ms of
+ *  each other; one refresh answers both. */
+const REFRESH_DEBOUNCE_MS = 250;
 
 export function useTokenWallet(active: boolean): TokenWallet {
   const [prices, setPrices] = useState<TokenPrices | null>(null);
@@ -101,30 +110,41 @@ export function useTokenWallet(active: boolean): TokenWallet {
     let cancelled = false;
 
     const read = async () => {
-      const b = await fetchTokenBalance();
+      const b = await fetchTokenBalanceShared();
       if (cancelled) return;
       setBalance((prev) => nextBalance(prev, b));
     };
 
     void read();
 
-    const onVisibleOrFocus = () => {
+    // Coming back to the tab: one refresh for the pair of events it raises.
+    let refreshTimer: number | null = null;
+    const onReturn = () => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-      void read();
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = null;
+        void read();
+      }, REFRESH_DEBOUNCE_MS);
     };
-    window.addEventListener("focus", onVisibleOrFocus);
-    document.addEventListener("visibilitychange", onVisibleOrFocus);
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
     // A spend anywhere in the app re-reads immediately. Without this the chip
     // keeps showing the pre-purchase number until the next poll, which reads
-    // as "it didn't go through" right after someone has paid.
-    const onSpent = () => void read();
+    // as "it didn't go through" right after someone has paid. The shared read
+    // is dropped first, or the spend would be answered from before it.
+    const onSpent = () => {
+      forgetSharedTokenBalance();
+      void read();
+    };
     window.addEventListener(WILLAB_TOKENS_SPENT_EVENT, onSpent);
     const intervalId = window.setInterval(() => void read(), POLL_MS);
 
     return () => {
       cancelled = true;
-      window.removeEventListener("focus", onVisibleOrFocus);
-      document.removeEventListener("visibilitychange", onVisibleOrFocus);
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer);
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
       window.removeEventListener(WILLAB_TOKENS_SPENT_EVENT, onSpent);
       window.clearInterval(intervalId);
     };

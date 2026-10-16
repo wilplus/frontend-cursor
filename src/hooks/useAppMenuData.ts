@@ -18,6 +18,7 @@ import {
   type ProductMenuEntry,
 } from "@/lib/productDiscovery";
 import { fetchProductDiscoveries } from "@/services/api/productDiscoveries";
+import { useAfterChatBoot } from "@/lib/chatBoot";
 
 /* -------------------------------------------------------------------------- */
 /*  useAppMenuData (FE-3) — everything AppMenu renders, loaded once            */
@@ -74,6 +75,10 @@ export function useAppMenuData(): AppMenuData {
   const [discoveredProducts, setDiscoveredProducts] = useState<Set<ProductId>>(
     () => new Set(),
   );
+  // Nothing below is needed before first paint (founder 2026-10-16): the
+  // wallet, the panel gate and the discoveries wait for the Lounge thread
+  // (chatBoot.ts) instead of queueing ahead of it at the backend.
+  const afterBoot = useAfterChatBoot();
 
   /** Auth identity for the menu. No balance polling lives here any more: the
    *  token wallet owns its own read (useTokenWallet), and the legacy credits
@@ -125,26 +130,32 @@ export function useAppMenuData(): AppMenuData {
       // their existing gate and ordering.
       if (!cancelled) setLifeMenu(hamburgerMenu(state));
     };
-    void loadLifeState().then(apply);
+    // Subscribed from sign-in (a setup finishing mid-boot must not be
+    // missed); the read itself waits for the thread.
+    if (afterBoot) void loadLifeState().then(apply);
     const unsubscribe = subscribeLifeState(apply);
     return () => {
       cancelled = true;
       unsubscribe();
     };
-  }, [authState]);
+  }, [authState, afterBoot]);
 
   useEffect(() => {
     if (authState !== "signed_in") {
       setDiscoveredProducts(new Set());
       return;
     }
-    setDiscoveredProducts(new Set());
     let cancelled = false;
-    void fetchProductDiscoveries().then((products) => {
-      if (!cancelled) {
-        setDiscoveredProducts((current) => new Set([...current, ...products]));
-      }
-    });
+    // The durable list waits for the thread; the thread's own announcements
+    // (announceDiscoveriesFromPersistedMessages) arrive through the
+    // subscription, which is live from sign-in so none is missed.
+    if (afterBoot) {
+      void fetchProductDiscoveries().then((products) => {
+        if (!cancelled) {
+          setDiscoveredProducts((current) => new Set([...current, ...products]));
+        }
+      });
+    }
     const unsubscribe = subscribeProductDiscovery((product) => {
       setDiscoveredProducts((current) => {
         if (current.has(product)) return current;
@@ -155,7 +166,7 @@ export function useAppMenuData(): AppMenuData {
       cancelled = true;
       unsubscribe();
     };
-  }, [authState]);
+  }, [authState, afterBoot]);
 
   const logout = useCallback(() => {
     setLoggingOut(true);
@@ -173,8 +184,9 @@ export function useAppMenuData(): AppMenuData {
   }, [supabase, router]);
 
   // Signed-in only: a guest has no wallet, and the probe is skipped entirely
-  // rather than fired and thrown away.
-  const wallet = useTokenWallet(authState === "signed_in");
+  // rather than fired and thrown away. The chip appears a moment after the
+  // thread paints rather than racing it (founder 2026-10-16, Q1).
+  const wallet = useTokenWallet(authState === "signed_in" && afterBoot);
   // Unreadable balance → NO row rather than a zero: a zero is indistinguishable
   // from being out of tokens, and this row is the only place the balance now
   // appears.
