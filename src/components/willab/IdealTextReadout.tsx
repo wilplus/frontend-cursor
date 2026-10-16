@@ -41,7 +41,8 @@ import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import MarkedParagraphs from "./MarkedParagraphs";
 import IdealTextHeading from "./IdealTextHeading";
 import AiGeneratedNote from "./AiGeneratedNote";
-import { GuestGateContext, useGuestGate } from "./GuestSignUpDialog";
+import { GuestGateContext, guestNeedsAccount, useGuestGate } from "./GuestSignUpDialog";
+import ReadySignUpScreen from "./ReadySignUpScreen";
 import {
   aiGeneratedAttrs,
   copyAiGeneratedText,
@@ -119,6 +120,15 @@ export function composeIdealText(payload: ReadoutPayload): string {
     }
   }
   return parts.join("\n\n");
+}
+
+/** The landing's own exit (useReadoutLanding) -- withheld from a guest, whose
+ *  wait ends on ReadySignUpScreen rather than in the chat. */
+function landingClose(
+  needsAccount: boolean,
+  onClose: (() => void) | undefined,
+): (() => void) | undefined {
+  return needsAccount ? undefined : onClose;
 }
 
 export default function IdealTextReadout({
@@ -939,6 +949,10 @@ export default function IdealTextReadout({
     [applyEdit, flushEdits, markDirty],
   );
 
+  // SIGN UP BEFORE THE TEXT (founder 2026-10-16): a guest's wait does not
+  // land on the readout, nor leave for the chat by itself -- it lands on
+  // ReadySignUpScreen below, which holds the way out.
+  const needsAccount = guestNeedsAccount(signedIn);
   const covered = useReadoutLanding({
     reviewWaiting,
     analysisPending,
@@ -947,7 +961,7 @@ export default function IdealTextReadout({
     sdSettled,
     feedbackPending,
     hasDocument: sd !== null,
-    onClose,
+    onClose: landingClose(needsAccount, onClose),
   });
 
   // SPEC-lockin-loop §1 — THE BLOCKING SCREEN. While the document assembles
@@ -975,6 +989,15 @@ export default function IdealTextReadout({
   // browse-with-banner" (SPEC-lockin-loop §1). Only the way out remains,
   // because the block is on the text, not on leaving.
   if (analysisPending) return waitScreen();
+  // THE PROCESSING IS DONE (founder 2026-10-16): a guest sees the ready line
+  // and the account ask instead of their text. "Create an account" is the
+  // same park-and-sign-up path as the dialog's; "Not now" is the host's way
+  // out (the Lab parks the text and shows the chat).
+  if (needsAccount) {
+    return (
+      <ReadySignUpScreen onSignUp={onSignUp} onNotNow={onClose} />
+    );
+  }
 
   function waitScreen(): React.ReactNode {
     return (
