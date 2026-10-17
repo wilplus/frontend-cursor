@@ -782,18 +782,13 @@ export default function TranscriptReviewDeck({
     reviewSeenRef.current = reviewRequest;
     // The Feedback walk, when it has a screen to show.
     if (feedbackWalk.review(reviewAt)) return;
-    // The older sheets below open inside the text, under the lens screen:
-    // the text comes up first.
+    // Nothing to walk: the text (founder 2026-10-17). The 2026-09-30 sheets
+    // and the coach's Step 0 no longer open here: every moment the server
+    // sends is a step of the walk, and a review never falls back to them.
     onLensReveal?.();
-    // Step 0 first when the coach left a message; its Continue opens the walk.
-    if (coachStep.show()) return;
-    // TOP TO BOTTOM (founder lock 2026-09-30, B8): the walk visits the
-    // open feedbacks and the saved paragraphs in text order, from the first
-    // screen, whenever a judgement still waits somewhere in the text.
-    if (firstWaiting >= 0) walk.openAt(0);
     // reviewAt rides with the request.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reviewRequest, firstWaiting, walk, coachStep, feedbackWalk, onLensReveal]);
+  }, [reviewRequest, feedbackWalk, onLensReveal]);
   /* THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A): the
      link under "Record Take N" is offered only once nothing waits and the
      walk has a screen to play; its tap plays it with the answers as given. */
