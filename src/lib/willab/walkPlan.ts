@@ -277,7 +277,10 @@ export function walkMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
     const praise = has((i) => i.openCard === "praise" || i.feedbackFamily === "great_formulation");
     const clearer = has((i) => i.openCard === "rewrite" || i.feedbackFamily === "rewrite_clarity");
     const exercise = has((i) => i.openCard === "exercise" || Boolean(i.hasExercise));
-    const practise = !clearer && !exercise && has((i) => i.openCard === "coach_request");
+    // A moment with nothing attached is the moment said again (lock
+    // 2026-10-12, 2.4): a served moment always has a step, so the lens
+    // never has nothing to show (founder 2026-10-17).
+    const practise = !praise && !clearer && !exercise;
     return {
       index,
       slide: group[0].slide,

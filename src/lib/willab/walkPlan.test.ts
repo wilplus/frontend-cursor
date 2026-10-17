@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildWalkPlan,
-  walkMoments,
-  type WalkMoment,
-} from "./walkPlan";
+import { buildWalkPlan, walkMoments, type WalkMoment } from "./walkPlan";
 
 /** The harness's four moments (walkFixtures MOMENTS): praise, clearer,
  *  praise, exercise, all on one slide. */
@@ -31,5 +27,15 @@ describe("the 2026-10-12 lock", () => {
     ];
     const plan = buildWalkPlan({ moments: walkMoments(items), coachNote: false, practiceOn: true, guest: false });
     expect(plan.map((s) => s.key)).toEqual(["page", "praise", "helpers", "clearer", "practise", "others", "summary", "end"]);
+  });
+});
+
+describe("a served moment always has a step (founder 2026-10-17)", () => {
+  it("a moment with nothing attached is the moment said again, so the lens never has nothing to show", () => {
+    const moments = walkMoments([
+      { start: 0, slide: 0, blockId: "b1", feedbackFamily: "confident_voice", openCard: null },
+      { start: 90, slide: 1, blockId: "b2", feedbackFamily: "confident_voice", openCard: null },
+    ]);
+    expect(moments.map((m) => m.practise)).toEqual([true, true]);
   });
 });
