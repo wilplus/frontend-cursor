@@ -117,8 +117,20 @@ export function relayStrict(opts: {
         { status: upstream.status >= 400 ? upstream.status : 502 }
       );
     }
-    return NextResponse.json(data, { status: upstream.status });
+    return NextResponse.json(data, {
+      status: upstream.status,
+      headers: serverTimingHeaders(upstream),
+    });
   };
+}
+
+/** The backend's stopwatch (`Server-Timing: app;dur=…, db;desc="calls"…`)
+ *  rides through to the browser, so a slow screen is measured in DevTools
+ *  rather than guessed (founder 2026-10-14). Response metadata only; no
+ *  hop-by-hop or authorization header is ever forwarded. */
+function serverTimingHeaders(upstream: Response): Record<string, string> {
+  const timing = upstream.headers.get("Server-Timing");
+  return timing ? { "Server-Timing": timing } : {};
 }
 
 /**
