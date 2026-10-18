@@ -802,7 +802,8 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
 }
 
 /** The exercise: the clip, "Exercise", the video in the 4:5 frame when there
- *  is one (the coach's, else the library's), the instruction (else Line A);
+ *  is one (the coach's, else the library's; the whole picture, never cropped
+ *  to the frame, founder 2026-10-18), the instruction (else Line A);
  *  Practise with the red dot, Skip. Nothing here waits on a coach (WQ2 B). */
 function Exercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
   return (
@@ -852,7 +853,7 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
           {exercise?.video ? (
             <CoachVideo
               src={exercise.video}
-              className="my-2 w-full max-h-[300px] flex-none [&>video]:aspect-[4/5] [&>video]:max-h-[300px] [&>video]:object-cover"
+              className="my-2 w-full max-h-[300px] flex-none [&>video]:aspect-[4/5] [&>video]:max-h-[300px] [&>video]:object-contain"
             />
           ) : null}
           <span>{exercise?.instruction ?? WALK_COPY.lineA}</span>

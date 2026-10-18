@@ -203,7 +203,7 @@ function ExVideo(ctx: WalkCtx) {
         />
       }
     >
-      <CoachVideo src={NO_VIDEO} className="w-full flex-none [&>video]:aspect-[4/5] [&>video]:object-cover" />
+      <CoachVideo src={NO_VIDEO} className="w-full flex-none [&>video]:aspect-[4/5] [&>video]:object-contain" />
     </WalkOverlay>
   );
 }

@@ -48,7 +48,7 @@ import ReportCard, {
   type FeedbackBubbleTarget,
   type IdealTextRetryTarget,
 } from "./ReportCard";
-import { latestIdealBubbleIds, versionBubblesWithReviewCard } from "./unreadFeedback";
+import { latestIdealBubbleIds, repeatedWalkStepIds, versionBubblesWithReviewCard } from "./unreadFeedback";
 import IdealTextCard from "./IdealTextCard";
 import { openedNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
 import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports";
@@ -337,10 +337,12 @@ export default function Lounge({
   // Each project's latest Ideal Text bubble wears the unread-feedback dot
   // (founder 2026-09-25, Q39 B).
   const latestIdealIds = useMemo(() => latestIdealBubbleIds(threadItems), [threadItems]);
-  // One Ideal Text bubble per Take (founder 2026-10-14).
+  // One Ideal Text bubble per Take (founder 2026-10-14); one bubble per
+  // walk step (founder 2026-10-18).
   const shownItems = useMemo(() => {
     const hidden = versionBubblesWithReviewCard(threadItems);
-    return threadItems.filter((item) => !hidden.has(item.message.client_id));
+    const repeated = repeatedWalkStepIds(threadItems);
+    return threadItems.filter((item) => !hidden.has(item.message.client_id) && !repeated.has(item.message.client_id));
   }, [threadItems]);
   // "Continue review" (founder lock 2026-10-12, section 1): the newest walk
   // step names its project and is not the review's end.

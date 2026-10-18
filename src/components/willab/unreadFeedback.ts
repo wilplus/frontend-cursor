@@ -55,3 +55,23 @@ export function versionBubblesWithReviewCard(
   }
   return hidden;
 }
+
+/** ONE BUBBLE PER STEP (founder 2026-10-18, "show only one bubble"): a
+ *  walk step shown again from the Lounge can carry a second id (the replay
+ *  numbers its moments on its own), so the same bubble lands twice. A later
+ *  walk_step that says the same words on the same Take, step, paragraph and
+ *  author as an earlier one is not drawn; the first stays. */
+export function repeatedWalkStepIds(
+  items: readonly { kind: string; message?: LoungeMessage }[],
+): Set<string> {
+  const seen = new Set<string>();
+  const hidden = new Set<string>();
+  for (const { kind, message } of items) {
+    const m = message?.metadata;
+    if (kind !== "message" || message?.kind !== "walk_step" || !m || typeof m.part_id !== "string") continue;
+    const id = [String(m.take_session_id), String(m.step), m.part_id, String(m.author), message.body].join("|");
+    if (seen.has(id)) hidden.add(message.client_id);
+    else seen.add(id);
+  }
+  return hidden;
+}
