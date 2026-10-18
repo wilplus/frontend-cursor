@@ -55,7 +55,7 @@ vi.mock("./Phase1AcceptanceFlow", () => ({
     createElement("div", { "data-testid": "acceptance-flow" }, `prior:${props.priorCountry ?? "none"}`),
 }));
 
-import Phase1AcceptanceGate, {  } from "./Phase1AcceptanceGate";
+import Phase1AcceptanceGate, { gateStateFor } from "./Phase1AcceptanceGate";
 import { LEAVING_COPY } from "@/lib/legal/leavingCopy";
 
 const POLICY: ProcessingPolicy = {
@@ -132,5 +132,20 @@ describe("<Phase1AcceptanceGate>", () => {
     expect(io.cancelAccountDeletion).toHaveBeenCalledWith(PURGE);
     expect(io.fetchAuthorization).toHaveBeenCalledTimes(1);
     expect(host.textContent).toContain("THE LOUNGE");
+  });
+
+  it("a refused identity blocks, and Try again reads the status again", async () => {
+    io.fetchAuthorization.mockResolvedValue({ kind: "authorized", policy: POLICY });
+    await mount({ kind: "identity_failed", message: "The agreement could not be loaded." });
+    expect(host.textContent).toContain("The agreement could not be loaded.");
+    expect(host.textContent).not.toContain("THE LOUNGE");
+    expect(host.querySelector('[data-testid="acceptance-flow"]')).toBeNull();
+    const retry = [...host.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Try again");
+    await act(async () => retry?.click());
+    await flush();
+    expect(io.fetchAuthorization).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toContain("THE LOUNGE");
+    // No active policy is still nothing to accept: it passes, as before.
+    expect(gateStateFor({ kind: "unavailable", code: "PROCESSING_POLICY_INACTIVE" }).kind).toBe("pass");
   });
 });

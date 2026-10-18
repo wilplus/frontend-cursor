@@ -1,7 +1,7 @@
 import {
   GUEST_OWNER_HEADER,
   ensureGuestOwnerToken,
-  forgetMintedOnlyGuestOwnerToken,
+  forgetRefusedGuestOwnerToken,
   markGuestOwnerUsed,
 } from "./projects";
 import { mapPendingDeletion, type PendingDeletion } from "./accountDeletion";
@@ -85,7 +85,19 @@ export type AuthorizationStatus =
   | { kind: "unavailable"; code: string }
   /** The request itself failed. Distinct from `unavailable` so a caller can
    *  retry rather than conclude anything about the policy. */
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string }
+  /** The backend refused the reader's identity (INVALID_GUEST_OWNER /
+   *  OWNER_REQUIRED) even after the guest token was forgotten and minted
+   *  again. Nothing this person records would be accepted, so the gate
+   *  BLOCKS (founder 2026-10-18). */
+  | { kind: "identity_failed"; message: string };
+
+/** The one sentence for a status that could not be read. */
+export const AGREEMENT_UNREADABLE = "The agreement could not be loaded.";
+
+/** The principal resolver's refusals (routes/v2/processing_authorization.py
+ *  `_principal_error`): the identity sent, not the policy, is the problem. */
+const IDENTITY_REFUSED = new Set(["INVALID_GUEST_OWNER", "OWNER_REQUIRED"]);
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -168,16 +180,19 @@ export async function fetchAuthorization(): Promise<AuthorizationStatus> {
   let row: Record<string, unknown> | null;
   try {
     row = await readAuthorizationRow();
-    // A refused identity that holds nothing is replaced once. A used one is
-    // kept: the same answer also comes from a failed principal read, and
-    // dropping it would lose the guest's work (forgetMintedOnlyGuestOwnerToken).
-    if (str(row?.code) === "INVALID_GUEST_OWNER" && forgetMintedOnlyGuestOwnerToken()) {
+    // A refused guest identity is forgotten and minted again, ONCE: a token
+    // that no longer verifies (claimed, reset) must not follow the visitor
+    // into the recording. A refusal after that is the reader's own.
+    if (IDENTITY_REFUSED.has(str(row?.code)) && forgetRefusedGuestOwnerToken()) {
       row = await readAuthorizationRow();
     }
   } catch {
-    return { kind: "error", message: "The agreement could not be loaded." };
+    return { kind: "error", message: AGREEMENT_UNREADABLE };
   }
-  if (!row) return { kind: "error", message: "The agreement could not be loaded." };
+  if (!row) return { kind: "error", message: AGREEMENT_UNREADABLE };
+  if (IDENTITY_REFUSED.has(str(row.code))) {
+    return { kind: "identity_failed", message: AGREEMENT_UNREADABLE };
+  }
 
   const code = str(row.code) || "PROCESSING_POLICY_INACTIVE";
   const policy = policyOf(row);

@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import LoadingState from "./LoadingState";
 import Phase1AcceptanceFlow from "./Phase1AcceptanceFlow";
 import AccountEndedState from "./AccountEndedState";
+import { Button } from "@/components/ui/button";
 import {
+  AGREEMENT_UNREADABLE,
   fetchAuthorization,
   type AuthorizationStatus,
   type ProcessingPolicy,
@@ -45,6 +47,13 @@ import { PolicyUpdateProvider } from "./PolicyUpdate";
 /*     stopping on a network blip. The first is a worse message, the second is */
 /*     an outage.                                                              */
 /*                                                                            */
+/*  THE ONE EXCEPTION (founder 2026-10-18: "you simply cannot go into the      */
+/*  recording without those permissions agreed or rejected"): a reader whose   */
+/*  IDENTITY the backend refuses even after a fresh guest mint                 */
+/*  (`identity_failed`) is blocked here, with a retry. Nothing they record     */
+/*  would be accepted; letting them in only moved the refusal to "Finish       */
+/*  take". `unavailable` and `error` still pass as above.                       */
+/*                                                                            */
 /*  What the gate must NEVER do is create, infer or replay a receipt. It only  */
 /*  decides whether to show the screen on which the user creates their own.    */
 /* -------------------------------------------------------------------------- */
@@ -59,7 +68,10 @@ type State =
   /** Processing is blocked (PLF-T1, Q19 A): one line, never the acceptance
    *  flow, which a blocked person could never get past. Data & consent stays
    *  reachable — it is outside this gate. */
-  | { kind: "ended"; pendingDeletion: PendingDeletion | null };
+  | { kind: "ended"; pendingDeletion: PendingDeletion | null }
+  /** The reader's identity was refused (identity_failed): one line and a
+   *  retry, never the app (founder 2026-10-18). */
+  | { kind: "failed" };
 
 /** What the gate does with a status. A block shows the ended state while
  *  ENDED_STATE_ENABLED is on; while it is off (its words are not signed) the
@@ -87,7 +99,26 @@ export function gateStateFor(
       ? { kind: "required", policy: status.policy, priorCountry: null }
       : { kind: "pass" };
   }
+  if (status.kind === "identity_failed") return { kind: "failed" };
   return { kind: "pass" };
+}
+
+/** The ended state's layout with the sentence a failed read already has and
+ *  the retry word the app already uses: no new words. */
+export function GateRetry({ onRetry }: { onRetry: () => void }) {
+  return (
+    <section
+      data-testid="gate-retry"
+      className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center"
+    >
+      <p role="alert" className="max-w-[40ch] text-[16px] leading-relaxed text-foreground">
+        {AGREEMENT_UNREADABLE}
+      </p>
+      <Button type="button" variant="outline" className="rounded-full" onClick={onRetry}>
+        Try again
+      </Button>
+    </section>
+  );
 }
 
 export default function Phase1AcceptanceGate({
@@ -136,6 +167,7 @@ export default function Phase1AcceptanceGate({
       />
     );
   }
+  if (state.kind === "failed") return <GateRetry onRetry={readAgain} />;
 
   /* A FULL-VIEWPORT TAKEOVER, AND THE REASON IS THE SCROLLBAR (founder
      2026-09-23: "make it scroll on the whole page, so the scroll bar is not
