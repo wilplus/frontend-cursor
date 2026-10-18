@@ -194,17 +194,20 @@ describe("a first-time guest (F1 Repair Plan Phase 0.5)", () => {
     });
   });
 
-  it("a refused identity that holds the guest's work is kept, never reminted", async () => {
-    // The backend also answers INVALID_GUEST_OWNER when its principal read
-    // fails; dropping a used identity on that would lose the guest's work.
-    store["willab_guest_owner:v1"] = "used-token";
+  it("a refused guest identity is forgotten and minted again once; refused again, the read fails closed", async () => {
+    // Founder 2026-10-18: a token that no longer verifies (claimed, reset)
+    // must not follow the visitor into the recording to be refused at
+    // "Finish take". One fresh mint; a second refusal is identity_failed.
+    store["willab_guest_owner:v1"] = "stale-token";
     const spy = stubFetch((url) =>
       url.endsWith("/principal")
-        ? { guest_owner_token: "should-not-mint" }
-        : { code: "INVALID_GUEST_OWNER", error: "Guest owner token was rejected" },
+        ? { guest_owner_token: "fresh-token" }
+        : { code: "INVALID_GUEST_OWNER", error: "A verified owner is required." },
     );
-    await fetchAuthorization();
-    expect(spy.mock.calls.some(([u]) => String(u).endsWith("/principal"))).toBe(false);
-    expect(store["willab_guest_owner:v1"]).toBe("used-token");
+    const status = await fetchAuthorization();
+    expect(status.kind).toBe("identity_failed");
+    expect(spy.mock.calls.filter(([u]) => String(u).endsWith("/principal"))).toHaveLength(1);
+    expect(spy.mock.calls.filter(([u]) => !String(u).endsWith("/principal"))).toHaveLength(2);
+    expect(store["willab_guest_owner:v1"]).toBe("fresh-token");
   });
 });

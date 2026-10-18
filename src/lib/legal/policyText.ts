@@ -30,7 +30,11 @@ export function policyTextState(
   status: AuthorizationStatus,
   which: Which,
 ): PolicyTextState {
-  if (status.kind === "unavailable" || status.kind === "error") {
+  if (
+    status.kind === "unavailable" ||
+    status.kind === "error" ||
+    status.kind === "identity_failed"
+  ) {
     return { kind: "fallback" };
   }
   // A blocked person still reads the policy in force when it came with the

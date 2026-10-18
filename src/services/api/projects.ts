@@ -45,6 +45,12 @@ export function readGuestOwnerToken(): string | null {
   return storageWritable ? storageGet(GUEST_OWNER_KEY) : memoryToken;
 }
 
+function isMintedOnly(): boolean {
+  return storageWritable
+    ? storageGet(MINTED_ONLY_KEY) === "1"
+    : memoryMintedOnly;
+}
+
 function writeGuestOwnerToken(token: string): void {
   memoryToken = token;
   // The request can still complete when storage refuses; the tab keeps the
@@ -57,12 +63,6 @@ function clearGuestOwnerToken(): void {
   memoryMintedOnly = false;
   storageRemove(GUEST_OWNER_KEY);
   storageRemove(MINTED_ONLY_KEY);
-}
-
-function isMintedOnly(): boolean {
-  return storageWritable
-    ? storageGet(MINTED_ONLY_KEY) === "1"
-    : memoryMintedOnly;
 }
 
 function setMintedOnly(): void {
@@ -87,13 +87,15 @@ export function __resetGuestOwnerMemoryForTests(): void {
   memoryMintedOnly = false;
 }
 
-/** Drop a guest identity the backend refused, but ONLY one that holds
- *  nothing (minted, never used). The backend answers INVALID_GUEST_OWNER on a
- *  failed principal read too, so dropping a used identity on that answer
- *  would erase the only key to a guest's acceptance, projects and Takes after
- *  one database hiccup. Returns whether it dropped anything. */
-export function forgetMintedOnlyGuestOwnerToken(): boolean {
-  if (!readGuestOwnerToken() || !isMintedOnly()) return false;
+/** Drop a guest identity the backend refused (INVALID_GUEST_OWNER /
+ *  OWNER_REQUIRED on the authorization read), so the next call mints a fresh
+ *  one. A token that no longer verifies — claimed into an account, its rows
+ *  reset — used to be kept forever and only met the refusal after "Finish
+ *  take" (founder 2026-10-18: "you simply cannot go into the recording
+ *  without those permissions agreed or rejected"). Returns whether it
+ *  dropped anything. */
+export function forgetRefusedGuestOwnerToken(): boolean {
+  if (!readGuestOwnerToken()) return false;
   clearGuestOwnerToken();
   return true;
 }

@@ -59,6 +59,7 @@ import {
   resetTrainingAsk,
 } from "./TrainingAsk";
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
+import { LabEntryGate, useLabEntry } from "./LabEntryGate";
 import FinishTakeButton from "./FinishTakeButton";
 import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
 import { continuedTakeDeck, deckOf } from "@/lib/willab/labEntryHandover";
@@ -357,6 +358,10 @@ export default function LabOverlay({
     prefetchTrainingAsk();
     return resetTrainingAsk;
   }, []);
+  // The permissions, asked at the door (founder 2026-10-18): the status is
+  // read afresh as the Lab opens, and LabEntryGate puts the acceptance flow
+  // in front of every pre-recording screen until it says authorized.
+  const entry = useLabEntry();
 
   useEffect(() => {
     if (signedIn === null || (signedIn && !userId)) return;
@@ -1498,9 +1503,11 @@ export default function LabOverlay({
           <LoadingState placement="surface" label={RECORDING_COPY.micReady} labelVisible />
         ) : null}
         {state === "lab_feelings" && (
-          <TrainingAskGate asked={trainingAsked} onDone={markTrainingAsked}>
-            <FeelingsCheckIn onReady={startAfterCheckIn} />
-          </TrainingAskGate>
+          <LabEntryGate entry={entry}>
+            <TrainingAskGate asked={trainingAsked} onDone={markTrainingAsked}>
+              <FeelingsCheckIn onReady={startAfterCheckIn} />
+            </TrainingAskGate>
+          </LabEntryGate>
         )}
 
         {/* No "Start recording" screen before a later Take (founder
@@ -1509,82 +1516,86 @@ export default function LabOverlay({
             Take starts by itself as soon as the project's setup has arrived;
             the learning question, when it is asked, still comes first. */}
         {state === "lab_prerecord" && (
-          <TrainingAskGate asked={trainingAsked} onDone={markTrainingAsked}>
-            <ContinuedTakeAutoStart
-              ready={!setupArriving}
-              rootsSettled={rootsSettled}
-              onStart={startContinuedTake}
-            />
-          </TrainingAskGate>
+          <LabEntryGate entry={entry}>
+            <TrainingAskGate asked={trainingAsked} onDone={markTrainingAsked}>
+              <ContinuedTakeAutoStart
+                ready={!setupArriving}
+                rootsSettled={rootsSettled}
+                onStart={startContinuedTake}
+              />
+            </TrainingAskGate>
+          </LabEntryGate>
         )}
 
         {state === "lab_session_context" && (
-          <TrainingAskGate asked={trainingAsked} onDone={markTrainingAsked}>
-            <RecordingSetup
-              // Context document attaches to the arc; a staged standalone upload
-              // is detached (arc nulled on submit), so suppress the field there —
-              // same guard as preloadDeck. Also signed-in only: the endpoint is
-              // owner-scoped and 401s without a token, and a guest can still hold
-              // a locally-cached arcId, so gate on signedIn like the arc prefill.
-              contextArcId={
-                stagedUploadRef.current || signedIn !== true ? null : arcId
-              }
-              // A staged footer upload is a STANDALONE file, never a take of a
-              // persisted arc: skip the deck pre-fill and hide the slide step so
-              // no prior arc bleeds into it.
-              preloadDeck={stagedUploadRef.current ? null : preloadDeck}
-              hideDeck={stagedUploadRef.current !== null}
-              // Setup drafts — RecordingSetup itself refuses to draft a staged
-              // upload or a take pre-filled from an existing project's deck.
-              draftOwnerId={userId}
-              // FE-6 — the same exit the header ✕ performs, now owned by the
-              // wizard so it can confirm before throwing away a part-filled form.
-              onCancel={handleClose}
-              onSubmit={(ctx, explore) => {
-                const staged = stagedUploadRef.current;
-                if (staged) {
-                  // Footer-picked upload: topic now set → submit the file straight
-                  // through, forced deckless AND standalone, bypassing live-record.
-                  // Detaching from the arc (exploreEnabled=false, arcId=null) both
-                  // stops it being filed as a take of a prior/decked arc and makes
-                  // the success handler skip writeExploreArc, so that arc's cached
-                  // deck is preserved. The BE gates min content (too-short → 422 →
-                  // the lab_recording rejected screen, which offers a re-upload).
-                  stagedUploadRef.current = null;
-                  lastWasUploadRef.current = true;
-                  setRejectedMsg(null);
-                  setExploreEnabled(false);
-                  setArcId(null);
-                  setContext({ ...ctx, slides: [], presentationRef: null });
-                  slideAdvancesRef.current = [];
-                  durationRef.current = 0; // the BE backfills duration from the file
-                  setBlob(staged);
-                  dispatch("upload_submitted");
-                  return;
+          <LabEntryGate entry={entry}>
+            <TrainingAskGate asked={trainingAsked} onDone={markTrainingAsked}>
+              <RecordingSetup
+                // Context document attaches to the arc; a staged standalone upload
+                // is detached (arc nulled on submit), so suppress the field there —
+                // same guard as preloadDeck. Also signed-in only: the endpoint is
+                // owner-scoped and 401s without a token, and a guest can still hold
+                // a locally-cached arcId, so gate on signedIn like the arc prefill.
+                contextArcId={
+                  stagedUploadRef.current || signedIn !== true ? null : arcId
                 }
-                lastWasUploadRef.current = false;
-                // The submit click IS the user gesture getUserMedia needs, so the
-                // mic opens right here and every Take, Take 1 included,
-                // records at once (N70: the learning screen is deleted).
-                setExploreEnabled(explore);
-                setContext(ctx);
-                setRejectedMsg(null);
-                uploadSeqRef.current += 1; // drop any stale upload-duration read
-                startPendingRef.current = true;
-                // RESET THE MIC FIRST. It is still "stopped" from the previous
-                // take, and the stop→processing branch above fires on the first
-                // render inside lab_recording — putting the waiting screen in
-                // front of the microphone and then cancelling the mic we just
-                // started. cancel() puts it back to "idle", which is the state
-                // RecordingPhase's "Getting your mic ready…" covers while
-                // getUserMedia resolves. The 422-rejected path already did this;
-                // this entry and onReRecord did not.
-                cancelMic();
-                dispatch("take_started");
-                void mic.start();
-              }}
-            />
-          </TrainingAskGate>
+                // A staged footer upload is a STANDALONE file, never a take of a
+                // persisted arc: skip the deck pre-fill and hide the slide step so
+                // no prior arc bleeds into it.
+                preloadDeck={stagedUploadRef.current ? null : preloadDeck}
+                hideDeck={stagedUploadRef.current !== null}
+                // Setup drafts — RecordingSetup itself refuses to draft a staged
+                // upload or a take pre-filled from an existing project's deck.
+                draftOwnerId={userId}
+                // FE-6 — the same exit the header ✕ performs, now owned by the
+                // wizard so it can confirm before throwing away a part-filled form.
+                onCancel={handleClose}
+                onSubmit={(ctx, explore) => {
+                  const staged = stagedUploadRef.current;
+                  if (staged) {
+                    // Footer-picked upload: topic now set → submit the file straight
+                    // through, forced deckless AND standalone, bypassing live-record.
+                    // Detaching from the arc (exploreEnabled=false, arcId=null) both
+                    // stops it being filed as a take of a prior/decked arc and makes
+                    // the success handler skip writeExploreArc, so that arc's cached
+                    // deck is preserved. The BE gates min content (too-short → 422 →
+                    // the lab_recording rejected screen, which offers a re-upload).
+                    stagedUploadRef.current = null;
+                    lastWasUploadRef.current = true;
+                    setRejectedMsg(null);
+                    setExploreEnabled(false);
+                    setArcId(null);
+                    setContext({ ...ctx, slides: [], presentationRef: null });
+                    slideAdvancesRef.current = [];
+                    durationRef.current = 0; // the BE backfills duration from the file
+                    setBlob(staged);
+                    dispatch("upload_submitted");
+                    return;
+                  }
+                  lastWasUploadRef.current = false;
+                  // The submit click IS the user gesture getUserMedia needs, so the
+                  // mic opens right here and every Take, Take 1 included,
+                  // records at once (N70: the learning screen is deleted).
+                  setExploreEnabled(explore);
+                  setContext(ctx);
+                  setRejectedMsg(null);
+                  uploadSeqRef.current += 1; // drop any stale upload-duration read
+                  startPendingRef.current = true;
+                  // RESET THE MIC FIRST. It is still "stopped" from the previous
+                  // take, and the stop→processing branch above fires on the first
+                  // render inside lab_recording — putting the waiting screen in
+                  // front of the microphone and then cancelling the mic we just
+                  // started. cancel() puts it back to "idle", which is the state
+                  // RecordingPhase's "Getting your mic ready…" covers while
+                  // getUserMedia resolves. The 422-rejected path already did this;
+                  // this entry and onReRecord did not.
+                  cancelMic();
+                  dispatch("take_started");
+                  void mic.start();
+                }}
+              />
+            </TrainingAskGate>
+          </LabEntryGate>
         )}
 
         {state === "lab_recording" && (
