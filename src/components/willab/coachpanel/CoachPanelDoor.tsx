@@ -22,7 +22,6 @@ import CoachPanel from "./CoachPanel";
 import CoachWalkBubble from "../coachwalk/CoachWalkBubble";
 import { useMomentsQueue } from "../coachwalk/useMomentsQueue";
 import { PANEL_START, panelReducer, type PanelState } from "@/lib/willab/coachPanel";
-import { speakersWaiting } from "@/lib/willab/coachWalk";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 
 const PINNED =
@@ -55,7 +54,9 @@ export default function CoachPanelDoor({
 }) {
   const queue = useMomentsQueue(true);
   const [state, dispatch] = useReducer(panelReducer, initial);
-  const waiting = speakersWaiting(queue.speakers);
+  // null until the queue is read once (or remembered on this device): the
+  // bubble never says "Nobody" before it knows (founder 2026-10-18).
+  const waiting = queue.waiting;
 
   // Back in the Lounge after answering: the queue and the bubble read fresh.
   const wasOpen = useRef(false);
