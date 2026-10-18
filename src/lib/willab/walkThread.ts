@@ -10,7 +10,7 @@
 /* -------------------------------------------------------------------------- */
 
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "@/components/willab/idealEditCopy";
-import type { LoungeMessageDraft } from "@/services/api/loungeMessages";
+import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import type { FeedbackWalkMoment } from "./feedbackWalkModel";
 import type { PraiseReason } from "./praiseReason";
 import type { WalkBankKey } from "./walkLines";
@@ -168,6 +168,15 @@ export function othersChat(
     body: at === 0 ? othersBridge(of, from) : `Moment ${at + 1} ${COPY.pagerOf} ${of}`,
     extra: { hint: COPY.confidenceQuestion, ...(at === 0 ? { heading: from ?? WALK_COPY.othersTitle } : {}) },
   };
+}
+
+/** How many of other speakers' moments the speaker judged in `take`'s walk:
+ *  their "👍 Yes" bubbles in the chat (`answer:others`). The judging
+ *  reopened from the Lounge shows that many, answered. Pure. */
+export function othersAnswered(messages: readonly LoungeMessage[], take: string): number {
+  return messages.filter(
+    (m) => m.kind === "walk_step" && m.metadata?.take_session_id === take && m.metadata?.step === "answer:others",
+  ).length;
 }
 
 /** The speaker's answer to a step as their own bubble says it (prototype

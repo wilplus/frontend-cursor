@@ -10,7 +10,7 @@ import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import WalkLoading from "./WalkLoading";
 import WalkFaces, { WalkUnclear } from "./WalkFaces";
-import { answerOtherClip, fetchOtherClips, type OtherClip } from "@/services/api/otherSpeakers";
+import { answerOtherClip, fetchOtherAnswers, fetchOtherClips, type OtherClip } from "@/services/api/otherSpeakers";
 import { othersBridge } from "@/lib/willab/walkThread";
 
 /* -------------------------------------------------------------------------- */
@@ -23,11 +23,33 @@ import { othersBridge } from "@/lib/willab/walkThread";
 /*  unclear" as a small grey link. An answer fills the card's edge black,     */
 /*  holds 0.28 s and moves on; it stays locked once given, and the step       */
 /*  reopened shows "✓ Answered" and "Next". Audio only, no number (AC-9).     */
+/*                                                                            */
+/*  Reopened from the Lounge (founder 2026-10-18): the moments the speaker    */
+/*  already judged in this walk, as many as the chat holds their answers      */
+/*  (`judged`), each with the answer they gave, its card orange, "✓ Answered" */
+/*  over Next. Nothing is asked again and nothing is posted; with no answer   */
+/*  kept, the queue is asked afresh as before.                                */
 /* -------------------------------------------------------------------------- */
+
+type Loaded = { clips: OtherClip[]; given: Record<string, ConfidenceRatingValue> };
+
+/** What the screen shows: the answers already given in this walk, oldest
+ *  first (`judged` of them, at most three), else the queue to judge. */
+async function load(judged: number, count: number): Promise<Loaded> {
+  if (judged > 0) {
+    const answers = (await fetchOtherAnswers()).slice(0, Math.min(3, judged)).reverse();
+    if (answers.length > 0) {
+      return { clips: answers, given: Object.fromEntries(answers.map((a) => [a.id, a.answer])) };
+    }
+  }
+  const list = await fetchOtherClips();
+  return { clips: list.slice(0, Math.max(1, Math.min(3, count))), given: {} };
+}
 
 export default function WalkOthers({
   testId,
   count,
+  judged = 0,
   skip,
   onDone,
   onClose,
@@ -37,6 +59,9 @@ export default function WalkOthers({
   testId?: string;
   /** How many to judge: one per practise try, 1 to 3. */
   count: number;
+  /** How many the speaker already judged in this walk (the chat's count):
+   *  reopened, those are shown answered. */
+  judged?: number;
   /** A guest or a replay judges nobody. */
   skip: boolean;
   onDone: () => void;
@@ -49,6 +74,8 @@ export default function WalkOthers({
   const [clips, setClips] = useState<OtherClip[] | null>(null);
   const [at, setAt] = useState(0);
   const [given, setGiven] = useState<Record<string, ConfidenceRatingValue>>({});
+  // The answers came in with the clips: seen again, not given now.
+  const [reopened, setReopened] = useState(false);
   const done = useRef(onDone);
   done.current = onDone;
   const timer = useRef<number | null>(null);
@@ -65,16 +92,20 @@ export default function WalkOthers({
       return;
     }
     let live = true;
-    void fetchOtherClips().then((list) => {
+    void load(judged, count).then((loaded) => {
       if (!live) return;
-      const mine = list.slice(0, Math.max(1, Math.min(3, count)));
-      if (mine.length === 0) done.current();
-      else setClips(mine);
+      if (loaded.clips.length === 0) {
+        done.current();
+        return;
+      }
+      setGiven(loaded.given);
+      setReopened(Object.keys(loaded.given).length > 0);
+      setClips(loaded.clips);
     });
     return () => {
       live = false;
     };
-  }, [skip, count]);
+  }, [skip, count, judged]);
 
   const clip = clips?.[at];
   const answered = clip ? given[clip.id] ?? null : null;
@@ -84,8 +115,9 @@ export default function WalkOthers({
   const chat = useRef(onChat);
   chat.current = onChat;
   useEffect(() => {
+    if (reopened) return; // the chat already holds these
     if (clips && at < clips.length) chat.current?.(at, clips.length, clips[0]?.community ?? null, null);
-  }, [clips, at]);
+  }, [clips, at, reopened]);
   const forward = () => (clips && at + 1 < clips.length ? setAt(at + 1) : onDone());
   const nav = clips
     ? {
@@ -139,7 +171,7 @@ export default function WalkOthers({
             </div>
             <span>{COPY.confidenceQuestion}</span>
           </WalkMessage>
-          <WalkFaces answered={answered} onPick={pick} />
+          <WalkFaces answered={answered} given={reopened} onPick={pick} />
           {answered === null ? <WalkUnclear onPick={() => pick("audio_unclear")} /> : null}
         </>
       )}
