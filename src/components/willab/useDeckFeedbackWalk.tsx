@@ -182,6 +182,9 @@ export function deckReplayItems(
 }
 
 /** The screens a moment's coach answer is drawn on. */
+/** How long a step tapped in the Lounge waits on the replay's reads. */
+const REPLAY_WAIT_MS = 4000;
+
 const COACH_ANSWER_STEPS: ReadonlySet<string> = new Set(["coach", "praise", "clearer", "exVideo"]);
 
 /** The machine's answers on a try, posted as the try is made. */
@@ -576,6 +579,9 @@ export function useDeckFeedbackWalk(args: {
   practisePart: (partId: string, card: PractiseCard, moment: DocumentSuggestion | null) => boolean;
   /** The finished walk has a screen to play again. */
   canReplay: boolean;
+  /** The replay has read the Take's answers and tries: a step tapped in
+   *  the Lounge opens on it whole. */
+  replaySettled: boolean;
   element: ReactNode;
 } {
   const { chunks, groups, waiting, pendingOf, slideLabel, coachMessage, coachSeen, firstTake } = args;
@@ -631,12 +637,18 @@ export function useDeckFeedbackWalk(args: {
   const replayReady = answeredOf !== undefined;
   const replayable = replayReady && finished;
   const [ownAnswers, setOwnAnswers] = useState<readonly OwnerAnswer[]>([]);
+  const [answersRead, setAnswersRead] = useState(false);
   useEffect(() => {
     if (!replayReady || !pageTake) return;
     let live = true;
-    void ownAnswersOf(pageTake).then((answers) => {
-      if (live) setOwnAnswers(answers);
-    });
+    void ownAnswersOf(pageTake)
+      .then((answers) => {
+        if (live) setOwnAnswers(answers);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (live) setAnswersRead(true);
+      });
     return () => {
       live = false;
     };
@@ -666,11 +678,29 @@ export function useDeckFeedbackWalk(args: {
       const practiceId = practiceIdOf(item);
       if (!practiceId || triedByPart.has(item.partId) || askedPractices.current.has(practiceId)) continue;
       askedPractices.current.add(practiceId);
-      void fetchConfidencePractice(practiceId).then((r) => {
-        setTriedByPractice((t) => ({ ...t, [practiceId]: r.ok ? practiceTries(r.practice) : null }));
-      });
+      void fetchConfidencePractice(practiceId)
+        .then((r) => (r.ok ? practiceTries(r.practice) : null))
+        .catch(() => null)
+        .then((tries) => setTriedByPractice((t) => ({ ...t, [practiceId]: tries })));
     }
   }, [replayReady, thread, threadLoaded, replayItems, triedByPart]);
+  /* A step tapped in the Lounge opens once the replay knows the Take's
+     answers and tries (founder 2026-10-18: the exercise from its bubble
+     shows its whole thread, as from its paragraph). The walk keeps the
+     model it opens on, so opening before they land drew the thread empty.
+     A read that never answers stops holding it after REPLAY_WAIT_MS. */
+  const [waitedOut, setWaitedOut] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setWaitedOut(true), REPLAY_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, []);
+  const triesRead =
+    (thread === null || threadLoaded) &&
+    replayItems.every((item) => {
+      const practiceId = practiceIdOf(item);
+      return !practiceId || triedByPart.has(item.partId) || practiceId in triedByPractice;
+    });
+  const replaySettled = !replayReady || waitedOut || ((answersRead || !pageTake) && triesRead);
   const buildReplay = useCallback(
     (answers: readonly OwnerAnswer[]) =>
       buildFeedbackReplay({
@@ -688,6 +718,9 @@ export function useDeckFeedbackWalk(args: {
       }),
     [replayItems, replayReady, coachMessage, practiceOn, helperWordsOf, triedByPart, triedByPractice],
   );
+  // The tries can land while the answers are read: the newest build.
+  const buildReplayRef = useRef(buildReplay);
+  buildReplayRef.current = buildReplay;
   const canReplay = useMemo(
     () => replayable && walkStart(buildReplay(ownAnswers)) !== null,
     [replayable, buildReplay, ownAnswers],
@@ -759,7 +792,7 @@ export function useDeckFeedbackWalk(args: {
     if (target?.step === "helpers" && target.part && openHelpersRef.current(target.part)) return true;
     if (!canReplay) return false;
     void ownAnswersOf(pageTake).then((answers) => {
-      const again = buildReplay(answers);
+      const again = buildReplayRef.current(answers);
       const at = walkStepAt(again, target) ?? walkStart(again);
       if (at === null) return;
       setOwnAnswers(answers);
@@ -767,7 +800,7 @@ export function useDeckFeedbackWalk(args: {
       openAt(at, false, true);
     });
     return true;
-  }, [canReplay, pageTake, buildReplay, openAt, otherTake]);
+  }, [canReplay, pageTake, openAt, otherTake]);
 
   // The paragraph has a moment of this Take to open, waiting or answered:
   // only such a paragraph wears the bookmark (founder 2026-10-14).
@@ -1138,8 +1171,8 @@ export function useDeckFeedbackWalk(args: {
   );
 
   return useMemo(
-    () => ({ review, tapPart, openHelpers, replayPart, hasMoment, replay, canReplay, practisePart, element }),
-    [review, tapPart, openHelpers, replayPart, hasMoment, replay, canReplay, practisePart, element],
+    () => ({ review, tapPart, openHelpers, replayPart, hasMoment, replay, canReplay, replaySettled, practisePart, element }),
+    [review, tapPart, openHelpers, replayPart, hasMoment, replay, canReplay, replaySettled, practisePart, element],
   );
 }
 
@@ -1160,21 +1193,23 @@ export function walkFinished(ready: boolean, firstWaiting: number, coachWordUnse
  *  the host hears whether the finished walk can play again, and each bump
  *  of its request plays it. */
 export function useWalkReplayRequest(
-  walk: { replay: (target?: WalkStepTarget | null) => boolean; canReplay: boolean },
+  walk: { replay: (target?: WalkStepTarget | null) => boolean; canReplay: boolean; replaySettled?: boolean },
   request: number | undefined,
   onReady: ((ready: boolean) => void) | undefined,
   target?: WalkStepTarget | null,
 ): void {
-  const { canReplay, replay } = walk;
+  const { canReplay, replay, replaySettled = true } = walk;
   useEffect(() => {
     onReady?.(canReplay);
   }, [canReplay, onReady]);
   const seenRef = useRef(request);
   useEffect(() => {
     if (request === seenRef.current) return;
+    // A step tapped in the Lounge waits for the Take's answers and tries.
+    if (target && !replaySettled) return;
     seenRef.current = request;
     replay(target);
     // The target rides with the request; a new target alone opens nothing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [request, replay]);
+  }, [request, replay, replaySettled]);
 }
