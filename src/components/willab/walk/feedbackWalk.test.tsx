@@ -84,6 +84,26 @@ describe("FeedbackWalk", () => {
   const nav = () => live()!.querySelector("[data-walk-nav]")!;
   const nextArrow = () => nav().querySelector<HTMLButtonElement>(`button[aria-label='${COPY.pagerNext}']`)!;
 
+  it("a green moment says why it landed: the praise line alone, then the reason in its own bubble (founder 2026-10-18)", () => {
+    const reason = {
+      paragraphs: ["When you said “our growth doubled”", "No fillers, right on the slide."],
+      quote: "our growth doubled",
+    };
+    const lead = "It was your confident moment.";
+    const items: FeedbackWalkItem[] = [
+      { ...ITEMS[0], praiseWords: [lead, "A cue line."], praiseLead: [lead], praiseReason: reason },
+    ];
+    draw(
+      { seq: 1, at: 1 },
+      { model: buildFeedbackWalk({ items, coachNote: false, practiceOn: true, guest: false }), coachNote: null },
+    );
+    expect(screen()).toBe("walk-screen-praise");
+    expect(bubble()).toEqual([COPY.titlePraise, lead]);
+    const why = live()!.querySelector("[data-walk-reason]")!;
+    expect([...why.querySelectorAll("p")].map((p) => p.textContent)).toEqual(reason.paragraphs);
+    expect(why.querySelector("[data-walk-quote]")!.textContent).toBe("“our growth doubled”");
+  });
+
   it("walks coach's note → praise → helper words → the next praise → the summary → the page", async () => {
     const props = draw(null, { summary: async () => "A closing word.", takeIndex: 2 });
     draw({ seq: 1, at: 1 }, { summary: async () => "A closing word.", takeIndex: 2 });

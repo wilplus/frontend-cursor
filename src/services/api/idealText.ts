@@ -1,3 +1,4 @@
+import { readPraiseReason, type PraiseReason } from "@/lib/willab/praiseReason";
 import { getAuthToken } from "@/lib/api/auth-client";
 import { markOpenTrace, pressOpenTrace } from "@/lib/willab/openTrace";
 import { guestOwnerHeaders } from "@/services/api/projects";
@@ -266,6 +267,9 @@ export interface DocumentSuggestion {
   /** The green moment's level key ("W1".."W10"), for its opening line
    *  (founder 2026-10-14); never a number. */
   levelKey?: string | null;
+  /** Why the green moment landed, in words (founder 2026-10-18;
+   *  backend services/praise_reason). Absent until it is written. */
+  praiseReason?: PraiseReason | null;
   /** "Let's practice" with no exercise attached (24f). Every item below the
    *  neutral read offers practice; only the weakest carries the drill, because
    *  an exercise is work the user must go and do and a list of them is a list
@@ -742,6 +746,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     tentative: record.tentative === true,
     bookmarkTier: readBookmarkTier(record.bookmark_tier),
     levelKey: readNonEmptyString(record.level_key),
+    praiseReason: readPraiseReason(record.praise_reason),
     practicePrompt: record.practice_prompt === true,
     coachRequest: mapCoachRequest(record.coach_request),
     coachAnswer: mapCoachAnswer(record.coach_answer),
