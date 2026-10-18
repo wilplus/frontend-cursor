@@ -16,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
     return NextResponse.json({ code: "INVALID_INPUT", error: "Body must be JSON" }, { status: 400 });
   }
   const forwarded: Record<string, unknown> = {};
-  for (const key of ["start", "name", "timezone", "note"]) {
+  for (const key of ["start", "name", "timezone", "note", "link"]) {
     if (typeof body[key] === "string") forwarded[key] = body[key];
   }
   if (body.embedded === true) forwarded.embedded = true;
