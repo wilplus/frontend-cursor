@@ -21,7 +21,7 @@ import type { WalkJournalPost } from "./WalkJudgementScreens";
 import type { SayLine, WalkBankKey, WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import { WALK_MAX_TRIES, type WalkStep } from "@/lib/willab/walkPlan";
-import { loopEnd, threadShownEnd, threadStart, triesMade, withNextTry } from "@/lib/willab/walkPractise";
+import { loopEnd, threadPraised, threadShownEnd, threadStart, triesMade, withNextTry } from "@/lib/willab/walkPractise";
 import type { WalkPractiseIO } from "@/services/api/walkPractise";
 import { walkStepAt, type FeedbackWalkModel, type FeedbackWalkMoment, type WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import type { ClearerPiece } from "@/lib/willab/clearerPieces";
@@ -933,32 +933,24 @@ function Thread<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment
   );
 }
 
-/** Under the thread (founder 2026-10-16, prototype
- *  https://claude.ai/artifact/8nGuDXywGDWAZje3EcFMaj): while fewer than
- *  three tries were made, the white outlined Practise with the red dot
- *  above a black Next, after a Good job too; from the third try, Next
- *  alone. No Skip: Next is the skip. The finished walk played again records
- *  nothing, so it has Next alone. */
+/** Under the thread (founder 2026-10-18, prototype
+ *  https://claude.ai/artifact/URLdtuBvG5rbrzFePfMcUv): until a Good job or
+ *  the third try, only the white outlined Practise (Practise again after a
+ *  try) with the red dot; then Next alone. The finished walk played again
+ *  records nothing, so it has Next alone. */
 function ThreadFooter<R>({ ctx, step }: { ctx: ScreenCtx<R>; step: WalkStep }) {
   const plan = ctx.walk.plan;
   const at = ctx.at(step);
   const tries = triesMade(plan, at);
-  const more = !step.replay && tries < WALK_MAX_TRIES;
+  const more = !step.replay && tries < WALK_MAX_TRIES && !threadPraised(plan, at);
   const next = () => {
     ctx.answer(step, step.key === "improved" || step.key === "thanks" ? "ok" : "skip");
     ctx.pastLoop();
   };
   const practise = () => (tries === 0 ? ctx.exercise(step) : ctx.practiseAgain(plan[threadShownEnd(plan, at)]));
-  const nextPill = { label: COPY.pagerNext, onClick: next, testId: "walk-forward" };
-  if (!more) return <WalkFooter pill={nextPill} />;
-  return (
-    <WalkFooter
-      dot
-      outline
-      pill={{ label: WALK_COPY.exercisePractise, onClick: practise, testId: "walk-practise" }}
-      second={nextPill}
-    />
-  );
+  if (!more) return <WalkFooter pill={{ label: COPY.pagerNext, onClick: next, testId: "walk-forward" }} />;
+  const label = tries === 0 ? WALK_COPY.exercisePractise : COPY.pillPractiseAgain;
+  return <WalkFooter dot outline pill={{ label, onClick: practise, testId: "walk-practise" }} />;
 }
 
 /** Keeps the newest bubble in view as the thread grows. */
