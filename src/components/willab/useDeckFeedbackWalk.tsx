@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
+import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
 import { aiVoiceChat, answerBody, momentChat, othersChat, shownStep, walkStepDraft, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkStep } from "@/lib/willab/walkPlan";
@@ -1067,6 +1068,8 @@ export function useDeckFeedbackWalk(args: {
       const at = { moment: step.moment ?? null, attempt: step.attempt ?? null };
       // The AI bubble in the locked one's place (N71) says what the screen said.
       const aiSaid = ai ? aiVoiceChat(ai) : null;
+      // Its clip is asked now, so the chat's bubble is drawn whole.
+      if (ai) void readAiVoiceOnce(ai.practiceId);
       // A try's answer played again was said once, as the try was made.
       const replayedTry = step.replay === true && TRY_ANSWER_STEPS.has(step.key);
       let said = replayedTry ? null : (aiSaid ?? shownStep(step, moment, coach?.text ?? null, say));
