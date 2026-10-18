@@ -6,11 +6,13 @@
 /*                                                                            */
 /*    CorpusHomeScreen     Training corpus: the imports, each with whose      */
 /*                         voice it is and how many moments wait, or its      */
-/*                         set-up not finished; the pill "Import audio"       */
-/*    CorpusImportScreen   Import audio (or Finish the set-up): the file, the */
-/*                         corpus page's own fields and words, what to run;   */
-/*                         Import is off until file, topic and language are   */
-/*                         set (Set up needs topic and language)              */
+/*                         set-up not finished; the pill "Import audio"; a    */
+/*                         finished one's ⋯ → Edit (founder 2026-10-18)       */
+/*    CorpusImportScreen   Import audio (or Finish the set-up, or Edit): the  */
+/*                         file, the corpus page's own fields and words, what */
+/*                         to run; Import is off until file, topic and        */
+/*                         language are set (Set up and Save need topic and   */
+/*                         language)                                          */
 /*    CorpusAnalyseScreen  the app's one loader, "Analysing on the server…"   */
 /*                                                                            */
 /*  The judging screen is the panel's own JudgeScreen (CoachPanelScreens),    */
@@ -25,6 +27,7 @@ import WalkOverlay from "../walk/WalkOverlay";
 import WalkChoices, { type WalkChoice } from "../walk/WalkChoices";
 import WalkFooter from "../walk/WalkFooter";
 import WalkLoading from "../walk/WalkLoading";
+import ProjectRowMenu from "../ProjectRowMenu";
 import { IMPORT_LANGUAGES, OPTIONAL_STAGES, type OptionalStage, type TrainingImport } from "@/services/api/trainingCorpus";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 
@@ -55,7 +58,13 @@ export function importChoice(im: TrainingImport): WalkChoice {
   return { value, label: im.topic, subtitle: `${who} · ${COPY.momentsToJudgeOf(counts.left, counts.total)}` };
 }
 
-export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onClose }: {
+/** A finished import's ⋯ edits its set-up; an unfinished one opens its set-up
+ *  on a tap already, and a running one is still being written. Pure. */
+export function importEditable(im: Pick<TrainingImport, "setupComplete" | "state">): boolean {
+  return im.setupComplete && im.state !== "running";
+}
+
+export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onEdit, onClose }: {
   /** null while it loads or when it could not be read. */
   imports: readonly TrainingImport[] | null;
   loading: boolean;
@@ -63,6 +72,8 @@ export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onC
   fail: string | null;
   onImport: () => void;
   onOpen: (im: TrainingImport) => void;
+  /** The ⋯'s Edit: the set-up again, filled in. */
+  onEdit: (im: TrainingImport) => void;
   onClose: () => void;
 }) {
   const footer = (
@@ -75,7 +86,13 @@ export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onC
       {imports && imports.length > 0 ? (
         <WalkChoices
           label={COPY.trainingCorpus}
-          choices={imports.map(importChoice)}
+          choices={imports.map((im) => ({
+            ...importChoice(im),
+            menu: importEditable(im) ? (
+              <ProjectRowMenu label={im.topic} actionLabel={COPY.edit} confirm={null}
+                onDelete={() => { onEdit(im); return Promise.resolve(true); }} />
+            ) : undefined,
+          }))}
           onPick={(v) => {
             const im = imports.find((i) => i.sessionId === v);
             if (im) onOpen(im);
@@ -138,9 +155,11 @@ function RunRow({ label, hint, checked, locked, onChange }: {
   );
 }
 
-export function CorpusImportScreen({ setupOf, form, busy, fail, onChange, onPickFile, onSubmit, onBack, onClose }: {
+export function CorpusImportScreen({ setupOf, edit = false, form, busy, fail, onChange, onPickFile, onSubmit, onBack, onClose }: {
   /** The import whose set-up is being finished, or null for a new file. */
   setupOf: string | null;
+  /** A finished import's set-up, opened from its ⋯ to change it. */
+  edit?: boolean;
   form: ImportForm;
   busy: boolean;
   fail: string | null;
@@ -152,7 +171,7 @@ export function CorpusImportScreen({ setupOf, form, busy, fail, onChange, onPick
 }) {
   const ready = importReady(form, setupOf) && !busy;
   const footer = (
-    <WalkFooter pill={{ label: setupOf ? COPY.setUp : COPY.importPill, onClick: onSubmit, disabled: !ready, testId: "corpus-submit" }}>
+    <WalkFooter pill={{ label: edit ? COPY.save : setupOf ? COPY.setUp : COPY.importPill, onClick: onSubmit, disabled: !ready, testId: "corpus-submit" }}>
       {fail ? <p role="alert" className="m-0 pb-2 text-center text-[14px] text-destructive">{fail}</p> : null}
     </WalkFooter>
   );
@@ -161,8 +180,8 @@ export function CorpusImportScreen({ setupOf, form, busy, fail, onChange, onPick
     onChange({ ...form, stages: on ? [...form.stages.filter((x) => x !== s), s] : form.stages.filter((x) => x !== s) });
   return (
     <WalkOverlay
-      title={setupOf ? COPY.finishTheSetUp : COPY.importAudio}
-      subtitle={setupOf ? COPY.beforeItsMomentsCanBeJudged : null}
+      title={edit ? COPY.edit : setupOf ? COPY.finishTheSetUp : COPY.importAudio}
+      subtitle={setupOf && !edit ? COPY.beforeItsMomentsCanBeJudged : null}
       onBack={onBack} onClose={onClose} footer={footer} testId="coach-panel-corpusimport"
     >
       {setupOf ? null : (

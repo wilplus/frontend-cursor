@@ -310,10 +310,32 @@ export default function CoachPanel({ state, dispatch, speakers, loading }: Coach
     dispatch({ type: "corpusJudge", importId: im.sessionId, topic: im.topic });
   }
 
-  async function submitImport(setupOf: string | null): Promise<void> {
+  /** A finished import's ⋯ → Edit: its set-up again, filled in. The list
+   *  does not carry "where it came from", so that field starts empty. */
+  function editImport(im: TrainingImport): void {
+    setCorpusFail(null);
+    setForm({ ...BLANK_IMPORT, topic: im.topic, speaker: im.speakerLabel ?? "", language: im.language });
+    dispatch({ type: "corpusImport", setupOf: im.sessionId, edit: true });
+  }
+
+  async function submitImport(setupOf: string | null, edit = false): Promise<void> {
     if (corpusBusy || form.language === null || !form.topic.trim()) return;
     setCorpusBusy(true);
     setCorpusFail(null);
+    if (setupOf && edit) {
+      // An edit changes the words only: no loader, no judging, back to the
+      // imports, which read the new name.
+      const saved = await saveImportSetup(setupOf, {
+        topic: form.topic.trim(), language: form.language,
+        speakerLabel: form.speaker.trim() || null, source: form.source.trim() || null,
+      });
+      setCorpusBusy(false);
+      if (!saved.ok) { setCorpusFail(saved.error ?? COPY.answerFail); return; }
+      setForm(BLANK_IMPORT);
+      corpus.refresh();
+      dispatch({ type: "back" });
+      return;
+    }
     if (setupOf) {
       // As the prototype: the app's one loader while the set-up saves, then
       // straight to judging with "Set up · {n} moments".
@@ -433,14 +455,14 @@ export default function CoachPanel({ state, dispatch, speakers, loading }: Coach
       return (
         <CorpusHomeScreen imports={corpus.imports} loading={corpus.loading} fail={live ? corpusFail : null}
           onImport={() => { setCorpusFail(null); setForm(BLANK_IMPORT); dispatch({ type: "corpusImport" }); }}
-          onOpen={openImport} onClose={close} />
+          onOpen={openImport} onEdit={editImport} onClose={close} />
       );
     }
     if (panel.key === "corpusimport") {
       return (
-        <CorpusImportScreen setupOf={panel.setupOf} form={form} busy={corpusBusy} fail={live ? corpusFail : null}
+        <CorpusImportScreen setupOf={panel.setupOf} edit={panel.edit} form={form} busy={corpusBusy} fail={live ? corpusFail : null}
           onChange={setForm} onPickFile={() => fileInput.current?.click()}
-          onSubmit={() => void submitImport(panel.setupOf)} onBack={() => dispatch({ type: "back" })} onClose={close} />
+          onSubmit={() => void submitImport(panel.setupOf, panel.edit)} onBack={() => dispatch({ type: "back" })} onClose={close} />
       );
     }
     if (panel.key === "corpusanalyse") return <CorpusAnalyseScreen onClose={close} />;

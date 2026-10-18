@@ -2,9 +2,9 @@
 /* The training corpus inside the panel, its host's flow (D-CP-20 review): a
    saved set-up goes straight to judging with "Set up · {n} moments", an
    import lands on the imports with "Imported · {n} moments", an import with
-   nothing to judge is never judged, and the panel's Judge reads the queue
-   without a piece's words. */
-import { act } from "react";
+   nothing to judge is never judged, the panel's Judge reads the queue
+   without a piece's words, and a finished import's ⋯ → Edit renames it. */
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -28,6 +28,8 @@ vi.mock("./CoachCorpusJudge", () => ({
   default: ({ importId }: { importId: string }) => <div data-testid="stub-corpus-judge">{importId}</div>,
 }));
 import { blindPiece, type QueuePiece } from "@/services/api/trainingCorpus";
+import CoachPanel from "./CoachPanel";
+import { PANEL_START, panelReducer, type PanelAction, type PanelState } from "@/lib/willab/coachPanel";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -59,4 +61,50 @@ describe("the training corpus in the panel", () => {
     expect("transcript" in piece).toBe(false);
     expect(JSON.stringify(piece)).not.toContain("SECRET WORDS");
   });
+
+  it("a finished import's ⋯ → Edit opens its set-up filled in; Save renames it and goes back", async () => {
+    const done = { ...IMPORT, setupComplete: true, speakerLabel: "Steve Jobs", queueCount: 4, labelledCount: 1 };
+    const unfinished = { ...IMPORT, sessionId: "i2", topic: "Unfinished" };
+    fetchTrainingImports.mockResolvedValue([done, unfinished]);
+    act(() => root.render(<Host start={[{ type: "open" }, { type: "corpus" }]
+      .reduce((s, a) => panelReducer(s, a as PanelAction), PANEL_START)} />));
+    await flush();
+    // An unfinished import opens its set-up on a tap: no ⋯ of its own.
+    expect(document.querySelector("[aria-label='More options for Unfinished']")).toBeNull();
+    click(document.querySelector("[aria-label='More options for Workshop recording']"));
+    click(document.querySelector("[role='menuitem']"));
+    await flush();
+    const screen = document.querySelector("[data-testid='coach-panel-corpusimport']")!;
+    expect(screen.querySelector("h2")!.textContent).toBe("Edit");
+    expect(screen.querySelector("[data-testid='corpus-file']")).toBeNull();
+    const topic = screen.querySelector<HTMLInputElement>("[data-testid='corpus-topic']")!;
+    expect(topic.value).toBe("Workshop recording");
+    expect(screen.querySelector<HTMLInputElement>("[data-testid='corpus-speaker']")!.value).toBe("Steve Jobs");
+    type(topic, "Stanford commencement");
+    const save = screen.querySelector<HTMLButtonElement>("[data-testid='corpus-submit']")!;
+    expect(save.textContent).toBe("Save");
+    click(save);
+    await flush();
+    expect(saveImportSetup).toHaveBeenCalledWith("i1", {
+      topic: "Stanford commencement", language: "en", speakerLabel: "Steve Jobs", source: null,
+    });
+    // Back on the imports, read again so the card shows the new name.
+    expect(fetchBlindConfidenceQueue).not.toHaveBeenCalled();
+    expect(document.querySelector("[data-testid='coach-panel-corpushome']")).not.toBeNull();
+    expect(fetchTrainingImports.mock.calls.length).toBeGreaterThan(1);
+  });
 });
+
+function Host({ start }: { start: PanelState }) {
+  const [state, setState] = useState(start);
+  const dispatch = (a: PanelAction) => setState((s: PanelState) => panelReducer(s, a));
+  return <CoachPanel state={state} dispatch={dispatch} speakers={[]} loading={false} />;
+}
+
+const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+const click = (el: Element | null) => act(() => { (el as HTMLElement).click(); });
+/** A typed value, as React's onChange sees it. */
+function type(input: HTMLInputElement, value: string): void {
+  const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+  act(() => { set.call(input, value); input.dispatchEvent(new Event("input", { bubbles: true })); });
+}
