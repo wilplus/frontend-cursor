@@ -97,6 +97,27 @@ function passageOf<R>(step: WalkStep, moment: FeedbackWalkMoment<R>): { item: R;
   return null;
 }
 
+/** The practice a replayed screen reads its clip from: the voice Exercise's
+ *  thread, or a clearer version's (founder 2026-10-18). */
+function replayClipPractice(plan: readonly WalkStep[], at: number, replayOf: (moment: number) => string | null | undefined): string | null {
+  const here = plan[at];
+  if (!here?.replay || here.moment == null) return null;
+  const start = threadStart(plan, at);
+  const clearerLane = plan.some((s) => s.moment === here.moment && s.key === "clearer");
+  return (start >= 0 && plan[start].key === "exVideo") || clearerLane ? replayOf(here.moment) ?? null : null;
+}
+
+/** The practise kind the AI clip is asked for on this screen, or null. The
+ *  voice Exercise, with or without an exercise attached (the moment said
+ *  again asks too, founder 2026-10-14), and a clearer version's practise of
+ *  the accepted words or the kept ones (founder 2026-10-18). */
+function aiPractiseKind<R>(here: WalkStep, moment: FeedbackWalkMoment<R>): WalkStep["kind"] | null {
+  if (here.key === "practise" && (here.kind === "words" || here.kind === "keep")) return here.kind;
+  const voice = here.key === "exVideo" || (here.key === "practise" && (here.kind === "instruction" || here.kind === "moment"));
+  if (!voice || !(moment.exercise || moment.practiseItem != null)) return null;
+  return moment.exercise ? "instruction" : "moment";
+}
+
 export type WalkPractise = {
   /** Seconds since the try started, for the strip's clock. */
   elapsed: number;
@@ -184,9 +205,11 @@ export function useWalkPractise<R>(args: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [at, sig]);
 
-  // The AI version of your voice (N71): asked once per voice Exercise
-  // moment, when its Exercise screen opens (no video may fit) or its
-  // practise starts. Only this lane: a clearer version never asks.
+  // The AI version of your voice (N71): asked once per practise moment,
+  // when its Exercise screen opens (no video may fit) or its practise
+  // starts. A clearer version asks too, when its practise starts (founder
+  // 2026-10-18, "words first, then voice"): its clip says the accepted
+  // words, or their own when they kept them, and shows only after a not yet.
   useEffect(() => {
     const { io: practiseIO, plan: p, at: i, moments: ms, blocked: guestOnly, replayPracticeOf: replayOf } = live.current;
     const here = p[i];
@@ -197,8 +220,7 @@ export function useWalkPractise<R>(args: {
     if (here.replay || here.readOnly) {
       // Any screen of the exercise's thread: a try tapped in the chat opens
       // on its last answer, with the Exercise above it.
-      const start = here.replay ? threadStart(p, i) : -1;
-      const practiceId = start >= 0 && p[start].key === "exVideo" ? replayOf(here.moment) : null;
+      const practiceId = replayClipPractice(p, i, replayOf);
       if (!practiceId || aiAsked.current.has(here.moment)) return;
       const index = here.moment;
       aiAsked.current.add(index);
@@ -208,14 +230,12 @@ export function useWalkPractise<R>(args: {
       return;
     }
     if (!practiseIO) return;
-    const inLane = here.key === "exVideo" || (here.key === "practise" && (here.kind === "instruction" || here.kind === "moment"));
     const moment = ms[here.moment];
-    // The voice Exercise, with or without an exercise attached: the moment
-    // said again asks for the AI voice too (founder 2026-10-14).
-    if (!inLane || !(moment?.exercise || moment?.practiseItem != null) || aiAsked.current.has(here.moment)) return;
+    const kind = moment ? aiPractiseKind(here, moment) : null;
+    if (!kind || aiAsked.current.has(here.moment)) return;
     const index = here.moment;
     aiAsked.current.add(index);
-    const what = passageOf({ ...here, kind: moment.exercise ? "instruction" : "moment" }, moment);
+    const what = passageOf({ ...here, kind }, moment);
     if (!what) return;
     if (!opened.current.has(index)) {
       opened.current.set(index, practiseIO.open(what.item, what.passage).catch(() => null));

@@ -286,6 +286,33 @@ describe("the machine's answer", () => {
   });
 });
 
+describe("words first, then voice (founder 2026-10-18)", () => {
+  it("a clearer version's not yet brings the AI version of their voice saying the accepted words", async () => {
+    draw();
+    await accept();
+    // Asked when the practise of the accepted words starts, once.
+    await settle();
+    expect(calls.filter((c) => c.url.endsWith("/ai-voice") && c.method === "POST")).toHaveLength(1);
+    answers = [{ next: "again", key: "effort" }];
+    await tryAndRead();
+    await settle(160);
+    expect(screen()).toBe("walk-screen-encourage");
+    expect(live()!.querySelector("[data-walk-ai-voice]")).not.toBeNull();
+    expect(live()!.textContent).toContain(WALK_COPY.aiVoiceFirst);
+    expect(live()!.textContent).toContain(WALK_COPY.aiVoiceNow);
+  });
+
+  it("good energy on the clearer words is a Good job with no AI clip", async () => {
+    draw();
+    await accept();
+    answers = [{ next: "praise", key: "cue:landed_ending" }];
+    await tryAndRead();
+    await settle(160);
+    expect(screen()).toBe("walk-screen-improved");
+    expect(live()!.querySelector("[data-walk-ai-voice]")).toBeNull();
+  });
+});
+
 describe("the AI version of your voice on the Exercise (founder 2026-10-15)", () => {
   it("the bubble is there at once: the typing dots alone, then the bubble with the dots where the player goes, then the player; never the white box", async () => {
     draw({ items: EXERCISE_ITEMS, at: 1 });
