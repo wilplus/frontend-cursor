@@ -15,7 +15,7 @@ import { bffFetch } from "@/lib/api/bffFetch";
 /*  app's own offers use, one at a time:                                       */
 /*    whatsapp     → the WhatsApp offer                                         */
 /*    home_screen  → the add-to-home-screen offer (only where it can install)   */
-/*    consent      → a pointer to the Data & consent page                       */
+/*    consent      → the question in the chat, answered No | Yes (ConsentAsk)  */
 /*    promo        → their plan price, pointing to the pricing screen (step 3)  */
 /*    lesson       → their lesson price, pointing to the booking page (step 3)  */
 /*  While an ask is open the automatic offers hold back, so a Take never gets   */
@@ -65,7 +65,7 @@ function askBody(ask: AdminAsk): string | undefined {
   return undefined;
 }
 
-function report(id: string, event: "shown" | "opened") {
+function report(id: string, event: "shown" | "opened" | "answered") {
   void fetch(`/api/v2/user/asks/${encodeURIComponent(id)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -105,11 +105,21 @@ export function useAdminAsk(inputs: Inputs) {
     if (ask) report(ask.id, "opened");
   }, [ask]);
 
+  /** A consent ask answered in the chat: closed, and the app's own offers
+   *  may come back. */
+  const answered = useCallback(() => {
+    if (!ask) return;
+    report(ask.id, "answered");
+    setAsk(null);
+  }, [ask]);
+
   /** Hold the automatic offers while an ask is pending or loading. `bookHref`
    *  is where a lesson ask's "See times" goes. */
   return {
     held: ask !== null,
     opened,
+    answered,
+    consentKey: ask?.kind === "consent" ? ask.consent_key : null,
     bookHref: ask?.lesson ? `/book/${encodeURIComponent(ask.lesson.slug)}` : "/book/artur",
   };
 }
