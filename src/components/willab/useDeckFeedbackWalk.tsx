@@ -678,10 +678,9 @@ export function useDeckFeedbackWalk(args: {
       const practiceId = practiceIdOf(item);
       if (!practiceId || triedByPart.has(item.partId) || askedPractices.current.has(practiceId)) continue;
       askedPractices.current.add(practiceId);
-      void fetchConfidencePractice(practiceId)
-        .then((r) => (r.ok ? practiceTries(r.practice) : null))
-        .catch(() => null)
-        .then((tries) => setTriedByPractice((t) => ({ ...t, [practiceId]: tries })));
+      void fetchConfidencePractice(practiceId).then((r) => {
+        setTriedByPractice((t) => ({ ...t, [practiceId]: r.ok ? practiceTries(r.practice) : null }));
+      });
     }
   }, [replayReady, thread, threadLoaded, replayItems, triedByPart]);
   /* A step tapped in the Lounge opens once the replay knows the Take's
@@ -718,9 +717,6 @@ export function useDeckFeedbackWalk(args: {
       }),
     [replayItems, replayReady, coachMessage, practiceOn, helperWordsOf, triedByPart, triedByPractice],
   );
-  // The tries can land while the answers are read: the newest build.
-  const buildReplayRef = useRef(buildReplay);
-  buildReplayRef.current = buildReplay;
   const canReplay = useMemo(
     () => replayable && walkStart(buildReplay(ownAnswers)) !== null,
     [replayable, buildReplay, ownAnswers],
@@ -792,7 +788,7 @@ export function useDeckFeedbackWalk(args: {
     if (target?.step === "helpers" && target.part && openHelpersRef.current(target.part)) return true;
     if (!canReplay) return false;
     void ownAnswersOf(pageTake).then((answers) => {
-      const again = buildReplayRef.current(answers);
+      const again = buildReplay(answers);
       const at = walkStepAt(again, target) ?? walkStart(again);
       if (at === null) return;
       setOwnAnswers(answers);
@@ -800,7 +796,7 @@ export function useDeckFeedbackWalk(args: {
       openAt(at, false, true);
     });
     return true;
-  }, [canReplay, pageTake, openAt, otherTake]);
+  }, [canReplay, pageTake, buildReplay, openAt, otherTake]);
 
   // The paragraph has a moment of this Take to open, waiting or answered:
   // only such a paragraph wears the bookmark (founder 2026-10-14).
