@@ -39,6 +39,11 @@ vi.mock("@/services/api/coachPanel", () => ({
   recordExercisePreference: vi.fn(),
   draftTakeWord: vi.fn(async () => null),
 }));
+const fetchCoachSpeakers = vi.fn();
+vi.mock("@/services/api/coachSpeakers", async (orig) => ({
+  ...(await orig<typeof import("@/services/api/coachSpeakers")>()),
+  fetchCoachSpeakers: (...a: unknown[]) => fetchCoachSpeakers(...a),
+}));
 vi.mock("../coachwalk/useConfidenceChainReceipt", () => ({
   useConfidenceChainReceipt: () => ({ current: null }),
 }));
@@ -161,6 +166,21 @@ function Host({ start }: { start: PanelState }) {
 }
 
 describe("CoachPanel", () => {
+  it("Your speakers opens at once with the queue's speakers, then takes the fresh read", async () => {
+    let answer: (v: unknown) => void = () => {};
+    fetchCoachSpeakers.mockReturnValue(new Promise((r) => { answer = r; }));
+    const start = panelReducer(PANEL_START, { type: "speakers" } as PanelAction);
+    draw(<Host start={start} />);
+    const list = () => document.querySelector("[data-testid='coach-panel-all-speakers']")!.textContent;
+    expect(list()).toContain("Quiet Heron");
+    expect(fetchCoachSpeakers).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      answer([{ pseudonym: "Bright Wren", goal: null, waiting: 0, waiting_for_text: 0, take_count: 0, takes: [] }]);
+    });
+    expect(list()).toContain("Bright Wren");
+  });
+
   it("Judge first; the moment read is asked for only after the rating saves", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     saveStateRating.mockResolvedValue({ ok: true });

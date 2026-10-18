@@ -79,9 +79,9 @@ export async function fetchCoachSpeakers(): Promise<PanelSpeaker[] | null> {
   return res.ok ? mapCoachSpeakers(res.data) : null;
 }
 
-/** The queue's own speakers as the Speakers list draws them: the fallback
- *  when GET /v2/coach/speakers cannot be read (they are the speakers with
- *  moments waiting, which the queue already holds). Pure. */
+/** The queue's own speakers as the Speakers list draws them: what the list
+ *  shows while GET /v2/coach/speakers is in flight, or when it cannot be
+ *  read (the backend builds that list from this same queue). Pure. */
 export function speakersFromQueue(queue: readonly QueueSpeaker[]): PanelSpeaker[] {
   return queue.map((s) => ({
     pseudonym: s.pseudonym,
