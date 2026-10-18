@@ -185,6 +185,16 @@ function isProtected(pathname: string) {
   return PROTECTED_ROUTES.some((route) => pathname.startsWith(route));
 }
 
+/** A file served from public/ or a metadata route (robots.txt, sitemap.xml):
+ *  its last segment has a file extension. Anything under a signed-in-only or
+ *  admin prefix never counts, so the gates below keep every page they have. */
+function isPublicFile(pathname: string) {
+  if (isProtected(pathname) || ADMIN_ROUTES.some((route) => pathname.startsWith(route))) {
+    return false;
+  }
+  return /\.[a-z0-9]+$/i.test(pathname.slice(pathname.lastIndexOf("/") + 1));
+}
+
 function isAuthRoute(pathname: string) {
   return AUTH_ROUTES.some((route) => pathname === route);
 }
@@ -270,6 +280,15 @@ export async function middleware(req: NextRequest) {
   applyCsp(res, cspDirectives);
   if (ceoHostRoute.isCeoHost) {
     res.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
+
+  // A file from public/ (the pdf.js worker, sw.js, a deck PDF, a video) is
+  // the same for everyone and never gated, so it skips the Supabase check
+  // below. That check is a round trip to the auth server: on /chat it held
+  // /pdf.worker.min.mjs for ~2.4 s before the slides could draw. The CSP
+  // still rides the response (the pdf worker and sw.js run under it).
+  if (isPublicFile(pathname)) {
+    return res;
   }
 
   const isProd = process.env.NODE_ENV === "production";
