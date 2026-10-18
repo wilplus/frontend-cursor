@@ -250,6 +250,9 @@ export async function callBackend(
     guestOwnerFrom,
     ...rest
   } = init;
+  const startedAt = performance.now();
+  const cold = !servedBefore;
+  servedBefore = true;
   const token =
     tokenOverride !== undefined ? tokenOverride : await getAccessToken();
   const guestOwner = token
@@ -266,6 +269,7 @@ export async function callBackend(
       : rest.headers
   );
   let upstream: Response;
+  const upstreamStartedAt = performance.now();
   try {
     upstream = await backendFetch(path, {
       ...rest,
@@ -287,8 +291,46 @@ export async function callBackend(
     );
   }
 
+  const upstreamMs = performance.now() - upstreamStartedAt;
+
   // The id goes back to the browser too, so a bug report can quote it.
   const response = await relay(upstream);
   response.headers.set(REQUEST_ID_HEADER, requestId);
+  appendBffTiming(response, {
+    upstreamMs,
+    totalMs: performance.now() - startedAt,
+    cold,
+  });
   return response;
+}
+
+/** False until this server instance has served its first BFF request, so
+ *  that request can say it paid the cold start. */
+let servedBefore = false;
+
+/** The BFF's own stopwatch, next to the backend's (founder 2026-10-18: an
+ *  Ideal Text read waited 1.48 s in the browser while Flask reported 292 ms).
+ *  `bff_upstream` is from sending the request to the backend's headers
+ *  arriving: minus the backend's `app`, it is the network and Railway's
+ *  queue. `bff` is this whole handler: the browser's wait minus it is
+ *  Vercel's routing and function start. `bff_cold` marks the first request
+ *  this instance served. Never breaks a response. */
+function appendBffTiming(
+  response: NextResponse,
+  { upstreamMs, totalMs, cold }: { upstreamMs: number; totalMs: number; cold: boolean }
+): void {
+  try {
+    const parts = [
+      `bff;dur=${totalMs.toFixed(1)}`,
+      `bff_upstream;dur=${upstreamMs.toFixed(1)}`,
+      ...(cold ? ["bff_cold"] : []),
+    ];
+    const existing = response.headers.get("Server-Timing");
+    response.headers.set(
+      "Server-Timing",
+      existing ? `${existing}, ${parts.join(", ")}` : parts.join(", ")
+    );
+  } catch {
+    /* the stopwatch never breaks a response */
+  }
 }
