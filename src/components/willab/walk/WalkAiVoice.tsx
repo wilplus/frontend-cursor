@@ -17,8 +17,9 @@ import type { AiVoiceState } from "@/services/api/aiVoice";
 /*  under it, the server's one signed sentence on what this version does      */
 /*  differently and why (WIL-82, founder 2026-10-16, L14-L16; it may quote   */
 /*  the target words, nothing else of the sentence). It never plays by       */
-/*  itself. At most three per exercise. Only the voice Exercise: never       */
-/*  praise, never a clearer version.                                         */
+/*  itself. At most three per exercise. The voice Exercise, and a clearer    */
+/*  version's not yet (founder 2026-10-18, "words first, then voice": the   */
+/*  clip says the accepted words); never praise.                             */
 /*  The first "not yet" always says L4 then L3 (founder 2026-10-13, P3 B).    */
 /*                                                                            */
 /*  The Exercise bubble is there at once (founder 2026-10-15): the Lounge's   */
@@ -38,15 +39,23 @@ export const aiOnExercise = (state: AiVoiceState | undefined): boolean =>
 export const aiPendingOnExercise = (state: AiVoiceState | undefined): boolean =>
   state?.clip?.state === "pending";
 
-/** This "not yet" is in the voice Exercise lane: the practise before it on
- *  the same moment was the exercise's. */
+const VOICE_KINDS: ReadonlySet<string> = new Set(["instruction", "moment", "words", "keep"]);
+
+/** This "not yet" may bring the AI clip: the practise before it on the same
+ *  moment was the voice Exercise's, or a clearer version's (founder
+ *  2026-10-18). */
 export function inVoiceLane(plan: readonly WalkStep[], at: number, moment: number): boolean {
   for (let i = at - 1; i >= 0; i -= 1) {
     const s = plan[i];
-    if (s?.key === "practise" && s.moment === moment) return s.kind === "instruction" || s.kind === "moment";
+    if (s?.key === "practise" && s.moment === moment) return Boolean(s.kind && VOICE_KINDS.has(s.kind));
   }
   return false;
 }
+
+/** The Exercise screen showed this moment's clip: only a voice Exercise has
+ *  that screen, so a clearer version's first clip is its first not yet. */
+const shownOnExercise = (plan: readonly WalkStep[], moment: number, state: AiVoiceState | undefined): boolean =>
+  aiOnExercise(state) && plan.some((s) => s.key === "exVideo" && s.moment === moment);
 
 /** How many AI clips this exercise showed before step `at`. */
 export function aiShownBefore(plan: readonly WalkStep[], at: number, moment: number, onExercise: boolean): number {
@@ -77,7 +86,7 @@ export function aiVoiceShown(
     return aiPendingOnExercise(state) ? "pending" : null;
   }
   if (step.key !== "encourage" || state?.clip?.state !== "ready" || !inVoiceLane(plan, at, step.moment)) return null;
-  if (aiShownBefore(plan, at, step.moment, aiOnExercise(state)) >= AI_VOICE_MAX) return null;
+  if (aiShownBefore(plan, at, step.moment, shownOnExercise(plan, step.moment, state)) >= AI_VOICE_MAX) return null;
   // The first "not yet" says L4 and L3, even after the Exercise's own clip;
   // every later one L5 (founder 2026-10-13, P3 B).
   // The same clip each time, the words around it changing (founder
