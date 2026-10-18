@@ -128,6 +128,126 @@ export function forgetSharedTokenBalance(): void {
   sharedBalance = null;
 }
 
+/* THE LAST WALLET THIS TAB SAW (founder 2026-10-18). A reload used to show
+   no chip until the prices probe and the balance read came back — a second
+   or more on a cold Vercel instance — although the tab had both a moment
+   before. The ready pair is kept in sessionStorage (this tab only, gone when
+   it closes) and shown at once on the next page open while the live reads
+   run; whatever they answer replaces it. Short-lived, because a balance
+   shown from before a purchase in another tab must not outlive the next
+   read by much; a spend in THIS tab re-reads and overwrites it at once. */
+const WALLET_RECALL_KEY = "willab.tokenWallet";
+const WALLET_RECALL_TTL_MS = 10 * 60_000;
+
+export interface RecalledWallet {
+  prices: TokenPrices;
+  balance: Extract<TokenBalance, { kind: "ready" }>;
+}
+
+function sessionStore(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.sessionStorage;
+  } catch {
+    return null; // storage blocked (private window, disabled site data)
+  }
+}
+
+/** Keep a ready wallet for this tab's next page open. Anything else — off,
+ *  unknown, failed — is not worth showing before the live read. */
+export function rememberWallet(prices: TokenPrices | null, balance: TokenBalance): void {
+  const store = sessionStore();
+  if (!store) return;
+  try {
+    if (!prices || balance.kind !== "ready") return;
+    store.setItem(WALLET_RECALL_KEY, JSON.stringify({ at: Date.now(), prices, balance }));
+  } catch {
+    // Quota or serialisation failure: the next open simply waits for the read.
+  }
+}
+
+/** The wallet this tab last saw, if recent, re-checked through the same
+ *  mappers as a live response so a stale shape cannot reach the UI. */
+export function recallWallet(now: number = Date.now()): RecalledWallet | null {
+  const store = sessionStore();
+  if (!store) return null;
+  try {
+    const raw = store.getItem(WALLET_RECALL_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { at?: unknown; prices?: unknown; balance?: unknown };
+    const at = num(parsed.at);
+    if (at === null || now - at > WALLET_RECALL_TTL_MS || now < at) return null;
+    const prices = recallPrices(parsed.prices);
+    const balance = recallBalance(parsed.balance);
+    if (!prices || !balance) return null;
+    return { prices, balance };
+  } catch {
+    return null;
+  }
+}
+
+/** Drop it: signing out, or a wallet that turned out to be off. */
+export function forgetWallet(): void {
+  const store = sessionStore();
+  if (!store) return;
+  try {
+    store.removeItem(WALLET_RECALL_KEY);
+  } catch {
+    // Nothing to do: an unreadable store has nothing to forget.
+  }
+}
+
+function recallPrices(raw: unknown): TokenPrices | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (!r.actions || typeof r.actions !== "object" || !Array.isArray(r.bands)) return null;
+  const actions: Record<string, number> = {};
+  for (const [k, v] of Object.entries(r.actions as Record<string, unknown>)) {
+    const n = num(v);
+    if (n !== null) actions[k] = n;
+  }
+  const bands: TokenBand[] = [];
+  for (const b of r.bands as Record<string, unknown>[]) {
+    const maxSeconds = num(b?.maxSeconds);
+    const price = num(b?.price);
+    const action = str(b?.action);
+    if (maxSeconds !== null && price !== null && action !== null) {
+      bands.push({ maxSeconds, action, price });
+    }
+  }
+  const tiers: Record<string, TokenTier> = {};
+  if (r.tiers && typeof r.tiers === "object") {
+    for (const [k, v] of Object.entries(r.tiers as Record<string, unknown>)) {
+      const t = v as Record<string, unknown>;
+      const tokensPerMonth = num(t?.tokensPerMonth);
+      const usdPerMonth = num(t?.usdPerMonth);
+      if (tokensPerMonth === null || usdPerMonth === null) continue;
+      tiers[k] = { tokensPerMonth, coachReviewsPerMonth: num(t?.coachReviewsPerMonth) ?? 0, usdPerMonth };
+    }
+  }
+  return { priceVersion: str(r.priceVersion), actions, bands, tiers };
+}
+
+function recallBalance(raw: unknown): RecalledWallet["balance"] | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const balance = num(r.balance);
+  if (r.kind !== "ready" || balance === null) return null;
+  const cr = r.coachReviews as Record<string, unknown> | null | undefined;
+  const used = num(cr?.used);
+  const allowed = num(cr?.allowed);
+  return {
+    kind: "ready",
+    balance,
+    tier: str(r.tier),
+    periodStart: str(r.periodStart),
+    periodEndsAt: str(r.periodEndsAt),
+    coachReviews:
+      used !== null && allowed !== null
+        ? { used, allowed, remaining: num(cr?.remaining) ?? Math.max(0, allowed - used) }
+        : null,
+  };
+}
+
 /** What to display after a refresh lands.
  *
  *  An unreadable read must NOT erase a good one. "Unknown" means we do not

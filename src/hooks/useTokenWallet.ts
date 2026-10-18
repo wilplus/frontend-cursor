@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchTokenBalanceShared,
   fetchTokenPricesRead,
   forgetSharedTokenBalance,
+  forgetWallet,
   nextBalance,
+  recallWallet,
+  rememberWallet,
   resetTokenPricesCache,
   type TokenBalance,
   type TokenPrices,
@@ -35,6 +38,12 @@ import { WILLAB_TOKENS_SPENT_EVENT } from "@/lib/willabWindowEvents";
 /*  Prices AND balance are memoised in the service, so the header's chip and   */
 /*  the Lounge's top-up card (two instances of this hook) cost one request     */
 /*  each per page, not two (founder 2026-10-16).                               */
+/*                                                                            */
+/*  A RELOAD SHOWS THE LAST WALLET FIRST (founder 2026-10-18). The pair this   */
+/*  tab last saw comes back from sessionStorage the moment the hook mounts,   */
+/*  so the chip is there while the live probe and read run; their answer      */
+/*  replaces it. Nothing is invented: it is the number the tab showed a       */
+/*  moment ago, and a spend or sign-out drops it.                             */
 /* -------------------------------------------------------------------------- */
 
 /** The probe, with the three outcomes kept apart.
@@ -73,21 +82,41 @@ export function useTokenWallet(active: boolean): TokenWallet {
   // Bumped by retryPrices to re-run the probe effect.
   const [attempt, setAttempt] = useState(0);
   const [balance, setBalance] = useState<TokenBalance>({ kind: "unknown" });
+  // Whether this mount has been signed in: the hook starts inactive while
+  // the page boots, and that is not a sign-out.
+  const wasActive = useRef(false);
 
   /* Prices: once per page (memoised in the service), and the enabled-probe. */
   useEffect(() => {
     if (!active) {
-      // Signed out is "off", not a failure: no wallet, nothing to retry.
+      // Signed out is "off", not a failure: no wallet, nothing to retry —
+      // and, after a sign-out, nothing to recall for whoever signs in next
+      // in this tab.
       setPricesState("off");
       setPrices(null);
+      if (wasActive.current) forgetWallet();
       return;
     }
+    wasActive.current = true;
     let cancelled = false;
-    setPricesState("probing");
+    // The last wallet this tab saw, shown while the live reads run (an
+    // effect, not initial state, so the server and client render alike).
+    const recalled = attempt === 0 ? recallWallet() : null;
+    if (recalled) {
+      setPrices(recalled.prices);
+      setPricesState("ready");
+      setBalance((prev) => (prev.kind === "ready" ? prev : recalled.balance));
+    } else {
+      setPricesState("probing");
+    }
     void fetchTokenPricesRead().then((r) => {
       if (cancelled) return;
+      // A failed probe over a recalled list keeps the list: the retry path
+      // is for a wallet we have nothing to show for.
+      if (r.kind === "failed" && recalled) return;
       setPrices(r.kind === "ready" ? r.prices : null);
       setPricesState(r.kind);
+      if (r.kind === "off") forgetWallet();
     });
     return () => {
       cancelled = true;
@@ -149,6 +178,11 @@ export function useTokenWallet(active: boolean): TokenWallet {
       window.clearInterval(intervalId);
     };
   }, [readBalance]);
+
+  /* Keep the ready pair for this tab's next page open. */
+  useEffect(() => {
+    if (pricesState === "ready" && balance.kind === "ready") rememberWallet(prices, balance);
+  }, [pricesState, prices, balance]);
 
   return { enabled, pricesState, retryPrices, balance, prices };
 }

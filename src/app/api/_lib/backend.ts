@@ -1,6 +1,5 @@
 import "server-only";
 import { cookies, headers } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import {
   DEFAULT_FAILURES,
@@ -79,9 +78,17 @@ export class BackendNotConfiguredError extends Error {
  *  from the same expired cookie — the "random logout after an idle tab"
  *  reports. Route handlers may write cookies; Server Components may not,
  *  hence the try/catch (middleware refresh covers those renders).
+ *
+ *  `@supabase/ssr` (and supabase-js behind it) loads here, on first use, not
+ *  with the route: the app's own calls carry a Bearer header and never reach
+ *  this, so a cold instance answering one of them (founder 2026-10-18: the
+ *  balance read, 1.2 s on a cold boot) does not pay to load the auth client.
  */
 export async function getSupabase() {
-  const cookieStore = await cookies();
+  const [{ createServerClient }, cookieStore] = await Promise.all([
+    import("@supabase/ssr"),
+    cookies(),
+  ]);
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
