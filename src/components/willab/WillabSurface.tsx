@@ -18,7 +18,6 @@ import Mlc2FounderConsentGate from "./Mlc2FounderConsentGate";
 import Phase1AcceptanceGate from "./Phase1AcceptanceGate";
 import Lounge from "./Lounge";
 import { LabFadeOut } from "./labFade";
-import IdealTextOverlay from "./IdealTextOverlay";
 import { useDocumentSettle } from "./useDocumentSettle";
 import {
   clearExploreArc,
@@ -36,6 +35,8 @@ import {
 // below), so a tap on Record finds them ready.
 const LabOverlay = dynamic(() => import("./LabOverlay"), { ssr: false });
 const ProjectPicker = dynamic(() => import("./ProjectPicker"), { ssr: false });
+// The Ideal Text page is a tap away, not first paint: same warm-after-load.
+const IdealTextOverlay = dynamic(() => import("./IdealTextOverlay"), { ssr: false });
 
 /* -------------------------------------------------------------------------- */
 /*  WillabSurface — restructure SHELL root (feature-flagged)                   */
@@ -83,6 +84,8 @@ export default function WillabSurface({
   useEffect(() => {
     void import("./LabOverlay");
     void import("./ProjectPicker");
+    void import("./IdealTextOverlay");
+    void import("./ProcessingResumeOverlay");
   }, []);
   const userId = useUserId();
   const userEmail = useUserEmail();

@@ -55,7 +55,7 @@ import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports"
 import { FLOW_COPY } from "./flowCopy";
 import LoadingState, { VoiceMark } from "./LoadingState";
 import { PROCESSING_STAGES } from "./ProcessingWait";
-import IdealTextOverlay, { type IdealTextLaunchMode } from "./IdealTextOverlay";
+import type { IdealTextLaunchMode } from "./IdealTextOverlay";
 import { lensAddress } from "@/lib/willab/lensScreen";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import {
@@ -108,7 +108,6 @@ import {
   productActionFromMetadata,
   productSpec,
 } from "@/lib/productDiscovery";
-import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
 import { usePinThreadBottom } from "./usePinThreadBottom";
 import { clearerPieces, type ClearerPiece } from "@/lib/willab/clearerPieces";
 import WalkOverlay from "./walk/WalkOverlay";
@@ -119,6 +118,10 @@ const CoachWalkEntry = dynamic(() => import("./coachwalk/CoachWalkEntry"), { ssr
 const FeedbackOverlay = dynamic(() => import("./FeedbackOverlay"), { ssr: false });
 const LibraryOverlay = dynamic(() => import("./LibraryOverlay"), { ssr: false });
 const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOverlay"), { ssr: false });
+// Not on first paint either: the Ideal Text page and the processing wait open
+// on a tap, so they load after the Lounge (warmed in WillabSurface).
+const IdealTextOverlay = dynamic(() => import("./IdealTextOverlay"), { ssr: false });
+const ProcessingResumeOverlay = dynamic(() => import("./ProcessingResumeOverlay"), { ssr: false });
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
