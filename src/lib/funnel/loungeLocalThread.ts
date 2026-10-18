@@ -104,11 +104,23 @@ export function clearLocalLoungeThread(): void {
 export async function mergeLocalLoungeThreadToServer(): Promise<LoungeMessage[]> {
   const local = readLocalLoungeThread();
   if (local.length === 0) return [];
-  // Defensive: ensure chronological order before replaying.
-  const ordered = [...local].sort((a, b) =>
-    a.client_created_at < b.client_created_at ? -1 : 1
-  );
-  const persisted = await appendAllLoungeMessages(ordered);
+  const ordered = mergeableLocalMessages(local);
+  const persisted = ordered.length ? await appendAllLoungeMessages(ordered) : [];
   clearLocalLoungeThread();
   return persisted;
+}
+
+/** The local messages the account's thread takes, in chronological order.
+ *
+ *  ONE IDEAL TEXT BUBBLE PER TAKE (founder 2026-10-18: "I can see two
+ *  bubbles; there should be just one"). A guest's "your text is ready" card
+ *  is posted by the page, under an id of its own, because a guest has no
+ *  server thread; the claim that precedes this merge back-fills the same
+ *  card into the account under the server's id. Replaying the guest's copy
+ *  too put two cards for one Take in the chat. The server's card is the one
+ *  that stays, so the guest's copy is not replayed. */
+export function mergeableLocalMessages(local: readonly LoungeMessage[]): LoungeMessage[] {
+  return local
+    .filter((m) => !(m.kind === "ideal_text" && m.metadata?.variant === "ready"))
+    .sort((a, b) => (a.client_created_at < b.client_created_at ? -1 : 1));
 }

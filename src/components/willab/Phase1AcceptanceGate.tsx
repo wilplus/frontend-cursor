@@ -13,6 +13,7 @@ import {
 } from "@/services/api/processingAuthorization";
 import type { PendingDeletion } from "@/services/api/accountDeletion";
 import { takeAuthorization } from "@/services/api/bootPrefetch";
+import { claimGuestProjects, hasClaimableGuestOwner } from "@/services/api/projects";
 import { ENDED_STATE_ENABLED } from "@/lib/legal/leavingCopy";
 import { PolicyUpdateProvider } from "./PolicyUpdate";
 
@@ -140,7 +141,23 @@ export default function Phase1AcceptanceGate({
     // The first check reuses the boot prefetch (bootPrefetch.ts) so this gate
     // does not wait its turn behind the ones above it; a stale-policy retry
     // always reads fresh.
-    const load = attempt === 0 ? takeAuthorization : fetchAuthorization;
+    //
+    // THE CLAIM COMES FIRST (founder 2026-10-18: "as a new user I am
+    // displayed for a moment the consent screen again"). A guest accepts,
+    // records and signs up; on the first open after that the account has
+    // no acceptance of its own until the claim moves the guest's into it.
+    // Read before the claim, the status said "accept" and this gate showed
+    // the acceptance screen to someone who had already agreed, until the
+    // claim landed and the page reloaded. So with a claimable guest on the
+    // device the gate waits for the claim (a no-op while signed out, which
+    // claims nothing and reads as the guest, as before) and then reads
+    // fresh: the prefetched answer was about the account alone.
+    const load = async () => {
+      if (hasClaimableGuestOwner() && (await claimGuestProjects())) {
+        return fetchAuthorization();
+      }
+      return attempt === 0 ? takeAuthorization() : fetchAuthorization();
+    };
     void load().then((status) => {
       if (!active.current) return;
       setState(gateStateFor(status));

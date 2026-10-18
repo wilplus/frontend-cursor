@@ -8,6 +8,7 @@ import LoadingState from "./LoadingState";
 import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
 import { isLabOverlay, useWillabFlow } from "./useWillabFlow";
 import { useSignedIn } from "./useSignedIn";
+import { usePendingSendHold } from "./usePendingSendHold";
 import { useUserId } from "./useUserId";
 import { useUserEmail } from "./useUserEmail";
 import { MLC2_FOUNDER_CANARY_EMAIL } from "@/services/api/mlc2Consent";
@@ -83,6 +84,10 @@ export default function WillabSurface({
   // their own instances when they own the screen.
   const pickerSettle = useDocumentSettle({ enabled: pickedArcId !== null });
   const signedIn = useSignedIn();
+  // A guest's Take is being handed into the account they just made: the walk
+  // opens when that is done, so the chat is not drawn first (founder
+  // 2026-10-18, usePendingSendHold).
+  const handingOverTake = usePendingSendHold(signedIn);
   // Warmed after the thread paints (founder 2026-10-16), not beside it: the
   // recording screens' chunks are not what a /chat open waits for.
   useEffect(
@@ -173,8 +178,9 @@ export default function WillabSurface({
       flush,
     );
 
-  // Resolving the initial state post-mount (hydration-safe).
-  if (flow.state === null) {
+  // Resolving the initial state post-mount (hydration-safe); and the wait
+  // while a signed-up guest's Take is handed over, before its walk opens.
+  if (flow.state === null || handingOverTake) {
     return consentedShell(<LoadingState placement="surface" />);
   }
 
