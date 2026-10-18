@@ -55,7 +55,7 @@ interface Person {
 
 const WAIT_DAYS = 30;
 const ASK_STATUS: Record<Ask["status"], string> = {
-  waiting: "Waiting for their next take",
+  waiting: "Waiting for them to open the chat",
   shown: "Seen, not answered yet",
   opened: "Opened the consent page",
   answered: "Answered",
@@ -130,7 +130,7 @@ function PersonProfile({ id }: { id: string }) {
       body: JSON.stringify({ kind, consent_key: key }),
     }).catch(() => null);
     const body = res ? await res.json().catch(() => ({})) : {};
-    setNote(res?.ok ? "Sent. They see it after their next take." : body.error || "Could not send. Try again.");
+    setNote(res?.ok ? "Sent. They see it the next time they open the chat." : body.error || "Could not send. Try again.");
     if (res?.ok) void load();
   };
 
@@ -209,7 +209,7 @@ function PersonProfile({ id }: { id: string }) {
               Tell them about the lesson price
               <select id="pp-tell" className={field} value={tellLesson ? "yes" : "no"} onChange={(e) => setTellLesson(e.target.value === "yes")}>
                 <option value="no">No, they see it on the pricing screen and booking page</option>
-                <option value="yes">Yes, also after their next take</option>
+                <option value="yes">Yes, also in the chat</option>
               </select>
             </label>
           </div>
@@ -392,7 +392,7 @@ function PromotionSection({ id, promotion, sendAsk, reload }: {
             <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-tell">
               Also tell them in the app
               <select id="pr-tell" className={FIELD} value={promo.tell ? "yes" : "no"} onChange={(e) => setPromo({ ...promo, tell: e.target.value === "yes" })}>
-                <option value="yes">Yes, after their next take</option>
+                <option value="yes">Yes, in the chat</option>
                 <option value="no">No, only on the pricing screen</option>
               </select>
             </label>
