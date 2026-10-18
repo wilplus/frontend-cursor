@@ -123,6 +123,51 @@ function Weeks({ weeks }: { weeks: LedgerWeek[] }) {
   );
 }
 
+type HeldRow = { exerciseId: string; held: number; cameBack: number; unknown: number };
+
+/** The ledger's `held_next_take` (founder 2026-10-18, WIL-29), per exercise;
+ *  null when the ledger could not read it (then the panel says so). */
+function heldRows(value: unknown): HeldRow[] | null {
+  if (!value || typeof value !== "object") return null;
+  const exercises = (value as { exercises?: unknown }).exercises;
+  if (!exercises || typeof exercises !== "object") return null;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  return Object.entries(exercises as Record<string, Record<string, unknown>>)
+    .map(([exerciseId, c]) => ({ exerciseId, held: num(c?.held), cameBack: num(c?.came_back), unknown: num(c?.unknown) }))
+    .sort((a, b) => b.held + b.cameBack + b.unknown - (a.held + a.cameBack + a.unknown));
+}
+
+/** Did a practised exercise hold into the speaker's next Take of the same
+ *  project? Counts per exercise about the machine, never about a person. */
+function Held({ rows, titles }: { rows: HeldRow[] | null; titles: ReadonlyMap<string, string> }) {
+  if (rows === null) return <p className="text-sm text-muted-foreground">Could not be read.</p>;
+  if (rows.length === 0) return <p className="text-sm text-muted-foreground">No practice has reached a next Take yet.</p>;
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border">
+      <table className="w-full min-w-[420px] text-left text-sm">
+        <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2 font-medium">Exercise</th>
+            <th className="px-3 py-2 font-medium">Held</th>
+            <th className="px-3 py-2 font-medium">Came back</th>
+            <th className="px-3 py-2 font-medium">Unknown</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.exerciseId} className="border-t border-border">
+              <td className="px-3 py-2">{titles.get(r.exerciseId) ?? r.exerciseId}</td>
+              <td className="px-3 py-2 tabular-nums">{r.held}</td>
+              <td className="px-3 py-2 tabular-nums">{r.cameBack}</td>
+              <td className="px-3 py-2 tabular-nums">{r.unknown}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function PacePanel() {
   const [read, setRead] = useState<LedgerRead | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -185,6 +230,9 @@ export default function PacePanel() {
               <JarPanel jar={read.jar} evaluation={read.jarEvaluation} titles={titles} />
             </Panel>
           ) : null}
+          <Panel title="Held in the next Take" note="The problem an exercise targeted, checked on the same words in the speaker's next Take of the same talk. Unknown when the words changed, the audio was unclear, or the rules changed in between.">
+            <Held rows={heldRows(ledger.held_next_take)} titles={titles} />
+          </Panel>
           <Panel title="Gaps" note="Which pattern needs an exercise filmed, and how many coach requests wait on it. A source the machine could not read says unknown, never zero.">
             <Gaps gaps={read.gaps} />
           </Panel>
