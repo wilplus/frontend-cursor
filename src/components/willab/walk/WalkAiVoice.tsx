@@ -6,7 +6,7 @@ import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "../TypingDots";
 import WalkMessage from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
 import type { WalkStep } from "@/lib/willab/walkPlan";
-import { missLine } from "@/lib/willab/walkPractise";
+import { encourageLine } from "@/lib/willab/walkPractise";
 import type { AiVoiceState } from "@/services/api/aiVoice";
 
 /* -------------------------------------------------------------------------- */
@@ -80,9 +80,10 @@ export function aiVoiceShown(
   if (aiShownBefore(plan, at, step.moment, aiOnExercise(state)) >= AI_VOICE_MAX) return null;
   // The first "not yet" says L4 and L3, even after the Exercise's own clip;
   // every later one L5 (founder 2026-10-13, P3 B).
-  // It opens with the line for the reading that went the wrong way, when one
-  // clearly did (founder 2026-10-13, B).
-  const lead = missLine(plan, at) ?? undefined;
+  // The same clip each time, the words around it changing (founder
+  // 2026-10-18): it opens with the line for the reading that went the wrong
+  // way when one clearly did (2026-10-13, B), else the general ones in turn.
+  const lead = encourageLine(plan, at);
   return aiShownBefore(plan, at, step.moment, false) === 0
     ? { lead, line: WALK_COPY.aiVoiceFirst, then: WALK_COPY.aiVoiceNow }
     : { lead, line: WALK_COPY.aiVoiceAgain };

@@ -325,42 +325,40 @@ describe("the AI version of your voice on the Exercise (founder 2026-10-15)", ()
   });
 });
 
-describe("the Exercise screen as one thread (founder 2026-10-16)", () => {
+describe("the Exercise screen as one thread (founder 2026-10-16, 2026-10-18)", () => {
   const text = () => live()!.textContent ?? "";
   const practisePill = () => live()!.querySelector<HTMLElement>("[data-testid='walk-practise']");
   const nextPill = () => live()!.querySelector<HTMLElement>("[data-testid='walk-forward']");
   const arrow = (label: string) => click(live()!.querySelector(`[data-walk-nav] button[aria-label='${label}']`));
 
-  it("shows the whole history at once, keeps the outlined Practise above Next until the third try whatever the answer, then Next alone", async () => {
+  it("shows the whole history at once, offers only the outlined Practise again until the third try, then Next alone", async () => {
     draw({ items: [PRAISE_ITEM, ...EXERCISE_ITEMS], at: 3 });
     await settle(150);
     expect(screen()).toBe("walk-screen-exVideo");
-    // No tries yet: Practise, white with the black stroke and the dot, above Next; no Skip.
+    // No tries yet: Practise alone, white with the black stroke and the dot; no Next, no Skip.
     expect(practisePill()!.dataset.walkPillOutline).toBe("true");
-    expect(nextPill()!.textContent).toBe(COPY.pagerNext);
+    expect(practisePill()!.textContent).toBe(WALK_COPY.exercisePractise);
+    expect(nextPill()).toBeNull();
     expect(live()!.querySelector("[data-testid='walk-skip']")).toBeNull();
-    // Try 1 is praised: the try and "Good job" on the screen, Practise still there.
-    answers = [{ next: "praise", key: "cue:landed_ending" }, { next: "again", key: "effort" }, { next: "again", key: "effort" }];
+    // Try 1, not yet: Practise again alone.
+    answers = [{ next: "again", key: "effort" }, { next: "again", key: "effort" }, { next: "moved_on", key: "moved_on" }];
     click(practisePill());
     expect(screen()).toBe("walk-screen-practise");
     await tryAndRead();
     expect(text()).toContain(WALK_COPY.practiseN(1));
-    expect(text()).toContain(COPY.titlePraise);
-    expect(practisePill()).not.toBeNull();
-    expect(nextPill()).not.toBeNull();
-    // Away with ‹ and back with ›: the history is there at once, no Next needed.
+    expect(practisePill()!.textContent).toBe(COPY.pillPractiseAgain);
+    expect(nextPill()).toBeNull();
+    // Away with ‹ and back with ›: the history is there at once.
     arrow(COPY.pagerBack);
     expect(screen()).toBe("walk-screen-helpers");
     arrow(COPY.pagerNext);
     expect(text()).toContain(WALK_COPY.practiseN(1));
-    expect(text()).toContain(COPY.titlePraise);
     expect(practisePill()).not.toBeNull();
-    // Try 2 after the Good job: not yet. Try 3: the limit, Next alone, all three tries on screen.
+    // Try 2, not yet: still Practise again alone. Try 3: the limit, Next alone, all three tries on screen.
     click(practisePill());
-    expect(screen()).toBe("walk-screen-practise");
     await tryAndRead();
     expect(text()).toContain(WALK_COPY.practiseN(2));
-    expect(practisePill()).not.toBeNull();
+    expect(nextPill()).toBeNull();
     click(practisePill());
     await tryAndRead();
     expect(text()).toContain(WALK_COPY.practiseN(1));
@@ -373,6 +371,17 @@ describe("the Exercise screen as one thread (founder 2026-10-16)", () => {
     forward();
     await act(async () => {});
     expect(ended).toBe(1);
+  });
+
+  it("a Good job ends the practise: Next alone", async () => {
+    draw({ items: [PRAISE_ITEM, ...EXERCISE_ITEMS], at: 3 });
+    await settle(150);
+    answers = [{ next: "praise", key: "cue:landed_ending" }];
+    click(practisePill());
+    await tryAndRead();
+    expect(text()).toContain(COPY.titlePraise);
+    expect(practisePill()).toBeNull();
+    expect(nextPill()).not.toBeNull();
   });
 });
 

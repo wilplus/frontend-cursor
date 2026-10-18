@@ -14,8 +14,8 @@
 /*                      "effort"), then the next try                          */
 /*    moved_on        → after the third try that is not praise: a rotating    */
 /*                      CM3b line, and the walk moves on                      */
-/*    late or failed  → "Next" or "Practise again" (O5): the try is treated as */
-/*                      not reached yet, never as a verdict                    */
+/*    late or failed  → "Practise again" while a try is left, else "Next"     */
+/*                      (O5): the try is not reached yet, never a verdict     */
 /*                                                                            */
 /*  What the walk may know of a check is `next` and the line's `key`; no      */
 /*  score, lane, cue value or count of anything measured is an input or an     */
@@ -108,14 +108,32 @@ export function threadShownEnd(plan: readonly WalkStep[], at: number): number {
   return end;
 }
 
-/** Practise from an answer in the thread (founder 2026-10-16: up to three
- *  tries whatever the answers): the plan with the next try after `at`, the
- *  one already planned after a "not yet", or a new one after a "Good job",
- *  numbered after the tries made. Null at the limit or outside a thread. */
+/** Whether the thread `at` sits in had a Good job: its practise is done
+ *  and Next follows (founder 2026-10-18). */
+export function threadPraised(plan: readonly WalkStep[], at: number): boolean {
+  const start = threadStart(plan, at);
+  return start >= 0 && plan.slice(start, loopEnd(plan, start)).some((s) => s.key === "improved");
+}
+
+/** The tries recorded in the practise loop `at` sits in, a late one too:
+ *  each Stop lays in a checking screen. */
+export function triesRecorded(plan: readonly WalkStep[], at: number): number {
+  const moment = plan[at]?.moment;
+  let made = 0;
+  for (let i = at; i >= 0 && plan[i].moment === moment && LOOP.has(plan[i].key); i -= 1) {
+    if (plan[i].key === "processing") made += 1;
+  }
+  return made;
+}
+
+/** Practise again from an answer in the thread (founder 2026-10-18: up to
+ *  three tries, until a Good job): the plan with the next try after `at`,
+ *  the one already planned after a "not yet", numbered after the tries
+ *  made. Null at the limit, after a Good job or outside a thread. */
 export function withNextTry(plan: readonly WalkStep[], at: number): WalkStep[] | null {
   const start = threadStart(plan, at);
   const made = triesMade(plan, at);
-  if (start < 0 || made >= WALK_MAX_TRIES) return null;
+  if (start < 0 || made >= WALK_MAX_TRIES || threadPraised(plan, at)) return null;
   const next = plan[at + 1];
   if (next?.key === "practise" && next.moment === plan[at].moment) return [...plan];
   const first = plan.slice(start, loopEnd(plan, start)).find((s) => s.key === "practise");

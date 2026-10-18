@@ -8,9 +8,9 @@ import WalkMessage from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import RecordingStrip from "./RecordingStrip";
-import type { WalkStep, WalkStepKey } from "@/lib/willab/walkPlan";
+import { WALK_MAX_TRIES, type WalkStep, type WalkStepKey } from "@/lib/willab/walkPlan";
 import type { FeedbackWalkMoment, ReplayTries } from "@/lib/willab/feedbackWalkModel";
-import { encourageLine, improvedLine, thanksLine, triesLeft } from "@/lib/willab/walkPractise";
+import { encourageLine, improvedLine, thanksLine, triesLeft, triesRecorded } from "@/lib/willab/walkPractise";
 import type { WalkTry } from "./useWalkPractise";
 import type { SayLine } from "@/lib/willab/walkLines";
 import type { AiVoiceState } from "@/services/api/aiVoice";
@@ -29,11 +29,13 @@ import WalkAiVoice, { aiVoiceShown } from "./WalkAiVoice";
 /*    processing  the orange "Practise N" bubble, the breathing mark under it */
 /*    improved    "Practise N", then "Good job" and a signed line; Next       */
 /*    encourage   "Practise N", then "Practise" and the signed encouragement; */
-/*                "Practise again" with the red dot, Skip                     */
+/*                the white outlined "Practise again" with the red dot alone  */
+/*                (founder 2026-10-18: Next only after a Good job or the     */
+/*                third try)                                                  */
 /*    thanks      after the third try that is not praise: the signed move-on  */
 /*                line; Next                                                  */
-/*    late        a read that came late or not at all (O5): Next, and         */
-/*                Practise again while a try is left                          */
+/*    late        a read that came late or not at all (O5): Practise again    */
+/*                while a try is left, else Next                              */
 /*                                                                            */
 /*  Every word is signed (CHUNK_SHEET_COPY, WALK_COPY, WALK_LINE_BANK). No    */
 /*  number, lane or score is drawn: the clock is a clock, the try a position  */
@@ -231,26 +233,17 @@ function Improved(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMo
   );
 }
 
-/** "Practise again" and Skip under a "not yet"; outlined in the thread. */
-function EncourageFooter({ ctx, step, outline = false }: { ctx: PractiseScreenCtx; step: WalkStep; outline?: boolean }) {
+/** The white outlined "Practise again" alone under a "not yet" (founder
+ *  2026-10-18): Next comes after a Good job or the third try. The recorder
+ *  keeps its Skip. */
+function EncourageFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
   const given = ctx.answered(step);
   const again = () => {
     ctx.answer(step, "again");
     ctx.forward();
   };
-  const skip = () => {
-    ctx.answer(step, "skip");
-    ctx.skip();
-  };
   if (given) return <Done ctx={ctx} line={given === "again" ? WALK_COPY.answeredPractised : WALK_COPY.answeredSkipped} />;
-  return (
-    <WalkFooter
-      dot
-      outline={outline}
-      pill={{ label: COPY.pillPractiseAgain, onClick: again, testId: "walk-forward" }}
-      links={[{ label: WALK_COPY.skip, onClick: skip, testId: "walk-skip" }]}
-    />
-  );
+  return <WalkFooter dot outline pill={{ label: COPY.pillPractiseAgain, onClick: again, testId: "walk-forward" }} />;
 }
 
 /** The "not yet": the AI clip in the voice Exercise, else the encouragement. */
@@ -312,14 +305,13 @@ function Thanks(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMome
   );
 }
 
-/** Next, and Practise again while a try is left, after a late read (O5). */
+/** After a late read (O5): the white outlined Practise again while a try
+ *  is left, the late ones counted, so a machine that never answers still
+ *  ends on Next after the third (founder 2026-10-18); then Next. */
 function LateFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
-  return (
-    <WalkFooter
-      pill={{ label: COPY.pagerNext, onClick: ctx.skip, testId: "walk-forward" }}
-      links={triesLeft(step) ? [{ label: COPY.pillPractiseAgain, onClick: ctx.again, testId: "walk-again" }] : []}
-    />
-  );
+  const more = triesLeft(step) && triesRecorded(ctx.plan, ctx.at(step)) < WALK_MAX_TRIES;
+  if (!more) return <WalkFooter pill={{ label: COPY.pagerNext, onClick: ctx.skip, testId: "walk-forward" }} />;
+  return <WalkFooter dot outline pill={{ label: COPY.pillPractiseAgain, onClick: ctx.again, testId: "walk-again" }} />;
 }
 
 /** A late or failed read (O5): the try is not reached yet. */
@@ -395,7 +387,7 @@ export function practiseThreadFooter(ctx: PractiseScreenCtx, step: WalkStep): Re
     case "thanks":
       return <NextFooter ctx={ctx} step={step} />;
     case "encourage":
-      return <EncourageFooter ctx={ctx} step={step} outline />;
+      return <EncourageFooter ctx={ctx} step={step} />;
     case "late":
       return <LateFooter ctx={ctx} step={step} />;
     default:
