@@ -192,6 +192,8 @@ function isPublicFile(pathname: string) {
   if (isProtected(pathname) || ADMIN_ROUTES.some((route) => pathname.startsWith(route))) {
     return false;
   }
+  // /icon is the app icon (src/app/icon.tsx): no extension, same for everyone.
+  if (pathname === "/icon") return true;
   return /\.[a-z0-9]+$/i.test(pathname.slice(pathname.lastIndexOf("/") + 1));
 }
 
