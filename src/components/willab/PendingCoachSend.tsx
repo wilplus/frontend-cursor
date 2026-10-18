@@ -11,6 +11,8 @@ import {
   getPendingSend,
   setReviewPending,
 } from "./sendStatus";
+import { notifyPendingSendSettled } from "./usePendingSendHold";
+import { lensHref } from "@/lib/willab/lensScreen";
 
 /** Completes a parked guest Project Take handoff after authentication. */
 export default function PendingCoachSend() {
@@ -25,6 +27,7 @@ export default function PendingCoachSend() {
       if (!pending) return;
 
       inFlightRef.current = true;
+      let opened = false;
       try {
         // The guest graph must become account-owned before the strict send
         // endpoint can resolve this Project and Take.
@@ -39,10 +42,18 @@ export default function PendingCoachSend() {
           clearPendingSend();
           clearParked();
           setReviewPending(pending.takeId);
-          window.location.href = "/chat";
+          // THE WALK FIRST (founder 2026-10-18): a new speaker's first screen
+          // after sign-up is their Take's review, as after any Take, not the
+          // chat. The lens address opens it as its own screen; the walk ends
+          // on the Ideal Text, and ✕ shows the chat behind it.
+          opened = true;
+          window.location.href = lensHref(pending.projectId, "review");
         }
       } finally {
         inFlightRef.current = false;
+        // The chat waited for this (usePendingSendHold); with no walk opening
+        // it shows now.
+        if (!opened) notifyPendingSendSettled();
       }
     };
 

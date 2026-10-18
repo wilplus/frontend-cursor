@@ -26,6 +26,13 @@ const io = vi.hoisted(() => ({
   takeAuthorization: vi.fn(),
   fetchAuthorization: vi.fn(),
   cancelAccountDeletion: vi.fn(),
+  hasClaimableGuestOwner: vi.fn(),
+  claimGuestProjects: vi.fn(),
+}));
+
+vi.mock("@/services/api/projects", () => ({
+  hasClaimableGuestOwner: io.hasClaimableGuestOwner,
+  claimGuestProjects: io.claimGuestProjects,
 }));
 
 vi.mock("@/lib/legal/leavingCopy", async (importOriginal) => {
@@ -96,6 +103,7 @@ describe("<Phase1AcceptanceGate>", () => {
     document.body.appendChild(host);
     root = createRoot(host);
     for (const fn of Object.values(io)) fn.mockReset();
+    io.hasClaimableGuestOwner.mockReturnValue(false);
   });
   afterEach(() => {
     act(() => root.unmount());
@@ -131,6 +139,20 @@ describe("<Phase1AcceptanceGate>", () => {
     await flush();
     expect(io.cancelAccountDeletion).toHaveBeenCalledWith(PURGE);
     expect(io.fetchAuthorization).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toContain("THE LOUNGE");
+  });
+
+  it("a signed-up guest is not asked to accept again: the claim comes before the read", async () => {
+    // Founder 2026-10-18. The prefetched read is about the new account alone
+    // and says "accept"; the claim moves the guest's acceptance in, and the
+    // fresh read after it passes. The acceptance flow is never shown.
+    io.hasClaimableGuestOwner.mockReturnValue(true);
+    io.claimGuestProjects.mockResolvedValue(true);
+    io.fetchAuthorization.mockResolvedValue({ kind: "authorized", policy: POLICY });
+    await mount({ kind: "acceptance_required", code: "PROCESSING_AUTHORIZATION_REQUIRED", policy: POLICY });
+    expect(io.claimGuestProjects).toHaveBeenCalledTimes(1);
+    expect(io.takeAuthorization).not.toHaveBeenCalled();
+    expect(host.querySelector('[data-testid="acceptance-flow"]')).toBeNull();
     expect(host.textContent).toContain("THE LOUNGE");
   });
 
