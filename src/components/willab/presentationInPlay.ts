@@ -7,14 +7,15 @@ import { deckForRecording, type DeckSlide } from "@/lib/willab/defaultDeck";
 /*  presentation"): the second Take mirrors the first, and the speaker sees   */
 /*  which presentation is in play before recording. The line sits under       */
 /*  "Getting your mic ready" before every Take after the first. The words     */
-/*  here are a first draft for the founder to sign; the rule is not.          */
+/*  were signed by the founder in chat on 2026-10-18 (lock amendment of the   */
+/*  same day) and are typed here exactly as signed.                           */
 /* -------------------------------------------------------------------------- */
 
 export const PRESENTATION_IN_PLAY = {
   /** The file the speaker uploaded for Take 1. */
-  own: "Your presentation, as in Take 1",
+  own: "Same presentation as Take 1",
   /** The stand-in deck Take 1 used. */
-  standIn: "The stand-in presentation, as in Take 1",
+  standIn: "Same stand-in presentation as Take 1",
 } as const;
 
 type DeckSetup = { slides: readonly DeckSlide[]; presentationRef: string | null };
