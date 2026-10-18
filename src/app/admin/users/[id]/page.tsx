@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import AdminGate from "@/components/admin/AdminGate";
 import TakesExplorer from "./TakesExplorer";
+import ExerciseEffects from "./ExerciseEffects";
 import { planLabel } from "@/components/tokens/copy";
 
 /* -------------------------------------------------------------------------- */
@@ -286,6 +287,8 @@ function PersonProfile({ id }: { id: string }) {
           )) : <p className="py-3 text-sm text-muted-foreground">Nothing sent yet.</p>}
         </div>
       </section>
+
+      <ExerciseEffects id={id} />
 
       <TakesExplorer id={id} />
 
