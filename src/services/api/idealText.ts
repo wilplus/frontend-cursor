@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { markOpenTrace, pressOpenTrace } from "@/lib/willab/openTrace";
 import { guestOwnerHeaders } from "@/services/api/projects";
 import type { Part } from "@/lib/willab/documentParts";
 import { MAX_DOCUMENT_CHARS } from "@/lib/willab/documentSegments";
@@ -2429,6 +2430,7 @@ export function prefetchIdealTextDisplay(
  *  the snapshot is known, both enrichment lanes. Both are deduped. */
 export function warmIdealTextOpen(arcId: string | null | undefined): void {
   if (!arcId) return;
+  pressOpenTrace();
   prefetchIdealTextDisplay(arcId);
   void idealTextDisplayHandoffs.get(arcId)?.result.then((r) => {
     if (r.kind === "single" && r.documentSnapshotId) {
@@ -2477,12 +2479,15 @@ export async function fetchIdealTextForOpen(
   );
   const result = handoff ? await handoff.result : null;
   if (handoff && result && isDisplayableIdealText(result)) {
+    markOpenTrace("text");
     return {
       result,
       revalidate: handoff.ageMs > IDEAL_TEXT_DISPLAY_TRUSTED_MS,
     };
   }
-  return { result: await fetchIdealTextCore(arcId), revalidate: false };
+  const fresh = await fetchIdealTextCore(arcId);
+  markOpenTrace("text");
+  return { result: fresh, revalidate: false };
 }
 
 /** Mutation and test fence. Most entries are consumed immediately; this is

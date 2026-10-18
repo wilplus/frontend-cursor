@@ -57,6 +57,7 @@ import LoadingState, { VoiceMark } from "./LoadingState";
 import { PROCESSING_STAGES } from "./ProcessingWait";
 import type { IdealTextLaunchMode } from "./IdealTextOverlay";
 import { lensAddress } from "@/lib/willab/lensScreen";
+import { startOpenTrace } from "@/lib/willab/openTrace";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import {
   clearExploreArc,
@@ -411,6 +412,7 @@ export default function Lounge({
     mode: IdealTextLaunchMode = "notebook",
     at: WalkStepTarget | null = null,
   ): void {
+    startOpenTrace(at?.step ? `${mode}, step ${at.step}` : mode);
     setIdealTextReviewAt(at);
     openedNewCoachFeedback(arcId);
     if (state === "insights_ready") {
