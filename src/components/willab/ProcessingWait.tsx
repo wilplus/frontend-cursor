@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import RecordingAnalysisPresentation from "./RecordingAnalysisPresentation";
 import { nextWaitPercent, waitPercent } from "@/lib/willab/waitProgress";
 import { DOCUMENT_SETTLE_CAP_MS } from "@/lib/willab/documentSettle";
+import { documentWaitStartedAt } from "@/lib/willab/documentWaitClock";
 
 /* -------------------------------------------------------------------------- */
 /*  ProcessingWait — THE ONE WAITING SCREEN (founder 2026-08-11)               */
@@ -81,11 +82,16 @@ export interface ProcessingWaitProps {
   /** When the CURRENT phase began, from the job marker. The document tail is
    *  measured from it against that phase's own deadline.
    *
-   *  Omitted, this screen's own mount stands in — the honest answer for the
-   *  two document-only surfaces, which have no marker in hand and whose wait
-   *  genuinely begins when they appear. It is NOT the job's start epoch:
-   *  seeding the tail from there would have it saturated before the document
-   *  phase began, which says "nearly there" without having watched anything. */
+   *  Omitted, the document phase reads the clock the settle hook publishes
+   *  for the Take in flight (`documentWaitClock`), and only when there is
+   *  none does this screen's own mount stand in. The mount used to stand in
+   *  always, for the surfaces with no marker in hand — and every time one of
+   *  them was opened again the bar ran its last slice again from 90%
+   *  (founder 2026-10-18). The clock is the same job's; the screen is just
+   *  no longer the only thing that knows it. It is NOT the job's start
+   *  epoch: seeding the tail from there would have it saturated before the
+   *  document phase began, which says "nearly there" without having watched
+   *  anything. */
   readonly phaseStartedAt?: number | null;
 }
 
@@ -153,12 +159,21 @@ export default function ProcessingWait({
     return () => clearInterval(id);
   }, [phase]);
 
+  // The phase's clock: the host's, else the Take in flight's (published by
+  // the settle hook), else this mount. Read on every tick, so a clock that
+  // lands after the first paint is picked up; the bar can only move forward
+  // (`previous` floors it), so a later, earlier start never pulls it back.
+  const phaseStart =
+    phaseStartedAt ??
+    (phase === "document" ? documentWaitStartedAt() : null) ??
+    mountedAt.current;
+
   shown.current = waitPercent({
     previous: shown.current,
     held: held.current,
     reported: phase === "document" ? (progress?.percent ?? null) : null,
     phase,
-    phaseElapsedMs: Date.now() - (phaseStartedAt ?? mountedAt.current),
+    phaseElapsedMs: Date.now() - phaseStart,
     capMs: DOCUMENT_SETTLE_CAP_MS,
   });
 

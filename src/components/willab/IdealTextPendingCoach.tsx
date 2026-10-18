@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Mic } from "lucide-react";
 import ProcessingWait from "./ProcessingWait";
+import { idealTextWaitStart, pendingAskDelay } from "@/lib/willab/idealTextWait";
 
 /** The screen for a project whose document is not there YET.
  *
@@ -23,35 +24,79 @@ import ProcessingWait from "./ProcessingWait";
  *
  *  ITS OWN FILE because the overlay sits at the complexity ratchet's ceiling:
  *  the polling lives here, not there.
+ *
+ *  ONE CLOCK PER PROJECT (founder 2026-10-18: "make it finish even when you
+ *  leave the page and come back ... not reloading the last 5-10% again and
+ *  again"). The wait's start and its asking used to live in this component's
+ *  memory, so every remount — a tab switch, a reopened overlay, a reload —
+ *  restarted the bar's last slice and reset the bound on the asks. The clock
+ *  is now `idealTextWait`'s, kept per project in storage: a return carries
+ *  on from where the bar was, the asks are paced from the wait's real age
+ *  (five seconds, then fifteen, then none), and they pause while the tab is
+ *  hidden and fire the moment it is seen again.
  */
 export default function IdealTextPendingCoach({
+  arcId = null,
   onReadAloud,
   onRetry,
 }: {
+  /** The project waited for. With it the wait keeps one clock across
+   *  remounts; without it the clock is this mount's. */
+  arcId?: string | null;
   onReadAloud?: (version: number | null) => void;
-  /** Ask for the document again. Called every few seconds while mounted,
-   *  for a bounded while — the host refetches in place. */
+  /** Ask for the document again. Called on a cadence while mounted and the
+   *  tab is visible, for a bounded while — the host refetches in place. */
   onRetry?: () => void;
 }) {
+  // Read once per mount: the clock already running for this project, or one
+  // started now. A later mount of the same project reads the same start.
+  const [startedAt] = useState(() =>
+    arcId ? idealTextWaitStart(arcId) : Date.now(),
+  );
+
   useEffect(() => {
     if (!onRetry) return;
-    let tries = 0;
-    const timer = setInterval(() => {
-      tries += 1;
-      if (tries > 60) {
-        clearInterval(timer);
+    let timer: number | null = null;
+    const stop = () => {
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+    };
+    const schedule = () => {
+      stop();
+      if (document.visibilityState === "hidden") return;
+      const delay = pendingAskDelay(Date.now() - startedAt);
+      if (delay === null) return;
+      timer = window.setTimeout(() => {
+        onRetry();
+        schedule();
+      }, delay);
+    };
+    // Coming back to the tab: one ask at once, then the cadence again. Going
+    // away: nothing until then — no one is there to see the answer.
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") {
+        stop();
         return;
       }
-      onRetry();
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [onRetry]);
+      if (pendingAskDelay(Date.now() - startedAt) !== null) onRetry();
+      schedule();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    schedule();
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [onRetry, startedAt]);
 
   return (
     <div className="flex flex-col items-center gap-6 py-6">
       <ProcessingWait
         phase="document"
         progress={{ stage: "document_assembly", percent: null }}
+        phaseStartedAt={startedAt}
       />
       {onReadAloud ? (
         <button

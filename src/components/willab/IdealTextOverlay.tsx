@@ -1042,6 +1042,7 @@ export default function IdealTextOverlay({
               )
             ) : shownStatus === "pending" ? (
               <IdealTextPendingCoach
+                arcId={arcId}
                 onReadAloud={onReadAloud}
                 onRetry={retryWhilePending}
               />

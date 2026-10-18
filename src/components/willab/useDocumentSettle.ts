@@ -19,6 +19,7 @@ import {
   primeIdealTextDisplay,
   primeIdealTextEnrichmentLanes,
 } from "@/services/api/idealText";
+import { setDocumentWaitClock } from "@/lib/willab/documentWaitClock";
 import { useUserId } from "./useUserId";
 
 /* -------------------------------------------------------------------------- */
@@ -110,9 +111,19 @@ export function useDocumentSettle({
       const m = readProcessingTake(userId);
       if (m && Date.now() - m.startedAt > MARKER_STALE_MS) {
         clearProcessingTake(userId, m.sessionId);
+        setDocumentWaitClock(null);
         setMarker(null);
         return;
       }
+      // The waiting screens opened without this marker in hand (the Ideal
+      // Text overlay, the readout) clock their document tail from here, so
+      // reopening one carries the bar on instead of running its last slice
+      // again (founder 2026-10-18).
+      setDocumentWaitClock(
+        m && m.phase === "document" && m.status === "processing"
+          ? { sessionId: m.sessionId, phaseStartedAt: m.phaseStartedAt }
+          : null,
+      );
       setMarker((prev) =>
         prev?.sessionId === m?.sessionId &&
         prev?.phase === m?.phase &&
@@ -300,10 +311,28 @@ export function useDocumentSettle({
       if (verdict === "expired") expire(marker);
     };
     void probe();
-    const id = setInterval(() => void probe(), PROBE_MS);
+    // NOBODY IS WATCHING A HIDDEN TAB (founder 2026-10-18). The probe used to
+    // keep asking once a second with the tab in the background — a document
+    // that lands then is seen only when the speaker returns anyway. So the
+    // ticks skip while hidden, and the return itself probes at once: that is
+    // the read that settles the screen the moment they are back.
+    const tick = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void probe();
+    };
+    const id = setInterval(tick, PROBE_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void probe();
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVisible);
+    }
     return () => {
       active = false;
       clearInterval(id);
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisible);
+      }
     };
   }, [enabled, marker, settle, expire]);
 
