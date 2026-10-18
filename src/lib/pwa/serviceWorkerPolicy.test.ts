@@ -30,6 +30,8 @@ interface Scope {
   fetchHandler: Handler;
   activateHandler: Handler;
   installHandler: Handler;
+  pushHandler: Handler;
+  notificationClickHandler: Handler;
   /** True once the worker has committed to taking over. */
   skipWaitingCalled: () => boolean;
   /** Everything the worker actually wrote, by URL. */
@@ -179,6 +181,8 @@ function bootWorker(swUrl: string = `${ORIGIN}/sw.js`): Scope {
     fetchHandler: handlers.fetch,
     activateHandler: handlers.activate,
     installHandler: handlers.install,
+    pushHandler: handlers.push,
+    notificationClickHandler: handlers.notificationclick,
     skipWaitingCalled: () => skipWaiting,
     store,
     networkCalls,
@@ -301,3 +305,64 @@ async function install(sw: Scope) {
     return { installed: false as const, err };
   }
 }
+
+describe("the install, since v9 (founder 2026-10-18, Q6): no code, no `/`", () => {
+  it("installs without precaching `/` — a signed-in `/` is a 307 to /chat, so the precache rendered the Lounge twice", async () => {
+    const sw = bootWorker(`${ORIGIN}/sw.js?v=build-1`);
+    sw.setNetwork((url) =>
+      url === `${ORIGIN}/` ? ok("the lounge", { redirected: true }) : ok(`fresh:${url}`)
+    );
+    expect(await install(sw)).toEqual({ installed: true });
+    expect(sw.skipWaitingCalled()).toBe(true);
+    // The worker fetches its precache list by path; `/` is not on it.
+    expect(sw.networkCalls).toEqual(["/manifest.webmanifest", "/icon"]);
+    expect([...sw.store.keys()]).not.toContain(`${ORIGIN}/`);
+    // The manifest and the icon are still precached, best-effort.
+    expect(sw.store.get(`${ORIGIN}/manifest.webmanifest`)).toBe("fresh:/manifest.webmanifest");
+  });
+});
+
+describe("build output is never intercepted (v9, founder 2026-10-18, Q6)", () => {
+  let sw: Scope;
+  beforeEach(() => {
+    sw = bootWorker(`${ORIGIN}/sw.js?v=build-1`);
+  });
+
+  it("stands aside for /_next/static/*: the browser's HTTP cache keeps it across deploys, this worker's did not", async () => {
+    // Even a copy an older worker left behind is not served: the browser owns
+    // the request from the first byte.
+    sw.store.set(`${ORIGIN}/_next/static/chunks/app/chat/page-abc123.js`, "stale chunk");
+    expect(
+      await request(sw, `${ORIGIN}/_next/static/chunks/app/chat/page-abc123.js`, {
+        destination: "script",
+      })
+    ).toBeNull();
+    expect(await request(sw, `${ORIGIN}/_next/static/css/app-def456.css`, { destination: "style" })).toBeNull();
+    expect(sw.networkCalls).toHaveLength(0);
+    // And nothing new is ever written for one.
+    expect([...sw.store.keys()].filter((k) => k.includes("/_next/static/"))).toEqual([
+      `${ORIGIN}/_next/static/chunks/app/chat/page-abc123.js`,
+    ]);
+  });
+
+  it("still answers a navigation network-first and keeps the last one as the offline fallback", async () => {
+    sw.setNetwork((url) => ok(`fresh:${url}`));
+    expect(await request(sw, `${ORIGIN}/chat`, { mode: "navigate" })).toMatchObject({
+      body: `fresh:${ORIGIN}/chat`,
+    });
+    expect(sw.store.get(`${ORIGIN}/chat`)).toBe(`fresh:${ORIGIN}/chat`);
+
+    // Offline: the copy stored on the way past, with no `/` precache to lean on.
+    sw.setNetwork(() => {
+      throw new Error("offline");
+    });
+    expect(await request(sw, `${ORIGIN}/chat`, { mode: "navigate" })).toMatchObject({
+      body: `fresh:${ORIGIN}/chat`,
+    });
+  });
+
+  it("the push handlers are still registered", () => {
+    expect(sw.pushHandler).toBeTypeOf("function");
+    expect(sw.notificationClickHandler).toBeTypeOf("function");
+  });
+});
