@@ -55,7 +55,7 @@ import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports"
 import { FLOW_COPY } from "./flowCopy";
 import LoadingState, { VoiceMark } from "./LoadingState";
 import { PROCESSING_STAGES } from "./ProcessingWait";
-import IdealTextOverlay, { type IdealTextLaunchMode } from "./IdealTextOverlay";
+import type { IdealTextLaunchMode } from "./IdealTextOverlay";
 import { lensAddress } from "@/lib/willab/lensScreen";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import {
@@ -105,7 +105,6 @@ import {
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import { useLifeTags } from "@/lib/life/useLifeTags";
 import { applyPick } from "@/lib/life/hashtags";
-import { LifeChatCard, LifeTagPicker } from "@/components/life/LifeChatLayer";
 import {
   announceDiscoveriesFromPersistedMessages,
   productActionFromMetadata,
@@ -114,14 +113,34 @@ import {
 import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
 import { usePinThreadBottom } from "./usePinThreadBottom";
 import { clearerPieces, type ClearerPiece } from "@/lib/willab/clearerPieces";
-import WalkOverlay from "./walk/WalkOverlay";
 import TypingDots, { CHUNK_DELAY_MS } from "./TypingDots";
+import { afterChatBoot } from "@/lib/chatBoot";
 
 // Opened on a tap, never on first paint: loaded then, off the boot bundle.
 const CoachWalkEntry = dynamic(() => import("./coachwalk/CoachWalkEntry"), { ssr: false });
 const FeedbackOverlay = dynamic(() => import("./FeedbackOverlay"), { ssr: false });
 const LibraryOverlay = dynamic(() => import("./LibraryOverlay"), { ssr: false });
 const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOverlay"), { ssr: false });
+// Off the boot bundle, warmed after the thread paints (founder 2026-10-16: the
+// Feedback walk and Ideal Text code may load after the thread paints as long
+// as opening still feels instant): the Ideal Text page, the walk's frame for
+// an older Take, and the Life panel's # layer. `warmOverlays` below fetches
+// their chunks once the thread is in, so a tap finds them ready.
+const IdealTextOverlay = dynamic(() => import("./IdealTextOverlay"), { ssr: false });
+const WalkOverlay = dynamic(() => import("./walk/WalkOverlay"), { ssr: false });
+const LifeChatCard = dynamic(
+  () => import("@/components/life/LifeChatLayer").then((m) => m.LifeChatCard),
+  { ssr: false },
+);
+const LifeTagPicker = dynamic(
+  () => import("@/components/life/LifeChatLayer").then((m) => m.LifeTagPicker),
+  { ssr: false },
+);
+function warmOverlays(): void {
+  void import("./IdealTextOverlay");
+  void import("./walk/WalkOverlay");
+  void import("@/components/life/LifeChatLayer");
+}
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
@@ -250,6 +269,7 @@ export default function Lounge({
   // Sending is untouched either way: routing happens on the backend, and the
   // composer still posts the same /v2/chat/query.
   const lifeTags = useLifeTags(thread.signedIn);
+  useEffect(() => afterChatBoot(warmOverlays), []);
   const [botThinking, setBotThinking] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   // F2/F7 — the offer (install / legacy joke) whose action pair is open in
