@@ -195,6 +195,41 @@ function isPublicFile(pathname: string) {
   return /\.[a-z0-9]+$/i.test(pathname.slice(pathname.lastIndexOf("/") + 1));
 }
 
+/** A page that turns anonymous visitors away: it needs a verified user. */
+function isGated(pathname: string) {
+  return (
+    ADMIN_ROUTES.some((route) => pathname.startsWith(route)) ||
+    (pathname.includes("/recordings/") && pathname.includes("/feedback")) ||
+    isProtected(pathname)
+  );
+}
+
+/** The visitor's session, refreshed (new cookies set on the response) when
+ *  needed. A gated page asks the auth server (getUser). Every other page
+ *  (/chat above all) only needs the cookie kept fresh, and getSession() does
+ *  that locally, going to the network only when the token has expired.
+ *  getUser() on /chat was a round trip to Supabase before the first byte of
+ *  HTML (~0.5 s TTFB). Off a gated page only the session's presence is read
+ *  (the signed-in redirect off "/" and the auth pages); nothing is
+ *  authorised on it. */
+async function readSession(
+  supabase: ReturnType<typeof createServerClient>,
+  gated: boolean,
+): Promise<{ user: unknown } | null> {
+  try {
+    if (gated) {
+      const { data: { user } } = await supabase.auth.getUser();
+      return user ? { user } : null;
+    }
+    const { data } = await supabase.auth.getSession();
+    return data.session ? { user: true } : null;
+  } catch {
+    // Invalid/expired refresh token (e.g. "Refresh Token Not Found"): treat
+    // as unauthenticated so the user can log in again.
+    return null;
+  }
+}
+
 function isAuthRoute(pathname: string) {
   return AUTH_ROUTES.some((route) => pathname === route);
 }
@@ -328,16 +363,10 @@ export async function middleware(req: NextRequest) {
     }
   );
 
-  // Use getUser() so Supabase refreshes the session if needed and sets new cookies on the response.
-  // If refresh token is invalid (e.g. "Refresh Token Not Found"), treat as no session so user can log in again.
-  let session: { user: unknown } | null = null;
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    session = user ? { user } : null;
-  } catch {
-    // Invalid/expired refresh token: treat as unauthenticated (user will be redirected to login)
-    session = null;
-  }
+  const authStarted = Date.now();
+  const gated = isGated(pathname);
+  const session = await readSession(supabase, gated);
+  res.headers.set("Server-Timing", `auth;desc="${gated ? "getUser" : "getSession"}";dur=${Date.now() - authStarted}`);
 
   // Admin routes: require valid session (same as protected); backend will verify admin role
   if (ADMIN_ROUTES.some((route) => pathname.startsWith(route))) {
