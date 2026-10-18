@@ -490,11 +490,14 @@ button,
   from { transform: translateX(-26px); opacity: 0; }
   to { transform: none; opacity: 1; }
 }
+/* A screen left by a drag starts where the finger let go (useWalkSwipe). */
 @keyframes walk-out-l {
-  to { transform: translateX(-22px); opacity: 0; }
+  from { transform: translateX(var(--walk-drag, 0px)); }
+  to { transform: translateX(calc(var(--walk-drag, 0px) - 22px)); opacity: 0; }
 }
 @keyframes walk-out-r {
-  to { transform: translateX(22px); opacity: 0; }
+  from { transform: translateX(var(--walk-drag, 0px)); }
+  to { transform: translateX(calc(var(--walk-drag, 0px) + 22px)); opacity: 0; }
 }
 @keyframes walk-fade-up {
   from { transform: translateY(8px) scale(0.985); opacity: 0; }
