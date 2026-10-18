@@ -13,6 +13,15 @@ import { useRecoverableSrc } from "@/lib/media/mediaRefresh";
  *  and a menu the design does not have. Used by step 0 (the coach's message
  *  for the Take) and by the Exercise step (the coach's video for the moment).
  *
+ *  The box follows the video's orientation (founder, 2026-10-16, "Bubble
+ *  coach video display adapts to video orientation"): until the metadata
+ *  arrives it is the 16:9 box; a horizontal video then takes the bubble's
+ *  width at its own ratio, a vertical one stands tall, capped at about
+ *  sixty percent of the screen, as wide as that makes it, on the left. No
+ *  black bars either way. A caller that names an aspect in `className`
+ *  (the Exercise's 4:5 frame, the coach panel's boxes) has chosen the frame,
+ *  and the video keeps to it.
+ *
  *  Nothing is fetched here: the file is the one already on the payload. A
  *  link that fails (expired, 404) asks the host's MediaRefreshProvider once
  *  for a fresh one; if that does not help the play button goes, so a dead
@@ -30,12 +39,19 @@ export default function CoachVideo({
   const ref = useRef<HTMLVideoElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [duration, setDuration] = useState<number | null>(null);
+  // Width over height of the picture itself, read from its metadata.
+  const [ratio, setRatio] = useState<number | null>(null);
   const { src, errored, recovering, handleError, handleLoaded } = useRecoverableSrc(rawSrc, onError);
+  const framed = hasFrame(className);
+  const orientation = ratio === null ? null : ratio < 1 ? "portrait" : "landscape";
+  const adapts = !framed && ratio !== null;
 
-  // A new link is a new file: not playing, its length unknown until read.
+  // A new link is a new file: not playing, its length and shape unknown
+  // until read.
   useEffect(() => {
     setPlaying(false);
     setDuration(null);
+    setRatio(null);
   }, [src]);
 
   useEffect(() => {
@@ -60,7 +76,14 @@ export default function CoachVideo({
   return (
     <div
       data-coach-video
-      className={cn("relative overflow-hidden rounded-2xl bg-foreground/90", className)}
+      data-orientation={orientation ?? undefined}
+      className={cn(
+        "relative overflow-hidden rounded-2xl bg-foreground/90",
+        className,
+        // A tall video's box is only as wide as the video: no dark bars
+        // beside it, and it sits at the bubble's left.
+        adapts && orientation === "portrait" && "w-fit max-w-full self-start",
+      )}
     >
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <video
@@ -68,7 +91,11 @@ export default function CoachVideo({
         src={src ?? undefined}
         playsInline
         preload="metadata"
-        className="aspect-video w-full"
+        className={cn(
+          "aspect-video w-full",
+          adapts && orientation === "portrait" && "h-[min(60vh,480px)] w-auto max-w-full",
+        )}
+        style={adapts && ratio ? { aspectRatio: String(ratio) } : undefined}
         onPlay={(event) => {
           claimPlayback(event.currentTarget);
           setPlaying(true);
@@ -81,6 +108,7 @@ export default function CoachVideo({
         onLoadedMetadata={(event) => {
           handleLoaded();
           setDuration(event.currentTarget.duration);
+          setRatio(ratioOf(event.currentTarget));
         }}
         onError={() => {
           setPlaying(false);
@@ -107,6 +135,18 @@ export default function CoachVideo({
       ) : null}
     </div>
   );
+}
+
+/** The caller named the box's shape (an `aspect-…` class on the box or on
+ *  its video): that frame is a design, and the video keeps to it. */
+function hasFrame(className: string | undefined): boolean {
+  return /\baspect-/.test(className ?? "");
+}
+
+/** Width over height of the picture; null until the metadata says. */
+function ratioOf(video: HTMLVideoElement): number | null {
+  const { videoWidth: w, videoHeight: h } = video;
+  return w > 0 && h > 0 ? w / h : null;
 }
 
 /** m:ss — the length, never a score. */
