@@ -926,6 +926,10 @@ export default function IdealTextOverlay({
               copied={copied}
             />
           ) : null}
+          {/* ✕ beside the ⋯ (founder 2026-10-18): the same close as the
+              "Close" under Record, where the eye looks for it on a wide
+              screen. */}
+          <OverlayCloseButton onClick={onClose} />
         </div>
       </div>
       <FeedbackLoadingLine active={shownStatus === "ready" && feedbackPending} />
