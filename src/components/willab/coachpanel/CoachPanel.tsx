@@ -23,7 +23,8 @@
 /*                   opens; drawn only when the backend serves them           */
 /*    all speakers   GET /v2/coach/speakers, read each time Your speakers    */
 /*                   opens (D-CP-12): pseudonyms, goals and counts, never a  */
-/*                   moment                                                   */
+/*                   moment. The list draws at once from the queue already   */
+/*                   held (the same speakers) and the read refreshes it      */
 /*    the corpus     GET /v2/coach/training-imports each time Training       */
 /*                   corpus opens (D-CP-20); POST an import (then the         */
 /*                   loader until the backend says ready or failed); PUT an  */
@@ -165,8 +166,10 @@ function useBlindLines(queueOpen: boolean) {
   return { audit, picks, setAudit, setPicks, v4Picks, setV4Picks, v4Surer, setV4Surer };
 }
 
-/** Every speaker, read each time Your speakers opens. `failed` when the read
- *  could not be had: the list then draws the queue's own speakers. */
+/** Every speaker, read each time Your speakers opens. `speakers` is null
+ *  until the read is in, or when it could not be had: the list meanwhile
+ *  draws the queue's own speakers (the backend builds both from one queue),
+ *  so it opens at once instead of waiting on a second read of it. */
 function useAllSpeakers(open: boolean) {
   const [read, setRead] = useState<{ speakers: PanelSpeaker[] | null; done: boolean }>({ speakers: null, done: false });
   useEffect(() => {
@@ -178,7 +181,7 @@ function useAllSpeakers(open: boolean) {
     });
     return () => { cancelled = true; };
   }, [open]);
-  return { speakers: read.speakers, loading: open && !read.done, failed: read.done && read.speakers === null };
+  return { speakers: read.speakers, loading: open && !read.done };
 }
 
 /** The imports, read each time Training corpus opens; null while dark. */
@@ -438,8 +441,8 @@ export default function CoachPanel({ state, dispatch, speakers, loading }: Coach
     }
     if (panel.key === "speakers") {
       return (
-        <SpeakersScreen speakers={all.failed ? speakersFromQueue(speakers) : all.speakers}
-          loading={all.loading || (all.failed && loading)} onClose={close}
+        <SpeakersScreen speakers={all.speakers ?? speakersFromQueue(speakers)}
+          loading={all.speakers === null && (all.loading || loading)} onClose={close}
           onSpeaker={(speaker) => dispatch({ type: "speaker", speaker: queueSpeakerFor(speaker, speakers) })} />
       );
     }
