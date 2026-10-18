@@ -46,6 +46,7 @@ vi.mock("../coachwalk/useConfidenceChainReceipt", () => ({
 import CoachPanel, {  } from "./CoachPanel";
 import {
   JudgeScreen,
+  SpeakerScreen,
 } from "./CoachPanelScreens";
 import { PANEL_START, panelReducer, type PanelAction, type PanelState } from "@/lib/willab/coachPanel";
 import type { QueueMoment, QueueSpeaker, QueueTake } from "@/lib/willab/coachWalk";
@@ -105,6 +106,30 @@ describe("the screens", () => {
     expect(q("[data-walk-player]")!.textContent).not.toMatch(/[A-Za-z]{3}/);
     expect(host.textContent).not.toMatch(/Private|training|machine|Error|Praise|Rewrite|Slide/);
     expect(q("[data-walk-nav]")!.textContent).toContain("Quiet Heron · moment 1 of 4");
+  });
+});
+
+describe("a speaker's Takes", () => {
+  it("the open ones first, newest first; then Answered, faded, most recently answered first (founder 2026-10-18)", () => {
+    const t = (takeIndex: number, extra: Partial<QueueTake>): QueueTake => ({
+      sessionId: `t${takeIndex}`, takeIndex, sentAt: `2026-10-0${takeIndex}T09:00:00Z`, waiting: 0,
+      waitingForText: false, moments: [m(`s${takeIndex}`, "answered")], ...extra,
+    });
+    const speaker: QueueSpeaker = { pseudonym: "Brave Robin", goal: null, waiting: 1, takes: [
+      t(1, { answeredAt: "2026-10-18T12:00:00Z" }),
+      t(2, { waitingForText: true, moments: [] }),
+      t(3, { answeredAt: "2026-10-10T12:00:00Z" }),
+      t(4, { waiting: 1, moments: [m("s4")] }),
+      t(5, { answeredAt: "2026-10-15T12:00:00Z" }),
+    ] };
+    draw(<SpeakerScreen speaker={speaker} onTake={() => {}} onBack={() => {}} onClose={() => {}} />);
+    const answered = q("[data-testid='speaker-answered']")!;
+    const open = qa("[data-walk-choice]").filter((c) => !answered.contains(c));
+    expect(open.map((c) => c.dataset.walkChoice)).toEqual(["t4", "t2"]);
+    expect(answered.querySelector("h3")!.textContent).toBe(COPY.answered);
+    const done = [...answered.querySelectorAll<HTMLElement>("[data-walk-choice]")];
+    expect(done.map((c) => c.dataset.walkChoice)).toEqual(["t1", "t5", "t3"]);
+    expect(done.every((c) => c.className.includes("opacity-60"))).toBe(true);
   });
 });
 
