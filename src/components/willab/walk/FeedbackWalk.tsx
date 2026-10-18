@@ -35,8 +35,9 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /*  The production controller. It draws the steps of the walk's plan           */
 /*  (walkPlan.ts, feedbackWalkModel.ts) as the prototype's lens screens, from  */
 /*  the walk's primitives, and moves between them with WalkStage: the overlay */
-/*  rises in 0.38 s, the content slides under a still top bar, ✕ sinks it in  */
-/*  0.28 s, and every move is instant with reduce motion.                     */
+/*  slides in from the right (0.34 s), the content slides under a still top   */
+/*  bar, ✕ swipes it out to the left (0.28 s), and every move is instant with */
+/*  reduce motion.                                                            */
 /*                                                                            */
 /*  Each step is a grey bubble on the left whose first line is the step's     */
 /*  name at regular weight, with the speaker's own clip as an orange bubble   */
@@ -538,14 +539,9 @@ export default function FeedbackWalk<R = unknown>({
 
   return (
     <div data-feedback-walk data-walk-step={step.key}>
-      {/* Phone width on a wide screen, centred, as the coach panel. */}
-      {step.overlay !== false ? <div aria-hidden="true" className="fixed inset-0 z-50 hidden bg-background md:block" /> : null}
-      <WalkStage
-        screen={stage}
-        dir={dir}
-        render={(s) => renderScreen(ctx, s.real, backFromPractise)}
-        className="md:mx-auto md:max-w-[430px]"
-      />
+      {/* The whole window on a wide screen, the words in the phone's column
+          (globals.css, "Desktop"). */}
+      <WalkStage screen={stage} dir={dir} render={(s) => renderScreen(ctx, s.real, backFromPractise)} />
     </div>
   );
 }

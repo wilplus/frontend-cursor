@@ -2414,8 +2414,7 @@ function OlderTakeReview({
     (item) => item.message.kind === "walk_step" && item.message.metadata?.take_session_id === older.session,
   );
   return (
-    <div className="fixed inset-0 z-[90] flex flex-col bg-background">
-      <div className="mx-auto flex h-full w-full flex-col md:max-w-[430px]">
+    <div data-walk-column className="fixed inset-0 z-[90] flex flex-col bg-background">
       <WalkOverlay testId="older-take-review" caption={`${CHUNK_SHEET_COPY.historyTake} ${older.take}`} onClose={onClose}>
         <div className="flex flex-col gap-2">
           {steps.map((item) => (
@@ -2430,7 +2429,6 @@ function OlderTakeReview({
           ))}
         </div>
       </WalkOverlay>
-      </div>
     </div>
   );
 }
