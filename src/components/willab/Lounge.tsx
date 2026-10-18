@@ -84,6 +84,7 @@ import {
 import { useRouter } from "next/navigation";
 import SymmetricPair from "./SymmetricPair";
 import { useAdminAsk } from "./useAdminAsk";
+import { ConsentAskActions } from "./ConsentAsk";
 import OfferBubble from "./OfferBubble";
 import {
   PolicyUpdateBubble,
@@ -1537,6 +1538,8 @@ export default function Lounge({
           install={install}
           whatsapp={whatsapp}
           onConsentOpen={adminAsk.opened}
+          consentKey={adminAsk.consentKey}
+          onConsentAnswered={adminAsk.answered}
           bookHref={adminAsk.bookHref}
           onResolve={() => setActiveOffer(null)}
         />
@@ -1851,6 +1854,8 @@ function OfferActions({
   install,
   whatsapp,
   onConsentOpen,
+  consentKey,
+  onConsentAnswered,
   bookHref,
   onResolve,
 }: {
@@ -1859,6 +1864,9 @@ function OfferActions({
   whatsapp: WhatsAppOffer;
   /** An admin ask was tapped through (consent, promo or lesson). */
   onConsentOpen: () => void;
+  /** The consent the admin asked about, answered in the chat. */
+  consentKey: string | null;
+  onConsentAnswered: () => void;
   bookHref: string;
   onResolve: () => void;
 }) {
@@ -1870,17 +1878,13 @@ function OfferActions({
     return <WhatsAppOfferActions offer={whatsapp} onResolve={onResolve} />;
   }
   if (type === "consent") {
-    // The answer itself is given on the locked Data & consent page.
+    // Answered in the chat, No | Yes (founder 2026-10-18).
     return (
-      <SymmetricPair
-        closeLabel="Not now"
-        onClose={onResolve}
-        actionLabel="Open"
-        onAction={() => {
-          onConsentOpen();
-          onResolve();
-          router.push("/account/data-consent");
-        }}
+      <ConsentAskActions
+        consentKey={consentKey}
+        onOpened={onConsentOpen}
+        onAnswered={onConsentAnswered}
+        onResolve={onResolve}
       />
     );
   }
