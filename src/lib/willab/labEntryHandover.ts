@@ -77,14 +77,21 @@ export function primedLabRoots(arcId: string | null | undefined): RecordingRoot[
 
 /** The deck a continued Take starts from: the device's own cached deck,
  *  else a setup the page read a moment ago (signed in only, as the Lab's own
- *  setup read is). `primed` says the second, so the Lab still reads behind. */
+ *  setup read is). `revalidate` asks the Lab to read the project's setup
+ *  again behind either, so a newer answer replaces it in place: the cached
+ *  deck's served PDF link is signed for a while and goes dark after it, and
+ *  the project's saved setup is what says which presentation every Take
+ *  shares (founder 2026-10-16). Nothing handed over: the Lab reads and waits. */
 export function continuedTakeDeck(
   cached: { arcId?: string | null; deck?: ExploreArcDeck } | null,
   signedIn: boolean | null,
-): { deck: ExploreArcDeck | null; primed: boolean } {
-  if (cached?.deck) return { deck: cached.deck, primed: false };
-  const setup = signedIn === true ? primedLabSetup(cached?.arcId) : null;
-  return setup ? { deck: deckOf(setup), primed: true } : { deck: null, primed: false };
+): { deck: ExploreArcDeck | null; revalidate: boolean } {
+  const canRead = signedIn === true && !!cached?.arcId;
+  if (cached?.deck) return { deck: cached.deck, revalidate: canRead };
+  const setup = canRead ? primedLabSetup(cached?.arcId) : null;
+  return setup
+    ? { deck: deckOf(setup), revalidate: true }
+    : { deck: null, revalidate: false };
 }
 
 /** The Lab's deck shape for a setup read. */

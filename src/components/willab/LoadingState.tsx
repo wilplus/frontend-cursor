@@ -64,6 +64,7 @@ export default function LoadingState({
   placement,
   label = "Loading",
   labelVisible = false,
+  note = null,
 }: {
   /** Viewport owns the screen; surface fills its already-mounted parent. */
   readonly placement: "viewport" | "surface";
@@ -74,14 +75,24 @@ export default function LoadingState({
    *  recording's mic wait sets this; every other wait keeps the label for
    *  screen readers alone. */
   readonly labelVisible?: boolean;
+  /** One more line under a visible label, in the same small grey: before a
+   *  later Take, which presentation it is said against (presentationInPlay). */
+  readonly note?: string | null;
 }) {
   const presentation = (
     <div className="flex min-h-full w-full flex-1 flex-col items-center justify-center">
       <VoiceMark size={64} />
       {labelVisible ? (
-        <p role="status" data-loading-label className="mt-4 text-[15px] text-muted-foreground">
-          {label}
-        </p>
+        <>
+          <p role="status" data-loading-label className="mt-4 text-[15px] text-muted-foreground">
+            {label}
+          </p>
+          {note ? (
+            <p data-loading-note className="mt-1 text-[13px] text-muted-foreground">
+              {note}
+            </p>
+          ) : null}
+        </>
       ) : (
         <span className="sr-only" role="status">
           {label}
