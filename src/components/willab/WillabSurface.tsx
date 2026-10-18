@@ -18,7 +18,6 @@ import Mlc2FounderConsentGate from "./Mlc2FounderConsentGate";
 import Phase1AcceptanceGate from "./Phase1AcceptanceGate";
 import Lounge from "./Lounge";
 import { LabFadeOut } from "./labFade";
-import IdealTextOverlay from "./IdealTextOverlay";
 import { useDocumentSettle } from "./useDocumentSettle";
 import {
   clearExploreArc,
@@ -36,6 +35,9 @@ import {
 // below), so a tap on Record finds them ready.
 const LabOverlay = dynamic(() => import("./LabOverlay"), { ssr: false });
 const ProjectPicker = dynamic(() => import("./ProjectPicker"), { ssr: false });
+// The Ideal Text page too (founder 2026-10-16): off the boot bundle, warmed
+// by the Lounge once the thread has painted, so a tap still opens at once.
+const IdealTextOverlay = dynamic(() => import("./IdealTextOverlay"), { ssr: false });
 
 /* -------------------------------------------------------------------------- */
 /*  WillabSurface — restructure SHELL root (feature-flagged)                   */
