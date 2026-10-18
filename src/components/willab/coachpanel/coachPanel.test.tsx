@@ -45,7 +45,7 @@ vi.mock("../coachwalk/useConfidenceChainReceipt", () => ({
 
 import CoachPanel, {  } from "./CoachPanel";
 import {
-  JudgeScreen,
+  JudgeScreen, QueueScreen,
 } from "./CoachPanelScreens";
 import { PANEL_START, panelReducer, type PanelAction, type PanelState } from "@/lib/willab/coachPanel";
 import type { QueueMoment, QueueSpeaker, QueueTake } from "@/lib/willab/coachWalk";
@@ -105,6 +105,25 @@ describe("the screens", () => {
     expect(q("[data-walk-player]")!.textContent).not.toMatch(/[A-Za-z]{3}/);
     expect(host.textContent).not.toMatch(/Private|training|machine|Error|Praise|Rewrite|Slide/);
     expect(q("[data-walk-nav]")!.textContent).toContain("Quiet Heron · moment 1 of 4");
+  });
+
+  it("Your queue: the speaker who sent most recently on top; an answered speaker drops out (founder 2026-10-18)", () => {
+    const sent = (sentAt: string, t: QueueTake = TAKE): QueueTake => ({ ...t, sentAt });
+    const speakers: QueueSpeaker[] = [
+      { pseudonym: "Old Owl", goal: null, waiting: 2, takes: [sent("2026-10-10T09:00:00Z")] },
+      { pseudonym: "Done Dove", goal: null, waiting: 0, takes: [sent("2026-10-18T09:00:00Z", OLD)] },
+      { pseudonym: "New Newt", goal: null, waiting: 2, takes: [sent("2026-10-09T09:00:00Z", OLD), sent("2026-10-17T09:00:00Z")] },
+      { pseudonym: "Text Tern", goal: null, waiting: 0,
+        takes: [{ ...OLD, sentAt: "2026-10-12T09:00:00Z", waitingForText: true, moments: [] }] },
+    ];
+    const onSpeaker = vi.fn();
+    draw(<QueueScreen speakers={speakers} loading={false} blind={null} onSpeaker={onSpeaker} onClose={() => {}} />);
+    const rows = q("[data-testid=coach-panel-speakers]")!.textContent!;
+    expect(rows).not.toContain("Done Dove");
+    expect(rows.indexOf("New Newt")).toBeLessThan(rows.indexOf("Text Tern"));
+    expect(rows.indexOf("Text Tern")).toBeLessThan(rows.indexOf("Old Owl"));
+    act(() => qa("[data-testid=coach-panel-speakers] button")[0]!.click());
+    expect(onSpeaker.mock.calls[0]![0].pseudonym).toBe("New Newt");
   });
 });
 

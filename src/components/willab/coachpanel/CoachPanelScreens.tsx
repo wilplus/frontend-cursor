@@ -89,6 +89,22 @@ export function speakerChoice(speaker: QueueSpeaker, index: number): WalkChoice 
   return { value, label: speaker.pseudonym, subtitle: COPY.answered, mark: "check" };
 }
 
+/** The newest Take a speaker sent, as a time to sort by; 0 when unknown. */
+function latestSent(speaker: QueueSpeaker): number {
+  return speaker.takes.reduce((latest, t) => Math.max(latest, Date.parse(t.sentAt) || 0), 0);
+}
+
+/** The queue as the coach sees it (founder 2026-10-18): a speaker with
+ *  nothing left to do drops out (they stay in Your speakers), and the speaker
+ *  who sent most recently is at the top. Pure. */
+export function queueOrder(speakers: readonly QueueSpeaker[]): QueueSpeaker[] {
+  return speakers
+    .filter((s) => s.waiting > 0 || s.takes.some((t) => t.waitingForText))
+    .map((s, i) => ({ s, i, at: latestSent(s) }))
+    .sort((a, b) => b.at - a.at || a.i - b.i)
+    .map(({ s }) => s);
+}
+
 export type BlindRows = {
   audit: ErrorAuditQueue | null;
   picks: BlockPickQueue | null;
@@ -144,15 +160,16 @@ export function QueueScreen({ speakers, loading, blind, onSpeaker, onClose }: {
   onSpeaker: (speaker: QueueSpeaker) => void;
   onClose: () => void;
 }) {
+  const waiting = queueOrder(speakers);
   return (
     <WalkOverlay title={COPY.queueTitle} onClose={onClose} testId="coach-panel-queue">
-      {speakers.length > 0 ? (
+      {waiting.length > 0 ? (
         <Group label={COPY.yourSpeakers} testId="coach-panel-speakers">
           <WalkChoices
             label={COPY.yourSpeakers}
-            choices={speakers.map(speakerChoice)}
+            choices={waiting.map(speakerChoice)}
             onPick={(v) => {
-              const speaker = speakers[Number(v)];
+              const speaker = waiting[Number(v)];
               if (speaker) onSpeaker(speaker);
             }}
           />
