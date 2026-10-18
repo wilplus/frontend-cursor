@@ -3,6 +3,7 @@
   "regions": [
     "dub1"
   ],
+  "fluid": true,
   "git": {
     "deploymentEnabled": {
       "*": false,
