@@ -30,6 +30,9 @@ export interface QueueTake {
   /** The bookmarks are not frozen yet: the Take is listed, never absent
    *  (founder 2026-10-01, A1). */
   waitingForText: boolean;
+  /** When this coach last answered on it (a time, never a value); orders
+   *  the answered Takes, most recent first. Null when not sent. */
+  answeredAt?: string | null;
 }
 
 export interface QueueSpeaker {
@@ -82,6 +85,7 @@ function mapTake(raw: unknown): QueueTake | null {
     waiting: typeof r.waiting === "number" ? r.waiting : countWaiting(moments),
     moments,
     waitingForText: r.waiting_for_text === true,
+    answeredAt: typeof r.answered_at === "string" && r.answered_at ? r.answered_at : null,
   };
 }
 
