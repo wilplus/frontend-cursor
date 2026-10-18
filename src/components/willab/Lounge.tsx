@@ -1139,14 +1139,13 @@ export default function Lounge({
     }
   }, [thread.loading]);
 
-  // Step 2 (founder 2026-10-13): an ask the admin sent this person shows after
-  // the next fresh Take; while one is open the automatic offers hold back.
+  // Step 2 (founder 2026-10-13): an ask the admin sent this person shows the
+  // next time they open the chat (2026-10-18); while one is open the automatic
+  // offers hold back.
   const adminAsk = useAdminAsk({
     state,
-    messages,
     threadLoading: thread.loading,
     append: thread.append,
-    settleTimeRef,
     installCanOffer: install.canOffer,
     activeOffer,
     openOffer,
