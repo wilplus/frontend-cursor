@@ -353,12 +353,13 @@ button,
   box-shadow: 0 0 24px rgb(0 0 0 / 0.12);
 }
 /* close: the overlay is swiped out to the left, as Next moves, the page
-   already underneath */
+   already underneath; it slows to a stop as opening does (founder
+   2026-10-18) */
 .walk-ghost.walk-m-close {
   z-index: 10;
 }
 .walk-ghost.walk-m-close > .walk-ov {
-  animation: walk-push-out 0.28s var(--walk-ease-leave) forwards;
+  animation: walk-push-out 0.28s var(--walk-ease-arrive) forwards;
   box-shadow: 0 0 24px rgb(0 0 0 / 0.12);
 }
 /* next / back / fade inside the overlay: the top bar stays, the content moves */
