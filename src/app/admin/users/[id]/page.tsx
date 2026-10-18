@@ -49,6 +49,7 @@ interface Person {
   list_price_cents: number | null;
   asks: Ask[];
   promotion: { plan: string; price_cents: number; list_cents: number; ends_at: string } | null;
+  practice: { offered: number; done: number } | null;
   deletion: { request_id: string; state: string; completes_after: string | null; cancellable: boolean } | null;
 }
 
@@ -180,7 +181,7 @@ function PersonProfile({ id }: { id: string }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
         {[["Tokens to spend", n(p.tokens?.balance)], ["Monthly (resets)", n(p.tokens?.monthly)],
           ["Bonus (kept)", n(p.tokens?.bonus)], ["Plan", p.tokens?.tier || "—"]].map(([k, v]) => (
           <div key={k} className="rounded-xl border border-border px-3.5 py-3">
@@ -188,6 +189,7 @@ function PersonProfile({ id }: { id: string }) {
             <div className="text-xl font-semibold tabular-nums">{v}</div>
           </div>
         ))}
+        <PracticeTile practice={p.practice} />
       </div>
 
       <section>
@@ -289,6 +291,27 @@ function PersonProfile({ id }: { id: string }) {
 
       <DeleteSection id={id} email={p.email} deletion={p.deletion} reload={load} />
     </main>
+  );
+}
+
+/** Confident Voice practice progress (founder 2026-10-18): completed
+ *  practices out of those offered. Admin eyes only; a speaker never sees it. */
+function PracticeTile({ practice }: { practice: Person["practice"] }) {
+  const offered = practice?.offered ?? 0;
+  const done = practice?.done ?? 0;
+  const pct = offered > 0 ? Math.round((done / offered) * 100) : null;
+  return (
+    <div className="rounded-xl border border-border px-3.5 py-3">
+      <div className="text-xs text-muted-foreground">Confident Voice practice</div>
+      <div className="text-xl font-semibold tabular-nums">{pct === null ? "—" : `${pct}%`}</div>
+      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted" role="progressbar"
+        aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct ?? 0} aria-label="Confident Voice practice done">
+        <div className="h-full rounded-full bg-foreground transition-[width]" style={{ width: `${pct ?? 0}%` }} />
+      </div>
+      <div className="mt-1 text-xs text-muted-foreground">
+        {offered > 0 ? `${done} of ${offered} done` : "No practice offered yet"}
+      </div>
+    </div>
   );
 }
 
