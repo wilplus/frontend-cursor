@@ -506,8 +506,8 @@ export default function CoachPanel({ state, dispatch, speakers, loading }: Coach
   return (
     <MediaRefreshProvider refresh={refreshMedia} payload={mediaPayload}>
       {/* On a computer, the same phone-width screens, centred (Q-B14 A). */}
-      {screen.key !== "lounge" ? <div aria-hidden="true" className="fixed inset-0 z-50 hidden bg-muted md:block" /> : null}
-      <WalkStage screen={stage} dir={state.dir} render={render} className="md:mx-auto md:max-w-[430px]" />
+      <WalkStage screen={stage} dir={state.dir} render={render} className="walk-stage-column md:mx-auto md:max-w-[430px]"
+        backdrop="fixed inset-0 z-50 hidden bg-muted md:block" />
       <input ref={fileInput} type="file" accept="audio/*,video/mp4" className="hidden" data-testid="corpus-file-input"
         onChange={(e) => { const f = e.target.files?.[0] ?? null; e.target.value = ""; if (f) setForm((prev) => ({ ...prev, file: f })); }} />
       {toast ? <WalkToast key={toast.id} message={toast.text} onDone={() => setToast(null)} /> : null}
