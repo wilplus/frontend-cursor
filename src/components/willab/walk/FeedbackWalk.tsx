@@ -178,6 +178,10 @@ type Props<R> = {
   /** Reasons for green moments written after the page was read (founder
    *  2026-10-18): drawn once they arrive, without moving the walk. */
   reasons?: WalkPraiseReasons | null;
+  /** How many of other speakers' moments the speaker already judged in this
+   *  walk, as the chat holds their answers: the judging reopened from the
+   *  Lounge shows them answered (founder 2026-10-18). */
+  othersJudged?: number;
 };
 
 /** The AI bubble a screen showed, for the chat. */
@@ -243,6 +247,7 @@ export default function FeedbackWalk<R = unknown>({
   onAnswer,
   onOthers,
   reasons = null,
+  othersJudged = 0,
 }: Props<R>) {
   const liveModel = useRef(model);
   liveModel.current = model;
@@ -534,6 +539,7 @@ export default function FeedbackWalk<R = unknown>({
     nav: (s, moment) => stepNav(ctx, s, moment),
     say: walkLines.say,
     onOthers,
+    othersJudged,
   };
 
   // The voice Exercise's thread is one screen to the stage: its steps change
@@ -603,6 +609,7 @@ type ScreenCtx<R = unknown> = {
   onOthers?: (at: number, of: number, from: string | null, answer: string | null) => void;
   /** Green moments' reasons that arrived after the walk opened. */
   reasons: WalkPraiseReasons | null;
+  othersJudged: number;
 };
 
 /** The top bar's words for a step: "Slide N" (founder 2026-10-15: no moment
@@ -1028,6 +1035,7 @@ function Others(ctx: ScreenCtx, step: WalkStep) {
     <WalkOthers
       testId={testId(step)}
       count={tries}
+      judged={ctx.othersJudged}
       skip={Boolean(step.readOnly || step.replay)}
       onDone={() => ctx.forwardFrom(step)}
       onClose={ctx.close}

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { aiVoiceChat, answerBody, momentChat, othersChat, praiseChat, shownStep, walkStepDraft, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { aiVoiceChat, answerBody, momentChat, othersAnswered, othersChat, praiseChat, shownStep, walkStepDraft, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkStep } from "@/lib/willab/walkPlan";
 import type { WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
@@ -705,6 +705,9 @@ export function useDeckFeedbackWalk(args: {
     () => (threadMessages && take ? threadTries(threadMessages, take) : new Map<string, ReplayTries>()),
     [threadMessages, take],
   );
+  // The judging of other speakers, reopened from the Lounge, shows the
+  // moments already answered in this walk (founder 2026-10-18).
+  const othersJudged = useMemo(() => (threadMessages && take ? othersAnswered(threadMessages, take) : 0), [threadMessages, take]);
   const [triedByPractice, setTriedByPractice] = useState<Readonly<Record<string, ReplayTries | null>>>({});
   const askedPractices = useRef(new Set<string>());
   useEffect(() => {
@@ -1179,6 +1182,7 @@ export function useDeckFeedbackWalk(args: {
           onAnswer={onAnswer}
           onOthers={onOthers}
           reasons={greenReasons}
+          othersJudged={othersJudged}
         />
     ),
     [
@@ -1203,6 +1207,7 @@ export function useDeckFeedbackWalk(args: {
       onAnswer,
       onOthers,
       greenReasons,
+      othersJudged,
     ],
   );
 
