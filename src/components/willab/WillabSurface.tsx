@@ -26,6 +26,7 @@ import {
   writeExploreArc,
 } from "@/lib/willab/exploreArc";
 import { LoungeThreadProvider } from "./LoungeThreadContext";
+import { afterChatBoot } from "@/lib/chatBoot";
 import {
   beginSetupDraft,
   clearActiveSetupDraft,
@@ -80,10 +81,16 @@ export default function WillabSurface({
   // their own instances when they own the screen.
   const pickerSettle = useDocumentSettle({ enabled: pickedArcId !== null });
   const signedIn = useSignedIn();
-  useEffect(() => {
-    void import("./LabOverlay");
-    void import("./ProjectPicker");
-  }, []);
+  // Warmed after the thread paints (founder 2026-10-16), not beside it: the
+  // recording screens' chunks are not what a /chat open waits for.
+  useEffect(
+    () =>
+      afterChatBoot(() => {
+        void import("./LabOverlay");
+        void import("./ProjectPicker");
+      }),
+    [],
+  );
   const userId = useUserId();
   const userEmail = useUserEmail();
   const founderConsentEligible =

@@ -34,10 +34,30 @@
  * unversioned registration gets, and it behaves exactly as v6 did.
  *
  * v8 (2026-10-08): media is never intercepted (see the fetch handler), so an
- * unversioned worker that may have cached a clip drops it. */
+ * unversioned worker that may have cached a clip drops it.
+ *
+ * v9 (2026-10-18, founder Q6): THE WORKER NO LONGER CACHES CODE. It keeps
+ * push notifications, the install, navigation preload and the offline
+ * navigation fallback, and nothing else.
+ *
+ * What (4) below cost in production: the cache name is the build id, and
+ * `activate` deletes every other cache, so EVERY deploy emptied the chunk
+ * cache. The first open after a deploy then routed ~40 chunk fetches and
+ * ~6 MB of `cache.put` through this worker — tiny chunks took 0.8–2.85 s
+ * on the thread's critical path while the browser's own HTTP cache already
+ * held them: Vercel serves `/_next/static/*` immutable, and the browser's
+ * cache survives a deploy, this one did not. A service worker in front of
+ * an immutable, HTTP-cached asset can only add a hop. So `/_next/static/*`
+ * is no longer intercepted at all, like /auth/* and /api/*.
+ *
+ * `/` is no longer precached either: a signed-in user is 307'd from `/` to
+ * `/chat` by the middleware, so the precache rendered the Lounge a second
+ * time during boot, for an offline shell the fallback can take from the
+ * last navigation the worker answered instead (see `navigateNetworkFirst`).
+ * An unversioned worker that may have cached chunks drops them. */
 const BUILD_ID = new URL(self.location.href).searchParams.get("v");
-const CACHE_NAME = BUILD_ID ? `willab-shell-${BUILD_ID}` : "willab-shell-v8";
-const SHELL_ASSETS = ["/", "/manifest.webmanifest", "/icon"];
+const CACHE_NAME = BUILD_ID ? `willab-shell-${BUILD_ID}` : "willab-shell-v9";
+const SHELL_ASSETS = ["/manifest.webmanifest", "/icon"];
 
 /* ────────────────────────────────────────────────────────────────────────
    INSTALL MUST NOT BE ABLE TO FAIL (2026-08-04)
@@ -135,11 +155,13 @@ self.addEventListener("activate", (event) => {
                        how a browser ends up running last week's app. This
                        is also what makes a bad deploy fixable: fix the
                        server, refresh, done — no cache bump, no waiting.
-     4. /_next/static/ CACHE-FIRST. The filename contains a hash of the
-                       bytes, so the same URL cannot ever mean different
-                       content. Staleness is impossible by construction, and
-                       network-first here would buy nothing while adding a
-                       round trip to every chunk on every load.
+     4. /_next/static/ NEVER INTERCEPTED (v9, founder 2026-10-18). The
+                       filename contains a hash of the bytes and Vercel
+                       serves it immutable, so the BROWSER's HTTP cache
+                       already keeps it across deploys; this worker's copy
+                       died with every deploy and cost the first open after
+                       one seconds per chunk. Standing aside is the fast
+                       path. (It was cache-first from 2026-08-04 to v9.)
      5. everything else STALE-WHILE-REVALIDATE. Icons, images, the manifest,
                        the pdf worker: stable URLs whose content CAN change.
                        Cache-first meant they were frozen until someone
@@ -162,8 +184,9 @@ function isMediaRequest(request) {
   return Boolean(headers && typeof headers.has === "function" && headers.has("range"));
 }
 
-/** Content-addressed build output: the hash in the filename IS the version. */
-function isImmutableBuildAsset(url) {
+/** Content-addressed build output: the hash in the filename IS the version,
+ *  and the browser's HTTP cache keeps it. Never ours (v9). */
+function isBuildAsset(url) {
   return url.pathname.startsWith("/_next/static/");
 }
 
@@ -189,34 +212,23 @@ async function cachedCopy(request) {
   }
 }
 
-/** (3) Network-first. The cache is the OFFLINE answer, not the fast path. */
+/** (3) Network-first. The cache is the OFFLINE answer, not the fast path.
+ *  Since v9 nothing precaches `/`: the shell the fallback serves is the last
+ *  navigation this worker answered, stored on the way past. */
 async function navigateNetworkFirst(event) {
   try {
     // Started by the browser in parallel with this worker booting.
     const preloaded = await event.preloadResponse;
-    if (preloaded) return preloaded;
-    return await fetch(event.request);
+    const response = preloaded || (await fetch(event.request));
+    event.waitUntil(putInCache(event.request, response));
+    return response;
   } catch {
-    // Offline, or the network failed. `/` is the precached app shell; the
-    // client router takes it from there.
+    // Offline, or the network failed. The client router takes it from there.
     return (
       (await cachedCopy(event.request)) ||
       (await cachedCopy("/")) ||
       Response.error()
     );
-  }
-}
-
-/** (4) Cache-first, safe only because the URL is content-addressed. */
-async function immutableCacheFirst(event) {
-  const cached = await cachedCopy(event.request);
-  if (cached) return cached;
-  try {
-    const response = await fetch(event.request);
-    event.waitUntil(putInCache(event.request, response));
-    return response;
-  } catch {
-    return Response.error();
   }
 }
 
@@ -288,13 +300,14 @@ self.addEventListener("fetch", (event) => {
   // for a fresh link. The browser handles media itself.
   if (isMediaRequest(request)) return;
 
+  // (4) Build output: never intercepted (v9, founder 2026-10-18). Immutable
+  // on the server, kept by the browser's own cache across deploys; this
+  // worker's copy was emptied by every deploy and cost the first open after
+  // one seconds per chunk. The browser handles it.
+  if (isBuildAsset(url)) return;
+
   if (request.mode === "navigate") {
     event.respondWith(navigateNetworkFirst(event));
-    return;
-  }
-
-  if (isImmutableBuildAsset(url)) {
-    event.respondWith(immutableCacheFirst(event));
     return;
   }
 
