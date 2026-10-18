@@ -346,16 +346,20 @@ button,
   pointer-events: none !important;
 }
 
-/* open: the overlay rises from the bottom over the page */
+/* open: the overlay slides in from the right over the page (founder
+   2026-10-18: sideways, the way Next moves) */
 .walk-m-open > .walk-ov {
-  animation: walk-sheet-up 0.38s var(--walk-ease-arrive) both;
+  animation: walk-push-in 0.34s var(--walk-ease-arrive) both;
+  box-shadow: 0 0 24px rgb(0 0 0 / 0.12);
 }
-/* close: the overlay sinks, the page is already underneath */
+/* close: the overlay is swiped out to the left, as Next moves, the page
+   already underneath */
 .walk-ghost.walk-m-close {
   z-index: 10;
 }
 .walk-ghost.walk-m-close > .walk-ov {
-  animation: walk-sheet-down 0.28s var(--walk-ease-leave) forwards;
+  animation: walk-push-out 0.28s var(--walk-ease-leave) forwards;
+  box-shadow: 0 0 24px rgb(0 0 0 / 0.12);
 }
 /* next / back / fade inside the overlay: the top bar stays, the content moves */
 .walk-ghost.walk-m-swap {
@@ -397,20 +401,24 @@ button,
   animation: walk-fade-up 0.34s var(--walk-ease-arrive) both;
 }
 
-/* Desktop (founder 2026-10-08, Q-WALK-DESK A): the Feedback walk is the
-   phone's column, centred on the same white. The overlay keeps the whole
-   screen white (nothing of the page behind it); its top bar, title, body
-   and footer sit in a column as wide as the phone layout. At phone width the
-   padding is 0, so the phone is unchanged. Padding on the overlay, not a
-   wrapper, so the moves above still address its direct children. */
-[data-feedback-walk] .walk-ov,
-[data-walk-sheet] .walk-ov {
-  padding-inline: max(0px, calc((100% - var(--walk-column)) / 2));
+/* Desktop (founder 2026-10-08, Q-WALK-DESK A; amended 2026-10-18): the
+   whole window is the overlay and moves as one, as on the phone; nothing of
+   the page shows beside it while it rises or sinks. The top bar spans the
+   window (✕ at its right edge); the title, body and footer sit in a column
+   as wide as the phone layout. At phone width the margin is 0, so the phone
+   is unchanged. Margins on the overlay's children, not a wrapper, so the
+   moves above still address them directly. */
+[data-feedback-walk] .walk-ov > :not(.walk-ovtop),
+[data-walk-sheet] .walk-ov > :not(.walk-ovtop),
+[data-walk-column] .walk-ov > :not(.walk-ovtop) {
+  margin-inline: max(0px, calc((100% - var(--walk-column)) / 2));
 }
 /* The paragraph's screens and the helper-words overlay inside the walk
-   (WalkSheetFrame) are the same column (Q-WALK-PARA A). */
+   (WalkSheetFrame), the sharing question and an older Take's review are the
+   same column (Q-WALK-PARA A). */
 [data-feedback-walk] .walk-ov,
 [data-walk-sheet] .walk-ov,
+[data-walk-column] .walk-ov,
 .walk-endsheet {
   --walk-column: 430px;
 }
@@ -465,13 +473,13 @@ button,
   animation: walk-fade-up 0.22s var(--walk-ease-arrive);
 }
 
-@keyframes walk-sheet-up {
-  from { transform: translateY(100%); }
+@keyframes walk-push-in {
+  from { transform: translateX(100%); }
   to { transform: none; }
 }
-@keyframes walk-sheet-down {
+@keyframes walk-push-out {
   from { transform: none; }
-  to { transform: translateY(100%); }
+  to { transform: translateX(-100%); }
 }
 @keyframes walk-in-r {
   from { transform: translateX(26px); opacity: 0; }

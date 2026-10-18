@@ -1225,7 +1225,7 @@ function LensFrame({ on, onClose }: { on: boolean; onClose: () => void }) {
   if (!on || typeof document === "undefined") return null;
   return createPortal(
     <div data-lens-screen className="fixed inset-0 z-[45] flex flex-col bg-background">
-      <div className="mx-auto flex w-full justify-end px-4 py-3 md:max-w-[430px]">
+      <div className="flex w-full justify-end px-4 py-3">
         <OverlayCloseButton onClick={onClose} />
       </div>
       <LoadingState placement="surface" />
