@@ -20,6 +20,7 @@
 /*  the caller's, already signed: this file adds none.                        */
 /* -------------------------------------------------------------------------- */
 
+import type { PraiseReason } from "@/lib/willab/praiseReason";
 import { clearerPieces, type ClearerPieces } from "./clearerPieces";
 import { phraseSelection, type PhraseSelection } from "./phraseTokens";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
@@ -60,6 +61,11 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
   praiseWords?: readonly string[] | null;
   /** The praise's opening line by level (founder 2026-10-14); null: "Good job". */
   praiseTitle?: string | null;
+  /** The praise's own line without the cue sentences: what the first bubble
+   *  says when the reason below explains the moment (founder 2026-10-18). */
+  praiseLead?: readonly string[] | null;
+  /** Why the green moment landed, as served (services/praise_reason). */
+  praiseReason?: PraiseReason | null;
   clip?: WalkClip | null;
   /** On a served rewrite: the speaker's words it anchors on (`quote`), the
    *  words offered in their place (`proposedText`), and the item itself for
@@ -141,6 +147,10 @@ export type FeedbackWalkMoment<R = unknown> = {
   slideLabel: string | null;
   praiseWords: readonly string[];
   praiseTitle?: string | null;
+  /** The praise line alone, for when a reason follows it. */
+  praiseLead?: readonly string[];
+  /** Why the green moment landed, when it reached the page with the row. */
+  praiseReason?: PraiseReason | null;
   clip: WalkClip | null;
   /** The clearer version, when the moment has a served rewrite. */
   clearer: FeedbackWalkClearer<R> | null;
@@ -276,6 +286,8 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     // The level rides the green row; the praise words may ride a separate
     // wording note. Whichever row carries the level names the screen.
     praiseTitle: group.find((i) => i.praiseTitle)?.praiseTitle ?? null,
+    praiseLead: praise?.praiseLead ?? praise?.praiseWords ?? [],
+    praiseReason: group.find((i) => i.praiseReason)?.praiseReason ?? null,
     clip,
     clearer: clearerOf(group),
     practiseItem:

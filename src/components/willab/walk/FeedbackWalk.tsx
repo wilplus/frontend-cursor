@@ -1,5 +1,6 @@
 "use client";
 
+import { reasonRuns, type PraiseReason, type WalkPraiseReasons } from "@/lib/willab/praiseReason";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
@@ -174,6 +175,9 @@ type Props<R> = {
   /** Another speaker's moment shown (`answer` null) or answered: the host
    *  posts it to the chat. Nothing is drawn from it. */
   onOthers?: (at: number, of: number, from: string | null, answer: string | null) => void;
+  /** Reasons for green moments written after the page was read (founder
+   *  2026-10-18): drawn once they arrive, without moving the walk. */
+  reasons?: WalkPraiseReasons | null;
 };
 
 /** The AI bubble a screen showed, for the chat. */
@@ -238,6 +242,7 @@ export default function FeedbackWalk<R = unknown>({
   onShown,
   onAnswer,
   onOthers,
+  reasons = null,
 }: Props<R>) {
   const liveModel = useRef(model);
   liveModel.current = model;
@@ -449,6 +454,7 @@ export default function FeedbackWalk<R = unknown>({
 
   const ctx: ScreenCtx<R> = {
     walk,
+    reasons,
     at: (s) => plan.indexOf(s),
     arrows,
     coachNote,
@@ -595,6 +601,8 @@ type ScreenCtx<R = unknown> = {
   /** The signed line a screen says (D-FW-3). */
   say: SayLine;
   onOthers?: (at: number, of: number, from: string | null, answer: string | null) => void;
+  /** Green moments' reasons that arrived after the walk opened. */
+  reasons: WalkPraiseReasons | null;
 };
 
 /** The top bar's words for a step: "Slide N" (founder 2026-10-15: no moment
@@ -678,12 +686,44 @@ function CoachNote(ctx: ScreenCtx, step: WalkStep) {
   );
 }
 
-/** A green moment: the clip, then "Good job" and one signed line. */
+/** Why a green moment landed (founder 2026-10-18, prototype
+ *  https://claude.ai/artifact/Wdaznuffm9SJEkkjPEuSaR v4): its own bubble,
+ *  short paragraphs, the speaker's quoted words in orange, regular weight
+ *  (lock 2026-10-12: no bold in any bubble). */
+function PraiseReasonBubble({ reason }: { reason: PraiseReason }) {
+  return (
+    <WalkMessage>
+      <div data-walk-reason className="flex flex-col gap-2.5">
+        {reason.paragraphs.map((paragraph, i) => (
+          <p key={i} className="m-0">
+            {reasonRuns(paragraph, reason.quote).map((run, j) =>
+              run.quoted ? (
+                <span key={j} data-walk-quote className="text-accent-foreground">
+                  {run.text}
+                </span>
+              ) : (
+                <span key={j}>{run.text}</span>
+              ),
+            )}
+          </p>
+        ))}
+      </div>
+    </WalkMessage>
+  );
+}
+
+/** A green moment: the clip, then "Good job" and one signed line, then why
+ *  it landed. While its reason is still being written, the signed line
+ *  stands alone; if none comes, the cue lines follow it as before. */
 function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   const ok = () => {
     ctx.answer(step, "ok");
     ctx.forward();
   };
+  const clipId = moment.clip?.snippetId ?? null;
+  const reason = moment.praiseReason ?? ctx.reasons?.of(clipId) ?? null;
+  const waiting = !reason && (ctx.reasons?.waiting(clipId) ?? false);
+  const words = reason || waiting ? (moment.praiseLead ?? moment.praiseWords) : moment.praiseWords;
   return (
     <WalkOverlay
       testId={testId(step)}
@@ -694,8 +734,9 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
       <Clip moment={moment} />
       <WalkMessage>
         <span>{moment.praiseTitle ?? COPY.titlePraise}</span>
-        {moment.praiseWords.length > 0 ? <span>{moment.praiseWords.join(" ")}</span> : null}
+        {words.length > 0 ? <span>{words.join(" ")}</span> : null}
       </WalkMessage>
+      {reason ? <PraiseReasonBubble reason={reason} /> : null}
       <CoachAnswerBubble moment={moment} />
     </WalkOverlay>
   );
