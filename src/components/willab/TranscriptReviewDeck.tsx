@@ -779,6 +779,8 @@ export default function TranscriptReviewDeck({
   const reviewSeenRef = useRef(reviewRequest);
   useEffect(() => {
     if (reviewRequest === reviewSeenRef.current) return;
+    // A step tapped in the Lounge opens on the Take's answers and tries.
+    if (reviewAt && feedbackWalk.replaySettled === false) return;
     reviewSeenRef.current = reviewRequest;
     // The Feedback walk, when it has a screen to show.
     if (feedbackWalk.review(reviewAt)) return;

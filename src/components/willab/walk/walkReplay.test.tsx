@@ -16,6 +16,20 @@ import type { WalkPractiseIO } from "@/services/api/walkPractise";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+// The AI clip already made for the practice: read, never made again.
+const aiReads = vi.hoisted(() => [] as string[]);
+vi.mock("@/services/api/aiVoice", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/api/aiVoice")>()),
+  readAiVoice: async (practiceId: string) => {
+    aiReads.push(practiceId);
+    return { ok: true, data: { demo: "ai_voice", clip: { state: "ready", url: "blob:ai", durationMs: 3000, why: null } } };
+  },
+  ensureAiVoice: async () => {
+    aiReads.push("ensure");
+    return { ok: false };
+  },
+}));
+
 const clip = { src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 9000 };
 const ITEMS: FeedbackWalkItem<string>[] = [
   { partId: "p1", start: 0, slide: 1, blockId: "b1", openCard: "praise", paragraphText: "Last quarter our growth doubled.", slideLabel: "Slide 2", praiseWords: ["A signed line."], clip },
@@ -39,6 +53,7 @@ let ended: number;
 beforeEach(() => {
   vi.useFakeTimers();
   calls = [];
+  aiReads.length = 0;
   judged = [];
   ended = 0;
   host = document.createElement("div");
@@ -67,7 +82,7 @@ const PRACTISE: WalkPractiseIO<string> = {
   },
 } as unknown as WalkPractiseIO<string>;
 
-function draw() {
+function draw(opts: { practiceId?: string; at?: (model: ReturnType<typeof buildFeedbackReplay<string>>) => number } = {}) {
   const model = buildFeedbackReplay<string>({
     items: ITEMS,
     coachNote: true,
@@ -77,7 +92,7 @@ function draw() {
     // The exercise was practised twice: "not yet", then praise.
     triesOf: (moment) =>
       moment.partId === "p3"
-        ? { practiceId: null, outcomes: ["again", "praise"], audios: { 1: { url: "blob:try-1", durationMs: 4000 }, 2: { url: "blob:try-2", durationMs: 4200 } } }
+        ? { practiceId: opts.practiceId ?? null, outcomes: ["again", "praise"], audios: { 1: { url: "blob:try-1", durationMs: 4000 }, 2: { url: "blob:try-2", durationMs: 4200 } } }
         : null,
   });
   const props = {
@@ -95,7 +110,7 @@ function draw() {
     },
   };
   act(() => root.render(<FeedbackWalk {...props} request={null} />));
-  act(() => root.render(<FeedbackWalk {...props} request={{ seq: 1, at: walkStart(model)! }} />));
+  act(() => root.render(<FeedbackWalk {...props} request={{ seq: 1, at: opts.at?.(model) ?? walkStart(model)! }} />));
 }
 
 const live = () => host.querySelector<HTMLElement>(".walk-layer:not(.walk-ghost)");
@@ -144,6 +159,16 @@ describe("the finished walk, played again", () => {
     click(byTestId("walk-forward"));
     expect(["walk-screen-practise", "walk-screen-encourage", "walk-screen-improved"]).not.toContain(screen());
     expect(calls).toEqual(["helpers"]);
+  });
+
+  it("an exercise opened from its bubble in the chat shows its AI clip and every try, as from its paragraph", async () => {
+    draw({ practiceId: "pr-3", at: (model) => walkStepAt(model, { step: "exVideo", moment: null, part: "p3" })! });
+    await act(async () => {});
+    expect(screen()).toBe("walk-screen-improved");
+    expect(aiReads).toEqual(["pr-3"]);
+    expect(live()!.querySelector("[data-walk-ai-voice]")).not.toBeNull();
+    expect(live()!.textContent).toContain(WALK_COPY.practiseN(1));
+    expect(live()!.textContent).toContain(WALK_COPY.practiseN(2));
   });
 
   it("a try tapped in the chat opens its exercise on the last answer, the whole thread on screen", () => {

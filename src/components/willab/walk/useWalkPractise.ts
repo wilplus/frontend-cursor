@@ -8,6 +8,7 @@ import type { FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import {
   PRACTISE_READ_LIMIT_MS,
   loopEnd,
+  threadStart,
   withChecking,
   withRead,
   withRetry,
@@ -194,7 +195,10 @@ export function useWalkPractise<R>(args: {
     // 2026-10-15: an exercise already done plays its tries); nothing is
     // made, and a play is not counted. A read-only walk asks nothing.
     if (here.replay || here.readOnly) {
-      const practiceId = here.replay && here.key === "exVideo" ? replayOf(here.moment) : null;
+      // Any screen of the exercise's thread: a try tapped in the chat opens
+      // on its last answer, with the Exercise above it.
+      const start = here.replay ? threadStart(p, i) : -1;
+      const practiceId = start >= 0 && p[start].key === "exVideo" ? replayOf(here.moment) : null;
       if (!practiceId || aiAsked.current.has(here.moment)) return;
       const index = here.moment;
       aiAsked.current.add(index);
