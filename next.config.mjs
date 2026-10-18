@@ -27,6 +27,20 @@ const nextConfig = {
     config.resolve.alias = { ...config.resolve.alias, canvas: false };
     return config;
   },
+  async headers() {
+    return [
+      // The pdf.js worker is always requested as /pdf.worker.min.mjs?v=<pdfjs
+      // version> (pdfSlides.tsx, presentationVisuals.ts), so a pdfjs upgrade
+      // is a new URL. Without this Vercel serves it max-age=0 and every /chat
+      // load asks the server again before the slides can draw.
+      {
+        source: "/pdf.worker.min.mjs",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+    ];
+  },
   async redirects() {
     return [
       // Browsers request /favicon.ico directly; redirect to the dynamic icon route.
