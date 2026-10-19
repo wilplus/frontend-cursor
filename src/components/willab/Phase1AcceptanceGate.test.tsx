@@ -1,18 +1,27 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  The gate and a blocked person (audit PLF-T1; founder 2026-10-05, N48.4    */
-/*  Q19 A and Q21 A).                                                         */
-/*                                                                            */
-/*  A processing block used to read as "acceptance required", so a person   */
-/*  who had asked for their account to be deleted met the acceptance flow    */
-/*  again — and re-accepting could never lift the block. Now:                 */
-/*    1. with the ended state switched on, a block shows the ended state and */
-/*       never the acceptance flow;                                          */
-/*    2. while it is off (its words are not signed), the gate does exactly   */
-/*       what it did before;                                                 */
-/*    3. a cancelled deletion makes the gate read the status again;          */
-/*    4. a re-acceptance hands the flow the country given last time.         */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker whose account is being deleted, I want to see the ended
+         state, not the acceptance flow, and be let back in if I cancel, so
+         that re-accepting never traps me; and as any speaker I want the
+         consent gate to ask me only what is really mine to agree (consent).
+OUTCOME
+  O1  With the ended state on, a block shows the ended state, never the
+      acceptance flow or the Lounge.
+  O2  With it off, a block does what it did before: the acceptance flow when
+      a policy came with it, otherwise the Lounge.
+  O3  A cancelled deletion reads the status again and lets the person in.
+  O4  A re-acceptance hands the flow the country given last time.
+  O5  A signed-up guest is not asked to accept again: the claim comes first.
+  O6  A refused identity blocks with Try again, which reads again; no active
+      policy still passes (the gate fails open).
+PROVES   O1 -> "shows the ended state for a block, never the acceptance flow or the Lounge"
+         O2 -> "switched off, a block does what it did before"
+         O3 -> "a cancelled deletion reads the status again, and lets the person back in"
+         O4 -> "a re-acceptance hands the flow the country given last time"
+         O5 -> "a signed-up guest is not asked to accept again: the claim comes before the read"
+         O6 -> "a refused identity blocks, and Try again reads the status again"
+WHY      Audit PLF-T1; founder 2026-10-05 (N48.4 Q19 A, Q21 A) and 2026-10-18.
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -126,6 +135,29 @@ describe("<Phase1AcceptanceGate>", () => {
     await mount(blocked());
     expect(host.querySelector('[data-testid="account-ended-state"]')).not.toBeNull();
     expect(host.querySelector('[data-testid="acceptance-flow"]')).toBeNull();
+    expect(host.textContent).not.toContain("THE LOUNGE");
+  });
+
+  it("switched off, a block does what it did before", async () => {
+    flag.ended = false;
+    await mount(blocked());
+    expect(host.querySelector('[data-testid="acceptance-flow"]')?.textContent).toBe("prior:none");
+    expect(host.querySelector('[data-testid="account-ended-state"]')).toBeNull();
+    act(() => root.unmount());
+    root = createRoot(host);
+    await mount(blocked({ policy: null }));
+    expect(host.textContent).toContain("THE LOUNGE");
+    expect(host.querySelector('[data-testid="account-ended-state"]')).toBeNull();
+  });
+
+  it("a re-acceptance hands the flow the country given last time", async () => {
+    await mount({
+      kind: "acceptance_required",
+      code: "PROCESSING_AUTHORIZATION_REQUIRED",
+      policy: POLICY,
+      priorCountry: "pl",
+    });
+    expect(host.querySelector('[data-testid="acceptance-flow"]')?.textContent).toBe("prior:pl");
     expect(host.textContent).not.toContain("THE LOUNGE");
   });
 
