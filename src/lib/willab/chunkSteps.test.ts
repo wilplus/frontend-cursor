@@ -1,20 +1,26 @@
+/*
+ * STORY    As a speaker, I want No, Not sure and Audio unclear to take away
+ *          Lock, so that I am not asked to lock in something I am unsure of.
+ * OUTCOME
+ *   O1  No, Not sure and Audio unclear close the lock step.
+ *   O2  Yes and In-between keep it.
+ * PROVES   O1 -> "No, Not sure and Audio unclear end the ladder early"
+ *          O2 -> "Yes and In-between keep their Lock"
+ * WHY      Founder 2026-09-24 and lock 2026-09-30 (B2).
+ */
 import { describe, expect, it } from "vitest";
 
-import {
-  closesLock,
-} from "./chunkSteps";
+import { closesLock } from "./chunkSteps";
 
-/* ── WHICH ANSWERS TAKE THE LOCK AWAY (founder 2026-09-24) ────────────────
- * "when there is an answer that no, not confident or not sure, do not give
- * the people option to lock it in ... and the same for audio unclear." Then,
- * on a draft that merely demoted Lock to Keep evolving: "no just don't show
- * that overlay; no keep evolving — after the rooting phrases close the
- * overlay in these cases."
- *
- * The distinction these pin is the one a collapsed yes/other answer cannot
- * express at all: "No" and "In-between" fall on opposite sides of it. */
-describe("closesLock — No and Audio unclear end the ladder early", () => {
-  it("Not sure ends the ladder too (founder lock 2026-09-30, B2; until then Q1 B kept its Lock)", () => {
+describe("closesLock", () => {
+  it("No, Not sure and Audio unclear end the ladder early", () => {
+    expect(closesLock("no")).toBe(true);
     expect(closesLock("not_sure")).toBe(true);
+    expect(closesLock("audio_unclear")).toBe(true);
+  });
+
+  it("Yes and In-between keep their Lock", () => {
+    expect(closesLock("yes")).toBe(false);
+    expect(closesLock("in_between")).toBe(false);
   });
 });

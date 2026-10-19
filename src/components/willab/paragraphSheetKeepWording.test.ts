@@ -1,7 +1,14 @@
-/* Q3 A (founder 2026-10-05, backend N48.2): "Keep my words" on the paragraph
- * sheet records the owner's keep_wording response on the rewrite, so V3 does
- * not offer the same rewrite again until the Paragraph's words change. It is
- * fire-and-forget and never throws. */
+/*
+ * STORY    As a speaker, I want "Keep my words" to be remembered without ever
+ *          blocking me, so that the same rewrite is not offered again until
+ *          my words change.
+ * OUTCOME
+ *   O1  A keep_wording response is saved with the ids the accept path sends.
+ *   O2  A failing save never throws: the walk goes on.
+ * PROVES   O1 -> "saves keep_wording with the fields the accept path sends"
+ *          O2 -> "a failing save never throws"
+ * WHY      Q3 A (founder 2026-10-05, backend N48.2).
+ */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const save = vi.fn();
@@ -28,5 +35,14 @@ describe("recordKeepWording", () => {
       response: "keep_wording", candidateId: "cand-1",
       feedbackMembershipId: "mem-1", feedbackExposureId: "exp-1",
     });
+  });
+
+  it("a failing save never throws", async () => {
+    save.mockRejectedValueOnce(new Error("network down"));
+    await expect(recordKeepWording(item)).resolves.toBeUndefined();
+    expect(save).toHaveBeenCalledTimes(1);
+    // Here vitest fails a test whose mock still holds a rejected result at
+    // its end, even one our code caught (seen 2026-10-19): let it go.
+    save.mockReset();
   });
 });

@@ -1,3 +1,14 @@
+/*
+STORY    As a speaker, I want a suggestion whose words have moved to be dropped
+         rather than painted on the wrong words, so that strike-throughs
+         always mark what I said.
+OUTCOME
+  O1  A suggestion whose span still holds its quote is kept.
+  O2  A stale span is dropped, never re-anchored by searching for the quote.
+PROVES   O1 -> "KEEPS a span whose words are still there"
+         O2 -> "DROPS a stale span rather than re-anchoring by search (FE-5)"
+WHY      FE-5: re-finding a moved quote struck the wrong words.
+*/
 import { describe, expect, it } from "vitest";
 import {
   resolveTrackedSuggestions,
@@ -34,6 +45,11 @@ const sug = (o: Partial<DocumentSuggestion> & Pick<DocumentSuggestion, "start" |
 const TEXT = "I think we can do this today.";
 
 describe("resolveTrackedSuggestions (verify or drop)", () => {
+
+  it("KEEPS a span whose words are still there", () => {
+    const s = sug({ start: 2, end: 7, quote: "think" });
+    expect(resolveTrackedSuggestions(TEXT, [s])).toEqual([s]);
+  });
 
   it("DROPS a stale span rather than re-anchoring by search (FE-5)", () => {
     // The quote exists elsewhere in the text, but not at the given span —

@@ -1,13 +1,23 @@
 // @vitest-environment jsdom
 /* -------------------------------------------------------------------------- */
-/*  ONE PRACTISE EVERYWHERE (founder 2026-10-10, "the practise screens should  */
-/*  be the same in all cases and recording a practise too").                  */
-/*                                                                            */
-/*  Practise on a paragraph's own sheet opens the Feedback walk's practise    */
-/*  screens (practisePart), on the card the sheet shows: a clearer version's  */
-/*  words, an exercise's passage under its instruction, or the moment said    */
-/*  again. A card with nothing to open a practice on (no snippet and no       */
-/*  evidence) cannot open, and the sheet shows no Practise for it.            */
+/*  STORY    As a speaker, I want Practise on a paragraph to open the same    */
+/*           practise screens as the Feedback walk, recording at once on the  */
+/*           right clip, so that practice feels the same everywhere.          */
+/*  OUTCOME                                                                   */
+/*    O1  A clearer version's card opens the walk's practise screen with its  */
+/*        words, the mic starts, and the practice opens on the moment's       */
+/*        snippet; ✕ stops the mic and ends nothing else.                     */
+/*    O2  The moment said again (the plain card) opens on the paragraph's     */
+/*        words, as the walk's moment step does.                              */
+/*    O3  A card with nothing to open a practice on (no snippet, no evidence) */
+/*        cannot open: no screen, no mic, no practice request.                */
+/*  PROVES   O1 -> "opens the walk's practise for the paragraph: recording at once, on the moment's snippet" */
+/*           O2 -> "the moment said again opens on the paragraph's words"             */
+/*           O3 -> "a card with nothing to open a practice on cannot open"    */
+/*  NOT PINNED: an exercise card's passage under its instruction (the walk's  */
+/*  own exercise step carries that).                                          */
+/*  WHY      Founder 2026-10-10: "the practise screens should be the same in  */
+/*           all cases and recording a practise too".                         */
 /* -------------------------------------------------------------------------- */
 import { act, createElement, type MutableRefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -127,5 +137,30 @@ describe("practisePart", () => {
     await act(async () => live()!.querySelector<HTMLButtonElement>("button[aria-label='Close']")!.click());
     expect(mic.cancels).toBeGreaterThan(0);
     expect(onEnd).not.toHaveBeenCalled();
+  });
+
+  it("the moment said again opens on the paragraph's words", async () => {
+    const plain: PractiseCard = { kind: "plain", item: moment, text: "retention went up", coach: false };
+    let opened = false;
+    await act(async () => {
+      opened = api.current!.practisePart("p1", plain, moment);
+    });
+    await act(async () => undefined);
+    expect(opened).toBe(true);
+    expect(screen()).toBe("walk-screen-practise");
+    expect(live()!.querySelector("[data-walk-say]")!.textContent).toBe(TEXT);
+    expect(mic.starts).toBe(1);
+  });
+
+  it("a card with nothing to open a practice on cannot open", async () => {
+    let opened = true;
+    await act(async () => {
+      opened = api.current!.practisePart("p1", rewriteCard, null);
+    });
+    await act(async () => undefined);
+    expect(opened).toBe(false);
+    expect(screen()).toBeNull();
+    expect(mic.starts).toBe(0);
+    expect(practiseCalls()).toEqual([]);
   });
 });

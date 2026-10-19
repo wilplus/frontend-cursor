@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
 /**
- * The announcement sheet (rings, 2026-09-29): shows what the backend says
- * is pending, in placeholder copy; "not now" records an answer and hides the
- * sheet; the Phase-2 "yes" stays disabled until the policy exists; and no
- * button ever records a consent.
+ * STORY    As a speaker, I want a feature announcement I can dismiss with Not
+ *          now, and its Yes off until a policy exists, so that nothing turns
+ *          on or records consent without me.
+ * OUTCOME
+ *   O1  Not now records the decision, hides the sheet, records no consent.
+ *   O2  Without a policy, Yes is a disabled button (no link to the data
+ *       choices), the sheet says why, and pressing it records nothing.
+ * PROVES   O1 -> "not now records the answer, hides the sheet and creates no consent"
+ *          O2 -> "yes stays disabled while the policy is missing"
+ * WHY      Rings, 2026-09-29: only the data choices screen records a consent (L3).
  */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -85,5 +91,20 @@ describe("RingAnnouncementSheet", () => {
     expect(JSON.parse(String(decision![1].body))).toEqual({ decision: "not_now" });
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("consent"))).toBe(false);
     expect(container.querySelector('[data-testid="ring-announcement-sheet"]')).toBeNull();
+  });
+
+  it("yes stays disabled while the policy is missing", async () => {
+    fetchMock.mockImplementation(() => reply(ringPayload([{ ...PHASE1, consent_policy_available: false }])));
+    await render();
+    expect(container.textContent).toContain(PHASE1.title);
+    expect(container.textContent).toContain("once the policy is in place");
+    expect(container.querySelector("a")).toBeNull();
+    const yes = byText("[founder copy] Turn on in my data choices") as HTMLButtonElement;
+    expect(yes).toBeDefined();
+    expect(yes.disabled).toBe(true);
+    const before = fetchMock.mock.calls.length;
+    await act(async () => yes.click());
+    await flush();
+    expect(fetchMock.mock.calls.length).toBe(before);
   });
 });
