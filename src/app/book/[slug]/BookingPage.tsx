@@ -28,6 +28,8 @@ export interface PageInfo {
   new_user_price_cents?: number;
   /** Set when the page was opened with a valid price link. */
   link_price_cents?: number;
+  /** A link without a price: no price anywhere, nothing to pay. */
+  hide_price?: boolean;
 }
 
 /** What the signed-in person pays and gets (GET .../offer). */
@@ -73,10 +75,12 @@ export function Meta({ info, tz, offer, children }: { info: PageInfo; tz: string
       <div className="grid gap-2 text-sm text-muted-foreground">
         <div className={row}><Icon d="M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />{info.duration_min} min</div>
         <div className={row}><Icon d="M3 8a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM16 10l5-3v10l-5-3" />Google Meet</div>
+        {!info.hide_price && (
         <div className={row}><Icon d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18" /><span className="flex items-baseline gap-2">
           {price < list && <s>{money(list, info.currency)}</s>}
           <span className={price < list ? "font-semibold text-foreground" : ""}>{money(price, info.currency)}</span>
         </span></div>
+        )}
         <div className={row}><Icon d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />{city(tz)}</div>
       </div>
       {children}
@@ -123,10 +127,12 @@ function PhoneSummary({ info, tz, offer, when, action }: {
         <div className={row}><Icon d={ICONS.clock} />{info.duration_min} min</div>
         <div className={row}><Icon d={ICONS.video} />Google Meet</div>
         <div className={row}><Icon d={ICONS.globe} />{city(tz)}</div>
+        {!info.hide_price && (
         <div className={row}><Icon d={ICONS.card} />
           {price < list && <s>{money(list, info.currency)}</s>}
           <span className={price < list ? "font-semibold text-foreground" : ""}>{money(price, info.currency)}</span>
         </div>
+        )}
       </div>
     </div>
   );
@@ -317,7 +323,8 @@ export default function BookingPage({ info, ipZone, link }: { info: PageInfo; ip
               <div className="grid gap-2">
                 <button type="submit" disabled={sending || !!signedIn?.preview}
                   className="min-h-[50px] w-full rounded-xl border border-foreground bg-foreground px-[18px] py-3 font-semibold text-background disabled:opacity-60">
-                  {sending ? "Opening payment…" : `Book and pay ${money(signedIn?.price_cents ?? info.price_cents, info.currency)}`}
+                  {info.hide_price ? (sending ? "Booking…" : "Book")
+                    : sending ? "Opening payment…" : `Book and pay ${money(signedIn?.price_cents ?? info.price_cents, info.currency)}`}
                 </button>
                 {/* A price link is paid when you book. */}
                 {!link && !signedIn?.price_link && (

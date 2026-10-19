@@ -268,13 +268,14 @@ function PriceLink({ currency }: { currency: string }) {
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const make = async (e: FormEvent) => {
+  // cents 0: the meeting without a price (founder 2026-10-19).
+  const make = async (e: FormEvent, cents = Math.round(Number(amount) * 100)) => {
     e.preventDefault();
     setUrl(null);
     setErr(null);
     setCopied(false);
     try {
-      const res = await fetch(`/api/v2/admin/booking/price-link?price_cents=${Math.round(Number(amount) * 100)}`, { cache: "no-store" });
+      const res = await fetch(`/api/v2/admin/booking/price-link?price_cents=${cents}`, { cache: "no-store" });
       const b = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
       if (res.ok && b.url) setUrl(b.url);
       else setErr(b.error || "Could not make the link. Try again.");
@@ -295,6 +296,13 @@ function PriceLink({ currency }: { currency: string }) {
           <span className="self-center text-sm text-muted-foreground">{currency.toUpperCase()}</span>
           <button type="submit" className="whitespace-nowrap rounded-[10px] bg-foreground px-[18px] py-2.5 font-semibold text-background">Make link</button>
         </div>
+        <button type="button" onClick={(e) => void make(e, 0)}
+          className="justify-self-start rounded-[10px] border border-border px-3 py-2.5 text-sm">
+          Make a link without a price
+        </button>
+        <p className="-mt-2 text-[13px] text-muted-foreground">
+          No price is shown anywhere and nothing is paid. Their own lesson price stays as it is.
+        </p>
         {url && (
           <div className="flex min-w-0 items-center gap-2.5">
             <input readOnly aria-label="Price link" className={field} value={url} onFocus={(e) => e.target.select()} />
