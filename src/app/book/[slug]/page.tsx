@@ -20,5 +20,5 @@ export default async function Page({ params, searchParams }: {
   if (!info) notFound();
   // Vercel names the visitor's time zone from their IP; the page starts there.
   const ipZone = headers().get("x-vercel-ip-timezone") || undefined;
-  return <BookingPage info={info} ipZone={ipZone} link={info.link_price_cents ? link : undefined} />;
+  return <BookingPage info={info} ipZone={ipZone} link={info.link_price_cents != null ? link : undefined} />;
 }
