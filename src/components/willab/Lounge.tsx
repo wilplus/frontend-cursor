@@ -110,6 +110,7 @@ import {
   feedbackCheckTarget,
 } from "./feedbackCheck";
 import { postFeedbackCheck, type FeedbackCheckChoice } from "@/services/api/feedbackCheck";
+import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import { useLifeTags } from "@/lib/life/useLifeTags";
 import { applyPick } from "@/lib/life/hashtags";
@@ -2126,6 +2127,12 @@ function Bubble({
       typeof message.metadata?.practice_id === "string"
         ? message.metadata.practice_id
         : null;
+    // WIL-74 — a coach's card about a speaker's new goal opens that speaker.
+    const goalCardSpeaker =
+      message.metadata?.card === "goal_change" &&
+      typeof message.metadata?.speaker === "string"
+        ? message.metadata.speaker
+        : null;
     // B-1 — read the persisted action from metadata; render below the bubbles.
     const actions =
       onChip && message.metadata
@@ -2181,6 +2188,18 @@ function Bubble({
               onClick={() => onOpenConfidencePractice?.(sharedPracticeId)}
             >
               Open exercise
+            </Button>
+          </div>
+        ) : null}
+        {goalCardSpeaker ? (
+          <div className="mr-auto pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-full px-4 text-[13px]"
+              onClick={() => requestOpenSpeaker(goalCardSpeaker)}
+            >
+              Open speaker
             </Button>
           </div>
         ) : null}
