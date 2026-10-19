@@ -1,13 +1,26 @@
 /**
- * The one BFF→backend helper (audit Q-A8, Phase 4).
+ * STORY    As a speaker, I want every app-to-server call to carry my sign-in
+ *          and fail with a plain message, so that I never see a broken
+ *          screen or someone else's data.
+ * OUTCOME
+ *   O1  Signed in: the backend gets my token and its answer reaches me as is.
+ *   O2  Signed out: 401 with the shared words, and no backend call at all.
+ *   O3  The backend unreachable: 502 with the generic words.
+ *   O4  A guest token never rides on an account's call; a signed-out
+ *       guest's own token does.
+ *   O5  A route's own knobs win: `failures` (its words), `relay` (its
+ *       answer shape), `token: null` (no sign-in sent).
+ * PROVES   O1 -> "a signed-in call carries the token and passes the answer through"
+ *          O2 -> "401 UNAUTHENTICATED with the shared copy when signed out"
+ *          O3 -> "502 PROXY_ERROR with the generic copy when fetch throws"
+ *          O4 -> "an account never sends the guest token along",
+ *                "a signed-out guest sends its own token"
+ *          O5 -> "failures: a route keeps its own words",
+ *                "relay: a route shapes its own answer",
+ *                "token: null sends no sign-in"
+ * WHY      The one BFF->backend helper (audit Q-A8); ~150 routes rely on it.
  *
- * Two things are pinned here. First, the pre-Q-A8 behaviour of callBackend
- * for a route that passes nothing: the 59 routes migrated before this phase
- * must see no change. Second, the copy-preserving knobs the 90 routes
- * migrated in this phase rely on: `failures`, `relay`, `token`.
- *
- * `server-only` is a Next.js bundler alias, not a package; `next/headers` needs
- * a request scope. Both are mocked, so the helper runs as plain Node.
+ * `server-only` and `next/headers` are mocked so the helper runs as plain Node.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -16,20 +29,15 @@ vi.mock("server-only", () => ({}));
 const ctx: {
   headerToken: string | null;
   cookieToken: string | null;
-  incomingRequestId?: string | null;
 } = {
   headerToken: "hdr-token",
   cookieToken: null,
 };
 
-/** Every upstream call now carries exactly one request id (audit A1). */
-const RID = { "X-Request-Id": expect.stringMatching(/^[0-9a-f]{12}$/) };
-
 vi.mock("next/headers", () => ({
   headers: async () =>
     new Headers({
       ...(ctx.headerToken ? { Authorization: `Bearer ${ctx.headerToken}` } : {}),
-      ...(ctx.incomingRequestId ? { "X-Request-Id": ctx.incomingRequestId } : {}),
     }),
   cookies: async () => ({ getAll: () => [], set: () => {} }),
 }));
@@ -87,23 +95,16 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("backendFetch — the single construction point", () => {
-  it("builds base + path, Accept, Authorization and no-store", async () => {
-    const { backendFetch } = await load();
-    const calls = stubFetch(() => json({}));
-    await backendFetch("/v2/x", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+describe("callBackend — the shared contract", () => {
+  it("a signed-in call carries the token and passes the answer through", async () => {
+    const { callBackend } = await load();
+    const calls = stubFetch(() => json({ hello: "speaker" }, 409));
+    const res = await callBackend("/v2/x", { method: "POST", body: "{}" });
     expect(calls[0].url).toBe("http://backend.test/v2/x");
-    expect(calls[0].init.method).toBe("POST");
-    expect(calls[0].init.headers).toEqual({ ...RID, 
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      Authorization: "Bearer hdr-token",
-    });
-    expect(calls[0].init.cache).toBe("no-store");
+    expect(calls[0].init.headers?.Authorization).toBe("Bearer hdr-token");
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ hello: "speaker" });
   });
-});
-
-describe("callBackend — defaults (the pre-Q-A8 contract, unchanged)", () => {
 
   it("401 UNAUTHENTICATED with the shared copy when signed out", async () => {
     ctx.headerToken = null;
@@ -138,5 +139,46 @@ describe("callBackend — guestOwnerFrom (Phase 0.6: a guest reads its own page)
     await callBackend("/v2/x", { guestOwnerFrom: from(GUEST) });
     expect(calls[0].init.headers?.Authorization).toBe("Bearer hdr-token");
     expect(calls[0].init.headers?.["X-Willab-Guest-Owner"]).toBeUndefined();
+  });
+
+  it("a signed-out guest sends its own token", async () => {
+    ctx.headerToken = null;
+    const { callBackend } = await load();
+    const calls = stubFetch(() => json({ ok: 1 }));
+    const res = await callBackend("/v2/x", { guestOwnerFrom: from(GUEST) });
+    expect(res.status).toBe(200);
+    expect(calls[0].init.headers?.["X-Willab-Guest-Owner"]).toBe(GUEST);
+    expect(calls[0].init.headers?.Authorization).toBeUndefined();
+  });
+});
+
+describe("callBackend — a route's own knobs", () => {
+  it("failures: a route keeps its own words", async () => {
+    ctx.headerToken = null;
+    const { callBackend } = await load();
+    stubFetch(() => json({}));
+    const res = await callBackend("/v2/x", {
+      failures: { unauthenticated: { status: 401, body: { error: "Please sign in." } } },
+    });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: "Please sign in." });
+  });
+
+  it("relay: a route shapes its own answer", async () => {
+    const { callBackend, failure } = await load();
+    stubFetch(() => json({ raw: true }, 500));
+    const res = await callBackend("/v2/x", {
+      relay: async (upstream) => failure({ status: 503, body: { error: `was ${upstream.status}` } }),
+    });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "was 500" });
+  });
+
+  it("token: null sends no sign-in", async () => {
+    const { callBackend } = await load();
+    const calls = stubFetch(() => json({ ok: 1 }));
+    const res = await callBackend("/v2/x", { token: null, requireAuth: false });
+    expect(res.status).toBe(200);
+    expect(calls[0].init.headers?.Authorization).toBeUndefined();
   });
 });

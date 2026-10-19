@@ -1,14 +1,18 @@
 // @vitest-environment jsdom
 /* -------------------------------------------------------------------------- */
-/*  FOUNDER 2026-09-26 (N14) — the project picker's ⋯ offers Archive.         */
-/*  Deleting a project moved to Data & consent (ProjectsCard.test.tsx         */
-/*  carries the delete contract that used to live here, unchanged).           */
-/*                                                                            */
-/*  Pinned here:                                                              */
-/*    1. every project row's ⋯ offers Archive and never Delete;               */
-/*    2. Archive runs at once and the row leaves the list;                    */
-/*    3. a failed archive says so and keeps the row;                          */
-/*    4. a project with an open deletion request is locked, with no menu.     */
+/*  STORY    As a speaker, I want to archive a project from the picker, never */
+/*           delete it there, with pending deletions locked, so that I tidy   */
+/*           my list without risk.                                            */
+/*  OUTCOME                                                                   */
+/*    O1  Every project row's ⋯ offers Archive and never Delete.              */
+/*    O2  Archive runs at once (that project only) and the row leaves.        */
+/*    O3  A failed archive says so and keeps the row.                         */
+/*    O4  A project with an open deletion request is locked, with no menu.    */
+/*  PROVES   O1 -> "offers Archive and never Delete"                          */
+/*           O2 -> "archives at once and the row leaves the list"             */
+/*           O3 -> "a failed archive says so and keeps the row"               */
+/*           O4 -> "is locked and has no menu"                                */
+/*  WHY      Founder 2026-09-26 (N14): deleting moved to Data & consent.      */
 /* -------------------------------------------------------------------------- */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -35,6 +39,7 @@ vi.mock("@/lib/willab/setupDraft", () => ({
 
 import ProjectPicker from "./ProjectPicker";
 import type { TrainingArc } from "@/services/api/trainings";
+import { PROJECT_ARCHIVE_COPY } from "@/lib/willab/projectArchiveCopy";
 
 function arc(over: Partial<TrainingArc> = {}): TrainingArc {
   return {
@@ -94,6 +99,30 @@ describe("⋯ → Archive", () => {
     await act(async () => button("More options for Board pitch")?.click());
     expect(button("Archive")).toBeDefined();
     expect(button("Delete")).toBeUndefined();
+  });
+
+  it("archives at once and the row leaves the list", async () => {
+    api.archiveProject.mockResolvedValue(true);
+    await renderWith([arc(), arc({ arcId: "arc-2", topic: "Team update" })]);
+    await act(async () => button("More options for Board pitch")?.click());
+    await act(async () => button(PROJECT_ARCHIVE_COPY.archive)?.click());
+    await flush();
+    expect(api.archiveProject).toHaveBeenCalledTimes(1);
+    expect(api.archiveProject).toHaveBeenCalledWith("arc-1");
+    expect(api.requestProjectDeletion).not.toHaveBeenCalled();
+    expect(button("Board pitch")).toBeUndefined();
+    expect(button("Team update")).toBeDefined();
+  });
+
+  it("a failed archive says so and keeps the row", async () => {
+    api.archiveProject.mockResolvedValue(false);
+    await renderWith([arc()]);
+    await act(async () => button("More options for Board pitch")?.click());
+    await act(async () => button(PROJECT_ARCHIVE_COPY.archive)?.click());
+    await flush();
+    expect(api.archiveProject).toHaveBeenCalledWith("arc-1");
+    expect(document.body.textContent).toContain(PROJECT_ARCHIVE_COPY.archiveFailed);
+    expect(button("Board pitch")).toBeDefined();
   });
 });
 

@@ -1,12 +1,20 @@
 // @vitest-environment jsdom
-/* A SPEAKER MAY CHANGE A JUDGEMENT (founder QA1 A, decisions log N51.5;
-   build plan D-FW-9; journey Q3: "the back arrow returns to change it").
-
-   ‹ back to an answered Confident Voice moment reopens its judgement with
-   the latest answer pressed. A different answer posts and the server's 200
-   `revised` is a save like any other; the same answer sends nothing; a
-   rewrite never reopens; a revision the server could not save shows the
-   signed "Couldn't save your answer." notice. No new strings. */
+/*
+ * STORY    As a speaker, I want to go back and change a Confident Voice
+ *          answer, so that my judgement reflects what I really think.
+ * OUTCOME
+ *   O1  ‹ reopens with my earlier answer pressed; a different answer saves
+ *       and becomes my answer.
+ *   O2  The same answer again sends nothing (and still moves me on).
+ *   O3  A rewrite never reopens: its sheet shows no answer buttons.
+ *   O4  A save the server refuses hands the deck the signed
+ *       "Couldn't save your answer." notice.
+ * PROVES   O1 -> "a different answer posts, and the 200 revised is a save that updates the answer"
+ *          O2 -> "the same answer sends nothing"
+ *          O3 -> "a rewrite never reopens"
+ *          O4 -> "a failed save hands the deck the signed notice"
+ * WHY      Founder QA1 A, decisions log N51.5; build plan D-FW-9.
+ */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -16,6 +24,7 @@ import type { DocumentSuggestion } from "@/services/api/idealText";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { fetchOwnerAnswers } from "@/services/api/bookmarkHistory";
 import type { BehindOutcome } from "./saveBehind";
+import { CHUNK_SHEET_COPY } from "./idealEditCopy";
 import {
   forgetParagraphSheetData,
   prefetchParagraphSheets,
@@ -184,5 +193,32 @@ describe("‹ reopens the judgement with the earlier answer pressed", () => {
     expect(onAnswered).toHaveBeenCalledWith("no");
     // The answer stands in the read at once, so ‹ again shows it.
     expect(latestAnswerOf("s-cv", readySheetData(null, "take-1", "p1")?.answers ?? [])).toBe("no");
+  });
+
+  it("the same answer sends nothing", async () => {
+    await renderReopened("yes");
+    expect(pressed()).toEqual(["Yes"]);
+    await act(async () => answerButton("Yes").click());
+    expect(saveTakeFeedbackResponse).not.toHaveBeenCalled();
+    expect(behind).toHaveLength(0);
+    expect(onAnswered).toHaveBeenCalledWith("yes");
+  });
+
+  it("a rewrite never reopens", async () => {
+    await renderReopened("yes", rewrite);
+    expect(container.textContent).toContain(TEXT);
+    expect(pressed()).toEqual([]);
+    expect(() => answerButton("Yes")).toThrow();
+    expect(() => answerButton("No")).toThrow();
+  });
+
+  it("a failed save hands the deck the signed notice", async () => {
+    vi.mocked(saveTakeFeedbackResponse).mockResolvedValueOnce({ ok: false, error: "boom" });
+    await renderReopened("yes");
+    await act(async () => answerButton("No").click());
+    expect(saveTakeFeedbackResponse).toHaveBeenCalledTimes(1);
+    expect(behind).toHaveLength(1);
+    expect(behind[0].failText).toBe(CHUNK_SHEET_COPY.failAnswerBehind);
+    expect(await behind[0].done).toBe("failed");
   });
 });
