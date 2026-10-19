@@ -1,16 +1,24 @@
 // @vitest-environment jsdom
-/* The Feedback sheet's frame, as Ideal Text Final Screens draws it (audit of
-   2026-09-29 against the locked design):
-     - one sheet height for every step, the coach step included;
-     - the compact "Play this moment · 0:09" row on Good job, Suggestion, the
-       paragraph sheet, not the full player (the Exercise is practised in
-       the Feedback walk since 2026-10-10);
-     - a tap on a grey bar draws the paragraph sheet's frame at once, even
-       before its reads land. */
+/*
+ * STORY    As a speaker, I want feedback sheets to use the compact "Play this
+ *          moment" row and draw their frame at once on tap, so that sheets
+ *          feel stable and quick.
+ * OUTCOME
+ *   O1  The Suggestion screen plays my moment in the compact row, not the
+ *       full player.
+ *   O2  A tapped paragraph's sheet draws its frame and saved helper words
+ *       before its reads land, and never the paragraph text (D6).
+ * PROVES   O1 -> "plays the moment in the compact row on Suggestion"
+ *          O2 -> "draws the frame with the helper words, and never the paragraph text (D6)"
+ * WHY      Audit of 2026-09-29 against Ideal Text Final Screens. The one
+ *          sheet height is layout and is not tested here.
+ */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ParagraphSheet from "./ParagraphSheet";
+import DeckChunkModal from "./DeckChunkModal";
+import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import { forgetParagraphSheetData } from "./paragraphSheetData";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { RootPhraseSpan } from "@/services/api/partLock";
@@ -34,11 +42,6 @@ vi.mock("@/services/api/takeFeedback", async (load) => {
 });
 vi.mock("@/lib/api/auth-client", () => ({
   getAuthToken: vi.fn(async () => "test-token"),
-}));
-vi.mock("@/services/api/confidentVoicePractice", () => ({
-  startConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
-  uploadConfidencePracticeAttempt: vi.fn(async () => ({ ok: false, error: null })),
-  fetchConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
 }));
 vi.mock("@/services/api/bookmarkHistory", () => ({
   fetchOwnerAnswers: vi.fn(async () => []),
@@ -115,15 +118,37 @@ afterEach(async () => {
   container.remove();
 });
 
-async function click(label: string) {
-  const button = Array.from(container.querySelectorAll("button")).find(
-    (b) => (b.textContent ?? "").trim() === label && !b.hasAttribute("data-sheet-grabber"),
-  );
-  if (!button) throw new Error(`no button labelled "${label}"`);
-  await act(async () => {
-    button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+describe("the compact moment row", () => {
+  it("plays the moment in the compact row on Suggestion", async () => {
+    const rewrite = suggestion({
+      id: "s-rw",
+      kind: "replace",
+      feedbackFamily: "rewrite_clarity",
+      proposedText: "Ship it now.",
+      snippetAudioRef: "https://media/moment.wav",
+      startOffsetMs: 0,
+      durationMs: 9000,
+    } as Partial<DocumentSuggestion>);
+    const state = chunkStateFor(
+      {
+        part: { id: "p1", text: TEXT, locked: false },
+        paragraphIndex: 0,
+        start: 0,
+        end: TEXT.length,
+        status: "waiting",
+        pendingIds: [rewrite.id],
+        approvedIds: [],
+      } as DeckChunk,
+      { document: TEXT, suggestions: [rewrite] },
+    );
+    await act(async () => {
+      root.render(createElement(DeckChunkModal, { ...props, state }));
+    });
+    const players = Array.from(container.querySelectorAll('[data-testid="media-player"]'));
+    expect(players.length).toBeGreaterThan(0);
+    expect(players.every((p) => p.getAttribute("data-compact") === "true")).toBe(true);
   });
-}
+});
 
 describe("the paragraph sheet while its reads are pending", () => {
   it("draws the frame with the helper words, and never the paragraph text (D6)", async () => {

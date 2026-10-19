@@ -1,61 +1,26 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  THE JUDGEMENT SHEET'S EXERCISE RUNG, AFTER 2026-10-10 (founder: "the    */
-/*  practise screens should be the same in all cases"). The sheet records no  */
-/*  practise of its own any more: the exercise is practised in the Feedback   */
-/*  walk. What is left is the coach's sentence on a bookmark with no          */
-/*  exercise, and the lane the answer chooses.                                */
-/* -------------------------------------------------------------------------- */
-import { act, createElement, useSyncExternalStore } from "react";
+/*
+ * STORY    As a speaker, I want my answer on a bookmark with no exercise to
+ *          lead to the right lane, so that a No always leads somewhere and
+ *          Audio unclear leads nowhere.
+ * OUTCOME
+ *   O1  No (a recognised problem, no exercise): the sheet says the coach is
+ *       working on it, with my recording, and Next closes the sheet.
+ *   O2  Audio unclear on the same bookmark: no coach sentence, the sheet closes.
+ *   O3  Yes on the same bookmark: no coach sentence.
+ * PROVES   O1 -> "says the coach is working on it, with your recording, and Next moves on (D10)"
+ *          O2 -> "Audio unclear never reaches the coach sentence, and closes"
+ *          O3 -> "a Yes shows no coach sentence"
+ * WHY      Founder 2026-09-29 (follow-up matrix); the exercise itself is
+ *          practised in the Feedback walk since 2026-10-10.
+ */
+import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DeckChunkModal from "./DeckChunkModal";
 import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
-import type { DualCaptureState } from "@/hooks/useDualCaptureMic";
 
-/* One mic for every hook in the sheet (the service flow calls it too), so a
-   state pushed here reaches the exercise step exactly as the browser's
-   recorder would deliver it. */
-type MicState = {
-  status: string; message?: string; audioBlob?: unknown; durationSec?: number;
-  finalText?: string; code?: string;
-};
-type MicStore = {
-  state: MicState;
-  set: (next: MicState) => void;
-  subscribe: (listen: () => void) => () => void;
-  started: number;
-};
-const mic = vi.hoisted((): MicStore => {
-  const listeners = new Set<() => void>();
-  const store: MicStore = {
-    state: { status: "idle" },
-    set(next) {
-      store.state = next;
-      listeners.forEach((listen) => listen());
-    },
-    subscribe(listen) {
-      listeners.add(listen);
-      return () => listeners.delete(listen);
-    },
-    started: 0,
-  };
-  return store;
-});
-
-vi.mock("@/hooks/useDualCaptureMic", () => ({
-  useDualCaptureMic: () => {
-    const state = useSyncExternalStore(mic.subscribe, () => mic.state);
-    return {
-      state: state as DualCaptureState,
-      start: async () => { mic.started += 1; mic.set({ status: "recording", partialText: "" } as never); },
-      stop: async () => {},
-      cancel: () => { mic.set({ status: "idle" }); },
-      getAudioStartedAt: () => null,
-    };
-  },
-}));
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
   useVisibleLearningExposure: () => undefined,
 }));
@@ -70,18 +35,14 @@ vi.mock("@/lib/api/auth-client", () => ({
   getAuthToken: vi.fn(async () => "test-token"),
 }));
 
-const practiceApi = vi.hoisted(() => ({
-  startConfidencePractice: vi.fn(),
-  uploadConfidencePracticeAttempt: vi.fn(),
-  fetchConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
-}));
-vi.mock("@/services/api/confidentVoicePractice", () => practiceApi);
-
 const TEXT =
   "We should ship it now because the data is clear and the team is ready.";
 
-const item = {
-  id: "s-cv-practice",
+/* THE BOOKMARK WITH NO EXERCISE (founder 2026-09-29): a No no longer leads
+   nowhere. The server sends the bookmark to the coach when the answer saves;
+   the sheet says so on the Exercise screen, and Next is the way on. */
+const bare = {
+  id: "s-cv-bare",
   start: 0,
   end: 21,
   quote: "We should ship it now",
@@ -92,21 +53,7 @@ const item = {
   source: "confident_voice",
   snippetId: "snip-1",
   takeSessionId: "take-1",
-  practiceExercise: {
-    exerciseId: "ex-1",
-    version: 1,
-    title: "Land the last word",
-    instruction: "Say it again and land on the last word.",
-    introduction: "",
-    yesIntroduction: "",
-    noIntroduction: "",
-    explanationVideoRef: "https://example.test/ex.mp4",
-    passage: "We should ship it now",
-    practiceId: null,
-    resume: false,
-    doneBefore: false,
-    chosenByCoach: false,
-  },
+  practiceExercise: null,
   evidence: {
     projectId: "arc-1", takeSessionId: "take-1", slideIndex: 0,
     paragraphIndex: 0, start: 0, end: 21,
@@ -120,7 +67,7 @@ function chunk(): DeckChunk {
     start: 0,
     end: TEXT.length,
     status: "waiting",
-    pendingIds: [item.id],
+    pendingIds: [bare.id],
     approvedIds: [],
   } as DeckChunk;
 }
@@ -142,9 +89,6 @@ beforeEach(() => {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
-  mic.state = { status: "idle" };
-  mic.started = 0;
-  practiceApi.startConfidencePractice.mockReset();
 });
 afterEach(async () => {
   await act(async () => root.unmount());
@@ -166,16 +110,6 @@ async function click(label: string) {
     button(label).dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
 }
-const offer = () => container.querySelector('[data-testid="practice-offer"]');
-/* THE BOOKMARK WITH NO EXERCISE (founder 2026-09-29): a No no longer leads
-   nowhere. The server sends the bookmark to the coach when the answer saves;
-   the sheet says so on the Exercise screen, and Continue is the way on. */
-const bare = {
-  ...item,
-  id: "s-cv-bare",
-  snippetId: "snip-2",
-  practiceExercise: null,
-} as unknown as DocumentSuggestion;
 const notice = () => container.querySelector('[data-testid="coach-request-notice"]');
 
 const recognisedBare = { ...bare, id: "s-cv-rec-bare", problemRecognised: true } as DocumentSuggestion;
@@ -228,10 +162,18 @@ describe("the lane on every bookmark (founder 2026-09-29)", () => {
     });
   }
 
-  it("Audio unclear never reaches an exercise, even when one is attached", async () => {
-    await open(item);
+  it("Audio unclear never reaches the coach sentence, and closes", async () => {
+    await open(recognised);
     await click("Audio unclear");
-    expect(offer()).toBeNull();
+    expect(notice()).toBeNull();
     expect(props.onClose).toHaveBeenCalled();
+  });
+
+  it("a Yes shows no coach sentence", async () => {
+    await open(recognised);
+    await click("Yes");
+    expect(notice()).toBeNull();
+    // The sheet moved on from the question rather than stopping on it.
+    expect(buttons().some((b) => b.textContent?.trim() === "Audio unclear")).toBe(false);
   });
 });

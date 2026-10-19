@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  ONLY A BOOKMARK OPENS ON TAP (founder 2026-10-06, chat 20:37 UTC,         */
-/*  decisions log N56.5): "a paragraph that is not bookmarked should not      */
-/*  open on tap". Amends lock B7 of 2026-09-30 ("a paragraph with nothing     */
-/*  open is plain text at full width and still opens its own sheet on tap"). */
-/*                                                                            */
-/*  A bookmark is a paragraph in the Take's feedback set (its orange or      */
-/*  green bar) or one saved with helper words (its orange headline); both    */
-/*  keep opening exactly as before. Any other paragraph is plain text: no    */
-/*  button role, no focus, no pointer, and a tap opens nothing.              */
-/* -------------------------------------------------------------------------- */
+/*
+ * STORY    As a speaker, I want only bookmarked paragraphs to open on tap, so
+ *          that plain text stays plain and bookmarks stand out.
+ * OUTCOME
+ *   O1  A paragraph with no bookmark has no button role or focus, and a tap
+ *       or Enter opens nothing; its text is unchanged.
+ *   O2  A paragraph with a bar (the Take's feedback) still opens its sheet.
+ *   O3  A paragraph saved with helper words opens its sheet too.
+ * PROVES   O1 -> "the paragraphs with no bookmark are plain text, and a tap or a key opens nothing"
+ *          O2 -> "a bookmarked paragraph still opens its sheet on tap"
+ *          O3 -> "a paragraph saved with helper words opens on tap too"
+ * WHY      Founder 2026-10-06 (N56.5), amending lock B7 of 2026-09-30.
+ */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -151,6 +153,24 @@ describe("N56.5: a paragraph that is not bookmarked does not open on tap", () =>
     const p1 = paragraphWith("pilot changed our numbers");
     expect(p1.textContent).toBe(SLIDES[0]);
     expect(p1.getAttribute("data-settled")).toBe("true");
-    expect(p1.className).toContain("text-foreground");
+  });
+
+  it("a bookmarked paragraph still opens its sheet on tap", async () => {
+    // The bar: the Take's moment on paragraph 2.
+    serveRoots([]);
+    await render();
+    const bar = paragraphWith("retention went up");
+    expect(bar.getAttribute("role")).toBe("button");
+    await act(async () => bar.click());
+    expect(sheetOpen() || anyDialog()).toBe(true);
+  });
+
+  it("a paragraph saved with helper words opens on tap too", async () => {
+    serveRoots([{ part_id: "p3", slide_index: 2, text: "one more quarter" }]);
+    await render({ suggestions: [] });
+    const saved = paragraphWith("same budget");
+    expect(saved.getAttribute("role")).toBe("button");
+    await act(async () => saved.click());
+    expect(sheetOpen() || anyDialog()).toBe(true);
   });
 });

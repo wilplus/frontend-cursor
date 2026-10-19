@@ -1,20 +1,15 @@
-/* -------------------------------------------------------------------------- */
-/*  The CSP, held (2026-08-04)                                                 */
-/*                                                                            */
-/*  This policy is the one piece of middleware that can take every route down  */
-/*  at once, and on 2026-08-04 it did: #242 tightened style-src into           */
-/*  `style-src-elem 'self'`, Safari refused a stylesheet a DEPENDENCY injects   */
-/*  at runtime, webpack's chunk load rejected with it, and every route showed   */
-/*  "Something went wrong".                                                    */
-/*                                                                            */
-/*  What made it slip through was the shape of the verification: the rendered   */
-/*  HTML really does ship zero <style> tags, so inspecting pages could not      */
-/*  have caught it. The block only exists after a component mounts.            */
-/*                                                                            */
-/*  So these tests assert the POLICY, not the markup. They are deliberately     */
-/*  about what must remain ALLOWED — a CSP fails closed, and every failure      */
-/*  here is something a user cannot load.                                      */
-/* -------------------------------------------------------------------------- */
+/*
+ * STORY    As an operator, I want the CSP to allow what pages need while
+ *          scripts stay nonce-only, so that the site neither breaks nor opens
+ *          to XSS.
+ * OUTCOME
+ *   O1  script-src is nonce + self, never 'unsafe-inline'.
+ *   O2  style-src still allows runtime-injected <style> blocks, and no
+ *       stricter style-src-elem overrides it.
+ * PROVES   O1 -> "keeps scripts on the nonce and never opens them to 'unsafe-inline'"
+ *          O2 -> "still allows the styles a dependency injects at runtime"
+ * WHY      2026-08-04 outage: #242's `style-src-elem 'self'` took every route down on Safari.
+ */
 import { describe, expect, it } from "vitest";
 
 import { getCspDirectives } from "@/middleware";
@@ -31,10 +26,6 @@ function directive(csp: string, name: string): string | null {
 describe("the content security policy", () => {
   const csp = getCspDirectives("test-nonce");
 
-  /* ---------------------------------------------------------------------- */
-  /*  The parts that must not regress while fixing the above                 */
-  /* ---------------------------------------------------------------------- */
-
   it("keeps scripts on the nonce and never opens them to 'unsafe-inline'", () => {
     const script = directive(csp, "script-src")!;
     expect(script).toContain("'nonce-test-nonce'");
@@ -42,5 +33,14 @@ describe("the content security policy", () => {
     // Script is the XSS vector the policy exists to close. Nothing in this
     // file's rollback is allowed to loosen it.
     expect(script).not.toContain("'unsafe-inline'");
+  });
+
+  it("still allows the styles a dependency injects at runtime", () => {
+    // sonner writes its stylesheet into a <style> element on first mount.
+    const style = directive(csp, "style-src")!;
+    expect(style).toContain("'self'");
+    expect(style).toContain("'unsafe-inline'");
+    const elem = directive(csp, "style-src-elem");
+    if (elem) expect(elem).toContain("'unsafe-inline'");
   });
 });

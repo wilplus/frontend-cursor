@@ -1,20 +1,26 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  Wave 2 of Closing the Gap (founder 2026-10-05), on the real deck.         */
-/*                                                                            */
-/*  N48.2 Q6 A (lock B4-5): after Delete the paragraph rejoins the walk at    */
-/*  once on its earlier answer, not only when a moment is still open on it.  */
-/*                                                                            */
-/*  N48.3 Q11 A (35g-6, L8-1, L6-5): a coach's word belongs to its Take, and */
-/*  Step 0 "Your coach" is reached whenever an unseen word exists for the    */
-/*  Take on screen, even after every moment is answered: through the        */
-/*  existing "Review feedback" entry, and only on its tap (J1).              */
-/* -------------------------------------------------------------------------- */
+/*
+ * STORY    As a speaker, I want my coach's unseen word reachable through
+ *          "Review feedback" even when every moment is answered, and a
+ *          paragraph whose helper words I deleted to rejoin the walk, so that
+ *          I never miss my coach or a paragraph.
+ * OUTCOME
+ *   O1  Every moment answered and an unseen coach word: Review feedback
+ *       stays, opens Step 0 only on its tap, and goes once seen (N48.3 Q11 A).
+ *   O2  After Delete the paragraph rejoins the walk on its earlier answer,
+ *       at once, not only when a moment is open on it (N48.2 Q6 A).
+ * PROVES   O1 -> "every moment answered: Review feedback stays for the unseen word, ..."
+ *          O2 -> "a paragraph whose helper words were deleted is back in the walk on its earlier answer"
+ * WHY      Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the
+ *          deck's own rule (buildBookmarks), not on the rendered deck.
+ */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
+import { buildBookmarks, helperWordsDeleted } from "./feedbackPager";
 import type { Part } from "@/lib/willab/documentParts";
+import type { DeckChunk } from "@/lib/willab/deckChunks";
 import {
   type CoachMessage,
   type DocumentSuggestion,
@@ -126,5 +132,29 @@ describe("N48.3 Q11 A: the coach's word for the Take on screen", () => {
     await act(async () => cont.click());
     expect(walkScreen()).toBeNull();
     expect(pager()).toBeNull();
+  });
+});
+
+describe("N48.2 Q6 A: after Delete the paragraph rejoins the walk", () => {
+  // At the deck's own rule (buildBookmarks + helperWordsDeleted): the paragraph
+  // was answered on an earlier Take and has nothing open now.
+  const chunk = (part: Part) => ({ part }) as unknown as DeckChunk;
+  const answeredEarlier = () => ({ pending: 0, decided: 1 });
+  const walkOf = (part: Part, deletedHere = false) =>
+    buildBookmarks(
+      [chunk(part)],
+      answeredEarlier,
+      () => undefined,
+      () => false,
+      (c) => helperWordsDeleted(c.part, deletedHere, false),
+    ).map((b) => b.partId);
+
+  it("a paragraph whose helper words were deleted is back in the walk on its earlier answer", () => {
+    // Never locked: an answered paragraph is not a moment of this walk.
+    expect(walkOf({ id: "p2", text: SLIDES[1], locked: false, iteration: 0 })).toEqual([]);
+    // Deleted on the server (once locked, unlocked now): it rejoins.
+    expect(walkOf({ id: "p2", text: SLIDES[1], locked: false, iteration: 1 })).toEqual(["p2"]);
+    // Deleted on this screen, before the next read says so: it rejoins at once.
+    expect(walkOf({ id: "p2", text: SLIDES[1], locked: false, iteration: 0 }, true)).toEqual(["p2"]);
   });
 });
