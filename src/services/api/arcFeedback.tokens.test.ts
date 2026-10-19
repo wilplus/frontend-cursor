@@ -1,24 +1,25 @@
 // @vitest-environment jsdom
-//
-// Needs a real `window`: the balance refresh is a window event, and
-// `notifyTokensSpent` is SSR-safe (it no-ops without a window), so in the
-// default node environment this whole file would silently pass by measuring
-// nothing.
+/*
+STORY    As a speaker, I want my token balance refreshed right after opening
+         a Take's feedback charges me, and never when nothing was charged, so
+         that a balance drop is never a mystery (payments; feedback after
+         every Take).
+OUTCOME
+  O1  A served feedback read (200) fires exactly one balance-refresh event.
+  O2  A failed read fires none: nothing was charged.
+  O3  A served read returns the feedback; the charge never gates it.
+PROVES   O1 -> "fires one balance refresh when the read was served"
+         O2 -> "does not claim a spend when the endpoint failed"
+         O3 -> "still returns the feedback; the charge never gates the read"
+WHY      The backend charges the insights price on this GET, silently and
+         fail-open. Needs jsdom: notifyTokensSpent no-ops without a window, so
+         in node this file would pass by measuring nothing.
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchArcFeedback } from "./arcFeedback";
 import { WILLAB_TOKENS_SPENT_EVENT } from "@/lib/willabWindowEvents";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => "tok" }));
-
-/* -------------------------------------------------------------------------- */
-/*  Opening a take's feedback is METERED: the BE charges the `insights` price   */
-/*  on this GET, once per arc, silently and fail-open. Nothing about that is    */
-/*  visible on the way in, so without a balance re-read the header number is    */
-/*  simply lower the next time it polls — which reads as a bug, or as a charge  */
-/*  the user never made.                                                       */
-/*                                                                            */
-/*  These tests pin the re-read to the cases that actually spent something.    */
-/* -------------------------------------------------------------------------- */
 
 const PAYLOAD = {
   arc_id: "arc_1",
@@ -54,6 +55,10 @@ async function spentEvents(fn: () => Promise<unknown>): Promise<number> {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("fetchArcFeedback — the metered read", () => {
+  it("fires one balance refresh when the read was served", async () => {
+    reply(200, PAYLOAD);
+    expect(await spentEvents(() => fetchArcFeedback("arc_1"))).toBe(1);
+  });
 
   it("does not claim a spend when the endpoint failed", async () => {
     // Nothing was charged, so nothing should twitch the balance. Firing here
@@ -62,7 +67,7 @@ describe("fetchArcFeedback — the metered read", () => {
     expect(await spentEvents(() => fetchArcFeedback("arc_1"))).toBe(0);
   });
 
-  it("still returns the feedback — the charge never gates the read", async () => {
+  it("still returns the feedback; the charge never gates the read", async () => {
     // Fail-open by contract: metering must not change what the user gets.
     reply(200, PAYLOAD);
     const r = await fetchArcFeedback("arc_1");
