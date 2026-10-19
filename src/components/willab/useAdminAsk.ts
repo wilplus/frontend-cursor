@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import { offerDraft, type OfferType } from "./loungeOffers";
 import { shortDate, type LessonOffer, type PlanPromotion } from "@/lib/booking/offers";
@@ -10,11 +10,12 @@ import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  An ask the admin sent this person from their profile (founder 2026-10-13,  */
-/*  step 2). It shows after their next fresh Take, in the footer slot the app's */
-/*  own offers use, one at a time:                                             */
+/*  step 2). It shows the next time they open the chat (founder 2026-10-18:   */
+/*  waiting for their next Take, it never showed), in the footer slot the     */
+/*  app's own offers use, one at a time:                                       */
 /*    whatsapp     → the WhatsApp offer                                         */
 /*    home_screen  → the add-to-home-screen offer (only where it can install)   */
-/*    consent      → a pointer to the Data & consent page                       */
+/*    consent      → the question in the chat, answered No | Yes (ConsentAsk)  */
 /*    promo        → their plan price, pointing to the pricing screen (step 3)  */
 /*    lesson       → their lesson price, pointing to the booking page (step 3)  */
 /*  While an ask is open the automatic offers hold back, so a Take never gets   */
@@ -25,20 +26,23 @@ export interface AdminAsk {
   id: string;
   kind: "whatsapp" | "home_screen" | "consent" | "promo" | "lesson";
   consent_key: string | null;
+  /** "shown": its bubble is already in their thread, so it is not posted again. */
+  status?: "waiting" | "shown";
   promotion?: PlanPromotion | null;
   lesson?: LessonOffer | null;
 }
 
 interface Inputs {
   state: string;
-  messages: LoungeMessage[];
   threadLoading: boolean;
   append: (draft: LoungeMessageDraft) => Promise<LoungeMessage>;
-  settleTimeRef: MutableRefObject<string | null>;
   installCanOffer: boolean;
   activeOffer: OfferType | null;
   openOffer: (type: OfferType) => void;
 }
+
+/** The chat itself, not the Lab over it nor a parked Take: never mid-recording. */
+const AT_HOME = new Set(["lounge_idle", "review_pending", "insights_ready", "lounge_general"]);
 
 const OFFER_FOR: Record<AdminAsk["kind"], OfferType> = {
   whatsapp: "whatsapp",
@@ -61,7 +65,7 @@ function askBody(ask: AdminAsk): string | undefined {
   return undefined;
 }
 
-function report(id: string, event: "shown" | "opened") {
+function report(id: string, event: "shown" | "opened" | "answered") {
   void fetch(`/api/v2/user/asks/${encodeURIComponent(id)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -70,7 +74,7 @@ function report(id: string, event: "shown" | "opened") {
 }
 
 export function useAdminAsk(inputs: Inputs) {
-  const { state, messages, threadLoading, append, settleTimeRef, installCanOffer, activeOffer, openOffer } = inputs;
+  const { state, threadLoading, append, installCanOffer, activeOffer, openOffer } = inputs;
   // undefined = still asking the server; null = nothing waiting.
   const [ask, setAsk] = useState<AdminAsk | null | undefined>(undefined);
   const shownRef = useRef<string | null>(null);
@@ -87,21 +91,26 @@ export function useAdminAsk(inputs: Inputs) {
   }, []);
 
   useEffect(() => {
-    const settle = settleTimeRef.current;
-    if (!ask || shownRef.current === ask.id || threadLoading || settle === null) return;
-    if (state !== "review_pending" || activeOffer !== null) return;
+    if (!ask || ask.status === "shown" || shownRef.current === ask.id || threadLoading) return;
+    if (!AT_HOME.has(state) || activeOffer !== null) return;
     if (ask.kind === "home_screen" && !installCanOffer) return;
-    const fresh = messages.some((m) => m.kind === "recording_summary" && m.client_created_at > settle);
-    if (!fresh) return;
     shownRef.current = ask.id;
     const type = OFFER_FOR[ask.kind];
     void append(offerDraft(type, askBody(ask)));
     openOffer(type);
     report(ask.id, "shown");
-  }, [ask, state, activeOffer, installCanOffer, threadLoading, messages, append, openOffer, settleTimeRef]);
+  }, [ask, state, activeOffer, installCanOffer, threadLoading, append, openOffer]);
 
   const opened = useCallback(() => {
     if (ask) report(ask.id, "opened");
+  }, [ask]);
+
+  /** A consent ask answered in the chat: closed, and the app's own offers
+   *  may come back. */
+  const answered = useCallback(() => {
+    if (!ask) return;
+    report(ask.id, "answered");
+    setAsk(null);
   }, [ask]);
 
   /** Hold the automatic offers while an ask is pending or loading. `bookHref`
@@ -109,6 +118,8 @@ export function useAdminAsk(inputs: Inputs) {
   return {
     held: ask !== null,
     opened,
+    answered,
+    consentKey: ask?.kind === "consent" ? ask.consent_key : null,
     bookHref: ask?.lesson ? `/book/${encodeURIComponent(ask.lesson.slug)}` : "/book/artur",
   };
 }

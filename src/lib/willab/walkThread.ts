@@ -10,8 +10,9 @@
 /* -------------------------------------------------------------------------- */
 
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "@/components/willab/idealEditCopy";
-import type { LoungeMessageDraft } from "@/services/api/loungeMessages";
+import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import type { FeedbackWalkMoment } from "./feedbackWalkModel";
+import type { PraiseReason } from "./praiseReason";
 import type { WalkBankKey } from "./walkLines";
 import type { WalkStep } from "./walkPlan";
 import { encourageLine, improvedLine, thanksLine } from "./walkPractise";
@@ -169,6 +170,15 @@ export function othersChat(
   };
 }
 
+/** How many of other speakers' moments the speaker judged in `take`'s walk:
+ *  their "👍 Yes" bubbles in the chat (`answer:others`). The judging
+ *  reopened from the Lounge shows that many, answered. Pure. */
+export function othersAnswered(messages: readonly LoungeMessage[], take: string): number {
+  return messages.filter(
+    (m) => m.kind === "walk_step" && m.metadata?.take_session_id === take && m.metadata?.step === "answer:others",
+  ).length;
+}
+
 /** The speaker's answer to a step as their own bubble says it (prototype
  *  v31, lens off). Null: posted elsewhere (helper words, a clearer
  *  version's choice), or nothing to say. */
@@ -195,6 +205,18 @@ export function aiVoiceChat(ai: { title?: string; lead?: string; line: string; t
   };
 }
 
+/** A green moment in the chat once its reason is known: the title and the
+ *  praise line, then the reason's paragraphs, as the walk draws them
+ *  (founder 2026-10-18). Pure. */
+export function praiseChat(
+  moment: FeedbackWalkMoment<unknown>,
+  reason: PraiseReason,
+): { author: WalkAuthor; body: string } {
+  const lead = (moment.praiseLead ?? moment.praiseWords).join(" ");
+  const lines = [moment.praiseTitle ?? COPY.titlePraise, lead, ...reason.paragraphs];
+  return { author: "app", body: lines.filter((line) => line.trim() !== "").join("\n") };
+}
+
 /** What a shown step says in the chat, and who says it; null: nothing.
  *  `say`: the signed line the walk's screen took from a bank, so the chat
  *  says the same one. */
@@ -213,6 +235,7 @@ export function shownStep(
       // "Your coach" over the words, as the prototype's chat writes it.
       return coachText ? { author: "coach", body: `${COPY.titleCoach}\n${coachText}` } : null;
     case "praise":
+      if (moment?.praiseReason) return praiseChat(moment, moment.praiseReason);
       return titled(moment?.praiseTitle ?? COPY.titlePraise, moment?.praiseWords.join(" "));
     case "helpers":
       return app(COPY.titleEmphasis);

@@ -16,6 +16,10 @@ import { useWalkMotion } from "./useWalkMotion";
 /*                                                                            */
 /*  The stage covers the viewport but takes no pointer events of its own: only */
 /*  a live layer does, never the leaving copy.                                 */
+/*                                                                            */
+/*  `backdrop` draws a full-window layer under a stage that is a column (the   */
+/*  coach panel on a computer). It stays while the overlay is swiped out, so   */
+/*  the two leave together as one sheet (founder 2026-10-18).                  */
 /* -------------------------------------------------------------------------- */
 
 function arriveClass(move: WalkMove): string {
@@ -34,34 +38,44 @@ export default function WalkStage<S extends WalkScreen>({
   dir,
   render,
   className,
+  backdrop,
 }: {
   screen: S;
   /** The direction of the step that produced `screen`. */
   dir?: WalkDir;
   render: (screen: S) => ReactNode;
   className?: string;
+  /** Classes of a full-window layer drawn under the stage while it is open. */
+  backdrop?: string;
 }) {
   const { id, move, leaving } = useWalkMotion(screen, dir);
+  const closing = leaving?.move === "close";
   return (
-    <div
-      data-walk-stage
-      className={cn("walk-stage pointer-events-none fixed inset-0 z-50 overflow-hidden", className)}
-    >
-      {isOverlay(screen) ? (
-        <div key={`layer-${id}`} data-walk-move={move} className={cn("walk-layer", arriveClass(move))}>
-          {render(screen)}
-        </div>
+    <>
+      {backdrop && (isOverlay(screen) || closing) ? (
+        <div aria-hidden="true" className={cn("walk-backdrop", backdrop, closing && "walk-ghost")} />
       ) : null}
-      {leaving ? (
-        <div
-          key={`ghost-${leaving.id}`}
-          aria-hidden="true"
-          data-walk-ghost
-          className={cn("walk-layer walk-ghost", leaveClass(leaving.move))}
-        >
-          {render(leaving.screen)}
-        </div>
-      ) : null}
-    </div>
+      <div
+        data-walk-stage
+        data-walk-closing={closing ? "" : undefined}
+        className={cn("walk-stage pointer-events-none fixed inset-0 z-50 overflow-hidden", className)}
+      >
+        {isOverlay(screen) ? (
+          <div key={`layer-${id}`} data-walk-move={move} className={cn("walk-layer", arriveClass(move))}>
+            {render(screen)}
+          </div>
+        ) : null}
+        {leaving ? (
+          <div
+            key={`ghost-${leaving.id}`}
+            aria-hidden="true"
+            data-walk-ghost
+            className={cn("walk-layer walk-ghost", leaveClass(leaving.move))}
+          >
+            {render(leaving.screen)}
+          </div>
+        ) : null}
+      </div>
+    </>
   );
 }

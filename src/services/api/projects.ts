@@ -260,6 +260,15 @@ async function performGuestProjectClaim(): Promise<boolean> {
   }
 }
 
+/** A guest identity on this device that a sign-in will claim: a token that
+ *  was used (a project, an acceptance), not one that was only minted. The
+ *  acceptance gate asks this before its first status read (founder
+ *  2026-10-18): the account's status is only right once the claim has moved
+ *  the guest's acceptance into it. */
+export function hasClaimableGuestOwner(): boolean {
+  return Boolean(readGuestOwnerToken()) && !isMintedOnly();
+}
+
 /** Coalesce signup listeners so one guest credential is never claimed twice. */
 export async function claimGuestProjects(): Promise<boolean> {
   if (claimInFlight) return claimInFlight;

@@ -11,10 +11,14 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   return info ? { title: `${info.title} · ${info.host_name}` } : {};
 }
 
-export default async function Page({ params }: { params: { slug: string } }) {
-  const info = await loadPage(params.slug);
+export default async function Page({ params, searchParams }: {
+  params: { slug: string }; searchParams: { link?: string | string[] };
+}) {
+  // A price link (founder 2026-10-18): ?link= carries a signed price.
+  const link = typeof searchParams.link === "string" ? searchParams.link : "";
+  const info = await loadPage(params.slug, link);
   if (!info) notFound();
   // Vercel names the visitor's time zone from their IP; the page starts there.
   const ipZone = headers().get("x-vercel-ip-timezone") || undefined;
-  return <BookingPage info={info} ipZone={ipZone} />;
+  return <BookingPage info={info} ipZone={ipZone} link={info.link_price_cents != null ? link : undefined} />;
 }

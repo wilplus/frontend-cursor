@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   acceptAuthorization,
   recordAiNoticeRendered,
@@ -15,51 +8,39 @@ import {
   type ProcessingPolicy,
 } from "@/services/api/processingAuthorization";
 import {
-  STEP_ORDER,
-  allDocumentsSeen,
+  DOCUMENT_ORDER,
   canSubmit,
   countryChoices,
-  nextStep,
-  optionalPurposesFor,
   prefilledCountry,
-  previousStep,
-  type Step,
+  type DocumentKey,
 } from "@/lib/legal/acceptanceSteps";
-import { fetchConsentChoices } from "@/services/api/consentChoices";
-import {
-  fetchTrainingConsent,
-  fetchTrainingWording,
-  reportTrainingRefusal,
-  setTrainingConsent,
-  trainingRefusalCode,
-  type TrainingConsent,
-} from "@/services/api/trainingConsent";
-import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
-import TrainingReadMore from "@/components/legal/TrainingReadMore";
-import { getAuthToken } from "@/lib/api/auth-client";
-import { keepPendingTrainingYes } from "@/lib/legal/pendingTrainingYes";
 
 /* -------------------------------------------------------------------------- */
-/*  The Phase-1 acceptance screens (Task 5).                                   */
+/*  The acceptance screen (founder 2026-10-18: one screen).                    */
 /*                                                                            */
-/*  The last missing half of the boundary. The BFF lane, the client and the    */
-/*  RPCs have all existed with no surface that could reach them, which is why  */
-/*  no user has ever produced a receipt and why `enforce` would refuse every   */
-/*  recording.                                                                 */
+/*  Approved on the clickable prototype "Condensed Consent Screens",           */
+/*  https://claude.ai/artifact/6v4vEhppupQc9LC2tzbD6H (version 6): the voice   */
+/*  mark, the agreement text, the three documents as links that open in a      */
+/*  window, the country as a dropdown, the one tick (the recordings consent),  */
+/*  then "Agree and continue" and "Do not agree". It replaces the six-screen   */
+/*  walk of 2026-10-07 (notice, three document screens, country, confirm).     */
 /*                                                                            */
-/*  EVERY WORD ON THESE SCREENS COMES FROM THE POLICY RECORD. The component    */
+/*  EVERY WORD THAT STATES A FACT COMES FROM THE POLICY RECORD. The component  */
 /*  holds no legal copy, no country list, no age. It renders `agreement_copy`  */
 /*  and the three documents as the exact stored bytes — whitespace preserved,  */
 /*  never markdown, never re-wrapped — because those bytes are what the hashes */
-/*  cover and what a user later proves they agreed to. A paraphrase here would */
-/*  make the receipt evidence of words nobody was shown.                       */
+/*  cover and what a user later proves they agreed to. The agreement text is   */
+/*  what the button accepts: the Terms and the age are confirmed by tapping    */
+/*  it, as the text says. The recordings consent (Art 9(2)(a)) stays its own   */
+/*  tick, separate from the contract, which Art 7 is the reason for.           */
 /*                                                                            */
-/*  The strings this file DOES own are navigation and scaffolding — "Back",    */
-/*  "Continue", the step labels. Anything that states a fact about processing  */
-/*  belongs in the policy copy, under founder sign-off (LIVE LOOP fence).      */
+/*  The strings this file DOES own are navigation and scaffolding — the        */
+/*  document names, "Choose your country *", "Continue", "Agree and continue", */
+/*  "Do not agree". Anything that states a fact about processing belongs in    */
+/*  the policy copy, under founder sign-off (LIVE LOOP fence).                 */
 /* -------------------------------------------------------------------------- */
 
-const CLIENT_VERSION = "phase1-acceptance-web-v1";
+const CLIENT_VERSION = "phase1-acceptance-web-v2";
 
 /** One key per acceptance ATTEMPT, held across retries of that attempt — and
  *  deliberately NOT across a stale refetch, which is agreement to different
@@ -68,62 +49,38 @@ function newAttemptKey(): string {
   return crypto.randomUUID();
 }
 
-/** The training choice to offer: the account's own state when signed in,
- *  the public words when not (a visitor; founder 2026-10-15). */
-async function readTrainingChoice(): Promise<{ value: TrainingConsent | null; visitor: boolean }> {
-  if (await getAuthToken()) return { value: await fetchTrainingConsent(), visitor: false };
-  return { value: await fetchTrainingWording(), visitor: true };
-}
-
-/** The ticked yes, once the receipt exists: saved for an account, kept on
- *  the device for a visitor until they sign in (pendingTrainingYes.ts).
- *  Best effort: a refusal never undoes the agreement, and the question is
- *  asked again before the first Take. */
-async function sendTrainingYes(shown: TrainingConsent, visitor: boolean): Promise<void> {
-  if (visitor) {
-    keepPendingTrainingYes(shown);
-    return;
-  }
-  const code = trainingRefusalCode(await setTrainingConsent(true, shown));
-  if (code) reportTrainingRefusal(code, "ask");
-}
-
 function readLocale(): string {
   if (typeof navigator === "undefined") return "en";
   return navigator.language || "en";
 }
 
+const DOCUMENT_TITLES: Record<DocumentKey, string> = {
+  terms: "Terms of Service",
+  privacy: "Privacy Policy",
+  ai: "How AI is used here",
+};
+
 /* ---------------------------------------------------------------- pieces -- */
 
-/** The breathing voice mark from WelcomeConsent, at document scale.
- *  Decorative: the rings and dots carry no state and are aria-hidden. */
-function VoiceMark({ small = false }: { small?: boolean }) {
+/** The breathing voice mark from WelcomeConsent, at the screen's scale: 64px
+ *  on a phone, 80px on a computer (the prototype's sizes). Decorative: the
+ *  rings and dots carry no state and are aria-hidden. */
+function VoiceMark() {
   return (
     <div
-      className={`relative flex items-center justify-center ${
-        small ? "mb-5 h-20 w-20" : "mb-10 h-40 w-40"
-      }`}
+      className="relative mb-4 flex h-16 w-16 items-center justify-center md:mb-5 md:h-20 md:w-20"
       aria-hidden="true"
     >
       <span className="breath-ring absolute inset-0 rounded-full border border-foreground/10" />
       <span
-        className={`breath-ring absolute rounded-full border border-foreground/15 ${
-          small ? "inset-1.5" : "inset-3"
-        }`}
+        className="breath-ring absolute inset-1.5 rounded-full border border-foreground/15"
         style={{ animationDelay: "0.6s" }}
       />
       <span
-        className={`breath-ring absolute rounded-full border border-primary/30 ${
-          small ? "inset-3" : "inset-6"
-        }`}
+        className="breath-ring absolute inset-3 rounded-full border border-primary/30"
         style={{ animationDelay: "1.2s" }}
       />
-      <svg
-        width={small ? 32 : 56}
-        height={small ? 32 : 56}
-        viewBox="0 0 56 56"
-        aria-hidden="true"
-      >
+      <svg className="h-7 w-7 md:h-8 md:w-8" viewBox="0 0 56 56" aria-hidden="true">
         <circle className="welcome-voice-dot" cx="12" cy="28" r="4" fill="hsl(var(--foreground))" />
         <circle className="welcome-voice-dot" cx="28" cy="28" r="6" fill="hsl(var(--foreground))" />
         <circle className="welcome-voice-dot" cx="44" cy="28" r="4" fill="hsl(var(--foreground))" />
@@ -181,34 +138,15 @@ function Secondary({
   );
 }
 
-/** How long the chosen country stays visible before the step advances.
- *
- *  Founder 2026-09-23: selecting a country should carry you forward on its
- *  own, Typeform-style, instead of asking for a second tap on "Continue".
- *
- *  THE DELAY IS NOT DECORATION. The radio has to visibly fill before the step
- *  changes, or the tap reads as "the app jumped" rather than "my answer
- *  registered" — and on a legal screen the second reading is the one that
- *  matters. Short enough not to feel like waiting, long enough to be seen.
- *
- *  ONLY THE COUNTRY STEP DOES THIS, AND THAT IS THE POINT. The two
- *  attestations on `confirm` are the agreement itself. Consent has to stay a
- *  deliberate second action: auto-advancing off a tick box is precisely how a
- *  mis-tap becomes a recorded agreement, and a receipt that names bytes the
- *  user never meant to accept is worse than an extra tap. */
-const COUNTRY_ADVANCE_MS = 260;
-
-/** A selectable card. One shape for the countries and for the two
- *  attestations, because they are the same kind of question. */
-function Choice({
+/** The tick. One shape, because the country used to be the same kind of
+ *  question; it is a dropdown now and this is the one tick left. */
+function Tick({
   selected,
   onClick,
-  indicator,
   children,
 }: {
   selected: boolean;
   onClick: () => void;
-  indicator: "radio" | "check";
   children: React.ReactNode;
 }) {
   return (
@@ -222,18 +160,13 @@ function Choice({
     >
       <span
         aria-hidden="true"
-        className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center border-[1.5px] transition-colors ${
-          indicator === "radio" ? "rounded-full" : "rounded-[5px]"
-        } ${
+        className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border-[1.5px] transition-colors ${
           selected
             ? "border-foreground bg-foreground"
             : "border-muted-foreground/60 bg-background"
         }`}
       >
-        {selected && indicator === "radio" ? (
-          <span className="h-2 w-2 rounded-full bg-background" />
-        ) : null}
-        {selected && indicator === "check" ? (
+        {selected ? (
           <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
             <path
               d="M2 6.2 4.6 8.8 10 3.4"
@@ -250,52 +183,43 @@ function Choice({
   );
 }
 
-/** A stored document, rendered as the exact bytes that were hashed.
- *  No markdown, no per-line styling — see PublishedPolicyText for why. */
-function DocumentPane({
+/** A stored document in its own window: the title, its version and the
+ *  button stay still and only the text scrolls (consent lock 2026-10-15).
+ *  On a phone the window is the whole screen; on a computer it sits in the
+ *  middle, as the Read more window does. The bytes are the hashed ones:
+ *  no markdown, no per-line styling. */
+function DocumentWindow({
   title,
   document,
   onDone,
-  onBack,
 }: {
   title: string;
   document: PolicyDocument;
   onDone: () => void;
-  onBack: () => void;
 }) {
-  /* The screen's own height, as the locked consent prototype draws it
-     (founder 2026-10-07): the title and the buttons stay still and only the
-     text scrolls. Inside the gate's min-height column `flex-1` never capped
-     the pane, so the whole document scrolled and "Done reading" sat at the
-     bottom of it. `dvh` follows a phone's moving toolbars; `vh` is the
-     fallback where dvh is unknown. The gate pads the notch
-     (env(safe-area-inset-top)), so the pane is that much shorter than the
-     screen and its buttons stay on it. */
-  /* ON A COMPUTER, A WINDOW (founder 2026-10-15, consent prototype): the
-     document sits in a fixed-height window in the middle of the screen, so
-     its buttons are always in the same place and only the text scrolls.
-     `supports-[height:100dvh]` makes the phone's real visible height win:
-     two plain h- classes are ordered by the stylesheet, not by this list, and
-     100vh won there, which let a phone's toolbar cover the buttons. */
   return (
-    <div className="flex h-[calc(100vh-env(safe-area-inset-top))] flex-col supports-[height:100dvh]:h-[calc(100dvh-env(safe-area-inset-top))] md:items-center md:justify-center md:bg-muted md:px-6 md:py-8">
-    <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden px-6 pb-6 pt-8 md:max-h-[44rem] md:max-w-[46rem] md:rounded-2xl md:border md:border-border md:bg-background md:shadow-sm">
-      <div className="shrink-0 border-b border-border pb-4">
-        <h1 className="text-[24px] font-semibold tracking-tight text-foreground">
-          {title}
-        </h1>
-        <p className="mt-1 text-[12.5px] text-muted-foreground">
-          Version {document.version}
-        </p>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-background pt-[env(safe-area-inset-top)] md:bg-foreground/35 md:p-4 md:pt-4"
+    >
+      <div className="flex h-full w-full flex-col overflow-hidden bg-background px-6 pb-6 pt-8 text-left md:max-h-[40rem] md:max-w-[40rem] md:rounded-2xl md:shadow-xl">
+        <div className="shrink-0 border-b border-border pb-4">
+          <h2 className="text-[24px] font-semibold tracking-tight text-foreground">
+            {title}
+          </h2>
+          <p className="mt-1 text-[12.5px] text-muted-foreground">
+            Version {document.version}
+          </p>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap py-5 text-[15px] leading-[1.7] text-foreground/90">
+          {document.copy}
+        </div>
+        <div className="flex shrink-0 justify-center pt-4">
+          <Cta onClick={onDone}>Continue</Cta>
+        </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap py-5 text-[15px] leading-[1.7] text-foreground/90">
-        {document.copy}
-      </div>
-      <div className="flex shrink-0 flex-col items-center pt-4">
-        <Cta onClick={onDone}>Continue</Cta>
-        <Secondary onClick={onBack}>Back</Secondary>
-      </div>
-    </div>
     </div>
   );
 }
@@ -310,7 +234,7 @@ export default function Phase1AcceptanceFlow({
 }: {
   policy: ProcessingPolicy;
   /** The country this person gave last time (a re-acceptance), shown already
-   *  chosen on the country step; null asks it fresh (N48.4 Q21 A). */
+   *  chosen; null asks it fresh (N48.4 Q21 A). */
   priorCountry?: string | null;
   /** A receipt now exists for this principal. The gate re-renders its child. */
   onAccepted: () => void;
@@ -318,50 +242,14 @@ export default function Phase1AcceptanceFlow({
    *  not resubmit the hashes we are holding. */
   onStale: () => void;
 }) {
-  const [step, setStep] = useState<Step>("notice");
-  const [seen, setSeen] = useState<ReadonlySet<Step>>(new Set<Step>());
   // Asked once, prefilled after (Q21 A): the person's own earlier answer,
-  // never a guess. The step still shows it and it can still be changed.
+  // never a guess. It still shows and can still be changed.
   const [country, setCountry] = useState<string | null>(() =>
     prefilledCountry(policy, priorCountry),
   );
-  const [ageAttested, setAge] = useState(false);
   const [sensitiveAttested, setSensitive] = useState(false);
-  const [practiceOptIn, setPractice] = useState(false);
-  // Whether the policy in force offers practice as a choice. Under Privacy
-  // 3.4 it is part of the service (N55, N66.2): the tick goes and the
-  // heading counts two (prototype signed 2026-10-08). Read from the server,
-  // which refuses a tick for a purpose the policy makes required; kept on
-  // when it cannot be read, as today.
-  const [practiceOffered, setPracticeOffered] = useState(true);
-  useEffect(() => {
-    let alive = true;
-    void fetchConsentChoices().then((choices) => {
-      if (alive && choices) setPracticeOffered(choices.practiceOffered);
-    });
-    return () => { alive = false; };
-  }, [policy.policyId]);
-  // Help improve WillpowerLab, offered as the third thing to confirm when
-  // practice is no longer a choice (founder 2026-10-15, WIL-8). Optional,
-  // never pre-ticked and never in `canSubmit`: a training yes that gated the
-  // button would be bundled consent (Art 7(4)). Shown only when the switch
-  // is open and off; a failed read simply leaves it out, and "Turn on the
-  // learning?" still asks before the first Take.
-  const [training, setTraining] = useState<TrainingConsent | null>(null);
-  const [trainingOptIn, setTrainingOptIn] = useState(false);
-  // A visitor who is not signed in sees it too (founder 2026-10-15): the
-  // public words, and a yes kept on the device until they sign in.
-  const [visitor, setVisitor] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    void readTrainingChoice().then(({ value, visitor: isVisitor }) => {
-      if (!alive) return;
-      setVisitor(isVisitor);
-      if (value?.available && value.copy && !value.active) setTraining(value);
-    });
-    return () => { alive = false; };
-  }, [policy.policyId]);
-  const trainingOffered = !practiceOffered && training !== null;
+  const [seen, setSeen] = useState<ReadonlySet<DocumentKey>>(new Set<DocumentKey>());
+  const [open, setOpen] = useState<DocumentKey | null>(null);
   const [declined, setDeclined] = useState(false);
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -369,7 +257,8 @@ export default function Phase1AcceptanceFlow({
   const locale = useMemo(readLocale, []);
   const countries = useMemo(
     // Names follow the device language; only the ORDER is fixed, with
-    // Poland pinned first (founder 2026-09-20).
+    // Poland pinned first (founder 2026-09-20) and the United States
+    // (California) second (founder 2026-10-15).
     () => countryChoices(policy, locale),
     [policy, locale],
   );
@@ -379,54 +268,23 @@ export default function Phase1AcceptanceFlow({
   // repeated key, so every retry of this attempt must reuse it — and a stale
   // refetch must NOT, because that is agreement to different bytes and
   // replaying the earlier receipt would record consent to words that changed.
-  // `p_idempotency_key` is TEXT and unique per (principal, key), so carrying
-  // the version makes the key self-describing at no cost.
   const attemptKey = useMemo(
     () => `${policy.policyVersion}:${newAttemptKey()}`,
     [policy],
   );
 
-  // A pending country auto-advance, so that leaving the step by any other
-  // route — Back, or a second choice — cancels the one already scheduled.
-  const advance = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cancelAdvance = useCallback(() => {
-    if (advance.current === null) return;
-    clearTimeout(advance.current);
-    advance.current = null;
+  const openDocument = useCallback((key: DocumentKey) => {
+    setOpen(key);
+    setSeen((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
   }, []);
-  useEffect(() => cancelAdvance, [cancelAdvance]);
 
-  const go = useCallback(
-    (to: Step) => {
-      cancelAdvance();
-      setStep(to);
-      setSeen((prev) => (prev.has(to) ? prev : new Set(prev).add(to)));
-    },
-    [cancelAdvance],
-  );
-
-  // Choosing a country records it and carries the user on. Re-tapping a
-  // different country before the timer fires replaces both the answer and the
-  // pending transition, so the last tap is always the one that counts.
-  const chooseCountry = useCallback(
-    (code: string) => {
-      setCountry(code);
-      cancelAdvance();
-      advance.current = setTimeout(() => {
-        advance.current = null;
-        go("confirm");
-      }, COUNTRY_ADVANCE_MS);
-    },
-    [cancelAdvance, go],
-  );
-
-  // Article 50(1)/(5) is about EXPOSURE, not agreement, so this is written when
-  // the notice is shown and not when the button is pressed: someone who reads
-  // it and closes the screen was still informed. Best effort — a failed
-  // exposure row must never block the screen it is evidence of.
+  // Article 50(1)/(5) is about EXPOSURE, not agreement, so this is written
+  // when the notice is opened and not when the button is pressed: someone
+  // who reads it and closes the screen was still informed. Best effort — a
+  // failed exposure row must never block the screen it is evidence of.
   const exposureSent = useRef(false);
   useEffect(() => {
-    if (step !== "ai" || exposureSent.current) return;
+    if (open !== "ai" || exposureSent.current) return;
     exposureSent.current = true;
     void recordAiNoticeRendered({
       aiNoticeVersion: policy.aiNotice.version,
@@ -434,7 +292,9 @@ export default function Phase1AcceptanceFlow({
       clientRenderId: crypto.randomUUID(),
       clientVersion: CLIENT_VERSION,
     });
-  }, [step, policy.aiNotice.version]);
+  }, [open, policy.aiNotice.version]);
+
+  const ready = canSubmit({ country, sensitiveAttested }, policy);
 
   const submit = useCallback(() => {
     if (!country) return;
@@ -445,17 +305,15 @@ export default function Phase1AcceptanceFlow({
       countryOfResidence: country,
       locale,
       clientVersion: CLIENT_VERSION,
-      optionalPurposes: optionalPurposesFor({ practiceOptIn: practiceOffered && practiceOptIn }),
+      // Nothing optional is offered on this screen: practice is part of the
+      // service (Privacy 3.4+), and the training choice left the screen with
+      // the founder's decision of 2026-10-18. An empty array is a recorded
+      // "nothing chosen", not a missing answer.
+      optionalPurposes: [],
       idempotencyKey: attemptKey,
     })
       .then((result) => {
         if (result.kind === "accepted") {
-          // The training yes needs the receipt that now exists, so it is sent
-          // after it. Best effort: a refusal never undoes the agreement, and
-          // the question is asked again before the first Take.
-          if (trainingOffered && trainingOptIn && training) {
-            return sendTrainingYes(training, visitor).then(onAccepted);
-          }
           onAccepted();
           return;
         }
@@ -466,248 +324,141 @@ export default function Phase1AcceptanceFlow({
         setFailure(result.message);
       })
       .finally(() => setSaving(false));
-  }, [policy, country, locale, attemptKey, practiceOffered, practiceOptIn, trainingOffered, trainingOptIn, training, visitor, onAccepted, onStale]);
+  }, [policy, country, locale, attemptKey, onAccepted, onStale]);
 
-  /* EVERY STEP OPENS AT ITS TOP AND FADES IN (consent lock 2026-10-07; the
-     prototype's render(): a new step resets the scroller and enters over
-     220ms). The gate's viewport scroller outlives the steps, so a step
-     reached from far down the country list used to open scrolled past its
-     voice mark and heading. Each step is a new keyed element, so its fade
-     replays; the fade is CSS (`.acceptance-step`), instant with reduce
-     motion. A re-render inside a step (a tick) keeps the scroll. */
-  const stepKey = declined ? "declined" : step;
+  /* THE SCREEN OPENS AT ITS TOP AND FADES IN (consent lock 2026-10-07). The
+     gate's viewport scroller outlives the screens, so "Nothing was recorded"
+     and the way back each reset it. The fade is CSS (`.acceptance-step`),
+     instant with reduce motion. A re-render inside a screen (a tick) keeps
+     the scroll. */
+  const screenKey = declined ? "declined" : "agree";
   const stepRef = useRef<HTMLDivElement | null>(null);
-  useLayoutEffect(() => {
+  useEffect(() => {
     for (let el = stepRef.current?.parentElement; el; el = el.parentElement) {
       if (el.scrollTop > 0) el.scrollTop = 0;
     }
-  }, [stepKey]);
-  const stage = (content: React.ReactNode) => (
-    <div key={stepKey} ref={stepRef} className="acceptance-step flex flex-1 flex-col">
-      {content}
-    </div>
-  );
+  }, [screenKey]);
+
+  const window_ = open ? (
+    <DocumentWindow
+      title={DOCUMENT_TITLES[open]}
+      document={
+        open === "terms" ? policy.terms : open === "privacy" ? policy.privacy : policy.aiNotice
+      }
+      onDone={() => setOpen(null)}
+    />
+  ) : null;
 
   /* ---------------------------------------------------------- declined -- */
 
   if (declined) {
-    return stage(
-      <div className="flex flex-1 flex-col px-6 py-8">
-        <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
-          <VoiceMark small />
-          <h1 className="max-w-[22ch] text-[27px] font-semibold leading-tight tracking-tight text-foreground">
-            Nothing was recorded
-          </h1>
-          <p className="mt-3.5 max-w-[44ch] text-[14.5px] leading-relaxed text-muted-foreground">
-            You can read the documents again, and you can come back and agree at
-            any time. Until then recording stays closed.
-          </p>
-          <div className="mt-10 flex flex-col items-center">
-            <Cta
-              onClick={() => {
-                setDeclined(false);
-                go("confirm");
-              }}
-            >
-              Go back
-            </Cta>
-            <Secondary
-              onClick={() => {
-                setDeclined(false);
-                go("terms");
-              }}
-            >
-              Read the documents again
-            </Secondary>
+    return (
+      <div key={screenKey} ref={stepRef} className="acceptance-step flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col px-6 py-8">
+          <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
+            <VoiceMark />
+            <h1 className="max-w-[22ch] text-[27px] font-semibold leading-tight tracking-tight text-foreground">
+              Nothing was recorded
+            </h1>
+            <p className="mt-3.5 max-w-[44ch] text-[14.5px] leading-relaxed text-muted-foreground">
+              You can read the documents again, and you can come back and agree at
+              any time. Until then recording stays closed.
+            </p>
+            <div className="mt-10 flex flex-col items-center">
+              <Cta onClick={() => setDeclined(false)}>Go back</Cta>
+              <Secondary
+                onClick={() => {
+                  setDeclined(false);
+                  openDocument("terms");
+                }}
+              >
+                Read the documents again
+              </Secondary>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  /* --------------------------------------------------------- documents -- */
+  /* ------------------------------------------------------------- agree -- */
 
-  if (step === "terms" || step === "privacy" || step === "ai") {
-    const document =
-      step === "terms"
-        ? policy.terms
-        : step === "privacy"
-          ? policy.privacy
-          : policy.aiNotice;
-    const title =
-      step === "terms"
-        ? "Terms of Service"
-        : step === "privacy"
-          ? "Privacy Policy"
-          : "How AI is used here";
-    return stage(
-      <DocumentPane
-        title={title}
-        document={document}
-        onDone={() => go(nextStep(step))}
-        onBack={() => go(previousStep(step))}
-      />
-    );
-  }
-
-  /* ----------------------------------------------------------- country -- */
-
-  if (step === "country") {
-    /* THIS STEP IS THE ONLY LONG ONE, AND IT COULD NOT SCROLL AT ALL (founder
-       2026-09-20, on the first acceptance screen ever shown: "I can't scroll
-       the list"). `justify-center` had been copied from the steps that fit a
-       phone; with twenty-seven countries a centred flex child that overflows
-       spills off BOTH ends, and the overflowing top stays unreachable even
-       once scrolling works.
-
-       `m-auto` on the inner column is what fixes that half, and it still does:
-       the margins centre the column while it fits and collapse to nothing once
-       it is taller than the viewport, leaving an ordinary scroll from the true
-       top.
-
-       The scroll CONTAINER has since moved out (founder 2026-09-23). This step
-       used to carry its own `overflow-y-auto`, which put a scrollbar inside the
-       content; Phase1AcceptanceGate now makes the viewport the scroller for the
-       whole flow, so this step only has to lay itself out. */
-    return stage(
-      <div className="flex flex-1 flex-col px-6 py-8">
+  return (
+    <div key={screenKey} ref={stepRef} className="acceptance-step flex flex-1 flex-col">
+      {/* Laid out with m-auto, never justify-center, so a phone shorter than
+          the screen scrolls it from its true top. The rhythm is the
+          prototype's phone rhythm (24px top, 16px bottom, 24px before the
+          buttons); the 390×844 phone and a computer show it whole. */}
+      <div className="flex flex-1 flex-col px-6 pb-4 pt-6 md:py-8">
         <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
-          <VoiceMark small />
-          <h1 className="max-w-[22ch] text-[27px] font-semibold leading-tight tracking-tight text-foreground">
-            Where do you live?
-          </h1>
-          <p className="mt-3.5 max-w-[44ch] text-[14.5px] leading-relaxed text-muted-foreground">
-            This decides which law applies to your recording, so it has to be
-            your real country of residence.
-          </p>
-          <div className="mt-6 flex w-full flex-col gap-2">
-            {countries.map((choice) => (
-              <Choice
-                key={choice.code}
-                indicator="radio"
-                selected={country === choice.code}
-                onClick={() => chooseCountry(choice.code)}
+          <VoiceMark />
+          {/* THE HASHED BYTES, VERBATIM. Not a summary of them. */}
+          <div className="max-w-[46ch] whitespace-pre-wrap text-center text-[14.5px] leading-[1.6] text-muted-foreground md:leading-relaxed">
+            {policy.agreementCopy}
+          </div>
+          {/* The documents must be AVAILABLE before the decision, not proven
+              read: opening one ticks its name and never gates the button. */}
+          <div className="mt-3 flex w-full flex-wrap items-baseline justify-center gap-x-3.5 gap-y-1.5 text-[13px] md:mt-4">
+            {DOCUMENT_ORDER.map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => openDocument(key)}
+                className="inline-flex items-baseline gap-1.5 py-0.5 text-foreground"
               >
-                <span className="block text-[15px] font-medium text-foreground">
-                  {choice.label}
-                </span>
-              </Choice>
+                <span className="underline underline-offset-[3px]">{DOCUMENT_TITLES[key]}</span>
+                {seen.has(key) ? (
+                  <span className="text-[12px] text-success">read ✓</span>
+                ) : null}
+              </button>
             ))}
           </div>
-          {/* Continue stays, even though a tap now advances on its own. Coming
-              BACK from `confirm` lands here with a country already chosen and
-              nothing left to tap — without this button that is a dead end. It
-              is the fallback, not the main path. */}
-          <div className="mt-10 flex flex-col items-center">
-            <Cta onClick={() => go("confirm")} disabled={country === null}>
-              Continue
-            </Cta>
-            <Secondary onClick={() => go(previousStep("country"))}>
-              Back
-            </Secondary>
+          {/* The country decides which law applies to the recording, so the
+              receipt records it; nothing is preselected except the person's
+              own earlier answer. The asterisk marks it required, like the
+              tick below. */}
+          <div className="relative mt-3.5 w-full md:mt-5">
+            <select
+              id="acceptance-country"
+              aria-label="Country of residence"
+              value={country ?? ""}
+              onChange={(event) => setCountry(event.target.value || null)}
+              className={`h-14 w-full cursor-pointer appearance-none rounded-xl border bg-background pl-4 pr-11 text-[15px] text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground ${
+                country ? "border-foreground font-medium" : "border-border font-normal text-muted-foreground"
+              }`}
+            >
+              <option value="" disabled>
+                Choose your country *
+              </option>
+              {countries.map((choice) => (
+                <option key={choice.code} value={choice.code}>
+                  {choice.label}
+                </option>
+              ))}
+            </select>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ----------------------------------------------------------- confirm -- */
-
-  if (step === "confirm") {
-    const ready = canSubmit(
-      { country, ageAttested, sensitiveAttested, practiceOptIn },
-      policy,
-    );
-    // Laid out like the country step (m-auto, never justify-center), so a
-    // phone shorter than the screen scrolls it from its true top.
-    return stage(
-      <div className="flex flex-1 flex-col px-6 py-8">
-        <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
-          <VoiceMark small />
-          <h1 className="max-w-[22ch] text-[27px] font-semibold leading-tight tracking-tight text-foreground">
-            {practiceOffered || trainingOffered ? "Three things to confirm" : "Two things to confirm"}
-          </h1>
-          <div className="mt-6 flex w-full max-w-[400px] flex-col gap-2">
-            {/* The minimum comes from the policy, never a constant here: a screen
-                that hardcodes 18 keeps saying 18 after the policy changes. */}
-            <Choice
-              indicator="check"
-              selected={ageAttested}
-              onClick={() => setAge((v) => !v)}
-            >
+          {/* The Art 9(2)(a) explicit consent, on its own and never bundled
+              with the contract the button accepts (Art 7(4)). The founder's
+              wording (consent prototype, 2026-10-15). */}
+          <div className="mt-2.5 w-full md:mt-3">
+            <Tick selected={sensitiveAttested} onClick={() => setSensitive((v) => !v)}>
               <span className="block text-[14.5px] leading-snug text-foreground">
-                I am {policy.minimumAge} or older. *
-              </span>
-            </Choice>
-            {/* Separate from the age tick on purpose. This is the Art 9(2)(a)
-                explicit consent, and Art 7(4) is why it cannot be bundled. */}
-            <Choice
-              indicator="check"
-              selected={sensitiveAttested}
-              onClick={() => setSensitive((v) => !v)}
-            >
-              <span className="block text-[14.5px] leading-snug text-foreground">
-                {/* The founder's wording (consent prototype, 2026-10-15).
-                    Engineering's note, recorded for counsel in the backend
-                    pack (25 §9): this is the Art 9(2)(a) tick, and it no
-                    longer names sensitive information. */}
                 I agree that WillpowerLab may process my recordings. *
               </span>
-            </Choice>
+            </Tick>
           </div>
-
-          {/* SEPARATE BLOCK. The two ticks above are what must be confirmed;
-              this one may be left alone and the service still works. The
-              heading counts all three (founder 2026-10-07: "Three things to
-              confirm"); the block keeps its own "Optional" label, and it is
-              absent from `canSubmit` so
-              declining it never blocks the button — an optional purpose that
-              gates the button is a required purpose wearing an optional tick.
-              Founder-approved wording, 2026-09-26 (the "Optional" label and
-              the sentence below) — change it only with sign-off. */}
-          {practiceOffered ? <div className="mt-5 flex w-full max-w-[400px] flex-col gap-2">
-            <p className="text-left text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-              Optional
-            </p>
-            <Choice
-              indicator="check"
-              selected={practiceOptIn}
-              onClick={() => setPractice((v) => !v)}
-            >
-              <span className="block text-[14.5px] leading-snug text-foreground">
-                Personalised practice. Use my recordings to choose short
-                exercises that fit them, to keep the fragments I re-record, and
-                to remember what I am working on so the exercises get more
-                personal. I can turn this off at any time and keep using
-                everything else.
-              </span>
-            </Choice>
-          </div> : null}
-
-          {/* The third thing when practice is part of the service: the
-              training choice, as training wording v4 has it (founder,
-              consent prototype, 2026-10-15). The sentence is the backend's,
-              fingerprinted; Read more opens Privacy section 4a. No
-              "Optional" label and no asterisk: it is the one tick that may
-              be left alone. */}
-          {trainingOffered && training ? <div className="mt-8 flex w-full max-w-[400px] flex-col gap-3 text-left">
-            <p className="text-[16px] font-semibold leading-snug text-foreground">
-              {DATA_CONSENT_COPY.trainingQuestion}
-            </p>
-            <p className="text-[14px] leading-relaxed text-muted-foreground">
-              {training.copy}{" "}
-              <TrainingReadMore privacy={{ copy: policy.privacy.copy, version: policy.privacy.version }} />
-            </p>
-            <Choice
-              indicator="check"
-              selected={trainingOptIn}
-              onClick={() => setTrainingOptIn((v) => !v)}
-            >
-              <span className="block text-[14.5px] leading-snug text-foreground">
-                {DATA_CONSENT_COPY.trainingYes}
-              </span>
-            </Choice>
-          </div> : null}
 
           {failure ? (
             <p
@@ -718,7 +469,10 @@ export default function Phase1AcceptanceFlow({
             </p>
           ) : null}
 
-          <div className="mt-10 flex flex-col items-center">
+          {/* Consent stays a deliberate second action: nothing on this screen
+              advances on its own, and a receipt that names bytes the user
+              never meant to accept is worse than an extra tap. */}
+          <div className="mt-6 flex flex-col items-center md:mt-10">
             <Cta onClick={submit} disabled={!ready || saving}>
               {saving ? "Saving…" : "Agree and continue"}
             </Cta>
@@ -726,57 +480,7 @@ export default function Phase1AcceptanceFlow({
           </div>
         </div>
       </div>
-    );
-  }
-
-  /* ------------------------------------------------------------ notice -- */
-
-  const documents: { step: Step; label: string; version: string }[] = [
-    { step: "terms", label: "Terms of Service", version: policy.terms.version },
-    { step: "privacy", label: "Privacy Policy", version: policy.privacy.version },
-    { step: "ai", label: "How AI is used here", version: policy.aiNotice.version },
-  ];
-
-  return stage(
-    <div className="flex flex-1 flex-col px-6 py-8">
-      <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
-        <VoiceMark small />
-        {/* THE HASHED BYTES, VERBATIM. Not a summary of them. */}
-        <div className="max-w-[46ch] whitespace-pre-wrap text-left text-[14.5px] leading-relaxed text-muted-foreground">
-          {policy.agreementCopy}
-        </div>
-        <div className="mt-7 flex w-full max-w-[400px] flex-col gap-2">
-          {documents.map((document) => (
-            <button
-              key={document.step}
-              type="button"
-              onClick={() => go(document.step)}
-              className="flex w-full items-center justify-between gap-3 rounded-xl border border-border p-4 text-left text-[14.5px] text-foreground transition-colors hover:bg-muted"
-            >
-              <span>
-                {document.label}{" "}
-                <span className="text-[12.5px] text-muted-foreground">
-                  v{document.version}
-                </span>
-              </span>
-              {seen.has(document.step) ? (
-                <span className="text-[12px] text-success">read ✓</span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-        <div className="mt-10 flex flex-col items-center">
-          {/* Opening all three ticks the rows; it never gates this button. The
-              documents must be AVAILABLE before the decision, not proven read. */}
-          <Cta onClick={() => go(allDocumentsSeen(seen) ? "country" : "terms")}>
-            Continue
-          </Cta>
-        </div>
-      </div>
+      {window_}
     </div>
   );
 }
-
-// STEP_ORDER is the contract this file renders against; re-exported so the
-// gate and any future progress affordance read the same order.
-export { STEP_ORDER };

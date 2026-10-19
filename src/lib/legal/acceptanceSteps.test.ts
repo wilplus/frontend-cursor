@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProcessingPolicy } from "@/services/api/processingAuthorization";
-import {
-  canSubmit,
-  countryChoices,
-} from "./acceptanceSteps";
+import { canSubmit, countryChoices } from "./acceptanceSteps";
 
 function policy(overrides: Partial<ProcessingPolicy> = {}): ProcessingPolicy {
   return {
@@ -24,30 +21,14 @@ function policy(overrides: Partial<ProcessingPolicy> = {}): ProcessingPolicy {
 describe("canSubmit", () => {
   const p = policy({ allowedCountries: ["pl", "de"] });
 
-  it("requires country, age and the sensitive-data consent together", () => {
-    expect(
-      canSubmit(
-        { country: "pl", ageAttested: true, sensitiveAttested: true, practiceOptIn: false },
-        p,
-      ),
-    ).toBe(true);
+  it("needs the country and the recordings consent together", () => {
+    expect(canSubmit({ country: "pl", sensitiveAttested: true }, p)).toBe(true);
+    expect(canSubmit({ country: null, sensitiveAttested: true }, p)).toBe(false);
+    expect(canSubmit({ country: "pl", sensitiveAttested: false }, p)).toBe(false);
   });
-});
 
-describe("the optional practice purposes", () => {
-  const p = policy({ allowedCountries: ["pl"] });
-  const base = {
-    country: "pl",
-    ageAttested: true,
-    sensitiveAttested: true,
-  };
-
-  it("does NOT gate the button — declining still submits", () => {
-    // THE WHOLE POINT. An optional purpose that blocks submission is a
-    // required purpose wearing an optional tick, which is the Art 7(4) defect
-    // the 2026-09-23 policy exists to remove.
-    expect(canSubmit({ ...base, practiceOptIn: false }, p)).toBe(true);
-    expect(canSubmit({ ...base, practiceOptIn: true }, p)).toBe(true);
+  it("refuses a country the policy does not allow", () => {
+    expect(canSubmit({ country: "fr", sensitiveAttested: true }, p)).toBe(false);
   });
 });
 

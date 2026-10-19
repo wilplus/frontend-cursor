@@ -10,7 +10,9 @@ import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 /*  prototype v31 `judge`): three full-width tall cards. An answer fills the  */
 /*  card's edge black; the others fade once one is given. Other speakers'     */
 /*  moments in the walk, and the coach's (section 7: "Coaches move to the     */
-/*  same 👍 😐 👎").                                                            */
+/*  same 👍 😐 👎"). An answer given earlier, seen again from the Lounge, is   */
+/*  the orange card (founder 2026-10-18): the speaker's own answer, in the    */
+/*  colour of their own bubbles.                                              */
 /* -------------------------------------------------------------------------- */
 
 const FACES: readonly { value: ConfidenceRatingValue; face: string; label: string }[] = [
@@ -19,8 +21,10 @@ const FACES: readonly { value: ConfidenceRatingValue; face: string; label: strin
   { value: "no", face: "👎", label: WALK_COPY.judgeNo },
 ];
 
-export default function WalkFaces({ answered, onPick }: {
+export default function WalkFaces({ answered, given = false, onPick }: {
   answered: ConfidenceRatingValue | null;
+  /** The answer was given in an earlier opening: its card is orange. */
+  given?: boolean;
   onPick: (value: ConfidenceRatingValue) => void;
 }) {
   return (
@@ -37,7 +41,7 @@ export default function WalkFaces({ answered, onPick }: {
             onClick={() => onPick(o.value)}
             className={cn(
               "walk-press walk-fill flex max-h-[120px] min-h-[72px] flex-1 items-center gap-[18px] rounded-2xl border-[1.5px] bg-background px-[22px] text-left text-[21px] font-semibold text-foreground",
-              on ? "border-foreground" : "border-border",
+              on ? (given ? "border-primary bg-primary text-primary-foreground" : "border-foreground") : "border-border",
               answered !== null && !on && "opacity-35",
             )}
           >

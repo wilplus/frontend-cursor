@@ -142,6 +142,8 @@ function BookingAdmin() {
         }) : <p className="py-3 text-sm text-muted-foreground">No upcoming bookings.</p>}
       </div>
 
+      <PriceLink currency={s.currency} />
+
       <form className="grid gap-7" onSubmit={save} noValidate>
         <section className="grid gap-3.5">
           <h2 className={h3}>Booking page</h2>
@@ -255,5 +257,63 @@ function BookingAdmin() {
         </div>
       </form>
     </main>
+  );
+}
+
+/** A booking link with its own price (founder 2026-10-18). Whoever books
+ *  through it pays that price now, and it becomes their lesson price. */
+function PriceLink({ currency }: { currency: string }) {
+  const [amount, setAmount] = useState("35");
+  const [url, setUrl] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // cents 0: the meeting without a price (founder 2026-10-19).
+  const make = async (e: FormEvent, cents = Math.round(Number(amount) * 100)) => {
+    e.preventDefault();
+    setUrl(null);
+    setErr(null);
+    setCopied(false);
+    try {
+      const res = await fetch(`/api/v2/admin/booking/price-link?price_cents=${cents}`, { cache: "no-store" });
+      const b = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (res.ok && b.url) setUrl(b.url);
+      else setErr(b.error || "Could not make the link. Try again.");
+    } catch {
+      setErr("Could not reach the server.");
+    }
+  };
+
+  return (
+    <section className="grid gap-3.5">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.07em] text-muted-foreground">Price link</h2>
+      <form className="grid gap-3.5 rounded-xl border border-border p-4" onSubmit={make} noValidate>
+        <p className="text-[13px] text-muted-foreground">
+          Whoever books through this link pays this price when they book, and it becomes their price for every lesson after.
+        </p>
+        <div className="flex gap-2.5">
+          <input aria-label="Price" className={field} type="number" min="1" step="1" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <span className="self-center text-sm text-muted-foreground">{currency.toUpperCase()}</span>
+          <button type="submit" className="whitespace-nowrap rounded-[10px] bg-foreground px-[18px] py-2.5 font-semibold text-background">Make link</button>
+        </div>
+        <button type="button" onClick={(e) => void make(e, 0)}
+          className="justify-self-start rounded-[10px] border border-border px-3 py-2.5 text-sm">
+          Make a link without a price
+        </button>
+        <p className="-mt-2 text-[13px] text-muted-foreground">
+          No price is shown anywhere and nothing is paid. Their own lesson price stays as it is.
+        </p>
+        {url && (
+          <div className="flex min-w-0 items-center gap-2.5">
+            <input readOnly aria-label="Price link" className={field} value={url} onFocus={(e) => e.target.select()} />
+            <button type="button" className="whitespace-nowrap rounded-[10px] border border-border px-3 py-2.5 text-sm"
+              onClick={() => { void navigator.clipboard?.writeText(url).then(() => setCopied(true)); }}>
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+        )}
+        {err && <p className="text-[13px] text-destructive">{err}</p>}
+      </form>
+    </section>
   );
 }

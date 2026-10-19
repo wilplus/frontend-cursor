@@ -6,18 +6,22 @@
 /*                                                                            */
 /*    CorpusHomeScreen     Training corpus: the imports, each with whose      */
 /*                         voice it is and how many moments wait, or its      */
-/*                         set-up not finished; the pill "Import audio"       */
-/*    CorpusImportScreen   Import audio (or Finish the set-up): the file, the */
-/*                         corpus page's own fields and words, what to run;   */
-/*                         Import is off until file, topic and language are   */
-/*                         set (Set up needs topic and language)              */
+/*                         set-up not finished; the pill "Import audio"; a    */
+/*                         finished one's ⋯ → Edit (founder 2026-10-18), and  */
+/*                         for the founder ⋯ → Delete (founder 2026-10-19)    */
+/*    CorpusImportScreen   Import audio (or Finish the set-up, or Edit): the  */
+/*                         file, the corpus page's own fields and words, what */
+/*                         to run; Import is off until file, topic and        */
+/*                         language are set (Set up and Save need topic and   */
+/*                         language)                                          */
 /*    CorpusAnalyseScreen  the app's one loader, "Analysing on the server…"   */
 /*                                                                            */
 /*  The judging screen is the panel's own JudgeScreen (CoachPanelScreens),    */
 /*  driven by CoachCorpusJudge. Presentational: the host owns the state, the  */
 /*  fetches and the writes. Every word is COACH_PANEL_COPY's; the only        */
-/*  numbers are counts of moments (AC-9). Hide, delete and restore are not    */
-/*  here: they moved to the founder's admin area (Q-B15 A).                   */
+/*  numbers are counts of moments (AC-9). Hide and restore are not here:     */
+/*  they moved to the founder's admin area (Q-B15 A). The founder's Delete   */
+/*  erases an import for good (founder 2026-10-19); coaches never see it.    */
 /* -------------------------------------------------------------------------- */
 
 import type { ReactNode } from "react";
@@ -25,6 +29,7 @@ import WalkOverlay from "../walk/WalkOverlay";
 import WalkChoices, { type WalkChoice } from "../walk/WalkChoices";
 import WalkFooter from "../walk/WalkFooter";
 import WalkLoading from "../walk/WalkLoading";
+import ProjectRowMenu from "../ProjectRowMenu";
 import { IMPORT_LANGUAGES, OPTIONAL_STAGES, type OptionalStage, type TrainingImport } from "@/services/api/trainingCorpus";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 
@@ -55,7 +60,29 @@ export function importChoice(im: TrainingImport): WalkChoice {
   return { value, label: im.topic, subtitle: `${who} · ${COPY.momentsToJudgeOf(counts.left, counts.total)}` };
 }
 
-export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onClose }: {
+/** A finished import's ⋯ edits its set-up; an unfinished one opens its set-up
+ *  on a tap already, and a running one is still being written. Pure. */
+export function importEditable(im: Pick<TrainingImport, "setupComplete" | "state">): boolean {
+  return im.setupComplete && im.state !== "running";
+}
+
+/** An import's ⋯: Edit when its set-up can be edited, then the founder's
+ *  Delete behind its confirmation; nothing when neither applies. */
+function importMenu(im: TrainingImport, onEdit: (im: TrainingImport) => void,
+  onDelete?: (im: TrainingImport) => Promise<boolean>): ReactNode {
+  const confirm = { title: COPY.deleteImportTitle(im.topic), body: COPY.deleteImportBody, confirmLabel: COPY.delete };
+  const erase = onDelete ? () => onDelete(im) : null;
+  if (importEditable(im)) {
+    return (
+      <ProjectRowMenu label={im.topic} actionLabel={COPY.edit} confirm={null}
+        onDelete={() => { onEdit(im); return Promise.resolve(true); }}
+        secondary={erase ? { label: COPY.delete, confirm, onRun: erase } : undefined} />
+    );
+  }
+  return erase ? <ProjectRowMenu label={im.topic} actionLabel={COPY.delete} confirm={confirm} onDelete={erase} /> : undefined;
+}
+
+export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onEdit, onDelete, onClose }: {
   /** null while it loads or when it could not be read. */
   imports: readonly TrainingImport[] | null;
   loading: boolean;
@@ -63,6 +90,10 @@ export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onC
   fail: string | null;
   onImport: () => void;
   onOpen: (im: TrainingImport) => void;
+  /** The ⋯'s Edit: the set-up again, filled in. */
+  onEdit: (im: TrainingImport) => void;
+  /** The founder's ⋯ → Delete, resolving true once erased; absent for coaches. */
+  onDelete?: (im: TrainingImport) => Promise<boolean>;
   onClose: () => void;
 }) {
   const footer = (
@@ -75,7 +106,10 @@ export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onC
       {imports && imports.length > 0 ? (
         <WalkChoices
           label={COPY.trainingCorpus}
-          choices={imports.map(importChoice)}
+          choices={imports.map((im) => ({
+            ...importChoice(im),
+            menu: importMenu(im, onEdit, onDelete),
+          }))}
           onPick={(v) => {
             const im = imports.find((i) => i.sessionId === v);
             if (im) onOpen(im);
@@ -138,9 +172,11 @@ function RunRow({ label, hint, checked, locked, onChange }: {
   );
 }
 
-export function CorpusImportScreen({ setupOf, form, busy, fail, onChange, onPickFile, onSubmit, onBack, onClose }: {
+export function CorpusImportScreen({ setupOf, edit = false, form, busy, fail, onChange, onPickFile, onSubmit, onBack, onClose }: {
   /** The import whose set-up is being finished, or null for a new file. */
   setupOf: string | null;
+  /** A finished import's set-up, opened from its ⋯ to change it. */
+  edit?: boolean;
   form: ImportForm;
   busy: boolean;
   fail: string | null;
@@ -152,7 +188,7 @@ export function CorpusImportScreen({ setupOf, form, busy, fail, onChange, onPick
 }) {
   const ready = importReady(form, setupOf) && !busy;
   const footer = (
-    <WalkFooter pill={{ label: setupOf ? COPY.setUp : COPY.importPill, onClick: onSubmit, disabled: !ready, testId: "corpus-submit" }}>
+    <WalkFooter pill={{ label: edit ? COPY.save : setupOf ? COPY.setUp : COPY.importPill, onClick: onSubmit, disabled: !ready, testId: "corpus-submit" }}>
       {fail ? <p role="alert" className="m-0 pb-2 text-center text-[14px] text-destructive">{fail}</p> : null}
     </WalkFooter>
   );
@@ -161,8 +197,8 @@ export function CorpusImportScreen({ setupOf, form, busy, fail, onChange, onPick
     onChange({ ...form, stages: on ? [...form.stages.filter((x) => x !== s), s] : form.stages.filter((x) => x !== s) });
   return (
     <WalkOverlay
-      title={setupOf ? COPY.finishTheSetUp : COPY.importAudio}
-      subtitle={setupOf ? COPY.beforeItsMomentsCanBeJudged : null}
+      title={edit ? COPY.edit : setupOf ? COPY.finishTheSetUp : COPY.importAudio}
+      subtitle={setupOf && !edit ? COPY.beforeItsMomentsCanBeJudged : null}
       onBack={onBack} onClose={onClose} footer={footer} testId="coach-panel-corpusimport"
     >
       {setupOf ? null : (

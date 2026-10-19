@@ -246,7 +246,8 @@ function EncourageFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep
   return <WalkFooter dot outline pill={{ label: COPY.pillPractiseAgain, onClick: again, testId: "walk-forward" }} />;
 }
 
-/** The "not yet": the AI clip in the voice Exercise, else the encouragement. */
+/** The "not yet": the AI clip in the voice Exercise or after a clearer
+ *  version (founder 2026-10-18), else the encouragement. */
 function EncourageMessage({ ctx, step, moment }: { ctx: PractiseScreenCtx; step: WalkStep; moment: FeedbackWalkMoment<unknown> }) {
   return (
     aiInstead(ctx, step, moment) ?? (
@@ -272,7 +273,8 @@ function Encourage(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkM
   );
 }
 
-/** In the voice Exercise, a ready AI clip takes the encouragement's place,
+/** In the voice Exercise and after a clearer version's try (founder
+ *  2026-10-18), a ready AI clip takes the encouragement's place,
  *  at most AI_VOICE_MAX per exercise (N71): L4 and L3 the first time after
  *  a try, L5 every later time. Anything else: the locked encouragement. */
 function aiInstead(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {

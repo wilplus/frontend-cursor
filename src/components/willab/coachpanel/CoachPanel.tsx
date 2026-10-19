@@ -23,7 +23,8 @@
 /*                   opens; drawn only when the backend serves them           */
 /*    all speakers   GET /v2/coach/speakers, read each time Your speakers    */
 /*                   opens (D-CP-12): pseudonyms, goals and counts, never a  */
-/*                   moment                                                   */
+/*                   moment. The list draws at once from the queue already   */
+/*                   held (the same speakers) and the read refreshes it      */
 /*    the corpus     GET /v2/coach/training-imports each time Training       */
 /*                   corpus opens (D-CP-20); POST an import (then the         */
 /*                   loader until the backend says ready or failed); PUT an  */
@@ -68,8 +69,10 @@ import {
   fetchCoachSpeakers, queueSpeakerFor, speakersFromQueue, type PanelSpeaker,
 } from "@/services/api/coachSpeakers";
 import {
-  fetchBlindConfidenceQueue, fetchTrainingImports, importTrainingAudio, saveImportSetup, type TrainingImport,
+  eraseTrainingImport, fetchBlindConfidenceQueue, fetchTrainingImports, importTrainingAudio, saveImportSetup, type TrainingImport,
 } from "@/services/api/trainingCorpus";
+import { isFounderEmail } from "@/lib/founder";
+import { useUserEmail } from "../useUserEmail";
 
 type StageScreen = WalkScreen & { panel: PanelScreen };
 type TakeMedia = { clips: Record<string, PanelClip>; slides: Record<string, ReadSlide> };
@@ -165,8 +168,10 @@ function useBlindLines(queueOpen: boolean) {
   return { audit, picks, setAudit, setPicks, v4Picks, setV4Picks, v4Surer, setV4Surer };
 }
 
-/** Every speaker, read each time Your speakers opens. `failed` when the read
- *  could not be had: the list then draws the queue's own speakers. */
+/** Every speaker, read each time Your speakers opens. `speakers` is null
+ *  until the read is in, or when it could not be had: the list meanwhile
+ *  draws the queue's own speakers (the backend builds both from one queue),
+ *  so it opens at once instead of waiting on a second read of it. */
 function useAllSpeakers(open: boolean) {
   const [read, setRead] = useState<{ speakers: PanelSpeaker[] | null; done: boolean }>({ speakers: null, done: false });
   useEffect(() => {
@@ -178,7 +183,7 @@ function useAllSpeakers(open: boolean) {
     });
     return () => { cancelled = true; };
   }, [open]);
-  return { speakers: read.speakers, loading: open && !read.done, failed: read.done && read.speakers === null };
+  return { speakers: read.speakers, loading: open && !read.done };
 }
 
 /** The imports, read each time Training corpus opens; null while dark. */
@@ -288,6 +293,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading }: Coach
   const blind = useBlindLines(screen.key === "queue");
   const all = useAllSpeakers(screen.key === "speakers");
   const corpus = useImports(screen.key === "corpushome");
+  const founder = isFounderEmail(useUserEmail());
   const [form, setForm] = useState<ImportForm>(BLANK_IMPORT);
   const [corpusBusy, setCorpusBusy] = useState(false);
   const [corpusFail, setCorpusFail] = useState<string | null>(null);
@@ -310,10 +316,40 @@ export default function CoachPanel({ state, dispatch, speakers, loading }: Coach
     dispatch({ type: "corpusJudge", importId: im.sessionId, topic: im.topic });
   }
 
-  async function submitImport(setupOf: string | null): Promise<void> {
+  /** A finished import's ⋯ → Edit: its set-up again, filled in. The list
+   *  does not carry "where it came from", so that field starts empty. */
+  function editImport(im: TrainingImport): void {
+    setCorpusFail(null);
+    setForm({ ...BLANK_IMPORT, topic: im.topic, speaker: im.speakerLabel ?? "", language: im.language });
+    dispatch({ type: "corpusImport", setupOf: im.sessionId, edit: true });
+  }
+
+  /** The founder's ⋯ → Delete: the import is erased for good, then the list
+   *  reads again. False keeps the confirmation open and says so. */
+  async function deleteImport(im: TrainingImport): Promise<boolean> {
+    const result = await eraseTrainingImport(im.sessionId);
+    if (result.ok) corpus.refresh();
+    return result.ok;
+  }
+
+  async function submitImport(setupOf: string | null, edit = false): Promise<void> {
     if (corpusBusy || form.language === null || !form.topic.trim()) return;
     setCorpusBusy(true);
     setCorpusFail(null);
+    if (setupOf && edit) {
+      // An edit changes the words only: no loader, no judging, back to the
+      // imports, which read the new name.
+      const saved = await saveImportSetup(setupOf, {
+        topic: form.topic.trim(), language: form.language,
+        speakerLabel: form.speaker.trim() || null, source: form.source.trim() || null,
+      });
+      setCorpusBusy(false);
+      if (!saved.ok) { setCorpusFail(saved.error ?? COPY.answerFail); return; }
+      setForm(BLANK_IMPORT);
+      corpus.refresh();
+      dispatch({ type: "back" });
+      return;
+    }
     if (setupOf) {
       // As the prototype: the app's one loader while the set-up saves, then
       // straight to judging with "Set up · {n} moments".
@@ -416,8 +452,8 @@ export default function CoachPanel({ state, dispatch, speakers, loading }: Coach
     }
     if (panel.key === "speakers") {
       return (
-        <SpeakersScreen speakers={all.failed ? speakersFromQueue(speakers) : all.speakers}
-          loading={all.loading || (all.failed && loading)} onClose={close}
+        <SpeakersScreen speakers={all.speakers ?? speakersFromQueue(speakers)}
+          loading={all.speakers === null && (all.loading || loading)} onClose={close}
           onSpeaker={(speaker) => dispatch({ type: "speaker", speaker: queueSpeakerFor(speaker, speakers) })} />
       );
     }
@@ -433,14 +469,14 @@ export default function CoachPanel({ state, dispatch, speakers, loading }: Coach
       return (
         <CorpusHomeScreen imports={corpus.imports} loading={corpus.loading} fail={live ? corpusFail : null}
           onImport={() => { setCorpusFail(null); setForm(BLANK_IMPORT); dispatch({ type: "corpusImport" }); }}
-          onOpen={openImport} onClose={close} />
+          onOpen={openImport} onEdit={editImport} onDelete={founder ? deleteImport : undefined} onClose={close} />
       );
     }
     if (panel.key === "corpusimport") {
       return (
-        <CorpusImportScreen setupOf={panel.setupOf} form={form} busy={corpusBusy} fail={live ? corpusFail : null}
+        <CorpusImportScreen setupOf={panel.setupOf} edit={panel.edit} form={form} busy={corpusBusy} fail={live ? corpusFail : null}
           onChange={setForm} onPickFile={() => fileInput.current?.click()}
-          onSubmit={() => void submitImport(panel.setupOf)} onBack={() => dispatch({ type: "back" })} onClose={close} />
+          onSubmit={() => void submitImport(panel.setupOf, panel.edit)} onBack={() => dispatch({ type: "back" })} onClose={close} />
       );
     }
     if (panel.key === "corpusanalyse") return <CorpusAnalyseScreen onClose={close} />;
@@ -484,8 +520,8 @@ export default function CoachPanel({ state, dispatch, speakers, loading }: Coach
   return (
     <MediaRefreshProvider refresh={refreshMedia} payload={mediaPayload}>
       {/* On a computer, the same phone-width screens, centred (Q-B14 A). */}
-      {screen.key !== "lounge" ? <div aria-hidden="true" className="fixed inset-0 z-50 hidden bg-muted md:block" /> : null}
-      <WalkStage screen={stage} dir={state.dir} render={render} className="md:mx-auto md:max-w-[430px]" />
+      <WalkStage screen={stage} dir={state.dir} render={render} className="walk-stage-column md:mx-auto md:max-w-[430px]"
+        backdrop="fixed inset-0 z-50 hidden bg-muted md:block" />
       <input ref={fileInput} type="file" accept="audio/*,video/mp4" className="hidden" data-testid="corpus-file-input"
         onChange={(e) => { const f = e.target.files?.[0] ?? null; e.target.value = ""; if (f) setForm((prev) => ({ ...prev, file: f })); }} />
       {toast ? <WalkToast key={toast.id} message={toast.text} onDone={() => setToast(null)} /> : null}

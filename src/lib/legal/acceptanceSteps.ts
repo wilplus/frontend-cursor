@@ -1,7 +1,8 @@
 import type { ProcessingPolicy } from "@/services/api/processingAuthorization";
 
 /* -------------------------------------------------------------------------- */
-/*  The acceptance screen's rules, separated from its rendering (Task 5).      */
+/*  The acceptance screen's rules, separated from its rendering (Task 5;       */
+/*  one screen since founder 2026-10-18).                                      */
 /*                                                                            */
 /*  Same reason policyText.ts exists next door: vitest cannot transform .tsx,  */
 /*  so a rule left inside a component is a rule no unit test can reach. These  */
@@ -9,29 +10,14 @@ import type { ProcessingPolicy } from "@/services/api/processingAuthorization";
 /*  are exactly the ones that need tests.                                      */
 /* -------------------------------------------------------------------------- */
 
-export type Step = "notice" | "terms" | "privacy" | "ai" | "country" | "confirm";
+/** The three documents, in the order their links sit on the screen. They
+ *  open in a window from the one acceptance screen (founder 2026-10-18):
+ *  GDPR Art 13 information has to be AVAILABLE before the processing is
+ *  agreed to, which a link next to the decision is; it does not have to be
+ *  walked through. */
+export type DocumentKey = "terms" | "privacy" | "ai";
 
-/** The order a first-time user walks. The three documents sit BETWEEN the
- *  notice and the decision on purpose: GDPR Art 13 information has to be given
- *  before the processing is agreed to, not linked underneath the button. */
-export const STEP_ORDER: readonly Step[] = [
-  "notice",
-  "terms",
-  "privacy",
-  "ai",
-  "country",
-  "confirm",
-];
-
-export function nextStep(step: Step): Step {
-  const at = STEP_ORDER.indexOf(step);
-  return at >= 0 && at < STEP_ORDER.length - 1 ? STEP_ORDER[at + 1] : step;
-}
-
-export function previousStep(step: Step): Step {
-  const at = STEP_ORDER.indexOf(step);
-  return at > 0 ? STEP_ORDER[at - 1] : step;
-}
+export const DOCUMENT_ORDER: readonly DocumentKey[] = ["terms", "privacy", "ai"];
 
 export interface CountryChoice {
   /** Lowercase, exactly as the policy stores it. */
@@ -156,64 +142,23 @@ export function countryChoices(
 export interface ConfirmState {
   /** The code the user picked, or null before they pick. */
   country: string | null;
-  /** Art 8 / Terms §2 — the policy's own minimum, not a constant here. */
-  ageAttested: boolean;
   /** Art 9(2)(a) — the separate explicit consent for what a voice can reveal. */
   sensitiveAttested: boolean;
-  /** Art 6(1)(a) — practice, and the profile that personalises it.
-   *
-   *  REFUSABLE, and deliberately absent from `canSubmit`. Someone who leaves
-   *  this off gets the whole service minus practice; if it gated the button it
-   *  would be a required purpose wearing an optional tick, which is the Art
-   *  7(4) defect the 2026-09-23 policy exists to remove. */
-  practiceOptIn: boolean;
-}
-
-/** The purposes the optional tick stands for.
- *
- *  TWO ROWS, ONE CHOICE. The recommendation and the profile that makes it
- *  personal are one decision from the user's side — a profile that
- *  personalises nothing, or exercises that cannot be personalised, is a choice
- *  with no meaning. They travel together in `p_optional_purposes`, which the
- *  accept RPC validates against the policy: a purpose that is not in it, or
- *  one that is required, is refused rather than silently recorded. */
-export const OPTIONAL_PURPOSE_IDS: readonly string[] = [
-  "personalized_exercise_recommendation",
-  "individual_learning_profile",
-];
-
-/** What to send as `optional_purposes` for this state. Empty when declined —
- *  an empty array is a recorded "no", not a missing answer. */
-export function optionalPurposesFor(
-  state: Pick<ConfirmState, "practiceOptIn">,
-): readonly string[] {
-  return state.practiceOptIn ? OPTIONAL_PURPOSE_IDS : [];
 }
 
 /** Whether "Agree and continue" may be pressed.
  *
- *  ALL THREE, SEPARATELY. The two attestations are not one checkbox split in
- *  half for looks: the first is a contract condition and the second is the
- *  Art 9(2)(a) explicit consent, and Art 7(4) is the reason they cannot be
- *  bundled into a single tick. The country is required because the receipt
- *  records which law was accepted under.
+ *  THE TICK AND THE COUNTRY, SEPARATELY. The age and the Terms are accepted
+ *  by the button itself, as the agreement text above it says (founder
+ *  2026-10-18); the recordings tick is the Art 9(2)(a) explicit consent and
+ *  Art 7(4) is the reason it cannot be folded into that button. The country
+ *  is required because the receipt records which law was accepted under.
  */
 export function canSubmit(
   state: ConfirmState,
   policy: ProcessingPolicy,
 ): boolean {
-  if (!state.ageAttested || !state.sensitiveAttested) return false;
+  if (!state.sensitiveAttested) return false;
   if (!state.country) return false;
   return policy.allowedCountries.includes(state.country);
-}
-
-/** Every document has been opened at least once.
- *
- *  Used to TICK the rows, never to gate the button. The law requires the
- *  documents be available before the decision, not that we prove someone read
- *  them — and a Continue that refuses until three panes have been opened
- *  teaches people to tap through three panes.
- */
-export function allDocumentsSeen(seen: ReadonlySet<Step>): boolean {
-  return seen.has("terms") && seen.has("privacy") && seen.has("ai");
 }

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { aiVoiceChat, answerBody, momentChat, othersChat, shownStep, walkStepDraft, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { aiVoiceChat, answerBody, momentChat, othersAnswered, othersChat, praiseChat, shownStep, walkStepDraft, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkStep } from "@/lib/willab/walkPlan";
 import type { WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
@@ -64,6 +64,8 @@ import {
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import type { LockResult } from "./DeckChunkModal";
 import { praiseTitleFor } from "@/lib/willab/praiseLevels";
+import { useGreenReasons } from "./walk/useGreenReasons";
+import type { WalkPraiseReasons } from "@/lib/willab/praiseReason";
 
 /* -------------------------------------------------------------------------- */
 /*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
@@ -125,8 +127,15 @@ type SlideGroup = { slideIndex: number | null; chunks: readonly DeckChunk[] };
  *  Feedback sheet shows). Only on a praise; never made up. */
 export function praiseWordsOf(item: DocumentSuggestion): string[] {
   if (item.praiseLine) return [item.praiseLine];
-  const lead = item.tentative ? CHUNK_SHEET_COPY.praiseTentative : PRAISE_LEAD;
-  return [lead, ...praiseLines(item.cueKeys ?? [])];
+  return [...praiseLeadOf(item), ...praiseLines(item.cueKeys ?? [])];
+}
+
+/** The praise's own line without the cue sentences: what the first bubble
+ *  says when GPT's reason explains the moment below it (founder
+ *  2026-10-18). Pure. */
+export function praiseLeadOf(item: DocumentSuggestion): string[] {
+  if (item.praiseLine) return [item.praiseLine];
+  return [item.tentative ? CHUNK_SHEET_COPY.praiseTentative : PRAISE_LEAD];
 }
 
 function slideOf(groups: readonly SlideGroup[], partId: string): number | null {
@@ -182,6 +191,19 @@ export function deckReplayItems(
   return out;
 }
 
+/** A green moment's reason written after the page was read says in the
+ *  chat what the screen says (founder 2026-10-18). Pure. */
+function withLateReason<S extends { author: WalkAuthor; body: string } | null>(
+  said: S,
+  step: WalkStep,
+  moment: FeedbackWalkMoment<DocumentSuggestion> | null,
+  reasons: WalkPraiseReasons,
+): S | ReturnType<typeof praiseChat> {
+  if (!said || !moment || step.key !== "praise" || moment.praiseReason) return said;
+  const reason = reasons.of(moment.clip?.snippetId);
+  return reason ? praiseChat(moment, reason) : said;
+}
+
 /** The screens a moment's coach answer is drawn on. */
 /** How long a step tapped in the Lounge waits on the replay's reads. */
 const REPLAY_WAIT_MS = 4000;
@@ -217,6 +239,8 @@ function walkItemOf(
     slideLabel: label,
     praiseWords: praise ? praiseWordsOf(item) : null,
     praiseTitle: praise ? praiseTitleFor(item.levelKey, item.id) : null,
+    praiseLead: praise ? praiseLeadOf(item) : null,
+    praiseReason: praise ? item.praiseReason ?? null : null,
     clip: item.snippetAudioRef
       ? { src: item.snippetAudioRef, startOffsetMs: item.startOffsetMs, durationMs: item.durationMs, snippetId: item.snippetId }
       : null,
@@ -596,6 +620,16 @@ export function useDeckFeedbackWalk(args: {
     [chunks, groups, waiting, pendingOf, slideLabel],
   );
   const take = useMemo(() => reviewedTake(items, pageTake), [items, pageTake]);
+  /* WHY THE GREEN MOMENT LANDED (founder 2026-10-18): a green clip that
+     reached the page before its reason was written is asked for here, and
+     the walk draws it once it is in. */
+  const reasonClips = useMemo(
+    () => [...new Set(items.flatMap((i) => (i.green === true && !i.praiseReason && i.clip?.snippetId ? [i.clip.snippetId] : [])))],
+    [items],
+  );
+  const greenReasons = useGreenReasons(args.arcId ?? null, take, reasonClips);
+  const reasonsRef = useRef(greenReasons);
+  reasonsRef.current = greenReasons;
   /* EVERY STEP IS A LOUNGE MESSAGE (founder lock 2026-10-12, section 1):
      what the walk shows and what the speaker answers, stored once, behind
      the screen. A failed post never stops the walk. */
@@ -671,6 +705,9 @@ export function useDeckFeedbackWalk(args: {
     () => (threadMessages && take ? threadTries(threadMessages, take) : new Map<string, ReplayTries>()),
     [threadMessages, take],
   );
+  // The judging of other speakers, reopened from the Lounge, shows the
+  // moments already answered in this walk (founder 2026-10-18).
+  const othersJudged = useMemo(() => (threadMessages && take ? othersAnswered(threadMessages, take) : 0), [threadMessages, take]);
   const [triedByPractice, setTriedByPractice] = useState<Readonly<Record<string, ReplayTries | null>>>({});
   const askedPractices = useRef(new Set<string>());
   useEffect(() => {
@@ -1077,6 +1114,7 @@ export function useDeckFeedbackWalk(args: {
       if (step.key === "coachnote" && coach?.videoUrl) {
         said = { author: "coach", body: said?.body ?? CHUNK_SHEET_COPY.titleCoach, extra: { video: coach.videoUrl } };
       }
+      said = withLateReason(said, step, moment, reasonsRef.current);
       // The label above a moment, and the speaker's clip before its bubble.
       const chat = said ? momentChat(walkModel.plan, step, moment) : null;
       // The moment's paragraph: a tap in the chat finds the step by it.
@@ -1143,6 +1181,8 @@ export function useDeckFeedbackWalk(args: {
           onShown={onShown}
           onAnswer={onAnswer}
           onOthers={onOthers}
+          reasons={greenReasons}
+          othersJudged={othersJudged}
         />
     ),
     [
@@ -1166,6 +1206,8 @@ export function useDeckFeedbackWalk(args: {
       onShown,
       onAnswer,
       onOthers,
+      greenReasons,
+      othersJudged,
     ],
   );
 

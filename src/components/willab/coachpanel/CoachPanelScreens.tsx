@@ -9,7 +9,9 @@
 /*                   serves those lines (both switched off today)             */
 /*    SpeakersScreen Your speakers: every speaker this coach may hear, an     */
 /*                   orange dot on those waiting (flow step 1; D-CP-12)      */
-/*    SpeakerScreen  one speaker: their goal and their Takes                 */
+/*    SpeakerScreen  one speaker: their goal and their Takes; the open ones   */
+/*                   first, then "Answered", faded, most recently answered  */
+/*                   first (founder 2026-10-18)                             */
 /*    JudgeScreen    the player, the question, 👍 😐 👎, Audio unclear, Skip. */
 /*                   NOTHING                                                  */
 /*                   ELSE (BLIND COACH): no passage, no kind, no machine      */
@@ -89,6 +91,22 @@ export function speakerChoice(speaker: QueueSpeaker, index: number): WalkChoice 
   return { value, label: speaker.pseudonym, subtitle: COPY.answered, mark: "check" };
 }
 
+/** The newest Take a speaker sent, as a time to sort by; 0 when unknown. */
+function latestSent(speaker: QueueSpeaker): number {
+  return speaker.takes.reduce((latest, t) => Math.max(latest, Date.parse(t.sentAt) || 0), 0);
+}
+
+/** The queue as the coach sees it (founder 2026-10-18): a speaker with
+ *  nothing left to do drops out (they stay in Your speakers), and the speaker
+ *  who sent most recently is at the top. Pure. */
+export function queueOrder(speakers: readonly QueueSpeaker[]): QueueSpeaker[] {
+  return speakers
+    .filter((s) => s.waiting > 0 || s.takes.some((t) => t.waitingForText))
+    .map((s, i) => ({ s, i, at: latestSent(s) }))
+    .sort((a, b) => b.at - a.at || a.i - b.i)
+    .map(({ s }) => s);
+}
+
 export type BlindRows = {
   audit: ErrorAuditQueue | null;
   picks: BlockPickQueue | null;
@@ -144,15 +162,16 @@ export function QueueScreen({ speakers, loading, blind, onSpeaker, onClose }: {
   onSpeaker: (speaker: QueueSpeaker) => void;
   onClose: () => void;
 }) {
+  const waiting = queueOrder(speakers);
   return (
     <WalkOverlay title={COPY.queueTitle} onClose={onClose} testId="coach-panel-queue">
-      {speakers.length > 0 ? (
+      {waiting.length > 0 ? (
         <Group label={COPY.yourSpeakers} testId="coach-panel-speakers">
           <WalkChoices
             label={COPY.yourSpeakers}
-            choices={speakers.map(speakerChoice)}
+            choices={waiting.map(speakerChoice)}
             onPick={(v) => {
-              const speaker = speakers[Number(v)];
+              const speaker = waiting[Number(v)];
               if (speaker) onSpeaker(speaker);
             }}
           />
@@ -219,6 +238,18 @@ export function takesNewestFirst(takes: readonly QueueTake[]): QueueTake[] {
   return [...takes].sort((a, b) => (b.takeIndex ?? 0) - (a.takeIndex ?? 0));
 }
 
+/** Nothing left for this coach on the Take: it goes under Answered. Pure. */
+export function takeAnswered(take: Pick<QueueTake, "waiting" | "waitingForText">): boolean {
+  return !take.waitingForText && take.waiting === 0;
+}
+
+/** The answered Takes, the most recently answered first; a Take whose answer
+ *  time is not sent falls back on when it came in, then its number. Pure. */
+export function takesRecentlyAnsweredFirst(takes: readonly QueueTake[]): QueueTake[] {
+  const when = (t: QueueTake) => t.answeredAt || t.sentAt || "";
+  return [...takes].sort((a, b) => when(b).localeCompare(when(a)) || (b.takeIndex ?? 0) - (a.takeIndex ?? 0));
+}
+
 /** One Take as a choice. Pure. */
 export function takeChoice(take: QueueTake, index: number): WalkChoice {
   const label = COPY.take(take.takeIndex);
@@ -255,6 +286,15 @@ export function SpeakerScreen({ speaker, loading = false, onTake, onBack, onClos
   onClose: () => void;
 }) {
   const takes = takesNewestFirst(speaker.takes);
+  // Each Take keeps its place in the newest-first list for takeChoice (the
+  // newest still opens on its Summary); only where it is drawn moves.
+  const choice = (take: QueueTake) => takeChoice(take, takes.indexOf(take));
+  const open = takes.filter((t) => !takeAnswered(t));
+  const answered = takesRecentlyAnsweredFirst(takes.filter(takeAnswered));
+  const pick = (v: string) => {
+    const take = takes.find((t) => t.sessionId === v);
+    if (take) onTake(take);
+  };
   return (
     <WalkOverlay
       title={speaker.pseudonym}
@@ -266,14 +306,17 @@ export function SpeakerScreen({ speaker, loading = false, onTake, onBack, onClos
       {awaitingMoments(speaker, loading) ? (
         <WalkLoading />
       ) : (
-        <WalkChoices
-          label={speaker.pseudonym}
-          choices={takes.map(takeChoice)}
-          onPick={(v) => {
-            const take = takes.find((t) => t.sessionId === v);
-            if (take) onTake(take);
-          }}
-        />
+        <>
+          {open.length > 0 ? <WalkChoices label={speaker.pseudonym} choices={open.map(choice)} onPick={pick} /> : null}
+          {answered.length > 0 ? (
+            <section data-testid="speaker-answered" className="flex flex-col gap-2">
+              <h3 className="m-0 text-[11.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                {COPY.answered}
+              </h3>
+              <WalkChoices label={COPY.answered} choices={answered.map((t) => ({ ...choice(t), dim: true }))} onPick={pick} />
+            </section>
+          ) : null}
+        </>
       )}
     </WalkOverlay>
   );

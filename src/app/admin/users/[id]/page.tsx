@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import AdminGate from "@/components/admin/AdminGate";
 import TakesExplorer from "./TakesExplorer";
+import ExerciseEffects from "./ExerciseEffects";
 import { planLabel } from "@/components/tokens/copy";
 
 /* -------------------------------------------------------------------------- */
@@ -54,8 +55,11 @@ interface Person {
 }
 
 const WAIT_DAYS = 30;
+/* No screen in the app answers "share" or "email" any more, so they are not
+   asked (founder 2026-10-18); the backend refuses them too. */
+const ASKABLE_CONSENTS = new Set(["processing", "personalised_practice", "sensitive_information", "training"]);
 const ASK_STATUS: Record<Ask["status"], string> = {
-  waiting: "Waiting for their next take",
+  waiting: "Waiting for them to open the chat",
   shown: "Seen, not answered yet",
   opened: "Opened the consent page",
   answered: "Answered",
@@ -130,7 +134,7 @@ function PersonProfile({ id }: { id: string }) {
       body: JSON.stringify({ kind, consent_key: key }),
     }).catch(() => null);
     const body = res ? await res.json().catch(() => ({})) : {};
-    setNote(res?.ok ? "Sent. They see it after their next take." : body.error || "Could not send. Try again.");
+    setNote(res?.ok ? "Sent. They see it the next time they open the chat." : body.error || "Could not send. Try again.");
     if (res?.ok) void load();
   };
 
@@ -209,7 +213,7 @@ function PersonProfile({ id }: { id: string }) {
               Tell them about the lesson price
               <select id="pp-tell" className={field} value={tellLesson ? "yes" : "no"} onChange={(e) => setTellLesson(e.target.value === "yes")}>
                 <option value="no">No, they see it on the pricing screen and booking page</option>
-                <option value="yes">Yes, also after their next take</option>
+                <option value="yes">Yes, also in the chat</option>
               </select>
             </label>
           </div>
@@ -263,7 +267,7 @@ function PersonProfile({ id }: { id: string }) {
                 {c.no_count > 0 && <span className="text-xs text-muted-foreground">said no {c.no_count} {c.no_count === 1 ? "time" : "times"}</span>}
                 {c.at && <span className="text-xs text-muted-foreground">{day(c.at)}</span>}
               </span>
-              {c.state === "yes" ? <span /> : tooSoon ? (
+              {c.state === "yes" || !ASKABLE_CONSENTS.has(c.key) ? <span /> : tooSoon ? (
                 <span className="text-xs text-muted-foreground">Ask again {day(again!.toISOString())}</span>
               ) : askBtn("consent", c.key, c.state === "no" ? "Ask again" : "Ask in app")}
             </div>
@@ -271,7 +275,7 @@ function PersonProfile({ id }: { id: string }) {
           })}
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          A consent ask opens their Data &amp; consent page, where they answer. After a no, the same consent can be asked again after {WAIT_DAYS} days.
+          A consent ask shows the question in their chat, where they answer no or yes. After a no, the same consent can be asked again after {WAIT_DAYS} days.
         </p>
       </section>
 
@@ -286,6 +290,8 @@ function PersonProfile({ id }: { id: string }) {
           )) : <p className="py-3 text-sm text-muted-foreground">Nothing sent yet.</p>}
         </div>
       </section>
+
+      <ExerciseEffects id={id} />
 
       <TakesExplorer id={id} />
 
@@ -392,7 +398,7 @@ function PromotionSection({ id, promotion, sendAsk, reload }: {
             <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-tell">
               Also tell them in the app
               <select id="pr-tell" className={FIELD} value={promo.tell ? "yes" : "no"} onChange={(e) => setPromo({ ...promo, tell: e.target.value === "yes" })}>
-                <option value="yes">Yes, after their next take</option>
+                <option value="yes">Yes, in the chat</option>
                 <option value="no">No, only on the pricing screen</option>
               </select>
             </label>

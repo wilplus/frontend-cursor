@@ -51,13 +51,6 @@ import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
 import { type WillabEvent, type WillabState } from "./useWillabFlow";
 import { useBackDismiss } from "./useBackDismiss";
 import RecordingSetup from "./RecordingSetup";
-import {
-  NextTakeGate,
-  TrainingAskGate,
-  askThenRun,
-  prefetchTrainingAsk,
-  resetTrainingAsk,
-} from "./TrainingAsk";
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
 import { LabEntryGate, useLabEntry } from "./LabEntryGate";
 import FinishTakeButton from "./FinishTakeButton";
@@ -337,28 +330,6 @@ export default function LabOverlay({
   useEffect(() => {
     const timer = setTimeout(() => setSetupArriving(false), 6000);
     return () => clearTimeout(timer);
-  }, []);
-  /* "Turn on the learning?" (founder 2026-10-03). Asked once per Lab entry,
-     as the first pre-recording screen, while the training switch is off; the
-     answer (or Skip) releases every pre-recording screen below for this
-     entry. Per mount on purpose: the overlay mounts on every Take start, so
-     "each time you are starting a take" is this component's lifetime. */
-  const [trainingAsked, setTrainingAsked] = useState(false);
-  const markTrainingAsked = useCallback(() => setTrainingAsked(true), []);
-  /* "Record Take 2" from the text in the Lab asks too (N28; F1 Repair Plan
-     Phase 5). That path goes straight back to the mic, past every
-     pre-recording screen, so the question is put in front of it here. The
-     question moves straight on when there is nothing to ask. */
-  const [askBeforeNextTake, setAskBeforeNextTake] = useState(false);
-  /* "Record again" from the slow-processing screen starts a new Take too (the
-     abandoned one still finishes server-side), so it asks the same way
-     (N28: "each time you are starting a take"). */
-  const [askBeforeReRecord, setAskBeforeReRecord] = useState(false);
-  // Read the switch as the Lab opens, so the question (or the screen) is
-  // ready when the speaker gets there; read afresh on the next entry.
-  useEffect(() => {
-    prefetchTrainingAsk();
-    return resetTrainingAsk;
   }, []);
   // The permissions, asked at the door (founder 2026-10-18): the status is
   // read afresh as the Lab opens, and LabEntryGate puts the acceptance flow
@@ -1325,13 +1296,6 @@ export default function LabOverlay({
     void mic.start();
   }
 
-  /** "Record Take 2" from the text: the learning question first (N28),
-   *  unless the read already says there is nothing to ask, in which case the
-   *  mic starts inside this same tap. */
-  function askThenStartNextTake() {
-    askThenRun(startNextTakeHere, () => setAskBeforeNextTake(true));
-  }
-
   /** Abandon a slow analysis (the daemon still finishes it server-side; the
    *  marker + Lounge indicator keep tracking it). The stashed arc bookkeeping
    *  goes with it: the abandoned take must not advance the arc. Stopping the
@@ -1356,17 +1320,6 @@ export default function LabOverlay({
     cancelMic();
     dispatch("take_started");
     void mic.start();
-  }
-
-  /** "Record again" from the slow-processing screen: the learning question
-   *  first (N28), exactly as "Record Take 2" asks; when the read already says
-   *  there is nothing to ask (a guest, the switch on, a failed read) the mic
-   *  starts inside this same tap. Otherwise the Yes/Skip tap starts it. */
-  function askThenReRecord() {
-    askThenRun(reRecord, () => {
-      abandonSlowTake();
-      setAskBeforeReRecord(true);
-    });
   }
 
   /* THE WAIT IS IN THE CHAT (founder lock 2026-10-12, section 1): once the
@@ -1505,7 +1458,7 @@ export default function LabOverlay({
             mic ready" before a later Take and the mic still opening on the
             recording screen are one wait: one element in one place, so the
             voice mark neither jumps nor restarts its breathing between them. */}
-        {showsMicWait(state, trainingAsked, mic.state.status, rejectedMsg) ? (
+        {showsMicWait(state, mic.state.status, rejectedMsg) ? (
           <LoadingState
             placement="surface"
             label={RECORDING_COPY.micReady}
@@ -1518,32 +1471,26 @@ export default function LabOverlay({
         ) : null}
         {state === "lab_feelings" && (
           <LabEntryGate entry={entry}>
-            <TrainingAskGate asked={trainingAsked} onDone={markTrainingAsked}>
               <FeelingsCheckIn onReady={startAfterCheckIn} />
-            </TrainingAskGate>
           </LabEntryGate>
         )}
 
         {/* No "Start recording" screen before a later Take (founder
             2026-10-07: "delete the screen before second and next take when
             you click record and need to approve it with an orange btn"). The
-            Take starts by itself as soon as the project's setup has arrived;
-            the learning question, when it is asked, still comes first. */}
+            Take starts by itself as soon as the project's setup has arrived. */}
         {state === "lab_prerecord" && (
           <LabEntryGate entry={entry}>
-            <TrainingAskGate asked={trainingAsked} onDone={markTrainingAsked}>
               <ContinuedTakeAutoStart
                 ready={!setupArriving}
                 rootsSettled={rootsSettled}
                 onStart={startContinuedTake}
               />
-            </TrainingAskGate>
           </LabEntryGate>
         )}
 
         {state === "lab_session_context" && (
           <LabEntryGate entry={entry}>
-            <TrainingAskGate asked={trainingAsked} onDone={markTrainingAsked}>
               <RecordingSetup
                 // Context document attaches to the arc; a staged standalone upload
                 // is detached (arc nulled on submit), so suppress the field there —
@@ -1608,7 +1555,6 @@ export default function LabOverlay({
                   void mic.start();
                 }}
               />
-            </TrainingAskGate>
           </LabEntryGate>
         )}
 
@@ -1670,14 +1616,6 @@ export default function LabOverlay({
         )}
 
         {state === "lab_processing" && (
-          <NextTakeGate
-            asking={askBeforeReRecord}
-            onDone={() => {
-              setAskBeforeReRecord(false);
-              markTrainingAsked();
-              reRecord();
-            }}
-          >
           <Processing
             error={uploadError}
             progress={processingProgress}
@@ -1690,10 +1628,9 @@ export default function LabOverlay({
             canDiscard={uploadInFlight}
             onDiscard={() => setDiscardConfirm("upload")}
             onRetry={retryProcessing}
-            onReRecord={askThenReRecord}
+            onReRecord={reRecord}
             onClose={onClose}
           />
-          </NextTakeGate>
         )}
 
         {/* SD — the post-recording screen IS the ideal text 1.0: suggestions
@@ -1701,14 +1638,6 @@ export default function LabOverlay({
             coach is automatic (no Approve rows, no Send button). Replaces the
             per-piece approve walker (ReadoutCard). */}
         {state === "readout" && (
-          <NextTakeGate
-            asking={askBeforeNextTake}
-            onDone={() => {
-              setAskBeforeNextTake(false);
-              markTrainingAsked();
-              startNextTakeHere();
-            }}
-          >
           <IdealTextReadout
             payload={
               readout ?? {
@@ -1747,9 +1676,8 @@ export default function LabOverlay({
             // already been asked over their text, so the "One quick step"
             // page in between was a second ask with nothing new in it.
             onSignUp={() => startUnsignedSend()}
-            onReRead={askThenStartNextTake}
+            onReRead={startNextTakeHere}
           />
-          </NextTakeGate>
         )}
 
 
@@ -2048,16 +1976,14 @@ function enteringRecording(state: WillabState): boolean {
   );
 }
 
-/** "Getting your mic ready": before a later Take (once any training question
- *  is answered) and while the mic is still opening on the recording screen
- *  (not a rejected take). Exported for tests. */
+/** "Getting your mic ready": before a later Take and while the mic is still
+ *  opening on the recording screen (not a rejected take). Exported for tests. */
 export function showsMicWait(
   state: WillabState,
-  trainingAsked: boolean,
   micStatus: ReturnType<typeof useDualCaptureMic>["state"]["status"],
   rejectedMsg: string | null,
 ): boolean {
-  if (state === "lab_prerecord") return trainingAsked;
+  if (state === "lab_prerecord") return true;
   return state === "lab_recording" && micStatus === "idle" && !rejectedMsg;
 }
 

@@ -39,13 +39,19 @@ vi.mock("@/services/api/coachPanel", () => ({
   recordExercisePreference: vi.fn(),
   draftTakeWord: vi.fn(async () => null),
 }));
+const fetchCoachSpeakers = vi.fn();
+vi.mock("@/services/api/coachSpeakers", async (orig) => ({
+  ...(await orig<typeof import("@/services/api/coachSpeakers")>()),
+  fetchCoachSpeakers: (...a: unknown[]) => fetchCoachSpeakers(...a),
+}));
 vi.mock("../coachwalk/useConfidenceChainReceipt", () => ({
   useConfidenceChainReceipt: () => ({ current: null }),
 }));
 
 import CoachPanel, {  } from "./CoachPanel";
 import {
-  JudgeScreen,
+  JudgeScreen, QueueScreen,
+  SpeakerScreen,
 } from "./CoachPanelScreens";
 import { PANEL_START, panelReducer, type PanelAction, type PanelState } from "@/lib/willab/coachPanel";
 import type { QueueMoment, QueueSpeaker, QueueTake } from "@/lib/willab/coachWalk";
@@ -106,6 +112,49 @@ describe("the screens", () => {
     expect(host.textContent).not.toMatch(/Private|training|machine|Error|Praise|Rewrite|Slide/);
     expect(q("[data-walk-nav]")!.textContent).toContain("Quiet Heron · moment 1 of 4");
   });
+
+  it("Your queue: the speaker who sent most recently on top; an answered speaker drops out (founder 2026-10-18)", () => {
+    const sent = (sentAt: string, t: QueueTake = TAKE): QueueTake => ({ ...t, sentAt });
+    const speakers: QueueSpeaker[] = [
+      { pseudonym: "Old Owl", goal: null, waiting: 2, takes: [sent("2026-10-10T09:00:00Z")] },
+      { pseudonym: "Done Dove", goal: null, waiting: 0, takes: [sent("2026-10-18T09:00:00Z", OLD)] },
+      { pseudonym: "New Newt", goal: null, waiting: 2, takes: [sent("2026-10-09T09:00:00Z", OLD), sent("2026-10-17T09:00:00Z")] },
+      { pseudonym: "Text Tern", goal: null, waiting: 0,
+        takes: [{ ...OLD, sentAt: "2026-10-12T09:00:00Z", waitingForText: true, moments: [] }] },
+    ];
+    const onSpeaker = vi.fn();
+    draw(<QueueScreen speakers={speakers} loading={false} blind={null} onSpeaker={onSpeaker} onClose={() => {}} />);
+    const rows = q("[data-testid=coach-panel-speakers]")!.textContent!;
+    expect(rows).not.toContain("Done Dove");
+    expect(rows.indexOf("New Newt")).toBeLessThan(rows.indexOf("Text Tern"));
+    expect(rows.indexOf("Text Tern")).toBeLessThan(rows.indexOf("Old Owl"));
+    act(() => qa("[data-testid=coach-panel-speakers] button")[0]!.click());
+    expect(onSpeaker.mock.calls[0]![0].pseudonym).toBe("New Newt");
+  });
+});
+
+describe("a speaker's Takes", () => {
+  it("the open ones first, newest first; then Answered, faded, most recently answered first (founder 2026-10-18)", () => {
+    const t = (takeIndex: number, extra: Partial<QueueTake>): QueueTake => ({
+      sessionId: `t${takeIndex}`, takeIndex, sentAt: `2026-10-0${takeIndex}T09:00:00Z`, waiting: 0,
+      waitingForText: false, moments: [m(`s${takeIndex}`, "answered")], ...extra,
+    });
+    const speaker: QueueSpeaker = { pseudonym: "Brave Robin", goal: null, waiting: 1, takes: [
+      t(1, { answeredAt: "2026-10-18T12:00:00Z" }),
+      t(2, { waitingForText: true, moments: [] }),
+      t(3, { answeredAt: "2026-10-10T12:00:00Z" }),
+      t(4, { waiting: 1, moments: [m("s4")] }),
+      t(5, { answeredAt: "2026-10-15T12:00:00Z" }),
+    ] };
+    draw(<SpeakerScreen speaker={speaker} onTake={() => {}} onBack={() => {}} onClose={() => {}} />);
+    const answered = q("[data-testid='speaker-answered']")!;
+    const open = qa("[data-walk-choice]").filter((c) => !answered.contains(c));
+    expect(open.map((c) => c.dataset.walkChoice)).toEqual(["t4", "t2"]);
+    expect(answered.querySelector("h3")!.textContent).toBe(COPY.answered);
+    const done = [...answered.querySelectorAll<HTMLElement>("[data-walk-choice]")];
+    expect(done.map((c) => c.dataset.walkChoice)).toEqual(["t1", "t5", "t3"]);
+    expect(done.every((c) => c.className.includes("opacity-60"))).toBe(true);
+  });
 });
 
 /* ── the host: blind order ─────────────────────────────────────────── */
@@ -117,6 +166,21 @@ function Host({ start }: { start: PanelState }) {
 }
 
 describe("CoachPanel", () => {
+  it("Your speakers opens at once with the queue's speakers, then takes the fresh read", async () => {
+    let answer: (v: unknown) => void = () => {};
+    fetchCoachSpeakers.mockReturnValue(new Promise((r) => { answer = r; }));
+    const start = panelReducer(PANEL_START, { type: "speakers" } as PanelAction);
+    draw(<Host start={start} />);
+    const list = () => document.querySelector("[data-testid='coach-panel-all-speakers']")!.textContent;
+    expect(list()).toContain("Quiet Heron");
+    expect(fetchCoachSpeakers).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      answer([{ pseudonym: "Bright Wren", goal: null, waiting: 0, waiting_for_text: 0, take_count: 0, takes: [] }]);
+    });
+    expect(list()).toContain("Bright Wren");
+  });
+
   it("Judge first; the moment read is asked for only after the rating saves", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     saveStateRating.mockResolvedValue({ ok: true });

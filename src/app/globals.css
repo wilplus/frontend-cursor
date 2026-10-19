@@ -325,6 +325,7 @@ button,
 /*  TOUCH FEEDBACK above is untouched.                                        */
 /* -------------------------------------------------------------------------- */
 .walk-stage,
+.walk-backdrop,
 .walk-ov,
 .walk-endsheet,
 .walk-dim,
@@ -429,6 +430,20 @@ button,
   max-width: var(--walk-column);
 }
 
+/* The coach panel on a computer is a phone-width column over a grey
+   backdrop (Q-B14 A). Closing, column and backdrop are swiped out to the
+   left together, across the whole window, so no strip of the column is
+   left behind at its edge (founder 2026-10-18). */
+@media (min-width: 768px) {
+  .walk-stage-column[data-walk-closing] {
+    overflow: visible;
+  }
+  .walk-stage-column .walk-ghost.walk-m-close > .walk-ov,
+  .walk-backdrop.walk-ghost {
+    animation: walk-push-out-window 0.28s var(--walk-ease-arrive) forwards;
+  }
+}
+
 /* the end card: the page dims and the card rises; leaving, it sinks */
 .walk-endsheet {
   animation: walk-up 0.3s var(--walk-ease-arrive);
@@ -482,6 +497,10 @@ button,
   from { transform: none; }
   to { transform: translateX(-100%); }
 }
+@keyframes walk-push-out-window {
+  from { transform: none; }
+  to { transform: translateX(-100vw); }
+}
 @keyframes walk-in-r {
   from { transform: translateX(26px); opacity: 0; }
   to { transform: none; opacity: 1; }
@@ -530,6 +549,7 @@ button,
 @media (prefers-reduced-motion: reduce) {
   .walk-stage,
   .walk-stage *,
+  .walk-backdrop,
   .walk-endsheet,
   .walk-dim,
   .walk-press,
