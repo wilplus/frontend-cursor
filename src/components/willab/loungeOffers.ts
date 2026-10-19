@@ -20,9 +20,9 @@ import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMes
  *  `can_start_analysis: True` ("every arc records/analyzes/sends free"), so the
  *  gate could not fire. Legacy `offer: "credit"` bubbles in old threads still
  *  render as ordinary bot text, which is exactly what the fallback was for. */
-export type OfferType = "install" | "whatsapp" | "joke" | "consent" | "promo" | "lesson";
+export type OfferType = "install" | "whatsapp" | "joke" | "consent" | "promo" | "lesson" | "feedback_check";
 
-const OFFER_TYPES: readonly OfferType[] = ["install", "whatsapp", "joke", "consent", "promo", "lesson"];
+const OFFER_TYPES: readonly OfferType[] = ["install", "whatsapp", "joke", "consent", "promo", "lesson", "feedback_check"];
 
 /** The bubble prompt persisted as the message body. No em-dashes (house style). */
 export const OFFER_PROMPT: Record<OfferType, string> = {
@@ -40,6 +40,9 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
   // are only the fallback if that body is ever missing.
   promo: "Artur set a price for you. See it on the pricing screen.",
   lesson: "Artur set a price for you for a 1-on-1 lesson.",
+  // "Did this feedback help you?" (WIL-74, founder 2026-10-19): written by
+  // the backend after a Take's closing summary; this is only the fallback.
+  feedback_check: "Did this feedback help you?",
   joke:
     "I'm just a simple system, but I noticed you weren't feeling great before this presentation. Want me to crack a joke?",
 };

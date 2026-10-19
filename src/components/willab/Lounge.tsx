@@ -104,6 +104,12 @@ import {
   coerceSuggestedActions,
   type ChipAction,
 } from "./loungePrompts";
+import {
+  FEEDBACK_CHECK_LABEL,
+  feedbackCheckOpen,
+  feedbackCheckTarget,
+} from "./feedbackCheck";
+import { postFeedbackCheck, type FeedbackCheckChoice } from "@/services/api/feedbackCheck";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import { useLifeTags } from "@/lib/life/useLifeTags";
 import { applyPick } from "@/lib/life/hashtags";
@@ -403,6 +409,11 @@ export default function Lounge({
     }
     if (action === "keep_current_project") {
       postAnswerBubble(CHIP_LABEL[action]);
+      return;
+    }
+    if (action === "feedback_skip") {
+      const target = feedbackCheckTarget(messages, "missing");
+      if (target) void answerFeedbackCheck(target, "skip");
       return;
     }
     setLibraryOpen(true);
@@ -1089,7 +1100,9 @@ export default function Lounge({
     // SD/FE-4 — the joke onboarding is deleted; a legacy joke bubble in an old
     // thread stays visible but inert.
     if (type === "joke") return;
-    const rank: Record<OfferType, number> = { joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0 };
+    const rank: Record<OfferType, number> = {
+      joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0, feedback_check: 0,
+    };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
 
@@ -1183,6 +1196,18 @@ export default function Lounge({
   // The second offer (founder 2026-10-12): a WhatsApp number for "The feedback
   // from your coach is in!". It waits for the install offer and a free footer;
   // its trigger lives in the hook (same fresh-send gate as install above).
+  // WIL-74 — the question after a Take's summary opens its pair while it is
+  // the newest message, once per Take; the record button is back on a tap.
+  const feedbackArmedRef = useRef<string | null>(null);
+  const threadLoading = thread.loading;
+  useEffect(() => {
+    if (threadLoading || adminAsk.held) return;
+    const open = feedbackCheckOpen(messages);
+    if (!open || feedbackArmedRef.current === open.takeSessionId) return;
+    feedbackArmedRef.current = open.takeSessionId;
+    openOffer("feedback_check");
+  }, [threadLoading, adminAsk.held, messages, openOffer]);
+
   const whatsapp = useWhatsAppOffer({
     state,
     messages,
@@ -1250,6 +1275,15 @@ export default function Lounge({
   // a typed one. Do NOT post an answer via appendLocalOnly (that is bot-turn
   // only, for turns the BE persists) or any non-persisted path. New answer
   // buttons: route the label through here, full stop.
+  // WIL-74 — "Did this feedback help you?": the backend keeps the tap and
+  // writes it with the signed reply, then the thread reads it back.
+  async function answerFeedbackCheck(
+    target: { arcId: string; takeSessionId: string },
+    choice: FeedbackCheckChoice,
+  ): Promise<void> {
+    if (await postFeedbackCheck(target.arcId, target.takeSessionId, choice)) await reload();
+  }
+
   function postAnswerBubble(label: string) {
     void thread.append({ role: "user", kind: "text", body: label });
   }
@@ -1541,6 +1575,10 @@ export default function Lounge({
           consentKey={adminAsk.consentKey}
           onConsentAnswered={adminAsk.answered}
           bookHref={adminAsk.bookHref}
+          onFeedbackCheck={(choice) => {
+            const target = feedbackCheckTarget(messages, "ask");
+            if (target) void answerFeedbackCheck(target, choice);
+          }}
           onResolve={() => setActiveOffer(null)}
         />
       ) : uploadAskActive ? (
@@ -1857,6 +1895,7 @@ function OfferActions({
   consentKey,
   onConsentAnswered,
   bookHref,
+  onFeedbackCheck,
   onResolve,
 }: {
   type: OfferType;
@@ -1868,9 +1907,27 @@ function OfferActions({
   consentKey: string | null;
   onConsentAnswered: () => void;
   bookHref: string;
+  /** WIL-74 — a tap on "Did this feedback help you?". */
+  onFeedbackCheck: (choice: FeedbackCheckChoice) => void;
   onResolve: () => void;
 }) {
   const router = useRouter();
+  if (type === "feedback_check") {
+    return (
+      <SymmetricPair
+        closeLabel={FEEDBACK_CHECK_LABEL.notReally}
+        onClose={() => {
+          onFeedbackCheck("not_really");
+          onResolve();
+        }}
+        actionLabel={FEEDBACK_CHECK_LABEL.yes}
+        onAction={() => {
+          onFeedbackCheck("yes");
+          onResolve();
+        }}
+      />
+    );
+  }
   if (type === "install") {
     return <InstallOfferActions offer={install} onResolve={onResolve} />;
   }
