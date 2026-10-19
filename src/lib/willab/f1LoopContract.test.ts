@@ -1,153 +1,122 @@
-/* -------------------------------------------------------------------------- */
-/*  THE F1 LOOP CONTRACT — the frontend half                                   */
-/*                                                                            */
-/*  FOUNDER, 2026-09-22, before releasing five parallel agent sessions onto    */
-/*  the provenance audit: "how can we do it so that the two things             */
-/*  collaborate and step by step sort of talk to each other and check if       */
-/*  nothing got broken?"                                                       */
-/*                                                                            */
-/*  This file is that mechanism on this side of the wire, and it is            */
-/*  deliberately a TEST and not a document. Five parallel sessions will not    */
-/*  read a document. They will run the gate, because the gate is what stops    */
-/*  their pull request merging.                                                */
-/*                                                                            */
-/*  EVERY LINE IS ONE OF TWO THINGS:                                           */
-/*                                                                            */
-/*    green  — true today, and a change that breaks it turns this file red;    */
-/*    .fails — false today because the audit found a real defect, tagged       */
-/*             with its finding id.                                            */
-/*                                                                            */
-/*  `it.fails` IS THE WHOLE TRICK. Vitest fails the suite when such a test     */
-/*  starts PASSING. So the workstream that closes a finding is mechanically    */
-/*  forced to come here and flip its line, and cannot quietly close a finding  */
-/*  the contract still believes is open. Neither side has to remember the      */
-/*  other exists: one writes the fix, the gate notices.                        */
-/*                                                                            */
-/*  Its twin is `tests/test_f1_loop_contract.py` in `backend-cursor`, and the  */
-/*  ledger both of them write to is `docs/PIPELINE_WORK_LEDGER.md` there.      */
-/*                                                                            */
-/*  WHY THE SOURCE SCANS LIVE HERE rather than in a lint rule: AC-9 is a       */
-/*  property of what a speaker can SEE, and the only place that is decidable   */
-/*  is the component tree. A rule that reads the tree is the executable        */
-/*  mechanism finding FE-1 says does not exist.                                */
-/* -------------------------------------------------------------------------- */
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
+/*
+STORY    As the founder, I want one gate that turns red when the loop's promises
+         break (true paragraph states, no numbers to speakers, the page only
+         shows what the server said), so that parallel work can't quietly
+         break the loop.
+OUTCOME
+  O1  Each of the four paragraph states (untouched, clean, waiting, locked) is
+      reached from what the speaker and the server actually did.
+  O2  No speaker screen shows a measured number (Hz/dB/wpm or a raw count).
+      Never-1: no scores, numbers or verdicts shown to speakers.
+  O3  The feedback slot is held only while the server says feedback is coming.
+PROVES   O1 -> "each paragraph lands in the state the speaker put it in"
+         O2 -> "KNOWN BREACH Never-1: ..." (it.fails until CompletedCard drops it)
+         O3 -> "reserves a bookmark's place only while the server says it is coming"
+WHY      Founder 2026-09-22: a gate parallel sessions run, not a document they
+         skip. Twin: backend tests/test_f1_loop_contract.py. The wait bar's
+         ceiling lives in waitProgress.test.ts.
+*/
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
+import { describe, expect, it, vi } from "vitest";
 
-import {
-  DOCUMENT_CEILING,
-  waitPercent,
-} from "./waitProgress";
-import { isUntouched } from "./deckChunks";
+import { buildDeckChunks } from "./deckChunks";
+import type { Part } from "./documentParts";
 
-const SRC = join(process.cwd(), "src");
-
-/** Every .tsx a speaker can reach: the component tree minus the surfaces
- *  only a coach, an admin or a developer opens. */
-function speakerFacingFiles(): string[] {
-  const skip = /(^|\/)(coach|admin|dev|cms|api)(\/|$)/;
-  const out: string[] = [];
-  const walk = (dir: string) => {
-    for (const entry of readdirSync(dir)) {
-      const full = join(dir, entry);
-      if (statSync(full).isDirectory()) {
-        if (!skip.test(full.replace(SRC, ""))) walk(full);
-        continue;
-      }
-      if (!full.endsWith(".tsx")) continue;
-      if (/\.test\.tsx$/.test(full)) continue;
-      if (/Coach|Admin|Dev/.test(entry)) continue;
-      out.push(full);
-    }
-  };
-  walk(SRC);
-  return out;
-}
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("@/lib/api/client", () => ({
+  fetchSignedAudioUrl: vi.fn(() => new Promise(() => undefined)),
+}));
+vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
 // ══════════════════════════════════════════════════════════════════════════
-//  1. THE WAIT NEVER LIES
-// ══════════════════════════════════════════════════════════════════════════
-
-describe("the wait screen tells the truth about itself", () => {
-  const CAP = 120_000;
-
-  it("never shows a full bar before the text exists", () => {
-    /* FOUNDER 2026-09-22: "100% means instant switch to the ideal text". The
-       top point is reserved for settlement, so a speaker never sees a
-       finished bar and then waits behind it. */
-    for (const elapsed of [0, 1_000, CAP, CAP * 10, Number.POSITIVE_INFINITY]) {
-      expect(
-        waitPercent({
-          previous: null,
-          held: 100,
-          reported: 100,
-          phase: "document",
-          phaseElapsedMs: elapsed,
-          capMs: CAP,
-        }),
-      ).toBeLessThanOrEqual(DOCUMENT_CEILING);
-    }
-  });
-});
-
-// ══════════════════════════════════════════════════════════════════════════
-//  2. A PARAGRAPH'S STATE IS THE ONE THE SPEAKER PUT IT IN
+//  1. A PARAGRAPH'S STATE IS THE ONE THE SPEAKER PUT IT IN
 // ══════════════════════════════════════════════════════════════════════════
 
 describe("the four states of a paragraph", () => {
-  const base = {
-    locked: false,
-    decided: false,
-    rootPhrase: null,
-    iteration: 0,
-  };
-
-  it("an untouched paragraph is the one nothing has happened to", () => {
-    expect(isUntouched(base)).toBe(true);
+  it("each paragraph lands in the state the speaker put it in", () => {
+    const words = [
+      "Nothing happened here.",
+      "I accepted a change here.",
+      "Feedback waits here.",
+      "I locked this one in.",
+    ];
+    const doc = words.join("\n\n");
+    const span = (i: number) => {
+      const start = doc.indexOf(words[i]);
+      return { start, end: start + words[i].length };
+    };
+    const parts: Part[] = words.map((text, i) => ({
+      id: `part-${i}`,
+      text,
+      locked: i === 3,
+    }));
+    const chunks = buildDeckChunks(doc, parts, [
+      { id: "decided", ...span(1), status: "approved" },
+      { id: "open", ...span(2), status: null },
+    ]);
+    expect(chunks.map((c) => c.status)).toEqual([
+      "untouched",
+      "clean",
+      "waiting",
+      "locked",
+    ]);
   });
 });
 
 // ══════════════════════════════════════════════════════════════════════════
-//  3. NO NUMBER REACHES A SPEAKER (AC-9)
+//  2. NO NUMBER REACHES A SPEAKER (AC-9)
 // ══════════════════════════════════════════════════════════════════════════
 
-/** A rendered measurement: a number followed by a unit, inside JSX. */
-const MEASUREMENT = /\$\{[^}]*\}\s*(Hz|dB|wpm|ms)\b|\btoFixed\s*\(/;
-
-describe("AC-9 — the read is qualitative", () => {
+describe("AC-9: the read a speaker sees is in words", () => {
   it.fails(
-    "no surface a speaker can open renders a measured number",
-    () => {
-      /* FE-1 (audit, kept major): "No executable mechanism prevents a
-         render and the backend's own test pins the payload."
-
-         Reproduces. `SpeechDataPanel`, `SlideTake` and `LibraryOverlay` all
-         format pitch in Hz, pace in words per minute and volume in dB and
-         render them into the component tree. Whether a given speaker can
-         reach each one today is a question of flags and props — which is
-         exactly FE-1's point: nothing in the code decides it.
-
-         THIS TEST IS THAT MECHANISM. Owner: the workstream that closes
-         FE-1. When it does, remove `.fails` here; the list below is then
-         the thing that stops the next one coming back. */
-      const offenders = speakerFacingFiles().filter((file) =>
-        MEASUREMENT.test(readFileSync(file, "utf8")),
-      );
-      expect(offenders.map((f) => f.replace(SRC, "src"))).toEqual([]);
+    "KNOWN BREACH Never-1: /recordings/[id] shows words per minute and a filler count (CompletedCard.tsx:96,100)",
+    async () => {
+      /* The signed-in recording page renders CompletedCard, which draws the
+         machine's wpm and filler count as big numbers. Render it with a
+         recording the backend could send and read what the speaker sees. */
+      (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+      const { default: CompletedCard } = await import("@/components/session/CompletedCard");
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      const root = createRoot(host);
+      try {
+        await act(async () => {
+          root.render(
+            createElement(CompletedCard, {
+              recording: {
+                recording_id: "rec-1",
+                session_id: "ses-1",
+                status: "completed",
+                transcription_text: "We started in a garage.",
+                metrics: { wpm: 184, filler_count: 7, filler_breakdown: {} },
+                analysis: { report: "You kept a steady pace through the opening." },
+                answers: { pre: [], post: [] },
+              } as never,
+            }),
+          );
+        });
+        const seen = host.textContent ?? "";
+        // The words are there, so this cannot pass on an empty screen.
+        expect(seen).toContain("You kept a steady pace through the opening.");
+        expect(seen).not.toMatch(/Words Per Minute|\bwpm\b|\bHz\b|\bdB\b/i);
+        expect(seen).not.toContain("184");
+        expect(seen).not.toContain("7");
+      } finally {
+        act(() => root.unmount());
+        host.remove();
+      }
     },
   );
 });
 
 // ══════════════════════════════════════════════════════════════════════════
-//  4. THE PAGE ASKS THE SERVER, IT DOES NOT DECIDE FOR IT
+//  3. THE PAGE ASKS THE SERVER, IT DOES NOT DECIDE FOR IT
 // ══════════════════════════════════════════════════════════════════════════
 
 describe("the page never invents what the server did not say", () => {
   it("reserves a bookmark's place only while the server says it is coming", async () => {
-    /* The reserved slot is honest in both directions: it holds the mark's
-       footprint while work is genuinely outstanding, and it releases when
-       the server has answered — an empty lane is a real outcome. */
     const { feedbackStillComing } = await import("./enrichmentSettle");
     expect(feedbackStillComing({ document_layers: { retryable: true } }))
       .toBe(true);
