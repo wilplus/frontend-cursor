@@ -1,14 +1,16 @@
-/**
- * The local gate's own verdict. localCiMirror.test.ts pins WHAT
- * scripts/local_ci.sh runs; this runs the real script, with stand-ins for
- * node, npm and npx first on PATH so every step returns at once, and pins
- * what it then reports.
- *
- * On macOS `bash` here is /bin/bash 3.2, the shell in which the script exited
- * 1 with no GREEN exactly when every step had passed (2026-10-06: under
- * `set -u` it calls an empty array unbound). CI's bash 5 never had that bug,
- * so only a run on a Mac can catch it coming back.
- */
+/*
+GUARD    The local gate's verdict: the real scripts/local_ci.sh, run with
+         stand-ins for node, npm and npx first on PATH so every step returns
+         at once.
+CATCHES  GREEN printed when a step failed or the build was skipped; a failed
+         step not named; a run on a Node older than CI's; the macOS bash 3.2
+         "unbound variable" exit (2026-10-06) when every step passed.
+IF REMOVED  The gate's GREEN could stop meaning "every step passed".
+PROVES   green  -> "is GREEN and exits 0 when every step passes"
+         red    -> "is RED and exits 1 when a step fails, printing that step's own log"
+         no build -> "is INCOMPLETE, never GREEN, when the build is skipped"
+         node   -> "stops before its first step, naming the Node it found"
+*/
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -28,10 +30,10 @@ beforeAll(() => {
 });
 afterAll(() => rmSync(bin, { recursive: true, force: true }));
 
-function gate({ node = "v22.23.2", fail = "" } = {}) {
+function gate({ node = "v22.23.2", fail = "", args = [] as string[] } = {}) {
   const calls = join(bin, "calls.log");
   writeFileSync(calls, "");
-  const run = spawnSync("bash", ["scripts/local_ci.sh"], {
+  const run = spawnSync("bash", ["scripts/local_ci.sh", ...args], {
     encoding: "utf8",
     // The stand-ins and the system's own tools only: no real node or npm is
     // reachable, and no WILLAB_SCREENSHOTS leaks in from the caller.
@@ -58,6 +60,15 @@ describe("the gate reports what its steps did", () => {
     expect(out).toContain("FAIL Lint");
     expect(out).toContain("ran npm run lint");
     expect(out).toContain("RED — 1 step(s) failed. Not mergeable.");
+    expect(code).toBe(1);
+  });
+
+  it("is INCOMPLETE, never GREEN, when the build is skipped", () => {
+    // --no-build exists for iterating, and must never look like a passing gate.
+    const { code, out, steps } = gate({ args: ["--no-build"] });
+    expect(out).toContain("INCOMPLETE — the production build was skipped.");
+    expect(out).not.toContain("GREEN");
+    expect(steps).not.toContain("run build");
     expect(code).toBe(1);
   });
 });
