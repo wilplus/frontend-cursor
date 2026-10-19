@@ -1,25 +1,28 @@
-/* -------------------------------------------------------------------------- */
-/*  THE RECORDING SCREENS' WORDS AND NUMBERS, PINNED (build plan D-RC-8;       */
-/*  recording lock 2026-10-07 §The words and §How it moves, N59; N70).         */
-/*                                                                            */
-/*  RECORDING_COPY holds the lock's words exactly as signed; recordingWhere   */
-/*  writes "Take N · Slide n of m" with the Take's and the slide's position   */
-/*  as the only numbers (AC-9). The motion constants are the lock's: a        */
-/*  change to any of them is a change to the locked motion, and this test     */
-/*  fails on it.                                                              */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As the founder, I want the recording screens' words fixed to the
+         signed set with no digits or score words, so that nothing unapproved
+         or numeric reaches the speaker.
+OUTCOME
+  O1  Never 4 (no new words without the founder's OK): RECORDING_COPY holds
+      exactly the signed keys, typed exactly as signed.
+  O2  Never 1 (no scores or numbers): no signed line carries a digit, a % or
+      a score word.
+PROVES   O1, O2 -> "is exactly the signed words, with no digit or score word"
+WHY      Recording lock 2026-10-07 (N59, N70). recordingWhere's "Take N ·
+         Slide n of m" is pinned in recordingStillFrame.test, not here.
+*/
 import { describe, expect, it } from "vitest";
 import { RECORDING_COPY } from "./recordingCopy";
 
 describe("RECORDING_COPY", () => {
-
-  it("carries no digit (AC-9) and nothing unsigned", () => {
+  it("is exactly the signed words, with no digit or score word", () => {
+    expect(RECORDING_COPY).toEqual({
+      back: "Back",
+      nextSlide: "Next slide",
+      micReady: "Getting your mic ready",
+    });
     for (const [key, value] of Object.entries(RECORDING_COPY)) {
-      expect(value, key).not.toMatch(/\d/);
-      expect(value, key).not.toMatch(/%|score|rank/i);
+      expect(value, key).not.toMatch(/\d|%|score|rank/i);
     }
-    // Every key is one the lock names; a new word needs the founder first.
-    expect(Object.keys(RECORDING_COPY).sort()).toEqual(["back", "micReady", "nextSlide"]);
   });
 });
-

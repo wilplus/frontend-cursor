@@ -1,14 +1,24 @@
 // @vitest-environment jsdom
-/* The paragraph overlay (founder lock 2026-09-30, B5, B8, D6, D7, Q1): two
-   states, the practise state and the saved state, never the paragraph
-   text, in the Feedback walk's look; Practise opens the walk's practise
-   screens on the card shown (founder 2026-10-10), and an answer in the
-   judgement sheet hands the paragraph to its own sheet. */
+/*
+STORY    As a speaker, I want a paragraph's sheet to show my helper words and
+         history (never the paragraph text, never a score), and Practise to
+         open the walk's practise, so that the sheet helps me without
+         repeating the page.
+OUTCOME
+  O1  Saved state: the helper words and a History of earlier Takes only
+      (Take 1, not the current Take 2); no practise card; Next closes.
+  O2  Never 1 (no scores shown to speakers): the sheet shows no paragraph
+      text, no % and no score, while the helper words are on it.
+  O3  Practise state: Practise opens the Feedback walk's practise on the
+      exercise card, for the paragraph's moment.
+PROVES   O1, O2 -> "shows the helper words and History, never the paragraph text or a score, and one black button"
+         O3     -> "Practise opens the Feedback walk's practise on the card shown"
+WHY      Founder lock 2026-09-30 (B5, B8, D6, D7, Q1); founder 2026-10-10.
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OpenChunkSheet from "./OpenChunkSheet";
-import DeckChunkModal from "./DeckChunkModal";
 import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import { fetchOwnerAnswers } from "@/services/api/bookmarkHistory";
@@ -116,25 +126,15 @@ function render(s = state()) {
         headline: "ship it now",
         onUseHelperWords: useWords,
         onClose: closeSheet,
-        renderSheet: () =>
-          createElement(DeckChunkModal, {
-            state: s,
-            onAccept: vi.fn(async () => true),
-            onKeepMine: vi.fn(async () => true),
-            onLockIn: vi.fn(async () => ({
-              outcome: "ok" as const,
-              rootPhraseProposal: null,
-            })),
-            onSetRootPhrase: vi.fn(async () => true),
-            onClose: vi.fn(),
-          }),
+        // An answered paragraph opens its own sheet, never the judgement one.
+        renderSheet: () => null,
       }),
     );
   });
 }
 
 describe("the paragraph overlay, saved state (founder lock 2026-09-30, B8, D6)", () => {
-  it("shows the helper words and History, never the paragraph text, and one black button", async () => {
+  it("shows the helper words and History, never the paragraph text or a score, and one black button", async () => {
     await render(); // the fixture's headline is "ship it now"
     const sheet = container.querySelector('[data-testid="paragraph-sheet"]');
     expect(sheet).not.toBeNull();
@@ -144,8 +144,7 @@ describe("the paragraph overlay, saved state (founder lock 2026-09-30, B8, D6)",
     const helper = container.querySelector('[data-testid="paragraph-helper-card"]')?.textContent ?? "";
     expect(helper).toContain("Helper words");
     expect(helper).toContain("ship it now");
-    // No judgement, no practise card (B8), no paragraph text (D6).
-    expect(container.querySelector('[data-testid="judgement-label"]')).toBeNull();
+    // No practise card (B8), no paragraph text (D6).
     expect(container.querySelector('[data-testid="practise-card"]')).toBeNull();
     expect(sheet?.textContent).not.toContain(TEXT);
     // One collapsed History row (Q1), earlier Takes as single rows.
@@ -163,54 +162,24 @@ describe("the paragraph overlay, saved state (founder lock 2026-09-30, B8, D6)",
 });
 
 describe("the paragraph overlay, practise state (founder lock 2026-09-30, B5, D1, D7)", () => {
-  const renderOpen = (answer: string, over: Partial<DocumentSuggestion> = {}) =>
-    act(async () => {
-      const item = { ...answered, ...over } as DocumentSuggestion;
-      const s = chunkStateFor(
-        {
-          part: { id: "p1", text: TEXT, locked: false },
-          paragraphIndex: 0,
-          start: 0,
-          end: TEXT.length,
-          status: "clean",
-          pendingIds: [],
-          approvedIds: [],
-          decidedIds: [item.id],
-        } as DeckChunk,
-        { document: TEXT, suggestions: [item] },
-      );
+  const withAnswer = async (answer: string) => {
+    vi.mocked(fetchOwnerAnswers).mockResolvedValue([{ feedbackId: "s-cv", response: answer }]);
+    forgetParagraphSheetData();
+    await act(async () => {
       root.render(
         createElement(OpenChunkSheet, {
-          state: s,
+          state: state(),
           arcId: "arc-1",
           takeSessionId: "take-1",
           headline: null,
           onUseHelperWords: useWords,
           onClose: closeSheet,
           onPractise: practise,
-          renderSheet: () =>
-            createElement(DeckChunkModal, {
-              state: s,
-              onAccept: vi.fn(async () => true),
-              onKeepMine: vi.fn(async () => true),
-              onLockIn: vi.fn(async () => ({ outcome: "ok" as const, rootPhraseProposal: null })),
-              onSetRootPhrase: vi.fn(async () => true),
-              onClose: vi.fn(),
-            }),
+          renderSheet: () => null,
         }),
       );
     });
-  const withAnswer = async (answer: string, over: Partial<DocumentSuggestion> = {}) => {
-    vi.mocked(fetchOwnerAnswers).mockResolvedValue([{ feedbackId: "s-cv", response: answer }]);
-    forgetParagraphSheetData();
-    await renderOpen(answer, over);
   };
-  // The screen on show: the walk's frame keeps a copy of the screen it
-  // replaces while that one leaves (data-walk-ghost).
-  const labels = () =>
-    Array.from(container.querySelectorAll("button"))
-      .filter((b) => !b.closest("[data-walk-ghost]"))
-      .map((b) => b.textContent?.trim());
 
   it("Practise opens the Feedback walk's practise on the card shown", async () => {
     practise.mockClear();
@@ -222,8 +191,5 @@ describe("the paragraph overlay, practise state (founder lock 2026-09-30, B5, D1
       expect.objectContaining({ kind: "exercise" }),
       expect.objectContaining({ id: "s-cv" }),
     );
-    // No judgement sheet and no old practise screen.
-    expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
-    expect(container.querySelector('[data-testid="practise-sheet"]')).toBeNull();
   });
 });

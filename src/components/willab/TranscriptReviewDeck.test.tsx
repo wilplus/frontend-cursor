@@ -1,12 +1,21 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  F1 surface net (audit Q-T8, Phase 2) — the per-slide transcript deck.      */
-/*                                                                            */
-/*  Renders the REAL deck with a fixture document and asserts what the source  */
-/*  grep fences could not: the speaker's words are on screen, every chunk      */
-/*  wears exactly one lock control, a pending Manager item paints no number,  */
-/*  and nothing that reads as a score, ratio or verdict is rendered (AC-9).    */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker, I want my own words shown per slide, each paragraph its
+         own block, and no scores, so that the Ideal Text is mine and judged
+         in words.
+OUTCOME
+  O1  Every slide's words are shown unchanged, one paragraph block per
+      slide, holding exactly that slide's words.
+  O2  Never-1: a paragraph with feedback waiting paints no number or badge
+      beside the words (its block holds the speaker's words and nothing else).
+  O3  Never-1: nothing on the deck reads as a score, ratio, percentage or
+      verdict, while the speaker's words are on screen.
+PROVES   O1, O2 -> "shows the speaker's own words, one block per slide, unchanged"
+         O3     -> "renders no score, ratio, percentage or verdict, even with a tentative pending item"
+WHY      Never-1. The per-paragraph lock button is gone from the page (lock
+         2026-10-12, section 4): a paragraph is the tap target and the lock
+         lives in its sheet, so no lock-control count is pinned here.
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -88,14 +97,18 @@ async function render(over: Partial<typeof props> = {}) {
   return container.textContent ?? "";
 }
 
-describe("TranscriptReviewDeck — F1 net", () => {
-  it("shows the speaker's own words, per slide, unchanged", async () => {
-    const text = await render();
-    for (const slide of SLIDES) expect(text).toContain(slide);
+describe("TranscriptReviewDeck", () => {
+  it("shows the speaker's own words, one block per slide, unchanged", async () => {
+    await render();
+    const blocks = [...container.querySelectorAll("[data-chunk]")];
+    expect(blocks.map((b) => b.textContent)).toEqual(SLIDES);
+    // Slide 2 carries the pending items: its block is still only the words.
+    expect(blocks[1].getAttribute("data-opens-sheet")).toBe("true");
   });
 
-  it("AC-9: renders no score, ratio, percentage or verdict, even with a tentative pending item", async () => {
+  it("renders no score, ratio, percentage or verdict, even with a tentative pending item", async () => {
     const text = await render();
+    expect(text).toContain(SLIDES[1]);
     for (const pattern of SCORE_LIKE) expect(text, `matched ${pattern}`).not.toMatch(pattern);
   });
 });

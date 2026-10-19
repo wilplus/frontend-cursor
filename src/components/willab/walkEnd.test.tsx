@@ -1,6 +1,18 @@
 // @vitest-environment jsdom
-/* The walk's closing signals (founder 2026-09-26): a short "saved" line when
-   a sheet finishes on its own, and the card after the last moment. */
+/*
+STORY    As a speaker, I want a short "saved" line when a sheet finishes, and an
+         end card with the next Take after the last moment, so that I know I am
+         done and what is next.
+OUTCOME
+  O1  After the last moment the card says so, offers the host's own next step
+      ("Record Take 2") and Back closes it. Never-3: the walk always ends on
+      the way to the next Take, never on a dead end.
+  O2  A finished sheet shows its "saved" line, which goes by itself after a
+      moment and tells the host it has gone.
+PROVES   O1 -> "after the last moment, offers the host's next step and the way back"
+         O2 -> "shows the saved line, then lets it go on its own"
+WHY      Founder 2026-09-26: sheets used to close in silence.
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -45,5 +57,28 @@ describe("WalkEndLayer", () => {
     const back = [...host.querySelectorAll("button")].find((b) => b.textContent === "Back to the text");
     act(() => back!.click());
     expect(onCloseEndCard).toHaveBeenCalled();
+  });
+
+  it("shows the saved line, then lets it go on its own", () => {
+    const onToastGone = vi.fn();
+    const layer = (toast: string | null) =>
+      createElement(WalkEndLayer, {
+        endCard: false,
+        onCloseEndCard: () => undefined,
+        toast,
+        onToastGone,
+      });
+    act(() => root.render(layer("Helper words saved")));
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("Helper words saved");
+
+    // Still up a moment later; gone once its time is over.
+    act(() => vi.advanceTimersByTime(1000));
+    expect(onToastGone).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(1000));
+    expect(onToastGone).toHaveBeenCalledTimes(1);
+
+    // The host clears it, and nothing is left on the page.
+    act(() => root.render(layer(null)));
+    expect(host.querySelector('[role="status"]')).toBeNull();
   });
 });
