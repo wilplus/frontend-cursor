@@ -1,10 +1,25 @@
 // @vitest-environment jsdom
-/* The training corpus inside the panel, its host's flow (D-CP-20 review): a
-   saved set-up goes straight to judging with "Set up · {n} moments", an
-   import lands on the imports with "Imported · {n} moments", an import with
-   nothing to judge is never judged, the panel's Judge reads the queue
-   without a piece's words, a finished import's ⋯ → Edit renames it, and
-   only the founder's ⋯ carries Delete, which erases the import. */
+/*
+STORY    As a coach, I want the training corpus in the panel to go straight to
+         judging after set-up and let me rename finished imports, so that
+         corpus work is quick and blind.
+OUTCOME
+  O1  A saved set-up goes straight to judging that import, saying
+      "Set up · {n} moments".
+  O2  An import with nothing to judge is never judged: back on the imports.
+  O3  A new import lands on the imports, saying "Imported · {n} moments".
+  O4  Never-2: the queue the panel's Judge reads carries no words of a piece.
+  O5  A finished import's ⋯ → Edit opens its set-up filled in; Save renames
+      it and goes back to the imports.
+  O6  Only the founder's ⋯ carries Delete; confirming it erases the import.
+PROVES   O1 -> "a saved set-up goes straight to judging, with its count"
+         O2 -> "a set-up with nothing to judge goes back to the imports, never to judging"
+         O3 -> "a new import lands on the imports with its count"
+         O4 -> "the panel's queue read carries no words of a piece"
+         O5 -> "a finished import's ⋯ → Edit opens its set-up filled in; Save renames it and goes back"
+         O6 -> "only the founder's ⋯ carries Delete; confirming it erases the import and reads the list again"
+WHY      Coach panel lock 2026-10-06 (training corpus, D-CP-20).
+*/
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -61,10 +76,66 @@ afterEach(() => {
   host.remove();
 });
 
+const CORPUS = [{ type: "open" }, { type: "corpus" }]
+  .reduce((s, a) => panelReducer(s, a as PanelAction), PANEL_START);
+const judging = () => document.querySelector("[data-testid='stub-corpus-judge']");
+const onImports = () => document.querySelector("[data-testid='coach-panel-corpushome']");
+
+/** The unfinished import opened from the imports, its set-up saved. */
+async function setUp(queue: QueuePiece[] | null): Promise<void> {
+  fetchBlindConfidenceQueue.mockResolvedValue(queue && { sessionId: "i1", queue: queue.map(blindPiece) });
+  act(() => root.render(<Host start={CORPUS} />));
+  await flush();
+  click(document.querySelector("[data-walk-choice='i1']"));
+  const screen = document.querySelector("[data-testid='coach-panel-corpusimport']")!;
+  expect(screen.querySelector<HTMLInputElement>("[data-testid='corpus-topic']")!.value).toBe("Workshop recording");
+  click(screen.querySelector("[data-testid='corpus-submit']"));
+  await flush();
+  expect(saveImportSetup).toHaveBeenCalledWith("i1", expect.objectContaining({ topic: "Workshop recording", language: "en" }));
+}
+
 describe("the training corpus in the panel", () => {
+  it("a saved set-up goes straight to judging, with its count", async () => {
+    await setUp([PIECE("a"), PIECE("b")]);
+    expect(judging()?.textContent).toBe("i1");
+    expect(document.body.textContent).toContain("Set up · 2 moments");
+  });
+
+  it("a set-up with nothing to judge goes back to the imports, never to judging", async () => {
+    await setUp([]);
+    expect(judging()).toBeNull();
+    expect(onImports()).not.toBeNull();
+    expect(document.body.textContent).toContain("Set up · 0 moments");
+  });
+
+  it("a new import lands on the imports with its count", async () => {
+    fetchTrainingImports.mockResolvedValue([]);
+    importTrainingAudio.mockImplementation(async (input: { onAccepted?: () => void }) => {
+      input.onAccepted?.();
+      return { ok: true, queueCount: 3 };
+    });
+    act(() => root.render(<Host start={CORPUS} />));
+    await flush();
+    click(document.querySelector("[data-testid='corpus-import-button']"));
+    const file = new File(["x"], "talk.mp3", { type: "audio/mpeg" });
+    const input = document.querySelector<HTMLInputElement>("[data-testid='corpus-file-input']")!;
+    Object.defineProperty(input, "files", { value: [file], configurable: true });
+    act(() => { input.dispatchEvent(new Event("change", { bubbles: true })); });
+    const screen = document.querySelector("[data-testid='coach-panel-corpusimport']")!;
+    type(screen.querySelector<HTMLInputElement>("[data-testid='corpus-topic']")!, "Keynote");
+    choose(screen.querySelector<HTMLSelectElement>("[data-testid='corpus-language']")!, "en");
+    click(screen.querySelector("[data-testid='corpus-submit']"));
+    await flush();
+    expect(importTrainingAudio).toHaveBeenCalledTimes(1);
+    expect(importTrainingAudio).toHaveBeenCalledWith(expect.objectContaining({ file, topic: "Keynote", language: "en" }));
+    expect(onImports()).not.toBeNull();
+    expect(judging()).toBeNull();
+    expect(document.body.textContent).toContain("Imported · 3 moments");
+  });
 
   it("the panel's queue read carries no words of a piece", () => {
     const piece = blindPiece(PIECE("a"));
+    expect(piece.snippetId).toBe("a");
     expect("transcript" in piece).toBe(false);
     expect(JSON.stringify(piece)).not.toContain("SECRET WORDS");
   });
@@ -73,8 +144,7 @@ describe("the training corpus in the panel", () => {
     const done = { ...IMPORT, setupComplete: true, speakerLabel: "Steve Jobs", queueCount: 4, labelledCount: 1 };
     const unfinished = { ...IMPORT, sessionId: "i2", topic: "Unfinished" };
     fetchTrainingImports.mockResolvedValue([done, unfinished]);
-    act(() => root.render(<Host start={[{ type: "open" }, { type: "corpus" }]
-      .reduce((s, a) => panelReducer(s, a as PanelAction), PANEL_START)} />));
+    act(() => root.render(<Host start={CORPUS} />));
     await flush();
     // An unfinished import opens its set-up on a tap: no ⋯ of its own.
     expect(document.querySelector("[aria-label='More options for Unfinished']")).toBeNull();
@@ -104,9 +174,8 @@ describe("the training corpus in the panel", () => {
   it("only the founder's ⋯ carries Delete; confirming it erases the import and reads the list again", async () => {
     const done = { ...IMPORT, setupComplete: true, queueCount: 4, labelledCount: 1 };
     fetchTrainingImports.mockResolvedValue([done]);
-    const start = [{ type: "open" }, { type: "corpus" }].reduce((s, a) => panelReducer(s, a as PanelAction), PANEL_START);
     signedInEmail = "coach@example.com";
-    act(() => root.render(<Host start={start} />));
+    act(() => root.render(<Host start={CORPUS} />));
     await flush();
     click(document.querySelector("[aria-label='More options for Workshop recording']"));
     expect([...document.querySelectorAll("[role='menuitem']")].map((m) => m.textContent)).toEqual(["Edit"]);
@@ -114,7 +183,7 @@ describe("the training corpus in the panel", () => {
 
     root = createRoot(host);
     signedInEmail = "artur@willonski.com";
-    act(() => root.render(<Host start={start} />));
+    act(() => root.render(<Host start={CORPUS} />));
     await flush();
     click(document.querySelector("[aria-label='More options for Workshop recording']"));
     const items = [...document.querySelectorAll("[role='menuitem']")];
@@ -138,6 +207,10 @@ function Host({ start }: { start: PanelState }) {
 
 const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
 const click = (el: Element | null) => act(() => { (el as HTMLElement).click(); });
+/** A chosen option, as React's onChange sees it. */
+function choose(select: HTMLSelectElement, value: string): void {
+  act(() => { select.value = value; select.dispatchEvent(new Event("change", { bubbles: true })); });
+}
 /** A typed value, as React's onChange sees it. */
 function type(input: HTMLInputElement, value: string): void {
   const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
