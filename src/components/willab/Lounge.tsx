@@ -58,6 +58,7 @@ import { PROCESSING_STAGES } from "./ProcessingWait";
 import type { IdealTextLaunchMode } from "./IdealTextOverlay";
 import { lensAddress } from "@/lib/willab/lensScreen";
 import { startOpenTrace } from "@/lib/willab/openTrace";
+import { oneShareQuestion } from "@/lib/willab/walkThread";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import {
   clearExploreArc,
@@ -339,10 +340,11 @@ export default function Lounge({
   // Each project's latest Ideal Text bubble wears the unread-feedback dot
   // (founder 2026-09-25, Q39 B).
   const latestIdealIds = useMemo(() => latestIdealBubbleIds(threadItems), [threadItems]);
-  // One Ideal Text bubble per Take (founder 2026-10-14).
+  // One Ideal Text bubble per Take (founder 2026-10-14); the sharing
+  // question as one bubble (founder 2026-10-19).
   const shownItems = useMemo(() => {
     const hidden = versionBubblesWithReviewCard(threadItems);
-    return threadItems.filter((item) => !hidden.has(item.message.client_id));
+    return oneShareQuestion(threadItems.filter((item) => !hidden.has(item.message.client_id)));
   }, [threadItems]);
   // "Continue review" (founder lock 2026-10-12, section 1): the newest walk
   // step names its project and is not the review's end.

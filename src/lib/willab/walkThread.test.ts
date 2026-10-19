@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { othersAnswered, othersChat, stableUuid, walkStepDraft } from "./walkThread";
+import { WALK_COPY } from "@/components/willab/idealEditCopy";
+import { oneShareQuestion, othersAnswered, othersChat, shareChat, stableUuid, walkStepDraft } from "./walkThread";
 
 describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
   it("stores a step seen twice once, as the app's or the speaker's own message, with no score", () => {
@@ -31,5 +32,28 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
     const messages = [at("t1", "others"), at("t1", "answer:others"), at("t1", "answer:others"), at("t2", "answer:others"), at("t1", "answer:others", "text")];
     expect(othersAnswered(messages, "t1")).toBe(2);
     expect(othersAnswered(messages, "t3")).toBe(0);
+  });
+  it("asks the sharing question as one bubble, its lines as paragraphs, also for a question stored as three", () => {
+    const question = `${WALK_COPY.shareBefore}\n\n${WALK_COPY.shareTitle}\n\n${WALK_COPY.shareAudience}`;
+    const posted = shareChat(3, ["none"], []);
+    expect(posted.map((d) => [d.role, d.body])).toEqual([
+      ["user", "Record Take 3"],
+      ["bot", question],
+      ["user", WALK_COPY.shareOnlyMe],
+    ]);
+    const stored = (role: "user" | "bot", body: string, i: number) => ({
+      message: {
+        client_id: `m${i}`, role, kind: "walk_step" as const, body,
+        metadata: { step: "share" }, client_created_at: `2026-10-18T10:00:0${i}Z`,
+      },
+    });
+    const old = [
+      stored("user", "Record Take 3", 0),
+      stored("bot", WALK_COPY.shareBefore, 1),
+      stored("bot", WALK_COPY.shareTitle, 2),
+      stored("bot", WALK_COPY.shareAudience, 3),
+      stored("user", WALK_COPY.shareOnlyMe, 4),
+    ];
+    expect(oneShareQuestion(old).map((x) => x.message.body)).toEqual(["Record Take 3", question, WALK_COPY.shareOnlyMe]);
   });
 });
