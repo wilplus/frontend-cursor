@@ -76,6 +76,7 @@ import {
 import { type PresentationSlide } from "./presentation";
 import { deckForRecording } from "@/lib/willab/defaultDeck";
 import { restoredSetupFor } from "./restoredSetup";
+import { laterTakePresentation } from "./presentationInPlay";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import { LAB_FADE_IN_CLASS, useRecordingEntryFade } from "./labFade";
 import { usePolicyUpdate } from "./PolicyUpdate";
@@ -323,7 +324,8 @@ export default function LabOverlay({
      so a continued Take goes straight to recording. Bounded: a slow or failed
      read releases it after a few seconds and the form fallback still works. */
   const [setupArriving, setSetupArriving] = useState(true);
-  /** The deck came from the Ideal Text page's read (P2): read it again. */
+  /** The deck was handed over (the device's cache or the Ideal Text page's
+   *  read, P2): read the project's setup again behind it. */
   const revalidateSetupRef = useRef(false);
   useEffect(() => {
     const timer = setTimeout(() => setSetupArriving(false), 6000);
@@ -344,7 +346,7 @@ export default function LabOverlay({
     // The device's cached deck, else the setup the Ideal Text page just read
     // (P2): the Take starts on it at once and the read below runs behind.
     const start = continuedTakeDeck(cached, signedIn);
-    revalidateSetupRef.current = start.primed;
+    revalidateSetupRef.current = start.revalidate;
     setPreloadDeck(start.deck);
     // Nothing more to wait for unless the arc setup read below will run.
     if (start.deck || !cached?.arcId || signedIn !== true) {
@@ -373,7 +375,9 @@ export default function LabOverlay({
   // owner / no takes) → null → the session/deckless fallbacks below.
   useEffect(() => {
     const aid = initArc?.arcId;
-    // A setup handed over by the page is still read again, behind it (P2).
+    // A handed-over setup is still read again, behind it (P2; founder
+    // 2026-10-16: the project's saved setup says which presentation every
+    // Take shares, and a cached deck's PDF link does not stay signed forever).
     if (!aid || (preloadDeck && !revalidateSetupRef.current) || signedIn !== true) return;
     revalidateSetupRef.current = false;
     let active = true;
@@ -644,7 +648,9 @@ export default function LabOverlay({
               // setup, and remembering a default as theirs would tell the
               // next take they had uploaded a presentation when they had not
               // (and would skip the step where they can attach a real one).
-              slides: context.slides,
+              // A restored setup hands the stand-in's rows back as `slides`;
+              // they are not the speaker's either.
+              slides: recordingDeck.isDefault ? [] : context.slides,
               targetLengthSeconds: context.target_length_seconds,
             }
           : initArc?.deck;
@@ -1453,7 +1459,15 @@ export default function LabOverlay({
             recording screen are one wait: one element in one place, so the
             voice mark neither jumps nor restarts its breathing between them. */}
         {showsMicWait(state, mic.state.status, rejectedMsg) ? (
-          <LoadingState placement="surface" label={RECORDING_COPY.micReady} labelVisible />
+          <LoadingState
+            placement="surface"
+            label={RECORDING_COPY.micReady}
+            labelVisible
+            // Which presentation a later Take is said against (founder
+            // 2026-10-16): the one the Take will record with, else the
+            // project's restored setup while the mic is still being asked for.
+            note={laterTakePresentation(arcTakeIndex, context, preloadDeck)}
+          />
         ) : null}
         {state === "lab_feelings" && (
           <LabEntryGate entry={entry}>
