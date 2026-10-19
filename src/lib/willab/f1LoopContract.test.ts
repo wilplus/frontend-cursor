@@ -11,24 +11,23 @@ OUTCOME
       Never-1: no scores, numbers or verdicts shown to speakers.
   O3  The feedback slot is held only while the server says feedback is coming.
 PROVES   O1 -> "each paragraph lands in the state the speaker put it in"
-         O2 -> "KNOWN BREACH Never-1: ..." (it.fails until CompletedCard drops it)
+         O2 -> "the retired /recordings/[id] page sends the speaker to the Lounge, not to a number"
          O3 -> "reserves a bookmark's place only while the server says it is coming"
 WHY      Founder 2026-09-22: a gate parallel sessions run, not a document they
          skip. Twin: backend tests/test_f1_loop_contract.py. The wait bar's
          ceiling lives in waitProgress.test.ts.
 */
-import { act, createElement } from "react";
-import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 
 import { buildDeckChunks } from "./deckChunks";
 import type { Part } from "./documentParts";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
-vi.mock("@/lib/api/client", () => ({
-  fetchSignedAudioUrl: vi.fn(() => new Promise(() => undefined)),
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  redirect: vi.fn((to: string) => {
+    throw new Error(`NEXT_REDIRECT ${to}`);
+  }),
 }));
-vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
 // ══════════════════════════════════════════════════════════════════════════
 //  1. A PARAGRAPH'S STATE IS THE ONE THE SPEAKER PUT IT IN
@@ -70,45 +69,17 @@ describe("the four states of a paragraph", () => {
 // ══════════════════════════════════════════════════════════════════════════
 
 describe("AC-9: the read a speaker sees is in words", () => {
-  it.fails(
-    "KNOWN BREACH Never-1: /recordings/[id] shows words per minute and a filler count (CompletedCard.tsx:96,100)",
-    async () => {
-      /* The signed-in recording page renders CompletedCard, which draws the
-         machine's wpm and filler count as big numbers. Render it with a
-         recording the backend could send and read what the speaker sees. */
-      (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-      const { default: CompletedCard } = await import("@/components/session/CompletedCard");
-      const host = document.createElement("div");
-      document.body.appendChild(host);
-      const root = createRoot(host);
-      try {
-        await act(async () => {
-          root.render(
-            createElement(CompletedCard, {
-              recording: {
-                recording_id: "rec-1",
-                session_id: "ses-1",
-                status: "completed",
-                transcription_text: "We started in a garage.",
-                metrics: { wpm: 184, filler_count: 7, filler_breakdown: {} },
-                analysis: { report: "You kept a steady pace through the opening." },
-                answers: { pre: [], post: [] },
-              } as never,
-            }),
-          );
-        });
-        const seen = host.textContent ?? "";
-        // The words are there, so this cannot pass on an empty screen.
-        expect(seen).toContain("You kept a steady pace through the opening.");
-        expect(seen).not.toMatch(/Words Per Minute|\bwpm\b|\bHz\b|\bdB\b/i);
-        expect(seen).not.toContain("184");
-        expect(seen).not.toContain("7");
-      } finally {
-        act(() => root.unmount());
-        host.remove();
-      }
-    },
-  );
+  it("the retired /recordings/[id] page sends the speaker to the Lounge, not to a number", async () => {
+    /* The old recording page drew the machine's wpm and filler count as big
+       numbers (CompletedCard). It is retired (WIL-78, founder 2026-10-19):
+       opening it redirects to the Lounge and renders nothing of its own. */
+    const { redirect } = await import("next/navigation");
+    const { default: RetiredRecordingPage } = await import(
+      "@/app/(protected)/recordings/[id]/page"
+    );
+    expect(() => RetiredRecordingPage()).toThrow("NEXT_REDIRECT /chat");
+    expect(redirect).toHaveBeenCalledWith("/chat");
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════════════

@@ -7,7 +7,7 @@ OUTCOME
   O2  An unrated moment (Judge it) carries no kind, whatever the server sent.
       Never-2: no coach sees the machine's guess before answering.
 PROVES   O1 -> "carries the kind once the coach has rated the moment"
-         O2 -> "KNOWN BREACH Never-2: ..." (it.fails until the mapper drops it)
+         O2 -> "an unrated moment carries no kind, whatever the server sent"
 WHY      Founder 2026-09-30, blind coach (P2-8).
 */
 import { describe, expect, it } from "vitest";
@@ -32,17 +32,14 @@ describe("mapMomentsQueue keeps the coach blind", () => {
     expect(moments.map((m) => m.kind)).toEqual([null, "praise", "error"]);
   });
 
-  it.fails(
-    "KNOWN BREACH Never-2: an unrated moment keeps the kind the server sent (coachWalk.ts:70)",
-    () => {
-      // The backend withholds the kind today; the client does not enforce it,
-      // so a server that sent one would put the machine's guess on screen.
-      const [moment] = queueWith([
-        { snippet_id: "s-1", state: "judge_it", kind: "error" },
-      ]);
-      expect(moment.snippetId).toBe("s-1");
-      expect(moment.state).toBe("judge_it");
-      expect(moment.kind).toBeNull();
-    },
-  );
+  it("an unrated moment carries no kind, whatever the server sent", () => {
+    // The backend withholds the kind; the client enforces it too, so a server
+    // that sent one can never put the machine's guess on screen.
+    const [moment] = queueWith([
+      { snippet_id: "s-1", state: "judge_it", kind: "error" },
+    ]);
+    expect(moment.snippetId).toBe("s-1");
+    expect(moment.state).toBe("judge_it");
+    expect(moment.kind).toBeNull();
+  });
 });
