@@ -1027,6 +1027,14 @@ export async function archiveTrainingImport(sessionId: string): Promise<SetupRes
   return { ok: true };
 }
 
+/** POST /training-imports/:id/erase — the founder's Delete: the audio, the
+ *  moments and the judgements go for good (founder 2026-10-19). */
+export async function eraseTrainingImport(sessionId: string): Promise<SetupResult> {
+  const result = await bffFetch(`/api/v2/coach/training-imports/${encodeURIComponent(sessionId)}/erase`, { method: "POST" });
+  if (result.kind !== "response" || !result.ok) return failureOf(result);
+  return { ok: true };
+}
+
 /** POST /training-imports/:id/restore — undo the archive. */
 export async function restoreTrainingImport(sessionId: string): Promise<SetupResult> {
   const result = await bffFetch(`/api/v2/coach/training-imports/${encodeURIComponent(sessionId)}/restore`, { method: "POST" });

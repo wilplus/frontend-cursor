@@ -7,7 +7,8 @@
 /*    CorpusHomeScreen     Training corpus: the imports, each with whose      */
 /*                         voice it is and how many moments wait, or its      */
 /*                         set-up not finished; the pill "Import audio"; a    */
-/*                         finished one's ⋯ → Edit (founder 2026-10-18)       */
+/*                         finished one's ⋯ → Edit (founder 2026-10-18), and  */
+/*                         for the founder ⋯ → Delete (founder 2026-10-19)    */
 /*    CorpusImportScreen   Import audio (or Finish the set-up, or Edit): the  */
 /*                         file, the corpus page's own fields and words, what */
 /*                         to run; Import is off until file, topic and        */
@@ -18,8 +19,9 @@
 /*  The judging screen is the panel's own JudgeScreen (CoachPanelScreens),    */
 /*  driven by CoachCorpusJudge. Presentational: the host owns the state, the  */
 /*  fetches and the writes. Every word is COACH_PANEL_COPY's; the only        */
-/*  numbers are counts of moments (AC-9). Hide, delete and restore are not    */
-/*  here: they moved to the founder's admin area (Q-B15 A).                   */
+/*  numbers are counts of moments (AC-9). Hide and restore are not here:     */
+/*  they moved to the founder's admin area (Q-B15 A). The founder's Delete   */
+/*  erases an import for good (founder 2026-10-19); coaches never see it.    */
 /* -------------------------------------------------------------------------- */
 
 import type { ReactNode } from "react";
@@ -64,7 +66,23 @@ export function importEditable(im: Pick<TrainingImport, "setupComplete" | "state
   return im.setupComplete && im.state !== "running";
 }
 
-export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onEdit, onClose }: {
+/** An import's ⋯: Edit when its set-up can be edited, then the founder's
+ *  Delete behind its confirmation; nothing when neither applies. */
+function importMenu(im: TrainingImport, onEdit: (im: TrainingImport) => void,
+  onDelete?: (im: TrainingImport) => Promise<boolean>): ReactNode {
+  const confirm = { title: COPY.deleteImportTitle(im.topic), body: COPY.deleteImportBody, confirmLabel: COPY.delete };
+  const erase = onDelete ? () => onDelete(im) : null;
+  if (importEditable(im)) {
+    return (
+      <ProjectRowMenu label={im.topic} actionLabel={COPY.edit} confirm={null}
+        onDelete={() => { onEdit(im); return Promise.resolve(true); }}
+        secondary={erase ? { label: COPY.delete, confirm, onRun: erase } : undefined} />
+    );
+  }
+  return erase ? <ProjectRowMenu label={im.topic} actionLabel={COPY.delete} confirm={confirm} onDelete={erase} /> : undefined;
+}
+
+export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onEdit, onDelete, onClose }: {
   /** null while it loads or when it could not be read. */
   imports: readonly TrainingImport[] | null;
   loading: boolean;
@@ -74,6 +92,8 @@ export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onE
   onOpen: (im: TrainingImport) => void;
   /** The ⋯'s Edit: the set-up again, filled in. */
   onEdit: (im: TrainingImport) => void;
+  /** The founder's ⋯ → Delete, resolving true once erased; absent for coaches. */
+  onDelete?: (im: TrainingImport) => Promise<boolean>;
   onClose: () => void;
 }) {
   const footer = (
@@ -88,10 +108,7 @@ export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onE
           label={COPY.trainingCorpus}
           choices={imports.map((im) => ({
             ...importChoice(im),
-            menu: importEditable(im) ? (
-              <ProjectRowMenu label={im.topic} actionLabel={COPY.edit} confirm={null}
-                onDelete={() => { onEdit(im); return Promise.resolve(true); }} />
-            ) : undefined,
+            menu: importMenu(im, onEdit, onDelete),
           }))}
           onPick={(v) => {
             const im = imports.find((i) => i.sessionId === v);

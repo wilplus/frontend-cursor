@@ -8,11 +8,20 @@ import { Button } from "@/components/ui/button";
 /*  ProjectRowMenu — the ⋯ on the right of a row in the project picker        */
 /*  (founder 2026-09-25). One action: a draft row's Delete, behind a          */
 /*  confirmation, or a project row's Archive (N14, 2026-09-26), which needs   */
-/*  none. Deleting a project lives in Data & consent, never here.             */
+/*  none. Deleting a project lives in Data & consent, never here. A second,  */
+/*  confirmed action may follow the first: the founder's Delete of a training */
+/*  import under its Edit (founder 2026-10-19).                               */
 /*                                                                            */
 /*  The confirmation owns the delete so the row cannot vanish before it       */
 /*  landed: on failure the dialog stays open and says so.                     */
 /* -------------------------------------------------------------------------- */
+
+/** A second action under the first, always behind its confirmation. */
+export interface SecondaryAction {
+  label: string;
+  confirm: ConfirmCopy;
+  onRun: () => Promise<boolean>;
+}
 
 export interface ConfirmCopy {
   title: string;
@@ -33,6 +42,7 @@ export default function ProjectRowMenu({
   actionLabel = "Delete",
   confirm = DRAFT_CONFIRM,
   failedLabel = "Couldn't save that. Try again.",
+  secondary,
 }: {
   /** The row's visible title, for the menu's accessible name. */
   label: string;
@@ -44,10 +54,13 @@ export default function ProjectRowMenu({
   confirm?: ConfirmCopy | null;
   /** Said when an action without a confirmation fails. */
   failedLabel?: string;
+  /** A second, confirmed action below the first. */
+  secondary?: SecondaryAction;
 }) {
   const [failedDirect, setFailedDirect] = useState(false);
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [confirmingSecondary, setConfirmingSecondary] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -104,6 +117,20 @@ export default function ProjectRowMenu({
             {confirm ? <Trash2 className="h-4 w-4" aria-hidden /> : null}
             {actionLabel}
           </button>
+          {secondary ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                setConfirmingSecondary(true);
+              }}
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[14px] text-record transition hover:bg-muted"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden />
+              {secondary.label}
+            </button>
+          ) : null}
         </div>
       ) : null}
       {failedDirect ? (
@@ -119,6 +146,13 @@ export default function ProjectRowMenu({
           copy={confirm}
           onCancel={() => setConfirming(false)}
           onDelete={onDelete}
+        />
+      ) : null}
+      {confirmingSecondary && secondary ? (
+        <ConfirmDelete
+          copy={secondary.confirm}
+          onCancel={() => setConfirmingSecondary(false)}
+          onDelete={secondary.onRun}
         />
       ) : null}
     </div>

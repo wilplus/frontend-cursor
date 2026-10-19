@@ -3,7 +3,8 @@
    saved set-up goes straight to judging with "Set up · {n} moments", an
    import lands on the imports with "Imported · {n} moments", an import with
    nothing to judge is never judged, the panel's Judge reads the queue
-   without a piece's words, and a finished import's ⋯ → Edit renames it. */
+   without a piece's words, a finished import's ⋯ → Edit renames it, and
+   only the founder's ⋯ carries Delete, which erases the import. */
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,12 +13,16 @@ const fetchTrainingImports = vi.fn();
 const saveImportSetup = vi.fn();
 const fetchBlindConfidenceQueue = vi.fn();
 const importTrainingAudio = vi.fn();
+const eraseTrainingImport = vi.fn();
+let signedInEmail: string | null = null;
+vi.mock("../useUserEmail", () => ({ useUserEmail: () => signedInEmail }));
 vi.mock("@/services/api/trainingCorpus", async (orig) => ({
   ...(await orig<typeof import("@/services/api/trainingCorpus")>()),
   fetchTrainingImports: (...a: unknown[]) => fetchTrainingImports(...a),
   saveImportSetup: (...a: unknown[]) => saveImportSetup(...a),
   fetchBlindConfidenceQueue: (...a: unknown[]) => fetchBlindConfidenceQueue(...a),
   importTrainingAudio: (...a: unknown[]) => importTrainingAudio(...a),
+  eraseTrainingImport: (...a: unknown[]) => eraseTrainingImport(...a),
 }));
 vi.mock("@/services/api/coachPanel", () => ({
   fetchErrorAudit: vi.fn(async () => null),
@@ -48,6 +53,8 @@ beforeEach(() => {
   saveImportSetup.mockReset().mockResolvedValue({ ok: true });
   fetchBlindConfidenceQueue.mockReset();
   importTrainingAudio.mockReset();
+  eraseTrainingImport.mockReset().mockResolvedValue({ ok: true });
+  signedInEmail = null;
 });
 afterEach(() => {
   act(() => root.unmount());
@@ -92,6 +99,34 @@ describe("the training corpus in the panel", () => {
     expect(fetchBlindConfidenceQueue).not.toHaveBeenCalled();
     expect(document.querySelector("[data-testid='coach-panel-corpushome']")).not.toBeNull();
     expect(fetchTrainingImports.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it("only the founder's ⋯ carries Delete; confirming it erases the import and reads the list again", async () => {
+    const done = { ...IMPORT, setupComplete: true, queueCount: 4, labelledCount: 1 };
+    fetchTrainingImports.mockResolvedValue([done]);
+    const start = [{ type: "open" }, { type: "corpus" }].reduce((s, a) => panelReducer(s, a as PanelAction), PANEL_START);
+    signedInEmail = "coach@example.com";
+    act(() => root.render(<Host start={start} />));
+    await flush();
+    click(document.querySelector("[aria-label='More options for Workshop recording']"));
+    expect([...document.querySelectorAll("[role='menuitem']")].map((m) => m.textContent)).toEqual(["Edit"]);
+    act(() => root.unmount());
+
+    root = createRoot(host);
+    signedInEmail = "artur@willonski.com";
+    act(() => root.render(<Host start={start} />));
+    await flush();
+    click(document.querySelector("[aria-label='More options for Workshop recording']"));
+    const items = [...document.querySelectorAll("[role='menuitem']")];
+    expect(items.map((m) => m.textContent)).toEqual(["Edit", "Delete"]);
+    click(items[1]!);
+    const dialog = document.querySelector("[aria-labelledby='delete-project-title']")!;
+    expect(dialog.querySelector("h2")!.textContent).toBe('Delete "Workshop recording"?');
+    const reads = fetchTrainingImports.mock.calls.length;
+    click([...dialog.querySelectorAll("button")].find((b) => b.textContent === "Delete")!);
+    await flush();
+    expect(eraseTrainingImport).toHaveBeenCalledWith("i1");
+    expect(fetchTrainingImports.mock.calls.length).toBeGreaterThan(reads);
   });
 });
 

@@ -69,8 +69,10 @@ import {
   fetchCoachSpeakers, queueSpeakerFor, speakersFromQueue, type PanelSpeaker,
 } from "@/services/api/coachSpeakers";
 import {
-  fetchBlindConfidenceQueue, fetchTrainingImports, importTrainingAudio, saveImportSetup, type TrainingImport,
+  eraseTrainingImport, fetchBlindConfidenceQueue, fetchTrainingImports, importTrainingAudio, saveImportSetup, type TrainingImport,
 } from "@/services/api/trainingCorpus";
+import { isFounderEmail } from "@/lib/founder";
+import { useUserEmail } from "../useUserEmail";
 
 type StageScreen = WalkScreen & { panel: PanelScreen };
 type TakeMedia = { clips: Record<string, PanelClip>; slides: Record<string, ReadSlide> };
@@ -291,6 +293,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading }: Coach
   const blind = useBlindLines(screen.key === "queue");
   const all = useAllSpeakers(screen.key === "speakers");
   const corpus = useImports(screen.key === "corpushome");
+  const founder = isFounderEmail(useUserEmail());
   const [form, setForm] = useState<ImportForm>(BLANK_IMPORT);
   const [corpusBusy, setCorpusBusy] = useState(false);
   const [corpusFail, setCorpusFail] = useState<string | null>(null);
@@ -319,6 +322,14 @@ export default function CoachPanel({ state, dispatch, speakers, loading }: Coach
     setCorpusFail(null);
     setForm({ ...BLANK_IMPORT, topic: im.topic, speaker: im.speakerLabel ?? "", language: im.language });
     dispatch({ type: "corpusImport", setupOf: im.sessionId, edit: true });
+  }
+
+  /** The founder's ⋯ → Delete: the import is erased for good, then the list
+   *  reads again. False keeps the confirmation open and says so. */
+  async function deleteImport(im: TrainingImport): Promise<boolean> {
+    const result = await eraseTrainingImport(im.sessionId);
+    if (result.ok) corpus.refresh();
+    return result.ok;
   }
 
   async function submitImport(setupOf: string | null, edit = false): Promise<void> {
@@ -458,7 +469,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading }: Coach
       return (
         <CorpusHomeScreen imports={corpus.imports} loading={corpus.loading} fail={live ? corpusFail : null}
           onImport={() => { setCorpusFail(null); setForm(BLANK_IMPORT); dispatch({ type: "corpusImport" }); }}
-          onOpen={openImport} onEdit={editImport} onClose={close} />
+          onOpen={openImport} onEdit={editImport} onDelete={founder ? deleteImport : undefined} onClose={close} />
       );
     }
     if (panel.key === "corpusimport") {
