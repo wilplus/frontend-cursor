@@ -1,25 +1,16 @@
+/*
+GUARD    No component in src/components or src/app draws a star icon.
+CATCHES  Never 1 (no verdicts shown to speakers): a `<Star` element or a lucide
+         `Star` import in any .tsx, user lane or coach lane. A source scan on
+         purpose: the star rating once lived in six separate renderers, and a
+         render test only covers the surface it mounts.
+IF REMOVED  A star rating (a verdict) can quietly come back on any screen.
+PROVES   star drawn -> "NO component draws a star icon"
+WHY      Founder 2026-08-11: "no stars anywhere else, rip them off".
+*/
 import { describe, expect, it } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-
-/* -------------------------------------------------------------------------- */
-/*  THE STAR FENCE (founder 2026-08-11, verbatim: "O stars at all the voice    */
-/*  confident feedback is just a feedback; so treat it as such and no stars    */
-/*  anywhere else, rip them off").                                            */
-/*                                                                            */
-/*  A source scan, not a render test, and deliberately so: the star lane died  */
-/*  as SIX separate renderers (the moment text, the tracked layer, the badged  */
-/*  reading view, the rich-text decor, the pending pill, the advice mark), and */
-/*  a render test only ever covers the surface it mounts. What must hold is a  */
-/*  property of the code: no USER-lane file draws a star.                     */
-/*                                                                            */
-/*  NOTHING IS EXEMPT (founder 2026-08-11, second pass: "Let's eradicate       */
-/*  'stars' completely across the entire platform"). The coach's star-verdict  */
-/*  review kept its icon for one slice; it now wears a neutral approval mark   */
-/*  like everything else. The labelling FLOW is untouched — only the glyph     */
-/*  changed — so this fence costs the coach nothing and leaves no corner       */
-/*  where a star can quietly return.                                          */
-/* -------------------------------------------------------------------------- */
 
 const ROOTS = ["src/components", "src/app"];
 
@@ -45,7 +36,12 @@ function drawsAStar(source: string): boolean {
 describe("no stars on user surfaces (founder 2026-08-11)", () => {
   const files = ROOTS.flatMap((r) => walk(r));
 
-  it("NO component draws a star icon — user lane or coach lane", () => {
+  it("NO component draws a star icon", () => {
+    // The scan sees files, and it would see a star if one were there.
+    expect(files.length).toBeGreaterThan(0);
+    expect(drawsAStar('import { Check, Star } from "lucide-react";')).toBe(true);
+    expect(drawsAStar("<Star size={12} />")).toBe(true);
+    expect(drawsAStar("<StarVerdict />")).toBe(false);
     const offenders = files.filter((f) => drawsAStar(readFileSync(f, "utf8")));
     expect(offenders).toEqual([]);
   });
