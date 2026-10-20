@@ -131,8 +131,11 @@ step; the loop never waits for a coach.
   version only when both gates pass (H3), else on the voice Exercise with
   the AI clip (words first, then voice, 2026-10-18, N76).
 - **C5 The Clearer version.** The speaker's words with the changed words
-  crossed out; "Here is a slightly more polished option:"; the new text with
-  the new words in orange; "Do you accept and want to practise it?";
+  crossed out; "Here is a slightly more polished option:" (when the reason is
+  undermining words, `rewrite_reason: "undermining"`, B10's "Say what you
+  mean. Don't dance around it, just say it straight." and "Try saying it
+  like this:" in its place, N85); the new text with the new words in orange;
+  "Do you accept and want to practise it?";
   "Accept and practise" / "Keep my words" (which practises their own
   sentence with Line A). At most one rewrite per Take. An accepted version
   never changes the Ideal Text (rule 5): it gets there when it is said in the
@@ -157,8 +160,11 @@ step; the loop never waits for a coach.
   try as the orange "Practise N", the typing dots while it is checked, then
   the answer. The recorder is the recording screen as re-locked 2026-10-12
   (N70) without the slide card; after Stop the walk returns instantly. The
-  machine decides (H1, Δ willfidence ≥ +0.05); it never asks the speaker
-  how it sounded. **Not yet:** a not-yet line that changes each time, the
+  machine decides (H1): a Good job on the voice alone needs the margin,
+  +0.05 (`after_practice.GOOD_JOB_MARGIN`, N84); a cleared problem, or a cue
+  moved by at least half a within-speaker deviation, counts too; a clearer
+  version's try with no sound read is a Good job; a smaller rise is a not
+  yet. It never asks the speaker how it sounded. **Not yet:** a not-yet line that changes each time, the
   same AI clip with L5, and under it only "Practise" or "Practise again"
   with the red dot, no Next and no Skip, until a Good job or the third try
   (2026-10-18). **Better:** "Good job", "That sounded more assured than the
@@ -338,16 +344,27 @@ step; the loop never waits for a coach.
   processing logs why nothing was stamped (2026-10-17).
 - **H2** The AI clip's problem (pace, pause, stress, fillers) is measured
   against the speaker's own usual delivery; the clip is made once per
-  exercise, at the end of the bake, checked before it is shown. The whole
+  exercise, at the end of the bake, checked before it is shown; the walk asks
+  for it after its first minute and shows it whenever it lands. The speaker's
+  AI voice is made from Take 1 as the spoken Take is stored, beside its
+  processing (N84; it used to wait for the end of processing). The whole
   rule: `FOUNDER-LOCK-ai-voice-practice-2026-10-12.md`.
 - **H3** The rewrite gate (`services/rewrite_gate.py`, 2026-10-18): the
   Clearer version only when **the words need help** (fillers or hedges at 3
-  or more per 100 words, off the slide below 0.5 fit, or a broken sentence)
-  **and the rewrite is good enough** (inside the moment's own clip; backed by
-  evidence, never the tentative fallback; a real fix, fillers and hedges at
-  least 0.1 better or the sentence mended; still theirs, 6 words in 10, no
-  new number or name; no longer than what they said and 5 words or more; not
-  turned down before on the same words). Anything else → the voice Exercise.
+  or more per 100 words; one word that undermines the speaker, apologising,
+  asking permission, self-doubt or playing the idea down, from the closed
+  lists in `services/undermining.py`, N85; off the slide below 0.5 fit; or a
+  broken sentence) **and the rewrite is good enough** (inside the moment's
+  own clip; backed by evidence, never the tentative fallback; a real fix,
+  fillers and hedges at least 0.1 better, fewer undermining words, or the
+  sentence mended; still theirs, 6 words in 10, no new number or name; no
+  longer than what they said and 5 words or more; not turned down before on
+  the same words). Anything else → the voice Exercise. For undermining words
+  a rule writes the clearer version (`take_feedback_manager.
+  _undermining_rewrites`): the same sentence with its apologies, asks for
+  permission, self-doubt and softening hedges left out, never a word added;
+  a playing-down phrase that would need rewriting makes no rule rewrite, and
+  the moment keeps the voice Exercise.
 
 ### I · Learning
 
@@ -410,7 +427,9 @@ step; the loop never waits for a coach.
   helper words".
 - **The Clearer version:** "Here is a slightly more polished option:", "Do
   you accept and want to practise it?", "Accept and practise", "Keep my
-  words".
+  words"; for undermining words B10's "Say what you mean. Don't dance around
+  it, just say it straight." and B13's "Try saying it like this:" (signed
+  lines in a new place, N85).
 - **Practise:** Line A "Say this one like your confident moment."; "That
   sounded more assured than the first."; the praise, not-yet and move-on
   lines of the signed bank (backend `docs/SIGNED-line-bank-2026-10-06.md`,
@@ -551,7 +570,9 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-20 · this page replaces the two lock files and the walk's log entries; the design-lock check guards it · FE —, BE —
+- 2026-10-20 · N85 · the walk spots words that undermine the speaker: the gate, a rule-written clearer version, B10 and B13 as its opener (C5, H3, K) · BE #1201
+- 2026-10-20 · N84 · a Good job only when clearly better, +0.05; the AI voice starts as the Take is stored (C7, H2) · BE #1201
+- 2026-10-20 · this page replaces the two lock files and the walk's log entries; the design-lock check guards it · FE #890, BE #1202
 - 2026-10-20 · a distressed answer under "What would help?" gets the chat's safety reply (E1) · BE #1199
 - 2026-10-20 · N83 · the founder edits Will's questions on the coach panel (E5) · FE #887, BE #1197
 - 2026-10-20 · a finished paragraph opens the walk at what it answered, orange words too (F5) · FE #886, BE #1196
