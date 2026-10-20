@@ -103,24 +103,79 @@ export function clearLocalLoungeThread(): void {
  */
 export async function mergeLocalLoungeThreadToServer(): Promise<LoungeMessage[]> {
   const local = readLocalLoungeThread();
-  if (local.length === 0) return [];
-  const ordered = mergeableLocalMessages(local);
-  const persisted = ordered.length ? await appendAllLoungeMessages(ordered) : [];
+  if (local.length === 0) {
+    clearClaimedThreadMark();
+    return [];
+  }
+  // Every message is replayed, the guest's own "your text is ready" card
+  // included: when the Take is sent to the coach the server back-fills the
+  // same card under its own id, and the chat draws one card per version
+  // (unreadFeedback.ts), so the two never show together. Without a send
+  // there is no server card, and the guest's is the only way back to the
+  // text (founder 2026-10-20).
+  const ordered = [...local].sort((a, b) =>
+    a.client_created_at < b.client_created_at ? -1 : 1
+  );
+  const persisted = await appendAllLoungeMessages(ordered);
   clearLocalLoungeThread();
+  clearClaimedThreadMark();
   return persisted;
 }
 
-/** The local messages the account's thread takes, in chronological order.
- *
- *  ONE IDEAL TEXT BUBBLE PER TAKE (founder 2026-10-18: "I can see two
- *  bubbles; there should be just one"). A guest's "your text is ready" card
- *  is posted by the page, under an id of its own, because a guest has no
- *  server thread; the claim that precedes this merge back-fills the same
- *  card into the account under the server's id. Replaying the guest's copy
- *  too put two cards for one Take in the chat. The server's card is the one
- *  that stays, so the guest's copy is not replayed. */
-export function mergeableLocalMessages(local: readonly LoungeMessage[]): LoungeMessage[] {
-  return local
-    .filter((m) => !(m.kind === "ideal_text" && m.metadata?.variant === "ready"))
-    .sort((a, b) => (a.client_created_at < b.client_created_at ? -1 : 1));
+/* -------------------------------------------------------------------------- */
+/*  THE CHAT FOLLOWS THE TAKE INTO THE ACCOUNT (founder 2026-10-20: "after I  */
+/*  sign up ... it shows me a button like my take was not registered").       */
+/*                                                                            */
+/*  The guest's thread used to reach the account only through the pending    */
+/*  coach send, which exists only when the guest signed up from the ready     */
+/*  screen. A guest who chose "Not now" and signed up later had their Take    */
+/*  claimed into the account and their chat left behind: an empty chat. Now   */
+/*  the claim that moves a guest into an account marks the thread on this     */
+/*  device as that account's, and a marked thread is merged on the next      */
+/*  signed-in open (or at once). The mark, not a sign-in alone, decides: a   */
+/*  thread on a shared device is never merged into whoever signs in next.    */
+/* -------------------------------------------------------------------------- */
+
+const CLAIMED_THREAD_KEY = "willab.lounge_thread_claimed";
+
+/** The chat on this device belongs to the account that just claimed it. */
+export function markLocalThreadClaimed(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(CLAIMED_THREAD_KEY, "1");
+  } catch {
+    /* swallow — private mode; the pending send still merges */
+  }
+}
+
+function claimedThreadMarked(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(CLAIMED_THREAD_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function clearClaimedThreadMark(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(CLAIMED_THREAD_KEY);
+  } catch {
+    /* swallow */
+  }
+}
+
+/** The Lounge re-reads its thread when this fires. */
+export const LOUNGE_THREAD_MERGED_EVENT = "willab:lounge-thread-merged";
+
+/** Merge the thread on this device into the account, when a claim marked it
+ *  as the account's. True when something was merged (the Lounge is told). */
+export async function mergeClaimedLocalThread(): Promise<boolean> {
+  if (!claimedThreadMarked()) return false;
+  const persisted = await mergeLocalLoungeThreadToServer();
+  if (persisted.length && typeof window !== "undefined") {
+    window.dispatchEvent(new Event(LOUNGE_THREAD_MERGED_EVENT));
+  }
+  return persisted.length > 0;
 }
