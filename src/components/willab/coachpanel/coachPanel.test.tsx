@@ -20,6 +20,8 @@ OUTCOME
   O7  As the founder, the ⋯ on a waiting speaker, the greyed one waiting
       for its text included, deletes their waiting moments behind a
       confirmation; no other coach has the ⋯.
+  O8  As the founder, the ⋯ on a blind line clears what waits on it for the
+      week behind a confirmation; no other coach has the ⋯.
 PROVES   O1 -> "Judge: the player, the question, 👍 😐 👎 and Audio unclear (lock 2026-10-12 §7), nothing else"
          O2 -> "Judge first; the moment read is asked for only after the rating saves",
                "a failed save stays on Judge, says so, and never reads the moment"
@@ -33,6 +35,7 @@ PROVES   O1 -> "Judge: the player, the question, 👍 😐 👎 and Audio unclea
                "leaving the word before Send cancels Remove the video: the next visit shows the saved video again",
                "a Take drafted but never sent opens on its draft at every visit, drafted once; Send without a video sends video_ref: null"
          O7 -> "the founder's ⋯ deletes a waiting speaker's moments, the greyed one's too, behind its confirmation; other coaches have none"
+         O8 -> "the founder's ⋯ clears what waits on a blind line behind its confirmation; other coaches have none"
 WHY      Never 2 (coach judgements stay blind); locked coach panel; O6:
          founder 2026-10-19 (D9, D10), approved two-phone prototype
          https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk. O7: founder
@@ -89,7 +92,7 @@ vi.mock("../coachwalk/useConfidenceChainReceipt", () => ({
 import CoachPanel, {  } from "./CoachPanel";
 import {
   JudgeScreen, QueueScreen,
-  SpeakerScreen,
+  SpeakerScreen, type BlindRows,
 } from "./CoachPanelScreens";
 import { PANEL_START, panelReducer, type PanelAction, type PanelState } from "@/lib/willab/coachPanel";
 import type { QueueMoment, QueueSpeaker, QueueTake } from "@/lib/willab/coachWalk";
@@ -265,6 +268,23 @@ describe("CoachPanel", () => {
 
     draw(<QueueScreen speakers={[HERON]} loading={false} blind={null} onSpeaker={() => {}} onClose={() => {}} />);
     expect(q("[aria-label='More options for Quiet Heron']")).toBeNull();
+  });
+
+  it("the founder's ⋯ clears what waits on a blind line behind its confirmation; other coaches have none", async () => {
+    const onClear = vi.fn(async () => true);
+    const audit = { items: [{}], wording: { title: "Do you hear it?", queue_line: "Also waiting · blind" } } as unknown as BlindRows["audit"];
+    const blind: BlindRows = { audit, picks: null, onOpenAudit: () => {}, onOpenPicks: () => {} };
+    draw(<QueueScreen speakers={[]} loading={false} blind={{ ...blind, onClear }} onSpeaker={() => {}} onClose={() => {}} />);
+    act(() => q("[aria-label='More options for Do you hear it?']")!.click());
+    act(() => q("[role='menuitem']")!.click());
+    const dialog = document.querySelector("[aria-labelledby='delete-project-title']")!;
+    expect(dialog.textContent).toContain(COPY.clearBlindTitle("Do you hear it?"));
+    expect(dialog.textContent).toContain(COPY.clearBlindBody);
+    await act(async () => [...dialog.querySelectorAll("button")].find((b) => b.textContent === COPY.delete)!.click());
+    expect(onClear).toHaveBeenCalledWith("error_audit");
+
+    draw(<QueueScreen speakers={[]} loading={false} blind={blind} onSpeaker={() => {}} onClose={() => {}} />);
+    expect(q("[aria-label='More options for Do you hear it?']")).toBeNull();
   });
 
   it("a failed save stays on Judge, says so, and never reads the moment", async () => {

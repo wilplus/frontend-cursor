@@ -262,6 +262,16 @@ export function mapErrorAuditQueue(raw: unknown): ErrorAuditQueue {
   return { items, wording: wording(r.wording) };
 }
 
+/** The four blind lines, by the backend's names (POST …/blind/:line/clear). */
+export type BlindLine = "error_audit" | "block_pick" | "v4_moment_pick" | "v4_surer";
+
+/** The founder's ⋯ → Delete on a blind line (2026-10-20): what waits on it
+ *  is cleared for the week. True once done. */
+export async function clearBlindLine(line: BlindLine): Promise<boolean> {
+  const { status } = await post(`/api/v2/coach/blind/${line}/clear`, {});
+  return status === 200;
+}
+
 /** null while dark or on any failure. */
 export async function fetchErrorAudit(): Promise<ErrorAuditQueue | null> {
   const { status, data } = await get("/api/v2/coach/error-audit");

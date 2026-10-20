@@ -62,8 +62,8 @@ import { fetchCoachReviewSession } from "@/services/api/coachReview";
 import { closeWaitingMoments, type MomentRead } from "@/services/api/coachWalk";
 import { buildRatingBody, saveStateRating } from "@/services/api/stateRatings";
 import {
-  fetchBlockPicks, fetchErrorAudit, fetchV4MomentPicks, fetchV4SurerPairs,
-  type BlockPickQueue, type ErrorAuditQueue, type V4MomentPickQueue, type V4SurerQueue,
+  clearBlindLine, fetchBlockPicks, fetchErrorAudit, fetchV4MomentPicks, fetchV4SurerPairs,
+  type BlindLine, type BlockPickQueue, type ErrorAuditQueue, type V4MomentPickQueue, type V4SurerQueue,
 } from "@/services/api/coachPanel";
 import {
   fetchCoachSpeakers, queueSpeakerFor, speakersFromQueue, type PanelSpeaker,
@@ -165,7 +165,15 @@ function useBlindLines(queueOpen: boolean) {
     void fetchV4SurerPairs().then((next) => { if (!cancelled) setV4Surer(next); });
     return () => { cancelled = true; };
   }, [queueOpen]);
-  return { audit, picks, setAudit, setPicks, v4Picks, setV4Picks, v4Surer, setV4Surer };
+  /** A line the founder cleared draws empty at once (it waits for next week). */
+  const emptied = useCallback((line: BlindLine) => {
+    const none = <Q extends { items: unknown[] }>(q: Q | null): Q | null => (q ? { ...q, items: [] } : q);
+    if (line === "error_audit") setAudit(none);
+    else if (line === "block_pick") setPicks(none);
+    else if (line === "v4_moment_pick") setV4Picks(none);
+    else setV4Surer(none);
+  }, []);
+  return { audit, picks, setAudit, setPicks, v4Picks, setV4Picks, v4Surer, setV4Surer, emptied };
 }
 
 /** Every speaker, read each time Your speakers opens. `speakers` is null
@@ -326,6 +334,15 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
     dispatch({ type: "corpusImport", setupOf: im.sessionId, edit: true });
   }
 
+  /** The founder's ⋯ → Delete on a blind line: what waits on it is cleared
+   *  for the week, and the row goes. False keeps the confirmation open. */
+  async function clearBlind(line: BlindLine): Promise<boolean> {
+    const ok = await clearBlindLine(line);
+    if (ok) blind.emptied(line);
+    return ok;
+  }
+  const clearBlindLineOf = founder ? clearBlind : undefined;
+
   /** The founder's ⋯ → Delete on a speaker's row: their waiting moments leave
    *  every coach's queue, then the queue reads again. False keeps the
    *  confirmation open and says so. */
@@ -459,7 +476,8 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
           blind={{ audit: blind.audit, picks: blind.picks,
             onOpenAudit: () => setBlindOpen("audit"), onOpenPicks: () => setBlindOpen("picks"),
             v4Picks: blind.v4Picks, v4Surer: blind.v4Surer,
-            onOpenV4Picks: () => setBlindOpen("v4picks"), onOpenV4Surer: () => setBlindOpen("v4surer") }} />
+            onOpenV4Picks: () => setBlindOpen("v4picks"), onOpenV4Surer: () => setBlindOpen("v4surer"),
+            onClear: clearBlindLineOf }} />
       );
     }
     if (panel.key === "speakers") {
