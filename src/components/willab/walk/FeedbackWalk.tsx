@@ -681,7 +681,7 @@ function Clip({ moment, words }: { moment: FeedbackWalkMoment; words?: ReactNode
   );
 }
 
-/** The coach's word for the Take: "Your coach", their video inside the
+/** The coach's word for the Take: "Your coach:", their video inside the
  *  bubble, then their words. */
 function CoachNote(ctx: ScreenCtx, step: WalkStep) {
   const note = ctx.coachNote;
@@ -706,7 +706,7 @@ function CoachNote(ctx: ScreenCtx, step: WalkStep) {
       footer={<WalkFooter pill={{ label: COPY.pillContinue, onClick: ok, testId: "walk-forward" }} />}
     >
       <WalkMessage coach wide>
-        <span>{COPY.titleCoach}</span>
+        <span>{COPY.titleCoachLine}</span>
         {note?.videoUrl ? <CoachVideo src={note.videoUrl} className="my-2 w-full flex-none" /> : null}
         {note?.text ? <span>{note.text}</span> : null}
       </WalkMessage>
@@ -906,7 +906,7 @@ function CoachAnswerBubble({ moment }: { moment: FeedbackWalkMoment<unknown> }) 
   if (!answer) return null;
   return (
     <WalkMessage coach wide>
-      <span>{COPY.titleCoach}</span>
+      <span>{COPY.titleCoachLine}</span>
       {answer.videoUrl ? <CoachVideo src={answer.videoUrl} className="my-2 w-full flex-none" /> : null}
       <span>{answer.text}</span>
     </WalkMessage>

@@ -8,7 +8,7 @@ PROVES   O1 -> comes down when the feedback settles with nothing to walk
 */
 import { describe, expect, it } from "vitest";
 
-import { lensIdle } from "./lensScreen";
+import { lensIdle, lensStillLoading } from "./lensScreen";
 
 /* The lens screen (founder 2026-10-14): the text appears as soon as the page
  * knows there is nothing to walk, and never while a walk may still open. */
@@ -34,5 +34,15 @@ describe("the lens screen", () => {
     expect(lensIdle({ ...ready, reviewWaiting: true })).toBe(false);
     expect(lensIdle({ ...ready, walkRequested: true })).toBe(false);
     expect(lensIdle({ ...ready, opensHelpers: true })).toBe(false);
+    // The deck not up yet: the page cannot say, so the text waits (founder
+    // 2026-10-20: never the text before the walk after a Take).
+    expect(lensIdle({ ...ready, reviewWaiting: null })).toBe(false);
+  });
+
+  it("the watchdog waits while the page loads, its marks may land or its deck is not up", () => {
+    expect(lensStillLoading(ready)).toBe(false);
+    expect(lensStillLoading({ ...ready, status: "loading" })).toBe(true);
+    expect(lensStillLoading({ ...ready, feedbackPending: true })).toBe(true);
+    expect(lensStillLoading({ ...ready, reviewWaiting: null })).toBe(true);
   });
 });

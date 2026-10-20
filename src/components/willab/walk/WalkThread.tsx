@@ -16,7 +16,7 @@ import {
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
 import OverlayCloseButton from "../OverlayCloseButton";
-import { TypingGlyph } from "../TypingDots";
+import { CHUNK_DELAY_MS, TypingGlyph } from "../TypingDots";
 import WalkFooter from "./WalkFooter";
 
 /* -------------------------------------------------------------------------- */
@@ -146,9 +146,11 @@ function Still({ frame }: { frame: WalkThreadFrameRef }) {
 const reduced = () =>
   typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
-/** How long the typing dots show before a grey bubble lands (the approved
- *  prototype's beat), how long before the speaker's own bubble lands. */
-export const WALK_TYPING_MS = 520;
+/** How long the typing dots show before a grey bubble lands: the Lounge's
+ *  beat (founder 2026-10-20, "there is a lag between the steps": 350 ms in
+ *  place of the prototype's 520), how long before the speaker's own bubble
+ *  lands. */
+export const WALK_TYPING_MS = CHUNK_DELAY_MS;
 const WALK_OWN_MS = 200;
 
 /** Bubbles land one by one only where the page can tell motion is welcome:

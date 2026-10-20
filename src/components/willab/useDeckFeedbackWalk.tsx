@@ -1160,7 +1160,7 @@ export function useDeckFeedbackWalk(args: {
       // The coach's answer on the moment: their bubble in the chat too.
       const answer = moment?.coachAnswer;
       if (answer && COACH_ANSWER_STEPS.has(step.key)) {
-        post({ key: "coach-answer", moment: at.moment, attempt: null, author: "coach", body: `${CHUNK_SHEET_COPY.titleCoach}\n${answer.text}`, extra: { ...(answer.videoUrl ? { video: answer.videoUrl } : {}), ...part } });
+        post({ key: "coach-answer", moment: at.moment, attempt: null, author: "coach", body: `${CHUNK_SHEET_COPY.titleCoachLine}\n${answer.text}`, extra: { ...(answer.videoUrl ? { video: answer.videoUrl } : {}), ...part } });
       }
       onReached(step, moment);
     },
