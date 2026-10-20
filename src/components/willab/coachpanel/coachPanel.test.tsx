@@ -12,6 +12,10 @@ OUTCOME
       answered ones, faded.
   O4  "Your speakers" shows the list at once, then updates it.
   O5  An error answered without a video still goes to the speaker.
+  O6  Coming back to a Take word I sent, I see my saved words and video,
+      never a draft over them: Send keeps the video, Remove the video holds
+      until Send and sends no video, and leaving cancels it; a Take drafted
+      but never sent opens on its draft, drafted once.
 PROVES   O1 -> "Judge: the player, the question, 👍 😐 👎 and Audio unclear (lock 2026-10-12 §7), nothing else"
          O2 -> "Judge first; the moment read is asked for only after the rating saves",
                "a failed save stays on Judge, says so, and never reads the moment"
@@ -19,7 +23,13 @@ PROVES   O1 -> "Judge: the player, the question, 👍 😐 👎 and Audio unclea
                "the open ones first, newest first; then Answered, faded, most recently answered first (founder 2026-10-18)"
          O4 -> "Your speakers opens at once with the queue's speakers, then takes the fresh read"
          O5 -> "an error answered without a video still goes to the speaker, without the library (lock flow 9)"
-WHY      Never 2 (coach judgements stay blind); locked coach panel.
+         O6 -> "opens on the saved words and video, never a draft; Send to {p} keeps the video",
+               "Remove the video holds across ‹ and Next, and Send without a video sends video_ref: null",
+               "leaving the word before Send cancels Remove the video: the next visit shows the saved video again",
+               "a Take drafted but never sent opens on its draft at every visit, drafted once; Send without a video sends video_ref: null"
+WHY      Never 2 (coach judgements stay blind); locked coach panel; O6:
+         founder 2026-10-19 (D9, D10), approved two-phone prototype
+         https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk.
 */
 import { act, useState, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
