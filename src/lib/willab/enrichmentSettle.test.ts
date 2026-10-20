@@ -1,3 +1,9 @@
+/*
+STORY    As a speaker, I want a feedback placeholder to close when there is nothing to report, so that I don't wait forever on an empty slot.
+OUTCOME
+  O1  An empty feedback answer counts as "nothing more coming".
+PROVES   O1 -> is false with nothing to report, so an honest empty lane closes
+*/
 import { describe, expect, it } from "vitest";
 import {
   feedbackStillComing,

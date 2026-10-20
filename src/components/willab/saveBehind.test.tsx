@@ -1,6 +1,16 @@
 // @vitest-environment jsdom
-/** Tap and go (founder 2026-09-28): the writes the sheets no longer wait for,
- *  and the one notice a failure becomes. */
+/*
+STORY    As a speaker, I want my taps saved in the background, with one
+         notice and a Retry if a save fails, so that I never wait and never
+         silently lose an answer.
+OUTCOME
+  O1  A failed save shows the notice; Retry sends the same save again and
+      the notice goes away.
+  O2  Using helper words first locks the paragraph, then saves the words.
+PROVES   O1 -> "a failure shows the notice, and Retry sends the same write again"
+         O2 -> "locks the untouched paragraph first, then saves the words"
+WHY      Founder 2026-09-28 (tap and go).
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

@@ -1,17 +1,16 @@
+/*
+STORY    As the founder, I want it impossible to build a confidence label the
+         rater never gave, so that training data never holds made-up answers.
+OUTCOME
+  O1  No answer, an empty answer or an unknown answer builds nothing to send.
+PROVES   O1 -> "REFUSES to build a body without a real answer — a null that slipped through would fabricate a call the rater never made"
+WHY      A fabricated training row can't be told from a real one afterwards.
+*/
 import { describe, expect, it } from "vitest";
 import {
   buildRatingBody,
   type ConfidenceRatingValue,
 } from "./stateRatings";
-
-/* N3 lives HERE now: buildRatingBody is the one constructor for a label
- * write, on every surface (corpus workbench, snippet card, star overlay,
- * owner modal). It moved from trainingCorpus.ts when the binary + 1–5
- * builder was cut with the intensity row (founder 2026-08-11). The
- * invariant is unchanged: a body that would fabricate a label the rater
- * never gave must be impossible to CONSTRUCT, not merely rejected later —
- * this is training data, and a fabricated row is indistinguishable from a
- * real one afterwards. */
 
 describe("buildRatingBody (N3 lives here)", () => {
 

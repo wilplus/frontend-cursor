@@ -1,3 +1,11 @@
+/*
+STORY    As the founder, I want a record that a speaker saw feedback counted as
+         saved only when every part of it was accepted, so that the learning
+         record never claims a speaker saw something they didn't.
+OUTCOME
+  O1  If any one receipt is refused, the whole save reports "not saved".
+PROVES   O1 -> "returns false when any surface receipt is not accepted"
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {

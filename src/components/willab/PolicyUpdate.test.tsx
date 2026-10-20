@@ -1,17 +1,22 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  The policy update prompt (founder 2026-10-15).                            */
-/*                                                                            */
-/*  Someone who accepted an earlier Terms and Privacy Policy is never left   */
-/*  unable to use the app:                                                    */
-/*    1. the app opens with the prompt, and one tap writes the receipt with   */
-/*       the country they gave last time;                                     */
-/*    2. a Take refused for an out-of-date acceptance shows the prompt and    */
-/*       processes once it is accepted;                                       */
-/*    3. Close the app keeps the ask, with one Accept the update;            */
-/*    4. when the last country is no longer allowed, Accept opens the full    */
-/*       consent screens instead of choosing for them.                        */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker who agreed to an older policy, I want one tap to accept
+         the update with my last country, and a refused Take to go through
+         once I accept, so that I am never locked out.
+OUTCOME
+  O1  The app opens with the update prompt; one tap accepts it with the
+      country I gave last time.
+  O2  A Take refused for an old acceptance shows the prompt, then processes
+      once I accept.
+  O3  Closing keeps the ask, with one Accept button that still works.
+  O4  If my last country is no longer allowed, Accept opens the full
+      consent screens instead of choosing for me.
+PROVES   O1 -> "opens the app with the prompt; one tap accepts with the country given last time"
+         O2 -> "a Take refused for an out-of-date acceptance shows the prompt, then processes"
+         O3 -> "Close the app keeps the ask, with one Accept the update that still accepts"
+         O4 -> "opens the full consent screens when the last country is no longer allowed"
+WHY      Founder 2026-10-15.
+*/
 import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

@@ -1,7 +1,17 @@
-/* The account-deletion contract, read in one place (founder 2026-10-05:
- * Q3a, N48.4 Q14 A, Q19 A). Pins the shapes this client accepts from the
- * Wave 3 interface — and from the receipt the backend sent before it — so a
- * change to the backend's "AS BUILT" lands here and nowhere else. */
+/*
+STORY    As a speaker, I want "delete my account" to send one deletion request
+         and show me how long I have to change my mind, and a refusal to change
+         nothing, so that I can trust deletion and cancel it in time.
+OUTCOME
+  O1  Asking to delete sends one request with a one-time key and shows the
+      pending deletion with its end date.
+  O2  A refusal or no connection records nothing.
+  O3  A refused cancel tells me the backend's reason.
+PROVES   O1 -> "sends one account_deletion request and reads what came back"
+         O2 -> "a refusal or no answer records nothing"
+         O3 -> "a 409 is the backend's no, with its code"
+WHY      Deletion is on the critical path (founder 2026-10-05).
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   cancelAccountDeletion,

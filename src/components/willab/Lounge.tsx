@@ -188,6 +188,13 @@ function failedNoteSession(
   return resume.sessionId;
 }
 
+/** The in-flight wait covers only its own project's text (founder
+ *  2026-10-20): another project, such as the one the coach's link opens,
+ *  is never held behind it. */
+function blocksText(takeInFlight: boolean, inFlightArcId: string | null, openArcId: string): boolean {
+  return takeInFlight && inFlightArcId === openArcId;
+}
+
 /** SIGN UP BEFORE THE TEXT (founder 2026-10-16): a signed-out reader whose
  *  Take is processed is asked for an account; a Take still in flight shows
  *  its wait as before. */
@@ -1769,7 +1776,8 @@ export default function Lounge({
           // state instead of last take's words; when this flips false (the
           // settle hook resolves) the overlay refetches, so a completion
           // that lands while the student is READING arrives in place too.
-          analysisPending={takeInFlight}
+          // Only on the in-flight Take's own project (founder 2026-10-20).
+          analysisPending={blocksText(takeInFlight, documentSettle.arcId, idealTextArcId)}
           onClose={() => {
             // The dot follows what was opened (Q40 B, Q42 A).
             refreshLiveIdealDoc(idealTextArcId);
@@ -2647,15 +2655,13 @@ function walkClipOf(value: unknown): WalkChatClip | null {
   };
 }
 
-/** The line above a moment in the chat (prototype v31 `.meta-l`): "Slide 2 ·
- *  moment 1 of 2", "Moment 1 of 2" with no slide, or "Slide 3". */
+/** The line above a moment in the chat: the step's name as the walk's chat
+ *  says it ("Slide 2"; founder 2026-10-20, WIL-89: the lens and the Lounge
+ *  are the same thread, so no "moment 1 of 2" here either), or the judging's
+ *  heading. */
 export function chatLabelOf(meta: Record<string, unknown>): string | null {
   if (typeof meta.heading === "string") return meta.heading;
-  const slide = typeof meta.slide_label === "string" ? meta.slide_label : null;
-  const n = meta.green_n;
-  const of = meta.green_of;
-  if (typeof n !== "number" || typeof of !== "number" || n < 1) return slide;
-  return slide ? `${slide} · moment ${n} of ${of}` : `Moment ${n} of ${of}`;
+  return typeof meta.slide_label === "string" ? meta.slide_label : null;
 }
 
 /** The speaker's own clip in the chat (prototype v31 `.lb.me.aud`): an

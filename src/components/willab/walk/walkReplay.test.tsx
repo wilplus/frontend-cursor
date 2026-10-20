@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  The finished walk, played again (founder 2026-10-08, Q-IT643b A; walk      */
-/*  first, 2026-10-14): the same screens with the answers as given; a tap     */
-/*  that would write moves on instead; an exercise already done plays its     */
-/*  tries and records none.                                                   */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker, I want to replay a finished walk with my answers shown and nothing written or recorded again, so that I can look back safely.
+OUTCOME
+  O1  The same screens play with my answers; only a change to my helper words is saved.
+  O2  A done exercise plays my past tries and records nothing new.
+  O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.
+PROVES   O1 -> opens on the coach's note and plays the same screens answered; helper words stay editable, nothing else writes
+         O2 -> opens on the coach's note and plays the same screens answered ...
+         O3 -> an exercise opened from its bubble in the chat shows its AI clip and every try, a try tapped in the chat opens its exercise on the last answer
+*/
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -114,7 +118,9 @@ function draw(opts: { practiceId?: string; at?: (model: ReturnType<typeof buildF
 }
 
 const live = () => host.querySelector<HTMLElement>(".walk-layer:not(.walk-ghost)");
-const screen = () => live()?.querySelector<HTMLElement>("[data-testid^='walk-screen-']")?.dataset.testid ?? null;
+/** The newest part of the walk's chat: the step it stands on. */
+const now = () => live()?.querySelector<HTMLElement>("[data-walk-part][data-testid^='walk-screen-']") ?? null;
+const screen = () => now()?.dataset.testid ?? null;
 const click = (el: Element | null | undefined) => act(() => (el as HTMLElement).click());
 const byTestId = (id: string) => live()?.querySelector<HTMLElement>(`[data-testid='${id}']`) ?? null;
 const pressed = () => live()?.querySelector("[data-walk-answer][aria-pressed='true']")?.getAttribute("data-walk-answer") ?? null;
@@ -150,10 +156,10 @@ describe("the finished walk, played again", () => {
     // 2026-10-16): each "Practise N" with its own voice and the answer it
     // got, the recorder passed over, nothing recorded and nothing asked.
     // Next alone under it: a walk played again never practises.
-    const voices = () => [...live()!.querySelectorAll("[data-walk-player][data-walk-me] audio")].map((a) => a.getAttribute("src"));
+    const voices = () => [...now()!.querySelectorAll("[data-walk-player][data-walk-me] audio")].map((a) => a.getAttribute("src"));
     expect(voices()).toEqual([clip.src, "blob:try-1", "blob:try-2"]);
-    expect(live()!.textContent).toContain(WALK_COPY.practiseN(1));
-    expect(live()!.textContent).toContain(WALK_COPY.practiseN(2));
+    expect(now()!.textContent).toContain(WALK_COPY.practiseN(1));
+    expect(now()!.textContent).toContain(WALK_COPY.practiseN(2));
     expect(byTestId("walk-stop")).toBeNull();
     expect(byTestId("walk-practise")).toBeNull();
     click(byTestId("walk-forward"));

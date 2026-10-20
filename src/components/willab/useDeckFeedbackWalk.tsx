@@ -9,14 +9,7 @@ import type { WalkStep } from "@/lib/willab/walkPlan";
 import type { WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
-import FeedbackWalk, {
-  walkBrowseFrom,
-  type FeedbackWalkHelperWords,
-  type FeedbackWalkRequest,
-  type WalkAiShown,
-  type WalkBrowseDir,
-  type WalkHop,
-} from "./walk/FeedbackWalk";
+import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkRequest, type WalkAiShown } from "./walk/FeedbackWalk";
 import type { WalkJudgementSave } from "./walk/useWalkJudging";
 import { useWalkJournalPost } from "./useWalkJournalPost";
 import { noteOwnAnswer, ownAnswersOf } from "./paragraphSheetData";
@@ -54,7 +47,7 @@ import { suggestionSource, walkPractiseIO } from "@/services/api/walkPractise";
 import { fetchConfidencePractice } from "@/services/api/confidentVoicePractice";
 import { practiceTries, threadTries } from "@/lib/willab/walkTries";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
-import { reportMomentEvent } from "@/services/api/momentEvents";
+import { reportMomentEvent, type MomentShown } from "@/services/api/momentEvents";
 import { lineBankIO } from "@/services/api/lineBank";
 import {
   markCoachFeedbackSeen,
@@ -224,7 +217,9 @@ function walkItemOf(
   const green = item.bookmarkTier === "confident";
   const praise = tiered ? green : item.openCard === "praise" || item.feedbackFamily === "great_formulation";
   const exercise = exerciseOf(item);
-  const rewrite = rewriteOf(item);
+  // The coach's clearer version is the moment's Clearer version (founder
+  // 2026-10-20), ahead of the machine's.
+  const rewrite = coachVersionOf(item) ?? rewriteOf(item);
   return {
     start: item.start,
     slide,
@@ -249,7 +244,18 @@ function walkItemOf(
     exercise,
     judge: reopensJudgement(item) ? item : null,
     ...(item.coachAnswer ? { coachAnswered: true, coachAnswer: item.coachAnswer, coachItem: item } : {}),
+    ...(exercise?.byCoach ? { coachExercise: true } : {}),
+    ...(rewrite?.byCoach ? { coachVersion: true } : {}),
   };
+}
+
+/** The coach's answer as a clearer version: their words in place of the
+ *  moment's own. Deciding it writes nothing on the text (an accepted
+ *  clearer version reaches the Ideal Text only when it is said). Pure. */
+export function coachVersionOf(item: DocumentSuggestion): FeedbackWalkItem<DocumentSuggestion>["rewrite"] {
+  const answer = item.coachAnswer;
+  if (answer?.kind !== "version" || !item.quote?.trim()) return null;
+  return { quote: item.quote, proposedText: answer.text, move: null, item, decided: null, byCoach: true };
 }
 
 /** A served rewrite the walk can draw and decide: a replace with words to
@@ -389,6 +395,48 @@ export function coachShownOn(
     out.set(shownKey(shown), shown);
   }
   return [...out.values()];
+}
+
+/** What each moment screen of the walk has on it, as the paragraph sheet
+ *  reported it (0408). */
+const OPENED_AS: Readonly<Record<string, MomentShown>> = {
+  praise: "praise",
+  clearer: "rewrite",
+  exVideo: "exercise",
+  coach: "coach_answer",
+};
+
+/** The moments a walk screen shows, as the "opened" record the coach's
+ *  queue reads (N48.2): without it no coach ever hears a walked moment
+ *  (founder 2026-10-20). One entry per clip, with what was on screen. Pure. */
+export function momentsOpenedOn(
+  step: WalkStep,
+  moment: FeedbackWalkMoment<DocumentSuggestion> | null,
+  openOn: readonly DocumentSuggestion[] = [],
+): { snippetId: string; shown: MomentShown[] }[] {
+  const kind = OPENED_AS[step.key];
+  if (!kind) return [];
+  const shown: MomentShown[] = moment?.coachAnswer && kind !== "coach_answer" ? [kind, "coach_answer"] : [kind];
+  return coachShownOn(step, moment, null, openOn).map((s) => ({ snippetId: s.snippetId!, shown }));
+}
+
+/** What one walk screen tells the server, once per opening of the walk:
+ *  the coach's feedback it showed (D-FW-19), and the moments that reached
+ *  the speaker, the record that lists them for a coach (founder 2026-10-20). */
+function tellShown(
+  told: Set<string>,
+  step: WalkStep,
+  moment: FeedbackWalkMoment<DocumentSuggestion> | null,
+  coach: CoachMessage | null,
+  openOn: readonly DocumentSuggestion[],
+): void {
+  const once = (key: string) => !told.has(key) && Boolean(told.add(key));
+  for (const shown of coachShownOn(step, moment, coach, openOn)) {
+    if (once(shownKey(shown))) void markCoachFeedbackSeen(shown);
+  }
+  for (const opened of momentsOpenedOn(step, moment, openOn)) {
+    if (once(`opened:${opened.snippetId}`)) void reportMomentEvent(opened.snippetId, "opened", opened.shown);
+  }
 }
 
 /** Personalised practice, as the speaker set it. */
@@ -925,11 +973,14 @@ export function useDeckFeedbackWalk(args: {
   }, [post]);
   const acceptClearer = useCallback((item: DocumentSuggestion) => {
     post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: CHUNK_SHEET_COPY.pillAcceptPractise });
+    // The coach's version is practised, never written on the text.
+    if (coachVersionOf(item)) return;
     const { onAccept, saveBehind } = live.current;
     saveBehind(() => acceptRewriteBehind(onAccept, item), CHUNK_SHEET_COPY.failApply);
   }, [post]);
   const keepWords = useCallback((item: DocumentSuggestion) => {
     post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: CHUNK_SHEET_COPY.linkKeepMyWords });
+    if (coachVersionOf(item)) return;
     const { onKeepMine, saveBehind } = live.current;
     saveBehind(() => keepWordsBehind(onKeepMine, item), CHUNK_SHEET_COPY.failKeep);
   }, [post]);
@@ -1050,48 +1101,6 @@ export function useDeckFeedbackWalk(args: {
     openAt(at, false, lensRef.current);
     return true;
   }, [replaying, items.length, model, openAt]);
-  // ‹ › BROWSE EVERY SCREEN OF THE WALK (founder 2026-10-15, "one bar for the
-  // whole walk"): answered and waiting alike, across slides, in walk order.
-  // The replay holds every moment of the Take in that order, so it is the
-  // order; a screen the live walk still holds opens live (its pill answers
-  // it), the rest open as answered. The arrows never answer and never close:
-  // at the walk's first and last screen they are off. The closing summary is
-  // reached only once nothing waits (it is written when it is read). A
-  // paragraph's own practise or helper words, and the coach-only walk,
-  // browse their own screens.
-  const browse = useCallback(
-    (step: WalkStep, partId: string | null, dir: WalkBrowseDir): WalkHop | null => {
-      const shown = replaying ?? model;
-      const whole = practisingRef.current || live.current.coachOnly || !replayNow ? shown : replayNow;
-      const from: WalkStepTarget = { step: step.key, moment: null, part: partId ?? undefined };
-      let order = whole;
-      let here = walkStepAt(order, from);
-      if (here === null) {
-        order = shown;
-        here = walkStepAt(order, from);
-      }
-      if (here === null) return null;
-      const to = walkBrowseFrom(order.plan, here, dir);
-      if (to === null) return null;
-      const next = order.plan[to];
-      if (next.key === "summary" && items.length > 0) return null;
-      const target: WalkStepTarget = {
-        step: next.key,
-        moment: null,
-        part: next.moment == null ? undefined : order.moments[next.moment]?.partId,
-      };
-      const liveAt = order === model ? to : order === replayNow ? walkStepAt(model, target) : null;
-      return {
-        target,
-        live: liveAt !== null,
-        open: () => {
-          setReplaying(liveAt === null ? order : null);
-          openAt(liveAt ?? to, false, lensRef.current, dir);
-        },
-      };
-    },
-    [replaying, model, replayNow, items.length, openAt],
-  );
   /** The walk showed the coach's note or a moment: the server hears it once
    *  per opening, behind the screen, and the Lounge's "new" clears. */
   const onShown = useCallback(
@@ -1100,6 +1109,7 @@ export function useDeckFeedbackWalk(args: {
       moment: FeedbackWalkMoment<DocumentSuggestion> | null,
       say: (bank: WalkBankKey) => string,
       ai?: WalkAiShown | null,
+      line?: string | null,
     ) => {
       const { chunks: now, pendingOf: openOf, coachMessage: coach } = live.current;
       const at = { moment: step.moment ?? null, attempt: step.attempt ?? null };
@@ -1109,7 +1119,7 @@ export function useDeckFeedbackWalk(args: {
       if (ai) void readAiVoiceOnce(ai.practiceId);
       // A try's answer played again was said once, as the try was made.
       const replayedTry = step.replay === true && TRY_ANSWER_STEPS.has(step.key);
-      let said = replayedTry ? null : (aiSaid ?? shownStep(step, moment, coach?.text ?? null, say));
+      let said = replayedTry ? null : (aiSaid ?? shownStep(step, moment, coach?.text ?? null, say, line ?? null));
       // The coach's video as a thumb in their bubble (prototype v31).
       if (step.key === "coachnote" && coach?.videoUrl) {
         said = { author: "coach", body: said?.body ?? CHUNK_SHEET_COPY.titleCoach, extra: { video: coach.videoUrl } };
@@ -1128,12 +1138,7 @@ export function useDeckFeedbackWalk(args: {
       }
       const parts = moment ? (walkModel.partsOf[moment.index] ?? []) : [];
       const openOn = now.filter((c) => parts.includes(c.part.id)).flatMap((c) => openOf(c));
-      for (const shown of coachShownOn(step, moment, coach, openOn)) {
-        const key = shownKey(shown);
-        if (toldRef.current.has(key)) continue;
-        toldRef.current.add(key);
-        void markCoachFeedbackSeen(shown);
-      }
+      tellShown(toldRef.current, step, moment, coach, openOn);
     },
     [walkModel, post],
   );
@@ -1175,7 +1180,6 @@ export function useDeckFeedbackWalk(args: {
           summary={summary}
           onEnd={onEnd}
           onForward={onForward}
-          browse={browse}
           onClose={onClose}
           lines={lineBankIO}
           onShown={onShown}
@@ -1201,7 +1205,6 @@ export function useDeckFeedbackWalk(args: {
       journal,
       onEnd,
       onForward,
-      browse,
       onClose,
       onShown,
       onAnswer,

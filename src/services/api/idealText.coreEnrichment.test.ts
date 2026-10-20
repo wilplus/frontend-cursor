@@ -1,3 +1,15 @@
+/*
+STORY    As a speaker, I want my Ideal Text to appear at once and its feedback
+         to fill in afterwards for the exact same version, so that I'm not
+         kept waiting and feedback never lands on another version.
+OUTCOME
+  O1  The Ideal Text shows with its slides and paragraphs before any
+      feedback has arrived.
+  O2  The app keeps asking for feedback on the same version until it is
+      ready, also after a failed try.
+PROVES   O1 -> "maps the immutable core without waiting for optional feedback"
+         O2 -> "keeps retrying the exact snapshot until Manager feedback is ready"
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   fetchIdealTextCore,

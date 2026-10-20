@@ -1,11 +1,22 @@
 // @vitest-environment jsdom
-/* The recording screen while recording (founder lock 2026-10-12, N70):
-   - Back and Next slide change the slide; on the last slide Next slide is
-     the red Finish take, the only way a Take ends here;
-   - only the slide and its helper words move, sideways; the top bar's
-     "Take · Slide" line, the strip and the buttons stay still;
-   - the keys work with no click first, never end a Take, and never take
-     the Space that presses a focused button. */
+/*
+STORY    As a speaker recording, I want the top bar to read "Take N · Slide n
+         of m", Back and Next slide to move slides, Finish take on the last
+         slide to be the only way to end, and only the slide to move, so
+         that recording feels steady and I never end a Take by accident.
+OUTCOME
+  O1  The top bar reads "Take 2 · Slide 1 of 3", once.
+  O2  On the last slide Next slide becomes the red Finish take, which ends
+      the Take.
+  O3  Space after clicking Back goes forward, not Back again.
+  O4  The top bar, the strip and the buttons stay put when the slide
+      changes; only the slide and its helper words change.
+PROVES   O1 -> "reads Take N · Slide n of m, and nothing above the slide repeats it"
+         O2 -> "turns Next slide into the red Finish take on the last slide, which ends the Take"
+         O3 -> "goes forward, never presses the clicked Back again"
+         O4 -> "keeps the top bar, the strip and the buttons through a slide change"
+WHY      Founder lock 2026-10-12 (N70); locked recording screen.
+*/
 import { act, createElement, Fragment, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

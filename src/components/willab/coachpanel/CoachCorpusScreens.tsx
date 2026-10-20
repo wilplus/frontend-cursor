@@ -46,7 +46,7 @@ export function momentsLeft(im: Pick<TrainingImport, "queueCount" | "labelledCou
 export function importChoice(im: TrainingImport): WalkChoice {
   const value = im.sessionId;
   if (!im.setupComplete) {
-    return { value, label: im.topic, subtitle: `${COPY.setUpNotFinished} · ${COPY.finishItBeforeJudging}` };
+    return { value, label: im.topic, subtitle: `${COPY.setUpNotFinished} · ${COPY.finishItBeforeJudging}`, dot: true };
   }
   const who = im.speakerLabel ?? COPY.noSpeakerLabel;
   if (im.state === "running") return { value, label: im.topic, subtitle: `${who} · ${COPY.analysing}`, done: true, dim: true };
@@ -57,7 +57,7 @@ export function importChoice(im: TrainingImport): WalkChoice {
   // Nothing to judge: drawn, never offered for judging.
   if (counts.total === 0) return { value, label: im.topic, subtitle: `${who} · ${COPY.moments(0)}`, done: true };
   if (counts.left === 0) return { value, label: im.topic, subtitle: `${who} · ${COPY.allLabelled(counts.total)}`, done: true, mark: "check" };
-  return { value, label: im.topic, subtitle: `${who} · ${COPY.momentsToJudgeOf(counts.left, counts.total)}` };
+  return { value, label: im.topic, subtitle: `${who} · ${COPY.momentsToJudgeOf(counts.left, counts.total)}`, dot: true };
 }
 
 /** A finished import's ⋯ edits its set-up; an unfinished one opens its set-up

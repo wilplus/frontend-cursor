@@ -18,13 +18,15 @@
 /*    DetailScreen     one exercise: its video, its instruction, what it     */
 /*                     treats; Use this one; Back to the list                 */
 /*    WordsScreen      the speaker's passage and player, the coach's words   */
-/*                     below with the grey picture and the pencil             */
+/*                     below with the coach's picture and the pencil          */
 /*    VideoScreen      Record (one action), Stop, Keep, Record again          */
 /*    KindScreen       What did {p} do well? / What kind of fix is it?        */
 /*    ShareScreen      Ready for {p}: exactly what the speaker will get       */
 /*    SummaryScreen    an answered moment: what happened and Your answer      */
 /*    TakeWordScreen   A word for this Take, with the pencil                  */
-/*    TakeVideoScreen  its video; Send to {p} or Send without a video         */
+/*    TakeVideoScreen  its video; Send to {p} or Send without a video; on a   */
+/*                     return visit the saved video, with Record again and    */
+/*                     Remove the video (founder 2026-10-19)                  */
 /*                                                                            */
 /*  Presentational: the host (CoachAnswerFlow) owns the reads and the writes. */
 /*  Every word comes from COACH_PANEL_COPY or from the data; no number about  */
@@ -81,8 +83,6 @@ export type Row = {
   value: string;
   label: string;
   subtitle?: string | null;
-  /** The shade, by the prototype's own tone: 0 white … 3 the darkest. */
-  tone: number;
   selected?: boolean;
   onDetails?: () => void;
 };
@@ -92,7 +92,7 @@ function Rows({ rows, label, onPick }: { rows: readonly Row[]; label: string; on
     <div role="group" aria-label={label} data-walk-choices className="flex flex-col gap-2">
       {rows.map((row) => (
         <div key={row.value} data-walk-choice={row.value}
-          className={cn("flex items-center gap-2 rounded-2xl border-[1.5px] py-1.5 pl-3.5 pr-2", choiceClass({ selected: row.selected }, row.tone))}>
+          className={cn("flex items-center gap-2 rounded-2xl border-[1.5px] py-1.5 pl-3.5 pr-2", choiceClass({ selected: row.selected }))}>
           <button type="button" onClick={() => onPick(row.value)} aria-pressed={row.selected}
             className="walk-press flex min-w-0 flex-1 items-center justify-between gap-2.5 py-[7px] text-left">
             <span className="min-w-0">
@@ -131,8 +131,8 @@ export function DiagnoseScreen({ nav, onClose, errors, picked, noError, busy, fa
     ...(errors ?? []).map((e) => ({
       value: `${e.kind}:${e.id}`, label: e.label, subtitle: e.machineHeard ? COPY.machineHeardThis : null, selected: picked === e.id,
     })),
-    { value: "else", lead: COPY.somethingElse, label: COPY.nameANewError, variant: "else" as const },
-    { value: "noerr", label: COPY.noError, variant: "noerr" as const, selected: noError },
+    { value: "else", lead: COPY.somethingElse, label: COPY.nameANewError },
+    { value: "noerr", label: COPY.noError, selected: noError },
   ];
   return (
     <WalkOverlay nav={nav} title={COPY.whatKindOfError} onClose={onClose} testId="coach-panel-diagnose"
@@ -187,21 +187,21 @@ export function decideRows(input: {
   errorLabel: string;
   onDetails: (id: string) => void;
 }): Row[] {
-  const nothing: Row = { value: "nothing", label: COPY.nothingToAdd, tone: 3 };
+  const nothing: Row = { value: "nothing", label: COPY.nothingToAdd };
   if (!input.asError) {
     const subtitle = input.kind === "praise" ? COPY.writeYourPraise
       : input.kind === "rewrite" ? COPY.writeAClearerVersion : COPY.writeANote;
-    return [{ value: "answer", label: COPY.pillAnswer, subtitle, tone: 0 }, nothing];
+    return [{ value: "answer", label: COPY.pillAnswer, subtitle }, nothing];
   }
   const rows: Row[] = [];
   const served = input.served;
   if (served) {
-    rows.push({ value: "keep", label: COPY.keepIt, subtitle: COPY.served(served.title), tone: 0, onDetails: () => input.onDetails(served.id) });
+    rows.push({ value: "keep", label: COPY.keepIt, subtitle: COPY.served(served.title), onDetails: () => input.onDetails(served.id) });
   }
   if (input.others > 0) {
-    rows.push({ value: "swap", label: COPY.swapIt, subtitle: COPY.moreInLibrary(input.others, input.errorLabel), tone: 1 });
+    rows.push({ value: "swap", label: COPY.swapIt, subtitle: COPY.moreInLibrary(input.others, input.errorLabel) });
   }
-  rows.push({ value: "new", label: COPY.makeANewOne, subtitle: COPY.yourOwnWordsAndVideo, tone: 2 }, nothing);
+  rows.push({ value: "new", label: COPY.makeANewOne, subtitle: COPY.yourOwnWordsAndVideo }, nothing);
   return rows;
 }
 
@@ -236,7 +236,7 @@ export function SwapScreen({ nav, onClose, errorLabel, items, picked, busy, fail
   onNew: () => void;
 }) {
   const rows: Row[] = items.map((x, i) => ({
-    value: x.id, label: x.title, tone: i, selected: picked === x.id, onDetails: () => onDetails(x.id),
+    value: x.id, label: x.title, selected: picked === x.id, onDetails: () => onDetails(x.id),
     subtitle: [x.served ? COPY.servedNow : null, COPY.treats(errorLabel)].filter(Boolean).join(" · "),
   }));
   return (
@@ -310,11 +310,16 @@ export function videoFooter(input: {
   skip: WalkAction | null;
   keep: WalkAction;
   onRecordAgain: () => void;
+  /** Remove the video, beside a saved video only: a clip just recorded has
+   *  Record again (founder 2026-10-19, D9). */
+  remove?: WalkAction | null;
 }): { pill: WalkAction; dot: boolean; links: WalkAction[] } {
   const status = input.recorder.state.status;
   if (status === "recording") return { pill: { label: COPY.stop, onClick: () => void input.recorder.stop() }, dot: false, links: [] };
-  if (status === "stopped" || input.kept) {
-    return { pill: input.keep, dot: false, links: [{ label: COPY.recordAgain, onClick: input.onRecordAgain }] };
+  const again: WalkAction = { label: COPY.recordAgain, onClick: input.onRecordAgain };
+  if (status === "stopped") return { pill: input.keep, dot: false, links: [again] };
+  if (input.kept) {
+    return { pill: input.keep, dot: false, links: input.remove ? [again, input.remove] : [again] };
   }
   return {
     pill: { label: COPY.record, onClick: () => void input.recorder.start(), testId: "coach-panel-record" },
@@ -444,27 +449,39 @@ export function TakeWordScreen({ where, onBack, onClose, pseudonym, text, editin
   );
 }
 
-export function TakeVideoScreen({ where, onBack, onClose, pseudonym, recorder, words, busy, fail, onSend, onRecordAgain }: TakeFrame & {
+export function TakeVideoScreen({ where, onBack, onClose, pseudonym, recorder, keptUrl, words, busy, fail, onSend, onRecordAgain, onRemove }: TakeFrame & {
   recorder: CoachVideoRecorder;
+  /** The video already sent with this word, on a return visit, while the
+   *  recorder is idle; null when there is none or it was removed on this
+   *  visit (founder 2026-10-19). */
+  keptUrl: string | null;
   /** The word, with its pencil. */
   words: ReactNode;
   busy: boolean;
   fail: string | null;
   onSend: () => void;
   onRecordAgain: () => void;
+  /** Remove the video: it goes when the word is sent. */
+  onRemove: () => void;
 }) {
   const status = recorder.state.status;
+  // A camera that fails after Record again brings the saved video back (the
+  // coach did not remove it), with the recorder's own message below.
+  const idle = status === "idle" || status === "error";
+  const kept = idle && keptUrl !== null;
+  const cameraFail = kept && recorder.state.status === "error" ? recorder.state.message : null;
   const foot = videoFooter({
-    recorder, kept: false,
+    recorder, kept,
     keep: { label: COPY.sendTo(pseudonym), onClick: onSend, disabled: busy, testId: "coach-panel-takevideo-send" },
     skip: { label: COPY.sendWithoutAVideo, onClick: onSend, disabled: busy, testId: "coach-panel-takevideo-send-without" },
+    remove: { label: COPY.removeTheVideo, onClick: onRemove, disabled: busy, testId: "coach-panel-takevideo-remove" },
     onRecordAgain,
   });
   return (
     <WalkOverlay onBack={onBack} backLabel={where} title={COPY.videoTitle} subtitle={COPY.asWillSeeIt(pseudonym)}
       onClose={onClose} testId="coach-panel-takevideo"
-      footer={<WalkFooter pill={foot.pill} dot={foot.dot} links={foot.links}><Fail text={fail} /></WalkFooter>}>
-      <CoachVideoBox recorder={recorder} />
+      footer={<WalkFooter pill={foot.pill} dot={foot.dot} links={foot.links}><Fail text={fail ?? cameraFail} /></WalkFooter>}>
+      {kept ? <CoachVideo src={keptUrl} className="aspect-video w-full" /> : <CoachVideoBox recorder={recorder} />}
       {status === "recording" ? null : words}
     </WalkOverlay>
   );

@@ -1,7 +1,17 @@
-/* Pins what the package checkout client answers on bffFetch (audit D5): the
- * signed-out, network, refused and success cases, and exactly what each
- * sends. The test environment has no window, so the return URLs carry an
- * empty origin. */
+/*
+STORY    As a speaker buying a plan, I want checkout to open with the right
+         plan and return pages, and a clear message when plans are unavailable,
+         so that paying either works or tells me why not.
+OUTCOME
+  O1  Choosing a plan sends that plan with the success and cancel pages and
+      opens checkout.
+  O2  Plans switched off or misconfigured say "Plans aren't available right
+      now."; other refusals show the server's message; an answer without a
+      checkout link is an error.
+PROVES   O1 -> "posts the tier with both return URLs and opens the checkout"
+         O2 -> "tells the refusals apart"
+WHY      Payments are on the critical path.
+*/
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn() }));

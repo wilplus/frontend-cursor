@@ -1,3 +1,12 @@
+/*
+STORY    As a speaker whose Ideal Text could not be built, I want one clear
+         message with Retry and "view feedback", so that I can recover and
+         still go on.
+OUTCOME
+  O1  The message has the exact signed-off sentence, belongs to this Take,
+      and offers exactly Retry and view feedback.
+PROVES   O1 -> "is the exact Take 1 terminal card under the session identity"
+*/
 import { describe, expect, it } from "vitest";
 import {
   IDEAL_TEXT_UNCONFIRMED_BODY,

@@ -1,3 +1,14 @@
+/*
+STORY    As a visitor who then signs up, I want my guest chat, its Ideal Text card included, moved once into my account in the right order, and an old visit on the same device forgotten, so that my conversation is complete and private.
+OUTCOME
+  O1  The guest chat is sent in time order, then cleared from the device.
+  O2  Only a chat claimed by my account moves in, with its Ideal Text card, and only once; an unclaimed chat never moves.
+  O3  A chat silent for longer than a sitting is dropped.
+PROVES   O1 -> replays chronologically and clears local on success
+         O2 -> merges a claimed chat with its Ideal Text card, and never an unclaimed one
+         O3 -> drops a thread whose newest message is older than the TTL
+WHY      Founder 2026-10-20: a guest who signed up found an empty chat; 2026-10-16: a new visitor saw last night's chat.
+*/
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock only the network append; keep the rest of the service real.

@@ -1,3 +1,25 @@
+/*
+STORY    As a speaker, I want to agree to exactly the terms the server stored,
+         and be told plainly when there is nothing to agree to or I'm blocked,
+         so that my consent is real and I'm never stuck in a loop.
+OUTCOME
+  O1  Terms waiting for my agreement are shown with their countries and
+      minimum age.
+  O2  No active terms means "unavailable", not "please agree".
+  O3  A blocked person is told they are blocked, not asked to agree again.
+  O4  My agreement sends back the four fingerprints of the texts exactly as
+      received, and never the texts themselves.
+  O5  A guest identity that is refused is replaced once; refused again, the
+      app stops rather than going on.
+PROVES   O1 -> "maps an active policy awaiting acceptance"
+         O2 -> "an inactive policy is unavailable, NOT acceptance_required"
+         O3 -> "a blocked principal is blocked, NOT acceptance_required (PLF-T1)"
+         O4 -> "sends back the four hashes EXACTLY as received",
+               "never sends any policy COPY back to the server"
+         O5 -> "a refused guest identity is forgotten and minted again once; refused again, the read fails closed"
+WHY      Consent is on the critical path: a receipt must prove the person
+         agreed to exactly the stored copy.
+*/
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Signed in unless a test says otherwise: a session never mints a guest
@@ -14,22 +36,6 @@ import {
   pendingAccountDeletion,
   type ProcessingPolicy,
 } from "./processingAuthorization";
-
-/* -------------------------------------------------------------------------- */
-/*  What these tests protect (Task 3).                                         */
-/*                                                                            */
-/*  The receipt scheme's whole claim is that a user agreed to EXACTLY the copy */
-/*  the database stores. Two client-side mistakes can quietly falsify that     */
-/*  claim, and neither one throws:                                             */
-/*                                                                            */
-/*    1. recomputing a hash from the text the client happens to hold — which   */
-/*       passes PROCESSING_POLICY_STALE every time, including the time it      */
-/*       mattered, because it verifies a copy against itself;                  */
-/*    2. resubmitting after a stale response instead of re-presenting.         */
-/*                                                                            */
-/*  So the assertions below are about the exact bytes on the wire, not about   */
-/*  the shape of a return value.                                              */
-/* -------------------------------------------------------------------------- */
 
 const TERMS_HASH = "a".repeat(64);
 const PRIVACY_HASH = "b".repeat(64);
@@ -109,6 +115,31 @@ describe("reading the policy", () => {
     }));
     const status = await fetchAuthorization();
     expect(status.kind).toBe("unavailable");
+  });
+
+  it("an accepted person's status comes without the policy text and still opens the app", async () => {
+    // Founder 2026-10-20 (backend 0478): 52 KB of Terms, Privacy Policy and
+    // AI notice rode along on every app open, to a person never shown them.
+    // The versions and the hashes still come; the text does not.
+    const withoutText = policyRow({
+      authorized: true,
+      code: "PROCESSING_AUTHORIZED",
+      receipt_id: "receipt-uuid",
+    });
+    for (const key of ["terms_copy", "privacy_copy", "ai_notice_copy", "agreement_copy"]) {
+      delete (withoutText as Record<string, unknown>)[key];
+    }
+    stubFetch(() => withoutText);
+    const status = await fetchAuthorization();
+    expect(status.kind).toBe("authorized");
+    if (status.kind !== "authorized") return;
+    expect(status.policy.terms.sha256).toBe(TERMS_HASH);
+    expect(status.policy.policyVersion).toBe("phase1-2026.1");
+
+    // Someone who must still accept gets the text or nothing: a screen must
+    // never open on an empty document.
+    stubFetch(() => ({ ...withoutText, authorized: false, code: "PROCESSING_AUTHORIZATION_REQUIRED" }));
+    expect((await fetchAuthorization()).kind).toBe("unavailable");
   });
 
   it("a blocked principal is blocked, NOT acceptance_required (PLF-T1)", async () => {

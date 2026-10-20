@@ -4,8 +4,9 @@
 /*  The coach's words, exactly where the speaker reads them, with the pencil  */
 /*  (founder lock 2026-10-06, flow step 8; "the pencil edits every word").    */
 /*                                                                            */
-/*  The Feedback walk's message (the grey profile picture, plain black text,  */
-/*  no sender label) with a pencil in its top-right corner. Tapped, the text  */
+/*  The Feedback walk's message (the coach's grey-blue picture, as the        */
+/*  speaker sees the coach, founder 2026-10-19; plain black text, no sender   */
+/*  label) with a pencil in its top-right corner. Tapped, the text            */
 /*  becomes a field with a black edge and the pencil a tick; tapped again,    */
 /*  the words stand as edited. Nothing here is a word of its own: the labels  */
 /*  are COACH_PANEL_COPY's.                                                   */
@@ -23,7 +24,7 @@ export default function CoachWords({ text, editing, onChange, onToggle, bare = f
   onChange: (text: string) => void;
   /** The pencil: edit, or done editing. */
   onToggle: () => void;
-  /** Without the grey profile picture: words that are nobody's message (an
+  /** Without the coach's picture: words that are nobody's message (an
    *  error's definition and its one question on the founder's Speaking
    *  errors page, Q-CP645 A). */
   bare?: boolean;
@@ -44,7 +45,7 @@ export default function CoachWords({ text, editing, onChange, onToggle, bare = f
         editing && "border-solid border-foreground bg-background",
       )}
     >
-      {bare ? null : <WalkAvatar />}
+      {bare ? null : <WalkAvatar coach />}
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">
         {editing ? (
           <textarea

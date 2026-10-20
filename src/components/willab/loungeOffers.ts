@@ -26,11 +26,13 @@ const OFFER_TYPES: readonly OfferType[] = ["install", "whatsapp", "joke", "conse
 
 /** The bubble prompt persisted as the message body. No em-dashes (house style). */
 export const OFFER_PROMPT: Record<OfferType, string> = {
-  install:
-    "Keep WillpowerLab one tap away. Add it to your home screen so your coach's insights are always with you.",
+  // Simplified by the founder in chat, 2026-10-20. Mirrored verbatim in the
+  // backend's services/chat_app_context.py OFFER_PROMPTS.
+  install: "Add WillpowerLab to your home screen? Your coach is one tap away.",
   // WhatsApp (founder 2026-10-12): the second offer, after install.
-  whatsapp:
-    "Want a WhatsApp message when your coach's feedback is in? Add your phone number.",
+  // Simplified by the founder in chat, 2026-10-20. Mirrored verbatim in the
+  // backend's services/chat_app_context.py OFFER_PROMPTS.
+  whatsapp: "Want a WhatsApp when your coach replies? Add your number.",
   // Consent (founder 2026-10-13, step 2): sent by the admin to one person; it
   // points to the Data & consent page, where they answer on the locked screen.
   consent:
@@ -42,7 +44,8 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
   lesson: "Artur set a price for you for a 1-on-1 lesson.",
   // "Did this feedback help you?" (WIL-74, founder 2026-10-19): written by
   // the backend after a Take's closing summary; this is only the fallback.
-  feedback_check: "Did this feedback help you?",
+  // Simplified by the founder in chat, 2026-10-20 (backend COPY["ask"]).
+  feedback_check: "Did this help?",
   joke:
     "I'm just a simple system, but I noticed you weren't feeling great before this presentation. Want me to crack a joke?",
 };

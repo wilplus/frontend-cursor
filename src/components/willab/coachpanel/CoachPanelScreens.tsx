@@ -83,7 +83,7 @@ export function PanelPlayer({ nav, momentId, clip, words }: {
 export function speakerChoice(speaker: QueueSpeaker, index: number): WalkChoice {
   const value = `${index}`;
   if (speaker.waiting > 0) {
-    return { value, label: speaker.pseudonym, subtitle: COPY.momentsWaiting(speaker.waiting) };
+    return { value, label: speaker.pseudonym, subtitle: COPY.momentsWaiting(speaker.waiting), dot: true };
   }
   if (speaker.takes.some((t) => t.waitingForText)) {
     return { value, label: speaker.pseudonym, subtitle: COPY.waitingForText, done: true, dim: true };
@@ -141,7 +141,7 @@ function BlindGroup({ blind }: { blind: BlindRows }) {
   const rows = waitingRows(blind);
   if (rows.length === 0) return null;
   const choices: WalkChoice[] = rows.map((r) => ({
-    value: r.value, label: r.label, subtitle: COPY.blindWaiting(r.queue.items.length),
+    value: r.value, label: r.label, subtitle: COPY.blindWaiting(r.queue.items.length), dot: true,
   }));
   const line = rows.map((r) => r.queue.wording.queue_line).find((l) => l !== undefined) ?? "";
   return (
@@ -260,7 +260,7 @@ export function takeChoice(take: QueueTake, index: number): WalkChoice {
   if (take.waiting > 0 && take.moments.length === 0) {
     return { value, label, subtitle: COPY.momentsWaiting(take.waiting), done: true };
   }
-  if (take.waiting > 0) return { value, label, subtitle: COPY.takeWaiting(take.waiting, take.moments.length) };
+  if (take.waiting > 0) return { value, label, subtitle: COPY.takeWaiting(take.waiting, take.moments.length), dot: true };
   // A Take the Speakers read lists carries counts alone, no moments: it reads
   // "All moments answered" (the list's words win over the prototype's "All
   // answered", Q-B4 A).

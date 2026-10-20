@@ -402,6 +402,13 @@ button,
 .walk-bubble-in {
   animation: walk-fade-up 0.34s var(--walk-ease-arrive) both;
 }
+/* The walk as one chat (founder 2026-10-20, WIL-89): a step's bubbles land
+   one after the other behind the typing dots (WalkLanding, each with
+   .walk-bubble-in); the dock's buttons fade in once they have. Reduce motion
+   makes both instant (below). */
+[data-walk-dock] > * {
+  animation: walk-fade 0.24s ease both;
+}
 
 /* Desktop (founder 2026-10-08, Q-WALK-DESK A; amended 2026-10-18): the
    whole window is the overlay and moves as one, as on the phone; nothing of

@@ -1,15 +1,23 @@
+/*
+STORY    As a speaker, I want my edit saved as the whole document against the
+         version I edited, and never re-sent over a newer Take, so that a Take
+         that just landed is never overwritten by my old words.
+OUTCOME
+  O1  Saving sends the whole text once, with the version it was edited from.
+  O2  When a newer version exists, the save is reported as out of date and
+      not sent again.
+  O3  A moved document also counts as out of date; any other refusal is an
+      error.
+PROVES   O1 -> "PUTs the whole document with the version it was edited from"
+         O2 -> "reports a supersede instead of RETRYING it over the new version"
+         O3 -> "supersedes on a document-moved refusal and fails the save on any other"
+WHY      The old retry re-sent pre-Take words over the text a just-landed Take
+         built (Never-rule 5).
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { saveIdealUserEdit } from "./idealText";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => "tok" }));
-
-/* -------------------------------------------------------------------------- */
-/*  The user-edit contract: whole-document PUT, honest supersede.             */
-/*                                                                            */
-/*  The behaviour under test that MATTERS: a 409 VERSION_SUPERSEDED is         */
-/*  reported up, NOT retried against the server's current_version. The old     */
-/*  retry re-sent pre-take words over the text a just-landed take assembled.   */
-/* -------------------------------------------------------------------------- */
 
 let calls: Array<{ url: string; body: unknown }> = [];
 

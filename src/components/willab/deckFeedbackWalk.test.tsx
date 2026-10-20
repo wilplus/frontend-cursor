@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 /*
 STORY    As a speaker reviewing feedback, I want the walk to open on my
-         first praise, browse every step across slides, save
+         first praise, move through its chat with ‹ ›, save
          helper words through the deck, and ask a guest to sign up, so that
          feedback flows into my next Take.
 OUTCOME
   O1  Review feedback opens the walk on the first praise.
-  O2  The arrows browse every step across slides, answered and waiting,
-      without answering anything.
+  O2  The arrows move through the walk's chat, step by step, without
+      answering anything or closing it.
   O3  A tap on a paragraph with an open moment opens the walk there.
   O4  Helper words picked in the walk are saved through the deck's own
       save (the words, then the lock) and show orange in the text at once.
@@ -15,8 +15,8 @@ OUTCOME
       and the deck still shows the speaker's own words, not the clearer ones.
   O6  A guest's pick asks to sign up, is not taken, and nothing is written.
 PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's sheet"
-         O2 -> "‹ › browse every screen across slides, answered and waiting
-                alike, and never close the walk (founder 2026-10-15)"
+         O2 -> "‹ › move through the walk's chat, never answering and never
+                closing it (founder 2026-10-20)"
          O3 -> "a tap on a paragraph with an open moment opens the walk there (Q-B3 A)"
          O4 -> "helper words picked in the walk go through the deck's own
                 save: the words and the lock"
@@ -183,7 +183,7 @@ describe("the walk on the deck", () => {
     expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Slide 2");
   });
 
-  it("‹ › browse every screen across slides, answered and waiting alike, and never close the walk (founder 2026-10-15)", async () => {
+  it("‹ › move through the walk's chat, never answering and never closing it (founder 2026-10-20)", async () => {
     // Slide 1's clearer version is answered already; slide 2's praise and
     // slide 3's clearer version wait. Walk order: praise, helper words,
     // then the practising, slide by slide.
@@ -208,26 +208,19 @@ describe("the walk on the deck", () => {
     const back = () => click(arrow(COPY.pagerBack));
     expect(screen()).toBe("walk-screen-praise");
     expect(bar().getAttribute("aria-label")).toBe("Slide 2");
+    // The newest step is the last in the chat: › is off, and so is ‹ on the
+    // first step.
     expect(arrow(COPY.pagerBack).disabled).toBe(true);
-    expect(arrow(COPY.pagerNext).disabled).toBe(false);
+    expect(arrow(COPY.pagerNext).disabled).toBe(true);
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    expect(screen()).toBe("walk-screen-helpers");
+    expect(bar().getAttribute("aria-label")).toBe(`Slide 2 · ${WALK_COPY.navHelperWords}`);
+    // ‹ goes up the chat; it answers nothing and closes nothing.
+    expect(arrow(COPY.pagerBack).disabled).toBe(false);
+    await back();
     await next();
     expect(screen()).toBe("walk-screen-helpers");
-    await next();
-    // The answered step, as given: read only, Next.
-    expect(screen()).toBe("walk-screen-clearer");
-    expect(bar().getAttribute("aria-label")).toBe("Slide 1");
-    expect(live()!.textContent).toContain(WALK_COPY.answeredAccepted);
-    await next();
-    // The waiting step, live: its pill answers it.
-    expect(bar().getAttribute("aria-label")).toBe("Slide 3");
-    expect(live()!.querySelector("[data-testid='walk-keep']")).not.toBeNull();
-    expect(arrow(COPY.pagerNext).disabled).toBe(true);
-    await back();
-    expect(bar().getAttribute("aria-label")).toBe("Slide 1");
-    await back();
-    await back();
-    expect(screen()).toBe("walk-screen-praise");
-    expect(arrow(COPY.pagerBack).disabled).toBe(true);
+    expect(live()).not.toBeNull();
     expect(p.onAccept).not.toHaveBeenCalled();
     expect(p.onKeepMine).not.toHaveBeenCalled();
   });

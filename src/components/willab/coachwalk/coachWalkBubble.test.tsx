@@ -1,7 +1,17 @@
 // @vitest-environment jsdom
-/* The Lounge's queue bubble (founder 2026-10-18): it never says "Nobody is
-   waiting for you." before the queue has been read, and a coach re-entering
-   the Lounge on the same device sees the last count right away. */
+/*
+STORY    As a coach entering the Lounge, I want the queue bubble never to say
+         nobody is waiting before the queue is read, and to show the last
+         count at once, so that I am not misled.
+OUTCOME
+  O1  No label shows until the queue is read; then the count shows.
+  O2  Coming back to the Lounge shows the remembered count right away.
+  O3  "Nobody is waiting" shows only when the queue was read empty.
+PROVES   O1 -> "shows no label until the queue is read, then the count"
+         O2 -> "re-entering the Lounge shows the remembered count right away"
+         O3 -> "says nobody is waiting only once the queue was read empty"
+WHY      Founder 2026-10-18.
+*/
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

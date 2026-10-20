@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
-/* The Lab's mic (LIVE LOOP): start() records at once, every Take (N70),
-   and stop() hands over a real take and releases the stream. */
+/*
+STORY    As a speaker, I want the mic to record the moment I press start and to hand over a real recording and free the mic when I stop, so that every Take is captured.
+OUTCOME
+  O1  Start asks for the mic once, starts recording at once and notes when the sound began.
+  O2  Stop hands over a recording that is not empty and releases the mic.
+PROVES   O1 -> records at once on start
+         O2 -> hands over a real take on stop and releases the stream
+WHY      Never-rule 3 (never break record → process → Ideal Text).
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

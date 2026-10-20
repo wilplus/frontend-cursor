@@ -1,6 +1,28 @@
+/*
+STORY    As a speaker, I want each step of my Feedback walk saved once in the
+         Lounge, in the prototype's exact words, with no score and never other
+         speakers' recordings, so that my chat history is clean and private.
+OUTCOME
+  O1  A step seen twice is stored once, as the app's or my own message, with
+      no score in it.
+  O2  Judging other speakers is posted in the prototype's words, without
+      their recording.
+  O3  The count of other speakers' moments I judged in a Take comes from my
+      own answers in that Take only.
+  O4  The sharing question shows as one message, also when it was stored as
+      three.
+  O5  The Lounge says what the walk's chat said: the practise answer's line
+      as shown, and no "Practise" bubble of its own for a try.
+PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own message, with no score"
+         O2 -> "posts judging other speakers as the prototype's chat does, never their recording"
+         O3 -> "counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles"
+         O4 -> "asks the sharing question as one bubble, its lines as paragraphs, also for a question stored as three"
+         O5 -> "says the practise answer the walk showed, and writes no Practise bubble for a try (founder 2026-10-20)"
+WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12).
+*/
 import { describe, expect, it } from "vitest";
-import { WALK_COPY } from "@/components/willab/idealEditCopy";
-import { oneShareQuestion, othersAnswered, othersChat, shareChat, stableUuid, walkStepDraft } from "./walkThread";
+import { CHUNK_SHEET_COPY as COPY, PRACTISE_LINES, WALK_COPY } from "@/components/willab/idealEditCopy";
+import { answerBody, oneShareQuestion, othersAnswered, othersChat, shareChat, shownStep, stableUuid, walkStepDraft } from "./walkThread";
 
 describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
   it("stores a step seen twice once, as the app's or the speaker's own message, with no score", () => {
@@ -55,5 +77,16 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
       stored("user", WALK_COPY.shareOnlyMe, 4),
     ];
     expect(oneShareQuestion(old).map((x) => x.message.body)).toEqual(["Record Take 3", question, WALK_COPY.shareOnlyMe]);
+  });
+
+  it("says the practise answer the walk showed, and writes no Practise bubble for a try (founder 2026-10-20)", () => {
+    // The second "not yet" shows the general line's second turn; the Lounge
+    // stores that line, not the plan's first turn.
+    const shown = PRACTISE_LINES.notYet.general[1];
+    const said = shownStep({ key: "encourage", moment: 0, attempt: 2 }, null, null, undefined, shown);
+    expect(said?.body).toBe(`${COPY.titlePractise}\n${shown}`);
+    expect(answerBody({ key: "exVideo", moment: 0 }, "go")).toBeNull();
+    expect(answerBody({ key: "encourage", moment: 0 }, "again")).toBeNull();
+    expect(answerBody({ key: "helpers", moment: 0 }, "skip")).toBe(WALK_COPY.skip);
   });
 });

@@ -1,17 +1,16 @@
-/* -------------------------------------------------------------------------- */
-/*  public/sw.js — the caching policy, held (2026-08-04)                       */
-/*                                                                            */
-/*  The service worker had no tests, and it is the layer that turned a bug     */
-/*  into an outage nobody could reload their way out of: one cache-first rule  */
-/*  for every non-API GET, nothing ever evicting, so a browser holding a bad   */
-/*  mix of build assets stayed broken until someone bumped the cache name.     */
-/*                                                                            */
-/*  sw.js cannot be imported — it is a worker script that reads `self`,        */
-/*  `caches` and `fetch` off a global scope that does not exist in node. So it */
-/*  is EVALUATED here against a fake scope, and the real file is the thing     */
-/*  under test rather than a copy of its logic. A policy change in sw.js that  */
-/*  nobody meant to make fails here.                                          */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As the founder, I want the offline helper in the browser never to stand between the app and our server, media or new builds, so that a bad saved copy can never break the app for anyone.
+OUTCOME
+  O1  Server calls and audio or video are never intercepted.
+  O2  Installing never depends on the home page, so a fix always reaches every browser.
+  O3  Build files are always fetched fresh, never served from an old copy.
+  O4  Pages load from the network first and the last one is kept for offline; notifications still work.
+PROVES   O1 -> never intercepts the API AT ALL, never intercepts media: audio, video, or any Range read
+         O2 -> installs without precaching `/`
+         O3 -> stands aside for /_next/static/*
+         O4 -> still answers a navigation network-first and keeps the last one as the offline fallback, the push handlers are still registered
+WHY      2026-08-04 outage: a cached mix of old build files kept browsers broken through every reload.
+*/
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import runInContext from "node:vm";

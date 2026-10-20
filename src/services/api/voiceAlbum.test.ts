@@ -1,3 +1,13 @@
+/*
+STORY    As a speaker, I want my saved moments grouped by project in the
+         server's order, and a failed load not shown as "no moments yet", so
+         that my album is accurate.
+OUTCOME
+  O1  Moments stay grouped by project, in the order the server gave.
+  O2  A failed load is reported as a failure, not as an empty album.
+PROVES   O1 -> "keeps the backend's project grouping and per-project order"
+         O2 -> "returns null on a failed read, never an empty album"
+*/
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("@/lib/api/auth-client", () => ({

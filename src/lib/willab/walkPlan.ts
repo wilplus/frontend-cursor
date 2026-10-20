@@ -51,6 +51,11 @@ export type WalkMoment = {
   judged?: boolean;
   /** The coach answered it in words (founder 2026-10-14). */
   coach?: boolean;
+  /** The coach chose its exercise (founder 2026-10-20). */
+  coachExercise?: boolean;
+  /** The coach's answer is a clearer version of the words (founder
+   *  2026-10-20): drawn as the Clearer version, not as a note. */
+  coachVersion?: boolean;
 };
 
 export type WalkPlanInput = {
@@ -144,7 +149,14 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
   const steps: WalkStep[] = [{ key: "page", overlay: false }];
   if (input.coachNote) steps.push({ key: "coachnote" });
   if (input.coachOnly) {
-    for (const m of moments) if (m.coach) steps.push(momentStep(m, "coach"));
+    // Everything the coach sent, each where it belongs (founder 2026-10-20):
+    // their exercise as the Exercise, their clearer version as the Clearer
+    // version, any other answer on its own screen.
+    for (const m of moments) {
+      if (m.coachExercise && input.practiceOn) steps.push(...practiseOpening({ ...m, clearer: false, exercise: true }, true));
+      else if (m.coachVersion) steps.push(...practiseOpening({ ...m, clearer: true }, input.practiceOn));
+      else if (m.coach) steps.push(momentStep(m, "coach"));
+    }
     steps.push({ key: "end", overlay: false });
     return steps;
   }
@@ -251,6 +263,10 @@ export type WalkFeedbackItem = {
   tiered?: boolean;
   /** The coach answered this moment in words. */
   coachAnswered?: boolean;
+  /** The coach chose the exercise that rides this item. */
+  coachExercise?: boolean;
+  /** The coach answered with a clearer version of the words. */
+  coachVersion?: boolean;
 };
 
 /** The feedback items grouped into the Take's moments, in page order: one
@@ -290,6 +306,8 @@ export function walkMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
       ...(practise ? { practise } : {}),
       ...(has((i) => Boolean(i.judged)) ? { judged: true } : {}),
       ...(has((i) => Boolean(i.coachAnswered)) ? { coach: true } : {}),
+      ...(has((i) => Boolean(i.coachExercise)) ? { coachExercise: true } : {}),
+      ...(has((i) => Boolean(i.coachVersion)) ? { coachVersion: true } : {}),
     };
   });
 }
@@ -314,6 +332,8 @@ function lockedMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
       ...(practise ? { practise } : {}),
       judged: true,
       ...(has((i) => Boolean(i.coachAnswered)) ? { coach: true } : {}),
+      ...(has((i) => Boolean(i.coachExercise)) ? { coachExercise: true } : {}),
+      ...(has((i) => Boolean(i.coachVersion)) ? { coachVersion: true } : {}),
     };
   });
 }

@@ -1,3 +1,11 @@
+/*
+STORY    As a speaker, I want the Terms page to show exactly the stored text I accept, so that my receipt matches what I read.
+OUTCOME
+  O1  With a policy in force, the page shows its stored text and version.
+  O2  With no policy in force, the page shows the fallback.
+PROVES   O1 -> shows the stored terms when a policy is active
+         O2 -> falls back when no policy is active
+*/
 import { describe, expect, it } from "vitest";
 import { policyTextState } from "./policyText";
 import type {

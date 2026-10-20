@@ -1,3 +1,9 @@
+/*
+STORY    As a speaker, I want broken formatting marks never shown as raw symbols, so that my text reads clean.
+OUTCOME
+  O1  Whatever the broken input, no formatting symbol reaches the screen.
+PROVES   O1 -> no grammar character survives, whatever the malformation
+*/
 import { describe, expect, it } from "vitest";
 import {
   parseRichMarkers,

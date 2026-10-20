@@ -1,3 +1,12 @@
+/*
+STORY    As a speaker, I want my transcript split by slide in slide order,
+         silent slides included, so that each paragraph lines up with its
+         slide.
+OUTCOME
+  O1  Slides and their transcripts come out in slide order; a slide with
+      nothing said is kept, with its place in the recording.
+PROVES   O1 -> "maps deck slides + complete per-slide transcripts (sorted, '' valid)"
+*/
 import { describe, expect, it } from "vitest";
 import {
   mapReadoutPayload,

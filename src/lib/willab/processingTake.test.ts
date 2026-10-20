@@ -1,3 +1,11 @@
+/*
+STORY    As a speaker, I want my "still processing" marker kept for my account only, and Take 1's "Ideal Text not confirmed" state kept as its own state, so that nobody else sees my pending Take and I get the right recovery screen.
+OUTCOME
+  O1  Another account sees no processing marker of mine.
+  O2  Take 1 marked as unconfirmed reads back as that state.
+PROVES   O1 -> never exposes account A's pending analysis to account B
+         O2 -> preserves the distinct Take 1 Ideal Text terminal state
+*/
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   markProcessingTakeIdealTextUnconfirmed,

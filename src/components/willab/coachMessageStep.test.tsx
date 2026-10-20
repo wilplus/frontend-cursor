@@ -1,6 +1,14 @@
 // @vitest-environment jsdom
-/* Step 0 of the Feedback sheet: the coach's overall message (founder
-   2026-09-29, Q1; Final Screens L8). */
+/*
+STORY    As a speaker, I want my coach's message to open only when I ask for
+         it, with the words, the Take and the video, so that it never
+         interrupts me.
+OUTCOME
+  O1  The message never opens by itself; Review feedback opens it with the
+      coach's words, the Take number and the video.
+PROVES   O1 -> "never opens by itself (Q1); Review feedback shows the words, the Take and the video"
+WHY      Founder 2026-09-29, Q1 (Final Screens L8).
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";

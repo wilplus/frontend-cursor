@@ -37,15 +37,11 @@ export default function IdealTextCard({
   const fresh = useNewCoachFeedback(arcId);
   // A press starts the read the opened page needs, before the tap lands.
   const card = { title, version, slideRef, onWarm: () => warmIdealTextOpen(arcId) };
-  return (
-    <>
-      <CardButton {...card} onOpen={onOpen} />
-      {/* THE COACH'S FEEDBACK IS ITS OWN BUBBLE (founder 2026-10-14): the
-          same card with the orange outline and the dot, opening the walk
-          where the feedback is; the card above opens the text. */}
-      {latest && fresh && onOpenFeedback ? <CardButton {...card} onOpen={onOpenFeedback} coach /> : null}
-    </>
-  );
+  // ONE CARD (founder 2026-10-20, replacing the second bubble of
+  // 2026-10-14): while the coach's feedback waits, the project's latest card
+  // itself wears the orange stroke and the dot and opens the walk on it.
+  const coach = Boolean(latest && fresh && onOpenFeedback);
+  return <CardButton {...card} onOpen={coach ? onOpenFeedback! : onOpen} coach={coach} />;
 }
 
 function CardButton({
@@ -75,14 +71,17 @@ function CardButton({
   return (
     <button
       type="button"
-      data-review-card={coach ? undefined : true}
+      data-review-card
       data-coach-feedback-card={coach ? true : undefined}
       onClick={onOpen}
       onPointerDown={onWarm}
-      className={`relative mr-auto flex w-[80%] max-w-sm items-center gap-2.5 rounded-[18px] border border-border bg-background p-2.5 pr-7 text-left transition-transform active:scale-[0.98]${coach ? " ring-2 ring-primary" : ""}`}
+      className={`relative mr-auto flex w-[80%] max-w-sm items-center gap-2.5 rounded-[18px] bg-background text-left transition-transform active:scale-[0.98] ${coach ? "border-2 border-primary p-[9px] pr-[27px]" : "border border-border p-2.5 pr-7"}`}
     >
+      {/* The stroke is the card's own border (same radius, the padding takes
+          back the extra pixel so nothing moves); the dot sits on the curve
+          of the top-right corner. */}
       {coach ? (
-        <span aria-hidden="true" data-testid="new-coach-feedback-dot" className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-primary" />
+        <span aria-hidden="true" data-testid="new-coach-feedback-dot" className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-primary" />
       ) : null}
       <span ref={tileRef} aria-hidden="true" className="aspect-video w-[72px] flex-none overflow-hidden rounded-md bg-gradient-to-br from-[#dde3ee] to-[#c7d0e0]">
         {slideRef !== undefined ? (

@@ -1,16 +1,14 @@
-/* -------------------------------------------------------------------------- */
-/*  HELPER WORDS SURVIVE AN OWNER EDIT (audit B3, 2026-09-28; L1)             */
-/*                                                                            */
-/*  Once the speaker has edited their Ideal Text, the core read serves the     */
-/*  edit's live parts ({id, text, locked}) instead of the snapshot's. Those    */
-/*  rows carry no helper words, so the deck lost the locked orange phrase the  */
-/*  speaker had chosen: L1 says it persists until they pick new ones.          */
-/*                                                                            */
-/*  The snapshot's parts are the same `ideal_text_part` rows, republished      */
-/*  whenever a root is chosen, so they are merged in by id. The edit still     */
-/*  decides the text and the lock. A span that no longer slices to the phrase  */
-/*  is carried as is and paints nothing (`partRootTint`).                      */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker, I want the helper words I chose to stay after I edit my
+         Ideal Text, until I pick new ones, so that my chosen phrase isn't
+         lost.
+OUTCOME
+  O1  After my edit, each paragraph still carries its chosen helper words
+      and where they sit, and they are still highlighted.
+  O2  A paragraph with no chosen helper words gets none.
+PROVES   O1, O2 -> "merges the snapshot's root phrase, span and iteration by part id"
+WHY      Never-rule 5: helper words stay until the speaker picks new ones (audit B3).
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { partRootTint } from "@/lib/willab/documentParts";
 import { fetchIdealTextCore } from "./idealText";
