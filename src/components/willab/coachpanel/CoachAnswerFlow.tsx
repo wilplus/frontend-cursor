@@ -20,7 +20,10 @@
 /*                    diagnosed error; anything else goes to the speaker in   */
 /*                    words (plus the video), never stuck (lock flow 9)       */
 /*    the Take word   GET …/word, else its draft; PUT …/word with the video   */
-/*                    from POST …/video                                       */
+/*                    from POST …/video. A return visit opens on the saved    */
+/*                    words and video, never on a draft; Send keeps the       */
+/*                    video, a new recording replaces it, and Remove the      */
+/*                    video sends video_ref: null (founder 2026-10-19)        */
 /* -------------------------------------------------------------------------- */
 
 import { useEffect, useRef, useState, type Dispatch, type ReactNode } from "react";
@@ -47,7 +50,7 @@ import {
   type DiagnosisInput, type DiagnosisView, type ErrorChoice, type ExercisePreferenceView,
 } from "@/services/api/coachPanel";
 import {
-  answerInWords, draftForRequest, fetchTakeWord, saveTakeWord, uploadAnswerVideo, type MomentRead,
+  answerInWords, draftForRequest, fetchTakeWord, saveTakeWord, uploadAnswerVideo, type MomentRead, type TakeWord,
 } from "@/services/api/coachWalk";
 import { uploadCoachVideo } from "@/services/api/coachReview";
 import { newUploadKey, videoProvenance } from "@/services/api/coachVideoMeta";
@@ -65,7 +68,14 @@ type Work = {
   name?: string;
 };
 
-type TakeWork = { text?: string; loading?: boolean };
+/** The Take's word on this visit: its words, the saved video's link, and
+ *  whether the coach tapped Remove the video. */
+type TakeWork = { text?: string; loading?: boolean; videoUrl?: string | null; removed?: boolean };
+
+/** A failed read of the saved word is tried this many times in one visit,
+ *  this far apart. */
+const TAKE_WORD_READS = 3;
+const TAKE_WORD_RETRY_MS = 1500;
 
 /** Screens that read the diagnosis, and those that read the cure. */
 const DIAGNOSIS_KEYS = new Set(["diagnose", "nameerr", "decide", "swap", "exdetail", "words", "video", "share", "summary"]);
@@ -162,9 +172,64 @@ export function cureOf(input: {
   };
 }
 
+/** The saved Take word ({ word: null } when there is none yet), or null when
+ *  every read failed or the visit ended. A saved video whose link did not
+ *  come back counts as a failed read: the panel never shows the Camera in
+ *  place of a saved video. */
+async function readSavedWord(sid: string, current: () => boolean): Promise<{ word: TakeWord | null } | null> {
+  for (let n = 0; n < TAKE_WORD_READS; n += 1) {
+    if (n > 0) await new Promise((r) => setTimeout(r, TAKE_WORD_RETRY_MS));
+    if (!current()) return null;
+    const read = await fetchTakeWord(sid);
+    if (read.ok && !(read.word?.videoRef && !read.word.videoUrl)) return { word: read.word };
+  }
+  return null;
+}
+
+/** The Take's word (founder 2026-10-19, the approved two-phone prototype). A
+ *  visit is the time spent on one Take's takeword and takevideo screens, and
+ *  each visit starts from a fresh read: the saved words and video, the
+ *  video's link signed again. A saved word is never drafted over; a read that
+ *  keeps failing stays on the loading circle (Skip and ✕ still leave). Remove
+ *  the video holds across ‹ and Next until Send; ✕ ends the visit, so it
+ *  cancels. Only a Take with no word yet opens on its draft. */
+function useTakeWork(key: string, sid: string | null, startEditing: () => void) {
+  const [takeWork, setTakeWork] = useState<Record<string, TakeWork>>({});
+  const open = useRef<string | null>(null);
+  // Moves at each visit's start and end, so a late answer is dropped.
+  const visit = useRef(0);
+  const edit = useRef(startEditing);
+  edit.current = startEditing;
+  const inTake = (key === "takeword" || key === "takevideo") && sid !== null ? sid : null;
+  useEffect(() => {
+    if (open.current === inTake) return;
+    open.current = inTake;
+    visit.current += 1;
+    if (inTake) setTakeWork(({ [inTake]: _lastVisit, ...rest }) => rest);
+  }, [inTake]);
+  useEffect(() => () => { visit.current += 1; }, []);
+
+  const tw: TakeWork = (sid && takeWork[sid]) || {};
+  const needsRead = key === "takeword" && sid !== null && tw.text === undefined && !tw.loading;
+  useEffect(() => {
+    if (!needsRead || !sid) return;
+    const at = visit.current;
+    const current = () => visit.current === at;
+    const set = (next: TakeWork) => { if (current()) setTakeWork((all) => ({ ...all, [sid]: next })); };
+    set({ loading: true });
+    void readSavedWord(sid, current).then(async (read) => {
+      if (!read) return;
+      const text = read.word ? read.word.text ?? "" : (await draftTakeWord(sid))?.text ?? "";
+      set({ text, videoUrl: read.word?.videoUrl ?? null });
+      if (!text && current()) edit.current();
+    });
+  }, [needsRead, sid]);
+  return { takeWork, setTakeWork };
+}
+
 /** The words open on the request's draft; a note, and a draft that did not
- *  come, open on an empty field, already editing. The Take's word opens on
- *  the word already saved, else its draft. */
+ *  come, open on an empty field, already editing. The Take's word is
+ *  useTakeWork's. */
 function useDrafts(ids: Ids, home: AnswerHome | null, work: Record<string, Work>, patch: (id: string, next: Partial<Work>) => void,
   startEditing: () => void) {
   const { key, id, sid } = ids;
@@ -183,29 +248,25 @@ function useDrafts(ids: Ids, home: AnswerHome | null, work: Record<string, Work>
     });
   }, [needsDraft, id, sid, home]);
 
-  const [takeWork, setTakeWork] = useState<Record<string, TakeWork>>({});
-  const tw: TakeWork = (sid && takeWork[sid]) || {};
-  const needsTakeWord = key === "takeword" && sid !== null && tw.text === undefined && !tw.loading;
-  useEffect(() => {
-    if (!needsTakeWord || !sid) return;
-    setTakeWork((all) => ({ ...all, [sid]: { loading: true } }));
-    void fetchTakeWord(sid).then(async (word) => {
-      const text = word?.text ?? (await draftTakeWord(sid))?.text ?? "";
-      setTakeWork((all) => ({ ...all, [sid]: { text } }));
-      if (!text) draft.current.startEditing();
-    });
-  }, [needsTakeWord, sid]);
-  return { takeWork, setTakeWork };
+  return useTakeWork(key, sid, () => draft.current.startEditing());
 }
 
 /** A new screen: not editing, no old sentence; the camera stays only on the
- *  video screens. */
+ *  video screens, and a clip recorded for the Take's word survives ‹ to its
+ *  words (a recording in progress does not; the approved prototype's
+ *  toWordBack, founder 2026-10-19). */
 function useScreenReset(stageKey: string, recorder: CoachVideoRecorder, reset: () => void) {
   const live = useRef({ recorder, reset });
   live.current = { recorder, reset };
+  const last = useRef(stageKey);
   useEffect(() => {
     live.current.reset();
     const r = live.current.recorder;
+    const from = last.current;
+    last.current = stageKey;
+    const backToWords = stageKey.startsWith("takeword:") && from === stageKey.replace(/^takeword:/, "takevideo:")
+      && r.state.status === "stopped";
+    if (backToWords) return;
     if (!stageKey.startsWith("video:") && !stageKey.startsWith("takevideo:") && r.state.status !== "idle") r.reset();
   }, [stageKey]);
 }
@@ -331,19 +392,25 @@ export function useAnswerFlow(ctx: AnswerContext) {
     if (ok) finish(withLibrary ? COPY.toastShared(pseudonym) : COPY.toastSharedOnly(pseudonym));
   }
 
+  /** Send: a new recording replaces the video; Remove the video on this
+   *  visit sends video_ref: null; anything else sends no video_ref, which
+   *  keeps the saved video (founder 2026-10-19). A Take word needs words, as
+   *  Next already does. */
   async function sendTakeWord(take: TakeScreen): Promise<void> {
     const sessionId = take.take.sessionId;
-    const text = (takeWork[sessionId]?.text ?? "").trim();
+    const t = takeWork[sessionId] ?? {};
+    const text = (t.text ?? "").trim();
+    if (!text) { setEditing(true); return; }
     const file = recorder.state.status === "stopped" ? recorder.state.file : null;
     const ok = await run(async () => {
-      let videoRef: string | null = null;
+      let videoRef: string | null | undefined = t.removed ? null : undefined;
       if (file) {
         videoRef = await uploadCoachVideo(sessionId, file, {
           idempotencyKey: newUploadKey(), ...videoProvenance("coach-walk"), durationSec: null,
         });
         if (!videoRef) return COPY.answerFail;
       }
-      const saved = await saveTakeWord(sessionId, { text, videoRef, share: true });
+      const saved = await saveTakeWord(sessionId, { text, share: true, ...(videoRef !== undefined ? { videoRef } : {}) });
       return saved.ok ? null : saved.message;
     });
     if (!ok) return;
@@ -496,8 +563,13 @@ export function useAnswerFlow(ctx: AnswerContext) {
     }
     return (
       <TakeVideoScreen where={where} onBack={back} onClose={ctx.close} pseudonym={p} recorder={recorder}
+        keptUrl={t.removed ? null : t.videoUrl ?? null}
         busy={busy} fail={live ? fail : null} onSend={() => void sendTakeWord(panel)}
         onRecordAgain={() => { recorder.reset(); void recorder.start(); }}
+        onRemove={() => {
+          recorder.reset();
+          setTakeWork((all) => ({ ...all, [sessionId]: { ...all[sessionId], removed: true } }));
+        }}
         words={<CoachWords text={t.text ?? ""} editing={isEditing} onChange={setText} onToggle={() => setEditing((e) => !e)} />} />
     );
   }

@@ -9,11 +9,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const fetchMomentRead = vi.fn();
 const saveStateRating = vi.fn();
 const answerInWords = vi.fn();
+const fetchTakeWord = vi.fn();
 vi.mock("@/services/api/coachWalk", async (orig) => ({
   ...(await orig<typeof import("@/services/api/coachWalk")>()),
   fetchMomentRead: (...a: unknown[]) => fetchMomentRead(...a),
   draftForRequest: vi.fn(async () => ({ surface: "exercise_script", text: "Slow down on the last words.", modelVersion: null })),
   answerInWords: (...a: unknown[]) => answerInWords(...a),
+  fetchTakeWord: (...a: unknown[]) => fetchTakeWord(...a),
 }));
 vi.mock("@/services/api/stateRatings", async (orig) => ({
   ...(await orig<typeof import("@/services/api/stateRatings")>()),
@@ -56,6 +58,8 @@ import {
 import { PANEL_START, panelReducer, type PanelAction, type PanelState } from "@/lib/willab/coachPanel";
 import type { QueueMoment, QueueSpeaker, QueueTake } from "@/lib/willab/coachWalk";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
+import { CHUNK_SHEET_COPY } from "../idealEditCopy";
+import { draftTakeWord } from "@/services/api/coachPanel";
 import type { MomentRead } from "@/services/api/coachWalk";
 import type { WalkNav } from "../walk/WalkOverlay";
 
@@ -249,5 +253,74 @@ describe("the answer", () => {
       resolution: "note_written", answerText: "Slow down on the last words.", share: true,
     }));
     expect(document.querySelector("[data-testid='coach-panel-judge']")).not.toBeNull(); // on to s2
+  });
+});
+
+/* ── the Take's word, coming back to it ────────────────────────────── */
+
+describe("A word for this Take, on a return visit (founder 2026-10-19)", () => {
+  const DONE: QueueTake = { ...TAKE, waiting: 0, moments: [m("s1", "answered"), m("s2", "answered")] };
+  let puts: Record<string, unknown>[] = [];
+  beforeEach(() => {
+    fetchTakeWord.mockReset();
+    fetchTakeWord.mockResolvedValue({
+      ok: true, word: { text: "Saved words", videoUrl: "https://v/1.mp4", videoRef: "s3://b/k", sharedAt: "x" },
+    });
+    vi.mocked(draftTakeWord).mockClear();
+    puts = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === "/api/v2/coach/sessions/t2/word" && init?.method === "PUT") {
+        puts.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify({ word: { text: "Saved words" } }), { status: 200 });
+      }
+      return new Response("{}", { status: 200 });
+    }));
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const atTheWord = async () => {
+    const start = ([{ type: "open" }, { type: "take", speaker: HERON, take: DONE }, { type: "onward" }] as PanelAction[])
+      .reduce(panelReducer, PANEL_START);
+    draw(<Host start={start} />);
+    await flush();
+  };
+  const click = async (sel: string) => {
+    await act(async () => q(sel)!.click());
+    await flush();
+  };
+  const onVideo = (sel: string) => q(`[data-testid='coach-panel-takevideo'] ${sel}`);
+  const links = () => qa("[data-testid='coach-panel-takevideo'] [data-walk-link]").map((b) => b.textContent);
+
+  it("opens on the saved words and video, never a draft; Send to {p} keeps the video", async () => {
+    await atTheWord();
+    expect(q("[data-testid='coach-panel-takeword'] [data-coach-words]")!.textContent).toContain("Saved words");
+    expect(draftTakeWord).not.toHaveBeenCalled();
+
+    await click("[data-testid='coach-panel-takeword-next']");
+    expect(onVideo("[data-coach-video]")).not.toBeNull();
+    expect(onVideo("[data-coach-video-box]")).toBeNull();
+    expect(onVideo("[data-testid='coach-panel-takevideo-send']")!.textContent).toBe(COPY.sendTo("Quiet Heron"));
+    expect(links()).toEqual([COPY.recordAgain, COPY.removeTheVideo]);
+
+    await click("[data-testid='coach-panel-takevideo-send']");
+    expect(puts).toHaveLength(1);
+    expect(puts[0]).toStrictEqual({ text: "Saved words", share: true }); // no video_ref: the backend keeps it
+  });
+
+  it("Remove the video holds across ‹ and Next, and Send without a video sends video_ref: null", async () => {
+    await atTheWord();
+    await click("[data-testid='coach-panel-takeword-next']");
+    await click("[data-testid='coach-panel-takevideo-remove']");
+    expect(onVideo("[data-coach-video-box='idle']")).not.toBeNull();
+    expect(links()).toEqual([COPY.sendWithoutAVideo]);
+
+    await click(`[data-testid='coach-panel-takevideo'] button[aria-label='${CHUNK_SHEET_COPY.pagerBack}']`);
+    await click("[data-testid='coach-panel-takeword-next']");
+    expect(onVideo("[data-coach-video-box='idle']")).not.toBeNull();
+    expect(onVideo("[data-coach-video]")).toBeNull();
+
+    await click("[data-testid='coach-panel-takevideo-send-without']");
+    expect(puts).toHaveLength(1);
+    expect(puts[0]).toStrictEqual({ text: "Saved words", video_ref: null, share: true });
   });
 });
