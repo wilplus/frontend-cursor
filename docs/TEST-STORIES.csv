@@ -314,7 +314,9 @@ moment with no draft never leaves me with no words and a grey Next.
 O6  Coming back to a Take word I sent, I see my saved words and video,
 never a draft over them: Send keeps the video, Remove the video holds
 until Send and sends no video, and leaving cancels it; a Take drafted
-but never sent opens on its draft, drafted once.","O1 -> ""Judge: the player, the question, 👍 😐 👎 and Audio unclear (lock 2026-10-12 §7), nothing else""
+but never sent opens on its draft, drafted once.
+O7  As the founder, the ⋯ on a waiting speaker deletes their waiting
+moments behind a confirmation; no other coach has the ⋯.","O1 -> ""Judge: the player, the question, 👍 😐 👎 and Audio unclear (lock 2026-10-12 §7), nothing else""
 O2 -> ""Judge first; the moment read is asked for only after the rating saves"",
 ""a failed save stays on Judge, says so, and never reads the moment""
 O3 -> ""Your queue: the speaker who sent most recently on top; an answered speaker drops out (founder 2026-10-18)"",
@@ -325,7 +327,8 @@ O5 -> ""an error answered without a video still goes to the speaker, without the
 O6 -> ""opens on the saved words and video, never a draft; Send to {p} keeps the video"",
 ""Remove the video holds across ‹ and Next, and Send without a video sends video_ref: null"",
 ""leaving the word before Send cancels Remove the video: the next visit shows the saved video again"",
-""a Take drafted but never sent opens on its draft at every visit, drafted once; Send without a video sends video_ref: null""","Never 2 (coach judgements stay blind); locked coach panel; O6: founder 2026-10-19 (D9, D10), approved two-phone prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk."
+""a Take drafted but never sent opens on its draft at every visit, drafted once; Send without a video sends video_ref: null""
+O7 -> ""the founder's ⋯ deletes a waiting speaker's moments behind its confirmation; other coaches have none""","Never 2 (coach judgements stay blind); locked coach panel; O6: founder 2026-10-19 (D9, D10), approved two-phone prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk. O7: founder 2026-10-20, like the training corpus's ⋯."
 src/components/willab/coachpanel/coachPanelCorpus.test.tsx,Story,"As a coach, I want the training corpus in the panel to go straight to judging after set-up and let me rename finished imports, so that corpus work is quick and blind.","O1  A saved set-up goes straight to judging that import, saying
 ""Set up · {n} moments"".
 O2  An import with nothing to judge is never judged: back on the imports.
