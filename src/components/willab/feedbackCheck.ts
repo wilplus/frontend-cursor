@@ -6,14 +6,16 @@ import type { LoungeMessage } from "@/services/api/loungeMessages";
 /*                                                                            */
 /*  The backend writes the question after the closing summary of a Take       */
 /*  (services/feedback_check.py), as an offer bubble: while it is the newest  */
-/*  message the footer shows Not really | Yes in place of the record button.  */
+/*  message the footer shows No | Yes in place of the record button.          */
 /*  A tap goes to the backend, which writes the tap and the signed reply;     */
-/*  "Not really" is followed by "What was missing?" with a Skip button, and   */
+/*  "No" is followed by "What would help?" with a Skip button, and            */
 /*  what the speaker types next is their answer (the chat's own module).      */
 /*  Ignored, it stays a bubble; tapping it opens the pair again.              */
 /* -------------------------------------------------------------------------- */
 
-export const FEEDBACK_CHECK_LABEL = { yes: "Yes", notReally: "Not really" } as const;
+// "No" was "Not really" until the founder simplified it in chat, 2026-10-20
+// (backend services/feedback_check.py COPY["not_really"]).
+export const FEEDBACK_CHECK_LABEL = { yes: "Yes", notReally: "No" } as const;
 
 export type FeedbackCheckTarget = { arcId: string; takeSessionId: string };
 
