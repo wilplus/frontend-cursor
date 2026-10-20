@@ -365,6 +365,12 @@ shows; after the last, the kept line.","O1 -> ""draws the signed words and nothi
 O2 -> ""saves one pick for the sheet, then says it is kept""
 O3 -> ""words only, the question and three answers, blind to the slice""
 O4 -> ""saves one answer per pair and moves on""","Never-2 (BLIND COACH), founder S-B8 A."
+src/components/willab/coachpanel/willBank.test.tsx,Story,"As the founder, I want to change Will's questions and fill empty slots from the coach panel, so that Will asks my words from the next Take without a code change.","O1  My queue has one row under the blind lists, ""Will's questions"", with
+how many questions and empty slots; another coach's queue has none.
+O2  The row opens the questions in their groups; I change a question or a
+tap answer, or fill an empty slot, and Save sends only what changed;
+a refusal shows the backend's sentence and keeps my words.","O1 -> ""the founder's queue has Will's questions under the blind lists; a coach's has none""
+O2 -> ""Save sends only what changed, an empty slot takes a question, and a refusal says why""","Founder 2026-10-20 (N83): ""show me where would you add it in the coach panel … below the users""; prototype https://claude.ai/artifact/WLZ1KY6dX1RBLXiNU73F9N, ""OK""."
 src/components/willab/coachwalk/coachJudgeSheet.test.tsx,Story,"As a coach, I want the Judge sheet to show only the question and five answers and to save once on tap, so that I judge blind and move on fast.","O1  Never-2: the sheet holds the question, its caption and the five
 answers, and nothing else of the moment.
 O2  A tap saves once and hands off at once with the save in flight; the
