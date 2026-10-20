@@ -117,6 +117,31 @@ describe("reading the policy", () => {
     expect(status.kind).toBe("unavailable");
   });
 
+  it("an accepted person's status comes without the policy text and still opens the app", async () => {
+    // Founder 2026-10-20 (backend 0478): 52 KB of Terms, Privacy Policy and
+    // AI notice rode along on every app open, to a person never shown them.
+    // The versions and the hashes still come; the text does not.
+    const withoutText = policyRow({
+      authorized: true,
+      code: "PROCESSING_AUTHORIZED",
+      receipt_id: "receipt-uuid",
+    });
+    for (const key of ["terms_copy", "privacy_copy", "ai_notice_copy", "agreement_copy"]) {
+      delete (withoutText as Record<string, unknown>)[key];
+    }
+    stubFetch(() => withoutText);
+    const status = await fetchAuthorization();
+    expect(status.kind).toBe("authorized");
+    if (status.kind !== "authorized") return;
+    expect(status.policy.terms.sha256).toBe(TERMS_HASH);
+    expect(status.policy.policyVersion).toBe("phase1-2026.1");
+
+    // Someone who must still accept gets the text or nothing: a screen must
+    // never open on an empty document.
+    stubFetch(() => ({ ...withoutText, authorized: false, code: "PROCESSING_AUTHORIZATION_REQUIRED" }));
+    expect((await fetchAuthorization()).kind).toBe("unavailable");
+  });
+
   it("a blocked principal is blocked, NOT acceptance_required (PLF-T1)", async () => {
     // Re-accepting cannot lift a service block, so offering the acceptance
     // flow put the person in a loop they could never leave.
