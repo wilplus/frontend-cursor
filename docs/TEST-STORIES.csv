@@ -406,7 +406,7 @@ O3 -> ""says nobody is waiting only once the queue was read empty""",Founder 202
 src/components/willab/deckFeedbackWalk.test.tsx,Story,"As a speaker reviewing feedback, I want the walk to open on my first praise, move through its chat with ‹ ›, save helper words through the deck, and ask a guest to sign up, so that feedback flows into my next Take.","O1  Review feedback opens the walk on the first praise.
 O2  The arrows move through the walk's chat, step by step, without
 answering anything or closing it.
-O3  A tap on a paragraph that still waits opens on what it asks (its
+O3  A tap on a paragraph, with or without its black line, opens the same walk at what it asks (its
 praise just above it in the chat) and, once answered, lands back on
 the Ideal Text. Tapped again with nothing left, the text or its
 orange words, it opens the whole walk to scroll through, at the
@@ -418,9 +418,9 @@ and the deck still shows the speaker's own words, not the clearer ones.
 O6  A guest's pick asks to sign up, is not taken, and nothing is written.","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
 O2 -> ""‹ › move through the walk's chat, never answering and never
 closing it (founder 2026-10-20)""
-O3 -> ""a paragraph that waits opens on what it asks and lands on the
-page; answered, it opens the whole walk with no buttons
-(founder 2026-10-20)""
+O3 -> ""a paragraph with or without the line opens the same walk at
+what it asks, its buttons as the step stands (founder
+2026-10-20, N89)""
 O4 -> ""helper words picked in the walk go through the deck's own
 save: the words and the lock""
 O5 -> ""Accept and practise writes through the accept lane and leaves the speaker's words on the page""
@@ -637,14 +637,12 @@ O2 -> ""words from an earlier Take save on the paragraph""",F1 Repair Plan Phase
 src/components/willab/useWillabFlow.test.ts,Story,"As a speaker, I want the app always to go record, then process, then Ideal Text, then the next Take, so that the loop never breaks.","O1  Starting, stopping and finishing processing lead to the readout;
 from there the next Take, a pause, or ""sign up to send"" (and on to
 review) are expected steps.","O1 -> ""is the record → process → Ideal Text loop""",Never 3; audit Q-C4.
-src/components/willab/walk/coachUpdateLens.test.tsx,Story,"As a speaker, I want my coach's changed word to wait for me in the chat under ""Later · from your coach"" and open on its own with ""Close"", so that I watch exactly what my coach sent, once.","O1  The coach's bubble rings while the server says the word is new; a tap
-opens only that word, as the walk's one chat (the bar ""Your coach"",
-the video before the words, no ""Your coach"" line in the bubble, the
-pill ""Close"" in the dock); ✕ closes and the ring stays; Close tells the server the Take's word was watched and the ring
-goes.
+src/components/willab/walk/coachUpdateLens.test.tsx,Story,"As a speaker, I want my coach's changed word to wait for me in the chat under ""Later · from your coach"" and open the walk at my coach's place when I tap it, the same way every bubble opens its step, so that I watch exactly what my coach sent, where it belongs.","O1  The coach's bubble rings while the server says the word is new; a tap
+opens the Take's walk at the coach's step (Step 0 for a general word),
+not a screen of its own; nothing is marked watched by the tap.
 O2  Once the server has heard it (its next read says the word is not
-new), a later change of the word rings again.","O1 -> ""the coach's changed word opens alone; only Close marks it watched""
-O2 -> ""a word changed again after it was watched rings again""","Founder 2026-10-19, N80 (D4, D8, D11) and the approved two-phone prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk, drawn as the lens is since 2026-10-20 (N81, one chat)."
+new), the ring goes; a later change of the word rings again.","O1 -> ""the coach's changed word opens the walk at the coach's step; the tap marks nothing""
+O2 -> ""a word changed again after it was watched rings again""","Founder 2026-10-19, N80 (D4, D7); 2026-10-20, N89 (""THE SAME MECHANISM""): the word alone in its own lens with Close is history."
 src/components/willab/walk/feedbackWalk.test.tsx,Story,"As a speaker, I want the Feedback walk to take me through my coach's note, praise with its reason, helper words, the clearer version and a summary, in words only, as one chat that grows with each tap, so that feedback after every Take is clear and backed by what I said.","O1  The steps come in order as one chat: coach's note, praise, helper words, next praise, summary, back to my page; earlier steps stay above, my choices land as my own bubbles.
 O2  A good moment shows the praise line, then why it landed, quoting my words; the Take's highest moment opens with “This was your most confident moment.”
 O3  Reopened from the Lounge, a clip I already judged shows as answered and is not asked again.

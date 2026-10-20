@@ -26,9 +26,7 @@ import { judgedStatus } from "@/lib/willab/chunkSteps";
 import {
   buildFeedbackReplay,
   buildFeedbackWalk,
-  walkActionForPart,
   walkHelpersForPart,
-  walkOfPart,
   walkStart,
   walkStepForPart,
   walkStepAt,
@@ -654,16 +652,19 @@ export function useDeckFeedbackWalk(args: {
   /** The Take's moments may still land (the readout is not in yet). */
   feedbackPending?: boolean;
 }): {
-  review: (target?: WalkStepTarget | null) => boolean;
-  tapPart: (partId: string, open: boolean) => boolean;
+  /** The one door into the walk (founder 2026-10-20, N89): the whole
+   *  Take's walk at the step the target names (a Lounge bubble's step, a
+   *  paragraph, the coach's word), live while the step waits, as given once
+   *  answered. `from` says where ✕ goes back to (B11). */
+  review: (target?: WalkStepTarget | null, from?: "chat" | "page") => boolean;
+  /** A paragraph of the Ideal Text, with or without its black line: the
+   *  walk at what it asks or asked, through `review`. False when no moment
+   *  of this Take is on it. */
+  openPart: (partId: string) => boolean;
   /** A paragraph's helper words were tapped: that slide's helper-words step
    *  in the same walk, live or finished (lock 2026-10-12, section 4). False
    *  when the paragraph has none. */
   openHelpers: (partId: string) => boolean;
-  /** The whole finished walk to scroll through, at the step this
-   *  paragraph answered, with no buttons. False when the paragraph has none
-   *  in the replay. */
-  replayPart: (partId: string) => boolean;
   /** The paragraph has a moment of this Take to open. */
   hasMoment: (partId: string) => boolean;
   /** The paragraph still has a step to answer: it wears the black line
@@ -847,13 +848,13 @@ export function useDeckFeedbackWalk(args: {
   const practisingRef = useRef(false);
   // This opening is the review itself (the lens), not a step from the page.
   const lensRef = useRef(false);
-  const openAt = useCallback((at: number | null, practising = false, lens = false, how?: WalkDir, whole = false): boolean => {
+  const openAt = useCallback((at: number | null, practising = false, lens = false, how?: WalkDir): boolean => {
     if (at === null) return false;
     practisingRef.current = practising;
     lensRef.current = lens;
     toldRef.current = new Set<string>();
     seqRef.current += 1;
-    setRequest({ seq: seqRef.current, at, how, ...(whole ? { whole } : {}) });
+    setRequest({ seq: seqRef.current, at, how });
     return true;
   }, []);
 
@@ -868,34 +869,31 @@ export function useDeckFeedbackWalk(args: {
   // A helper-words bubble opens that paragraph's helper words, as a tap on
   // the words in the text does (founder 2026-10-14).
   const openHelpersRef = useRef<(partId: string) => boolean>(() => false);
-  const review = useCallback((target?: WalkStepTarget | null): boolean => {
+  // ONE MECHANISM (founder 2026-10-20, N89: "the SAME WAY"): every door opens
+  // the whole Take's walk at the step it names. Live while that step waits
+  // (its own buttons); as given once answered (read only; the helper words
+  // still editable on the latest Take). The paragraph's own narrowed walk,
+  // which closed onto the Ideal Text once the paragraph was done, and the
+  // finished walk with no buttons are history.
+  const review = useCallback((target?: WalkStepTarget | null, from: "chat" | "page" = "chat"): boolean => {
     if (otherTake(target)) return true;
     if (target?.step === "helpers" && target.part && openHelpersRef.current(target.part)) return true;
     setReplaying(null);
+    const lens = from === "chat";
     const liveAt = walkStepAt(model, target);
     // An answered step opens as given, read-only (prototype v31).
     const done = target && liveAt === null && replayReady ? buildReplay(ownAnswers) : null;
     const doneAt = done ? walkStepAt(done, target) : null;
     if (done && doneAt !== null) {
       setReplaying(done);
-      return openAt(doneAt, false, true);
+      return openAt(doneAt, false, lens);
     }
+    if (target?.part && liveAt === null) return false;
     // Opening marks nothing: only Continue on the coach's word does (N80).
-    return openAt(liveAt ?? walkStart(model), false, true);
+    return openAt(liveAt ?? walkStart(model), false, lens);
   }, [model, openAt, otherTake, replayReady, buildReplay, ownAnswers]);
 
-  // A paragraph that still waits opens on what it asks and ends on the
-  // page, like a paragraph's practise: the rest of the review stays behind
-  // "Continue review" (founder 2026-10-20).
-  const tapPart = useCallback(
-    (partId: string, open: boolean): boolean => {
-      const own = open ? walkOfPart(model, partId) : null;
-      if (!own) return false;
-      setReplaying(own.model);
-      return openAt(own.at, true);
-    },
-    [model, openAt],
-  );
+  const openPart = useCallback((partId: string): boolean => review({ part: partId }, "page"), [review]);
 
   const replay = useCallback((target?: WalkStepTarget | null): boolean => {
     if (otherTake(target)) return true;
@@ -921,19 +919,6 @@ export function useDeckFeedbackWalk(args: {
     [model, replayNow],
   );
   const waits = useCallback((partId: string): boolean => walkStepForPart(model, partId) !== null, [model]);
-
-  const replayPart = useCallback(
-    (partId: string): boolean => {
-      if (!replayReady) return false;
-      const now = buildReplay(ownAnswers);
-      const at = walkActionForPart(now, partId);
-      if (at === null) return false;
-      setReplaying(now);
-      openAt(at, false, false, undefined, true);
-      return true;
-    },
-    [replayReady, buildReplay, ownAnswers, openAt],
-  );
 
   const openHelpers = useCallback(
     (partId: string): boolean => {
@@ -1264,8 +1249,8 @@ export function useDeckFeedbackWalk(args: {
   );
 
   return useMemo(
-    () => ({ review, tapPart, openHelpers, replayPart, hasMoment, waits, replay, canReplay, replaySettled, practisePart, element }),
-    [review, tapPart, openHelpers, replayPart, hasMoment, waits, replay, canReplay, replaySettled, practisePart, element],
+    () => ({ review, openPart, openHelpers, hasMoment, waits, replay, canReplay, replaySettled, practisePart, element }),
+    [review, openPart, openHelpers, hasMoment, waits, replay, canReplay, replaySettled, practisePart, element],
   );
 }
 
