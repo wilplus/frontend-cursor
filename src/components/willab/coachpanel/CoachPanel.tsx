@@ -47,9 +47,12 @@ import { useConfidenceChainReceipt, type ConfidenceChainEcho } from "../coachwal
 import { readMoment, useMomentReadSeeds, type MomentReadSeeds } from "../coachwalk/momentReadSeeds";
 import {
   JudgeScreen, PanelPlayer, QueueScreen, RevealBody, RevealScreen, SpeakerScreen, SpeakersScreen, revealLines, type PanelClip,
+  type WillRow,
 } from "./CoachPanelScreens";
 import { useAnswerFlow } from "./CoachAnswerFlow";
 import { BLANK_IMPORT, CorpusAnalyseScreen, CorpusHomeScreen, CorpusImportScreen, type ImportForm } from "./CoachCorpusScreens";
+import { WillBankScreen } from "./WillBankScreen";
+import { fetchWillBank, saveWillBank, type WillBank, type WillBankItem } from "@/services/api/willBank";
 import CoachCorpusJudge from "./CoachCorpusJudge";
 import {
   isMomentScreen, momentOf, walkScreenOf, type MomentScreen, type PanelAction, type PanelScreen, type PanelState,
@@ -213,6 +216,31 @@ function useImports(open: boolean) {
   return { imports, loading, refresh: () => setTick((n) => n + 1) };
 }
 
+/** Will's questions (N83), the founder's only: read when the queue or the
+ *  editor is open (so for anyone else there is no bank and no row); saved
+ *  from the editor. */
+function useWillBank(open: boolean, onOpen: () => void) {
+  const [bank, setBank] = useState<WillBank | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void fetchWillBank().then((next) => {
+      if (!cancelled && next) setBank(next);
+    });
+    return () => { cancelled = true; };
+  }, [open]);
+  const save = async (changes: Pick<WillBankItem, "key" | "question" | "chips">[]): Promise<string | null> => {
+    const saved = await saveWillBank(changes);
+    if ("bank" in saved) {
+      setBank(saved.bank);
+      return null;
+    }
+    return saved.error || COPY.answerFail;
+  };
+  const row: WillRow | null = bank ? { questions: bank.questions, empty: bank.empty, onOpen } : null;
+  return { bank, save, row };
+}
+
 type JudgeFail = { error: string; attempt: number };
 
 /** The rating's save (C1, founder 2026-10-08). The tap moves to What
@@ -304,6 +332,8 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
   const all = useAllSpeakers(screen.key === "speakers");
   const corpus = useImports(screen.key === "corpushome");
   const founder = isFounderEmail(useUserEmail());
+  const will = useWillBank(founder && (screen.key === "queue" || screen.key === "willbank"),
+    () => dispatch({ type: "willBank" }));
   const [form, setForm] = useState<ImportForm>(BLANK_IMPORT);
   const [corpusBusy, setCorpusBusy] = useState(false);
   const [corpusFail, setCorpusFail] = useState<string | null>(null);
@@ -465,6 +495,19 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
     else dispatch({ type: "step", key: read.request.kind === "error" ? "diagnose" : "decide" });
   }
 
+  /** The founder's editor of Will's questions (N83), else the panel's own screens. */
+  function screenFor(s: StageScreen) {
+    if (s.panel.key !== "willbank") return render(s);
+    return (
+      <WillBankScreen bank={will.bank} onClose={close} onBack={() => dispatch({ type: "back" })}
+        onSave={async (changes) => {
+          const refused = await will.save(changes);
+          if (refused === null) say(COPY.saved);
+          return refused;
+        }} />
+    );
+  }
+
   function render(s: StageScreen) {
     const panel = s.panel;
     const live = panel === screen;
@@ -473,6 +516,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
         <QueueScreen speakers={speakers} loading={loading} onClose={close}
           onSpeaker={(speaker) => dispatch({ type: "speaker", speaker })}
           onDelete={founder ? deleteSpeaker : undefined}
+          will={will.row}
           blind={{ audit: blind.audit, picks: blind.picks,
             onOpenAudit: () => setBlindOpen("audit"), onOpenPicks: () => setBlindOpen("picks"),
             v4Picks: blind.v4Picks, v4Surer: blind.v4Surer,
@@ -550,7 +594,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
   return (
     <MediaRefreshProvider refresh={refreshMedia} payload={mediaPayload}>
       {/* On a computer, the same phone-width screens, centred (Q-B14 A). */}
-      <WalkStage screen={stage} dir={state.dir} render={render} className="walk-stage-column md:mx-auto md:max-w-[430px]"
+      <WalkStage screen={stage} dir={state.dir} render={screenFor} className="walk-stage-column md:mx-auto md:max-w-[430px]"
         backdrop="fixed inset-0 z-50 hidden bg-muted md:block" />
       <input ref={fileInput} type="file" accept="audio/*,video/mp4" className="hidden" data-testid="corpus-file-input"
         onChange={(e) => { const f = e.target.files?.[0] ?? null; e.target.value = ""; if (f) setForm((prev) => ({ ...prev, file: f })); }} />

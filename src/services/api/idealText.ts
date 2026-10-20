@@ -267,6 +267,10 @@ export interface DocumentSuggestion {
   /** The green moment's level key ("W1".."W10"), for its opening line
    *  (founder 2026-10-14); never a number. */
   levelKey?: string | null;
+  /** The Take's highest moment (founder 2026-10-20, N86): the walk opens its
+   *  bubble with "This was your most confident moment." A flag, never the
+   *  score. */
+  highestMoment?: boolean;
   /** Why the green moment landed, in words (founder 2026-10-18;
    *  backend services/praise_reason). Absent until it is written. */
   praiseReason?: PraiseReason | null;
@@ -341,6 +345,10 @@ export interface DocumentSuggestion {
   /** THE SIGNED MOVE (35f): the catalogue's sentence for a rewrite's reason
    *  ("Split the clause."). Absent → the card shows the words alone. */
   rewriteMove: string | null;
+  /** Why a rule rewrite was written (N85): "undermining", words that
+   *  undermine the speaker left out. The walk names it with the signed B10
+   *  line. Absent on every other row. */
+  rewriteReason?: "undermining" | null;
   /** HEAR IT — the student's own recording of this moment, free (the BE
    *  sources it from the free playback map, never the paid moments read).
    *  Parent+offset: the ref is usually the WHOLE take, so the player clamps
@@ -746,6 +754,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     tentative: record.tentative === true,
     bookmarkTier: readBookmarkTier(record.bookmark_tier),
     levelKey: readNonEmptyString(record.level_key),
+    highestMoment: record.highest_moment === true,
     praiseReason: readPraiseReason(record.praise_reason),
     practicePrompt: record.practice_prompt === true,
     coachRequest: mapCoachRequest(record.coach_request),
@@ -778,6 +787,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     cueKeys: mapCueKeys(record.cue_keys),
     praiseLine: readNonEmptyString(record.praise_line),
     rewriteMove: readNonEmptyString(record.rewrite_move),
+    rewriteReason: record.rewrite_reason === "undermining" ? "undermining" : null,
     snippetAudioRef: readNonEmptyString(record.snippet_audio_ref),
     startOffsetMs: readFiniteNumber(record.start_offset_ms),
     durationMs: readFiniteNumber(record.duration_ms),

@@ -252,10 +252,11 @@ export type WalkFeedbackItem = {
   hasExercise?: boolean;
   /** The speaker already judged it. */
   judged?: boolean;
-  /** Green: one of the Take's best moments (`bookmarkTier` "confident";
-   *  founder lock 2026-10-12, section 6). */
+  /** Praised: a shown moment at or above the floor (`bookmarkTier`
+   *  "confident"; founder 2026-10-20, flow page C2). */
   green?: boolean;
-  /** The Take's one exercise moment (`practicePrompt`). */
+  /** Corrected: a shown moment below the floor (`practicePrompt`); one or
+   *  two per Take (founder 2026-10-20, flow page C4). */
   practicePrompt?: boolean;
   /** A rewrite of the speaker's words rides this item. */
   hasRewrite?: boolean;
@@ -312,9 +313,11 @@ export function walkMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
   });
 }
 
-/** The moments under the 2026-10-12 lock: green moments are praised, and
- *  the one exercise moment is practised, as a clearer version when a
- *  rewrite rides it, else its exercise, else the moment said again. */
+/** The Take's shown moments (founder 2026-10-20, the score decides each):
+ *  a praised moment is praised, and each corrected moment is practised, as a
+ *  clearer version when a rewrite rides it, else its exercise, else the
+ *  moment said again. Both praised and none corrected, or the reverse, are
+ *  ordinary Takes. */
 function lockedMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
   return walkMomentGroups(items).map((group, index) => {
     const has = (pred: (i: WalkFeedbackItem) => boolean) => group.some(pred);

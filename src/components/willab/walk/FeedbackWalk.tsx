@@ -22,7 +22,7 @@ import WalkAiVoice, { AI_EXERCISE_OPENING, aiVoiceComing, aiVoiceShown, type AiV
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
-import type { SayLine, WalkBankKey, WalkLinesIO } from "@/lib/willab/walkLines";
+import { clearerOpening, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import { WALK_MAX_TRIES, type WalkStep } from "@/lib/willab/walkPlan";
 import {
@@ -681,7 +681,7 @@ function Clip({ moment, words }: { moment: FeedbackWalkMoment; words?: ReactNode
   );
 }
 
-/** The coach's word for the Take: "Your coach", their video inside the
+/** The coach's word for the Take: "Your coach:", their video inside the
  *  bubble, then their words. */
 function CoachNote(ctx: ScreenCtx, step: WalkStep) {
   const note = ctx.coachNote;
@@ -706,7 +706,7 @@ function CoachNote(ctx: ScreenCtx, step: WalkStep) {
       footer={<WalkFooter pill={{ label: COPY.pillContinue, onClick: ok, testId: "walk-forward" }} />}
     >
       <WalkMessage coach wide>
-        <span>{COPY.titleCoach}</span>
+        <span>{COPY.titleCoachLine}</span>
         {note?.videoUrl ? <CoachVideo src={note.videoUrl} className="my-2 w-full flex-none" /> : null}
         {note?.text ? <span>{note.text}</span> : null}
       </WalkMessage>
@@ -761,6 +761,7 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
     >
       <Clip moment={moment} />
       <WalkMessage>
+        {moment.highest ? <span>{COPY.titleMostConfident}</span> : null}
         <span>{moment.praiseTitle ?? COPY.titlePraise}</span>
         {words.length > 0 ? <span>{words.join(" ")}</span> : null}
       </WalkMessage>
@@ -828,7 +829,8 @@ function pieces(list: readonly ClearerPiece[]) {
 }
 
 /** The clearer version: the speaker's clip with their words, then the
- *  opener, the new words and the question, from the signed bank. */
+ *  opener (for words that undermined the speaker, B10 and "Try saying it
+ *  like this:", N85), the new words and the question, from the signed bank. */
 function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
   const clearer = moment.clearer;
   if (!clearer) return null;
@@ -861,11 +863,14 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
       {/* The coach's own clearer version is their bubble, with their photo
           and video, and is not said twice (founder 2026-10-20). */}
       <WalkMessage coach={clearer.byCoach === true} wide={clearer.byCoach === true}>
+        {moment.highest ? <span>{COPY.titleMostConfidentSoFar}</span> : null}
         <span>{COPY.cardClearerVersion}</span>
         {clearer.byCoach && moment.coachAnswer?.videoUrl ? (
           <CoachVideo src={moment.coachAnswer.videoUrl} className="my-2 w-full flex-none" />
         ) : null}
-        <span>{ctx.say(step, "B13")}</span>
+        {clearerOpening(clearer.reason, () => ctx.say(step, "B13")).map((line) => (
+          <span key={line}>{line}</span>
+        ))}
         <WalkNewWords>{pieces(clearer.after)}</WalkNewWords>
         {practiseOff ? null : <span>{ctx.say(step, "B14")}</span>}
       </WalkMessage>
@@ -883,6 +888,7 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
       <Clip moment={moment} />
       {aiExercise(ctx, step, moment) ?? (
         <WalkMessage coach={exercise?.byCoach === true} wide>
+          {moment.highest ? <span>{COPY.titleMostConfidentSoFar}</span> : null}
           <span>{COPY.titleExercise}</span>
           {exercise?.video ? (
             <CoachVideo
@@ -906,7 +912,7 @@ function CoachAnswerBubble({ moment }: { moment: FeedbackWalkMoment<unknown> }) 
   if (!answer) return null;
   return (
     <WalkMessage coach wide>
-      <span>{COPY.titleCoach}</span>
+      <span>{COPY.titleCoachLine}</span>
       {answer.videoUrl ? <CoachVideo src={answer.videoUrl} className="my-2 w-full flex-none" /> : null}
       <span>{answer.text}</span>
     </WalkMessage>
@@ -1002,6 +1008,7 @@ function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
       seed={`ai-ex-${moment.index}`}
       state={state}
       {...lines}
+      title={moment.highest ? COPY.titleMostConfidentSoFar : lines.title}
       arrive
       onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
     />

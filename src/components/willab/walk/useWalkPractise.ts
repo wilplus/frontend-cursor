@@ -17,9 +17,13 @@ import type { WalkPractiseIO, WalkPractisePassage } from "@/services/api/walkPra
 import { ensureAiVoice, noteAiVoicePlay, readAiVoice, type AiVoiceState } from "@/services/api/aiVoice";
 
 /** How often, and how long, a clip being made is asked after (N71; every
- *  second for a minute, founder 2026-10-15). */
+ *  second for a minute, founder 2026-10-15), then every five seconds for ten
+ *  minutes more, so a clip that lands late still shows (founder 2026-10-20,
+ *  N84: "show the clip whenever it lands"). */
 const AI_VOICE_POLL_MS = 1000;
 const AI_VOICE_POLL_TRIES = 60;
+const AI_VOICE_SLOW_POLL_MS = 5000;
+const AI_VOICE_SLOW_TRIES = 120;
 
 /** The clip as the screen holds it from the moment it is asked for: the
  *  bubble shows at once, with the typing dots (founder 2026-10-15). */
@@ -264,14 +268,14 @@ export function useWalkPractise<R>(args: {
         tries += 1;
         const read = await readAiVoice(practiceId);
         const pending = !read.ok || read.data.clip?.state === "pending";
-        if (pending && tries < AI_VOICE_POLL_TRIES) {
+        if (pending && tries < AI_VOICE_POLL_TRIES + AI_VOICE_SLOW_TRIES) {
           if (read.ok) keep(read.data);
           poll(practiceId);
           return;
         }
         // Still not made when the asking ends: no clip, the locked screen.
         keep(read.ok && !pending ? read.data : { demo: "ai_voice", clip: { state: "unavailable", url: null, durationMs: null, why: null } });
-      }, AI_VOICE_POLL_MS);
+      }, tries < AI_VOICE_POLL_TRIES ? AI_VOICE_POLL_MS : AI_VOICE_SLOW_POLL_MS);
       aiTimers.current.add(timer);
     };
     void (opened.current.get(index) ?? Promise.resolve(null)).then(async (practiceId) => {

@@ -3,13 +3,14 @@
 STORY    As a speaker, I want the Feedback walk to take me through my coach's note, praise with its reason, helper words, the clearer version and a summary, in words only, as one chat that grows with each tap, so that feedback after every Take is clear and backed by what I said.
 OUTCOME
   O1  The steps come in order as one chat: coach's note, praise, helper words, next praise, summary, back to my page; earlier steps stay above, my choices land as my own bubbles.
-  O2  A good moment shows the praise line, then why it landed, quoting my words.
+  O2  A good moment shows the praise line, then why it landed, quoting my words; the Take's highest moment opens with “This was your most confident moment.”
   O3  Reopened from the Lounge, a clip I already judged shows as answered and is not asked again.
   O4  If the summary cannot be read, the walk goes straight back to my page.
   O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.
   O6  A step's grey bubbles land one after another behind the typing dots, and its buttons come once they all have.
 PROVES   O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
-         O2 -> a green moment says why it landed
+         O2 -> a green moment says why it landed,
+               the Take's highest moment opens with “This was your most confident moment.”
          O3 -> reopened from the Lounge, the judging shows the moment already answered
          O4 -> skips the summary when it cannot be read, straight onto the page
          O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder
@@ -39,6 +40,7 @@ vi.mock("@/hooks/useDualCaptureMic", () => ({
 }));
 /** A practise with nothing behind it: the screens open, no call is made. */
 const QUIET_PRACTISE = { open: async () => null, upload: async () => null, check: async () => null } as never;
+import { shownStep } from "@/lib/willab/walkThread";
 import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkRequest } from "./FeedbackWalk";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 
@@ -128,14 +130,26 @@ describe("FeedbackWalk", () => {
     expect(why.querySelector("[data-walk-quote]")!.textContent).toBe("“our growth doubled”");
   });
 
+  it("the Take's highest moment opens with “This was your most confident moment.” (founder, signed 2026-10-20)", () => {
+    const items: FeedbackWalkItem[] = [{ ...ITEMS[0], highest: true }];
+    draw(
+      { seq: 1, at: 1 },
+      { model: buildFeedbackWalk({ items, coachNote: false, practiceOn: true, guest: false }), coachNote: null },
+    );
+    expect(screen()).toBe("walk-screen-praise");
+    expect(bubble()[0]).toBe(COPY.titleMostConfident);
+    expect(bubble()[1]).toBe(COPY.titlePraise);
+  });
+
   it("walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows", async () => {
     const props = draw(null, { summary: async () => "A closing word.", takeIndex: 2 });
     draw({ seq: 1, at: 1 }, { summary: async () => "A closing word.", takeIndex: 2 });
-    // The coach's bubble: "Your coach", the video inside it, the words.
+    // The coach's bubble: "Your coach:" (founder 2026-10-20, the colon),
+    // the video inside it, the words.
     expect(screen()).toBe("walk-screen-coachnote");
     expect(now()!.querySelector("[data-walk-message][data-walk-coach]")).not.toBeNull();
     expect(now()!.querySelector("[data-walk-message] [data-coach-video]")).not.toBeNull();
-    expect(bubble()).toEqual([COPY.titleCoach, NOTE.text]);
+    expect(bubble()).toEqual([COPY.titleCoachLine, NOTE.text]);
     forward();
     expect(screen()).toBe("walk-screen-praise");
     // Nothing slides (founder 2026-10-20): the coach's note stays above, in
@@ -315,6 +329,19 @@ describe("the clearer version (D-FW-15)", () => {
     const buttons = [...live()!.querySelectorAll("footer button, [data-walk-footer] button")].map((b) => b.textContent);
     expect(buttons).toContain(COPY.pillAcceptPractise);
     expect(buttons).toContain(COPY.linkKeepMyWords);
+  });
+
+  it("names words that undermined the speaker: B10's \"Say what you mean\" and \"Try saying it like this:\", on screen and in the chat (N85)", () => {
+    const items = REWRITE_ITEMS.map((i) => (i.item === "s-rewrite" && i.rewrite ? { ...i, rewrite: { ...i.rewrite, reason: "undermining" as const } } : i));
+    const model = buildFeedbackWalk({ items, coachNote: false, practiceOn: true, guest: false });
+    draw(null, { model } as Over);
+    draw({ seq: 1, at: FIRST }, { model } as Over);
+    const lines = [...msg().querySelectorAll(":scope > div > span:not([data-walk-new-words])")].map((n) => n.textContent);
+    const opening = [WALK_LINE_BANK.B10.lines[0], WALK_LINE_BANK.B13.lines[4]];
+    expect(lines).toEqual([COPY.cardClearerVersion, ...opening, WALK_LINE_BANK.B14.lines[0]]);
+    const step = model.plan[FIRST];
+    const chat = shownStep(step, model.moments[step.moment!], null);
+    expect(chat!.body).toBe([COPY.cardClearerVersion, ...opening, OFFERED].join("\n"));
   });
 
   it("Keep my words records the decline and, with a practise to do, opens the recorder on the speaker's own sentence with Line A", () => {

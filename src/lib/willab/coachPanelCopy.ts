@@ -305,6 +305,19 @@ const PROTOTYPE = {
   stateBeingTested: "Being tested silently",
   stateObserved: "Observed",
   coachesHeardIt: (n: number, m: number) => `Coaches heard it on ${n} of ${m} checked moments.`,
+  /* Will's questions, the founder's only (founder 2026-10-20, N83; prototype
+     https://claude.ai/artifact/WLZ1KY6dX1RBLXiNU73F9N). The groups and the
+     "when" lines are the backend's own words. */
+  willSection: "Will · only you",
+  willQuestions: "Will's questions",
+  willCount: (n: number, empty: number) =>
+    `${count(n, "question", "questions")} · ${count(empty, "empty slot", "empty slots")}`,
+  willIntro: "Only you see this. Will asks the new words from the next Take.",
+  emptySlot: "Empty slot",
+  addQuestion: "Add a question",
+  ownWords: "Their own words",
+  askedTimes: (n: number) => `Asked ${count(n, "time", "times")}`,
+  saved: "Saved",
 } as const;
 
 export const COACH_PANEL_COPY = { ...REUSED, ...SIGNED, ...NAMED, ...PROTOTYPE } as const;

@@ -17,7 +17,7 @@
 /*  on the commit.                                                             */
 /*                                                                            */
 /*    npm run check:design-lock                  # in CI and scripts/local_ci.sh */
-/*    node scripts/check-design-lock.mjs --base origin/main --list <file>      */
+/*    node scripts/check-design-lock.mjs --base origin/main --list <file> --flows <file> */
 /*                                                                            */
 /*  How a session adds the trailer: the founder's decision, as the last lines  */
 /*  of the commit message, with the other trailers —                           */
@@ -26,6 +26,13 @@
 /*                                                                            */
 /*  (git keeps it in the trailer block; `git log --format=%(trailers)` shows   */
 /*  it). The value is free text naming where the founder said yes.            */
+/*                                                                            */
+/*  THE FLOW PAGES (founder, 2026-10-20). A user flow has one written record,  */
+/*  docs/flows/<flow>.md: its rules as they stand, what is in flight, what is  */
+/*  open. scripts/flow-pages.txt names each page and the files behind it. A    */
+/*  branch that changes one of those files must change the page too, or the   */
+/*  run fails and names the page. The page is judged on the branch as a whole */
+/*  (a squash-merge lands it as one commit), the trailer on each commit.       */
 /* -------------------------------------------------------------------------- */
 
 import { execFileSync } from "node:child_process";
@@ -35,6 +42,7 @@ import { dirname, resolve } from "node:path";
 
 export const TRAILER = "Founder-Approved";
 export const LIST_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "design-locked-files.txt");
+export const FLOW_PAGES_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "flow-pages.txt");
 export const DEFAULT_BASE = "origin/main";
 
 /** The list file: one path per line, `#` comments, a trailing `/` locks a tree. */
@@ -43,6 +51,31 @@ export function parseList(text) {
     .split("\n")
     .map((line) => line.replace(/#.*$/, "").trim())
     .filter(Boolean);
+}
+
+/**
+ * The flow pages file: a page's path on a line of its own, its files indented
+ * under it; `#` comments. Returns [{ page, files }].
+ */
+export function parseFlowPages(text) {
+  const flows = [];
+  for (const raw of text.split("\n")) {
+    const line = raw.replace(/#.*$/, "").trimEnd();
+    if (!line.trim()) continue;
+    if (/^\s/.test(line)) {
+      if (flows.length) flows[flows.length - 1].files.push(line.trim());
+    } else {
+      flows.push({ page: line.trim(), files: [] });
+    }
+  }
+  return flows;
+}
+
+/** The flows a set of changed files touches without touching their page. */
+export function flowsLeftBehind(changed, flows) {
+  return flows
+    .map((flow) => ({ ...flow, touched: changed.filter((f) => isLocked(f, flow.files)) }))
+    .filter((flow) => flow.touched.length && !changed.includes(flow.page));
 }
 
 /** A test is never a locked screen. */
@@ -66,9 +99,10 @@ export function trailerOf(cwd, sha) {
  * Run the guard. Returns { code, lines }: code 0 clean, 1 a locked diff without
  * the trailer, 2 the base could not be resolved.
  */
-export function run({ cwd = process.cwd(), base = DEFAULT_BASE, list = LIST_PATH } = {}) {
+export function run({ cwd = process.cwd(), base = DEFAULT_BASE, list = LIST_PATH, flows = FLOW_PAGES_PATH } = {}) {
   const lines = [];
   const patterns = parseList(readFileSync(list, "utf8"));
+  const flowPages = parseFlowPages(readFileSync(flows, "utf8"));
 
   let mergeBase;
   try {
@@ -107,6 +141,15 @@ export function run({ cwd = process.cwd(), base = DEFAULT_BASE, list = LIST_PATH
     for (const f of locked) lines.push(`          ${f}`);
   }
 
+  const changed = commits.length
+    ? git(cwd, ["diff", "--name-only", mergeBase, "HEAD"]).split("\n").filter(Boolean)
+    : [];
+  const leftBehind = flowsLeftBehind(changed, flowPages);
+  for (const { page, touched } of leftBehind) {
+    lines.push(`  FAIL  the branch changes files of the flow ${page} without changing the page:`);
+    for (const f of touched) lines.push(`          ${f}`);
+  }
+
   const dirty = git(cwd, ["status", "--porcelain", "--untracked-files=all"])
     .split("\n")
     .filter(Boolean)
@@ -117,15 +160,21 @@ export function run({ cwd = process.cwd(), base = DEFAULT_BASE, list = LIST_PATH
     for (const f of dirty) lines.push(`          ${f}`);
   }
 
-  if (offences.length) {
+  if (offences.length || leftBehind.length) {
     lines.push("");
-    lines.push(`design-lock guard: ${offences.length} commit(s) change a locked screen without the founder's approval.`);
-    lines.push(`Add the trailer to the commit message, as its last lines, e.g.`);
-    lines.push(`    ${TRAILER}: Navigation Panel GO-W1, 2026-10-07`);
-    lines.push(`(git commit --amend, or git rebase -i on your own branch) — or leave the locked file as it is.`);
+    if (offences.length) {
+      lines.push(`design-lock guard: ${offences.length} commit(s) change a locked screen without the founder's approval.`);
+      lines.push(`Add the trailer to the commit message, as its last lines, e.g.`);
+      lines.push(`    ${TRAILER}: Navigation Panel GO-W1, 2026-10-07`);
+      lines.push(`(git commit --amend, or git rebase -i on your own branch) — or leave the locked file as it is.`);
+    }
+    if (leftBehind.length) {
+      lines.push(`design-lock guard: ${leftBehind.length} flow page(s) left behind by this branch.`);
+      lines.push(`Write what changed into the page (a rule rewritten in §1, a line in §2 or §6), or leave the flow's files as they are.`);
+    }
     return { code: 1, lines };
   }
-  lines.push(`design-lock guard: clean — ${commits.length} commit(s) since ${base}, ${checked} touching locked files, all approved.`);
+  lines.push(`design-lock guard: clean — ${commits.length} commit(s) since ${base}, ${checked} touching locked files, all approved; ${flowPages.length} flow page(s) in step.`);
   return { code: 0, lines };
 }
 
@@ -139,6 +188,7 @@ if (invokedDirectly) {
   const { code, lines } = run({
     base: opt("--base", process.env.DESIGN_LOCK_BASE || DEFAULT_BASE),
     list: opt("--list", LIST_PATH),
+    flows: opt("--flows", FLOW_PAGES_PATH),
     cwd: opt("--cwd", process.cwd()),
   });
   console.log(lines.join("\n"));

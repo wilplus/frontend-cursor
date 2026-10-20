@@ -14,6 +14,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CoachStepLayer } from "./CoachMessageSheet";
 import { useCoachStep } from "./useCoachStep";
+import { ownCoachWord } from "./TranscriptReviewDeck";
 import { type CoachMessage } from "@/services/api/idealText";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -62,3 +63,17 @@ describe("step 0", () => {
   });
 });
 
+/* The walk shows only this Take's coach word (founder 2026-10-20, "change
+ * it!"): an earlier Take's word, served in its place (N48.3 Q11 A), stays
+ * in the Lounge and opens nothing in a new Take's review. */
+describe("the coach's word in a new Take's walk", () => {
+  const word = { ...MSG, takeSessionId: "take-2" };
+  it("is the Take's own word, never an earlier Take's", () => {
+    expect(ownCoachWord(word, "take-2", 2)).toBe(word);
+    expect(ownCoachWord(word, "take-3", 3)).toBeNull();
+    // Without session ids, the Take's index decides.
+    expect(ownCoachWord(MSG, null, 2)).toBe(MSG);
+    expect(ownCoachWord(MSG, null, 3)).toBeNull();
+    expect(ownCoachWord(null, "take-3", 3)).toBeNull();
+  });
+});

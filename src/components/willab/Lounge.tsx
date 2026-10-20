@@ -117,7 +117,8 @@ import {
   feedbackCheckTarget,
 } from "./feedbackCheck";
 import { postFeedbackCheck, type FeedbackCheckChoice } from "@/services/api/feedbackCheck";
-import { useVoiceNotebook, VoiceNoteBar, VoiceNoteMic } from "./useVoiceNotebook";
+import { SundayActions, useVoiceNotebook, VoiceNoteBar, VoiceNoteMic } from "./useVoiceNotebook";
+import type { SundayChoice } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import WillQuestionBubble, { willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
@@ -1142,7 +1143,7 @@ export default function Lounge({
     if (type === "joke") return;
     const rank: Record<OfferType, number> = {
       joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0, feedback_check: 0,
-      voice_notebook: 0,
+      voice_notebook: 0, sunday_note: 0, sunday_principle: 0,
     };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
@@ -1715,6 +1716,7 @@ export default function Lounge({
             if (target) void answerFeedbackCheck(target, choice);
           }}
           onNotebook={notebook.answer}
+          onSunday={notebook.sunday}
           onResolve={() => {
             // A Take's ask closed: its message comes under it (the question's
             // taps let it go on the backend, "No" keeps it waiting).
@@ -2042,6 +2044,7 @@ function OfferActions({
   bookHref,
   onFeedbackCheck,
   onNotebook,
+  onSunday,
   onResolve,
 }: {
   type: OfferType;
@@ -2057,9 +2060,14 @@ function OfferActions({
   onFeedbackCheck: (choice: FeedbackCheckChoice) => void;
   /** "Keep a voice notebook?" (Will learning plan, step 1). */
   onNotebook: (choice: "yes" | "not_now") => void;
+  /** The Sunday note's Old | New, then Not now | Add principle (step 2). */
+  onSunday: (choice: SundayChoice) => void;
   onResolve: () => void;
 }) {
   const router = useRouter();
+  if (type === "sunday_note" || type === "sunday_principle") {
+    return <SundayActions type={type} onSunday={onSunday} onResolve={onResolve} />;
+  }
   if (type === "voice_notebook") {
     return (
       <SymmetricPair

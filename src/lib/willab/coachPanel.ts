@@ -80,6 +80,8 @@ export type PanelScreen =
   | { key: "corpusimport"; setupOf: string | null; edit?: boolean }
   | { key: "corpusanalyse" }
   | { key: "corpus"; importId: string; topic: string }
+  /** Will's questions after a Take, the founder's only (N83). */
+  | { key: "willbank" }
   | MomentScreen
   | TakeScreen;
 
@@ -111,6 +113,8 @@ export type PanelAction =
   /** Back to the imports after an import or a judged moment set (the
    *  prototype goes "back" there with nothing behind). */
   | { type: "corpusHome" }
+  /** The founder opens Will's questions from the queue (N83). */
+  | { type: "willBank" }
   | { type: "close" }
   | { type: "speaker"; speaker: QueueSpeaker }
   | { type: "take"; speaker: QueueSpeaker; take: QueueTake }
@@ -306,6 +310,8 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
       return fresh(state, { key: "corpus", importId: action.importId, topic: action.topic }, "fade");
     case "corpusHome":
       return fresh(state, { key: "corpushome" }, "back");
+    case "willBank":
+      return push(state, { key: "willbank" });
     case "close":
       return fresh(state, { key: "lounge" });
     case "speaker":
@@ -342,7 +348,7 @@ export function walkScreenOf(screen: PanelScreen): WalkScreen {
   if (screen.key === "lounge") return { key: "lounge", overlay: false };
   if (screen.key === "queue") return { key: "queue" };
   if (screen.key === "speakers") return { key: "speakers" };
-  if (screen.key === "corpushome" || screen.key === "corpusanalyse") return { key: screen.key };
+  if (screen.key === "corpushome" || screen.key === "corpusanalyse" || screen.key === "willbank") return { key: screen.key };
   if (screen.key === "corpusimport") return { key: "corpusimport", kind: screen.setupOf ?? "new" };
   if (screen.key === "corpus") return { key: "corpus", kind: screen.importId };
   if (screen.key === "speaker") return { key: "speaker", kind: screen.speaker.pseudonym };

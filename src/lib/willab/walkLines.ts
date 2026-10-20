@@ -31,6 +31,15 @@ export function linesOf(bank: WalkBankKey): readonly string[] {
   return WALK_LINE_BANK[bank].lines;
 }
 
+/** The clearer version's opening lines, above the new words. Words that
+ *  undermined the speaker (N85, founder 2026-10-20, the signed prototype)
+ *  open with B10's "Say what you mean…" and B13's "Try saying it like
+ *  this:"; every other clearer version with its rotating B13 line, taken
+ *  only then. */
+export function clearerOpening(reason: string | null | undefined, opener: () => string): string[] {
+  return reason === "undermining" ? [WALK_LINE_BANK.B10.lines[0], WALK_LINE_BANK.B13.lines[4]] : [opener()];
+}
+
 /** The server's memory, as the walk calls it (services/api/lineBank.ts). */
 export type WalkLinesIO = {
   /** {bank: index} each bank says next; null when it cannot be read. */

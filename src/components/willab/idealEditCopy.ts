@@ -81,6 +81,12 @@ export const CHUNK_SHEET_COPY = {
   titleFeedback: "Feedback",
   titleSuggestion: "Suggestion",
   titlePraise: "Good job",
+  /* The Take's highest moment opens with one of these (founder, signed
+     2026-10-20, N86): the first when it is praised, the second when it is
+     below the floor and the walk goes on to its clearer version or
+     exercise, so the speaker knows what they are hearing. */
+  titleMostConfident: "This was your most confident moment.",
+  titleMostConfidentSoFar: "This was your most confident moment so far.",
   /* Step three, the only place the asynchronous side of the product reaches
      this sheet. The title carries the whole label: the offer card deliberately
      has no eyebrow and no corner icon, because the screen has already said
@@ -113,6 +119,10 @@ export const CHUNK_SHEET_COPY = {
   /* Step 0 (founder 2026-09-29, Q1; Final Screens L8). "Your coach" and
      "Take N" are the signed-off coach-card words (L6). */
   titleCoach: "Your coach",
+  /* The coach's bubble opens with the title as a line, with a colon
+     (founder 2026-10-20, in chat: "the ':' is missing"). The bar and the
+     step's name keep `titleCoach`. */
+  titleCoachLine: "Your coach:",
   /* Reopening a clean paragraph is an edit, not the end of a review. */
   titleEditChunk: "Edit this chunk",
 

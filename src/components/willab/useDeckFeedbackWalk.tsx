@@ -26,6 +26,7 @@ import { judgedStatus } from "@/lib/willab/chunkSteps";
 import {
   buildFeedbackReplay,
   buildFeedbackWalk,
+  walkActionForPart,
   walkHelpersForPart,
   walkOfPart,
   walkStart,
@@ -74,10 +75,11 @@ import type { WalkPraiseReasons } from "@/lib/willab/praiseReason";
 /*    tapPart(id)   a paragraph with an open moment was tapped: its own steps */
 /*                  only, opened on what it asks; once answered, back on the  */
 /*                  Ideal Text (founder 2026-10-20). False otherwise.         */
-/*    replayPart(id) a paragraph whose moments are answered was tapped: the  */
-/*                  whole finished walk to scroll through, at that paragraph, */
-/*                  with no buttons (founder 2026-10-20). False when it has   */
-/*                  no moment, and the deck opens the paragraph's own sheet.  */
+/*    replayPart(id) a paragraph whose moments are answered was tapped, or   */
+/*                  its orange words: the whole finished walk to scroll       */
+/*                  through, at the step it answered, with no buttons         */
+/*                  (founder 2026-10-20). False when it has no moment, and    */
+/*                  the deck opens the paragraph's own sheet.                 */
 /*    waits(id)     the paragraph still has a step to answer: its black line. */
 /*    practisePart(id, card, moment) Practise on a paragraph's own sheet: the */
 /*                  walk's practise screens on that card (founder 2026-10-10, */
@@ -236,6 +238,7 @@ function walkItemOf(
     slideLabel: label,
     praiseWords: praise ? praiseWordsOf(item) : null,
     praiseTitle: praise ? praiseTitleFor(item.levelKey, item.id) : null,
+    highest: item.highestMoment === true,
     praiseLead: praise ? praiseLeadOf(item) : null,
     praiseReason: praise ? item.praiseReason ?? null : null,
     clip: item.snippetAudioRef
@@ -269,7 +272,7 @@ export function rewriteOf(item: DocumentSuggestion): FeedbackWalkItem<DocumentSu
   if (item.feedbackFamily !== "rewrite_clarity" && item.openCard !== "rewrite") return null;
   // The decision already given (the replay shows it answered).
   const decided = item.status === "approved" ? "accept" : item.status === "dismissed" ? "keep" : null;
-  return { quote: item.quote, proposedText: item.proposedText, move: item.rewriteMove, item, decided };
+  return { quote: item.quote, proposedText: item.proposedText, move: item.rewriteMove, reason: item.rewriteReason ?? null, item, decided };
 }
 
 /** The exercise an item's follow-up opens on (D-FW-17): the served offer,
@@ -657,9 +660,9 @@ export function useDeckFeedbackWalk(args: {
    *  in the same walk, live or finished (lock 2026-10-12, section 4). False
    *  when the paragraph has none. */
   openHelpers: (partId: string) => boolean;
-  /** The whole finished walk to scroll through, at this paragraph's first
-   *  moment, with no buttons. False when the paragraph has none in the
-   *  replay. */
+  /** The whole finished walk to scroll through, at the step this
+   *  paragraph answered, with no buttons. False when the paragraph has none
+   *  in the replay. */
   replayPart: (partId: string) => boolean;
   /** The paragraph has a moment of this Take to open. */
   hasMoment: (partId: string) => boolean;
@@ -923,7 +926,7 @@ export function useDeckFeedbackWalk(args: {
     (partId: string): boolean => {
       if (!replayReady) return false;
       const now = buildReplay(ownAnswers);
-      const at = walkStepForPart(now, partId);
+      const at = walkActionForPart(now, partId);
       if (at === null) return false;
       setReplaying(now);
       openAt(at, false, false, undefined, true);
@@ -1176,7 +1179,7 @@ export function useDeckFeedbackWalk(args: {
       // The coach's answer on the moment: their bubble in the chat too.
       const answer = moment?.coachAnswer;
       if (answer && COACH_ANSWER_STEPS.has(step.key)) {
-        post({ key: "coach-answer", moment: at.moment, attempt: null, author: "coach", body: `${CHUNK_SHEET_COPY.titleCoach}\n${answer.text}`, extra: { ...(answer.videoUrl ? { video: answer.videoUrl } : {}), ...part } });
+        post({ key: "coach-answer", moment: at.moment, attempt: null, author: "coach", body: `${CHUNK_SHEET_COPY.titleCoachLine}\n${answer.text}`, extra: { ...(answer.videoUrl ? { video: answer.videoUrl } : {}), ...part } });
       }
       onReached(step, moment);
     },
