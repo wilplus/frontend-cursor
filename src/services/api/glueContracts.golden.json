@@ -1646,10 +1646,13 @@
         }
       ],
       "result": {
-        "text": "w",
-        "videoUrl": null,
-        "videoRef": null,
-        "sharedAt": "x"
+        "ok": true,
+        "word": {
+          "text": "w",
+          "videoUrl": null,
+          "videoRef": null,
+          "sharedAt": "x"
+        }
       }
     },
     "signedOut": {
@@ -1664,10 +1667,13 @@
         }
       ],
       "result": {
-        "text": "w",
-        "videoUrl": null,
-        "videoRef": null,
-        "sharedAt": "x"
+        "ok": true,
+        "word": {
+          "text": "w",
+          "videoUrl": null,
+          "videoRef": null,
+          "sharedAt": "x"
+        }
       }
     }
   },

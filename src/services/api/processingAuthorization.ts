@@ -112,24 +112,32 @@ function str(value: unknown): string {
 function document(
   row: Record<string, unknown>,
   prefix: string,
+  copyRequired: boolean,
 ): PolicyDocument | null {
   const doc = {
     version: str(row[`${prefix}_version`]),
     copy: str(row[`${prefix}_copy`]),
     sha256: str(row[`${prefix}_copy_sha256`]),
   };
-  // ALL THREE OR NONE. A document missing its hash cannot be accepted (the RPC
-  // would reject it) and one missing its copy must not be shown as an empty
-  // page the user then agrees to. Partial is not a lesser version of complete
-  // here; it is unusable.
-  return doc.version && doc.copy && doc.sha256 ? doc : null;
+  // ALL THREE OR NONE, whenever the text is to be shown. A document missing
+  // its hash cannot be accepted (the RPC would reject it) and one missing its
+  // copy must not be shown as an empty page the user then agrees to. Partial
+  // is not a lesser version of complete here; it is unusable.
+  //
+  // The one case the copy may be missing: a person who has ALREADY accepted
+  // (founder 2026-10-20, backend 0478). Their status carries the versions and
+  // the hashes but not the 52 KB of text they are never shown; nothing opens
+  // an acceptance screen from an authorized status, so no empty page can
+  // follow from it.
+  return doc.version && doc.sha256 && (doc.copy || !copyRequired) ? doc : null;
 }
 
 function policyOf(row: Record<string, unknown>): ProcessingPolicy | null {
   if (row.policy_available !== true) return null;
-  const terms = document(row, "terms");
-  const privacy = document(row, "privacy");
-  const aiNotice = document(row, "ai_notice");
+  const copyRequired = row.authorized !== true;
+  const terms = document(row, "terms", copyRequired);
+  const privacy = document(row, "privacy", copyRequired);
+  const aiNotice = document(row, "ai_notice", copyRequired);
   const agreementCopy = str(row.agreement_copy);
   const agreementCopySha256 = str(row.agreement_copy_sha256);
   const countries = Array.isArray(row.allowed_countries)
@@ -138,7 +146,7 @@ function policyOf(row: Record<string, unknown>): ProcessingPolicy | null {
   const minimumAge = typeof row.minimum_age === "number" ? row.minimum_age : 0;
   if (
     !terms || !privacy || !aiNotice ||
-    !agreementCopy || !agreementCopySha256 ||
+    (!agreementCopy && copyRequired) || !agreementCopySha256 ||
     countries.length === 0 || minimumAge <= 0
   ) {
     return null;

@@ -237,20 +237,34 @@ function mapTakeWord(raw: unknown): TakeWord | null {
   };
 }
 
-/** GET …/word: this coach's own word for the Take, or null. */
-export async function fetchTakeWord(sessionId: string): Promise<TakeWord | null> {
+/** GET …/word: this coach's own word for the Take (`word: null` when there
+ *  is none yet), or `ok: false` when the read failed. A failed read is never
+ *  "no word": the panel must not draft over a word already sent (founder
+ *  2026-10-19). The backend always answers `{"word": …}`. */
+export async function fetchTakeWord(sessionId: string): Promise<{ ok: true; word: TakeWord | null } | { ok: false }> {
   const res = await coachRead(`/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/word`);
-  return res.ok ? mapTakeWord(res.data?.word) : null;
+  if (!res.ok || !res.data || !("word" in res.data)) return { ok: false };
+  // The draft (POST …/word/draft) lives on the same row, with no words and
+  // no video until the coach saves: that row is no word yet. A saved word
+  // always has words or a video (the backend refuses anything else).
+  const word = mapTakeWord(res.data.word);
+  return { ok: true, word: word && (word.text || word.videoRef) ? word : null };
 }
 
 /** PUT …/word: save the word; `share` sends it to the speaker. */
 export async function saveTakeWord(
   sessionId: string,
-  input: { text: string; videoRef: string | null; share: boolean },
+  input: {
+    text: string;
+    /** Left out, the saved video stays; null removes it (Remove the video,
+     *  founder 2026-10-19); a string is the new upload's ref. */
+    videoRef?: string | null;
+    share: boolean;
+  },
 ): Promise<{ ok: true; word: TakeWord | null } | { ok: false; message: string }> {
   const res = await coachWrite(`/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/word`, "PUT", {
     text: input.text,
-    ...(input.videoRef ? { video_ref: input.videoRef } : {}),
+    ...(input.videoRef !== undefined ? { video_ref: input.videoRef } : {}),
     share: input.share,
   });
   if (!res.ok) {

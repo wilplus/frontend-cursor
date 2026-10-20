@@ -178,6 +178,9 @@ const SIGNED = {
   /* A word for this Take */
   opensFirstIn: (p: string) => `it opens first in ${p}’s feedback`,
   sendWithoutAVideo: "Send without a video",
+  // founder 2026-10-19, the approved two-phone prototype
+  // (https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk): a saved video only.
+  removeTheVideo: "Remove the video",
   /* Training corpus */
   corpusCaption: "Import audio, label it, then judge its moments blind",
   imports: (n: number) => count(n, "import", "imports"),
