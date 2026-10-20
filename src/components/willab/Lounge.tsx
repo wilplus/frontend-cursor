@@ -11,7 +11,7 @@ import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "./LoungeAiVoiceBubble";
 import { CHUNK_SHEET_COPY } from "./idealEditCopy";
 import { postChatQuery } from "@/services/api/chatQuery";
 import { warmIdealTextOpen } from "@/services/api/idealText";
-import { refreshNewCoachFeedback, stampLoungeMessage, type LoungeMessage } from "@/services/api/loungeMessages";
+import { newestStamp, refreshNewCoachFeedback, stampLoungeMessage, type LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import {
   isRetiredLoungeMessage,
@@ -50,7 +50,7 @@ import ReportCard, {
 } from "./ReportCard";
 import { latestIdealBubbleIds, versionBubblesWithReviewCard } from "./unreadFeedback";
 import IdealTextCard from "./IdealTextCard";
-import { openedNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
+import { newCoachFeedbackFor, openedNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
 import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports";
 import { FLOW_COPY } from "./flowCopy";
 import LoadingState, { VoiceMark } from "./LoadingState";
@@ -97,8 +97,10 @@ import {
   offerDraft,
   readOfferType,
   hasOffer,
+  newestAsk,
   type OfferType,
 } from "./loungeOffers";
+import { screenHistory } from "./loungeScreen";
 import {
   CHIP_LABEL,
   coerceSuggestedAction,
@@ -351,6 +353,9 @@ export default function Lounge({
     items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
     return cardBeforeSummary(items);
   }, [messages]);
+  // The thread in the order it is drawn (founder 2026-10-20): what the
+  // chat reads as "the newest" is what shows last.
+  const drawn = useMemo(() => threadItems.map((item) => item.message), [threadItems]);
   // Each project's latest Ideal Text bubble wears the unread-feedback dot
   // (founder 2026-09-25, Q39 B).
   const latestIdealIds = useMemo(() => latestIdealBubbleIds(threadItems), [threadItems]);
@@ -422,7 +427,7 @@ export default function Lounge({
       return;
     }
     if (action === "feedback_skip") {
-      const target = feedbackCheckTarget(messages, "missing");
+      const target = feedbackCheckTarget(drawn, "missing");
       if (target) void answerFeedbackCheck(target, "skip");
       return;
     }
@@ -936,6 +941,18 @@ export default function Lounge({
   const takeInFlight =
     processingResume?.status === "analyzing" || documentSettle.pending;
 
+  // RECORD THE NEXT TAKE FROM ITS SUMMARY (founder 2026-10-20): the
+  // project's newest summary carries "Record Take N", which opens the text
+  // the way its own button does (from Take 2 on, the sharing question
+  // first). Held while a Take is still landing, as the "+" is.
+  const nextTakeOf = (m: LoungeMessage): SummaryRecord | null => {
+    const meta = m.metadata ?? {};
+    const arc = meta.arc_id;
+    const take = meta.take_index;
+    if (typeof arc !== "string" || typeof take !== "number" || olderTake(meta) !== null) return null;
+    return { label: `Record Take ${take + 1}`, onClick: () => openIdealText(arc, "share"), disabled: takeInFlight };
+  };
+
   const closeProcessingOverlay = useCallback(() => {
     setOpenedProcessingSessionId(null);
     requestAnimationFrame(() =>
@@ -1212,11 +1229,11 @@ export default function Lounge({
   const threadLoading = thread.loading;
   useEffect(() => {
     if (threadLoading || adminAsk.held) return;
-    const open = feedbackCheckOpen(messages);
+    const open = feedbackCheckOpen(drawn);
     if (!open || feedbackArmedRef.current === open.takeSessionId) return;
     feedbackArmedRef.current = open.takeSessionId;
     openOffer("feedback_check");
-  }, [threadLoading, adminAsk.held, messages, openOffer]);
+  }, [threadLoading, adminAsk.held, drawn, openOffer]);
 
   const whatsapp = useWhatsAppOffer({
     state,
@@ -1311,14 +1328,28 @@ export default function Lounge({
       // Track upload intent so the footer record button swaps to a file picker
       // (and reverts the moment the user's next message is about something else).
       setUploadAskActive(isUploadAsk(q));
+      // A typed turn answers or passes "Did this feedback help you?"
+      // (feedbackCheck.ts): its pair goes, as a tap would close it.
+      setActiveOffer((open) => (open === "feedback_check" ? null : open));
       atBottomRef.current = true; // sending always scrolls to your own message
-      const history = loungeToHistory(messages); // snapshot of prior turns (pre-append)
+      // Will reads the chat as it is drawn (founder 2026-10-20): every
+      // bubble on screen in its order, cards and asks included. A guest's
+      // thread lives on this device and keeps its plain turns.
+      const screen = shownItems.map((item) => item.message);
+      const history = thread.signedIn
+        ? screenHistory(screen, {
+            cardOf: (m) => reviewCardOf(m, threadItems),
+            coachWaits: (m) =>
+              latestIdealIds.has(m.client_id) &&
+              newCoachFeedbackFor(typeof m.metadata?.arc_id === "string" ? m.metadata.arc_id : null),
+          })
+        : loungeToHistory(messages); // snapshot of prior turns (pre-append)
       // The user turn always persists (optimistic + FE write); for signed-in the
       // BE also writes it from the client_id we pass below, and the server dedups
       // on (user_id, client_id) so it collapses to one row (#2). So the write
       // and the question go out together, and the dots show at once.
       const userDraft = { role: "user" as const, kind: "text" as const, body: q };
-      const userMsg = stampLoungeMessage(userDraft);
+      const userMsg = stampLoungeMessage(userDraft, newestStamp(messages));
       const appended = thread.append({ ...userDraft, clientId: userMsg.client_id });
 
       setBotThinking(true);
@@ -1327,6 +1358,7 @@ export default function Lounge({
         const [resp] = await Promise.all([postChatQuery({
           question: q,
           history,
+          historySource: thread.signedIn ? "screen" : undefined,
           // #2 — let the BE own persistence for signed-in turns. It writes the
           // user turn with our client_id (dedup) and the bot turn with the chip
           // in its metadata; the FE then shows the bot turn optimistically only.
@@ -1381,10 +1413,18 @@ export default function Lounge({
           // The speaker asked Will for a feature the Lounge offers (founder
           // 2026-10-14): the BE stored its offer bubble after the reply, so
           // show it now and open its form, as a tap on the bubble would.
+          // An ask already showing last is not asked again (founder
+          // 2026-10-20): the reply opens its form under it.
           const chatOffer = readOfferType({ offer: resp.offer });
           if (chatOffer) {
-            thread.appendLocalOnly(offerDraft(chatOffer));
+            if (newestAsk(screen) !== chatOffer) thread.appendLocalOnly(offerDraft(chatOffer));
             setActiveOffer(chatOffer);
+          }
+          // A number typed under the WhatsApp ask was saved (founder
+          // 2026-10-20): the reply says so, and the form closes.
+          if (resp.row_metadata?.whatsapp === "saved") {
+            whatsapp.refresh();
+            setActiveOffer((open) => (open === "whatsapp" ? null : open));
           }
           // "Show me my latest take" (founder 2026-10-16): the BE stored that
           // Take's Ideal Text card after the reply; show it now, one tap away.
@@ -1463,7 +1503,7 @@ export default function Lounge({
               onOpenIdealText={openIdealText}
             />
           ) : item.message.metadata?.summary === true ? (
-            <SummaryBubble key={item.reactKey} message={item.message} />
+            <SummaryBubble key={item.reactKey} message={item.message} record={nextTakeOf(item.message)} />
           ) : (
             <Bubble
               key={item.reactKey}
@@ -2813,8 +2853,9 @@ export function reviewCardOf(
 /** The closing summary after a review (founder lock 2026-10-12, section 3):
  *  one plain bubble that is not tapped. Rewritten by a coach update, it
  *  keeps the earlier words one tap away; the update itself is its own
- *  bubble under "Later · from your coach". */
-function SummaryBubble({ message }: { message: LoungeMessage }) {
+ *  bubble under "Later · from your coach". The newest Take's summary ends
+ *  with "Record Take N" in the same bubble (founder 2026-10-20). */
+function SummaryBubble({ message, record = null }: { message: LoungeMessage; record?: SummaryRecord | null }) {
   const [earlierOpen, setEarlierOpen] = useState(false);
   const meta = message.metadata ?? {};
   const earlier = meta.coach_update === true && typeof meta.earlier === "string" ? meta.earlier : null;
@@ -2841,10 +2882,25 @@ function SummaryBubble({ message }: { message: LoungeMessage }) {
             ) : null}
           </>
         ) : null}
+        {record ? (
+          <button
+            type="button"
+            data-summary-record
+            onClick={record.onClick}
+            disabled={record.disabled}
+            className="mb-3 mt-5 flex h-8 w-fit items-center gap-1.5 rounded-full border border-border bg-background px-3.5 text-[14px] font-semibold text-foreground disabled:cursor-default disabled:opacity-30"
+          >
+            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-record" />
+            {record.label}
+          </button>
+        ) : null}
       </div>
     </div>
   );
 }
+
+/** The next Take, from its summary: the text's own "Record Take N". */
+type SummaryRecord = { label: string; onClick: () => void; disabled: boolean };
 
 /** A wheel anywhere on the page outside the thread scrolls the thread,
  *  unless it lands in an overlay, a dialog or a field that scrolls itself.
