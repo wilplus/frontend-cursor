@@ -41,12 +41,19 @@ step; the loop never waits for a coach.
 
 - **A1** While the Take processes, the chat shows "Processing your
   recording" with the typing dots (dots in place of the breathing mark,
-  2026-10-20).
+  2026-10-20). The bubble stays until the Take's text and its marks are
+  stored: the marks are baked in the processing run right after the Take
+  is ready, and the page asks for them until they are in (or for ninety
+  seconds), so the walk opens the moment the bubble ends (2026-10-20,
+  WIL-76).
 - **A2** The moment processing finishes, the walk opens, right away, with
   nothing in between; the waiting screen before it stays as it is (founder,
   2026-10-20, first review of this page). The Ideal Text shows only once the
   page knows there is nothing to walk. The eight-second last resort counts
-  only once the page has loaded, its marks are in and its deck is up.
+  only once the page has loaded, its marks are in and its deck is up. The
+  page asks for late marks until its ninety seconds are up and then says
+  so; it never holds its slot open without asking (2026-10-20, WIL-76: the
+  typing dots that never ended).
 - **A3** The loop never waits for a coach (2026-09-16, 2026-09-26). The
   coach's word opens the walk only when it is there.
 
@@ -131,13 +138,21 @@ step; the loop never waits for a coach.
   "N of 6 words", "Use these helper words" and "Skip". Helper words stay
   editable from the Lounge's helper-words bubble and in the next Take's
   walk, on the latest Take only (rule 5); an older Take's words are locked
-  ("🔒 Take N"). They come from a moment that sounded confident.
+  ("🔒 Take N"). They come from a moment that sounded confident. Opened from
+  the Lounge's helper-words bubble while the marks may still land, the
+  picker waits for them, so it is the Take's step in the chat and not one
+  screen on its own; only a paragraph with no moment opens on its own
+  words (F5; 2026-10-20).
 - **C4 Correction.** A shown moment below the floor is corrected (founder,
   2026-10-20; until then the second highest was always corrected and the
   highest never, 2026-10-14). It is never called weak. It opens on the Clearer version only
   when both gates pass (H3), else on the voice Exercise with the AI clip
   (words first, then voice, 2026-10-18, N76). Two weak moments mean two
-  corrections, in slide order, each with its own tries and clips.
+  corrections, in slide order, each with its own tries and clips. The
+  Clearer version is served on its moment (the row names the moment's
+  block; until 2026-10-20 it did not, so the walk never drew it, "the
+  rewrite doesn't appear at all"). A corrected moment with neither a
+  clearer version nor an exercise is said again, never dropped (C2).
 - **C5 The Clearer version.** The speaker's words with the changed words
   crossed out; "Here is a slightly more polished option:" (when the reason is
   undermining words, `rewrite_reason: "undermining"`, B10's "Say what you
@@ -225,15 +240,20 @@ step; the loop never waits for a coach.
   slide, the project's name, a version tag such as "2.0", the coach's "new"
   dot on the project's newest card), then at most one ask (E1), then the
   summary as a plain bubble that cannot be tapped. The message after the
-  Take waits under the ask.
+  Take waits under the ask. The ask and its buttons are adjacent: the
+  card is moved above the Take's whole batch, the admin's asks included
+  (2026-10-20: the card had landed between the data question and its
+  buttons).
 - **D5** A coach update arrives later under "Later · from your coach",
   outlined in orange: one bubble per Take word, moved to the bottom with the
   latest words and video, never stacked (N80). It rewrites the summary in
   place; "Updated with your coach's note · see / hide the earlier version"
   shows the summary from before any coach note (or the first summary, when
   it already heard the coach). A video-only change does not rewrite the
-  summary; the same words and video again change nothing. A removed or
-  replaced coach video no longer plays anywhere in the chat (the file stays
+  summary; the same words and video again change nothing. The walk's own
+  copy of the coach's word in the chat opens the same lens (C1: the coach's
+  bubble is one of the coach's doors; 2026-10-20). A removed or replaced
+  coach video no longer plays anywhere in the chat (the file stays
   stored). Watching the word anywhere clears its "new" marks, and the walk
   writes the coach's words into the chat only once; only "Continue" on the
   coach's step or "Close" on the bubble marks it watched. Tapping the bubble
@@ -494,13 +514,21 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- **WIL-76** · the stale processing step (urgent) · A1, A2 · code read 2026-10-20, nothing pushed: BE #1175, #1189 and #1195 touch neither the Take's state nor the readout. The likeliest cause is on the page: once the text is ready the bookmarks' bake is queued on the pipeline queue, the page asks for the marks eight times over about 32 s and then stops asking with the slot still pending, and since FE #885 the lens's eight-second last resort waits while the marks are pending, so the typing dots never end and the walk never opens. Also: a Take whose "ready" write was lost stays processing until the orphan sweep marks it failed after 30 min. The fix, once the founder sees it in the app: keep asking for the marks to the 90 s ceiling, or let the last resort count once the asks are spent · the founder checks the app
+- **WIL-76** · the stale processing step (urgent) · A1, A2 · confirmed in the app 2026-10-20 ("it doesn't open right after the processing"). Built: the marks are baked in the run right after ready (BE), the processing bubble waits for them and the page keeps asking for late marks to its ceiling and closes its slot when it stops (FE) · BE #1209, FE #896 · the founder checks the app
 - **WIL-89** · the lens as one chat: the opening order, the lenses, the interventions × chat awareness · B, C1, F · built and merged: FE #868, #882, #885, #886; BE #1170, #1190, #1194, #1196. Whether it works as drawn is the founder's check in the app ("success?") · to confirm
 - **WIL-84, WIL-86** · videos match (the coach's changed word and video, N80) · C1, D5 · built and merged: BE #1160, FE #861, FE #872 (the speaker's side). One backend follow-up stays: a later change of the coach's word updates the in-review bubble in place (D5) · to confirm in the app
-- **WIL-90** · the exercise is blocked · C6, C7 · BE #1206 fixed the coach's gate only. Code read 2026-10-20, nothing pushed: the Manager's exercise offer, the verbal-cue gate and the error-presence audit still read the recording's acquirer (`take_acquisition_principal`), not the speaker's own Data & consent page (`take_speaker_principal`), so an older or claimed Take gets no exercise while the page shows practice on; and the walk swallows any refusal of the practice start and keeps that null for the moment, so every try ends on the "late" screen. The fix, once the founder sees it in the app: those three gates read the speaker's page; a failed start is asked again on "Practise again" · the founder checks the app
+- **WIL-90** · the exercise is blocked · C6, C7 · BE #1206 fixed the coach's gate; built 2026-10-20: the Manager's exercise offer, the verbal-cue gate and the error-presence audit read the speaker's own page too · BE #1209 · the founder checks the app
 
 The four lines above were filled from main's history by the page's keeper on
 2026-10-20; the sessions doing the work overwrite them when they push.
+- **The rewrite does not appear** · C4, C5 · founder 2026-10-20. Found: the served rewrite row carried no block id, so the walk drew it as a moment of its own and the Clearer version never attached (BE); a corrected moment with neither rewrite nor exercise was dropped instead of said again (FE). Both built · BE #1209, FE #896 · the founder checks the app
+- **The AI voice bubble loads, then disappears** · C6, H2 · founder 2026-10-20. Found: a failed clip cycle is final and its real failure code was lost (a permit refusal stored as its class name). Built: the code is kept and a permit the service could not read is retried once (BE). The cause for the founder's Takes is in Supabase `ai_voice_cycles` (`failure_kind`, `failure_code`): most likely the daily limits (10 clips a speaker, 30 in all; `AI_VOICE_DAILY_CLIPS_PER_SPEAKER`, `AI_VOICE_DAILY_CLIPS_TOTAL` on Railway) or a check the one generation failed (`AI_VOICE_GENERATION_RETRIES` is 0) · BE #1209 · the founder reads the row
+- **The coach's bubble did not open** · C1, D5 · founder 2026-10-20. Found: the walk's own copy of an earlier Take's word was tapped as a step and opened nothing (or a read-only review); the "Later" bubble opens the lens. Built: every coach bubble opens the coach's word in the lens, Close marks that word's Take, and a lapsed video link is refreshed · FE #896 · the founder checks the app
+- **Helpers open as a separate single action** · C3, F5 · founder 2026-10-20. Found: the Lounge's helper-words bubble opened before the marks were in, so a paragraph with a moment showed its words alone. Built: it waits for the marks unless the paragraph already has its moment · FE #896 · the founder checks the app
+- **The card lands between the data question and its buttons** · D4 · founder 2026-10-20. Found: the admin's asks were stamped only with the message they wait for, so the card was not moved above them. Built: the ask carries its Take, and the order resolves older asks through the message they wait for · FE #896 · the founder checks the app
+- **A too-short practise try ends on the stale screen** · C7 · founder 2026-10-20 ("should just say so and record once more or move on"). Found: the server refuses the try (422: too short, not heard, not the passage, not comparable) and the walk drops the refusal, drawing an empty late step with Practise again alone. To build once the founder signs the line: the walk says it could not hear the try and offers Practise again and Next; proposed words, already in the backend's own messages: "We couldn't hear that clearly. Try again." · waits for the founder's word
+- **The lens scrolls** · B2, B5 · founder 2026-10-20 ("It is scrollable!"), read as WIL-89 working as drawn; say if that was a complaint · confirmed
+- **Review from the Lounge loads very long** · F1, A2 · founder 2026-10-20. The same cause as WIL-76: the marks computed live (20 to 40 s) or pending behind a queued bake; the bake in the run stores them before the Take is ready, so the tap finds them · BE #1209 · the founder checks the app
 
 ## 3. Still open
 
@@ -509,6 +537,9 @@ The four lines above were filled from main's history by the page's keeper on
   query pack's `1-enough-data.sql` once `clips_with_both` reaches about 50,
   then show the founder the numbers; the founder decides (confirmed
   2026-10-20).
+- **A Stop tapped before the mic has started** may leave the typing dots
+  up and the mic on (read in the code 2026-10-20, not reproduced): the
+  recorder's stop does nothing until the mic reports started.
 - **FLOOR** is 0.6 until the blind judges calibrate it (H1).
 - **willfidence-v2** waits for 200 labels (I3).
 
@@ -586,6 +617,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-20 · N88 · the walk opens the moment processing ends: the marks are baked in the run right after ready, the processing bubble waits for them, the page asks for late marks to its ceiling and closes its slot when it stops (A1, A2); the Clearer version is served on its moment and a corrected moment with nothing attached is said again (C4); the helpers wait for the marks (C3); every coach bubble opens the coach's word (D5); the ask and its buttons stay together (D4); the speaker-side practice gates read the speaker's page (WIL-90) · BE #1209, FE #896
 - 2026-10-20 · N80 · the speaker's side built: the coach's bubble opens only their word in the lens, with Close and the step's "Your coach" line; watched anywhere clears the ring; the walk writes the word into the chat once per Take (D5) · FE #872
 - 2026-10-20 · N87 · `WalkOverlay`'s subtitle takes several lines, for the coach panel's speaker screen (its page, C3); nothing on the walk's own screens changes · FE #895
 - 2026-10-20 · N86 · the score decides each shown moment, in place of the fixed roles; the highest moment's bubble opens with "This was your most confident moment." (C2, C4, C5, H1, K) · FE #893, BE #1207

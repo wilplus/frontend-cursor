@@ -6,9 +6,14 @@ OUTCOME
       before the ask; once let go it comes under what closed the ask.
   O2  A WhatsApp or home-screen ask opens its form by itself.
   O3  A waiting message whose ask is no longer in front of me is let go.
+  O4  The admin's ask, stamped only with the message it waits for, is still
+      the Take's: the card stays above it and the ask above its buttons
+      (founder 2026-10-20: the card landed between the question and its
+      buttons).
 PROVES   O1 -> "draws the card, the ask, and the message only once it is let go"
          O2 -> "opens the Take's WhatsApp ask by itself"
          O3 -> "knows when no ask is in front of the speaker"
+         O4 -> "keeps the card above the admin's ask, stamped with the message it waits for alone"
 WHY      Founder 2026-10-20: "You cannot have two actions at a time, like
          feedback and record" (backend services/after_take.py).
 */
@@ -35,6 +40,12 @@ describe("after a Take", () => {
     expect(heldMessage(waiting)?.client_id).toBe("summary");
     const saved = row("saved", 4, "text", {}, "Saved ✓");
     expect(ids([ask, card, saved, summary(false, 5)])).toEqual(["card", "ask", "saved", "summary"]);
+  });
+
+  it("keeps the card above the admin's ask, stamped with the message it waits for alone", () => {
+    const question = row("question", 2, "text", { offer: "consent", after_take: "summary" });
+    const held = row("summary", 1, "cadence", { summary: true, take_index: 2, ...take, held_for: "admin" });
+    expect(ids([held, question, card])).toEqual(["card", "question"]);
   });
 
   it("opens the Take's WhatsApp ask by itself", () => {

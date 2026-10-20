@@ -7,8 +7,11 @@ OUTCOME
       both are on the page once it does.
   O2  When the page re-reads, the feedback bars, style changes, additions
       and coach message stay while only the text has come back.
+  O3  When the page stops asking for late marks, it says so: the reserved
+      slot closes, so the lens never waits on it for good (WIL-76).
 PROVES   O1 -> "applies the coach message before the slow lane answers"
          O2 -> "keeps what was shown while the core alone has landed"
+         O3 -> "closes the slot when the asks stop with the marks still pending"
 WHY      Founder 2026-10-08 (waiting-time fixes).
 */
 import { describe, expect, it, vi } from "vitest";
@@ -125,6 +128,29 @@ describe("F1: the prompt lane paints on its own", () => {
     expect(pending.at(-1)).toBe(false);
     // The settle sees both lanes' sections, as before.
     expect(Object.keys(settle.mock.calls[0][2].sections).sort()).toEqual(["document_layers", "journey"]);
+  });
+
+  it("closes the slot when the asks stop with the marks still pending", async () => {
+    const pendingLane: Ready = {
+      kind: "ready",
+      documentSnapshotId: "snap-1",
+      sections: { document_layers: { status: "pending", retryable: true } },
+    };
+    const pending: boolean[] = [];
+    const fetchLane = vi.fn(async (_a: string, _s: string, sections?: readonly string[]) =>
+      sections?.includes("document_layers") ? pendingLane : journeyLane,
+    );
+    // The settle spent its budget: the marks still say "ask me again".
+    const settle = vi.fn(async (_a: string, _s: string, e: Ready) => e);
+    await loadIdealTextEnrichment("arc", core(), {
+      isCurrent: () => true,
+      apply: () => {},
+      setPending: (p) => pending.push(p),
+      refetch: () => {},
+      fetchLane: fetchLane as never,
+      settle: settle as never,
+    });
+    expect(pending).toEqual([true, false]);
   });
 });
 

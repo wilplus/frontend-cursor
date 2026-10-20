@@ -22,6 +22,8 @@
 /*  browser probe and therefore no version *change* can be observed.            */
 /* -------------------------------------------------------------------------- */
 
+import { feedbackStillComing } from "./enrichmentSettle";
+
 /** What one probe of the served ideal text saw. */
 export interface DocumentProbe {
   /** The served version, when the GET carried one. */
@@ -116,4 +118,25 @@ export function probeOf(r: {
     version: typeof r.version === "number" ? r.version : null,
     maxTakeIndex: takes.length > 0 ? Math.max(...takes) : null,
   };
+}
+
+/** How long the processing bubble may stay up for the Take's marks once its
+ *  text has landed (founder 2026-10-20, flow page A1, A2: "the moment
+ *  processing finishes, the walk opens, right away, with nothing in
+ *  between"). The walk is the marks, so the wait for them is spent behind
+ *  "Processing your recording" rather than as typing dots in the lens. The
+ *  backend bakes them in the run right after ready (20 to 40 s over a real
+ *  document); past this the bubble comes down and the lens asks on its own. */
+export const MARKS_SETTLE_CAP_MS = 90_000;
+
+/** Whether the Take's marks are in: the mark sections no longer say "ask me
+ *  again". `sections` is the slow lane's answer, or null for no answer yet. */
+export function marksSettled(
+  sections: Readonly<Record<string, { retryable?: boolean }>> | null,
+  marksStartedAt: number,
+  now: number,
+): "settled" | "waiting" | "expired" {
+  if (sections !== null && !feedbackStillComing(sections)) return "settled";
+  if (now - marksStartedAt > MARKS_SETTLE_CAP_MS) return "expired";
+  return "waiting";
 }

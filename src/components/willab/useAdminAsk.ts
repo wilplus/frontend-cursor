@@ -41,6 +41,11 @@ interface Inputs {
   openOffer: (type: OfferType) => void;
   /** The message after a Take held back for this ask (its client_id), or null. */
   waitingId: string | null;
+  /** That message's Take: the ask's bubble is stamped with it, so the chat
+   *  keeps the Take's card above the ask and the ask above its buttons
+   *  (founder 2026-10-20: the card landed between the question and its
+   *  buttons). */
+  waitingTake?: string | null;
   /** The ask's bubble already in the thread for that message (a reload), or null. */
   asked: OfferType | null;
   /** Let that message go: the ask cannot show, or there is none. */
@@ -77,7 +82,7 @@ function report(id: string, event: "shown" | "opened" | "answered") {
 }
 
 export function useAdminAsk(inputs: Inputs) {
-  const { threadLoading, append, installCanOffer, openOffer, waitingId, asked, letGo } = inputs;
+  const { threadLoading, append, installCanOffer, openOffer, waitingId, waitingTake = null, asked, letGo } = inputs;
   const [ask, setAsk] = useState<AdminAsk | null>(null);
   // The held message this ask was shown for: once per Take.
   const shownForRef = useRef<string | null>(null);
@@ -105,11 +110,14 @@ export function useAdminAsk(inputs: Inputs) {
         return;
       }
       const draft = offerDraft(type, askBody(next));
-      void append({ ...draft, metadata: { ...draft.metadata, after_take: waitingId } });
+      void append({
+        ...draft,
+        metadata: { ...draft.metadata, after_take: waitingId, ...(waitingTake ? { take_session_id: waitingTake } : {}) },
+      });
       openOffer(type);
       report(next.id, "shown");
     });
-  }, [waitingId, asked, threadLoading, installCanOffer, append, openOffer, letGo]);
+  }, [waitingId, waitingTake, asked, threadLoading, installCanOffer, append, openOffer, letGo]);
 
   const opened = useCallback(() => {
     if (ask) report(ask.id, "opened");

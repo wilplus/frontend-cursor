@@ -307,8 +307,15 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     praiseReason: group.find((i) => i.praiseReason)?.praiseReason ?? null,
     clip,
     clearer: clearerOf(group),
+    // The item a practise opens on: the clearer version's or the coach
+    // request's where there is one, else any row of the moment. A corrected
+    // moment with neither a rewrite nor an exercise is the moment said
+    // again (C2, C4), and without an item its step was dropped and the
+    // moment vanished from the walk (founder 2026-10-20).
     practiseItem:
-      group.find((i) => i.item != null && (i.rewrite != null || i.openCard === "coach_request"))?.item ?? null,
+      group.find((i) => i.item != null && (i.rewrite != null || i.openCard === "coach_request"))?.item ??
+      group.find((i) => i.item != null)?.item ??
+      null,
     exercise: pickExercise(group.flatMap((i) => (i.exercise ? [i.exercise] : []))),
     judgeItem: group.find((i) => i.judge != null)?.judge ?? null,
     coachAnswer: group.find((i) => i.coachAnswer)?.coachAnswer ?? null,

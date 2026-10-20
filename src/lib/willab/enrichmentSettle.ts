@@ -27,10 +27,13 @@
 /*                         backend — the Take keeps whatever it persisted and */
 /*                         the next read picks the marks up. It only says how */
 /*                         long this page will hold a slot open.              */
-/*    SETTLE_MAX_ATTEMPTS  a hard stop on REQUESTS, because each retry re-runs */
-/*                         real Manager work. The ceiling alone would not     */
-/*                         bound that if the server answered instantly and    */
-/*                         kept saying retryable.                             */
+/*    SETTLE_MAX_ATTEMPTS  a hard stop on REQUESTS. It was the cost bound     */
+/*                         while each retry re-ran real Manager work; since   */
+/*                         2026-10-15 a follow-up that finds the Manager at   */
+/*                         work is answered "ask me again" at once (the       */
+/*                         bake's marks and the live lock, backend            */
+/*                         ideal_text_feedback_bake), so it only keeps the    */
+/*                         asks finite should the server answer instantly.    */
 /*                                                                            */
 /*  Whichever bites first wins. The delays widen rather than repeat, so a     */
 /*  slow Take costs a handful of requests over a minute and a half, not a     */
@@ -51,9 +54,13 @@
  *  retryable. Past anything observed and still bounded. */
 export const SETTLE_CEILING_MS = 90_000;
 
-/** How many follow-up requests one settle may spend. Each one re-runs the
- *  Manager, so this is a cost bound, not a time bound. */
-export const SETTLE_MAX_ATTEMPTS = 8;
+/** How many follow-up requests one settle may spend: enough that the
+ *  ceiling is the bound that bites (200 ms to 8 s widening, then held,
+ *  reaches ninety seconds in sixteen asks). Eight ended at about thirty
+ *  seconds, before a bake behind a busy worker had landed, and the page then
+ *  held its slot open with no ask coming: the lens's typing dots that never
+ *  ended (WIL-76, founder 2026-10-20). */
+export const SETTLE_MAX_ATTEMPTS = 16;
 
 /** The wait BEFORE each follow-up request. Widening, then held: the first
  *  few cover a reader that just missed its budget; the tail covers a Take

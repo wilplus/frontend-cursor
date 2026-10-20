@@ -51,6 +51,7 @@ import ReportCard, {
 import { latestIdealBubbleIds, versionBubblesWithReviewCard } from "./unreadFeedback";
 import IdealTextCard from "./IdealTextCard";
 import CoachUpdateLens from "./walk/CoachUpdateLens";
+import { MediaRefreshProvider } from "@/lib/media/mediaRefresh";
 import { markCoachFeedbackSeen, onTakeWordWatched } from "@/services/api/coachFeedbackSeen";
 import { newCoachFeedbackFor, openedNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
 import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports";
@@ -86,7 +87,7 @@ import {
 import { useRouter } from "next/navigation";
 import SymmetricPair from "./SymmetricPair";
 import { useAdminAsk } from "./useAdminAsk";
-import { afterTakeOrder, askShowing, askToOpen, heldFor, heldMessage, waitingFor } from "./afterTake";
+import { afterTakeOrder, askShowing, askToOpen, heldFor, heldMessage, heldTake, waitingFor } from "./afterTake";
 import { postAfterTake } from "@/services/api/afterTake";
 import { setInstallable } from "@/lib/willab/installable";
 import { ConsentAskActions } from "./ConsentAsk";
@@ -387,7 +388,7 @@ export default function Lounge({
   const [seenUpdates, setSeenUpdates] = useState<ReadonlySet<string>>(readSeenUpdates);
   // The coach's word rings while the server says it is new (founder
   // 2026-10-19, N80), and opens alone in its lens.
-  const coachUpdates = useCoachUpdates(messages);
+  const coachUpdates = useCoachUpdates(messages, thread.reload);
   const stepWaits = (m: LoungeMessage) =>
     coachUpdates.waits(m, !seenUpdates.has(m.client_id) && waitingStep === m.client_id);
   // Helper words a later pick replaced: struck in the chat (prototype v31).
@@ -1228,6 +1229,7 @@ export default function Lounge({
     installCanOffer: install.canOffer,
     openOffer,
     waitingId: waitingForAdmin,
+    waitingTake: heldTake(waiting),
     asked: adminAsked,
     letGo: () => void letGo(),
   });
@@ -2560,10 +2562,14 @@ function isCoachBubble(m: LoungeMessage): boolean {
   return m.kind === "walk_step" && meta.step === "coachnote" && meta.author === "coach";
 }
 
-/** A "Later · from your coach" bubble's tap: its own word in the update
- *  lens, an older Take's too (D8). Undefined for any other bubble. */
+/** A coach bubble's tap: its own word in the update lens, an older Take's
+ *  too (D8). The "Later · from your coach" bubble and the walk's own copy of
+ *  the word alike (C1: the coach's bubble is one of the coach's doors):
+ *  tapped as a step, the copy of an earlier Take's word opened nothing, or
+ *  a read-only review (founder 2026-10-20, "it didn't open really").
+ *  Undefined for any other bubble. */
 function coachUpdateTap(message: LoungeMessage, onOpen?: (message: LoungeMessage) => void): (() => void) | undefined {
-  if (message.metadata?.coach_update !== true || !onOpen) return undefined;
+  if (!isCoachBubble(message) || !onOpen) return undefined;
   return () => onOpen(message);
 }
 
@@ -2611,7 +2617,14 @@ function caughtUp(watched: ReadonlySet<string>, messages: readonly LoungeMessage
  *    update lens (D8). Close tells the server it was watched, and the
  *    project's "new" is read again; ✕ only closes, and the ring stays.
  *  - `lens`: the lens, mounted once. */
-export function useCoachUpdates(messages: readonly LoungeMessage[]): {
+export function useCoachUpdates(
+  messages: readonly LoungeMessage[],
+  /** Read the chat again: a coach video whose signed link has lapsed is
+   *  played from the fresh one (founder 2026-10-20: a word that "didn't
+   *  open really" may have been a video-only word with a dead link, which
+   *  without a refresher was an empty box and Close). */
+  refresh: () => Promise<unknown> | void = () => undefined,
+): {
   waits: (m: LoungeMessage, other: boolean) => boolean;
   open: (m: LoungeMessage) => void;
   lens: ReactNode;
@@ -2635,20 +2648,24 @@ export function useCoachUpdates(messages: readonly LoungeMessage[]): {
     [watched],
   );
   const done = useCallback(() => {
-    const take = update?.metadata?.take_session_id;
+    // The word's own Take (the walk's copy of an earlier Take's word names
+    // it apart), so Close marks the right one watched.
+    const take = update ? wordTakeOf(update) : null;
     if (typeof take !== "string" || !take) return;
     void markCoachFeedbackSeen({ takeSessionId: take });
     void refreshNewCoachFeedback().catch(() => undefined);
   }, [update]);
   const video = update?.metadata?.video;
   const lens = (
-    <CoachUpdateLens
-      open={update !== null}
-      text={coachWordsOf(update)}
-      videoUrl={typeof video === "string" && video ? video : null}
-      onClose={() => setUpdate(null)}
-      onDone={done}
-    />
+    <MediaRefreshProvider refresh={refresh} payload={messages}>
+      <CoachUpdateLens
+        open={update !== null}
+        text={coachWordsOf(update)}
+        videoUrl={typeof video === "string" && video ? video : null}
+        onClose={() => setUpdate(null)}
+        onDone={done}
+      />
+    </MediaRefreshProvider>
   );
   return { waits, open: setUpdate, lens };
 }

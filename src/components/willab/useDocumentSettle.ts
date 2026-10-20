@@ -11,11 +11,14 @@ import {
 import {
   ANALYSIS_SETTLE_CAP_MS,
   documentSettled,
+  marksSettled,
   probeOf,
   type DocumentProbe,
 } from "@/lib/willab/documentSettle";
+import { SLOW_LANE } from "@/lib/willab/enrichmentSettle";
 import {
   fetchIdealTextCore,
+  fetchIdealTextEnrichment,
   primeIdealTextDisplay,
   primeIdealTextEnrichmentLanes,
 } from "@/services/api/idealText";
@@ -52,6 +55,10 @@ import { useUserId } from "./useUserId";
 // turning it into an always-on poller.
 const MARKER_POLL_MS = 500;
 const PROBE_MS = 1_000;
+/** How often the marks are asked for once the text has landed: a bake or a
+ *  live run in flight is answered "ask me again" at once, so this is only
+ *  how quickly the walk opens after they are stored. */
+const MARKS_ASK_MS = 2_000;
 /** A marker older than this is stale regardless of phase (same 30-min rule
  *  the Lounge resume watch applies). */
 const MARKER_STALE_MS = 30 * 60_000;
@@ -261,15 +268,49 @@ export function useDocumentSettle({
     // core read plus, while there is no snapshot, the composing read -- and
     // one waiting tab filled every backend thread (580 requests, 2026-10-18).
     let inFlight = false;
+    // THE MARKS PHASE (founder 2026-10-20, flow page A1, A2): the text
+    // landing is not the end of the wait. The walk is the marks, so the
+    // bubble stays until the slow lane stops saying "ask me again", or the
+    // marks cap; the surface that opens then finds them stored and the walk
+    // opens at once, with nothing in between.
+    type Served = Awaited<ReturnType<typeof fetchIdealTextCore>>;
+    let marks: { snapshotId: string; payload: Served; startedAt: number; nextAskAt: number } | null = null;
+    const open = (payload: Served) => {
+      // The screen opened by `settle` needs this exact document. Hand the
+      // canonical payload across once instead of immediately downloading
+      // the same enriched packet again.
+      primeIdealTextDisplay(arcId, payload);
+      // And its enrichment, in the page's two lanes, so the surface that
+      // opens finds the marks already on their way rather than asking for
+      // them only after its own core read lands.
+      if (payload.kind === "single" && payload.documentSnapshotId) {
+        primeIdealTextEnrichmentLanes(arcId, payload.documentSnapshotId);
+      }
+      settle(marker);
+    };
+    const askMarks = async () => {
+      if (!marks || Date.now() < marks.nextAskAt) return;
+      marks.nextAskAt = Date.now() + MARKS_ASK_MS;
+      const lane = await fetchIdealTextEnrichment(arcId, marks.snapshotId, SLOW_LANE);
+      if (!active || !marks) return;
+      const verdict = marksSettled(lane.kind === "ready" ? lane.sections : null, marks.startedAt, Date.now());
+      if (verdict !== "waiting") open(marks.payload);
+    };
     const probe = async () => {
       if (inFlight) return;
       inFlight = true;
-      let r: Awaited<ReturnType<typeof fetchIdealTextCore>>;
       try {
-        r = await fetchIdealTextCore(arcId);
+        if (marks) {
+          await askMarks();
+          return;
+        }
+        await probeDocument();
       } finally {
         inFlight = false;
       }
+    };
+    const probeDocument = async () => {
+      const r = await fetchIdealTextCore(arcId);
       if (!active) return;
       if (r.kind !== "single" && r.kind !== "ready") {
         // No document served — only the cap can release from here.
@@ -300,17 +341,12 @@ export function useDocumentSettle({
         Date.now(),
       );
       if (verdict === "settled") {
-        // The screen opened by `settle` needs this exact document. Hand the
-        // canonical payload across once instead of immediately downloading
-        // the same enriched packet again.
-        primeIdealTextDisplay(arcId, r);
-        // And its enrichment, in the page's two lanes, so the surface that
-        // opens finds the marks already on their way rather than asking for
-        // them only after its own core read lands.
         if (r.kind === "single" && r.documentSnapshotId) {
-          primeIdealTextEnrichmentLanes(arcId, r.documentSnapshotId);
+          marks = { snapshotId: r.documentSnapshotId, payload: r, startedAt: Date.now(), nextAskAt: 0 };
+          await askMarks();
+        } else {
+          open(r);
         }
-        settle(marker);
       }
       if (verdict === "expired") expire(marker);
     };
