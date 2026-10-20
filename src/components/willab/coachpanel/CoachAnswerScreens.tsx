@@ -467,10 +467,11 @@ export function TakeVideoScreen({ where, onBack, onClose, pseudonym, recorder, k
   onRemove: () => void;
 }) {
   const status = recorder.state.status;
-  // A camera that fails after Record again brings the saved video back, never
-  // a Camera box whose "Send without a video" would keep it anyway.
+  // A camera that fails after Record again brings the saved video back (the
+  // coach did not remove it), with the recorder's own message below.
   const idle = status === "idle" || status === "error";
   const kept = idle && keptUrl !== null;
+  const cameraFail = kept && recorder.state.status === "error" ? recorder.state.message : null;
   const foot = videoFooter({
     recorder, kept,
     keep: { label: COPY.sendTo(pseudonym), onClick: onSend, disabled: busy, testId: "coach-panel-takevideo-send" },
@@ -481,7 +482,7 @@ export function TakeVideoScreen({ where, onBack, onClose, pseudonym, recorder, k
   return (
     <WalkOverlay onBack={onBack} backLabel={where} title={COPY.videoTitle} subtitle={COPY.asWillSeeIt(pseudonym)}
       onClose={onClose} testId="coach-panel-takevideo"
-      footer={<WalkFooter pill={foot.pill} dot={foot.dot} links={foot.links}><Fail text={fail} /></WalkFooter>}>
+      footer={<WalkFooter pill={foot.pill} dot={foot.dot} links={foot.links}><Fail text={fail ?? cameraFail} /></WalkFooter>}>
       {kept ? <CoachVideo src={keptUrl} className="aspect-video w-full" /> : <CoachVideoBox recorder={recorder} />}
       {status === "recording" ? null : words}
     </WalkOverlay>

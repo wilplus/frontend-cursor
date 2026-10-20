@@ -21,9 +21,10 @@
 /*                    words (plus the video), never stuck (lock flow 9)       */
 /*    the Take word   GET …/word, else its draft; PUT …/word with the video   */
 /*                    from POST …/video. A return visit opens on the saved    */
-/*                    words and video, never on a draft; Send keeps the       */
-/*                    video, a new recording replaces it, and Remove the      */
-/*                    video sends video_ref: null (founder 2026-10-19)        */
+/*                    words and video, never on a draft; Send to {p} keeps    */
+/*                    the video, a new recording replaces it, and Send        */
+/*                    without a video sends video_ref: null (founder          */
+/*                    2026-10-19). A Take's draft is written once per panel.  */
 /* -------------------------------------------------------------------------- */
 
 import { useEffect, useRef, useState, type Dispatch, type ReactNode } from "react";
@@ -186,16 +187,26 @@ async function readSavedWord(sid: string, current: () => boolean): Promise<{ wor
   return null;
 }
 
+/** The Take's draft, kept in `drafted` once one came: "" when none did. */
+async function draftOnce(drafted: Record<string, string>, sid: string): Promise<string> {
+  const text = drafted[sid] ?? (await draftTakeWord(sid))?.text ?? "";
+  if (text) drafted[sid] = text;
+  return text;
+}
+
 /** The Take's word (founder 2026-10-19, the approved two-phone prototype). A
  *  visit is the time spent on one Take's takeword and takevideo screens, and
  *  each visit starts from a fresh read: the saved words and video, the
  *  video's link signed again. A saved word is never drafted over; a read that
  *  keeps failing stays on the loading circle (Skip and ✕ still leave). Remove
  *  the video holds across ‹ and Next until Send; ✕ ends the visit, so it
- *  cancels. Only a Take with no word yet opens on its draft. */
+ *  cancels. Only a Take with no word yet opens on its draft, written once
+ *  for this panel: each draft is a model call, and the Take it reads does
+ *  not change between visits. */
 function useTakeWork(key: string, sid: string | null, startEditing: () => void) {
   const [takeWork, setTakeWork] = useState<Record<string, TakeWork>>({});
   const open = useRef<string | null>(null);
+  const drafted = useRef<Record<string, string>>({});
   // Moves at each visit's start and end, so a late answer is dropped.
   const visit = useRef(0);
   const edit = useRef(startEditing);
@@ -219,7 +230,7 @@ function useTakeWork(key: string, sid: string | null, startEditing: () => void) 
     set({ loading: true });
     void readSavedWord(sid, current).then(async (read) => {
       if (!read) return;
-      const text = read.word ? read.word.text ?? "" : (await draftTakeWord(sid))?.text ?? "";
+      const text = read.word ? read.word.text ?? "" : await draftOnce(drafted.current, sid);
       set({ text, videoUrl: read.word?.videoUrl ?? null });
       if (!text && current()) edit.current();
     });
@@ -392,10 +403,11 @@ export function useAnswerFlow(ctx: AnswerContext) {
     if (ok) finish(withLibrary ? COPY.toastShared(pseudonym) : COPY.toastSharedOnly(pseudonym));
   }
 
-  /** Send: a new recording replaces the video; Remove the video on this
-   *  visit sends video_ref: null; anything else sends no video_ref, which
-   *  keeps the saved video (founder 2026-10-19). A Take word needs words, as
-   *  Next already does. */
+  /** Send: a new recording replaces the video; Send to {p} beside the saved
+   *  video sends no video_ref, which keeps it; anything else is Send without
+   *  a video and sends video_ref: null, so the speaker gets no video even if
+   *  one was saved after this visit's read (founder 2026-10-19). A Take word
+   *  needs words, as Next already does. */
   async function sendTakeWord(take: TakeScreen): Promise<void> {
     const sessionId = take.take.sessionId;
     const t = takeWork[sessionId] ?? {};
@@ -403,7 +415,7 @@ export function useAnswerFlow(ctx: AnswerContext) {
     if (!text) { setEditing(true); return; }
     const file = recorder.state.status === "stopped" ? recorder.state.file : null;
     const ok = await run(async () => {
-      let videoRef: string | null | undefined = t.removed ? null : undefined;
+      let videoRef: string | null | undefined = !t.removed && t.videoUrl ? undefined : null;
       if (file) {
         videoRef = await uploadCoachVideo(sessionId, file, {
           idempotencyKey: newUploadKey(), ...videoProvenance("coach-walk"), durationSec: null,

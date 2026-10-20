@@ -244,7 +244,11 @@ function mapTakeWord(raw: unknown): TakeWord | null {
 export async function fetchTakeWord(sessionId: string): Promise<{ ok: true; word: TakeWord | null } | { ok: false }> {
   const res = await coachRead(`/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/word`);
   if (!res.ok || !res.data || !("word" in res.data)) return { ok: false };
-  return { ok: true, word: mapTakeWord(res.data.word) };
+  // The draft (POST …/word/draft) lives on the same row, with no words and
+  // no video until the coach saves: that row is no word yet. A saved word
+  // always has words or a video (the backend refuses anything else).
+  const word = mapTakeWord(res.data.word);
+  return { ok: true, word: word && (word.text || word.videoRef) ? word : null };
 }
 
 /** PUT …/word: save the word; `share` sends it to the speaker. */

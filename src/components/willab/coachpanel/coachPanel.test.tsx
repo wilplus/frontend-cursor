@@ -323,4 +323,44 @@ describe("A word for this Take, on a return visit (founder 2026-10-19)", () => {
     expect(puts).toHaveLength(1);
     expect(puts[0]).toStrictEqual({ text: "Saved words", video_ref: null, share: true });
   });
+
+  it("leaving the word before Send cancels Remove the video: the next visit shows the saved video again", async () => {
+    fetchMomentRead.mockResolvedValue(READ);
+    await atTheWord();
+    await click("[data-testid='coach-panel-takeword-next']");
+    await click("[data-testid='coach-panel-takevideo-remove']");
+    await click(`[data-testid='coach-panel-takevideo'] button[aria-label='${CHUNK_SHEET_COPY.pagerBack}']`);
+    await click(`[data-testid='coach-panel-takeword'] button[aria-label='${CHUNK_SHEET_COPY.pagerBack}']`);
+    await click("[data-testid='coach-panel-summary-next']");
+    await click("[data-testid='coach-panel-takeword-next']");
+    expect(onVideo("[data-coach-video]")).not.toBeNull();
+    expect(links()).toEqual([COPY.recordAgain, COPY.removeTheVideo]);
+    expect(puts).toHaveLength(0);
+  });
+
+  it("a Take drafted but never sent opens on its draft at every visit, drafted once; Send without a video sends video_ref: null", async () => {
+    const real = await vi.importActual<typeof import("@/services/api/coachWalk")>("@/services/api/coachWalk");
+    fetchTakeWord.mockImplementation(real.fetchTakeWord);
+    vi.mocked(draftTakeWord).mockResolvedValueOnce({ surface: "coach_take_word", text: "Drafted words", modelVersion: null, label: null });
+    // POST …/word/draft keeps the draft on the coach's row, so GET …/word
+    // answers that row with no words and no video.
+    const writes = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => (url === "/api/v2/coach/sessions/t2/word" && !init?.method
+      ? new Response(JSON.stringify({ word: { take_session_id: "t2", text: null, video_ref: null, video_url: null, shared_at: null, updated_at: "x" } }), { status: 200 })
+      : writes(url, init))));
+    const words = () => q("[data-testid='coach-panel-takeword'] [data-coach-words]")!.textContent;
+    fetchMomentRead.mockResolvedValue(READ);
+
+    await atTheWord();
+    expect(words()).toContain("Drafted words");
+    await click(`[data-testid='coach-panel-takeword'] button[aria-label='${CHUNK_SHEET_COPY.pagerBack}']`);
+    await click("[data-testid='coach-panel-summary-next']");
+    expect(words()).toContain("Drafted words");
+    expect(draftTakeWord).toHaveBeenCalledTimes(1);
+
+    await click("[data-testid='coach-panel-takeword-next']");
+    expect(onVideo("[data-coach-video-box='idle']")).not.toBeNull();
+    await click("[data-testid='coach-panel-takevideo-send-without']");
+    expect(puts).toStrictEqual([{ text: "Drafted words", video_ref: null, share: true }]);
+  });
 });
