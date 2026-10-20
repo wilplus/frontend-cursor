@@ -80,6 +80,9 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
     /** The speaker's decision, once given (the replay shows it): accepted,
      *  or kept their words. Null while it waits. */
     decided?: "accept" | "keep" | null;
+    /** The coach's own clearer version (founder 2026-10-20), not the
+     *  machine's: deciding it writes nothing on the text. */
+    byCoach?: boolean;
   } | null;
   /** The served item itself, set only where a practise can be opened on it
    *  (its clearer version's words, or the moment said again). Only handed
@@ -134,6 +137,8 @@ export type FeedbackWalkClearer<R = unknown> = ClearerPieces & {
   coachLine: string | null;
   decided: "accept" | "keep" | null;
   item: R;
+  /** The coach wrote it (founder 2026-10-20): the bubble is the coach's. */
+  byCoach?: boolean;
 };
 
 /** The coach's answer on a moment: their words, and their video if any. */
@@ -266,6 +271,7 @@ function clearerOf<R>(group: readonly FeedbackWalkItem<R>[]): FeedbackWalkCleare
         coachLine,
         decided: i.rewrite.decided ?? null,
         item: i.rewrite.item,
+        ...(i.rewrite.byCoach ? { byCoach: true } : {}),
       };
     }
   }

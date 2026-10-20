@@ -4,8 +4,9 @@ STORY    As a speaker, I want my project's latest Ideal Text bubble in the
          Lounge to say "new" when coach feedback is waiting, never as a count,
          so that I know to look without seeing a number.
 OUTCOME
-  O1  While the project's flag is true, its latest bubble gets a second,
-      outlined bubble with the mark, and a tap on it opens the feedback.
+  O1  While the project's flag is true, its latest bubble itself wears the
+      stroke and the mark (one bubble, never a copy), and a tap on it opens
+      the feedback.
   O2  Never 1 (no numbers shown to speakers): the mark is a plain dot; the
       marked bubble shows the same words as the plain one and no count, even
       when a coach moment is unread.
@@ -87,8 +88,8 @@ async function draw(arcId: string, latest: boolean) {
   });
 }
 
-// The coach's feedback is its own outlined bubble with the "new" dot
-// (founder 2026-10-14, walk first).
+// The coach's feedback marks the one card with the stroke and the "new" dot
+// (founder 2026-10-20: one bubble, not a copy).
 const dot = () => container.querySelector('[data-testid="new-coach-feedback-dot"]');
 const plainCard = () => container.querySelector("[data-review-card]") as HTMLButtonElement | null;
 const coachCard = () => container.querySelector("[data-coach-feedback-card]") as HTMLButtonElement | null;
@@ -98,13 +99,13 @@ describe("the bubble (walk lock flow 1)", () => {
   it("the latest bubble wears the mark, with no count", async () => {
     setNewCoachFeedback({ "arc-1": true });
     await draw("arc-1", true);
-    // The project's name and the Take's own version tag, nothing else.
-    expect(plainCard()?.textContent).toBe("Q3 Board pitch2.0›");
-    expect(coachCard()).not.toBeNull();
+    // One card: the project's name and the Take's own version tag, nothing else.
+    expect(container.querySelectorAll("[data-review-card]")).toHaveLength(1);
+    expect(coachCard()).toBe(plainCard());
     expect(dot()).not.toBeNull();
-    // The mark adds no words and no number: the same card, plus a bare dot.
+    // The mark adds no words and no number: a bare dot.
     expect(dot()?.textContent).toBe("");
-    expect(coachCard()?.textContent).toBe(plainCard()?.textContent);
+    expect(coachCard()?.textContent).toBe("Q3 Board pitch2.0›");
     await act(async () => coachCard()!.click());
     expect(onOpenIdealText).toHaveBeenCalledWith("arc-1", "feedback");
   });
