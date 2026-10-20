@@ -1114,8 +1114,10 @@ export default function IdealTextOverlay({
           take after take, each an official recording. */}
       {shownStatus === "ready" && sd && onReadAloud ? (
         <div className="shrink-0 bg-background px-4 pb-4">
-          {/* MASTER DOCUMENT — Save, then the next official take. */}
-          {nextStep(reviewWaiting)}
+          {/* MASTER DOCUMENT — Save, then the next official take. On a
+              computer in the Lounge's column, as the lens is (founder
+              2026-10-20: the three views share one column). */}
+          <div className="mx-auto w-full max-w-3xl">{nextStep(reviewWaiting)}</div>
         </div>
       ) : null}
 

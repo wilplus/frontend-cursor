@@ -12,8 +12,8 @@ import { useMountedAsPast } from "./WalkThread";
 /*  WalkSummary — the closing summary, the walk's last lens step (founder      */
 /*  lock 2026-10-12, moment and feedback chat, sections 2.7 and 3).            */
 /*                                                                            */
-/*  The top bar reads "Take N". While the words are fetched the breathing     */
-/*  mark shows; then one grey bubble with the summary and "Next", which       */
+/*  The top bar reads "Take N". While the words are fetched the typing dots   */
+/*  show; then one grey bubble with the summary and "Next", which             */
 /*  closes the walk onto the Ideal Text. A failed fetch skips the step.       */
 /*  First drawn as an earlier part of the walk's chat (the leaving copy), it  */
 /*  fetches nothing (founder 2026-10-20).                                     */

@@ -17,6 +17,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
 import OverlayCloseButton from "../OverlayCloseButton";
 import { TypingGlyph } from "../TypingDots";
+import WalkFooter from "./WalkFooter";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkThread — the lens as one chat (founder 2026-10-20, WIL-89; prototype   */
@@ -32,10 +33,22 @@ import { TypingGlyph } from "../TypingDots";
 /*  Each step opens with its name as a small line (a mark): "Slide 2",        */
 /*  "Slide 2 · helper words", "Other speakers · 1 of 2", "Take 2". The bar    */
 /*  shows the mark of the part in view; ‹ › scroll to the mark before or      */
-/*  after. After every tap in the dock the thread scrolls to the bottom, so   */
-/*  the newest bubble is always in view (founder 2026-10-20: "always after    */
-/*  the click scroll to the bottom"), and it keeps following new bubbles      */
-/*  until the speaker scrolls up by hand.                                     */
+/*  after.                                                                    */
+/*                                                                            */
+/*  The newest step comes to the top (founder 2026-10-20: "the bubbles in the */
+/*  lenses should not disappear but be brought to the top"; prototype         */
+/*  https://claude.ai/artifact/MpiAtrUz4DNBKm3EvhA6fm): its name moves to the */
+/*  top of the thread and its bubbles land under it, the steps before it      */
+/*  above, to scroll back to. A room under the thread lets the name reach the */
+/*  top; a step taller than the thread follows down to its newest bubble.    */
+/*  After every tap in the dock the thread goes back to the newest step, and  */
+/*  it keeps following until the speaker scrolls up by hand. Scrolled back   */
+/*  to an answered step, the dock reads Next, which brings the newest step    */
+/*  back; the recorder never gives way.                                       */
+/*                                                                            */
+/*  A new opening while the lens stays open (Next from a step played again   */
+/*  to the step that waits) keeps what the thread showed above it, as a still */
+/*  picture: nothing leaves the thread while the lens is open.                */
 /*                                                                            */
 /*  A step's bubbles land one after another (WalkLanding): the typing dots    */
 /*  before each grey bubble, as in the Lounge, the speaker's own bubble       */
@@ -262,10 +275,30 @@ export function WalkLanding({
 
 /** Within this of the bottom counts as at the bottom. */
 const AT_END_PX = 24;
+/** Room above a step's name brought to the top. */
+const MARK_GAP_PX = 8;
+
+/** Where `node` sits in the scrolling `el`, in its scroll coordinates. */
+const topIn = (el: HTMLElement, node: HTMLElement) =>
+  node.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
+
+/** The thread as it was, kept above a new opening: a still picture, with
+ *  nothing in it that waits, lands or answers to a test id. */
+function pictureOf(el: HTMLElement | null): string {
+  if (!el) return "";
+  const copy = el.cloneNode(true) as HTMLElement;
+  copy.querySelectorAll("[data-walk-typing], [data-walk-loading]").forEach((n) => n.remove());
+  copy.querySelectorAll("[hidden]").forEach((n) => n.removeAttribute("hidden"));
+  for (const name of ["data-testid", "data-walk-start", "data-walk-part"]) {
+    copy.querySelectorAll(`[${name}]`).forEach((n) => n.removeAttribute(name));
+  }
+  return copy.innerHTML;
+}
 
 export default function WalkThread({
   ghost = false,
   frame,
+  opening = null,
   onClose,
   children,
 }: {
@@ -273,21 +306,53 @@ export default function WalkThread({
   ghost?: boolean;
   /** Where the live thread keeps its root, for the leaving copy. */
   frame: WalkThreadFrameRef;
+  /** Which opening of the walk the thread shows (the request's seq): a new
+   *  one while the lens stays open keeps the thread above it. */
+  opening?: number | null;
   /** ✕ when the newest part names none. */
   onClose: () => void;
   children: ReactNode;
 }) {
-  return ghost ? <Still frame={frame} /> : <LiveThread frame={frame} onClose={onClose}>{children}</LiveThread>;
+  return ghost ? (
+    <Still frame={frame} />
+  ) : (
+    <LiveThread frame={frame} opening={opening} onClose={onClose}>
+      {children}
+    </LiveThread>
+  );
 }
 
-function LiveThread({ frame, onClose, children }: { frame: WalkThreadFrameRef; onClose: () => void; children: ReactNode }) {
+function LiveThread({
+  frame,
+  opening,
+  onClose,
+  children,
+}: {
+  frame: WalkThreadFrameRef;
+  opening: number | null;
+  onClose: () => void;
+  children: ReactNode;
+}) {
   const [dock, setDock] = useState<HTMLDivElement | null>(null);
   const close = useRef<(() => void) | null>(null);
   const body = useRef<HTMLDivElement | null>(null);
   const content = useRef<HTMLDivElement | null>(null);
-  // Following the newest bubble: from the start, and again after every tap.
+  const room = useRef<HTMLDivElement | null>(null);
+  // Following the newest step: from the start, and again after every tap.
   const follow = useRef(true);
+  const [following, setFollowing] = useState(true);
+  const setFollow = useCallback((on: boolean) => {
+    follow.current = on;
+    setFollowing(on);
+  }, []);
   const [bar, setBar] = useState<{ label: string | null; at: number; of: number }>({ label: null, at: -1, of: 0 });
+  // What the dock holds: any buttons, and whether they are the recorder.
+  const [docked, setDocked] = useState({ any: false, recording: false });
+
+  // A new opening while the lens stays open: what the thread showed stays
+  // above it. Read during render, while the page still holds it.
+  const [kept, setKept] = useState<{ opening: number | null; html: string }>(() => ({ opening, html: "" }));
+  if (kept.opening !== opening) setKept({ opening, html: pictureOf(content.current) });
 
   const marks = () => Array.from(body.current?.querySelectorAll<HTMLElement>("[data-walk-mark]") ?? []);
   const atEnd = (el: HTMLElement) => el.scrollHeight - el.scrollTop - el.clientHeight < AT_END_PX;
@@ -301,7 +366,7 @@ function LiveThread({ frame, onClose, children }: { frame: WalkThreadFrameRef; o
     const line = el.scrollTop + el.clientHeight * 0.4;
     let k = 0;
     all.forEach((m, i) => {
-      if (m.offsetTop <= line) k = i;
+      if (topIn(el, m) <= line) k = i;
     });
     return k;
   }, []);
@@ -311,59 +376,102 @@ function LiveThread({ frame, onClose, children }: { frame: WalkThreadFrameRef; o
     const label = k >= 0 ? (all[k].dataset.walkMark ?? null) : null;
     setBar((was) => (was.label === label && was.at === k && was.of === all.length ? was : { label, at: k, of: all.length }));
   }, [inView]);
-  const toEnd = useCallback((smooth: boolean) => {
+  /** Sizes the room under the thread so the newest step's name can reach
+   *  the top. False when the step is taller than the thread (no room). */
+  const sizeRoom = useCallback((): boolean => {
     const el = body.current;
-    if (!el) return;
-    if (typeof el.scrollTo === "function") el.scrollTo({ top: el.scrollHeight, behavior: smooth && !reduced() ? "smooth" : "auto" });
-    else el.scrollTop = el.scrollHeight;
+    const under = room.current;
+    if (!el || !under) return false;
+    const all = marks();
+    const last = all[all.length - 1];
+    const pad = parseFloat(getComputedStyle(el).paddingBottom) || 0;
+    const step = last ? topIn(el, under) - topIn(el, last) + MARK_GAP_PX + pad : Infinity;
+    const fits = step <= el.clientHeight;
+    const height = `${fits ? Math.floor(el.clientHeight - step) : 0}px`;
+    if (under.style.height !== height) under.style.height = height;
+    return fits;
   }, []);
+  /** The newest step in view: its name at the top while it fits under it,
+   *  else down to its newest bubble. */
+  const toNewest = useCallback(
+    (smooth: boolean) => {
+      const el = body.current;
+      if (!el) return;
+      const fits = sizeRoom();
+      const all = marks();
+      const last = all[all.length - 1];
+      const bottom = el.scrollHeight - el.clientHeight;
+      const top = last && fits ? Math.max(0, Math.min(bottom, topIn(el, last) - MARK_GAP_PX)) : bottom;
+      if (Math.abs(el.scrollTop - top) < 2) return;
+      if (typeof el.scrollTo === "function") el.scrollTo({ top, behavior: smooth && !reduced() ? "smooth" : "auto" });
+      else el.scrollTop = top;
+    },
+    [sizeRoom],
+  );
 
   // New bubbles, and bubbles that grow (a clip loading, the AI bubble), are
-  // followed to the bottom while the thread follows.
+  // followed while the thread follows; the room under it is kept in size.
   useEffect(() => {
     const el = body.current;
     if (!el) return;
     // The whole finished walk opens at its paragraph's part, and follows
-    // nothing (founder 2026-10-20); every other opening at the newest bubble.
+    // nothing (founder 2026-10-20); every other opening on the newest step.
     const start = el.querySelector<HTMLElement>("[data-walk-start] > *");
     if (start) {
-      follow.current = false;
-      el.scrollTop = Math.max(0, start.offsetTop - 8);
-    } else toEnd(false);
+      setFollow(false);
+      sizeRoom();
+      el.scrollTop = Math.max(0, topIn(el, start) - MARK_GAP_PX);
+    } else toNewest(false);
     readBar();
     const changed = () => {
-      if (follow.current && !atEnd(el)) toEnd(true);
+      if (follow.current) toNewest(true);
+      else sizeRoom();
       readBar();
     };
     const seen = typeof MutationObserver !== "undefined" ? new MutationObserver(changed) : null;
     seen?.observe(el, { childList: true, subtree: true });
-    const sized = typeof ResizeObserver !== "undefined" && content.current ? new ResizeObserver(changed) : null;
+    const sized = typeof ResizeObserver !== "undefined" ? new ResizeObserver(changed) : null;
     if (sized && content.current) sized.observe(content.current);
+    sized?.observe(el);
     return () => {
       seen?.disconnect();
       sized?.disconnect();
     };
-  }, [toEnd, readBar]);
+  }, [toNewest, sizeRoom, readBar, setFollow]);
 
   // Each redraw (a step reached, an answer laid in): the bar says the step
-  // in view, and the newest bubble is in view while the thread follows.
+  // in view, and the newest step is in view while the thread follows.
   useEffect(() => {
-    const el = body.current;
-    if (el && follow.current && !atEnd(el)) toEnd(true);
+    if (follow.current) toNewest(true);
+    else sizeRoom();
     readBar();
   });
 
-  // Every tap in the dock: down to the newest bubble.
+  // Every tap in the dock: back to the newest step.
   useEffect(() => {
     if (!dock) return;
     const tapped = () => {
-      follow.current = true;
-      toEnd(true);
-      window.requestAnimationFrame?.(() => toEnd(true));
+      setFollow(true);
+      toNewest(true);
+      window.requestAnimationFrame?.(() => toNewest(true));
     };
     dock.addEventListener("click", tapped, true);
     return () => dock.removeEventListener("click", tapped, true);
-  }, [dock, toEnd]);
+  }, [dock, toNewest, setFollow]);
+
+  // What the dock holds, for the Next that stands in for it.
+  useEffect(() => {
+    if (!dock) return;
+    const read = () => {
+      const any = dock.childElementCount > 0;
+      const recording = dock.querySelector("[data-walk-recording-strip]") !== null;
+      setDocked((was) => (was.any === any && was.recording === recording ? was : { any, recording }));
+    };
+    read();
+    const seen = typeof MutationObserver !== "undefined" ? new MutationObserver(read) : null;
+    seen?.observe(dock, { childList: true, subtree: true });
+    return () => seen?.disconnect();
+  }, [dock]);
 
   /** ‹ ›: the mark before or after the one in view. */
   const jump = (by: -1 | 1) => {
@@ -372,15 +480,19 @@ function LiveThread({ frame, onClose, children }: { frame: WalkThreadFrameRef; o
     if (!el || all.length === 0) return;
     const k = inView() + by;
     if (by > 0 && k >= all.length - 1) {
-      follow.current = true;
-      toEnd(true);
+      setFollow(true);
+      toNewest(true);
       return;
     }
-    follow.current = false;
-    const top = Math.max(0, all[Math.max(0, k)].offsetTop - 8);
+    setFollow(false);
+    const top = Math.max(0, topIn(el, all[Math.max(0, k)]) - MARK_GAP_PX);
     if (typeof el.scrollTo === "function") el.scrollTo({ top, behavior: reduced() ? "auto" : "smooth" });
     else el.scrollTop = top;
   };
+
+  // Scrolled back to an answered step, the dock reads Next: back to the
+  // newest step (founder 2026-10-20). The recorder stays where it is.
+  const back = !following && docked.any && !docked.recording && bar.at >= 0 && bar.at < bar.of - 1;
 
   const label = bar.label ?? undefined;
   return (
@@ -416,27 +528,52 @@ function LiveThread({ frame, onClose, children }: { frame: WalkThreadFrameRef; o
         </nav>
         <OverlayCloseButton onClick={() => (close.current ?? onClose)()} className="walk-press-sm mr-2.5" />
       </div>
+      {/* No scrollbar (founder 2026-10-20): the thread scrolls by wheel,
+          trackpad or finger. */}
       <div
         ref={body}
         data-walk-thread-body
         onScroll={() => {
           const el = body.current;
-          if (el && atEnd(el)) follow.current = true;
+          if (el && atEnd(el) && !follow.current) setFollow(true);
           readBar();
         }}
         onWheel={(e) => {
-          if (e.deltaY < 0) follow.current = false;
+          if (e.deltaY < 0) setFollow(false);
         }}
         onTouchMove={() => {
-          follow.current = false;
+          setFollow(false);
         }}
-        className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5 py-3.5"
+        className="scrollbar-none relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5 py-3.5"
       >
-        <div ref={content} className="mt-auto flex flex-col gap-4">
+        <div ref={content} className="flex flex-col gap-4">
+          {kept.html ? (
+            <div
+              data-walk-kept
+              aria-hidden="true"
+              className="pointer-events-none flex flex-col gap-4"
+              dangerouslySetInnerHTML={{ __html: kept.html }}
+            />
+          ) : null}
           <FrameContext.Provider value={{ dock, close, ghost: false }}>{children}</FrameContext.Provider>
         </div>
+        <div ref={room} data-walk-room aria-hidden="true" className="shrink-0" />
       </div>
-      <div ref={setDock} data-walk-dock />
+      <div ref={setDock} data-walk-dock hidden={back} />
+      {back ? (
+        <div data-walk-dock-next>
+          <WalkFooter
+            pill={{
+              label: COPY.pagerNext,
+              onClick: () => {
+                setFollow(true);
+                toNewest(true);
+              },
+              testId: "walk-to-newest",
+            }}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

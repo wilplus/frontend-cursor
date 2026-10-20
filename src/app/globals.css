@@ -436,6 +436,31 @@ button,
   margin-inline: auto;
   max-width: var(--walk-column);
 }
+/* The lens on a computer is the Lounge's column (founder 2026-10-20: "make
+   it full width chat; but slightly bigger, cause it is the lens view";
+   prototype https://claude.ai/artifact/MpiAtrUz4DNBKm3EvhA6fm): as wide as
+   the Lounge (max-w-3xl), with the lens's own sizes. The thread scrolls
+   across the whole window, its bubbles in the column, so the wheel works
+   beside them too; WalkThread hides its bar. A grey bubble stops at 40rem
+   and the speaker's at 34rem, so a line stays readable at 18.5px. */
+[data-feedback-walk] .walk-ov {
+  --walk-column: 48rem;
+}
+[data-feedback-walk] .walk-ov > [data-walk-thread-body] {
+  margin-inline: 0;
+  padding-inline: max(1.25rem, calc((100% - var(--walk-column)) / 2 + 1.25rem));
+}
+@media (min-width: 768px) {
+  [data-feedback-walk] [data-walk-message] {
+    max-width: 40rem;
+  }
+  [data-feedback-walk] [data-walk-said] > span {
+    max-width: min(88%, 34rem);
+  }
+  [data-feedback-walk] [data-walk-player][data-walk-me] {
+    width: min(90%, 28rem);
+  }
+}
 
 /* The coach panel on a computer is a phone-width column over a grey
    backdrop (Q-B14 A). Closing, column and backdrop are swiped out to the

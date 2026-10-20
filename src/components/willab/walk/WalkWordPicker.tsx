@@ -38,7 +38,7 @@ export default function WalkWordPicker({
       <div className="text-[13px] uppercase tracking-[0.12em] text-muted-foreground">
         <span>{COPY.cardTapWords}</span>
       </div>
-      <div className="flex min-h-0 flex-wrap content-start gap-1.5 overflow-y-auto text-[25px] leading-[1.3]">
+      <div className="scrollbar-none flex min-h-0 flex-wrap content-start gap-1.5 overflow-y-auto text-[25px] leading-[1.3]">
         {words.map((word, index) => {
           const on = isPicked(selection, index);
           const reachable = canTap(selection, index);

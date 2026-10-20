@@ -115,6 +115,10 @@ function draw(opts: { practiceId?: string; at?: (model: ReturnType<typeof buildF
   };
   act(() => root.render(<FeedbackWalk {...props} request={null} />));
   act(() => root.render(<FeedbackWalk {...props} request={{ seq: 1, at: opts.at?.(model) ?? walkStart(model)! }} />));
+  /** The host opens the walk again while the lens is still open (Next from
+   *  a step played again to the step that waits). */
+  return (at: (m: typeof model) => number) =>
+    act(() => root.render(<FeedbackWalk {...props} request={{ seq: 2, at: at(model) }} />));
 }
 
 const live = () => host.querySelector<HTMLElement>(".walk-layer:not(.walk-ghost)");
@@ -165,6 +169,18 @@ describe("the finished walk, played again", () => {
     click(byTestId("walk-forward"));
     expect(["walk-screen-practise", "walk-screen-encourage", "walk-screen-improved"]).not.toContain(screen());
     expect(calls).toEqual(["helpers"]);
+  });
+
+  it("a new opening while the lens stays open keeps the thread above it: nothing disappears (founder 2026-10-20)", () => {
+    const reopen = draw();
+    expect(screen()).toBe("walk-screen-coachnote");
+    reopen((model) => walkStepAt(model, { step: "helpers", moment: null, part: "p1" })!);
+    expect(screen()).toBe("walk-screen-helpers");
+    // The coach's note the speaker just read stays above, as it was drawn;
+    // the step that is live now is the new opening's, not the copy's.
+    const kept = live()!.querySelector("[data-walk-kept]");
+    expect(kept?.textContent).toContain("Let the pause breathe.");
+    expect(kept?.querySelector("[data-testid]")).toBeNull();
   });
 
   it("an exercise opened from its bubble in the chat shows its AI clip and every try, as from its paragraph", async () => {
