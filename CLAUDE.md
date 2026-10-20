@@ -87,6 +87,18 @@ test, ask:
 - **No coverage target.** Cover the critical path (record → Ideal Text →
   feedback → next Take, consent, deletion, payments), not boilerplate.
 
+## Reference (open only when the task needs it)
+
+Everything older or superseded is in `docs/history/`. The live files:
+
+- **Locks:** `docs/LOCKS.md`; the lock files themselves are in the backend's `docs/`.
+- **Product rules:** `docs/CANONICAL_PRODUCT_CONTRACT.md`, `docs/PRINCIPLES-WIL-74.md`.
+- **Code map:** `docs/FRONTEND-WHAT-TO-KNOW.md`, `docs/ideal-text-flow-communication.md`,
+  `docs/COACH-FEEDBACK-LANES.md`, `docs/PANEL-STATE-MATRIX.md`.
+- **Specs in progress:** `docs/SPEC-confidence-recognizer.md`, `docs/SPEC-lounge-topup-card.md`.
+- **Look:** `docs/STYLING_GUIDELINES.md`.
+- **Tests:** `docs/TEST-STORIES.csv` (every test file's story).
+
 ## Security
 
 Never ask for or reuse passwords, tokens or keys in chat. Keys go into

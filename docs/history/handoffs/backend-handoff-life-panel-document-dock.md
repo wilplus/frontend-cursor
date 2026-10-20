@@ -3,7 +3,7 @@
 **From:** Frontend
 **Date:** 2026-07-31
 **Branch:** `claude/life-panel-ui-redesign-5nt1ze`
-**Read first:** `docs/life-panel-fe-status.md` §4 (the assumed contract) and §8
+**Read first:** `docs/history/life-panel-fe-status.md` §4 (the assumed contract) and §8
 (the chrome pass this came out of). `handoff-life-panel.md` is still the map of
 what stands between the panel and launch; nothing here changes that list.
 
@@ -237,7 +237,7 @@ rushed:
    empty state, not an error: "Nothing usable was found in the document."
 
 The 401 / 404 / 409 statuses are untouched and still load-bearing exactly as
-`docs/life-panel-fe-status.md` §4 describes. The retry only ever fires on a 4xx
+`docs/history/life-panel-fe-status.md` §4 describes. The retry only ever fires on a 4xx
 that is *about the request* (422 is the one it exists for).
 
 ## 5. Traffic, so it is not a surprise

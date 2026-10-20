@@ -1,7 +1,7 @@
 # FE PROMPT — Public Journal (blog) + admin CMS
 
 **Repo:** `frontend-cursor` (Next.js App Router, TypeScript, Tailwind, deployed at www.willpowerlab.com)
-**Status:** spec only until approved. Backend contract is in `docs/journal-be-prompt.md`.
+**Status:** spec only until approved. Backend contract is in `docs/history/journal-be-prompt.md`.
 
 ---
 

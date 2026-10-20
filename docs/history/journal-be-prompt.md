@@ -1,6 +1,6 @@
 # BE PROMPT — Journal (blog) content + media API
 
-**Repo:** `backend-cursor` (Flask). Consumed by the `frontend-cursor` Next.js app; the FE spec is in `docs/journal-fe-prompt.md` of that repo.
+**Repo:** `backend-cursor` (Flask). Consumed by the `frontend-cursor` Next.js app; the FE spec is in `docs/history/journal-fe-prompt.md` of that repo.
 **Status:** spec only until approved.
 
 ---

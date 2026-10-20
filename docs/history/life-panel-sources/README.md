@@ -3,16 +3,16 @@
 Two parts of the panel were built from a **description** rather than from the
 original, because the originals live on the founder's machine and have never
 been in this repo (checked: no file, no git history, nothing in `cache/` or
-`docs/archive/`).
+`docs/history/archive/`).
 
-Until they land, both are marked in `docs/life-panel-fe-status.md` as invented.
+Until they land, both are marked in `docs/history/life-panel-fe-status.md` as invented.
 This directory is where they go.
 
 ---
 
 ## 1. The daily governance document
 
-**Where it is now:** the founder's machine. `docs/life-panel-spec.md` §4.1 lists
+**Where it is now:** the founder's machine. `docs/history/life-panel-spec.md` §4.1 lists
 it as "the two documents pasted in this thread"; it did not reach the repo.
 
 **What was built without it:** `src/app/panel/today/page.tsx`. The `life_days`

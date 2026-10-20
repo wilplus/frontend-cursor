@@ -254,7 +254,7 @@ walletRetry:       "Try again",
 ## T2 — the in-thread top-up card
 
 **Depends on:** nothing. Independent of T1, but T1 first is better.
-**Full spec:** `docs/SPEC-lounge-topup-card.md` · **prompt:** `docs/cursor-prompts/PROMPT-FE-lounge-topup-card.md`
+**Full spec:** `docs/SPEC-lounge-topup-card.md` · **prompt:** `docs/history/cursor-prompts/PROMPT-FE-lounge-topup-card.md`
 
 ```
 VERDICT:  JUSTIFIED-SCAFFOLDING
@@ -359,7 +359,7 @@ Do **not** modify `TokenPlanCards.tsx`, `TokenWalletPanel.tsx`, `RecordPriceNote
 
 ## T3 — wire the billing portal
 
-**Depends on:** nothing. **Full prompt:** `docs/cursor-prompts/PROMPT-FE-billing-portal.md`
+**Depends on:** nothing. **Full prompt:** `docs/history/cursor-prompts/PROMPT-FE-billing-portal.md`
 
 ```
 VERDICT:  JUSTIFIED-SCAFFOLDING

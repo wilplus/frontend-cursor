@@ -1,10 +1,10 @@
 # FE prompt — The Life Panel
 
-**Repo:** `frontend-cursor` · **Spec of record:** `docs/life-panel-spec.md`
+**Repo:** `frontend-cursor` · **Spec of record:** `docs/history/life-panel-spec.md`
 **Pair:** `PROMPT-BE-life-panel.md` (backend repo)
 **Date:** 2026-07-26 · **Status:** FE built against the documented contract;
 runtime is blocked on BE-2 (`/v2/life/state`) and BE-10 (consent, export,
-delete). See `docs/life-panel-fe-status.md` for what shipped and what is assumed.
+delete). See `docs/history/life-panel-fe-status.md` for what shipped and what is assumed.
 
 ---
 

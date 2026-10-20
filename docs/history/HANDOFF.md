@@ -5,7 +5,7 @@ State-of-the-world for a maintainer picking this repo up cold. The
 deploy, parked work) lives in `backend-cursor/docs/HANDOFF.md` — read that
 first. This file is the FE half only.
 
-**Before any work: read [`CLAUDE.md`](../CLAUDE.md)** (the doctrine — north
+**Before any work: read [`CLAUDE.md`](../../CLAUDE.md)** (the doctrine — north
 star, fences, the WILLAB DECISION FILTER that gates every task). `AGENTS.md`
 at the repo root is a pointer to it for non-Claude agent harnesses.
 

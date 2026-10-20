@@ -2,7 +2,7 @@
 
 *Read-only audit, executed from the prompt kept in the backend repo at
 `backend-cursor/docs/audits/2026-09-13-engineering-audit-prompt.md`. Raw tool
-outputs are under [`raw/`](raw/). The founder's decision questions for BOTH
+outputs are under [`raw/`](raw). The founder's decision questions for BOTH
 repos are in `backend-cursor/docs/audits/2026-09-13-audit-questions.md`.*
 
 Commit audited: `0f88bd4` (2026-09-10). Node 22, `npm ci` from the lockfile.

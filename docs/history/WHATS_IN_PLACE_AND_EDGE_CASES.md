@@ -81,7 +81,7 @@ Quick reference for what the frontend does and where edge cases or backend assum
 |-----------------|--------|
 | **Form** | Video URL (optional), Message to student (optional). Validation: URL must start with `http://` or `https://`, max 2048 chars; message max 2000 chars. |
 | **Request** | `POST /v2/admin/students/<id>/send-assignment` with `{ video_url?, video_description? }`. Only non-empty values sent. |
-| **Email design (frontend reference)** | `CoachEmail.tsx`: video block (or orange gradient if no URL), coach message or default text, optional “exercise on main screen” line when student has assigned exercise. See `docs/cursor-prompts/BACKEND_ASSIGNMENT_EMAIL.md`. |
+| **Email design (frontend reference)** | `CoachEmail.tsx`: video block (or orange gradient if no URL), coach message or default text, optional “exercise on main screen” line when student has assigned exercise. See `docs/history/cursor-prompts/BACKEND_ASSIGNMENT_EMAIL.md`. |
 
 **Edge cases**
 

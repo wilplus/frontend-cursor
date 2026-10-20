@@ -105,5 +105,5 @@ So the list **disappears** when:
 ## 7. Related
 
 - Admin sets assigned exercises via **PUT** student overrides with **`assigned_exercise_ids`** (array). The admin UI uses a pool + “Manage list” (like warm-up tasks); multiple exercises can be assigned. Legacy **`assigned_next_exercise_id`** is still supported as a fallback for one exercise.
-- The same “has an assigned exercise” idea is used in the **assignment email**: see `docs/cursor-prompts/BACKEND_ASSIGNMENT_EMAIL.md` and `docs/backend-reference/assignment_email.py`.
+- The same “has an assigned exercise” idea is used in the **assignment email**: see `docs/history/cursor-prompts/BACKEND_ASSIGNMENT_EMAIL.md` and `docs/history/backend-reference/assignment_email.py`.
 - Frontend types: `HomeworkSessionStatus.assigned_exercises`, `AssignedExercise` in `src/lib/api/types-homework.ts`. Frontend usage: `HomeworkFlowCard` step 0 and `applyStatusToState` when it receives status with `assigned_exercises`. The frontend only updates the displayed list when the response **includes** the `assigned_exercises` key (it does not set to `[]` when the key is missing).

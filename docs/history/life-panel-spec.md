@@ -1,7 +1,7 @@
 # The Life Panel — implementation document
 
 **Status:** plan, not built. Spec of record. Build prompts are this file's pair,
-`docs/life-panel-fe-prompt.md`, and the backend's `PROMPT-BE-life-panel.md`.
+`docs/history/life-panel-fe-prompt.md`, and the backend's `PROMPT-BE-life-panel.md`.
 **Date:** 2026-07-26
 **Gate:** two-tier. The principles engine is public behind consent (L-6); prayer
 and the founder-only surfaces stay on the allowlist. `LIFE_PANEL_ENABLED` kills

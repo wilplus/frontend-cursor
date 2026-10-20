@@ -3,9 +3,9 @@
 **State:** on `main` as of `463430a`. Built, verified, and **dark**. No user sees
 anything until the backend exists and `LIFE_PANEL_ENABLED=1`.
 
-**Read first:** `docs/life-panel-spec.md` (spec of record, holds L-1…L-6),
-`docs/life-panel-fe-prompt.md` (the build prompt, holds N1…N6),
-`docs/life-panel-fe-status.md` (what shipped, the assumed contract, deviations).
+**Read first:** `docs/history/life-panel-spec.md` (spec of record, holds L-1…L-6),
+`docs/history/life-panel-fe-prompt.md` (the build prompt, holds N1…N6),
+`docs/history/life-panel-fe-status.md` (what shipped, the assumed contract, deviations).
 This file is what to *do* next; that one is the reference.
 
 **One open FE→BE ask**, added after the 2026-07-31 chrome pass:
@@ -35,7 +35,7 @@ that needs sign-off.
 Not FE work, but nothing ships without them, in this order:
 
 1. **Backend `/v2/life/*`.** The smallest payload that lights up the entrance is
-   in `docs/life-panel-fe-status.md` §1: two objects, no `menu`. Principles then
+   in `docs/history/life-panel-fe-status.md` §1: two objects, no `menu`. Principles then
    appears in the hamburger for every signed-in user, and the guide → consent →
    setup flow is reachable. `POST /v2/life/consent` and the setup writes must
    exist too, or the user hits consent and the write fails.
@@ -53,7 +53,7 @@ Not FE work, but nothing ships without them, in this order:
 
 ### 3.1 Blocked on artifacts that are not in the repo
 
-`docs/life-panel-sources/README.md` is the landing zone and says what changes
+`docs/history/life-panel-sources/README.md` is the landing zone and says what changes
 when each arrives. Both are marked invented in the status doc until then.
 
 **Corrected by the backend session, 2026-07-26.** An earlier draft of this file

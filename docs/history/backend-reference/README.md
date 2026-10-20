@@ -16,4 +16,4 @@ This folder contains **code for the backend** to implement the new assignment em
    - Build the homework link (e.g. `FRONTEND_URL + "/dashboard"`).
    - Call `build_assignment_email_html(...)` and send the returned HTML via Resend.
 
-Design and behavior are specified in `docs/cursor-prompts/BACKEND_ASSIGNMENT_EMAIL.md` and match the frontend `CoachEmail` component.
+Design and behavior are specified in `docs/history/cursor-prompts/BACKEND_ASSIGNMENT_EMAIL.md` and match the frontend `CoachEmail` component.

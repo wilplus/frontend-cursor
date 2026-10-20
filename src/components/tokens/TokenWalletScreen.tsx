@@ -27,7 +27,7 @@ import { useTokenWallet } from "@/hooks/useTokenWallet";
 /*  (its subscription webhook maps price → tier), so the only missing piece was  */
 /*  creating the Stripe session, which /api/stripe/subscribe now does. Changing  */
 /*  or cancelling an existing plan still needs the billing portal the BE has no  */
-/*  route for — see docs/HANDOFF-BE-2026-07-31-token-subscriptions.md.           */
+/*  route for — see docs/history/HANDOFF-BE-2026-07-31-token-subscriptions.md.           */
 /* -------------------------------------------------------------------------- */
 
 export default function TokenWalletScreen() {

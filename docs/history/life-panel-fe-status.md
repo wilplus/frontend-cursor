@@ -1,6 +1,6 @@
 # Life Panel FE — what shipped, what it assumes, what is still open
 
-Companion to `docs/life-panel-fe-prompt.md`. Read this before wiring the
+Companion to `docs/history/life-panel-fe-prompt.md`. Read this before wiring the
 backend: it is the list of everything the FE now expects from `/v2/life/*`, and
 the places where it went past the prompt.
 
@@ -331,4 +331,4 @@ leave open.
   it: `apply` stamps `origin_document_id` so a principle read out of a file is
   distinguishable from one the engine derived, and the review row renders a
   long line in full instead of the first 500 characters of it. The ANSWERED box
-  at the top of `docs/handoffs/backend-handoff-life-panel-document-dock.md` has the mapping.
+  at the top of `docs/history/handoffs/backend-handoff-life-panel-document-dock.md` has the mapping.

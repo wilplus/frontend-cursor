@@ -66,4 +66,4 @@ Ensure **`TUTOR_FEEDBACK_WINDOW_HOURS`** is set and positive (e.g. `24`) in env 
 
 ---
 
-See also: **docs/backend-reference/tutor_feedback_deadline_first_lesson.md** for when the backend must return the deadline (including first-time completers).
+See also: **docs/history/backend-reference/tutor_feedback_deadline_first_lesson.md** for when the backend must return the deadline (including first-time completers).

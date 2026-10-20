@@ -6,7 +6,7 @@ Clickable prototype of the finished screen (simulated draw, every outcome switch
 <https://claude.ai/artifact/VWgzPDejdoSngqjkcDQVyd>
 
 The same mock and a render of every state are committed beside this file, so the design can
-be matched without opening anything: `docs/cursor-prompts/assets/cover-step/`. See §DESIGN.
+be matched without opening anything: `docs/history/cursor-prompts/assets/cover-step/`. See §DESIGN.
 
 ---
 
@@ -1039,8 +1039,8 @@ belongs in a **separate commit**, not mixed into the lane work.
 
 The reference is committed next to this prompt. Open both before you write the JSX:
 
-- **Renders of every state:** `docs/cursor-prompts/assets/cover-step/*.png`
-- **The working mock:** `docs/cursor-prompts/assets/cover-step/prototype.html` — a single
+- **Renders of every state:** `docs/history/cursor-prompts/assets/cover-step/*.png`
+- **The working mock:** `docs/history/cursor-prompts/assets/cover-step/prototype.html` — a single
   file, no build, open it in a browser. Its markup is plain HTML/CSS rather than Tailwind,
   so **the JSX in §3 is what you copy**; the mock is what you check the result against.
   The one place the mock is wrong: its text box is 15px, the app's is 16px (`LANE_INPUT`).

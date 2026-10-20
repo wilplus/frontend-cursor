@@ -17,7 +17,7 @@ Wire it. **Frontend only — the backend needs no changes whatsoever.**
 
 **Pricing v3 note (2026-08-13):** the tier keys are being renamed
 (practice/coached/intensive) with the old keys true-grandfathered — see
-`docs/HANDOFF-FE-2026-08-13-pricing-and-billing.md` PART 6. Nothing in this ticket may
+`docs/history/HANDOFF-FE-2026-08-13-pricing-and-billing.md` PART 6. Nothing in this ticket may
 hardcode a tier key; the `plan` fields and the decision matrix below are key-agnostic already,
 and a grandfathered subscriber resolving to `managed: true` → manage-only is exactly the
 correct behaviour. The one key literal permitted is the `"free"` fallback in
@@ -298,7 +298,7 @@ Pure-predicate and source-grep only; there is no JSX transform in this vitest co
 ## DO NOT, IN THIS TICKET
 
 - Touch the backend. Everything needed is already live.
-- Build the in-thread top-up card (`docs/cursor-prompts/PROMPT-FE-lounge-topup-card.md`).
+- Build the in-thread top-up card (`docs/history/cursor-prompts/PROMPT-FE-lounge-topup-card.md`).
   If both land, that card's "paid users get no card" rule is what this ticket eventually
   relaxes — but **not here**, and not without the founder.
 - Fix `TokenWalletScreen.tsx:44` returning `null` while probing. Separate ticket.

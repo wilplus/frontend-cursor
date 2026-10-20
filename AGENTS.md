@@ -20,6 +20,6 @@ a divergence between the two is itself drift. Same rule applies here:
 this pointer must never grow a competing version of the doctrine.
 
 Project state, system map, shipping mechanics, and the maintainer
-checklist: [`docs/HANDOFF.md`](docs/HANDOFF.md) here, and the system-level
-[`docs/HANDOFF.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/HANDOFF.md)
+checklist: [`docs/history/HANDOFF.md`](docs/history/HANDOFF.md) here, and the system-level
+[`docs/history/HANDOFF.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/HANDOFF.md)
 in `backend-cursor`.
