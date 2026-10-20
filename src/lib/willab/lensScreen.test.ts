@@ -1,3 +1,11 @@
+/*
+STORY    As a speaker, I want my text to appear as soon as there is nothing to walk through, and not while a walk might still open, so that I'm neither stuck nor interrupted.
+OUTCOME
+  O1  When feedback has settled (or the page failed) with nothing to walk, the text shows.
+  O2  While feedback, a coach review, a walk or helper words may still open, the waiting screen stays.
+PROVES   O1 -> comes down when the feedback settles with nothing to walk
+         O2 -> stays while the marks may still land or a walk is opening
+*/
 import { describe, expect, it } from "vitest";
 
 import { lensIdle } from "./lensScreen";

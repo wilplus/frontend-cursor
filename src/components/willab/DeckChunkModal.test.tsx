@@ -1,16 +1,24 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  F1 surface net (audit Q-T8, Phase 2) — the per-slide review modal.         */
-/*                                                                            */
-/*  Renders the REAL component with fixture payloads and asserts two things   */
-/*  the source-grep fences could not:                                         */
-/*    1. AC-9 as behaviour: nothing that reads as a score, ratio, percentage  */
-/*       or verdict appears in the rendered text, for every feedback family,  */
-/*       including when the fixture carries numeric-looking fields.           */
-/*    2. The three Manager lanes each render their own face: Confident Voice  */
-/*       (the agree question), the actionable rewrite (Accept / Keep mine),   */
-/*       and evidence-backed praise (nothing to decide).                      */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker reviewing a paragraph, I want each kind of feedback in
+         its own screen with no scores, at most three items, and each answer
+         filed against its own clip, so that feedback is in words and my
+         answers are true.
+OUTCOME
+  O1  No feedback screen (Confident Voice, rewrite, praise) shows a score,
+      ratio, percentage or verdict.
+  O2  The rewrite screen shows what I said and the clearer version, with
+      Apply and Keep my wording.
+  O3  A fourth item is never shown, however far I go.
+  O4  My Confident Voice answer is passed on the moment it is saved.
+  O5  An answer is never carried over to the next clip.
+PROVES   O1 -> "AC-9: the %s face renders no score, ratio, percentage or verdict"
+         O2 -> "the rewrite lane shows the exact words and the clearer version, and keeps the user's wording available"
+         O3 -> "a fourth candidate is never reachable, however far you walk (L2 budget)"
+         O4 -> "reports the judgement to the host the moment it is saved (24g-1)"
+         O5 -> "never carries one clip's answer onto the next clip (L3)"
+WHY      Never 1 (feedback in words); locked Ideal Text screen.
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

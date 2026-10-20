@@ -1,3 +1,14 @@
+/*
+STORY    As a speaker, I want the walk to praise good moments, practise the one exercise, never ask me to judge, never show a score, and give every moment a step, so that feedback is in words and always has something to show.
+OUTCOME
+  O1  The plan holds no number, read or score.
+  O2  The steps come in the locked order: praise, helper words, clearer version, practise, others, summary, never a judging step.
+  O3  Every moment has a practice step, even with nothing attached.
+PROVES   O1 -> carries no number, read or score
+         O2 -> praises green moments, practises the one exercise, and never asks the speaker to judge
+         O3 -> a moment with nothing attached is the moment said again
+WHY      Never-rule 1 (no scores to speakers).
+*/
 import { describe, expect, it } from "vitest";
 import { buildWalkPlan, walkMoments, type WalkMoment } from "./walkPlan";
 

@@ -1,3 +1,11 @@
+/*
+STORY    As a speaker, I want my paragraph locks kept when a new Take or a coach rewrites the text, so that I don't lose choices on paragraphs nobody touched.
+OUTCOME
+  O1  A paragraph that did not change keeps its identity after a rewrite.
+  O2  Paragraphs moved into a new order keep their identities.
+PROVES   O1 -> an untouched paragraph keeps its id
+         O2 -> a reorder keeps every id
+*/
 import { describe, expect, it } from "vitest";
 
 import {

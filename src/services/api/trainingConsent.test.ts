@@ -1,3 +1,13 @@
+/*
+STORY    As a speaker, I want my training-consent choice read once per page
+         with my login, and read again after I change it, so that every screen
+         shows my current choice.
+OUTCOME
+  O1  All screens on a page share one read, sent with my login.
+  O2  After I change my choice, the next read shows the new choice.
+PROVES   O1 -> "serves every reader from one request, sent with the bearer"
+         O2 -> "reads afresh after a write"
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api/auth-client", () => ({
@@ -9,14 +19,6 @@ import {
   forgetSharedTrainingConsent,
   setTrainingConsent,
 } from "./trainingConsent";
-
-/* -------------------------------------------------------------------------- */
-/*  The training switch is read by the acceptance flow, the Lab's prefetch,   */
-/*  the question before the first Take and a visitor's kept yes. One page     */
-/*  must cost the endpoint one read, with the bearer (so the BFF route does   */
-/*  not validate the cookie session per hop), and a write must never leave a  */
-/*  reader on the state from before it (founder 2026-10-16).                  */
-/* -------------------------------------------------------------------------- */
 
 const on = {
   available: true,

@@ -1,3 +1,11 @@
+/*
+STORY    As a speaker, I want "send to my coach" to target exactly this
+         project and Take, so that my coach reviews the right recording.
+OUTCOME
+  O1  The request names this project and this Take exactly, and comes back
+      as sent.
+PROVES   O1 -> "sends exact encoded Project and Take coordinates"
+*/
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api/auth-client", () => ({

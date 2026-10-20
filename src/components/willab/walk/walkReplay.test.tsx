@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  The finished walk, played again (founder 2026-10-08, Q-IT643b A; walk      */
-/*  first, 2026-10-14): the same screens with the answers as given; a tap     */
-/*  that would write moves on instead; an exercise already done plays its     */
-/*  tries and records none.                                                   */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker, I want to replay a finished walk with my answers shown and nothing written or recorded again, so that I can look back safely.
+OUTCOME
+  O1  The same screens play with my answers; only a change to my helper words is saved.
+  O2  A done exercise plays my past tries and records nothing new.
+  O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.
+PROVES   O1 -> opens on the coach's note and plays the same screens answered; helper words stay editable, nothing else writes
+         O2 -> opens on the coach's note and plays the same screens answered ...
+         O3 -> an exercise opened from its bubble in the chat shows its AI clip and every try, a try tapped in the chat opens its exercise on the last answer
+*/
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

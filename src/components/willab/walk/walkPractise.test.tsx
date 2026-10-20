@@ -1,9 +1,19 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  The practise loop live in the Feedback walk (build plan D-FW-16; walk      */
-/*  lock flow 7; N52.3, NX3 A, CM3a A, CM3b A, O5), with the app's own clients */
-/*  on a mocked fetch and a mocked microphone.                                 */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker, I want to practise inside the walk (record, hear an answer in words, hear an AI version of my voice, at most 3 tries), so that practice is quick, kind and free of numbers.
+OUTCOME
+  O1  Stopping a try uploads it and asks for a check, and I am back in the walk at once.
+  O2  A better try gets praise in words for what improved, then the walk moves on.
+  O3  A "not yet" on the clearer words brings the AI version of my voice; a good try does not.
+  O4  The AI clip appears with one sentence on what it does differently, never a number.
+  O5  At most 3 tries, all shown together; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.
+PROVES   O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
+         O2 -> praise on try 1: the line for the reading that moved ...
+         O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
+         O4 -> the bubble is there at once: the typing dots alone ..., with the clip, the speaker reads what this version does differently and why (WIL-82)
+         O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing
+WHY      Never-rule 1 (no scores to speakers).
+*/
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

@@ -1,3 +1,17 @@
+/*
+STORY    As a speaker, I want the app never to invent stars or slide links the
+         server didn't send, and a coach's answer shown only in words, so that
+         what I see is real and never a score.
+OUTCOME
+  O1  A highlighted moment only shows a star when the server sent one.
+  O2  Helper words without an exact slide are rejected.
+  O3  A coach's answer is kept in words; an empty answer or a score is
+      dropped.
+PROVES   O1 -> "the FE never mints a star the BE omitted (sole-gatekeeper rip, 2026-08-10)"
+         O2 -> "rejects a root without exact Slide identity"
+         O3 -> "keeps a shared answer and drops an empty or unknown one"
+WHY      Never-rule 1: no scores or verdicts shown to speakers.
+*/
 import { describe, expect, it } from "vitest";
 import {
   mapIdealText,

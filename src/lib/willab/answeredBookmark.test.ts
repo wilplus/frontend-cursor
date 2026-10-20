@@ -1,3 +1,11 @@
+/*
+STORY    As a speaker, I want tapping a bookmark to open that paragraph's own sheet unless a judgement is still waiting, and always when I have saved helper words, so that a tap goes to the right place.
+OUTCOME
+  O1  An answered paragraph, a locked one, one with no feedback or one with only a rewrite waiting opens its own sheet; a waiting judgement does not.
+  O2  Saved helper words always open the sheet.
+PROVES   O1 -> opens its own sheet unless a judgement waits; saved words always open it
+         O2 -> opens its own sheet unless a judgement waits; saved words always open it
+*/
 import { describe, expect, it } from "vitest";
 import {
   opensParagraphSheet,

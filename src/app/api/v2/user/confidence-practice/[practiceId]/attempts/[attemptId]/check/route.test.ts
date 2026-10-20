@@ -1,3 +1,11 @@
+/*
+STORY    As a speaker practising, I want the check of my attempt to reach the
+         right practice and attempt, so that my practice result comes back.
+OUTCOME
+  O1  The check is POSTed with an empty body to the backend path for this
+      practice and attempt, with odd characters in the ids kept safe.
+PROVES   O1 -> "relays an empty check body to the encoded attempt path"
+*/
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 

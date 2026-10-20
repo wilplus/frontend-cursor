@@ -1,0 +1,1070 @@
+file,type,story,outcomes,proves,why
+scripts/check-complexity-ratchet.test.ts,Guard,"No function under src/ above complexity 25 unless frozen in scripts/complexity-baseline.json, and a frozen one may only come down.","A new function over 25; a frozen one that grew; a baseline entry
+that is stale (the function shrank or is gone) and must be re-frozen.","new / grown -> ""fails a new offender and lets a frozen one only come down""
+stale       -> ""requires a stale baseline entry to be re-frozen""","If removed: The rule behind `npm run check:complexity` (the unit job's ""Complexity ratchet"" step) could loosen without anything going red."
+scripts/checkDesignLock.test.ts,Story,"As the founder, I want any commit that changes a locked screen to carry a Founder-Approved line, so that finished designs never change without my yes.","O1  A branch that changes a locked file without a filled-in
+Founder-Approved trailer fails; with it, it passes.
+O2  Each commit is judged on its own; commits already on main, test files
+and uncommitted changes never fail it; an unknown base is refused.
+O3  The lock list reads cleanly, matches whole folders and exact files,
+and names only files that exist.
+O4  The lock list includes every screen CLAUDE.md locks.","O1 -> ""passes a branch that touches nothing locked"",
+""fails a commit that changes a locked file without the trailer"",
+""passes the same change with the trailer"",
+""an empty trailer value is no approval"",
+""the trailer must be a trailer, not a sentence in the body""
+O2 -> ""locks every file under a directory pattern, but never a test"",
+""checks each commit on its own: one approved, one not"",
+""ignores commits that are on the base already"",
+""reports an uncommitted locked change without failing on it"",
+""refuses to run against a base it cannot see""
+O3 -> ""parses comments and blank lines away"",
+""matches exact paths and trees, never tests"",
+""names only files and directories that exist (a rename must update the list)""
+O4 -> ""locks %s, which CLAUDE.md names"" (one per locked screen file)","CLAUDE.md ""Screens that are locked"" (build plan X5)."
+scripts/localCiMirror.test.ts,Guard,"scripts/local_ci.sh runs every command the CI unit job runs, plus `npm run build`, on the Node version CI and .nvmrc name.","A step added to .github/workflows/tests.yml but not to the script;
+the build dropped from the script; the Node floor drifting from CI;
+the design-lock guard losing its step or its git history.","found the job -> ""found the job and its steps""
+mirrored      -> ""runs `%s`"" (one per unit-job command)
+build         -> ""runs the production build""
+node          -> ""stops below the job's node-version, which .nvmrc names too""
+design lock   -> ""is a step of the unit job, with the history it needs""",If removed: A local GREEN could stop meaning CI (and Vercel) will be green. Reads source text (workflow and script) on purpose: this is plumbing.
+scripts/localCiVerdict.test.ts,Guard,"The local gate's verdict: the real scripts/local_ci.sh, run with stand-ins for node, npm and npx first on PATH so every step returns at once.","GREEN printed when a step failed or the build was skipped; a failed
+step not named; a run on a Node older than CI's; the macOS bash 3.2
+""unbound variable"" exit (2026-10-06) when every step passed.","green  -> ""is GREEN and exits 0 when every step passes""
+red    -> ""is RED and exits 1 when a step fails, printing that step's own log""
+no build -> ""is INCOMPLETE, never GREEN, when the build is skipped""
+node   -> ""stops before its first step, naming the Node it found""","If removed: The gate's GREEN could stop meaning ""every step passed""."
+scripts/storiesCsv.test.ts,Guard,"docs/TEST-STORIES.csv lists every frontend test file's story, and every test file has one.","C1  a new or edited test whose STORY/GUARD header is missing, or not copied into the CSV",C1 -> every test file has a story and the CSV is current,If removed: the founder reviews a stories file that silently stops matching the tests.
+src/app/admin/libraryAndErrorsGate.test.ts,Story,"As the founder, I want the exercise library, speaking-errors and",,,
+src/app/api/_lib/backend.test.ts,Story,"As a speaker, I want every app-to-server call to carry my sign-in and fail with a plain message, so that I never see a broken screen or someone else's data.","O1  Signed in: the backend gets my token and its answer reaches me as is.
+O2  Signed out: 401 with the shared words, and no backend call at all.
+O3  The backend unreachable: 502 with the generic words.
+O4  A guest token never rides on an account's call; a signed-out
+guest's own token does.
+O5  A route's own knobs win: `failures` (its words), `relay` (its
+answer shape), `token: null` (no sign-in sent).","O1 -> ""a signed-in call carries the token and passes the answer through""
+O2 -> ""401 UNAUTHENTICATED with the shared copy when signed out""
+O3 -> ""502 PROXY_ERROR with the generic copy when fetch throws""
+O4 -> ""an account never sends the guest token along"",
+""a signed-out guest sends its own token""
+O5 -> ""failures: a route keeps its own words"",
+""relay: a route shapes its own answer"",
+""token: null sends no sign-in""",The one BFF->backend helper (audit Q-A8); ~150 routes rely on it. `server-only` and `next/headers` are mocked so the helper runs as plain Node.
+src/app/api/auth/callback/route.test.ts,Story,"As a speaker signing in through an old link, I want to land on the real sign-in callback with my code or error intact, so that my login works or tells me why.","O1  The code, the PKCE state and `next` reach /auth/callback unchanged.
+O2  A provider error reaches /auth/callback instead of being swallowed.
+O3  Nothing lands on /dashboard, even with no code at all.","O1 -> ""forwards the code, the PKCE state and next to the real callback""
+O2 -> ""forwards a provider error rather than swallowing it""
+O3 -> ""with no code it still goes to the real callback, never /dashboard""",This route used to exchange the code itself and send a failed login to /dashboard looking signed in (see route.ts).
+src/app/api/bffEnvelopes.contract.test.ts,Story,"As a speaker, I want the app's answers (status and error words) to stay exactly as signed off when the plumbing behind them changes, so that no screen breaks or shows new words.","O1  Each of the 9 routes moved onto the shared backend call answers with
+the same status, body, content type and cache header as before, in
+every scenario recorded for it (ok, errors, signed out, backend down).
+O2  The recording-progress stream only asks the backend for the readout,
+never for an endpoint the backend does not have.","O1 -> one test per route in bffEnvelopes.golden.json (named
+file#handler#body)
+O2 -> ""never calls the native-SSE endpoint the backend never served""","Never 4 (no new words without the founder's OK): change the golden only on purpose, never regenerate it to turn red green."
+src/app/api/bffProxyRoutes.contract.test.ts,Guard,The 76 relay-only routes answer and forward exactly what they did before they became one-line proxyRoute() calls.,"Any change in status, body, content type, cache header or the
+request sent to the backend (URL, method, headers, body), under each
+of the 12 scenarios in bffTestkit (ok, errors, empty, HTML, signed
+out, no backend URL, network failure, timeout).","any drift -> one test per route in bffProxyRoutes.golden.json
+(named file#handler#body)","If removed: A refactor of the relay code can change what speakers, coaches or the admin pages get, with nothing failing."
+src/app/api/journalTools.contract.test.ts,Story,"As the founder using the Journal CMS, I want each CMS tool to reach the backend with my password and no login session, so that publishing posts keeps working.","O1  Each of the 15 tool paths POSTs to the same backend path with the
+body as sent and no session token, and relays status and body back.
+O2  When the backend cannot be reached, each tool answers 502 ""Journal
+service unavailable."" as before.
+O3  A path that is not a tool is a 404 and nothing is sent.","O1 -> ""%s"" (one test per tool path)
+O2 -> ""%s"" (one test per tool path)
+O3 -> ""does not forward a path that is not a tool""",Fifteen one-file routes became one route (founder 2026-10-12).
+src/app/api/v2/lab/presentation/extract/route.test.ts,Story,"As a guest speaker, I want my uploaded slide deck to reach the slide reader with my guest pass, so that my deck is used for my Take.","O1  The upload goes to the backend's slide-reading route with the guest
+owner token (X-Willab-Guest-Owner) passed on.","O1 -> ""forwards a guest's owner token""",
+src/app/api/v2/learning-exposures/ack/route.test.ts,Story,"As the founder, I want every ""the speaker saw this"" receipt the app sends to reach the backend unchanged, so that the records of what each speaker was shown are complete.","O1  The receipt is POSTed to the backend's receipt route exactly as sent,
+and the speaker must be signed in.","O1 -> ""forwards the acknowledgement verbatim to the backend ack route""",Audit 2026-09-22 (G-1): before this route every receipt was lost.
+src/app/api/v2/processing-authorization/[[...path]]/route.test.ts,Story,"As a speaker, I want to be able to cancel my own account deletion, and nobody to reach the erase-my-data route through the app, so that deletion is safe both ways.","O1  Cancelling one's own deletion (POST with a valid deletion id) reaches
+the backend and is never cached.
+O2  The cancel is refused (404, nothing sent) as a GET, with a bad id, or
+with a wrong path.
+O3  The status read and ""terminate"" still go through; data-rights,
+data-export and trick names are 404 with nothing sent.","O1 -> ""forwards a cancel of one's own account deletion""
+O2 -> ""forwards the cancel only as a POST, and only with a UUID""
+O3 -> ""still forwards what it did, and still nothing else""",Founder's Wave 3 answers 2026-10-05 (N48.4 Q14 A).
+src/app/api/v2/tokens/prices/route.test.ts,Story,"As a speaker, I want the token price list to load fast and always match what the backend said, so that I see correct prices.","O1  The backend is asked once; later reads are served from a copy that
+is exactly the backend's answer.
+O2  A signed-out read is still refused while a copy is held.
+O3  The ""prices switched off"" answer is kept too, but an error is never
+kept: the next read asks the backend again.","O1 -> ""asks the backend once and answers the next reads from its copy, as the backend said it""
+O2 -> ""still refuses a signed-out read while it holds a copy""
+O3 -> ""keeps the flag-off body too, and never an error""",Founder 2026-10-18: the price list is the same for everyone.
+src/app/api/v2/user/confidence-practice/[practiceId]/attempts/[attemptId]/check/route.test.ts,Story,"As a speaker practising, I want the check of my attempt to reach the right practice and attempt, so that my practice result comes back.","O1  The check is POSTed with an empty body to the backend path for this
+practice and attempt, with odd characters in the ids kept safe.","O1 -> ""relays an empty check body to the encoded attempt path""",
+src/app/api/v2/user/takes/[takeSessionId]/feedback-response/route.test.ts,Story,"As a speaker changing my answer to a piece of feedback, I want the server's reply to reach the sheet unchanged, so that my new answer shows as saved.","O1  A changed answer is POSTed to the backend for this Take and the 200
+""revised"" reply comes back exactly as sent.
+O2  A 409 ""already final"" reply also comes back exactly as sent.","O1 -> ""passes the 200 revised body through unchanged""
+O2 -> ""still relays a rewrite's 409 as it came""",
+src/app/api/v2/user/takes/[takeSessionId]/share/route.test.ts,Story,"As a speaker, I want my share choice for a Take saved to that Take, so that only the people I chose see it.","O1  The share choice is sent (PUT) unchanged to the backend path for
+exactly this Take.","O1 -> ""relays the share body to the encoded take path""",
+src/app/chat/page.test.tsx,Story,"As a speaker tapping a WhatsApp or email link, I want to land on my coach's feedback or on the review, so that the link takes me where it says.","O1  A feedback link (lens, or idealArc with feedback) opens the feedback;
+a link with mode=review opens the review; a bare idealArc link opens
+neither.","O1 -> ""opens the coach's feedback from the WhatsApp and email links, the review with mode=review""",
+src/app/coach/corpus/corpusJudgeScreen.test.tsx,Story,"As a coach, I want an imported recording to open on the one Judge screen, save only my answer and move to the next unlabelled piece, so that judging is fast and blind.","O1  An import opens the walk's Judge screen and nothing of the workbench's
+labelling chrome (no note field, no Skip, no ""labelled"" count).
+O2  Never-2: before the coach answers, the sheet shows the question and
+the five answers, and no words of the piece, no id, URL, offset or
+window number.
+O3  An answer writes the ternary body only, then moves to the next
+unlabelled piece in payload order.
+O4  After the last unlabelled piece the sheet closes, back on the
+workbench.
+O5  A re-review piece still says so on its write.","O1, O2 -> ""opens on the Judge screen alone, blind: no chrome, no words, no id, URL or window""
+O3     -> ""an answer writes the ternary body only, then moves on in payload order""
+O4     -> ""after the last unlabelled piece the sheet closes, back on the workbench""
+O5     -> ""a re-review piece says so on its write""","Never-2; founder 2026-09-30 B9 / P2-16 (""one instrument in the product; the workbench's own chrome is deleted"")."
+src/components/account/DataConsentChoices.test.tsx,Story,"As a speaker, I want turning off practice or withdrawing sensitive information to ask first and take effect only on confirm, so that I control my data (consent, on the record step of the loop).","O1  Turning practice off asks first; nothing is sent until I confirm, then
+the page says practice is off.
+O2  Turning practice back on needs no confirm and is sent at once.
+O3  Withdrawing sensitive information asks first, then says recording is
+off; agreeing again is sent without a confirm.
+O4  A failed save says so and changes nothing on the page.
+O5  Once withdrawn, the record screen's upload answer says why recording is
+off and where to turn it back on (the recording service's message).","O1 -> ""turning practice off asks first, and sends nothing until confirmed""
+O2 -> ""turning practice back on is sent at once, with no confirm""
+O3 -> ""withdrawing asks first, then stops recording, and can be agreed again""
+O4 -> ""a failed save says so and changes nothing""
+O5 -> ""the record screen says why recording is off""","Founder 2026-09-25, Data & consent page (F2, E2-E5). Telling the coach that practice is off is the backend's job (no frontend surface here)."
+src/components/account/DeleteAccountCard.test.tsx,Story,"As a speaker, I want deleting my account to need a confirm, send one request, and let me cancel inside 7 days, so that I never lose my account by accident (deletion).","O1  Switched off, the card shows nothing and reads nothing.
+O2  Nothing is sent before the confirm; the confirm sends one
+account-deletion request through the terminate relay and says so.
+O3  A refused or failed request keeps the dialog open, says so, and does
+not claim the deletion is under way.
+O4  A deletion already under way is shown on arrival with its day; the
+cancel names the backend's purge id and gives the account back.
+O5  A cancel the backend refuses (409) says it is too late and removes the
+cancel; a cancel that fails says so and keeps it to try again.
+O6  With an active training yes the confirm ends with ""a model already
+trained stays""; without one it does not.","O1 -> ""switched off, shows nothing and reads nothing""
+O2 -> ""sends nothing before the confirm, then one account-deletion request""
+O3 -> ""a refused request keeps the dialog and says so""
+O4 -> ""once on, names the day and cancels the backend's purge id""
+O5 -> ""a refused cancel says too late and removes the cancel; a failed one keeps it""
+O6 -> ""the training sentence ends the confirm only with an active training yes""",Founder 2026-10-05 (Q3a; N48.4 Q14 A; W5 A).
+src/components/account/ModelImprovementConsent.test.tsx,Story,"As a speaker, I want model-improvement consent recorded only when I tick and press Agree, so that nothing is agreed on my behalf (consent).","O1  Nothing is sent on load; Agree stays off until the box is ticked, and
+pressing it unticked sends nothing.
+O2  Ticked, Agree sends the grant once, against the exact status shown,
+and the page says consent is given.
+O3  A grant the backend does not confirm is not shown as given.","O1 -> ""sends nothing until the box is ticked""
+O2 -> ""records the consent only through the explicit action, with the exact status""
+O3 -> ""a grant the backend does not confirm is not shown as given""","Q7 (founder 2026-09-29), L3: only the checkbox here records a consent."
+src/components/account/PolicyUpdateCard.test.tsx,Story,"As a speaker, I want a ""what's changed"" card only when a newer policy replaced mine, opening the normal acceptance screen, so that I can re-accept easily.","O1  Card shown when I accepted an earlier version; Accept opens the
+ordinary acceptance screen; accepting there hides the card.
+O2  No card when my receipt is current or I never agreed before.","O1 -> ""offers the update and opens the ordinary acceptance screen""
+O2 -> ""shows nothing when %s""","Founder 2026-09-28, decision 21."
+src/components/account/ProjectsCard.test.tsx,Story,"As a speaker, I want to see my projects in Data & consent, unarchive archived ones, and (once switched on) delete one only after a signed confirm and cancel it while pending, so that I manage my projects safely (deletion).","O1  Delete is switched off in production (PROJECT_DELETE_ENABLED): the list
+opens as ""Your projects"" and no project can be deleted or cancelled.
+O2  Archived projects are listed and marked; Unarchive sends one request
+and unmarks the row; a failed unarchive says so and changes nothing.
+O3  Switched on, Delete asks first with the signed words and sends nothing
+until ""Request deletion""; then the row says ""Deletion pending"".
+O4  Switched on, a pending row the backend says is cancellable offers
+""Cancel deletion"", which puts the row back.","O1 -> ""switched off, no project can be deleted""
+O2 -> ""archived projects are marked and can be unarchived; a failure changes nothing""
+O3 -> ""asks first with the signed words, and sends nothing until confirmed""
+O4 -> ""offers Cancel deletion, which puts the row back""","Founder 2026-09-26 (N14). O3/O4 pin the delete contract for the day it is switched on; the rest of it (failure, training line, window words) is not tested while Delete cannot run."
+src/components/account/TrainingConsentCard.test.tsx,Story,"As a speaker, I want the training switch hidden until offered, off by default, and turned off only after a signed confirm, so that training uses my moments only with my yes (consent).","O1  Nobody sees the switch while the backend keeps it closed, has no
+policy sentence, or cannot be read; the page is told it is not offered.
+O2  Offered, it shows the backend's sentence under the signed title, off
+by default.
+O3  Turning on sends the yes against exactly what was shown.
+O4  Turning off asks first with the signed words, and sends nothing until
+confirmed.
+O5  A refused or failed save says so and leaves the switch as it was.","O1 -> ""hidden while closed, without a policy, or unreadable""
+O2, O3 -> ""off by default, and turns on against exactly what was shown""
+O4 -> ""asks first with the signed words before turning off""
+O5 -> ""a failed save says so and changes nothing""","Founder 2026-09-26, the training switch (backend N10)."
+src/components/admin/ProjectDeletionQueue.test.tsx,Story,"As an operator, I want confirming a project deletion to ask me first and send once, so that no project is erased by a slip.","O1  Backing out of the ""are you sure"" sends nothing.
+O2  Confirming sends one confirm and shows ""Confirmed"" with the purge id.","O1 -> ""sends nothing when the operator backs out""
+O2 -> ""confirms once and shows the purge request id""",
+src/components/founder/GoldenJudging.test.tsx,Story,"As the founder, I want to judge golden pairs seeing the passage",,,
+src/components/legal/PublishedPolicyText.test.tsx,Story,"As a reader of the Privacy page, I want the stored policy or a plain ""could not load"" line, never an endless spinner or an old stand-in, so that I always know what I agreed to.","O1  The stored policy text is shown with its version number.
+O2  When no stored copy can be had, the ""could not load"" line is shown.","O1 -> ""shows the stored copy once it is published""
+O2 -> ""shows the unavailable line once the record answers without a copy""","Founder 2026-09-25, F3 = A."
+src/components/rings/RingAnnouncementSheet.test.tsx,Story,"As a speaker, I want a feature announcement I can dismiss with Not now, and its Yes off until a policy exists, so that nothing turns on or records consent without me.","O1  Not now records the decision, hides the sheet, records no consent.
+O2  Without a policy, Yes is a disabled button (no link to the data
+choices), the sheet says why, and pressing it records nothing.","O1 -> ""not now records the answer, hides the sheet and creates no consent""
+O2 -> ""yes stays disabled while the policy is missing""","Rings, 2026-09-29: only the data choices screen records a consent (L3)."
+src/components/tokens/copy.test.ts,Story,"As a speaker buying tokens, I want the wallet's words to describe a one-time purchase with no streaks, scores or comparisons, so that I am never judged or misled about billing.","O1  No wallet text speaks of monthly billing or renewal.
+O2  No wallet text has streaks, scores, percentages, averages or
+comparisons with other users.","O1 -> ""contains no recurring-billing language in the wallet copy""
+O2 -> ""ships no comparative, streak or efficiency framing""",Never 1 (no scores shown to speakers); AC-9.
+src/components/willab/AccountEndedState.test.tsx,Story,"As a speaker whose account is being deleted, I want one true line, a way to Data & consent, and a cancel only when it can still land, so that I know where I stand (deletion).","O1  One line: the day the deletion completes, or the signed ""being
+deleted"" words when no day can be said; Data & consent is one tap away;
+never the acceptance flow.
+O2  The cancel shows only when switched on AND the backend says it is
+cancellable.
+O3  A cancel that lands names the purge id and hands back to the gate.
+O4  A refused cancel says it is too late and removes the cancel; a failed
+one says so and keeps it.","O1 -> ""is one line and the way to Data & consent, never the acceptance flow""
+O1 -> ""without a day, says the signed being-deleted words""
+O2 -> ""shows the cancel only when switched on and cancellable""
+O3 -> ""a cancel that lands hands back to the gate""
+O4 -> ""a refused cancel goes away; a failed one stays""","Founder 2026-10-05 (N48.4 Q19 A, Q14 A; audit PLF-T1)."
+src/components/willab/BlindExposureBoundary.test.tsx,Story,"As the founder, I want a coach card counted as seen only once it is actually visible, and exactly once, so that blind-review records are honest.","O1  Never-2 record: a card that is mounted but off-screen sends no receipt,
+while its content is still rendered.
+O2  Once visible, exactly one receipt is sent, even when visibility fires
+again and the card re-renders; its exposure id reaches the card.","O1 -> ""creates nothing for a mounted card that never becomes visible""
+O2 -> ""records exactly one exposure when visible, however often visibility fires""","Blind coach review: an exposure is the proof of what the coach saw, and when."
+src/components/willab/ConsentAsk.test.tsx,Story,"As a speaker asked for consent in the chat, I want Yes to save it as the Data & consent page does and No to save nothing, so that my answer means what I chose.","O1  The card shows the question's own words and Read more.
+O2  Yes saves the consent and closes the ask.
+O3  No saves nothing and closes the ask.","O1 -> ""shows the question's own words with Read more""
+O2 -> ""Yes saves the consent as the Data & consent page does""
+O3 -> ""No saves nothing and closes the ask""",Founder 2026-10-18 (No | Yes in the chat).
+src/components/willab/DeckChunkModal.test.tsx,Story,"As a speaker reviewing a paragraph, I want each kind of feedback in its own screen with no scores, at most three items, and each answer filed against its own clip, so that feedback is in words and my answers are true.","O1  No feedback screen (Confident Voice, rewrite, praise) shows a score,
+ratio, percentage or verdict.
+O2  The rewrite screen shows what I said and the clearer version, with
+Apply and Keep my wording.
+O3  A fourth item is never shown, however far I go.
+O4  My Confident Voice answer is passed on the moment it is saved.
+O5  An answer is never carried over to the next clip.","O1 -> ""AC-9: the %s face renders no score, ratio, percentage or verdict""
+O2 -> ""the rewrite lane shows the exact words and the clearer version, and keeps the user's wording available""
+O3 -> ""a fourth candidate is never reachable, however far you walk (L2 budget)""
+O4 -> ""reports the judgement to the host the moment it is saved (24g-1)""
+O5 -> ""never carries one clip's answer onto the next clip (L3)""",Never 1 (feedback in words); locked Ideal Text screen.
+src/components/willab/FeedbackFailedNotice.test.tsx,Story,"As a speaker whose feedback could not be made, I want the app to try again once by itself and then tell me, with Try again, so that I am never left waiting for nothing.","O1  The app retries once by itself, then shows the signed-off sentence
+and a Try again button that retries; it never retries on its own
+again.","O1 -> ""says so, with Try again, when the retry failed too""",Contract 24h: the server sends no stand-in feedback.
+src/components/willab/Linkified.test.tsx,Story,"As a speaker reading Will's message, I want links in a message to be clickable, so that I can open the booking page.","O1  A web address on its own, or inside a sentence, becomes a link;
+plain text stays plain.","O1 -> ""makes a bubble that is only a URL a link"",
+""makes a URL inside a sentence a link and leaves plain text alone""",Founder 2026-10-18: the booking link was not clickable.
+src/components/willab/LoungeAiVoiceBubble.test.tsx,Story,"As a speaker in the Lounge, I want the AI version of my voice to",,,
+src/components/willab/NextTakeShareScreen.test.tsx,Story,"As a speaker before my next Take, I want nothing ticked for me and Continue to wait until I choose, with ""Only me"" counting as a choice, so that any sharing is my own decision.","O1  Nothing starts ticked, Continue is off, and choosing ""Only me"" turns
+it on.","O1 -> ""starts with nothing ticked; Continue waits for a choice, Only me counts""",Founder 2026-10-15 (Privacy 3.6 section 4d).
+src/components/willab/Phase1AcceptanceFlow.test.tsx,Story,"As a new speaker, I want the agree button to open only after I choose my country and tick the recordings consent, with the documents readable but never in the way, and ""Do not agree"" recording nothing, so that my consent is deliberate.","O1  The screen shows the agreement, the documents and the one tick, with
+the button closed; it opens only with country and tick, never by
+itself, and then saves my country.
+O2  My earlier country is filled in and I can change it.
+O3  The documents open in a window and are marked as read, but never open
+the button; opening the AI notice is recorded.
+O4  ""Do not agree"" records nothing and lets me go back.","O1 -> ""shows the agreement bytes, the documents and the one tick, with the button closed"",
+""opens only once a country is chosen AND the recordings consent is ticked, and never on its own""
+O2 -> ""prefills the person's own earlier country and still lets them change it""
+O3 -> ""open in a window from the screen, tick their name, and never gate the button"",
+""records the AI notice exposure when the notice is opened""
+O4 -> ""records nothing and leaves the way back to the screen and the documents""",Founder 2026-10-18 (one acceptance screen); locked consent screen.
+src/components/willab/Phase1AcceptanceGate.test.tsx,Story,"As a speaker whose account is being deleted, I want to see the ended state, not the acceptance flow, and be let back in if I cancel, so that re-accepting never traps me; and as any speaker I want the consent gate to ask me only what is really mine to agree (consent).","O1  With the ended state on, a block shows the ended state, never the
+acceptance flow or the Lounge.
+O2  With it off, a block does what it did before: the acceptance flow when
+a policy came with it, otherwise the Lounge.
+O3  A cancelled deletion reads the status again and lets the person in.
+O4  A re-acceptance hands the flow the country given last time.
+O5  A signed-up guest is not asked to accept again: the claim comes first.
+O6  A refused identity blocks with Try again, which reads again; no active
+policy still passes (the gate fails open).","O1 -> ""shows the ended state for a block, never the acceptance flow or the Lounge""
+O2 -> ""switched off, a block does what it did before""
+O3 -> ""a cancelled deletion reads the status again, and lets the person back in""
+O4 -> ""a re-acceptance hands the flow the country given last time""
+O5 -> ""a signed-up guest is not asked to accept again: the claim comes before the read""
+O6 -> ""a refused identity blocks, and Try again reads the status again""","Audit PLF-T1; founder 2026-10-05 (N48.4 Q19 A, Q21 A) and 2026-10-18."
+src/components/willab/PolicyUpdate.test.tsx,Story,"As a speaker who agreed to an older policy, I want one tap to accept the update with my last country, and a refused Take to go through once I accept, so that I am never locked out.","O1  The app opens with the update prompt; one tap accepts it with the
+country I gave last time.
+O2  A Take refused for an old acceptance shows the prompt, then processes
+once I accept.
+O3  Closing keeps the ask, with one Accept button that still works.
+O4  If my last country is no longer allowed, Accept opens the full
+consent screens instead of choosing for me.","O1 -> ""opens the app with the prompt; one tap accepts with the country given last time""
+O2 -> ""a Take refused for an out-of-date acceptance shows the prompt, then processes""
+O3 -> ""Close the app keeps the ask, with one Accept the update that still accepts""
+O4 -> ""opens the full consent screens when the last country is no longer allowed""",Founder 2026-10-15.
+src/components/willab/ProjectPicker.archive.test.tsx,Story,"As a speaker, I want to archive a project from the picker, never",,,
+src/components/willab/TranscriptReviewDeck.test.tsx,Story,"As a speaker, I want my own words shown per slide, each paragraph its own block, and no scores, so that the Ideal Text is mine and judged in words.","O1  Every slide's words are shown unchanged, one paragraph block per
+slide, holding exactly that slide's words.
+O2  Never-1: a paragraph with feedback waiting paints no number or badge
+beside the words (its block holds the speaker's words and nothing else).
+O3  Never-1: nothing on the deck reads as a score, ratio, percentage or
+verdict, while the speaker's words are on screen.","O1, O2 -> ""shows the speaker's own words, one block per slide, unchanged""
+O3     -> ""renders no score, ratio, percentage or verdict, even with a tentative pending item""","Never-1. The per-paragraph lock button is gone from the page (lock 2026-10-12, section 4): a paragraph is the tap target and the lock lives in its sheet, so no lock-control count is pinned here."
+src/components/willab/acceptRewrite.test.tsx,Story,"As a speaker accepting a clearer version in the paragraph sheet, I want my answer saved and my text unchanged until I say it in my next Take, so that the Ideal Text is only what I said.","O1  The answer is saved once, as apply_suggestion.
+O2  Never-5: the host's real accept lane (postTrackedDecision) sends no
+decision, suggestion-feedback or other request that could change a
+word of the paragraph.
+O3  The practise goes on, with the accepted words to say.","O1, O2, O3 -> ""records the answer, changes no word, and goes on to the practise""",Never-5 (founder lock 2026-10-12). The walk's own accept lane and the deck text after it are in deckFeedbackWalk.test.tsx.
+src/components/willab/audioUploadValidation.test.ts,Story,"As a speaker uploading a recording instead of recording live, I want a too-large or video file refused before upload with a plain reason, so that I do not wait for a failure (record step of the loop).","O1  A file over the upload limit is refused with a ""too large"" reason.
+O2  A video file (by MIME type, or by extension when the type is missing)
+is refused with an ""audio only"" reason.
+O3  A normal audio file within the limit is accepted (no reason returned).","O1 -> ""refuses a file over the upload limit""
+O2 -> ""refuses a video file, by type or by extension""
+O3 -> ""accepts a normal audio file within the limit""",Bug 1: video files reached the BFF and died as a raw 413.
+src/components/willab/changeJudgement.test.tsx,Story,"As a speaker, I want to go back and change a Confident Voice answer, so that my judgement reflects what I really think.","O1  ‹ reopens with my earlier answer pressed; a different answer saves
+and becomes my answer.
+O2  The same answer again sends nothing (and still moves me on).
+O3  A rewrite never reopens: its sheet shows no answer buttons.
+O4  A save the server refuses hands the deck the signed
+""Couldn't save your answer."" notice.","O1 -> ""a different answer posts, and the 200 revised is a save that updates the answer""
+O2 -> ""the same answer sends nothing""
+O3 -> ""a rewrite never reopens""
+O4 -> ""a failed save hands the deck the signed notice""","Founder QA1 A, decisions log N51.5; build plan D-FW-9."
+src/components/willab/coachMessageStep.test.tsx,Story,"As a speaker, I want my coach's message to open only when I ask for it, with the words, the Take and the video, so that it never interrupts me.","O1  The message never opens by itself; Review feedback opens it with the
+coach's words, the Take number and the video.","O1 -> ""never opens by itself (Q1); Review feedback shows the words, the Take and the video""","Founder 2026-09-29, Q1 (Final Screens L8)."
+src/components/willab/coachpanel/coachPanel.test.tsx,Story,"As a coach, I want to judge a moment before I see any words or the machine's read, with my queue in the order speakers sent, so that my judgement stays blind and I answer the right speaker first.","O1  Judge shows only the player, the question and the four answers.
+O2  The machine's read of a moment is fetched only after my rating is
+saved; a failed save stays on Judge, says so, and reads nothing.
+O3  My queue puts the speaker who sent last on top and drops answered
+ones; a speaker's open Takes come first, newest first, then the
+answered ones, faded.
+O4  ""Your speakers"" shows the list at once, then updates it.
+O5  An error answered without a video still goes to the speaker.","O1 -> ""Judge: the player, the question, 👍 😐 👎 and Audio unclear (lock 2026-10-12 §7), nothing else""
+O2 -> ""Judge first; the moment read is asked for only after the rating saves"",
+""a failed save stays on Judge, says so, and never reads the moment""
+O3 -> ""Your queue: the speaker who sent most recently on top; an answered speaker drops out (founder 2026-10-18)"",
+""the open ones first, newest first; then Answered, faded, most recently answered first (founder 2026-10-18)""
+O4 -> ""Your speakers opens at once with the queue's speakers, then takes the fresh read""
+O5 -> ""an error answered without a video still goes to the speaker, without the library (lock flow 9)""",Never 2 (coach judgements stay blind); locked coach panel.
+src/components/willab/coachpanel/coachPanelCorpus.test.tsx,Story,"As a coach, I want the training corpus in the panel to go straight to judging after set-up and let me rename finished imports, so that corpus work is quick and blind.","O1  A saved set-up goes straight to judging that import, saying
+""Set up · {n} moments"".
+O2  An import with nothing to judge is never judged: back on the imports.
+O3  A new import lands on the imports, saying ""Imported · {n} moments"".
+O4  Never-2: the queue the panel's Judge reads carries no words of a piece.
+O5  A finished import's ⋯ → Edit opens its set-up filled in; Save renames
+it and goes back to the imports.
+O6  Only the founder's ⋯ carries Delete; confirming it erases the import.","O1 -> ""a saved set-up goes straight to judging, with its count""
+O2 -> ""a set-up with nothing to judge goes back to the imports, never to judging""
+O3 -> ""a new import lands on the imports with its count""
+O4 -> ""the panel's queue read carries no words of a piece""
+O5 -> ""a finished import's ⋯ → Edit opens its set-up filled in; Save renames it and goes back""
+O6 -> ""only the founder's ⋯ carries Delete; confirming it erases the import and reads the list again""","Coach panel lock 2026-10-06 (training corpus, D-CP-20)."
+src/components/willab/coachpanel/v4BlindSheets.test.tsx,Story,"As a coach, I want the two V4 sheets to show only the signed words and nothing the machine chose, and to save one answer each, so that my picks stay blind.","O1  Never-2: the moment-pick sheet shows the signed wording and the
+moments' words, and nothing the machine chose (snippet id, slice,
+sureness).
+O2  Picking a moment and saving sends exactly one answer, for that sheet
+and that moment, then says it is kept.
+O3  Never-2: the surer sheet shows the two versions' words and the three
+answers, and nothing of the machine's slice or level, and no player.
+O4  Each surer answer is saved once for its own pair, then the next pair
+shows; after the last, the kept line.","O1 -> ""draws the signed words and nothing the machine chose""
+O2 -> ""saves one pick for the sheet, then says it is kept""
+O3 -> ""words only, the question and three answers, blind to the slice""
+O4 -> ""saves one answer per pair and moves on""","Never-2 (BLIND COACH), founder S-B8 A."
+src/components/willab/coachwalk/coachJudgeSheet.test.tsx,Story,"As a coach, I want the Judge sheet to show only the question and five answers and to save once on tap, so that I judge blind and move on fast.","O1  Never-2: the sheet holds the question, its caption and the five
+answers, and nothing else of the moment.
+O2  A tap saves once and hands off at once with the save in flight; the
+moment's read the save returns goes to the walk and is never painted
+on the Judge sheet.
+O3  A refused save brings the sheet back with the refusal's sentence and
+reports it; the next tap saves again.","O1 -> ""shows the coach's words, the speaker's five pills, and nothing of the moment""
+O2 -> ""saves once on tap and hands off at once, the save in flight (C1)""
+O3 -> ""reports a refused save with its sentence and lets the coach answer again""",Never-2 (BLIND COACH): the passage is withheld until the rating is saved.
+src/components/willab/coachwalk/coachWalkBubble.test.tsx,Story,"As a coach entering the Lounge, I want the queue bubble never to say nobody is waiting before the queue is read, and to show the last count at once, so that I am not misled.","O1  No label shows until the queue is read; then the count shows.
+O2  Coming back to the Lounge shows the remembered count right away.
+O3  ""Nobody is waiting"" shows only when the queue was read empty.","O1 -> ""shows no label until the queue is read, then the count""
+O2 -> ""re-entering the Lounge shows the remembered count right away""
+O3 -> ""says nobody is waiting only once the queue was read empty""",Founder 2026-10-18.
+src/components/willab/deckFeedbackWalk.test.tsx,Story,"As a speaker reviewing feedback, I want the walk to open on my first praise, browse every step across slides, save helper words through the deck, and ask a guest to sign up, so that feedback flows into my next Take.","O1  Review feedback opens the walk on the first praise.
+O2  The arrows browse every step across slides, answered and waiting,
+without answering anything.
+O3  A tap on a paragraph with an open moment opens the walk there.
+O4  Helper words picked in the walk are saved through the deck's own
+save (the words, then the lock) and show orange in the text at once.
+O5  Never-5: Accept and practise saves the answer through the accept lane,
+and the deck still shows the speaker's own words, not the clearer ones.
+O6  A guest's pick asks to sign up, is not taken, and nothing is written.","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
+O2 -> ""‹ › browse every screen across slides, answered and waiting
+alike, and never close the walk (founder 2026-10-15)""
+O3 -> ""a tap on a paragraph with an open moment opens the walk there (Q-B3 A)""
+O4 -> ""helper words picked in the walk go through the deck's own
+save: the words and the lock""
+O5 -> ""Accept and practise writes through the accept lane and leaves the speaker's words on the page""
+O6 -> ""a guest's pick asks to sign up and writes nothing""",Feedback walk lock 2026-10-06/2026-10-12. The paragraph sheet's accept lane is in acceptRewrite.test.tsx.
+src/components/willab/exerciseRenderedAck.test.tsx,Story,"As the founder, I want an exercise counted as shown only once the speaker actually saw it, once per view, silently, so that exercise data is honest.","O1  Nothing goes out on data load; the ack goes out once the card is
+about half visible.
+O2  Once per card per page view, even when the sheet is opened again.
+O3  A 409 (stale offer) makes the host re-read the Ideal Text.
+O4  Nothing about it reaches the speaker: the screen is the same before
+and after the ack, a 409 included.","O1 -> ""does not fire on data load, only once the card is about half visible""
+O2, O4 -> ""fires once per card in a page view, even when the sheet reopens""
+O3, O4 -> ""a 409 asks the host to re-read and shows the speaker nothing""",MLC-3 §3.5 (label spec exercise-adequacy-label-v1).
+src/components/willab/feedbackFirst.test.tsx,Story,"As a speaker, I want a waiting moment to open on its feedback first, praise then judgement, or an exercise with Practise and Skip, so that I learn before I judge (the feedback step of the loop).","O1  A confident moment opens on its praise; Next (no Skip) then asks the
+judgement.
+O2  A moment that needed work opens on its exercise with Practise and
+Skip; no judgement is asked first.
+O3  The open is told to the backend with what was shown; a Skip is told
+and settles the moment unanswered (the host moves on with it).","O1, O3 -> ""a confident moment opens on its praise; Next asks the judgement""
+O2, O3 -> ""a moment that needed work opens on its exercise with Practise and Skip; Skip settles it unanswered""",Contract 24e-1 (F1 Repair Plan Phase 6): judgement after feedback.
+src/components/willab/feedbackPager.test.tsx,Story,"As a speaker, I want Back/Next across the feedback bookmarks, so that I can walk all the feedback of my latest Take.","O1  The walk lists one bookmark per paragraph, in text order, and only
+what is new (feedback waiting or a coach moment).
+O2  Next moves forward, Back moves back (and says it came back), Back is
+off on the first, and Next on the last closes the walk.
+O3  Nothing opens by itself.","O1 -> ""lists one bookmark per paragraph, in order, only what is new""
+O2 -> ""Back and Next walk the bookmarks, and Next on the last closes""
+O3 -> ""does not open anything by itself""","Founder 2026-09-25 (Q29 A–Q32 A). Where the email and the chat bubble land is decided by the walk plan (src/lib/willab/walkPlan.ts), not here, so it is not claimed here."
+src/components/willab/flowCopy.test.ts,Story,"As a speaker waiting between Takes, I want progress messages in words, with no counts and at most two sentences, so that I am not discouraged by numbers or buried in text.","O1  Never-1: no line the app says between Takes shows a number, a
+percentage or an ""x of y"" counter; every line still says something.
+O2  No state says more than two sentences (the failure state shows
+`failed` and `failedNext` together, so the pair counts as one state).","O1 -> ""says every state in words, never a number, percentage or counter""
+O2 -> ""never says a third sentence in one state""",Never-1 and the founder's length rule (docs/ideal-text-flow-communication.md).
+src/components/willab/guestWayBack.test.ts,Story,"As a guest, I want the ""your text is ready"" bubble to reopen my text, so that I can find my Ideal Text again (record -> Ideal Text -> next Take, for a speaker with no account).","O1  The bubble the page posts for a guest is the server's ready bubble:
+same kind, words and metadata, and it carries the project (arc id).
+O2  A tap on that bubble opens the Ideal Text of that project, and never
+the coach's feedback page (which needs an account).","O1 -> ""is the server's ready bubble, carrying the project""
+O2 -> ""a tap opens the Ideal Text of its project, not the feedback page""","Founder live test 2026-10-05: the bubble had no project, so it could not be tapped, and its tap opened the coach's feedback page."
+src/components/willab/helperWordsSheet.test.tsx,Story,"As a speaker, I want to pick up to eight helper words from any Take, delete them with one confirm, and save only when changed, so that my helper words stay until I pick new ones.","O1  Tapping words in the current Take updates the card live, marks it new,
+and saves them as a span of the paragraph.
+O2  Eight words at most, saved in the order said.
+O3  One chip per Take, newest first, the current one ""now""; words from an
+earlier Take save with that Take's number.
+O4  Delete asks once: the first tap only clears the card, the second deletes.
+O5  Never 5 (helper words stay until the speaker picks new ones): the button
+is lit only when the selection differs from the saved words, so the
+saved words cannot be overwritten by an unchanged tap.","O1 -> ""tapping in the current Take updates the card live ...""
+O2 -> ""eight words at most ...""
+O3 -> ""one chip per Take; an earlier Take's words save with its number""
+O4 -> ""Delete asks once, then deletes""
+O5 -> ""the button lights only when the words differ from the saved ones""","Founder lock 2026-09-30 (B4, B10, D4, D5, Q2, Q3)."
+src/components/willab/idealTextActions.test.tsx,Story,"As a speaker, I want the bottom of my Ideal Text page to offer ""Record Take N+1"" and a grey Close, so that the next Take is always one tap away.","O1  The only buttons are ""Record Take 2"" and ""Close"", even when a review
+is waiting; Close closes the page.","O1 -> ""is ● Record Take N and a grey Close, the one way out""","Founder lock 2026-10-12, sections 4 and 9; locked Ideal Text screen."
+src/components/willab/idealTextLoad.test.ts,Story,"As a speaker, I want my Ideal Text page to show the coach's note as soon as it arrives and keep the feedback shown while a new read loads, so that the page never goes blank or flickers.","O1  The coach's message is shown before the slower feedback arrives, and
+both are on the page once it does.
+O2  When the page re-reads, the feedback bars, style changes, additions
+and coach message stay while only the text has come back.","O1 -> ""applies the coach message before the slow lane answers""
+O2 -> ""keeps what was shown while the core alone has landed""",Founder 2026-10-08 (waiting-time fixes).
+src/components/willab/instantParagraphSheet.test.tsx,Story,"As a speaker, I want a paragraph sheet to open complete and my",,,
+src/components/willab/judgementFollowUpWalk.test.tsx,Story,"As a speaker, I want the card and buttons after each of my five",,,
+src/components/willab/labProcessingDiscard.test.tsx,Story,"As a speaker, I want to discard a bad Take while it is still",,,
+src/components/willab/labRootsBeforeTake.test.tsx,Story,"As a speaker, I want Take 2 to start with its helper words already on the first slide, but never wait more than 1.5 s for them, so that recording is never blocked.","O1  A good read: the Take starts as soon as the words are read, and the
+very first frame of the recording screen already shows them.
+O2  Never 3 (record -> process -> Ideal Text -> next Take is never broken):
+when the read fails every time, the Take still starts within 1.5 s,
+after the first read and two retries.
+O3  Take 1 has no helper words, does not read them, and starts at once.","O1 -> ""a good read shows the words on the first frame""
+O2 -> ""still starts within 1.5 s when the read fails every time""
+O3 -> ""Take 1 starts at once, without a read""","Build plan D-RC-4: the words used to land a moment after the first slide. The host is LabOverlay's wiring in miniature (real hook, real auto-start, real recording phase)."
+src/components/willab/loungeNewCoachFeedback.test.tsx,Story,"As a speaker, I want my project's latest Ideal Text bubble in the Lounge to say ""new"" when coach feedback is waiting, never as a count, so that I know to look without seeing a number.","O1  While the project's flag is true, its latest bubble itself wears the
+stroke and the mark (one bubble, never a copy), and a tap on it opens
+the feedback.
+O2  Never 1 (no numbers shown to speakers): the mark is a plain dot; the
+marked bubble shows the same words as the plain one and no count, even
+when a coach moment is unread.
+O3  An older bubble of the project, or a project with nothing new, is plain.
+O4  The mark clears when the flag clears.","O1, O2 -> ""the latest bubble wears the mark, with no count""
+O3     -> ""an older bubble, or a project with nothing new, is plain""
+O4     -> ""clears when the flag clears""","Build plan D-FW-19; walk lock 2026-10-06, flow 1; backend 0439."
+src/components/willab/loungeReports.test.ts,Story,"As a speaker whose Ideal Text could not be built, I want one clear message with Retry and ""view feedback"", so that I can recover and still go on.","O1  The message has the exact signed-off sentence, belongs to this Take,
+and offers exactly Retry and view feedback.","O1 -> ""is the exact Take 1 terminal card under the session identity""",
+src/components/willab/noStarsOnUserSurfaces.test.ts,Guard,No component in src/components or src/app draws a star icon.,"Never 1 (no verdicts shown to speakers): a `<Star` element or a lucide
+`Star` import in any .tsx, user lane or coach lane. A source scan on
+purpose: the star rating once lived in six separate renderers, and a
+render test only covers the surface it mounts.","star drawn -> ""NO component draws a star icon""",If removed: A star rating (a verdict) can quietly come back on any screen.
+src/components/willab/paragraphPractise.test.tsx,Story,"As a speaker, I want Practise on a paragraph to open the same",,,
+src/components/willab/paragraphSheet.test.tsx,Story,"As a speaker, I want a paragraph's sheet to show my helper words and history (never the paragraph text, never a score), and Practise to open the walk's practise, so that the sheet helps me without repeating the page.","O1  Saved state: the helper words and a History of earlier Takes only
+(Take 1, not the current Take 2); no practise card; Next closes.
+O2  Never 1 (no scores shown to speakers): the sheet shows no paragraph
+text, no % and no score, while the helper words are on it.
+O3  Practise state: Practise opens the Feedback walk's practise on the
+exercise card, for the paragraph's moment.","O1, O2 -> ""shows the helper words and History, never the paragraph text or a score, and one black button""
+O3     -> ""Practise opens the Feedback walk's practise on the card shown""","Founder lock 2026-09-30 (B5, B8, D6, D7, Q1); founder 2026-10-10."
+src/components/willab/paragraphSheetKeepWording.test.ts,Story,"As a speaker, I want ""Keep my words"" to be remembered without ever blocking me, so that the same rewrite is not offered again until my words change.","O1  A keep_wording response is saved with the ids the accept path sends.
+O2  A failing save never throws: the walk goes on.","O1 -> ""saves keep_wording with the fields the accept path sends""
+O2 -> ""a failing save never throws""","Q3 A (founder 2026-10-05, backend N48.2)."
+src/components/willab/paragraphSheetSaved.test.tsx,Story,"As a speaker, I want the saved paragraph sheet to show my ""Helper words"" with an Edit chip, and the moment's clip only on Take 1, so that the sheet stays about my current words.","O1  Take 2+: no player, even when the moment carries a clip; the rest of
+the sheet is still there.
+O2  Take 1: the player plays the moment's clip.
+O3  The card reads ""Helper words"" with an Edit chip, my words under it.","O1 -> ""draws no player on a project with two or more Takes, clip or not""
+O2 -> ""plays the moment's clip on Take 1""
+O3 -> ""reads Helper words with an Edit chip and the words""","Build plan D-IT-3; D6 amended (founder 2026-10-05, N48.1)."
+src/components/willab/paragraphTapBookmark.test.tsx,Story,"As a speaker, I want only bookmarked paragraphs to open on tap, so that plain text stays plain and bookmarks stand out.","O1  A paragraph with no bookmark has no button role or focus, and a tap
+or Enter opens nothing; its text is unchanged.
+O2  A paragraph with a bar (the Take's feedback) still opens its sheet.
+O3  A paragraph saved with helper words opens its sheet too.","O1 -> ""the paragraphs with no bookmark are plain text, and a tap or a key opens nothing""
+O2 -> ""a bookmarked paragraph still opens its sheet on tap""
+O3 -> ""a paragraph saved with helper words opens on tap too""","Founder 2026-10-06 (N56.5), amending lock B7 of 2026-09-30."
+src/components/willab/pdfSlides.test.tsx,Story,"As a speaker, I want my slide picture to stay on screen through re-renders, so that the slide does not vanish while I record.","O1  Re-rendering the parent with a new inline onError keeps one live
+render, draws the slide and reports no error.
+O2  A real page change cancels the old render and draws again, with no
+error.
+O3  A cancelled render is not reported as a failed slide.","O1 -> ""a parent re-render with a new onError keeps the slide drawn""
+O2 -> ""a page change cancels the old render and redraws""
+O3 -> ""does not report a cancellation as a failed slide""","Founder 2026-09-19 ""the slides are gone"": an inline onError restarted the render on a busy canvas and latched the slide off. The fake below enforces pdf.js's one-render-per-canvas rule."
+src/components/willab/practiceStep.test.tsx,Story,"As a speaker, I want my answer on a bookmark with no exercise to lead to the right lane, so that a No always leads somewhere and Audio unclear leads nowhere.","O1  No (a recognised problem, no exercise): the sheet says the coach is
+working on it, with my recording, and Next closes the sheet.
+O2  Audio unclear on the same bookmark: no coach sentence, the sheet closes.
+O3  Yes on the same bookmark: no coach sentence.","O1 -> ""says the coach is working on it, with your recording, and Next moves on (D10)""
+O2 -> ""Audio unclear never reaches the coach sentence, and closes""
+O3 -> ""a Yes shows no coach sentence""",Founder 2026-09-29 (follow-up matrix); the exercise itself is practised in the Feedback walk since 2026-10-10.
+src/components/willab/practiseOff.test.tsx,Story,"As a speaker who turned personalised practice off, I want no Practise or ""Accept and practise"" offered, so that I never record an attempt the server will refuse.","O1  Choice off, a Not sure on a moment with an exercise: the footer is
+Next, with no Practise and no Skip.
+O2  Choice off, a No on a moment with a clearer version: no ""Accept and
+practise"" and no Practise; Next is there.
+O3  Control: with the choice on, that same clearer version does offer
+""Accept and practise"" (so O2 cannot pass on a sheet that never offers it).","O1 -> ""a Not sure offers Next, never Practise or Skip""
+O2, O3 -> ""a clearer version offers no Accept and practise (and does with the choice on)""",F1 Repair Plan Phase 4: every practice route answers 403 CONSENT_CHOICE_OFF.
+src/components/willab/presentation.test.ts,Story,"As a speaker, I want a clear message when I pick a file that is not a PDF or is over 20 MB, so that I know what to upload.","O1  PowerPoint and Keynote files are refused with a message naming PDF;
+a PDF over the size limit is refused with a message naming 20 MB.","O1 -> ""rejects non-pdf (incl. pptx, now PDF-only) and oversize""",
+src/components/willab/presentationInPlay.test.ts,Story,"As a speaker starting a later Take, I want to be told whether I am speaking to my own slides or the stand-in deck, so that I know what this Take goes with.","O1  It names my own file, the stand-in deck, or nothing while the setup
+is not known yet.
+O2  It is shown only before Take 2 and later, from that Take's own setup
+first, then the project's.","O1 -> ""names the speaker's own file, the stand-in deck, or nothing until the setup is known""
+O2 -> ""is shown before a later Take only, from the Take's own setup first""",Founder 2026-10-16.
+src/components/willab/readout.sayItStronger.test.ts,Story,"As a speaker, I want ""why"" and reason lines that the server removed to be left out, not shown blank, so that I never see empty or forbidden text.","O1  An empty ""why"" or reason becomes nothing to show.","O1 -> ""nulls why + reason when the BE output-guard stripped them (AC-9)""",Never 1; AC-9 (the backend guard strips score-like lines).
+src/components/willab/readout.test.ts,Story,"As a speaker, I want my transcript split by slide in slide order, silent slides included, so that each paragraph lines up with its slide.","O1  Slides and their transcripts come out in slide order; a slide with
+nothing said is kept, with its place in the recording.","O1 -> ""maps deck slides + complete per-slide transcripts (sorted, '' valid)""",
+src/components/willab/readoutFeedbackPending.test.tsx,Story,"As a speaker, I want a paragraph I tap right after a Take to wait for its feedback, not open empty, so that I never see a sheet missing its moment.","O1  The paragraphs are told feedback is still coming while it loads, and
+that it is done once it has landed.","O1 -> ""holds taps while the enrichment read is out, and stops once the server is done""",Audit 2026-10-05 (DL-overlays); founder 2026-09-28.
+src/components/willab/recordingCopy.test.ts,Story,"As the founder, I want the recording screens' words fixed to the signed set with no digits or score words, so that nothing unapproved or numeric reaches the speaker.","O1  Never 4 (no new words without the founder's OK): RECORDING_COPY holds
+exactly the signed keys, typed exactly as signed.
+O2  Never 1 (no scores or numbers): no signed line carries a digit, a % or
+a score word.","O1, O2 -> ""is exactly the signed words, with no digit or score word""","Recording lock 2026-10-07 (N59, N70). recordingWhere's ""Take N · Slide n of m"" is pinned in recordingStillFrame.test, not here."
+src/components/willab/recordingNoPullRefresh.test.tsx,Story,"As a speaker, I want pulling down on the recording screens never to reload the page, so that I never lose a Take.","O1  A pull down on the slide while recording is cancelled.
+O2  From ""getting your mic ready"" through the recording, the page is set
+not to pull-refresh.
+O3  A pull down on the mic wait and the processing screen is cancelled;
+on other screens a pull works as normal.","O1 -> ""cancels a pull down from the slide on slide 1 with the scroller at its top""
+O2 -> ""sets overscroll-behavior none on lab_prerecord and keeps it into the recording""
+O3 -> ""cancels a pull down on the mic wait and the processing screen""",Founder 2026-10-06: a pull reloaded the recording screen and lost the Take. Never 3.
+src/components/willab/recordingSetup.test.tsx,Story,"As a speaker, I want setup to ask my topic, then the length, then slides, then start, so that starting a Take is quick.","O1  The questions come in that order, and starting carries my topic.","O1 -> ""asks topic, length, slides, then starts""",Founder 2026-10-12.
+src/components/willab/recordingStillFrame.test.tsx,Story,"As a speaker recording, I want the top bar to read ""Take N · Slide n of m"", Back and Next slide to move slides, Finish take on the last slide to be the only way to end, and only the slide to move, so that recording feels steady and I never end a Take by accident.","O1  The top bar reads ""Take 2 · Slide 1 of 3"", once.
+O2  On the last slide Next slide becomes the red Finish take, which ends
+the Take.
+O3  Space after clicking Back goes forward, not Back again.
+O4  The top bar, the strip and the buttons stay put when the slide
+changes; only the slide and its helper words change.","O1 -> ""reads Take N · Slide n of m, and nothing above the slide repeats it""
+O2 -> ""turns Next slide into the red Finish take on the last slide, which ends the Take""
+O3 -> ""goes forward, never presses the clicked Back again""
+O4 -> ""keeps the top bar, the strip and the buttons through a slide change""",Founder lock 2026-10-12 (N70); locked recording screen.
+src/components/willab/saveBehind.test.tsx,Story,"As a speaker, I want my taps saved in the background, with one notice and a Retry if a save fails, so that I never wait and never silently lose an answer.","O1  A failed save shows the notice; Retry sends the same save again and
+the notice goes away.
+O2  Using helper words first locks the paragraph, then saves the words.","O1 -> ""a failure shows the notice, and Retry sends the same write again""
+O2 -> ""locks the untouched paragraph first, then saves the words""",Founder 2026-09-28 (tap and go).
+src/components/willab/savedParagraphNoBar.test.tsx,Story,"As a speaker, I want a paragraph I saved with helper words to lose its feedback bar at once, so that the page shows my progress straight away.","O1  The saved paragraph has no bar but still opens when tapped, and
+""Review feedback"" is no longer offered.","O1 -> ""the same moment on a paragraph whose helper words are saved draws no bar""","Founder lock 2026-09-30, B7 / Q3."
+src/components/willab/sharedHeadlineRead.test.tsx,Story,"As a speaker, I want the page and the deck to share one helper-words read, so that the words show at once, do not flicker and are never stale.","O1  One read for the page and the deck; the deck draws it on its first render.
+O2  A document change both of them see asks once, and the new words show.
+O3  Closing a sheet, or a save, always reads again (even inside the share
+window), so old helper words do not come back (Never 5).","O1 -> ""asks once for the page and the deck, and the deck draws it on its first render""
+O2 -> ""a document change both see asks once""
+O3 -> ""a sheet closing or a save reads anew""",F4 (founder 2026-10-08): one recording-roots read per arc.
+src/components/willab/slideEditor.test.tsx,Story,"As a speaker, I want editing a slide to save only the paragraphs I changed, so that the others keep their locks and history.","O1  Save sends only the changed paragraph, with its new words.","O1 -> ""writes only the paragraphs whose words changed""",Never 5 (every old version stays in the history).
+src/components/willab/topUpCardGate.test.ts,Story,"As a speaker, I want no top-up offer while the Lab is on screen, so that payment never gets in the way of a Take.","O1  Never 3 (the loop is never blocked): the top-up card may not mount in
+any Lab or readout state, nor in project pick, nor while the thread loads.
+O2  In the Lounge, once the thread has loaded, it may mount.","O1 -> ""never mounts while the Lab owns the screen""
+O2 -> ""mounts in the Lounge once the thread has loaded""",LIVE LOOP fence: an upgrade offer mid-take is the worst moment for one.
+src/components/willab/unreadFeedback.test.ts,Story,"As a speaker, I want one Ideal Text bubble per Take in the Lounge, so that the thread is not cluttered with duplicates.","(versionBubblesWithReviewCard returns the bubble ids to HIDE)
+O1  A version bubble whose Take already has its review card is hidden;
+another Take's bubble stays.
+O2  A version the thread holds twice keeps only the later copy.
+O3  Different versions with no review card all stay.","O1 -> ""hides the bubble of a Take that already has its review card""
+O2 -> ""hides the earlier copy of a version the thread holds twice""
+O3 -> ""keeps each version's own bubble""","Founder 2026-10-14 (walk first) and 2026-10-18 (""I can see two bubbles"")."
+src/components/willab/useAdminAsk.test.tsx,Story,"As a speaker, I want a question the admin sent me to appear the next time I open the chat, never while I record, and only once, so that it never interrupts a Take.","O1  It shows when I open the chat, with no Take needed.
+O2  Nothing shows while I am recording.
+O3  It is not posted again once it is in my chat.","O1 -> ""shows the next time they open the chat, with no Take""
+O2 -> ""waits while they are recording""
+O3 -> ""is not posted again once its bubble is in the thread""",Founder 2026-10-18: the admin's ask was not shown in the chat.
+src/components/willab/useFailedTakeRecheck.test.ts,Story,"As a speaker, I want a ""failed"" note under my Take cleared when the server says the Take actually finished, and never a failure claimed without asking the server, so that I am not told a done Take failed and can go on to my Ideal Text and the next Take.","O1  While a failed note is on screen the hook asks the server at once and
+reports ""recovered"" when the Take is done.
+O2  The server cannot be reached: ""unknown"", never a verdict.
+O3  The server says the Take failed: ""still_failed"", the note stays.
+O4  An answer with no known state and no content: ""unknown"", not recovered.","O1 -> ""asks the server as soon as a failed note is on screen, and reports what it said""
+O2 -> ""is unknown, never a verdict, when the server cannot be reached""
+O3 -> ""keeps a Take failed when the server says it failed""
+O4 -> ""is unknown when the answer has no known state and no content""",Founder 2026-09-21 (a red note stayed 9 min over a done Take) and 2026-09-24 (a failure card written without asking the server).
+src/components/willab/useReadoutPartHandlers.test.ts,Story,"As a speaker, I want Delete on the landing text to lift the paragraph's lock, and words from an earlier Take to save there too, so that the landing copy acts like the main page.","O1  Delete lifts the lock on that paragraph and the text is read again.
+O2  Never 5 (helper words stay until the speaker picks new ones): words
+picked from an earlier Take are saved on that paragraph, and its old
+in-text span is cleared only after the save succeeds.","O1 -> ""Delete lifts the lock on the paragraph""
+O2 -> ""words from an earlier Take save on the paragraph""",F1 Repair Plan Phase 5: the landing copy was missing these handlers.
+src/components/willab/useWillabFlow.test.ts,Story,"As a speaker, I want the app always to go record, then process, then Ideal Text, then the next Take, so that the loop never breaks.","O1  Starting, stopping and finishing processing lead to the readout;
+from there the next Take, a pause, or ""sign up to send"" (and on to
+review) are expected steps.","O1 -> ""is the record → process → Ideal Text loop""",Never 3; audit Q-C4.
+src/components/willab/walk/feedbackWalk.test.tsx,Story,"As a speaker, I want the Feedback walk to take me through my coach's note, praise with its reason, helper words, the clearer version and a summary, in words only, so that feedback after every Take is clear and backed by what I said.","O1  The screens come in order: coach's note, praise, helper words, next praise, summary, back to my page.
+O2  A good moment shows the praise line, then why it landed, quoting my words.
+O3  Reopened from the Lounge, a clip I already judged shows as answered and is not asked again.
+O4  If the summary cannot be read, the walk goes straight back to my page.
+O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page
+O2 -> a green moment says why it landed
+O3 -> reopened from the Lounge, the judging shows the moment already answered
+O4 -> skips the summary when it cannot be read, straight onto the page
+O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder",Never-rule 1 (no scores to speakers); Feedback walk is a locked screen.
+src/components/willab/walk/walkCopy.test.ts,Guard,"Every word the walk can show comes from the signed copy, and no signed walk line carries a digit.","Never 4: a literal word typed into a walk/*.tsx primitive (JSX text,
+a string child, an accessible name, title, placeholder) that is not in
+WALK_COPY or CHUNK_SHEET_COPY. Never 1: a digit in a signed walk line
+(the only numbers the walk shows are a Take or moment position, put in
+by the caller).","unsigned word -> ""every literal a primitive shows or reads out is signed""
+digit         -> ""no signed walk line carries a digit""",If removed: An unsigned word or a number can reach speakers in the Feedback walk.
+src/components/willab/walk/walkPractise.test.tsx,Story,"As a speaker, I want to practise inside the walk (record, hear an answer in words, hear an AI version of my voice, at most 3 tries), so that practice is quick, kind and free of numbers.","O1  Stopping a try uploads it and asks for a check, and I am back in the walk at once.
+O2  A better try gets praise in words for what improved, then the walk moves on.
+O3  A ""not yet"" on the clearer words brings the AI version of my voice; a good try does not.
+O4  The AI clip appears with one sentence on what it does differently, never a number.
+O5  At most 3 tries, all shown together; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.","O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
+O2 -> praise on try 1: the line for the reading that moved ...
+O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
+O4 -> the bubble is there at once: the typing dots alone ..., with the clip, the speaker reads what this version does differently and why (WIL-82)
+O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing",Never-rule 1 (no scores to speakers).
+src/components/willab/walk/walkReplay.test.tsx,Story,"As a speaker, I want to replay a finished walk with my answers shown and nothing written or recorded again, so that I can look back safely.","O1  The same screens play with my answers; only a change to my helper words is saved.
+O2  A done exercise plays my past tries and records nothing new.
+O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.","O1 -> opens on the coach's note and plays the same screens answered; helper words stay editable, nothing else writes
+O2 -> opens on the coach's note and plays the same screens answered ...
+O3 -> an exercise opened from its bubble in the chat shows its AI clip and every try, a try tapped in the chat opens its exercise on the last answer",
+src/components/willab/walk/walkSwipe.test.tsx,Story,"As a speaker on a phone, I want to swipe left for next and right for back, with scrolls and short drags doing nothing, so that I move through feedback naturally.","O1  A swipe left goes on, a swipe right goes back.
+O2  A scroll, a short drag or a swipe toward a turned-off arrow does nothing and never closes the walk.","O1 -> goes on to the left and back to the right
+O2 -> leaves a scroll, a short drag and an arrow that is off alone, and never closes",
+src/components/willab/walkEnd.test.tsx,Story,"As a speaker, I want a short ""saved"" line when a sheet finishes, and an end card with the next Take after the last moment, so that I know I am done and what is next.","O1  After the last moment the card says so, offers the host's own next step
+(""Record Take 2"") and Back closes it. Never-3: the walk always ends on
+the way to the next Take, never on a dead end.
+O2  A finished sheet shows its ""saved"" line, which goes by itself after a
+moment and tells the host it has gone.","O1 -> ""after the last moment, offers the host's next step and the way back""
+O2 -> ""shows the saved line, then lets it go on its own""",Founder 2026-09-26: sheets used to close in silence.
+src/components/willab/walkSheetFrame.test.tsx,Story,"As a speaker, I want feedback sheets to use the compact ""Play this moment"" row and draw their frame at once on tap, so that sheets feel stable and quick.","O1  The Suggestion screen plays my moment in the compact row, not the
+full player.
+O2  A tapped paragraph's sheet draws its frame and saved helper words
+before its reads land, and never the paragraph text (D6).","O1 -> ""plays the moment in the compact row on Suggestion""
+O2 -> ""draws the frame with the helper words, and never the paragraph text (D6)""",Audit of 2026-09-29 against Ideal Text Final Screens. The one sheet height is layout and is not tested here.
+src/components/willab/wave2Walk.test.tsx,Story,"As a speaker, I want my coach's unseen word reachable through ""Review feedback"" even when every moment is answered, and a paragraph whose helper words I deleted to rejoin the walk, so that I never miss my coach or a paragraph.","O1  Every moment answered and an unseen coach word: Review feedback
+stays, opens Step 0 only on its tap, and goes once seen (N48.3 Q11 A).
+O2  After Delete the paragraph rejoins the walk on its earlier answer,
+at once, not only when a moment is open on it (N48.2 Q6 A).","O1 -> ""every moment answered: Review feedback stays for the unseen word, ...""
+O2 -> ""a paragraph whose helper words were deleted is back in the walk on its earlier answer""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
+src/components/willab/whatsappOffer.test.tsx,Story,"As a speaker, I want to leave my WhatsApp number to hear when my coach's feedback is in, with wrong numbers refused, so that the message reaches me.","O1  A number without its country code is refused on screen and nothing is sent.
+O2  A valid number is saved in full international form and the offer closes.
+O3  Not now sends nothing and closes.","O1 -> refuses a number without its country code
+O2 -> saves a valid number in E.164 and closes
+O3 -> Not now sends nothing and closes",
+src/components/willab/willabHelpers.test.ts,Story,"As a speaker, I want my slide taps lined up with the recording's clock, so that each word lands on the right slide.","O1  When the recording started later than the tap clock, the correction is positive by exactly that gap.
+O2  When the recording never reported a start, no correction is sent.","O1 -> is positive when the recorder started after the tap clock's zero
+O2 -> sends nothing when the recorder never reported a start",The backend subtracts this from every tap; the wrong sign would double the drift.
+src/components/willab/willabParked.test.ts,Story,"As a speaker, I want a Take I parked to come back intact, so that I can pick up where I left off.","O1  A parked readout survives a reload with all its fields.
+O2  A readout parked by an older app (no slide fields) comes back with
+safe defaults instead of crashing the resume.
+O3  A corrupt or foreign payload reads as ""nothing parked"", never a throw.","O1 -> ""round-trips a current payload with every field""
+O2 -> ""fills in the fields an older payload lacks""
+O3 -> ""reads a corrupt payload as nothing parked""",
+src/hooks/useDualCaptureMic.test.tsx,Story,"As a speaker, I want the mic to record the moment I press start and to hand over a real recording and free the mic when I stop, so that every Take is captured.","O1  Start asks for the mic once, starts recording at once and notes when the sound began.
+O2  Stop hands over a recording that is not empty and releases the mic.","O1 -> records at once on start
+O2 -> hands over a real take on stop and releases the stream",Never-rule 3 (never break record → process → Ideal Text).
+src/lib/api/bffFetch.test.ts,Story,"As a developer, I want every call to our own server routes to carry the sign-in token and to report ""no connection"" separately from a server answer, so that screens handle being offline correctly.","O1  The call carries the sign-in token and only the options it was given.
+O2  A dropped connection comes back as ""network"", never as a server answer.","O1 -> sends the Bearer header and only the options it was given
+O2 -> reports a thrown fetch as network, never as a response",
+src/lib/auth/oauthRetry.test.ts,Story,"As a speaker signing in, I want a failed sign-in to retry the provider I picked only once, so that I am not stuck in a loop.","O1  The provider I picked is retried once, then never again.","O1 -> restarts the provider the person picked, exactly once",
+src/lib/auth/strayCallback.test.ts,Story,"As a speaker signing in with LinkedIn, I want a sign-in code that lands on the home page to be sent on to finish sign-in, so that sign-in completes.","O1  A code arriving on the home page is forwarded, unchanged, to the sign-in callback on the same site.",O1 -> sends a LinkedIn code that fell back to the Site URL to the callback,
+src/lib/ceo/hostRouting.test.ts,Story,"As the founder, I want the CEO address to serve only the CEO tools and sign-in, and to trust only the address our proxy reports, so that admin tools are not exposed and the address cannot be faked.","O1  CEO tools and sign-in are allowed; other pages are sent to the CEO home; other server routes answer ""not found"".
+O2  The address reported by our proxy wins over the one inside the request.","O1 -> allows only the CEO tools and the authentication paths they need
+O2 -> uses the proxy's forwarded host and ignores a spoofed inner host",
+src/lib/chatBoot.test.ts,Story,"As a speaker opening the chat, I want my conversation shown before the side lookups (wallet, menu) run, but never waiting forever, so that the chat appears fast.","O1  Side lookups wait until the conversation is shown, then run once.
+O2  Off a chat start they run at once, and a cancelled one never runs.
+O3  If the conversation never loads, they still run after 8 seconds.","O1 -> holds a read until the thread has painted, then runs it once
+O2 -> runs promptly off a chat boot, and never after a cancel
+O3 -> does not wait forever on a thread that never loads",
+src/lib/founder.test.ts,Story,"As the founder, I want founder-only tools to recognise only my account, so that nobody else gets them and I am never locked out.","O1  The founder email matches, also with other letter case and spaces.
+O2  Any other email, an empty one and a missing one do not match.","O1 -> ""recognises the founder's own email""
+O2 -> ""matches nobody else, and no email at all""",
+src/lib/funnel/loungeLocalThread.test.ts,Story,"As a visitor who then signs up, I want my guest chat, its Ideal Text card included, moved once into my account in the right order, and an old visit on the same device forgotten, so that my conversation is complete and private.","O1  The guest chat is sent in time order, then cleared from the device.
+O2  Only a chat claimed by my account moves in, with its Ideal Text card, and only once; an unclaimed chat never moves.
+O3  A chat silent for longer than a sitting is dropped.","O1 -> replays chronologically and clears local on success
+O2 -> merges a claimed chat with its Ideal Text card, and never an unclaimed one
+O3 -> drops a thread whose newest message is older than the TTL",Founder 2026-10-20: a guest who signed up found an empty chat; 2026-10-16: a new visitor saw last night's chat.
+src/lib/legal/acceptanceSteps.test.ts,Story,"As a speaker accepting the terms, I want Continue to work only once I pick an allowed country and agree to the recordings consent, so that processing my recordings is properly authorised.","O1  Continue needs both a country and the recordings consent.
+O2  A country the policy does not allow is refused.
+O3  The country list shows Poland first, the United States next, then the rest by name.","O1 -> needs the country and the recordings consent together
+O2 -> refuses a country the policy does not allow
+O3 -> lists Poland first and the United States right below it, the rest by name",
+src/lib/legal/pendingTrainingYes.test.ts,Story,"As a visitor who said yes to training before signing in, I want that yes sent once after sign-in and only for the words I saw, so that my consent is honest.","O1  The yes is sent once after sign-in, with the words I saw.
+O2  If the words have changed since, it is dropped and never sent.
+O3  If my account cannot take it yet, it is kept for later.","O1 -> is sent once after sign-in, for the words they saw
+O2 -> is never sent once the words in force changed
+O3 -> is kept for later when the account has not accepted the policy yet",
+src/lib/legal/policyText.test.ts,Story,"As a speaker, I want the Terms page to show exactly the stored text I accept, so that my receipt matches what I read.","O1  With a policy in force, the page shows its stored text and version.
+O2  With no policy in force, the page shows the fallback.","O1 -> shows the stored terms when a policy is active
+O2 -> falls back when no policy is active",
+src/lib/life/copy.test.ts,Story,"As the founder, I want the Life Panel copy to have no scores, streaks or percentages, no em-dashes, and no unused copy, so that sign-off covers only real, number-free words.","O1  No string names a score, streak, percentage or consistency meter, unless
+it says the panel does NOT have one. Never-1: no score reaches a speaker.
+O2  No string carries an em-dash (house rule), except the one quoted founder
+line exempted by name.
+O3  Every export is imported by something outside the tests, so sign-off
+never covers copy nobody sees.","O1 -> ""surfaces no score, streak, percentage or consistency meter""
+O2 -> ""uses no em-dash outside the founder's quoted line""
+O3 -> ""every export is imported by a screen or module""","SETUP_GATE_REDIRECT sat here for four commits, rendered by nothing. The Life Panel is off the main loop."
+src/lib/life/menu.test.ts,Story,"As a speaker, I want the Life Panel menu to show only what I can use, so that I am never shown a feature I do not have.","O1  No panel for this caller (kill switch): no menu items at all.
+O2  Panel on but not set up: only the Principles entrance.
+O3  Consented and set up: every view, Principles first.
+O4  A server-sent menu is used exactly as sent.","O1 -> ""shows nothing when the panel does not exist for this caller""
+O2, O3 -> ""opens the other views only once the speaker is set up""
+O4 -> ""uses the server's own list when it sends one""",
+src/lib/media/playback.test.tsx,Story,"As a speaker or coach, I want playback to fix an expired link by itself and only one player to play at a time, so that clips just work.","O1  An expired link asks the host once for a fresh one, and plays it.
+O2  If the fresh link fails too, the player shows ""audio unavailable""
+and asks no more.
+O3  A tab coming back after more than 5 hours refreshes the links itself.
+O4  One player at a time: starting one pauses the other.
+O5  The clip clamp stops at the clip's end, and never cuts a file whose
+length is unknown.","O1 -> ""asks the host once, then plays the fresh link""
+O2 -> ""a second failure shows unavailable""
+O3 -> ""refreshes on its own when the tab comes back after hours""
+O4 -> ""pauses the one playing when another starts""
+O5 -> ""stops at the clip's end, but plays an unknown length to its end""","Founder 2026-10-08: ""make sure the playbacks work all across the app""."
+src/lib/productDiscovery.test.ts,Story,"As a speaker, I want the menu to list only the products I have discovered, so that the menu stays simple.",O1  Nothing discovered means no product rows; discovering Life Panel adds its row.,O1 -> builds only the hamburger rows the user has discovered,
+src/lib/pwa/serviceWorkerPolicy.test.ts,Story,"As the founder, I want the offline helper in the browser never to stand between the app and our server, media or new builds, so that a bad saved copy can never break the app for anyone.","O1  Server calls and audio or video are never intercepted.
+O2  Installing never depends on the home page, so a fix always reaches every browser.
+O3  Build files are always fetched fresh, never served from an old copy.
+O4  Pages load from the network first and the last one is kept for offline; notifications still work.","O1 -> never intercepts the API AT ALL, never intercepts media: audio, video, or any Range read
+O2 -> installs without precaching `/`
+O3 -> stands aside for /_next/static/*
+O4 -> still answers a navigation network-first and keeps the last one as the offline fallback, the push handlers are still registered",2026-08-04 outage: a cached mix of old build files kept browsers broken through every reload.
+src/lib/security/csp.test.ts,Story,"As an operator, I want the CSP to allow what pages need while scripts stay nonce-only, so that the site neither breaks nor opens to XSS.","O1  script-src is nonce + self, never 'unsafe-inline'.
+O2  style-src still allows runtime-injected <style> blocks, and no
+stricter style-src-elem overrides it.","O1 -> ""keeps scripts on the nonce and never opens them to 'unsafe-inline'""
+O2 -> ""still allows the styles a dependency injects at runtime""",2026-08-04 outage: #242's `style-src-elem 'self'` took every route down on Safari.
+src/lib/sse.test.ts,Story,"As a developer, I want processing updates read correctly however the network splits them, so that progress always reaches the speaker.","O1  An update split across several pieces arrives once, whole.",O1 -> buffers frames split across arbitrary chunk boundaries,
+src/lib/supabase/client.test.ts,Guard,Building the site without secrets still works: the sign-in client can be created with no settings.,A change that makes the client throw when its environment settings are missing.,does not throw,If removed: A build with no secrets (preview or sandbox) could fail while prerendering pages.
+src/lib/supabase/retryingFetch.test.ts,Story,"As a speaker signing in on a shaky phone connection, I want the sign-in step retried after a dropped connection, so that sign-in does not fail at random.",O1  After one dropped connection the sign-in step is sent again and its answer is used.,O1 -> resends the code exchange after a dropped connection,
+src/lib/willab/additionsAndLock.test.ts,Story,"As a speaker, I want rewording a locked paragraph to keep it the same paragraph but need a new lock, so that a lock always protects my exact words.","O1  After a reword the paragraph keeps its identity, has the new words and is no longer locked.",O1 -> keeps identity but reopens after a reword,
+src/lib/willab/aiGeneratedMark.test.ts,Story,"As a speaker, I want AI-written text marked as AI on every Ideal Text surface and copy, with no score in the label, so that I know what is generated (EU AI Act Art. 50).","O1  The labels say the text is AI-generated and carry no digit, score,
+rating or verdict. Never-1: no score shown to a speaker.
+O2  Both Ideal Text mounts (the notebook and the post-Take readout) render
+the visible AI note with the Take it names, on a marked container, and
+their Copy puts the marked text on the clipboard.","O1 -> ""states provenance and never a score, rating, band or verdict""
+O2 -> ""<mount> shows the AI note and copies marked text"" (x2)","Regulation (EU) 2024/1689 Art. 50(2), in force since 2 August 2026."
+src/lib/willab/answeredBookmark.test.ts,Story,"As a speaker, I want tapping a bookmark to open that paragraph's own sheet unless a judgement is still waiting, and always when I have saved helper words, so that a tap goes to the right place.","O1  An answered paragraph, a locked one, one with no feedback or one with only a rewrite waiting opens its own sheet; a waiting judgement does not.
+O2  Saved helper words always open the sheet.","O1 -> opens its own sheet unless a judgement waits; saved words always open it
+O2 -> opens its own sheet unless a judgement waits; saved words always open it",
+src/lib/willab/bookmarkTier.test.ts,Story,"As a speaker, I want each paragraph to wear one bookmark colour by the founder's rules, so that the colours mean something.","O1  Weak with nothing to practise: plain (""standard"", no bar).
+O2  Weak with a practise: orange (""weak"").
+O3  Confident: green (""confident"").
+O4  One mark per paragraph: orange wins over green on the same paragraph.","O1 -> ""a weak read with nothing to practise draws no bar""
+O2, O3 -> ""a weak read with a practise is orange, a confident read is green""
+O4 -> ""a paragraph with both reads wears one mark, the orange one""","Founder 2026-09-18 ""There are no green bookmarks""; lock 2026-09-30 B7."
+src/lib/willab/chunkSteps.test.ts,Story,"As a speaker, I want No, Not sure and Audio unclear to take away Lock, so that I am not asked to lock in something I am unsure of.","O1  No, Not sure and Audio unclear close the lock step.
+O2  Yes and In-between keep it.","O1 -> ""No, Not sure and Audio unclear end the ladder early""
+O2 -> ""Yes and In-between keep their Lock""",Founder 2026-09-24 and lock 2026-09-30 (B2).
+src/lib/willab/clearerPieces.test.ts,Story,"As a speaker, I want the clearer version to mark only what changed, without inventing words, so that I can trust the rewrite.","O1  Without both sides nothing is drawn (null).
+O2  With both sides: shared words stay plain, words that go are cut,
+words that arrive are fresh, and each side joins back to its text.","O1 -> ""draws nothing without both sides""
+O2 -> ""marks only the words that differ, and adds none""",
+src/lib/willab/coachPanel.test.ts,Story,"As a coach, I want no screen to show the machine's read before I judge a moment, and each answer to take me to the next waiting moment, so that my judgement stays blind and quick.","O1  Moving forward or back never reaches a later screen of a moment I have not judged.
+O2  Back from What happened never reopens the blind judging of that moment.
+O3  An answer moves me to the next waiting moment, and after the last to the Take's word.
+O4  A moment already answered opens on its summary, and Change my answer reopens the choice.","O1 -> no screen after Judge is reached for an unrated moment (BLIND COACH)
+O2 -> ‹ from What happened never reopens the blind Judge of the same moment
+O3 -> an answer moves on to the next moment that waits, and after the last to the Take's word
+O4 -> an answered moment opens on Summary; Change my answer reopens its choice",Never-rule 2 (no coach sees the machine's guess before answering).
+src/lib/willab/coachWalk.test.ts,Story,"As a coach, I want the queue never to carry a moment's kind before I rate it, so that I never see the machine's guess first.","O1  Once I have rated a moment, the queue carries its kind; a moment the
+server sent no kind for has none.
+O2  An unrated moment (Judge it) carries no kind, whatever the server sent.
+Never-2: no coach sees the machine's guess before answering.","O1 -> ""carries the kind once the coach has rated the moment""
+O2 -> ""an unrated moment carries no kind, whatever the server sent""","Founder 2026-09-30, blind coach (P2-8)."
+src/lib/willab/deckChunks.test.ts,Story,"As a speaker, I want each paragraph of my Ideal Text deck to show its real state (waiting on a suggestion, locked by me, untouched) and to sit under its real slide, so that I can trust what is still open and where it belongs.","O1  Only the paragraph with an undecided suggestion shows waiting.
+O2  Only a server lock shows locked; an approved or dismissed suggestion
+on an unlocked paragraph never does.
+O3  An extra paragraph joins the last slide, never a made-up Slide 4.","O1 -> ""an UNDECIDED suggestion makes its chunk waiting, and only its chunk""
+O2 -> ""a SERVER LOCK is the only thing that reaches locked""
+O3 -> ""the fourth paragraph can never manufacture Slide 4 in a three-slide deck""","Founder 2026-08-15: ""accepted"" is not ""locked""."
+src/lib/willab/deckScroll.test.ts,Story,"As a speaker, I want Next in the deck to go chunk by chunk and move to the next slide only after its last chunk, so that I never skip a paragraph.","O1  From a slide's last chunk, Next lands on the next slide's first chunk.
+O2  From any other chunk, Next stays on the same slide, one chunk on.","O1, O2 -> ""bubbles to the next slide ONLY from the final chunk""","SPEC §11.3 (founder 2026-08-14): the chunk is the step, the slide the section."
+src/lib/willab/defaultDeck.test.ts,Story,"As a speaker with no slides, I want to record against a default deck, so that my Take is still split into slide paragraphs.","O1  An empty, null or undefined deck gives the default deck, flagged
+isDefault. Never-3: record -> Ideal Text never breaks for lack of slides.
+O2  My own deck is used unchanged, flagged not default.
+O3  The default deck handed back by the project's setup for Take 2 is still
+the default deck; a served PDF is always my own presentation.","O1 -> ""a deckless speaker records against the default""
+O2 -> ""a speaker's own deck is kept as it is""
+O3 -> ""the stand-in deck handed back by the project's setup ...""",
+src/lib/willab/documentParts.test.ts,Story,"As a speaker, I want my paragraph locks kept when a new Take or a coach rewrites the text, so that I don't lose choices on paragraphs nobody touched.","O1  A paragraph that did not change keeps its identity after a rewrite.
+O2  Paragraphs moved into a new order keep their identities.","O1 -> an untouched paragraph keeps its id
+O2 -> a reorder keeps every id",
+src/lib/willab/documentSettle.test.ts,Story,"As a speaker, I want the ""Working on your text"" screen to come down only when my new Ideal Text has really arrived (or after a time limit), so that I never see last Take's text presented as the new one (Never 5: the Ideal Text is what I said in my latest Take).","O1  An older version and an older take index keep the screen up, even
+long after the readout went ready.
+O2  The new Take's version, or a piece from the new Take, releases it.
+O3  Past the cap with no evidence the block expires, never ""settled"".","O1 -> ""holds the block while the served text is still the previous Take's""
+O2 -> ""releases on the new Take's version or a piece from the new Take""
+O3 -> ""expires past the cap; a stuck block is worse than a stale read""",SPEC-lockin-loop §1; handoff §6.4 S3: clearing at readout_ready showed the PREVIOUS document as current.
+src/lib/willab/enrichmentSettle.test.ts,Story,"As a speaker, I want a feedback placeholder to close when there is nothing to report, so that I don't wait forever on an empty slot.","O1  An empty feedback answer counts as ""nothing more coming"".","O1 -> is false with nothing to report, so an honest empty lane closes",
+src/lib/willab/exploreArc.test.ts,Story,"As a speaker on a shared device, I want my open project never shown to another account, so that my work stays private.",O1  Another account reads nothing of the project I have open.,O1 -> never exposes one account's active project to another,
+src/lib/willab/f1LoopContract.test.ts,Story,"As the founder, I want one gate that turns red when the loop's promises break (true paragraph states, no numbers to speakers, the page only shows what the server said), so that parallel work can't quietly break the loop.","O1  Each of the four paragraph states (untouched, clean, waiting, locked) is
+reached from what the speaker and the server actually did.
+O2  No speaker screen shows a measured number (Hz/dB/wpm or a raw count).
+Never-1: no scores, numbers or verdicts shown to speakers.
+O3  The feedback slot is held only while the server says feedback is coming.","O1 -> ""each paragraph lands in the state the speaker put it in""
+O2 -> ""the retired /recordings/[id] page sends the speaker to the Lounge, not to a number""
+O3 -> ""reserves a bookmark's place only while the server says it is coming""","Founder 2026-09-22: a gate parallel sessions run, not a document they skip. Twin: backend tests/test_f1_loop_contract.py. The wait bar's ceiling lives in waitProgress.test.ts."
+src/lib/willab/feedbackWalkModel.test.ts,Story,"As a speaker, I want the Feedback walk to give every moment a practice step even when no coach has answered, so that a coach never holds up my next Take.","O1  A moment with nothing from a coach still gets the exercise screen and is practised; a coach's exercise, once shared, takes its place.
+O2  A step tapped in the Lounge opens that same moment, even after earlier moments were answered.","O1 -> never waits for a coach: a moment with nothing served still gets the locked Exercise screen, then is said again
+O2 -> opens the bubble's own moment, found by its paragraph once moments before it are answered",Never-rule 3 (coaches are never in the way of the next Take).
+src/lib/willab/idealTextDecisions.test.ts,Story,"As a speaker, I want accepting or keeping a suggestion on my Ideal Text saved to the right place for its kind, so that my decision sticks and a suggestion with missing ids sends nothing broken.","O1  A new-take block upgrade goes to blocks/decide, and nowhere else.
+O2  A prior-take change goes to its own route, and nowhere else.
+O3  Every other source rides the per-snippet feedback POST; a coach
+revision travels there as a NEW decision (source coach_revision).
+O4  A suggestion without the ids its lane needs sends nothing.","O1 -> ""sends a new-take block upgrade to the block decision""
+O2 -> ""sends a prior-take change to its own route""
+O3 -> ""rides the per-snippet feedback POST for every other source""
+O3 -> ""stores a coach revision as a new decision""
+O4 -> ""sends nothing when the lane's ids are missing""",Audit Q-C6 (b): the Overlay's clone dropped source coach_revision.
+src/lib/willab/labEntryHandover.test.ts,Story,"As a speaker, I want ""Record Take N"" to start straight away with the page's latest setup, for that project only and only for a short while, so that the next Take starts fast and never on another project's or a stale setup.","O1  The same project gets the setup and helper words the page just read;
+another project (or none) gets null.
+O2  Once the short window has passed, the Lab gets null and reads again.","O1 -> ""hands over the setup and the roots of the same project only""
+O2 -> ""hands over nothing once the window has passed""","Founder 2026-10-08 (P2): ""Record Take N"" starts without reading again."
+src/lib/willab/lensScreen.test.ts,Story,"As a speaker, I want my text to appear as soon as there is nothing to walk through, and not while a walk might still open, so that I'm neither stuck nor interrupted.","O1  When feedback has settled (or the page failed) with nothing to walk, the text shows.
+O2  While feedback, a coach review, a walk or helper words may still open, the waiting screen stays.","O1 -> comes down when the feedback settles with nothing to walk
+O2 -> stays while the marks may still land or a walk is opening",
+src/lib/willab/markedEditorSerialize.test.ts,Story,"As a speaker, I want opening and saving my Ideal Text without changes to send back exactly the text I received, so that my document is never silently rewritten.","O1  The real editor paints the document, and reading it back gives the same
+bytes, for every marker grammar (bold, underline, italic, accent,
+moment, paragraphs). Never-5: the Ideal Text stays what the speaker
+said; an unchanged save never rewrites it.","O1 -> ""returns an untouched document byte-for-byte""",FE-1 acceptance: edit-with-no-changes posts back the text received.
+src/lib/willab/nextTakeShare.test.ts,Story,"As a speaker, I want my sharing choice applied once, to my next uploaded Take, with the wording I saw, and ""Only me"" to share nothing, so that I control who hears me.","O1  My choice shares the next Take once, with the wording I saw, and not the Take after.
+O2  Choosing Only me shares nothing.","O1 -> shares the next uploaded Take as chosen, once, with the words the speaker saw
+O2 -> Only me shares nothing",
+src/lib/willab/paragraphOverlay.test.ts,Story,"As a speaker, I want the paragraph sheet to open on the most useful card with the right buttons, and Next to open helper words only when mine are not saved, so that feedback leads me to the useful step.","O1  A moment that needed work opens on its rewrite if there is one, else on the moment itself, with the matching buttons.
+O2  With helper words already saved, Next does not open the word picker.","O1 -> a moment that needed work opens on its exercise, else its rewrite, else itself
+O2 -> Next opens the helper words on unsaved words only",
+src/lib/willab/partsFromCorePieces.test.ts,Story,"As a speaker, I want locking a paragraph never to merge my slides into one block of text, so that my deck keeps its slides.",O1  Paragraphs built from the server's pieces keep the server's paragraph identities.,O1 -> keeps the core's Paragraph identity,Reported from real use 2026-09-18: a lock merged the whole presentation into one text.
+src/lib/willab/praiseLane.test.ts,Story,"As a speaker, I want praise to compare me only to myself and never show a number, so that feedback is personal and in words.","O1  No praise line compares me to others (""than most/others/average""); the
+lines that compare say ""you usually"".
+O2  No praise line carries a digit. Never-1: feedback is in words.","O1 -> ""compares them to THEMSELVES, never to other speakers""
+O2 -> ""carries no number, only words""",
+src/lib/willab/presentationDocument.test.ts,Story,"As a speaker, I want my presentation to show only my current helper words, so that words I deleted never come back.",O1  A paragraph with no current helper words shows none; one with them shows them.,"O1 -> takes each paragraph's helper words from the page's headlines, and only from them",Never-rule 5 (helper words stay until the speaker picks new ones).
+src/lib/willab/presentationPdfMarking.test.ts,Story,"As the founder (compliance), I want every exported PDF to carry the AI-generated mark and still open, so that we meet labelling duties without breaking downloads.","O1  The XMP packet and the DocInfo dictionary both carry the IPTC source
+type, the Producer and the ""ai-generated"" keyword.
+O2  The file is still a well-formed PDF: every xref offset lands on its
+object, startxref lands on the xref table, the trailer's Size, Root
+and Info agree, and the file ends with %%EOF.","O1 -> ""carries the claim in both XMP and DocInfo""
+O2 -> ""is still a well-formed PDF a reader can open""","Article 50(2) marking; the exporter assembles the file by hand, so a shifted byte breaks every download."
+src/lib/willab/processingTake.test.ts,Story,"As a speaker, I want my ""still processing"" marker kept for my account only, and Take 1's ""Ideal Text not confirmed"" state kept as its own state, so that nobody else sees my pending Take and I get the right recovery screen.","O1  Another account sees no processing marker of mine.
+O2  Take 1 marked as unconfirmed reads back as that state.","O1 -> never exposes account A's pending analysis to account B
+O2 -> preserves the distinct Take 1 Ideal Text terminal state",
+src/lib/willab/richMarkers.test.ts,Story,"As a speaker, I want broken formatting marks never shown as raw symbols, so that my text reads clean.","O1  Whatever the broken input, no formatting symbol reaches the screen.","O1 -> no grammar character survives, whatever the malformation",
+src/lib/willab/setupDraft.test.ts,Story,"As a speaker on a shared device, I want my unfinished talk setups visible only to me, so that nobody sees my plans.","O1  Another account, or someone signed out, sees none of my drafts.","O1 -> is scoped per account, so a switch never shows another person's draft",
+src/lib/willab/trackedChanges.test.ts,Story,"As a speaker, I want a suggestion whose words have moved to be dropped rather than painted on the wrong words, so that strike-throughs always mark what I said.","O1  A suggestion whose span still holds its quote is kept.
+O2  A stale span is dropped, never re-anchored by searching for the quote.","O1 -> ""KEEPS a span whose words are still there""
+O2 -> ""DROPS a stale span rather than re-anchoring by search (FE-5)""",FE-5: re-finding a moved quote struck the wrong words.
+src/lib/willab/useNoPullToRefresh.test.tsx,Story,"As a speaker recording on a phone, I want pulling down not to reload the page while my Take exists only in the tab, so that I never lose a recording.","O1  Pull-to-refresh is off while recording, and the page's own settings come back after.",O1 -> switches the root's overscroll off while active and restores it after,Founder 2026-10-06: pulling down on the recording screen reloaded it.
+src/lib/willab/waitProgress.test.ts,Story,"As a speaker, I want the wait bar never to show full until my Ideal Text is ready, so that a full bar means it is there now.","O1  However long the wait, the bar stops short of full until the text is ready.","O1 -> NEVER reaches a full bar, even past the cap","Founder 2026-09-22: ""100% means instant switch to the ideal text""."
+src/lib/willab/walkPlan.test.ts,Story,"As a speaker, I want the walk to praise good moments, practise the one exercise, never ask me to judge, never show a score, and give every moment a step, so that feedback is in words and always has something to show.","O1  The plan holds no number, read or score.
+O2  The steps come in the locked order: praise, helper words, clearer version, practise, others, summary, never a judging step.
+O3  Every moment has a practice step, even with nothing attached.","O1 -> carries no number, read or score
+O2 -> praises green moments, practises the one exercise, and never asks the speaker to judge
+O3 -> a moment with nothing attached is the moment said again",Never-rule 1 (no scores to speakers).
+src/lib/willab/walkPractise.test.ts,Story,"As a speaker practising, I want each try answered with a line in words for what changed, never a number, so that I hear progress without a score.","O1  The ""not yet"", ""better"" and ""thanks"" lines come from the approved wording and contain no digits.","O1 -> each try's line is the one for the reading that moved, never a number",Never-rule 1 (no scores to speakers).
+src/lib/willab/walkReplay.test.ts,Story,"As a speaker replaying a finished walk, I want no judging step when I never answered, so that the replay does not ask me to judge out of nowhere.","O1  With no answers given, the replay has no judging step and no lone judging intro.","O1 -> with no answer given there is no judging at all, and no lone ""Judgement time!""",
+src/lib/willab/walkThread.test.ts,Story,"As a speaker, I want each step of my Feedback walk saved once in the Lounge, in the prototype's exact words, with no score and never other speakers' recordings, so that my chat history is clean and private.","O1  A step seen twice is stored once, as the app's or my own message, with
+no score in it.
+O2  Judging other speakers is posted in the prototype's words, without
+their recording.
+O3  The count of other speakers' moments I judged in a Take comes from my
+own answers in that Take only.
+O4  The sharing question shows as one message, also when it was stored as
+three.","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
+O2 -> ""posts judging other speakers as the prototype's chat does, never their recording""
+O3 -> ""counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles""
+O4 -> ""asks the sharing question as one bubble, its lines as paragraphs, also for a question stored as three""",Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12).
+src/services/api/accountDeletion.test.ts,Story,"As a speaker, I want ""delete my account"" to send one deletion request and show me how long I have to change my mind, and a refusal to change nothing, so that I can trust deletion and cancel it in time.","O1  Asking to delete sends one request with a one-time key and shows the
+pending deletion with its end date.
+O2  A refusal or no connection records nothing.
+O3  A refused cancel tells me the backend's reason.","O1 -> ""sends one account_deletion request and reads what came back""
+O2 -> ""a refusal or no answer records nothing""
+O3 -> ""a 409 is the backend's no, with its code""",Deletion is on the critical path (founder 2026-10-05).
+src/services/api/arcFeedback.tokens.test.ts,Story,"As a speaker, I want my token balance refreshed right after opening a Take's feedback charges me, and never when nothing was charged, so that a balance drop is never a mystery (payments; feedback after every Take).","O1  A served feedback read (200) fires exactly one balance-refresh event.
+O2  A failed read fires none: nothing was charged.
+O3  A served read returns the feedback; the charge never gates it.","O1 -> ""fires one balance refresh when the read was served""
+O2 -> ""does not claim a spend when the endpoint failed""
+O3 -> ""still returns the feedback; the charge never gates the read""","The backend charges the insights price on this GET, silently and fail-open. Needs jsdom: notifyTokensSpent no-ops without a window, so in node this file would pass by measuring nothing."
+src/services/api/bookmarkHistory.test.ts,Story,"As a speaker, I want my paragraph history to list each Take's version and keep accepted corrections apart, so that every old version stays and I can see where each one came from.","O1  The versions list holds only my Takes; an accepted correction is
+listed separately.","O1 -> ""keeps an accepted correction apart from the Takes (N48.1)""",Never-rule 5: every old version stays in the history.
+src/services/api/coachExercises.test.ts,Story,"As a coach, I want a new exercise video saved together with its definition at the exercise's own address, so that the exercise and its video never get out of step.","O1  The video file and the exercise definition go in one upload to that
+exercise's address, and the old video link is not sent.","O1 -> ""posts the file and the definition together, to the exercise's own address""",
+src/services/api/coachPanel.test.ts,Story,"As a coach, I want a coach-panel feature that is switched off or offline to show as empty, not as an error, so that the panel keeps working.","O1  A switched-off feature (not found) or no connection gives ""nothing"",
+not an error.","O1 -> ""a dark route reads as null""",
+src/services/api/confidentVoicePractice.test.ts,Story,"As a speaker practising Confident Voice, I want my practice judged in words after each attempt, never with machine numbers, and an unclear answer treated as none, so that I'm not mis-judged or scored.","O1  Each attempt reaches the screen with its words and is offered for my
+judgement; the machine's numbers (wpm, internal strength) never reach
+the mapped practice. Never-1: no score or number shown to a speaker.
+O2  An answer the screen does not know reads as no answer, never a guess;
+a known one is kept.","O1 -> ""keeps the words and drops the machine's numbers""
+O2 -> ""reads an unknown answer as none rather than guessing""",Founder 2026-09-25: practice is judged after every attempt.
+src/services/api/consentChoices.test.ts,Story,"As a speaker who withdrew sensitive-information or personalised- practice consent, I want Practise hidden from my sheets, so that nothing new is recorded against my choice (consent).","O1  Both choices in force: Practise is offered.
+O2  Sensitive information withdrawn, personalised practice still on:
+Practise is withheld (B6-3).
+O3  Personalised practice off: Practise is withheld.
+O4  No agreement yet, or a failed read: the server decides (offered).","O1 -> ""offers Practise while both choices are in force""
+O2 -> ""withholds Practise when sensitive information is withdrawn (B6-3)""
+O3 -> ""withholds Practise when Personalised practice is off""
+O4 -> ""leaves the server to decide when there is no agreement yet""
+O4 -> ""leaves the server to decide when the read fails""","B6-3: a practice attempt is new recording, and withdrawing sensitive information stops new recording."
+src/services/api/glueContracts.test.ts,Guard,"Each of 59 service clients still sends exactly the request and gives back exactly the answer it did before the shared-fetch refactor, signed in and signed out (golden file glueContracts.golden.json).","A change to a URL, method, header, body, credentials, cache setting
+or returned value that a speaker, coach or the backend would notice.","one test per client case, titled by its name, e.g. ""checkPracticeAttempt"",
+""shareTake refused"", ""setPartLock undecided"", ""uploadCoachVideo""",If removed: A wire-contract change in any of these clients could ship unnoticed; keep it only while it is the single wire-contract home.
+src/services/api/idealText.changes.test.ts,Story,"As a speaker, I want a new Take's suggested upgrade shown as an offer and never applied to my text without my yes, so that my Ideal Text is only what I said or chose.","O1  An upgrade offered by a new Take arrives as a pending offer, not as an
+applied change.","O1 -> ""is approve-gated — maps as a pending OFFER, never applied""",Never-rule 5: the Ideal Text is only what the speaker said.
+src/services/api/idealText.coreEnrichment.test.ts,Story,"As a speaker, I want my Ideal Text to appear at once and its feedback to fill in afterwards for the exact same version, so that I'm not kept waiting and feedback never lands on another version.","O1  The Ideal Text shows with its slides and paragraphs before any
+feedback has arrived.
+O2  The app keeps asking for feedback on the same version until it is
+ready, also after a failed try.","O1 -> ""maps the immutable core without waiting for optional feedback""
+O2 -> ""keeps retrying the exact snapshot until Manager feedback is ready""",
+src/services/api/idealText.handoff.test.ts,Story,"As a speaker, I want my Ideal Text to open instantly from what the Lounge already loaded, and its feedback lanes fetched only once, so that opening is fast without showing stale text (record -> Ideal Text -> feedback).","O1  A handover up to 3 s old paints as-is with no request.
+O2  A handover between 3 s and 30 s old paints and is marked for
+revalidation behind it.
+O3  A handover past 30 s is not painted: the page reads fresh.
+O4  The two enrichment lanes started at settle are requested once, served
+to whichever surface asks, then consumed.","O1 -> ""paints a trusted handover as-is, without a request""
+O2 -> ""paints a 3-30 s handover and asks for a revalidation""
+O3 -> ""reads fresh past 30 s, never painting the old handover""
+O4 -> ""serves the two lanes to whichever surface asks, without asking again""","P1 (founder 2026-10-08): the Lounge's read paints the page for up to 30 s, revalidated behind it past the trusted 3 s."
+src/services/api/idealText.pieces.test.ts,Story,"As a speaker, I want each paragraph placed on a slide only when the server says which one, so that a paragraph never lands on a guessed slide.","O1  A slide number outside the deck means no slide placement at all.
+O2  A paragraph without a slide number falls back to one paragraph per
+slide only when the counts match exactly.","O1, O2 -> ""an out-of-range or missing slide_index kills the explicit mapping""",
+src/services/api/idealText.test.ts,Story,"As a speaker, I want the app never to invent stars or slide links the server didn't send, and a coach's answer shown only in words, so that what I see is real and never a score.","O1  A highlighted moment only shows a star when the server sent one.
+O2  Helper words without an exact slide are rejected.
+O3  A coach's answer is kept in words; an empty answer or a score is
+dropped.","O1 -> ""the FE never mints a star the BE omitted (sole-gatekeeper rip, 2026-08-10)""
+O2 -> ""rejects a root without exact Slide identity""
+O3 -> ""keeps a shared answer and drops an empty or unknown one""",Never-rule 1: no scores or verdicts shown to speakers.
+src/services/api/idealText.userEdit.test.ts,Story,"As a speaker, I want my edit saved as the whole document against the version I edited, and never re-sent over a newer Take, so that a Take that just landed is never overwritten by my old words.","O1  Saving sends the whole text once, with the version it was edited from.
+O2  When a newer version exists, the save is reported as out of date and
+not sent again.
+O3  A moved document also counts as out of date; any other refusal is an
+error.","O1 -> ""PUTs the whole document with the version it was edited from""
+O2 -> ""reports a supersede instead of RETRYING it over the new version""
+O3 -> ""supersedes on a document-moved refusal and fails the save on any other""",The old retry re-sent pre-Take words over the text a just-landed Take built (Never-rule 5).
+src/services/api/journal.test.ts,Story,"As a reader of the journal, I want links in posts limited to safe web addresses, so that a post can never run a script on me.","O1  javascript:, data:, vbscript:, protocol-relative //host and ftp links
+are refused.
+O2  https and http links and site paths are accepted, so images and files
+in a post still show.","O1 -> ""rejects script schemes and protocol-relative URLs""
+O2 -> ""accepts web addresses and site paths""",
+src/services/api/journalPost.test.ts,Story,"As a speaker tapping ""More about self-modeling theory"", I want a missing or empty post to show nothing rather than a broken screen.","O1  A post that is not found, has no title, or can't be reached offline
+gives nothing to show.","O1 -> ""is null for anything but a post with a title and words: no broken screen""",
+src/services/api/labRecording.test.ts,Story,"As a speaker, I want my recording uploaded with its slides and project, a slow server treated as still processing, a payment problem not called a failed analysis, and a discarded Take never re-sent, so that I never lose or duplicate a Take.","O1  The upload carries my slides, the deck and when I moved to each slide.
+O2  The upload names only the project and its one upload key.
+O3  A server timeout on a stored recording shows as ""still processing"".
+O4  A payment problem says the recording is safe, not that analysis failed.
+O5  A Take I discard while it uploads is reported as discarded and is not
+re-sent another way.","O1 -> ""appends slides + presentation_ref + slide_advances when a deck is attached""
+O2 -> ""sends only the canonical project id and upload key""
+O3 -> ""routes a 504 with session_id into the async 'processing' path""
+O4 -> ""keeps 402 out of the analysis-failed path""
+O5 -> ""reports `discarded`, never the connection-error copy"",
+""does NOT re-send the discarded take down the BFF lane""",Never-rule 3: never break record -> process -> Ideal Text.
+src/services/api/learningExposures.test.ts,Story,"As the founder, I want a record that a speaker saw feedback counted as saved only when every part of it was accepted, so that the learning record never claims a speaker saw something they didn't.","O1  If any one receipt is refused, the whole save reports ""not saved"".","O1 -> ""returns false when any surface receipt is not accepted""",
+src/services/api/mlc2Consent.test.ts,Story,"As a speaker, I want agreeing to training use refused clearly while pooled training is switched off, so that I never think I agreed to something that isn't running.","O1  While pooled training is off, the agreement is refused with the
+server's own explanation.","O1 -> ""keeps consent writes fail-closed when Phase 2 is disabled""",
+src/services/api/momentEvents.test.ts,Story,"As the founder, I want ""a moment was opened or skipped"" recorded without ever breaking the screen, so that we learn what speakers see while they are never blocked.","O1  An event the server already had is told apart from a failure.
+O2  A switched-off route or no connection is a quiet failure, never a
+crash.","O1, O2 -> ""tells an already recorded event from a failure, and never throws""",
+src/services/api/ownerEditHelperWords.test.ts,Story,"As a speaker, I want the helper words I chose to stay after I edit my Ideal Text, until I pick new ones, so that my chosen phrase isn't lost.","O1  After my edit, each paragraph still carries its chosen helper words
+and where they sit, and they are still highlighted.
+O2  A paragraph with no chosen helper words gets none.","O1, O2 -> ""merges the snapshot's root phrase, span and iteration by part id""",Never-rule 5: helper words stay until the speaker picks new ones (audit B3).
+src/services/api/partLock.test.ts,Story,"As a speaker, I want locking a paragraph to send the words I was looking at, and to tell ""decide the pending suggestions first"" apart from ""your text is out of date"", so that locking works even on a text I never edited and I get the right message.","O1  Locking sends the lock together with the words on my screen.
+O2  ""Decide pending suggestions first"" and ""out of date"" come back as two
+different answers.","O1 -> ""PUTs the lock with the words the student was looking at""
+O2 -> ""discriminates UNDECIDED from STALE on the same 409""",
+src/services/api/piecesForOwnerEdit.test.ts,Story,"As a speaker, I want my slides to stay intact whether or not I have edited my Ideal Text, and the app to refuse to guess when I added or removed paragraphs, so that a paragraph never lands on the wrong slide and the deck never collapses into one block.","O1  No edit yet (owner_edit {text: null, parts: []}): the core read keeps
+the server's Paragraph -> Slide mapping and the server's part ids.
+O2  An edit with the same paragraph count: each slide keeps its paragraph,
+now under the edit's part id, so the zip matches the parts served.
+O3  An edit that added or removed a paragraph: no mapping is guessed
+(pieces is null, the deck shows unlinked).","O1 -> ""keeps the server's slide mapping when there is no edit yet""
+O2 -> ""re-keys each slide's paragraph to the edit's part id""
+O3 -> ""refuses to guess when a paragraph was added or removed""",Production 2026-09-19: an empty owner edit was read as an edit (a truthiness check) and the deck lost its slides.
+src/services/api/planClients.bff.test.ts,Story,"As a speaker buying a plan, I want checkout to open with the right plan and return pages, and a clear message when plans are unavailable, so that paying either works or tells me why not.","O1  Choosing a plan sends that plan with the success and cancel pages and
+opens checkout.
+O2  Plans switched off or misconfigured say ""Plans aren't available right
+now.""; other refusals show the server's message; an answer without a
+checkout link is an error.","O1 -> ""posts the tier with both return URLs and opens the checkout""
+O2 -> ""tells the refusals apart""",Payments are on the critical path.
+src/services/api/practiceCheck.test.ts,Story,"As a speaker, I want a practice check to reach my screen only as ""praise or try again, and which cue"", never the machine's number, so that I never see a score.","O1  The result passed on holds only what to do next and which cue, and
+nothing else.","O1 -> ""keeps only next and key from a praise check""",Never-rule 1: no scores or numbers shown to speakers.
+src/services/api/practiseTiming.test.ts,Story,"As the founder, I want the phone's wait after Stop reported in the background and never awaited, so that timing telemetry never slows or breaks practice.","O1  A failed upload sends no timing report.
+O2  A successful upload resolves with the practice while its timing report
+is still in flight, and the report names that attempt and both clocks.
+O3  A failing report neither throws nor rejects: it returns nothing to wait on.","O1 -> ""a failed upload reports nothing""
+O2 -> ""a successful upload answers without waiting on its report""
+O3 -> ""a failing report changes nothing""","V4 B1.4 (founder O5): the wait from Stop is measured, never awaited."
+src/services/api/presentationExtract.test.ts,Story,"As a guest uploading my slides, I want my guest identity sent with the deck, so that my deck isn't refused before I record.",O1  A guest's deck upload carries the guest identity and no login.,"O1 -> ""sends a guest's owner token""",Every guest deck was refused before the parser ran (2026-10-08).
+src/services/api/processingAuthorization.test.ts,Story,"As a speaker, I want to agree to exactly the terms the server stored, and be told plainly when there is nothing to agree to or I'm blocked, so that my consent is real and I'm never stuck in a loop.","O1  Terms waiting for my agreement are shown with their countries and
+minimum age.
+O2  No active terms means ""unavailable"", not ""please agree"".
+O3  A blocked person is told they are blocked, not asked to agree again.
+O4  My agreement sends back the four fingerprints of the texts exactly as
+received, and never the texts themselves.
+O5  A guest identity that is refused is replaced once; refused again, the
+app stops rather than going on.","O1 -> ""maps an active policy awaiting acceptance""
+O2 -> ""an inactive policy is unavailable, NOT acceptance_required""
+O3 -> ""a blocked principal is blocked, NOT acceptance_required (PLF-T1)""
+O4 -> ""sends back the four hashes EXACTLY as received"",
+""never sends any policy COPY back to the server""
+O5 -> ""a refused guest identity is forgotten and minted again once; refused again, the read fails closed""",Consent is on the critical path: a receipt must prove the person agreed to exactly the stored copy.
+src/services/api/projectDeletionClient.bff.test.ts,Story,"As a speaker, I want deleting a project to send one request with a one-time key, and to change nothing when refused, offline or signed out, so that deletion is safe and can be repeated.","O1  Asking to delete a project sends one request with a one-time key and
+shows the pending deletion.
+O2  A refusal or no connection changes nothing; signed out, nothing is
+sent at all.","O1 -> ""asks with an idempotency key and reads the open request""
+O2 -> ""changes nothing when refused, offline or signed out""",Deletion is on the critical path.
+src/services/api/projects.test.ts,Story,"As a guest who later signs up, I want my projects kept under a guest key and moved to my account, with the key forgotten only after the move, so that I never lose my work.","O1  The guest key the server issues is kept and sent with my later
+requests.
+O2  Signing up moves my projects using both my login and the guest key,
+and the guest key is forgotten after the move succeeds.","O1 -> ""stores the issued guest credential and reuses it as an owner header""
+O2 -> ""clears the guest credential only after an authenticated atomic claim""",
+src/services/api/recordingConfig.test.ts,Story,"As the founder, I want the ""this Take is getting long"" warning threshold to come only from the server, so that I can change it without a deploy and the app never invents one.","O1  A missing or unusable threshold gives no threshold, never a made-up
+default.","O1 -> ""never substitutes a default when the field is missing or unusable""",
+src/services/api/recordingProgress.test.ts,Story,"As a speaker, I want recording progress shown only when the server gives a real threshold and total, so that I never see a made-up progress figure.","O1  A missing, zero or null threshold or total gives null (nothing shown).
+O2  A real total and threshold map through, with the server's unlock flag
+or, when it is missing, unlocked once the total reaches the threshold.","O1 -> ""returns null on a missing / non-positive threshold or missing total""
+O2 -> ""maps the server's total and threshold""",C-2 / S2: the total is the backend's; the browser never sums it.
+src/services/api/reviewSummaryText.test.ts,Story,"As a speaker finishing the Feedback walk, I want the closing summary to show exactly the words the server saved, and to be skipped when there is nothing to say, so that I never see invented or empty text.","O1  The summary shows the words of the message the server stored.
+O2  If the server fails or stores only blank text, there is no summary.","O1 -> ""are the stored Lounge row's body, as the backend answers""
+O2 -> ""are none when the backend fails or stores nothing to say""","Locked Feedback walk (lock 2026-10-12, sections 2.7 and 3)."
+src/services/api/rings.test.ts,Story,"As a speaker, I want feature rollout read from the server and treated as ""off"" when it can't be read, so that a hiccup never switches on unfinished features.","O1  A readable answer maps the features the server turned on.
+O2  A 401, a 5xx or a thrown fetch is the empty state (nothing on), never
+an error.
+O3  The rings are read once per page load: every later caller shares it.","O1 -> ""maps the features the server turned on""
+O2 -> ""a 401, a 5xx or a thrown fetch is the empty state, never an error""
+O3 -> ""reads once per page load""",
+src/services/api/sendTakeToCoach.test.ts,Story,"As a speaker, I want ""send to my coach"" to target exactly this project and Take, so that my coach reviews the right recording.","O1  The request names this project and this Take exactly, and comes back
+as sent.","O1 -> ""sends exact encoded Project and Take coordinates""",
+src/services/api/stateRatings.chain.test.ts,Story,"As a coach, I want the receipt that my card was shown recorded honestly, and a refusal reported as a refusal, so that blind review stays provable.","O1  A receipt the server refuses comes back as not saved, never faked as
+saved.","O1 -> ""a refused receipt is refused, never faked""",Never-rule 2: coach judgements stay blind.
+src/services/api/stateRatings.momentRead.test.ts,Story,"As a coach, I want saving my judgement to bring back ""what happened"" in that moment when the server sends it, and never on a refused save, so that I see the moment's read only after my own answer is in.","O1  A 200 carrying moment_read hands the read back mapped.
+O2  A 200 without it leaves it out (the caller reads it the old way).
+O3  A refused save (400) gives only the error, never a read.","O1 -> ""a saved judgement carries the moment's read back""
+O2 -> ""a saved judgement without a read leaves it out""
+O3 -> ""a refused save never carries a read""",C2 (founder 2026-10-08); Never-2: coach judgements stay blind.
+src/services/api/stateRatings.test.ts,Story,"As the founder, I want it impossible to build a confidence label the rater never gave, so that training data never holds made-up answers.","O1  No answer, an empty answer or an unknown answer builds nothing to send.","O1 -> ""REFUSES to build a body without a real answer — a null that slipped through would fabricate a call the rater never made""",A fabricated training row can't be told from a real one afterwards.
+src/services/api/strengths.test.ts,Story,"As a speaker, I want a Take that can't be deleted because it is part of my history to explain why in approved words, so that I understand and my history stays whole.","O1  A refused Take deletion shows the approved line about the project's
+history.","O1 -> ""maps a refused take to the approved take line""",Never-rule 5: every old version stays in the history.
+src/services/api/suggestionFeedback.test.ts,Story,"As a guest, I want my feedback on suggestions saved under my guest identity, so that my choices count before I sign up.",O1  My feedback on a suggestion is sent with my guest identity.,"O1 -> ""forwards the signed Guest ID for a pre-signup feedback decision""",
+src/services/api/takeFeedback.test.ts,Story,"As a speaker, I want my answer about a feedback item saved against the exact feedback I saw, and a changed answer accepted with its follow-up, so that my judgements are recorded correctly.","O1  My answer is saved against that feedback item only, with no recording
+details added by the app.
+O2  A changed answer is accepted as a save, with what to show next.","O1 -> ""writes the frozen feedback identity without a caller-controlled clip""
+O2 -> ""reads the 200 revised body as a save, with its follow-up""",
+src/services/api/tokens.prices.test.ts,Story,"As a speaker, I want the price list to show at once from my last visit, change only when it really changes, survive a short outage and disappear when pricing is turned off, so that prices are fast and never wrong.","O1  The last price list shows straight away on my next visit, and an
+unchanged answer from the server changes nothing on screen.
+O2  A new price list from the server replaces the shown one and is kept
+for next time.
+O3  A lost connection keeps the shown list; pricing turned off removes it.
+O4  A damaged saved copy is never shown.","O1 -> ""is kept from a live read and served first on the next open, then confirmed behind it""
+O2 -> ""replaces the shown list when the backend publishes a new one""
+O3 -> ""keeps the shown list through a blip, and drops it when pricing is turned off""
+O4 -> ""never serves a copy the parser rejects""",
+src/services/api/tokens.shared.test.ts,Story,"As a speaker, I want my balance read once per page and re-read after I spend, so that the number I see is never from before a purchase.","O1  Wallets reading at the same time share one balance request.
+O2  A spend anywhere in the app (the tokens-spent window event) drops the
+shared read: the wallet asks the server again and shows the new number.
+O3  An unreadable balance is not shared: the next wallet asks again.","O1 -> ""serves every wallet from one request""
+O2 -> ""a spend makes the wallet read the balance again""
+O3 -> ""does not share an unreadable balance: the next wallet asks again""","Founder 2026-10-16: one balance request per open, not one per wallet."
+src/services/api/tokens.test.ts,Story,"As a speaker, I want a failed balance check shown as ""unknown"" (not zero), ""out of tokens"" to keep its renewal date and leave recording on, and no price shown when the charge state is unknown, so that I'm never wrongly blocked or charged.","O1  A missing or broken answer means tokens are off, never on.
+O2  A balance the server couldn't read is ""unknown"", not zero.
+O3  ""Out of tokens"" keeps the renewal date.
+O4  No price label is shown when it isn't known whether I was charged.","O1 -> ""treats a missing or malformed envelope as off, never as enabled""
+O2 -> ""reads available:false as UNKNOWN, never as zero""
+O3 -> ""reports can_record:false as EXHAUSTED, keeping the renewal date""
+O4 -> ""shows nothing when the charge state is unknown, never assuming unpaid""",Never-rule 3: a bad balance read must never hide the record button.
+src/services/api/trainingConsent.refusals.test.ts,Story,"As a speaker, I want a training-consent change that fails to say why, so that my screen never shows a choice that did not save (consent).","O1  Offline: the save is refused with NETWORK.
+O2  A server refusal comes back with the server's own code (e.g. a stale
+copy of the sentence), never as a saved state.
+O3  A refusal without a readable code becomes HTTP_<status>.
+O4  A saved change returns the state now in force.","O1 -> ""maps a thrown fetch to NETWORK""
+O2 -> ""passes the server's refusal code through""
+O3 -> ""falls back to HTTP_<status> when the refusal has no code""
+O4 -> ""returns the state now in force when the save went through""",
+src/services/api/trainingConsent.test.ts,Story,"As a speaker, I want my training-consent choice read once per page with my login, and read again after I change it, so that every screen shows my current choice.","O1  All screens on a page share one read, sent with my login.
+O2  After I change my choice, the next read shows the new choice.","O1 -> ""serves every reader from one request, sent with the bearer""
+O2 -> ""reads afresh after a write""",
+src/services/api/trainingCorpus.test.ts,Story,"As a coach labelling clips, I want never to see the machine's rating or score, so that my judgement stays blind.","O1  The clips I label carry no machine rating or score, even if the
+server sent one.","O1 -> ""never surfaces a band or machine read even if one were served (N1)""",Never-rule 2: no coach sees the machine's guess before answering.
+src/services/api/userProfile.test.ts,Guard,"Concurrent profile reads share one request, and a failed read is not shared, so page load does not hammer the backend and one blip does not stick.","Each caller fetching its own profile; or a failed (null) read being
+served to every later caller for the rest of the window.","one request -> ""serves every caller from one request""
+no failure  -> ""does not share a failed read: the next caller asks again""","If removed: A change to the shared read could multiply profile requests per page, or pin a signed-in coach to ""no profile"" after one error."
+src/services/api/voiceAlbum.test.ts,Story,"As a speaker, I want my saved moments grouped by project in the server's order, and a failed load not shown as ""no moments yet"", so that my album is accurate.","O1  Moments stay grouped by project, in the order the server gave.
+O2  A failed load is reported as a failure, not as an empty album.","O1 -> ""keeps the backend's project grouping and per-project order""
+O2 -> ""returns null on a failed read, never an empty album""",
+src/services/api/voiceAlbumPractice.test.ts,Story,"As a speaker, I want my practice answer saved against the exact recording I heard, unchanged, so that my judgement is credited to the right moment.","O1  The save names the project, Take and moment I heard, and my answer as
+I gave it.","O1 -> ""sends the exact recording and the answer unchanged""",
+src/services/api/willabMappers.test.ts,Story,"As a coach, I want the review context to stay hidden until the server unlocks it, even after I've labelled everything, so that my judgement stays blind.","O1  Without the server's unlock, context stays hidden even when all my
+blind labels are done.","O1 -> ""keeps context locked when the server sends no gate (audit B4)""",Never-rule 2: coach judgements stay blind.

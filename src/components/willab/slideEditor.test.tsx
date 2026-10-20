@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
-/* The slide editor, drawn like Ideal Text Final Screens' editor frame (build
-   plan D-IT-4): a full-screen sheet with a top bar ("Edit the text" over
-   "Slide n", and ✕), the paragraph cards, the signed note, a black Save pill
-   with a grey Cancel link under it, and no slide picture. The write is
-   unchanged: only the paragraphs whose words changed go to the host. */
+/*
+STORY    As a speaker, I want editing a slide to save only the paragraphs I
+         changed, so that the others keep their locks and history.
+OUTCOME
+  O1  Save sends only the changed paragraph, with its new words.
+PROVES   O1 -> "writes only the paragraphs whose words changed"
+WHY      Never 5 (every old version stays in the history).
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

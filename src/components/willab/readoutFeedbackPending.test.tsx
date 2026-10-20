@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  THE POST-TAKE READOUT TELLS THE DECK WHEN FEEDBACK IS STILL ARRIVING      */
-/*  (audit 2026-10-05, DL-overlays; the paragraph sheet's bounded wait,       */
-/*  founder 2026-09-28).                                                      */
-/*                                                                            */
-/*  The core read paints the words and the moments come with the enrichment  */
-/*  read after it. The Ideal Text page passed that to the deck; the readout  */
-/*  did not, so a paragraph tapped there before the enrichment landed opened */
-/*  its sheet without its moment. Wiring only: nothing new is drawn.         */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker, I want a paragraph I tap right after a Take to wait for
+         its feedback, not open empty, so that I never see a sheet missing
+         its moment.
+OUTCOME
+  O1  The paragraphs are told feedback is still coming while it loads, and
+      that it is done once it has landed.
+PROVES   O1 -> "holds taps while the enrichment read is out, and stops once the server is done"
+WHY      Audit 2026-10-05 (DL-overlays); founder 2026-09-28.
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

@@ -1,3 +1,9 @@
+/*
+STORY    As a speaker on a shared device, I want my unfinished talk setups visible only to me, so that nobody sees my plans.
+OUTCOME
+  O1  Another account, or someone signed out, sees none of my drafts.
+PROVES   O1 -> is scoped per account, so a switch never shows another person's draft
+*/
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {

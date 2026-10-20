@@ -1,7 +1,19 @@
 // @vitest-environment jsdom
-/* The Feedback walk's production controller (build plan D-FW-14): the coach's
-   note, the praise and the helper words, moving as the lock says, and a
-   guest's pick asking to sign up. */
+/*
+STORY    As a speaker, I want the Feedback walk to take me through my coach's note, praise with its reason, helper words, the clearer version and a summary, in words only, so that feedback after every Take is clear and backed by what I said.
+OUTCOME
+  O1  The screens come in order: coach's note, praise, helper words, next praise, summary, back to my page.
+  O2  A good moment shows the praise line, then why it landed, quoting my words.
+  O3  Reopened from the Lounge, a clip I already judged shows as answered and is not asked again.
+  O4  If the summary cannot be read, the walk goes straight back to my page.
+  O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.
+PROVES   O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page
+         O2 -> a green moment says why it landed
+         O3 -> reopened from the Lounge, the judging shows the moment already answered
+         O4 -> skips the summary when it cannot be read, straight onto the page
+         O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder
+WHY      Never-rule 1 (no scores to speakers); Feedback walk is a locked screen.
+*/
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

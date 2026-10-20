@@ -1,6 +1,16 @@
-/* -------------------------------------------------------------------------- */
-/*  How the Ideal Text page loads (founder 2026-10-08, waiting-time fixes).    */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker, I want my Ideal Text page to show the coach's note as
+         soon as it arrives and keep the feedback shown while a new read
+         loads, so that the page never goes blank or flickers.
+OUTCOME
+  O1  The coach's message is shown before the slower feedback arrives, and
+      both are on the page once it does.
+  O2  When the page re-reads, the feedback bars, style changes, additions
+      and coach message stay while only the text has come back.
+PROVES   O1 -> "applies the coach message before the slow lane answers"
+         O2 -> "keeps what was shown while the core alone has landed"
+WHY      Founder 2026-10-08 (waiting-time fixes).
+*/
 import { describe, expect, it, vi } from "vitest";
 import type {
   IdealTextEnrichmentResult,

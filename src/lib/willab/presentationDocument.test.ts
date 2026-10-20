@@ -1,3 +1,10 @@
+/*
+STORY    As a speaker, I want my presentation to show only my current helper words, so that words I deleted never come back.
+OUTCOME
+  O1  A paragraph with no current helper words shows none; one with them shows them.
+PROVES   O1 -> takes each paragraph's helper words from the page's headlines, and only from them
+WHY      Never-rule 5 (helper words stay until the speaker picks new ones).
+*/
 import { describe, expect, it } from "vitest";
 import { buildPresentationDocument } from "@/lib/willab/presentationDocument";
 import type { IdealPiece } from "@/services/api/idealText";

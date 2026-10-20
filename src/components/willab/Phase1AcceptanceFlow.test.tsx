@@ -1,15 +1,25 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  THE ONE ACCEPTANCE SCREEN (founder 2026-10-18).                            */
-/*                                                                            */
-/*  What a speaker, and the receipt, depend on: the button stays closed until  */
-/*  a country is chosen and the recordings consent is ticked; nothing on the   */
-/*  screen advances on its own, because a receipt naming bytes the user never  */
-/*  meant to accept is worse than an extra tap; the documents are reachable    */
-/*  before the decision and never gate it; "Do not agree" records nothing and  */
-/*  leaves the way back open.                                                  */
-/* -------------------------------------------------------------------------- */
-
+/*
+STORY    As a new speaker, I want the agree button to open only after I choose
+         my country and tick the recordings consent, with the documents
+         readable but never in the way, and "Do not agree" recording
+         nothing, so that my consent is deliberate.
+OUTCOME
+  O1  The screen shows the agreement, the documents and the one tick, with
+      the button closed; it opens only with country and tick, never by
+      itself, and then saves my country.
+  O2  My earlier country is filled in and I can change it.
+  O3  The documents open in a window and are marked as read, but never open
+      the button; opening the AI notice is recorded.
+  O4  "Do not agree" records nothing and lets me go back.
+PROVES   O1 -> "shows the agreement bytes, the documents and the one tick, with the button closed",
+               "opens only once a country is chosen AND the recordings consent is ticked, and never on its own"
+         O2 -> "prefills the person's own earlier country and still lets them change it"
+         O3 -> "open in a window from the screen, tick their name, and never gate the button",
+               "records the AI notice exposure when the notice is opened"
+         O4 -> "records nothing and leaves the way back to the screen and the documents"
+WHY      Founder 2026-10-18 (one acceptance screen); locked consent screen.
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  The WhatsApp offer (founder 2026-10-12): the speaker leaves a number so    */
-/*  "The feedback from your coach is in!" reaches them on WhatsApp.            */
-/*                                                                            */
-/*  Pinned here:                                                              */
-/*    1. a number without its country code is refused on screen, nothing sent;*/
-/*    2. a valid number is saved in E.164 and the footer closes;              */
-/*    3. Not now sends nothing and closes.                                    */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker, I want to leave my WhatsApp number to hear when my coach's feedback is in, with wrong numbers refused, so that the message reaches me.
+OUTCOME
+  O1  A number without its country code is refused on screen and nothing is sent.
+  O2  A valid number is saved in full international form and the offer closes.
+  O3  Not now sends nothing and closes.
+PROVES   O1 -> refuses a number without its country code
+         O2 -> saves a valid number in E.164 and closes
+         O3 -> Not now sends nothing and closes
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

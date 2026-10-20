@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
-/* Fix 1 (founder 2026-10-15): before the next Take nothing is ticked, so a
-   share is always the speaker's own choice (Privacy 3.6 §4d); "Only me" is a
-   choice too. */
+/*
+STORY    As a speaker before my next Take, I want nothing ticked for me and
+         Continue to wait until I choose, with "Only me" counting as a
+         choice, so that any sharing is my own decision.
+OUTCOME
+  O1  Nothing starts ticked, Continue is off, and choosing "Only me" turns
+      it on.
+PROVES   O1 -> "starts with nothing ticked; Continue waits for a choice, Only me counts"
+WHY      Founder 2026-10-15 (Privacy 3.6 section 4d).
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";

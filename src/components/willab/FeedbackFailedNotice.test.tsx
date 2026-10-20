@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  THE PAGE SAYS SO WHEN THE FEEDBACK COULD NOT BE MADE (Phase 2)             */
-/*                                                                            */
-/*  The server serves no stand-in items when V3 fails (contract 24h). The page */
-/*  retries once by itself, then shows the signed-off sentence with Try again. */
-/* -------------------------------------------------------------------------- */
-
+/*
+STORY    As a speaker whose feedback could not be made, I want the app to try
+         again once by itself and then tell me, with Try again, so that I am
+         never left waiting for nothing.
+OUTCOME
+  O1  The app retries once by itself, then shows the signed-off sentence
+      and a Try again button that retries; it never retries on its own
+      again.
+PROVES   O1 -> "says so, with Try again, when the retry failed too"
+WHY      Contract 24h: the server sends no stand-in feedback.
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

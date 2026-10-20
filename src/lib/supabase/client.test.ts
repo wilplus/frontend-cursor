@@ -1,3 +1,9 @@
+/*
+GUARD    Building the site without secrets still works: the sign-in client can be created with no settings.
+CATCHES  A change that makes the client throw when its environment settings are missing.
+IF REMOVED  A build with no secrets (preview or sandbox) could fail while prerendering pages.
+PROVES   does not throw
+*/
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /** The real client is never built here — the point of these tests is WHICH

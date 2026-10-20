@@ -1,3 +1,11 @@
+/*
+STORY    As a speaker, I want a clear message when I pick a file that is not
+         a PDF or is over 20 MB, so that I know what to upload.
+OUTCOME
+  O1  PowerPoint and Keynote files are refused with a message naming PDF;
+      a PDF over the size limit is refused with a message naming 20 MB.
+PROVES   O1 -> "rejects non-pdf (incl. pptx, now PDF-only) and oversize"
+*/
 import { describe, expect, it } from "vitest";
 import {
   deckFileError,

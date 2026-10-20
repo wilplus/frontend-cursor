@@ -1,3 +1,13 @@
+/*
+STORY    As a speaker opening the chat, I want my conversation shown before the side lookups (wallet, menu) run, but never waiting forever, so that the chat appears fast.
+OUTCOME
+  O1  Side lookups wait until the conversation is shown, then run once.
+  O2  Off a chat start they run at once, and a cancelled one never runs.
+  O3  If the conversation never loads, they still run after 8 seconds.
+PROVES   O1 -> holds a read until the thread has painted, then runs it once
+         O2 -> runs promptly off a chat boot, and never after a cancel
+         O3 -> does not wait forever on a thread that never loads
+*/
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __resetChatBootForTests,

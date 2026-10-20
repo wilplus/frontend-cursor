@@ -1,3 +1,9 @@
+/*
+STORY    As a speaker, I want rewording a locked paragraph to keep it the same paragraph but need a new lock, so that a lock always protects my exact words.
+OUTCOME
+  O1  After a reword the paragraph keeps its identity, has the new words and is no longer locked.
+PROVES   O1 -> keeps identity but reopens after a reword
+*/
 import { describe, expect, it } from "vitest";
 import {
   updatePart,

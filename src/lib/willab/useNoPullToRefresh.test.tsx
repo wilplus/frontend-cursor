@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
-/* No pull-to-refresh while a Take lives only in the tab (founder
-   2026-10-06: pulling down on the recording screen reloaded it). */
+/*
+STORY    As a speaker recording on a phone, I want pulling down not to reload the page while my Take exists only in the tab, so that I never lose a recording.
+OUTCOME
+  O1  Pull-to-refresh is off while recording, and the page's own settings come back after.
+PROVES   O1 -> switches the root's overscroll off while active and restores it after
+WHY      Founder 2026-10-06: pulling down on the recording screen reloaded it.
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";

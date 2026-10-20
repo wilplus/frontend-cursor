@@ -1,11 +1,18 @@
-/**
- * The Journal CMS's internal tools, as the CMS reaches them (frontend glue
- * cut, founder 2026-10-12). Written against the fifteen one-file routes and
- * kept green when they became one `[...path]` route: each tool path answers
- * exactly as before, with no session, the password in the body, the status
- * and body relayed, and the same envelope when the backend cannot be reached.
- * A path that is not a tool is a 404, as it was with no file there.
- */
+/*
+STORY    As the founder using the Journal CMS, I want each CMS tool to reach
+         the backend with my password and no login session, so that
+         publishing posts keeps working.
+OUTCOME
+  O1  Each of the 15 tool paths POSTs to the same backend path with the
+      body as sent and no session token, and relays status and body back.
+  O2  When the backend cannot be reached, each tool answers 502 "Journal
+      service unavailable." as before.
+  O3  A path that is not a tool is a 404 and nothing is sent.
+PROVES   O1 -> "%s" (one test per tool path)
+         O2 -> "%s" (one test per tool path)
+         O3 -> "does not forward a path that is not a tool"
+WHY      Fifteen one-file routes became one route (founder 2026-10-12).
+*/
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";

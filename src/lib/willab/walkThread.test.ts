@@ -1,3 +1,22 @@
+/*
+STORY    As a speaker, I want each step of my Feedback walk saved once in the
+         Lounge, in the prototype's exact words, with no score and never other
+         speakers' recordings, so that my chat history is clean and private.
+OUTCOME
+  O1  A step seen twice is stored once, as the app's or my own message, with
+      no score in it.
+  O2  Judging other speakers is posted in the prototype's words, without
+      their recording.
+  O3  The count of other speakers' moments I judged in a Take comes from my
+      own answers in that Take only.
+  O4  The sharing question shows as one message, also when it was stored as
+      three.
+PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own message, with no score"
+         O2 -> "posts judging other speakers as the prototype's chat does, never their recording"
+         O3 -> "counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles"
+         O4 -> "asks the sharing question as one bubble, its lines as paragraphs, also for a question stored as three"
+WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12).
+*/
 import { describe, expect, it } from "vitest";
 import { WALK_COPY } from "@/components/willab/idealEditCopy";
 import { oneShareQuestion, othersAnswered, othersChat, shareChat, stableUuid, walkStepDraft } from "./walkThread";

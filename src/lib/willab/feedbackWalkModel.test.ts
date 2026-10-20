@@ -1,3 +1,12 @@
+/*
+STORY    As a speaker, I want the Feedback walk to give every moment a practice step even when no coach has answered, so that a coach never holds up my next Take.
+OUTCOME
+  O1  A moment with nothing from a coach still gets the exercise screen and is practised; a coach's exercise, once shared, takes its place.
+  O2  A step tapped in the Lounge opens that same moment, even after earlier moments were answered.
+PROVES   O1 -> never waits for a coach: a moment with nothing served still gets the locked Exercise screen, then is said again
+         O2 -> opens the bubble's own moment, found by its paragraph once moments before it are answered
+WHY      Never-rule 3 (coaches are never in the way of the next Take).
+*/
 import { describe, expect, it } from "vitest";
 import {
   WALK_PHASE_SCREENS,
