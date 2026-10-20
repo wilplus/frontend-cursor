@@ -26,8 +26,9 @@ const OFFER_TYPES: readonly OfferType[] = ["install", "whatsapp", "joke", "conse
 
 /** The bubble prompt persisted as the message body. No em-dashes (house style). */
 export const OFFER_PROMPT: Record<OfferType, string> = {
-  install:
-    "Keep WillpowerLab one tap away. Add it to your home screen so your coach's insights are always with you.",
+  // Simplified by the founder in chat, 2026-10-20. Mirrored verbatim in the
+  // backend's services/chat_app_context.py OFFER_PROMPTS.
+  install: "Add WillpowerLab to your home screen? Your coach is one tap away.",
   // WhatsApp (founder 2026-10-12): the second offer, after install.
   // Simplified by the founder in chat, 2026-10-20. Mirrored verbatim in the
   // backend's services/chat_app_context.py OFFER_PROMPTS.
