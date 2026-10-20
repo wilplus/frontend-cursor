@@ -18,7 +18,7 @@ import { practiseThreadFooter, practiseThreadItem, type PractiseScreenCtx } from
 import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
 import WalkSummary from "./WalkSummary";
-import WalkAiVoice, { aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
+import WalkAiVoice, { aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
@@ -175,6 +175,9 @@ type Props<R> = {
      *  same (founder 2026-10-20). */
     line?: string | null,
   ) => void;
+  /** A screen reached the speaker: the host tells the server at once (the
+   *  coach's queue, N48.2), before the chat hears what it showed. */
+  onReached?: (step: WalkStep, moment: FeedbackWalkMoment<R> | null) => void;
   /** The speaker answered a step (not a replay): the host shows the answer
    *  as their own bubble in the chat, as the thread does. */
   onAnswer?: (step: WalkStep, value: string) => void;
@@ -249,6 +252,7 @@ export default function FeedbackWalk<R = unknown>({
   onClose,
   lines: linesIO = null,
   onShown,
+  onReached,
   onAnswer,
   onOthers,
   reasons = null,
@@ -350,15 +354,29 @@ export default function FeedbackWalk<R = unknown>({
   const aiKey = ai === "pending" ? "pending" : `${aiState?.demo ?? ""}|${aiState?.clip?.state ?? ""}|${aiPractice ?? ""}|${ai?.line ?? ""}`;
   const walkLines = useWalkLines(linesIO);
   const { say: sayLine } = walkLines;
-  const aiRef = useRef<WalkAiShown | null>(null);
-  aiRef.current = ai && ai !== "pending" && aiPractice ? { ...ai, practiceId: aiPractice } : null;
+  /** The AI bubble step `s` (at `i`) gives the chat: the one its clip will
+   *  make, once one is coming or in, with the practice the chat reads it
+   *  from; null: the plain step (founder 2026-10-20: a message is posted
+   *  once and never rewritten, so a clip on its way is posted as itself). */
+  const chatAi = (s: WalkStep, i: number): WalkAiShown | null => {
+    if (s.moment == null) return null;
+    const practiceId = practise.aiVoicePracticeOf(s.moment);
+    const lines = practiceId ? aiVoiceComing(plan, i, practise.aiVoiceOf(s.moment)) : null;
+    return lines && practiceId ? { ...lines, practiceId } : null;
+  };
   const shownRef = useRef(onShown);
   shownRef.current = onShown;
+  const reachedRef = useRef(onReached);
+  reachedRef.current = onReached;
   useEffect(() => {
-    if (seq === null || !step || step.overlay === false || aiKey === "pending") return;
-    // The Exercise screen's clip is still being asked: told once it is known.
-    if (step.key === "exVideo" && step.moment != null && practise.aiVoiceAsking(step.moment)) return;
+    if (seq === null || !step || step.overlay === false) return;
     const moment = step.moment != null ? (walk.moments[step.moment] ?? null) : null;
+    // The Exercise is told to the server at once (the coach's queue); its
+    // chat bubble waits for whether a clip is coming (below).
+    if (step.key === "exVideo") {
+      reachedRef.current?.(step, moment);
+      return;
+    }
     const line =
       step.key === "improved"
         ? improvedLine(plan, at)
@@ -367,10 +385,25 @@ export default function FeedbackWalk<R = unknown>({
           : step.key === "thanks"
             ? thanksLine(plan, at)
             : null;
-    shownRef.current?.(step, moment, (bank) => sayLine(step, bank), aiRef.current, line);
-    // practise.aiVoiceAsking is stable; aiKey changes when the answer lands.
+    shownRef.current?.(step, moment, (bank) => sayLine(step, bank), chatAi(step, at), line);
+    // aiKey changes when the clip's answer lands.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq, step, walk.moments, aiKey]);
+  // The Exercise's chat bubble (founder 2026-10-20, WIL-89): once the walk
+  // knows whether an AI clip is coming (the ask answered, a second or two),
+  // even when the speaker already tapped Practise and moved on.
+  const toldExercise = useRef(new Set<string>());
+  useEffect(() => {
+    if (seq === null) return;
+    plan.forEach((s, i) => {
+      if (i > at || s.key !== "exVideo" || s.moment == null) return;
+      const told = `${seq}:${i}`;
+      if (toldExercise.current.has(told) || practise.aiVoiceAsking(s.moment)) return;
+      toldExercise.current.add(told);
+      const moment = walk.moments[s.moment] ?? null;
+      shownRef.current?.(s, moment, (bank) => sayLine(s, bank), chatAi(s, i), null);
+    });
+  });
   resetRef.current = () => {
     practise.reset();
     walkLines.reopen();

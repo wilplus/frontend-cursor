@@ -12,20 +12,35 @@ import { forgetAiVoice, knownAiVoice, noteAiVoicePlay, readAiVoiceOnce, type AiV
 /*  one player and under it the server's sentence on what changed and why    */
 /*  (WIL-82, 2026-10-16); never plays by itself. The clip's link is fetched   */
 /*  afresh (it expires); a clip that is gone (deleted, off) leaves the lines. */
+/*                                                                            */
+/*  A clip still being made is asked again while the chat is open, and its   */
+/*  player comes in when it lands; one that never comes shows the step's      */
+/*  plain words, when the message carries them (founder 2026-10-20).         */
 /* -------------------------------------------------------------------------- */
 
-export function aiVoiceOfMeta(meta: Record<string, unknown>): { practiceId: string; then: string | null } | null {
+/** How often, and how long, the chat asks again for a clip still being made. */
+const AI_CHAT_POLL_MS = 5000;
+const AI_CHAT_POLL_TRIES = 120;
+
+export function aiVoiceOfMeta(
+  meta: Record<string, unknown>,
+): { practiceId: string; then: string | null; fallback: string | null } | null {
   const raw = meta.ai_voice;
   if (!raw || typeof raw !== "object") return null;
   const v = raw as Record<string, unknown>;
   if (typeof v.practice_id !== "string" || !v.practice_id) return null;
-  return { practiceId: v.practice_id, then: typeof v.then === "string" && v.then ? v.then : null };
+  return {
+    practiceId: v.practice_id,
+    then: typeof v.then === "string" && v.then ? v.then : null,
+    fallback: typeof v.fallback === "string" && v.fallback.trim() ? v.fallback : null,
+  };
 }
 
 export default function LoungeAiVoiceBubble({
   body,
   practiceId,
   then,
+  fallback = null,
   seed,
   avatar,
   onOpen,
@@ -33,6 +48,8 @@ export default function LoungeAiVoiceBubble({
   body: string;
   practiceId: string;
   then: string | null;
+  /** The step's plain words, for a clip that never comes. */
+  fallback?: string | null;
   seed: string;
   avatar: React.ReactNode;
   /** A tap on the words turns the lens back on, on this step. */
@@ -40,15 +57,29 @@ export default function LoungeAiVoiceBubble({
 }) {
   // What the page already knows draws the whole bubble on the first paint.
   const [clip, setClip] = useState<AiVoiceState["clip"]>(() => knownAiVoice(practiceId)?.clip ?? null);
+  // Whether the server has answered: only then is a missing clip gone.
+  const [answered, setAnswered] = useState(() => knownAiVoice(practiceId) !== undefined);
   // An expired link is asked for afresh, once.
   const [renewed, setRenewed] = useState(false);
   useEffect(() => {
     let on = true;
-    void readAiVoiceOnce(practiceId).then((s) => {
-      if (on) setClip(s?.clip ?? null);
-    });
+    let tries = 0;
+    let timer: number | null = null;
+    const ask = () => {
+      void readAiVoiceOnce(practiceId).then((s) => {
+        if (!on) return;
+        setClip(s?.clip ?? null);
+        if (s) setAnswered(true);
+        if (s?.clip?.state === "pending" && tries < AI_CHAT_POLL_TRIES) {
+          tries += 1;
+          timer = window.setTimeout(ask, AI_CHAT_POLL_MS);
+        }
+      });
+    };
+    ask();
     return () => {
       on = false;
+      if (timer !== null) window.clearTimeout(timer);
     };
   }, [practiceId, renewed]);
   const renew = () => {
@@ -59,6 +90,8 @@ export default function LoungeAiVoiceBubble({
 
   const head = then && body.endsWith(`\n${then}`) ? body.slice(0, -(then.length + 1)) : body;
   const ready = clip?.state === "ready" && clip.url;
+  // The clip never came: the step's plain words, as the walk shows them.
+  const gone = Boolean(fallback) && answered && (!clip || clip.state === "unavailable");
   const words = (text: string, className?: string) =>
     onOpen ? (
       <button type="button" data-walk-step-bubble onClick={onOpen} className={`whitespace-pre-wrap break-words text-left ${className ?? ""}`}>
@@ -71,7 +104,7 @@ export default function LoungeAiVoiceBubble({
     <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
       {avatar}
       <div data-lounge-ai-voice className="flex min-w-0 flex-1 flex-col rounded-[16px] bg-muted px-3 py-2 text-[15px] leading-[1.45] text-foreground">
-        {words(head)}
+        {gone ? words(fallback as string) : words(head)}
         {ready ? (
           <>
             <span className="mt-2 flex items-center gap-[7px] text-[13px] font-semibold">
@@ -101,7 +134,7 @@ export default function LoungeAiVoiceBubble({
             ) : null}
           </>
         ) : null}
-        {then ? words(then, "mt-2") : null}
+        {then && !gone ? words(then, "mt-2") : null}
       </div>
     </div>
   );

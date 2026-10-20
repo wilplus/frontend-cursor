@@ -7,11 +7,13 @@ OUTCOME
   O3  A "not yet" on the clearer words brings the AI version of my voice; a good try does not.
   O4  The AI clip appears with one sentence on what it does differently, never a number.
   O5  At most 3 tries, all shown together in the chat with the steps before them; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.
+  O6  The Exercise reaches the coach's queue the moment it is on screen, and the Lounge as the AI bubble once a clip is coming, even when I tap Practise first.
 PROVES   O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
          O2 -> praise on try 1: the line for the reading that moved ...
          O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
          O4 -> the bubble is there at once: the typing dots alone ..., with the clip, the speaker reads what this version does differently and why (WIL-82)
          O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing
+         O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first
 WHY      Never-rule 1 (no scores to speakers).
 */
 import { act } from "react";
@@ -207,6 +209,8 @@ function draw(
     practiceOn?: boolean;
     items?: FeedbackWalkItem<string>[];
     at?: number;
+    onShown?: (...args: unknown[]) => void;
+    onReached?: (...args: unknown[]) => void;
   } = {},
 ) {
   const model = buildFeedbackWalk({ items: over.items ?? ITEMS, coachNote: false, practiceOn: over.practiceOn ?? true, guest: false });
@@ -224,6 +228,8 @@ function draw(
     onGuest: over.onGuest,
     readLimitMs: over.readLimitMs ?? 1000,
     practise: io,
+    onShown: over.onShown,
+    onReached: over.onReached,
     onSaveHelperWords: () => undefined,
     onEnd: () => {
       ended += 1;
@@ -421,6 +427,25 @@ describe("the Exercise screen as one thread (founder 2026-10-16, 2026-10-18)", (
     expect(text()).toContain(COPY.titlePraise);
     expect(practisePill()).toBeNull();
     expect(nextPill()).not.toBeNull();
+  });
+});
+
+describe("the AI voice reaches the chat (founder 2026-10-20)", () => {
+  it("the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first", async () => {
+    const onShown = vi.fn();
+    const onReached = vi.fn();
+    draw({ items: EXERCISE_ITEMS, at: 1, onShown, onReached });
+    // On screen: the coach's queue hears it at once.
+    expect(onReached).toHaveBeenCalledWith(expect.objectContaining({ key: "exVideo" }), expect.anything());
+    // Practise, before the clip's ask has answered: the chat waits a beat.
+    click(live()!.querySelector("[data-testid='walk-practise']"));
+    expect(onShown.mock.calls.some(([s]) => (s as { key: string }).key === "exVideo")).toBe(false);
+    // The ask answers (the clip is on its way): the Exercise is posted as the
+    // AI bubble with its practice, the clip coming in when it lands.
+    await settle();
+    const told = onShown.mock.calls.filter(([s]) => (s as { key: string }).key === "exVideo");
+    expect(told).toHaveLength(1);
+    expect(told[0][3]).toMatchObject({ title: COPY.titleExercise, line: WALK_COPY.aiVoiceExercise, practiceId: expect.any(String) });
   });
 });
 

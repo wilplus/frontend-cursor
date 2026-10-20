@@ -2523,6 +2523,7 @@ function WalkStepBubble({
           body={message.body}
           practiceId={ai.practiceId}
           then={ai.then}
+          fallback={ai.fallback}
           seed={message.client_id}
           avatar={<ChatAvatar />}
           onOpen={open}
