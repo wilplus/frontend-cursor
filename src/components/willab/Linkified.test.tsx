@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
-/* A link Will sends works whether it sits in a sentence or is the whole
-   bubble (founder 2026-10-18: the booking link under the answer was not
-   clickable). */
+/*
+STORY    As a speaker reading Will's message, I want links in a message to be
+         clickable, so that I can open the booking page.
+OUTCOME
+  O1  A web address on its own, or inside a sentence, becomes a link;
+      plain text stays plain.
+PROVES   O1 -> "makes a bubble that is only a URL a link",
+               "makes a URL inside a sentence a link and leaves plain text alone"
+WHY      Founder 2026-10-18: the booking link was not clickable.
+*/
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";

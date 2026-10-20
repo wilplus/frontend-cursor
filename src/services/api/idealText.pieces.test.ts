@@ -1,3 +1,13 @@
+/*
+STORY    As a speaker, I want each paragraph placed on a slide only when the
+         server says which one, so that a paragraph never lands on a guessed
+         slide.
+OUTCOME
+  O1  A slide number outside the deck means no slide placement at all.
+  O2  A paragraph without a slide number falls back to one paragraph per
+      slide only when the counts match exactly.
+PROVES   O1, O2 -> "an out-of-range or missing slide_index kills the explicit mapping"
+*/
 import { describe, expect, it } from "vitest";
 import {
   slidePagesForParagraphs,

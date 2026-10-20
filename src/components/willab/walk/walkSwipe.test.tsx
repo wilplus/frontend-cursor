@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  A finger drags the walk's screens (founder 2026-10-18): to the left goes   */
-/*  on, as ›; to the right goes back, as ‹; a scroll or a short drag does      */
-/*  nothing, and ✕ alone closes.                                               */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker on a phone, I want to swipe left for next and right for back, with scrolls and short drags doing nothing, so that I move through feedback naturally.
+OUTCOME
+  O1  A swipe left goes on, a swipe right goes back.
+  O2  A scroll, a short drag or a swipe toward a turned-off arrow does nothing and never closes the walk.
+PROVES   O1 -> goes on to the left and back to the right
+         O2 -> leaves a scroll, a short drag and an arrow that is off alone, and never closes
+*/
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

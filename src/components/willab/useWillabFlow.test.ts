@@ -1,13 +1,18 @@
+/*
+STORY    As a speaker, I want the app always to go record, then process, then
+         Ideal Text, then the next Take, so that the loop never breaks.
+OUTCOME
+  O1  Starting, stopping and finishing processing lead to the readout;
+      from there the next Take, a pause, or "sign up to send" (and on to
+      review) are expected steps.
+PROVES   O1 -> "is the record → process → Ideal Text loop"
+WHY      Never 3; audit Q-C4.
+*/
 import { describe, expect, it } from "vitest";
 import {
   transition,
   type WillabState,
 } from "./useWillabFlow";
-
-/* -------------------------------------------------------------------------- */
-/*  Audit Q-C4: the transitions live in the hook's table; the components      */
-/*  dispatch events and never name a target state.                            */
-/* -------------------------------------------------------------------------- */
 
 describe("TRANSITIONS", () => {
   it("is the record → process → Ideal Text loop", () => {

@@ -1,3 +1,25 @@
+/*
+STORY    As a speaker, I want to agree to exactly the terms the server stored,
+         and be told plainly when there is nothing to agree to or I'm blocked,
+         so that my consent is real and I'm never stuck in a loop.
+OUTCOME
+  O1  Terms waiting for my agreement are shown with their countries and
+      minimum age.
+  O2  No active terms means "unavailable", not "please agree".
+  O3  A blocked person is told they are blocked, not asked to agree again.
+  O4  My agreement sends back the four fingerprints of the texts exactly as
+      received, and never the texts themselves.
+  O5  A guest identity that is refused is replaced once; refused again, the
+      app stops rather than going on.
+PROVES   O1 -> "maps an active policy awaiting acceptance"
+         O2 -> "an inactive policy is unavailable, NOT acceptance_required"
+         O3 -> "a blocked principal is blocked, NOT acceptance_required (PLF-T1)"
+         O4 -> "sends back the four hashes EXACTLY as received",
+               "never sends any policy COPY back to the server"
+         O5 -> "a refused guest identity is forgotten and minted again once; refused again, the read fails closed"
+WHY      Consent is on the critical path: a receipt must prove the person
+         agreed to exactly the stored copy.
+*/
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Signed in unless a test says otherwise: a session never mints a guest
@@ -14,22 +36,6 @@ import {
   pendingAccountDeletion,
   type ProcessingPolicy,
 } from "./processingAuthorization";
-
-/* -------------------------------------------------------------------------- */
-/*  What these tests protect (Task 3).                                         */
-/*                                                                            */
-/*  The receipt scheme's whole claim is that a user agreed to EXACTLY the copy */
-/*  the database stores. Two client-side mistakes can quietly falsify that     */
-/*  claim, and neither one throws:                                             */
-/*                                                                            */
-/*    1. recomputing a hash from the text the client happens to hold — which   */
-/*       passes PROCESSING_POLICY_STALE every time, including the time it      */
-/*       mattered, because it verifies a copy against itself;                  */
-/*    2. resubmitting after a stale response instead of re-presenting.         */
-/*                                                                            */
-/*  So the assertions below are about the exact bytes on the wire, not about   */
-/*  the shape of a return value.                                              */
-/* -------------------------------------------------------------------------- */
 
 const TERMS_HASH = "a".repeat(64);
 const PRIVACY_HASH = "b".repeat(64);

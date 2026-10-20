@@ -1,5 +1,12 @@
 // @vitest-environment jsdom
-/* The setup asks topic, length, slides, then starts (founder 2026-10-12). */
+/*
+STORY    As a speaker, I want setup to ask my topic, then the length, then
+         slides, then start, so that starting a Take is quick.
+OUTCOME
+  O1  The questions come in that order, and starting carries my topic.
+PROVES   O1 -> "asks topic, length, slides, then starts"
+WHY      Founder 2026-10-12.
+*/
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";

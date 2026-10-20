@@ -1,6 +1,11 @@
-/* The paragraph overlay's rules (founder lock 2026-09-30, B5, D1, D3, D7,
-   Q1): which card, which button, which colour, and the History rows. Pure,
-   so the sheet stays a renderer. */
+/*
+STORY    As a speaker, I want the paragraph sheet to open on the most useful card with the right buttons, and Next to open helper words only when mine are not saved, so that feedback leads me to the useful step.
+OUTCOME
+  O1  A moment that needed work opens on its rewrite if there is one, else on the moment itself, with the matching buttons.
+  O2  With helper words already saved, Next does not open the word picker.
+PROVES   O1 -> a moment that needed work opens on its exercise, else its rewrite, else itself
+         O2 -> Next opens the helper words on unsaved words only
+*/
 import { describe, expect, it } from "vitest";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import {

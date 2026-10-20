@@ -4,16 +4,25 @@ import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { claimGuestProjects } from "@/services/api/projects";
 import { sendPendingTrainingYes } from "@/lib/legal/pendingTrainingYes";
+import { mergeClaimedLocalThread } from "@/lib/funnel/loungeLocalThread";
 import { afterChatBoot } from "@/lib/chatBoot";
 
 /** Completes the guest-owner handoff after any signup or login round-trip,
- *  then sends a training yes the visitor gave before signing in. */
+ *  then sends a training yes the visitor gave before signing in, and brings
+ *  the guest's chat into the account (founder 2026-10-20: a guest who chose
+ *  "Not now" and signed up later found an empty chat). */
 export default function GuestProjectClaim() {
   useEffect(() => {
     const supabase = createClient();
     // A visitor's training yes follows the claim: the grant needs the
     // acceptance the claim brings into the account (pendingTrainingYes.ts).
-    const claim = () => void claimGuestProjects().then(() => sendPendingTrainingYes());
+    // The chat follows it too, only when a claim marked it as this
+    // account's; a merge cut off by a page change runs again on the next open.
+    const claim = () =>
+      void claimGuestProjects().then(async () => {
+        await sendPendingTrainingYes();
+        await mergeClaimedLocalThread().catch(() => false);
+      });
     // A page opened with a session already in place: a guest token still on
     // the device is claimed in the background, after the thread has painted
     // (founder 2026-10-16, Q4), not in the boot burst. A fresh sign-in on

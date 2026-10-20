@@ -1,11 +1,15 @@
+/*
+STORY    As a speaker, I want a new Take's suggested upgrade shown as an offer
+         and never applied to my text without my yes, so that my Ideal Text
+         is only what I said or chose.
+OUTCOME
+  O1  An upgrade offered by a new Take arrives as a pending offer, not as an
+      applied change.
+PROVES   O1 -> "is approve-gated — maps as a pending OFFER, never applied"
+WHY      Never-rule 5: the Ideal Text is only what the speaker said.
+*/
 import { describe, expect, it } from "vitest";
 import { mapDocumentSuggestions } from "./idealText";
-
-/* Pins the FE mapper to the HARDENED BE tracked-changes contract
- * (services/tracked_changes.py on feat/living-transcript):
- *   top-level field `changes`; per item {id, snippet_id, kind, source,
- *   span:{start,end}, quote, proposed_text?, why?/why_key?, device?}.
- *   NO take_session_id yet (BE contract ask #2, acknowledged). */
 
 const replace = {
   id: "s1",

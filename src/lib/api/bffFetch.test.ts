@@ -1,3 +1,11 @@
+/*
+STORY    As a developer, I want every call to our own server routes to carry the sign-in token and to report "no connection" separately from a server answer, so that screens handle being offline correctly.
+OUTCOME
+  O1  The call carries the sign-in token and only the options it was given.
+  O2  A dropped connection comes back as "network", never as a server answer.
+PROVES   O1 -> sends the Bearer header and only the options it was given
+         O2 -> reports a thrown fetch as network, never as a response
+*/
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn() }));

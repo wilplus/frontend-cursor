@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  THE BOTTOM OF THE TEXT PAGE (build plan D-IT-8; walk prototype .foot and   */
-/*  text(); lock D8; N48.3 Q8; founder 2026-10-07, Q-B10 A).                   */
-/*                                                                            */
-/*  The pills are the walk's: 54px, 16px semibold; the Record pill carries   */
-/*  the 10px red dot, not a mic; the link is 40px / 16px muted with no icon;  */
-/*  there is no top border. "● Record Take N" and the grey "Close" (lock      */
-/*  2026-10-12, sections 4 and 9). The end card: the next Take only (J4).    */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker, I want the bottom of my Ideal Text page to offer
+         "Record Take N+1" and a grey Close, so that the next Take is always
+         one tap away.
+OUTCOME
+  O1  The only buttons are "Record Take 2" and "Close", even when a review
+      is waiting; Close closes the page.
+PROVES   O1 -> "is ● Record Take N and a grey Close, the one way out"
+WHY      Founder lock 2026-10-12, sections 4 and 9; locked Ideal Text screen.
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

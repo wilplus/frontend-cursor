@@ -1,5 +1,13 @@
 // @vitest-environment jsdom
-/* Operator queue (P1, N8): Confirm asks first, posts once, shows the purge id. */
+/*
+STORY    As an operator, I want confirming a project deletion to ask me first
+         and send once, so that no project is erased by a slip.
+OUTCOME
+  O1  Backing out of the "are you sure" sends nothing.
+  O2  Confirming sends one confirm and shows "Confirmed" with the purge id.
+PROVES   O1 -> "sends nothing when the operator backs out"
+         O2 -> "confirms once and shows the purge request id"
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

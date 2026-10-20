@@ -1,5 +1,9 @@
-/* The finished walk, played again (founder 2026-10-08, Q-IT643b A):
-   buildFeedbackReplay and phraseSelection. */
+/*
+STORY    As a speaker replaying a finished walk, I want no judging step when I never answered, so that the replay does not ask me to judge out of nowhere.
+OUTCOME
+  O1  With no answers given, the replay has no judging step and no lone judging intro.
+PROVES   O1 -> with no answer given there is no judging at all, and no lone "Judgement time!"
+*/
 import { describe, expect, it } from "vitest";
 import { buildFeedbackReplay, type FeedbackWalkItem } from "./feedbackWalkModel";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";

@@ -1,3 +1,20 @@
+/*
+STORY    As a speaker, I want the price list to show at once from my last
+         visit, change only when it really changes, survive a short outage and
+         disappear when pricing is turned off, so that prices are fast and
+         never wrong.
+OUTCOME
+  O1  The last price list shows straight away on my next visit, and an
+      unchanged answer from the server changes nothing on screen.
+  O2  A new price list from the server replaces the shown one and is kept
+      for next time.
+  O3  A lost connection keeps the shown list; pricing turned off removes it.
+  O4  A damaged saved copy is never shown.
+PROVES   O1 -> "is kept from a live read and served first on the next open, then confirmed behind it"
+         O2 -> "replaces the shown list when the backend publishes a new one"
+         O3 -> "keeps the shown list through a blip, and drops it when pricing is turned off"
+         O4 -> "never serves a copy the parser rejects"
+*/
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api/auth-client", () => ({
@@ -10,13 +27,6 @@ import {
   subscribeTokenPrices,
   type TokenPricesRead,
 } from "./tokens";
-
-/* -------------------------------------------------------------------------- */
-/*  The price list is remembered across page loads (founder 2026-10-18): the  */
-/*  next open paints the last published list with no round trip, the read    */
-/*  still goes out behind the paint, and only a DIFFERENT answer replaces     */
-/*  what is on screen. A blip keeps the list; the flag turned off removes it. */
-/* -------------------------------------------------------------------------- */
 
 class MemoryStorage {
   private rows = new Map<string, string>();

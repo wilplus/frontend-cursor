@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
-/* A visitor's training yes, kept until they sign in (founder 2026-10-15):
-   sent once for the words they saw; never sent for words no longer in force;
-   kept when the account cannot take it yet. */
+/*
+STORY    As a visitor who said yes to training before signing in, I want that yes sent once after sign-in and only for the words I saw, so that my consent is honest.
+OUTCOME
+  O1  The yes is sent once after sign-in, with the words I saw.
+  O2  If the words have changed since, it is dropped and never sent.
+  O3  If my account cannot take it yet, it is kept for later.
+PROVES   O1 -> is sent once after sign-in, for the words they saw
+         O2 -> is never sent once the words in force changed
+         O3 -> is kept for later when the account has not accepted the policy yet
+*/
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const io = vi.hoisted(() => ({ read: vi.fn(), set: vi.fn() }));

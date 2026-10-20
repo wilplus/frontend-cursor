@@ -1,3 +1,14 @@
+/*
+STORY    As a speaker, I want my answer about a feedback item saved against
+         the exact feedback I saw, and a changed answer accepted with its
+         follow-up, so that my judgements are recorded correctly.
+OUTCOME
+  O1  My answer is saved against that feedback item only, with no recording
+      details added by the app.
+  O2  A changed answer is accepted as a save, with what to show next.
+PROVES   O1 -> "writes the frozen feedback identity without a caller-controlled clip"
+         O2 -> "reads the 200 revised body as a save, with its follow-up"
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { saveTakeFeedbackResponse } from "./takeFeedback";
 

@@ -1,9 +1,17 @@
-/**
- * The price list is the same for everyone, so a server instance answers it
- * from its copy for a while instead of hopping to the backend on every read
- * (founder 2026-10-18). The copy is the backend's own 200 body, signed-out
- * is still refused, and an error is never kept.
- */
+/*
+STORY    As a speaker, I want the token price list to load fast and always
+         match what the backend said, so that I see correct prices.
+OUTCOME
+  O1  The backend is asked once; later reads are served from a copy that
+      is exactly the backend's answer.
+  O2  A signed-out read is still refused while a copy is held.
+  O3  The "prices switched off" answer is kept too, but an error is never
+      kept: the next read asks the backend again.
+PROVES   O1 -> "asks the backend once and answers the next reads from its copy, as the backend said it"
+         O2 -> "still refuses a signed-out read while it holds a copy"
+         O3 -> "keeps the flag-off body too, and never an error"
+WHY      Founder 2026-10-18: the price list is the same for everyone.
+*/
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 

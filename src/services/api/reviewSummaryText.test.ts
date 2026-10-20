@@ -1,3 +1,14 @@
+/*
+STORY    As a speaker finishing the Feedback walk, I want the closing summary
+         to show exactly the words the server saved, and to be skipped when
+         there is nothing to say, so that I never see invented or empty text.
+OUTCOME
+  O1  The summary shows the words of the message the server stored.
+  O2  If the server fails or stores only blank text, there is no summary.
+PROVES   O1 -> "are the stored Lounge row's body, as the backend answers"
+         O2 -> "are none when the backend fails or stores nothing to say"
+WHY      Locked Feedback walk (lock 2026-10-12, sections 2.7 and 3).
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "tok") }));

@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { markLocalThreadClaimed } from "@/lib/funnel/loungeLocalThread";
 
 export const GUEST_OWNER_HEADER = "X-Willab-Guest-Owner";
 const GUEST_OWNER_KEY = "willab_guest_owner:v1";
@@ -254,6 +255,9 @@ async function performGuestProjectClaim(): Promise<boolean> {
     });
     if (!response.ok) return false;
     clearGuestOwnerToken();
+    // The guest's chat on this device follows the Take into the account
+    // (loungeLocalThread.ts, founder 2026-10-20).
+    markLocalThreadClaimed();
     return true;
   } catch {
     return false;

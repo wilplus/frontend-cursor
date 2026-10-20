@@ -1,16 +1,14 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  A PARAGRAPH SAVED WITH HELPER WORDS HAS NO BAR (founder lock 2026-09-30,  */
-/*  B7 and its interpretation Q3; contract 24g; audit 2026-10-05 B7-4, I-Q3,  */
-/*  C24g).                                                                    */
-/*                                                                            */
-/*  The server's window withholds a saved paragraph's open moment from the   */
-/*  next read on. Within the same visit the page still held the moment as    */
-/*  waiting (a moment practised and then saved settles without an answer,    */
-/*  24e-1), so its bar stayed until the page read again. The bar, and the    */
-/*  "Review feedback" offer that follows the bar's condition, now give way   */
-/*  as soon as the paragraph's headline is on the page.                      */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker, I want a paragraph I saved with helper words to lose
+         its feedback bar at once, so that the page shows my progress
+         straight away.
+OUTCOME
+  O1  The saved paragraph has no bar but still opens when tapped, and
+      "Review feedback" is no longer offered.
+PROVES   O1 -> "the same moment on a paragraph whose helper words are saved draws no bar"
+WHY      Founder lock 2026-09-30, B7 / Q3.
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

@@ -1,3 +1,12 @@
+/*
+STORY    As a speaker, I want the Feedback walk to give every moment a practice step even when no coach has answered, so that a coach never holds up my next Take.
+OUTCOME
+  O1  A moment with nothing from a coach still gets the exercise screen and is practised; a coach's exercise, once shared, takes its place.
+  O2  A step tapped in the Lounge opens that same moment, even after earlier moments were answered.
+PROVES   O1 -> never waits for a coach: a moment with nothing served still gets the locked Exercise screen, then is said again
+         O2 -> opens the bubble's own moment, found by its paragraph once moments before it are answered
+WHY      Never-rule 3 (coaches are never in the way of the next Take).
+*/
 import { describe, expect, it } from "vitest";
 import {
   WALK_PHASE_SCREENS,
@@ -61,5 +70,40 @@ describe("a step tapped in the Lounge (lock 2026-10-12, section 1)", () => {
     const at = walkStepAt(model, { step: "practise", moment: 1, part: "p2" });
     expect(at).not.toBeNull();
     expect(model.moments[model.plan[at as number].moment as number].partId).toBe("p2");
+  });
+});
+
+describe("the coach's link opens everything the coach sent (founder 2026-10-20)", () => {
+  // Three moments the coach touched: an exercise they chose, a clearer
+  // version they wrote, a note. And one the coach never touched.
+  const chosen = item({
+    partId: "p1", start: 0, blockId: "b1", tiered: true, practicePrompt: true, hasExercise: true, coachExercise: true,
+    exercise: { video: "coach.mp4", byCoach: true, instruction: "Slow down.", say: "Say it.", item: "s-ex" },
+  }) as FeedbackWalkItem<string>;
+  const version = item({
+    partId: "p2", start: 100, blockId: "b2", tiered: true, coachAnswered: true, coachVersion: true, hasRewrite: true,
+    coachAnswer: { kind: "version", text: "We give you your words back.", videoUrl: null }, coachItem: "s-v",
+    rewrite: { quote: "So basically we give you your words back.", proposedText: "We give you your words back.", item: "s-v", byCoach: true },
+  }) as FeedbackWalkItem<string>;
+  const note = item({
+    partId: "p3", start: 200, blockId: "b3", tiered: true, coachAnswered: true,
+    coachAnswer: { kind: "note", text: "Breathe first.", videoUrl: null }, coachItem: "s-n",
+  }) as FeedbackWalkItem<string>;
+  const untouched = item({ partId: "p4", start: 300, blockId: "b4", tiered: true, green: true }) as FeedbackWalkItem<string>;
+  const walk = (practiceOn = true) =>
+    buildFeedbackWalk({ items: [chosen, version, note, untouched], coachNote: true, practiceOn, guest: false, coachOnly: true });
+
+  it("the coach's word, their exercise, their clearer version, their note, and nothing of the machine's", () => {
+    const { plan, moments } = walk();
+    expect(plan.map((s) => (s.key === "practise" ? `practise:${s.kind}` : s.key))).toEqual([
+      "page", "coachnote", "exVideo", "practise:instruction", "clearer", "coach", "end",
+    ]);
+    // The clearer version is the coach's words, marked as theirs.
+    expect(moments[1].clearer?.byCoach).toBe(true);
+    expect(moments[1].clearer?.say).toBe("We give you your words back.");
+  });
+
+  it("with practice off, the coach's clearer version is still shown and the exercise is not", () => {
+    expect(walk(false).plan.map((s) => s.key)).toEqual(["page", "coachnote", "clearer", "coach", "end"]);
   });
 });

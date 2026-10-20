@@ -1,3 +1,13 @@
+/*
+STORY    As a speaker, I want a Take that can't be deleted because it is part
+         of my history to explain why in approved words, so that I understand
+         and my history stays whole.
+OUTCOME
+  O1  A refused Take deletion shows the approved line about the project's
+      history.
+PROVES   O1 -> "maps a refused take to the approved take line"
+WHY      Never-rule 5: every old version stays in the history.
+*/
 import { describe, expect, it, vi, afterEach } from "vitest";
 import {
   deleteRefusalLine,

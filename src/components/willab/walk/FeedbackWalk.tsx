@@ -834,13 +834,18 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
       }
     >
       <Clip moment={moment} words={pieces(clearer.before)} />
-      <WalkMessage>
+      {/* The coach's own clearer version is their bubble, with their photo
+          and video, and is not said twice (founder 2026-10-20). */}
+      <WalkMessage coach={clearer.byCoach === true} wide={clearer.byCoach === true}>
         <span>{COPY.cardClearerVersion}</span>
+        {clearer.byCoach && moment.coachAnswer?.videoUrl ? (
+          <CoachVideo src={moment.coachAnswer.videoUrl} className="my-2 w-full flex-none" />
+        ) : null}
         <span>{ctx.say(step, "B13")}</span>
         <WalkNewWords>{pieces(clearer.after)}</WalkNewWords>
         {practiseOff ? null : <span>{ctx.say(step, "B14")}</span>}
       </WalkMessage>
-      <CoachAnswerBubble moment={moment} />
+      {clearer.byCoach ? null : <CoachAnswerBubble moment={moment} />}
     </WalkOverlay>
   );
 }
@@ -908,13 +913,13 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
 }
 
 /** The coach's answer on a moment, its last bubble (founder 2026-10-14):
- *  "Your coach", their video when they sent one, their words. No picture
- *  beside it; the whole-Take word keeps the coach's. */
+ *  "Your coach", their video when they sent one, their words, beside the
+ *  coach's picture like their word for the Take (founder 2026-10-20). */
 function CoachAnswerBubble({ moment }: { moment: FeedbackWalkMoment<unknown> }) {
   const answer = moment.coachAnswer;
   if (!answer) return null;
   return (
-    <WalkMessage wide>
+    <WalkMessage coach wide>
       <span>{COPY.titleCoach}</span>
       {answer.videoUrl ? <CoachVideo src={answer.videoUrl} className="my-2 w-full flex-none" /> : null}
       <span>{answer.text}</span>

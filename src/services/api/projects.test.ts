@@ -1,3 +1,15 @@
+/*
+STORY    As a guest who later signs up, I want my projects kept under a guest
+         key and moved to my account, with the key forgotten only after the
+         move, so that I never lose my work.
+OUTCOME
+  O1  The guest key the server issues is kept and sent with my later
+      requests.
+  O2  Signing up moves my projects using both my login and the guest key,
+      and the guest key is forgotten after the move succeeds.
+PROVES   O1 -> "stores the issued guest credential and reuses it as an owner header"
+         O2 -> "clears the guest credential only after an authenticated atomic claim"
+*/
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let authToken: string | null = null;

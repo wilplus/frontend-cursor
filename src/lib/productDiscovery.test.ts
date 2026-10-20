@@ -1,3 +1,9 @@
+/*
+STORY    As a speaker, I want the menu to list only the products I have discovered, so that the menu stays simple.
+OUTCOME
+  O1  Nothing discovered means no product rows; discovering Life Panel adds its row.
+PROVES   O1 -> builds only the hamburger rows the user has discovered
+*/
 import { describe, expect, it } from "vitest";
 import {
   productMenuEntries,

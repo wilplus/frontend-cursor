@@ -1,3 +1,10 @@
+/*
+STORY    As a guest, I want my feedback on suggestions saved under my guest
+         identity, so that my choices count before I sign up.
+OUTCOME
+  O1  My feedback on a suggestion is sent with my guest identity.
+PROVES   O1 -> "forwards the signed Guest ID for a pre-signup feedback decision"
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 let authToken: string | null = null;

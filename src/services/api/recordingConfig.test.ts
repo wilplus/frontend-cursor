@@ -1,13 +1,16 @@
+/*
+STORY    As the founder, I want the "this Take is getting long" warning
+         threshold to come only from the server, so that I can change it
+         without a deploy and the app never invents one.
+OUTCOME
+  O1  A missing or unusable threshold gives no threshold, never a made-up
+      default.
+PROVES   O1 -> "never substitutes a default when the field is missing or unusable"
+*/
 import { describe, expect, it } from "vitest";
 import {
   mapRecordingConfig,
 } from "./recordingConfig";
-
-/* -------------------------------------------------------------------------- */
-/*  FE-5 — the caution threshold is SERVED, never hardcoded. 600 is today's    */
-/*  value; the point of serving it is that it can move without a deploy, so    */
-/*  the mapper must carry whatever arrives and refuse to invent a default.     */
-/* -------------------------------------------------------------------------- */
 
 describe("mapRecordingConfig", () => {
 

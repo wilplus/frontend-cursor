@@ -1,8 +1,13 @@
-/**
- * The exposure-receipt leg exists and forwards the acknowledgement as it
- * came (G-1, audit 2026-09-22). Before this file the client posted here and
- * every call 404ed against Next.js, so no receipt was ever recorded.
- */
+/*
+STORY    As the founder, I want every "the speaker saw this" receipt the app
+         sends to reach the backend unchanged, so that the records of what
+         each speaker was shown are complete.
+OUTCOME
+  O1  The receipt is POSTed to the backend's receipt route exactly as sent,
+      and the speaker must be signed in.
+PROVES   O1 -> "forwards the acknowledgement verbatim to the backend ack route"
+WHY      Audit 2026-09-22 (G-1): before this route every receipt was lost.
+*/
 import { describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 
