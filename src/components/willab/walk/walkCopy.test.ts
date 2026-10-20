@@ -1,20 +1,20 @@
+/*
+GUARD    Every word the walk can show comes from the signed copy, and no signed
+         walk line carries a digit.
+CATCHES  Never 4: a literal word typed into a walk/*.tsx primitive (JSX text,
+         a string child, an accessible name, title, placeholder) that is not in
+         WALK_COPY or CHUNK_SHEET_COPY. Never 1: a digit in a signed walk line
+         (the only numbers the walk shows are a Take or moment position, put in
+         by the caller).
+IF REMOVED  An unsigned word or a number can reach speakers in the Feedback walk.
+PROVES   unsigned word -> "every literal a primitive shows or reads out is signed"
+         digit         -> "no signed walk line carries a digit"
+*/
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { CHUNK_SHEET_COPY, WALK_COPY } from "../idealEditCopy";
-
-/* -------------------------------------------------------------------------- */
-/*  THE WALK SAYS ONLY SIGNED WORDS, AND NO NUMBER (LIVE LOOP: copy needs the  */
-/*  founder's sign-off; AC-9: no score or number on screen).                   */
-/*                                                                            */
-/*  Every word a walk primitive can put on screen or read out — JSX text, a   */
-/*  string child, an accessible name, a title, a placeholder — must come from  */
-/*  CHUNK_SHEET_COPY or WALK_COPY (or be passed in by the caller). A literal  */
-/*  with a letter in it is a word nobody signed. And no signed walk line may  */
-/*  carry a digit: the only number the walk shows is a Take or a moment       */
-/*  position, put in by the caller.                                           */
-/* -------------------------------------------------------------------------- */
 
 const DIR = "src/components/willab/walk";
 const FILES = readdirSync(DIR).filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f));
@@ -64,7 +64,15 @@ describe("the walk's words", () => {
 
   it("every literal a primitive shows or reads out is signed", () => {
     const words = FILES.flatMap((f) => spoken(f)).filter((f) => /[A-Za-z]/.test(f.text));
+    // The scan reads real files and would see a typed word if one were there.
+    expect(FILES.length).toBeGreaterThan(0);
+    expect(spoken("probe.tsx", '<p aria-label="Unsigned">Hello</p>').map((f) => f.text)).toEqual(["Unsigned", "Hello"]);
     const unsigned = words.filter((f) => !SIGNED.has(f.text));
     expect(unsigned, unsigned.map((f) => `${f.file} (${f.where}): ${f.text}`).join("\n")).toEqual([]);
+  });
+
+  it("no signed walk line carries a digit", () => {
+    expect(SIGNED.size).toBeGreaterThan(0);
+    expect([...SIGNED].filter((s) => /\d/.test(s))).toEqual([]);
   });
 });

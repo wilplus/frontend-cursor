@@ -18,8 +18,11 @@ export async function postReviewSummaryText(arcId: string, ask: ReviewSummaryAsk
       },
     });
     if (result.kind !== "response" || !result.ok) return null;
+    // The backend answers with the stored Lounge row ({message: {body, ...}},
+    // routes/v2/explore_ideal_text.py); its body is the summary's words.
     const message = (result.body as { message?: unknown } | null)?.message;
-    return typeof message === "string" && message.trim() ? message : null;
+    const body = message && typeof message === "object" ? (message as { body?: unknown }).body : message;
+    return typeof body === "string" && body.trim() ? body : null;
   } catch {
     return null;
   }

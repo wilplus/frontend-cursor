@@ -1,9 +1,20 @@
 // @vitest-environment jsdom
-/* MLC-3 §3.5 (label spec exercise-adequacy-label-v1): an exercise counts as
-   shown only once the speaker's app confirms it rendered. The confirmation
-   goes out the first time an exercise card is about half visible — never on
-   data load, once per card per page view, fire-and-forget, and nothing about
-   it ever reaches the speaker. A 409 means the card is stale: re-read. */
+/*
+ * STORY    As the founder, I want an exercise counted as shown only once the
+ *          speaker actually saw it, once per view, silently, so that exercise
+ *          data is honest.
+ * OUTCOME
+ *   O1  Nothing goes out on data load; the ack goes out once the card is
+ *       about half visible.
+ *   O2  Once per card per page view, even when the sheet is opened again.
+ *   O3  A 409 (stale offer) makes the host re-read the Ideal Text.
+ *   O4  Nothing about it reaches the speaker: the screen is the same before
+ *       and after the ack, a 409 included.
+ * PROVES   O1 -> "does not fire on data load, only once the card is about half visible"
+ *          O2, O4 -> "fires once per card in a page view, even when the sheet reopens"
+ *          O3, O4 -> "a 409 asks the host to re-read and shows the speaker nothing"
+ * WHY      MLC-3 §3.5 (label spec exercise-adequacy-label-v1).
+ */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -216,5 +227,30 @@ describe("exercise rendered — the speaker's app confirms the card was seen", (
     expect(init.method).toBe("POST");
     expect(init.headers.Authorization).toBe("Bearer test-token");
     expect(JSON.parse(init.body)).toEqual({ exercise_id: "ex-1" });
+  });
+
+  it("fires once per card in a page view, even when the sheet reopens", async () => {
+    await render("a");
+    const before = container.textContent;
+    await scrollTo("answered-exercise", 0.6);
+    await scrollTo("answered-exercise", 0.9);
+    expect(renderedCalls()).toHaveLength(1);
+    expect(container.textContent).toBe(before);
+
+    await render("b");
+    expect(container.querySelector('[data-testid="answered-exercise"]')).not.toBeNull();
+    await scrollTo("answered-exercise", 0.6);
+    expect(renderedCalls()).toHaveLength(1);
+  });
+
+  it("a 409 asks the host to re-read and shows the speaker nothing", async () => {
+    reply(409, { code: "EXERCISE_STALE" });
+    await render();
+    const before = container.textContent;
+    expect(before).toContain("Say it again, slower.");
+    await scrollTo("answered-exercise", 0.6);
+    expect(renderedCalls()).toHaveLength(1);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toBe(before);
   });
 });

@@ -8,7 +8,14 @@ export function useUserEmail(): string | null | undefined {
   const [email, setEmail] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
-    const supabase = createClient();
+    let supabase: ReturnType<typeof createClient>;
+    try {
+      supabase = createClient();
+    } catch {
+      // No Supabase configured (a test, a preview without env): signed out.
+      setEmail(null);
+      return;
+    }
     let active = true;
     void supabase.auth
       .getSession()

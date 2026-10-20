@@ -1,31 +1,20 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  A RE-RENDER MUST NOT TURN THE SLIDE OFF                                    */
-/*  (founder 2026-09-19: "the truncation of the text works but the slides are  */
-/*   gone... it seems like it flips when one works the other doesn't")         */
-/*                                                                            */
-/*  It was one latent race, exposed rather than caused by the screen split.    */
-/*                                                                            */
-/*  `onError` sat in the render effect's dependency list, and every caller     */
-/*  writes it inline — `onError={() => setFailed(true)}` — so it was a new     */
-/*  function on every parent render and the effect re-ran whenever anything    */
-/*  above it re-rendered. The cleanup set a local flag; it never cancelled the */
-/*  render, which stayed live inside pdf.js with the canvas still in its       */
-/*  `#canvasInUse` set. The canvas element is stable across re-renders, so the */
-/*  next run handed pdf.js a canvas it considered busy, and pdf.js threw by    */
-/*  design (pdf.mjs: "Cannot use the same canvas during multiple render()      */
-/*  operations"). That throw arrived with `cancelled` false, was reported as a */
-/*  real failure, and `DeckSlidePreview` only clears its failed state when the */
-/*  url or page changes — so one spurious re-render turned the slide off for   */
-/*  good.                                                                      */
-/*                                                                            */
-/*  Putting more previews on screen (one per SCREEN rather than one per slide) */
-/*  is what took this from occasional to certain.                              */
-/*                                                                            */
-/*  The fake below enforces the same canvas rule pdf.js does, so these tests   */
-/*  fail against the old code with the production error rather than a proxy    */
-/*  for it.                                                                    */
-/* -------------------------------------------------------------------------- */
+/*
+ * STORY    As a speaker, I want my slide picture to stay on screen through
+ *          re-renders, so that the slide does not vanish while I record.
+ * OUTCOME
+ *   O1  Re-rendering the parent with a new inline onError keeps one live
+ *       render, draws the slide and reports no error.
+ *   O2  A real page change cancels the old render and draws again, with no
+ *       error.
+ *   O3  A cancelled render is not reported as a failed slide.
+ * PROVES   O1 -> "a parent re-render with a new onError keeps the slide drawn"
+ *          O2 -> "a page change cancels the old render and redraws"
+ *          O3 -> "does not report a cancellation as a failed slide"
+ * WHY      Founder 2026-09-19 "the slides are gone": an inline onError
+ *          restarted the render on a busy canvas and latched the slide off.
+ *          The fake below enforces pdf.js's one-render-per-canvas rule.
+ */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -140,7 +129,39 @@ async function mount(props: {
   });
 }
 
-describe("a real change still redraws, and releases the canvas first", () => {
+const canvas = () => host.querySelector("canvas")!;
+
+describe("a re-render must not turn the slide off", () => {
+  it("a parent re-render with a new onError keeps the slide drawn", async () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const url = freshUrl();
+    await mount({ url, pageIndex: 0, onError: () => first() });
+    // The parent re-renders and, as every caller does, writes onError inline.
+    await mount({ url, pageIndex: 0, onError: () => second() });
+    await act(async () => {
+      tasks[tasks.length - 1].finish();
+    });
+    expect(renderCalls).toBe(1);
+    expect(first).not.toHaveBeenCalled();
+    expect(second).not.toHaveBeenCalled();
+    expect(canvas().className).not.toContain("hidden");
+  });
+
+  it("a page change cancels the old render and redraws", async () => {
+    const onError = vi.fn();
+    const url = freshUrl();
+    await mount({ url, pageIndex: 0, onError });
+    await mount({ url, pageIndex: 1, onError });
+    expect(renderCalls).toBe(2);
+    expect(tasks[0].cancelled).toBe(true);
+    await act(async () => {
+      tasks[1].finish();
+    });
+    expect(onError).not.toHaveBeenCalled();
+    expect(canvas().className).not.toContain("hidden");
+  });
+
 
   it("does not report a cancellation as a failed slide", async () => {
     // pdf.js rejects a cancelled render. Treating that as a failure is how

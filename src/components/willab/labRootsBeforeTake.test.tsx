@@ -1,18 +1,22 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  Take 2 starts once its helper words are read (build plan D-RC-4).         */
-/*                                                                            */
-/*  A later Take used to start the instant its setup arrived, so its helper   */
-/*  words landed a moment after the first slide, and the read was dropped    */
-/*  and started again on the move from "Getting your mic ready" to the        */
-/*  recording screen. The start now waits for the setup AND the words' read, */
-/*  capped at 1.5 s: after that the Take starts anyway (LIVE LOOP: recording  */
-/*  is never blocked by the words). Take 1 has no words and does not wait.   */
-/*                                                                            */
-/*  The host here is LabOverlay's wiring in miniature, with the real hook,    */
-/*  the real auto-start and the real recording phase: the entry state keeps  */
-/*  "entering" true from lab_prerecord to lab_recording, as LabOverlay does. */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker, I want Take 2 to start with its helper words already on
+         the first slide, but never wait more than 1.5 s for them, so that
+         recording is never blocked.
+OUTCOME
+  O1  A good read: the Take starts as soon as the words are read, and the
+      very first frame of the recording screen already shows them.
+  O2  Never 3 (record -> process -> Ideal Text -> next Take is never broken):
+      when the read fails every time, the Take still starts within 1.5 s,
+      after the first read and two retries.
+  O3  Take 1 has no helper words, does not read them, and starts at once.
+PROVES   O1 -> "a good read shows the words on the first frame"
+         O2 -> "still starts within 1.5 s when the read fails every time"
+         O3 -> "Take 1 starts at once, without a read"
+WHY      Build plan D-RC-4: the words used to land a moment after the first
+         slide. The host is LabOverlay's wiring in miniature (real hook, real
+         auto-start, real recording phase).
+*/
 import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -30,12 +34,13 @@ import { ContinuedTakeAutoStart, RecordingPhase } from "./LabOverlay";
 import { forgetLabHandover } from "@/lib/willab/labEntryHandover";
 import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
 
+const WORDS = "Open with the one idea";
 const SLIDES = [0, 1].map((i) => ({ title: `Slide ${i + 1}`, body: "" })) as never[];
 
 let root: Root;
 let host: HTMLDivElement;
 let startedAt: number | null;
-/** Each render of the recording screen: was the slide there, and its words? */
+/** Each look at the recording screen: was the slide there, and its words? */
 let frames: Array<{ slide: boolean; words: boolean }>;
 
 function Host({ takeIndex }: { takeIndex: number }) {
@@ -87,11 +92,17 @@ async function advance(ms: number) {
   record();
 }
 
+async function mount(takeIndex: number) {
+  act(() => root.render(createElement(Host, { takeIndex })));
+  await flush();
+  record();
+}
+
 function record() {
   if (!host.querySelector('[data-testid="slide"]')) return;
   frames.push({
     slide: true,
-    words: (host.textContent ?? "").includes("Open with the one idea"),
+    words: (host.textContent ?? "").includes(WORDS),
   });
 }
 
@@ -120,8 +131,7 @@ describe("a later Take waits for its helper words, never more than 1.5 s", () =>
 
   it("still starts within 1.5 s when the read fails every time", async () => {
     api.fetchRecordingRoots.mockResolvedValue({ kind: "error" });
-    act(() => root.render(createElement(Host, { takeIndex: 2 })));
-    await flush();
+    await mount(2);
     for (let t = 0; t < ROOTS_WAIT_CAP_MS && startedAt === null; t += 50) {
       await advance(50);
     }
@@ -131,5 +141,33 @@ describe("a later Take waits for its helper words, never more than 1.5 s", () =>
     expect(api.fetchRecordingRoots).toHaveBeenCalledTimes(3);
     expect(host.querySelector('[data-testid="slide"]')).not.toBeNull();
   });
-});
 
+  it("a good read shows the words on the first frame", async () => {
+    api.fetchRecordingRoots.mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () => resolve({ kind: "ready", roots: [{ slideIndex: 0, text: WORDS, type: "flagship" }] }),
+            300,
+          ),
+        ),
+    );
+    await mount(2);
+    // Waiting for the read: not started, no recording screen yet.
+    expect(startedAt).toBeNull();
+    for (let t = 0; t < ROOTS_WAIT_CAP_MS && startedAt === null; t += 50) {
+      await advance(50);
+    }
+    expect(startedAt).toBe(300);
+    expect(frames.length).toBeGreaterThan(0);
+    expect(frames[0]).toEqual({ slide: true, words: true });
+    expect(api.fetchRecordingRoots).toHaveBeenCalledTimes(1);
+  });
+
+  it("Take 1 starts at once, without a read", async () => {
+    await mount(1);
+    expect(startedAt).toBe(0);
+    expect(host.querySelector('[data-testid="slide"]')).not.toBeNull();
+    expect(api.fetchRecordingRoots).not.toHaveBeenCalled();
+  });
+});

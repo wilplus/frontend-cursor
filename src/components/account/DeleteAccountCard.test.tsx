@@ -1,24 +1,31 @@
 // @vitest-environment jsdom
-/* "Delete my account" (founder 2026-10-05, Q3a). Pins: off until the words
- * are signed; nothing is sent before the confirm; the confirm sends one
- * account-deletion request through the terminate relay and says it is under
- * way; a refused request keeps the dialog.
- *
- * Wave 3 (founder 2026-10-05, N48.4 Q14 A): a deletion already under way is
- * read on arrival and said, never offered again; the cancel inside the 7-day
- * window and its words are signed and on (W2, W3, S1 A; N50); the cancel
- * names the backend's purge id, and a refusal or a failure says which. With
- * an active training yes the confirm ends with the signed "A model already
- * trained stays." (W5 A); unknown reads as no. */
+/*
+STORY    As a speaker, I want deleting my account to need a confirm, send one
+         request, and let me cancel inside 7 days, so that I never lose my
+         account by accident (deletion).
+OUTCOME
+  O1  Switched off, the card shows nothing and reads nothing.
+  O2  Nothing is sent before the confirm; the confirm sends one
+      account-deletion request through the terminate relay and says so.
+  O3  A refused or failed request keeps the dialog open, says so, and does
+      not claim the deletion is under way.
+  O4  A deletion already under way is shown on arrival with its day; the
+      cancel names the backend's purge id and gives the account back.
+  O5  A cancel the backend refuses (409) says it is too late and removes the
+      cancel; a cancel that fails says so and keeps it to try again.
+  O6  With an active training yes the confirm ends with "a model already
+      trained stays"; without one it does not.
+PROVES   O1 -> "switched off, shows nothing and reads nothing"
+         O2 -> "sends nothing before the confirm, then one account-deletion request"
+         O3 -> "a refused request keeps the dialog and says so"
+         O4 -> "once on, names the day and cancels the backend's purge id"
+         O5 -> "a refused cancel says too late and removes the cancel; a failed one keeps it"
+         O6 -> "the training sentence ends the confirm only with an active training yes"
+WHY      Founder 2026-10-05 (Q3a; N48.4 Q14 A; W5 A).
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-const status = vi.hoisted(() => ({ fetchAuthorization: vi.fn() }));
-vi.mock("@/services/api/processingAuthorization", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/services/api/processingAuthorization")>();
-  return { ...actual, fetchAuthorization: status.fetchAuthorization };
-});
 
 import DeleteAccountCard from "./DeleteAccountCard";
 import { DELETE_ACCOUNT_COPY } from "@/lib/legal/deleteAccountCopy";
@@ -56,8 +63,6 @@ describe("DeleteAccountCard", () => {
     root = createRoot(container);
     fetchMock.mockReset();
     vi.stubGlobal("fetch", fetchMock);
-    status.fetchAuthorization.mockReset();
-    status.fetchAuthorization.mockResolvedValue({ kind: "unavailable", code: "X" });
   });
   afterEach(() => {
     act(() => root.unmount());
@@ -97,6 +102,14 @@ describe("DeleteAccountCard", () => {
     act(() => { button.dispatchEvent(new MouseEvent("click", { bubbles: true })); });
   }
 
+  it("switched off, shows nothing and reads nothing", async () => {
+    const loadPending = vi.fn(async () => pendingAccount());
+    await mount({ enabled: false, loadPending });
+    expect(container.innerHTML).toBe("");
+    expect(loadPending).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("sends nothing before the confirm, then one account-deletion request", async () => {
     fetchMock.mockResolvedValue(new Response("{}", { status: 202 }));
     await mount({ enabled: true });
@@ -110,6 +123,31 @@ describe("DeleteAccountCard", () => {
     expect(url).toBe("/api/v2/processing-authorization/terminate");
     expect(JSON.parse(init.body).trigger_kind).toBe("account_deletion");
     expect(container.textContent).toContain(DELETE_ACCOUNT_COPY.done);
+  });
+
+  it("a refused request keeps the dialog and says so", async () => {
+    fetchMock.mockResolvedValue(new Response("{}", { status: 500 }));
+    await mount({ enabled: true });
+    click(DELETE_ACCOUNT_COPY.button);
+    click(DELETE_ACCOUNT_COPY.confirmLabel);
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(document.body.textContent).toContain("Couldn't delete. Try again.");
+    expect(container.textContent).not.toContain(DELETE_ACCOUNT_COPY.done);
+  });
+
+  it("the training sentence ends the confirm only with an active training yes", async () => {
+    await mount({ enabled: true, loadTrainingYes: async () => true });
+    click(DELETE_ACCOUNT_COPY.button);
+    const dialog = () => document.querySelector('[role="dialog"]')?.textContent ?? "";
+    expect(dialog()).toContain(LEAVING_COPY.trainingModelStays);
+    act(() => root.unmount());
+    root = createRoot(container);
+    await mount({ enabled: true, loadTrainingYes: noTraining });
+    click(DELETE_ACCOUNT_COPY.button);
+    expect(dialog()).toContain(DELETE_ACCOUNT_COPY.confirmTitle);
+    expect(dialog()).not.toContain(LEAVING_COPY.trainingModelStays);
   });
 
   describe("cancelling inside the window (Q14 A)", () => {
@@ -129,6 +167,24 @@ describe("DeleteAccountCard", () => {
       expect(init.method).toBe("POST");
       expect(container.textContent).toContain(LEAVING_COPY.cancelled);
       expect(find(DELETE_ACCOUNT_COPY.button)).toBeDefined();
+    });
+
+    it("a refused cancel says too late and removes the cancel; a failed one keeps it", async () => {
+      fetchMock.mockResolvedValue(new Response("{}", { status: 503 }));
+      await mount({ cancelEnabled: true, loadPending: async () => pendingAccount() });
+      click(LEAVING_COPY.cancel);
+      await flush();
+      expect(container.querySelector('[role="alert"]')?.textContent).toBe(LEAVING_COPY.cancelFailed);
+      expect(find(LEAVING_COPY.cancel)).toBeDefined();
+
+      fetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ code: "DELETION_NOT_CANCELLABLE" }), { status: 409 }),
+      );
+      click(LEAVING_COPY.cancel);
+      await flush();
+      expect(container.querySelector('[role="alert"]')?.textContent).toBe(LEAVING_COPY.cancelTooLate);
+      expect(find(LEAVING_COPY.cancel)).toBeUndefined();
+      expect(container.textContent).not.toContain(LEAVING_COPY.cancelled);
     });
   });
 });

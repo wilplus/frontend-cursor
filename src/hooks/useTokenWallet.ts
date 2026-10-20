@@ -7,8 +7,10 @@ import {
   forgetSharedTokenBalance,
   nextBalance,
   resetTokenPricesCache,
+  subscribeTokenPrices,
   type TokenBalance,
   type TokenPrices,
+  type TokenPricesRead,
 } from "@/services/api/tokens";
 import { WILLAB_TOKENS_SPENT_EVENT } from "@/lib/willabWindowEvents";
 
@@ -74,7 +76,10 @@ export function useTokenWallet(active: boolean): TokenWallet {
   const [attempt, setAttempt] = useState(0);
   const [balance, setBalance] = useState<TokenBalance>({ kind: "unknown" });
 
-  /* Prices: once per page (memoised in the service), and the enabled-probe. */
+  /* Prices: once per page (memoised in the service), and the enabled-probe.
+   * The first answer may be the list stored from the last open (served with
+   * no round trip); the subscription applies the backend's answer when it
+   * turns out to differ (founder 2026-10-18). */
   useEffect(() => {
     if (!active) {
       // Signed out is "off", not a failure: no wallet, nothing to retry.
@@ -84,13 +89,16 @@ export function useTokenWallet(active: boolean): TokenWallet {
     }
     let cancelled = false;
     setPricesState("probing");
-    void fetchTokenPricesRead().then((r) => {
+    const apply = (r: TokenPricesRead) => {
       if (cancelled) return;
       setPrices(r.kind === "ready" ? r.prices : null);
       setPricesState(r.kind);
-    });
+    };
+    void fetchTokenPricesRead().then(apply);
+    const unsubscribe = subscribeTokenPrices(apply);
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, [active, attempt]);
 

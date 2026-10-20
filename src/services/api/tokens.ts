@@ -234,11 +234,82 @@ export type TokenPricesRead =
  *  client-side navigation never re-runs this. */
 let pricesCache: Promise<TokenPricesRead> | null = null;
 
-async function readTokenPrices(): Promise<TokenPricesRead> {
-  const token = await getAuthToken();
-  // Signed out is not a failure and not a flag state: there is no wallet to
-  // show and nothing to retry. Guests probe nothing.
-  if (!token) return { kind: "off" };
+/* REMEMBERED ACROSS PAGE LOADS (founder 2026-10-18). The read measured a
+   full second in the browser, of which the backend's own work was nil: the
+   rest was a Vercel cold boot and the hop to Railway, which no code in this
+   file can shorten. What it CAN do is stop waiting for them. The list is
+   static per backend deploy — it moves with `price_version`, never
+   mid-session, and it is the same for every account — so the last published
+   body is kept in localStorage and served FIRST on the next open: the
+   pricing page, the wallet panel and the top-up card paint their prices
+   with no round trip, and the read still goes out behind the paint. A
+   changed list, or the flag turned off, replaces what was shown through
+   `subscribeTokenPrices`; a failed read keeps it, because the last known
+   list beats a blank, exactly as a balance read does. Same shape as
+   idealTitleCache: stale-while-revalidate on a value whose staleness is
+   invisible, and best-effort throughout (private mode, quota, disabled
+   storage all fall back to the plain read). */
+const STORED_PRICES_KEY = "willab.tokenPrices";
+
+type PricesListener = (read: TokenPricesRead) => void;
+const listeners = new Set<PricesListener>();
+
+/** Be told when a read served from the stored copy is replaced by a fresher
+ *  answer. The wallet hook applies it to its state. */
+export function subscribeTokenPrices(listener: PricesListener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function readStoredPricesText(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(STORED_PRICES_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function rememberPricesText(text: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(STORED_PRICES_KEY, text);
+  } catch {
+    /* quota / private mode / storage disabled — this session is served
+       from memory and the next one falls back to the fetch. */
+  }
+}
+
+function forgetStoredPrices(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(STORED_PRICES_KEY);
+  } catch {
+    /* nothing to forget, or nowhere it could have been kept */
+  }
+}
+
+/** The stored body, through the SAME parser as a live one, so a copy from
+ *  an older shape of this module is simply not served. */
+function storedPrices(): { text: string; prices: TokenPrices } | null {
+  const text = readStoredPricesText();
+  if (!text) return null;
+  try {
+    const prices = mapTokenPrices(JSON.parse(text));
+    return prices ? { text, prices } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The backend's answer, as text (for the stored copy) and as a read. */
+type PricesAnswer =
+  | { kind: "failed" }
+  | { kind: "answered"; text: string; read: TokenPricesRead };
+
+async function askPrices(token: string): Promise<PricesAnswer> {
   let res: Response;
   try {
     res = await fetch("/api/v2/tokens/prices", {
@@ -249,28 +320,74 @@ async function readTokenPrices(): Promise<TokenPricesRead> {
     return { kind: "failed" };
   }
   if (!res.ok) return { kind: "failed" };
+  let text: string;
   let raw: unknown;
   try {
-    raw = await res.json();
+    text = await res.text();
+    raw = JSON.parse(text);
   } catch {
     return { kind: "failed" };
   }
   // The flag-off body arrives as a 200 on purpose (see the BFF note in
   // proxy.ts), so "off" is read off the BODY, never off a status.
-  if (!isEnabled(raw)) return { kind: "off" };
+  if (!isEnabled(raw)) return { kind: "answered", text, read: { kind: "off" } };
   const prices = mapTokenPrices(raw);
   // Enabled but unparseable is a broken payload, not a switched-off feature.
-  return prices ? { kind: "ready", prices } : { kind: "failed" };
+  return prices
+    ? { kind: "answered", text, read: { kind: "ready", prices } }
+    : { kind: "failed" };
+}
+
+async function readTokenPrices(): Promise<TokenPricesRead> {
+  const token = await getAuthToken();
+  // Signed out is not a failure and not a flag state: there is no wallet to
+  // show and nothing to retry. Guests probe nothing.
+  if (!token) return { kind: "off" };
+  const answer = await askPrices(token);
+  if (answer.kind === "failed") return { kind: "failed" };
+  if (answer.read.kind === "ready") rememberPricesText(answer.text);
+  else forgetStoredPrices();
+  return answer.read;
+}
+
+/** Behind a paint from the stored copy: ask once, and only speak up when
+ *  the answer differs from what was shown. */
+async function revalidateStoredPrices(shownText: string): Promise<void> {
+  const token = await getAuthToken();
+  // Nobody to show them to; the copy is not wrong, the session is just over.
+  if (!token) return;
+  const answer = await askPrices(token);
+  // Last known beats nothing: a blip must not blank a list already on screen.
+  if (answer.kind === "failed") return;
+  if (answer.read.kind === "ready") {
+    if (answer.text === shownText) return;
+    rememberPricesText(answer.text);
+  } else {
+    forgetStoredPrices();
+  }
+  const fresh = Promise.resolve(answer.read);
+  pricesCache = fresh;
+  for (const listener of listeners) listener(answer.read);
 }
 
 export function fetchTokenPricesRead(): Promise<TokenPricesRead> {
-  pricesCache ??= readTokenPrices();
+  if (pricesCache) return pricesCache;
+  const stored = storedPrices();
+  if (stored) {
+    pricesCache = Promise.resolve({ kind: "ready", prices: stored.prices });
+    void revalidateStoredPrices(stored.text);
+    return pricesCache;
+  }
+  pricesCache = readTokenPrices();
   return pricesCache;
 }
 
-/** Drop the memoised read. Used by the wallet's retry and by tests. */
+/** Drop the memoised read AND the stored copy. Used by the wallet's retry —
+ *  a person asking again wants the backend's answer, not a replay — and by
+ *  tests. */
 export function resetTokenPricesCache(): void {
   pricesCache = null;
+  forgetStoredPrices();
 }
 
 /* ---------------------------- recording band ----------------------------- */

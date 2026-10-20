@@ -1,3 +1,18 @@
+/*
+STORY    As a speaker, I want each paragraph of my Ideal Text deck to show its
+         real state (waiting on a suggestion, locked by me, untouched) and to
+         sit under its real slide, so that I can trust what is still open and
+         where it belongs.
+OUTCOME
+  O1  Only the paragraph with an undecided suggestion shows waiting.
+  O2  Only a server lock shows locked; an approved or dismissed suggestion
+      on an unlocked paragraph never does.
+  O3  An extra paragraph joins the last slide, never a made-up Slide 4.
+PROVES   O1 -> "an UNDECIDED suggestion makes its chunk waiting, and only its chunk"
+         O2 -> "a SERVER LOCK is the only thing that reaches locked"
+         O3 -> "the fourth paragraph can never manufacture Slide 4 in a three-slide deck"
+WHY      Founder 2026-08-15: "accepted" is not "locked".
+*/
 import { describe, expect, it } from "vitest";
 import {
   buildDeckChunks,
@@ -5,8 +20,7 @@ import {
 } from "./deckChunks";
 import type { Part } from "./documentParts";
 
-/* The deck's derived state machine (Lovable §2), pinned where it is pure.
- * The doc under test: three paragraphs with known char offsets.
+/* The doc under test: three paragraphs with known char offsets.
  *   p0 "We started in a garage."            [0, 23)
  *   p1 "Nobody believed the numbers."       [25, 53)
  *   p2 "Then the launch moved everything."  [55, 88)
@@ -34,7 +48,7 @@ const parts = (locked: number[] = []): Part[] =>
 
 describe("buildDeckChunks — status derivation", () => {
 
-  it("an UNDECIDED suggestion makes its chunk waiting — and only its chunk", () => {
+  it("an UNDECIDED suggestion makes its chunk waiting, and only its chunk", () => {
     const chunks = buildDeckChunks(DOC, parts(), [sug("s1", 25, 40)]);
     expect(chunks.map((c) => c.status)).toEqual([
       "untouched",
@@ -47,22 +61,23 @@ describe("buildDeckChunks — status derivation", () => {
   it("a SERVER LOCK is the only thing that reaches locked", () => {
     // The other half of the same ruling: what the student locked in stays
     // green permanently ("that is great" — founder).
-    const locked = parts().map((p) => ({ ...p, locked: true }));
-    const chunks = buildDeckChunks(DOC, locked, []);
-    expect(chunks[0].status).toBe("locked");
+    const lockedSecond = buildDeckChunks(DOC, parts([1]), []);
+    expect(lockedSecond.map((c) => c.status)).not.toContain("waiting");
+    expect(lockedSecond[1].status).toBe("locked");
+    expect(lockedSecond.filter((c) => c.status === "locked")).toHaveLength(1);
+    // Decided suggestions on unlocked paragraphs: accepted is not locked.
+    const decided = buildDeckChunks(DOC, parts(), [
+      sug("a", 0, 10, "approved"),
+      sug("d", 25, 40, "dismissed"),
+    ]);
+    expect(decided.map((c) => c.status)).not.toContain("locked");
+    expect(decided.map((c) => c.status)).not.toContain("waiting");
+    expect(decided[0].approvedIds).toEqual(["a"]);
   });
 });
 
 describe("groupChunksBySlide — canonical deck identity", () => {
   const chunks = () => buildDeckChunks(DOC, parts(), []);
-  const groupsFor = (
-    indexes: readonly (number | null)[] | null,
-    slideCount: number | null
-  ) => {
-    const result = groupChunksBySlide(chunks(), indexes, slideCount);
-    if (!result.ok) throw new Error(result.error);
-    return result.groups;
-  };
 
   it("the fourth paragraph can never manufacture Slide 4 in a three-slide deck", () => {
     const base = chunks();

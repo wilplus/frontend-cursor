@@ -179,6 +179,23 @@ async function resolveRequestId(
   return [others, own ?? (await incomingRequestId()) ?? newRequestId()];
 }
 
+/** False until this server instance has served its first backend call. The
+ *  first one is marked `cold` in Server-Timing: its wait in the browser
+ *  includes the instance booting, which no stopwatch inside it can see. */
+let instanceWarm = false;
+
+/** The BFF's own stopwatch, after the backend's (`app`, `db`) in the same
+ *  Server-Timing header: `upstream` is the backend round trip (network,
+ *  Railway's proxy, gunicorn's queue and Flask), `bff` the whole handler.
+ *  A browser wait far above `bff` is Vercel (routing, a cold boot). */
+function stampTiming(response: NextResponse, upstreamMs: number, totalMs: number): void {
+  const parts = [`upstream;dur=${upstreamMs.toFixed(0)}`, `bff;dur=${totalMs.toFixed(0)}`];
+  if (!instanceWarm) parts.push(`cold;desc="first call of this server instance"`);
+  instanceWarm = true;
+  const existing = response.headers.get("Server-Timing");
+  response.headers.set("Server-Timing", existing ? `${existing}, ${parts.join(", ")}` : parts.join(", "));
+}
+
 /** Raw authorized fetch to the backend — the single construction point for
  *  base URL + Authorization. For routes that must own their response handling
  *  (streaming uploads with abort ladders, SSE passthrough). Everything else
@@ -250,6 +267,7 @@ export async function callBackend(
     guestOwnerFrom,
     ...rest
   } = init;
+  const started = performance.now();
   const token =
     tokenOverride !== undefined ? tokenOverride : await getAccessToken();
   const guestOwner = token
@@ -266,6 +284,7 @@ export async function callBackend(
       : rest.headers
   );
   let upstream: Response;
+  const fetchStarted = performance.now();
   try {
     upstream = await backendFetch(path, {
       ...rest,
@@ -287,8 +306,11 @@ export async function callBackend(
     );
   }
 
+  const upstreamMs = performance.now() - fetchStarted;
+
   // The id goes back to the browser too, so a bug report can quote it.
   const response = await relay(upstream);
   response.headers.set(REQUEST_ID_HEADER, requestId);
+  stampTiming(response, upstreamMs, performance.now() - started);
   return response;
 }

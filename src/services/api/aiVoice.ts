@@ -42,6 +42,41 @@ export function readAiVoice(practiceId: string): Promise<Outcome<AiVoiceState>> 
   return call(path(practiceId), { method: "GET" }, mapAiVoice);
 }
 
+/* What this page already knows of each practice's clip: the walk's host asks
+   as its AI bubble is shown, so the chat's bubble is drawn whole at once,
+   not its lines first and the player a round trip later. */
+const known = new Map<string, AiVoiceState>();
+const asking = new Map<string, Promise<AiVoiceState | null>>();
+
+export function knownAiVoice(practiceId: string): AiVoiceState | undefined {
+  return known.get(practiceId);
+}
+
+/** An expired link: the next ask goes to the server again. */
+export function forgetAiVoice(practiceId: string): void {
+  known.delete(practiceId);
+  asking.delete(practiceId);
+}
+
+/** The clip's state, asked once per practice per page. */
+export function readAiVoiceOnce(practiceId: string): Promise<AiVoiceState | null> {
+  // Only a ready clip is final; one still being made is asked again.
+  const have = known.get(practiceId);
+  if (have?.clip?.state === "ready") return Promise.resolve(have);
+  let got = asking.get(practiceId);
+  if (!got) {
+    got = readAiVoice(practiceId)
+      .then((r) => {
+        if (!r.ok) return null;
+        known.set(practiceId, r.data);
+        return r.data;
+      })
+      .catch(() => null);
+    asking.set(practiceId, got);
+  }
+  return got;
+}
+
 export function noteAiVoicePlay(practiceId: string): Promise<Outcome<null>> {
   return call(path(practiceId, "/play"), { method: "POST", body: {} }, () => null);
 }

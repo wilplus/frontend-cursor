@@ -1,9 +1,18 @@
 // @vitest-environment jsdom
 /* -------------------------------------------------------------------------- */
-/*  The golden set for a pair surface (ML-10): the founder sees the passage  */
-/*  and the coach's final, never a draft, and answers one of three; a clip   */
-/*  surface keeps the coach's instrument; a sealed set that erasure changed  */
-/*  says so and lets the founder judge again.                                */
+/*  STORY    As the founder, I want to judge golden pairs seeing the passage  */
+/*           and the coach's final only, so that the golden set measures real */
+/*           answers.                                                         */
+/*  OUTCOME                                                                   */
+/*    O1  A pair shows the passage and the coach's final, no draft, and sends */
+/*        one of three answers.                                               */
+/*    O2  A clip surface keeps the coach's instrument, not the pair question. */
+/*    O3  A sealed set that erasure changed says so and lets me judge again;  */
+/*        an intact sealed set offers no more judging.                        */
+/*  PROVES   O1 -> "shows the passage and the coach's final, never a draft, ..."*/
+/*           O2 -> "a clip surface judges on the coach's instrument"          */
+/*           O3 -> "a sealed set erasure changed says so and opens judging again"*/
+/*  WHY      ML-10: the golden set replaces the engineering seeds.            */
 /* -------------------------------------------------------------------------- */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -71,5 +80,34 @@ describe("judging a pair surface", () => {
     await flush();
     expect(api.judge).toHaveBeenCalledWith("praise_line", { snippet_id: "pair-1", take_session_id: null, value: "not_sure" });
     expect(onChange).toHaveBeenCalled();
+  });
+
+  it("a clip surface judges on the coach's instrument", async () => {
+    api.nextMoment.mockResolvedValue({ ok: true, value: {
+      snippetId: "clip-1", takeSessionId: "t1", passage: "and that is why we left",
+      final: null, audioUrl: "https://x/clip.webm", startOffsetMs: 100, durationMs: 2000,
+    } });
+    act(() => root.render(createElement(GoldenJudging, {
+      surface: "pace", counts: counts({ surface: "pace", kind: "clip" }), onChange: vi.fn(),
+    })));
+    await act(async () => button("Continue judging")?.click());
+    await flush();
+    expect(container.querySelector('[data-testid="clip-instrument"]')).not.toBeNull();
+    expect(container.textContent).not.toContain("Is this the right answer for this passage?");
+  });
+
+  it("a sealed set erasure changed says so and opens judging again", async () => {
+    const sealed = { count: 50, sha256: "abc", sealed_at: "2026-10-01T00:00:00Z" };
+    act(() => root.render(createElement(GoldenJudging, {
+      surface: "praise_line", counts: counts({ count: 49, sealed, sealedIntact: true }), onChange: vi.fn(),
+    })));
+    expect(container.textContent).toContain("sha256 abc");
+    expect(button("Continue judging")).toBeUndefined();
+
+    act(() => root.render(createElement(GoldenJudging, {
+      surface: "praise_line", counts: counts({ count: 49, sealed, sealedIntact: false }), onChange: vi.fn(),
+    })));
+    expect(container.textContent).toContain("Erasure removed a moment from the sealed set.");
+    expect(button("Continue judging")).toBeDefined();
   });
 });

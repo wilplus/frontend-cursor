@@ -7,7 +7,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY, WALK_LINE_BANK } from "../idealEditCopy";
 import { GuestGateContext } from "../GuestSignUpDialog";
-vi.mock("@/services/api/otherSpeakers", () => ({ fetchOtherClips: vi.fn(async () => []), answerOtherClip: vi.fn() }));
+vi.mock("@/services/api/otherSpeakers", () => ({
+  fetchOtherClips: vi.fn(async () => []),
+  fetchOtherAnswers: vi.fn(async () => []),
+  answerOtherClip: vi.fn(),
+}));
+import { fetchOtherAnswers, fetchOtherClips } from "@/services/api/otherSpeakers";
 /** The microphone, standing still: the recorder is reached, nothing records. */
 vi.mock("@/hooks/useDualCaptureMic", () => ({
   useDualCaptureMic: () => ({
@@ -84,6 +89,26 @@ describe("FeedbackWalk", () => {
   const nav = () => live()!.querySelector("[data-walk-nav]")!;
   const nextArrow = () => nav().querySelector<HTMLButtonElement>(`button[aria-label='${COPY.pagerNext}']`)!;
 
+  it("a green moment says why it landed: the praise line alone, then the reason in its own bubble (founder 2026-10-18)", () => {
+    const reason = {
+      paragraphs: ["When you said “our growth doubled”", "No fillers, right on the slide."],
+      quote: "our growth doubled",
+    };
+    const lead = "It was your confident moment.";
+    const items: FeedbackWalkItem[] = [
+      { ...ITEMS[0], praiseWords: [lead, "A cue line."], praiseLead: [lead], praiseReason: reason },
+    ];
+    draw(
+      { seq: 1, at: 1 },
+      { model: buildFeedbackWalk({ items, coachNote: false, practiceOn: true, guest: false }), coachNote: null },
+    );
+    expect(screen()).toBe("walk-screen-praise");
+    expect(bubble()).toEqual([COPY.titlePraise, lead]);
+    const why = live()!.querySelector("[data-walk-reason]")!;
+    expect([...why.querySelectorAll("p")].map((p) => p.textContent)).toEqual(reason.paragraphs);
+    expect(why.querySelector("[data-walk-quote]")!.textContent).toBe("“our growth doubled”");
+  });
+
   it("walks coach's note → praise → helper words → the next praise → the summary → the page", async () => {
     const props = draw(null, { summary: async () => "A closing word.", takeIndex: 2 });
     draw({ seq: 1, at: 1 }, { summary: async () => "A closing word.", takeIndex: 2 });
@@ -128,6 +153,31 @@ describe("FeedbackWalk", () => {
     expect(nav().getAttribute("aria-label")).toBe(`${COPY.historyTake} 2`);
     expect(bubble()).toEqual(["A closing word."]);
     forward();
+    expect(live()).toBeNull();
+    expect(props.onEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("reopened from the Lounge, the judging shows the moment already answered: its card orange, ✓ Answered over Next", async () => {
+    vi.mocked(fetchOtherAnswers).mockResolvedValueOnce([
+      { id: "c1", src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 5000, community: null, answer: "yes" },
+    ]);
+    vi.mocked(fetchOtherClips).mockClear();
+    const onOthers = vi.fn();
+    const props = draw(null, { summary: async () => null, othersJudged: 1, onOthers });
+    const others = props.model.plan.findIndex((s) => s.key === "others");
+    draw({ seq: 1, at: others }, { summary: async () => null, othersJudged: 1, onOthers });
+    await act(async () => {});
+    expect(screen()).toBe("walk-screen-others");
+    const yes = live()!.querySelector<HTMLButtonElement>("[data-walk-answer='yes']")!;
+    expect(yes.getAttribute("aria-pressed")).toBe("true");
+    expect(yes.disabled).toBe(true);
+    expect(yes.className).toContain("bg-primary");
+    expect(live()!.textContent).toContain(WALK_COPY.answered);
+    expect(nextArrow().disabled).toBe(false);
+    expect(fetchOtherClips).not.toHaveBeenCalled();
+    expect(onOthers).not.toHaveBeenCalled(); // the chat already holds it
+    forward();
+    await act(async () => {});
     expect(live()).toBeNull();
     expect(props.onEnd).toHaveBeenCalledTimes(1);
   });

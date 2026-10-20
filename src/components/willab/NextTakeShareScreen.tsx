@@ -177,9 +177,7 @@ export default function NextTakeShareScreen({
   ];
 
   return (
-    <div data-next-take-share className="fixed inset-0 z-[90] flex flex-col bg-background">
-      {/* Phone width on a wide screen, centred. */}
-      <div className="mx-auto flex h-full w-full flex-col md:max-w-[430px]">
+    <div data-next-take-share data-walk-column className="fixed inset-0 z-[90] flex flex-col bg-background">
       <WalkOverlay
         testId="next-take-share"
         caption={typeof takeCount === "number" && takeCount >= 1 ? `${COPY.historyTake} ${takeCount}` : null}
@@ -194,7 +192,6 @@ export default function NextTakeShareScreen({
         <WalkMessage>{WALK_COPY.shareAudience}</WalkMessage>
         {saved ? <WalkOptions options={options} selected={ticks} onChange={setTicks} /> : null}
       </WalkOverlay>
-      </div>
       {toast ? <WalkToast key={toast.seq} message={toast.text} onDone={() => setToast(null)} /> : null}
     </div>
   );

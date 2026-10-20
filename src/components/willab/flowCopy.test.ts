@@ -1,33 +1,46 @@
+/*
+STORY    As a speaker waiting between Takes, I want progress messages in words,
+         with no counts and at most two sentences, so that I am not
+         discouraged by numbers or buried in text.
+OUTCOME
+  O1  Never-1: no line the app says between Takes shows a number, a
+      percentage or an "x of y" counter; every line still says something.
+  O2  No state says more than two sentences (the failure state shows
+      `failed` and `failedNext` together, so the pair counts as one state).
+PROVES   O1 -> "says every state in words, never a number, percentage or counter"
+         O2 -> "never says a third sentence in one state"
+WHY      Never-1 and the founder's length rule (docs/ideal-text-flow-communication.md).
+*/
 import { describe, expect, it } from "vitest";
 import { FLOW_COPY } from "./flowCopy";
 
-/* -------------------------------------------------------------------------- */
-/*  The sequencing copy is fence-bearing, so it gets a fence-bearing test.      */
-/*                                                                            */
-/*  Two rules, both from docs/ideal-text-flow-communication.md:                */
-/*                                                                            */
-/*   * AC-9 — no scores, verdicts, counters or percentages reach the user.     */
-/*     This is where they would leak: a waiting state is exactly the place     */
-/*     someone reaches for "3 of 8 slides" or "37%" to feel helpful. The       */
-/*     research says that backfires anyway (an accurate indicator drives       */
-/*     people AWAY when the early news is discouraging), so the fence and the  */
-/*     usability finding point the same direction.                            */
-/*                                                                            */
-/*   * The founder's length rule — "the communicates should not be too long".  */
-/*     One line of state, one of what's next; never a third sentence.          */
-/* -------------------------------------------------------------------------- */
-
 const ALL = Object.entries(FLOW_COPY);
 
-describe("FLOW_COPY — AC-9: the read stays qualitative", () => {
-  it("never surfaces a number, a count, a percentage or a fraction", () => {
+function sentences(text: string): number {
+  return text.split(/[.!?](?:\s|$)/).filter((s) => s.trim().length > 0).length;
+}
+
+describe("FLOW_COPY", () => {
+  it("says every state in words, never a number, percentage or counter", () => {
+    expect(ALL.length).toBeGreaterThan(0);
     for (const [key, line] of ALL) {
+      expect(line, `${key}: says nothing`).toMatch(/[A-Za-z]{2,}/);
       expect(line, `${key}: digits leaked`).not.toMatch(/\d/);
       expect(line, `${key}: percentage leaked`).not.toContain("%");
-      // "take 2 of 3" — the counter shape, spelled out or not.
       expect(line, `${key}: counter shape leaked`).not.toMatch(
-        /\b(one|two|three|four|five)\s+of\s+/i
+        /\b(one|two|three|four|five|six|seven|eight|nine|ten)\s+of\s+/i
       );
     }
+  });
+
+  it("never says a third sentence in one state", () => {
+    for (const [key, line] of ALL) {
+      expect(sentences(line), `${key}: too long`).toBeGreaterThanOrEqual(1);
+      expect(sentences(line), `${key}: too long`).toBeLessThanOrEqual(2);
+    }
+    expect(
+      sentences(`${FLOW_COPY.failed} ${FLOW_COPY.failedNext}`),
+      "failure state: too long"
+    ).toBeLessThanOrEqual(2);
   });
 });

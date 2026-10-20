@@ -280,6 +280,10 @@ const PROTOTYPE = {
   toastBackInTheLibrary: "Back in the library",
   /* the pencil */
   edit: "Edit",
+  /* the founder's Delete of an import (founder 2026-10-19) */
+  delete: "Delete",
+  deleteImportTitle: (topic: string) => `Delete "${topic}"?`,
+  deleteImportBody: "Its audio, moments and judgements will be permanently deleted. This can't be undone.",
   doneEditing: "Done editing",
   yourWords: "Your words",
   /* Speaking errors */

@@ -1,9 +1,19 @@
 // @vitest-environment jsdom
-/* PERSONALISED PRACTICE OFF (F1 Repair Plan Phase 4, wiring only): every
-   practice route answers 403 CONSENT_CHOICE_OFF, and the speaker used to
-   record a whole attempt before hearing so. With the choice off the
-   paragraph sheet offers no Practise -- and so no "Accept and practise",
-   whose one button promises the practise -- and its footer is Next. */
+/*
+ * STORY    As a speaker who turned personalised practice off, I want no
+ *          Practise or "Accept and practise" offered, so that I never record
+ *          an attempt the server will refuse.
+ * OUTCOME
+ *   O1  Choice off, a Not sure on a moment with an exercise: the footer is
+ *       Next, with no Practise and no Skip.
+ *   O2  Choice off, a No on a moment with a clearer version: no "Accept and
+ *       practise" and no Practise; Next is there.
+ *   O3  Control: with the choice on, that same clearer version does offer
+ *       "Accept and practise" (so O2 cannot pass on a sheet that never offers it).
+ * PROVES   O1 -> "a Not sure offers Next, never Practise or Skip"
+ *          O2, O3 -> "a clearer version offers no Accept and practise (and does with the choice on)"
+ * WHY      F1 Repair Plan Phase 4: every practice route answers 403 CONSENT_CHOICE_OFF.
+ */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,9 +24,10 @@ import type { DocumentSuggestion } from "@/services/api/idealText";
 import { fetchOwnerAnswers } from "@/services/api/bookmarkHistory";
 import { forgetParagraphSheetData } from "./paragraphSheetData";
 
+const choice = vi.hoisted(() => ({ offered: false }));
 vi.mock("@/services/api/consentChoices", () => ({
-  practiseOfferedNow: vi.fn(() => null),
-  readPractiseOffered: vi.fn(async () => false),
+  practiseOfferedNow: vi.fn(() => choice.offered),
+  readPractiseOffered: vi.fn(async () => choice.offered),
 }));
 
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
@@ -78,35 +89,18 @@ const answered = {
   },
 } as unknown as DocumentSuggestion;
 
-function state() {
-  return chunkStateFor(
-    {
-      part: { id: "p1", text: TEXT, locked: false },
-      paragraphIndex: 0,
-      start: 0,
-      end: TEXT.length,
-      status: "clean",
-      pendingIds: [],
-      approvedIds: [],
-      decidedIds: [answered.id],
-    } as DeckChunk,
-    { document: TEXT, suggestions: [answered] },
-  );
-}
-
 let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
+  choice.offered = false;
 });
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
 });
-
-const closeSheet = vi.fn();
 
 async function open(
   answer: string,
@@ -138,7 +132,7 @@ async function open(
         headline: null,
         onUseHelperWords: vi.fn(async () => true),
         onAccept: vi.fn(async () => true),
-        onClose: closeSheet,
+        onClose: vi.fn(),
         onPractise: vi.fn(() => true),
         renderSheet: () =>
           createElement(DeckChunkModal, {
@@ -165,5 +159,34 @@ describe("Personalised practice off", () => {
     expect(testIds()).toContain("paragraph-sheet-next");
     expect(testIds()).not.toContain("paragraph-sheet-practise");
     expect(testIds()).not.toContain("paragraph-sheet-skip");
+  });
+
+  /** A clearer version of the same words, still waiting. */
+  const rewrite = {
+    id: "s-rw",
+    start: 0,
+    end: 21,
+    quote: "We should ship it now",
+    kind: "replace",
+    proposedText: "Ship it now",
+    feedbackFamily: "rewrite_clarity",
+    source: "manager",
+    device: null,
+    status: null,
+  } as unknown as DocumentSuggestion;
+
+  it("a clearer version offers no Accept and practise (and does with the choice on)", async () => {
+    choice.offered = true;
+    await open("no", { practiceExercise: null }, [rewrite]);
+    expect(testIds()).toContain("paragraph-sheet-accept");
+    await act(async () => root.unmount());
+    root = createRoot(container);
+
+    choice.offered = false;
+    await open("no", { practiceExercise: null }, [rewrite]);
+    expect(testIds()).toContain("paragraph-sheet-next");
+    expect(testIds()).not.toContain("paragraph-sheet-accept");
+    expect(testIds()).not.toContain("paragraph-sheet-practise");
+    expect(container.textContent).not.toContain("Accept and practise");
   });
 });

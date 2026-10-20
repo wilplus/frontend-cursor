@@ -1,16 +1,24 @@
+/*
+STORY    As the founder, I want the Life Panel copy to have no scores, streaks or
+         percentages, no em-dashes, and no unused copy, so that sign-off covers
+         only real, number-free words.
+OUTCOME
+  O1  No string names a score, streak, percentage or consistency meter, unless
+      it says the panel does NOT have one. Never-1: no score reaches a speaker.
+  O2  No string carries an em-dash (house rule), except the one quoted founder
+      line exempted by name.
+  O3  Every export is imported by something outside the tests, so sign-off
+      never covers copy nobody sees.
+PROVES   O1 -> "surfaces no score, streak, percentage or consistency meter"
+         O2 -> "uses no em-dash outside the founder's quoted line"
+         O3 -> "every export is imported by a screen or module"
+WHY      SETUP_GATE_REDIRECT sat here for four commits, rendered by nothing.
+         The Life Panel is off the main loop.
+*/
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import * as copy from "./copy";
-
-/* -------------------------------------------------------------------------- */
-/*  The copy fence, as a test                                                  */
-/*                                                                            */
-/*  `copy.ts` is the founder sign-off surface, so it is worth having a machine */
-/*  hold the parts of the review that a machine can hold: the house rule on    */
-/*  em-dashes, and N4's ban on anything that reads as a score.                 */
-/*                                                                            */
-/*  This does not replace sign-off. It only stops the two failures that would  */
-/*  otherwise be caught by eye, on a file long enough that eyes skip.          */
-/* -------------------------------------------------------------------------- */
 
 /** Every string reachable from the module's exports, with a path for the
  *  failure message. */
@@ -33,9 +41,7 @@ function strings(
 const ALL = strings(copy);
 
 /** "there is no streak, no score" must pass while "your streak" must fail, so a
- *  match is ignored when it sits just after a negation in the same sentence.
- *  Naming what this surface deliberately does not have is the whole point of
- *  the guide's last paragraph. */
+ *  match is ignored when it sits just after a negation in the same sentence. */
 const NEGATED = /\b(no|not|never|without|nothing)\b[^.]{0,24}$/i;
 
 function offends(text: string, pattern: RegExp): boolean {
@@ -49,23 +55,54 @@ function offends(text: string, pattern: RegExp): boolean {
 describe("panel copy", () => {
 
   it("surfaces no score, streak, percentage or consistency meter", () => {
-    // N4 / AC-9. This surface must not invent a number the product spent a
-    // year removing. Saying it HAS no streak is allowed; having one is not.
+    // The fence must have something to read.
+    expect(ALL.length).toBeGreaterThan(50);
     const banned =
       /\b(streaks?|scores?|scored|scoring|consistency|percent(age)?|rating|ranked)\b/i;
     const offenders = ALL.filter((s) => offends(s.text, banned));
     expect(offenders.map((s) => s.path)).toEqual([]);
   });
+
+  it("uses no em-dash outside the founder's quoted line", () => {
+    // DAY.distractionQuestion is the founder's verbatim punctuation (2026-07-30).
+    const EXEMPT = new Set(["DAY.distractionQuestion"]);
+    const offenders = ALL.filter((s) => s.text.includes("—") && !EXEMPT.has(s.path));
+    expect(offenders.map((s) => s.path)).toEqual([]);
+  });
 });
 
-/* -------------------------------------------------------------------------- */
-/*  Reachability                                                               */
-/*                                                                            */
-/*  `SETUP_GATE_REDIRECT` sat in this file for four commits, described a       */
-/*  mechanic, was asserted on by two tests, and was never rendered by anything.*/
-/*  It read as shipped behaviour in every review. This is the fence that stops */
-/*  the next one: copy that no component imports is copy that does not exist,  */
-/*  and a founder signing off this file should be signing off what users       */
-/*  actually see.                                                              */
-/* -------------------------------------------------------------------------- */
+describe("reachability", () => {
+  const SRC = join(process.cwd(), "src");
+  const LIFE = join(SRC, "lib", "life");
 
+  function sourceFiles(dir: string): string[] {
+    return readdirSync(dir).flatMap((entry) => {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) return sourceFiles(full);
+      if (!/\.tsx?$/.test(entry) || /\.test\.tsx?$/.test(entry)) return [];
+      return [full];
+    });
+  }
+
+  it("every export is imported by a screen or module", () => {
+    const imported = new Set<string>();
+    for (const file of sourceFiles(SRC)) {
+      const code = readFileSync(file, "utf8");
+      // "./copy" is this module only from inside lib/life.
+      const sameDir = relative(LIFE, file).startsWith("..") ? "" : "|\\.\\/copy";
+      const re = new RegExp(
+        `import\\s*\\{([^}]*)\\}\\s*from\\s*["'](?:@\\/lib\\/life\\/copy${sameDir})["']`,
+        "g",
+      );
+      for (const m of code.matchAll(re)) {
+        for (const name of m[1].split(",")) {
+          const bare = name.trim().split(/\s+as\s+/)[0].replace(/^type\s+/, "");
+          if (bare) imported.add(bare);
+        }
+      }
+    }
+    const exports = Object.keys(copy);
+    expect(exports.length).toBeGreaterThan(0);
+    expect(exports.filter((name) => !imported.has(name))).toEqual([]);
+  });
+});

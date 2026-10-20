@@ -74,10 +74,10 @@ export type PanelScreen =
   | { key: "speakers" }
   | { key: "speaker"; speaker: QueueSpeaker }
   /** The training corpus (CO1 A): the imports, the set-up (of a new file,
-   *  or of an import whose set-up is not finished), the loader, the blind
-   *  judging of one import's moments. */
+   *  of an import whose set-up is not finished, or an edit of a finished
+   *  one from its ⋯), the loader, the blind judging of one import's moments. */
   | { key: "corpushome" }
-  | { key: "corpusimport"; setupOf: string | null }
+  | { key: "corpusimport"; setupOf: string | null; edit?: boolean }
   | { key: "corpusanalyse" }
   | { key: "corpus"; importId: string; topic: string }
   | MomentScreen
@@ -102,7 +102,7 @@ export type PanelAction =
   | { type: "open" }
   | { type: "speakers" }
   | { type: "corpus" }
-  | { type: "corpusImport"; setupOf?: string | null }
+  | { type: "corpusImport"; setupOf?: string | null; edit?: boolean }
   | { type: "corpusAnalyse" }
   | { type: "corpusJudge"; importId: string; topic: string }
   /** A set-up just saved: straight to its judging, as the prototype's
@@ -297,7 +297,7 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
     case "corpus":
       return fresh(state, { key: "corpushome" });
     case "corpusImport":
-      return push(state, { key: "corpusimport", setupOf: action.setupOf ?? null });
+      return push(state, { key: "corpusimport", setupOf: action.setupOf ?? null, edit: action.edit });
     case "corpusAnalyse":
       return push(state, { key: "corpusanalyse" });
     case "corpusJudge":

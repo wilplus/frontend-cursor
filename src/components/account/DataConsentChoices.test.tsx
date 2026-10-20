@@ -1,17 +1,25 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  FOUNDER 2026-09-25 — the Data & consent page (F2, E2-E5).                 */
-/*                                                                            */
-/*  Pinned here:                                                              */
-/*    1. turning practice off and withdrawing sensitive information each ask  */
-/*       first, and nothing is sent until the person confirms;               */
-/*    2. turning back on needs no confirm;                                    */
-/*    3. a failure says so and changes nothing;                               */
-/*    4. the coach is told when a speaker has practice off;                   */
-/*    5. the record screen says why recording is off.                         */
-/* -------------------------------------------------------------------------- */
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+/*
+STORY    As a speaker, I want turning off practice or withdrawing sensitive
+         information to ask first and take effect only on confirm, so that I
+         control my data (consent, on the record step of the loop).
+OUTCOME
+  O1  Turning practice off asks first; nothing is sent until I confirm, then
+      the page says practice is off.
+  O2  Turning practice back on needs no confirm and is sent at once.
+  O3  Withdrawing sensitive information asks first, then says recording is
+      off; agreeing again is sent without a confirm.
+  O4  A failed save says so and changes nothing on the page.
+  O5  Once withdrawn, the record screen's upload answer says why recording is
+      off and where to turn it back on (the recording service's message).
+PROVES   O1 -> "turning practice off asks first, and sends nothing until confirmed"
+         O2 -> "turning practice back on is sent at once, with no confirm"
+         O3 -> "withdrawing asks first, then stops recording, and can be agreed again"
+         O4 -> "a failed save says so and changes nothing"
+         O5 -> "the record screen says why recording is off"
+WHY      Founder 2026-09-25, Data & consent page (F2, E2-E5). Telling the coach
+         that practice is off is the backend's job (no frontend surface here).
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,6 +27,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const api = vi.hoisted(() => ({
   fetchConsentChoices: vi.fn(),
   setConsentChoice: vi.fn(),
+}));
+
+vi.mock("@/lib/api/auth-client", () => ({
+  getAuthToken: vi.fn(async () => "test-token"),
 }));
 
 vi.mock("@/services/api/consentChoices", async (importOriginal) => {
@@ -29,9 +41,7 @@ vi.mock("@/services/api/consentChoices", async (importOriginal) => {
 import DataConsentChoices from "./DataConsentChoices";
 import { DATA_CONSENT_COPY as COPY } from "@/lib/legal/dataConsentCopy";
 import { type ConsentChoices } from "@/services/api/consentChoices";
-
-const SRC = join(process.cwd(), "src");
-const read = (rel: string) => readFileSync(join(SRC, rel), "utf8");
+import { submitLabRecording } from "@/services/api/labRecording";
 
 function choices(over: Partial<ConsentChoices> = {}): ConsentChoices {
   return {
@@ -56,6 +66,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   act(() => root.unmount());
   container.remove();
 });
@@ -72,8 +83,8 @@ async function renderWith(value: ConsentChoices | null) {
   await flush();
 }
 
-describe("turning practice off", () => {
-  it("asks first, and sends nothing until confirmed", async () => {
+describe("personalised practice", () => {
+  it("turning practice off asks first, and sends nothing until confirmed", async () => {
     await renderWith(choices());
     await act(async () => inSection(COPY.practiceTitle, COPY.turnOff)?.click());
     expect(container.textContent).toContain(COPY.turnOffConfirm);
@@ -87,10 +98,35 @@ describe("turning practice off", () => {
     expect(api.setConsentChoice).toHaveBeenCalledWith("personalised_practice", false);
     expect(container.textContent).toContain(COPY.practiceOff);
   });
+
+  it("turning practice back on is sent at once, with no confirm", async () => {
+    await renderWith(choices({ personalisedPractice: false }));
+    api.setConsentChoice.mockResolvedValue(choices());
+    await act(async () => inSection(COPY.practiceTitle, COPY.turnOn)?.click());
+    await flush();
+    expect(container.textContent).not.toContain(COPY.turnOffConfirm);
+    expect(api.setConsentChoice).toHaveBeenCalledWith("personalised_practice", true);
+    expect(container.textContent).toContain(COPY.practiceOn);
+  });
+
+  it("a failed save says so and changes nothing", async () => {
+    await renderWith(choices());
+    api.setConsentChoice.mockResolvedValue(null);
+    await act(async () => inSection(COPY.practiceTitle, COPY.turnOff)?.click());
+    const confirm = Array.from(section(COPY.practiceTitle)
+      .querySelectorAll<HTMLButtonElement>('[role="group"] button')).find((b) => b.textContent === COPY.turnOff);
+    await act(async () => confirm?.click());
+    await flush();
+    expect(api.setConsentChoice).toHaveBeenCalledWith("personalised_practice", false);
+    expect(section(COPY.practiceTitle).querySelector('[role="alert"]')?.textContent).toBe(COPY.failed);
+    expect(container.textContent).not.toContain(COPY.practiceOff);
+    // Still on: the button still offers to turn it off.
+    expect(inSection(COPY.practiceTitle, COPY.turnOff)).toBeTruthy();
+  });
 });
 
-describe("withdrawing sensitive information", () => {
-  it("asks first, then stops recording, and can be agreed again", async () => {
+describe("sensitive information", () => {
+  it("withdrawing asks first, then stops recording, and can be agreed again", async () => {
     await renderWith(choices());
     await act(async () => inSection(COPY.sensitiveTitle, COPY.withdraw)?.click());
     expect(container.textContent).toContain(COPY.withdrawConfirm);
@@ -108,14 +144,28 @@ describe("withdrawing sensitive information", () => {
     await act(async () => inSection(COPY.sensitiveTitle, COPY.agreeAgain)?.click());
     await flush();
     expect(api.setConsentChoice).toHaveBeenLastCalledWith("sensitive_information", true);
+    expect(container.textContent).not.toContain(COPY.recordingOff);
   });
 });
 
-describe("around the page", () => {
-
-  it("the record screen says why recording is off", () => {
-    const lab = read("services/api/labRecording.ts");
-    expect(lab).toContain('code === "PROCESSING_RECORDING_WITHDRAWN"');
-    expect(lab).toContain("DATA_CONSENT_COPY.recordScreenOff");
+describe("the record screen", () => {
+  it("the record screen says why recording is off", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: false,
+      status: 403,
+      json: async () => ({ code: "PROCESSING_RECORDING_WITHDRAWN", error: "forbidden" }),
+    }) as unknown as Response));
+    const result = await submitLabRecording({
+      audioBlob: new Blob(["a"], { type: "audio/webm" }),
+      projectId: "arc-1",
+      uploadIdempotencyKey: "up-1",
+      durationSec: 30,
+      topic: "Board pitch",
+    });
+    expect(result).toMatchObject({
+      kind: "error",
+      code: "PROCESSING_RECORDING_WITHDRAWN",
+      message: COPY.recordScreenOff,
+    });
   });
 });

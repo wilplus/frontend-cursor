@@ -1,17 +1,26 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  The corpus workbench labels on the Judge screen (founder 2026-09-30, B9;  */
-/*  build plan P2-16: "one instrument in the product; the workbench's own     */
-/*  chrome is deleted"). The import and the index stay.                       */
-/*                                                                            */
-/*  Pins, through the real page: an import opens the walk's Judge screen     */
-/*  (its title, its ‹ position › bar, the one instrument) over the workbench; */
-/*  none of the workbench's labelling chrome is left (piece dots, the         */
-/*  "labelled" count, the note field, Back and Skip); an answer writes the    */
-/*  ternary body and nothing else, moves to the next unlabelled piece in      */
-/*  payload order, and after the last one returns to the workbench; a         */
-/*  re-review piece still says so on its write.                               */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a coach, I want an imported recording to open on the one Judge
+         screen, save only my answer and move to the next unlabelled piece, so
+         that judging is fast and blind.
+OUTCOME
+  O1  An import opens the walk's Judge screen and nothing of the workbench's
+      labelling chrome (no note field, no Skip, no "labelled" count).
+  O2  Never-2: before the coach answers, the sheet shows the question and
+      the five answers, and no words of the piece, no id, URL, offset or
+      window number.
+  O3  An answer writes the ternary body only, then moves to the next
+      unlabelled piece in payload order.
+  O4  After the last unlabelled piece the sheet closes, back on the
+      workbench.
+  O5  A re-review piece still says so on its write.
+PROVES   O1, O2 -> "opens on the Judge screen alone, blind: no chrome, no words, no id, URL or window"
+         O3     -> "an answer writes the ternary body only, then moves on in payload order"
+         O4     -> "after the last unlabelled piece the sheet closes, back on the workbench"
+         O5     -> "a re-review piece says so on its write"
+WHY      Never-2; founder 2026-09-30 B9 / P2-16 ("one instrument in the
+         product; the workbench's own chrome is deleted").
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -45,7 +54,7 @@ vi.mock("@/services/api/stateRatings", async (importOriginal) => {
   };
 });
 
-import CorpusPageClient, {  } from "./page.client";
+import CorpusPageClient from "./page.client";
 
 const IMPORT: TrainingImport = {
   sessionId: "sess-1", arcId: null, topic: "Board pitch", speakerLabel: "Jane Doe",
@@ -146,13 +155,46 @@ describe("the corpus labels on the Judge screen (B9, P2-16)", () => {
   });
 });
 
-describe("the corpus row plays its window from the playback route (backend PR #920)", () => {
+describe("the Judge screen, before the answer", () => {
 
-  it("never shows the coach an id, a URL, an offset or a window number", async () => {
+  it("opens on the Judge screen alone, blind: no chrome, no words, no id, URL or window", async () => {
     await openImport();
     const text = sheet()?.textContent ?? "";
-    for (const leak of ["piece-c", "media.example", "sig=", "61250", "61.25", "28400", "900", "1:01"]) {
+    expect(text).toContain("Judge this moment");
+    expect(text).toContain("Does the speaker sound confident here?");
+    expect(bar()).toContain("moment 1 of 3");
+    // The pager's ‹ ›, Close, the clip's player and the five answers: nothing else.
+    const controls = [...(sheet()?.querySelectorAll("button, input, textarea, select") ?? [])]
+      .map((el) => el.getAttribute("aria-label") || el.textContent?.trim());
+    expect(controls.slice(-5)).toEqual(["Yes — Confident", "In-between", "No — Not confident", "Not sure", "Audio unclear"]);
+    expect(controls).toHaveLength(9);
+    expect(text).not.toMatch(/labelled|Skip/i);
+    for (const leak of ["and we shipped it in a week", "piece-c", "media.example", "sig=", "61250", "61.25", "28400", "900", "1:01"]) {
       expect(text).not.toContain(leak);
     }
+  });
+});
+
+describe("the end of the queue", () => {
+  it("after the last unlabelled piece the sheet closes, back on the workbench", async () => {
+    await openImport();
+    answer("Yes — Confident");
+    await flush();
+    expect(saveSpy.mock.calls[0][0]).toBe("piece-c");
+    answer("No — Not confident");
+    await flush();
+    expect(saveSpy).toHaveBeenCalledTimes(2);
+    expect(saveSpy.mock.calls[1][0]).toBe("piece-b");
+    expect(sheet()).toBeNull();
+    expect(host.textContent).toContain("Board pitch");
+  });
+
+  it("a re-review piece says so on its write", async () => {
+    queue = () => [piece("piece-r", "we said it again", { reReview: true })];
+    await openImport();
+    answer("Not sure");
+    await flush();
+    expect(saveSpy).toHaveBeenCalledTimes(1);
+    expect(saveSpy.mock.calls[0][1]).toMatchObject({ state_id: "confidence", value: "not_sure", re_review: true });
   });
 });

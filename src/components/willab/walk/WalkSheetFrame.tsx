@@ -18,14 +18,14 @@ import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 /*  each frame carries its own stage, and the screens hand over through a     */
 /*  copy of the DOM, exactly as the prototype's ghost() does:                 */
 /*                                                                            */
-/*    open    a frame mounts with nothing handed over: the overlay rises      */
-/*            (0.38 s);                                                       */
+/*    open    a frame mounts with nothing handed over: the overlay slides in  */
+/*            from the right (0.34 s);                                        */
 /*    next    a frame mounts in the same commit another one left (‹ ›, Next,  */
 /*            Edit), or its own screen changes: the top bar stays still, the  */
 /*            old content slips 22 px away (0.14 s), the new slides in (0.3 s */
 /*            after 0.1 s); back mirrors it, by the moment's place;           */
-/*    close   a frame leaves and nothing takes its place: its copy sinks      */
-/*            (0.28 s) with the page already underneath.                      */
+/*    close   a frame leaves and nothing takes its place: its copy is swiped  */
+/*            out to the left (0.28 s), the page already underneath.          */
 /*                                                                            */
 /*  Which move is useWalkMotion's (walkMotion.ts); how it is drawn is         */
 /*  globals.css's "feedback walk motion". With the phone's reduce-motion      */

@@ -7,8 +7,9 @@
 /*  exactly one move. The CSS that draws each move lives in globals.css under  */
 /*  "feedback walk motion"; this file only decides which one.                  */
 /*                                                                            */
-/*    open   the overlay rises over the page (0.38 s)                          */
-/*    close  the overlay sinks, the page already underneath (0.28 s)           */
+/*    open   the overlay slides in from the right over the page (0.34 s)       */
+/*    close  the overlay is swiped out to the left, as Next moves, the page    */
+/*           already underneath (0.28 s); founder 2026-10-18                   */
 /*    next   the top bar stays; old content slips left, new slides in right    */
 /*    back   the mirror of next                                                */
 /*    fade   a soft cross-fade with a slight lift (0.34 s): the screens that   */

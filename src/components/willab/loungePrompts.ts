@@ -16,7 +16,8 @@ export type ChipAction =
   | "replace_pdf"
   | "create_project_from_updated_deck"
   | "keep_current_project"
-  | "edit_current_slide";
+  | "edit_current_slide"
+  | "feedback_skip";
 
 export const CHIP_LABEL: Record<ChipAction, string> = {
   trainings: "Your presentations",
@@ -26,6 +27,8 @@ export const CHIP_LABEL: Record<ChipAction, string> = {
   create_project_from_updated_deck: "Create project from updated deck",
   keep_current_project: "Keep current project",
   edit_current_slide: "Edit the text",
+  // Under "What was missing?" (WIL-74, founder 2026-10-19).
+  feedback_skip: "Skip",
 };
 
 // `record_again` is intentionally NOT a chip: the bot points at the permanent
@@ -41,6 +44,7 @@ const VALID_ACTIONS: readonly ChipAction[] = [
   "create_project_from_updated_deck",
   "keep_current_project",
   "edit_current_slide",
+  "feedback_skip",
 ];
 
 /**

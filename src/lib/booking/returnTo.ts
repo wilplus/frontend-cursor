@@ -10,11 +10,13 @@ const FRESH_MS = 60 * 60 * 1000;
 export interface BookingReturn {
   slug: string;
   slot: number | null;
+  /** A price link's ?link= value, so its price survives sign-up. */
+  link?: string;
 }
 
-export function saveBookingReturn(slug: string, slot: number | null): void {
+export function saveBookingReturn(slug: string, slot: number | null, link?: string): void {
   try {
-    window.localStorage.setItem(KEY, JSON.stringify({ slug, slot, at: Date.now() }));
+    window.localStorage.setItem(KEY, JSON.stringify({ slug, slot, link, at: Date.now() }));
   } catch {
     /* storage blocked: the redirectTo link still carries the page */
   }
@@ -24,7 +26,10 @@ export function readBookingReturn(): BookingReturn | null {
   try {
     const raw = JSON.parse(window.localStorage.getItem(KEY) || "null");
     if (!raw || typeof raw.slug !== "string" || Date.now() - Number(raw.at) > FRESH_MS) return null;
-    return { slug: raw.slug, slot: typeof raw.slot === "number" ? raw.slot : null };
+    return {
+      slug: raw.slug, slot: typeof raw.slot === "number" ? raw.slot : null,
+      link: typeof raw.link === "string" ? raw.link : undefined,
+    };
   } catch {
     return null;
   }
@@ -39,5 +44,9 @@ export function clearBookingReturn(): void {
 }
 
 export function bookingUrl(r: BookingReturn): string {
-  return `/book/${encodeURIComponent(r.slug)}${r.slot ? `?slot=${new Date(r.slot).toISOString()}` : ""}`;
+  const q = new URLSearchParams();
+  if (r.slot) q.set("slot", new Date(r.slot).toISOString());
+  if (r.link) q.set("link", r.link);
+  const qs = q.toString();
+  return `/book/${encodeURIComponent(r.slug)}${qs ? `?${qs}` : ""}`;
 }

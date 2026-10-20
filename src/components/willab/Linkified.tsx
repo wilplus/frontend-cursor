@@ -18,8 +18,10 @@ import { splitLinks } from "@/lib/willab/linkify";
 export default function Linkified({ text }: { text: string }) {
   const parts = splitLinks(text);
   // No URL in the message: hand back the string itself, so the overwhelmingly
-  // common bubble pays nothing for this.
-  if (parts.length <= 1) return <>{text}</>;
+  // common bubble pays nothing for this. A message that is only a URL (the
+  // link the chat adds under Will's answer) is still a link (founder
+  // 2026-10-18: "It's not clickable").
+  if (!parts.some((part) => part.type === "link")) return <>{text}</>;
   return (
     <>
       {parts.map((part, i) =>

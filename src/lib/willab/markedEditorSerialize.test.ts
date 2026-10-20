@@ -1,55 +1,41 @@
 // @vitest-environment jsdom
+/*
+STORY    As a speaker, I want opening and saving my Ideal Text without changes to
+         send back exactly the text I received, so that my document is never
+         silently rewritten.
+OUTCOME
+  O1  The real editor paints the document, and reading it back gives the same
+      bytes, for every marker grammar (bold, underline, italic, accent,
+      moment, paragraphs). Never-5: the Ideal Text stays what the speaker
+      said; an unchanged save never rewrites it.
+PROVES   O1 -> "returns an untouched document byte-for-byte"
+WHY      FE-1 acceptance: edit-with-no-changes posts back the text received.
+*/
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
 import { describe, expect, it } from "vitest";
+import MarkedEditor from "@/components/willab/MarkedEditor";
 import { serializeEditor } from "./markedEditorSerialize";
-import {
-  parseRichSpans,
-  splitSpanParagraphs,
-  type RichSpan,
-} from "./richMarkers";
 
-/* -------------------------------------------------------------------------- */
-/*  FE-1's acceptance criterion, as a test: "Round-trip a document through      */
-/*  edit-with-no-changes → text posted back is identical to text received."     */
-/*  A rewrite here is not cosmetic — the PUT is the student's document.         */
-/* -------------------------------------------------------------------------- */
-
-/** Build the editor's DOM exactly as MarkedEditor paints it. Kept in step with
- *  `paint`; the point of the test is the DOM → markers direction. */
-function paintInto(root: HTMLElement, value: string) {
-  const paragraphs = splitSpanParagraphs(parseRichSpans(value));
-  root.replaceChildren(
-    ...(paragraphs.length > 0 ? paragraphs : [[]]).map((spans: RichSpan[]) => {
-      const p = document.createElement("p");
-      for (const span of spans) {
-        const styled = !!span.open && !!span.close;
-        if (!styled && !span.moment) {
-          p.appendChild(document.createTextNode(span.text));
-          continue;
-        }
-        const el = document.createElement("span");
-        el.textContent = span.text;
-        if (styled) {
-          el.dataset.open = span.open as string;
-          el.dataset.close = span.close as string;
-        }
-        if (span.moment) {
-          el.dataset.snippet = span.moment.snippetId;
-          el.dataset.session = span.moment.sessionId;
-        }
-        p.appendChild(el);
-      }
-      return p;
-    })
-  );
+/** Mount the real MarkedEditor on `doc` and serialize the DOM it painted. */
+function roundTrip(doc: string): string {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  try {
+    act(() => root.render(createElement(MarkedEditor, { value: doc, onChange: () => undefined })));
+    const editable = host.querySelector<HTMLElement>("[contenteditable]");
+    expect(editable, "the editor mounted").not.toBeNull();
+    expect(editable!.textContent!.length).toBeGreaterThan(0);
+    return serializeEditor(editable!);
+  } finally {
+    act(() => root.unmount());
+    host.remove();
+  }
 }
 
-const roundTrip = (doc: string) => {
-  const root = document.createElement("div");
-  paintInto(root, doc);
-  return serializeEditor(root);
-};
-
-describe("serializeEditor — the FE-1 round-trip", () => {
+describe("serializeEditor — the FE-1 round-trip through the real editor", () => {
   it("returns an untouched document byte-for-byte", () => {
     for (const doc of [
       "plain words",

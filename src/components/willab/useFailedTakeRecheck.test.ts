@@ -1,13 +1,22 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  A FAILED NOTE IS CLEARED BY EVIDENCE (founder 2026-09-21).                */
-/*                                                                            */
-/*  The Take's job was killed by a worker redeploy, the page's wait ran out   */
-/*  and marked it failed (#421), then the sweep requeued the job and it       */
-/*  completed — with nobody asking the server again. The red note stayed for  */
-/*  nine minutes over a Take that was done. These pin the verdict the hook    */
-/*  reads off one readout answer, and that it actually asks.                  */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker, I want a "failed" note under my Take cleared when the
+         server says the Take actually finished, and never a failure claimed
+         without asking the server, so that I am not told a done Take failed
+         and can go on to my Ideal Text and the next Take.
+OUTCOME
+  O1  While a failed note is on screen the hook asks the server at once and
+      reports "recovered" when the Take is done.
+  O2  The server cannot be reached: "unknown", never a verdict.
+  O3  The server says the Take failed: "still_failed", the note stays.
+  O4  An answer with no known state and no content: "unknown", not recovered.
+PROVES   O1 -> "asks the server as soon as a failed note is on screen, and reports what it said"
+         O2 -> "is unknown, never a verdict, when the server cannot be reached"
+         O3 -> "keeps a Take failed when the server says it failed"
+         O4 -> "is unknown when the answer has no known state and no content"
+WHY      Founder 2026-09-21 (a red note stayed 9 min over a done Take) and
+         2026-09-24 (a failure card written without asking the server).
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -70,16 +79,6 @@ describe("the hook", () => {
   });
 });
 
-/* -------------------------------------------------------------------------- */
-/*  EVIDENCE BEFORE THE CLAIM (founder 2026-09-24).                            */
-/*                                                                            */
-/*  "Ideal text generation fails!" — shown as the ready v1.0 card with "we     */
-/*  couldn't create your Ideal Text" underneath it. The document phase's own   */
-/*  120-second cap had expired in the tab and the browser wrote that card      */
-/*  straight into the durable thread WITHOUT ASKING THE SERVER. A cap          */
-/*  releasing the screen is a fact about this tab; the card is a claim about   */
-/*  the take, and this is the check that now stands between the two.           */
-/* -------------------------------------------------------------------------- */
 describe("asking the server before claiming a take failed", () => {
   beforeEach(() => {
     fetchGuestLabReadout.mockReset();
@@ -88,5 +87,20 @@ describe("asking the server before claiming a take failed", () => {
   it("is unknown, never a verdict, when the server cannot be reached", async () => {
     fetchGuestLabReadout.mockRejectedValue(new Error("offline"));
     await expect(probeTakeVerdict("s1")).resolves.toBe("unknown");
+  });
+
+  it("keeps a Take failed when the server says it failed", async () => {
+    fetchGuestLabReadout.mockResolvedValue(answer("failed"));
+    await expect(probeTakeVerdict("s1")).resolves.toBe("still_failed");
+    fetchGuestLabReadout.mockResolvedValue(answer("failed_ideal_text_unconfirmed", true));
+    await expect(probeTakeVerdict("s1")).resolves.toBe("still_failed");
+  });
+
+  it("is unknown when the answer has no known state and no content", async () => {
+    fetchGuestLabReadout.mockResolvedValue(answer("queued"));
+    await expect(probeTakeVerdict("s1")).resolves.toBe("unknown");
+    // The same state WITH content is the evidence that clears the note.
+    fetchGuestLabReadout.mockResolvedValue(answer("queued", true));
+    await expect(probeTakeVerdict("s1")).resolves.toBe("recovered");
   });
 });

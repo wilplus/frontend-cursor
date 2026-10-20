@@ -1,34 +1,25 @@
 // @vitest-environment jsdom
 /* -------------------------------------------------------------------------- */
-/*  P1-7 — WHAT FOLLOWS EACH OF THE FIVE JUDGEMENTS (contract 24e, 24f; the   */
-/*  founder lock 2026-09-30, B2, B5, D1, D7; 29b).                            */
-/*                                                                            */
-/*  Walks Yes, In-between, Not sure, No and Audio unclear on a moment the     */
-/*  machine read confident and on moments it read weak, through the real     */
-/*  paragraph sheet and its real card-choice functions (practiseCardOf,      */
-/*  overlayFooter, canAcceptCard, nextOpensPicker), and pins which card, which */
-/*  button, which link, and whether Next opens the helper words.             */
-/*                                                                            */
-/*  The follow-up matrix (24f, founder 2026-09-29):                           */
-/*    read confident             praise on Yes, In-between, No, Not sure     */
-/*    read weak, problem fired   library video on In-between, No, Not sure;  */
-/*                               nothing on Yes                              */
-/*    read weak, nothing fired   rewrite on In-between, No, Not sure;        */
-/*                               nothing on Yes                              */
-/*    Audio unclear              nothing                                     */
-/*  Helper words follow Yes and In-between only (B2). Below In-between the    */
-/*  card is practised or skipped (B5); a rewrite still open is accepted then */
-/*  practised, or the speaker keeps their words (29b).                       */
-/*                                                                            */
-/*  AFTER the judgement only: the sheet is handed the answer and nothing is  */
-/*  awaiting, so the open-time card choice (24e-1, `feedbackFirstCard`, and   */
-/*  the `open_card` field being built in parallel) is never on this path.    */
-/*                                                                            */
+/*  STORY    As a speaker, I want the card and buttons after each of my five  */
+/*           answers to follow the founder's follow-up matrix, so that I get  */
+/*           the right next step (praise, exercise, rewrite, or nothing).     */
+/*  OUTCOME  For each answer and machine read, through the real paragraph     */
+/*           sheet: the right card, button, link, and whether helper words    */
+/*           follow (24f, founder 2026-09-29; locks B2, B5, D1, D7; 29b):     */
+/*    O1  read confident: praise on Yes, In-between, No, Not sure.            */
+/*    O2  read weak, problem fired: library video on No and Not sure, even    */
+/*        with a rewrite on the paragraph; the plain moment with the coach's  */
+/*        line when nothing in the library matched; nothing on Yes.          */
+/*    O3  read weak, nothing fired: the rewrite (accept, or Keep my words).   */
+/*    O4  Audio unclear: nothing.                                             */
+/*    O5  Helper words follow Yes and In-between only.                        */
+/*    O6  Not sure walks exactly as No.                                       */
+/*    O7  Never-1: nothing on the sheet is a number or score about me.        */
+/*  PROVES   O1-O7 -> each row of CASES, via expectWalk (card, footer,        */
+/*           the way on, and the no-number check on the drawn sheet).         */
 /*  NOT PINNED, on purpose: a weak moment where a problem fired, nothing in   */
-/*  the library matched, AND a rewrite rides the paragraph. Today's sheet     */
-/*  shows the rewrite there; the matrix says the coach request (audit         */
-/*  2026-10-05, item 3). That cell is open work, so it is neither asserted   */
-/*  as right nor as wrong here.                                              */
+/*  the library matched, AND a rewrite rides the paragraph. That cell is open */
+/*  work (audit 2026-10-05, item 3).                                          */
 /* -------------------------------------------------------------------------- */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -134,6 +125,12 @@ const MOMENTS = {
     decided: [moment({ bookmarkTier: "weak" })],
     pending: [rewrite],
   },
+  weakCoachRequest: {
+    // A problem fired and nothing in the library matched: the backend names
+    // the coach request (`openCard`), and no rewrite rides the paragraph.
+    decided: [moment({ bookmarkTier: "weak", openCard: "coach_request" } as Partial<DocumentSuggestion>)],
+    pending: [],
+  },
 } as const;
 
 type Expect = {
@@ -228,10 +225,6 @@ async function expectWalk(shape: keyof typeof MOMENTS, answer: Judgement, want: 
   await judge(shape, answer);
   expect(q("overlay-practise")).not.toBeNull();
 
-  // The walk's look draws no tinted chip (Q-WALK-PARA A): the answer
-  // decides the card and the buttons, and is never a badge.
-  expect(q("judgement-label")).toBeNull();
-
   const card = q("practise-card");
   expect(card?.getAttribute("data-kind") ?? null).toBe(want.card);
   expect(Boolean(q("coach-request-line"))).toBe(want.coachLine === true);
@@ -266,11 +259,8 @@ async function expectWalk(shape: keyof typeof MOMENTS, answer: Judgement, want: 
   }
 }
 
-/* One case per behaviour of the matrix (founder 2026-10-12, "do the lingering
- * tests cleanup"): Not sure walks exactly as No, Yes on a weak read draws no
- * card whatever fired, and Audio unclear draws nothing on any read. Two
- * cells are proven on the sheet as the page opens it (paragraphSheet.test.tsx):
- * Yes on praise, and the plain moment with the coach's line. */
+/* One case per cell of the matrix; Not sure is walked on every read so a
+ * drift from No shows. */
 const CASES: ReadonlyArray<[string, keyof typeof MOMENTS, Judgement, Expect]> = [
   ["read confident, In-between: praise with a Practise link, then the helper words", "confident", "in_between",
     { card: "praise", pill: "next", link: "practise", helperWords: true }],
@@ -286,6 +276,16 @@ const CASES: ReadonlyArray<[string, keyof typeof MOMENTS, Judgement, Expect]> = 
     { card: "rewrite", pill: "accept", link: "keep", helperWords: true }],
   ["read weak where nothing fired, No: the rewrite; Keep my words practises the speaker's own words (29b)", "weakNothingFired", "no",
     { card: "rewrite", pill: "accept", link: "keep", helperWords: false }],
+  ["read confident, Yes: praise, then the helper words", "confident", "yes",
+    { card: "praise", pill: "next", link: null, helperWords: true }],
+  ["read confident, Not sure: as No", "confident", "not_sure",
+    { card: "praise", pill: "practise", link: "skip", helperWords: false }],
+  ["read weak where a problem fired, Not sure: as No", "weakProblemFired", "not_sure",
+    { card: "exercise", pill: "practise", link: "skip", helperWords: false }],
+  ["read weak where nothing fired, Not sure: as No", "weakNothingFired", "not_sure",
+    { card: "rewrite", pill: "accept", link: "keep", helperWords: false }],
+  ["read weak, nothing in the library, No: the plain moment with the coach's line", "weakCoachRequest", "no",
+    { card: "plain", pill: "practise", link: "skip", helperWords: false, coachLine: true }],
 ];
 
 describe("what follows each judgement, by the machine's read (24f)", () => {

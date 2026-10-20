@@ -1,10 +1,11 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
 import OverlayCloseButton from "../OverlayCloseButton";
+import { useWalkSwipe } from "./useWalkSwipe";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkOverlay — one screen of the Feedback walk (founder lock 2026-10-06)    */
@@ -124,8 +125,11 @@ export default function WalkOverlay({
   testId?: string;
   children?: ReactNode;
 }) {
+  const ov = useRef<HTMLDivElement | null>(null);
+  useWalkSwipe(ov, nav);
   return (
     <div
+      ref={ov}
       role="dialog"
       aria-modal="true"
       aria-label={title ?? (nav ? walkNavText(nav) : undefined)}

@@ -1,9 +1,14 @@
-/**
- * The complexity ratchet (audit Q-C7): no function under src/ exceeds CC 25
- * unless it is frozen in scripts/complexity-baseline.json, and a frozen one
- * may only come down. The live run is the unit job's "Complexity ratchet"
- * step (`npm run check:complexity`); these tests pin the rule.
- */
+/*
+GUARD    No function under src/ above complexity 25 unless frozen in
+         scripts/complexity-baseline.json, and a frozen one may only come down.
+CATCHES  A new function over 25; a frozen one that grew; a baseline entry
+         that is stale (the function shrank or is gone) and must be re-frozen.
+IF REMOVED  The rule behind `npm run check:complexity` (the unit job's
+         "Complexity ratchet" step) could loosen without anything going red.
+PROVES   new / grown -> "fails a new offender and lets a frozen one only come down"
+         stale       -> "requires a stale baseline entry to be re-frozen"
+WHY      Audit Q-C7.
+*/
 
 import { describe, expect, it } from "vitest";
 import {

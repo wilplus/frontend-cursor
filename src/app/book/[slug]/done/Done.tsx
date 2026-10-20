@@ -66,6 +66,8 @@ export default function Done({ info, booking }: { info: PageInfo; booking: Confi
             // price they had when booking (e.g. the first-lesson discount).
             const due = booking.price_cents === 0 ? booking.due_cents || 0 : 0;
             const amount = due || booking.price_cents;
+            // A link without a price: no price row at all.
+            if (amount === 0 && booking.list_price_cents === 0) return null;
             return (
               <div className={row}>
                 <dt className="text-muted-foreground">{due ? "To be paid" : "Paid"}</dt>

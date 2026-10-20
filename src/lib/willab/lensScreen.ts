@@ -61,6 +61,12 @@ export function lensIdle(page: LensPage): boolean {
  *  feedback (the address the WhatsApp message sends), `&mode=review` the
  *  review. Null takes both off. The overlay sets it on its own Back entry,
  *  so the entry under it never holds the lens. */
+export function lensHref(arcId: string, mode: "review" | "feedback" = "feedback"): string {
+  const params = new URLSearchParams({ lens: arcId });
+  if (mode === "review") params.set("mode", "review");
+  return `/chat?${params.toString()}`;
+}
+
 export function lensAddress(arcId: string | null, mode: "review" | "feedback" = "feedback"): void {
   if (typeof window === "undefined") return;
   const url = new URL(window.location.href);

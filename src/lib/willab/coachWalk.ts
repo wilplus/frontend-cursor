@@ -30,6 +30,9 @@ export interface QueueTake {
   /** The bookmarks are not frozen yet: the Take is listed, never absent
    *  (founder 2026-10-01, A1). */
   waitingForText: boolean;
+  /** When this coach last answered on it (a time, never a value); orders
+   *  the answered Takes, most recent first. Null when not sent. */
+  answeredAt?: string | null;
 }
 
 export interface QueueSpeaker {
@@ -61,10 +64,13 @@ function mapMoment(raw: unknown): QueueMoment | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   if (typeof r.snippet_id !== "string" || !isState(r.state)) return null;
+  // Blind coach (Never-2): a moment still to judge carries no kind, whatever
+  // the server sent. Every other state means this coach has rated it.
+  const rated = r.state !== "judge_it";
   return {
     snippetId: r.snippet_id,
     state: r.state,
-    kind: isKind(r.kind) ? r.kind : null,
+    kind: rated && isKind(r.kind) ? r.kind : null,
   };
 }
 
@@ -82,6 +88,7 @@ function mapTake(raw: unknown): QueueTake | null {
     waiting: typeof r.waiting === "number" ? r.waiting : countWaiting(moments),
     moments,
     waitingForText: r.waiting_for_text === true,
+    answeredAt: typeof r.answered_at === "string" && r.answered_at ? r.answered_at : null,
   };
 }
 

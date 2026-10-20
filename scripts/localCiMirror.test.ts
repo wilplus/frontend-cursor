@@ -1,18 +1,19 @@
-/* -------------------------------------------------------------------------- */
-/*  THE LOCAL GATE MIRRORS CI, AND ADDS THE STEP CI IS MISSING                 */
-/*                                                                            */
-/*  2026-09-19: a commit reached `main` with an `eslint-disable` naming a rule */
-/*  this repo does not configure. All five checks CI runs went green, because  */
-/*  none of them is `next build` — and `next build` lints the production entry */
-/*  graph and fails hard on an unknown rule inside a disable comment. Vercel   */
-/*  went red, `main` stopped deploying, and an hour of merged fixes never      */
-/*  reached the product.                                                       */
-/*                                                                            */
-/*  `tsc --noEmit` is not `next build`. So `scripts/local_ci.sh` runs the CI   */
-/*  job's steps AND the build, and this test is what stops the two drifting:   */
-/*  a step added to the workflow and not to the script would give a local      */
-/*  "GREEN" that CI then contradicts, which is how a gate stops being trusted. */
-/* -------------------------------------------------------------------------- */
+/*
+GUARD    scripts/local_ci.sh runs every command the CI unit job runs, plus
+         `npm run build`, on the Node version CI and .nvmrc name.
+CATCHES  A step added to .github/workflows/tests.yml but not to the script;
+         the build dropped from the script; the Node floor drifting from CI;
+         the design-lock guard losing its step or its git history.
+IF REMOVED  A local GREEN could stop meaning CI (and Vercel) will be green.
+         Reads source text (workflow and script) on purpose: this is plumbing.
+PROVES   found the job -> "found the job and its steps"
+         mirrored      -> "runs `%s`" (one per unit-job command)
+         build         -> "runs the production build"
+         node          -> "stops below the job's node-version, which .nvmrc names too"
+         design lock   -> "is a step of the unit job, with the history it needs"
+WHY      2026-09-19: CI was green, `next build` failed on Vercel, main stopped
+         deploying. The --no-build verdict is run for real in localCiVerdict.test.ts.
+*/
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
@@ -56,12 +57,6 @@ describe("the gate covers what CI does not", () => {
     // The step whose absence caused the incident. Vercel runs it; CI does not.
     expect(SCRIPT).toContain("npm run build");
     expect(UNIT_JOB).not.toContain("npm run build");
-  });
-
-  it("refuses to report GREEN when the build was skipped", () => {
-    // --no-build exists for iterating, and must never look like a passing gate.
-    expect(SCRIPT).toMatch(/WITH_BUILD" = 0[\s\S]{0,200}INCOMPLETE/);
-    expect(SCRIPT).toMatch(/GREEN — every gate CI runs, plus the build/);
   });
 });
 

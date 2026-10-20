@@ -192,42 +192,9 @@ function isPublicFile(pathname: string) {
   if (isProtected(pathname) || ADMIN_ROUTES.some((route) => pathname.startsWith(route))) {
     return false;
   }
+  // /icon is the app icon (src/app/icon.tsx): no extension, same for everyone.
+  if (pathname === "/icon") return true;
   return /\.[a-z0-9]+$/i.test(pathname.slice(pathname.lastIndexOf("/") + 1));
-}
-
-/** A page that turns anonymous visitors away: it needs a verified user. */
-function isGated(pathname: string) {
-  return (
-    ADMIN_ROUTES.some((route) => pathname.startsWith(route)) ||
-    (pathname.includes("/recordings/") && pathname.includes("/feedback")) ||
-    isProtected(pathname)
-  );
-}
-
-/** The visitor's session, refreshed (new cookies set on the response) when
- *  needed. A gated page asks the auth server (getUser). Every other page
- *  (/chat above all) only needs the cookie kept fresh, and getSession() does
- *  that locally, going to the network only when the token has expired.
- *  getUser() on /chat was a round trip to Supabase before the first byte of
- *  HTML (~0.5 s TTFB). Off a gated page only the session's presence is read
- *  (the signed-in redirect off "/" and the auth pages); nothing is
- *  authorised on it. */
-async function readSession(
-  supabase: ReturnType<typeof createServerClient>,
-  gated: boolean,
-): Promise<{ user: unknown } | null> {
-  try {
-    if (gated) {
-      const { data: { user } } = await supabase.auth.getUser();
-      return user ? { user } : null;
-    }
-    const { data } = await supabase.auth.getSession();
-    return data.session ? { user: true } : null;
-  } catch {
-    // Invalid/expired refresh token (e.g. "Refresh Token Not Found"): treat
-    // as unauthenticated so the user can log in again.
-    return null;
-  }
 }
 
 function isAuthRoute(pathname: string) {
@@ -363,10 +330,26 @@ export async function middleware(req: NextRequest) {
     }
   );
 
-  const authStarted = Date.now();
-  const gated = isGated(pathname);
-  const session = await readSession(supabase, gated);
-  res.headers.set("Server-Timing", `auth;desc="${gated ? "getUser" : "getSession"}";dur=${Date.now() - authStarted}`);
+  /* THE SIGN-IN CHECK ONLY WHERE IT DECIDES SOMETHING (2026-10-18).
+   *
+   * getUser() is a round trip to the Supabase auth server, and the HTML
+   * waits for it. On /chat — the app itself, and not a gated route — the
+   * answer decided nothing: no redirect reads it there, yet every /chat open
+   * waited on that round trip before the first byte.
+   *
+   * Where a redirect depends on it (signed-in-only, admin, the landing and
+   * the auth pages) it is still getUser(). Everywhere else getSession() keeps
+   * what this block is also for: an expired access token is refreshed and the
+   * new cookies ride the response (handoff §C2). A token that is still valid
+   * costs no network at all. Nothing is authorised here either way — the
+   * backend verifies every token itself.
+   *
+   * If the refresh token is invalid (e.g. "Refresh Token Not Found"), treat
+   * as no session so the user can log in again. */
+  const authStartedAt = Date.now();
+  const session = await readSession(supabase, pathname);
+  // Shown in DevTools → Network → Timing → Server Timing.
+  res.headers.set("Server-Timing", `auth;dur=${Date.now() - authStartedAt};desc="sign-in check"`);
 
   // Admin routes: require valid session (same as protected); backend will verify admin role
   if (ADMIN_ROUTES.some((route) => pathname.startsWith(route))) {
@@ -411,6 +394,36 @@ export async function middleware(req: NextRequest) {
   }
 
   return res;
+}
+
+/** The verified user where a redirect needs one; elsewhere only the token
+ *  refresh, and null. Never throws: a bad refresh token reads as signed out. */
+async function readSession(
+  supabase: ReturnType<typeof createServerClient>,
+  pathname: string,
+): Promise<{ user: unknown } | null> {
+  try {
+    if (!sessionDecidesRoute(pathname)) {
+      await supabase.auth.getSession();
+      return null;
+    }
+    const { data: { user } } = await supabase.auth.getUser();
+    return user ? { user } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Whether a redirect below reads the session for this path. Keep in step
+ *  with the gates in `middleware` and with `signedInDestination`. */
+function sessionDecidesRoute(pathname: string): boolean {
+  return (
+    isProtected(pathname) ||
+    ADMIN_ROUTES.some((route) => pathname.startsWith(route)) ||
+    (pathname.includes("/recordings/") && pathname.includes("/feedback")) ||
+    pathname === "/" ||
+    isAuthRoute(pathname)
+  );
 }
 
 /** Where a signed-in visitor goes instead of this page, or null to stay.

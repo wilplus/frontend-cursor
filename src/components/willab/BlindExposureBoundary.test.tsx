@@ -1,4 +1,17 @@
 // @vitest-environment jsdom
+/*
+STORY    As the founder, I want a coach card counted as seen only once it is
+         actually visible, and exactly once, so that blind-review records are
+         honest.
+OUTCOME
+  O1  Never-2 record: a card that is mounted but off-screen sends no receipt,
+      while its content is still rendered.
+  O2  Once visible, exactly one receipt is sent, even when visibility fires
+      again and the card re-renders; its exposure id reaches the card.
+PROVES   O1 -> "creates nothing for a mounted card that never becomes visible"
+         O2 -> "records exactly one exposure when visible, however often visibility fires"
+WHY      Blind coach review: an exposure is the proof of what the coach saw, and when.
+*/
 
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -41,10 +54,10 @@ function acknowledged(exposureId: string) {
   });
 }
 
-async function becomeVisible(): Promise<void> {
+async function intersect(isIntersecting: boolean): Promise<void> {
   await act(async () => {
     observerCallback?.([
-      { isIntersecting: true } as IntersectionObserverEntry,
+      { isIntersecting } as IntersectionObserverEntry,
     ], {} as IntersectionObserver);
   });
 }
@@ -86,28 +99,34 @@ describe("BlindExposureBoundary", () => {
       ));
     });
 
+    await intersect(false);
+
     expect(observerCallback).not.toBeNull();
+    expect(container.textContent).toBe("card");
     expect(acknowledge).not.toHaveBeenCalled();
   });
 
-  it("records exactly one exposure when visible without requiring a click", async () => {
+  it("records exactly one exposure when visible, however often visibility fires", async () => {
     const acknowledge = acknowledged("exposure-1");
-    await act(async () => {
-      // eslint-disable-next-line react/no-children-prop
-      root.render(createElement(
-        BlindExposureBoundary<typeof chainHandle>,
-        {
-          blindReview: chainHandle,
-          acknowledge,
-          scope: "coach-card",
-          children: ({ exposureId }: { exposureId: string | null }) =>
-            createElement("span", null, exposureId ?? "waiting"),
-        },
-      ));
-    });
-    await becomeVisible();
+    const props = {
+      blindReview: chainHandle,
+      acknowledge,
+      scope: "coach-card",
+      children: ({ exposureId }: { exposureId: string | null }) =>
+        createElement("span", null, exposureId ?? "waiting"),
+    };
+    const render = () =>
+      act(async () => {
+        root.render(createElement(BlindExposureBoundary<typeof chainHandle>, props));
+      });
+
+    await render();
+    await intersect(true);
+    await intersect(true);
+    await render();
+    await intersect(true);
 
     expect(acknowledge).toHaveBeenCalledTimes(1);
-    expect(container.textContent).toContain("exposure-1");
+    expect(container.textContent).toBe("exposure-1");
   });
 });

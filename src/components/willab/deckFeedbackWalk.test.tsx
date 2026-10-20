@@ -1,14 +1,30 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  The Feedback walk mounted on the real deck (build plan D-FW-14; permanent  */
-/*  since the founder's 2026-10-11 "keep the new designs, make them           */
-/*  permanent").                                                              */
-/*                                                                            */
-/*  Review feedback opens the walk on the coach's note or the first           */
-/*  praise; a tap on a paragraph with an open moment opens it there (Q-B3 A); */
-/*  helper words picked in it go through the deck's own save; a guest's pick  */
-/*  asks to sign up and writes nothing.                                       */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker reviewing feedback, I want the walk to open on my
+         first praise, browse every step across slides, save
+         helper words through the deck, and ask a guest to sign up, so that
+         feedback flows into my next Take.
+OUTCOME
+  O1  Review feedback opens the walk on the first praise.
+  O2  The arrows browse every step across slides, answered and waiting,
+      without answering anything.
+  O3  A tap on a paragraph with an open moment opens the walk there.
+  O4  Helper words picked in the walk are saved through the deck's own
+      save (the words, then the lock) and show orange in the text at once.
+  O5  Never-5: Accept and practise saves the answer through the accept lane,
+      and the deck still shows the speaker's own words, not the clearer ones.
+  O6  A guest's pick asks to sign up, is not taken, and nothing is written.
+PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's sheet"
+         O2 -> "‹ › browse every screen across slides, answered and waiting
+                alike, and never close the walk (founder 2026-10-15)"
+         O3 -> "a tap on a paragraph with an open moment opens the walk there (Q-B3 A)"
+         O4 -> "helper words picked in the walk go through the deck's own
+                save: the words and the lock"
+         O5 -> "Accept and practise writes through the accept lane and leaves the speaker's words on the page"
+         O6 -> "a guest's pick asks to sign up and writes nothing"
+WHY      Feedback walk lock 2026-10-06/2026-10-12. The paragraph sheet's
+         accept lane is in acceptRewrite.test.tsx.
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -259,6 +275,27 @@ describe("the walk on the deck", () => {
     expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe(`Slide 2 · ${WALK_COPY.navHelperWords}`);
     expect(document.querySelector("[data-testid='helper-words-card']")).toBeNull();
   });
+
+  it("a guest's pick asks to sign up and writes nothing", async () => {
+    const signUp = vi.fn(() => true);
+    const p = props();
+    await render(p, signUp);
+    await render({ ...p, reviewRequest: 1 }, signUp);
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    expect(screen()).toBe("walk-screen-helpers");
+    const word = [...live()!.querySelectorAll<HTMLButtonElement>("[data-walk-word-picker] button")]
+      .find((w) => w.textContent === "retention");
+    signUp.mockClear();
+    await click(word);
+    expect(signUp).toHaveBeenCalled();
+    expect(word!.getAttribute("aria-pressed")).not.toBe("true");
+    // Going on from the step saves nothing for the guest.
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    expect(p.onSetRootPhrase).not.toHaveBeenCalled();
+    expect(p.onLockPart).not.toHaveBeenCalled();
+    expect(vi.mocked(saveTakeFeedbackResponse)).not.toHaveBeenCalled();
+    expect(paragraph("retention went up")!.querySelector(".walk-helper-word")).toBeNull();
+  });
 });
 
 describe("the clearer version in the walk (D-FW-15)", () => {
@@ -271,7 +308,7 @@ describe("the clearer version in the walk (D-FW-15)", () => {
     expect(screen()).toBe("walk-screen-clearer");
   };
 
-  it("Accept and practise writes through the accept lane: the response, then the deck's onAccept", async () => {
+  it("Accept and practise writes through the accept lane and leaves the speaker's words on the page", async () => {
     const p = props({ suggestions: [judgement, praise, rewrite] });
     await toClearer(p);
     await click(live()!.querySelector("[data-testid='walk-forward']"));
@@ -282,5 +319,7 @@ describe("the clearer version in the walk (D-FW-15)", () => {
     expect(p.onAccept).toHaveBeenCalledWith(expect.objectContaining({ id: "s-rw" }));
     expect(p.onKeepMine).not.toHaveBeenCalled();
     expect(screen()).not.toBe("walk-screen-clearer");
+    expect(paragraph("retention went up")!.textContent).toBe(SLIDES[1]);
+    expect(container.querySelector("[data-chunk]")!.parentElement!.textContent).not.toContain("retention rose");
   });
 });

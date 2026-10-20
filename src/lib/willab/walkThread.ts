@@ -10,8 +10,9 @@
 /* -------------------------------------------------------------------------- */
 
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "@/components/willab/idealEditCopy";
-import type { LoungeMessageDraft } from "@/services/api/loungeMessages";
+import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import type { FeedbackWalkMoment } from "./feedbackWalkModel";
+import type { PraiseReason } from "./praiseReason";
 import type { WalkBankKey } from "./walkLines";
 import type { WalkStep } from "./walkPlan";
 import { encourageLine, improvedLine, thanksLine } from "./walkPractise";
@@ -100,8 +101,13 @@ export function momentChat(
   return { label, clip };
 }
 
+/** The sharing question's three lines as one bubble, a blank line between
+ *  them (founder 2026-10-19). */
+const SHARE_QUESTION = [WALK_COPY.shareBefore, WALK_COPY.shareTitle, WALK_COPY.shareAudience].join("\n\n");
+
 /** Sharing before the next recording, in the chat (prototype v31, lens
- *  off): "Record Take N", the question, and the speaker's choice. */
+ *  off): "Record Take N", the question as one bubble, and the speaker's
+ *  choice. */
 export function shareChat(
   nextTake: number | null,
   ticks: readonly string[],
@@ -125,11 +131,28 @@ export function shareChat(
     .join(", ");
   return [
     ...(nextTake ? [say("user", `Record Take ${nextTake}`)] : []),
-    say("bot", WALK_COPY.shareBefore),
-    say("bot", WALK_COPY.shareTitle),
-    say("bot", WALK_COPY.shareAudience),
+    say("bot", SHARE_QUESTION),
     say("user", choice),
   ];
+}
+
+/** A sharing question stored before 2026-10-19 as three bubbles in a row,
+ *  drawn as the one bubble the chat now writes. Pure. */
+export function oneShareQuestion<T extends { message: LoungeMessage }>(items: readonly T[]): T[] {
+  const out: T[] = [];
+  for (const item of items) {
+    const prev = out[out.length - 1];
+    if (prev && isShareQuestion(prev.message) && isShareQuestion(item.message)) {
+      out[out.length - 1] = { ...prev, message: { ...prev.message, body: `${prev.message.body}\n\n${item.message.body}` } };
+    } else {
+      out.push(item);
+    }
+  }
+  return out;
+}
+
+function isShareQuestion(m: LoungeMessage): boolean {
+  return m.kind === "walk_step" && m.role === "bot" && m.metadata?.step === "share";
 }
 
 /** The bridge line before other speakers' moments (lock 2026-10-12,
@@ -169,6 +192,15 @@ export function othersChat(
   };
 }
 
+/** How many of other speakers' moments the speaker judged in `take`'s walk:
+ *  their "👍 Yes" bubbles in the chat (`answer:others`). The judging
+ *  reopened from the Lounge shows that many, answered. Pure. */
+export function othersAnswered(messages: readonly LoungeMessage[], take: string): number {
+  return messages.filter(
+    (m) => m.kind === "walk_step" && m.metadata?.take_session_id === take && m.metadata?.step === "answer:others",
+  ).length;
+}
+
 /** The speaker's answer to a step as their own bubble says it (prototype
  *  v31, lens off). Null: posted elsewhere (helper words, a clearer
  *  version's choice), or nothing to say. */
@@ -195,6 +227,18 @@ export function aiVoiceChat(ai: { title?: string; lead?: string; line: string; t
   };
 }
 
+/** A green moment in the chat once its reason is known: the title and the
+ *  praise line, then the reason's paragraphs, as the walk draws them
+ *  (founder 2026-10-18). Pure. */
+export function praiseChat(
+  moment: FeedbackWalkMoment<unknown>,
+  reason: PraiseReason,
+): { author: WalkAuthor; body: string } {
+  const lead = (moment.praiseLead ?? moment.praiseWords).join(" ");
+  const lines = [moment.praiseTitle ?? COPY.titlePraise, lead, ...reason.paragraphs];
+  return { author: "app", body: lines.filter((line) => line.trim() !== "").join("\n") };
+}
+
 /** What a shown step says in the chat, and who says it; null: nothing.
  *  `say`: the signed line the walk's screen took from a bank, so the chat
  *  says the same one. */
@@ -213,6 +257,7 @@ export function shownStep(
       // "Your coach" over the words, as the prototype's chat writes it.
       return coachText ? { author: "coach", body: `${COPY.titleCoach}\n${coachText}` } : null;
     case "praise":
+      if (moment?.praiseReason) return praiseChat(moment, moment.praiseReason);
       return titled(moment?.praiseTitle ?? COPY.titlePraise, moment?.praiseWords.join(" "));
     case "helpers":
       return app(COPY.titleEmphasis);

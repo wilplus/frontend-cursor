@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import LinkedInAuthButton from "@/components/auth/LinkedInAuthButton";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
+import { claimGuestProjects } from "@/services/api/projects";
 
 interface SignupFormProps {
   onSuccess?: () => void;
@@ -109,6 +110,13 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
           access_token: accessToken,
           refresh_token: refreshToken,
         });
+        // THE TAKE MOVES BEFORE THE PAGE DOES (founder 2026-10-20: "it shows
+        // me a button like my take was not registered"). The new session
+        // starts the guest claim on this page; the reloads below used to cut
+        // it off mid-flight, after the server had moved the Take but before
+        // this browser dropped its guest token. Wait for it here (the same
+        // in-flight claim, never a second one).
+        await claimGuestProjects().catch(() => false);
       }
 
       toast.success("Account created! Redirecting…");

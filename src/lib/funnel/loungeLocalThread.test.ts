@@ -65,6 +65,20 @@ describe("mergeLocalLoungeThreadToServer", () => {
     expect(passed.map((m) => m.client_id)).toEqual(["a", "b"]); // sorted ASC
     expect(readLocalLoungeThread()).toEqual([]); // cleared after merge
   });
+
+  it("does not replay the guest's 'ready' card: the claim back-fills it (one bubble per Take)", async () => {
+    appendLocalLoungeMessage(msg("rec", "2026-01-01T00:00:00Z"));
+    appendLocalLoungeMessage({
+      ...msg("ready", "2026-01-01T00:01:00Z"),
+      role: "bot",
+      kind: "ideal_text",
+      metadata: { arc_id: "arc", variant: "ready", version: 1 },
+    });
+    await mergeLocalLoungeThreadToServer();
+    const passed = vi.mocked(appendAllLoungeMessages).mock.calls[0]?.[0] ?? [];
+    expect(passed.map((m) => m.client_id)).toEqual(["rec"]);
+    expect(readLocalLoungeThread()).toEqual([]);
+  });
 });
 
 describe("a visitor's thread expires after a sitting", () => {

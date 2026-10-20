@@ -1,7 +1,16 @@
 // @vitest-environment jsdom
-/* "What's changed since you agreed" (founder 2026-09-28, decision 21): shown
-   only when a newer policy replaced the one this person accepted, and it opens
-   the ordinary acceptance screen. */
+/*
+ * STORY    As a speaker, I want a "what's changed" card only when a newer
+ *          policy replaced mine, opening the normal acceptance screen, so
+ *          that I can re-accept easily.
+ * OUTCOME
+ *   O1  Card shown when I accepted an earlier version; Accept opens the
+ *       ordinary acceptance screen; accepting there hides the card.
+ *   O2  No card when my receipt is current or I never agreed before.
+ * PROVES   O1 -> "offers the update and opens the ordinary acceptance screen"
+ *          O2 -> "shows nothing when %s"
+ * WHY      Founder 2026-09-28, decision 21.
+ */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -16,6 +25,7 @@ vi.mock("@/components/willab/Phase1AcceptanceFlow", () => ({
 }));
 
 import PolicyUpdateCard from "./PolicyUpdateCard";
+import { DATA_CONSENT_COPY as COPY } from "@/lib/legal/dataConsentCopy";
 
 const POLICY = { policyVersion: "phase1-2026.2" };
 let root: Root;
@@ -43,15 +53,30 @@ async function mount(status: unknown, onAccepted = vi.fn()) {
 }
 
 describe("the policy update card", () => {
+  it.each([
+    ["my receipt is current", { kind: "authorized", policy: POLICY }],
+    [
+      "I never agreed before",
+      {
+        kind: "acceptance_required", policy: POLICY,
+        code: "PROCESSING_AUTHORIZATION_REQUIRED", acceptedEarlierVersion: false,
+      },
+    ],
+  ])("shows nothing when %s", async (_why, status) => {
+    await mount(status);
+    expect(fetchAuthorization).toHaveBeenCalledTimes(1);
+    expect(host.querySelector('[data-testid="policy-update-card"]')).toBeNull();
+    expect(host.textContent).toBe("");
+  });
 
   it("offers the update and opens the ordinary acceptance screen", async () => {
     const onAccepted = await mount({
       kind: "acceptance_required", policy: POLICY,
       code: "PROCESSING_AUTHORIZATION_REQUIRED", acceptedEarlierVersion: true,
     });
-    expect(host.textContent).toContain("What’s changed since you agreed");
+    expect(host.textContent).toContain(COPY.updateTitle);
     const accept = Array.from(host.querySelectorAll("button")).find(
-      (b) => b.textContent === "Accept the update",
+      (b) => b.textContent === COPY.updateAccept,
     );
     await act(async () => accept?.click());
     const flow = host.querySelector('[data-testid="acceptance-flow"]') as HTMLButtonElement;

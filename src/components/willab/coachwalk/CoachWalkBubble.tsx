@@ -5,13 +5,16 @@
 /*  1; prototype lounge()): "N speakers waiting · Open your queue", outlined  */
 /*  in orange with the "new" tag while speakers wait; "Nobody is waiting for  */
 /*  you." when none does. A count of people to see, never of quality (AC-9). */
+/*  Until the queue has been read once (waiting null) the title line is a    */
+/*  quiet bar, not "Nobody": the card never claims an empty queue it has not */
+/*  seen (founder 2026-10-18).                                               */
 /* -------------------------------------------------------------------------- */
 
 import { cn } from "@/lib/utils";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 
-export function CoachWalkBubble({ waiting, onOpen }: { waiting: number; onOpen: () => void }) {
-  const marked = waiting > 0;
+export function CoachWalkBubble({ waiting, onOpen }: { waiting: number | null; onOpen: () => void }) {
+  const marked = waiting !== null && waiting > 0;
   return (
     <button
       type="button"
@@ -25,9 +28,13 @@ export function CoachWalkBubble({ waiting, onOpen }: { waiting: number; onOpen: 
     >
       <span aria-hidden="true" className="aspect-video w-16 flex-none rounded-md bg-[linear-gradient(135deg,#dde3ee,#c7d0e0)]" />
       <span className="min-w-0">
-        <b className="block text-[15px] font-semibold text-foreground">
-          {marked ? COPY.bubbleWaiting(waiting) : COPY.queueEmpty}
-        </b>
+        {waiting === null ? (
+          <span aria-hidden="true" data-testid="coach-walk-bubble-unread" className="my-[5px] block h-[13px] w-40 max-w-full rounded-md bg-[#dde3ee]" />
+        ) : (
+          <b className="block text-[15px] font-semibold text-foreground">
+            {marked ? COPY.bubbleWaiting(waiting) : COPY.queueEmpty}
+          </b>
+        )}
         <small className="block text-[12px] text-muted-foreground">{COPY.bubbleOpen}</small>
       </span>
       {marked ? (

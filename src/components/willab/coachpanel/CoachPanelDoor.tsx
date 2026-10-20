@@ -13,6 +13,8 @@
 /*                      goal and their Takes                                  */
 /*    Training corpus   the corpus inside the panel (D-CP-20): the imports,   */
 /*                      Import audio, the set-up, the blind judging          */
+/*    Open speaker      a goal card in the Lounge opens that speaker          */
+/*                      (WIL-74, founder 2026-10-19; lib/willab/openSpeaker)  */
 /*                                                                            */
 /* -------------------------------------------------------------------------- */
 
@@ -22,7 +24,8 @@ import CoachPanel from "./CoachPanel";
 import CoachWalkBubble from "../coachwalk/CoachWalkBubble";
 import { useMomentsQueue } from "../coachwalk/useMomentsQueue";
 import { PANEL_START, panelReducer, type PanelState } from "@/lib/willab/coachPanel";
-import { speakersWaiting } from "@/lib/willab/coachWalk";
+import { OPEN_SPEAKER_EVENT, type OpenSpeakerDetail } from "@/lib/willab/openSpeaker";
+import { fetchCoachSpeakers, queueSpeakerFor } from "@/services/api/coachSpeakers";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 
 const PINNED =
@@ -55,7 +58,9 @@ export default function CoachPanelDoor({
 }) {
   const queue = useMomentsQueue(true);
   const [state, dispatch] = useReducer(panelReducer, initial);
-  const waiting = speakersWaiting(queue.speakers);
+  // null until the queue is read once (or remembered on this device): the
+  // bubble never says "Nobody" before it knows (founder 2026-10-18).
+  const waiting = queue.waiting;
 
   // Back in the Lounge after answering: the queue and the bubble read fresh.
   const wasOpen = useRef(false);
@@ -65,6 +70,22 @@ export default function CoachPanelDoor({
     if (wasOpen.current && !open) refresh();
     wasOpen.current = open;
   }, [state.screen.key, refresh]);
+
+  // A goal card's "Open speaker": the speaker this coach may hear, by their
+  // pseudonym; Your speakers when they are not in the list.
+  const queueSpeakers = queue.speakers;
+  useEffect(() => {
+    const onOpen = (event: Event) => {
+      const { pseudonym } = (event as CustomEvent<OpenSpeakerDetail>).detail ?? {};
+      if (!pseudonym) return;
+      void fetchCoachSpeakers().then((all) => {
+        const found = all?.find((s) => s.pseudonym === pseudonym);
+        dispatch(found ? { type: "speaker", speaker: queueSpeakerFor(found, queueSpeakers) } : { type: "speakers" });
+      });
+    };
+    window.addEventListener(OPEN_SPEAKER_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_SPEAKER_EVENT, onOpen);
+  }, [queueSpeakers]);
 
   return (
     <>

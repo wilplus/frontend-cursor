@@ -1,9 +1,25 @@
 // @vitest-environment jsdom
-/* THE HELPER WORDS OVERLAY (founder lock 2026-09-30, B4, B10, D4, D5, Q2,
-   Q3): opened from the saved screen's "Edit" and from
-   the page's headline; the current words with Delete on top, one chip per
-   Take, that Take's words to tap, the button lit only when the selection
-   differs; Delete asks once; one Take, one phrase. */
+/*
+STORY    As a speaker, I want to pick up to eight helper words from any Take,
+         delete them with one confirm, and save only when changed, so that my
+         helper words stay until I pick new ones.
+OUTCOME
+  O1  Tapping words in the current Take updates the card live, marks it new,
+      and saves them as a span of the paragraph.
+  O2  Eight words at most, saved in the order said.
+  O3  One chip per Take, newest first, the current one "now"; words from an
+      earlier Take save with that Take's number.
+  O4  Delete asks once: the first tap only clears the card, the second deletes.
+  O5  Never 5 (helper words stay until the speaker picks new ones): the button
+      is lit only when the selection differs from the saved words, so the
+      saved words cannot be overwritten by an unchanged tap.
+PROVES   O1 -> "tapping in the current Take updates the card live ..."
+         O2 -> "eight words at most ..."
+         O3 -> "one chip per Take; an earlier Take's words save with its number"
+         O4 -> "Delete asks once, then deletes"
+         O5 -> "the button lights only when the words differ from the saved ones"
+WHY      Founder lock 2026-09-30 (B4, B10, D4, D5, Q2, Q3).
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -52,9 +68,7 @@ afterEach(async () => {
   container.remove();
 });
 
-const buttons = () => Array.from(container.querySelectorAll("button"));
-const button = (label: string) =>
-  buttons().find((b) => (b.textContent ?? "").trim() === label) as HTMLButtonElement | undefined;
+const chips = () => Array.from(container.querySelectorAll('[data-testid="take-chips"] button'));
 const use = () => container.querySelector('[data-testid="helper-words-use"]') as HTMLButtonElement;
 const card = () => container.querySelector('[data-testid="helper-words-card"]') as HTMLElement;
 const tokens = () => Array.from(container.querySelectorAll('[data-testid="picker-tokens"] button'));
@@ -124,5 +138,48 @@ describe("the overlay", () => {
       start: null,
       end: null,
     });
+  });
+
+  it("one chip per Take; an earlier Take's words save with its number", async () => {
+    await renderSheet(null);
+    expect(chips().map((c) => c.textContent)).toEqual(["Take 2 · now", "Take 1"]);
+    expect(tokens().map((t) => t.textContent).join(" ")).toBe(TEXT);
+    await act(async () => (chips()[1] as HTMLButtonElement).click());
+    expect(tokens().map((t) => t.textContent).join(" ")).toBe(TAKE1);
+    await act(async () => word("incumbents").click());
+    expect(card().textContent).toContain("incumbents");
+    await act(async () => use().click());
+    expect(useFromTake).toHaveBeenCalledTimes(1);
+    expect(useFromTake.mock.calls[0]).toEqual(["incumbents", 1]);
+    expect(useCurrent).not.toHaveBeenCalled();
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("Delete asks once, then deletes", async () => {
+    await renderSheet("the timing matters");
+    expect(card().textContent).toContain("the timing matters");
+    const del = container.querySelector('[data-testid="helper-words-delete"]') as HTMLButtonElement;
+    await act(async () => del.click());
+    // First tap: the card clears and the button asks; nothing is deleted yet.
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(card().textContent).not.toContain("the timing matters");
+    const confirm = container.querySelector('[data-testid="helper-words-delete-confirm"]') as HTMLButtonElement;
+    expect(confirm.textContent).toBe("Delete helper words");
+    await act(async () => confirm.click());
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("the button lights only when the words differ from the saved ones", async () => {
+    await renderSheet("the timing matters");
+    // Opened on the saved words, pre-selected: nothing to save.
+    expect(card().textContent).toContain("the timing matters");
+    expect(use().disabled).toBe(true);
+    await act(async () => word("window").click());
+    expect(use().disabled).toBe(false);
+    await act(async () => word("window").click());
+    expect(use().disabled).toBe(true);
+    await act(async () => use().click());
+    expect(useCurrent).not.toHaveBeenCalled();
   });
 });

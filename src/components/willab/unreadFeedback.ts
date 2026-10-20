@@ -37,7 +37,11 @@ export function latestIdealBubbleIds(
 
 /** ONE IDEAL TEXT BUBBLE PER TAKE (founder 2026-10-14, walk first): a
  *  version bubble whose Take already has its review's card is not drawn.
- *  A Take with no review yet keeps it, drawn as the same small card. */
+ *  A Take with no review yet keeps it, drawn as the same small card.
+ *
+ *  Nor is a second version bubble for the same version (founder 2026-10-18):
+ *  a thread that holds the guest's copy of a "ready" card beside the
+ *  server's draws the one written last and not the other. */
 export function versionBubblesWithReviewCard(
   items: readonly { kind: string; message?: LoungeMessage }[],
 ): Set<string> {
@@ -47,11 +51,15 @@ export function versionBubblesWithReviewCard(
     if (message?.kind === "walk_step" && m?.step === "end") cards.add(`${String(m.arc_id)}|${String(m.take_index)}`);
   }
   const hidden = new Set<string>();
-  for (const { message } of items) {
+  const seenVersions = new Set<string>();
+  for (let i = items.length - 1; i >= 0; i -= 1) {
+    const message = items[i].message;
     const m = message?.metadata;
     if (message?.kind !== "ideal_text" || !m) continue;
     if (typeof m.variant === "string" && NOT_A_VERSION_BUBBLE.has(m.variant)) continue;
-    if (cards.has(`${String(m.arc_id)}|${String(m.version)}`)) hidden.add(message.client_id);
+    const key = `${String(m.arc_id)}|${String(m.version)}`;
+    if (cards.has(key) || seenVersions.has(key)) hidden.add(message.client_id);
+    seenVersions.add(key);
   }
   return hidden;
 }

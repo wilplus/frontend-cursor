@@ -1,25 +1,26 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  FOUNDER 2026-09-26 (N14) — Your projects, in Data & consent.              */
-/*                                                                            */
-/*  Delete moved here from the project picker. The delete contract that was  */
-/*  pinned there is pinned here, unchanged:                                   */
-/*    1. while PROJECT_DELETE_ENABLED is off, no project can be deleted;      */
-/*    2. Delete asks first with the signed words, and nothing is sent until   */
-/*       "Request deletion";                                                  */
-/*    3. after the request the row says "Deletion pending";                   */
-/*    4. a pending row offers "Cancel deletion", which puts the row back;     */
-/*    5. a confirmed deletion can no longer be cancelled;                     */
-/*    6. a failed request says so and changes nothing.                        */
-/*  And, new with Archive:                                                    */
-/*    7. archived projects are listed, marked, and can be unarchived.         */
-/*  And, new with Wave 3 (founder 2026-10-05, N48.4 Q17 A; TC-7b):            */
-/*    8. with an active training yes the confirm ends with the signed "A     */
-/*       model already trained stays." (W5 A, N50; it retired N10's          */
-/*       sentence), and only then;                                            */
-/*    9. the backend's `cancellable` decides whether Cancel deletion shows;   */
-/*   10. the 7-day window's words (PROPOSED) show only once switched on.      */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker, I want to see my projects in Data & consent, unarchive
+         archived ones, and (once switched on) delete one only after a signed
+         confirm and cancel it while pending, so that I manage my projects
+         safely (deletion).
+OUTCOME
+  O1  Delete is switched off in production (PROJECT_DELETE_ENABLED): the list
+      opens as "Your projects" and no project can be deleted or cancelled.
+  O2  Archived projects are listed and marked; Unarchive sends one request
+      and unmarks the row; a failed unarchive says so and changes nothing.
+  O3  Switched on, Delete asks first with the signed words and sends nothing
+      until "Request deletion"; then the row says "Deletion pending".
+  O4  Switched on, a pending row the backend says is cancellable offers
+      "Cancel deletion", which puts the row back.
+PROVES   O1 -> "switched off, no project can be deleted"
+         O2 -> "archived projects are marked and can be unarchived; a failure changes nothing"
+         O3 -> "asks first with the signed words, and sends nothing until confirmed"
+         O4 -> "offers Cancel deletion, which puts the row back"
+WHY      Founder 2026-09-26 (N14). O3/O4 pin the delete contract for the day it
+         is switched on; the rest of it (failure, training line, window words)
+         is not tested while Delete cannot run.
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -58,7 +59,8 @@ vi.mock("@/services/api/projectDeletion", async (importOriginal) => {
   };
 });
 
-import ProjectsCard, {  } from "./ProjectsCard";
+import ProjectsCard from "./ProjectsCard";
+import { PROJECT_ARCHIVE_COPY as ARCHIVE } from "@/lib/willab/projectArchiveCopy";
 import { PROJECT_DELETION_COPY as COPY } from "@/lib/willab/projectDeletionCopy";
 import type { TrainingArc } from "@/services/api/trainings";
 
@@ -113,7 +115,44 @@ async function openWith(projects: TrainingArc[]) {
   expect(api.fetchTrainings).toHaveBeenCalledWith({ includeArchived: true });
 }
 
-describe("Delete", () => {
+describe("switched off (production)", () => {
+  it("switched off, no project can be deleted", async () => {
+    flag.on = false;
+    await openWith([
+      project(),
+      project({ arcId: "arc-2", topic: "Town hall", deletion: { state: "pending", dueAt: null, cancellable: true } }),
+    ]);
+    expect(container.textContent).toContain("Board pitch");
+    expect(container.textContent).toContain("Town hall");
+    expect(button("Delete")).toBeUndefined();
+    expect(button(COPY.cancel)).toBeUndefined();
+    expect(api.fetchTrainingConsent).not.toHaveBeenCalled();
+  });
+});
+
+describe("archived projects", () => {
+  it("archived projects are marked and can be unarchived; a failure changes nothing", async () => {
+    await openWith([project({ archived: true })]);
+    const row = () => container.querySelector("li") as HTMLElement;
+    expect(row().textContent).toContain(ARCHIVE.archived);
+
+    api.unarchiveProject.mockResolvedValue(false);
+    await act(async () => button(ARCHIVE.unarchive)?.click());
+    await flush();
+    expect(row().querySelector('[role="alert"]')?.textContent).toBe("Couldn't save that. Try again.");
+    expect(row().textContent).toContain(ARCHIVE.archived);
+
+    api.unarchiveProject.mockResolvedValue(true);
+    await act(async () => button(ARCHIVE.unarchive)?.click());
+    await flush();
+    expect(api.unarchiveProject).toHaveBeenLastCalledWith("arc-1");
+    expect(api.unarchiveProject).toHaveBeenCalledTimes(2);
+    expect(row().textContent).not.toContain(ARCHIVE.archived);
+    expect(button(ARCHIVE.unarchive)).toBeUndefined();
+  });
+});
+
+describe("Delete, once switched on", () => {
   it("asks first with the signed words, and sends nothing until confirmed", async () => {
     await openWith([project()]);
     await act(async () => button("Delete")?.click());
@@ -136,7 +175,7 @@ describe("Delete", () => {
   });
 });
 
-describe("a pending deletion", () => {
+describe("a pending deletion, once switched on", () => {
   it("offers Cancel deletion, which puts the row back", async () => {
     await openWith([
       project({ deletion: { state: "pending", dueAt: null, cancellable: true } }),

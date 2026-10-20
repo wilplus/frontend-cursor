@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 import { WALK_COPY } from "./idealEditCopy";
-import { noteAiVoicePlay, readAiVoice, type AiVoiceState } from "@/services/api/aiVoice";
+import { forgetAiVoice, knownAiVoice, noteAiVoicePlay, readAiVoiceOnce, type AiVoiceState } from "@/services/api/aiVoice";
 
 /* -------------------------------------------------------------------------- */
 /*  The AI version of your voice in the Lounge chat, lens off (founder lock    */
@@ -13,20 +13,6 @@ import { noteAiVoicePlay, readAiVoice, type AiVoiceState } from "@/services/api/
 /*  (WIL-82, 2026-10-16); never plays by itself. The clip's link is fetched   */
 /*  afresh (it expires); a clip that is gone (deleted, off) leaves the lines. */
 /* -------------------------------------------------------------------------- */
-
-const asked = new Map<string, Promise<AiVoiceState | null>>();
-
-/** The clip's state, asked once per practice per page. */
-function clipOf(practiceId: string): Promise<AiVoiceState | null> {
-  let got = asked.get(practiceId);
-  if (!got) {
-    got = readAiVoice(practiceId)
-      .then((r) => (r.ok ? r.data : null))
-      .catch(() => null);
-    asked.set(practiceId, got);
-  }
-  return got;
-}
 
 export function aiVoiceOfMeta(meta: Record<string, unknown>): { practiceId: string; then: string | null } | null {
   const raw = meta.ai_voice;
@@ -52,12 +38,13 @@ export default function LoungeAiVoiceBubble({
   /** A tap on the words turns the lens back on, on this step. */
   onOpen?: () => void;
 }) {
-  const [clip, setClip] = useState<AiVoiceState["clip"]>(null);
+  // What the page already knows draws the whole bubble on the first paint.
+  const [clip, setClip] = useState<AiVoiceState["clip"]>(() => knownAiVoice(practiceId)?.clip ?? null);
   // An expired link is asked for afresh, once.
   const [renewed, setRenewed] = useState(false);
   useEffect(() => {
     let on = true;
-    void clipOf(practiceId).then((s) => {
+    void readAiVoiceOnce(practiceId).then((s) => {
       if (on) setClip(s?.clip ?? null);
     });
     return () => {
@@ -66,7 +53,7 @@ export default function LoungeAiVoiceBubble({
   }, [practiceId, renewed]);
   const renew = () => {
     if (renewed) return;
-    asked.delete(practiceId);
+    forgetAiVoice(practiceId);
     setRenewed(true);
   };
 

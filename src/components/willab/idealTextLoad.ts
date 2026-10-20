@@ -17,6 +17,7 @@
 /*      the trusted 3 s, reads the core fresh behind it.                      */
 /* -------------------------------------------------------------------------- */
 
+import { markOpenTrace } from "@/lib/willab/openTrace";
 import {
   fetchIdealTextCore,
   fetchIdealTextEnrichment,
@@ -230,6 +231,11 @@ export async function loadIdealTextEnrichment(
   if (!snapshot) return;
   const fetchLane = hooks.fetchLane ?? fetchIdealTextEnrichment;
   const settle = hooks.settle ?? settleIdealTextEnrichment;
+  // The open's console line (lib/willab/openTrace): when the marks settled.
+  const setPending = (pending: boolean) => {
+    if (!pending && hooks.isCurrent()) markOpenTrace("feedback");
+    hooks.setPending(pending);
+  };
   let merged = core;
   const applyOnLanding = (lane: IdealTextEnrichmentResult) => {
     if (lane.kind !== "ready" || !hooks.isCurrent()) return lane;
@@ -245,14 +251,14 @@ export async function loadIdealTextEnrichment(
   const enrichment = combineLanes(prompt, slow);
   if (enrichment.kind !== "ready") {
     // It answered without anything to add: stop reserving room for marks.
-    hooks.setPending(false);
+    setPending(false);
     // Never mix revisions: pull the new core, keeping this one visible.
     if (enrichment.kind === "stale") hooks.refetch();
     return;
   }
   // Judge the slot from the first answers; a retryable non-mark section
   // (the F2 `learning` receipt) never holds the bookmarks back.
-  hooks.setPending(feedbackStillComing(enrichment.sections));
+  setPending(feedbackStillComing(enrichment.sections));
   const settled = await settle(arcId, snapshot, enrichment);
   if (!hooks.isCurrent()) return;
   if (settled.kind === "ready") {
@@ -260,7 +266,7 @@ export async function loadIdealTextEnrichment(
     hooks.apply(merged);
     // The slot closes when the server is done, or the budget is spent
     // (founder 2026-09-20) — read from the sections, not the envelope.
-    hooks.setPending(feedbackStillComing(settled.sections));
+    setPending(feedbackStillComing(settled.sections));
   } else if (settled.kind === "stale") {
     hooks.refetch();
   }

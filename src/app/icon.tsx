@@ -7,9 +7,9 @@ import { ImageResponse } from "next/og";
  * transparent gaps. Rendered at 512×512 so the manifest's 192/512 references and
  * platform downscales (browser tab, iOS/Android home-screen) stay crisp. Single
  * source — served at /icon, /favicon.ico, the apple-touch-icon, and both
- * manifest icons (see layout.tsx `icons` + manifest.ts).
+ * manifest icons (see layout.tsx `icons` + manifest.ts). Node runtime, no
+ * dynamic input, so Next renders it once at build time and serves a static PNG.
  */
-export const runtime = "edge";
 export const size = { width: 512, height: 512 };
 export const contentType = "image/png";
 

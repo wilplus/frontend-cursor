@@ -20,6 +20,17 @@ interface TakeRow {
   pieces: number;
   take: Record<string, number | null>;
   piece_means: Record<string, number | null>;
+  /** The Take's AI clip (the voice Exercise): the problem practised, the next
+   *  try's outcome and, for fillers, hesitations per 100 words before and after. */
+  ai_clip?: {
+    exercise: string | null;
+    status: string | null;
+    outcome: string | null;
+    listened: boolean;
+    plays: number;
+    fillers_per_100_before: number | null;
+    fillers_per_100_after: number | null;
+  } | null;
 }
 
 interface Piece {
@@ -54,6 +65,8 @@ const COLS: Col[] = [
   { key: "pitch_center", label: "Pitch center", get: (t) => t.take.pitch_center },
   { key: "energy", label: "Energy", get: (t) => t.take.energy },
   { key: "kpi_score", label: "KPI", get: (t) => t.take.kpi_score },
+  { key: "ai_clip", label: "AI clip", get: (t) => (t.ai_clip?.exercise ? `${t.ai_clip.exercise} · ${t.ai_clip.outcome ?? t.ai_clip.status ?? ""}` : null) },
+  { key: "ai_clip_fillers", label: "Fillers /100 before → after", get: (t) => (t.ai_clip?.exercise === "fillers" ? `${fmt(t.ai_clip.fillers_per_100_before)} → ${fmt(t.ai_clip.fillers_per_100_after)}` : null) },
   { key: "f0_mean", label: "F0 mean", get: (t) => t.piece_means.f0_mean },
   { key: "f0_sd", label: "F0 SD", get: (t) => t.piece_means.f0_sd },
   { key: "f0_slope", label: "F0 slope", get: (t) => t.piece_means.f0_slope },
@@ -65,7 +78,7 @@ const COLS: Col[] = [
   { key: "energy_ratio", label: "Energy ratio", get: (t) => t.piece_means.energy_ratio },
   { key: "status", label: "Status", get: (t) => t.status },
 ];
-const NUMERIC = COLS.filter((c) => !["created_at", "project", "kind", "status"].includes(c.key));
+const NUMERIC = COLS.filter((c) => !["created_at", "project", "kind", "status", "ai_clip", "ai_clip_fillers"].includes(c.key));
 
 const fmt = (v: number | string | null | undefined) =>
   v === null || v === undefined || v === "" ? "—"
@@ -209,7 +222,7 @@ export default function TakesExplorer({ id }: { id: string }) {
                 {Object.entries(baseline.features).map(([k, v]) => `${k} ${fmt(v.mean ?? null)} ± ${fmt(v.sd ?? null)}`).join(" · ")}
               </p>
             )}
-            <p className="text-xs text-muted-foreground">Click a Take to see each piece with every stored measure. F0 to energy ratio are averages of the pieces.</p>
+            <p className="text-xs text-muted-foreground">Click a Take to see each piece with every stored measure. F0 to energy ratio are averages of the pieces. AI clip: the problem the clip practised and how the next try went; for fillers, hesitations per 100 words in the practised sentence and in the next try.</p>
           </>
         )}
       </div>

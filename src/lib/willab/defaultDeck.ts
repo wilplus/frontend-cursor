@@ -84,7 +84,23 @@ export function deckForRecording(
   const own = supplied.filter(
     (s) => s && (s.title.trim().length > 0 || s.body.trim().length > 0)
   );
-  return own.length > 0
+  return own.length > 0 && !isDefaultDeckText(own)
     ? { slides: own, isDefault: false }
     : { slides: DEFAULT_DECK, isDefault: true };
+}
+
+/** The stand-in deck, recognised by its own words. A deckless Take ships the
+ *  default deck's three slides as plain `{ title, body }` rows (that is what
+ *  gives its words their buckets), and the project's saved setup hands those
+ *  rows back for the next Take. Read as the speaker's own typed slides they
+ *  lost their artwork and their name, so Take 2 was recorded against a
+ *  different-looking deck than Take 1 (founder 2026-10-16). The rows are the
+ *  stand-in deck when they say exactly what it says, slide for slide. */
+export function isDefaultDeckText(slides: readonly DeckSlide[]): boolean {
+  if (slides.length !== DEFAULT_DECK.length) return false;
+  return DEFAULT_DECK.every(
+    (d, i) =>
+      slides[i].title.trim() === d.title.trim() &&
+      slides[i].body.trim() === d.body.trim()
+  );
 }

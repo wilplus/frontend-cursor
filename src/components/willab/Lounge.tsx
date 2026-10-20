@@ -57,6 +57,8 @@ import LoadingState, { VoiceMark } from "./LoadingState";
 import { PROCESSING_STAGES } from "./ProcessingWait";
 import type { IdealTextLaunchMode } from "./IdealTextOverlay";
 import { lensAddress } from "@/lib/willab/lensScreen";
+import { startOpenTrace } from "@/lib/willab/openTrace";
+import { oneShareQuestion } from "@/lib/willab/walkThread";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import {
   clearExploreArc,
@@ -83,6 +85,7 @@ import {
 import { useRouter } from "next/navigation";
 import SymmetricPair from "./SymmetricPair";
 import { useAdminAsk } from "./useAdminAsk";
+import { ConsentAskActions } from "./ConsentAsk";
 import OfferBubble from "./OfferBubble";
 import {
   PolicyUpdateBubble,
@@ -102,6 +105,13 @@ import {
   coerceSuggestedActions,
   type ChipAction,
 } from "./loungePrompts";
+import {
+  FEEDBACK_CHECK_LABEL,
+  feedbackCheckOpen,
+  feedbackCheckTarget,
+} from "./feedbackCheck";
+import { postFeedbackCheck, type FeedbackCheckChoice } from "@/services/api/feedbackCheck";
+import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import { useLifeTags } from "@/lib/life/useLifeTags";
 import { applyPick } from "@/lib/life/hashtags";
@@ -337,10 +347,11 @@ export default function Lounge({
   // Each project's latest Ideal Text bubble wears the unread-feedback dot
   // (founder 2026-09-25, Q39 B).
   const latestIdealIds = useMemo(() => latestIdealBubbleIds(threadItems), [threadItems]);
-  // One Ideal Text bubble per Take (founder 2026-10-14).
+  // One Ideal Text bubble per Take (founder 2026-10-14); the sharing
+  // question as one bubble (founder 2026-10-19).
   const shownItems = useMemo(() => {
     const hidden = versionBubblesWithReviewCard(threadItems);
-    return threadItems.filter((item) => !hidden.has(item.message.client_id));
+    return oneShareQuestion(threadItems.filter((item) => !hidden.has(item.message.client_id)));
   }, [threadItems]);
   // "Continue review" (founder lock 2026-10-12, section 1): the newest walk
   // step names its project and is not the review's end.
@@ -403,6 +414,11 @@ export default function Lounge({
       postAnswerBubble(CHIP_LABEL[action]);
       return;
     }
+    if (action === "feedback_skip") {
+      const target = feedbackCheckTarget(messages, "missing");
+      if (target) void answerFeedbackCheck(target, "skip");
+      return;
+    }
     setLibraryOpen(true);
   }
 
@@ -411,6 +427,7 @@ export default function Lounge({
     mode: IdealTextLaunchMode = "notebook",
     at: WalkStepTarget | null = null,
   ): void {
+    startOpenTrace(at?.step ? `${mode}, step ${at.step}` : mode);
     setIdealTextReviewAt(at);
     openedNewCoachFeedback(arcId);
     if (state === "insights_ready") {
@@ -1086,7 +1103,9 @@ export default function Lounge({
     // SD/FE-4 — the joke onboarding is deleted; a legacy joke bubble in an old
     // thread stays visible but inert.
     if (type === "joke") return;
-    const rank: Record<OfferType, number> = { joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0 };
+    const rank: Record<OfferType, number> = {
+      joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0, feedback_check: 0,
+    };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
 
@@ -1137,14 +1156,13 @@ export default function Lounge({
     }
   }, [thread.loading]);
 
-  // Step 2 (founder 2026-10-13): an ask the admin sent this person shows after
-  // the next fresh Take; while one is open the automatic offers hold back.
+  // Step 2 (founder 2026-10-13): an ask the admin sent this person shows the
+  // next time they open the chat (2026-10-18); while one is open the automatic
+  // offers hold back.
   const adminAsk = useAdminAsk({
     state,
-    messages,
     threadLoading: thread.loading,
     append: thread.append,
-    settleTimeRef,
     installCanOffer: install.canOffer,
     activeOffer,
     openOffer,
@@ -1181,6 +1199,18 @@ export default function Lounge({
   // The second offer (founder 2026-10-12): a WhatsApp number for "The feedback
   // from your coach is in!". It waits for the install offer and a free footer;
   // its trigger lives in the hook (same fresh-send gate as install above).
+  // WIL-74 — the question after a Take's summary opens its pair while it is
+  // the newest message, once per Take; the record button is back on a tap.
+  const feedbackArmedRef = useRef<string | null>(null);
+  const threadLoading = thread.loading;
+  useEffect(() => {
+    if (threadLoading || adminAsk.held) return;
+    const open = feedbackCheckOpen(messages);
+    if (!open || feedbackArmedRef.current === open.takeSessionId) return;
+    feedbackArmedRef.current = open.takeSessionId;
+    openOffer("feedback_check");
+  }, [threadLoading, adminAsk.held, messages, openOffer]);
+
   const whatsapp = useWhatsAppOffer({
     state,
     messages,
@@ -1248,6 +1278,15 @@ export default function Lounge({
   // a typed one. Do NOT post an answer via appendLocalOnly (that is bot-turn
   // only, for turns the BE persists) or any non-persisted path. New answer
   // buttons: route the label through here, full stop.
+  // WIL-74 — "Did this feedback help you?": the backend keeps the tap and
+  // writes it with the signed reply, then the thread reads it back.
+  async function answerFeedbackCheck(
+    target: { arcId: string; takeSessionId: string },
+    choice: FeedbackCheckChoice,
+  ): Promise<void> {
+    if (await postFeedbackCheck(target.arcId, target.takeSessionId, choice)) await reload();
+  }
+
   function postAnswerBubble(label: string) {
     void thread.append({ role: "user", kind: "text", body: label });
   }
@@ -1536,7 +1575,13 @@ export default function Lounge({
           install={install}
           whatsapp={whatsapp}
           onConsentOpen={adminAsk.opened}
+          consentKey={adminAsk.consentKey}
+          onConsentAnswered={adminAsk.answered}
           bookHref={adminAsk.bookHref}
+          onFeedbackCheck={(choice) => {
+            const target = feedbackCheckTarget(messages, "ask");
+            if (target) void answerFeedbackCheck(target, choice);
+          }}
           onResolve={() => setActiveOffer(null)}
         />
       ) : uploadAskActive ? (
@@ -1850,7 +1895,10 @@ function OfferActions({
   install,
   whatsapp,
   onConsentOpen,
+  consentKey,
+  onConsentAnswered,
   bookHref,
+  onFeedbackCheck,
   onResolve,
 }: {
   type: OfferType;
@@ -1858,10 +1906,31 @@ function OfferActions({
   whatsapp: WhatsAppOffer;
   /** An admin ask was tapped through (consent, promo or lesson). */
   onConsentOpen: () => void;
+  /** The consent the admin asked about, answered in the chat. */
+  consentKey: string | null;
+  onConsentAnswered: () => void;
   bookHref: string;
+  /** WIL-74 — a tap on "Did this feedback help you?". */
+  onFeedbackCheck: (choice: FeedbackCheckChoice) => void;
   onResolve: () => void;
 }) {
   const router = useRouter();
+  if (type === "feedback_check") {
+    return (
+      <SymmetricPair
+        closeLabel={FEEDBACK_CHECK_LABEL.notReally}
+        onClose={() => {
+          onFeedbackCheck("not_really");
+          onResolve();
+        }}
+        actionLabel={FEEDBACK_CHECK_LABEL.yes}
+        onAction={() => {
+          onFeedbackCheck("yes");
+          onResolve();
+        }}
+      />
+    );
+  }
   if (type === "install") {
     return <InstallOfferActions offer={install} onResolve={onResolve} />;
   }
@@ -1869,17 +1938,13 @@ function OfferActions({
     return <WhatsAppOfferActions offer={whatsapp} onResolve={onResolve} />;
   }
   if (type === "consent") {
-    // The answer itself is given on the locked Data & consent page.
+    // Answered in the chat, No | Yes (founder 2026-10-18).
     return (
-      <SymmetricPair
-        closeLabel="Not now"
-        onClose={onResolve}
-        actionLabel="Open"
-        onAction={() => {
-          onConsentOpen();
-          onResolve();
-          router.push("/account/data-consent");
-        }}
+      <ConsentAskActions
+        consentKey={consentKey}
+        onOpened={onConsentOpen}
+        onAnswered={onConsentAnswered}
+        onResolve={onResolve}
       />
     );
   }
@@ -2064,6 +2129,12 @@ function Bubble({
       typeof message.metadata?.practice_id === "string"
         ? message.metadata.practice_id
         : null;
+    // WIL-74 — a coach's card about a speaker's new goal opens that speaker.
+    const goalCardSpeaker =
+      message.metadata?.card === "goal_change" &&
+      typeof message.metadata?.speaker === "string"
+        ? message.metadata.speaker
+        : null;
     // B-1 — read the persisted action from metadata; render below the bubbles.
     const actions =
       onChip && message.metadata
@@ -2119,6 +2190,18 @@ function Bubble({
               onClick={() => onOpenConfidencePractice?.(sharedPracticeId)}
             >
               Open exercise
+            </Button>
+          </div>
+        ) : null}
+        {goalCardSpeaker ? (
+          <div className="mr-auto pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-full px-4 text-[13px]"
+              onClick={() => requestOpenSpeaker(goalCardSpeaker)}
+            >
+              Open speaker
             </Button>
           </div>
         ) : null}
@@ -2412,8 +2495,7 @@ function OlderTakeReview({
     (item) => item.message.kind === "walk_step" && item.message.metadata?.take_session_id === older.session,
   );
   return (
-    <div className="fixed inset-0 z-[90] flex flex-col bg-background">
-      <div className="mx-auto flex h-full w-full flex-col md:max-w-[430px]">
+    <div data-walk-column className="fixed inset-0 z-[90] flex flex-col bg-background">
       <WalkOverlay testId="older-take-review" caption={`${CHUNK_SHEET_COPY.historyTake} ${older.take}`} onClose={onClose}>
         <div className="flex flex-col gap-2">
           {steps.map((item) => (
@@ -2428,7 +2510,6 @@ function OlderTakeReview({
           ))}
         </div>
       </WalkOverlay>
-      </div>
     </div>
   );
 }

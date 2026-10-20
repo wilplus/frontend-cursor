@@ -1,8 +1,18 @@
 // @vitest-environment jsdom
-/* AN ACCEPTED CLEARER VERSION IS PRACTISED, NOT WRITTEN (rule 5, founder
-   lock 2026-10-12): the speaker's answer is saved, the page sends no
-   decision that changes a word, and the practise goes on. The Ideal Text
-   takes the words only once they are said in the next Take. */
+/*
+STORY    As a speaker accepting a clearer version in the paragraph sheet, I
+         want my answer saved and my text unchanged until I say it in my next
+         Take, so that the Ideal Text is only what I said.
+OUTCOME
+  O1  The answer is saved once, as apply_suggestion.
+  O2  Never-5: the host's real accept lane (postTrackedDecision) sends no
+      decision, suggestion-feedback or other request that could change a
+      word of the paragraph.
+  O3  The practise goes on, with the accepted words to say.
+PROVES   O1, O2, O3 -> "records the answer, changes no word, and goes on to the practise"
+WHY      Never-5 (founder lock 2026-10-12). The walk's own accept lane and the
+         deck text after it are in deckFeedbackWalk.test.tsx.
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,6 +23,7 @@ import type { DocumentSuggestion } from "@/services/api/idealText";
 import { fetchOwnerAnswers } from "@/services/api/bookmarkHistory";
 import { forgetParagraphSheetData } from "./paragraphSheetData";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
+import { postTrackedDecision, type DecisionApi } from "@/lib/willab/idealTextDecisions";
 
 vi.mock("@/services/api/consentChoices", () => ({
   practiseOfferedNow: vi.fn(() => null),
@@ -78,22 +89,6 @@ const answered = {
   },
 } as unknown as DocumentSuggestion;
 
-function state() {
-  return chunkStateFor(
-    {
-      part: { id: "p1", text: TEXT, locked: false },
-      paragraphIndex: 0,
-      start: 0,
-      end: TEXT.length,
-      status: "clean",
-      pendingIds: [],
-      approvedIds: [],
-      decidedIds: [answered.id],
-    } as DeckChunk,
-    { document: TEXT, suggestions: [answered] },
-  );
-}
-
 let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
@@ -107,7 +102,16 @@ afterEach(async () => {
 });
 
 const closeSheet = vi.fn();
-const onAccept = vi.fn(async (_item: DocumentSuggestion) => true);
+/** The decision lane the deck's hosts route an accept through, with every
+ *  server call it could make counted. */
+const decisionApi = {
+  decideBlock: vi.fn(),
+  decidePriorTake: vi.fn(),
+  sendSuggestionFeedback: vi.fn(async () => ({ saved: true })),
+};
+const onAccept = vi.fn(async (item: DocumentSuggestion) =>
+  (await postTrackedDecision("arc-1", item, "accept", decisionApi as unknown as DecisionApi)) === "ok",
+);
 const onPractise = vi.fn((_partId: string, _card: unknown, _moment: unknown) => true);
 
 const rewrite = {
@@ -174,6 +178,7 @@ async function open(
 async function accept() {
   onAccept.mockClear();
   onPractise.mockClear();
+  vi.mocked(saveTakeFeedbackResponse).mockClear();
   vi.mocked(saveTakeFeedbackResponse).mockResolvedValueOnce(
     { ok: true });
   await open("no", { practiceExercise: null } as unknown as Partial<DocumentSuggestion>, [
@@ -186,9 +191,26 @@ async function accept() {
 
 describe("accepting a rewrite", () => {
   it("records the answer, changes no word, and goes on to the practise", async () => {
-    await accept();
-    expect(saveTakeFeedbackResponse).toHaveBeenCalledWith(expect.objectContaining({ response: "apply_suggestion" }));
-    expect(onAccept).toHaveBeenCalledWith(expect.objectContaining({ acceptedOnServer: true }));
-    expect(onPractise).toHaveBeenCalled();
+    const network = vi.fn(async () => new Response("{}", { status: 500 }));
+    vi.stubGlobal("fetch", network);
+    try {
+      await accept();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(saveTakeFeedbackResponse).toHaveBeenCalledTimes(1);
+    expect(saveTakeFeedbackResponse).toHaveBeenCalledWith(
+      expect.objectContaining({ feedbackId: "s-rw", response: "apply_suggestion" }),
+    );
+    expect(onAccept).toHaveBeenCalledTimes(1);
+    await expect(onAccept.mock.results[0].value).resolves.toBe(true);
+    expect(decisionApi.decideBlock).not.toHaveBeenCalled();
+    expect(decisionApi.decidePriorTake).not.toHaveBeenCalled();
+    expect(decisionApi.sendSuggestionFeedback).not.toHaveBeenCalled();
+    expect(network).not.toHaveBeenCalled();
+    expect(onPractise).toHaveBeenCalledTimes(1);
+    expect(onPractise.mock.calls[0][1]).toEqual(
+      expect.objectContaining({ kind: "rewrite", text: "We ship it now." }),
+    );
   });
 });

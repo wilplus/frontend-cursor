@@ -26,6 +26,10 @@ export interface PageInfo {
   horizon_days: number;
   host_timezone: string;
   new_user_price_cents?: number;
+  /** Set when the page was opened with a valid price link. */
+  link_price_cents?: number;
+  /** A link without a price: no price anywhere, nothing to pay. */
+  hide_price?: boolean;
 }
 
 /** What the signed-in person pays and gets (GET .../offer). */
@@ -34,6 +38,8 @@ export interface Offer {
   price_cents: number;
   currency: string;
   preview: boolean;
+  /** Priced by a price link: paid now, no "pay after the lesson". */
+  price_link?: boolean;
   email?: string;
   name?: string;
 }
@@ -69,10 +75,12 @@ export function Meta({ info, tz, offer, children }: { info: PageInfo; tz: string
       <div className="grid gap-2 text-sm text-muted-foreground">
         <div className={row}><Icon d="M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />{info.duration_min} min</div>
         <div className={row}><Icon d="M3 8a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM16 10l5-3v10l-5-3" />Google Meet</div>
+        {!info.hide_price && (
         <div className={row}><Icon d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18" /><span className="flex items-baseline gap-2">
           {price < list && <s>{money(list, info.currency)}</s>}
           <span className={price < list ? "font-semibold text-foreground" : ""}>{money(price, info.currency)}</span>
         </span></div>
+        )}
         <div className={row}><Icon d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />{city(tz)}</div>
       </div>
       {children}
@@ -119,10 +127,12 @@ function PhoneSummary({ info, tz, offer, when, action }: {
         <div className={row}><Icon d={ICONS.clock} />{info.duration_min} min</div>
         <div className={row}><Icon d={ICONS.video} />Google Meet</div>
         <div className={row}><Icon d={ICONS.globe} />{city(tz)}</div>
+        {!info.hide_price && (
         <div className={row}><Icon d={ICONS.card} />
           {price < list && <s>{money(list, info.currency)}</s>}
           <span className={price < list ? "font-semibold text-foreground" : ""}>{money(price, info.currency)}</span>
         </div>
+        )}
       </div>
     </div>
   );
@@ -136,7 +146,7 @@ function Icon({ d }: { d: string }) {
   );
 }
 
-export default function BookingPage({ info, ipZone }: { info: PageInfo; ipZone?: string }) {
+export default function BookingPage({ info, ipZone, link }: { info: PageInfo; ipZone?: string; link?: string }) {
   const [tz, setTz] = useState("UTC");
   const [h12, setH12] = useState(true);
   const [month, setMonth] = useState<{ y: number; m: number } | null>(null);
@@ -158,7 +168,11 @@ export default function BookingPage({ info, ipZone }: { info: PageInfo; ipZone?:
     const p = parts(Date.now(), z);
     setMonth({ y: p.y, m: p.m });
     const as = new URLSearchParams(window.location.search).get("as");
-    fetch(`/api/v2/booking/${info.slug}/offer${as ? `?as=${encodeURIComponent(as)}` : ""}`, { cache: "no-store" })
+    const q = new URLSearchParams();
+    if (as) q.set("as", as);
+    if (link) q.set("link", link);
+    const qs = q.toString();
+    fetch(`/api/v2/booking/${info.slug}/offer${qs ? `?${qs}` : ""}`, { cache: "no-store" })
       .then(async (r) => {
         if (!r.ok) return setOffer("signed-out");
         const o = (await r.json()) as Offer;
@@ -172,12 +186,12 @@ export default function BookingPage({ info, ipZone }: { info: PageInfo; ipZone?:
         if (chosen && chosen > Date.now()) setSlot(chosen);
       })
       .catch(() => setOffer("signed-out"));
-  }, [info.slug, ipZone]);
+  }, [info.slug, ipZone, link]);
 
   const signedIn = offer !== null && offer !== "signed-out" ? offer : null;
   const signUpFor = (chosen: number | null) => {
-    saveBookingReturn(info.slug, chosen);
-    window.location.href = `/signup?redirectTo=${encodeURIComponent(bookingUrl({ slug: info.slug, slot: chosen }))}`;
+    saveBookingReturn(info.slug, chosen, link);
+    window.location.href = `/signup?redirectTo=${encodeURIComponent(bookingUrl({ slug: info.slug, slot: chosen, link }))}`;
   };
 
   // One request per visible month, from its first to its last midnight in
@@ -231,7 +245,7 @@ export default function BookingPage({ info, ipZone }: { info: PageInfo; ipZone?:
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             start: new Date(slot).toISOString(), name, note: form.note, timezone: tz,
-            embedded: !!stripePromise && !skipPayment, skip_payment: skipPayment,
+            embedded: !!stripePromise && !skipPayment, skip_payment: skipPayment, link,
           }),
         });
         const body = (await res.json().catch(() => ({}))) as { url?: string; client_secret?: string; code?: string };
@@ -254,7 +268,7 @@ export default function BookingPage({ info, ipZone }: { info: PageInfo; ipZone?:
       }
       setSending(false);
     },
-    [slot, form, tz, info.slug]
+    [slot, form, tz, info.slug, link]
   );
 
   if (!month) return null;
@@ -309,12 +323,16 @@ export default function BookingPage({ info, ipZone }: { info: PageInfo; ipZone?:
               <div className="grid gap-2">
                 <button type="submit" disabled={sending || !!signedIn?.preview}
                   className="min-h-[50px] w-full rounded-xl border border-foreground bg-foreground px-[18px] py-3 font-semibold text-background disabled:opacity-60">
-                  {sending ? "Opening payment…" : `Book and pay ${money(signedIn?.price_cents ?? info.price_cents, info.currency)}`}
+                  {info.hide_price ? (sending ? "Booking…" : "Book")
+                    : sending ? "Opening payment…" : `Book and pay ${money(signedIn?.price_cents ?? info.price_cents, info.currency)}`}
                 </button>
+                {/* A price link is paid when you book. */}
+                {!link && !signedIn?.price_link && (
                 <button type="button" disabled={sending || !!signedIn?.preview} onClick={(e) => void submit(e, true)}
                   className="min-h-[50px] w-full rounded-xl border border-foreground bg-background px-[18px] py-3 font-semibold text-foreground disabled:opacity-60">
                   Book &amp; pay after the lesson
                 </button>
+                )}
               </div>
               <p className="text-[13px] text-muted-foreground">
                 You&apos;ll get a calendar invite with the Google Meet link by email.
@@ -338,7 +356,7 @@ export default function BookingPage({ info, ipZone }: { info: PageInfo; ipZone?:
   const monthName = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" })
     .format(Date.UTC(y, m - 1, 1));
   const signIn = (size: string) => offer === "signed-out" && (
-    <a href={`/signup?redirectTo=${encodeURIComponent(`/book/${info.slug}`)}`}
+    <a href={`/signup?redirectTo=${encodeURIComponent(bookingUrl({ slug: info.slug, slot: null, link }))}`}
       onClick={(e) => { e.preventDefault(); signUpFor(null); }} className={`inline-block rounded-[10px] bg-foreground font-semibold text-background no-underline ${size}`}>
       Sign in to book
     </a>

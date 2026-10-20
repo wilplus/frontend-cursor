@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import AdminGate from "@/components/admin/AdminGate";
 import TakesExplorer from "./TakesExplorer";
+import ExerciseEffects from "./ExerciseEffects";
 import { planLabel } from "@/components/tokens/copy";
 
 /* -------------------------------------------------------------------------- */
@@ -49,12 +50,16 @@ interface Person {
   list_price_cents: number | null;
   asks: Ask[];
   promotion: { plan: string; price_cents: number; list_cents: number; ends_at: string } | null;
+  practice: { offered: number; done: number } | null;
   deletion: { request_id: string; state: string; completes_after: string | null; cancellable: boolean } | null;
 }
 
 const WAIT_DAYS = 30;
+/* No screen in the app answers "share" or "email" any more, so they are not
+   asked (founder 2026-10-18); the backend refuses them too. */
+const ASKABLE_CONSENTS = new Set(["processing", "personalised_practice", "sensitive_information", "training"]);
 const ASK_STATUS: Record<Ask["status"], string> = {
-  waiting: "Waiting for their next take",
+  waiting: "Waiting for them to open the chat",
   shown: "Seen, not answered yet",
   opened: "Opened the consent page",
   answered: "Answered",
@@ -129,7 +134,7 @@ function PersonProfile({ id }: { id: string }) {
       body: JSON.stringify({ kind, consent_key: key }),
     }).catch(() => null);
     const body = res ? await res.json().catch(() => ({})) : {};
-    setNote(res?.ok ? "Sent. They see it after their next take." : body.error || "Could not send. Try again.");
+    setNote(res?.ok ? "Sent. They see it the next time they open the chat." : body.error || "Could not send. Try again.");
     if (res?.ok) void load();
   };
 
@@ -180,7 +185,7 @@ function PersonProfile({ id }: { id: string }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
         {[["Tokens to spend", n(p.tokens?.balance)], ["Monthly (resets)", n(p.tokens?.monthly)],
           ["Bonus (kept)", n(p.tokens?.bonus)], ["Plan", p.tokens?.tier || "—"]].map(([k, v]) => (
           <div key={k} className="rounded-xl border border-border px-3.5 py-3">
@@ -188,6 +193,7 @@ function PersonProfile({ id }: { id: string }) {
             <div className="text-xl font-semibold tabular-nums">{v}</div>
           </div>
         ))}
+        <PracticeTile practice={p.practice} />
       </div>
 
       <section>
@@ -207,7 +213,7 @@ function PersonProfile({ id }: { id: string }) {
               Tell them about the lesson price
               <select id="pp-tell" className={field} value={tellLesson ? "yes" : "no"} onChange={(e) => setTellLesson(e.target.value === "yes")}>
                 <option value="no">No, they see it on the pricing screen and booking page</option>
-                <option value="yes">Yes, also after their next take</option>
+                <option value="yes">Yes, also in the chat</option>
               </select>
             </label>
           </div>
@@ -261,7 +267,7 @@ function PersonProfile({ id }: { id: string }) {
                 {c.no_count > 0 && <span className="text-xs text-muted-foreground">said no {c.no_count} {c.no_count === 1 ? "time" : "times"}</span>}
                 {c.at && <span className="text-xs text-muted-foreground">{day(c.at)}</span>}
               </span>
-              {c.state === "yes" ? <span /> : tooSoon ? (
+              {c.state === "yes" || !ASKABLE_CONSENTS.has(c.key) ? <span /> : tooSoon ? (
                 <span className="text-xs text-muted-foreground">Ask again {day(again!.toISOString())}</span>
               ) : askBtn("consent", c.key, c.state === "no" ? "Ask again" : "Ask in app")}
             </div>
@@ -269,7 +275,7 @@ function PersonProfile({ id }: { id: string }) {
           })}
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          A consent ask opens their Data &amp; consent page, where they answer. After a no, the same consent can be asked again after {WAIT_DAYS} days.
+          A consent ask shows the question in their chat, where they answer no or yes. After a no, the same consent can be asked again after {WAIT_DAYS} days.
         </p>
       </section>
 
@@ -285,10 +291,33 @@ function PersonProfile({ id }: { id: string }) {
         </div>
       </section>
 
+      <ExerciseEffects id={id} />
+
       <TakesExplorer id={id} />
 
       <DeleteSection id={id} email={p.email} deletion={p.deletion} reload={load} />
     </main>
+  );
+}
+
+/** Confident Voice practice progress (founder 2026-10-18): completed
+ *  practices out of those offered. Admin eyes only; a speaker never sees it. */
+function PracticeTile({ practice }: { practice: Person["practice"] }) {
+  const offered = practice?.offered ?? 0;
+  const done = practice?.done ?? 0;
+  const pct = offered > 0 ? Math.round((done / offered) * 100) : null;
+  return (
+    <div className="rounded-xl border border-border px-3.5 py-3">
+      <div className="text-xs text-muted-foreground">Confident Voice practice</div>
+      <div className="text-xl font-semibold tabular-nums">{pct === null ? "—" : `${pct}%`}</div>
+      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted" role="progressbar"
+        aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct ?? 0} aria-label="Confident Voice practice done">
+        <div className="h-full rounded-full bg-foreground transition-[width]" style={{ width: `${pct ?? 0}%` }} />
+      </div>
+      <div className="mt-1 text-xs text-muted-foreground">
+        {offered > 0 ? `${done} of ${offered} done` : "No practice offered yet"}
+      </div>
+    </div>
   );
 }
 
@@ -369,7 +398,7 @@ function PromotionSection({ id, promotion, sendAsk, reload }: {
             <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="pr-tell">
               Also tell them in the app
               <select id="pr-tell" className={FIELD} value={promo.tell ? "yes" : "no"} onChange={(e) => setPromo({ ...promo, tell: e.target.value === "yes" })}>
-                <option value="yes">Yes, after their next take</option>
+                <option value="yes">Yes, in the chat</option>
                 <option value="no">No, only on the pricing screen</option>
               </select>
             </label>

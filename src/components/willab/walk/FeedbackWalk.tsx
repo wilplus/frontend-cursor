@@ -1,5 +1,6 @@
 "use client";
 
+import { reasonRuns, type PraiseReason, type WalkPraiseReasons } from "@/lib/willab/praiseReason";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
@@ -21,7 +22,7 @@ import type { WalkJournalPost } from "./WalkJudgementScreens";
 import type { SayLine, WalkBankKey, WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import { WALK_MAX_TRIES, type WalkStep } from "@/lib/willab/walkPlan";
-import { loopEnd, threadShownEnd, threadStart, triesMade, withNextTry } from "@/lib/willab/walkPractise";
+import { loopEnd, threadPraised, threadShownEnd, threadStart, triesMade, withNextTry } from "@/lib/willab/walkPractise";
 import type { WalkPractiseIO } from "@/services/api/walkPractise";
 import { walkStepAt, type FeedbackWalkModel, type FeedbackWalkMoment, type WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import type { ClearerPiece } from "@/lib/willab/clearerPieces";
@@ -35,8 +36,9 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /*  The production controller. It draws the steps of the walk's plan           */
 /*  (walkPlan.ts, feedbackWalkModel.ts) as the prototype's lens screens, from  */
 /*  the walk's primitives, and moves between them with WalkStage: the overlay */
-/*  rises in 0.38 s, the content slides under a still top bar, ✕ sinks it in  */
-/*  0.28 s, and every move is instant with reduce motion.                     */
+/*  slides in from the right (0.34 s), the content slides under a still top   */
+/*  bar, ✕ swipes it out to the left (0.28 s), and every move is instant with */
+/*  reduce motion.                                                            */
 /*                                                                            */
 /*  Each step is a grey bubble on the left whose first line is the step's     */
 /*  name at regular weight, with the speaker's own clip as an orange bubble   */
@@ -173,6 +175,13 @@ type Props<R> = {
   /** Another speaker's moment shown (`answer` null) or answered: the host
    *  posts it to the chat. Nothing is drawn from it. */
   onOthers?: (at: number, of: number, from: string | null, answer: string | null) => void;
+  /** Reasons for green moments written after the page was read (founder
+   *  2026-10-18): drawn once they arrive, without moving the walk. */
+  reasons?: WalkPraiseReasons | null;
+  /** How many of other speakers' moments the speaker already judged in this
+   *  walk, as the chat holds their answers: the judging reopened from the
+   *  Lounge shows them answered (founder 2026-10-18). */
+  othersJudged?: number;
 };
 
 /** The AI bubble a screen showed, for the chat. */
@@ -237,6 +246,8 @@ export default function FeedbackWalk<R = unknown>({
   onShown,
   onAnswer,
   onOthers,
+  reasons = null,
+  othersJudged = 0,
 }: Props<R>) {
   const liveModel = useRef(model);
   liveModel.current = model;
@@ -448,6 +459,7 @@ export default function FeedbackWalk<R = unknown>({
 
   const ctx: ScreenCtx<R> = {
     walk,
+    reasons,
     at: (s) => plan.indexOf(s),
     arrows,
     coachNote,
@@ -527,6 +539,7 @@ export default function FeedbackWalk<R = unknown>({
     nav: (s, moment) => stepNav(ctx, s, moment),
     say: walkLines.say,
     onOthers,
+    othersJudged,
   };
 
   // The voice Exercise's thread is one screen to the stage: its steps change
@@ -538,14 +551,9 @@ export default function FeedbackWalk<R = unknown>({
 
   return (
     <div data-feedback-walk data-walk-step={step.key}>
-      {/* Phone width on a wide screen, centred, as the coach panel. */}
-      {step.overlay !== false ? <div aria-hidden="true" className="fixed inset-0 z-50 hidden bg-background md:block" /> : null}
-      <WalkStage
-        screen={stage}
-        dir={dir}
-        render={(s) => renderScreen(ctx, s.real, backFromPractise)}
-        className="md:mx-auto md:max-w-[430px]"
-      />
+      {/* The whole window on a wide screen, the words in the phone's column
+          (globals.css, "Desktop"). */}
+      <WalkStage screen={stage} dir={dir} render={(s) => renderScreen(ctx, s.real, backFromPractise)} />
     </div>
   );
 }
@@ -599,6 +607,9 @@ type ScreenCtx<R = unknown> = {
   /** The signed line a screen says (D-FW-3). */
   say: SayLine;
   onOthers?: (at: number, of: number, from: string | null, answer: string | null) => void;
+  /** Green moments' reasons that arrived after the walk opened. */
+  reasons: WalkPraiseReasons | null;
+  othersJudged: number;
 };
 
 /** The top bar's words for a step: "Slide N" (founder 2026-10-15: no moment
@@ -682,12 +693,44 @@ function CoachNote(ctx: ScreenCtx, step: WalkStep) {
   );
 }
 
-/** A green moment: the clip, then "Good job" and one signed line. */
+/** Why a green moment landed (founder 2026-10-18, prototype
+ *  https://claude.ai/artifact/Wdaznuffm9SJEkkjPEuSaR v4): its own bubble,
+ *  short paragraphs, the speaker's quoted words in orange, regular weight
+ *  (lock 2026-10-12: no bold in any bubble). */
+function PraiseReasonBubble({ reason }: { reason: PraiseReason }) {
+  return (
+    <WalkMessage>
+      <div data-walk-reason className="flex flex-col gap-2.5">
+        {reason.paragraphs.map((paragraph, i) => (
+          <p key={i} className="m-0">
+            {reasonRuns(paragraph, reason.quote).map((run, j) =>
+              run.quoted ? (
+                <span key={j} data-walk-quote className="text-accent-foreground">
+                  {run.text}
+                </span>
+              ) : (
+                <span key={j}>{run.text}</span>
+              ),
+            )}
+          </p>
+        ))}
+      </div>
+    </WalkMessage>
+  );
+}
+
+/** A green moment: the clip, then "Good job" and one signed line, then why
+ *  it landed. While its reason is still being written, the signed line
+ *  stands alone; if none comes, the cue lines follow it as before. */
 function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   const ok = () => {
     ctx.answer(step, "ok");
     ctx.forward();
   };
+  const clipId = moment.clip?.snippetId ?? null;
+  const reason = moment.praiseReason ?? ctx.reasons?.of(clipId) ?? null;
+  const waiting = !reason && (ctx.reasons?.waiting(clipId) ?? false);
+  const words = reason || waiting ? (moment.praiseLead ?? moment.praiseWords) : moment.praiseWords;
   return (
     <WalkOverlay
       testId={testId(step)}
@@ -698,8 +741,9 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
       <Clip moment={moment} />
       <WalkMessage>
         <span>{moment.praiseTitle ?? COPY.titlePraise}</span>
-        {moment.praiseWords.length > 0 ? <span>{moment.praiseWords.join(" ")}</span> : null}
+        {words.length > 0 ? <span>{words.join(" ")}</span> : null}
       </WalkMessage>
+      {reason ? <PraiseReasonBubble reason={reason} /> : null}
       <CoachAnswerBubble moment={moment} />
     </WalkOverlay>
   );
@@ -933,32 +977,24 @@ function Thread<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment
   );
 }
 
-/** Under the thread (founder 2026-10-16, prototype
- *  https://claude.ai/artifact/8nGuDXywGDWAZje3EcFMaj): while fewer than
- *  three tries were made, the white outlined Practise with the red dot
- *  above a black Next, after a Good job too; from the third try, Next
- *  alone. No Skip: Next is the skip. The finished walk played again records
- *  nothing, so it has Next alone. */
+/** Under the thread (founder 2026-10-18, prototype
+ *  https://claude.ai/artifact/URLdtuBvG5rbrzFePfMcUv): until a Good job or
+ *  the third try, only the white outlined Practise (Practise again after a
+ *  try) with the red dot; then Next alone. The finished walk played again
+ *  records nothing, so it has Next alone. */
 function ThreadFooter<R>({ ctx, step }: { ctx: ScreenCtx<R>; step: WalkStep }) {
   const plan = ctx.walk.plan;
   const at = ctx.at(step);
   const tries = triesMade(plan, at);
-  const more = !step.replay && tries < WALK_MAX_TRIES;
+  const more = !step.replay && tries < WALK_MAX_TRIES && !threadPraised(plan, at);
   const next = () => {
     ctx.answer(step, step.key === "improved" || step.key === "thanks" ? "ok" : "skip");
     ctx.pastLoop();
   };
   const practise = () => (tries === 0 ? ctx.exercise(step) : ctx.practiseAgain(plan[threadShownEnd(plan, at)]));
-  const nextPill = { label: COPY.pagerNext, onClick: next, testId: "walk-forward" };
-  if (!more) return <WalkFooter pill={nextPill} />;
-  return (
-    <WalkFooter
-      dot
-      outline
-      pill={{ label: WALK_COPY.exercisePractise, onClick: practise, testId: "walk-practise" }}
-      second={nextPill}
-    />
-  );
+  if (!more) return <WalkFooter pill={{ label: COPY.pagerNext, onClick: next, testId: "walk-forward" }} />;
+  const label = tries === 0 ? WALK_COPY.exercisePractise : COPY.pillPractiseAgain;
+  return <WalkFooter dot outline pill={{ label, onClick: practise, testId: "walk-practise" }} />;
 }
 
 /** Keeps the newest bubble in view as the thread grows. */
@@ -999,6 +1035,7 @@ function Others(ctx: ScreenCtx, step: WalkStep) {
     <WalkOthers
       testId={testId(step)}
       count={tries}
+      judged={ctx.othersJudged}
       skip={Boolean(step.readOnly || step.replay)}
       onDone={() => ctx.forwardFrom(step)}
       onClose={ctx.close}
