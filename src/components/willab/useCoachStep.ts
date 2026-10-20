@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { CoachMessage } from "@/services/api/idealText";
-import { coachWordKey, coachWordSeen, markCoachWordSeen } from "./coachWordSeen";
+import { markCoachFeedbackSeen } from "@/services/api/coachFeedbackSeen";
 
 /** Step 0 of the Feedback sheet (founder 2026-09-29, Q1; Final Screens L8).
  *
@@ -14,9 +14,16 @@ import { coachWordKey, coachWordSeen, markCoachWordSeen } from "./coachWordSeen"
  *  - Continue calls `next` (the host's "go to the first waiting moment"),
  *    which does nothing when nothing waits.
  *  - REACHABLE WHILE UNSEEN (founder 2026-10-05, N48.3 Q11 A): `unseen` says
- *    the word for the Take on screen has not been shown yet, so the host
+ *    the word for the Take on screen has not been watched yet, so the host
  *    keeps "Review feedback" on the page for it even after every moment is
- *    answered. Showing the step marks the word seen.
+ *    answered.
+ *  - WATCHED ANYWHERE IS WATCHED (founder 2026-10-19, N80, D4 and D7): the
+ *    server says whether the word is new (`message.unseen`), per Take, so a
+ *    word watched in WhatsApp's in-app browser or on another device is not
+ *    new here, and a word the coach changed (its words or its video) is new
+ *    again. Only Continue (or the update's Close) marks it watched; showing
+ *    the step and ✕ do not (the approved drawing). `seen()` tells the server
+ *    and clears it here at once, until the server sends another version.
  *
  *  Its own hook so the deck gains a line, not a branch. */
 export function useCoachStep(args: {
@@ -32,37 +39,43 @@ export function useCoachStep(args: {
   show: () => boolean;
   proceed: () => void;
   close: () => void;
-  /** The word was shown elsewhere (the Feedback walk's coach's note,
-   *  D-FW-14): mark it seen without opening step 0. */
+  /** The speaker watched the word (Continue on step 0 in the Feedback walk,
+   *  D-FW-14): the server hears it, and it is no longer new here. */
   seen: () => void;
 } {
-  const { arcId, message, next } = args;
+  const { message, next } = args;
   const [open, setOpen] = useState(false);
   const nextRef = useRef(next);
   nextRef.current = next;
   const has = message !== null;
-  const key = coachWordKey(arcId, message);
-  // Read after mount: browser storage is not there on the server render.
-  const [unseen, setUnseen] = useState(false);
-  useEffect(() => {
-    setUnseen(key !== null && !coachWordSeen(key));
-  }, [key]);
+  // The version watched on this page: a changed word or video is another.
+  const version = versionOf(message);
+  const [watched, setWatched] = useState<string | null>(null);
+  const unseen = message?.unseen === true && version !== watched;
 
   const show = useCallback(() => {
     if (!has) return false;
-    markCoachWordSeen(key);
-    setUnseen(false);
     setOpen(true);
     return true;
-  }, [has, key]);
+  }, [has]);
   const close = useCallback(() => setOpen(false), []);
+  const take = message?.takeSessionId ?? null;
   const seen = useCallback(() => {
-    markCoachWordSeen(key);
-    setUnseen(false);
-  }, [key]);
+    setWatched(version);
+    if (take) void markCoachFeedbackSeen({ takeSessionId: take });
+  }, [version, take]);
   const proceed = useCallback(() => {
+    seen();
     close();
     nextRef.current();
-  }, [close]);
+  }, [seen, close]);
   return { open, unseen, show, proceed, close, seen };
+}
+
+/** One version of the word: its Take, its words and its video (the link
+ *  without its signature, which every read signs afresh). */
+function versionOf(message: CoachMessage | null): string | null {
+  if (!message) return null;
+  const video = (message.videoUrl ?? "").split("?")[0];
+  return [message.takeSessionId ?? "", message.text ?? "", video].join("\u0000");
 }

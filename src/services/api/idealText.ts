@@ -2240,6 +2240,11 @@ export interface CoachMessage {
    *  can tell an unseen word from one Step 0 already showed. Absent from an
    *  older backend. */
   takeSessionId?: string | null;
+  /** The server's "new" for this word (founder 2026-10-19, N80): true until
+   *  the speaker watched its current version anywhere (Continue on Step 0,
+   *  Close on the update), and again when the coach changes its words or
+   *  video. Absent or false: nothing waits for it. */
+  unseen?: boolean;
 }
 
 /** null unless the coach sent a message or a video. */
@@ -2262,6 +2267,7 @@ export function mapCoachMessage(raw: unknown): CoachMessage | null {
       typeof r.take_session_id === "string" && r.take_session_id
         ? r.take_session_id
         : null,
+    unseen: r.unseen === true,
   };
 }
 

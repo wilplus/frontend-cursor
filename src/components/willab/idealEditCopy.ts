@@ -129,6 +129,10 @@ export const CHUNK_SHEET_COPY = {
   /* --- pills (one per screen, black) -------------------------------------- */
   pillDone: "Done",
   pillContinue: "Continue",
+  /* The coach's changed word, opened from its "Later · from your coach"
+     bubble (lock 2026-10-12 §8, signed; founder 2026-10-19, N80): not a
+     new word. */
+  pillClose: "Close",
   pillApply: "Apply",
   /* The orange phrase, named by what it DOES rather than by the formatting it
      applies. Founder 2026-09-16, resolving the one string the ladder left

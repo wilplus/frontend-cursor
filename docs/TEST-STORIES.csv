@@ -624,6 +624,14 @@ O2 -> ""words from an earlier Take save on the paragraph""",F1 Repair Plan Phase
 src/components/willab/useWillabFlow.test.ts,Story,"As a speaker, I want the app always to go record, then process, then Ideal Text, then the next Take, so that the loop never breaks.","O1  Starting, stopping and finishing processing lead to the readout;
 from there the next Take, a pause, or ""sign up to send"" (and on to
 review) are expected steps.","O1 -> ""is the record → process → Ideal Text loop""",Never 3; audit Q-C4.
+src/components/willab/walk/coachUpdateLens.test.tsx,Story,"As a speaker, I want my coach's changed word to wait for me in the chat under ""Later · from your coach"" and open on its own with ""Close"", so that I watch exactly what my coach sent, once.","O1  The coach's bubble rings while the server says the word is new; a tap
+opens only that word, as the walk's one chat (the bar ""Your coach"",
+the video before the words, no ""Your coach"" line in the bubble, the
+pill ""Close"" in the dock); ✕ closes and the ring stays; Close tells the server the Take's word was watched and the ring
+goes.
+O2  Once the server has heard it (its next read says the word is not
+new), a later change of the word rings again.","O1 -> ""the coach's changed word opens alone; only Close marks it watched""
+O2 -> ""a word changed again after it was watched rings again""","Founder 2026-10-19, N80 (D4, D8, D11) and the approved two-phone prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk, drawn as the lens is since 2026-10-20 (N81, one chat)."
 src/components/willab/walk/feedbackWalk.test.tsx,Story,"As a speaker, I want the Feedback walk to take me through my coach's note, praise with its reason, helper words, the clearer version and a summary, in words only, as one chat that grows with each tap, so that feedback after every Take is clear and backed by what I said.","O1  The steps come in order as one chat: coach's note, praise, helper words, next praise, summary, back to my page; earlier steps stay above, my choices land as my own bubbles.
 O2  A good moment shows the praise line, then why it landed, quoting my words; the Take's highest moment opens with “This was your most confident moment.”
 O3  Reopened from the Lounge, a clip I already judged shows as answered and is not asked again.
@@ -682,7 +690,9 @@ O2  A tapped paragraph's sheet draws its frame and saved helper words
 before its reads land, and never the paragraph text (D6).","O1 -> ""plays the moment in the compact row on Suggestion""
 O2 -> ""draws the frame with the helper words, and never the paragraph text (D6)""",Audit of 2026-09-29 against Ideal Text Final Screens. The one sheet height is layout and is not tested here.
 src/components/willab/wave2Walk.test.tsx,Story,"As a speaker, I want my coach's unseen word reachable through ""Review feedback"" even when every moment is answered, and a paragraph whose helper words I deleted to rejoin the walk, so that I never miss my coach or a paragraph.","O1  Every moment answered and an unseen coach word: Review feedback
-stays, opens Step 0 only on its tap, and goes once seen (N48.3 Q11 A).
+stays, opens Step 0 only on its tap, and goes once watched: only
+Continue clears it, ✕ keeps it, and a changed word (a new video)
+brings it back (N48.3 Q11 A; N80 D4, D7).
 O2  After Delete the paragraph rejoins the walk on its earlier answer,
 at once, not only when a moment is open on it (N48.2 Q6 A).","O1 -> ""every moment answered: Review feedback stays for the unseen word, ...""
 O2 -> ""a paragraph whose helper words were deleted is back in the walk on its earlier answer""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
@@ -915,11 +925,16 @@ own answers in that Take only.
 O4  The sharing question shows as one message, also when it was stored as
 three.
 O5  The Lounge says what the walk's chat said: the practise answer's line
-as shown, and no ""Practise"" bubble of its own for a try.","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
+as shown, and no ""Practise"" bubble of its own for a try.
+O6  My coach's word for a Take is written into the chat once: not again
+when it shows again, not under its ""Later · from your coach"" bubble,
+not for an earlier Take's word, not in a replay, not while the chat is
+still loading (N80, D4).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
 O2 -> ""posts judging other speakers as the prototype's chat does, never their recording""
 O3 -> ""counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles""
 O4 -> ""asks the sharing question as one bubble, its lines as paragraphs, also for a question stored as three""
-O5 -> ""says the practise answer the walk showed, and writes no Practise bubble for a try (founder 2026-10-20)""",Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12).
+O5 -> ""says the practise answer the walk showed, and writes no Practise bubble for a try (founder 2026-10-20)""
+O6 -> ""writes the coach's word into the chat once per Take""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word)."
 src/services/api/accountDeletion.test.ts,Story,"As a speaker, I want ""delete my account"" to send one deletion request and show me how long I have to change my mind, and a refusal to change nothing, so that I can trust deletion and cancel it in time.","O1  Asking to delete sends one request with a one-time key and shows the
 pending deletion with its end date.
 O2  A refusal or no connection records nothing.

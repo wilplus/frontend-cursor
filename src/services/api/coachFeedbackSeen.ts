@@ -27,7 +27,21 @@ export async function coachFeedbackSeenSettled(): Promise<void> {
   await Promise.allSettled([...inFlight]);
 }
 
+/** Who hears that a Take's word was watched on this page (founder
+ *  2026-10-19, N80, D4): the Lounge's coach bubbles stop ringing at once,
+ *  wherever it was watched (Step 0's Continue, the update's Close). */
+const wordWatchers = new Set<(takeSessionId: string) => void>();
+
+/** Hear each Take whose word is watched; returns the unsubscribe. */
+export function onTakeWordWatched(listener: (takeSessionId: string) => void): () => void {
+  wordWatchers.add(listener);
+  return () => {
+    wordWatchers.delete(listener);
+  };
+}
+
 export function markCoachFeedbackSeen(shown: CoachFeedbackShown): Promise<boolean> {
+  if (!shown.snippetId) for (const listener of [...wordWatchers]) listener(shown.takeSessionId);
   const call = sendSeen(shown);
   inFlight.add(call);
   void call.finally(() => inFlight.delete(call));
