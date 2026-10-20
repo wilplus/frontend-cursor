@@ -271,7 +271,7 @@ export function rewriteOf(item: DocumentSuggestion): FeedbackWalkItem<DocumentSu
   if (item.feedbackFamily !== "rewrite_clarity" && item.openCard !== "rewrite") return null;
   // The decision already given (the replay shows it answered).
   const decided = item.status === "approved" ? "accept" : item.status === "dismissed" ? "keep" : null;
-  return { quote: item.quote, proposedText: item.proposedText, move: item.rewriteMove, item, decided };
+  return { quote: item.quote, proposedText: item.proposedText, move: item.rewriteMove, reason: item.rewriteReason ?? null, item, decided };
 }
 
 /** The exercise an item's follow-up opens on (D-FW-17): the served offer,

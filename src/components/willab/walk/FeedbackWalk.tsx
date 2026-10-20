@@ -22,7 +22,7 @@ import WalkAiVoice, { AI_EXERCISE_OPENING, aiVoiceComing, aiVoiceShown, type AiV
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
-import type { SayLine, WalkBankKey, WalkLinesIO } from "@/lib/willab/walkLines";
+import { clearerOpening, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import { WALK_MAX_TRIES, type WalkStep } from "@/lib/willab/walkPlan";
 import {
@@ -828,7 +828,8 @@ function pieces(list: readonly ClearerPiece[]) {
 }
 
 /** The clearer version: the speaker's clip with their words, then the
- *  opener, the new words and the question, from the signed bank. */
+ *  opener (for words that undermined the speaker, B10 and "Try saying it
+ *  like this:", N85), the new words and the question, from the signed bank. */
 function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
   const clearer = moment.clearer;
   if (!clearer) return null;
@@ -865,7 +866,9 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
         {clearer.byCoach && moment.coachAnswer?.videoUrl ? (
           <CoachVideo src={moment.coachAnswer.videoUrl} className="my-2 w-full flex-none" />
         ) : null}
-        <span>{ctx.say(step, "B13")}</span>
+        {clearerOpening(clearer.reason, () => ctx.say(step, "B13")).map((line) => (
+          <span key={line}>{line}</span>
+        ))}
         <WalkNewWords>{pieces(clearer.after)}</WalkNewWords>
         {practiseOff ? null : <span>{ctx.say(step, "B14")}</span>}
       </WalkMessage>

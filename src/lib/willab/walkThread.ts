@@ -13,7 +13,7 @@ import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "@/components/willab/idealEd
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import type { FeedbackWalkMoment } from "./feedbackWalkModel";
 import type { PraiseReason } from "./praiseReason";
-import type { WalkBankKey } from "./walkLines";
+import { clearerOpening, type WalkBankKey } from "./walkLines";
 import type { WalkStep } from "./walkPlan";
 import { encourageLine, improvedLine, thanksLine } from "./walkPractise";
 
@@ -271,7 +271,11 @@ export function shownStep(
       return app(COPY.titleEmphasis);
     case "clearer": {
       // The words that arrive, orange in the chat (prototype v31 `.new em`).
-      const said = moment?.clearer?.say ? titled(COPY.cardClearerVersion, `${say("B13")}\n${moment.clearer.say}`) : null;
+      // Words that undermined the speaker open with B10 (N85).
+      const clearer = moment?.clearer;
+      const said = clearer?.say
+        ? titled(COPY.cardClearerVersion, [...clearerOpening(clearer.reason, () => say("B13")), clearer.say].join("\n"))
+        : null;
       return said ? { ...said, extra: { new_words: moment?.clearer?.after ?? null } } : null;
     }
     case "exVideo": {

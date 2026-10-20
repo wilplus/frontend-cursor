@@ -341,6 +341,10 @@ export interface DocumentSuggestion {
   /** THE SIGNED MOVE (35f): the catalogue's sentence for a rewrite's reason
    *  ("Split the clause."). Absent → the card shows the words alone. */
   rewriteMove: string | null;
+  /** Why a rule rewrite was written (N85): "undermining", words that
+   *  undermine the speaker left out. The walk names it with the signed B10
+   *  line. Absent on every other row. */
+  rewriteReason?: "undermining" | null;
   /** HEAR IT — the student's own recording of this moment, free (the BE
    *  sources it from the free playback map, never the paid moments read).
    *  Parent+offset: the ref is usually the WHOLE take, so the player clamps
@@ -778,6 +782,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     cueKeys: mapCueKeys(record.cue_keys),
     praiseLine: readNonEmptyString(record.praise_line),
     rewriteMove: readNonEmptyString(record.rewrite_move),
+    rewriteReason: record.rewrite_reason === "undermining" ? "undermining" : null,
     snippetAudioRef: readNonEmptyString(record.snippet_audio_ref),
     startOffsetMs: readFiniteNumber(record.start_offset_ms),
     durationMs: readFiniteNumber(record.duration_ms),
