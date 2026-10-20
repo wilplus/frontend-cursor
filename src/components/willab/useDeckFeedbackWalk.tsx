@@ -26,6 +26,7 @@ import { judgedStatus } from "@/lib/willab/chunkSteps";
 import {
   buildFeedbackReplay,
   buildFeedbackWalk,
+  walkActionForPart,
   walkHelpersForPart,
   walkOfPart,
   walkStart,
@@ -74,10 +75,11 @@ import type { WalkPraiseReasons } from "@/lib/willab/praiseReason";
 /*    tapPart(id)   a paragraph with an open moment was tapped: its own steps */
 /*                  only, opened on what it asks; once answered, back on the  */
 /*                  Ideal Text (founder 2026-10-20). False otherwise.         */
-/*    replayPart(id) a paragraph whose moments are answered was tapped: the  */
-/*                  whole finished walk to scroll through, at that paragraph, */
-/*                  with no buttons (founder 2026-10-20). False when it has   */
-/*                  no moment, and the deck opens the paragraph's own sheet.  */
+/*    replayPart(id) a paragraph whose moments are answered was tapped, or   */
+/*                  its orange words: the whole finished walk to scroll       */
+/*                  through, at the step it answered, with no buttons         */
+/*                  (founder 2026-10-20). False when it has no moment, and    */
+/*                  the deck opens the paragraph's own sheet.                 */
 /*    waits(id)     the paragraph still has a step to answer: its black line. */
 /*    practisePart(id, card, moment) Practise on a paragraph's own sheet: the */
 /*                  walk's practise screens on that card (founder 2026-10-10, */
@@ -641,9 +643,9 @@ export function useDeckFeedbackWalk(args: {
    *  in the same walk, live or finished (lock 2026-10-12, section 4). False
    *  when the paragraph has none. */
   openHelpers: (partId: string) => boolean;
-  /** The whole finished walk to scroll through, at this paragraph's first
-   *  moment, with no buttons. False when the paragraph has none in the
-   *  replay. */
+  /** The whole finished walk to scroll through, at the step this
+   *  paragraph answered, with no buttons. False when the paragraph has none
+   *  in the replay. */
   replayPart: (partId: string) => boolean;
   /** The paragraph has a moment of this Take to open. */
   hasMoment: (partId: string) => boolean;
@@ -908,7 +910,7 @@ export function useDeckFeedbackWalk(args: {
     (partId: string): boolean => {
       if (!replayReady) return false;
       const now = buildReplay(ownAnswers);
-      const at = walkStepForPart(now, partId);
+      const at = walkActionForPart(now, partId);
       if (at === null) return false;
       setReplaying(now);
       openAt(at, false, false, undefined, true);

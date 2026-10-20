@@ -10,8 +10,9 @@ OUTCOME
       answering anything or closing it.
   O3  A tap on a paragraph that still waits opens on what it asks (its
       praise just above it in the chat) and, once answered, lands back on
-      the Ideal Text. Tapped again with nothing left, it opens the whole
-      walk to scroll through, with no buttons.
+      the Ideal Text. Tapped again with nothing left, the text or its
+      orange words, it opens the whole walk to scroll through, at the
+      helper words it answered, with no buttons.
   O4  Helper words picked in the walk are saved through the deck's own
       save (the words, then the lock) and show orange in the text at once.
   O5  Never-5: Accept and practise saves the answer through the accept lane,
@@ -254,11 +255,19 @@ describe("the walk on the deck", () => {
     // Nothing left on the paragraph: back on the Ideal Text.
     await act(async () => undefined);
     expect(live()).toBeNull();
-    // Tapped again: the whole walk at that paragraph, to scroll through.
-    await click(paragraph("retention went up"));
-    expect(live()!.querySelector("[data-walk-start]")).not.toBeNull();
-    expect(live()!.querySelector("[data-walk-dock]")!.childElementCount).toBe(0);
-    expect(screen()).toBeNull();
+    // Tapped again, the text or its orange words: the whole walk to scroll
+    // through, opened at the helper words it answered, with no buttons.
+    const opensWhole = async (el: Element | null | undefined) => {
+      await click(el);
+      const start = live()!.querySelector("[data-walk-start] > *");
+      expect(start?.getAttribute("data-walk-mark")).toBe(`Slide 2 · ${WALK_COPY.navHelperWords}`);
+      expect(live()!.querySelector("[data-walk-dock]")!.childElementCount).toBe(0);
+      expect(screen()).toBeNull();
+      await click(live()!.querySelector("button[aria-label='Close']"));
+    };
+    await opensWhole(paragraph("retention went up"));
+    await act(async () => undefined);
+    await opensWhole(paragraph("retention went up")!.querySelector(".walk-helper-word"));
   });
 
   it("helper words picked in the walk go through the deck's own save: the words and the lock", async () => {
@@ -283,17 +292,11 @@ describe("the walk on the deck", () => {
     expect(chunkOf(lockCall)).toBe("p2");
     expect(lockCall[1]).toBe(SLIDES[1]);
     // Nobody to judge and no summary to read: the walk lands on the page.
-    // The chosen words are orange in the text at once, and a tap on them
-    // opens their helper-words step to change them (founder 2026-10-20),
-    // never the old sheet.
+    // The chosen words are orange in the text at once.
     await act(async () => undefined);
     expect(live()).toBeNull();
     const orange = paragraph("retention went up")!.querySelector<HTMLElement>(".walk-helper-word");
     expect(orange?.textContent).toBe("retention went");
-    await click(orange);
-    expect(screen()).toBe("walk-screen-helpers");
-    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe(`Slide 2 · ${WALK_COPY.navHelperWords}`);
-    expect(document.querySelector("[data-testid='helper-words-card']")).toBeNull();
   });
 
   it("a guest's pick asks to sign up and writes nothing", async () => {

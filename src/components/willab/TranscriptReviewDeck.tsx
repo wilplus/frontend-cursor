@@ -1363,13 +1363,12 @@ export default function TranscriptReviewDeck({
                       data-chunk
                       {...paragraphTap(
                         opens,
-                        (target) => {
+                        () => {
                           // A moment that waits opens on what it asks; an
-                          // answered one, the whole walk to scroll through.
-                          // Orange words open their picker (founder
-                          // 2026-10-20).
-                          const words = target instanceof Element && target.closest(".walk-helper-word, [data-helpers-label]");
-                          if (!words && moment && (feedbackWalk.tapPart(c.part.id, true) || feedbackWalk.replayPart(c.part.id))) return;
+                          // answered one, orange words too, the whole walk
+                          // to scroll, at what was answered there (founder
+                          // 2026-10-20). With no moment, the helper words.
+                          if (moment && (feedbackWalk.tapPart(c.part.id, true) || feedbackWalk.replayPart(c.part.id))) return;
                           feedbackWalk.openHelpers(c.part.id);
                         },
                       )}
