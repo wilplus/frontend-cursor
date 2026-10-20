@@ -239,8 +239,11 @@ function useTakeWork(key: string, sid: string | null, startEditing: () => void) 
 }
 
 /** The words open on the request's draft; a note, and a draft that did not
- *  come, open on an empty field, already editing. The Take's word is
- *  useTakeWork's. */
+ *  come, open on an empty field, already editing. The field stays open
+ *  while it is empty (the words screen draws it so, and typing is editing):
+ *  the tick never closes it on no words, and ‹ then in again opens it
+ *  again, so the coach is never left with no words and a grey Next (lock
+ *  flow 9). The Take's word is useTakeWork's. */
 function useDrafts(ids: Ids, home: AnswerHome | null, work: Record<string, Work>, patch: (id: string, next: Partial<Work>) => void,
   startEditing: () => void) {
   const { key, id, sid } = ids;
@@ -484,8 +487,8 @@ export function useAnswerFlow(ctx: AnswerContext) {
     words: ({ panel, nav, p, passage, live }) => (
       <WordsScreen nav={nav} onClose={ctx.close} title={home ? wordsTitle(home) : ""} pseudonym={p}
         player={ctx.playerFor(panel, passage)} clearer={home === "version"} text={w.words ?? ""}
-        editing={live && editing} drafting={w.words === undefined}
-        onChange={(words) => { if (id) patch(id, { words }); }} onToggle={() => setEditing((e) => !e)}
+        editing={live && (editing || !(w.words ?? "").trim())} drafting={w.words === undefined}
+        onChange={(words) => { if (id) patch(id, { words }); setEditing(true); }} onToggle={() => setEditing((e) => !e)}
         onNext={() => dispatch({ type: "step", key: "video" })} />
     ),
     video: ({ nav }) => (
