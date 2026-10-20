@@ -293,6 +293,29 @@ export function takesNewestFirst(takes: readonly QueueTake[]): QueueTake[] {
   return [...takes].sort((a, b) => (b.takeIndex ?? 0) - (a.takeIndex ?? 0));
 }
 
+/** Who the talk is for and what they should do, from the newest Take that
+ *  says so, in the speaker's own words (founder 2026-10-20, N87; flow page
+ *  coach-panel, C3). Null when the speaker has not said. Pure. */
+export function talkSetup(takes: readonly QueueTake[]): { audience: string | null; callToAction: string | null } {
+  const newestFirst = takesNewestFirst(takes);
+  return {
+    audience: newestFirst.find((t) => t.audience)?.audience ?? null,
+    callToAction: newestFirst.find((t) => t.callToAction)?.callToAction ?? null,
+  };
+}
+
+/** The speaker screen's lines under the name, all in the same small text:
+ *  the goal, who the talk is for, what they should do; only those known.
+ *  Pure. */
+export function speakerLines(speaker: QueueSpeaker): string[] {
+  const setup = talkSetup(speaker.takes);
+  return [
+    speaker.goal ? COPY.goal(speaker.goal) : null,
+    setup.audience ? COPY.audience(setup.audience) : null,
+    setup.callToAction ? COPY.callToAction(setup.callToAction) : null,
+  ].filter((line): line is string => line !== null);
+}
+
 /** Nothing left for this coach on the Take: it goes under Answered. Pure. */
 export function takeAnswered(take: Pick<QueueTake, "waiting" | "waitingForText">): boolean {
   return !take.waitingForText && take.waiting === 0;
@@ -350,10 +373,11 @@ export function SpeakerScreen({ speaker, loading = false, onTake, onBack, onClos
     const take = takes.find((t) => t.sessionId === v);
     if (take) onTake(take);
   };
+  const lines = speakerLines(speaker);
   return (
     <WalkOverlay
       title={speaker.pseudonym}
-      subtitle={speaker.goal ? COPY.goal(speaker.goal) : null}
+      subtitle={lines.length > 0 ? lines.map((line) => <span key={line} className="block">{line}</span>) : null}
       onBack={onBack}
       onClose={onClose}
       testId="coach-panel-speaker"

@@ -23,3 +23,12 @@ docs/flows/feedback-walk-and-chat.md
   src/lib/willab/praiseLevels.ts
   src/lib/willab/walkPractise.ts
   src/lib/willab/walkTries.ts
+
+docs/flows/coach-panel.md
+  src/components/willab/coachpanel/
+  src/components/willab/coachwalk/
+  src/lib/willab/coachPanelCopy.ts
+  src/lib/willab/coachWalk.ts
+  src/services/api/coachSpeakers.ts
+  src/app/admin/library/
+  src/app/admin/errors/

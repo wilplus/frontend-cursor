@@ -122,6 +122,11 @@ const SIGNED = {
   momentsWaiting: (n: number) => count(n, "moment waiting", "moments waiting"),
   /* A speaker */
   goal: (goal: string) => `Goal: ${goal}`,
+  // Under the goal, in the same small line, the speaker's own words (founder
+  // 2026-10-20, N87). The labels are the signed group names of Will's
+  // questions (N83); no new words.
+  audience: (audience: string) => `Who it's for: ${audience}`,
+  callToAction: (ask: string) => `What they should do: ${ask}`,
   takeWaiting: (n: number, m: number) => `${n} of ${m} moments waiting`,
   allMomentsAnswered: "All moments answered",
   answered: "Answered",
