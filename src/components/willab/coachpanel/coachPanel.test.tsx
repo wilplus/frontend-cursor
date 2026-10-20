@@ -17,6 +17,8 @@ OUTCOME
       never a draft over them: Send keeps the video, Remove the video holds
       until Send and sends no video, and leaving cancels it; a Take drafted
       but never sent opens on its draft, drafted once.
+  O7  As the founder, the ⋯ on a waiting speaker deletes their waiting
+      moments behind a confirmation; no other coach has the ⋯.
 PROVES   O1 -> "Judge: the player, the question, 👍 😐 👎 and Audio unclear (lock 2026-10-12 §7), nothing else"
          O2 -> "Judge first; the moment read is asked for only after the rating saves",
                "a failed save stays on Judge, says so, and never reads the moment"
@@ -29,9 +31,11 @@ PROVES   O1 -> "Judge: the player, the question, 👍 😐 👎 and Audio unclea
                "Remove the video holds across ‹ and Next, and Send without a video sends video_ref: null",
                "leaving the word before Send cancels Remove the video: the next visit shows the saved video again",
                "a Take drafted but never sent opens on its draft at every visit, drafted once; Send without a video sends video_ref: null"
+         O7 -> "the founder's ⋯ deletes a waiting speaker's moments behind its confirmation; other coaches have none"
 WHY      Never 2 (coach judgements stay blind); locked coach panel; O6:
          founder 2026-10-19 (D9, D10), approved two-phone prototype
-         https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk.
+         https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk. O7: founder
+         2026-10-20, like the training corpus's ⋯.
 */
 import { act, useState, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -240,6 +244,21 @@ describe("CoachPanel", () => {
     expect(document.querySelector("[data-walk-toast]")!.textContent).toBe(COPY.toastJudged);
     await flush();
     expect(document.querySelector("[data-testid='coach-panel-passage']")!.textContent).toBe(READ.passage);
+  });
+
+  it("the founder's ⋯ deletes a waiting speaker's moments behind its confirmation; other coaches have none", async () => {
+    const onDelete = vi.fn(async () => true);
+    draw(<QueueScreen speakers={[HERON]} loading={false} blind={null} onSpeaker={() => {}} onDelete={onDelete} onClose={() => {}} />);
+    act(() => q("[aria-label='More options for Quiet Heron']")!.click());
+    act(() => q("[role='menuitem']")!.click());
+    const dialog = document.querySelector("[aria-labelledby='delete-project-title']")!;
+    expect(dialog.textContent).toContain(COPY.deleteSpeakerTitle("Quiet Heron"));
+    expect(dialog.textContent).toContain(COPY.deleteSpeakerBody("Quiet Heron"));
+    await act(async () => [...dialog.querySelectorAll("button")].find((b) => b.textContent === COPY.delete)!.click());
+    expect(onDelete).toHaveBeenCalledWith(HERON);
+
+    draw(<QueueScreen speakers={[HERON]} loading={false} blind={null} onSpeaker={() => {}} onClose={() => {}} />);
+    expect(q("[aria-label='More options for Quiet Heron']")).toBeNull();
   });
 
   it("a failed save stays on Judge, says so, and never reads the moment", async () => {

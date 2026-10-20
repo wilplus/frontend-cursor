@@ -34,6 +34,7 @@ import WalkFooter from "../walk/WalkFooter";
 import WalkLoading from "../walk/WalkLoading";
 import WalkChoices, { type WalkChoice } from "../walk/WalkChoices";
 import DeckSlidePreview from "../DeckSlidePreview";
+import ProjectRowMenu from "../ProjectRowMenu";
 import { answerWord, type AnswerValue, type QueueSpeaker, type QueueTake, type ReadSlide } from "@/lib/willab/coachWalk";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
@@ -155,11 +156,29 @@ function BlindGroup({ blind }: { blind: BlindRows }) {
   );
 }
 
-export function QueueScreen({ speakers, loading, blind, onSpeaker, onClose }: {
+/** A waiting speaker's ⋯: the founder's Delete of their waiting moments,
+ *  behind its confirmation, as the training corpus (founder 2026-10-20). */
+function speakerMenu(speaker: QueueSpeaker, onDelete?: (speaker: QueueSpeaker) => Promise<boolean>): ReactNode {
+  if (!onDelete || speaker.waiting <= 0) return undefined;
+  const confirm = {
+    title: COPY.deleteSpeakerTitle(speaker.pseudonym),
+    body: COPY.deleteSpeakerBody(speaker.pseudonym),
+    confirmLabel: COPY.delete,
+  };
+  return (
+    <ProjectRowMenu label={speaker.pseudonym} actionLabel={COPY.delete} confirm={confirm}
+      onDelete={() => onDelete(speaker)} />
+  );
+}
+
+export function QueueScreen({ speakers, loading, blind, onSpeaker, onDelete, onClose }: {
   speakers: readonly QueueSpeaker[];
   loading: boolean;
   blind: BlindRows | null;
   onSpeaker: (speaker: QueueSpeaker) => void;
+  /** The founder's ⋯ → Delete on a waiting speaker; absent for every other
+   *  coach. Resolves true once their waiting moments are closed. */
+  onDelete?: (speaker: QueueSpeaker) => Promise<boolean>;
   onClose: () => void;
 }) {
   const waiting = queueOrder(speakers);
@@ -169,7 +188,7 @@ export function QueueScreen({ speakers, loading, blind, onSpeaker, onClose }: {
         <Group label={COPY.yourSpeakers} testId="coach-panel-speakers">
           <WalkChoices
             label={COPY.yourSpeakers}
-            choices={waiting.map(speakerChoice)}
+            choices={waiting.map((speaker, i) => ({ ...speakerChoice(speaker, i), menu: speakerMenu(speaker, onDelete) }))}
             onPick={(v) => {
               const speaker = waiting[Number(v)];
               if (speaker) onSpeaker(speaker);
