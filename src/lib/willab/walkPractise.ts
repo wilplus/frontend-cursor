@@ -6,7 +6,7 @@
 /*  a try is decided live by the machine (services/practice_check.py in the   */
 /*  backend), and these functions lay its answer into the plan:               */
 /*                                                                            */
-/*    Stop            → checking (the breathing voice mark)                    */
+/*    Stop            → checking (the typing dots)                             */
 /*    praise          → the line for the reading that moved (option A), then    */
 /*                      on to judging others (lock 2026-10-12, section 2.5)    */
 /*    again           → "It was better, …" when something moved between tries */

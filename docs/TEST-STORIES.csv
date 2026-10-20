@@ -280,6 +280,7 @@ beside the words (its block holds the speaker's words and nothing else).
 O3  Never-1: nothing on the deck reads as a score, ratio, percentage or
 verdict, while the speaker's words are on screen.","O1, O2 -> ""shows the speaker's own words, one block per slide, unchanged""
 O3     -> ""renders no score, ratio, percentage or verdict, even with a tentative pending item""","Never-1. The per-paragraph lock button is gone from the page (lock 2026-10-12, section 4): a paragraph is the tap target and the lock lives in its sheet, so no lock-control count is pinned here."
+src/components/willab/WillQuestion.test.tsx,Story,"As a speaker in the Lounge after a Take, I want Will's one",,,
 src/components/willab/acceptRewrite.test.tsx,Story,"As a speaker accepting a clearer version in the paragraph sheet, I want my answer saved and my text unchanged until I say it in my next Take, so that the Ideal Text is only what I said.","O1  The answer is saved once, as apply_suggestion.
 O2  Never-5: the host's real accept lane (postTrackedDecision) sends no
 decision, suggestion-feedback or other request that could change a
@@ -638,12 +639,14 @@ O2  A better try gets praise in words for what improved, then the walk moves on.
 O3  A ""not yet"" on the clearer words brings the AI version of my voice; a good try does not.
 O4  The AI clip appears with one sentence on what it does differently, never a number.
 O5  At most 3 tries, all shown together in the chat with the steps before them; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.
-O6  The Exercise reaches the coach's queue the moment it is on screen, and the Lounge as the AI bubble once a clip is coming, even when I tap Practise first.","O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
+O6  The Exercise reaches the coach's queue the moment it is on screen, and the Lounge as the AI bubble once a clip is coming, even when I tap Practise first.
+O7  The voice Exercise cheers first: ""That was good. But what if you said it more like this?"", my AI voice, then ""Now try saying it like that.""; a not yet after it never repeats that opening.","O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
 O2 -> praise on try 1: the line for the reading that moved ...
 O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
 O4 -> the bubble is there at once: the typing dots alone ..., with the clip, the speaker reads what this version does differently and why (WIL-82)
 O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing
-O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first",Never-rule 1 (no scores to speakers).
+O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first
+O7 -> praise first: L4, the AI version of their voice, then L3, never ""Exercise""; every not yet after it says L5",Never-rule 1 (no scores to speakers).
 src/components/willab/walk/walkReplay.test.tsx,Story,"As a speaker, I want to replay a finished walk with my answers shown and nothing written or recorded again, so that I can look back safely.","O1  The same screens play with my answers; only a change to my helper words is saved.
 O2  A done exercise plays my past tries and records nothing new.
 O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.","O1 -> opens on the coach's note and plays the same screens answered; helper words stay editable, nothing else writes

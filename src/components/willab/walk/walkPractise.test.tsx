@@ -8,12 +8,14 @@ OUTCOME
   O4  The AI clip appears with one sentence on what it does differently, never a number.
   O5  At most 3 tries, all shown together in the chat with the steps before them; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.
   O6  The Exercise reaches the coach's queue the moment it is on screen, and the Lounge as the AI bubble once a clip is coming, even when I tap Practise first.
+  O7  The voice Exercise cheers first: "That was good. But what if you said it more like this?", my AI voice, then "Now try saying it like that."; a not yet after it never repeats that opening.
 PROVES   O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
          O2 -> praise on try 1: the line for the reading that moved ...
          O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
          O4 -> the bubble is there at once: the typing dots alone ..., with the clip, the speaker reads what this version does differently and why (WIL-82)
          O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing
          O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first
+         O7 -> praise first: L4, the AI version of their voice, then L3, never "Exercise"; every not yet after it says L5
 WHY      Never-rule 1 (no scores to speakers).
 */
 import { act } from "react";
@@ -284,7 +286,10 @@ describe("the practise screen", () => {
     // Instant: nothing slides or fades (lock 2026-10-12, section 2.5).
     expect(live()!.className).not.toMatch(/walk-m-(next|back|fade)/);
     expect(now()!.querySelector("[data-walk-player][data-walk-me]")!.textContent).toContain(WALK_COPY.practiseN(1));
-    expect(now()!.querySelector("[data-walk-loading]")).not.toBeNull();
+    // The check is the typing dots, the lens's only wait (founder
+    // 2026-10-20): never the breathing mark.
+    expect(now()!.querySelector("[data-walk-loading] [data-typing-glyph]")).not.toBeNull();
+    expect(live()!.querySelector("[data-voice-mark]")).toBeNull();
     await settle();
     const upload = calls.find((c) => c.url.endsWith("/attempts"))!;
     expect(upload.method).toBe("POST");
@@ -349,7 +354,7 @@ describe("the AI version of your voice on the Exercise (founder 2026-10-15)", ()
     expect(live()!.querySelector("[data-walk-ai-voice]")).not.toBeNull();
     expect(live()!.querySelector("[data-walk-ai-waiting] [data-typing-glyph]")).not.toBeNull();
     expect(live()!.querySelector("[data-voice-mark]")).toBeNull();
-    expect(live()!.textContent).toContain(WALK_COPY.aiVoiceExercise);
+    expect(live()!.textContent).toContain(WALK_COPY.aiVoiceFirst);
     expect(calls.filter((c) => c.url.endsWith("/ai-voice") && c.method === "POST")).toHaveLength(1);
     // The player takes the dots' place once the clip is ready (read every second).
     await settle(150);
@@ -371,6 +376,25 @@ describe("the AI version of your voice on the Exercise (founder 2026-10-15)", ()
     expect(text.indexOf(AI_WHY)).toBeLessThan(text.indexOf(WALK_COPY.aiVoiceNow));
     // The player's clock is the only figure.
     expect(text.replace(/\d+:\d{2}/g, "")).not.toMatch(/\d/);
+  });
+});
+
+describe("the voice Exercise opens with praise first (founder 2026-10-20, N82)", () => {
+  it("praise first: L4, the AI version of their voice, then L3, never \"Exercise\"; every not yet after it says L5", async () => {
+    draw({ items: [PRAISE_ITEM, ...EXERCISE_ITEMS], at: 3 });
+    await settle(150);
+    const said = () => live()!.textContent ?? "";
+    const times = (line: string) => said().split(line).length - 1;
+    expect(times(WALK_COPY.aiVoiceFirst)).toBe(1);
+    expect(said()).toContain(WALK_COPY.aiVoiceNow);
+    expect(said()).not.toContain(WALK_COPY.aiVoiceExercise);
+    expect(live()!.querySelector("[data-walk-message]")!.textContent).not.toContain(COPY.titleExercise);
+    answers = [{ next: "again", key: "effort" }];
+    click(live()!.querySelector("[data-testid='walk-practise']"));
+    await tryAndRead();
+    await settle(160);
+    expect(said()).toContain(WALK_COPY.aiVoiceAgain);
+    expect(times(WALK_COPY.aiVoiceFirst)).toBe(1);
   });
 });
 
@@ -445,7 +469,8 @@ describe("the AI voice reaches the chat (founder 2026-10-20)", () => {
     await settle();
     const told = onShown.mock.calls.filter(([s]) => (s as { key: string }).key === "exVideo");
     expect(told).toHaveLength(1);
-    expect(told[0][3]).toMatchObject({ title: COPY.titleExercise, line: WALK_COPY.aiVoiceExercise, practiceId: expect.any(String) });
+    expect(told[0][3]).toMatchObject({ line: WALK_COPY.aiVoiceFirst, then: WALK_COPY.aiVoiceNow, practiceId: expect.any(String) });
+    expect(told[0][3].title).toBeUndefined();
   });
 });
 

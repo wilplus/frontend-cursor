@@ -55,7 +55,6 @@ import { markCoachFeedbackSeen, onTakeWordWatched } from "@/services/api/coachFe
 import { newCoachFeedbackFor, openedNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
 import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports";
 import { FLOW_COPY } from "./flowCopy";
-import LoadingState, { VoiceMark } from "./LoadingState";
 import { PROCESSING_STAGES } from "./ProcessingWait";
 import type { IdealTextLaunchMode } from "./IdealTextOverlay";
 import { lensAddress } from "@/lib/willab/lensScreen";
@@ -118,6 +117,9 @@ import {
   feedbackCheckTarget,
 } from "./feedbackCheck";
 import { postFeedbackCheck, type FeedbackCheckChoice } from "@/services/api/feedbackCheck";
+import { useVoiceNotebook, VoiceNoteBar, VoiceNoteMic } from "./useVoiceNotebook";
+import { postWillQuestion } from "@/services/api/willQuestion";
+import WillQuestionBubble, { willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import { useLifeTags } from "@/lib/life/useLifeTags";
@@ -130,7 +132,7 @@ import {
 import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
 import { usePinThreadBottom } from "./usePinThreadBottom";
 import { clearerPieces, type ClearerPiece } from "@/lib/willab/clearerPieces";
-import TypingDots, { CHUNK_DELAY_MS } from "./TypingDots";
+import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { afterChatBoot } from "@/lib/chatBoot";
 
 // Opened on a tap, never on first paint: loaded then, off the boot bundle.
@@ -499,7 +501,9 @@ export default function Lounge({
   // quietly standing by. Intent-driven buttons come from the BE (B-1).
 
   // Voice input has been removed from the Lounge (product call): only
-  // the **official recording** holds the mic. Off-task chat is
+  // the **official recording** holds the mic. (The one exception, founder
+  // 2026-10-20: the founder's voice notebook, useVoiceNotebook; a private note,
+  // never a Take.) Off-task chat is
   // text-only — keeps the Lounge composer visually distinct from the
   // Lab's "Start official recording" CTA so users never confuse the
   // calm off-stage surface with the high-stakes on-stage one. The
@@ -1138,6 +1142,7 @@ export default function Lounge({
     if (type === "joke") return;
     const rank: Record<OfferType, number> = {
       joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0, feedback_check: 0,
+      voice_notebook: 0,
     };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
@@ -1287,6 +1292,9 @@ export default function Lounge({
     openOffer(ask.type);
   }, [threadLoading, drawn, install.canOffer, waiting, letGo, openOffer]);
 
+  // The founder's voice notebook (Will learning plan, step 1, 2026-10-20).
+  const notebook = useVoiceNotebook({ signedIn: thread.signedIn, threadLoading, drawn, openOffer, reload });
+
   // A message still waiting while no ask is in front of the speaker would
   // never show (a typed turn the backend could not store, say): let it go,
   // once per message. The CEO panel's ask decides for itself (useAdminAsk).
@@ -1361,6 +1369,12 @@ export default function Lounge({
     choice: FeedbackCheckChoice,
   ): Promise<void> {
     if (await postFeedbackCheck(target.arcId, target.takeSessionId, choice)) await reload();
+  }
+
+  // N82 — Will's one question after a Take: the backend keeps the tap and
+  // writes it with the reply, then the thread reads it back.
+  async function answerWillQuestion(target: WillQuestionTarget, choice: string): Promise<void> {
+    if (await postWillQuestion(target.arcId, target.takeSessionId, choice)) await reload();
   }
 
   function postAnswerBubble(label: string) {
@@ -1548,8 +1562,10 @@ export default function Lounge({
           </button>
         )}
 
+        {/* The Lounge's one wait is the typing dots, as the lens's
+            (founder 2026-10-20: "typing dots in the lounge too"). */}
         {thread.loading ? (
-          <LoadingState placement="surface" />
+          <TypingDots label="Loading" />
         ) : threadItems.length === 0 ? (
           <LoungeEmptyState onStart={onStartNewProject ?? onStart} />
         ) : (
@@ -1594,6 +1610,8 @@ export default function Lounge({
               onChip={onChip}
               activeOffer={activeOffer}
               onOpenOffer={setActiveOffer}
+              willOpen={i === shownItems.length - 1}
+              onWillAnswer={answerWillQuestion}
               animate={
                 i === shownItems.length - 1 &&
                 baselineRef.current !== null &&
@@ -1604,8 +1622,8 @@ export default function Lounge({
         )}
 
         {/* While a Take processes (founder lock 2026-10-12, section 1): a
-            bubble in the chat with the breathing mark; its tap opens the
-            processing view. */}
+            bubble in the chat with the typing dots (founder 2026-10-20, in
+            place of the breathing mark); its tap opens the processing view. */}
         {processingResume?.status === "analyzing" ? (
           <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
             <ChatAvatar />
@@ -1616,7 +1634,7 @@ export default function Lounge({
               onClick={() => setOpenedProcessingSessionId(processingResume.sessionId)}
               className="flex items-center gap-2.5 rounded-[16px] bg-muted px-3 py-2 text-left text-[15px] leading-[1.45] text-foreground"
             >
-              <VoiceMark size={64} />
+              <TypingGlyph />
               <span>{PROCESSING_STAGES[0]}</span>
             </button>
           </div>
@@ -1696,6 +1714,7 @@ export default function Lounge({
             const target = feedbackCheckTarget(messages, "ask");
             if (target) void answerFeedbackCheck(target, choice);
           }}
+          onNotebook={notebook.answer}
           onResolve={() => {
             // A Take's ask closed: its message comes under it (the question's
             // taps let it go on the backend, "No" keeps it waiting).
@@ -1794,7 +1813,8 @@ export default function Lounge({
         </button>
       ) : null}
       <PolicyUpdateComposer>
-      <form onSubmit={handleSend} className="flex items-end gap-1">
+      <VoiceNoteBar notebook={notebook} />
+      <form onSubmit={handleSend} className={`${notebook.composerDisplay} items-end gap-1`}>
         {/* THE "+" (founder 2026-10-12, WhatsApp-like): it opens the
             projects, where "Start a new project" starts one. It replaced the
             Record button. Held while a Take is still landing, for the same
@@ -1857,6 +1877,8 @@ export default function Lounge({
             </button>
           ) : null}
         </div>
+        {/* The voice notebook's mic, right of the input (founder 2026-10-20). */}
+        <VoiceNoteMic notebook={notebook} draft={draftText} />
       </form>
       </PolicyUpdateComposer>
 
@@ -2019,6 +2041,7 @@ function OfferActions({
   onConsentAnswered,
   bookHref,
   onFeedbackCheck,
+  onNotebook,
   onResolve,
 }: {
   type: OfferType;
@@ -2032,9 +2055,27 @@ function OfferActions({
   bookHref: string;
   /** WIL-74 — a tap on "Did this feedback help you?". */
   onFeedbackCheck: (choice: FeedbackCheckChoice) => void;
+  /** "Keep a voice notebook?" (Will learning plan, step 1). */
+  onNotebook: (choice: "yes" | "not_now") => void;
   onResolve: () => void;
 }) {
   const router = useRouter();
+  if (type === "voice_notebook") {
+    return (
+      <SymmetricPair
+        closeLabel="Not now"
+        onClose={() => {
+          onNotebook("not_now");
+          onResolve();
+        }}
+        actionLabel="Yes"
+        onAction={() => {
+          onNotebook("yes");
+          onResolve();
+        }}
+      />
+    );
+  }
   if (type === "feedback_check") {
     return (
       <SymmetricPair
@@ -2148,6 +2189,45 @@ function SequentialBotBubbles({
   );
 }
 
+/** An ask's bubble: Will's question with its answers (N82), or an offer
+ *  whose action pair arms in the footer; null for any other row. */
+function askBubble(
+  message: LoungeMessage,
+  {
+    activeOffer,
+    onOpenOffer,
+    willOpen,
+    onWillAnswer,
+  }: {
+    activeOffer?: OfferType | null;
+    onOpenOffer?: (type: OfferType) => void;
+    willOpen: boolean;
+    onWillAnswer?: (target: WillQuestionTarget, choice: string) => Promise<void>;
+  },
+) {
+  const will = willQuestionOf(message.metadata);
+  if (will) {
+    return (
+      <WillQuestionBubble
+        body={message.body}
+        chips={will.chips}
+        open={willOpen}
+        onAnswer={(choice) => onWillAnswer?.(will, choice)}
+      />
+    );
+  }
+  const offerType = readOfferType(message.metadata);
+  if (!offerType) return null;
+  return (
+    <OfferBubble
+      type={offerType}
+      body={message.body}
+      active={activeOffer === offerType}
+      onOpen={() => onOpenOffer?.(offerType)}
+    />
+  );
+}
+
 function Bubble({
   message,
   onViewInsights,
@@ -2160,6 +2240,8 @@ function Bubble({
   onChip,
   activeOffer,
   onOpenOffer,
+  willOpen = false,
+  onWillAnswer,
   animate = false,
   latestForArc = false,
 }: {
@@ -2185,20 +2267,14 @@ function Bubble({
   activeOffer?: OfferType | null;
   /** Tap a persisted offer bubble to re-arm its action pair in the footer. */
   onOpenOffer?: (type: OfferType) => void;
+  /** N82 — the newest bubble: Will's question shows its answers to tap. */
+  willOpen?: boolean;
+  onWillAnswer?: (target: WillQuestionTarget, choice: string) => Promise<void>;
   /** U3 — true only for a freshly-arrived last message → sequential reveal. */
   animate?: boolean;
 }) {
-  const offerType = readOfferType(message.metadata);
-  if (offerType) {
-    return (
-      <OfferBubble
-        type={offerType}
-        body={message.body}
-        active={activeOffer === offerType}
-        onOpen={() => onOpenOffer?.(offerType)}
-      />
-    );
-  }
+  const ask = askBubble(message, { activeOffer, onOpenOffer, willOpen, onWillAnswer });
+  if (ask) return ask;
   if (
     message.kind === "recording_summary" ||
     message.kind === "insight" ||

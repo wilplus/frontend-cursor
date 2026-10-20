@@ -18,7 +18,7 @@ import { practiseThreadFooter, practiseThreadItem, type PractiseScreenCtx } from
 import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
 import WalkSummary from "./WalkSummary";
-import WalkAiVoice, { aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
+import WalkAiVoice, { AI_EXERCISE_OPENING, aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
@@ -566,12 +566,12 @@ export default function FeedbackWalk<R = unknown>({
 
   return (
     <div data-feedback-walk data-walk-step={step.key}>
-      {/* The whole window on a wide screen, the words in the phone's column
-          (globals.css, "Desktop"). */}
+      {/* The whole window on a wide screen, the words in the Lounge's
+          column (globals.css, "The lens on a computer"). */}
       <WalkStage
         screen={stage}
         render={(s, ghost) => (
-          <WalkThread ghost={ghost} frame={frame} onClose={close}>
+          <WalkThread ghost={ghost} frame={frame} opening={s.seq} onClose={close}>
             {renderThread(ctx, s.head, s.seq, backFromPractise, s.whole)}
           </WalkThread>
         )}
@@ -996,7 +996,7 @@ function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
   const state = ctx.practise.aiVoiceOf(moment.index);
   const ai = aiVoiceShown(ctx.walk.plan, ctx.at(step), state);
   if (!ai) return null;
-  const lines = ai === "pending" ? { title: COPY.titleExercise, line: WALK_COPY.aiVoiceExercise, then: WALK_COPY.aiVoiceNow } : ai;
+  const lines = ai === "pending" ? AI_EXERCISE_OPENING : ai;
   return (
     <WalkAiVoice
       seed={`ai-ex-${moment.index}`}

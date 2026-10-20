@@ -20,9 +20,26 @@ import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMes
  *  `can_start_analysis: True` ("every arc records/analyzes/sends free"), so the
  *  gate could not fire. Legacy `offer: "credit"` bubbles in old threads still
  *  render as ordinary bot text, which is exactly what the fallback was for. */
-export type OfferType = "install" | "whatsapp" | "joke" | "consent" | "promo" | "lesson" | "feedback_check";
+export type OfferType =
+  | "install"
+  | "whatsapp"
+  | "joke"
+  | "consent"
+  | "promo"
+  | "lesson"
+  | "feedback_check"
+  | "voice_notebook";
 
-const OFFER_TYPES: readonly OfferType[] = ["install", "whatsapp", "joke", "consent", "promo", "lesson", "feedback_check"];
+const OFFER_TYPES: readonly OfferType[] = [
+  "install",
+  "whatsapp",
+  "joke",
+  "consent",
+  "promo",
+  "lesson",
+  "feedback_check",
+  "voice_notebook",
+];
 
 /** The bubble prompt persisted as the message body. No em-dashes (house style). */
 export const OFFER_PROMPT: Record<OfferType, string> = {
@@ -46,6 +63,10 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
   // the backend after a Take's closing summary; this is only the fallback.
   // Simplified by the founder in chat, 2026-10-20 (backend COPY["ask"]).
   feedback_check: "Did this help?",
+  // The founder's voice notebook (Will learning plan, step 1; words signed
+  // 2026-10-20): asked before the first note. Backend COPY["ask"] in
+  // services/voice_notebook.py; this is only the fallback.
+  voice_notebook: "Your notes are private. Only you and Will read them. Keep a voice notebook?",
   joke:
     "I'm just a simple system, but I noticed you weren't feeling great before this presentation. Want me to crack a joke?",
 };
