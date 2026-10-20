@@ -118,7 +118,9 @@ function draw(opts: { practiceId?: string; at?: (model: ReturnType<typeof buildF
 }
 
 const live = () => host.querySelector<HTMLElement>(".walk-layer:not(.walk-ghost)");
-const screen = () => live()?.querySelector<HTMLElement>("[data-testid^='walk-screen-']")?.dataset.testid ?? null;
+/** The newest part of the walk's chat: the step it stands on. */
+const now = () => live()?.querySelector<HTMLElement>("[data-walk-part][data-testid^='walk-screen-']") ?? null;
+const screen = () => now()?.dataset.testid ?? null;
 const click = (el: Element | null | undefined) => act(() => (el as HTMLElement).click());
 const byTestId = (id: string) => live()?.querySelector<HTMLElement>(`[data-testid='${id}']`) ?? null;
 const pressed = () => live()?.querySelector("[data-walk-answer][aria-pressed='true']")?.getAttribute("data-walk-answer") ?? null;
@@ -154,10 +156,10 @@ describe("the finished walk, played again", () => {
     // 2026-10-16): each "Practise N" with its own voice and the answer it
     // got, the recorder passed over, nothing recorded and nothing asked.
     // Next alone under it: a walk played again never practises.
-    const voices = () => [...live()!.querySelectorAll("[data-walk-player][data-walk-me] audio")].map((a) => a.getAttribute("src"));
+    const voices = () => [...now()!.querySelectorAll("[data-walk-player][data-walk-me] audio")].map((a) => a.getAttribute("src"));
     expect(voices()).toEqual([clip.src, "blob:try-1", "blob:try-2"]);
-    expect(live()!.textContent).toContain(WALK_COPY.practiseN(1));
-    expect(live()!.textContent).toContain(WALK_COPY.practiseN(2));
+    expect(now()!.textContent).toContain(WALK_COPY.practiseN(1));
+    expect(now()!.textContent).toContain(WALK_COPY.practiseN(2));
     expect(byTestId("walk-stop")).toBeNull();
     expect(byTestId("walk-practise")).toBeNull();
     click(byTestId("walk-forward"));

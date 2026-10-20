@@ -3,6 +3,7 @@
 /*                                                                            */
 /*    GET /api/v2/coach/queue/moments                → the queue of moments    */
 /*    GET /api/v2/coach/sessions/:sid/snippets/:snip/moment → the Read screen  */
+/*    POST /api/v2/coach/queue/moments/close → the founder's Delete of a row  */
 /*                                                                            */
 /*  The rating itself goes through saveStateRating (stateRatings.ts) and the   */
 /*  coach's answer through answerCoachExerciseRequest: nothing new is written  */
@@ -25,6 +26,17 @@ export async function fetchMomentsQueue(): Promise<MomentsQueueResult> {
   if (res.status === 401 || res.status === 403) return { ok: false, code: "FORBIDDEN" };
   if (!res.ok) return { ok: false, code: "UNAVAILABLE" };
   return { ok: true, speakers: mapMomentsQueue(res.data) };
+}
+
+/** POST …/queue/moments/close, the founder's Delete on a speaker's row
+ *  (2026-10-20): the backend closes what it counts as waiting on these
+ *  Takes, and a Take still waiting for its text whole, for every coach.
+ *  True once done. */
+export async function closeWaitingMoments(speaker: QueueSpeaker): Promise<boolean> {
+  const sessionIds = speaker.takes.filter((t) => t.waiting > 0 || t.waitingForText).map((t) => t.sessionId);
+  if (sessionIds.length === 0) return true;
+  const res = await coachWrite("/api/v2/coach/queue/moments/close", "POST", { session_ids: sessionIds });
+  return res.ok;
 }
 
 /** What the machine heard on a moment, for its kind (D-CP-13; backend

@@ -285,6 +285,12 @@ O2  Never-5: the host's real accept lane (postTrackedDecision) sends no
 decision, suggestion-feedback or other request that could change a
 word of the paragraph.
 O3  The practise goes on, with the accepted words to say.","O1, O2, O3 -> ""records the answer, changes no word, and goes on to the practise""",Never-5 (founder lock 2026-10-12). The walk's own accept lane and the deck text after it are in deckFeedbackWalk.test.tsx.
+src/components/willab/afterTake.test.ts,Story,"As a speaker, after a Take I want one thing to do at a time: the Take's card, its one ask, then the message with ""Record Take N"".","O1  The message waits, undrawn, while its ask is open; the card comes
+before the ask; once let go it comes under what closed the ask.
+O2  A WhatsApp or home-screen ask opens its form by itself.
+O3  A waiting message whose ask is no longer in front of me is let go.","O1 -> ""draws the card, the ask, and the message only once it is let go""
+O2 -> ""opens the Take's WhatsApp ask by itself""
+O3 -> ""knows when no ask is in front of the speaker""","Founder 2026-10-20: ""You cannot have two actions at a time, like feedback and record"" (backend services/after_take.py)."
 src/components/willab/audioUploadValidation.test.ts,Story,"As a speaker uploading a recording instead of recording live, I want a too-large or video file refused before upload with a plain reason, so that I do not wait for a failure (record step of the loop).","O1  A file over the upload limit is refused with a ""too large"" reason.
 O2  A video file (by MIME type, or by extension when the type is missing)
 is refused with an ""audio only"" reason.
@@ -309,21 +315,30 @@ O3  My queue puts the speaker who sent last on top and drops answered
 ones; a speaker's open Takes come first, newest first, then the
 answered ones, faded.
 O4  ""Your speakers"" shows the list at once, then updates it.
-O5  An error answered without a video still goes to the speaker.
+O5  An error answered without a video still goes to the speaker, and a
+moment with no draft never leaves me with no words and a grey Next.
 O6  Coming back to a Take word I sent, I see my saved words and video,
 never a draft over them: Send keeps the video, Remove the video holds
 until Send and sends no video, and leaving cancels it; a Take drafted
-but never sent opens on its draft, drafted once.","O1 -> ""Judge: the player, the question, 👍 😐 👎 and Audio unclear (lock 2026-10-12 §7), nothing else""
+but never sent opens on its draft, drafted once.
+O7  As the founder, the ⋯ on a waiting speaker, the greyed one waiting
+for its text included, deletes their waiting moments behind a
+confirmation; no other coach has the ⋯.
+O8  As the founder, the ⋯ on a blind line clears what waits on it for the
+week behind a confirmation; no other coach has the ⋯.","O1 -> ""Judge: the player, the question, 👍 😐 👎 and Audio unclear (lock 2026-10-12 §7), nothing else""
 O2 -> ""Judge first; the moment read is asked for only after the rating saves"",
 ""a failed save stays on Judge, says so, and never reads the moment""
 O3 -> ""Your queue: the speaker who sent most recently on top; an answered speaker drops out (founder 2026-10-18)"",
 ""the open ones first, newest first; then Answered, faded, most recently answered first (founder 2026-10-18)""
 O4 -> ""Your speakers opens at once with the queue's speakers, then takes the fresh read""
-O5 -> ""an error answered without a video still goes to the speaker, without the library (lock flow 9)""
+O5 -> ""an error answered without a video still goes to the speaker, without the library (lock flow 9)"",
+""no draft: the field stays open until it has words, on the tick and on coming back (lock flow 9)""
 O6 -> ""opens on the saved words and video, never a draft; Send to {p} keeps the video"",
 ""Remove the video holds across ‹ and Next, and Send without a video sends video_ref: null"",
 ""leaving the word before Send cancels Remove the video: the next visit shows the saved video again"",
-""a Take drafted but never sent opens on its draft at every visit, drafted once; Send without a video sends video_ref: null""","Never 2 (coach judgements stay blind); locked coach panel; O6: founder 2026-10-19 (D9, D10), approved two-phone prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk."
+""a Take drafted but never sent opens on its draft at every visit, drafted once; Send without a video sends video_ref: null""
+O7 -> ""the founder's ⋯ deletes a waiting speaker's moments, the greyed one's too, behind its confirmation; other coaches have none""
+O8 -> ""the founder's ⋯ clears what waits on a blind line behind its confirmation; other coaches have none""","Never 2 (coach judgements stay blind); locked coach panel; O6: founder 2026-10-19 (D9, D10), approved two-phone prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk. O7: founder 2026-10-20, like the training corpus's ⋯."
 src/components/willab/coachpanel/coachPanelCorpus.test.tsx,Story,"As a coach, I want the training corpus in the panel to go straight to judging after set-up and let me rename finished imports, so that corpus work is quick and blind.","O1  A saved set-up goes straight to judging that import, saying
 ""Set up · {n} moments"".
 O2  An import with nothing to judge is never judged: back on the imports.
@@ -363,18 +378,23 @@ O2  Coming back to the Lounge shows the remembered count right away.
 O3  ""Nobody is waiting"" shows only when the queue was read empty.","O1 -> ""shows no label until the queue is read, then the count""
 O2 -> ""re-entering the Lounge shows the remembered count right away""
 O3 -> ""says nobody is waiting only once the queue was read empty""",Founder 2026-10-18.
-src/components/willab/deckFeedbackWalk.test.tsx,Story,"As a speaker reviewing feedback, I want the walk to open on my first praise, browse every step across slides, save helper words through the deck, and ask a guest to sign up, so that feedback flows into my next Take.","O1  Review feedback opens the walk on the first praise.
-O2  The arrows browse every step across slides, answered and waiting,
-without answering anything.
-O3  A tap on a paragraph with an open moment opens the walk there.
+src/components/willab/deckFeedbackWalk.test.tsx,Story,"As a speaker reviewing feedback, I want the walk to open on my first praise, move through its chat with ‹ ›, save helper words through the deck, and ask a guest to sign up, so that feedback flows into my next Take.","O1  Review feedback opens the walk on the first praise.
+O2  The arrows move through the walk's chat, step by step, without
+answering anything or closing it.
+O3  A tap on a paragraph that still waits opens on what it asks (its
+praise just above it in the chat) and, once answered, lands back on
+the Ideal Text. Tapped again with nothing left, it opens the whole
+walk to scroll through, with no buttons.
 O4  Helper words picked in the walk are saved through the deck's own
 save (the words, then the lock) and show orange in the text at once.
 O5  Never-5: Accept and practise saves the answer through the accept lane,
 and the deck still shows the speaker's own words, not the clearer ones.
 O6  A guest's pick asks to sign up, is not taken, and nothing is written.","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
-O2 -> ""‹ › browse every screen across slides, answered and waiting
-alike, and never close the walk (founder 2026-10-15)""
-O3 -> ""a tap on a paragraph with an open moment opens the walk there (Q-B3 A)""
+O2 -> ""‹ › move through the walk's chat, never answering and never
+closing it (founder 2026-10-20)""
+O3 -> ""a paragraph that waits opens on what it asks and lands on the
+page; answered, it opens the whole walk with no buttons
+(founder 2026-10-20)""
 O4 -> ""helper words picked in the walk go through the deck's own
 save: the words and the lock""
 O5 -> ""Accept and practise writes through the accept lane and leaves the speaker's words on the page""
@@ -454,6 +474,15 @@ O3     -> ""an older bubble, or a project with nothing new, is plain""
 O4     -> ""clears when the flag clears""","Build plan D-FW-19; walk lock 2026-10-06, flow 1; backend 0439."
 src/components/willab/loungeReports.test.ts,Story,"As a speaker whose Ideal Text could not be built, I want one clear message with Retry and ""view feedback"", so that I can recover and still go on.","O1  The message has the exact signed-off sentence, belongs to this Take,
 and offers exactly Retry and view feedback.","O1 -> ""is the exact Take 1 terminal card under the session identity""",
+src/components/willab/loungeScreen.test.ts,Story,"As a speaker, I want Will to answer what sits right above my message in the chat, and my chat to keep the order it shows, so that a reply never misreads my number, my tap or my Take's feedback.","O1  Will reads every bubble in the order the chat draws it: the Take's
+card in words (with the coach's feedback when its dot is on), the
+summary (marked as the fixed message when the written one failed),
+the ask, and my own words.
+O2  What the chat adds sorts under the newest bubble on screen, even when
+this device's clock is behind the server's.
+O3  The newest ask on screen is known, so it is not asked a second time.","O1 -> ""tells Will the screen in its order, cards in words""
+O2 -> ""stamps a new bubble under the newest one on screen""
+O3 -> ""knows the ask that shows last""","Founder 2026-10-20: ""the conversational chat should be aware of the order of bubbles it displays"" (a number typed under the WhatsApp ask got a generic reply and the ask again; a card jumped under ""Skip"")."
 src/components/willab/noStarsOnUserSurfaces.test.ts,Guard,No component in src/components or src/app draws a star icon.,"Never 1 (no verdicts shown to speakers): a `<Star` element or a lucide
 `Star` import in any .tsx, user lane or coach lane. A source scan on
 purpose: the star rating once lived in six separate renderers, and a
@@ -558,11 +587,11 @@ O2  A version the thread holds twice keeps only the later copy.
 O3  Different versions with no review card all stay.","O1 -> ""hides the bubble of a Take that already has its review card""
 O2 -> ""hides the earlier copy of a version the thread holds twice""
 O3 -> ""keeps each version's own bubble""","Founder 2026-10-14 (walk first) and 2026-10-18 (""I can see two bubbles"")."
-src/components/willab/useAdminAsk.test.tsx,Story,"As a speaker, I want a question the admin sent me to appear the next time I open the chat, never while I record, and only once, so that it never interrupts a Take.","O1  It shows when I open the chat, with no Take needed.
-O2  Nothing shows while I am recording.
-O3  It is not posted again once it is in my chat.","O1 -> ""shows the next time they open the chat, with no Take""
-O2 -> ""waits while they are recording""
-O3 -> ""is not posted again once its bubble is in the thread""",Founder 2026-10-18: the admin's ask was not shown in the chat.
+src/components/willab/useAdminAsk.test.tsx,Story,"As a speaker, I want a question the founder sent me from the CEO panel to come at the end of a Take, as that Take's one ask, and only once per Take, so that it never competes with recording again.","O1  It shows when a Take's message waits for it, and not before.
+O2  After a reload it is not posted again: its form opens again.
+O3  With no ask left to show, the Take's message comes at once.","O1 -> ""shows at the end of a Take whose message waits for it""
+O2 -> ""is not posted again after a reload""
+O3 -> ""lets the Take's message go when there is nothing to ask""","Founder 2026-10-18: the admin's ask was not shown in the chat; founder 2026-10-20: at the end of a Take, from Take 2, one action at a time (it no longer shows when the chat opens)."
 src/components/willab/useFailedTakeRecheck.test.ts,Story,"As a speaker, I want a ""failed"" note under my Take cleared when the server says the Take actually finished, and never a failure claimed without asking the server, so that I am not told a done Take failed and can go on to my Ideal Text and the next Take.","O1  While a failed note is on screen the hook asks the server at once and
 reports ""recovered"" when the Take is done.
 O2  The server cannot be reached: ""unknown"", never a verdict.
@@ -584,30 +613,34 @@ opens only that word (top bar ""Your coach"", the video before the
 words, no ""Your coach"" line, the pill ""Close""); ✕ closes and the ring
 stays; Close tells the server the Take's word was watched and the ring
 goes.","O1 -> ""the coach's changed word opens alone; only Close marks it watched""","Founder 2026-10-19, N80 (D4, D8, D11) and the approved two-phone prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk."
-src/components/willab/walk/feedbackWalk.test.tsx,Story,"As a speaker, I want the Feedback walk to take me through my coach's note, praise with its reason, helper words, the clearer version and a summary, in words only, so that feedback after every Take is clear and backed by what I said.","O1  The screens come in order: coach's note, praise, helper words, next praise, summary, back to my page.
+src/components/willab/walk/feedbackWalk.test.tsx,Story,"As a speaker, I want the Feedback walk to take me through my coach's note, praise with its reason, helper words, the clearer version and a summary, in words only, as one chat that grows with each tap, so that feedback after every Take is clear and backed by what I said.","O1  The steps come in order as one chat: coach's note, praise, helper words, next praise, summary, back to my page; earlier steps stay above, my choices land as my own bubbles.
 O2  A good moment shows the praise line, then why it landed, quoting my words.
 O3  Reopened from the Lounge, a clip I already judged shows as answered and is not asked again.
 O4  If the summary cannot be read, the walk goes straight back to my page.
-O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page
+O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.
+O6  A step's grey bubbles land one after another behind the typing dots, and its buttons come once they all have.","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
 O2 -> a green moment says why it landed
 O3 -> reopened from the Lounge, the judging shows the moment already answered
 O4 -> skips the summary when it cannot be read, straight onto the page
-O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder",Never-rule 1 (no scores to speakers); Feedback walk is a locked screen.
+O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder
+O6 -> a step's bubbles land behind the typing dots, then its buttons (founder 2026-10-20)",Never-rule 1 (no scores to speakers); Feedback walk is a locked screen.
 src/components/willab/walk/walkCopy.test.ts,Guard,"Every word the walk can show comes from the signed copy, and no signed walk line carries a digit.","Never 4: a literal word typed into a walk/*.tsx primitive (JSX text,
 a string child, an accessible name, title, placeholder) that is not in
 WALK_COPY or CHUNK_SHEET_COPY. Never 1: a digit in a signed walk line
 (the only numbers the walk shows are a Take or moment position, put in
 by the caller).","unsigned word -> ""every literal a primitive shows or reads out is signed""
 digit         -> ""no signed walk line carries a digit""",If removed: An unsigned word or a number can reach speakers in the Feedback walk.
-src/components/willab/walk/walkPractise.test.tsx,Story,"As a speaker, I want to practise inside the walk (record, hear an answer in words, hear an AI version of my voice, at most 3 tries), so that practice is quick, kind and free of numbers.","O1  Stopping a try uploads it and asks for a check, and I am back in the walk at once.
+src/components/willab/walk/walkPractise.test.tsx,Story,"As a speaker, I want to practise inside the walk's chat (record, hear an answer in words, hear an AI version of my voice, at most 3 tries), so that practice is quick, kind and free of numbers.","O1  Stopping a try uploads it and asks for a check, and I am back in the walk at once.
 O2  A better try gets praise in words for what improved, then the walk moves on.
 O3  A ""not yet"" on the clearer words brings the AI version of my voice; a good try does not.
 O4  The AI clip appears with one sentence on what it does differently, never a number.
-O5  At most 3 tries, all shown together; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.","O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
+O5  At most 3 tries, all shown together in the chat with the steps before them; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.
+O6  The Exercise reaches the coach's queue the moment it is on screen, and the Lounge as the AI bubble once a clip is coming, even when I tap Practise first.","O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
 O2 -> praise on try 1: the line for the reading that moved ...
 O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
 O4 -> the bubble is there at once: the typing dots alone ..., with the clip, the speaker reads what this version does differently and why (WIL-82)
-O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing",Never-rule 1 (no scores to speakers).
+O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing
+O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first",Never-rule 1 (no scores to speakers).
 src/components/willab/walk/walkReplay.test.tsx,Story,"As a speaker, I want to replay a finished walk with my answers shown and nothing written or recorded again, so that I can look back safely.","O1  The same screens play with my answers; only a change to my helper words is saved.
 O2  A done exercise plays my past tries and records nothing new.
 O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.","O1 -> opens on the coach's note and plays the same screens answered; helper words stay editable, nothing else writes
@@ -643,9 +676,12 @@ at once, not only when a moment is open on it (N48.2 Q6 A).","O1 -> ""every mome
 O2 -> ""a paragraph whose helper words were deleted is back in the walk on its earlier answer""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
 src/components/willab/whatsappOffer.test.tsx,Story,"As a speaker, I want to leave my WhatsApp number to hear when my coach's feedback is in, with wrong numbers refused, so that the message reaches me.","O1  A number without its country code is refused on screen and nothing is sent.
 O2  A valid number is saved in full international form and the offer closes.
-O3  Not now sends nothing and closes.","O1 -> refuses a number without its country code
+O3  Not now sends nothing and closes.
+O4  A number I typed in the chat without its country code is in the form,
+to fix, not to type again (founder 2026-10-20).","O1 -> refuses a number without its country code
 O2 -> saves a valid number in E.164 and closes
-O3 -> Not now sends nothing and closes",
+O3 -> Not now sends nothing and closes
+O4 -> opens with the number typed in the chat",
 src/components/willab/willabHelpers.test.ts,Story,"As a speaker, I want my slide taps lined up with the recording's clock, so that each word lands on the right slide.","O1  When the recording started later than the tap clock, the correction is positive by exactly that gap.
 O2  When the recording never reported a start, no correction is sent.","O1 -> is positive when the recorder started after the tap clock's zero
 O2 -> sends nothing when the recorder never reported a start",The backend subtracts this from every tap; the wrong sign would double the drift.
@@ -866,13 +902,16 @@ O3  The count of other speakers' moments I judged in a Take comes from my
 own answers in that Take only.
 O4  The sharing question shows as one message, also when it was stored as
 three.
-O5  My coach's word for a Take is written into the chat once: not again
+O5  The Lounge says what the walk's chat said: the practise answer's line
+as shown, and no ""Practise"" bubble of its own for a try.
+O6  My coach's word for a Take is written into the chat once: not again
 when it shows again, not under its ""Later · from your coach"" bubble,
 not for an earlier Take's word, not in a replay (N80, D4).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
 O2 -> ""posts judging other speakers as the prototype's chat does, never their recording""
 O3 -> ""counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles""
 O4 -> ""asks the sharing question as one bubble, its lines as paragraphs, also for a question stored as three""
-O5 -> ""writes the coach's word into the chat once per Take""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word)."
+O5 -> ""says the practise answer the walk showed, and writes no Practise bubble for a try (founder 2026-10-20)""
+O6 -> ""writes the coach's word into the chat once per Take""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word)."
 src/services/api/accountDeletion.test.ts,Story,"As a speaker, I want ""delete my account"" to send one deletion request and show me how long I have to change my mind, and a refusal to change nothing, so that I can trust deletion and cancel it in time.","O1  Asking to delete sends one request with a one-time key and shows the
 pending deletion with its end date.
 O2  A refusal or no connection records nothing.

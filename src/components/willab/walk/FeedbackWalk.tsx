@@ -2,29 +2,42 @@
 
 import { reasonRuns, type PraiseReason, type WalkPraiseReasons } from "@/lib/willab/praiseReason";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { stripRichMarkers } from "@/lib/willab/richMarkers";
+import { answerBody } from "@/lib/willab/walkThread";
 import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
 import WalkStage from "./WalkStage";
+import WalkThread, { WalkPart, WalkSpeakerBubble, WalkThreadMark } from "./WalkThread";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage, { WalkNewWords } from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import WalkWordPicker from "./WalkWordPicker";
-import { practiseThreadFooter, practiseThreadItem, renderPractiseScreen, type PractiseScreenCtx } from "./WalkPractiseScreens";
+import { practiseThreadFooter, practiseThreadItem, type PractiseScreenCtx } from "./WalkPractiseScreens";
 import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
 import WalkSummary from "./WalkSummary";
-import WalkAiVoice, { aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
+import WalkAiVoice, { aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
 import type { SayLine, WalkBankKey, WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import { WALK_MAX_TRIES, type WalkStep } from "@/lib/willab/walkPlan";
-import { loopEnd, threadPraised, threadShownEnd, threadStart, triesMade, withNextTry } from "@/lib/willab/walkPractise";
+import {
+  encourageLine,
+  improvedLine,
+  loopEnd,
+  thanksLine,
+  threadPraised,
+  threadShownEnd,
+  threadStart,
+  triesMade,
+  withNextTry,
+} from "@/lib/willab/walkPractise";
 import type { WalkPractiseIO } from "@/services/api/walkPractise";
-import { walkStepAt, type FeedbackWalkModel, type FeedbackWalkMoment, type WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
+import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import type { ClearerPiece } from "@/lib/willab/clearerPieces";
 import { phraseTokens, selectionSpan, type PhraseSelection } from "@/lib/willab/phraseTokens";
 import type { RootPhraseSpan } from "@/services/api/partLock";
@@ -34,10 +47,11 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /*  moment and feedback chat; prototype v31, one to one).                      */
 /*                                                                            */
 /*  The production controller. It draws the steps of the walk's plan           */
-/*  (walkPlan.ts, feedbackWalkModel.ts) as the prototype's lens screens, from  */
-/*  the walk's primitives, and moves between them with WalkStage: the overlay */
-/*  slides in from the right (0.34 s), the content slides under a still top   */
-/*  bar, ✕ swipes it out to the left (0.28 s), and every move is instant with */
+/*  (walkPlan.ts, feedbackWalkModel.ts) as ONE CHAT (founder 2026-10-20,      */
+/*  WIL-89, WalkThread): every step reached is a part of one thread that      */
+/*  grows downwards, nothing swaps. The overlay slides in from the right      */
+/*  (0.34 s) and ✕ swipes it out to the left (0.28 s), with WalkStage; each   */
+/*  new step's bubbles land one after the other; every move is instant with   */
 /*  reduce motion.                                                            */
 /*                                                                            */
 /*  Each step is a grey bubble on the left whose first line is the step's     */
@@ -56,18 +70,19 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /*               own sentence with Line A                                     */
 /*    exVideo    the clip, "Exercise", the 4:5 video when there is one, the   */
 /*               instruction (else Line A); Practise with the red dot, Skip   */
-/*    practise…  the recorder and the try's screens (WalkPractiseScreens)     */
+/*    practise…  every practise loop is one thread: the words to say, each    */
+/*               try, the check and the answer; the recorder is the dock      */
+/*               (WalkPractiseScreens)                                        */
 /*    others     other speakers' moments to judge, one per try (WalkOthers)   */
 /*    summary    the closing summary, "Take N"; Next closes the walk onto the */
 /*               Ideal Text (WalkSummary)                                     */
 /*                                                                            */
-/*  ‹ › browse every screen of the whole walk, answered and waiting alike,    */
-/*  across slides, in walk order (founder 2026-10-15, "one bar for the whole  */
-/*  walk"); they never answer and never close: at the first and last screen  */
-/*  they are off. The pill alone moves the journey on, to the next step that  */
-/*  waits. A step reopened (‹, or the finished walk played again) shows its   */
-/*  answer as a "✓ …" line over a black Next, with the other answers dimmed   */
-/*  and inert. Helper words stay editable (lock, section 2.3).                */
+/*  ‹ › scroll the thread to the step before or after (WalkThread); they      */
+/*  never answer and never close. The pill alone moves the journey on, to the */
+/*  next step that waits, and the speaker's choice lands as their own bubble. */
+/*  A step reopened (the finished walk played again) shows its answer as a    */
+/*  "✓ …" line over a black Next. Helper words stay editable on the newest    */
+/*  part (lock, section 2.3).                                                 */
 /*                                                                            */
 /*  Every word on these screens is a signed one (CHUNK_SHEET_COPY, WALK_COPY) */
 /*  or the caller's (the coach's note, the praise line the item carries);     */
@@ -79,15 +94,11 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /* -------------------------------------------------------------------------- */
 
 /** "Open the walk at step `at`". A new `seq` is a new request; `how` is the
- *  move that brought the speaker there (‹ or › across the walk's models). */
-export type FeedbackWalkRequest = { seq: number; at: number; how?: WalkDir };
-
-export type WalkBrowseDir = "back" | "forward";
-
-/** Where ‹ or › goes, as the host names it: the screen by its kind and
- *  paragraph, whether the live walk still holds it (its pill answers it),
- *  and how the host opens it when this walk does not hold it. */
-export type WalkHop = { target: WalkStepTarget; live: boolean; open: () => void };
+ *  move that brought the speaker there (‹ or › across the walk's models).
+ *  `whole`: the finished walk to scroll through, every step at once, opened
+ *  at `at`, with no buttons (founder 2026-10-20: a paragraph with nothing
+ *  left to answer). */
+export type FeedbackWalkRequest = { seq: number; at: number; how?: WalkDir; whole?: boolean };
 
 /** The coach's word for the Take, as the walk shows it. */
 export type FeedbackWalkCoachNote = {
@@ -147,11 +158,6 @@ type Props<R> = {
   /** Next on a step played again: true when the host moved the walk itself
    *  (a step still waits, so Next goes there; founder 2026-10-14). */
   onForward?: () => boolean;
-  /** ‹ ›: the screen `dir` of `step` in the whole walk, which the host
-   *  holds (the steps answered earlier in the replay, the waiting ones in
-   *  the live walk), or null at the walk's first or last screen (founder
-   *  2026-10-15). Absent, the arrows browse this walk's own plan. */
-  browse?: (step: WalkStep, partId: string | null, dir: WalkBrowseDir) => WalkHop | null;
   /** ✕: the overlay sinks back to the page. */
   onClose?: () => void;
   /** The line bank's memory (D-FW-3): the walk reads which line each bank
@@ -168,9 +174,15 @@ type Props<R> = {
     moment: FeedbackWalkMoment<R> | null,
     say: (bank: WalkBankKey) => string,
     ai?: WalkAiShown | null,
+    /** A try's answer: the line the screen shows, so the chat says the
+     *  same (founder 2026-10-20). */
+    line?: string | null,
   ) => void;
+  /** A screen reached the speaker: the host tells the server at once (the
+   *  coach's queue, N48.2), before the chat hears what it showed. */
+  onReached?: (step: WalkStep, moment: FeedbackWalkMoment<R> | null) => void;
   /** The speaker answered a step (not a replay): the host shows the answer
-   *  as their own bubble in the chat. Nothing is drawn from it. */
+   *  as their own bubble in the chat, as the thread does. */
   onAnswer?: (step: WalkStep, value: string) => void;
   /** Another speaker's moment shown (`answer` null) or answered: the host
    *  posts it to the chat. Nothing is drawn from it. */
@@ -192,28 +204,28 @@ const testId = (step: WalkStep) => `walk-screen-${step.key}`;
 /** The steps a practise is opened from; ✕ on the recorder goes back there. */
 const OPENERS = new Set(["clearer", "exVideo", "encourage", "late"]);
 
-/** The screens ‹ › pass over: the checking screen, a late read, the
- *  recorder and the judging (a try is not checked twice by going back, and
- *  a judgement stays as given; lock 2026-10-12, section 2.6). */
-const PASSED: ReadonlySet<string> = new Set(["processing", "late", "practise", "others"]);
+/** One part of the thread: a step reached, by its place in the plan. */
+type ThreadPart = { key: string; at: number };
 
-/** The screens of a try (the recorder, the check, what the machine said):
- *  the arrows reckon from the screen that opened them. */
-const TRY: ReadonlySet<string> = new Set(["practise", "processing", "late", "improved", "encourage", "thanks"]);
-
-/** Where ‹ or › goes from `at` on `plan`. Null on the walk's first or last
- *  screen: the page is never reached by an arrow. Pure. */
-export function walkBrowseFrom(plan: readonly WalkStep[], at: number, dir: WalkBrowseDir): number | null {
-  const by = dir === "back" ? -1 : 1;
-  let to = at + by;
-  while (to > 0 && to < plan.length - 1 && PASSED.has(plan[to]?.key)) to += by;
-  const step = plan[to];
-  return !step || step.overlay === false ? null : to;
-}
-
-/** Where ‹ goes from `at` on `plan`. Pure. */
-export function walkBackFrom(plan: readonly WalkStep[], at: number): number | null {
-  return walkBrowseFrom(plan, at, "back");
+/** The parts of the thread, oldest first: every step reached up to
+ *  `head`, a practise loop as one part that grows, the page's hidden steps
+ *  left out (founder 2026-10-20, the lens as one chat). Pure. */
+export function walkThreadParts(plan: readonly WalkStep[], head: number): ThreadPart[] {
+  const out: ThreadPart[] = [];
+  for (let i = 0; i <= head && i < plan.length; i += 1) {
+    const s = plan[i];
+    if (!s || s.overlay === false) continue;
+    const start = threadStart(plan, i);
+    if (start < 0) {
+      out.push({ key: `${i}:${s.key}`, at: i });
+      continue;
+    }
+    const key = `thread:${start}`;
+    const last = out[out.length - 1];
+    if (last?.key === key) last.at = i;
+    else out.push({ key, at: i });
+  }
+  return out;
 }
 
 /** The plan with the practise step after `at` set to `kind`: "Accept and
@@ -240,10 +252,10 @@ export default function FeedbackWalk<R = unknown>({
   summary = null,
   onEnd,
   onForward,
-  browse,
   onClose,
   lines: linesIO = null,
   onShown,
+  onReached,
   onAnswer,
   onOthers,
   reasons = null,
@@ -253,7 +265,7 @@ export default function FeedbackWalk<R = unknown>({
   liveModel.current = model;
   const [walk, setWalk] = useState<FeedbackWalkModel<R>>(model);
   const [at, setAt] = useState(0);
-  const [dir, setDir] = useState<WalkDir | undefined>(undefined);
+  const [whole, setWhole] = useState(false);
   const [picks, setPicks] = useState<Record<string, PhraseSelection | null>>({});
   // The answer given to each step in this opening, by the step's identity.
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -263,6 +275,7 @@ export default function FeedbackWalk<R = unknown>({
   requestRef.current = request;
   const seq = request?.seq ?? null;
   const resetRef = useRef<() => void>(() => undefined);
+  const openedAt = useRef<number | null>(null);
   useEffect(() => {
     const asked = requestRef.current;
     if (seq === null || !asked) return;
@@ -271,20 +284,16 @@ export default function FeedbackWalk<R = unknown>({
     setWalk(opened);
     setPicks(replayPicks(opened));
     setAnswers({});
-    setDir(asked.how);
     setAt(asked.at);
+    setWhole(asked.whole === true);
+    openedAt.current = asked.at;
   }, [seq]);
 
   const plan = walk.plan;
   const step = plan[at] ?? plan[0];
 
-  const go = useCallback(
-    (to: number, how: WalkDir | undefined) => {
-      setDir(how);
-      setAt(to);
-    },
-    [],
-  );
+  // `how` is kept for the callers; the thread does not slide (2026-10-20).
+  const go = useCallback((to: number, _how?: WalkDir) => setAt(to), []);
   /** Move to `to` on `steps`; the page underneath ends the walk. A try
    *  played again is never stood on: its recorder and check are passed over
    *  to the answer it got (walk first, 2026-10-14). */
@@ -310,41 +319,6 @@ export default function FeedbackWalk<R = unknown>({
     const here = plan.indexOf(step);
     if (here === atNow.current) land(plan, here + 1, "forward");
   };
-  /** Where ‹ or › goes from here: through the whole walk when the host
-   *  knows it, else through this plan. A try's screens reckon from the
-   *  screen that opened them. Null at the walk's first or last screen: the
-   *  arrow is off. The arrows answer nothing and never close the walk. */
-  const arrow = (dir: WalkBrowseDir): (() => void) | null => {
-    // The Exercise thread is one screen (founder 2026-10-16): ‹ leaves it
-    // from its first step, › from the last one the speaker has seen.
-    const thread = threadStart(plan, at);
-    const opener = thread >= 0 ? thread : TRY.has(step.key) ? walkBackFrom(plan, at) : at;
-    if (opener === null) return null;
-    if (thread < 0 && opener !== at && dir === "back") return () => go(opener, "back");
-    let from = thread >= 0 && dir === "forward" ? threadShownEnd(plan, at) : opener;
-    while (thread < 0 && TRY.has(plan[from].key)) {
-      const up = walkBackFrom(plan, from);
-      if (up === null) return null;
-      from = up;
-    }
-    const s = plan[from];
-    if (!browse) {
-      const to = walkBrowseFrom(plan, from, dir);
-      return to === null ? null : () => go(to, dir);
-    }
-    const hop = browse(s, s.moment == null ? null : walk.moments[s.moment]?.partId ?? null, dir);
-    if (!hop) return null;
-    return () => {
-      // A screen this walk holds is a plain move, its answers kept; a step
-      // the live walk still holds is answered there, so a replay hands over.
-      const here = walkStepAt(walk, hop.target);
-      if (here !== null && (!walk.replay || !hop.live)) go(here, dir);
-      else hop.open();
-    };
-  };
-  const arrows = { back: arrow("back"), next: arrow("forward") };
-  const back = () => arrows.back?.();
-  const next = () => arrows.next?.();
   /** The practise lays a new plan in as the machine answers. */
   const relay = useCallback(
     (steps: WalkStep[], to: number, how: WalkDir) => {
@@ -387,19 +361,63 @@ export default function FeedbackWalk<R = unknown>({
   const aiKey = ai === "pending" ? "pending" : `${aiState?.demo ?? ""}|${aiState?.clip?.state ?? ""}|${aiPractice ?? ""}|${ai?.line ?? ""}`;
   const walkLines = useWalkLines(linesIO);
   const { say: sayLine } = walkLines;
-  const aiRef = useRef<WalkAiShown | null>(null);
-  aiRef.current = ai && ai !== "pending" && aiPractice ? { ...ai, practiceId: aiPractice } : null;
+  /** The AI bubble step `s` (at `i`) gives the chat: the one its clip will
+   *  make, once one is coming or in, with the practice the chat reads it
+   *  from; null: the plain step (founder 2026-10-20: a message is posted
+   *  once and never rewritten, so a clip on its way is posted as itself). */
+  const chatAi = (s: WalkStep, i: number): WalkAiShown | null => {
+    if (s.moment == null) return null;
+    const practiceId = practise.aiVoicePracticeOf(s.moment);
+    const lines = practiceId ? aiVoiceComing(plan, i, practise.aiVoiceOf(s.moment)) : null;
+    return lines && practiceId ? { ...lines, practiceId } : null;
+  };
   const shownRef = useRef(onShown);
   shownRef.current = onShown;
+  const reachedRef = useRef(onReached);
+  reachedRef.current = onReached;
   useEffect(() => {
-    if (seq === null || !step || step.overlay === false || aiKey === "pending") return;
-    // The Exercise screen's clip is still being asked: told once it is known.
-    if (step.key === "exVideo" && step.moment != null && practise.aiVoiceAsking(step.moment)) return;
+    if (seq === null || !step || step.overlay === false) return;
     const moment = step.moment != null ? (walk.moments[step.moment] ?? null) : null;
-    shownRef.current?.(step, moment, (bank) => sayLine(step, bank), aiRef.current);
-    // practise.aiVoiceAsking is stable; aiKey changes when the answer lands.
+    // The Exercise is told to the server at once (the coach's queue); its
+    // chat bubble waits for whether a clip is coming (below).
+    if (step.key === "exVideo") {
+      reachedRef.current?.(step, moment);
+      return;
+    }
+    const line =
+      step.key === "improved"
+        ? improvedLine(plan, at)
+        : step.key === "encourage"
+          ? encourageLine(plan, at)
+          : step.key === "thanks"
+            ? thanksLine(plan, at)
+            : null;
+    // Opened on a moment's helper words (a paragraph that waits, founder
+    // 2026-10-20), its praise is just above them: told first, as if the
+    // walk had stood on it.
+    const above = plan[at - 1];
+    if (at === openedAt.current && step.key === "helpers" && above?.key === "praise" && above.moment === step.moment) {
+      shownRef.current?.(above, moment, (bank) => sayLine(above, bank), null, null);
+    }
+    shownRef.current?.(step, moment, (bank) => sayLine(step, bank), chatAi(step, at), line);
+    // aiKey changes when the clip's answer lands.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq, step, walk.moments, aiKey]);
+  // The Exercise's chat bubble (founder 2026-10-20, WIL-89): once the walk
+  // knows whether an AI clip is coming (the ask answered, a second or two),
+  // even when the speaker already tapped Practise and moved on.
+  const toldExercise = useRef(new Set<string>());
+  useEffect(() => {
+    if (seq === null) return;
+    plan.forEach((s, i) => {
+      if (i > at || s.key !== "exVideo" || s.moment == null) return;
+      const told = `${seq}:${i}`;
+      if (toldExercise.current.has(told) || practise.aiVoiceAsking(s.moment)) return;
+      toldExercise.current.add(told);
+      const moment = walk.moments[s.moment] ?? null;
+      shownRef.current?.(s, moment, (bank) => sayLine(s, bank), chatAi(s, i), null);
+    });
+  });
   resetRef.current = () => {
     practise.reset();
     walkLines.reopen();
@@ -461,13 +479,12 @@ export default function FeedbackWalk<R = unknown>({
     walk,
     reasons,
     at: (s) => plan.indexOf(s),
-    arrows,
+    // The whole walk to scroll through has no live step.
+    head: whole ? -1 : at,
     coachNote,
     takeIndex,
     forward,
     forwardFrom,
-    back,
-    next,
     close,
     picks,
     answer,
@@ -542,18 +559,23 @@ export default function FeedbackWalk<R = unknown>({
     othersJudged,
   };
 
-  // The voice Exercise's thread is one screen to the stage: its steps change
-  // inside it, and only leaving it moves (founder 2026-10-13, P1 A).
-  const stage =
-    threadStart(plan, at) >= 0
-      ? { key: "thread", moment: step.moment, overlay: step.overlay, real: step }
-      : { ...step, real: step };
+  // The walk is one chat (founder 2026-10-20): the stage moves only as the
+  // lens opens and closes, never between steps; the thread grows inside it.
+  const stage = { key: step.overlay === false ? "page" : "walk", overlay: step.overlay, head: at, seq, whole };
+  const frame = useRef<HTMLDivElement | null>(null);
 
   return (
     <div data-feedback-walk data-walk-step={step.key}>
       {/* The whole window on a wide screen, the words in the phone's column
           (globals.css, "Desktop"). */}
-      <WalkStage screen={stage} dir={dir} render={(s) => renderScreen(ctx, s.real, backFromPractise)} />
+      <WalkStage
+        screen={stage}
+        render={(s, ghost) => (
+          <WalkThread ghost={ghost} frame={frame} onClose={close}>
+            {renderThread(ctx, s.head, s.seq, backFromPractise, s.whole)}
+          </WalkThread>
+        )}
+      />
     </div>
   );
 }
@@ -576,16 +598,13 @@ type ScreenCtx<R = unknown> = {
   walk: FeedbackWalkModel<R>;
   /** Where a step sits in the plan. */
   at: (step: WalkStep) => number;
-  /** Where ‹ and › go from this screen; null: the arrow is off. */
-  arrows: { back: (() => void) | null; next: (() => void) | null };
+  /** The newest step reached: the live part of the thread. */
+  head: number;
   coachNote: FeedbackWalkCoachNote | null;
   takeIndex: number | null;
   /** The pill: on to the next step that waits. */
   forward: () => void;
   forwardFrom: (step: WalkStep) => void;
-  /** ‹ and ›. */
-  back: () => void;
-  next: () => void;
   close: () => void;
   picks: Record<string, PhraseSelection | null>;
   answer: (step: WalkStep, value: string) => void;
@@ -612,10 +631,12 @@ type ScreenCtx<R = unknown> = {
   othersJudged: number;
 };
 
-/** The top bar's words for a step: "Slide N" (founder 2026-10-15: no moment
- *  count), "Slide N · helper words" on the helper words. ‹ › are off at the
- *  walk's first and last screen only. */
-function stepNav(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment): WalkNav {
+const noop = () => undefined;
+
+/** A step's name: "Slide N" (founder 2026-10-15: no moment count), "Slide N
+ *  · helper words" on the helper words. The thread's mark and bar say it;
+ *  ‹ › are the thread's own (WalkThread). */
+function stepNav(_ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment): WalkNav {
   const label = moment.slideLabel;
   const position =
     step.key === "helpers"
@@ -628,10 +649,10 @@ function stepNav(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment): Wa
     index: 0,
     total: 1,
     position,
-    onBack: ctx.back,
-    onNext: ctx.next,
-    backDisabled: ctx.arrows.back === null,
-    nextDisabled: ctx.arrows.next === null,
+    onBack: noop,
+    onNext: noop,
+    backDisabled: true,
+    nextDisabled: true,
   };
 }
 
@@ -668,10 +689,10 @@ function CoachNote(ctx: ScreenCtx, step: WalkStep) {
     position: COPY.titleCoach,
     index: 0,
     total: 1,
-    onBack: ctx.back,
-    onNext: ctx.next,
-    backDisabled: ctx.arrows.back === null,
-    nextDisabled: ctx.arrows.next === null,
+    onBack: noop,
+    onNext: noop,
+    backDisabled: true,
+    nextDisabled: true,
   };
   const ok = () => {
     ctx.answer(step, "ok");
@@ -749,10 +770,11 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   );
 }
 
-/** "Choose your helper words": the bubble, then the picker filling the rest
- *  of the screen. */
+/** "Choose your helper words": the bubble, then the picker as a big bubble
+ *  in the thread, live on the newest part only. */
 function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   const picked = ctx.picks[pickKey(step)] ?? null;
+  const live = ctx.at(step) === ctx.head;
   const words = moment.paragraphText;
   const given = ctx.answered(step) !== null || picked !== null && Boolean(ctx.walk.replay);
   const skip = () => {
@@ -787,7 +809,9 @@ function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
       <WalkWordPicker
         words={phraseTokens(words).map((token) => token.text)}
         selection={picked}
-        onChange={(next) => ctx.pick(step, next)}
+        onChange={(next) => {
+          if (live) ctx.pick(step, next);
+        }}
       />
     </WalkOverlay>
   );
@@ -847,44 +871,6 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
       </WalkMessage>
       {clearer.byCoach ? null : <CoachAnswerBubble moment={moment} />}
     </WalkOverlay>
-  );
-}
-
-/** The exercise: the clip, "Exercise", the video in the 4:5 frame when there
- *  is one (the coach's, else the library's), the instruction (else Line A);
- *  Practise with the red dot, Skip. Nothing here waits on a coach (WQ2 B). */
-function Exercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
-  return (
-    <WalkOverlay
-      testId={testId(step)}
-      nav={ctx.nav(step, moment)}
-      onClose={ctx.close}
-      footer={<ExerciseFooter ctx={ctx} step={step} />}
-    >
-      <ExerciseBody ctx={ctx} step={step} moment={moment} />
-    </WalkOverlay>
-  );
-}
-
-/** Practise with the red dot and Skip, or the answer once given. Outlined in
- *  the thread (founder 2026-10-13, P2 A). */
-function ExerciseFooter<R>({ ctx, step, outline = false }: { ctx: ScreenCtx<R>; step: WalkStep; outline?: boolean }) {
-  const given = ctx.answered(step);
-  if (given) {
-    return (
-      <Answered
-        ctx={ctx}
-        line={given === "go" ? WALK_COPY.answeredPractised : given === "skip" ? WALK_COPY.answeredSkipped : WALK_COPY.answered}
-      />
-    );
-  }
-  return (
-    <WalkFooter
-      dot
-      outline={outline}
-      pill={{ label: WALK_COPY.exercisePractise, onClick: () => ctx.exercise(step), testId: "walk-forward" }}
-      links={[{ label: WALK_COPY.skip, onClick: () => ctx.skipExercise(step), testId: "walk-skip" }]}
-    />
   );
 }
 
@@ -951,11 +937,12 @@ function CoachAnswer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkM
  *  late read. Every other step of the thread has the thread's footer. */
 const TRY_FOOTER: ReadonlySet<string> = new Set(["practise", "processing", "late"]);
 
-/** The voice Exercise as one thread (founder 2026-10-13, P1 A; 2026-10-16):
- *  the Exercise, then every try, check and answer under the one before, in
- *  one overlay that stays put. The whole history is on screen whichever of
- *  its steps the walk stands on, live or come back to; under it the
- *  thread's footer, or the try's own while one is in progress. */
+/** A practise loop as one thread (founder 2026-10-13, P1 A; 2026-10-16;
+ *  every loop since 2026-10-20): the voice Exercise when there is one, then
+ *  every try, check and answer under the one before. The whole history is
+ *  on screen whichever of its steps the walk stands on, live or come back
+ *  to; under it the thread's footer, or the try's own while one is in
+ *  progress. */
 function Thread<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>, practiseCtx: PractiseScreenCtx) {
   const at = ctx.at(step);
   const steps = ctx.walk.plan.slice(Math.max(0, threadStart(ctx.walk.plan, at)), threadShownEnd(ctx.walk.plan, at) + 1);
@@ -967,6 +954,7 @@ function Thread<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment
       nav={ctx.nav(step, moment)}
       onClose={step.key === "practise" ? practiseCtx.back : ctx.close}
       footer={footer}
+      landing={false}
     >
       {steps.map((s, i) => (
         <Fragment key={`${s.key}:${s.attempt ?? 0}:${i}`}>
@@ -977,7 +965,6 @@ function Thread<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment
           )}
         </Fragment>
       ))}
-      <ThreadEnd count={steps.length} />
     </WalkOverlay>
   );
 }
@@ -1000,16 +987,6 @@ function ThreadFooter<R>({ ctx, step }: { ctx: ScreenCtx<R>; step: WalkStep }) {
   if (!more) return <WalkFooter pill={{ label: COPY.pagerNext, onClick: next, testId: "walk-forward" }} />;
   const label = tries === 0 ? WALK_COPY.exercisePractise : COPY.pillPractiseAgain;
   return <WalkFooter dot outline pill={{ label, onClick: practise, testId: "walk-practise" }} />;
-}
-
-/** Keeps the newest bubble in view as the thread grows. */
-function ThreadEnd({ count }: { count: number }) {
-  const end = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    end.current?.scrollIntoView?.({ block: "end", behavior: reduce ? "auto" : "smooth" });
-  }, [count]);
-  return <div ref={end} aria-hidden className="h-px flex-none" />;
 }
 
 /** No video fits this problem: the AI clip in the video's place (N71), the
@@ -1056,8 +1033,8 @@ function Summary(ctx: ScreenCtx, step: WalkStep) {
       testId={testId(step)}
       takeIndex={ctx.takeIndex}
       fetchText={ctx.summary}
-      onBack={ctx.back}
-      backDisabled={ctx.arrows.back === null}
+      onBack={noop}
+      backDisabled
       onNext={() => ctx.forwardFrom(step)}
       onClose={ctx.close}
     />
@@ -1087,7 +1064,84 @@ function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep, backFromPractise: ()
     replayTries: ctx.walk.replay?.tries,
     ...ctx.practise,
   };
-  if (threadStart(ctx.walk.plan, ctx.at(step)) >= 0) return Thread(ctx, step, moment, practiseCtx);
-  if (step.key === "exVideo") return Exercise(ctx, step, moment);
-  return renderPractiseScreen(practiseCtx, step, moment as FeedbackWalkMoment<unknown>) ?? null;
+  return threadStart(ctx.walk.plan, ctx.at(step)) >= 0 ? Thread(ctx, step, moment, practiseCtx) : null;
+}
+
+/** The small line that opens a part: the step's name, as the bar says it.
+ *  Other speakers name each of their moments themselves (WalkOthers). */
+function partLabel(ctx: ScreenCtx, step: WalkStep): string | null {
+  if (step.key === "coachnote") return COPY.titleCoach;
+  if (step.key === "summary") return ctx.takeIndex != null ? `${COPY.historyTake} ${ctx.takeIndex}` : COPY.historyTake;
+  if (step.key === "others") return null;
+  const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];
+  return moment ? (stepNav(ctx, step, moment).position ?? null) : null;
+}
+
+/** The speaker's choice on a step, as their own bubble under it: the same
+ *  words the host posts to the Lounge (walkThread.ts, answerBody; the
+ *  helper words themselves; the clearer version's choice). Null: a Next or
+ *  a Continue, or a try, which is its own bubble. */
+function answerSaid(ctx: ScreenCtx, step: WalkStep): string | null {
+  const given = ctx.answered(step);
+  if (!given) return null;
+  if (step.key === "helpers" && given === "use") {
+    const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];
+    const span = moment
+      ? selectionSpan(moment.paragraphText, phraseTokens(moment.paragraphText), ctx.picks[pickKey(step)] ?? null)
+      : null;
+    return span ? stripRichMarkers(span.text) : null;
+  }
+  if (step.key === "clearer") {
+    if (given === "keep") return COPY.linkKeepMyWords;
+    if (given === "accept") return step.kind === "accept" ? WALK_COPY.clearerAccept : COPY.pillAcceptPractise;
+    return null;
+  }
+  return answerBody(step, given);
+}
+
+/** What the whole walk to scroll through leaves out: drawn as earlier
+ *  parts, these show nothing. */
+const NOT_IN_WHOLE: ReadonlySet<string> = new Set(["others", "summary"]);
+
+/** The thread: each step reached up to `head`, opened by its name when it
+ *  changes, with the speaker's choice under it. Only the last part is live.
+ *  A new opening (`seq`) draws the parts afresh. `whole`: every step of the
+ *  walk, none live (no buttons), the part holding `head` marked where the
+ *  thread opens (WalkThread). */
+function renderThread<R>(
+  ctx: ScreenCtx<R>,
+  head: number,
+  seq: number | null,
+  backFromPractise: () => void,
+  whole = false,
+): ReactNode {
+  const all = walkThreadParts(ctx.walk.plan, whole ? ctx.walk.plan.length - 1 : head);
+  const parts = whole ? all.filter((p) => !NOT_IN_WHOLE.has(ctx.walk.plan[p.at].key)) : all;
+  const start = whole ? parts.findIndex((p) => p.at >= head) : -1;
+  let last: string | null = null;
+  return parts.map((part, i) => {
+    const step = ctx.walk.plan[part.at];
+    const label = partLabel(ctx, step);
+    const mark = label && label !== last ? <WalkThreadMark label={label} /> : null;
+    last = step.key === "others" ? null : (label ?? last);
+    const said = answerSaid(ctx, step);
+    const body = (
+      <>
+        {mark}
+        <WalkPart now={!whole && i === parts.length - 1}>{renderScreen(ctx, step, backFromPractise)}</WalkPart>
+        {said ? <WalkSpeakerBubble>{said}</WalkSpeakerBubble> : null}
+      </>
+    );
+    return (
+      <Fragment key={`${seq ?? 0}:${part.key}`}>
+        {i === start ? (
+          <div data-walk-start className="contents">
+            {body}
+          </div>
+        ) : (
+          body
+        )}
+      </Fragment>
+    );
+  });
 }

@@ -5,6 +5,7 @@ import {
   appendLoungeMessages,
   clearLoungeThread,
   fetchLoungeHistory,
+  newestStamp,
   stampLoungeMessage,
   type LoungeMessage,
   type LoungeMessageDraft,
@@ -52,6 +53,9 @@ export interface UseLoungeThreadReturn {
   loadOlder: () => Promise<void>;
   /** Re-fetch the newest window — e.g. to pull a BE-appended insight ping (§6c). */
   reload: () => Promise<void>;
+  /** Resolves once every append started so far is stored: a row the server
+   *  writes next then sorts under them (the message after a Take). */
+  idle: () => Promise<void>;
   /** Wipe the thread (server DELETE or local clear). */
   clear: () => Promise<void>;
   /** Replay the local thread into the server thread on sign-up, then rehydrate. */
@@ -64,6 +68,11 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const oldestCursorRef = useRef<string | null>(null);
+  // What is on screen now: a new message is stamped under its newest bubble.
+  const messagesRef = useRef<LoungeMessage[]>(messages);
+  messagesRef.current = messages;
+  // Appends still being stored (idle).
+  const pendingRef = useRef<Set<Promise<unknown>>>(new Set());
 
   // Rehydrate on mount / auth change.
   useEffect(() => {
@@ -98,24 +107,30 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
 
   const append = useCallback(
     async (draft: LoungeMessageDraft): Promise<LoungeMessage> => {
-      const msg = stampLoungeMessage(draft);
+      const msg = stampLoungeMessage(draft, newestStamp(messagesRef.current));
       // Optimistic — the bubble shows instantly; persistence trails.
       setMessages((prev) =>
         prev.some((item) => item.client_id === msg.client_id)
           ? prev
           : [...prev, msg]
       );
-      try {
+      const stored = (async () => {
         if (signedIn) {
           const persisted = await appendLoungeMessages([msg]);
           announceDiscoveriesFromPersistedMessages(persisted);
         } else {
           appendLocalLoungeMessage(msg);
         }
+      })();
+      pendingRef.current.add(stored);
+      try {
+        await stored;
       } catch (err) {
         // Persistence is best-effort; the bubble stays on screen. (Idempotent
         // on client_id, so a later retry/merge reconciles.)
         console.warn("useLoungeThread.append — persist failed:", err);
+      } finally {
+        pendingRef.current.delete(stored);
       }
       return msg;
     },
@@ -124,7 +139,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
 
   const appendLocalOnly = useCallback(
     (draft: LoungeMessageDraft): LoungeMessage => {
-      const msg = stampLoungeMessage(draft);
+      const msg = stampLoungeMessage(draft, newestStamp(messagesRef.current));
       setMessages((prev) => [...prev, msg]);
       return msg;
     },
@@ -175,6 +190,10 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     return () => window.removeEventListener(LOUNGE_THREAD_MERGED_EVENT, onMerged);
   }, [signedIn, reload]);
 
+  const idle = useCallback(async () => {
+    await Promise.allSettled([...pendingRef.current]);
+  }, []);
+
   const mergeFromLocal = useCallback(async () => {
     await mergeLocalLoungeThreadToServer();
     // Rehydrate from the now-merged server thread (single source of truth).
@@ -195,6 +214,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     signedIn,
     loadOlder,
     reload,
+    idle,
     clear,
     mergeFromLocal,
   };

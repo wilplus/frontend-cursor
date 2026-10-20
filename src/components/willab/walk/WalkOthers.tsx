@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
@@ -10,8 +10,9 @@ import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import WalkLoading from "./WalkLoading";
 import WalkFaces, { WalkUnclear } from "./WalkFaces";
+import { WalkSpeakerBubble, WalkThreadMark, useMountedAsPast } from "./WalkThread";
 import { answerOtherClip, fetchOtherAnswers, fetchOtherClips, type OtherClip } from "@/services/api/otherSpeakers";
-import { othersBridge } from "@/lib/willab/walkThread";
+import { othersBridge, othersChat } from "@/lib/willab/walkThread";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkOthers — judge other speakers, once, after practice (founder lock      */
@@ -29,6 +30,11 @@ import { othersBridge } from "@/lib/willab/walkThread";
 /*  (`judged`), each with the answer they gave, its card orange, "✓ Answered" */
 /*  over Next. Nothing is asked again and nothing is posted; with no answer   */
 /*  kept, the queue is asked afresh as before.                                */
+/*                                                                            */
+/*  In the walk's chat (founder 2026-10-20, WIL-89): each moment lands under  */
+/*  the one before with its name ("Other speakers · 2 of 3"), the answer as   */
+/*  the speaker's own bubble ("👍 Yes"); the three cards and "Audio unclear"  */
+/*  are the dock. First drawn as an earlier part, it asks and posts nothing. */
 /* -------------------------------------------------------------------------- */
 
 type Loaded = { clips: OtherClip[]; given: Record<string, ConfidenceRatingValue> };
@@ -76,6 +82,7 @@ export default function WalkOthers({
   const [given, setGiven] = useState<Record<string, ConfidenceRatingValue>>({});
   // The answers came in with the clips: seen again, not given now.
   const [reopened, setReopened] = useState(false);
+  const past = useMountedAsPast();
   const done = useRef(onDone);
   done.current = onDone;
   const timer = useRef<number | null>(null);
@@ -87,6 +94,7 @@ export default function WalkOthers({
   );
 
   useEffect(() => {
+    if (past) return;
     if (skip) {
       done.current();
       return;
@@ -105,7 +113,7 @@ export default function WalkOthers({
     return () => {
       live = false;
     };
-  }, [skip, count, judged]);
+  }, [past, skip, count, judged]);
 
   const clip = clips?.[at];
   const answered = clip ? given[clip.id] ?? null : null;
@@ -115,21 +123,12 @@ export default function WalkOthers({
   const chat = useRef(onChat);
   chat.current = onChat;
   useEffect(() => {
-    if (reopened) return; // the chat already holds these
+    if (past || reopened) return; // the chat already holds these
     if (clips && at < clips.length) chat.current?.(at, clips.length, clips[0]?.community ?? null, null);
-  }, [clips, at, reopened]);
+  }, [clips, at, reopened, past]);
   const forward = () => (clips && at + 1 < clips.length ? setAt(at + 1) : onDone());
-  const nav = clips
-    ? {
-        position: `${from ?? WALK_COPY.othersTitle} · ${at + 1} ${COPY.pagerOf} ${clips.length}`,
-        index: at,
-        total: clips.length,
-        onBack: () => setAt((i) => Math.max(0, i - 1)),
-        onNext: forward,
-        backDisabled: at === 0,
-        nextDisabled: answered === null,
-      }
-    : undefined;
+  /** "Other speakers · 2 of 3", or the community's name. */
+  const where = (i: number) => `${from ?? WALK_COPY.othersTitle} · ${i + 1} ${COPY.pagerOf} ${clips?.length ?? 1}`;
 
   const pick = (value: ConfidenceRatingValue) => {
     if (!clip || answered !== null) return;
@@ -139,41 +138,45 @@ export default function WalkOthers({
     timer.current = window.setTimeout(forward, holdMs);
   };
 
+  if (past) return null;
+  const footer = !clip ? null : reopened && answered !== null ? (
+    <WalkFooter pill={{ label: COPY.pagerNext, onClick: forward, testId: "walk-forward" }}>
+      <p className="m-0 text-center text-[13px] text-muted-foreground">{WALK_COPY.answered}</p>
+    </WalkFooter>
+  ) : (
+    <WalkFooter>
+      <WalkFaces answered={answered} given={reopened} onPick={pick} />
+      {answered === null ? <WalkUnclear onPick={() => pick("audio_unclear")} /> : null}
+    </WalkFooter>
+  );
   return (
-    <WalkOverlay
-      testId={testId}
-      nav={nav}
-      onClose={onClose}
-      footer={
-        answered !== null ? (
-          <WalkFooter pill={{ label: COPY.pagerNext, onClick: forward, testId: "walk-forward" }}>
-            <p className="m-0 text-center text-[13px] text-muted-foreground">{WALK_COPY.answered}</p>
-          </WalkFooter>
-        ) : null
-      }
-    >
+    <WalkOverlay testId={testId} onClose={onClose} footer={footer}>
       {!clips || !clip ? (
         <WalkLoading />
       ) : (
-        <>
-          <WalkMessage wide>
-            {at === 0 ? <span>{bridge}</span> : null}
-            <div className="my-2.5">
-              <WalkPlayer
-                key={clip.id}
-                look="bare"
-                seed={`other-${clip.id}`}
-                src={clip.src}
-                startOffsetMs={clip.startOffsetMs}
-                durationMs={clip.durationMs}
-                label={nav?.position ?? WALK_COPY.othersTitle}
-              />
-            </div>
-            <span>{COPY.confidenceQuestion}</span>
-          </WalkMessage>
-          <WalkFaces answered={answered} given={reopened} onPick={pick} />
-          {answered === null ? <WalkUnclear onPick={() => pick("audio_unclear")} /> : null}
-        </>
+        clips.slice(0, at + 1).map((shown, i) => {
+          const said = given[shown.id] ? othersChat(i, clips.length, from, given[shown.id])?.body : null;
+          return (
+            <Fragment key={shown.id}>
+              <WalkThreadMark label={where(i)} />
+              <WalkMessage wide>
+                {i === 0 ? <span>{bridge}</span> : null}
+                <div className="my-2.5">
+                  <WalkPlayer
+                    look="bare"
+                    seed={`other-${shown.id}`}
+                    src={shown.src}
+                    startOffsetMs={shown.startOffsetMs}
+                    durationMs={shown.durationMs}
+                    label={where(i)}
+                  />
+                </div>
+                <span>{COPY.confidenceQuestion}</span>
+              </WalkMessage>
+              {said ? <WalkSpeakerBubble>{said}</WalkSpeakerBubble> : null}
+            </Fragment>
+          );
+        })
       )}
     </WalkOverlay>
   );

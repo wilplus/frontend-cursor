@@ -287,6 +287,12 @@ const PROTOTYPE = {
   delete: "Delete",
   deleteImportTitle: (topic: string) => `Delete "${topic}"?`,
   deleteImportBody: "Its audio, moments and judgements will be permanently deleted. This can't be undone.",
+  /* the founder's Delete of a speaker's waiting moments (founder 2026-10-20) */
+  deleteSpeakerTitle: (p: string) => `Delete ${p}’s waiting moments?`,
+  deleteSpeakerBody: (p: string) => `They leave every coach’s queue. ${p}’s Takes and Ideal Text stay.`,
+  /* the founder's Delete of what waits on a blind line (founder 2026-10-20) */
+  clearBlindTitle: (line: string) => `Clear what’s waiting in ${line}?`,
+  clearBlindBody: "New ones come next week. Answers already given stay.",
   doneEditing: "Done editing",
   yourWords: "Your words",
   /* Speaking errors */

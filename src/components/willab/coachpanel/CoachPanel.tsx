@@ -59,11 +59,11 @@ import type { WalkScreen } from "@/lib/willab/walkMotion";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 import { MediaRefreshProvider } from "@/lib/media/mediaRefresh";
 import { fetchCoachReviewSession } from "@/services/api/coachReview";
-import type { MomentRead } from "@/services/api/coachWalk";
+import { closeWaitingMoments, type MomentRead } from "@/services/api/coachWalk";
 import { buildRatingBody, saveStateRating } from "@/services/api/stateRatings";
 import {
-  fetchBlockPicks, fetchErrorAudit, fetchV4MomentPicks, fetchV4SurerPairs,
-  type BlockPickQueue, type ErrorAuditQueue, type V4MomentPickQueue, type V4SurerQueue,
+  clearBlindLine, fetchBlockPicks, fetchErrorAudit, fetchV4MomentPicks, fetchV4SurerPairs,
+  type BlindLine, type BlockPickQueue, type ErrorAuditQueue, type V4MomentPickQueue, type V4SurerQueue,
 } from "@/services/api/coachPanel";
 import {
   fetchCoachSpeakers, queueSpeakerFor, speakersFromQueue, type PanelSpeaker,
@@ -165,7 +165,15 @@ function useBlindLines(queueOpen: boolean) {
     void fetchV4SurerPairs().then((next) => { if (!cancelled) setV4Surer(next); });
     return () => { cancelled = true; };
   }, [queueOpen]);
-  return { audit, picks, setAudit, setPicks, v4Picks, setV4Picks, v4Surer, setV4Surer };
+  /** A line the founder cleared draws empty at once (it waits for next week). */
+  const emptied = useCallback((line: BlindLine) => {
+    const none = <Q extends { items: unknown[] }>(q: Q | null): Q | null => (q ? { ...q, items: [] } : q);
+    if (line === "error_audit") setAudit(none);
+    else if (line === "block_pick") setPicks(none);
+    else if (line === "v4_moment_pick") setV4Picks(none);
+    else setV4Surer(none);
+  }, []);
+  return { audit, picks, setAudit, setPicks, v4Picks, setV4Picks, v4Surer, setV4Surer, emptied };
 }
 
 /** Every speaker, read each time Your speakers opens. `speakers` is null
@@ -272,6 +280,8 @@ export type CoachPanelProps = {
   dispatch: Dispatch<PanelAction>;
   speakers: readonly QueueSpeaker[];
   loading: boolean;
+  /** Read the queue again (after the founder's Delete of a speaker's row). */
+  refresh?: () => void;
 };
 
 function liveSpeaker(speakers: readonly QueueSpeaker[], snapshot: QueueSpeaker): QueueSpeaker {
@@ -280,7 +290,7 @@ function liveSpeaker(speakers: readonly QueueSpeaker[], snapshot: QueueSpeaker):
   return live.goal == null && snapshot.goal != null ? { ...live, goal: snapshot.goal } : live;
 }
 
-export default function CoachPanel({ state, dispatch, speakers, loading }: CoachPanelProps) {
+export default function CoachPanel({ state, dispatch, speakers, loading, refresh }: CoachPanelProps) {
   const { screen } = state;
   const stage: StageScreen = useMemo(() => ({ ...walkScreenOf(screen), panel: screen }), [screen]);
   const takeId = momentOf(screen) && "take" in screen ? screen.take.sessionId : null;
@@ -322,6 +332,24 @@ export default function CoachPanel({ state, dispatch, speakers, loading }: Coach
     setCorpusFail(null);
     setForm({ ...BLANK_IMPORT, topic: im.topic, speaker: im.speakerLabel ?? "", language: im.language });
     dispatch({ type: "corpusImport", setupOf: im.sessionId, edit: true });
+  }
+
+  /** The founder's ⋯ → Delete on a blind line: what waits on it is cleared
+   *  for the week, and the row goes. False keeps the confirmation open. */
+  async function clearBlind(line: BlindLine): Promise<boolean> {
+    const ok = await clearBlindLine(line);
+    if (ok) blind.emptied(line);
+    return ok;
+  }
+  const clearBlindLineOf = founder ? clearBlind : undefined;
+
+  /** The founder's ⋯ → Delete on a speaker's row: their waiting moments leave
+   *  every coach's queue, then the queue reads again. False keeps the
+   *  confirmation open and says so. */
+  async function deleteSpeaker(speaker: QueueSpeaker): Promise<boolean> {
+    const ok = await closeWaitingMoments(speaker);
+    if (ok) refresh?.();
+    return ok;
   }
 
   /** The founder's ⋯ → Delete: the import is erased for good, then the list
@@ -444,10 +472,12 @@ export default function CoachPanel({ state, dispatch, speakers, loading }: Coach
       return (
         <QueueScreen speakers={speakers} loading={loading} onClose={close}
           onSpeaker={(speaker) => dispatch({ type: "speaker", speaker })}
+          onDelete={founder ? deleteSpeaker : undefined}
           blind={{ audit: blind.audit, picks: blind.picks,
             onOpenAudit: () => setBlindOpen("audit"), onOpenPicks: () => setBlindOpen("picks"),
             v4Picks: blind.v4Picks, v4Surer: blind.v4Surer,
-            onOpenV4Picks: () => setBlindOpen("v4picks"), onOpenV4Surer: () => setBlindOpen("v4surer") }} />
+            onOpenV4Picks: () => setBlindOpen("v4picks"), onOpenV4Surer: () => setBlindOpen("v4surer"),
+            onClear: clearBlindLineOf }} />
       );
     }
     if (panel.key === "speakers") {

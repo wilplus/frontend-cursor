@@ -11,25 +11,35 @@ OUTCOME
       ones; a speaker's open Takes come first, newest first, then the
       answered ones, faded.
   O4  "Your speakers" shows the list at once, then updates it.
-  O5  An error answered without a video still goes to the speaker.
+  O5  An error answered without a video still goes to the speaker, and a
+      moment with no draft never leaves me with no words and a grey Next.
   O6  Coming back to a Take word I sent, I see my saved words and video,
       never a draft over them: Send keeps the video, Remove the video holds
       until Send and sends no video, and leaving cancels it; a Take drafted
       but never sent opens on its draft, drafted once.
+  O7  As the founder, the ⋯ on a waiting speaker, the greyed one waiting
+      for its text included, deletes their waiting moments behind a
+      confirmation; no other coach has the ⋯.
+  O8  As the founder, the ⋯ on a blind line clears what waits on it for the
+      week behind a confirmation; no other coach has the ⋯.
 PROVES   O1 -> "Judge: the player, the question, 👍 😐 👎 and Audio unclear (lock 2026-10-12 §7), nothing else"
          O2 -> "Judge first; the moment read is asked for only after the rating saves",
                "a failed save stays on Judge, says so, and never reads the moment"
          O3 -> "Your queue: the speaker who sent most recently on top; an answered speaker drops out (founder 2026-10-18)",
                "the open ones first, newest first; then Answered, faded, most recently answered first (founder 2026-10-18)"
          O4 -> "Your speakers opens at once with the queue's speakers, then takes the fresh read"
-         O5 -> "an error answered without a video still goes to the speaker, without the library (lock flow 9)"
+         O5 -> "an error answered without a video still goes to the speaker, without the library (lock flow 9)",
+               "no draft: the field stays open until it has words, on the tick and on coming back (lock flow 9)"
          O6 -> "opens on the saved words and video, never a draft; Send to {p} keeps the video",
                "Remove the video holds across ‹ and Next, and Send without a video sends video_ref: null",
                "leaving the word before Send cancels Remove the video: the next visit shows the saved video again",
                "a Take drafted but never sent opens on its draft at every visit, drafted once; Send without a video sends video_ref: null"
+         O7 -> "the founder's ⋯ deletes a waiting speaker's moments, the greyed one's too, behind its confirmation; other coaches have none"
+         O8 -> "the founder's ⋯ clears what waits on a blind line behind its confirmation; other coaches have none"
 WHY      Never 2 (coach judgements stay blind); locked coach panel; O6:
          founder 2026-10-19 (D9, D10), approved two-phone prototype
-         https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk.
+         https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk. O7: founder
+         2026-10-20, like the training corpus's ⋯.
 */
 import { act, useState, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -82,13 +92,14 @@ vi.mock("../coachwalk/useConfidenceChainReceipt", () => ({
 import CoachPanel, {  } from "./CoachPanel";
 import {
   JudgeScreen, QueueScreen,
-  SpeakerScreen,
+  SpeakerScreen, type BlindRows,
 } from "./CoachPanelScreens";
 import { PANEL_START, panelReducer, type PanelAction, type PanelState } from "@/lib/willab/coachPanel";
 import type { QueueMoment, QueueSpeaker, QueueTake } from "@/lib/willab/coachWalk";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 import { CHUNK_SHEET_COPY } from "../idealEditCopy";
 import { draftTakeWord } from "@/services/api/coachPanel";
+import { draftForRequest } from "@/services/api/coachWalk";
 import type { MomentRead } from "@/services/api/coachWalk";
 import type { WalkNav } from "../walk/WalkOverlay";
 
@@ -239,6 +250,43 @@ describe("CoachPanel", () => {
     expect(document.querySelector("[data-testid='coach-panel-passage']")!.textContent).toBe(READ.passage);
   });
 
+  it("the founder's ⋯ deletes a waiting speaker's moments, the greyed one's too, behind its confirmation; other coaches have none", async () => {
+    const onDelete = vi.fn(async () => true);
+    const SPARROW: QueueSpeaker = {
+      pseudonym: "Quiet Sparrow", goal: null, waiting: 0,
+      takes: [{ ...TAKE, sessionId: "t9", waiting: 0, waitingForText: true, moments: [] }],
+    };
+    draw(<QueueScreen speakers={[HERON, SPARROW]} loading={false} blind={null} onSpeaker={() => {}} onDelete={onDelete} onClose={() => {}} />);
+    expect(q("[aria-label='More options for Quiet Sparrow']")).not.toBeNull();
+    act(() => q("[aria-label='More options for Quiet Heron']")!.click());
+    act(() => q("[role='menuitem']")!.click());
+    const dialog = document.querySelector("[aria-labelledby='delete-project-title']")!;
+    expect(dialog.textContent).toContain(COPY.deleteSpeakerTitle("Quiet Heron"));
+    expect(dialog.textContent).toContain(COPY.deleteSpeakerBody("Quiet Heron"));
+    await act(async () => [...dialog.querySelectorAll("button")].find((b) => b.textContent === COPY.delete)!.click());
+    expect(onDelete).toHaveBeenCalledWith(HERON);
+
+    draw(<QueueScreen speakers={[HERON]} loading={false} blind={null} onSpeaker={() => {}} onClose={() => {}} />);
+    expect(q("[aria-label='More options for Quiet Heron']")).toBeNull();
+  });
+
+  it("the founder's ⋯ clears what waits on a blind line behind its confirmation; other coaches have none", async () => {
+    const onClear = vi.fn(async () => true);
+    const audit = { items: [{}], wording: { title: "Do you hear it?", queue_line: "Also waiting · blind" } } as unknown as BlindRows["audit"];
+    const blind: BlindRows = { audit, picks: null, onOpenAudit: () => {}, onOpenPicks: () => {} };
+    draw(<QueueScreen speakers={[]} loading={false} blind={{ ...blind, onClear }} onSpeaker={() => {}} onClose={() => {}} />);
+    act(() => q("[aria-label='More options for Do you hear it?']")!.click());
+    act(() => q("[role='menuitem']")!.click());
+    const dialog = document.querySelector("[aria-labelledby='delete-project-title']")!;
+    expect(dialog.textContent).toContain(COPY.clearBlindTitle("Do you hear it?"));
+    expect(dialog.textContent).toContain(COPY.clearBlindBody);
+    await act(async () => [...dialog.querySelectorAll("button")].find((b) => b.textContent === COPY.delete)!.click());
+    expect(onClear).toHaveBeenCalledWith("error_audit");
+
+    draw(<QueueScreen speakers={[]} loading={false} blind={blind} onSpeaker={() => {}} onClose={() => {}} />);
+    expect(q("[aria-label='More options for Do you hear it?']")).toBeNull();
+  });
+
   it("a failed save stays on Judge, says so, and never reads the moment", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     saveStateRating.mockResolvedValue({ ok: false, error: null });
@@ -282,6 +330,45 @@ describe("the answer", () => {
       resolution: "note_written", answerText: "Slow down on the last words.", share: true,
     }));
     expect(document.querySelector("[data-testid='coach-panel-judge']")).not.toBeNull(); // on to s2
+  });
+
+  it("no draft: the field stays open until it has words, on the tick and on coming back (lock flow 9)", async () => {
+    vi.mocked(draftForRequest).mockResolvedValueOnce(null);
+    fetchMomentRead.mockResolvedValue({
+      ...READ,
+      request: { id: "r1", kind: "error", spotted: [], resolution: null, resolvedExerciseId: null, shared: false } as unknown as MomentRead["request"],
+    });
+    const start = ([
+      { type: "open" }, { type: "take", speaker: HERON, take: TAKE },
+      { type: "rated", snippetId: "s1", value: "no" }, { type: "step", key: "decide" }, { type: "step", key: "words" },
+    ] as PanelAction[]).reduce(panelReducer, PANEL_START);
+    draw(<Host start={start} />);
+    await flush();
+    await flush();
+    // The screen on top, never the leaving copy.
+    const live = (sel: string) => q(`[data-walk-move] ${sel}`);
+    const open = () => live("[data-coach-words]")?.getAttribute("data-editing");
+    const next = () => (live("[data-testid='coach-panel-words-next']") as HTMLButtonElement).disabled;
+    expect(open()).toBe("true");
+    act(() => live("[data-coach-words-pencil]")!.click()); // the tick, on no words
+    expect(open()).toBe("true");
+
+    act(() => live(`button[aria-label='${CSS.escape(CHUNK_SHEET_COPY.pagerBack)}']`)!.click());
+    await flush();
+    act(() => [...host.querySelectorAll<HTMLElement>("[data-walk-move] [data-testid='coach-panel-decide'] button")]
+      .find((b) => b.textContent?.includes(COPY.makeANewOne))!.click());
+    await flush();
+    expect(open()).toBe("true");
+    expect(next()).toBe(true);
+
+    const field = live("[data-coach-words-field]") as HTMLTextAreaElement;
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(field, "Breathe before the last word.");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    act(() => live("[data-coach-words-pencil]")!.click());
+    expect(open()).toBeNull();
+    expect(next()).toBe(false);
   });
 });
 

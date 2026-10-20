@@ -46,7 +46,7 @@ export function momentsLeft(im: Pick<TrainingImport, "queueCount" | "labelledCou
 export function importChoice(im: TrainingImport): WalkChoice {
   const value = im.sessionId;
   if (!im.setupComplete) {
-    return { value, label: im.topic, subtitle: `${COPY.setUpNotFinished} · ${COPY.finishItBeforeJudging}` };
+    return { value, label: im.topic, subtitle: `${COPY.setUpNotFinished} · ${COPY.finishItBeforeJudging}`, dot: true };
   }
   const who = im.speakerLabel ?? COPY.noSpeakerLabel;
   if (im.state === "running") return { value, label: im.topic, subtitle: `${who} · ${COPY.analysing}`, done: true, dim: true };
@@ -57,7 +57,7 @@ export function importChoice(im: TrainingImport): WalkChoice {
   // Nothing to judge: drawn, never offered for judging.
   if (counts.total === 0) return { value, label: im.topic, subtitle: `${who} · ${COPY.moments(0)}`, done: true };
   if (counts.left === 0) return { value, label: im.topic, subtitle: `${who} · ${COPY.allLabelled(counts.total)}`, done: true, mark: "check" };
-  return { value, label: im.topic, subtitle: `${who} · ${COPY.momentsToJudgeOf(counts.left, counts.total)}` };
+  return { value, label: im.topic, subtitle: `${who} · ${COPY.momentsToJudgeOf(counts.left, counts.total)}`, dot: true };
 }
 
 /** A finished import's ⋯ edits its set-up; an unfinished one opens its set-up
@@ -74,12 +74,12 @@ function importMenu(im: TrainingImport, onEdit: (im: TrainingImport) => void,
   const erase = onDelete ? () => onDelete(im) : null;
   if (importEditable(im)) {
     return (
-      <ProjectRowMenu label={im.topic} actionLabel={COPY.edit} confirm={null}
+      <ProjectRowMenu label={im.topic} actionLabel={COPY.edit} confirm={null} menuAlign="left"
         onDelete={() => { onEdit(im); return Promise.resolve(true); }}
         secondary={erase ? { label: COPY.delete, confirm, onRun: erase } : undefined} />
     );
   }
-  return erase ? <ProjectRowMenu label={im.topic} actionLabel={COPY.delete} confirm={confirm} onDelete={erase} /> : undefined;
+  return erase ? <ProjectRowMenu label={im.topic} actionLabel={COPY.delete} confirm={confirm} onDelete={erase} menuAlign="left" /> : undefined;
 }
 
 export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onEdit, onDelete, onClose }: {

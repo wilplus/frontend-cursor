@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import AdminGate from "@/components/admin/AdminGate";
 import TakesExplorer from "./TakesExplorer";
 import ExerciseEffects from "./ExerciseEffects";
+import SpeakerMemory from "./SpeakerMemory";
 import { planLabel } from "@/components/tokens/copy";
 
 /* -------------------------------------------------------------------------- */
@@ -292,6 +293,8 @@ function PersonProfile({ id }: { id: string }) {
       </section>
 
       <ExerciseEffects id={id} />
+
+      <SpeakerMemory id={id} />
 
       <TakesExplorer id={id} />
 

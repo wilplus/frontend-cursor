@@ -1,16 +1,18 @@
 // @vitest-environment jsdom
 /*
-STORY    As a speaker, I want a question the admin sent me to appear the next
-         time I open the chat, never while I record, and only once, so that
-         it never interrupts a Take.
+STORY    As a speaker, I want a question the founder sent me from the CEO
+         panel to come at the end of a Take, as that Take's one ask, and only
+         once per Take, so that it never competes with recording again.
 OUTCOME
-  O1  It shows when I open the chat, with no Take needed.
-  O2  Nothing shows while I am recording.
-  O3  It is not posted again once it is in my chat.
-PROVES   O1 -> "shows the next time they open the chat, with no Take"
-         O2 -> "waits while they are recording"
-         O3 -> "is not posted again once its bubble is in the thread"
-WHY      Founder 2026-10-18: the admin's ask was not shown in the chat.
+  O1  It shows when a Take's message waits for it, and not before.
+  O2  After a reload it is not posted again: its form opens again.
+  O3  With no ask left to show, the Take's message comes at once.
+PROVES   O1 -> "shows at the end of a Take whose message waits for it"
+         O2 -> "is not posted again after a reload"
+         O3 -> "lets the Take's message go when there is nothing to ask"
+WHY      Founder 2026-10-18: the admin's ask was not shown in the chat;
+         founder 2026-10-20: at the end of a Take, from Take 2, one action
+         at a time (it no longer shows when the chat opens).
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -20,28 +22,24 @@ const api = vi.hoisted(() => ({ bffFetch: vi.fn() }));
 vi.mock("@/lib/api/bffFetch", () => api);
 
 import { useAdminAsk, type AdminAsk } from "./useAdminAsk";
+import type { OfferType } from "./loungeOffers";
 
 let container: HTMLDivElement;
 let root: Root;
 const append = vi.fn();
 const openOffer = vi.fn();
 
-function Probe({ state }: { state: string }) {
-  useAdminAsk({
-    state,
-    threadLoading: false,
-    append,
-    installCanOffer: true,
-    activeOffer: null,
-    openOffer,
-  });
+const letGo = vi.fn();
+
+function Probe({ waitingId, asked }: { waitingId: string | null; asked: OfferType | null }) {
+  useAdminAsk({ threadLoading: false, append, installCanOffer: true, openOffer, waitingId, asked, letGo });
   return null;
 }
 
-async function mount(ask: AdminAsk, state: string) {
+async function mount(ask: AdminAsk | null, waitingId: string | null, asked: OfferType | null = null) {
   api.bffFetch.mockResolvedValue({ kind: "response", ok: true, body: { ask } });
   await act(async () => {
-    root.render(createElement(Probe, { state }));
+    root.render(createElement(Probe, { waitingId, asked }));
     for (let i = 0; i < 5; i += 1) await Promise.resolve();
   });
 }
@@ -64,20 +62,25 @@ afterEach(() => {
 const whatsapp: AdminAsk = { id: "a1", kind: "whatsapp", consent_key: null, status: "waiting" };
 
 describe("an admin ask", () => {
-  it("shows the next time they open the chat, with no Take", async () => {
-    await mount(whatsapp, "lounge_idle");
-    expect(append).toHaveBeenCalledWith(expect.objectContaining({ metadata: expect.objectContaining({ offer: "whatsapp" }) }));
+  it("shows at the end of a Take whose message waits for it", async () => {
+    await mount(whatsapp, null);
+    expect(api.bffFetch).not.toHaveBeenCalled(); // opening the chat asks nothing
+    await mount(whatsapp, "summary-take-2");
+    expect(append).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: expect.objectContaining({ offer: "whatsapp", after_take: "summary-take-2" }) }),
+    );
     expect(openOffer).toHaveBeenCalledWith("whatsapp");
   });
 
-  it("waits while they are recording", async () => {
-    await mount(whatsapp, "lab_recording");
+  it("is not posted again after a reload", async () => {
+    await mount({ ...whatsapp, status: "shown" }, "summary-take-2", "whatsapp");
     expect(append).not.toHaveBeenCalled();
-    expect(openOffer).not.toHaveBeenCalled();
+    expect(openOffer).toHaveBeenCalledWith("whatsapp");
   });
 
-  it("is not posted again once its bubble is in the thread", async () => {
-    await mount({ ...whatsapp, status: "shown" }, "lounge_idle");
+  it("lets the Take's message go when there is nothing to ask", async () => {
+    await mount(null, "summary-take-2");
     expect(append).not.toHaveBeenCalled();
+    expect(letGo).toHaveBeenCalledTimes(1);
   });
 });

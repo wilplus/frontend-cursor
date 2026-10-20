@@ -43,7 +43,8 @@ export default function WalkStage<S extends WalkScreen>({
   screen: S;
   /** The direction of the step that produced `screen`. */
   dir?: WalkDir;
-  render: (screen: S) => ReactNode;
+  /** `ghost`: drawn for the leaving copy, which must fetch and post nothing. */
+  render: (screen: S, ghost?: boolean) => ReactNode;
   className?: string;
   /** Classes of a full-window layer drawn under the stage while it is open. */
   backdrop?: string;
@@ -72,7 +73,7 @@ export default function WalkStage<S extends WalkScreen>({
             data-walk-ghost
             className={cn("walk-layer walk-ghost", leaveClass(leaving.move))}
           >
-            {render(leaving.screen)}
+            {render(leaving.screen, true)}
           </div>
         ) : null}
       </div>

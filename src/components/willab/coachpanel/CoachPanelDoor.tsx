@@ -91,7 +91,8 @@ export default function CoachPanelDoor({
     <>
       {bubble ? <CoachWalkBubble waiting={waiting} onOpen={() => dispatch({ type: "open" })} /> : null}
       <CoachPanelPinned onSpeakers={() => dispatch({ type: "speakers" })} onCorpus={() => dispatch({ type: "corpus" })} />
-      <CoachPanel state={state} dispatch={dispatch} speakers={queue.speakers} loading={queue.loading} />
+      <CoachPanel state={state} dispatch={dispatch} speakers={queue.speakers} loading={queue.loading}
+        refresh={queue.refresh} />
     </>
   );
 }

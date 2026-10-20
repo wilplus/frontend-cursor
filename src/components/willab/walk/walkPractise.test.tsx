@@ -1,17 +1,19 @@
 // @vitest-environment jsdom
 /*
-STORY    As a speaker, I want to practise inside the walk (record, hear an answer in words, hear an AI version of my voice, at most 3 tries), so that practice is quick, kind and free of numbers.
+STORY    As a speaker, I want to practise inside the walk's chat (record, hear an answer in words, hear an AI version of my voice, at most 3 tries), so that practice is quick, kind and free of numbers.
 OUTCOME
   O1  Stopping a try uploads it and asks for a check, and I am back in the walk at once.
   O2  A better try gets praise in words for what improved, then the walk moves on.
   O3  A "not yet" on the clearer words brings the AI version of my voice; a good try does not.
   O4  The AI clip appears with one sentence on what it does differently, never a number.
-  O5  At most 3 tries, all shown together; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.
+  O5  At most 3 tries, all shown together in the chat with the steps before them; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.
+  O6  The Exercise reaches the coach's queue the moment it is on screen, and the Lounge as the AI bubble once a clip is coming, even when I tap Practise first.
 PROVES   O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
          O2 -> praise on try 1: the line for the reading that moved ...
          O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
          O4 -> the bubble is there at once: the typing dots alone ..., with the clip, the speaker reads what this version does differently and why (WIL-82)
          O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing
+         O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first
 WHY      Never-rule 1 (no scores to speakers).
 */
 import { act } from "react";
@@ -207,6 +209,8 @@ function draw(
     practiceOn?: boolean;
     items?: FeedbackWalkItem<string>[];
     at?: number;
+    onShown?: (...args: unknown[]) => void;
+    onReached?: (...args: unknown[]) => void;
   } = {},
 ) {
   const model = buildFeedbackWalk({ items: over.items ?? ITEMS, coachNote: false, practiceOn: over.practiceOn ?? true, guest: false });
@@ -224,6 +228,8 @@ function draw(
     onGuest: over.onGuest,
     readLimitMs: over.readLimitMs ?? 1000,
     practise: io,
+    onShown: over.onShown,
+    onReached: over.onReached,
     onSaveHelperWords: () => undefined,
     onEnd: () => {
       ended += 1;
@@ -234,10 +240,13 @@ function draw(
 }
 
 const live = () => host.querySelector<HTMLElement>(".walk-layer:not(.walk-ghost)");
-const screen = () => live()?.querySelector<HTMLElement>("[data-testid^='walk-screen-']")?.dataset.testid ?? null;
+/** The newest part of the walk's chat: the step it stands on. */
+const now = () => live()?.querySelector<HTMLElement>("[data-walk-part][data-testid^='walk-screen-']") ?? null;
+const screen = () => now()?.dataset.testid ?? null;
 const click = (el: Element | null | undefined) => act(() => (el as HTMLElement).click());
 const forward = () => click(live()?.querySelector("[data-testid='walk-forward']"));
-const message = () => live()?.querySelector("[data-walk-message]")?.textContent ?? null;
+/** The newest grey bubble. */
+const message = () => [...(now()?.querySelectorAll("[data-walk-message]") ?? [])].pop()?.textContent ?? null;
 const stop = () => click(live()?.querySelector("[data-testid='walk-stop']"));
 async function settle(ms = 0) {
   for (let i = 0; i < 8; i += 1) {
@@ -264,15 +273,18 @@ describe("the practise screen", () => {
   it("Stop uploads through the attempts route, returns to the walk at once with the voice mark under the try, and posts /check", async () => {
     draw();
     await accept();
-    expect(live()!.querySelector("[data-walk-where]")!.textContent).toBe(WALK_COPY.practiseWhere("Slide 2"));
-    expect(live()!.querySelector("[data-walk-say]")!.textContent).toBe(OFFERED);
+    // The practise opens in the same chat: the words to say under the
+    // clearer version, the recorder in the dock (founder 2026-10-20).
+    expect(screen()).toBe("walk-screen-practise");
+    expect(now()!.querySelector("[data-walk-say]")!.textContent).toBe(OFFERED);
+    expect(live()!.querySelector("[data-walk-dock] [data-testid='walk-stop']")).not.toBeNull();
     answers = ["hang"];
     stop();
     expect(screen()).toBe("walk-screen-processing");
-    // Instant: no rise, no fade (lock 2026-10-12, section 2.5).
-    expect(live()!.className).not.toMatch(/walk-m-/);
-    expect(live()!.querySelector("[data-walk-player][data-walk-me]")!.textContent).toContain(WALK_COPY.practiseN(1));
-    expect(live()!.querySelector("[data-walk-loading]")).not.toBeNull();
+    // Instant: nothing slides or fades (lock 2026-10-12, section 2.5).
+    expect(live()!.className).not.toMatch(/walk-m-(next|back|fade)/);
+    expect(now()!.querySelector("[data-walk-player][data-walk-me]")!.textContent).toContain(WALK_COPY.practiseN(1));
+    expect(now()!.querySelector("[data-walk-loading]")).not.toBeNull();
     await settle();
     const upload = calls.find((c) => c.url.endsWith("/attempts"))!;
     expect(upload.method).toBe("POST");
@@ -366,7 +378,6 @@ describe("the Exercise screen as one thread (founder 2026-10-16, 2026-10-18)", (
   const text = () => live()!.textContent ?? "";
   const practisePill = () => live()!.querySelector<HTMLElement>("[data-testid='walk-practise']");
   const nextPill = () => live()!.querySelector<HTMLElement>("[data-testid='walk-forward']");
-  const arrow = (label: string) => click(live()!.querySelector(`[data-walk-nav] button[aria-label='${label}']`));
 
   it("shows the whole history at once, offers only the outlined Practise again until the third try, then Next alone", async () => {
     draw({ items: [PRAISE_ITEM, ...EXERCISE_ITEMS], at: 3 });
@@ -385,12 +396,9 @@ describe("the Exercise screen as one thread (founder 2026-10-16, 2026-10-18)", (
     expect(text()).toContain(WALK_COPY.practiseN(1));
     expect(practisePill()!.textContent).toBe(COPY.pillPractiseAgain);
     expect(nextPill()).toBeNull();
-    // Away with ‹ and back with ›: the history is there at once.
-    arrow(COPY.pagerBack);
-    expect(screen()).toBe("walk-screen-helpers");
-    arrow(COPY.pagerNext);
-    expect(text()).toContain(WALK_COPY.practiseN(1));
-    expect(practisePill()).not.toBeNull();
+    // The steps before stay above in the same chat (founder 2026-10-20).
+    expect(text()).toContain(PRAISE_ITEM.praiseWords![0]);
+    expect(text()).toContain(COPY.titleEmphasis);
     // Try 2, not yet: still Practise again alone. Try 3: the limit, Next alone, all three tries on screen.
     click(practisePill());
     await tryAndRead();
@@ -422,6 +430,25 @@ describe("the Exercise screen as one thread (founder 2026-10-16, 2026-10-18)", (
   });
 });
 
+describe("the AI voice reaches the chat (founder 2026-10-20)", () => {
+  it("the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first", async () => {
+    const onShown = vi.fn();
+    const onReached = vi.fn();
+    draw({ items: EXERCISE_ITEMS, at: 1, onShown, onReached });
+    // On screen: the coach's queue hears it at once.
+    expect(onReached).toHaveBeenCalledWith(expect.objectContaining({ key: "exVideo" }), expect.anything());
+    // Practise, before the clip's ask has answered: the chat waits a beat.
+    click(live()!.querySelector("[data-testid='walk-practise']"));
+    expect(onShown.mock.calls.some(([s]) => (s as { key: string }).key === "exVideo")).toBe(false);
+    // The ask answers (the clip is on its way): the Exercise is posted as the
+    // AI bubble with its practice, the clip coming in when it lands.
+    await settle();
+    const told = onShown.mock.calls.filter(([s]) => (s as { key: string }).key === "exVideo");
+    expect(told).toHaveLength(1);
+    expect(told[0][3]).toMatchObject({ title: COPY.titleExercise, line: WALK_COPY.aiVoiceExercise, practiceId: expect.any(String) });
+  });
+});
+
 describe("the fences", () => {
   it("no number, lane or score in the DOM on any practise screen (AC-9)", async () => {
     draw();
@@ -431,7 +458,7 @@ describe("the fences", () => {
     seen.push(host.innerHTML);
     await tryAndRead();
     seen.push(host.innerHTML);
-    forward();
+    click(live()?.querySelector("[data-testid='walk-practise']")); // Practise again
     seen.push(host.innerHTML);
     await tryAndRead();
     seen.push(host.innerHTML);

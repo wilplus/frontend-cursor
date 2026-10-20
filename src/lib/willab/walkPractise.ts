@@ -56,31 +56,25 @@ export function loopEnd(plan: readonly WalkStep[], at: number): number {
   return Math.min(to, plan.length - 1);
 }
 
-/** The steps that pile up in the voice Exercise's one thread (founder
- *  2026-10-13, P1 A): the Exercise and its practise loop. */
+/** The steps that pile up in a practise thread (founder 2026-10-13, P1 A):
+ *  the voice Exercise and its practise loop. */
 const THREAD: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>(["exVideo", ...LOOP]);
 
-/** Where the voice Exercise's thread that `at` sits in starts: the Exercise,
- *  else its first try; -1 when `at` is not in one (a clearer version's
- *  practise, any other screen). */
+/** Where the practise thread that `at` sits in starts: the voice Exercise,
+ *  else its first try; -1 when `at` is not in one. Every practise loop is
+ *  one thread (founder 2026-10-20, the lens as one chat): a clearer
+ *  version's practise and the moment said again on its own too. */
 export function threadStart(plan: readonly WalkStep[], at: number): number {
   const moment = plan[at]?.moment;
   if (moment == null || !THREAD.has(plan[at].key)) return -1;
   let start = -1;
-  // The moment said again joins a thread only under its Exercise screen
-  // (lock 2026-10-12, 2.4); on its own it keeps its own recorder.
-  let underExercise = false;
   for (let i = at; i >= 0; i -= 1) {
     const s = plan[i];
-    if (s.moment !== moment || !THREAD.has(s.key)) return underExercise ? -1 : start;
+    if (s.moment !== moment || !THREAD.has(s.key)) return start;
     if (s.key === "exVideo") return i;
-    if (s.key === "practise") {
-      if (s.kind === "moment") underExercise = true;
-      else if (s.kind !== "instruction") return underExercise ? -1 : start;
-      else start = i;
-    }
+    if (s.key === "practise") start = i;
   }
-  return underExercise ? -1 : start;
+  return start;
 }
 
 /** The screens that answer one try each. */

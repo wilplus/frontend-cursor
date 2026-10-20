@@ -1,23 +1,28 @@
 // @vitest-environment jsdom
 /*
 STORY    As a speaker reviewing feedback, I want the walk to open on my
-         first praise, browse every step across slides, save
+         first praise, move through its chat with ‹ ›, save
          helper words through the deck, and ask a guest to sign up, so that
          feedback flows into my next Take.
 OUTCOME
   O1  Review feedback opens the walk on the first praise.
-  O2  The arrows browse every step across slides, answered and waiting,
-      without answering anything.
-  O3  A tap on a paragraph with an open moment opens the walk there.
+  O2  The arrows move through the walk's chat, step by step, without
+      answering anything or closing it.
+  O3  A tap on a paragraph that still waits opens on what it asks (its
+      praise just above it in the chat) and, once answered, lands back on
+      the Ideal Text. Tapped again with nothing left, it opens the whole
+      walk to scroll through, with no buttons.
   O4  Helper words picked in the walk are saved through the deck's own
       save (the words, then the lock) and show orange in the text at once.
   O5  Never-5: Accept and practise saves the answer through the accept lane,
       and the deck still shows the speaker's own words, not the clearer ones.
   O6  A guest's pick asks to sign up, is not taken, and nothing is written.
 PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's sheet"
-         O2 -> "‹ › browse every screen across slides, answered and waiting
-                alike, and never close the walk (founder 2026-10-15)"
-         O3 -> "a tap on a paragraph with an open moment opens the walk there (Q-B3 A)"
+         O2 -> "‹ › move through the walk's chat, never answering and never
+                closing it (founder 2026-10-20)"
+         O3 -> "a paragraph that waits opens on what it asks and lands on the
+                page; answered, it opens the whole walk with no buttons
+                (founder 2026-10-20)"
          O4 -> "helper words picked in the walk go through the deck's own
                 save: the words and the lock"
          O5 -> "Accept and practise writes through the accept lane and leaves the speaker's words on the page"
@@ -32,6 +37,7 @@ import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { GuestGateContext } from "./GuestSignUpDialog";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "./idealEditCopy";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
+import { reportMomentEvent } from "@/services/api/momentEvents";
 import { PRAISE_CUE_COPY, PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
 import type { Part } from "@/lib/willab/documentParts";
 import type { DocumentSuggestion } from "@/services/api/idealText";
@@ -39,6 +45,10 @@ import type { DocumentSuggestion } from "@/services/api/idealText";
 vi.mock("@/services/api/takeFeedback", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/api/takeFeedback")>()),
   saveTakeFeedbackResponse: vi.fn(async () => ({ ok: true })),
+}));
+vi.mock("@/services/api/momentEvents", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/api/momentEvents")>()),
+  reportMomentEvent: vi.fn(async () => ({ kind: "recorded", followUp: "none" })),
 }));
 const practice = vi.hoisted(() => ({ on: true }));
 vi.mock("@/services/api/consentChoices", async (importOriginal) => ({
@@ -139,6 +149,7 @@ beforeEach(() => {
   mic.starts = 0;
   mic.cancels = 0;
   vi.mocked(saveTakeFeedbackResponse).mockClear();
+  vi.mocked(reportMomentEvent).mockClear();
   window.localStorage.clear();
   vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 404 })));
   container = document.createElement("div");
@@ -183,7 +194,7 @@ describe("the walk on the deck", () => {
     expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Slide 2");
   });
 
-  it("‹ › browse every screen across slides, answered and waiting alike, and never close the walk (founder 2026-10-15)", async () => {
+  it("‹ › move through the walk's chat, never answering and never closing it (founder 2026-10-20)", async () => {
     // Slide 1's clearer version is answered already; slide 2's praise and
     // slide 3's clearer version wait. Walk order: praise, helper words,
     // then the practising, slide by slide.
@@ -208,35 +219,46 @@ describe("the walk on the deck", () => {
     const back = () => click(arrow(COPY.pagerBack));
     expect(screen()).toBe("walk-screen-praise");
     expect(bar().getAttribute("aria-label")).toBe("Slide 2");
+    // The newest step is the last in the chat: › is off, and so is ‹ on the
+    // first step.
     expect(arrow(COPY.pagerBack).disabled).toBe(true);
-    expect(arrow(COPY.pagerNext).disabled).toBe(false);
+    expect(arrow(COPY.pagerNext).disabled).toBe(true);
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    expect(screen()).toBe("walk-screen-helpers");
+    expect(bar().getAttribute("aria-label")).toBe(`Slide 2 · ${WALK_COPY.navHelperWords}`);
+    // ‹ goes up the chat; it answers nothing and closes nothing.
+    expect(arrow(COPY.pagerBack).disabled).toBe(false);
+    await back();
     await next();
     expect(screen()).toBe("walk-screen-helpers");
-    await next();
-    // The answered step, as given: read only, Next.
-    expect(screen()).toBe("walk-screen-clearer");
-    expect(bar().getAttribute("aria-label")).toBe("Slide 1");
-    expect(live()!.textContent).toContain(WALK_COPY.answeredAccepted);
-    await next();
-    // The waiting step, live: its pill answers it.
-    expect(bar().getAttribute("aria-label")).toBe("Slide 3");
-    expect(live()!.querySelector("[data-testid='walk-keep']")).not.toBeNull();
-    expect(arrow(COPY.pagerNext).disabled).toBe(true);
-    await back();
-    expect(bar().getAttribute("aria-label")).toBe("Slide 1");
-    await back();
-    await back();
-    expect(screen()).toBe("walk-screen-praise");
-    expect(arrow(COPY.pagerBack).disabled).toBe(true);
+    expect(live()).not.toBeNull();
     expect(p.onAccept).not.toHaveBeenCalled();
     expect(p.onKeepMine).not.toHaveBeenCalled();
   });
 
-  it("a tap on a paragraph with an open moment opens the walk there (Q-B3 A)", async () => {
-    await render(props());
+  it("a paragraph that waits opens on what it asks and lands on the page; answered, it opens the whole walk with no buttons (founder 2026-10-20)", async () => {
+    const p = props();
+    await render(p);
     await click(paragraph("retention went up"));
-    expect(screen()).toBe("walk-screen-praise");
+    // The helper words first, the confident moment just above them.
+    expect(screen()).toBe("walk-screen-helpers");
+    expect(live()!.querySelector("[data-walk-message]")!.textContent).toContain(COPY.titlePraise);
     expect(pager()).toBeNull();
+    // The confident moment met above them still reaches the coach's queue.
+    expect(reportMomentEvent).toHaveBeenCalledWith("snip-1", "opened", ["praise"]);
+    const word = [...live()!.querySelectorAll<HTMLButtonElement>("[data-walk-word-picker] button")]
+      .find((w) => w.textContent === "retention");
+    await click(word);
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    expect(p.onSetRootPhrase).toHaveBeenCalledTimes(1);
+    // Nothing left on the paragraph: back on the Ideal Text.
+    await act(async () => undefined);
+    expect(live()).toBeNull();
+    // Tapped again: the whole walk at that paragraph, to scroll through.
+    await click(paragraph("retention went up"));
+    expect(live()!.querySelector("[data-walk-start]")).not.toBeNull();
+    expect(live()!.querySelector("[data-walk-dock]")!.childElementCount).toBe(0);
+    expect(screen()).toBeNull();
   });
 
   it("helper words picked in the walk go through the deck's own save: the words and the lock", async () => {
@@ -261,16 +283,14 @@ describe("the walk on the deck", () => {
     expect(chunkOf(lockCall)).toBe("p2");
     expect(lockCall[1]).toBe(SLIDES[1]);
     // Nobody to judge and no summary to read: the walk lands on the page.
-    // The chosen words are orange in the text at once. With the moment's
-    // bookmark on the paragraph, a tap opens the moment first and then its
-    // helper-words step (founder 2026-10-14), never the old sheet.
+    // The chosen words are orange in the text at once, and a tap on them
+    // opens their helper-words step to change them (founder 2026-10-20),
+    // never the old sheet.
     await act(async () => undefined);
     expect(live()).toBeNull();
     const orange = paragraph("retention went up")!.querySelector<HTMLElement>(".walk-helper-word");
     expect(orange?.textContent).toBe("retention went");
     await click(orange);
-    expect(screen()).toBe("walk-screen-praise");
-    await click(live()!.querySelector("[data-testid='walk-forward']"));
     expect(screen()).toBe("walk-screen-helpers");
     expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe(`Slide 2 · ${WALK_COPY.navHelperWords}`);
     expect(document.querySelector("[data-testid='helper-words-card']")).toBeNull();

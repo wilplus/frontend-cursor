@@ -65,14 +65,21 @@ export function readAiVoiceOnce(practiceId: string): Promise<AiVoiceState | null
   if (have?.clip?.state === "ready") return Promise.resolve(have);
   let got = asking.get(practiceId);
   if (!got) {
-    got = readAiVoice(practiceId)
+    const read = readAiVoice(practiceId)
       .then((r) => {
         if (!r.ok) return null;
         known.set(practiceId, r.data);
         return r.data;
       })
       .catch(() => null);
-    asking.set(practiceId, got);
+    asking.set(practiceId, read);
+    // Anything but a ready clip (still being made, a failed read) is asked
+    // again by the next caller (founder 2026-10-20: the clip shows whenever
+    // it lands).
+    void read.then((s) => {
+      if (s?.clip?.state !== "ready" && asking.get(practiceId) === read) asking.delete(practiceId);
+    });
+    got = read;
   }
   return got;
 }

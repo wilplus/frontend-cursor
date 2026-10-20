@@ -221,21 +221,25 @@ export function othersAnswered(messages: readonly LoungeMessage[], take: string)
   ).length;
 }
 
-/** The speaker's answer to a step as their own bubble says it (prototype
- *  v31, lens off). Null: posted elsewhere (helper words, a clearer
- *  version's choice), or nothing to say. */
+/** The speaker's answer to a step as their own bubble says it, in the
+ *  walk's chat and the Lounge alike. Null: posted elsewhere (helper words, a
+ *  clearer version's choice), or nothing to say: Practise and Practise
+ *  again write nothing, the try itself is the speaker's bubble (founder
+ *  2026-10-20, WIL-89). */
 export function answerBody(step: WalkStep, value: string): string | null {
   if (value === "skip" && ["helpers", "exVideo", "encourage"].includes(step.key)) return WALK_COPY.skip;
-  if (step.key === "exVideo" && value === "go") return WALK_COPY.exercisePractise;
-  if (step.key === "encourage" && value === "again") return COPY.pillPractiseAgain;
-  // Practise after a Good job (founder 2026-10-16): the pill's own word.
-  if (step.key === "improved" && value === "again") return WALK_COPY.exercisePractise;
   return null;
 }
 
 /** The AI bubble a step showed (N71), as the chat stores it: its lines, and
- *  the practice whose clip the chat fetches afresh (a link expires). */
-export function aiVoiceChat(ai: { title?: string; lead?: string; line: string; then?: string; practiceId: string }): {
+ *  the practice whose clip the chat fetches afresh (a link expires).
+ *  `fallback`: the step's plain words, which the chat shows instead when the
+ *  clip never comes (founder 2026-10-20: a clip on its way is posted as the
+ *  AI bubble at once, and a stored message is never rewritten). */
+export function aiVoiceChat(
+  ai: { title?: string; lead?: string; line: string; then?: string; practiceId: string },
+  fallback: string | null = null,
+): {
   author: WalkAuthor;
   body: string;
   extra: Record<string, unknown>;
@@ -243,7 +247,7 @@ export function aiVoiceChat(ai: { title?: string; lead?: string; line: string; t
   return {
     author: "app",
     body: [ai.title, ai.lead, ai.line, ai.then].filter(Boolean).join("\n"),
-    extra: { ai_voice: { practice_id: ai.practiceId, then: ai.then ?? null } },
+    extra: { ai_voice: { practice_id: ai.practiceId, then: ai.then ?? null, ...(fallback ? { fallback } : {}) } },
   };
 }
 
@@ -261,12 +265,15 @@ export function praiseChat(
 
 /** What a shown step says in the chat, and who says it; null: nothing.
  *  `say`: the signed line the walk's screen took from a bank, so the chat
- *  says the same one. */
+ *  says the same one. `line`: the practise answer's line as the walk showed
+ *  it (founder 2026-10-20: the lens and the Lounge say the same words);
+ *  without it, the plan's first turn. */
 export function shownStep(
   step: WalkStep,
   moment: FeedbackWalkMoment<unknown> | null,
   coachText: string | null,
   say: (bank: WalkBankKey) => string = () => WALK_COPY.clearerOffer,
+  line: string | null = null,
 ): { author: WalkAuthor; body: string; extra?: Record<string, unknown> } | null {
   const app = (body: string | null | undefined) => (body && body.trim() ? { author: "app" as const, body } : null);
   // The bubble's first line, as the prototype's chat writes it.
@@ -298,11 +305,11 @@ export function shownStep(
       };
     }
     case "improved":
-      return titled(COPY.titlePraise, improvedLine(one, 0));
+      return titled(COPY.titlePraise, line ?? improvedLine(one, 0));
     case "encourage":
-      return titled(COPY.titlePractise, encourageLine(one, 0));
+      return titled(COPY.titlePractise, line ?? encourageLine(one, 0));
     case "thanks":
-      return app(thanksLine(one, 0));
+      return app(line ?? thanksLine(one, 0));
     default:
       return null;
   }
