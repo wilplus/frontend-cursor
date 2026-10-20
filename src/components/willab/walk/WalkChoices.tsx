@@ -9,13 +9,11 @@ import { cn } from "@/lib/utils";
 /*  panel redrawn: "One action per screen. Buttons with different jobs never  */
 /*  look alike").                                                             */
 /*                                                                            */
-/*  The cards shade by position, one step per card, so neighbours never       */
-/*  blend: the 1st white, the 2nd #f7f7f8, the 3rd #efeff1, the 4th and on    */
-/*  #e4e4e7. Black text, a black subtitle: no grey text inside a choice. Two  */
-/*  cards keep their own shade wherever they sit: "else" (light grey, its    */
-/*  lead label orange in regular weight: "Something else · Name a new error") */
-/*  and "noerr" (the darker grey: "I don't hear an error"). A selected card   */
-/*  turns white with a black edge.                                            */
+/*  Every card is white with the thin edge (founder 2026-10-20, replacing the */
+/*  shades by position): something new on it is the small orange dot before   */
+/*  its mark, never a stroke. Black text, a black subtitle: no grey text      */
+/*  inside a choice. The "else" card's lead label is orange in regular weight */
+/*  ("Something else · Name a new error"). A selected card has a black edge.  */
 /*                                                                            */
 /*  Each card is one button (keyboard reachable, Enter and Space pick it); a  */
 /*  card with nothing to do (`done`) is not a button at all. No word of its   */
@@ -32,10 +30,9 @@ export type WalkChoice = {
   subtitle?: string | null;
   /** The orange first line of the "else" card. */
   lead?: string | null;
-  variant?: "else" | "noerr";
   /** The mark on the right; a chevron by default. */
   mark?: WalkChoiceMark;
-  /** The small orange dot before the mark (a speaker waiting). */
+  /** The small orange dot before the mark: something new waits here. */
   dot?: boolean;
   selected?: boolean;
   /** Nothing to do here: drawn, not pressable. */
@@ -47,28 +44,9 @@ export type WalkChoice = {
   testId?: string;
 };
 
-/** The shade of the card at `index` (0-based), by position. Pure. */
-export function choiceShade(index: number): "white" | "g1" | "g2" | "g3" {
-  if (index <= 0) return "white";
-  if (index === 1) return "g1";
-  if (index === 2) return "g2";
-  return "g3";
-}
-
-const SHADE: Record<ReturnType<typeof choiceShade> | "else" | "noerr", string> = {
-  white: "bg-background border-border",
-  g1: "bg-[#f7f7f8] border-[#f7f7f8] dark:bg-foreground/[0.04] dark:border-transparent",
-  g2: "bg-[#efeff1] border-[#efeff1] dark:bg-foreground/[0.08] dark:border-transparent",
-  g3: "bg-[#e4e4e7] border-[#e4e4e7] dark:bg-foreground/[0.12] dark:border-transparent",
-  else: "bg-muted border-muted",
-  noerr: "bg-[#e4e4e7] border-[#e4e4e7] dark:bg-foreground/[0.12] dark:border-transparent",
-};
-
-/** The card's background and edge. Pure, so the shading is a unit test. */
-export function choiceClass(choice: Pick<WalkChoice, "variant" | "selected">, index: number): string {
-  if (choice.selected) return "bg-background border-foreground";
-  if (choice.variant) return SHADE[choice.variant];
-  return SHADE[choiceShade(index)];
+/** The card's background and edge: white, a black edge once picked. Pure. */
+export function choiceClass(choice: Pick<WalkChoice, "selected">): string {
+  return choice.selected ? "bg-background border-foreground" : "bg-background border-border";
 }
 
 function Mark({ choice }: { choice: WalkChoice }) {
@@ -114,7 +92,7 @@ export default function WalkChoices({
   return (
     <div data-walk-choices role="group" aria-label={label} className="flex flex-col gap-2">
       {choices.map((choice, i) => {
-        const look = cn(CARD, choiceClass(choice, i), choice.dim && "opacity-60", choice.menu ? "pr-[84px]" : null);
+        const look = cn(CARD, choiceClass(choice), choice.dim && "opacity-60", choice.menu ? "pr-[84px]" : null);
         const card = choice.done ? (
           <div key={choice.value} data-walk-choice={choice.value} data-testid={choice.testId} className={look}>
             <Body choice={choice} />
