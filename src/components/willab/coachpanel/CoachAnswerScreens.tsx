@@ -18,13 +18,15 @@
 /*    DetailScreen     one exercise: its video, its instruction, what it     */
 /*                     treats; Use this one; Back to the list                 */
 /*    WordsScreen      the speaker's passage and player, the coach's words   */
-/*                     below with the grey picture and the pencil             */
+/*                     below with the coach's picture and the pencil          */
 /*    VideoScreen      Record (one action), Stop, Keep, Record again          */
 /*    KindScreen       What did {p} do well? / What kind of fix is it?        */
 /*    ShareScreen      Ready for {p}: exactly what the speaker will get       */
 /*    SummaryScreen    an answered moment: what happened and Your answer      */
 /*    TakeWordScreen   A word for this Take, with the pencil                  */
-/*    TakeVideoScreen  its video; Send to {p} or Send without a video         */
+/*    TakeVideoScreen  its video; Send to {p} or Send without a video; on a   */
+/*                     return visit the saved video, with Record again and    */
+/*                     Remove the video (founder 2026-10-19)                  */
 /*                                                                            */
 /*  Presentational: the host (CoachAnswerFlow) owns the reads and the writes. */
 /*  Every word comes from COACH_PANEL_COPY or from the data; no number about  */
@@ -310,11 +312,16 @@ export function videoFooter(input: {
   skip: WalkAction | null;
   keep: WalkAction;
   onRecordAgain: () => void;
+  /** Remove the video, beside a saved video only: a clip just recorded has
+   *  Record again (founder 2026-10-19, D9). */
+  remove?: WalkAction | null;
 }): { pill: WalkAction; dot: boolean; links: WalkAction[] } {
   const status = input.recorder.state.status;
   if (status === "recording") return { pill: { label: COPY.stop, onClick: () => void input.recorder.stop() }, dot: false, links: [] };
-  if (status === "stopped" || input.kept) {
-    return { pill: input.keep, dot: false, links: [{ label: COPY.recordAgain, onClick: input.onRecordAgain }] };
+  const again: WalkAction = { label: COPY.recordAgain, onClick: input.onRecordAgain };
+  if (status === "stopped") return { pill: input.keep, dot: false, links: [again] };
+  if (input.kept) {
+    return { pill: input.keep, dot: false, links: input.remove ? [again, input.remove] : [again] };
   }
   return {
     pill: { label: COPY.record, onClick: () => void input.recorder.start(), testId: "coach-panel-record" },
@@ -444,27 +451,39 @@ export function TakeWordScreen({ where, onBack, onClose, pseudonym, text, editin
   );
 }
 
-export function TakeVideoScreen({ where, onBack, onClose, pseudonym, recorder, words, busy, fail, onSend, onRecordAgain }: TakeFrame & {
+export function TakeVideoScreen({ where, onBack, onClose, pseudonym, recorder, keptUrl, words, busy, fail, onSend, onRecordAgain, onRemove }: TakeFrame & {
   recorder: CoachVideoRecorder;
+  /** The video already sent with this word, on a return visit, while the
+   *  recorder is idle; null when there is none or it was removed on this
+   *  visit (founder 2026-10-19). */
+  keptUrl: string | null;
   /** The word, with its pencil. */
   words: ReactNode;
   busy: boolean;
   fail: string | null;
   onSend: () => void;
   onRecordAgain: () => void;
+  /** Remove the video: it goes when the word is sent. */
+  onRemove: () => void;
 }) {
   const status = recorder.state.status;
+  // A camera that fails after Record again brings the saved video back (the
+  // coach did not remove it), with the recorder's own message below.
+  const idle = status === "idle" || status === "error";
+  const kept = idle && keptUrl !== null;
+  const cameraFail = kept && recorder.state.status === "error" ? recorder.state.message : null;
   const foot = videoFooter({
-    recorder, kept: false,
+    recorder, kept,
     keep: { label: COPY.sendTo(pseudonym), onClick: onSend, disabled: busy, testId: "coach-panel-takevideo-send" },
     skip: { label: COPY.sendWithoutAVideo, onClick: onSend, disabled: busy, testId: "coach-panel-takevideo-send-without" },
+    remove: { label: COPY.removeTheVideo, onClick: onRemove, disabled: busy, testId: "coach-panel-takevideo-remove" },
     onRecordAgain,
   });
   return (
     <WalkOverlay onBack={onBack} backLabel={where} title={COPY.videoTitle} subtitle={COPY.asWillSeeIt(pseudonym)}
       onClose={onClose} testId="coach-panel-takevideo"
-      footer={<WalkFooter pill={foot.pill} dot={foot.dot} links={foot.links}><Fail text={fail} /></WalkFooter>}>
-      <CoachVideoBox recorder={recorder} />
+      footer={<WalkFooter pill={foot.pill} dot={foot.dot} links={foot.links}><Fail text={fail ?? cameraFail} /></WalkFooter>}>
+      {kept ? <CoachVideo src={keptUrl} className="aspect-video w-full" /> : <CoachVideoBox recorder={recorder} />}
       {status === "recording" ? null : words}
     </WalkOverlay>
   );
