@@ -761,6 +761,7 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
     >
       <Clip moment={moment} />
       <WalkMessage>
+        {moment.highest ? <span>{COPY.titleMostConfident}</span> : null}
         <span>{moment.praiseTitle ?? COPY.titlePraise}</span>
         {words.length > 0 ? <span>{words.join(" ")}</span> : null}
       </WalkMessage>
@@ -862,6 +863,7 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
       {/* The coach's own clearer version is their bubble, with their photo
           and video, and is not said twice (founder 2026-10-20). */}
       <WalkMessage coach={clearer.byCoach === true} wide={clearer.byCoach === true}>
+        {moment.highest ? <span>{COPY.titleMostConfidentSoFar}</span> : null}
         <span>{COPY.cardClearerVersion}</span>
         {clearer.byCoach && moment.coachAnswer?.videoUrl ? (
           <CoachVideo src={moment.coachAnswer.videoUrl} className="my-2 w-full flex-none" />
@@ -886,6 +888,7 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
       <Clip moment={moment} />
       {aiExercise(ctx, step, moment) ?? (
         <WalkMessage coach={exercise?.byCoach === true} wide>
+          {moment.highest ? <span>{COPY.titleMostConfidentSoFar}</span> : null}
           <span>{COPY.titleExercise}</span>
           {exercise?.video ? (
             <CoachVideo
@@ -1005,6 +1008,7 @@ function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
       seed={`ai-ex-${moment.index}`}
       state={state}
       {...lines}
+      title={moment.highest ? COPY.titleMostConfidentSoFar : lines.title}
       arrive
       onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
     />

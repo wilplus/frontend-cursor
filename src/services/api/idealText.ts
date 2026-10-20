@@ -267,6 +267,10 @@ export interface DocumentSuggestion {
   /** The green moment's level key ("W1".."W10"), for its opening line
    *  (founder 2026-10-14); never a number. */
   levelKey?: string | null;
+  /** The Take's highest moment (founder 2026-10-20, N86): the walk opens its
+   *  bubble with "This was your most confident moment." A flag, never the
+   *  score. */
+  highestMoment?: boolean;
   /** Why the green moment landed, in words (founder 2026-10-18;
    *  backend services/praise_reason). Absent until it is written. */
   praiseReason?: PraiseReason | null;
@@ -750,6 +754,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     tentative: record.tentative === true,
     bookmarkTier: readBookmarkTier(record.bookmark_tier),
     levelKey: readNonEmptyString(record.level_key),
+    highestMoment: record.highest_moment === true,
     praiseReason: readPraiseReason(record.praise_reason),
     practicePrompt: record.practice_prompt === true,
     coachRequest: mapCoachRequest(record.coach_request),

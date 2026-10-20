@@ -239,7 +239,12 @@ export function praiseChat(
   reason: PraiseReason,
 ): { author: WalkAuthor; body: string } {
   const lead = (moment.praiseLead ?? moment.praiseWords).join(" ");
-  const lines = [moment.praiseTitle ?? COPY.titlePraise, lead, ...reason.paragraphs];
+  const lines = [
+    ...(moment.highest ? [COPY.titleMostConfident] : []),
+    moment.praiseTitle ?? COPY.titlePraise,
+    lead,
+    ...reason.paragraphs,
+  ];
   return { author: "app", body: lines.filter((line) => line.trim() !== "").join("\n") };
 }
 
@@ -258,6 +263,9 @@ export function shownStep(
   const app = (body: string | null | undefined) => (body && body.trim() ? { author: "app" as const, body } : null);
   // The bubble's first line, as the prototype's chat writes it.
   const titled = (title: string, body: string | null | undefined) => app(body && body.trim() ? `${title}\n${body}` : null);
+  // The Take's highest moment names itself first (founder 2026-10-20): as
+  // praise, or "so far" when the walk goes on to correct it.
+  const soFar = moment?.highest ? `${COPY.titleMostConfidentSoFar}\n` : "";
   const one = [step];
   switch (step.key) {
     case "coachnote":
@@ -266,7 +274,10 @@ export function shownStep(
       return coachText ? { author: "coach", body: `${COPY.titleCoachLine}\n${coachText}` } : null;
     case "praise":
       if (moment?.praiseReason) return praiseChat(moment, moment.praiseReason);
-      return titled(moment?.praiseTitle ?? COPY.titlePraise, moment?.praiseWords.join(" "));
+      return titled(
+        `${moment?.highest ? `${COPY.titleMostConfident}\n` : ""}${moment?.praiseTitle ?? COPY.titlePraise}`,
+        moment?.praiseWords.join(" "),
+      );
     case "helpers":
       return app(COPY.titleEmphasis);
     case "clearer": {
@@ -274,18 +285,18 @@ export function shownStep(
       // Words that undermined the speaker open with B10 (N85).
       const clearer = moment?.clearer;
       const said = clearer?.say
-        ? titled(COPY.cardClearerVersion, [...clearerOpening(clearer.reason, () => say("B13")), clearer.say].join("\n"))
+        ? titled(soFar + COPY.cardClearerVersion, [...clearerOpening(clearer.reason, () => say("B13")), clearer.say].join("\n"))
         : null;
       return said ? { ...said, extra: { new_words: moment?.clearer?.after ?? null } } : null;
     }
     case "exVideo": {
       const ex = moment?.exercise;
-      if (!ex) return moment ? titled(COPY.titleExercise, WALK_COPY.lineA) : null;
+      if (!ex) return moment ? titled(soFar + COPY.titleExercise, WALK_COPY.lineA) : null;
       // The video's thumb in the bubble (prototype v31 `vthumb`): the
       // exercise's stored link (a library or coach upload's public address).
       return {
         author: ex.byCoach ? "coach" : "app",
-        body: `${COPY.titleExercise}\n${ex.instruction ?? WALK_COPY.lineA}`,
+        body: `${soFar}${COPY.titleExercise}\n${ex.instruction ?? WALK_COPY.lineA}`,
         ...(ex.video ? { extra: { video: ex.video } } : {}),
       };
     }
