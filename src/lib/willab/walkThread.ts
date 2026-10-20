@@ -261,8 +261,9 @@ export function shownStep(
   const one = [step];
   switch (step.key) {
     case "coachnote":
-      // "Your coach" over the words, as the prototype's chat writes it.
-      return coachText ? { author: "coach", body: `${COPY.titleCoach}\n${coachText}` } : null;
+      // "Your coach:" over the words, as the lens writes it (founder
+      // 2026-10-20: the colon).
+      return coachText ? { author: "coach", body: `${COPY.titleCoachLine}\n${coachText}` } : null;
     case "praise":
       if (moment?.praiseReason) return praiseChat(moment, moment.praiseReason);
       return titled(moment?.praiseTitle ?? COPY.titlePraise, moment?.praiseWords.join(" "));

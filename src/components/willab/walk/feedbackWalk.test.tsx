@@ -131,11 +131,12 @@ describe("FeedbackWalk", () => {
   it("walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows", async () => {
     const props = draw(null, { summary: async () => "A closing word.", takeIndex: 2 });
     draw({ seq: 1, at: 1 }, { summary: async () => "A closing word.", takeIndex: 2 });
-    // The coach's bubble: "Your coach", the video inside it, the words.
+    // The coach's bubble: "Your coach:" (founder 2026-10-20, the colon),
+    // the video inside it, the words.
     expect(screen()).toBe("walk-screen-coachnote");
     expect(now()!.querySelector("[data-walk-message][data-walk-coach]")).not.toBeNull();
     expect(now()!.querySelector("[data-walk-message] [data-coach-video]")).not.toBeNull();
-    expect(bubble()).toEqual([COPY.titleCoach, NOTE.text]);
+    expect(bubble()).toEqual([COPY.titleCoachLine, NOTE.text]);
     forward();
     expect(screen()).toBe("walk-screen-praise");
     // Nothing slides (founder 2026-10-20): the coach's note stays above, in

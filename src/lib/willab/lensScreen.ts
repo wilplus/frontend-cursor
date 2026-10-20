@@ -21,8 +21,15 @@
 export const LENS_IDLE_MS = 300;
 
 /** The last resort: a lens with no walk and no settle by now shows the text.
- *  Past anything the page should take to say so itself. */
+ *  Past anything the page should take to say so itself. It counts only
+ *  while the page could say so: not while it loads, its marks may still
+ *  land or its deck is not up (founder 2026-10-20: wait until it's ready). */
 export const LENS_WATCHDOG_MS = 8_000;
+
+/** The page is still on its way: the watchdog waits with it. */
+export function lensStillLoading(page: LensPage): boolean {
+  return page.status === "loading" || page.feedbackPending || page.reviewWaiting === null;
+}
 
 /** A walk step actually on screen: a live layer of the walk, never its idle
  *  root (which the deck mounts with the text) and never a layer leaving. */
@@ -34,8 +41,10 @@ export interface LensPage {
   status: string;
   /** The marks may still land (the server is still saying "ask me again"). */
   feedbackPending: boolean;
-  /** The deck has a moment or a coach's word waiting: the walk is opening. */
-  reviewWaiting: boolean;
+  /** The deck has a moment or a coach's word waiting: the walk is opening.
+   *  Null while the deck is not up yet and cannot say (founder 2026-10-20:
+   *  "if it is still loading, do not display it, wait until it's ready"). */
+  reviewWaiting: boolean | null;
   /** The page already asked the deck to open the walk (live or replayed). */
   walkRequested: boolean;
   /** The page opens a helper-words step by itself as soon as the deck is up. */
@@ -50,7 +59,7 @@ export function lensIdle(page: LensPage): boolean {
   if (page.status !== "ready") return true;
   return (
     !page.feedbackPending &&
-    !page.reviewWaiting &&
+    page.reviewWaiting === false &&
     !page.walkRequested &&
     !page.opensHelpers
   );

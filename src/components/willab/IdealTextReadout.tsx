@@ -184,7 +184,7 @@ export default function IdealTextReadout({
   const [text, setText] = useState(composed);
   /* REVIEW FEEDBACK (founder 2026-09-26): the deck reports whether a moment
      still waits; the bottom button bumps the request that opens the walk. */
-  const [reviewWaiting, setReviewWaiting] = useState(false);
+  const [reviewWaiting, setReviewWaiting] = useState<boolean | null>(false);
   const [reviewRequest, setReviewRequest] = useState(0);
   /* THE WALK OPENS BY ITSELF when a Take's feedback is ready (founder lock
      2026-10-12, moment and feedback chat, section 1), once per Take. */
@@ -954,7 +954,7 @@ export default function IdealTextReadout({
   // ReadySignUpScreen below, which holds the way out.
   const needsAccount = guestNeedsAccount(signedIn);
   const covered = useReadoutLanding({
-    reviewWaiting,
+    reviewWaiting: reviewWaiting === true,
     analysisPending,
     canRead,
     arcId,
@@ -1237,7 +1237,7 @@ export default function IdealTextReadout({
         // 2026-08-05). The take nudge that sat under this went with it:
         // "not text that it really lands on the 3rd time; on the bubble
         // never" — and it was no better as a standing line on the document.
-        nextStep(reviewWaiting)
+        nextStep(reviewWaiting === true)
       ) : onReRead ? (
         // Flag OFF / no SD payload — the plain small mic into the record flow.
         <div className="mt-1 flex flex-col items-center gap-2 border-t border-border pt-4">

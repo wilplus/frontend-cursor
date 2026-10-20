@@ -215,6 +215,21 @@ function liveOpenPartId(
  *  and touch steps between slides. */
 const ONE_PAGE = true;
 
+/** The coach's word for the Take on screen, or null when the word the
+ *  server sent belongs to an earlier Take (founder 2026-10-20). The Take's
+ *  session id decides; without one, its index; without either, the word is
+ *  taken as the Take's own. */
+export function ownCoachWord(
+  message: CoachMessage | null,
+  takeSessionId: string | null | undefined,
+  takeIndex: number | null | undefined,
+): CoachMessage | null {
+  if (!message) return null;
+  if (message.takeSessionId && takeSessionId) return message.takeSessionId === takeSessionId ? message : null;
+  if (message.takeIndex != null && takeIndex != null) return message.takeIndex === takeIndex ? message : null;
+  return message;
+}
+
 export default function TranscriptReviewDeck({
   title = "",
   statusChip = null,
@@ -345,7 +360,9 @@ export default function TranscriptReviewDeck({
   reviewAt?: WalkStepTarget | null;
   /** Whether any moment still waits for the speaker — the host's bottom
    *  button reads it to offer Review feedback or the next take. */
-  onReviewWaiting?: (waiting: boolean) => void;
+  /** Null until the deck is up: the page cannot tell yet whether a walk
+   *  waits (founder 2026-10-20: the text never shows before the walk). */
+  onReviewWaiting?: (waiting: boolean | null) => void;
   /** Bumped by the host's "Review feedback" link under "Record Take N":
    *  play the finished walk again (founder 2026-10-08, Q-IT643b A). */
   replayRequest?: number;
@@ -705,9 +722,16 @@ export default function TranscriptReviewDeck({
     () => firstWaitingBookmark(bookmarks, barWaiting),
     [bookmarks, barWaiting],
   );
+  /* THE WALK SHOWS ONLY THIS TAKE'S COACH WORD (founder 2026-10-20, "change
+     it!"): an earlier Take's word, which the server serves in its place
+     (N48.3 Q11 A), no longer opens Step 0 of a new Take's review and no
+     longer keeps "Continue review" up; it stays in the Lounge as the coach's
+     bubble. The coach's own door (`coachOnly`) still opens whatever word
+     the server sent. */
+  const walkCoachMessage = coachOnly ? coachMessage : ownCoachWord(coachMessage, takeSessionId, takeCount);
   const coachStep = useCoachStep({
     arcId,
-    message: coachMessage,
+    message: walkCoachMessage,
     ready: deckReady,
     next: () => {
       if (firstWaiting >= 0) walk.openAt(0);
@@ -730,7 +754,7 @@ export default function TranscriptReviewDeck({
     waiting: barWaiting,
     pendingOf,
     slideLabel: partLabel,
-    coachMessage,
+    coachMessage: walkCoachMessage,
     coachSeen: coachStep.seen,
     firstTake: takeCount === 1,
     takeIndex: takeCount,
@@ -756,7 +780,7 @@ export default function TranscriptReviewDeck({
      on Step 0 (J1: only on the tap; nothing opens by itself). */
   const coachWordWaiting = coachStep.unseen;
   useEffect(() => {
-    onReviewWaiting?.(deckReady && (firstWaiting >= 0 || coachWordWaiting));
+    onReviewWaiting?.(deckReady ? firstWaiting >= 0 || coachWordWaiting : null);
   }, [deckReady, firstWaiting, coachWordWaiting, onReviewWaiting]);
   // A helper-words bubble opens its helper words as soon as the deck is
   // up, without waiting on the moments or the answers (founder 2026-10-14).
@@ -1557,7 +1581,7 @@ export default function TranscriptReviewDeck({
       {typeof document === "undefined" ? feedbackWalk.element : createPortal(feedbackWalk.element, document.body)}
       <CoachStepLayer
         step={coachStep}
-        message={coachMessage}
+        message={walkCoachMessage}
         stepsAhead={coachStepsAhead(bookmarks, firstWaiting, stateOf)}
       />
       <WalkEndLayer

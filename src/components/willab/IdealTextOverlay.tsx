@@ -10,6 +10,7 @@ import { MediaRefreshProvider, useMediaRefresher } from "@/lib/media/mediaRefres
 import ProcessingWait from "./ProcessingWait";
 import IdealTextPendingCoach from "./IdealTextPendingCoach";
 import LoadingState from "./LoadingState";
+import WalkLoading from "./walk/WalkLoading";
 import { useBackDismiss } from "./useBackDismiss";
 import { RichText } from "./RichText";
 import IdealTextHeading from "./IdealTextHeading";
@@ -56,7 +57,7 @@ import {
   type IdealTextSd,
 } from "./idealTextLoad";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { LENS_IDLE_MS, LENS_WATCHDOG_MS, WALK_STEP_SELECTOR, lensAddress, lensIdle } from "@/lib/willab/lensScreen";
+import { LENS_IDLE_MS, LENS_WATCHDOG_MS, WALK_STEP_SELECTOR, lensAddress, lensIdle, lensStillLoading } from "@/lib/willab/lensScreen";
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
 import IdealTextMenu, { FeedbackLoadingLine } from "./IdealTextMenu";
@@ -261,7 +262,8 @@ export default function IdealTextOverlay({
   const [copied, setCopied] = useState(false);
   /* REVIEW FEEDBACK (founder 2026-09-26): the deck reports whether a moment
      still waits; the bottom button bumps the request that opens the walk. */
-  const [reviewWaiting, setReviewWaiting] = useState(false);
+  // Null until the deck is up and can say (founder 2026-10-20).
+  const [reviewWaiting, setReviewWaiting] = useState<boolean | null>(null);
   const [reviewRequest, setReviewRequest] = useState(0);
   /* AFTER THE WALK (founder 2026-10-08, Q-IT643b A): the deck says when the
      finished walk can be played again; the link under "Record Take N" bumps
@@ -278,13 +280,14 @@ export default function IdealTextOverlay({
   }, [arcId, initialMode]);
   // The lens comes down as soon as the page knows there is nothing to walk
   // (founder 2026-10-14): the feedback settled and no step is opening.
-  const lens = useLensScreen(arcId, initialMode, lensIdle({
+  const lensPage = {
     status,
     feedbackPending,
     reviewWaiting,
     walkRequested: reviewOpenedRef.current,
     opensHelpers: reviewAt?.step === "helpers",
-  }));
+  };
+  const lens = useLensScreen(arcId, initialMode, lensIdle(lensPage), lensStillLoading(lensPage));
   useEffect(() => {
     // The coach-feedback email and bubble open the review too: only helper
     // words and moment sentences open anything (lock 2026-10-12, section 4).
@@ -1117,7 +1120,7 @@ export default function IdealTextOverlay({
           {/* MASTER DOCUMENT — Save, then the next official take. On a
               computer in the Lounge's column, as the lens is (founder
               2026-10-20: the three views share one column). */}
-          <div className="mx-auto w-full max-w-3xl">{nextStep(reviewWaiting)}</div>
+          <div className="mx-auto w-full max-w-3xl">{nextStep(reviewWaiting === true)}</div>
         </div>
       ) : null}
 
@@ -1184,7 +1187,7 @@ function historyEntry(version: number | null, open: () => void): (() => void) | 
  *  chat. With no walk to show, the text appears as soon as the page knows
  *  so (`idle`, the rule in lib/willab/lensScreen), and by the watchdog at
  *  the latest. */
-function useLensScreen(arcId: string, initialMode: IdealTextLaunchMode | undefined, idle: boolean) {
+function useLensScreen(arcId: string, initialMode: IdealTextLaunchMode | undefined, idle: boolean, loading: boolean) {
   const opensWalk = initialMode === "review" || initialMode === "feedback";
   const [on, setOn] = useState(opensWalk);
   const onRef = useRef(opensWalk);
@@ -1205,9 +1208,11 @@ function useLensScreen(arcId: string, initialMode: IdealTextLaunchMode | undefin
     }, LENS_IDLE_MS);
     return () => clearTimeout(t);
   }, [on, idle, reveal]);
-  // The last resort: no step ever came and the page never said so.
+  // The last resort: no step ever came and the page never said so. It
+  // waits while the page is still loading (founder 2026-10-20: never the
+  // text before the walk after a Take).
   useEffect(() => {
-    if (!on) return;
+    if (!on || loading) return;
     const started = Date.now();
     let seen = false;
     const t = setInterval(() => {
@@ -1215,7 +1220,7 @@ function useLensScreen(arcId: string, initialMode: IdealTextLaunchMode | undefin
       if (!seen && Date.now() - started > LENS_WATCHDOG_MS) reveal();
     }, 200);
     return () => clearInterval(t);
-  }, [on, reveal]);
+  }, [on, loading, reveal]);
   return { on, onRef, reveal };
 }
 
@@ -1225,16 +1230,19 @@ function walkStepOnScreen(): boolean {
   return typeof document !== "undefined" && document.querySelector(WALK_STEP_SELECTOR) !== null;
 }
 
-/** The lens screen's own frame while the walk loads: the walk's loader and
- *  its ✕, never the text. */
+/** The lens screen's own frame while the walk loads: the lens's one wait,
+ *  the typing dots where its first bubble will land (founder 2026-10-20),
+ *  and its ✕, never the text. */
 function LensFrame({ on, onClose }: { on: boolean; onClose: () => void }) {
   if (!on || typeof document === "undefined") return null;
   return createPortal(
-    <div data-lens-screen className="fixed inset-0 z-[45] flex flex-col bg-background">
-      <div className="flex w-full justify-end px-4 py-3">
-        <OverlayCloseButton onClick={onClose} />
+    <div data-lens-screen className="fixed inset-0 z-[45] flex flex-col bg-background pt-[env(safe-area-inset-top)]">
+      <div className="flex min-h-[44px] w-full items-center justify-end px-2.5 pt-2">
+        <OverlayCloseButton onClick={onClose} className="mr-2.5" />
       </div>
-      <LoadingState placement="surface" />
+      <div className="mx-auto w-full max-w-3xl px-5 py-3.5">
+        <WalkLoading />
+      </div>
     </div>,
     document.body,
   );

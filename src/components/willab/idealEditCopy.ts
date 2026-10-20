@@ -113,6 +113,10 @@ export const CHUNK_SHEET_COPY = {
   /* Step 0 (founder 2026-09-29, Q1; Final Screens L8). "Your coach" and
      "Take N" are the signed-off coach-card words (L6). */
   titleCoach: "Your coach",
+  /* The coach's bubble opens with the title as a line, with a colon
+     (founder 2026-10-20, in chat: "the ':' is missing"). The bar and the
+     step's name keep `titleCoach`. */
+  titleCoachLine: "Your coach:",
   /* Reopening a clean paragraph is an edit, not the end of a review. */
   titleEditChunk: "Edit this chunk",
 
