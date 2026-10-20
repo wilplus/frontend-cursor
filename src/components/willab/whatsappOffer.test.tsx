@@ -5,9 +5,12 @@ OUTCOME
   O1  A number without its country code is refused on screen and nothing is sent.
   O2  A valid number is saved in full international form and the offer closes.
   O3  Not now sends nothing and closes.
+  O4  A number I typed in the chat without its country code is in the form,
+      to fix, not to type again (founder 2026-10-20).
 PROVES   O1 -> refuses a number without its country code
          O2 -> saves a valid number in E.164 and closes
          O3 -> Not now sends nothing and closes
+         O4 -> opens with the number typed in the chat
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -23,7 +26,10 @@ import { WhatsAppOfferActions, WHATSAPP_COPY } from "./WillabWhatsAppPrompt";
 
 let container: HTMLDivElement;
 let root: Root;
-const offer = { canOffer: true, phone: null, softDismiss: vi.fn(), markSaved: vi.fn(), refresh: vi.fn() };
+const offer = {
+  canOffer: true, phone: null, softDismiss: vi.fn(), markSaved: vi.fn(), refresh: vi.fn(),
+  draft: null as string | null, setDraft: vi.fn(),
+};
 const onResolve = vi.fn();
 
 beforeEach(() => {
@@ -67,6 +73,12 @@ describe("WhatsApp offer", () => {
     expect(api.saveWhatsAppPhone).toHaveBeenCalledWith("+447700900123");
     expect(offer.markSaved).toHaveBeenCalledWith("+447700900123");
     expect(onResolve).toHaveBeenCalled();
+  });
+
+  it("opens with the number typed in the chat", async () => {
+    // The Lounge keys the form by the draft, so it opens again with it.
+    act(() => root.render(createElement(WhatsAppOfferActions, { key: "draft", offer: { ...offer, draft: "07700 900461" }, onResolve })));
+    expect(container.querySelector("input")!.value).toBe("07700 900461");
   });
 
   it("Not now sends nothing and closes", async () => {

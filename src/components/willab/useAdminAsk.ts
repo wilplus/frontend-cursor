@@ -10,16 +10,18 @@ import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  An ask the admin sent this person from their profile (founder 2026-10-13,  */
-/*  step 2). It shows the next time they open the chat (founder 2026-10-18:   */
-/*  waiting for their next Take, it never showed), in the footer slot the     */
-/*  app's own offers use, one at a time:                                       */
+/*  step 2). It shows at the end of a Take, from Take 2, as that Take's one    */
+/*  ask (founder 2026-10-20: one action at a time; it no longer shows when    */
+/*  the chat opens): the backend holds the message after the Take for it      */
+/*  (held_for "admin", services/after_take.py), and the Lounge lets that      */
+/*  message go when the ask closes. "Not now" leaves it open, so it comes     */
+/*  back after the next Take. In the footer slot the app's own offers use:    */
 /*    whatsapp     → the WhatsApp offer                                         */
 /*    home_screen  → the add-to-home-screen offer (only where it can install)   */
 /*    consent      → the question in the chat, answered No | Yes (ConsentAsk)  */
 /*    promo        → their plan price, pointing to the pricing screen (step 3)  */
 /*    lesson       → their lesson price, pointing to the booking page (step 3)  */
-/*  While an ask is open the automatic offers hold back, so a Take never gets   */
-/*  two questions.                                                             */
+/*  A Take never gets two asks: the backend picks one.                         */
 /* -------------------------------------------------------------------------- */
 
 export interface AdminAsk {
@@ -33,16 +35,17 @@ export interface AdminAsk {
 }
 
 interface Inputs {
-  state: string;
   threadLoading: boolean;
   append: (draft: LoungeMessageDraft) => Promise<LoungeMessage>;
   installCanOffer: boolean;
-  activeOffer: OfferType | null;
   openOffer: (type: OfferType) => void;
+  /** The message after a Take held back for this ask (its client_id), or null. */
+  waitingId: string | null;
+  /** The ask's bubble already in the thread for that message (a reload), or null. */
+  asked: OfferType | null;
+  /** Let that message go: the ask cannot show, or there is none. */
+  letGo: () => void;
 }
-
-/** The chat itself, not the Lab over it nor a parked Take: never mid-recording. */
-const AT_HOME = new Set(["lounge_idle", "review_pending", "insights_ready", "lounge_general"]);
 
 const OFFER_FOR: Record<AdminAsk["kind"], OfferType> = {
   whatsapp: "whatsapp",
@@ -74,32 +77,39 @@ function report(id: string, event: "shown" | "opened" | "answered") {
 }
 
 export function useAdminAsk(inputs: Inputs) {
-  const { state, threadLoading, append, installCanOffer, activeOffer, openOffer } = inputs;
-  // undefined = still asking the server; null = nothing waiting.
-  const [ask, setAsk] = useState<AdminAsk | null | undefined>(undefined);
-  const shownRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    void bffFetch("/api/v2/user/asks/next", { auth: "optional", cache: "no-store" }).then((r) => {
-      const body = r.kind === "response" && r.ok ? (r.body as { ask?: AdminAsk | null } | null) : null;
-      if (live) setAsk(body?.ask ?? null);
-    });
-    return () => {
-      live = false;
-    };
+  const { threadLoading, append, installCanOffer, openOffer, waitingId, asked, letGo } = inputs;
+  const [ask, setAsk] = useState<AdminAsk | null>(null);
+  // The held message this ask was shown for: once per Take.
+  const shownForRef = useRef<string | null>(null);
+  const liveRef = useRef(true);
+  useEffect(() => () => {
+    liveRef.current = false;
   }, []);
 
   useEffect(() => {
-    if (!ask || ask.status === "shown" || shownRef.current === ask.id || threadLoading) return;
-    if (!AT_HOME.has(state) || activeOffer !== null) return;
-    if (ask.kind === "home_screen" && !installCanOffer) return;
-    shownRef.current = ask.id;
-    const type = OFFER_FOR[ask.kind];
-    void append(offerDraft(type, askBody(ask)));
-    openOffer(type);
-    report(ask.id, "shown");
-  }, [ask, state, activeOffer, installCanOffer, threadLoading, append, openOffer]);
+    if (!waitingId || threadLoading || shownForRef.current === waitingId) return;
+    shownForRef.current = waitingId;
+    // Read now, not at mount: the ask may have been sent since the chat opened.
+    void bffFetch("/api/v2/user/asks/next", { auth: "optional", cache: "no-store" }).then((r) => {
+      const body = r.kind === "response" && r.ok ? (r.body as { ask?: AdminAsk | null } | null) : null;
+      const next = body?.ask ?? null;
+      if (!liveRef.current) return;
+      if (!next || (next.kind === "home_screen" && !installCanOffer)) {
+        letGo();
+        return;
+      }
+      setAsk(next);
+      const type = OFFER_FOR[next.kind];
+      if (asked) {
+        openOffer(asked); // its bubble is there: the form opens again
+        return;
+      }
+      const draft = offerDraft(type, askBody(next));
+      void append({ ...draft, metadata: { ...draft.metadata, after_take: waitingId } });
+      openOffer(type);
+      report(next.id, "shown");
+    });
+  }, [waitingId, asked, threadLoading, installCanOffer, append, openOffer, letGo]);
 
   const opened = useCallback(() => {
     if (ask) report(ask.id, "opened");
@@ -113,10 +123,8 @@ export function useAdminAsk(inputs: Inputs) {
     setAsk(null);
   }, [ask]);
 
-  /** Hold the automatic offers while an ask is pending or loading. `bookHref`
-   *  is where a lesson ask's "See times" goes. */
+  /** `bookHref` is where a lesson ask's "See times" goes. */
   return {
-    held: ask !== null,
     opened,
     answered,
     consentKey: ask?.kind === "consent" ? ask.consent_key : null,

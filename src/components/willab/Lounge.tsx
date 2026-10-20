@@ -9,7 +9,7 @@ import dynamic from "next/dynamic";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "./LoungeAiVoiceBubble";
 import { CHUNK_SHEET_COPY } from "./idealEditCopy";
-import { postChatQuery } from "@/services/api/chatQuery";
+import { postChatQuery, type ChatQueryResponse } from "@/services/api/chatQuery";
 import { warmIdealTextOpen } from "@/services/api/idealText";
 import { newestStamp, refreshNewCoachFeedback, stampLoungeMessage, type LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
@@ -85,6 +85,9 @@ import {
 import { useRouter } from "next/navigation";
 import SymmetricPair from "./SymmetricPair";
 import { useAdminAsk } from "./useAdminAsk";
+import { afterTakeOrder, askShowing, askToOpen, heldFor, heldMessage, waitingFor } from "./afterTake";
+import { postAfterTake } from "@/services/api/afterTake";
+import { setInstallable } from "@/lib/willab/installable";
 import { ConsentAskActions } from "./ConsentAsk";
 import OfferBubble from "./OfferBubble";
 import {
@@ -351,7 +354,9 @@ export default function Lounge({
     // SD — the audit-progress line ("N more takes to the full training") is
     // retired with the 3-take arc: takes are open-ended now.
     items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-    return cardBeforeSummary(items);
+    // One action at a time (founder 2026-10-20): the message after a Take
+    // waits, undrawn, under its ask; the card comes first.
+    return afterTakeOrder(items);
   }, [messages]);
   // The thread in the order it is drawn (founder 2026-10-20): what the
   // chat reads as "the newest" is what shows last.
@@ -1180,27 +1185,53 @@ export default function Lounge({
     }
   }, [thread.loading]);
 
-  // Step 2 (founder 2026-10-13): an ask the admin sent this person shows the
-  // next time they open the chat (2026-10-18); while one is open the automatic
-  // offers hold back.
+  // ONE ACTION AT A TIME (founder 2026-10-20, afterTake.ts): the message
+  // after a Take waits under the Take's one ask and is let go when the ask
+  // closes. The backend lets it go itself after a tap on the question or a
+  // typed turn; the forms (Save, Not now, See prices...) ask for it here.
+  const waiting = useMemo(() => heldMessage(messages), [messages]);
+  const lettingGoRef = useRef(false);
+  const letGo = useCallback(async () => {
+    if (lettingGoRef.current) return;
+    lettingGoRef.current = true;
+    try {
+      await thread.idle(); // under what the ask's close just wrote
+      if (await postAfterTake()) await reload().catch(() => undefined);
+    } finally {
+      lettingGoRef.current = false;
+    }
+  }, [thread, reload]);
+  // The home screen may be a Take's one ask: the summary request says so.
+  useEffect(() => setInstallable(install.canOffer), [install.canOffer]);
+
+  // Step 2 (founder 2026-10-13): an ask the admin sent this person shows at
+  // the end of a Take, from Take 2, as its one ask (founder 2026-10-20).
+  const waitingForAdmin = waitingFor(waiting, "admin");
+  const adminAsked = useMemo(() => {
+    if (!waitingForAdmin) return null;
+    const bubble = messages.find((m) => m.metadata?.after_take === waitingForAdmin);
+    return bubble ? readOfferType(bubble.metadata) : null;
+  }, [messages, waitingForAdmin]);
   const adminAsk = useAdminAsk({
-    state,
     threadLoading: thread.loading,
     append: thread.append,
     installCanOffer: install.canOffer,
-    activeOffer,
     openOffer,
+    waitingId: waitingForAdmin,
+    asked: adminAsked,
+    letGo: () => void letGo(),
   });
 
-  // F2 — surface the install offer once, post-send, on an installable platform.
-  // Gated on a FRESH in-session recording (a recording_summary minted after the
-  // settle stamp) so a plain reload / status reconcile that lands on
-  // review_pending never auto-opens it. hasOffer (+ the ref) dedups the append.
+  // F2 — surface the install offer once, post-send, on an installable platform,
+  // to a guest. Signed in, the home screen is a Take's one ask at its end
+  // instead (founder 2026-10-20, afterTake.ts). Gated on a FRESH in-session
+  // recording (a recording_summary minted after the settle stamp) so a plain
+  // reload / status reconcile that lands on review_pending never auto-opens
+  // it. hasOffer (+ the ref) dedups the append.
   const installHandledRef = useRef(false);
   useEffect(() => {
-    if (thread.loading || settleTimeRef.current === null) return;
+    if (thread.loading || settleTimeRef.current === null || thread.signedIn) return;
     if (state !== "review_pending" || !install.canOffer) return;
-    if (adminAsk.held) return;
     if (installHandledRef.current || hasOffer(messages, "install")) return;
     const settle = settleTimeRef.current;
     const freshSend = messages.some(
@@ -1213,47 +1244,64 @@ export default function Lounge({
   }, [
     state,
     install.canOffer,
-    adminAsk.held,
     thread.loading,
+    thread.signedIn,
     messages,
     thread.append,
     openOffer,
   ]);
 
-  // The second offer (founder 2026-10-12): a WhatsApp number for "The feedback
-  // from your coach is in!". It waits for the install offer and a free footer;
-  // its trigger lives in the hook (same fresh-send gate as install above).
   // WIL-74 — the question after a Take's summary opens its pair while it is
   // the newest message, once per Take; the record button is back on a tap.
   const feedbackArmedRef = useRef<string | null>(null);
   const threadLoading = thread.loading;
   useEffect(() => {
-    if (threadLoading || adminAsk.held) return;
+    if (threadLoading) return;
     const open = feedbackCheckOpen(drawn);
     if (!open || feedbackArmedRef.current === open.takeSessionId) return;
     feedbackArmedRef.current = open.takeSessionId;
     openOffer("feedback_check");
-  }, [threadLoading, adminAsk.held, drawn, openOffer]);
+  }, [threadLoading, drawn, openOffer]);
 
-  const whatsapp = useWhatsAppOffer({
-    state,
-    messages,
-    threadLoading: thread.loading,
-    append: thread.append,
-    settleTimeRef,
-    installCanOffer: install.canOffer,
-    held: adminAsk.held,
-    activeOffer,
-    openOffer,
-  });
+  // The second offer (founder 2026-10-12): a WhatsApp number for "The feedback
+  // from your coach is in!", asked at the end of a Take from Take 2.
+  const whatsapp = useWhatsAppOffer({ append: thread.append });
+
+  // A Take's WhatsApp or home-screen ask opens its form by itself, once
+  // (founder 2026-10-20: the ask is the one thing to do). A home screen this
+  // device cannot add is passed at once.
+  const askOpenedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (threadLoading) return;
+    const ask = askToOpen(drawn);
+    if (!ask || askOpenedRef.current === ask.id) return;
+    askOpenedRef.current = ask.id;
+    if (ask.type === "install" && !install.canOffer) {
+      if (waiting) void letGo();
+      return;
+    }
+    openOffer(ask.type);
+  }, [threadLoading, drawn, install.canOffer, waiting, letGo, openOffer]);
+
+  // A message still waiting while no ask is in front of the speaker would
+  // never show (a typed turn the backend could not store, say): let it go,
+  // once per message. The CEO panel's ask decides for itself (useAdminAsk).
+  const unstuckRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (threadLoading || botThinking || !waiting || heldFor(waiting) === "admin") return;
+    if (askShowing(drawn, activeOffer !== null) || unstuckRef.current === waiting.client_id) return;
+    unstuckRef.current = waiting.client_id;
+    void letGo();
+  }, [threadLoading, botThinking, waiting, drawn, activeOffer, letGo]);
 
   useEffect(() => {
     // Stick to bottom only if the user hasn't scrolled up. Scroll the container
-    // itself (not a sentinel) so the page/viewport never moves.
+    // itself (not a sentinel) so the page/viewport never moves. A form opening
+    // in the footer shortens the thread: the ask stays in sight above it.
     if (!atBottomRef.current) return;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, botThinking]);
+  }, [messages.length, botThinking, activeOffer]);
 
   // A NEW BUBBLE IS ALWAYS SHOWN (founder 2026-09-28), even when the thread
   // was scrolled up, and See next steps lands on the newest one. Only a new
@@ -1313,6 +1361,24 @@ export default function Lounge({
 
   function postAnswerBubble(label: string) {
     void thread.append({ role: "user", kind: "text", body: label });
+  }
+
+  // What a reply did to the asks (founder 2026-10-20). A number typed under
+  // the WhatsApp ask was saved: the reply says so, and the form closes.
+  // Without its country code, the form opens with it, to fix. A turn that
+  // passed the Take's ask: the message after the Take is under the reply
+  // now, so the form closes and the thread is read again.
+  function settleAsks(resp: ChatQueryResponse, typed: string): void {
+    const saved = resp.row_metadata?.whatsapp;
+    if (saved === "saved") {
+      whatsapp.refresh();
+      setActiveOffer((open) => (open === "whatsapp" ? null : open));
+    }
+    if (saved === "invalid") whatsapp.setDraft(typed);
+    if (resp.after_take) {
+      setActiveOffer(null);
+      void reload().catch(() => undefined);
+    }
   }
 
   // The shared send core — used by the composer. Returns true when this call
@@ -1416,15 +1482,10 @@ export default function Lounge({
           // An ask already showing last is not asked again (founder
           // 2026-10-20): the reply opens its form under it.
           const chatOffer = readOfferType({ offer: resp.offer });
+          settleAsks(resp, q);
           if (chatOffer) {
             if (newestAsk(screen) !== chatOffer) thread.appendLocalOnly(offerDraft(chatOffer));
             setActiveOffer(chatOffer);
-          }
-          // A number typed under the WhatsApp ask was saved (founder
-          // 2026-10-20): the reply says so, and the form closes.
-          if (resp.row_metadata?.whatsapp === "saved") {
-            whatsapp.refresh();
-            setActiveOffer((open) => (open === "whatsapp" ? null : open));
           }
           // "Show me my latest take" (founder 2026-10-16): the BE stored that
           // Take's Ideal Text card after the reply; show it now, one tap away.
@@ -1629,7 +1690,12 @@ export default function Lounge({
             const target = feedbackCheckTarget(messages, "ask");
             if (target) void answerFeedbackCheck(target, choice);
           }}
-          onResolve={() => setActiveOffer(null)}
+          onResolve={() => {
+            // A Take's ask closed: its message comes under it (the question's
+            // taps let it go on the backend, "No" keeps it waiting).
+            if (activeOffer !== "feedback_check" && waiting) void letGo();
+            setActiveOffer(null);
+          }}
         />
       ) : uploadAskActive ? (
         // The user asked to upload — the record button becomes a file picker.
@@ -1983,7 +2049,7 @@ function OfferActions({
     return <InstallOfferActions offer={install} onResolve={onResolve} />;
   }
   if (type === "whatsapp") {
-    return <WhatsAppOfferActions offer={whatsapp} onResolve={onResolve} />;
+    return <WhatsAppOfferActions key={whatsapp.draft ?? ""} offer={whatsapp} onResolve={onResolve} />;
   }
   if (type === "consent") {
     // Answered in the chat, No | Yes (founder 2026-10-18).
@@ -2348,24 +2414,6 @@ export function waitingStepId(items: readonly ThreadItem[], arc: string | null):
     return m.role === "bot" && meta.arc_id === arc ? m.client_id : null;
   }
   return null;
-}
-
-/** The review's Ideal Text card before its summary (lock 2026-10-12,
- *  section 3): the summary is written while its step shows, the card when
- *  the speaker moves past it, so the card is moved up to the summary. */
-export function cardBeforeSummary(items: ThreadItem[]): ThreadItem[] {
-  const out = [...items];
-  for (let i = 0; i < out.length; i += 1) {
-    const take = out[i].message.metadata?.summary === true ? out[i].message.metadata?.take_session_id : null;
-    if (typeof take !== "string") continue;
-    const end = out.findIndex(
-      (x, j) => j > i && x.message.kind === "walk_step" && x.message.metadata?.step === "end" && x.message.metadata?.take_session_id === take,
-    );
-    if (end < 0) continue;
-    out.splice(i, 0, ...out.splice(end, 1));
-    i += 1;
-  }
-  return out;
 }
 
 /** The Take of an older review, once the thread holds a newer Take of the
@@ -2829,8 +2877,9 @@ function ChatAvatar({ coach = false }: { coach?: boolean }) {
 }
 
 /** The words on a review's Ideal Text card: the project's name (as its
- *  Ideal Text bubbles carry it) and the Take (as its summary carries it).
- *  Null when the message is not a review's end or no name is known. */
+ *  Ideal Text bubbles carry it) and the Take (its own, else as its summary
+ *  carries it: the summary may still wait under the Take's ask). Null when
+ *  the message is not a review's end or no name is known. */
 export function reviewCardOf(
   message: LoungeMessage,
   items: readonly ThreadItem[],
@@ -2838,12 +2887,12 @@ export function reviewCardOf(
   const meta = message.metadata ?? {};
   if (meta.step !== "end" || typeof meta.arc_id !== "string") return null;
   let title: string | null = null;
-  let take: number | null = null;
+  let take: number | null = typeof meta.take_index === "number" ? meta.take_index : null;
   for (const item of items) {
     const m = item.kind === "message" ? item.message.metadata ?? {} : {};
     if (m.arc_id !== meta.arc_id) continue;
     if (typeof m.topic === "string" && m.topic.trim()) title = m.topic.trim();
-    if (m.summary === true && m.take_session_id === meta.take_session_id && typeof m.take_index === "number") {
+    if (take === null && m.summary === true && m.take_session_id === meta.take_session_id && typeof m.take_index === "number") {
       take = m.take_index;
     }
   }
