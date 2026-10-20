@@ -941,6 +941,18 @@ export default function Lounge({
   const takeInFlight =
     processingResume?.status === "analyzing" || documentSettle.pending;
 
+  // RECORD THE NEXT TAKE FROM ITS SUMMARY (founder 2026-10-20): the
+  // project's newest summary carries "Record Take N", which opens the text
+  // the way its own button does (from Take 2 on, the sharing question
+  // first). Held while a Take is still landing, as the "+" is.
+  const nextTakeOf = (m: LoungeMessage): SummaryRecord | null => {
+    const meta = m.metadata ?? {};
+    const arc = meta.arc_id;
+    const take = meta.take_index;
+    if (typeof arc !== "string" || typeof take !== "number" || olderTake(meta) !== null) return null;
+    return { label: `Record Take ${take + 1}`, onClick: () => openIdealText(arc, "share"), disabled: takeInFlight };
+  };
+
   const closeProcessingOverlay = useCallback(() => {
     setOpenedProcessingSessionId(null);
     requestAnimationFrame(() =>
@@ -1491,7 +1503,7 @@ export default function Lounge({
               onOpenIdealText={openIdealText}
             />
           ) : item.message.metadata?.summary === true ? (
-            <SummaryBubble key={item.reactKey} message={item.message} />
+            <SummaryBubble key={item.reactKey} message={item.message} record={nextTakeOf(item.message)} />
           ) : (
             <Bubble
               key={item.reactKey}
@@ -2843,8 +2855,9 @@ export function reviewCardOf(
 /** The closing summary after a review (founder lock 2026-10-12, section 3):
  *  one plain bubble that is not tapped. Rewritten by a coach update, it
  *  keeps the earlier words one tap away; the update itself is its own
- *  bubble under "Later · from your coach". */
-function SummaryBubble({ message }: { message: LoungeMessage }) {
+ *  bubble under "Later · from your coach". The newest Take's summary ends
+ *  with "Record Take N" in the same bubble (founder 2026-10-20). */
+function SummaryBubble({ message, record = null }: { message: LoungeMessage; record?: SummaryRecord | null }) {
   const [earlierOpen, setEarlierOpen] = useState(false);
   const meta = message.metadata ?? {};
   const earlier = meta.coach_update === true && typeof meta.earlier === "string" ? meta.earlier : null;
@@ -2871,10 +2884,25 @@ function SummaryBubble({ message }: { message: LoungeMessage }) {
             ) : null}
           </>
         ) : null}
+        {record ? (
+          <button
+            type="button"
+            data-summary-record
+            onClick={record.onClick}
+            disabled={record.disabled}
+            className="mt-2.5 flex h-[44px] w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-[15px] font-semibold text-background disabled:cursor-default disabled:opacity-30"
+          >
+            <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-record" />
+            {record.label}
+          </button>
+        ) : null}
       </div>
     </div>
   );
 }
+
+/** The next Take, from its summary: the text's own "Record Take N". */
+type SummaryRecord = { label: string; onClick: () => void; disabled: boolean };
 
 /** A wheel anywhere on the page outside the thread scrolls the thread,
  *  unless it lands in an overlay, a dialog or a field that scrolls itself.
