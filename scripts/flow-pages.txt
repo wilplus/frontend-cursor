@@ -1,0 +1,25 @@
+# The flow pages and the files that must not change without them. One list,
+# read by scripts/check-design-lock.mjs and pinned by scripts/checkDesignLock.test.ts.
+#
+# A flow page (docs/flows/*.md) is the one written record of a user flow:
+# the rules as they stand today, what is in flight, what is still open.
+# When a branch changes one of a page's files, the branch must change the
+# page too, or the design-lock guard (npm run check:design-lock) fails.
+#
+# Format: a page's path on its own line, then its files indented under it.
+# A path ending in "/" covers every file under it. Test files are never
+# counted: a test pins a flow, it is not one.
+
+docs/flows/feedback-walk-and-chat.md
+  src/components/willab/walk/
+  src/components/willab/WalkEnd.tsx
+  src/components/willab/useDeckFeedbackWalk.tsx
+  src/lib/willab/walkPlan.ts
+  src/lib/willab/feedbackWalkModel.ts
+  src/lib/willab/walkThread.ts
+  src/lib/willab/lensScreen.ts
+  src/lib/willab/walkMotion.ts
+  src/lib/willab/walkLines.ts
+  src/lib/willab/praiseLevels.ts
+  src/lib/willab/walkPractise.ts
+  src/lib/willab/walkTries.ts

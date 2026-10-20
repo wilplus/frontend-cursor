@@ -8,7 +8,10 @@ O2  Each commit is judged on its own; commits already on main, test files
 and uncommitted changes never fail it; an unknown base is refused.
 O3  The lock list reads cleanly, matches whole folders and exact files,
 and names only files that exist.
-O4  The lock list includes every screen CLAUDE.md locks.","O1 -> ""passes a branch that touches nothing locked"",
+O4  The lock list includes every screen CLAUDE.md locks.
+O5  A branch that changes a flow's file without changing the flow's page
+fails; with the page changed it passes; the flow list names only
+pages and files that exist, and each page names every file it guards.","O1 -> ""passes a branch that touches nothing locked"",
 ""fails a commit that changes a locked file without the trailer"",
 ""passes the same change with the trailer"",
 ""an empty trailer value is no approval"",
@@ -21,7 +24,12 @@ O2 -> ""locks every file under a directory pattern, but never a test"",
 O3 -> ""parses comments and blank lines away"",
 ""matches exact paths and trees, never tests"",
 ""names only files and directories that exist (a rename must update the list)""
-O4 -> ""locks %s, which CLAUDE.md names"" (one per locked screen file)","CLAUDE.md ""Screens that are locked"" (build plan X5)."
+O4 -> ""locks %s, which CLAUDE.md names"" (one per locked screen file)
+O5 -> ""fails a branch that changes a flow's file without its page"",
+""passes when the page changes on the same branch"",
+""a flow's test file never asks for the page"",
+""names only pages and files that exist (a rename must update the list)"",
+""each page names every file it guards""","CLAUDE.md ""Screens that are locked"" (build plan X5); the flow pages (founder, 2026-10-20: one page per user flow, growing by lines)."
 scripts/localCiMirror.test.ts,Guard,"scripts/local_ci.sh runs every command the CI unit job runs, plus `npm run build`, on the Node version CI and .nvmrc name.","A step added to .github/workflows/tests.yml but not to the script;
 the build dropped from the script; the Node floor drifting from CI;
 the design-lock guard losing its step or its git history.","found the job -> ""found the job and its steps""
