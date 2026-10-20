@@ -30,9 +30,10 @@ export async function fetchMomentsQueue(): Promise<MomentsQueueResult> {
 
 /** POST …/queue/moments/close, the founder's Delete on a speaker's row
  *  (2026-10-20): the backend closes what it counts as waiting on these
- *  Takes, for every coach. True once done. */
+ *  Takes, and a Take still waiting for its text whole, for every coach.
+ *  True once done. */
 export async function closeWaitingMoments(speaker: QueueSpeaker): Promise<boolean> {
-  const sessionIds = speaker.takes.filter((t) => t.waiting > 0).map((t) => t.sessionId);
+  const sessionIds = speaker.takes.filter((t) => t.waiting > 0 || t.waitingForText).map((t) => t.sessionId);
   if (sessionIds.length === 0) return true;
   const res = await coachWrite("/api/v2/coach/queue/moments/close", "POST", { session_ids: sessionIds });
   return res.ok;

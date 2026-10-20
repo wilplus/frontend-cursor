@@ -18,7 +18,8 @@ import { cn } from "@/lib/utils";
 /*  Each card is one button (keyboard reachable, Enter and Space pick it); a  */
 /*  card with nothing to do (`done`) is not a button at all. No word of its   */
 /*  own: every label is the caller's. A card's `menu` (a ⋯, founder           */
-/*  2026-10-18) sits beside it, never inside the card's button.              */
+/*  2026-10-18) sits on the card's left edge (founder 2026-10-20), never      */
+/*  inside the card's button.                                                 */
 /* -------------------------------------------------------------------------- */
 
 export type WalkChoiceMark = "chevron" | "check" | "none";
@@ -39,7 +40,7 @@ export type WalkChoice = {
   done?: boolean;
   /** Drawn faded (a Take still waiting for its text). */
   dim?: boolean;
-  /** A ⋯ drawn on the card, left of its mark: its own button, not the card's. */
+  /** A ⋯ drawn on the card's left edge: its own button, not the card's. */
   menu?: ReactNode;
   testId?: string;
 };
@@ -92,11 +93,11 @@ export default function WalkChoices({
   return (
     <div data-walk-choices role="group" aria-label={label} className="flex flex-col gap-2">
       {choices.map((choice, i) => {
-        const look = cn(CARD, choiceClass(choice), choice.dim && "opacity-60", choice.menu ? "pr-[84px]" : null);
+        const look = cn(CARD, choiceClass(choice), choice.dim && "opacity-60", choice.menu ? "pl-[52px]" : null);
         const card = choice.done ? (
           <div key={choice.value} data-walk-choice={choice.value} data-testid={choice.testId} className={look}>
             <Body choice={choice} />
-            {choice.menu ? null : <Mark choice={choice} />}
+            <Mark choice={choice} />
           </div>
         ) : (
           <button
@@ -109,18 +110,16 @@ export default function WalkChoices({
             className={cn("walk-press", look, "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2")}
           >
             <Body choice={choice} />
-            {choice.menu ? null : <Mark choice={choice} />}
+            <Mark choice={choice} />
           </button>
         );
         if (!choice.menu) return card;
-        // The card keeps its mark; the ⋯ sits left of it, outside the button.
+        // The card keeps its mark on the right; the ⋯ sits on its left edge,
+        // outside the button.
         return (
           <div key={choice.value} className="relative">
             {card}
-            <span className="absolute right-[38px] top-1/2 z-20 -translate-y-1/2">{choice.menu}</span>
-            <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2">
-              <Mark choice={choice} />
-            </span>
+            <span className="absolute left-1 top-1/2 z-20 -translate-y-1/2">{choice.menu}</span>
           </div>
         );
       })}
