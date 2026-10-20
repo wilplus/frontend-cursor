@@ -116,6 +116,7 @@ import {
   feedbackCheckTarget,
 } from "./feedbackCheck";
 import { postFeedbackCheck, type FeedbackCheckChoice } from "@/services/api/feedbackCheck";
+import { useVoiceNotebook, VoiceNoteBar, VoiceNoteMic } from "./useVoiceNotebook";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import { useLifeTags } from "@/lib/life/useLifeTags";
@@ -495,7 +496,9 @@ export default function Lounge({
   // quietly standing by. Intent-driven buttons come from the BE (B-1).
 
   // Voice input has been removed from the Lounge (product call): only
-  // the **official recording** holds the mic. Off-task chat is
+  // the **official recording** holds the mic. (The one exception, founder
+  // 2026-10-20: the founder's voice notebook, useVoiceNotebook; a private note,
+  // never a Take.) Off-task chat is
   // text-only — keeps the Lounge composer visually distinct from the
   // Lab's "Start official recording" CTA so users never confuse the
   // calm off-stage surface with the high-stakes on-stage one. The
@@ -1134,6 +1137,7 @@ export default function Lounge({
     if (type === "joke") return;
     const rank: Record<OfferType, number> = {
       joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0, feedback_check: 0,
+      voice_notebook: 0,
     };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
@@ -1282,6 +1286,9 @@ export default function Lounge({
     }
     openOffer(ask.type);
   }, [threadLoading, drawn, install.canOffer, waiting, letGo, openOffer]);
+
+  // The founder's voice notebook (Will learning plan, step 1, 2026-10-20).
+  const notebook = useVoiceNotebook({ signedIn: thread.signedIn, threadLoading, drawn, openOffer, reload });
 
   // A message still waiting while no ask is in front of the speaker would
   // never show (a typed turn the backend could not store, say): let it go,
@@ -1690,6 +1697,7 @@ export default function Lounge({
             const target = feedbackCheckTarget(messages, "ask");
             if (target) void answerFeedbackCheck(target, choice);
           }}
+          onNotebook={notebook.answer}
           onResolve={() => {
             // A Take's ask closed: its message comes under it (the question's
             // taps let it go on the backend, "No" keeps it waiting).
@@ -1788,7 +1796,8 @@ export default function Lounge({
         </button>
       ) : null}
       <PolicyUpdateComposer>
-      <form onSubmit={handleSend} className="flex items-end gap-1">
+      <VoiceNoteBar notebook={notebook} />
+      <form onSubmit={handleSend} className={`${notebook.composerDisplay} items-end gap-1`}>
         {/* THE "+" (founder 2026-10-12, WhatsApp-like): it opens the
             projects, where "Start a new project" starts one. It replaced the
             Record button. Held while a Take is still landing, for the same
@@ -1851,6 +1860,8 @@ export default function Lounge({
             </button>
           ) : null}
         </div>
+        {/* The voice notebook's mic, right of the input (founder 2026-10-20). */}
+        <VoiceNoteMic notebook={notebook} draft={draftText} />
       </form>
       </PolicyUpdateComposer>
 
@@ -2013,6 +2024,7 @@ function OfferActions({
   onConsentAnswered,
   bookHref,
   onFeedbackCheck,
+  onNotebook,
   onResolve,
 }: {
   type: OfferType;
@@ -2026,9 +2038,27 @@ function OfferActions({
   bookHref: string;
   /** WIL-74 — a tap on "Did this feedback help you?". */
   onFeedbackCheck: (choice: FeedbackCheckChoice) => void;
+  /** "Keep a voice notebook?" (Will learning plan, step 1). */
+  onNotebook: (choice: "yes" | "not_now") => void;
   onResolve: () => void;
 }) {
   const router = useRouter();
+  if (type === "voice_notebook") {
+    return (
+      <SymmetricPair
+        closeLabel="Not now"
+        onClose={() => {
+          onNotebook("not_now");
+          onResolve();
+        }}
+        actionLabel="Yes"
+        onAction={() => {
+          onNotebook("yes");
+          onResolve();
+        }}
+      />
+    );
+  }
   if (type === "feedback_check") {
     return (
       <SymmetricPair
