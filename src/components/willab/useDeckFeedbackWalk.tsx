@@ -27,6 +27,7 @@ import {
   buildFeedbackReplay,
   buildFeedbackWalk,
   walkHelpersForPart,
+  walkOfPart,
   walkStart,
   walkStepForPart,
   walkStepAt,
@@ -70,13 +71,14 @@ import type { WalkPraiseReasons } from "@/lib/willab/praiseReason";
 /*                  screen (the coach's note, else the first praise). False   */
 /*                  when this phase has nothing to show, and the deck goes on */
 /*                  with its own sheets.                                      */
-/*    tapPart(id)   a paragraph with an open moment was tapped: open the walk */
-/*                  at that moment (Q-B3 A). False otherwise.                 */
-/*    replayPart(id) a paragraph whose moments are answered was tapped, or   */
-/*                  its helper words: the walk played again from that         */
-/*                  paragraph (founder 2026-10-10, "the journey should be     */
-/*                  unified"). False when it has no moment, and the deck      */
-/*                  opens the paragraph's own sheet.                          */
+/*    tapPart(id)   a paragraph with an open moment was tapped: its own steps */
+/*                  only, opened on what it asks; once answered, back on the  */
+/*                  Ideal Text (founder 2026-10-20). False otherwise.         */
+/*    replayPart(id) a paragraph whose moments are answered was tapped: the  */
+/*                  whole finished walk to scroll through, at that paragraph, */
+/*                  with no buttons (founder 2026-10-20). False when it has   */
+/*                  no moment, and the deck opens the paragraph's own sheet.  */
+/*    waits(id)     the paragraph still has a step to answer: its black line. */
 /*    practisePart(id, card, moment) Practise on a paragraph's own sheet: the */
 /*                  walk's practise screens on that card (founder 2026-10-10, */
 /*                  "the practise screens should be the same in all cases").  */
@@ -639,11 +641,15 @@ export function useDeckFeedbackWalk(args: {
    *  in the same walk, live or finished (lock 2026-10-12, section 4). False
    *  when the paragraph has none. */
   openHelpers: (partId: string) => boolean;
-  /** Plays the walk again from this paragraph's first moment. False when
-   *  the paragraph has none in the replay. */
+  /** The whole finished walk to scroll through, at this paragraph's first
+   *  moment, with no buttons. False when the paragraph has none in the
+   *  replay. */
   replayPart: (partId: string) => boolean;
-  /** The paragraph has a moment of this Take to open (its bookmark). */
+  /** The paragraph has a moment of this Take to open. */
   hasMoment: (partId: string) => boolean;
+  /** The paragraph still has a step to answer: it wears the black line
+   *  (founder 2026-10-20). */
+  waits: (partId: string) => boolean;
   /** Plays the finished walk again (Q-IT643b A). False when there is
    *  nothing to play. */
   replay: (target?: WalkStepTarget | null) => boolean;
@@ -822,13 +828,13 @@ export function useDeckFeedbackWalk(args: {
   const practisingRef = useRef(false);
   // This opening is the review itself (the lens), not a step from the page.
   const lensRef = useRef(false);
-  const openAt = useCallback((at: number | null, practising = false, lens = false, how?: WalkDir): boolean => {
+  const openAt = useCallback((at: number | null, practising = false, lens = false, how?: WalkDir, whole = false): boolean => {
     if (at === null) return false;
     practisingRef.current = practising;
     lensRef.current = lens;
     toldRef.current = new Set<string>();
     seqRef.current += 1;
-    setRequest({ seq: seqRef.current, at, how });
+    setRequest({ seq: seqRef.current, at, how, ...(whole ? { whole } : {}) });
     return true;
   }, []);
 
@@ -860,11 +866,15 @@ export function useDeckFeedbackWalk(args: {
     return opened;
   }, [model, openAt, otherTake, replayReady, buildReplay, ownAnswers]);
 
+  // A paragraph that still waits opens on what it asks and ends on the
+  // page, like a paragraph's practise: the rest of the review stays behind
+  // "Continue review" (founder 2026-10-20).
   const tapPart = useCallback(
     (partId: string, open: boolean): boolean => {
-      if (!open) return false;
-      setReplaying(null);
-      return openAt(walkStepForPart(model, partId));
+      const own = open ? walkOfPart(model, partId) : null;
+      if (!own) return false;
+      setReplaying(own.model);
+      return openAt(own.at, true);
     },
     [model, openAt],
   );
@@ -884,14 +894,15 @@ export function useDeckFeedbackWalk(args: {
     return true;
   }, [canReplay, pageTake, buildReplay, openAt, otherTake]);
 
-  // The paragraph has a moment of this Take to open, waiting or answered:
-  // only such a paragraph wears the bookmark (founder 2026-10-14).
+  // The paragraph has a moment of this Take to open, waiting or answered;
+  // only one still waiting wears the black line (founder 2026-10-20).
   const replayNow = useMemo(() => (replayReady ? buildReplay(ownAnswers) : null), [replayReady, buildReplay, ownAnswers]);
   const hasMoment = useCallback(
     (partId: string): boolean =>
       walkStepForPart(model, partId) !== null || (replayNow !== null && walkStepForPart(replayNow, partId) !== null),
     [model, replayNow],
   );
+  const waits = useCallback((partId: string): boolean => walkStepForPart(model, partId) !== null, [model]);
 
   const replayPart = useCallback(
     (partId: string): boolean => {
@@ -900,7 +911,7 @@ export function useDeckFeedbackWalk(args: {
       const at = walkStepForPart(now, partId);
       if (at === null) return false;
       setReplaying(now);
-      openAt(at);
+      openAt(at, false, false, undefined, true);
       return true;
     },
     [replayReady, buildReplay, ownAnswers, openAt],
@@ -1094,7 +1105,7 @@ export function useDeckFeedbackWalk(args: {
   // step played again, while a moment of this Take still waits, Next goes
   // to the live walk's first waiting step; with nothing waiting it plays on.
   const onForward = useCallback((): boolean => {
-    if (!replaying || items.length === 0) return false;
+    if (!replaying?.replay || items.length === 0) return false;
     const at = walkStart(model);
     if (at === null) return false;
     setReplaying(null);
@@ -1103,6 +1114,18 @@ export function useDeckFeedbackWalk(args: {
   }, [replaying, items.length, model, openAt]);
   /** The walk showed the coach's note or a moment: the server hears it once
    *  per opening, behind the screen, and the Lounge's "new" clears. */
+  /** A walk screen reached the speaker: the server hears it at once, once
+   *  per opening (the coach's queue, the coach's feedback seen), whatever the
+   *  chat still waits for (founder 2026-10-20). */
+  const onReached = useCallback(
+    (step: WalkStep, moment: FeedbackWalkMoment<DocumentSuggestion> | null) => {
+      const { chunks: now, pendingOf: openOf, coachMessage: coach } = live.current;
+      const parts = moment ? (walkModel.partsOf[moment.index] ?? []) : [];
+      const openOn = now.filter((c) => parts.includes(c.part.id)).flatMap((c) => openOf(c));
+      tellShown(toldRef.current, step, moment, coach, openOn);
+    },
+    [walkModel],
+  );
   const onShown = useCallback(
     (
       step: WalkStep,
@@ -1111,10 +1134,13 @@ export function useDeckFeedbackWalk(args: {
       ai?: WalkAiShown | null,
       line?: string | null,
     ) => {
-      const { chunks: now, pendingOf: openOf, coachMessage: coach } = live.current;
+      const { coachMessage: coach } = live.current;
       const at = { moment: step.moment ?? null, attempt: step.attempt ?? null };
-      // The AI bubble in the locked one's place (N71) says what the screen said.
-      const aiSaid = ai ? aiVoiceChat(ai) : null;
+      // The AI bubble in the locked one's place (N71) says what the screen
+      // says once its clip is in; it keeps the plain words for a clip that
+      // never comes (founder 2026-10-20).
+      const plain = ai ? shownStep(step, moment, coach?.text ?? null, say, line ?? null) : null;
+      const aiSaid = ai ? aiVoiceChat(ai, plain?.body ?? null) : null;
       // Its clip is asked now, so the chat's bubble is drawn whole.
       if (ai) void readAiVoiceOnce(ai.practiceId);
       // A try's answer played again was said once, as the try was made.
@@ -1136,11 +1162,9 @@ export function useDeckFeedbackWalk(args: {
       if (answer && COACH_ANSWER_STEPS.has(step.key)) {
         post({ key: "coach-answer", moment: at.moment, attempt: null, author: "coach", body: `${CHUNK_SHEET_COPY.titleCoach}\n${answer.text}`, extra: { ...(answer.videoUrl ? { video: answer.videoUrl } : {}), ...part } });
       }
-      const parts = moment ? (walkModel.partsOf[moment.index] ?? []) : [];
-      const openOn = now.filter((c) => parts.includes(c.part.id)).flatMap((c) => openOf(c));
-      tellShown(toldRef.current, step, moment, coach, openOn);
+      onReached(step, moment);
     },
-    [walkModel, post],
+    [walkModel, post, onReached],
   );
 
   /** Another speaker's moment, shown or answered: in the chat. */
@@ -1183,6 +1207,7 @@ export function useDeckFeedbackWalk(args: {
           onClose={onClose}
           lines={lineBankIO}
           onShown={onShown}
+          onReached={onReached}
           onAnswer={onAnswer}
           onOthers={onOthers}
           reasons={greenReasons}
@@ -1207,6 +1232,7 @@ export function useDeckFeedbackWalk(args: {
       onForward,
       onClose,
       onShown,
+      onReached,
       onAnswer,
       onOthers,
       greenReasons,
@@ -1215,8 +1241,8 @@ export function useDeckFeedbackWalk(args: {
   );
 
   return useMemo(
-    () => ({ review, tapPart, openHelpers, replayPart, hasMoment, replay, canReplay, replaySettled, practisePart, element }),
-    [review, tapPart, openHelpers, replayPart, hasMoment, replay, canReplay, replaySettled, practisePart, element],
+    () => ({ review, tapPart, openHelpers, replayPart, hasMoment, waits, replay, canReplay, replaySettled, practisePart, element }),
+    [review, tapPart, openHelpers, replayPart, hasMoment, waits, replay, canReplay, replaySettled, practisePart, element],
   );
 }
 

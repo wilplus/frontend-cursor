@@ -320,7 +320,10 @@ moment with no draft never leaves me with no words and a grey Next.
 O6  Coming back to a Take word I sent, I see my saved words and video,
 never a draft over them: Send keeps the video, Remove the video holds
 until Send and sends no video, and leaving cancels it; a Take drafted
-but never sent opens on its draft, drafted once.","O1 -> ""Judge: the player, the question, 👍 😐 👎 and Audio unclear (lock 2026-10-12 §7), nothing else""
+but never sent opens on its draft, drafted once.
+O7  As the founder, the ⋯ on a waiting speaker, the greyed one waiting
+for its text included, deletes their waiting moments behind a
+confirmation; no other coach has the ⋯.","O1 -> ""Judge: the player, the question, 👍 😐 👎 and Audio unclear (lock 2026-10-12 §7), nothing else""
 O2 -> ""Judge first; the moment read is asked for only after the rating saves"",
 ""a failed save stays on Judge, says so, and never reads the moment""
 O3 -> ""Your queue: the speaker who sent most recently on top; an answered speaker drops out (founder 2026-10-18)"",
@@ -331,7 +334,8 @@ O5 -> ""an error answered without a video still goes to the speaker, without the
 O6 -> ""opens on the saved words and video, never a draft; Send to {p} keeps the video"",
 ""Remove the video holds across ‹ and Next, and Send without a video sends video_ref: null"",
 ""leaving the word before Send cancels Remove the video: the next visit shows the saved video again"",
-""a Take drafted but never sent opens on its draft at every visit, drafted once; Send without a video sends video_ref: null""","Never 2 (coach judgements stay blind); locked coach panel; O6: founder 2026-10-19 (D9, D10), approved two-phone prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk."
+""a Take drafted but never sent opens on its draft at every visit, drafted once; Send without a video sends video_ref: null""
+O7 -> ""the founder's ⋯ deletes a waiting speaker's moments, the greyed one's too, behind its confirmation; other coaches have none""","Never 2 (coach judgements stay blind); locked coach panel; O6: founder 2026-10-19 (D9, D10), approved two-phone prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk. O7: founder 2026-10-20, like the training corpus's ⋯."
 src/components/willab/coachpanel/coachPanelCorpus.test.tsx,Story,"As a coach, I want the training corpus in the panel to go straight to judging after set-up and let me rename finished imports, so that corpus work is quick and blind.","O1  A saved set-up goes straight to judging that import, saying
 ""Set up · {n} moments"".
 O2  An import with nothing to judge is never judged: back on the imports.
@@ -374,7 +378,10 @@ O3 -> ""says nobody is waiting only once the queue was read empty""",Founder 202
 src/components/willab/deckFeedbackWalk.test.tsx,Story,"As a speaker reviewing feedback, I want the walk to open on my first praise, move through its chat with ‹ ›, save helper words through the deck, and ask a guest to sign up, so that feedback flows into my next Take.","O1  Review feedback opens the walk on the first praise.
 O2  The arrows move through the walk's chat, step by step, without
 answering anything or closing it.
-O3  A tap on a paragraph with an open moment opens the walk there.
+O3  A tap on a paragraph that still waits opens on what it asks (its
+praise just above it in the chat) and, once answered, lands back on
+the Ideal Text. Tapped again with nothing left, it opens the whole
+walk to scroll through, with no buttons.
 O4  Helper words picked in the walk are saved through the deck's own
 save (the words, then the lock) and show orange in the text at once.
 O5  Never-5: Accept and practise saves the answer through the accept lane,
@@ -382,7 +389,9 @@ and the deck still shows the speaker's own words, not the clearer ones.
 O6  A guest's pick asks to sign up, is not taken, and nothing is written.","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
 O2 -> ""‹ › move through the walk's chat, never answering and never
 closing it (founder 2026-10-20)""
-O3 -> ""a tap on a paragraph with an open moment opens the walk there (Q-B3 A)""
+O3 -> ""a paragraph that waits opens on what it asks and lands on the
+page; answered, it opens the whole walk with no buttons
+(founder 2026-10-20)""
 O4 -> ""helper words picked in the walk go through the deck's own
 save: the words and the lock""
 O5 -> ""Accept and practise writes through the accept lane and leaves the speaker's words on the page""
@@ -617,11 +626,13 @@ src/components/willab/walk/walkPractise.test.tsx,Story,"As a speaker, I want to 
 O2  A better try gets praise in words for what improved, then the walk moves on.
 O3  A ""not yet"" on the clearer words brings the AI version of my voice; a good try does not.
 O4  The AI clip appears with one sentence on what it does differently, never a number.
-O5  At most 3 tries, all shown together in the chat with the steps before them; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.","O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
+O5  At most 3 tries, all shown together in the chat with the steps before them; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.
+O6  The Exercise reaches the coach's queue the moment it is on screen, and the Lounge as the AI bubble once a clip is coming, even when I tap Practise first.","O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
 O2 -> praise on try 1: the line for the reading that moved ...
 O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
 O4 -> the bubble is there at once: the typing dots alone ..., with the clip, the speaker reads what this version does differently and why (WIL-82)
-O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing",Never-rule 1 (no scores to speakers).
+O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing
+O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first",Never-rule 1 (no scores to speakers).
 src/components/willab/walk/walkReplay.test.tsx,Story,"As a speaker, I want to replay a finished walk with my answers shown and nothing written or recorded again, so that I can look back safely.","O1  The same screens play with my answers; only a change to my helper words is saved.
 O2  A done exercise plays my past tries and records nothing new.
 O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.","O1 -> opens on the coach's note and plays the same screens answered; helper words stay editable, nothing else writes

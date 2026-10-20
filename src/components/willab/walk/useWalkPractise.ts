@@ -224,8 +224,17 @@ export function useWalkPractise<R>(args: {
       if (!practiceId || aiAsked.current.has(here.moment)) return;
       const index = here.moment;
       aiAsked.current.add(index);
+      // Asking until the read is back, so the chat writes the bubble the
+      // replay shows (founder 2026-10-20).
+      aiWaiting.current.add(index);
       void readAiVoice(practiceId).then((read) => {
-        if (read.ok && read.data.clip?.state === "ready") setAiVoice((v) => ({ ...v, [index]: read.data }));
+        aiWaiting.current.delete(index);
+        if (read.ok && read.data.clip?.state === "ready") {
+          aiPractice.current.set(index, practiceId);
+          setAiVoice((v) => ({ ...v, [index]: read.data }));
+        } else {
+          setAiVoice((v) => ({ ...v }));
+        }
       });
       return;
     }

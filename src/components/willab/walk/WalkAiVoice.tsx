@@ -98,6 +98,22 @@ export function aiVoiceShown(
     : { lead, line: WALK_COPY.aiVoiceAgain };
 }
 
+/** The AI bubble step `at` will show once its clip is in: its lines while
+ *  the clip is still being made, as when it is ready; null when no clip is
+ *  coming (founder 2026-10-20: the chat posts a step once, so it posts the
+ *  bubble the clip will make). */
+export function aiVoiceComing(
+  plan: readonly WalkStep[],
+  at: number,
+  state: AiVoiceState | undefined,
+): AiVoiceLines | null {
+  const clip = state?.clip;
+  if (!state || !clip || (clip.state !== "ready" && clip.state !== "pending")) return null;
+  const asReady: AiVoiceState = { ...state, clip: { ...clip, state: "ready", url: clip.url ?? "coming" } };
+  const lines = aiVoiceShown(plan, at, asReady);
+  return lines && lines !== "pending" ? lines : null;
+}
+
 /** The bubbles that already landed in this page's life: a screen drawn
  *  again (the stage's leaving copy, ‹ and ›) shows its bubble at once. */
 const landed = new Set<string>();

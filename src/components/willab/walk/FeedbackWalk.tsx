@@ -18,7 +18,7 @@ import { practiseThreadFooter, practiseThreadItem, type PractiseScreenCtx } from
 import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
 import WalkSummary from "./WalkSummary";
-import WalkAiVoice, { aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
+import WalkAiVoice, { aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
@@ -94,8 +94,11 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /* -------------------------------------------------------------------------- */
 
 /** "Open the walk at step `at`". A new `seq` is a new request; `how` is the
- *  move that brought the speaker there (‹ or › across the walk's models). */
-export type FeedbackWalkRequest = { seq: number; at: number; how?: WalkDir };
+ *  move that brought the speaker there (‹ or › across the walk's models).
+ *  `whole`: the finished walk to scroll through, every step at once, opened
+ *  at `at`, with no buttons (founder 2026-10-20: a paragraph with nothing
+ *  left to answer). */
+export type FeedbackWalkRequest = { seq: number; at: number; how?: WalkDir; whole?: boolean };
 
 /** The coach's word for the Take, as the walk shows it. */
 export type FeedbackWalkCoachNote = {
@@ -175,6 +178,9 @@ type Props<R> = {
      *  same (founder 2026-10-20). */
     line?: string | null,
   ) => void;
+  /** A screen reached the speaker: the host tells the server at once (the
+   *  coach's queue, N48.2), before the chat hears what it showed. */
+  onReached?: (step: WalkStep, moment: FeedbackWalkMoment<R> | null) => void;
   /** The speaker answered a step (not a replay): the host shows the answer
    *  as their own bubble in the chat, as the thread does. */
   onAnswer?: (step: WalkStep, value: string) => void;
@@ -249,6 +255,7 @@ export default function FeedbackWalk<R = unknown>({
   onClose,
   lines: linesIO = null,
   onShown,
+  onReached,
   onAnswer,
   onOthers,
   reasons = null,
@@ -258,6 +265,7 @@ export default function FeedbackWalk<R = unknown>({
   liveModel.current = model;
   const [walk, setWalk] = useState<FeedbackWalkModel<R>>(model);
   const [at, setAt] = useState(0);
+  const [whole, setWhole] = useState(false);
   const [picks, setPicks] = useState<Record<string, PhraseSelection | null>>({});
   // The answer given to each step in this opening, by the step's identity.
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -267,6 +275,7 @@ export default function FeedbackWalk<R = unknown>({
   requestRef.current = request;
   const seq = request?.seq ?? null;
   const resetRef = useRef<() => void>(() => undefined);
+  const openedAt = useRef<number | null>(null);
   useEffect(() => {
     const asked = requestRef.current;
     if (seq === null || !asked) return;
@@ -276,6 +285,8 @@ export default function FeedbackWalk<R = unknown>({
     setPicks(replayPicks(opened));
     setAnswers({});
     setAt(asked.at);
+    setWhole(asked.whole === true);
+    openedAt.current = asked.at;
   }, [seq]);
 
   const plan = walk.plan;
@@ -350,15 +361,29 @@ export default function FeedbackWalk<R = unknown>({
   const aiKey = ai === "pending" ? "pending" : `${aiState?.demo ?? ""}|${aiState?.clip?.state ?? ""}|${aiPractice ?? ""}|${ai?.line ?? ""}`;
   const walkLines = useWalkLines(linesIO);
   const { say: sayLine } = walkLines;
-  const aiRef = useRef<WalkAiShown | null>(null);
-  aiRef.current = ai && ai !== "pending" && aiPractice ? { ...ai, practiceId: aiPractice } : null;
+  /** The AI bubble step `s` (at `i`) gives the chat: the one its clip will
+   *  make, once one is coming or in, with the practice the chat reads it
+   *  from; null: the plain step (founder 2026-10-20: a message is posted
+   *  once and never rewritten, so a clip on its way is posted as itself). */
+  const chatAi = (s: WalkStep, i: number): WalkAiShown | null => {
+    if (s.moment == null) return null;
+    const practiceId = practise.aiVoicePracticeOf(s.moment);
+    const lines = practiceId ? aiVoiceComing(plan, i, practise.aiVoiceOf(s.moment)) : null;
+    return lines && practiceId ? { ...lines, practiceId } : null;
+  };
   const shownRef = useRef(onShown);
   shownRef.current = onShown;
+  const reachedRef = useRef(onReached);
+  reachedRef.current = onReached;
   useEffect(() => {
-    if (seq === null || !step || step.overlay === false || aiKey === "pending") return;
-    // The Exercise screen's clip is still being asked: told once it is known.
-    if (step.key === "exVideo" && step.moment != null && practise.aiVoiceAsking(step.moment)) return;
+    if (seq === null || !step || step.overlay === false) return;
     const moment = step.moment != null ? (walk.moments[step.moment] ?? null) : null;
+    // The Exercise is told to the server at once (the coach's queue); its
+    // chat bubble waits for whether a clip is coming (below).
+    if (step.key === "exVideo") {
+      reachedRef.current?.(step, moment);
+      return;
+    }
     const line =
       step.key === "improved"
         ? improvedLine(plan, at)
@@ -367,10 +392,32 @@ export default function FeedbackWalk<R = unknown>({
           : step.key === "thanks"
             ? thanksLine(plan, at)
             : null;
-    shownRef.current?.(step, moment, (bank) => sayLine(step, bank), aiRef.current, line);
-    // practise.aiVoiceAsking is stable; aiKey changes when the answer lands.
+    // Opened on a moment's helper words (a paragraph that waits, founder
+    // 2026-10-20), its praise is just above them: told first, as if the
+    // walk had stood on it.
+    const above = plan[at - 1];
+    if (at === openedAt.current && step.key === "helpers" && above?.key === "praise" && above.moment === step.moment) {
+      shownRef.current?.(above, moment, (bank) => sayLine(above, bank), null, null);
+    }
+    shownRef.current?.(step, moment, (bank) => sayLine(step, bank), chatAi(step, at), line);
+    // aiKey changes when the clip's answer lands.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq, step, walk.moments, aiKey]);
+  // The Exercise's chat bubble (founder 2026-10-20, WIL-89): once the walk
+  // knows whether an AI clip is coming (the ask answered, a second or two),
+  // even when the speaker already tapped Practise and moved on.
+  const toldExercise = useRef(new Set<string>());
+  useEffect(() => {
+    if (seq === null) return;
+    plan.forEach((s, i) => {
+      if (i > at || s.key !== "exVideo" || s.moment == null) return;
+      const told = `${seq}:${i}`;
+      if (toldExercise.current.has(told) || practise.aiVoiceAsking(s.moment)) return;
+      toldExercise.current.add(told);
+      const moment = walk.moments[s.moment] ?? null;
+      shownRef.current?.(s, moment, (bank) => sayLine(s, bank), chatAi(s, i), null);
+    });
+  });
   resetRef.current = () => {
     practise.reset();
     walkLines.reopen();
@@ -432,7 +479,8 @@ export default function FeedbackWalk<R = unknown>({
     walk,
     reasons,
     at: (s) => plan.indexOf(s),
-    head: at,
+    // The whole walk to scroll through has no live step.
+    head: whole ? -1 : at,
     coachNote,
     takeIndex,
     forward,
@@ -513,7 +561,7 @@ export default function FeedbackWalk<R = unknown>({
 
   // The walk is one chat (founder 2026-10-20): the stage moves only as the
   // lens opens and closes, never between steps; the thread grows inside it.
-  const stage = { key: step.overlay === false ? "page" : "walk", overlay: step.overlay, head: at, seq };
+  const stage = { key: step.overlay === false ? "page" : "walk", overlay: step.overlay, head: at, seq, whole };
   const frame = useRef<HTMLDivElement | null>(null);
 
   return (
@@ -524,7 +572,7 @@ export default function FeedbackWalk<R = unknown>({
         screen={stage}
         render={(s, ghost) => (
           <WalkThread ghost={ghost} frame={frame} onClose={close}>
-            {renderThread(ctx, s.head, s.seq, backFromPractise)}
+            {renderThread(ctx, s.head, s.seq, backFromPractise, s.whole)}
           </WalkThread>
         )}
       />
@@ -1051,11 +1099,25 @@ function answerSaid(ctx: ScreenCtx, step: WalkStep): string | null {
   return answerBody(step, given);
 }
 
+/** What the whole walk to scroll through leaves out: drawn as earlier
+ *  parts, these show nothing. */
+const NOT_IN_WHOLE: ReadonlySet<string> = new Set(["others", "summary"]);
+
 /** The thread: each step reached up to `head`, opened by its name when it
  *  changes, with the speaker's choice under it. Only the last part is live.
- *  A new opening (`seq`) draws the parts afresh. */
-function renderThread<R>(ctx: ScreenCtx<R>, head: number, seq: number | null, backFromPractise: () => void): ReactNode {
-  const parts = walkThreadParts(ctx.walk.plan, head);
+ *  A new opening (`seq`) draws the parts afresh. `whole`: every step of the
+ *  walk, none live (no buttons), the part holding `head` marked where the
+ *  thread opens (WalkThread). */
+function renderThread<R>(
+  ctx: ScreenCtx<R>,
+  head: number,
+  seq: number | null,
+  backFromPractise: () => void,
+  whole = false,
+): ReactNode {
+  const all = walkThreadParts(ctx.walk.plan, whole ? ctx.walk.plan.length - 1 : head);
+  const parts = whole ? all.filter((p) => !NOT_IN_WHOLE.has(ctx.walk.plan[p.at].key)) : all;
+  const start = whole ? parts.findIndex((p) => p.at >= head) : -1;
   let last: string | null = null;
   return parts.map((part, i) => {
     const step = ctx.walk.plan[part.at];
@@ -1063,11 +1125,22 @@ function renderThread<R>(ctx: ScreenCtx<R>, head: number, seq: number | null, ba
     const mark = label && label !== last ? <WalkThreadMark label={label} /> : null;
     last = step.key === "others" ? null : (label ?? last);
     const said = answerSaid(ctx, step);
+    const body = (
+      <>
+        {mark}
+        <WalkPart now={!whole && i === parts.length - 1}>{renderScreen(ctx, step, backFromPractise)}</WalkPart>
+        {said ? <WalkSpeakerBubble>{said}</WalkSpeakerBubble> : null}
+      </>
+    );
     return (
       <Fragment key={`${seq ?? 0}:${part.key}`}>
-        {mark}
-        <WalkPart now={i === parts.length - 1}>{renderScreen(ctx, step, backFromPractise)}</WalkPart>
-        {said ? <WalkSpeakerBubble>{said}</WalkSpeakerBubble> : null}
+        {i === start ? (
+          <div data-walk-start className="contents">
+            {body}
+          </div>
+        ) : (
+          body
+        )}
       </Fragment>
     );
   });

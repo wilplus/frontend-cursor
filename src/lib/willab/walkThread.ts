@@ -212,8 +212,14 @@ export function answerBody(step: WalkStep, value: string): string | null {
 }
 
 /** The AI bubble a step showed (N71), as the chat stores it: its lines, and
- *  the practice whose clip the chat fetches afresh (a link expires). */
-export function aiVoiceChat(ai: { title?: string; lead?: string; line: string; then?: string; practiceId: string }): {
+ *  the practice whose clip the chat fetches afresh (a link expires).
+ *  `fallback`: the step's plain words, which the chat shows instead when the
+ *  clip never comes (founder 2026-10-20: a clip on its way is posted as the
+ *  AI bubble at once, and a stored message is never rewritten). */
+export function aiVoiceChat(
+  ai: { title?: string; lead?: string; line: string; then?: string; practiceId: string },
+  fallback: string | null = null,
+): {
   author: WalkAuthor;
   body: string;
   extra: Record<string, unknown>;
@@ -221,7 +227,7 @@ export function aiVoiceChat(ai: { title?: string; lead?: string; line: string; t
   return {
     author: "app",
     body: [ai.title, ai.lead, ai.line, ai.then].filter(Boolean).join("\n"),
-    extra: { ai_voice: { practice_id: ai.practiceId, then: ai.then ?? null } },
+    extra: { ai_voice: { practice_id: ai.practiceId, then: ai.then ?? null, ...(fallback ? { fallback } : {}) } },
   };
 }
 
