@@ -44,7 +44,8 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
   lesson: "Artur set a price for you for a 1-on-1 lesson.",
   // "Did this feedback help you?" (WIL-74, founder 2026-10-19): written by
   // the backend after a Take's closing summary; this is only the fallback.
-  feedback_check: "Did this feedback help you?",
+  // Simplified by the founder in chat, 2026-10-20 (backend COPY["ask"]).
+  feedback_check: "Did this help?",
   joke:
     "I'm just a simple system, but I noticed you weren't feeling great before this presentation. Want me to crack a joke?",
 };
