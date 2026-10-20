@@ -110,8 +110,9 @@ step; the loop never waits for a coach.
   coach's bubble and neither opens Step 0 nor keeps "Continue review" up.
   The coach's own doors (the WhatsApp and email links, the dot card, the
   bubble) still open it.
-- **C2 Praise.** The Take's two highest-willfidence moments are shown, in
-  slide order, and the score decides each: a moment at or above the floor is
+- **C2 Praise.** The Take's two highest-willfidence moments are shown,
+  praise first and then the corrections, each group in slide order, and the
+  score decides each: a moment at or above the floor is
   praised, one below it is corrected (C4); both strong, two praises and no
   practise; both weak, two corrections (founder, 2026-10-20, on the page's
   first review; the fixed roles of 2026-10-14 and 2026-10-17, the highest
@@ -341,8 +342,9 @@ step; the loop never waits for a coach.
   willfidence(sentence) = S × W                 0 … 1
     S = voice_confidence (7 cues vs the speaker's own baseline)
     W = mean of: few fillers/hedges · fits the slide · holds together
-  shown     = the two highest, at most one per slide; clips with enough
-              words rank before short ones
+  shown     = the two highest, at most one per slide (a one-slide Take shows
+              one); clips with enough words rank before short ones
+              (founder confirmed 2026-10-20, with praise before corrections)
   each      ≥ FLOOR → praised; < FLOOR → corrected      (2026-10-20)
   highest   = the first in rank; its bubble opens with the signed line (C2)
   try       = Δ willfidence vs the original ≥ MARGIN (+0.05) → better
@@ -492,13 +494,13 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- **WIL-76** · the stale processing step (urgent) · A1, A2 · open; the founder did not know on 2026-10-20 whether it still happens · —
-- **WIL-89** · the lens as one chat: the opening order, the lenses, the
-  interventions × chat awareness · B, C1, F · built in #868, #882, #885,
-  #886; checking · —
-- **WIL-84, WIL-86** · videos match · rules: its session fills in · to
-  check · —
-- **WIL-90** · the exercise is blocked · C6, C7 · to check · —
+- **WIL-76** · the stale processing step (urgent) · A1, A2 · open; nothing on main names it. Backend #1175 (workers no longer segfault at boot), #1189 and #1195 (a confidence event that can never pass is no longer retried, then given up) landed 2026-10-20 and may be it; the founder did not know on 2026-10-20 whether it still happens · unverified
+- **WIL-89** · the lens as one chat: the opening order, the lenses, the interventions × chat awareness · B, C1, F · built and merged: FE #868, #882, #885, #886; BE #1170, #1190, #1194, #1196. Whether it works as drawn is the founder's check in the app ("success?") · to confirm
+- **WIL-84, WIL-86** · videos match (the coach's changed word and video, N80) · C1, D5 · BE #1160 and FE #861 merged; FE #872 (the speaker's side: the coach's bubble opens only their word with Close, watched anywhere clears it, the walk writes the word once) is open, another session's · open
+- **WIL-90** · the exercise is blocked · C6, C7 · likely BE #1206 (the coach's practice gate no longer refuses a speaker whose older Take was recorded under an earlier principal of theirs), merged 2026-10-20 · to confirm
+
+The four lines above were filled from main's history by the page's keeper on
+2026-10-20; the sessions doing the work overwrite them when they push.
 - **The coach sees the audience and the goal** · two lines on the coach panel, a locked screen · a prototype is being drawn for the founder's yes (2026-10-20) · —
 
 ## 3. Still open
