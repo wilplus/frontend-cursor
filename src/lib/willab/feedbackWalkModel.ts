@@ -410,6 +410,24 @@ export function walkStepForPart(model: FeedbackWalkModel<unknown>, partId: strin
   return null;
 }
 
+/** A paragraph that still waits, walked on its own (founder 2026-10-20):
+ *  only its own steps between the page and the end, so once they are
+ *  answered the walk lands back on the Ideal Text. `at` is where it opens:
+ *  on the first step that asks something, its praise just above it in the
+ *  chat. Null when no moment of the walk is on it. Pure. */
+export function walkOfPart<R>(
+  model: FeedbackWalkModel<R>,
+  partId: string,
+): { model: FeedbackWalkModel<R>; at: number } | null {
+  const own = model.plan.filter((s) => s.overlay !== false && s.moment != null && model.partsOf[s.moment]?.includes(partId));
+  if (own.length === 0) return null;
+  const ask = own.findIndex((s) => s.key !== "praise");
+  return {
+    model: { ...model, plan: [{ key: "page", overlay: false }, ...own, { key: "end", overlay: false }] },
+    at: 1 + Math.max(ask, 0),
+  };
+}
+
 /** Where a tap on a paragraph's helper words opens the walk (lock
  *  2026-10-12, section 4): that paragraph's helper-words step. Null when
  *  the paragraph has none. */

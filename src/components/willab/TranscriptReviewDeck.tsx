@@ -1347,10 +1347,11 @@ export default function TranscriptReviewDeck({
                        that carries it (24f) — and a paragraph saved with
                        helper words draws none (B7, Q3; `barWaiting`). */
                     const unsettled = barWaiting(c);
-                    // The bookmark is a moment to open; orange words open
-                    // the helper words; both: the moment, then the words
-                    // (founder 2026-10-14).
+                    // A moment to open; orange words open the helper
+                    // words (founder 2026-10-14). Only a moment that still
+                    // waits wears the black line (founder 2026-10-20).
                     const moment = feedbackWalk.hasMoment(c.part.id);
+                    const waits = feedbackWalk.waits(c.part.id);
                     const opens = moment || Boolean(headlines.get(c.part.id));
                     return (
                     /* TEXT SIZE (founder 2026-09-30, "D"): 17px on a phone
@@ -1362,10 +1363,13 @@ export default function TranscriptReviewDeck({
                       data-chunk
                       {...paragraphTap(
                         opens,
-                        () => {
-                          // A moment opens its step (an answered one plays it
-                          // again), its helper words follow in the walk.
-                          if (moment && (feedbackWalk.tapPart(c.part.id, true) || feedbackWalk.replayPart(c.part.id))) return;
+                        (target) => {
+                          // A moment that waits opens on what it asks; an
+                          // answered one, the whole walk to scroll through.
+                          // Orange words open their picker (founder
+                          // 2026-10-20).
+                          const words = target instanceof Element && target.closest(".walk-helper-word, [data-helpers-label]");
+                          if (!words && moment && (feedbackWalk.tapPart(c.part.id, true) || feedbackWalk.replayPart(c.part.id))) return;
                           feedbackWalk.openHelpers(c.part.id);
                         },
                       )}
@@ -1373,11 +1377,13 @@ export default function TranscriptReviewDeck({
                       data-untouched={c.status === "untouched" ? "true" : undefined}
                       className={`relative rounded-md text-[clamp(1.0625rem,0.98rem+0.34vw,1.25rem)] leading-[1.65] text-foreground${
                         /* Only text that opens a step greys while pressed
-                           (lock 2026-10-12, section 9), and it carries the
-                           black line in the margin, its bookmark (founder
-                           2026-10-14, walk first). */
-                        moment
-                          ? " active:bg-muted before:absolute before:-left-[13px] before:bottom-[3px] before:top-[3px] before:w-[3px] before:rounded-full before:bg-foreground"
+                           (lock 2026-10-12, section 9); while it still waits
+                           it carries the black line in the margin (founder
+                           2026-10-14, walk first; 2026-10-20). */
+                        moment ? " active:bg-muted" : ""
+                      }${
+                        waits
+                          ? " before:absolute before:-left-[13px] before:bottom-[3px] before:top-[3px] before:w-[3px] before:rounded-full before:bg-foreground"
                           : ""
                       }`}
                     >

@@ -323,7 +323,13 @@ function LiveThread({ frame, onClose, children }: { frame: WalkThreadFrameRef; o
   useEffect(() => {
     const el = body.current;
     if (!el) return;
-    toEnd(false);
+    // The whole finished walk opens at its paragraph's part, and follows
+    // nothing (founder 2026-10-20); every other opening at the newest bubble.
+    const start = el.querySelector<HTMLElement>("[data-walk-start] > *");
+    if (start) {
+      follow.current = false;
+      el.scrollTop = Math.max(0, start.offsetTop - 8);
+    } else toEnd(false);
     readBar();
     const changed = () => {
       if (follow.current && !atEnd(el)) toEnd(true);
