@@ -55,6 +55,12 @@ function lineOf(message: LoungeMessage, facts: ScreenFacts): ChatHistoryEntry | 
     const title = typeof meta.topic === "string" && meta.topic.trim() ? meta.topic.trim() : null;
     return { role: "assistant", content: cardLine(title, versionOf(meta), facts.coachWaits(message)) };
   }
+  if (meta.summary === true && meta.written === false && body) {
+    // The signed fallback, shown when the written summary failed (founder
+    // 2026-10-20): Will knows the specifics are missing and can add them.
+    const take = typeof meta.take_index === "number" ? `Take ${meta.take_index}` : "this Take";
+    return { role: "assistant", content: `[The app's fixed message after ${take}; the written summary failed]\n${body}` };
+  }
   if (message.kind === "recording_summary") {
     const title = typeof meta.topic === "string" && meta.topic.trim() ? ` of "${meta.topic.trim()}"` : "";
     const take = typeof meta.take_index === "number" ? `, Take ${meta.take_index}` : "";

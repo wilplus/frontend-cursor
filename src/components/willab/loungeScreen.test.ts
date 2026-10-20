@@ -5,7 +5,8 @@ STORY    As a speaker, I want Will to answer what sits right above my message
 OUTCOME
   O1  Will reads every bubble in the order the chat draws it: the Take's
       card in words (with the coach's feedback when its dot is on), the
-      summary, the ask, and my own words.
+      summary (marked as the fixed message when the written one failed),
+      the ask, and my own words.
   O2  What the chat adds sorts under the newest bubble on screen, even when
       this device's clock is behind the server's.
   O3  The newest ask on screen is known, so it is not asked a second time.
@@ -35,8 +36,8 @@ const msg = (id: string, n: number, part: Partial<LoungeMessage>): LoungeMessage
 const card = msg("end", 1, { kind: "walk_step", metadata: { step: "end", arc_id: "arc-1", take_session_id: "t1" } });
 const summary = msg("sum", 2, {
   kind: "cadence",
-  body: "We have successfully registered your first take 🎉",
-  metadata: { summary: true, arc_id: "arc-1", take_session_id: "t1", take_index: 1 },
+  body: "Your first take is in 🎉\n\nNow record take 2 with your helper words ⬇️",
+  metadata: { summary: true, arc_id: "arc-1", take_session_id: "t1", take_index: 1, written: false },
 });
 const ask = msg("ask", 3, { body: OFFER_PROMPT.whatsapp, metadata: { offer: "whatsapp" } });
 const helpers = msg("helpers", 4, { kind: "walk_step", body: "Choose your helper words", metadata: { step: "helpers" } });
@@ -56,11 +57,13 @@ describe("the chat as Will reads it", () => {
           '[On screen: the Ideal Text card of "ted", Take 1. It wears the orange stroke and dot: ' +
           "the coach's feedback is in and not opened yet; a tap opens it.]",
       },
-      { role: "assistant", content: summary.body },
+      { role: "assistant", content: `[The app's fixed message after Take 1; the written summary failed]\n${summary.body}` },
       { role: "assistant", content: OFFER_PROMPT.whatsapp },
       { role: "assistant", content: "Choose your helper words" },
       { role: "user", content: "07700 900461" },
     ]);
+    const written = { ...summary, metadata: { ...summary.metadata, written: true }, body: "Look at you, Take 1!" };
+    expect(screenHistory([written], facts)).toEqual([{ role: "assistant", content: "Look at you, Take 1!" }]);
     const plain = { ...facts, coachWaits: () => false };
     expect(screenHistory([card], plain)[0].content).toBe('[On screen: the Ideal Text card of "ted", Take 1. A tap opens the text.]');
   });
