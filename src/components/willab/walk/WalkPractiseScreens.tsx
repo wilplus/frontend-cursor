@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
-import LoadingState from "../LoadingState";
+import WalkLoading from "./WalkLoading";
 import type { WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
@@ -25,7 +25,7 @@ import WalkAiVoice, { aiVoiceShown } from "./WalkAiVoice";
 /*    practise    the served line (else Line A) with the words to say, before */
 /*                the first try; the try as it records; the recorder in the   */
 /*                dock: the Take's strip (dot, clock, bar) and Skip / red Stop */
-/*    processing  the breathing mark under the try while it is checked        */
+/*    processing  the typing dots under the try while it is checked          */
 /*    improved    "Good job" and a signed line                                */
 /*    encourage   the AI clip or "Practise" and the signed encouragement      */
 /*    thanks      after the third try that is not praise: the move-on line    */
@@ -145,13 +145,10 @@ function RecorderFooter({ ctx }: { ctx: PractiseScreenCtx }) {
   );
 }
 
-/** The breathing mark while the machine checks the try. */
+/** The typing dots while the machine checks the try (founder 2026-10-20:
+ *  the dots are the lens's only wait). */
 function Checking() {
-  return (
-    <div data-walk-loading className="flex justify-center py-5">
-      <LoadingState placement="surface" />
-    </div>
-  );
+  return <WalkLoading />;
 }
 
 function ImprovedMessage({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {

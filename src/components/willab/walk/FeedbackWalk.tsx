@@ -566,12 +566,12 @@ export default function FeedbackWalk<R = unknown>({
 
   return (
     <div data-feedback-walk data-walk-step={step.key}>
-      {/* The whole window on a wide screen, the words in the phone's column
-          (globals.css, "Desktop"). */}
+      {/* The whole window on a wide screen, the words in the Lounge's
+          column (globals.css, "The lens on a computer"). */}
       <WalkStage
         screen={stage}
         render={(s, ghost) => (
-          <WalkThread ghost={ghost} frame={frame} onClose={close}>
+          <WalkThread ghost={ghost} frame={frame} opening={s.seq} onClose={close}>
             {renderThread(ctx, s.head, s.seq, backFromPractise, s.whole)}
           </WalkThread>
         )}

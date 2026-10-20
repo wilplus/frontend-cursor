@@ -284,7 +284,10 @@ describe("the practise screen", () => {
     // Instant: nothing slides or fades (lock 2026-10-12, section 2.5).
     expect(live()!.className).not.toMatch(/walk-m-(next|back|fade)/);
     expect(now()!.querySelector("[data-walk-player][data-walk-me]")!.textContent).toContain(WALK_COPY.practiseN(1));
-    expect(now()!.querySelector("[data-walk-loading]")).not.toBeNull();
+    // The check is the typing dots, the lens's only wait (founder
+    // 2026-10-20): never the breathing mark.
+    expect(now()!.querySelector("[data-walk-loading] [data-typing-glyph]")).not.toBeNull();
+    expect(live()!.querySelector("[data-voice-mark]")).toBeNull();
     await settle();
     const upload = calls.find((c) => c.url.endsWith("/attempts"))!;
     expect(upload.method).toBe("POST");

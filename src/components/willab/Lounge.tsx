@@ -53,7 +53,6 @@ import IdealTextCard from "./IdealTextCard";
 import { newCoachFeedbackFor, openedNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
 import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports";
 import { FLOW_COPY } from "./flowCopy";
-import LoadingState, { VoiceMark } from "./LoadingState";
 import { PROCESSING_STAGES } from "./ProcessingWait";
 import type { IdealTextLaunchMode } from "./IdealTextOverlay";
 import { lensAddress } from "@/lib/willab/lensScreen";
@@ -128,7 +127,7 @@ import {
 import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
 import { usePinThreadBottom } from "./usePinThreadBottom";
 import { clearerPieces, type ClearerPiece } from "@/lib/willab/clearerPieces";
-import TypingDots, { CHUNK_DELAY_MS } from "./TypingDots";
+import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { afterChatBoot } from "@/lib/chatBoot";
 
 // Opened on a tap, never on first paint: loaded then, off the boot bundle.
@@ -1544,8 +1543,10 @@ export default function Lounge({
           </button>
         )}
 
+        {/* The Lounge's one wait is the typing dots, as the lens's
+            (founder 2026-10-20: "typing dots in the lounge too"). */}
         {thread.loading ? (
-          <LoadingState placement="surface" />
+          <TypingDots label="Loading" />
         ) : threadItems.length === 0 ? (
           <LoungeEmptyState onStart={onStartNewProject ?? onStart} />
         ) : (
@@ -1599,8 +1600,8 @@ export default function Lounge({
         )}
 
         {/* While a Take processes (founder lock 2026-10-12, section 1): a
-            bubble in the chat with the breathing mark; its tap opens the
-            processing view. */}
+            bubble in the chat with the typing dots (founder 2026-10-20, in
+            place of the breathing mark); its tap opens the processing view. */}
         {processingResume?.status === "analyzing" ? (
           <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
             <ChatAvatar />
@@ -1611,7 +1612,7 @@ export default function Lounge({
               onClick={() => setOpenedProcessingSessionId(processingResume.sessionId)}
               className="flex items-center gap-2.5 rounded-[16px] bg-muted px-3 py-2 text-left text-[15px] leading-[1.45] text-foreground"
             >
-              <VoiceMark size={64} />
+              <TypingGlyph />
               <span>{PROCESSING_STAGES[0]}</span>
             </button>
           </div>
