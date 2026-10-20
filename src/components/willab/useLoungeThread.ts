@@ -12,6 +12,7 @@ import {
 import {
   appendLocalLoungeMessage,
   clearLocalLoungeThread,
+  LOUNGE_THREAD_MERGED_EVENT,
   mergeLocalLoungeThreadToServer,
   loadLocalLoungeThread,
 } from "@/lib/funnel/loungeLocalThread";
@@ -164,6 +165,15 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     setHasMore(page.has_more);
     oldestCursorRef.current = page.oldest_cursor;
   }, [signedIn]);
+
+  // The guest's chat was merged into this account after the thread loaded
+  // (GuestProjectClaim): read it again so the Take's bubbles show now.
+  useEffect(() => {
+    if (!signedIn) return;
+    const onMerged = () => void reload().catch(() => undefined);
+    window.addEventListener(LOUNGE_THREAD_MERGED_EVENT, onMerged);
+    return () => window.removeEventListener(LOUNGE_THREAD_MERGED_EVENT, onMerged);
+  }, [signedIn, reload]);
 
   const mergeFromLocal = useCallback(async () => {
     await mergeLocalLoungeThreadToServer();
