@@ -5,13 +5,14 @@ STORY    As a speaker, I want my coach's changed word to wait for me in the
          "Close", so that I watch exactly what my coach sent, once.
 OUTCOME
   O1  The coach's bubble rings while the server says the word is new; a tap
-      opens only that word (top bar "Your coach", the video before the
-      words, no "Your coach" line, the pill "Close"); ✕ closes and the ring
-      stays; Close tells the server the Take's word was watched and the ring
+      opens only that word, as the walk's one chat (the bar "Your coach",
+      the video before the words, no "Your coach" line in the bubble, the
+      pill "Close" in the dock); ✕ closes and the ring stays; Close tells the server the Take's word was watched and the ring
       goes.
 PROVES   O1 -> "the coach's changed word opens alone; only Close marks it watched"
 WHY      Founder 2026-10-19, N80 (D4, D8, D11) and the approved two-phone
-         prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk.
+         prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk, drawn
+         as the lens is since 2026-10-20 (N81, one chat).
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -73,7 +74,10 @@ afterEach(async () => {
 
 const bubble = () => host.querySelector<HTMLButtonElement>("[data-walk-step-bubble]")!;
 const rings = () => bubble().className.includes("ring-2");
-const lens = () => document.querySelector(".walk-layer:not(.walk-ghost) [data-testid='walk-screen-update']");
+// The lens is one chat (N81): its bar, its one part, the dock under it.
+const layer = () => document.querySelector<HTMLElement>(".walk-layer:not(.walk-ghost)");
+const lens = () => layer()?.querySelector("[data-testid='walk-screen-update']") ?? null;
+const pill = () => layer()!.querySelector<HTMLButtonElement>("[data-walk-dock] [data-walk-pill]")!;
 const seenCalls = () => bff.mock.calls.filter(([path]) => path === "/api/v2/user/coach-feedback/seen");
 
 describe("the coach's changed word (N80)", () => {
@@ -83,22 +87,21 @@ describe("the coach's changed word (N80)", () => {
 
     await act(async () => bubble().click());
     const screen = lens()!;
-    expect(screen.querySelector("[data-walk-nav]")?.textContent).toContain("Your coach");
+    expect(layer()!.querySelector("[data-walk-nav]")?.textContent).toContain("Your coach");
     const word = screen.querySelector("[data-walk-message] [data-bubble]")!;
     expect(word.firstElementChild?.hasAttribute("data-coach-video")).toBe(true);
     expect(word.textContent).toBe("Keep the pause after the number.");
-    const pill = screen.querySelector<HTMLButtonElement>("[data-walk-pill]")!;
-    expect(pill.textContent).toBe("Close");
+    expect(pill().textContent).toBe("Close");
 
-    // ✕: back to the chat, marked as before, the server told nothing.
-    await act(async () => screen.querySelector<HTMLButtonElement>('button[aria-label="Close"]:not([data-walk-pill])')!.click());
+    // ✕ (the bar's): back to the chat, marked as before, the server told nothing.
+    await act(async () => layer()!.querySelector<HTMLButtonElement>('.walk-ovtop button[aria-label="Close"]')!.click());
     expect(lens()).toBeNull();
     expect(rings()).toBe(true);
     expect(seenCalls()).toHaveLength(0);
 
     // Close: the Take's word is watched, and the ring goes.
     await act(async () => bubble().click());
-    await act(async () => lens()!.querySelector<HTMLButtonElement>("[data-walk-pill]")!.click());
+    await act(async () => pill().click());
     expect(lens()).toBeNull();
     expect(rings()).toBe(false);
     expect(seenCalls()).toHaveLength(1);

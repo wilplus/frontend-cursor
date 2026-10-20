@@ -135,7 +135,8 @@ describe("N48.3 Q11 A: the coach's word for the Take on screen", () => {
     // Opening it is not watching it (N80): Review feedback stays.
     expect(waiting).toHaveBeenLastCalledWith(true);
     // ✕ marks nothing: Review feedback stays.
-    await act(async () => walkScreen()!.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!.click());
+    // The lens is one chat (N81): ✕ is the thread's bar's.
+    await act(async () => document.querySelector<HTMLButtonElement>('[data-feedback-walk] .walk-layer:not(.walk-ghost) button[aria-label="Close"]')!.click());
     expect(waiting).toHaveBeenLastCalledWith(true);
     // Opened again, Continue watches it: the server hears it, and nothing
     // waits, so the walk moves past its last screen.

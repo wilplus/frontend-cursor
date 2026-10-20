@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
 import { useBackDismiss } from "../useBackDismiss";
@@ -7,6 +8,7 @@ import WalkFooter from "./WalkFooter";
 import WalkMessage from "./WalkMessage";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkStage from "./WalkStage";
+import WalkThread, { WalkPart, WalkThreadMark } from "./WalkThread";
 
 /* -------------------------------------------------------------------------- */
 /*  CoachUpdateLens — the coach's changed word, opened from its "Later · from  */
@@ -20,6 +22,11 @@ import WalkStage from "./WalkStage";
 /*  pill "Close" (lock 2026-10-12 §8). Close marks the word watched (onDone)  */
 /*  and closes; ✕ and the device's Back only close, so the ring stays. It    */
 /*  writes nothing to the chat and adds no words.                             */
+/*                                                                            */
+/*  Drawn as the walk's lens is now (founder 2026-10-20, N81, WalkThread):    */
+/*  one chat of one part, opened by its mark "Your coach" (which the bar      */
+/*  says, with ‹ › off as there is no other part), the bubble landing behind  */
+/*  the typing dots, "Close" in the dock under it, ✕ the bar's.               */
 /* -------------------------------------------------------------------------- */
 
 type Shown = { key: "update"; overlay: boolean; text: string | null; videoUrl: string | null };
@@ -40,13 +47,25 @@ export default function CoachUpdateLens({
   onDone: () => void;
 }) {
   const screen: Shown = { key: "update", overlay: open, text, videoUrl };
+  const frame = useRef<HTMLDivElement | null>(null);
   const done = () => {
     onDone();
     onClose();
   };
   return (
     <div data-walk-column>
-      <WalkStage screen={screen} className="z-[90]" render={(s) => <UpdateScreen shown={s} onClose={onClose} onDone={done} />} />
+      <WalkStage
+        screen={screen}
+        className="z-[90]"
+        render={(s, ghost) => (
+          <WalkThread ghost={ghost} frame={frame} onClose={onClose}>
+            <WalkThreadMark label={COPY.titleCoach} />
+            <WalkPart now>
+              <UpdateScreen shown={s} onClose={onClose} onDone={done} />
+            </WalkPart>
+          </WalkThread>
+        )}
+      />
       {open ? <BackCloses onClose={onClose} /> : null}
     </div>
   );
