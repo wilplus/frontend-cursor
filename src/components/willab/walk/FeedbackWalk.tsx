@@ -18,7 +18,7 @@ import { practiseThreadFooter, practiseThreadItem, type PractiseScreenCtx } from
 import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
 import WalkSummary from "./WalkSummary";
-import WalkAiVoice, { aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
+import WalkAiVoice, { AI_EXERCISE_OPENING, aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
@@ -996,7 +996,7 @@ function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
   const state = ctx.practise.aiVoiceOf(moment.index);
   const ai = aiVoiceShown(ctx.walk.plan, ctx.at(step), state);
   if (!ai) return null;
-  const lines = ai === "pending" ? { title: COPY.titleExercise, line: WALK_COPY.aiVoiceExercise, then: WALK_COPY.aiVoiceNow } : ai;
+  const lines = ai === "pending" ? AI_EXERCISE_OPENING : ai;
   return (
     <WalkAiVoice
       seed={`ai-ex-${moment.index}`}

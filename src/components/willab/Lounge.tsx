@@ -117,6 +117,8 @@ import {
 import { postFeedbackCheck, type FeedbackCheckChoice } from "@/services/api/feedbackCheck";
 import { SundayActions, useVoiceNotebook, VoiceNoteBar, VoiceNoteMic } from "./useVoiceNotebook";
 import type { SundayChoice } from "@/services/api/voiceNotebook";
+import { postWillQuestion } from "@/services/api/willQuestion";
+import WillQuestionBubble, { willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import { useLifeTags } from "@/lib/life/useLifeTags";
@@ -1366,6 +1368,12 @@ export default function Lounge({
     if (await postFeedbackCheck(target.arcId, target.takeSessionId, choice)) await reload();
   }
 
+  // N82 — Will's one question after a Take: the backend keeps the tap and
+  // writes it with the reply, then the thread reads it back.
+  async function answerWillQuestion(target: WillQuestionTarget, choice: string): Promise<void> {
+    if (await postWillQuestion(target.arcId, target.takeSessionId, choice)) await reload();
+  }
+
   function postAnswerBubble(label: string) {
     void thread.append({ role: "user", kind: "text", body: label });
   }
@@ -1598,6 +1606,8 @@ export default function Lounge({
               onChip={onChip}
               activeOffer={activeOffer}
               onOpenOffer={setActiveOffer}
+              willOpen={i === shownItems.length - 1}
+              onWillAnswer={answerWillQuestion}
               animate={
                 i === shownItems.length - 1 &&
                 baselineRef.current !== null &&
@@ -2181,6 +2191,45 @@ function SequentialBotBubbles({
   );
 }
 
+/** An ask's bubble: Will's question with its answers (N82), or an offer
+ *  whose action pair arms in the footer; null for any other row. */
+function askBubble(
+  message: LoungeMessage,
+  {
+    activeOffer,
+    onOpenOffer,
+    willOpen,
+    onWillAnswer,
+  }: {
+    activeOffer?: OfferType | null;
+    onOpenOffer?: (type: OfferType) => void;
+    willOpen: boolean;
+    onWillAnswer?: (target: WillQuestionTarget, choice: string) => Promise<void>;
+  },
+) {
+  const will = willQuestionOf(message.metadata);
+  if (will) {
+    return (
+      <WillQuestionBubble
+        body={message.body}
+        chips={will.chips}
+        open={willOpen}
+        onAnswer={(choice) => onWillAnswer?.(will, choice)}
+      />
+    );
+  }
+  const offerType = readOfferType(message.metadata);
+  if (!offerType) return null;
+  return (
+    <OfferBubble
+      type={offerType}
+      body={message.body}
+      active={activeOffer === offerType}
+      onOpen={() => onOpenOffer?.(offerType)}
+    />
+  );
+}
+
 function Bubble({
   message,
   onViewInsights,
@@ -2193,6 +2242,8 @@ function Bubble({
   onChip,
   activeOffer,
   onOpenOffer,
+  willOpen = false,
+  onWillAnswer,
   animate = false,
   latestForArc = false,
 }: {
@@ -2218,20 +2269,14 @@ function Bubble({
   activeOffer?: OfferType | null;
   /** Tap a persisted offer bubble to re-arm its action pair in the footer. */
   onOpenOffer?: (type: OfferType) => void;
+  /** N82 — the newest bubble: Will's question shows its answers to tap. */
+  willOpen?: boolean;
+  onWillAnswer?: (target: WillQuestionTarget, choice: string) => Promise<void>;
   /** U3 — true only for a freshly-arrived last message → sequential reveal. */
   animate?: boolean;
 }) {
-  const offerType = readOfferType(message.metadata);
-  if (offerType) {
-    return (
-      <OfferBubble
-        type={offerType}
-        body={message.body}
-        active={activeOffer === offerType}
-        onOpen={() => onOpenOffer?.(offerType)}
-      />
-    );
-  }
+  const ask = askBubble(message, { activeOffer, onOpenOffer, willOpen, onWillAnswer });
+  if (ask) return ask;
   if (
     message.kind === "recording_summary" ||
     message.kind === "insight" ||

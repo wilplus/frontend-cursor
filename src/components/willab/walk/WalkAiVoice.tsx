@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CHUNK_SHEET_COPY, WALK_COPY } from "../idealEditCopy";
+import { WALK_COPY } from "../idealEditCopy";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "../TypingDots";
 import WalkMessage from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
@@ -71,6 +71,11 @@ export function aiShownBefore(plan: readonly WalkStep[], at: number, moment: num
  *  "not yet" opens with (founder 2026-10-13, B). */
 export type AiVoiceLines = { title?: string; lead?: string; line: string; then?: string };
 
+/** The voice Exercise opens with praise first (founder 2026-10-20, N82): L4,
+ *  the AI version of their voice, then L3. It replaces "Exercise" and "Here’s
+ *  how you could say it." when the clip is there or on its way. */
+export const AI_EXERCISE_OPENING: AiVoiceLines = { line: WALK_COPY.aiVoiceFirst, then: WALK_COPY.aiVoiceNow };
+
 /** The AI bubble step `at` shows in place of the locked one, for the screen
  *  and the chat alike: its lines, "pending" while the Exercise screen waits
  *  on the clip, or null (the locked screen). */
@@ -82,18 +87,19 @@ export function aiVoiceShown(
   const step = plan[at];
   if (!step || step.moment == null) return null;
   if (step.key === "exVideo") {
-    if (aiOnExercise(state)) return { title: CHUNK_SHEET_COPY.titleExercise, line: WALK_COPY.aiVoiceExercise, then: WALK_COPY.aiVoiceNow };
+    if (aiOnExercise(state)) return AI_EXERCISE_OPENING;
     return aiPendingOnExercise(state) ? "pending" : null;
   }
   if (step.key !== "encourage" || state?.clip?.state !== "ready" || !inVoiceLane(plan, at, step.moment)) return null;
   if (aiShownBefore(plan, at, step.moment, shownOnExercise(plan, step.moment, state)) >= AI_VOICE_MAX) return null;
-  // The first "not yet" says L4 and L3, even after the Exercise's own clip;
-  // every later one L5 (founder 2026-10-13, P3 B).
+  // The first "not yet" says L4 and L3; every later one L5 (founder
+  // 2026-10-13, P3 B). After the Exercise's own clip, which already opened
+  // with L4 (founder 2026-10-20, N82), every "not yet" says L5.
   // The same clip each time, the words around it changing (founder
   // 2026-10-18): it opens with the line for the reading that went the wrong
   // way when one clearly did (2026-10-13, B), else the general ones in turn.
   const lead = encourageLine(plan, at);
-  return aiShownBefore(plan, at, step.moment, false) === 0
+  return aiShownBefore(plan, at, step.moment, shownOnExercise(plan, step.moment, state)) === 0
     ? { lead, line: WALK_COPY.aiVoiceFirst, then: WALK_COPY.aiVoiceNow }
     : { lead, line: WALK_COPY.aiVoiceAgain };
 }
