@@ -1,13 +1,17 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  An ask the admin sent from a person's profile (founder 2026-10-18: "what   */
-/*  is asked in the user panel is not displayed in the chat").                 */
-/*                                                                            */
-/*  Pinned here:                                                              */
-/*    1. it shows the next time they open the chat, no Take needed;           */
-/*    2. never while they are recording (the Lab over the chat);              */
-/*    3. once its bubble is in their thread, it is not posted again.          */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker, I want a question the admin sent me to appear the next
+         time I open the chat, never while I record, and only once, so that
+         it never interrupts a Take.
+OUTCOME
+  O1  It shows when I open the chat, with no Take needed.
+  O2  Nothing shows while I am recording.
+  O3  It is not posted again once it is in my chat.
+PROVES   O1 -> "shows the next time they open the chat, with no Take"
+         O2 -> "waits while they are recording"
+         O3 -> "is not posted again once its bubble is in the thread"
+WHY      Founder 2026-10-18: the admin's ask was not shown in the chat.
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

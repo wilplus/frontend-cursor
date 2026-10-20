@@ -1,3 +1,13 @@
+/*
+STORY    As a speaker, I want my paragraph history to list each Take's version
+         and keep accepted corrections apart, so that every old version stays
+         and I can see where each one came from.
+OUTCOME
+  O1  The versions list holds only my Takes; an accepted correction is
+      listed separately.
+PROVES   O1 -> "keeps an accepted correction apart from the Takes (N48.1)"
+WHY      Never-rule 5: every old version stays in the history.
+*/
 import { describe, expect, it, vi } from "vitest";
 
 const bff = vi.fn();

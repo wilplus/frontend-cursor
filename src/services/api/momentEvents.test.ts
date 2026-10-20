@@ -1,15 +1,16 @@
+/*
+STORY    As the founder, I want "a moment was opened or skipped" recorded
+         without ever breaking the screen, so that we learn what speakers see
+         while they are never blocked.
+OUTCOME
+  O1  An event the server already had is told apart from a failure.
+  O2  A switched-off route or no connection is a quiet failure, never a
+      crash.
+PROVES   O1, O2 -> "tells an already recorded event from a failure, and never throws"
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { reportMomentEvent } from "./momentEvents";
-
-/* -------------------------------------------------------------------------- */
-/*  A MOMENT OPENS BEFORE IT IS JUDGED — the receipt (founder 2026-10-01, F1; */
-/*  Phase 2 of the after-practice paths; backend migration 0408)              */
-/*                                                                            */
-/*  Pins: the call names the moment, the event and what was on screen; the   */
-/*  outcome tells recorded from ignored and carries what the sheet may show  */
-/*  next; nothing throws; the BFF route goes through callBackend.            */
-/* -------------------------------------------------------------------------- */
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => "token" }));
 

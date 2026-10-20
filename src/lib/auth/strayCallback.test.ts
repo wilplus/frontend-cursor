@@ -1,3 +1,9 @@
+/*
+STORY    As a speaker signing in with LinkedIn, I want a sign-in code that lands on the home page to be sent on to finish sign-in, so that sign-in completes.
+OUTCOME
+  O1  A code arriving on the home page is forwarded, unchanged, to the sign-in callback on the same site.
+PROVES   O1 -> sends a LinkedIn code that fell back to the Site URL to the callback
+*/
 import { describe, expect, it } from "vitest";
 
 import { strayAuthCallbackUrl } from "./strayCallback";

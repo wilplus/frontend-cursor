@@ -1,3 +1,16 @@
+/*
+STORY    As a coach, I want no screen to show the machine's read before I judge a moment, and each answer to take me to the next waiting moment, so that my judgement stays blind and quick.
+OUTCOME
+  O1  Moving forward or back never reaches a later screen of a moment I have not judged.
+  O2  Back from What happened never reopens the blind judging of that moment.
+  O3  An answer moves me to the next waiting moment, and after the last to the Take's word.
+  O4  A moment already answered opens on its summary, and Change my answer reopens the choice.
+PROVES   O1 -> no screen after Judge is reached for an unrated moment (BLIND COACH)
+         O2 -> ‹ from What happened never reopens the blind Judge of the same moment
+         O3 -> an answer moves on to the next moment that waits, and after the last to the Take's word
+         O4 -> an answered moment opens on Summary; Change my answer reopens its choice
+WHY      Never-rule 2 (no coach sees the machine's guess before answering).
+*/
 import { describe, expect, it } from "vitest";
 import {
   PANEL_START,

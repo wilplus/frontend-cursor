@@ -1,4 +1,15 @@
-
+/*
+STORY    As a speaker buying tokens, I want the wallet's words to describe a
+         one-time purchase with no streaks, scores or comparisons, so that I
+         am never judged or misled about billing.
+OUTCOME
+  O1  No wallet text speaks of monthly billing or renewal.
+  O2  No wallet text has streaks, scores, percentages, averages or
+      comparisons with other users.
+PROVES   O1 -> "contains no recurring-billing language in the wallet copy"
+         O2 -> "ships no comparative, streak or efficiency framing"
+WHY      Never 1 (no scores shown to speakers); AC-9.
+*/
 import { describe, expect, it } from "vitest";
 import { TOKENS_COPY } from "./copy";
 

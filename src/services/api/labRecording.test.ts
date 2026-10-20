@@ -1,3 +1,23 @@
+/*
+STORY    As a speaker, I want my recording uploaded with its slides and
+         project, a slow server treated as still processing, a payment problem
+         not called a failed analysis, and a discarded Take never re-sent, so
+         that I never lose or duplicate a Take.
+OUTCOME
+  O1  The upload carries my slides, the deck and when I moved to each slide.
+  O2  The upload names only the project and its one upload key.
+  O3  A server timeout on a stored recording shows as "still processing".
+  O4  A payment problem says the recording is safe, not that analysis failed.
+  O5  A Take I discard while it uploads is reported as discarded and is not
+      re-sent another way.
+PROVES   O1 -> "appends slides + presentation_ref + slide_advances when a deck is attached"
+         O2 -> "sends only the canonical project id and upload key"
+         O3 -> "routes a 504 with session_id into the async 'processing' path"
+         O4 -> "keeps 402 out of the analysis-failed path"
+         O5 -> "reports `discarded`, never the connection-error copy",
+               "does NOT re-send the discarded take down the BFF lane"
+WHY      Never-rule 3: never break record -> process -> Ideal Text.
+*/
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

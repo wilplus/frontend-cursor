@@ -1,7 +1,26 @@
 // @vitest-environment jsdom
-/* The coach panel, redrawn, P1 (founder lock 2026-10-06): its screens, its
-   host's blind order (the moment read only after the rating saves), and the
-   switch at the Lounge door. */
+/*
+STORY    As a coach, I want to judge a moment before I see any words or the
+         machine's read, with my queue in the order speakers sent, so that
+         my judgement stays blind and I answer the right speaker first.
+OUTCOME
+  O1  Judge shows only the player, the question and the four answers.
+  O2  The machine's read of a moment is fetched only after my rating is
+      saved; a failed save stays on Judge, says so, and reads nothing.
+  O3  My queue puts the speaker who sent last on top and drops answered
+      ones; a speaker's open Takes come first, newest first, then the
+      answered ones, faded.
+  O4  "Your speakers" shows the list at once, then updates it.
+  O5  An error answered without a video still goes to the speaker.
+PROVES   O1 -> "Judge: the player, the question, 👍 😐 👎 and Audio unclear (lock 2026-10-12 §7), nothing else"
+         O2 -> "Judge first; the moment read is asked for only after the rating saves",
+               "a failed save stays on Judge, says so, and never reads the moment"
+         O3 -> "Your queue: the speaker who sent most recently on top; an answered speaker drops out (founder 2026-10-18)",
+               "the open ones first, newest first; then Answered, faded, most recently answered first (founder 2026-10-18)"
+         O4 -> "Your speakers opens at once with the queue's speakers, then takes the fresh read"
+         O5 -> "an error answered without a video still goes to the speaker, without the library (lock flow 9)"
+WHY      Never 2 (coach judgements stay blind); locked coach panel.
+*/
 import { act, useState, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

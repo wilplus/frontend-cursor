@@ -1,3 +1,13 @@
+/*
+STORY    As a speaker tapping a WhatsApp or email link, I want to land on my
+         coach's feedback or on the review, so that the link takes me where
+         it says.
+OUTCOME
+  O1  A feedback link (lens, or idealArc with feedback) opens the feedback;
+      a link with mode=review opens the review; a bare idealArc link opens
+      neither.
+PROVES   O1 -> "opens the coach's feedback from the WhatsApp and email links, the review with mode=review"
+*/
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("./page.client", () => ({ default: () => null }));

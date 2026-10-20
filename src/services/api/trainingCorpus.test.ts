@@ -1,3 +1,12 @@
+/*
+STORY    As a coach labelling clips, I want never to see the machine's rating
+         or score, so that my judgement stays blind.
+OUTCOME
+  O1  The clips I label carry no machine rating or score, even if the
+      server sent one.
+PROVES   O1 -> "never surfaces a band or machine read even if one were served (N1)"
+WHY      Never-rule 2: no coach sees the machine's guess before answering.
+*/
 import { describe, expect, it } from "vitest";
 import {
   mapConfidenceQueue,

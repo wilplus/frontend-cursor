@@ -1,7 +1,16 @@
-/* Pins what the project deletion client answers before and after it moves
- * onto bffFetch (audit D5): the signed-out, network, refused and success
- * cases. The coach review's three clients that shared this file left with
- * the arc-level delivery (founder 2026-09-30, B3; P2-19). */
+/*
+STORY    As a speaker, I want deleting a project to send one request with a
+         one-time key, and to change nothing when refused, offline or signed
+         out, so that deletion is safe and can be repeated.
+OUTCOME
+  O1  Asking to delete a project sends one request with a one-time key and
+      shows the pending deletion.
+  O2  A refusal or no connection changes nothing; signed out, nothing is
+      sent at all.
+PROVES   O1 -> "asks with an idempotency key and reads the open request"
+         O2 -> "changes nothing when refused, offline or signed out"
+WHY      Deletion is on the critical path.
+*/
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn() }));

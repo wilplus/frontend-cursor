@@ -1,3 +1,10 @@
+/*
+STORY    As a speaker practising, I want each try answered with a line in words for what changed, never a number, so that I hear progress without a score.
+OUTCOME
+  O1  The "not yet", "better" and "thanks" lines come from the approved wording and contain no digits.
+PROVES   O1 -> each try's line is the one for the reading that moved, never a number
+WHY      Never-rule 1 (no scores to speakers).
+*/
 import { describe, expect, it } from "vitest";
 import { PRACTISE_LINES } from "@/components/willab/idealEditCopy";
 import { buildWalkPlan, type WalkStep } from "./walkPlan";

@@ -1,8 +1,19 @@
 // @vitest-environment jsdom
-/* The recording stage never lets a pull reach the page (founder 2026-10-06:
-   pulling down on the recording screen reloaded it and lost the Take). The
-   root's overscroll-behavior covers most browsers; the stage's own
-   touchmove is the belt for those that ignore it (iOS before 16). */
+/*
+STORY    As a speaker, I want pulling down on the recording screens never to
+         reload the page, so that I never lose a Take.
+OUTCOME
+  O1  A pull down on the slide while recording is cancelled.
+  O2  From "getting your mic ready" through the recording, the page is set
+      not to pull-refresh.
+  O3  A pull down on the mic wait and the processing screen is cancelled;
+      on other screens a pull works as normal.
+PROVES   O1 -> "cancels a pull down from the slide on slide 1 with the scroller at its top"
+         O2 -> "sets overscroll-behavior none on lab_prerecord and keeps it into the recording"
+         O3 -> "cancels a pull down on the mic wait and the processing screen"
+WHY      Founder 2026-10-06: a pull reloaded the recording screen and lost
+         the Take. Never 3.
+*/
 import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

@@ -1,3 +1,13 @@
+/*
+STORY    As a speaker accepting the terms, I want Continue to work only once I pick an allowed country and agree to the recordings consent, so that processing my recordings is properly authorised.
+OUTCOME
+  O1  Continue needs both a country and the recordings consent.
+  O2  A country the policy does not allow is refused.
+  O3  The country list shows Poland first, the United States next, then the rest by name.
+PROVES   O1 -> needs the country and the recordings consent together
+         O2 -> refuses a country the policy does not allow
+         O3 -> lists Poland first and the United States right below it, the rest by name
+*/
 import { describe, expect, it } from "vitest";
 import type { ProcessingPolicy } from "@/services/api/processingAuthorization";
 import { canSubmit, countryChoices } from "./acceptanceSteps";

@@ -1,3 +1,14 @@
+/*
+STORY    As a speaker changing my answer to a piece of feedback, I want the
+         server's reply to reach the sheet unchanged, so that my new answer
+         shows as saved.
+OUTCOME
+  O1  A changed answer is POSTed to the backend for this Take and the 200
+      "revised" reply comes back exactly as sent.
+  O2  A 409 "already final" reply also comes back exactly as sent.
+PROVES   O1 -> "passes the 200 revised body through unchanged"
+         O2 -> "still relays a rewrite's 409 as it came"
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 

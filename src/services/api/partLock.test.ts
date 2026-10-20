@@ -1,16 +1,19 @@
+/*
+STORY    As a speaker, I want locking a paragraph to send the words I was
+         looking at, and to tell "decide the pending suggestions first" apart
+         from "your text is out of date", so that locking works even on a text
+         I never edited and I get the right message.
+OUTCOME
+  O1  Locking sends the lock together with the words on my screen.
+  O2  "Decide pending suggestions first" and "out of date" come back as two
+      different answers.
+PROVES   O1 -> "PUTs the lock with the words the student was looking at"
+         O2 -> "discriminates UNDECIDED from STALE on the same 409"
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { setPartLock } from "./partLock";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => "tok" }));
-
-/* -------------------------------------------------------------------------- */
-/*  partLock — the lock PUT's wire contract.                                   */
-/*                                                                            */
-/*  The piece that MATTERS: seed-on-lock (SPEC-lockin-loop §2). The founder's  */
-/*  DoD locks a paragraph the student never manually edited, and an unedited   */
-/*  document has no server-stored identity — without the seed riding this      */
-/*  request, that flow could only ever 409 STALE.                              */
-/* -------------------------------------------------------------------------- */
 
 let calls: Array<{ url: string; body: Record<string, unknown> }> = [];
 

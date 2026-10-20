@@ -1,3 +1,13 @@
+/*
+STORY    As a coach, I want the receipt that my card was shown recorded
+         honestly, and a refusal reported as a refusal, so that blind review
+         stays provable.
+OUTCOME
+  O1  A receipt the server refuses comes back as not saved, never faked as
+      saved.
+PROVES   O1 -> "a refused receipt is refused, never faked"
+WHY      Never-rule 2: coach judgements stay blind.
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   acknowledgeConfidenceChainRender,

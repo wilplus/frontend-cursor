@@ -1,11 +1,19 @@
-/**
- * The processing-authorization lane forwards exactly the subpaths it names
- * (Task 3), plus one with an id since the founder's Wave 3 answers of
- * 2026-10-05 (N48.4 Q14 A): a person cancelling their own account deletion,
- * POST /deletion/<purge uuid>/cancel. Everything else from the backend lane
- * stays unreachable from here — the data-rights route above all, which can
- * request an erasure, and any id segment that is not a UUID.
- */
+/*
+STORY    As a speaker, I want to be able to cancel my own account deletion,
+         and nobody to reach the erase-my-data route through the app, so
+         that deletion is safe both ways.
+OUTCOME
+  O1  Cancelling one's own deletion (POST with a valid deletion id) reaches
+      the backend and is never cached.
+  O2  The cancel is refused (404, nothing sent) as a GET, with a bad id, or
+      with a wrong path.
+  O3  The status read and "terminate" still go through; data-rights,
+      data-export and trick names are 404 with nothing sent.
+PROVES   O1 -> "forwards a cancel of one's own account deletion"
+         O2 -> "forwards the cancel only as a POST, and only with a UUID"
+         O3 -> "still forwards what it did, and still nothing else"
+WHY      Founder's Wave 3 answers 2026-10-05 (N48.4 Q14 A).
+*/
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 

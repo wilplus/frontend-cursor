@@ -1,7 +1,15 @@
 // @vitest-environment jsdom
-/* Founder 2026-09-25, F3 = A: the Privacy page waits for the stored policy
- * instead of showing the stale v1.2 stand-in, and says so plainly when the
- * record cannot be read — a loading line must never spin for good. */
+/*
+STORY    As a reader of the Privacy page, I want the stored policy or a plain
+         "could not load" line, never an endless spinner or an old stand-in,
+         so that I always know what I agreed to.
+OUTCOME
+  O1  The stored policy text is shown with its version number.
+  O2  When no stored copy can be had, the "could not load" line is shown.
+PROVES   O1 -> "shows the stored copy once it is published"
+         O2 -> "shows the unavailable line once the record answers without a copy"
+WHY      Founder 2026-09-25, F3 = A.
+*/
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

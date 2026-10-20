@@ -1,4 +1,12 @@
 // @vitest-environment jsdom
+/*
+STORY    As a speaker, I want my sharing choice applied once, to my next uploaded Take, with the wording I saw, and "Only me" to share nothing, so that I control who hears me.
+OUTCOME
+  O1  My choice shares the next Take once, with the wording I saw, and not the Take after.
+  O2  Choosing Only me shares nothing.
+PROVES   O1 -> shares the next uploaded Take as chosen, once, with the words the speaker saw
+         O2 -> Only me shares nothing
+*/
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { shareTake } = vi.hoisted(() => ({ shareTake: vi.fn(async () => ({ ok: true as const, data: {} })) }));

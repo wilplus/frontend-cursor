@@ -1,3 +1,12 @@
+/*
+STORY    As a speaker, I want agreeing to training use refused clearly while
+         pooled training is switched off, so that I never think I agreed to
+         something that isn't running.
+OUTCOME
+  O1  While pooled training is off, the agreement is refused with the
+      server's own explanation.
+PROVES   O1 -> "keeps consent writes fail-closed when Phase 2 is disabled"
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   grantMlc2Consent,

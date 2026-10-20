@@ -1,3 +1,11 @@
+/*
+STORY    As a guest uploading my slides, I want my guest identity sent with
+         the deck, so that my deck isn't refused before I record.
+OUTCOME
+  O1  A guest's deck upload carries the guest identity and no login.
+PROVES   O1 -> "sends a guest's owner token"
+WHY      Every guest deck was refused before the parser ran (2026-10-08).
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { extractPresentation } from "./presentationExtract";
 

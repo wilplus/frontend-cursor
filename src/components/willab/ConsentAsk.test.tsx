@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  A consent ask answered in the chat (founder 2026-10-18, No | Yes).        */
-/*                                                                            */
-/*  Pinned here:                                                              */
-/*    1. the question's own words and Read more are on the card;              */
-/*    2. Yes saves through the same call as the Data & consent page;          */
-/*    3. No saves nothing, and both close the ask as answered.                */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker asked for consent in the chat, I want Yes to save it as
+         the Data & consent page does and No to save nothing, so that my
+         answer means what I chose.
+OUTCOME
+  O1  The card shows the question's own words and Read more.
+  O2  Yes saves the consent and closes the ask.
+  O3  No saves nothing and closes the ask.
+PROVES   O1 -> "shows the question's own words with Read more"
+         O2 -> "Yes saves the consent as the Data & consent page does"
+         O3 -> "No saves nothing and closes the ask"
+WHY      Founder 2026-10-18 (No | Yes in the chat).
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

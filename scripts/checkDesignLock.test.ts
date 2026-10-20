@@ -1,10 +1,31 @@
-/**
- * The design-lock guard (build plan X5): a commit that changes a file behind
- * a founder-locked screen must carry a non-empty `Founder-Approved:` trailer,
- * or `npm run check:design-lock` fails the diff. The live run is the unit
- * job's "Design-lock guard" step and scripts/local_ci.sh; these tests pin the
- * rule on a throwaway repository, and pin the list to what CLAUDE.md locks.
- */
+/*
+STORY    As the founder, I want any commit that changes a locked screen to
+         carry a Founder-Approved line, so that finished designs never
+         change without my yes.
+OUTCOME
+  O1  A branch that changes a locked file without a filled-in
+      Founder-Approved trailer fails; with it, it passes.
+  O2  Each commit is judged on its own; commits already on main, test files
+      and uncommitted changes never fail it; an unknown base is refused.
+  O3  The lock list reads cleanly, matches whole folders and exact files,
+      and names only files that exist.
+  O4  The lock list includes every screen CLAUDE.md locks.
+PROVES   O1 -> "passes a branch that touches nothing locked",
+               "fails a commit that changes a locked file without the trailer",
+               "passes the same change with the trailer",
+               "an empty trailer value is no approval",
+               "the trailer must be a trailer, not a sentence in the body"
+         O2 -> "locks every file under a directory pattern, but never a test",
+               "checks each commit on its own: one approved, one not",
+               "ignores commits that are on the base already",
+               "reports an uncommitted locked change without failing on it",
+               "refuses to run against a base it cannot see"
+         O3 -> "parses comments and blank lines away",
+               "matches exact paths and trees, never tests",
+               "names only files and directories that exist (a rename must update the list)"
+         O4 -> "locks %s, which CLAUDE.md names" (one per locked screen file)
+WHY      CLAUDE.md "Screens that are locked" (build plan X5).
+*/
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

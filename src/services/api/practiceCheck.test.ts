@@ -1,3 +1,13 @@
+/*
+STORY    As a speaker, I want a practice check to reach my screen only as
+         "praise or try again, and which cue", never the machine's number, so
+         that I never see a score.
+OUTCOME
+  O1  The result passed on holds only what to do next and which cue, and
+      nothing else.
+PROVES   O1 -> "keeps only next and key from a praise check"
+WHY      Never-rule 1: no scores or numbers shown to speakers.
+*/
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mapPracticeCheck } from "./practiceCheck";
 

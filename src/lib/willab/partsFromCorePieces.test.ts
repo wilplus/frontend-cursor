@@ -1,16 +1,10 @@
-/* -------------------------------------------------------------------------- */
-/*  A LOCK MUST NOT COST THE PARAGRAPH ITS SLIDE                               */
-/*  (reported from real use 2026-09-18: "when I click lock the whole           */
-/*   presentation drops the division into slides and concatenates into one     */
-/*   text")                                                                    */
-/*                                                                            */
-/*  The third path to miss this rule, after #379 and #380, and the one where   */
-/*  there was nothing to preserve FROM. The deck joins slides to paragraphs on */
-/*  `pieces[].partId`; a never-edited document has stored no parts, so         */
-/*  `reconcileParts(text, [])` minted a fresh id for every paragraph,          */
-/*  seed-on-lock made the server adopt that list, and from the next read on    */
-/*  not one id appeared in `piecePartIds`. Every slide join failed at once.    */
-/* -------------------------------------------------------------------------- */
+/*
+STORY    As a speaker, I want locking a paragraph never to merge my slides into one block of text, so that my deck keeps its slides.
+OUTCOME
+  O1  Paragraphs built from the server's pieces keep the server's paragraph identities.
+PROVES   O1 -> keeps the core's Paragraph identity
+WHY      Reported from real use 2026-09-18: a lock merged the whole presentation into one text.
+*/
 import { describe, expect, it } from "vitest";
 
 import {

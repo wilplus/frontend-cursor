@@ -1,3 +1,11 @@
+/*
+STORY    As a speaker, I want my share choice for a Take saved to that Take,
+         so that only the people I chose see it.
+OUTCOME
+  O1  The share choice is sent (PUT) unchanged to the backend path for
+      exactly this Take.
+PROVES   O1 -> "relays the share body to the encoded take path"
+*/
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 

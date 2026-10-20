@@ -1,3 +1,12 @@
+/*
+STORY    As a guest speaker, I want my uploaded slide deck to reach the
+         slide reader with my guest pass, so that my deck is used for my
+         Take.
+OUTCOME
+  O1  The upload goes to the backend's slide-reading route with the guest
+      owner token (X-Willab-Guest-Owner) passed on.
+PROVES   O1 -> "forwards a guest's owner token"
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 

@@ -1,19 +1,18 @@
+/*
+STORY    As a coach, I want a new exercise video saved together with its
+         definition at the exercise's own address, so that the exercise and
+         its video never get out of step.
+OUTCOME
+  O1  The video file and the exercise definition go in one upload to that
+      exercise's address, and the old video link is not sent.
+PROVES   O1 -> "posts the file and the definition together, to the exercise's own address"
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   saveCoachExerciseWithVideo,
   type CoachExerciseDraft,
 } from "./coachExercises";
-
-/* -------------------------------------------------------------------------- */
-/*  EXERCISE AUTHORING IN THE COACH PANEL — the client (founder 2026-09-29,    */
-/*  decision 4)                                                               */
-/*                                                                            */
-/*  Pins: the list reads the kept version and the transcript's state; the     */
-/*  save speaks the backend's names and carries the AI draft only when the    */
-/*  coach asked for one; a NEW exercise is born through the video call with   */
-/*  its definition beside the file; every BFF route goes through callBackend. */
-/* -------------------------------------------------------------------------- */
 
 const GOOD: CoachExerciseDraft = {
   exerciseId: "land-the-ending",

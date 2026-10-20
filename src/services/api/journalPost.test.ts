@@ -1,3 +1,11 @@
+/*
+STORY    As a speaker tapping "More about self-modeling theory", I want a
+         missing or empty post to show nothing rather than a broken screen.
+OUTCOME
+  O1  A post that is not found, has no title, or can't be reached offline
+      gives nothing to show.
+PROVES   O1 -> "is null for anything but a post with a title and words: no broken screen"
+*/
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchPublishedJournalPost } from "./journalPost";
 

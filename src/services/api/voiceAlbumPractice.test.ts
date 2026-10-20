@@ -1,3 +1,12 @@
+/*
+STORY    As a speaker, I want my practice answer saved against the exact
+         recording I heard, unchanged, so that my judgement is credited to the
+         right moment.
+OUTCOME
+  O1  The save names the project, Take and moment I heard, and my answer as
+      I gave it.
+PROVES   O1 -> "sends the exact recording and the answer unchanged"
+*/
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => "token" }));

@@ -1,3 +1,16 @@
+/*
+STORY    As a speaker starting a later Take, I want to be told whether I am
+         speaking to my own slides or the stand-in deck, so that I know what
+         this Take goes with.
+OUTCOME
+  O1  It names my own file, the stand-in deck, or nothing while the setup
+      is not known yet.
+  O2  It is shown only before Take 2 and later, from that Take's own setup
+      first, then the project's.
+PROVES   O1 -> "names the speaker's own file, the stand-in deck, or nothing until the setup is known"
+         O2 -> "is shown before a later Take only, from the Take's own setup first"
+WHY      Founder 2026-10-16.
+*/
 import { describe, expect, it } from "vitest";
 import { DEFAULT_DECK } from "@/lib/willab/defaultDeck";
 import {
