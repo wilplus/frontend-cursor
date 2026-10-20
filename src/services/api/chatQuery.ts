@@ -104,6 +104,10 @@ export interface ChatQueryResponse {
   /** What the backend stored on its reply row; `whatsapp: "saved"` when a
    *  number typed under the WhatsApp ask was saved (founder 2026-10-20). */
   row_metadata?: Record<string, unknown> | null;
+  /** The turn passed the Take's ask and the message after the Take is now
+   *  under the reply (founder 2026-10-20, one action at a time): read the
+   *  thread again. */
+  after_take?: boolean;
   /** Optional stress-contrast block (BE-3). null / absent → omit
    *  the contrast card entirely per prompt C7. */
   contrast?: ChatQueryContrast | null;

@@ -285,6 +285,12 @@ O2  Never-5: the host's real accept lane (postTrackedDecision) sends no
 decision, suggestion-feedback or other request that could change a
 word of the paragraph.
 O3  The practise goes on, with the accepted words to say.","O1, O2, O3 -> ""records the answer, changes no word, and goes on to the practise""",Never-5 (founder lock 2026-10-12). The walk's own accept lane and the deck text after it are in deckFeedbackWalk.test.tsx.
+src/components/willab/afterTake.test.ts,Story,"As a speaker, after a Take I want one thing to do at a time: the Take's card, its one ask, then the message with ""Record Take N"".","O1  The message waits, undrawn, while its ask is open; the card comes
+before the ask; once let go it comes under what closed the ask.
+O2  A WhatsApp or home-screen ask opens its form by itself.
+O3  A waiting message whose ask is no longer in front of me is let go.","O1 -> ""draws the card, the ask, and the message only once it is let go""
+O2 -> ""opens the Take's WhatsApp ask by itself""
+O3 -> ""knows when no ask is in front of the speaker""","Founder 2026-10-20: ""You cannot have two actions at a time, like feedback and record"" (backend services/after_take.py)."
 src/components/willab/audioUploadValidation.test.ts,Story,"As a speaker uploading a recording instead of recording live, I want a too-large or video file refused before upload with a plain reason, so that I do not wait for a failure (record step of the loop).","O1  A file over the upload limit is refused with a ""too large"" reason.
 O2  A video file (by MIME type, or by extension when the type is missing)
 is refused with an ""audio only"" reason.
@@ -569,11 +575,11 @@ O2  A version the thread holds twice keeps only the later copy.
 O3  Different versions with no review card all stay.","O1 -> ""hides the bubble of a Take that already has its review card""
 O2 -> ""hides the earlier copy of a version the thread holds twice""
 O3 -> ""keeps each version's own bubble""","Founder 2026-10-14 (walk first) and 2026-10-18 (""I can see two bubbles"")."
-src/components/willab/useAdminAsk.test.tsx,Story,"As a speaker, I want a question the admin sent me to appear the next time I open the chat, never while I record, and only once, so that it never interrupts a Take.","O1  It shows when I open the chat, with no Take needed.
-O2  Nothing shows while I am recording.
-O3  It is not posted again once it is in my chat.","O1 -> ""shows the next time they open the chat, with no Take""
-O2 -> ""waits while they are recording""
-O3 -> ""is not posted again once its bubble is in the thread""",Founder 2026-10-18: the admin's ask was not shown in the chat.
+src/components/willab/useAdminAsk.test.tsx,Story,"As a speaker, I want a question the founder sent me from the CEO panel to come at the end of a Take, as that Take's one ask, and only once per Take, so that it never competes with recording again.","O1  It shows when a Take's message waits for it, and not before.
+O2  After a reload it is not posted again: its form opens again.
+O3  With no ask left to show, the Take's message comes at once.","O1 -> ""shows at the end of a Take whose message waits for it""
+O2 -> ""is not posted again after a reload""
+O3 -> ""lets the Take's message go when there is nothing to ask""","Founder 2026-10-18: the admin's ask was not shown in the chat; founder 2026-10-20: at the end of a Take, from Take 2, one action at a time (it no longer shows when the chat opens)."
 src/components/willab/useFailedTakeRecheck.test.ts,Story,"As a speaker, I want a ""failed"" note under my Take cleared when the server says the Take actually finished, and never a failure claimed without asking the server, so that I am not told a done Take failed and can go on to my Ideal Text and the next Take.","O1  While a failed note is on screen the hook asks the server at once and
 reports ""recovered"" when the Take is done.
 O2  The server cannot be reached: ""unknown"", never a verdict.
@@ -649,9 +655,12 @@ at once, not only when a moment is open on it (N48.2 Q6 A).","O1 -> ""every mome
 O2 -> ""a paragraph whose helper words were deleted is back in the walk on its earlier answer""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
 src/components/willab/whatsappOffer.test.tsx,Story,"As a speaker, I want to leave my WhatsApp number to hear when my coach's feedback is in, with wrong numbers refused, so that the message reaches me.","O1  A number without its country code is refused on screen and nothing is sent.
 O2  A valid number is saved in full international form and the offer closes.
-O3  Not now sends nothing and closes.","O1 -> refuses a number without its country code
+O3  Not now sends nothing and closes.
+O4  A number I typed in the chat without its country code is in the form,
+to fix, not to type again (founder 2026-10-20).","O1 -> refuses a number without its country code
 O2 -> saves a valid number in E.164 and closes
-O3 -> Not now sends nothing and closes",
+O3 -> Not now sends nothing and closes
+O4 -> opens with the number typed in the chat",
 src/components/willab/willabHelpers.test.ts,Story,"As a speaker, I want my slide taps lined up with the recording's clock, so that each word lands on the right slide.","O1  When the recording started later than the tap clock, the correction is positive by exactly that gap.
 O2  When the recording never reported a start, no correction is sent.","O1 -> is positive when the recorder started after the tap clock's zero
 O2 -> sends nothing when the recorder never reported a start",The backend subtracts this from every tap; the wrong sign would double the drift.

@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import {
   fetchWhatsAppPhone,
   normalizePhone,
   saveWhatsAppPhone,
 } from "@/services/api/whatsapp";
-import { hasOffer, offerDraft, readOfferType, type OfferType } from "./loungeOffers";
 import SymmetricPair from "./SymmetricPair";
 
 /* -------------------------------------------------------------------------- */
@@ -16,10 +15,9 @@ import SymmetricPair from "./SymmetricPair";
 /*  Same shape as the install offer (WillabInstallPrompt): a persisted thread  */
 /*  bubble plus a footer action pair that replaces the record button. It asks  */
 /*  for a phone number so "The feedback from your coach is in!" also reaches   */
-/*  the speaker on WhatsApp. It comes AFTER install, one offer per recording:  */
-/*  the recording that brought the install offer brings nothing else, and the  */
-/*  WhatsApp offer appears after the next one (or the first, when install      */
-/*  cannot be offered on this device).                                         */
+/*  the speaker on WhatsApp. It is asked at the end of a Take, from Take 2,    */
+/*  at most twice, as that Take's one ask (founder 2026-10-20; the backend    */
+/*  writes it, services/after_take.py); it no longer comes at send time.      */
 /* -------------------------------------------------------------------------- */
 
 /** Footer and error copy (WhatsApp offer). No em-dashes (house style). */
@@ -51,29 +49,18 @@ export interface WhatsAppOffer {
   /** Read the number again: one typed in the chat was saved there (founder
    *  2026-10-20), and the chat's reply already says so. */
   refresh: () => void;
+  /** What the form opens with: a number typed in the chat without its
+   *  country code (founder 2026-10-20), so it is fixed, not typed twice. */
+  draft: string | null;
+  setDraft: (draft: string | null) => void;
 }
 
-interface TriggerInputs {
-  /** The Lounge's flow state; the offer only appears at "review_pending". */
-  state: string;
-  messages: LoungeMessage[];
-  threadLoading: boolean;
+export function useWhatsAppOffer(inputs: {
   append: (draft: LoungeMessageDraft) => Promise<LoungeMessage>;
-  /** The Lounge's settle stamp: a recording_summary newer than it is a fresh
-   *  in-session send (same gate as the install offer). */
-  settleTimeRef: MutableRefObject<string | null>;
-  /** May the install offer still be offered? It goes first: the WhatsApp
-   *  offer waits until install is in the thread or cannot be offered. */
-  installCanOffer: boolean;
-  /** An ask the admin sent this person holds the automatic offers back. */
-  held?: boolean;
-  activeOffer: OfferType | null;
-  openOffer: (type: OfferType) => void;
-}
-
-export function useWhatsAppOffer(inputs: TriggerInputs): WhatsAppOffer {
+}): WhatsAppOffer {
   const [phone, setPhone] = useState<string | null | undefined>(undefined);
   const [dismissed, setDismissed] = useState(false);
+  const [draft, setDraft] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -92,6 +79,7 @@ export function useWhatsAppOffer(inputs: TriggerInputs): WhatsAppOffer {
     (saved: string) => {
       setDismissed(true);
       setPhone(saved);
+      setDraft(null);
       // The confirmation the speaker asked for (founder 2026-10-15): a
       // bubble in the thread, so it survives reload like every other turn.
       void append({ role: "bot", kind: "text", body: WHATSAPP_COPY.saved(saved) });
@@ -105,57 +93,7 @@ export function useWhatsAppOffer(inputs: TriggerInputs): WhatsAppOffer {
     });
   }, []);
 
-  useAutoOffer(inputs, canOffer);
-  return { canOffer, phone: phone ?? null, softDismiss, markSaved, refresh };
-}
-
-/** Append + arm the offer once, after a fresh send that brought no other
- *  offer, once install has had its turn on an earlier recording. */
-function useAutoOffer(inputs: TriggerInputs, canOffer: boolean) {
-  const { state, messages, threadLoading, append, settleTimeRef } = inputs;
-  const { installCanOffer, activeOffer, openOffer, held } = inputs;
-  const handledRef = useRef(false);
-  // The fresh recording during which an offer (install) was open: that
-  // recording has had its offer, whatever the timestamps say.
-  const offeredForRef = useRef<string | null>(null);
-  useEffect(() => {
-    const settle = settleTimeRef.current;
-    if (activeOffer !== null && settle !== null) {
-      offeredForRef.current = latestFreshSend(messages, settle) ?? offeredForRef.current;
-    }
-  }, [activeOffer, messages, settleTimeRef]);
-  useEffect(() => {
-    const settle = settleTimeRef.current;
-    if (threadLoading || settle === null || handledRef.current) return;
-    if (state !== "review_pending" || !canOffer) return;
-    if (activeOffer !== null) return;
-    if (held) return;
-    if (installCanOffer && !hasOffer(messages, "install")) return;
-    if (hasOffer(messages, "whatsapp")) return;
-    const fresh = latestFreshSend(messages, settle);
-    if (fresh === null || fresh === offeredForRef.current) return;
-    if (offeredSince(messages, fresh)) return;
-    handledRef.current = true;
-    void append(offerDraft("whatsapp"));
-    openOffer("whatsapp");
-  }, [state, canOffer, installCanOffer, activeOffer, held, threadLoading, messages, append, openOffer, settleTimeRef]);
-}
-
-/** The newest recording_summary minted after the settle stamp, or null. */
-function latestFreshSend(messages: LoungeMessage[], settle: string): string | null {
-  let latest: string | null = null;
-  for (const m of messages) {
-    if (m.kind !== "recording_summary" || m.client_created_at <= settle) continue;
-    if (latest === null || m.client_created_at > latest) latest = m.client_created_at;
-  }
-  return latest;
-}
-
-/** One offer per recording (founder 2026-10-12: "one by one, not two at
- *  once"): when this recording already brought an offer (install), the
- *  WhatsApp offer waits for the next one. */
-function offeredSince(messages: LoungeMessage[], since: string): boolean {
-  return messages.some((m) => readOfferType(m.metadata) !== null && m.client_created_at >= since);
+  return { canOffer, phone: phone ?? null, softDismiss, markSaved, refresh, draft, setDraft };
 }
 
 /** The footer while the WhatsApp offer is open: the number field in a grey
@@ -168,7 +106,7 @@ export function WhatsAppOfferActions({
   offer: WhatsAppOffer;
   onResolve: () => void;
 }) {
-  const [value, setValue] = useState(offer.phone ?? "");
+  const [value, setValue] = useState(offer.draft ?? offer.phone ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
