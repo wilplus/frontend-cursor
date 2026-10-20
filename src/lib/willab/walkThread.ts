@@ -75,15 +75,16 @@ export function walkStepDraft(e: WalkThreadEntry): LoungeMessageDraft {
  *  later one; never when the loaded chat already holds the coach's word for
  *  this Take (the walk's own copy, the "Later · from your coach" bubble or
  *  the in-review bubble), so there is no second copy and nothing jumps to
- *  the bottom. Pure. */
+ *  the bottom. Never while the chat is still loading: what it holds is not
+ *  known yet, so a copy now could be a second one. Pure. */
 export function coachNoteToChat(
-  messages: readonly LoungeMessage[],
+  thread: { readonly messages: readonly LoungeMessage[]; readonly loading: boolean } | null,
   pageTake: string | null,
   wordTake: string | null,
   replay: boolean,
 ): boolean {
-  if (replay || !pageTake || wordTake !== pageTake) return false;
-  return !messages.some((m) => {
+  if (replay || !pageTake || wordTake !== pageTake || thread?.loading === true) return false;
+  return !(thread?.messages ?? []).some((m) => {
     const meta = m.metadata ?? {};
     return m.kind === "walk_step" && meta.take_session_id === pageTake && meta.step === "coachnote" && meta.author === "coach";
   });

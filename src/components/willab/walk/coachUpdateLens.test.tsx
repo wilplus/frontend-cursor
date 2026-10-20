@@ -9,7 +9,10 @@ OUTCOME
       the video before the words, no "Your coach" line in the bubble, the
       pill "Close" in the dock); ✕ closes and the ring stays; Close tells the server the Take's word was watched and the ring
       goes.
+  O2  Once the server has heard it (its next read says the word is not
+      new), a later change of the word rings again.
 PROVES   O1 -> "the coach's changed word opens alone; only Close marks it watched"
+         O2 -> "a word changed again after it was watched rings again"
 WHY      Founder 2026-10-19, N80 (D4, D8, D11) and the approved two-phone
          prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk, drawn
          as the lens is since 2026-10-20 (N81, one chat).
@@ -106,5 +109,19 @@ describe("the coach's changed word (N80)", () => {
     expect(rings()).toBe(false);
     expect(seenCalls()).toHaveLength(1);
     expect(seenCalls()[0][1]).toMatchObject({ method: "POST", json: { take_session_id: "take-1" } });
+  });
+
+  it("a word changed again after it was watched rings again", async () => {
+    const as = (unseen: boolean) => ({ ...LATER, metadata: { ...LATER.metadata, unseen } });
+    await act(async () => root.render(createElement(Chat, { message: as(true) })));
+    await act(async () => bubble().click());
+    await act(async () => pill().click());
+    expect(rings()).toBe(false);
+    // The server's next read: watched.
+    await act(async () => root.render(createElement(Chat, { message: as(false) })));
+    expect(rings()).toBe(false);
+    // The coach changes the word: the server says new, and it rings again.
+    await act(async () => root.render(createElement(Chat, { message: as(true) })));
+    expect(rings()).toBe(true);
   });
 });

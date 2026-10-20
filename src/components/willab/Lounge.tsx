@@ -2496,9 +2496,20 @@ function wordTakeOf(m: LoungeMessage): unknown {
   return m.metadata?.coach_take_session_id ?? m.metadata?.take_session_id;
 }
 
-/** A coach bubble as it was read: a version the server sends again (moved
- *  to the bottom with what is saved now) is another. */
-const coachBubbleKey = (m: LoungeMessage) => `${m.client_id}|${m.client_created_at}`;
+/** A coach bubble as it was read, under its word's Take: a version the
+ *  server sends again (moved to the bottom with what is saved now) is
+ *  another. */
+const coachBubbleKey = (m: LoungeMessage) => `${String(wordTakeOf(m))}\u0000${m.client_id}|${m.client_created_at}`;
+
+/** The watched-here marks a server read has caught up with: a coach bubble
+ *  of that Take read as `unseen: false` (S3), so the next change of the
+ *  word rings again. The same set when there are none. */
+function caughtUp(watched: ReadonlySet<string>, messages: readonly LoungeMessage[]): ReadonlySet<string> {
+  const read = new Set(messages.filter((m) => isCoachBubble(m) && m.metadata?.unseen === false).map((m) => `${String(wordTakeOf(m))}\u0000`));
+  if (read.size === 0) return watched;
+  const left = [...watched].filter((k) => ![...read].some((take) => k.startsWith(take)));
+  return left.length === watched.size ? watched : new Set(left);
+}
 
 /** THE COACH'S WORD IN THE CHAT (founder 2026-10-19, N80; the approved
  *  two-phone prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk).
@@ -2507,8 +2518,11 @@ const coachBubbleKey = (m: LoungeMessage) => `${m.client_id}|${m.client_created_
  *    (metadata.unseen), so a word watched in WhatsApp's in-app browser or on
  *    another device is not new here (D4), and a changed word or video is new
  *    again (D7). Watched on this page (the update's Close, or Continue on
- *    Step 0 in the walk) its bubbles stop at once. Any other bubble keeps
- *    `other`.
+ *    Step 0 in the walk) its bubbles stop at once, until a server read says
+ *    the Take's word is not new: from then on the server's word rules
+ *    again, so a later change rings. The walk's own copy, appended here
+ *    without the server's mark, rings while the review waits on it (`other`),
+ *    so ✕ on Step 0 keeps it. Any other bubble keeps `other`.
  *  - `open`: a "Later · from your coach" bubble opens its word alone in the
  *    update lens (D8). Close tells the server it was watched, and the
  *    project's "new" is read again; ✕ only closes, and the ring stays.
@@ -2530,9 +2544,10 @@ export function useCoachUpdates(messages: readonly LoungeMessage[]): {
       }),
     [],
   );
+  useEffect(() => setWatched((w) => caughtUp(w, messages)), [messages]);
   const waits = useCallback(
     (m: LoungeMessage, other: boolean) =>
-      isCoachBubble(m) ? m.metadata?.unseen === true && !watched.has(coachBubbleKey(m)) : other,
+      isCoachBubble(m) ? (m.metadata?.unseen === true || other) && !watched.has(coachBubbleKey(m)) : other,
     [watched],
   );
   const done = useCallback(() => {
@@ -2605,9 +2620,11 @@ export function WalkStepBubble({
   const clip = walkClipOf(meta.clip);
   if (!message.body.trim() && !clip) return null;
   const mine = message.role === "user";
-  const open = coachUpdateTap(message, onOpenCoachUpdate) ?? bubbleTap(meta, lockedTake, onOpenIdealText, onOpened, onOpenOlder);
-  // A press starts the Ideal Text's read before the tap lands.
-  const warm = open ? () => warmIdealTextOpen(arc) : undefined;
+  const update = coachUpdateTap(message, onOpenCoachUpdate);
+  const open = update ?? bubbleTap(meta, lockedTake, onOpenIdealText, onOpened, onOpenOlder);
+  // A press starts the Ideal Text's read before the tap lands; the coach's
+  // update opens its own lens, not the Ideal Text.
+  const warm = open && !update ? () => warmIdealTextOpen(arc) : undefined;
   const hint = helpersHint(meta, lockedTake);
   const label = chatLabelOf(meta);
   const ai = clip || mine ? null : aiVoiceOfMeta(meta);

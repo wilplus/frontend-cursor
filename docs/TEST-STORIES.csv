@@ -609,10 +609,13 @@ src/components/willab/useWillabFlow.test.ts,Story,"As a speaker, I want the app 
 from there the next Take, a pause, or ""sign up to send"" (and on to
 review) are expected steps.","O1 -> ""is the record → process → Ideal Text loop""",Never 3; audit Q-C4.
 src/components/willab/walk/coachUpdateLens.test.tsx,Story,"As a speaker, I want my coach's changed word to wait for me in the chat under ""Later · from your coach"" and open on its own with ""Close"", so that I watch exactly what my coach sent, once.","O1  The coach's bubble rings while the server says the word is new; a tap
-opens only that word (top bar ""Your coach"", the video before the
-words, no ""Your coach"" line, the pill ""Close""); ✕ closes and the ring
-stays; Close tells the server the Take's word was watched and the ring
-goes.","O1 -> ""the coach's changed word opens alone; only Close marks it watched""","Founder 2026-10-19, N80 (D4, D8, D11) and the approved two-phone prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk."
+opens only that word, as the walk's one chat (the bar ""Your coach"",
+the video before the words, no ""Your coach"" line in the bubble, the
+pill ""Close"" in the dock); ✕ closes and the ring stays; Close tells the server the Take's word was watched and the ring
+goes.
+O2  Once the server has heard it (its next read says the word is not
+new), a later change of the word rings again.","O1 -> ""the coach's changed word opens alone; only Close marks it watched""
+O2 -> ""a word changed again after it was watched rings again""","Founder 2026-10-19, N80 (D4, D8, D11) and the approved two-phone prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk, drawn as the lens is since 2026-10-20 (N81, one chat)."
 src/components/willab/walk/feedbackWalk.test.tsx,Story,"As a speaker, I want the Feedback walk to take me through my coach's note, praise with its reason, helper words, the clearer version and a summary, in words only, as one chat that grows with each tap, so that feedback after every Take is clear and backed by what I said.","O1  The steps come in order as one chat: coach's note, praise, helper words, next praise, summary, back to my page; earlier steps stay above, my choices land as my own bubbles.
 O2  A good moment shows the praise line, then why it landed, quoting my words.
 O3  Reopened from the Lounge, a clip I already judged shows as answered and is not asked again.
@@ -906,7 +909,8 @@ O5  The Lounge says what the walk's chat said: the practise answer's line
 as shown, and no ""Practise"" bubble of its own for a try.
 O6  My coach's word for a Take is written into the chat once: not again
 when it shows again, not under its ""Later · from your coach"" bubble,
-not for an earlier Take's word, not in a replay (N80, D4).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
+not for an earlier Take's word, not in a replay, not while the chat is
+still loading (N80, D4).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
 O2 -> ""posts judging other speakers as the prototype's chat does, never their recording""
 O3 -> ""counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles""
 O4 -> ""asks the sharing question as one bubble, its lines as paragraphs, also for a question stored as three""

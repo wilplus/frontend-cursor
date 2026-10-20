@@ -15,7 +15,8 @@ OUTCOME
       as shown, and no "Practise" bubble of its own for a try.
   O6  My coach's word for a Take is written into the chat once: not again
       when it shows again, not under its "Later · from your coach" bubble,
-      not for an earlier Take's word, not in a replay (N80, D4).
+      not for an earlier Take's word, not in a replay, not while the chat is
+      still loading (N80, D4).
 PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own message, with no score"
          O2 -> "posts judging other speakers as the prototype's chat does, never their recording"
          O3 -> "counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles"
@@ -100,16 +101,19 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
       client_id: `${take}-coach`, role: "bot" as const, kind: "walk_step" as const, body: "Your coach\nKeep the pause.",
       metadata: { take_session_id: take, step: "coachnote", author: "coach", ...extra }, client_created_at: "2026-10-19T10:00:00Z",
     });
+    const chat = (...messages: ReturnType<typeof coachBubble>[]) => ({ messages, loading: false });
     // The first show of the Take's own word writes it.
-    expect(coachNoteToChat([], "t2", "t2", false)).toBe(true);
+    expect(coachNoteToChat(chat(), "t2", "t2", false)).toBe(true);
     // Shown again: the walk's own copy is there already.
-    expect(coachNoteToChat([coachBubble("t2")], "t2", "t2", false)).toBe(false);
+    expect(coachNoteToChat(chat(coachBubble("t2")), "t2", "t2", false)).toBe(false);
     // Under the "Later · from your coach" bubble: no second copy.
-    expect(coachNoteToChat([coachBubble("t2", { coach_update: true, heading: "Later · from your coach" })], "t2", "t2", false)).toBe(false);
+    expect(coachNoteToChat(chat(coachBubble("t2", { coach_update: true, heading: "Later · from your coach" })), "t2", "t2", false)).toBe(false);
     // Another Take's bubble does not count.
-    expect(coachNoteToChat([coachBubble("t1")], "t2", "t2", false)).toBe(true);
+    expect(coachNoteToChat(chat(coachBubble("t1")), "t2", "t2", false)).toBe(true);
     // An earlier Take's word shown as Step 0 of this Take, and a replay.
-    expect(coachNoteToChat([], "t2", "t1", false)).toBe(false);
-    expect(coachNoteToChat([], "t2", "t2", true)).toBe(false);
+    expect(coachNoteToChat(chat(), "t2", "t1", false)).toBe(false);
+    expect(coachNoteToChat(chat(), "t2", "t2", true)).toBe(false);
+    // The chat still loading: what it holds is not known, so no copy yet.
+    expect(coachNoteToChat({ messages: [], loading: true }, "t2", "t2", false)).toBe(false);
   });
 });

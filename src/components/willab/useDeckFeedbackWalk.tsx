@@ -1155,7 +1155,7 @@ export function useDeckFeedbackWalk(args: {
       // (prototype v31).
       if (step.key === "coachnote") {
         const thread = threadRef.current;
-        const once = coachNoteToChat(thread.thread?.messages ?? [], thread.take, coach?.takeSessionId ?? null, Boolean(step.replay || walkModel.replay));
+        const once = coachNoteToChat(thread.thread, thread.take, coach?.takeSessionId ?? null, Boolean(step.replay || walkModel.replay));
         said = once ? coachNoteChat(said, coach) : null;
       }
       said = withLateReason(said, step, moment, reasonsRef.current);
