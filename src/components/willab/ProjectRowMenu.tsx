@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { MoreHorizontal, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -13,7 +14,9 @@ import { Button } from "@/components/ui/button";
 /*  import under its Edit (founder 2026-10-19).                               */
 /*                                                                            */
 /*  The confirmation owns the delete so the row cannot vanish before it       */
-/*  landed: on failure the dialog stays open and says so.                     */
+/*  landed: on failure the dialog stays open and says so. It is drawn on the  */
+/*  page itself: a row that moves its ⋯ with a transform would otherwise trap */
+/*  the fixed dialog inside the ⋯'s own box (the corpus list, 2026-10-20).    */
 /* -------------------------------------------------------------------------- */
 
 /** A second action under the first, always behind its confirmation. */
@@ -190,9 +193,10 @@ export function ConfirmDelete({
     }
   }
 
-  return (
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/35 p-4 sm:items-center"
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-foreground/35 p-4 sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="delete-project-title"
@@ -232,6 +236,7 @@ export function ConfirmDelete({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
