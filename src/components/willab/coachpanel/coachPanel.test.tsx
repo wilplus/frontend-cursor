@@ -11,7 +11,8 @@ OUTCOME
       ones; a speaker's open Takes come first, newest first, then the
       answered ones, faded.
   O4  "Your speakers" shows the list at once, then updates it.
-  O5  An error answered without a video still goes to the speaker.
+  O5  An error answered without a video still goes to the speaker, and a
+      moment with no draft never leaves me with no words and a grey Next.
   O6  Coming back to a Take word I sent, I see my saved words and video,
       never a draft over them: Send keeps the video, Remove the video holds
       until Send and sends no video, and leaving cancels it; a Take drafted
@@ -22,7 +23,8 @@ PROVES   O1 -> "Judge: the player, the question, 👍 😐 👎 and Audio unclea
          O3 -> "Your queue: the speaker who sent most recently on top; an answered speaker drops out (founder 2026-10-18)",
                "the open ones first, newest first; then Answered, faded, most recently answered first (founder 2026-10-18)"
          O4 -> "Your speakers opens at once with the queue's speakers, then takes the fresh read"
-         O5 -> "an error answered without a video still goes to the speaker, without the library (lock flow 9)"
+         O5 -> "an error answered without a video still goes to the speaker, without the library (lock flow 9)",
+               "no draft: the field stays open until it has words, on the tick and on coming back (lock flow 9)"
          O6 -> "opens on the saved words and video, never a draft; Send to {p} keeps the video",
                "Remove the video holds across ‹ and Next, and Send without a video sends video_ref: null",
                "leaving the word before Send cancels Remove the video: the next visit shows the saved video again",
@@ -89,6 +91,7 @@ import type { QueueMoment, QueueSpeaker, QueueTake } from "@/lib/willab/coachWal
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 import { CHUNK_SHEET_COPY } from "../idealEditCopy";
 import { draftTakeWord } from "@/services/api/coachPanel";
+import { draftForRequest } from "@/services/api/coachWalk";
 import type { MomentRead } from "@/services/api/coachWalk";
 import type { WalkNav } from "../walk/WalkOverlay";
 
@@ -282,6 +285,45 @@ describe("the answer", () => {
       resolution: "note_written", answerText: "Slow down on the last words.", share: true,
     }));
     expect(document.querySelector("[data-testid='coach-panel-judge']")).not.toBeNull(); // on to s2
+  });
+
+  it("no draft: the field stays open until it has words, on the tick and on coming back (lock flow 9)", async () => {
+    vi.mocked(draftForRequest).mockResolvedValueOnce(null);
+    fetchMomentRead.mockResolvedValue({
+      ...READ,
+      request: { id: "r1", kind: "error", spotted: [], resolution: null, resolvedExerciseId: null, shared: false } as unknown as MomentRead["request"],
+    });
+    const start = ([
+      { type: "open" }, { type: "take", speaker: HERON, take: TAKE },
+      { type: "rated", snippetId: "s1", value: "no" }, { type: "step", key: "decide" }, { type: "step", key: "words" },
+    ] as PanelAction[]).reduce(panelReducer, PANEL_START);
+    draw(<Host start={start} />);
+    await flush();
+    await flush();
+    // The screen on top, never the leaving copy.
+    const live = (sel: string) => q(`[data-walk-move] ${sel}`);
+    const open = () => live("[data-coach-words]")?.getAttribute("data-editing");
+    const next = () => (live("[data-testid='coach-panel-words-next']") as HTMLButtonElement).disabled;
+    expect(open()).toBe("true");
+    act(() => live("[data-coach-words-pencil]")!.click()); // the tick, on no words
+    expect(open()).toBe("true");
+
+    act(() => live(`button[aria-label='${CSS.escape(CHUNK_SHEET_COPY.pagerBack)}']`)!.click());
+    await flush();
+    act(() => [...host.querySelectorAll<HTMLElement>("[data-walk-move] [data-testid='coach-panel-decide'] button")]
+      .find((b) => b.textContent?.includes(COPY.makeANewOne))!.click());
+    await flush();
+    expect(open()).toBe("true");
+    expect(next()).toBe(true);
+
+    const field = live("[data-coach-words-field]") as HTMLTextAreaElement;
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(field, "Breathe before the last word.");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    act(() => live("[data-coach-words-pencil]")!.click());
+    expect(open()).toBeNull();
+    expect(next()).toBe(false);
   });
 });
 
