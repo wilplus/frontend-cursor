@@ -1,11 +1,13 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
 import OverlayCloseButton from "../OverlayCloseButton";
 import { useWalkSwipe } from "./useWalkSwipe";
+import { useWalkPart } from "./WalkThread";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkOverlay — one screen of the Feedback walk (founder lock 2026-10-06)    */
@@ -15,6 +17,11 @@ import { useWalkSwipe } from "./useWalkSwipe";
 /*  top bar is the one part that stays still while the content moves: the     */
 /*  motion CSS animates every child of `.walk-ov` except `.walk-ovtop`, so    */
 /*  the title, the body and the footer must stay direct children.             */
+/*                                                                            */
+/*  Inside the Feedback walk's thread (WalkThread, founder 2026-10-20) it is  */
+/*  one part of the chat instead: its bubbles only, landing one after the     */
+/*  other; the newest part's footer goes to the dock under the thread and     */
+/*  its ✕ to the thread's bar. The bar's words come from the thread.          */
 /* -------------------------------------------------------------------------- */
 
 export type WalkNav = {
@@ -125,8 +132,24 @@ export default function WalkOverlay({
   testId?: string;
   children?: ReactNode;
 }) {
+  const part = useWalkPart();
   const ov = useRef<HTMLDivElement | null>(null);
-  useWalkSwipe(ov, nav);
+  useWalkSwipe(ov, part ? null : nav);
+  // Drawn first as the newest part: its bubbles land one after the other.
+  const [lands] = useState(() => part?.now === true);
+  useEffect(() => {
+    if (part?.now) part.close.current = onClose ?? null;
+  });
+  if (part) {
+    return (
+      <>
+        <div data-walk-part data-testid={part.now ? testId : undefined} className={cn("flex flex-col gap-4", lands && "walk-part-in")}>
+          {children}
+        </div>
+        {part.now && part.dock && footer ? createPortal(footer, part.dock) : null}
+      </>
+    );
+  }
   return (
     <div
       ref={ov}

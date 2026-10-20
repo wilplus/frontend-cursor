@@ -3,12 +3,12 @@
 import type { ReactNode } from "react";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import LoadingState from "../LoadingState";
-import WalkOverlay, { type WalkNav } from "./WalkOverlay";
+import type { WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import RecordingStrip from "./RecordingStrip";
-import { WALK_MAX_TRIES, type WalkStep, type WalkStepKey } from "@/lib/willab/walkPlan";
+import { WALK_MAX_TRIES, type WalkStep } from "@/lib/willab/walkPlan";
 import type { FeedbackWalkMoment, ReplayTries } from "@/lib/willab/feedbackWalkModel";
 import { encourageLine, improvedLine, thanksLine, triesLeft, triesRecorded } from "@/lib/willab/walkPractise";
 import type { WalkTry } from "./useWalkPractise";
@@ -17,23 +17,18 @@ import type { AiVoiceState } from "@/services/api/aiVoice";
 import WalkAiVoice, { aiVoiceShown } from "./WalkAiVoice";
 
 /* -------------------------------------------------------------------------- */
-/*  The practise loop's screens (build plan D-FW-16; founder lock 2026-10-12,  */
-/*  moment and feedback chat, section 2.5; prototype v31 `openRecorder` and    */
-/*  the `try` step): pure, from the step and what the controller              */
-/*  (useWalkPractise) holds.                                                  */
+/*  The practise loop's bubbles (build plan D-FW-16; founder lock 2026-10-12,  */
+/*  moment and feedback chat, section 2.5): pure, from the step and what the  */
+/*  controller (useWalkPractise) holds. Every loop is one thread in the walk's */
+/*  chat (founder 2026-10-20, WIL-89): nothing here is a screen of its own.   */
 /*                                                                            */
-/*    practise    the recorder without the slide: "Practise · Slide N" and ✕  */
-/*                (back to the walk) on top, a grey bubble with the served    */
-/*                line (else Line A), the words to say centred in the rest,   */
-/*                the Take's strip (dot, clock, bar) and Skip / red Stop      */
-/*    processing  the orange "Practise N" bubble, the breathing mark under it */
-/*    improved    "Practise N", then "Good job" and a signed line; Next       */
-/*    encourage   "Practise N", then "Practise" and the signed encouragement; */
-/*                the white outlined "Practise again" with the red dot alone  */
-/*                (founder 2026-10-18: Next only after a Good job or the     */
-/*                third try)                                                  */
-/*    thanks      after the third try that is not praise: the signed move-on  */
-/*                line; Next                                                  */
+/*    practise    the served line (else Line A) with the words to say, before */
+/*                the first try; the try as it records; the recorder in the   */
+/*                dock: the Take's strip (dot, clock, bar) and Skip / red Stop */
+/*    processing  the breathing mark under the try while it is checked        */
+/*    improved    "Good job" and a signed line                                */
+/*    encourage   the AI clip or "Practise" and the signed encouragement      */
+/*    thanks      after the third try that is not praise: the move-on line    */
 /*    late        a read that came late or not at all (O5): Practise again    */
 /*                while a try is left, else Next                              */
 /*                                                                            */
@@ -68,8 +63,6 @@ export type PractiseScreenCtx = {
   aiVoiceOf?: (moment: number) => AiVoiceState | undefined;
   aiVoicePlayed?: (moment: number) => void;
 };
-
-const testId = (step: WalkStep) => `walk-screen-${step.key}`;
 
 /** The try's own voice as the speaker's orange bubble, "Practise N" above it
  *  (lock 2026-10-12, section 2.5); the moment's voice until the try is kept. */
@@ -152,27 +145,6 @@ function RecorderFooter({ ctx }: { ctx: PractiseScreenCtx }) {
   );
 }
 
-/** The recorder (lock 2026-10-12, section 2.5): "Practise · Slide N" and ✕,
- *  the bubble, the words centred in the space left, the strip and the pair. */
-function Practise(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
-  const coach = step.kind === "instruction" && moment.exercise?.byCoach === true;
-  return (
-    <WalkOverlay
-      testId={testId(step)}
-      where={WALK_COPY.practiseWhere(moment.slideLabel ?? COPY.titlePractise)}
-      onClose={ctx.back}
-      footer={<RecorderFooter ctx={ctx} />}
-    >
-      <WalkMessage coach={coach} wide>
-        {lineAbove(step, moment)}
-      </WalkMessage>
-      <p data-walk-say className="my-auto text-[25px] font-semibold leading-[1.35]">
-        {wordsToSay(step, moment)}
-      </p>
-    </WalkOverlay>
-  );
-}
-
 /** The breathing mark while the machine checks the try. */
 function Checking() {
   return (
@@ -182,34 +154,6 @@ function Checking() {
   );
 }
 
-/** The try is with the machine: its bubble stays, the mark breathes under it. */
-function Processing(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
-  return (
-    <WalkOverlay testId={testId(step)} nav={ctx.nav(step, moment)} onClose={ctx.close}>
-      <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />
-      <Checking />
-    </WalkOverlay>
-  );
-}
-
-/** The answered footer: "✓ …" over a black Next. */
-function Done({ ctx, line }: { ctx: PractiseScreenCtx; line: string }) {
-  return (
-    <WalkFooter pill={{ label: COPY.pagerNext, onClick: ctx.forward, testId: "walk-forward" }}>
-      <p className="m-0 text-center text-[13px] text-muted-foreground">{line}</p>
-    </WalkFooter>
-  );
-}
-
-/** A footer whose only action is Next, after `step` is answered "ok". */
-function NextFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
-  const ok = () => {
-    ctx.answer(step, "ok");
-    ctx.forward();
-  };
-  return <WalkFooter pill={{ label: COPY.pagerNext, onClick: ok, testId: "walk-forward" }} />;
-}
-
 function ImprovedMessage({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
   return (
     <WalkMessage>
@@ -217,33 +161,6 @@ function ImprovedMessage({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep
       <span>{improvedLine(ctx.plan, ctx.at(step), ctx.say)}</span>
     </WalkMessage>
   );
-}
-
-function Improved(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
-  return (
-    <WalkOverlay
-      testId={testId(step)}
-      nav={ctx.nav(step, moment)}
-      onClose={ctx.close}
-      footer={<NextFooter ctx={ctx} step={step} />}
-    >
-      <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />
-      <ImprovedMessage ctx={ctx} step={step} />
-    </WalkOverlay>
-  );
-}
-
-/** The white outlined "Practise again" alone under a "not yet" (founder
- *  2026-10-18): Next comes after a Good job or the third try. The recorder
- *  keeps its Skip. */
-function EncourageFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
-  const given = ctx.answered(step);
-  const again = () => {
-    ctx.answer(step, "again");
-    ctx.forward();
-  };
-  if (given) return <Done ctx={ctx} line={given === "again" ? WALK_COPY.answeredPractised : WALK_COPY.answeredSkipped} />;
-  return <WalkFooter dot outline pill={{ label: COPY.pillPractiseAgain, onClick: again, testId: "walk-forward" }} />;
 }
 
 /** The "not yet": the AI clip in the voice Exercise or after a clearer
@@ -256,20 +173,6 @@ function EncourageMessage({ ctx, step, moment }: { ctx: PractiseScreenCtx; step:
         <span>{encourageLine(ctx.plan, ctx.at(step), ctx.say)}</span>
       </WalkMessage>
     )
-  );
-}
-
-function Encourage(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
-  return (
-    <WalkOverlay
-      testId={testId(step)}
-      nav={ctx.nav(step, moment)}
-      onClose={ctx.close}
-      footer={<EncourageFooter ctx={ctx} step={step} />}
-    >
-      <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />
-      <EncourageMessage ctx={ctx} step={step} moment={moment} />
-    </WalkOverlay>
   );
 }
 
@@ -291,22 +194,6 @@ function aiInstead(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkM
   );
 }
 
-/** After the third try that is not praise (CM3b A): the signed move-on line
- *  alone, and Next. */
-function Thanks(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
-  return (
-    <WalkOverlay
-      testId={testId(step)}
-      nav={ctx.nav(step, moment)}
-      onClose={ctx.close}
-      footer={<NextFooter ctx={ctx} step={step} />}
-    >
-      <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />
-      <WalkMessage>{thanksLine(ctx.plan, ctx.at(step), ctx.say)}</WalkMessage>
-    </WalkOverlay>
-  );
-}
-
 /** After a late read (O5): the white outlined Practise again while a try
  *  is left, the late ones counted, so a machine that never answers still
  *  ends on Next after the third (founder 2026-10-18); then Next. */
@@ -316,20 +203,11 @@ function LateFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
   return <WalkFooter dot outline pill={{ label: COPY.pillPractiseAgain, onClick: ctx.again, testId: "walk-again" }} />;
 }
 
-/** A late or failed read (O5): the try is not reached yet. */
-function Late(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
-  return (
-    <WalkOverlay testId={testId(step)} nav={ctx.nav(step, moment)} onClose={ctx.close} footer={<LateFooter ctx={ctx} step={step} />}>
-      <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />
-    </WalkOverlay>
-  );
-}
-
-/* ---- the voice Exercise's thread (founder 2026-10-13, P1 A, P2 A) -------- */
+/* ---- the practise thread (founder 2026-10-13, P1 A, P2 A; 2026-10-20) ---- */
 /*  Each practise step's own bubbles, piled under the ones before in one      */
-/*  overlay (FeedbackWalk draws it): the words to say in quotes, the try as   */
-/*  it records and then its voice, the check, the answer. Only the current    */
-/*  step has a footer.                                                        */
+/*  part of the chat (FeedbackWalk draws it): the words to say in quotes, the */
+/*  try as it records and then its voice, the check, the answer. Only the     */
+/*  current step has a footer.                                                */
 
 /** The speaker's try while it records: their orange bubble, a dot pulsing. */
 function LiveTry({ attempt }: { attempt?: number }) {
@@ -380,40 +258,11 @@ export function practiseThreadItem(
   }
 }
 
-/** The thread's footer while `step` is the current one. */
+/** The try's own footer while `step` is the current one: the recorder, or
+ *  Practise again / Next after a late read; none while the try is checked.
+ *  Every other step of the thread has the thread's footer (FeedbackWalk). */
 export function practiseThreadFooter(ctx: PractiseScreenCtx, step: WalkStep): ReactNode {
-  switch (step.key) {
-    case "practise":
-      return <RecorderFooter ctx={ctx} />;
-    case "improved":
-    case "thanks":
-      return <NextFooter ctx={ctx} step={step} />;
-    case "encourage":
-      return <EncourageFooter ctx={ctx} step={step} />;
-    case "late":
-      return <LateFooter ctx={ctx} step={step} />;
-    default:
-      return null;
-  }
-}
-
-const SCREENS: Partial<
-  Record<WalkStepKey, (ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) => ReactNode>
-> = {
-  practise: Practise,
-  processing: Processing,
-  improved: Improved,
-  encourage: Encourage,
-  thanks: Thanks,
-  late: Late,
-};
-
-/** The practise loop's screen for `step`, or undefined when it is not one. */
-export function renderPractiseScreen(
-  ctx: PractiseScreenCtx,
-  step: WalkStep,
-  moment: FeedbackWalkMoment<unknown>,
-): ReactNode | undefined {
-  const draw = SCREENS[step.key];
-  return draw ? draw(ctx, step, moment) : undefined;
+  if (step.key === "practise") return <RecorderFooter ctx={ctx} />;
+  if (step.key === "late") return <LateFooter ctx={ctx} step={step} />;
+  return null;
 }

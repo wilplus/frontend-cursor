@@ -2655,15 +2655,13 @@ function walkClipOf(value: unknown): WalkChatClip | null {
   };
 }
 
-/** The line above a moment in the chat (prototype v31 `.meta-l`): "Slide 2 ·
- *  moment 1 of 2", "Moment 1 of 2" with no slide, or "Slide 3". */
+/** The line above a moment in the chat: the step's name as the walk's chat
+ *  says it ("Slide 2"; founder 2026-10-20, WIL-89: the lens and the Lounge
+ *  are the same thread, so no "moment 1 of 2" here either), or the judging's
+ *  heading. */
 export function chatLabelOf(meta: Record<string, unknown>): string | null {
   if (typeof meta.heading === "string") return meta.heading;
-  const slide = typeof meta.slide_label === "string" ? meta.slide_label : null;
-  const n = meta.green_n;
-  const of = meta.green_of;
-  if (typeof n !== "number" || typeof of !== "number" || n < 1) return slide;
-  return slide ? `${slide} · moment ${n} of ${of}` : `Moment ${n} of ${of}`;
+  return typeof meta.slide_label === "string" ? meta.slide_label : null;
 }
 
 /** The speaker's own clip in the chat (prototype v31 `.lb.me.aud`): an
