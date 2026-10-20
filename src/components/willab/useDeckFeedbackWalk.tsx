@@ -54,7 +54,7 @@ import { suggestionSource, walkPractiseIO } from "@/services/api/walkPractise";
 import { fetchConfidencePractice } from "@/services/api/confidentVoicePractice";
 import { practiceTries, threadTries } from "@/lib/willab/walkTries";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
-import { reportMomentEvent } from "@/services/api/momentEvents";
+import { reportMomentEvent, type MomentShown } from "@/services/api/momentEvents";
 import { lineBankIO } from "@/services/api/lineBank";
 import {
   markCoachFeedbackSeen,
@@ -402,6 +402,48 @@ export function coachShownOn(
     out.set(shownKey(shown), shown);
   }
   return [...out.values()];
+}
+
+/** What each moment screen of the walk has on it, as the paragraph sheet
+ *  reported it (0408). */
+const OPENED_AS: Readonly<Record<string, MomentShown>> = {
+  praise: "praise",
+  clearer: "rewrite",
+  exVideo: "exercise",
+  coach: "coach_answer",
+};
+
+/** The moments a walk screen shows, as the "opened" record the coach's
+ *  queue reads (N48.2): without it no coach ever hears a walked moment
+ *  (founder 2026-10-20). One entry per clip, with what was on screen. Pure. */
+export function momentsOpenedOn(
+  step: WalkStep,
+  moment: FeedbackWalkMoment<DocumentSuggestion> | null,
+  openOn: readonly DocumentSuggestion[] = [],
+): { snippetId: string; shown: MomentShown[] }[] {
+  const kind = OPENED_AS[step.key];
+  if (!kind) return [];
+  const shown: MomentShown[] = moment?.coachAnswer && kind !== "coach_answer" ? [kind, "coach_answer"] : [kind];
+  return coachShownOn(step, moment, null, openOn).map((s) => ({ snippetId: s.snippetId!, shown }));
+}
+
+/** What one walk screen tells the server, once per opening of the walk:
+ *  the coach's feedback it showed (D-FW-19), and the moments that reached
+ *  the speaker, the record that lists them for a coach (founder 2026-10-20). */
+function tellShown(
+  told: Set<string>,
+  step: WalkStep,
+  moment: FeedbackWalkMoment<DocumentSuggestion> | null,
+  coach: CoachMessage | null,
+  openOn: readonly DocumentSuggestion[],
+): void {
+  const once = (key: string) => !told.has(key) && Boolean(told.add(key));
+  for (const shown of coachShownOn(step, moment, coach, openOn)) {
+    if (once(shownKey(shown))) void markCoachFeedbackSeen(shown);
+  }
+  for (const opened of momentsOpenedOn(step, moment, openOn)) {
+    if (once(`opened:${opened.snippetId}`)) void reportMomentEvent(opened.snippetId, "opened", opened.shown);
+  }
 }
 
 /** Personalised practice, as the speaker set it. */
@@ -1144,12 +1186,7 @@ export function useDeckFeedbackWalk(args: {
       }
       const parts = moment ? (walkModel.partsOf[moment.index] ?? []) : [];
       const openOn = now.filter((c) => parts.includes(c.part.id)).flatMap((c) => openOf(c));
-      for (const shown of coachShownOn(step, moment, coach, openOn)) {
-        const key = shownKey(shown);
-        if (toldRef.current.has(key)) continue;
-        toldRef.current.add(key);
-        void markCoachFeedbackSeen(shown);
-      }
+      tellShown(toldRef.current, step, moment, coach, openOn);
     },
     [walkModel, post],
   );
