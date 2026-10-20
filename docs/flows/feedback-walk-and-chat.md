@@ -114,13 +114,13 @@ step; the loop never waits for a coach.
   slide order, and the score decides each: a moment at or above the floor is
   praised, one below it is corrected (C4); both strong, two praises and no
   practise; both weak, two corrections (founder, 2026-10-20, on the page's
-  first review; being built, §2. Until it lands the roles are fixed: the
-  highest is praised, with the softer signed line under the floor, and the
-  second highest is corrected, 2026-10-14 and 2026-10-17). A praised moment:
+  first review; the fixed roles of 2026-10-14 and 2026-10-17, the highest
+  praised with the softer line under the floor and the second highest
+  always corrected, are history). A praised moment:
   its clip as the speaker's orange bubble; on the highest moment the line
-  "This was your most confident moment." (signed 2026-10-20, being built;
-  "This was your most confident moment so far." when that moment is
-  corrected); then the opening line by its level (W1–W10, three signed lines
+  "This was your most confident moment." (signed 2026-10-20; "This was
+  your most confident moment so far." opens its clearer version or
+  Exercise when that moment is corrected); then the opening line by its level (W1–W10, three signed lines
   a level, rotated; the cue line under it; `src/lib/willab/praiseLevels.ts`),
   "Good job" and one line from B01–B09. Then "Next". Praise is never
   promised. A served moment with nothing attached is the moment said again,
@@ -132,9 +132,8 @@ step; the loop never waits for a coach.
   walk, on the latest Take only (rule 5); an older Take's words are locked
   ("🔒 Take N"). They come from a moment that sounded confident.
 - **C4 Correction.** A shown moment below the floor is corrected (founder,
-  2026-10-20; being built, §2: today the second highest is always corrected,
-  when too short the next closest with enough words, and the highest never,
-  2026-10-14). It is never called weak. It opens on the Clearer version only
+  2026-10-20; until then the second highest was always corrected and the
+  highest never, 2026-10-14). It is never called weak. It opens on the Clearer version only
   when both gates pass (H3), else on the voice Exercise with the AI clip
   (words first, then voice, 2026-10-18, N76). Two weak moments mean two
   corrections, in slide order, each with its own tries and clips.
@@ -261,8 +260,8 @@ step; the loop never waits for a coach.
   one deeper question in their own words. Each once per talk. Will's question
   is never in the lens. Will may say the signed questions with light
   variation, the same meaning in slightly different words; the tap answers
-  and the no-numbers rule stay (founder, 2026-10-20). Until that is built
-  (§2) he says them as signed.
+  and the no-numbers rule stay (founder, 2026-10-20); when the variation
+  fails a check he says them as signed.
 - **E3** The tap answers come from what Will knows: this Take's own words,
   then what the speaker said for an earlier talk, then the signed answers for
   their field; plus Skip, or their own words in the message box; one
@@ -342,9 +341,10 @@ step; the loop never waits for a coach.
   willfidence(sentence) = S × W                 0 … 1
     S = voice_confidence (7 cues vs the speaker's own baseline)
     W = mean of: few fillers/hedges · fits the slide · holds together
-  shown     = the two highest, in slide order
-  each      ≥ FLOOR → praised; < FLOOR → corrected      (2026-10-20, being built;
-              today: the highest praised, softer line < FLOOR; the second corrected)
+  shown     = the two highest, at most one per slide; clips with enough
+              words rank before short ones
+  each      ≥ FLOOR → praised; < FLOOR → corrected      (2026-10-20)
+  highest   = the first in rank; its bubble opens with the signed line (C2)
   try       = Δ willfidence vs the original ≥ MARGIN (+0.05) → better
   ```
 
@@ -499,9 +499,6 @@ deletes the line when the work is merged (the change goes to §6).
 - **WIL-84, WIL-86** · videos match · rules: its session fills in · to
   check · —
 - **WIL-90** · the exercise is blocked · C6, C7 · to check · —
-- **The score decides each moment** · praise at or above the floor, a correction below, for both shown moments (C2, C4, H1) · to build: backend `moment_pick` and the manager, then the walk's plan; this session · —
-- **"This was your most confident moment."** · the new line at the top of the highest moment's bubble (C2, K) · to build, frontend; this session · —
-- **Will varies his words lightly** · the signed questions said with light variation (E2, K) · building now, this session: a prompt with golden rows, under the processing-authorization path · —
 - **The coach sees the audience and the goal** · two lines on the coach panel, a locked screen · a prototype is being drawn for the founder's yes (2026-10-20) · —
 
 ## 3. Still open
@@ -542,7 +539,8 @@ paragraph tap), `src/components/willab/IdealTextOverlay.tsx` and
 The Ideal Text's own files are in `scripts/design-locked-files.txt`.
 
 Backend (`wilplus/backend-cursor`): `services/moment_pick.py`,
-`services/willfidence.py`, `services/rewrite_gate.py` (H);
+`services/take_feedback_policy_v3.py` (the marks), `services/willfidence.py`,
+`services/rewrite_gate.py` (H);
 `services/take_summary.py` (D); `services/after_take.py`,
 `services/will_question.py`, `services/feedback_check.py` (E);
 `services/coach_message_read.py` (`coach_message_for`, C1);
@@ -587,6 +585,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-20 · N86 · the score decides each shown moment, in place of the fixed roles; the highest moment's bubble opens with "This was your most confident moment." (C2, C4, C5, H1, K) · FE #893, BE #1207
+- 2026-10-20 · N86 · Will says his question with a light touch (E2, K) · BE #1205
 - 2026-10-20 · N86 · the page's first review: the walk opens the moment processing ends (A2); the score decides each shown moment, in place of fixed roles (C2, C4, C5, H1); "This was your most confident moment." signed (C2, K); Will may vary his questions lightly (E2, K); counsel approved L12 and L13 · FE —, BE —
 - 2026-10-20 · N85 · the walk spots words that undermine the speaker: the gate, a rule-written clearer version, B10 and B13 as its opener (C5, H3, K) · BE #1201
 - 2026-10-20 · N84 · a Good job only when clearly better, +0.05; the AI voice starts as the Take is stored (C7, H2) · BE #1201

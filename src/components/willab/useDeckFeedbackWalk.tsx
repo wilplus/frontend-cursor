@@ -238,6 +238,7 @@ function walkItemOf(
     slideLabel: label,
     praiseWords: praise ? praiseWordsOf(item) : null,
     praiseTitle: praise ? praiseTitleFor(item.levelKey, item.id) : null,
+    highest: item.highestMoment === true,
     praiseLead: praise ? praiseLeadOf(item) : null,
     praiseReason: praise ? item.praiseReason ?? null : null,
     clip: item.snippetAudioRef

@@ -61,6 +61,9 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
   praiseWords?: readonly string[] | null;
   /** The praise's opening line by level (founder 2026-10-14); null: "Good job". */
   praiseTitle?: string | null;
+  /** The Take's highest moment (founder 2026-10-20): its bubble opens with
+   *  "This was your most confident moment." */
+  highest?: boolean;
   /** The praise's own line without the cue sentences: what the first bubble
    *  says when the reason below explains the moment (founder 2026-10-18). */
   praiseLead?: readonly string[] | null;
@@ -156,6 +159,8 @@ export type FeedbackWalkMoment<R = unknown> = {
   slideLabel: string | null;
   praiseWords: readonly string[];
   praiseTitle?: string | null;
+  /** The Take's highest moment, praised or corrected (founder 2026-10-20). */
+  highest?: boolean;
   /** The praise line alone, for when a reason follows it. */
   praiseLead?: readonly string[];
   /** Why the green moment landed, when it reached the page with the row. */
@@ -297,6 +302,7 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     // The level rides the green row; the praise words may ride a separate
     // wording note. Whichever row carries the level names the screen.
     praiseTitle: group.find((i) => i.praiseTitle)?.praiseTitle ?? null,
+    highest: group.some((i) => i.highest === true),
     praiseLead: praise?.praiseLead ?? praise?.praiseWords ?? [],
     praiseReason: group.find((i) => i.praiseReason)?.praiseReason ?? null,
     clip,

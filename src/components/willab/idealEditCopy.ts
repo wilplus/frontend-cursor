@@ -81,6 +81,12 @@ export const CHUNK_SHEET_COPY = {
   titleFeedback: "Feedback",
   titleSuggestion: "Suggestion",
   titlePraise: "Good job",
+  /* The Take's highest moment opens with one of these (founder, signed
+     2026-10-20, N86): the first when it is praised, the second when it is
+     below the floor and the walk goes on to its clearer version or
+     exercise, so the speaker knows what they are hearing. */
+  titleMostConfident: "This was your most confident moment.",
+  titleMostConfidentSoFar: "This was your most confident moment so far.",
   /* Step three, the only place the asynchronous side of the product reaches
      this sheet. The title carries the whole label: the offer card deliberately
      has no eyebrow and no corner icon, because the screen has already said

@@ -3,13 +3,14 @@
 STORY    As a speaker, I want the Feedback walk to take me through my coach's note, praise with its reason, helper words, the clearer version and a summary, in words only, as one chat that grows with each tap, so that feedback after every Take is clear and backed by what I said.
 OUTCOME
   O1  The steps come in order as one chat: coach's note, praise, helper words, next praise, summary, back to my page; earlier steps stay above, my choices land as my own bubbles.
-  O2  A good moment shows the praise line, then why it landed, quoting my words.
+  O2  A good moment shows the praise line, then why it landed, quoting my words; the Take's highest moment opens with “This was your most confident moment.”
   O3  Reopened from the Lounge, a clip I already judged shows as answered and is not asked again.
   O4  If the summary cannot be read, the walk goes straight back to my page.
   O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.
   O6  A step's grey bubbles land one after another behind the typing dots, and its buttons come once they all have.
 PROVES   O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
-         O2 -> a green moment says why it landed
+         O2 -> a green moment says why it landed,
+               the Take's highest moment opens with “This was your most confident moment.”
          O3 -> reopened from the Lounge, the judging shows the moment already answered
          O4 -> skips the summary when it cannot be read, straight onto the page
          O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder
@@ -127,6 +128,17 @@ describe("FeedbackWalk", () => {
     const why = live()!.querySelector("[data-walk-reason]")!;
     expect([...why.querySelectorAll("p")].map((p) => p.textContent)).toEqual(reason.paragraphs);
     expect(why.querySelector("[data-walk-quote]")!.textContent).toBe("“our growth doubled”");
+  });
+
+  it("the Take's highest moment opens with “This was your most confident moment.” (founder, signed 2026-10-20)", () => {
+    const items: FeedbackWalkItem[] = [{ ...ITEMS[0], highest: true }];
+    draw(
+      { seq: 1, at: 1 },
+      { model: buildFeedbackWalk({ items, coachNote: false, practiceOn: true, guest: false }), coachNote: null },
+    );
+    expect(screen()).toBe("walk-screen-praise");
+    expect(bubble()[0]).toBe(COPY.titleMostConfident);
+    expect(bubble()[1]).toBe(COPY.titlePraise);
   });
 
   it("walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows", async () => {
