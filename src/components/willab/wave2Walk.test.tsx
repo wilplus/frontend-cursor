@@ -6,7 +6,9 @@
  *          I never miss my coach or a paragraph.
  * OUTCOME
  *   O1  Every moment answered and an unseen coach word: Review feedback
- *       stays, opens Step 0 only on its tap, and goes once seen (N48.3 Q11 A).
+ *       stays, opens Step 0 only on its tap, and goes once watched: only
+ *       Continue clears it, ✕ keeps it, and a changed word (a new video)
+ *       brings it back (N48.3 Q11 A; N80 D4, D7).
  *   O2  After Delete the paragraph rejoins the walk on its earlier answer,
  *       at once, not only when a moment is open on it (N48.2 Q6 A).
  * PROVES   O1 -> "every moment answered: Review feedback stays for the unseen word, ..."
@@ -60,6 +62,8 @@ const WORD: CoachMessage = {
   takeIndex: 2,
   publishedAt: "2026-10-05T09:00:00Z",
   takeSessionId: "take-2",
+  // The server's "new" for this word (N80).
+  unseen: true,
 };
 
 const noop = async () => true;
@@ -116,22 +120,38 @@ const walkScreen = () =>
 
 describe("N48.3 Q11 A: the coach's word for the Take on screen", () => {
 
-  it("every moment answered: Review feedback stays for the unseen word, opens Step 0 on its tap only, and goes once seen", async () => {
+  it("every moment answered: Review feedback stays for the unseen word, opens Step 0 on its tap only, and goes once watched with Continue", async () => {
     const waiting = vi.fn();
-    await render({ arcId: "arc-1", coachMessage: WORD, onReviewWaiting: waiting, reviewRequest: 0 });
+    const at = (reviewRequest: number, coachMessage: CoachMessage = WORD) =>
+      render({ arcId: "arc-1", coachMessage, onReviewWaiting: waiting, reviewRequest });
+    await at(0);
     // J1: nothing opens by itself.
     expect(step0()).toBeNull();
     expect(waiting).toHaveBeenLastCalledWith(true);
     // The speaker taps "Review feedback": the walk opens on the coach's note.
-    await render({ arcId: "arc-1", coachMessage: WORD, onReviewWaiting: waiting, reviewRequest: 1 });
+    await at(1);
     expect(walkScreen()?.getAttribute("data-testid")).toBe("walk-screen-coachnote");
     expect(walkScreen()?.textContent).toContain(WORD.text);
-    expect(waiting).toHaveBeenLastCalledWith(false);
-    // Continue: nothing waits, so the walk moves past its last screen.
+    // Opening it is not watching it (N80): Review feedback stays.
+    expect(waiting).toHaveBeenLastCalledWith(true);
+    // ✕ marks nothing: Review feedback stays.
+    await act(async () => walkScreen()!.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!.click());
+    expect(waiting).toHaveBeenLastCalledWith(true);
+    // Opened again, Continue watches it: the server hears it, and nothing
+    // waits, so the walk moves past its last screen.
+    await at(2);
     const cont = [...document.querySelectorAll("button")].find((b) => b.textContent === "Continue")!;
     await act(async () => cont.click());
+    expect(waiting).toHaveBeenLastCalledWith(false);
     expect(walkScreen()).toBeNull();
     expect(pager()).toBeNull();
+    const seen = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).includes("/api/v2/user/coach-feedback/seen"));
+    expect(seen).toHaveLength(1);
+    expect(JSON.parse(String(seen[0][1]?.body))).toEqual({ take_session_id: "take-2" });
+    // The coach changes their word (the same words, a new video): it is
+    // new again (D7), and Review feedback is back.
+    await at(2, { ...WORD, videoUrl: "https://media/coach-feedback/take-2/new.mp4?sig=1" });
+    expect(waiting).toHaveBeenLastCalledWith(true);
   });
 });
 

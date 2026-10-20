@@ -69,6 +69,26 @@ export function walkStepDraft(e: WalkThreadEntry): LoungeMessageDraft {
   };
 }
 
+/** Whether the walk writes the coach's word for the Take into the chat
+ *  (founder 2026-10-19, N80, D4): once per Take, by whichever comes first.
+ *  Never in a replay; never for an earlier Take's word shown as Step 0 of a
+ *  later one; never when the loaded chat already holds the coach's word for
+ *  this Take (the walk's own copy, the "Later · from your coach" bubble or
+ *  the in-review bubble), so there is no second copy and nothing jumps to
+ *  the bottom. Pure. */
+export function coachNoteToChat(
+  messages: readonly LoungeMessage[],
+  pageTake: string | null,
+  wordTake: string | null,
+  replay: boolean,
+): boolean {
+  if (replay || !pageTake || wordTake !== pageTake) return false;
+  return !messages.some((m) => {
+    const meta = m.metadata ?? {};
+    return m.kind === "walk_step" && meta.take_session_id === pageTake && meta.step === "coachnote" && meta.author === "coach";
+  });
+}
+
 const CHAT_MOMENT_STEPS = new Set(["praise", "clearer", "exVideo"]);
 
 /** What the chat draws with a moment's step (prototype v31, lens off): the

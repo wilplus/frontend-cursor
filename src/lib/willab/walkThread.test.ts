@@ -11,15 +11,20 @@ OUTCOME
       own answers in that Take only.
   O4  The sharing question shows as one message, also when it was stored as
       three.
+  O5  My coach's word for a Take is written into the chat once: not again
+      when it shows again, not under its "Later · from your coach" bubble,
+      not for an earlier Take's word, not in a replay (N80, D4).
 PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own message, with no score"
          O2 -> "posts judging other speakers as the prototype's chat does, never their recording"
          O3 -> "counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles"
          O4 -> "asks the sharing question as one bubble, its lines as paragraphs, also for a question stored as three"
-WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12).
+         O5 -> "writes the coach's word into the chat once per Take"
+WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12);
+         founder 2026-10-19, N80 (when the coach changes their word).
 */
 import { describe, expect, it } from "vitest";
 import { WALK_COPY } from "@/components/willab/idealEditCopy";
-import { oneShareQuestion, othersAnswered, othersChat, shareChat, stableUuid, walkStepDraft } from "./walkThread";
+import { coachNoteToChat, oneShareQuestion, othersAnswered, othersChat, shareChat, stableUuid, walkStepDraft } from "./walkThread";
 
 describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
   it("stores a step seen twice once, as the app's or the speaker's own message, with no score", () => {
@@ -74,5 +79,23 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
       stored("user", WALK_COPY.shareOnlyMe, 4),
     ];
     expect(oneShareQuestion(old).map((x) => x.message.body)).toEqual(["Record Take 3", question, WALK_COPY.shareOnlyMe]);
+  });
+
+  it("writes the coach's word into the chat once per Take", () => {
+    const coachBubble = (take: string, extra: Record<string, unknown> = {}) => ({
+      client_id: `${take}-coach`, role: "bot" as const, kind: "walk_step" as const, body: "Your coach\nKeep the pause.",
+      metadata: { take_session_id: take, step: "coachnote", author: "coach", ...extra }, client_created_at: "2026-10-19T10:00:00Z",
+    });
+    // The first show of the Take's own word writes it.
+    expect(coachNoteToChat([], "t2", "t2", false)).toBe(true);
+    // Shown again: the walk's own copy is there already.
+    expect(coachNoteToChat([coachBubble("t2")], "t2", "t2", false)).toBe(false);
+    // Under the "Later · from your coach" bubble: no second copy.
+    expect(coachNoteToChat([coachBubble("t2", { coach_update: true, heading: "Later · from your coach" })], "t2", "t2", false)).toBe(false);
+    // Another Take's bubble does not count.
+    expect(coachNoteToChat([coachBubble("t1")], "t2", "t2", false)).toBe(true);
+    // An earlier Take's word shown as Step 0 of this Take, and a replay.
+    expect(coachNoteToChat([], "t2", "t1", false)).toBe(false);
+    expect(coachNoteToChat([], "t2", "t2", true)).toBe(false);
   });
 });

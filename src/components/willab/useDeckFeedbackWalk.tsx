@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { aiVoiceChat, answerBody, momentChat, othersAnswered, othersChat, praiseChat, shownStep, walkStepDraft, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { aiVoiceChat, answerBody, coachNoteToChat, momentChat, othersAnswered, othersChat, praiseChat, shownStep, walkStepDraft, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkStep } from "@/lib/willab/walkPlan";
 import type { WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
@@ -374,19 +374,17 @@ export function reviewedTake(
 
 
 /** What a walk screen showed of the coach's work, for the Lounge's "new"
- *  (D-FW-19; backend 0439): the Take's coach note on its screen; on a
- *  moment's screen, the moment itself, once per snippet, from every item the
- *  moment carries and every item still open on its paragraphs. Pure. */
+ *  (D-FW-19; backend 0439): on a moment's screen, the moment itself, once
+ *  per snippet, from every item the moment carries and every item still
+ *  open on its paragraphs. The coach's word for the Take is not told on
+ *  show: only its Continue marks it watched (founder 2026-10-19, N80; ✕
+ *  keeps the ring). Pure. */
 export function coachShownOn(
   step: WalkStep,
   moment: FeedbackWalkMoment<DocumentSuggestion> | null,
-  coach: CoachMessage | null,
   openOn: readonly DocumentSuggestion[] = [],
 ): CoachFeedbackShown[] {
-  if (step.key === "coachnote") {
-    return coach?.takeSessionId ? [{ takeSessionId: coach.takeSessionId }] : [];
-  }
-  if (!moment) return [];
+  if (step.key === "coachnote" || !moment) return [];
   const items = [
     moment.judgeItem,
     moment.practiseItem,
@@ -402,6 +400,13 @@ export function coachShownOn(
     out.set(shownKey(shown), shown);
   }
   return [...out.values()];
+}
+
+/** The coach's word as its chat bubble: "Your coach" over the words, and
+ *  their video as a thumb in it (prototype v31). Pure. */
+function coachNoteChat(said: ReturnType<typeof shownStep>, coach: CoachMessage | null): ReturnType<typeof shownStep> {
+  if (!coach?.videoUrl) return said;
+  return { author: "coach", body: said?.body ?? CHUNK_SHEET_COPY.titleCoach, extra: { video: coach.videoUrl } };
 }
 
 /** What each moment screen of the walk has on it, as the paragraph sheet
@@ -424,7 +429,7 @@ export function momentsOpenedOn(
   const kind = OPENED_AS[step.key];
   if (!kind) return [];
   const shown: MomentShown[] = moment?.coachAnswer && kind !== "coach_answer" ? [kind, "coach_answer"] : [kind];
-  return coachShownOn(step, moment, null, openOn).map((s) => ({ snippetId: s.snippetId!, shown }));
+  return coachShownOn(step, moment, openOn).map((s) => ({ snippetId: s.snippetId!, shown }));
 }
 
 /** What one walk screen tells the server, once per opening of the walk:
@@ -434,11 +439,10 @@ function tellShown(
   told: Set<string>,
   step: WalkStep,
   moment: FeedbackWalkMoment<DocumentSuggestion> | null,
-  coach: CoachMessage | null,
   openOn: readonly DocumentSuggestion[],
 ): void {
   const once = (key: string) => !told.has(key) && Boolean(told.add(key));
-  for (const shown of coachShownOn(step, moment, coach, openOn)) {
+  for (const shown of coachShownOn(step, moment, openOn)) {
     if (once(shownKey(shown))) void markCoachFeedbackSeen(shown);
   }
   for (const opened of momentsOpenedOn(step, moment, openOn)) {
@@ -862,9 +866,8 @@ export function useDeckFeedbackWalk(args: {
       setReplaying(done);
       return openAt(doneAt, false, true);
     }
-    const opened = openAt(liveAt ?? walkStart(model), false, true);
-    if (opened && model.plan.some((step) => step.key === "coachnote")) coachSeenRef.current();
-    return opened;
+    // Opening marks nothing: only Continue on the coach's word does (N80).
+    return openAt(liveAt ?? walkStart(model), false, true);
   }, [model, openAt, otherTake, replayReady, buildReplay, ownAnswers]);
 
   const tapPart = useCallback(
@@ -1168,9 +1171,14 @@ export function useDeckFeedbackWalk(args: {
       // A try's answer played again was said once, as the try was made.
       const replayedTry = step.replay === true && TRY_ANSWER_STEPS.has(step.key);
       let said = replayedTry ? null : (aiSaid ?? shownStep(step, moment, coach?.text ?? null, say));
-      // The coach's video as a thumb in their bubble (prototype v31).
-      if (step.key === "coachnote" && coach?.videoUrl) {
-        said = { author: "coach", body: said?.body ?? CHUNK_SHEET_COPY.titleCoach, extra: { video: coach.videoUrl } };
+      // The coach's word reaches the chat once per Take (founder 2026-10-19,
+      // N80, D4): never a second copy under "Later · from your coach", never
+      // re-stamped to the bottom. Its video as a thumb in the bubble
+      // (prototype v31).
+      if (step.key === "coachnote") {
+        const thread = threadRef.current;
+        const once = coachNoteToChat(thread.thread?.messages ?? [], thread.take, coach?.takeSessionId ?? null, Boolean(step.replay || walkModel.replay));
+        said = once ? coachNoteChat(said, coach) : null;
       }
       said = withLateReason(said, step, moment, reasonsRef.current);
       // The label above a moment, and the speaker's clip before its bubble.
@@ -1186,7 +1194,7 @@ export function useDeckFeedbackWalk(args: {
       }
       const parts = moment ? (walkModel.partsOf[moment.index] ?? []) : [];
       const openOn = now.filter((c) => parts.includes(c.part.id)).flatMap((c) => openOf(c));
-      tellShown(toldRef.current, step, moment, coach, openOn);
+      tellShown(toldRef.current, step, moment, openOn);
     },
     [walkModel, post],
   );
@@ -1206,6 +1214,10 @@ export function useDeckFeedbackWalk(args: {
       const body = answerBody(step, value);
       const part_id = step.moment != null ? (walkModel.moments[step.moment]?.partId ?? null) : null;
       if (body) post({ key: `answer:${step.key}`, moment: step.moment ?? null, attempt: step.attempt ?? null, author: "speaker", body, extra: { part_id } });
+      // Continue on the coach's word: the one "watched" (N80, D4), in the
+      // live walk, the coach-only walk (WhatsApp, email, the dot card) and
+      // a replay alike (the replay leaves this step live).
+      if (step.key === "coachnote") coachSeenRef.current();
     },
     [post, walkModel],
   );
