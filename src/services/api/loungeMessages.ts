@@ -87,20 +87,45 @@ export interface LoungeHistoryPage {
  * Stamp a draft into a full message: a fresh `client_id` (UUID) + a
  * monotonic `client_created_at`. Body is hard-clamped to the BE ceiling so
  * a runaway paste can't trip a 422 mid-thread.
+ *
+ * `after`: the thread's newest time. The message sorts under it even when
+ * this device's clock is behind the server's, so what is added to the chat
+ * shows under what is already there (founder 2026-10-20).
  */
-export function stampLoungeMessage(draft: LoungeMessageDraft): LoungeMessage {
+export function stampLoungeMessage(draft: LoungeMessageDraft, after: string | null = null): LoungeMessage {
   return {
     client_id:
       draft.clientId ??
       (typeof crypto !== "undefined" && crypto.randomUUID
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.round(Math.random() * 1e9)}`),
-    client_created_at: new Date().toISOString(),
+    client_created_at: stampAfter(after),
     role: draft.role,
     kind: draft.kind,
     body: draft.body.slice(0, LOUNGE_BODY_MAX),
     metadata: draft.metadata ?? null,
   };
+}
+
+/** Now, or one millisecond after `after` when that is later. */
+export function stampAfter(after: string | null): string {
+  const now = Date.now();
+  const last = after ? Date.parse(after) : Number.NaN;
+  return new Date(Number.isFinite(last) && last + 1 > now ? last + 1 : now).toISOString();
+}
+
+/** The newest `client_created_at` among `messages`, or null. */
+export function newestStamp(messages: readonly Pick<LoungeMessage, "client_created_at">[]): string | null {
+  let newest: string | null = null;
+  let newestMs = Number.NEGATIVE_INFINITY;
+  for (const m of messages) {
+    const ms = Date.parse(m.client_created_at);
+    if (Number.isFinite(ms) && ms > newestMs) {
+      newestMs = ms;
+      newest = m.client_created_at;
+    }
+  }
+  return newest;
 }
 
 /** Split a list into batches no larger than the BE's 200/POST ceiling. */

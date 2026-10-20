@@ -29,6 +29,10 @@ export interface ChatHistoryEntry {
 export interface ChatQueryArgs {
   question: string;
   history?: ChatHistoryEntry[];
+  /** "screen": `history` is every bubble the Lounge draws, in its order,
+   *  cards and asks included (founder 2026-10-20); the backend reads it in
+   *  place of the stored thread. Absent: plain chat turns. */
+  historySource?: "screen";
   audioBlob?: Blob | null;
   durationSec?: number | null;
   /**
@@ -97,6 +101,9 @@ export interface ChatQueryResponse {
   take_card?: { arc_id: string; version?: number | null; topic?: string | null } | null;
   /** True only when the backend durably stored the signed-in bot turn. */
   persisted?: boolean;
+  /** What the backend stored on its reply row; `whatsapp: "saved"` when a
+   *  number typed under the WhatsApp ask was saved (founder 2026-10-20). */
+  row_metadata?: Record<string, unknown> | null;
   /** Optional stress-contrast block (BE-3). null / absent → omit
    *  the contrast card entirely per prompt C7. */
   contrast?: ChatQueryContrast | null;
@@ -181,6 +188,7 @@ export async function postChatQuery(
       body: JSON.stringify({
         question: args.question,
         history: args.history,
+        history_source: args.historySource,
         session_id: args.sessionId,
         presentation_context: args.presentationContext,
         // #2 — server-owned persistence (signed-in only). The BE dedups the

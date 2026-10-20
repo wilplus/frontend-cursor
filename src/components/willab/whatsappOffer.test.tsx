@@ -23,7 +23,7 @@ import { WhatsAppOfferActions, WHATSAPP_COPY } from "./WillabWhatsAppPrompt";
 
 let container: HTMLDivElement;
 let root: Root;
-const offer = { canOffer: true, phone: null, softDismiss: vi.fn(), markSaved: vi.fn() };
+const offer = { canOffer: true, phone: null, softDismiss: vi.fn(), markSaved: vi.fn(), refresh: vi.fn() };
 const onResolve = vi.fn();
 
 beforeEach(() => {

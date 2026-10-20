@@ -48,6 +48,9 @@ export interface WhatsAppOffer {
   softDismiss: () => void;
   /** A number was saved: never offer again, and say so in the thread. */
   markSaved: (phone: string) => void;
+  /** Read the number again: one typed in the chat was saved there (founder
+   *  2026-10-20), and the chat's reply already says so. */
+  refresh: () => void;
 }
 
 interface TriggerInputs {
@@ -96,8 +99,14 @@ export function useWhatsAppOffer(inputs: TriggerInputs): WhatsAppOffer {
     [append],
   );
 
+  const refresh = useCallback(() => {
+    void fetchWhatsAppPhone().then((p) => {
+      if (p !== undefined) setPhone(p);
+    });
+  }, []);
+
   useAutoOffer(inputs, canOffer);
-  return { canOffer, phone: phone ?? null, softDismiss, markSaved };
+  return { canOffer, phone: phone ?? null, softDismiss, markSaved, refresh };
 }
 
 /** Append + arm the offer once, after a fresh send that brought no other

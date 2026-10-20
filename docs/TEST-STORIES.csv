@@ -446,6 +446,14 @@ O3     -> ""an older bubble, or a project with nothing new, is plain""
 O4     -> ""clears when the flag clears""","Build plan D-FW-19; walk lock 2026-10-06, flow 1; backend 0439."
 src/components/willab/loungeReports.test.ts,Story,"As a speaker whose Ideal Text could not be built, I want one clear message with Retry and ""view feedback"", so that I can recover and still go on.","O1  The message has the exact signed-off sentence, belongs to this Take,
 and offers exactly Retry and view feedback.","O1 -> ""is the exact Take 1 terminal card under the session identity""",
+src/components/willab/loungeScreen.test.ts,Story,"As a speaker, I want Will to answer what sits right above my message in the chat, and my chat to keep the order it shows, so that a reply never misreads my number, my tap or my Take's feedback.","O1  Will reads every bubble in the order the chat draws it: the Take's
+card in words (with the coach's feedback when its dot is on), the
+summary, the ask, and my own words.
+O2  What the chat adds sorts under the newest bubble on screen, even when
+this device's clock is behind the server's.
+O3  The newest ask on screen is known, so it is not asked a second time.","O1 -> ""tells Will the screen in its order, cards in words""
+O2 -> ""stamps a new bubble under the newest one on screen""
+O3 -> ""knows the ask that shows last""","Founder 2026-10-20: ""the conversational chat should be aware of the order of bubbles it displays"" (a number typed under the WhatsApp ask got a generic reply and the ask again; a card jumped under ""Skip"")."
 src/components/willab/noStarsOnUserSurfaces.test.ts,Guard,No component in src/components or src/app draws a star icon.,"Never 1 (no verdicts shown to speakers): a `<Star` element or a lucide
 `Star` import in any .tsx, user lane or coach lane. A source scan on
 purpose: the star rating once lived in six separate renderers, and a

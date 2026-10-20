@@ -5,6 +5,7 @@ import {
   appendLoungeMessages,
   clearLoungeThread,
   fetchLoungeHistory,
+  newestStamp,
   stampLoungeMessage,
   type LoungeMessage,
   type LoungeMessageDraft,
@@ -64,6 +65,9 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const oldestCursorRef = useRef<string | null>(null);
+  // What is on screen now: a new message is stamped under its newest bubble.
+  const messagesRef = useRef<LoungeMessage[]>(messages);
+  messagesRef.current = messages;
 
   // Rehydrate on mount / auth change.
   useEffect(() => {
@@ -98,7 +102,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
 
   const append = useCallback(
     async (draft: LoungeMessageDraft): Promise<LoungeMessage> => {
-      const msg = stampLoungeMessage(draft);
+      const msg = stampLoungeMessage(draft, newestStamp(messagesRef.current));
       // Optimistic — the bubble shows instantly; persistence trails.
       setMessages((prev) =>
         prev.some((item) => item.client_id === msg.client_id)
@@ -124,7 +128,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
 
   const appendLocalOnly = useCallback(
     (draft: LoungeMessageDraft): LoungeMessage => {
-      const msg = stampLoungeMessage(draft);
+      const msg = stampLoungeMessage(draft, newestStamp(messagesRef.current));
       setMessages((prev) => [...prev, msg]);
       return msg;
     },

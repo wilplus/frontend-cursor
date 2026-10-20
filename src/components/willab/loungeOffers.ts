@@ -77,3 +77,18 @@ export function hasOffer(
 ): boolean {
   return messages.some((m) => readOfferType(m.metadata) === type);
 }
+
+/** How far back the chat looks for its newest ask (the backend's
+ *  chat_app_context._ASK_LOOKBACK). */
+const ASK_LOOKBACK = 24;
+
+/** The newest ask the chat shows (messages in the order it draws them), or
+ *  null. An ask already showing last is not asked again (founder
+ *  2026-10-20): the reply that opens it opens its form. */
+export function newestAsk(messages: readonly Pick<LoungeMessage, "metadata">[]): OfferType | null {
+  for (let i = messages.length - 1; i >= Math.max(0, messages.length - ASK_LOOKBACK); i -= 1) {
+    const type = readOfferType(messages[i].metadata);
+    if (type) return type;
+  }
+  return null;
+}
