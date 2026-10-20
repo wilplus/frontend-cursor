@@ -224,7 +224,9 @@ function walkItemOf(
   const green = item.bookmarkTier === "confident";
   const praise = tiered ? green : item.openCard === "praise" || item.feedbackFamily === "great_formulation";
   const exercise = exerciseOf(item);
-  const rewrite = rewriteOf(item);
+  // The coach's clearer version is the moment's Clearer version (founder
+  // 2026-10-20), ahead of the machine's.
+  const rewrite = coachVersionOf(item) ?? rewriteOf(item);
   return {
     start: item.start,
     slide,
@@ -249,7 +251,18 @@ function walkItemOf(
     exercise,
     judge: reopensJudgement(item) ? item : null,
     ...(item.coachAnswer ? { coachAnswered: true, coachAnswer: item.coachAnswer, coachItem: item } : {}),
+    ...(exercise?.byCoach ? { coachExercise: true } : {}),
+    ...(rewrite?.byCoach ? { coachVersion: true } : {}),
   };
+}
+
+/** The coach's answer as a clearer version: their words in place of the
+ *  moment's own. Deciding it writes nothing on the text (an accepted
+ *  clearer version reaches the Ideal Text only when it is said). Pure. */
+export function coachVersionOf(item: DocumentSuggestion): FeedbackWalkItem<DocumentSuggestion>["rewrite"] {
+  const answer = item.coachAnswer;
+  if (answer?.kind !== "version" || !item.quote?.trim()) return null;
+  return { quote: item.quote, proposedText: answer.text, move: null, item, decided: null, byCoach: true };
 }
 
 /** A served rewrite the walk can draw and decide: a replace with words to
@@ -925,11 +938,14 @@ export function useDeckFeedbackWalk(args: {
   }, [post]);
   const acceptClearer = useCallback((item: DocumentSuggestion) => {
     post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: CHUNK_SHEET_COPY.pillAcceptPractise });
+    // The coach's version is practised, never written on the text.
+    if (coachVersionOf(item)) return;
     const { onAccept, saveBehind } = live.current;
     saveBehind(() => acceptRewriteBehind(onAccept, item), CHUNK_SHEET_COPY.failApply);
   }, [post]);
   const keepWords = useCallback((item: DocumentSuggestion) => {
     post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: CHUNK_SHEET_COPY.linkKeepMyWords });
+    if (coachVersionOf(item)) return;
     const { onKeepMine, saveBehind } = live.current;
     saveBehind(() => keepWordsBehind(onKeepMine, item), CHUNK_SHEET_COPY.failKeep);
   }, [post]);
