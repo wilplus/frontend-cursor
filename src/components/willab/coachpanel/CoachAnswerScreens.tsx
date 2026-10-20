@@ -83,8 +83,6 @@ export type Row = {
   value: string;
   label: string;
   subtitle?: string | null;
-  /** The shade, by the prototype's own tone: 0 white … 3 the darkest. */
-  tone: number;
   selected?: boolean;
   onDetails?: () => void;
 };
@@ -94,7 +92,7 @@ function Rows({ rows, label, onPick }: { rows: readonly Row[]; label: string; on
     <div role="group" aria-label={label} data-walk-choices className="flex flex-col gap-2">
       {rows.map((row) => (
         <div key={row.value} data-walk-choice={row.value}
-          className={cn("flex items-center gap-2 rounded-2xl border-[1.5px] py-1.5 pl-3.5 pr-2", choiceClass({ selected: row.selected }, row.tone))}>
+          className={cn("flex items-center gap-2 rounded-2xl border-[1.5px] py-1.5 pl-3.5 pr-2", choiceClass({ selected: row.selected }))}>
           <button type="button" onClick={() => onPick(row.value)} aria-pressed={row.selected}
             className="walk-press flex min-w-0 flex-1 items-center justify-between gap-2.5 py-[7px] text-left">
             <span className="min-w-0">
@@ -133,8 +131,8 @@ export function DiagnoseScreen({ nav, onClose, errors, picked, noError, busy, fa
     ...(errors ?? []).map((e) => ({
       value: `${e.kind}:${e.id}`, label: e.label, subtitle: e.machineHeard ? COPY.machineHeardThis : null, selected: picked === e.id,
     })),
-    { value: "else", lead: COPY.somethingElse, label: COPY.nameANewError, variant: "else" as const },
-    { value: "noerr", label: COPY.noError, variant: "noerr" as const, selected: noError },
+    { value: "else", lead: COPY.somethingElse, label: COPY.nameANewError },
+    { value: "noerr", label: COPY.noError, selected: noError },
   ];
   return (
     <WalkOverlay nav={nav} title={COPY.whatKindOfError} onClose={onClose} testId="coach-panel-diagnose"
@@ -189,21 +187,21 @@ export function decideRows(input: {
   errorLabel: string;
   onDetails: (id: string) => void;
 }): Row[] {
-  const nothing: Row = { value: "nothing", label: COPY.nothingToAdd, tone: 3 };
+  const nothing: Row = { value: "nothing", label: COPY.nothingToAdd };
   if (!input.asError) {
     const subtitle = input.kind === "praise" ? COPY.writeYourPraise
       : input.kind === "rewrite" ? COPY.writeAClearerVersion : COPY.writeANote;
-    return [{ value: "answer", label: COPY.pillAnswer, subtitle, tone: 0 }, nothing];
+    return [{ value: "answer", label: COPY.pillAnswer, subtitle }, nothing];
   }
   const rows: Row[] = [];
   const served = input.served;
   if (served) {
-    rows.push({ value: "keep", label: COPY.keepIt, subtitle: COPY.served(served.title), tone: 0, onDetails: () => input.onDetails(served.id) });
+    rows.push({ value: "keep", label: COPY.keepIt, subtitle: COPY.served(served.title), onDetails: () => input.onDetails(served.id) });
   }
   if (input.others > 0) {
-    rows.push({ value: "swap", label: COPY.swapIt, subtitle: COPY.moreInLibrary(input.others, input.errorLabel), tone: 1 });
+    rows.push({ value: "swap", label: COPY.swapIt, subtitle: COPY.moreInLibrary(input.others, input.errorLabel) });
   }
-  rows.push({ value: "new", label: COPY.makeANewOne, subtitle: COPY.yourOwnWordsAndVideo, tone: 2 }, nothing);
+  rows.push({ value: "new", label: COPY.makeANewOne, subtitle: COPY.yourOwnWordsAndVideo }, nothing);
   return rows;
 }
 
@@ -238,7 +236,7 @@ export function SwapScreen({ nav, onClose, errorLabel, items, picked, busy, fail
   onNew: () => void;
 }) {
   const rows: Row[] = items.map((x, i) => ({
-    value: x.id, label: x.title, tone: i, selected: picked === x.id, onDetails: () => onDetails(x.id),
+    value: x.id, label: x.title, selected: picked === x.id, onDetails: () => onDetails(x.id),
     subtitle: [x.served ? COPY.servedNow : null, COPY.treats(errorLabel)].filter(Boolean).join(" · "),
   }));
   return (
