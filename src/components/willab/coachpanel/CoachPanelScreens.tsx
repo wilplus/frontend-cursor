@@ -156,10 +156,12 @@ function BlindGroup({ blind }: { blind: BlindRows }) {
   );
 }
 
-/** A waiting speaker's ⋯: the founder's Delete of their waiting moments,
- *  behind its confirmation, as the training corpus (founder 2026-10-20). */
+/** A waiting speaker's ⋯, on the row's left edge: the founder's Delete of
+ *  their waiting moments, behind its confirmation, as the training corpus; a
+ *  Take still waiting for its text (the greyed row) goes whole (founder
+ *  2026-10-20). */
 function speakerMenu(speaker: QueueSpeaker, onDelete?: (speaker: QueueSpeaker) => Promise<boolean>): ReactNode {
-  if (!onDelete || speaker.waiting <= 0) return undefined;
+  if (!onDelete || !(speaker.waiting > 0 || speaker.takes.some((t) => t.waitingForText))) return undefined;
   const confirm = {
     title: COPY.deleteSpeakerTitle(speaker.pseudonym),
     body: COPY.deleteSpeakerBody(speaker.pseudonym),
@@ -167,7 +169,7 @@ function speakerMenu(speaker: QueueSpeaker, onDelete?: (speaker: QueueSpeaker) =
   };
   return (
     <ProjectRowMenu label={speaker.pseudonym} actionLabel={COPY.delete} confirm={confirm}
-      onDelete={() => onDelete(speaker)} />
+      onDelete={() => onDelete(speaker)} menuAlign="left" />
   );
 }
 

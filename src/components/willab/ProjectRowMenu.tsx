@@ -46,6 +46,7 @@ export default function ProjectRowMenu({
   confirm = DRAFT_CONFIRM,
   failedLabel = "Couldn't save that. Try again.",
   secondary,
+  menuAlign = "right",
 }: {
   /** The row's visible title, for the menu's accessible name. */
   label: string;
@@ -59,6 +60,9 @@ export default function ProjectRowMenu({
   failedLabel?: string;
   /** A second, confirmed action below the first. */
   secondary?: SecondaryAction;
+  /** Which edge of the ⋯ the open menu lines up with: "left" when the ⋯ sits
+   *  on a row's left edge (the coach panel's lists, founder 2026-10-20). */
+  menuAlign?: "left" | "right";
 }) {
   const [failedDirect, setFailedDirect] = useState(false);
   const [open, setOpen] = useState(false);
@@ -97,7 +101,7 @@ export default function ProjectRowMenu({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 top-full z-10 mt-1 min-w-[160px] overflow-hidden rounded-xl border border-border bg-background py-1 shadow-lg"
+          className={`absolute ${menuAlign === "left" ? "left-0" : "right-0"} top-full z-10 mt-1 min-w-[160px] overflow-hidden rounded-xl border border-border bg-background py-1 shadow-lg`}
         >
           <button
             type="button"
