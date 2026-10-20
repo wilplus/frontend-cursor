@@ -39,6 +39,7 @@ vi.mock("@/hooks/useDualCaptureMic", () => ({
 }));
 /** A practise with nothing behind it: the screens open, no call is made. */
 const QUIET_PRACTISE = { open: async () => null, upload: async () => null, check: async () => null } as never;
+import { shownStep } from "@/lib/willab/walkThread";
 import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkRequest } from "./FeedbackWalk";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 
@@ -316,6 +317,19 @@ describe("the clearer version (D-FW-15)", () => {
     const buttons = [...live()!.querySelectorAll("footer button, [data-walk-footer] button")].map((b) => b.textContent);
     expect(buttons).toContain(COPY.pillAcceptPractise);
     expect(buttons).toContain(COPY.linkKeepMyWords);
+  });
+
+  it("names words that undermined the speaker: B10's \"Say what you mean\" and \"Try saying it like this:\", on screen and in the chat (N85)", () => {
+    const items = REWRITE_ITEMS.map((i) => (i.item === "s-rewrite" && i.rewrite ? { ...i, rewrite: { ...i.rewrite, reason: "undermining" as const } } : i));
+    const model = buildFeedbackWalk({ items, coachNote: false, practiceOn: true, guest: false });
+    draw(null, { model } as Over);
+    draw({ seq: 1, at: FIRST }, { model } as Over);
+    const lines = [...msg().querySelectorAll(":scope > div > span:not([data-walk-new-words])")].map((n) => n.textContent);
+    const opening = [WALK_LINE_BANK.B10.lines[0], WALK_LINE_BANK.B13.lines[4]];
+    expect(lines).toEqual([COPY.cardClearerVersion, ...opening, WALK_LINE_BANK.B14.lines[0]]);
+    const step = model.plan[FIRST];
+    const chat = shownStep(step, model.moments[step.moment!], null);
+    expect(chat!.body).toBe([COPY.cardClearerVersion, ...opening, OFFERED].join("\n"));
   });
 
   it("Keep my words records the decline and, with a practise to do, opens the recorder on the speaker's own sentence with Line A", () => {

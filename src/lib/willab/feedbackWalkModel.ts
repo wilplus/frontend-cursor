@@ -76,6 +76,8 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
     quote: string;
     proposedText: string;
     move?: string | null;
+    /** Why a rule rewrite was written (N85). */
+    reason?: "undermining" | null;
     item: R;
     /** The speaker's decision, once given (the replay shows it): accepted,
      *  or kept their words. Null while it waits. */
@@ -139,6 +141,8 @@ export type FeedbackWalkClearer<R = unknown> = ClearerPieces & {
   item: R;
   /** The coach wrote it (founder 2026-10-20): the bubble is the coach's. */
   byCoach?: boolean;
+  /** The words undermined the speaker (N85): the bubble names it. */
+  reason?: "undermining";
 };
 
 /** The coach's answer on a moment: their words, and their video if any. */
@@ -272,6 +276,7 @@ function clearerOf<R>(group: readonly FeedbackWalkItem<R>[]): FeedbackWalkCleare
         decided: i.rewrite.decided ?? null,
         item: i.rewrite.item,
         ...(i.rewrite.byCoach ? { byCoach: true } : {}),
+        ...(i.rewrite.reason === "undermining" ? { reason: "undermining" as const } : {}),
       };
     }
   }
