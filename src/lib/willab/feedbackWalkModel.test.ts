@@ -3,8 +3,10 @@ STORY    As a speaker, I want the Feedback walk to give every moment a practice 
 OUTCOME
   O1  A moment with nothing from a coach still gets the exercise screen and is practised; a coach's exercise, once shared, takes its place.
   O2  A step tapped in the Lounge opens that same moment, even after earlier moments were answered.
+  O3  A corrected moment with neither a clearer version nor an exercise is still said again (founder 2026-10-20), never dropped.
 PROVES   O1 -> never waits for a coach: a moment with nothing served still gets the locked Exercise screen, then is said again
          O2 -> opens the bubble's own moment, found by its paragraph once moments before it are answered
+         O3 -> a corrected moment with nothing attached is said again, not dropped
 WHY      Never-rule 3 (coaches are never in the way of the next Take).
 */
 import { describe, expect, it } from "vitest";
@@ -58,6 +60,18 @@ describe("the exercise (D-FW-17; walk lock flow 8, WQ2 B, Q-B15 A)", () => {
     const plain = { ...waiting, exercise: offer(), hasExercise: true };
     expect(keysOf([plain])).toEqual(["page", "exVideo", "practise:instruction", "others", "summary", "end"]);
     for (const step of plan) expect(WALK_PHASE_SCREENS.has(step.key)).toBe(true);
+  });
+
+  it("a corrected moment with nothing attached is said again, not dropped", () => {
+    // The score decides each (C2, C4): a shown moment below the floor with
+    // no rewrite and no exercise offer is practised as it was said. Its own
+    // row is the item the practise opens on.
+    const corrected = item({ partId: "p7", start: 400, blockId: "b7", tiered: true, practicePrompt: true, item: "s-own" }) as FeedbackWalkItem<string>;
+    const model = buildFeedbackWalk({ items: [corrected], coachNote: false, practiceOn: true, guest: false });
+    expect(model.plan.map((s) => (s.key === "practise" ? `practise:${s.kind}` : s.key))).toEqual([
+      "page", "exVideo", "practise:moment", "others", "summary", "end",
+    ]);
+    expect(model.moments[0].practiseItem).toBe("s-own");
   });
 });
 

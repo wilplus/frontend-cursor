@@ -297,9 +297,14 @@ O3  The practise goes on, with the accepted words to say.","O1, O2, O3 -> ""reco
 src/components/willab/afterTake.test.ts,Story,"As a speaker, after a Take I want one thing to do at a time: the Take's card, its one ask, then the message with ""Record Take N"".","O1  The message waits, undrawn, while its ask is open; the card comes
 before the ask; once let go it comes under what closed the ask.
 O2  A WhatsApp or home-screen ask opens its form by itself.
-O3  A waiting message whose ask is no longer in front of me is let go.","O1 -> ""draws the card, the ask, and the message only once it is let go""
+O3  A waiting message whose ask is no longer in front of me is let go.
+O4  The admin's ask, stamped only with the message it waits for, is still
+the Take's: the card stays above it and the ask above its buttons
+(founder 2026-10-20: the card landed between the question and its
+buttons).","O1 -> ""draws the card, the ask, and the message only once it is let go""
 O2 -> ""opens the Take's WhatsApp ask by itself""
-O3 -> ""knows when no ask is in front of the speaker""","Founder 2026-10-20: ""You cannot have two actions at a time, like feedback and record"" (backend services/after_take.py)."
+O3 -> ""knows when no ask is in front of the speaker""
+O4 -> ""keeps the card above the admin's ask, stamped with the message it waits for alone""","Founder 2026-10-20: ""You cannot have two actions at a time, like feedback and record"" (backend services/after_take.py)."
 src/components/willab/audioUploadValidation.test.ts,Story,"As a speaker uploading a recording instead of recording live, I want a too-large or video file refused before upload with a plain reason, so that I do not wait for a failure (record step of the loop).","O1  A file over the upload limit is refused with a ""too large"" reason.
 O2  A video file (by MIME type, or by extension when the type is missing)
 is refused with an ""audio only"" reason.
@@ -470,8 +475,11 @@ is waiting; Close closes the page.","O1 -> ""is ● Record Take N and a grey Clo
 src/components/willab/idealTextLoad.test.ts,Story,"As a speaker, I want my Ideal Text page to show the coach's note as soon as it arrives and keep the feedback shown while a new read loads, so that the page never goes blank or flickers.","O1  The coach's message is shown before the slower feedback arrives, and
 both are on the page once it does.
 O2  When the page re-reads, the feedback bars, style changes, additions
-and coach message stay while only the text has come back.","O1 -> ""applies the coach message before the slow lane answers""
-O2 -> ""keeps what was shown while the core alone has landed""",Founder 2026-10-08 (waiting-time fixes).
+and coach message stay while only the text has come back.
+O3  When the page stops asking for late marks, it says so: the reserved
+slot closes, so the lens never waits on it for good (WIL-76).","O1 -> ""applies the coach message before the slow lane answers""
+O2 -> ""keeps what was shown while the core alone has landed""
+O3 -> ""closes the slot when the asks stop with the marks still pending""",Founder 2026-10-08 (waiting-time fixes).
 src/components/willab/instantParagraphSheet.test.tsx,Story,"As a speaker, I want a paragraph sheet to open complete and my",,,
 src/components/willab/judgementFollowUpWalk.test.tsx,Story,"As a speaker, I want the card and buttons after each of my five",,,
 src/components/willab/labProcessingDiscard.test.tsx,Story,"As a speaker, I want to discard a bad Take while it is still",,,
@@ -851,10 +859,17 @@ O2 -> a reorder keeps every id",
 src/lib/willab/documentSettle.test.ts,Story,"As a speaker, I want the ""Working on your text"" screen to come down only when my new Ideal Text has really arrived (or after a time limit), so that I never see last Take's text presented as the new one (Never 5: the Ideal Text is what I said in my latest Take).","O1  An older version and an older take index keep the screen up, even
 long after the readout went ready.
 O2  The new Take's version, or a piece from the new Take, releases it.
-O3  Past the cap with no evidence the block expires, never ""settled"".","O1 -> ""holds the block while the served text is still the previous Take's""
+O3  Past the cap with no evidence the block expires, never ""settled"".
+O4  Once the text is in, the processing bubble stays until the Take's
+marks are in too, or the marks cap, so the walk opens the moment it
+comes down (founder 2026-10-20, flow page A2).","O1 -> ""holds the block while the served text is still the previous Take's""
 O2 -> ""releases on the new Take's version or a piece from the new Take""
-O3 -> ""expires past the cap; a stuck block is worse than a stale read""",SPEC-lockin-loop §1; handoff §6.4 S3: clearing at readout_ready showed the PREVIOUS document as current.
-src/lib/willab/enrichmentSettle.test.ts,Story,"As a speaker, I want a feedback placeholder to close when there is nothing to report, so that I don't wait forever on an empty slot.","O1  An empty feedback answer counts as ""nothing more coming"".","O1 -> is false with nothing to report, so an honest empty lane closes",
+O3 -> ""expires past the cap; a stuck block is worse than a stale read""
+O4 -> ""keeps the bubble up until the marks are in, or the marks cap""",SPEC-lockin-loop §1; handoff §6.4 S3: clearing at readout_ready showed the PREVIOUS document as current.
+src/lib/willab/enrichmentSettle.test.ts,Story,"As a speaker, I want a feedback placeholder to close when there is nothing to report, so that I don't wait forever on an empty slot.","O1  An empty feedback answer counts as ""nothing more coming"".
+O2  The page keeps asking for late marks until its ninety seconds are up,
+not for a handful of asks (founder 2026-10-20, WIL-76).","O1 -> is false with nothing to report, so an honest empty lane closes
+O2 -> keeps asking to the ceiling, and stops there",
 src/lib/willab/exploreArc.test.ts,Story,"As a speaker on a shared device, I want my open project never shown to another account, so that my work stays private.",O1  Another account reads nothing of the project I have open.,O1 -> never exposes one account's active project to another,
 src/lib/willab/f1LoopContract.test.ts,Story,"As the founder, I want one gate that turns red when the loop's promises break (true paragraph states, no numbers to speakers, the page only shows what the server said), so that parallel work can't quietly break the loop.","O1  Each of the four paragraph states (untouched, clean, waiting, locked) is
 reached from what the speaker and the server actually did.
@@ -864,8 +879,10 @@ O3  The feedback slot is held only while the server says feedback is coming.","O
 O2 -> ""the retired /recordings/[id] page sends the speaker to the Lounge, not to a number""
 O3 -> ""reserves a bookmark's place only while the server says it is coming""","Founder 2026-09-22: a gate parallel sessions run, not a document they skip. Twin: backend tests/test_f1_loop_contract.py. The wait bar's ceiling lives in waitProgress.test.ts."
 src/lib/willab/feedbackWalkModel.test.ts,Story,"As a speaker, I want the Feedback walk to give every moment a practice step even when no coach has answered, so that a coach never holds up my next Take.","O1  A moment with nothing from a coach still gets the exercise screen and is practised; a coach's exercise, once shared, takes its place.
-O2  A step tapped in the Lounge opens that same moment, even after earlier moments were answered.","O1 -> never waits for a coach: a moment with nothing served still gets the locked Exercise screen, then is said again
-O2 -> opens the bubble's own moment, found by its paragraph once moments before it are answered",Never-rule 3 (coaches are never in the way of the next Take).
+O2  A step tapped in the Lounge opens that same moment, even after earlier moments were answered.
+O3  A corrected moment with neither a clearer version nor an exercise is still said again (founder 2026-10-20), never dropped.","O1 -> never waits for a coach: a moment with nothing served still gets the locked Exercise screen, then is said again
+O2 -> opens the bubble's own moment, found by its paragraph once moments before it are answered
+O3 -> a corrected moment with nothing attached is said again, not dropped",Never-rule 3 (coaches are never in the way of the next Take).
 src/lib/willab/idealTextDecisions.test.ts,Story,"As a speaker, I want accepting or keeping a suggestion on my Ideal Text saved to the right place for its kind, so that my decision sticks and a suggestion with missing ids sends nothing broken.","O1  A new-take block upgrade goes to blocks/decide, and nowhere else.
 O2  A prior-take change goes to its own route, and nowhere else.
 O3  Every other source rides the per-snippet feedback POST; a coach

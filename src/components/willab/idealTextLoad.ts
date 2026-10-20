@@ -261,15 +261,22 @@ export async function loadIdealTextEnrichment(
   setPending(feedbackStillComing(enrichment.sections));
   const settled = await settle(arcId, snapshot, enrichment);
   if (!hooks.isCurrent()) return;
+  if (settled.kind === "stale") {
+    // Never mix revisions: the new core brings its own marks.
+    hooks.refetch();
+    return;
+  }
   if (settled.kind === "ready") {
     merged = mergeLane(merged, settled);
     hooks.apply(merged);
-    // The slot closes when the server is done, or the budget is spent
-    // (founder 2026-09-20) — read from the sections, not the envelope.
-    setPending(feedbackStillComing(settled.sections));
-  } else if (settled.kind === "stale") {
-    hooks.refetch();
   }
+  // The slot closes when the asks stop: the server is done, or the budget
+  // is spent and nothing will ask again (founder 2026-09-20). Read from the
+  // fact of stopping, not from the sections: a mark section still
+  // "retryable" after the last ask kept the slot open with no ask coming,
+  // and since the lens waits on the slot (#885) that was the typing dots
+  // that never ended (WIL-76, founder 2026-10-20).
+  setPending(false);
 }
 
 /** P1 — whether a revalidating read describes the document already painted
