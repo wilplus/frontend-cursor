@@ -26,7 +26,10 @@ import WalkThread, { WalkPart, WalkThreadMark } from "./WalkThread";
 /*  Drawn as the walk's lens is now (founder 2026-10-20, N81, WalkThread):    */
 /*  one chat of one part, opened by its mark "Your coach" (which the bar      */
 /*  says, with ‹ › off as there is no other part), the bubble landing behind  */
-/*  the typing dots, "Close" in the dock under it, ✕ the bar's.               */
+/*  the typing dots, "Close" in the dock under it, ✕ the bar's. As the lens   */
+/*  is since #882: the step at the top of the thread (WalkThread's room),     */
+/*  and on a computer the Lounge's column with the lens's sizes (globals.css, */
+/*  "The lens on a computer", data-coach-update-lens).                        */
 /* -------------------------------------------------------------------------- */
 
 type Shown = { key: "update"; overlay: boolean; text: string | null; videoUrl: string | null };
@@ -53,7 +56,7 @@ export default function CoachUpdateLens({
     onClose();
   };
   return (
-    <div data-walk-column>
+    <div data-walk-column data-coach-update-lens>
       <WalkStage
         screen={screen}
         className="z-[90]"
