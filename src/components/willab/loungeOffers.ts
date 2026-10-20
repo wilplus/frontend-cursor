@@ -28,7 +28,9 @@ export type OfferType =
   | "promo"
   | "lesson"
   | "feedback_check"
-  | "voice_notebook";
+  | "voice_notebook"
+  | "sunday_note"
+  | "sunday_principle";
 
 const OFFER_TYPES: readonly OfferType[] = [
   "install",
@@ -39,6 +41,8 @@ const OFFER_TYPES: readonly OfferType[] = [
   "lesson",
   "feedback_check",
   "voice_notebook",
+  "sunday_note",
+  "sunday_principle",
 ];
 
 /** The bubble prompt persisted as the message body. No em-dashes (house style). */
@@ -67,6 +71,11 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
   // 2026-10-20): asked before the first note. Backend COPY["ask"] in
   // services/voice_notebook.py; this is only the fallback.
   voice_notebook: "Your notes are private. Only you and Will read them. Keep a voice notebook?",
+  // The Sunday note (Will learning plan, step 2): the founder's own case
+  // form; the backend writes the whole note (services/sunday_note.py), and
+  // these are only the fallbacks.
+  sunday_note: "CASE AT HAND",
+  sunday_principle: "NEW PRINCIPLE ⚜️",
   joke:
     "I'm just a simple system, but I noticed you weren't feeling great before this presentation. Want me to crack a joke?",
 };
