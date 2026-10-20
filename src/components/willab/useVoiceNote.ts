@@ -38,6 +38,8 @@ export function useVoiceNote({
   const startedRef = useRef(0);
   const keepRef = useRef(false);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startingRef = useRef(false);
+  const mountedRef = useRef(true);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
 
@@ -53,25 +55,39 @@ export function useVoiceNote({
   }, []);
 
   const start = useCallback(async () => {
-    if (phase !== "idle" || typeof navigator === "undefined" || !navigator.mediaDevices) return;
+    if (phase !== "idle" || startingRef.current || typeof navigator === "undefined" || !navigator.mediaDevices) return;
+    startingRef.current = true;
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
+      startingRef.current = false;
       return; // no mic permission: nothing changes on screen
     }
+    const release = () => stream.getTracks().forEach((t) => t.stop());
+    startingRef.current = false;
+    if (!mountedRef.current) {
+      release(); // the Lounge closed while the browser asked for the mic
+      return;
+    }
     const mimeType = pickType();
-    const recorder = new MediaRecorder(stream, {
-      ...(mimeType ? { mimeType } : {}),
-      audioBitsPerSecond: BITRATE,
-    });
+    let recorder: MediaRecorder;
+    try {
+      recorder = new MediaRecorder(stream, {
+        ...(mimeType ? { mimeType } : {}),
+        audioBitsPerSecond: BITRATE,
+      });
+    } catch {
+      release(); // a browser that cannot record this format: the mic goes off
+      return;
+    }
     chunksRef.current = [];
     recorder.ondataavailable = (e) => {
       if (e.data.size) chunksRef.current.push(e.data);
     };
     recorder.onstop = () => {
       stopTicking();
-      stream.getTracks().forEach((t) => t.stop());
+      release();
       recorderRef.current = null;
       const duration = Date.now() - startedRef.current;
       const audio = new Blob(chunksRef.current, { type: recorder.mimeType || mimeType || "audio/webm" });
@@ -95,7 +111,13 @@ export function useVoiceNote({
   }, [phase, maxSeconds, stop]);
 
   // Leaving the Lounge mid-note throws it away and frees the mic.
-  useEffect(() => () => stop(false), [stop]);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      stop(false);
+    };
+  }, [stop]);
 
   return {
     phase,
