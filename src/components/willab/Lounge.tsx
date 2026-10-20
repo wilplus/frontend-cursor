@@ -188,6 +188,13 @@ function failedNoteSession(
   return resume.sessionId;
 }
 
+/** The in-flight wait covers only its own project's text (founder
+ *  2026-10-20): another project, such as the one the coach's link opens,
+ *  is never held behind it. */
+function blocksText(takeInFlight: boolean, inFlightArcId: string | null, openArcId: string): boolean {
+  return takeInFlight && inFlightArcId === openArcId;
+}
+
 /** SIGN UP BEFORE THE TEXT (founder 2026-10-16): a signed-out reader whose
  *  Take is processed is asked for an account; a Take still in flight shows
  *  its wait as before. */
@@ -1769,7 +1776,8 @@ export default function Lounge({
           // state instead of last take's words; when this flips false (the
           // settle hook resolves) the overlay refetches, so a completion
           // that lands while the student is READING arrives in place too.
-          analysisPending={takeInFlight}
+          // Only on the in-flight Take's own project (founder 2026-10-20).
+          analysisPending={blocksText(takeInFlight, documentSettle.arcId, idealTextArcId)}
           onClose={() => {
             // The dot follows what was opened (Q40 B, Q42 A).
             refreshLiveIdealDoc(idealTextArcId);

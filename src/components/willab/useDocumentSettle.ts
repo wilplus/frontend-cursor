@@ -75,6 +75,9 @@ export function useDocumentSettle({
   pending: boolean;
   /** The in-flight take's index, for the chip. */
   takeIndex: number | null;
+  /** The in-flight take's project: the text surfaces block on THIS project
+   *  only, so another project's text (the coach's link) still opens. */
+  arcId: string | null;
 } {
   const userId = useUserId();
   const [marker, setMarker] = useState<ProcessingTake | null>(null);
@@ -322,5 +325,6 @@ export function useDocumentSettle({
   return {
     pending: enabled && marker !== null && marker.status === "processing",
     takeIndex: marker?.takeIndex ?? null,
+    arcId: marker?.arcId ?? null,
   };
 }
