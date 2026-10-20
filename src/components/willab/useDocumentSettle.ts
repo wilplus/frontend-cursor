@@ -253,8 +253,20 @@ export function useDocumentSettle({
           : null;
     }
     let active = true;
+    // One probe in flight at a time. A slow backend (2-3 s a read) used to
+    // get a new probe every second on top of the unanswered ones -- each a
+    // core read plus, while there is no snapshot, the composing read -- and
+    // one waiting tab filled every backend thread (580 requests, 2026-10-18).
+    let inFlight = false;
     const probe = async () => {
-      const r = await fetchIdealTextCore(arcId);
+      if (inFlight) return;
+      inFlight = true;
+      let r: Awaited<ReturnType<typeof fetchIdealTextCore>>;
+      try {
+        r = await fetchIdealTextCore(arcId);
+      } finally {
+        inFlight = false;
+      }
       if (!active) return;
       if (r.kind !== "single" && r.kind !== "ready") {
         // No document served — only the cap can release from here.
