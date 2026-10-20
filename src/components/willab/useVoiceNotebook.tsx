@@ -3,12 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic, Send, Trash2 } from "lucide-react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
+import SymmetricPair from "./SymmetricPair";
 import {
   answerNotebook,
+  answerSunday,
   askNotebook,
   getNotebookState,
   sendVoiceNote,
   type NotebookState,
+  type SundayChoice,
 } from "@/services/api/voiceNotebook";
 import type { OfferType } from "./loungeOffers";
 import { clock, useVoiceNote } from "./useVoiceNote";
@@ -44,13 +47,16 @@ export function useVoiceNotebook({
     };
   }, [signedIn]);
 
+  // "Keep a voice notebook?", and the Sunday note's two asks (step 2), open
+  // their pair while they are the newest message, once each.
   const askRef = useRef<string | null>(null);
   useEffect(() => {
     if (threadLoading) return;
     const last = drawn[drawn.length - 1];
-    if (!last || last.metadata?.offer !== "voice_notebook" || askRef.current === last.client_id) return;
+    const offer = OWN_ASKS.find((type) => type === last?.metadata?.offer);
+    if (!last || !offer || askRef.current === last.client_id) return;
     askRef.current = last.client_id;
-    openOffer("voice_notebook");
+    openOffer(offer);
   }, [threadLoading, drawn, openOffer]);
 
   const note = useVoiceNote({
@@ -69,6 +75,17 @@ export function useVoiceNotebook({
     openOffer("voice_notebook");
   }
 
+  // The Sunday note an Old | New or Add principle tap is about: the newest
+  // bubble carrying that ask.
+  async function sunday(choice: SundayChoice): Promise<void> {
+    const step = choice === "old" || choice === "new" ? "pattern" : "principle";
+    const offer = step === "pattern" ? "sunday_note" : "sunday_principle";
+    const ask = [...drawn].reverse().find((m) => m.metadata?.offer === offer);
+    const noteId = ask?.metadata?.sunday_note_id;
+    if (typeof noteId !== "string") return;
+    if (await answerSunday(noteId, step, choice)) await reload();
+  }
+
   async function answer(choice: "yes" | "not_now"): Promise<void> {
     if (!(await answerNotebook(choice))) return;
     if (choice === "yes") setState((now) => (now ? { ...now, consented: true } : now));
@@ -83,10 +100,35 @@ export function useVoiceNotebook({
     composerDisplay: note.phase === "recording" ? "hidden" : "flex",
     tapMic: () => void tapMic(),
     answer: (choice: "yes" | "not_now") => void answer(choice),
+    sunday: (choice: SundayChoice) => void sunday(choice),
   };
 }
 
 export type VoiceNotebook = ReturnType<typeof useVoiceNotebook>;
+
+const OWN_ASKS: readonly OfferType[] = ["voice_notebook", "sunday_note", "sunday_principle"];
+
+/** The Sunday note's footer (founder's form, 2026-10-20): Old | New for the
+ *  week's bug, then Not now | Add principle for Will's new principle. */
+export function SundayActions({
+  type,
+  onSunday,
+  onResolve,
+}: {
+  type: "sunday_note" | "sunday_principle";
+  onSunday: (choice: SundayChoice) => void;
+  onResolve: () => void;
+}) {
+  const pick = (choice: SundayChoice) => () => {
+    onSunday(choice);
+    onResolve();
+  };
+  return type === "sunday_note" ? (
+    <SymmetricPair closeLabel="Old" onClose={pick("old")} actionLabel="New" onAction={pick("new")} />
+  ) : (
+    <SymmetricPair closeLabel="Not now" onClose={pick("not_now")} actionLabel="Add principle" onAction={pick("add")} />
+  );
+}
 
 /** The mic, right of the message box: only where the notebook is on and the
  *  box is empty; held while the last note is on its way. */

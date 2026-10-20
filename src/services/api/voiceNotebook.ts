@@ -10,7 +10,15 @@ const OFF: NotebookState = { enabled: false, consented: false, max_seconds: 300 
 
 export async function getNotebookState(): Promise<NotebookState> {
   try {
-    const result = await bffFetch("/api/v2/notebook/state", { cache: "no-store" });
+    const tz = (() => {
+      try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+      } catch {
+        return "";
+      }
+    })();
+    const query = tz ? `?${new URLSearchParams({ tz }).toString()}` : "";
+    const result = await bffFetch(`/api/v2/notebook/state${query}`, { cache: "no-store" });
     if (result.kind !== "response" || !result.ok) return OFF;
     const body = (result.body ?? {}) as Partial<NotebookState>;
     return {
@@ -47,4 +55,12 @@ export function sendVoiceNote(audio: Blob, durationMs: number): Promise<boolean>
   form.append("audio", audio, `note.${ext}`);
   form.append("duration_ms", String(Math.round(durationMs)));
   return post("/api/v2/notebook/notes", { body: form });
+}
+
+/* The Sunday note (Will learning plan, step 2). */
+export type SundayStep = "pattern" | "principle";
+export type SundayChoice = "old" | "new" | "add" | "not_now";
+
+export function answerSunday(noteId: string, step: SundayStep, choice: SundayChoice): Promise<boolean> {
+  return post(`/api/v2/notebook/sunday/${encodeURIComponent(noteId)}/${step}`, { json: { choice } });
 }
