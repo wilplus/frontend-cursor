@@ -6,6 +6,7 @@ import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
 import WalkFooter from "./WalkFooter";
 import WalkLoading from "./WalkLoading";
+import { useMountedAsPast } from "./WalkThread";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkSummary — the closing summary, the walk's last lens step (founder      */
@@ -14,6 +15,8 @@ import WalkLoading from "./WalkLoading";
 /*  The top bar reads "Take N". While the words are fetched the breathing     */
 /*  mark shows; then one grey bubble with the summary and "Next", which       */
 /*  closes the walk onto the Ideal Text. A failed fetch skips the step.       */
+/*  First drawn as an earlier part of the walk's chat (the leaving copy), it  */
+/*  fetches nothing (founder 2026-10-20).                                     */
 /* -------------------------------------------------------------------------- */
 
 export default function WalkSummary({
@@ -35,9 +38,11 @@ export default function WalkSummary({
   onClose: () => void;
 }) {
   const [text, setText] = useState<string | null>(null);
+  const past = useMountedAsPast();
   const next = useRef(onNext);
   next.current = onNext;
   useEffect(() => {
+    if (past) return;
     if (!fetchText) {
       next.current();
       return;
@@ -51,7 +56,7 @@ export default function WalkSummary({
     return () => {
       live = false;
     };
-  }, [fetchText]);
+  }, [fetchText, past]);
 
   const nav: WalkNav = {
     position: takeIndex != null ? `${COPY.historyTake} ${takeIndex}` : COPY.historyTake,
@@ -62,6 +67,7 @@ export default function WalkSummary({
     backDisabled,
     nextDisabled: true,
   };
+  if (past && !text) return null;
   return (
     <WalkOverlay
       testId={testId}

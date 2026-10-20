@@ -9,14 +9,7 @@ import type { WalkStep } from "@/lib/willab/walkPlan";
 import type { WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
-import FeedbackWalk, {
-  walkBrowseFrom,
-  type FeedbackWalkHelperWords,
-  type FeedbackWalkRequest,
-  type WalkAiShown,
-  type WalkBrowseDir,
-  type WalkHop,
-} from "./walk/FeedbackWalk";
+import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkRequest, type WalkAiShown } from "./walk/FeedbackWalk";
 import type { WalkJudgementSave } from "./walk/useWalkJudging";
 import { useWalkJournalPost } from "./useWalkJournalPost";
 import { noteOwnAnswer, ownAnswersOf } from "./paragraphSheetData";
@@ -1108,48 +1101,6 @@ export function useDeckFeedbackWalk(args: {
     openAt(at, false, lensRef.current);
     return true;
   }, [replaying, items.length, model, openAt]);
-  // ‹ › BROWSE EVERY SCREEN OF THE WALK (founder 2026-10-15, "one bar for the
-  // whole walk"): answered and waiting alike, across slides, in walk order.
-  // The replay holds every moment of the Take in that order, so it is the
-  // order; a screen the live walk still holds opens live (its pill answers
-  // it), the rest open as answered. The arrows never answer and never close:
-  // at the walk's first and last screen they are off. The closing summary is
-  // reached only once nothing waits (it is written when it is read). A
-  // paragraph's own practise or helper words, and the coach-only walk,
-  // browse their own screens.
-  const browse = useCallback(
-    (step: WalkStep, partId: string | null, dir: WalkBrowseDir): WalkHop | null => {
-      const shown = replaying ?? model;
-      const whole = practisingRef.current || live.current.coachOnly || !replayNow ? shown : replayNow;
-      const from: WalkStepTarget = { step: step.key, moment: null, part: partId ?? undefined };
-      let order = whole;
-      let here = walkStepAt(order, from);
-      if (here === null) {
-        order = shown;
-        here = walkStepAt(order, from);
-      }
-      if (here === null) return null;
-      const to = walkBrowseFrom(order.plan, here, dir);
-      if (to === null) return null;
-      const next = order.plan[to];
-      if (next.key === "summary" && items.length > 0) return null;
-      const target: WalkStepTarget = {
-        step: next.key,
-        moment: null,
-        part: next.moment == null ? undefined : order.moments[next.moment]?.partId,
-      };
-      const liveAt = order === model ? to : order === replayNow ? walkStepAt(model, target) : null;
-      return {
-        target,
-        live: liveAt !== null,
-        open: () => {
-          setReplaying(liveAt === null ? order : null);
-          openAt(liveAt ?? to, false, lensRef.current, dir);
-        },
-      };
-    },
-    [replaying, model, replayNow, items.length, openAt],
-  );
   /** The walk showed the coach's note or a moment: the server hears it once
    *  per opening, behind the screen, and the Lounge's "new" clears. */
   const onShown = useCallback(
@@ -1158,6 +1109,7 @@ export function useDeckFeedbackWalk(args: {
       moment: FeedbackWalkMoment<DocumentSuggestion> | null,
       say: (bank: WalkBankKey) => string,
       ai?: WalkAiShown | null,
+      line?: string | null,
     ) => {
       const { chunks: now, pendingOf: openOf, coachMessage: coach } = live.current;
       const at = { moment: step.moment ?? null, attempt: step.attempt ?? null };
@@ -1167,7 +1119,7 @@ export function useDeckFeedbackWalk(args: {
       if (ai) void readAiVoiceOnce(ai.practiceId);
       // A try's answer played again was said once, as the try was made.
       const replayedTry = step.replay === true && TRY_ANSWER_STEPS.has(step.key);
-      let said = replayedTry ? null : (aiSaid ?? shownStep(step, moment, coach?.text ?? null, say));
+      let said = replayedTry ? null : (aiSaid ?? shownStep(step, moment, coach?.text ?? null, say, line ?? null));
       // The coach's video as a thumb in their bubble (prototype v31).
       if (step.key === "coachnote" && coach?.videoUrl) {
         said = { author: "coach", body: said?.body ?? CHUNK_SHEET_COPY.titleCoach, extra: { video: coach.videoUrl } };
@@ -1228,7 +1180,6 @@ export function useDeckFeedbackWalk(args: {
           summary={summary}
           onEnd={onEnd}
           onForward={onForward}
-          browse={browse}
           onClose={onClose}
           lines={lineBankIO}
           onShown={onShown}
@@ -1254,7 +1205,6 @@ export function useDeckFeedbackWalk(args: {
       journal,
       onEnd,
       onForward,
-      browse,
       onClose,
       onShown,
       onAnswer,
