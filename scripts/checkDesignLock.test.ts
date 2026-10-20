@@ -10,6 +10,9 @@ OUTCOME
   O3  The lock list reads cleanly, matches whole folders and exact files,
       and names only files that exist.
   O4  The lock list includes every screen CLAUDE.md locks.
+  O5  A branch that changes a flow's file without changing the flow's page
+      fails; with the page changed it passes; the flow list names only
+      pages and files that exist, and each page names every file it guards.
 PROVES   O1 -> "passes a branch that touches nothing locked",
                "fails a commit that changes a locked file without the trailer",
                "passes the same change with the trailer",
@@ -24,14 +27,20 @@ PROVES   O1 -> "passes a branch that touches nothing locked",
                "matches exact paths and trees, never tests",
                "names only files and directories that exist (a rename must update the list)"
          O4 -> "locks %s, which CLAUDE.md names" (one per locked screen file)
-WHY      CLAUDE.md "Screens that are locked" (build plan X5).
+         O5 -> "fails a branch that changes a flow's file without its page",
+               "passes when the page changes on the same branch",
+               "a flow's test file never asks for the page",
+               "names only pages and files that exist (a rename must update the list)",
+               "each page names every file it guards"
+WHY      CLAUDE.md "Screens that are locked" (build plan X5); the flow pages
+         (founder, 2026-10-20: one page per user flow, growing by lines).
 */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { LIST_PATH, TRAILER, isLocked, parseList, run } from "./check-design-lock.mjs";
+import { FLOW_PAGES_PATH, LIST_PATH, TRAILER, isLocked, parseFlowPages, parseList, run } from "./check-design-lock.mjs";
 
 const GIT_ENV = {
   ...process.env,
@@ -48,9 +57,13 @@ const LOCKED = "src/screens/Locked.tsx";
 const LOCKED_DIR_FILE = "src/screens/walk/Stage.tsx";
 const LOCKED_DIR_TEST = "src/screens/walk/Stage.test.tsx";
 const FREE = "src/other/Free.tsx";
+const FLOW_PAGE = "docs/flows/walk.md";
+const FLOW_FILE = "src/flow/walk/Thread.tsx";
+const FLOW_TEST = "src/flow/walk/Thread.test.tsx";
 
 let repo: string;
 let list: string;
+let flows: string;
 
 function write(path: string, text: string) {
   const full = join(repo, path);
@@ -68,6 +81,8 @@ beforeEach(() => {
   repo = mkdtempSync(join(tmpdir(), "design-lock-"));
   list = join(repo, "locked.txt");
   writeFileSync(list, `# locked\n${LOCKED}\nsrc/screens/walk/\n`);
+  flows = join(repo, "flows.txt");
+  writeFileSync(flows, `# flows\n${FLOW_PAGE}\n  src/flow/walk/\n`);
   git(repo, "init", "-q", "-b", "main");
   commit(FREE, "initial");
   git(repo, "branch", "base");
@@ -75,7 +90,7 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(repo, { recursive: true, force: true }));
 
-const guard = () => run({ cwd: repo, base: "base", list });
+const guard = () => run({ cwd: repo, base: "base", list, flows });
 
 describe("the guard on a branch", () => {
   it("passes a branch that touches nothing locked", () => {
@@ -146,8 +161,55 @@ describe("the guard on a branch", () => {
   });
 
   it("refuses to run against a base it cannot see", () => {
-    const { code } = run({ cwd: repo, base: "origin/nowhere", list });
+    const { code } = run({ cwd: repo, base: "origin/nowhere", list, flows });
     expect(code).toBe(2);
+  });
+});
+
+describe("the flow pages", () => {
+  it("fails a branch that changes a flow's file without its page", () => {
+    commit(FLOW_FILE, "the newest step to the top");
+    const { code, lines } = guard();
+    expect(code).toBe(1);
+    const out = lines.join("\n");
+    expect(out).toContain(FLOW_PAGE);
+    expect(out).toContain(FLOW_FILE);
+  });
+
+  it("passes when the page changes on the same branch", () => {
+    commit(FLOW_FILE, "the newest step to the top");
+    commit(FLOW_PAGE, "B5 the newest step comes to the top");
+    const { code, lines } = guard();
+    expect(code).toBe(0);
+    expect(lines.join("\n")).toContain("in step");
+  });
+
+  it("a flow's test file never asks for the page", () => {
+    commit(FLOW_TEST, "pin the thread");
+    expect(guard().code).toBe(0);
+  });
+
+  const real = parseFlowPages(readFileSync(FLOW_PAGES_PATH, "utf8"));
+
+  it("names only pages and files that exist (a rename must update the list)", () => {
+    expect(real.length).toBeGreaterThan(0);
+    for (const { page, files } of real) {
+      expect(existsSync(page), `${page} is listed but does not exist`).toBe(true);
+      expect(files.length, `${page} guards no files`).toBeGreaterThan(0);
+      for (const entry of files) {
+        expect(existsSync(entry), `${entry} is listed under ${page} but does not exist`).toBe(true);
+        expect(statSync(entry).isDirectory(), `${entry}: a tree ends with "/", a file does not`).toBe(entry.endsWith("/"));
+      }
+    }
+  });
+
+  it("each page names every file it guards", () => {
+    for (const { page, files } of real) {
+      const text = readFileSync(page, "utf8");
+      for (const entry of files) {
+        expect(text, `${page} does not name ${entry} (its "Where it lives" section)`).toContain(entry);
+      }
+    }
   });
 });
 

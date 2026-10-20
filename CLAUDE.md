@@ -32,6 +32,14 @@ check enforces it. The prototypes and
 lock files are listed in `docs/LOCKS.md`. The earlier, longer
 version of this page is `docs/history/CLAUDE-2026-10-11.md`.
 
+The Feedback walk and the chat have one page,
+`docs/flows/feedback-walk-and-chat.md`: the rules as they stand, what is
+in flight, what is open, one line per change. A change to this flow is a
+line on that page, never a new file; a commit that changes one of its files
+(`scripts/flow-pages.txt`) must change the page too, and the design-lock
+check enforces that as well. The other locked screens get a page of the
+same shape the next time one of them is changed, in that change's PR.
+
 ## How to ship
 
 - Branch from `main` → PR → checks green → squash-merge. "Merge when green" is standing permission.
