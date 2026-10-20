@@ -494,14 +494,13 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- **WIL-76** · the stale processing step (urgent) · A1, A2 · open; nothing on main names it. Backend #1175 (workers no longer segfault at boot), #1189 and #1195 (a confidence event that can never pass is no longer retried, then given up) landed 2026-10-20 and may be it; the founder did not know on 2026-10-20 whether it still happens · unverified
+- **WIL-76** · the stale processing step (urgent) · A1, A2 · code read 2026-10-20, nothing pushed: BE #1175, #1189 and #1195 touch neither the Take's state nor the readout. The likeliest cause is on the page: once the text is ready the bookmarks' bake is queued on the pipeline queue, the page asks for the marks eight times over about 32 s and then stops asking with the slot still pending, and since FE #885 the lens's eight-second last resort waits while the marks are pending, so the typing dots never end and the walk never opens. Also: a Take whose "ready" write was lost stays processing until the orphan sweep marks it failed after 30 min. The fix, once the founder sees it in the app: keep asking for the marks to the 90 s ceiling, or let the last resort count once the asks are spent · the founder checks the app
 - **WIL-89** · the lens as one chat: the opening order, the lenses, the interventions × chat awareness · B, C1, F · built and merged: FE #868, #882, #885, #886; BE #1170, #1190, #1194, #1196. Whether it works as drawn is the founder's check in the app ("success?") · to confirm
 - **WIL-84, WIL-86** · videos match (the coach's changed word and video, N80) · C1, D5 · built and merged: BE #1160, FE #861, FE #872 (the speaker's side). One backend follow-up stays: a later change of the coach's word updates the in-review bubble in place (D5) · to confirm in the app
-- **WIL-90** · the exercise is blocked · C6, C7 · likely BE #1206 (the coach's practice gate no longer refuses a speaker whose older Take was recorded under an earlier principal of theirs), merged 2026-10-20 · to confirm
+- **WIL-90** · the exercise is blocked · C6, C7 · BE #1206 fixed the coach's gate only. Code read 2026-10-20, nothing pushed: the Manager's exercise offer, the verbal-cue gate and the error-presence audit still read the recording's acquirer (`take_acquisition_principal`), not the speaker's own Data & consent page (`take_speaker_principal`), so an older or claimed Take gets no exercise while the page shows practice on; and the walk swallows any refusal of the practice start and keeps that null for the moment, so every try ends on the "late" screen. The fix, once the founder sees it in the app: those three gates read the speaker's page; a failed start is asked again on "Practise again" · the founder checks the app
 
 The four lines above were filled from main's history by the page's keeper on
 2026-10-20; the sessions doing the work overwrite them when they push.
-- **The coach sees the audience and the goal** · two lines on the coach panel, a locked screen · a prototype is being drawn for the founder's yes (2026-10-20) · —
 
 ## 3. Still open
 
@@ -588,9 +587,10 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-10-20 · N80 · the speaker's side built: the coach's bubble opens only their word in the lens, with Close and the step's "Your coach" line; watched anywhere clears the ring; the walk writes the word into the chat once per Take (D5) · FE #872
+- 2026-10-20 · N87 · `WalkOverlay`'s subtitle takes several lines, for the coach panel's speaker screen (its page, C3); nothing on the walk's own screens changes · FE #895
 - 2026-10-20 · N86 · the score decides each shown moment, in place of the fixed roles; the highest moment's bubble opens with "This was your most confident moment." (C2, C4, C5, H1, K) · FE #893, BE #1207
 - 2026-10-20 · N86 · Will says his question with a light touch (E2, K) · BE #1205
-- 2026-10-20 · N86 · the page's first review: the walk opens the moment processing ends (A2); the score decides each shown moment, in place of fixed roles (C2, C4, C5, H1); "This was your most confident moment." signed (C2, K); Will may vary his questions lightly (E2, K); counsel approved L12 and L13 · FE —, BE —
+- 2026-10-20 · N86 · the page's first review: the walk opens the moment processing ends (A2); the score decides each shown moment, in place of fixed roles (C2, C4, C5, H1); "This was your most confident moment." signed (C2, K); Will may vary his questions lightly (E2, K); counsel approved L12 and L13 · FE #892, BE #1204
 - 2026-10-20 · N85 · the walk spots words that undermine the speaker: the gate, a rule-written clearer version, B10 and B13 as its opener (C5, H3, K) · BE #1201
 - 2026-10-20 · N84 · a Good job only when clearly better, +0.05; the AI voice starts as the Take is stored (C7, H2) · BE #1201
 - 2026-10-20 · this page replaces the two lock files and the walk's log entries; the design-lock check guards it · FE #890, BE #1202

@@ -22,6 +22,10 @@ OUTCOME
       confirmation; no other coach has the ⋯.
   O8  As the founder, the ⋯ on a blind line clears what waits on it for the
       week behind a confirmation; no other coach has the ⋯.
+  O9  A speaker's screen shows, under their goal and in the same small line,
+      who their talk is for and what they want the audience to do, in their
+      own words from the newest Take that says so; nothing when they have
+      not said.
 PROVES   O1 -> "Judge: the player, the question, 👍 😐 👎 and Audio unclear (lock 2026-10-12 §7), nothing else"
          O2 -> "Judge first; the moment read is asked for only after the rating saves",
                "a failed save stays on Judge, says so, and never reads the moment"
@@ -36,6 +40,7 @@ PROVES   O1 -> "Judge: the player, the question, 👍 😐 👎 and Audio unclea
                "a Take drafted but never sent opens on its draft at every visit, drafted once; Send without a video sends video_ref: null"
          O7 -> "the founder's ⋯ deletes a waiting speaker's moments, the greyed one's too, behind its confirmation; other coaches have none"
          O8 -> "the founder's ⋯ clears what waits on a blind line behind its confirmation; other coaches have none"
+         O9 -> "A speaker: who the talk is for and what they should do under the goal, from the newest Take that says so (founder 2026-10-20)"
 WHY      Never 2 (coach judgements stay blind); locked coach panel; O6:
          founder 2026-10-19 (D9, D10), approved two-phone prototype
          https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk. O7: founder
@@ -155,6 +160,22 @@ describe("the screens", () => {
     expect(q("[data-walk-player]")!.textContent).not.toMatch(/[A-Za-z]{3}/);
     expect(host.textContent).not.toMatch(/Private|training|machine|Error|Praise|Rewrite|Slide/);
     expect(q("[data-walk-nav]")!.textContent).toContain("Quiet Heron · moment 1 of 4");
+  });
+
+  it("A speaker: who the talk is for and what they should do under the goal, from the newest Take that says so (founder 2026-10-20)", () => {
+    const earlier: QueueTake = { ...OLD, audience: "My team", callToAction: null };
+    const newest: QueueTake = { ...TAKE, audience: "The board", callToAction: "Approve two hires" };
+    draw(<SpeakerScreen speaker={{ ...HERON, goal: "Sound sure in front of senior people", takes: [earlier, newest] }}
+      onTake={() => {}} onBack={() => {}} onClose={() => {}} />);
+    expect(qa("[data-walk-subtitle] span").map((n) => n.textContent)).toEqual([
+      "Goal: Sound sure in front of senior people",
+      "Who it's for: The board",
+      "What they should do: Approve two hires",
+    ]);
+    // Nothing said, nothing shown: no goal, no lines, no empty label.
+    draw(<SpeakerScreen speaker={HERON} onTake={() => {}} onBack={() => {}} onClose={() => {}} />);
+    expect(q("[data-walk-subtitle]")).toBeNull();
+    expect(host.textContent).not.toMatch(/Who it's for|What they should do|Goal:/);
   });
 
   it("Your queue: the speaker who sent most recently on top; an answered speaker drops out (founder 2026-10-18)", () => {

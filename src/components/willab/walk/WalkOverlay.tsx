@@ -123,8 +123,10 @@ export default function WalkOverlay({
   onClose?: () => void;
   title?: string | null;
   /** The grey line under the title (the coach panel's "Goal: …", "Treats:
-   *  …"); still, like the title, while the body moves. */
-  subtitle?: string | null;
+   *  …"); still, like the title, while the body moves. A node for several
+   *  lines of the same small text (the speaker's goal, who the talk is for,
+   *  what they should do; founder 2026-10-20, N87). */
+  subtitle?: ReactNode;
   /** Normally a WalkFooter. */
   footer?: ReactNode;
   /** Children go straight under the top bar instead of the scrolling body

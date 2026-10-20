@@ -33,6 +33,13 @@ export interface QueueTake {
   /** When this coach last answered on it (a time, never a value); orders
    *  the answered Takes, most recent first. Null when not sent. */
   answeredAt?: string | null;
+  /** Who the talk is for, in the speaker's own words (the setup's audience,
+   *  filled by Will's questions); null when they have not said. Founder
+   *  2026-10-20 (N87): shown under the speaker's goal. */
+  audience?: string | null;
+  /** What the speaker wants the audience to do, in their own words; null
+   *  when they have not said (N87). */
+  callToAction?: string | null;
 }
 
 export interface QueueSpeaker {
@@ -89,6 +96,8 @@ function mapTake(raw: unknown): QueueTake | null {
     moments,
     waitingForText: r.waiting_for_text === true,
     answeredAt: typeof r.answered_at === "string" && r.answered_at ? r.answered_at : null,
+    audience: typeof r.audience === "string" && r.audience.trim() ? r.audience.trim() : null,
+    callToAction: typeof r.call_to_action === "string" && r.call_to_action.trim() ? r.call_to_action.trim() : null,
   };
 }
 

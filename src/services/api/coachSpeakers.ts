@@ -18,6 +18,10 @@ export interface PanelSpeakerTake {
   answered: boolean;
   /** When this coach last answered on it; null when not sent. */
   answeredAt: string | null;
+  /** Who the talk is for and what they should do, the speaker's own words
+   *  (N87); null when not said. */
+  audience: string | null;
+  callToAction: string | null;
 }
 
 export interface PanelSpeaker {
@@ -44,6 +48,8 @@ function mapTake(raw: unknown): PanelSpeakerTake | null {
     waitingForText,
     answered: typeof r.answered === "boolean" ? r.answered : !waitingForText && waiting === 0,
     answeredAt: typeof r.answered_at === "string" && r.answered_at ? r.answered_at : null,
+    audience: typeof r.audience === "string" && r.audience.trim() ? r.audience.trim() : null,
+    callToAction: typeof r.call_to_action === "string" && r.call_to_action.trim() ? r.call_to_action.trim() : null,
   };
 }
 
@@ -97,6 +103,8 @@ export function speakersFromQueue(queue: readonly QueueSpeaker[]): PanelSpeaker[
       waitingForText: t.waitingForText,
       answered: !t.waitingForText && t.waiting === 0,
       answeredAt: t.answeredAt ?? null,
+      audience: t.audience ?? null,
+      callToAction: t.callToAction ?? null,
     })),
   }));
 }
@@ -114,6 +122,8 @@ export function queueSpeakerFor(speaker: PanelSpeaker, queue: readonly QueueSpea
     moments: [],
     waitingForText: t.waitingForText,
     answeredAt: t.answeredAt,
+    audience: t.audience,
+    callToAction: t.callToAction,
   }));
   return { pseudonym: speaker.pseudonym, goal: speaker.goal, waiting: speaker.waiting, takes };
 }
