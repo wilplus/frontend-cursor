@@ -617,6 +617,13 @@ the way to the next Take, never on a dead end.
 O2  A finished sheet shows its ""saved"" line, which goes by itself after a
 moment and tells the host it has gone.","O1 -> ""after the last moment, offers the host's next step and the way back""
 O2 -> ""shows the saved line, then lets it go on its own""",Founder 2026-09-26: sheets used to close in silence.
+src/components/willab/walkReachesCoach.test.ts,Story,"As a coach, I want every moment a speaker meets in the Feedback walk to reach my queue, so that no speaker's Take goes unheard.","(momentsOpenedOn: the ""opened"" record the coach's queue reads)
+O1  Each moment screen of the walk (green moment, clearer version,
+exercise, the coach's answer) records its clips as opened, with
+what was on screen.
+O2  Screens that show no moment (helper words, the coach's word for the
+Take, the summary) record nothing.","O1 -> ""every moment screen records its clips as opened""
+O2 -> ""a screen without a moment records nothing""","Founder 2026-10-20: a new speaker's Takes never reached a coach, because the walk (lock 2026-10-12) stopped writing the record the queue filters on (N48.2)."
 src/components/willab/walkSheetFrame.test.tsx,Story,"As a speaker, I want feedback sheets to use the compact ""Play this moment"" row and draw their frame at once on tap, so that sheets feel stable and quick.","O1  The Suggestion screen plays my moment in the compact row, not the
 full player.
 O2  A tapped paragraph's sheet draws its frame and saved helper words
