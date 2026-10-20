@@ -583,11 +583,13 @@ src/components/willab/walk/feedbackWalk.test.tsx,Story,"As a speaker, I want the
 O2  A good moment shows the praise line, then why it landed, quoting my words.
 O3  Reopened from the Lounge, a clip I already judged shows as answered and is not asked again.
 O4  If the summary cannot be read, the walk goes straight back to my page.
-O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
+O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.
+O6  A step's grey bubbles land one after another behind the typing dots, and its buttons come once they all have.","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
 O2 -> a green moment says why it landed
 O3 -> reopened from the Lounge, the judging shows the moment already answered
 O4 -> skips the summary when it cannot be read, straight onto the page
-O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder",Never-rule 1 (no scores to speakers); Feedback walk is a locked screen.
+O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder
+O6 -> a step's bubbles land behind the typing dots, then its buttons (founder 2026-10-20)",Never-rule 1 (no scores to speakers); Feedback walk is a locked screen.
 src/components/willab/walk/walkCopy.test.ts,Guard,"Every word the walk can show comes from the signed copy, and no signed walk line carries a digit.","Never 4: a literal word typed into a walk/*.tsx primitive (JSX text,
 a string child, an accessible name, title, placeholder) that is not in
 WALK_COPY or CHUNK_SHEET_COPY. Never 1: a digit in a signed walk line

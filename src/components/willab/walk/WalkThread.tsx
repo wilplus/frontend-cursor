@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  Children,
   createContext,
+  isValidElement,
   useCallback,
   useContext,
   useEffect,
@@ -14,6 +16,7 @@ import {
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
 import OverlayCloseButton from "../OverlayCloseButton";
+import { TypingGlyph } from "../TypingDots";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkThread — the lens as one chat (founder 2026-10-20, WIL-89; prototype   */
@@ -33,6 +36,11 @@ import OverlayCloseButton from "../OverlayCloseButton";
 /*  the newest bubble is always in view (founder 2026-10-20: "always after    */
 /*  the click scroll to the bottom"), and it keeps following new bubbles      */
 /*  until the speaker scrolls up by hand.                                     */
+/*                                                                            */
+/*  A step's bubbles land one after another (WalkLanding): the typing dots    */
+/*  before each grey bubble, as in the Lounge, the speaker's own bubble       */
+/*  without them; its buttons come once they have all landed (founder         */
+/*  2026-10-20: "add the typing dots").                                       */
 /*                                                                            */
 /*  The stage's leaving copy (✕, the walk's end) is a still picture of the    */
 /*  thread as it was, at the same scroll: nothing in it fetches, posts or     */
@@ -124,6 +132,133 @@ function Still({ frame }: { frame: WalkThreadFrameRef }) {
 
 const reduced = () =>
   typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+
+/** How long the typing dots show before a grey bubble lands (the approved
+ *  prototype's beat), how long before the speaker's own bubble lands. */
+export const WALK_TYPING_MS = 520;
+const WALK_OWN_MS = 200;
+
+/** Bubbles land one by one only where the page can tell motion is welcome:
+ *  a browser that answers the reduce-motion question with no. */
+const landingWelcome = () =>
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** The typing dots, as a grey bubble of the walk's size. */
+function WalkTyping() {
+  return (
+    <div data-walk-typing aria-hidden="true" className="flex">
+      <span className="rounded-[22px] bg-muted px-[17px] py-[19px]">
+        <TypingGlyph />
+      </span>
+    </div>
+  );
+}
+
+/** What a landing item is: a grey bubble (the dots first), one that brings
+ *  its own dots (the AI bubble), the speaker's own or anything else (a short
+ *  beat), or nothing drawn (no wait). */
+function landingKind(el: HTMLElement | null | undefined): "app" | "self" | "own" | "none" {
+  if (!el || el.childNodes.length === 0) return "none";
+  if (el.querySelector("[data-walk-ai-voice], [data-walk-ai-typing]")) return "self";
+  if (el.querySelector("[data-walk-message]")) return "app";
+  return "own";
+}
+
+/** A part's bubbles, landing one after another: each grey one after the
+ *  typing dots, the speaker's own after a short beat. On while the part is
+ *  the newest and was first drawn as the newest, with motion welcome; what
+ *  the part adds later (another speaker's next moment, a reason written
+ *  late) lands the same way. Off, or once the part is no longer the newest,
+ *  everything shows at once. `onSettled`: false while something waits to
+ *  land, so the dock waits with it. */
+export function WalkLanding({
+  on,
+  onSettled,
+  children,
+}: {
+  on: boolean;
+  onSettled: (settled: boolean) => void;
+  children: ReactNode;
+}) {
+  const kids = Children.toArray(children);
+  const keys = kids.map((k, i) => (isValidElement(k) && k.key != null ? String(k.key) : `#${i}`));
+  const [active] = useState(() => on && landingWelcome());
+  const [waiting, setWaiting] = useState<ReadonlySet<string>>(() => (active ? new Set(keys) : new Set()));
+  const [typing, setTyping] = useState<string | null>(null);
+  const known = useRef(new Set(keys));
+  const boxes = useRef(new Map<string, HTMLDivElement | null>());
+  const timer = useRef<number | null>(null);
+  const live = active && on;
+
+  // What the part adds later lands too, while it lands at all.
+  const keyList = keys.join("\u0000");
+  useLayoutEffect(() => {
+    const fresh = keys.filter((k) => !known.current.has(k));
+    fresh.forEach((k) => known.current.add(k));
+    if (live && fresh.length > 0) setWaiting((w) => new Set([...w, ...fresh]));
+    // keys is read through keyList
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keyList, live]);
+
+  // One at a time, in order.
+  useEffect(() => {
+    if (!live || timer.current !== null) return;
+    const next = keys.find((k) => waiting.has(k));
+    if (next === undefined) return;
+    const kind = landingKind(boxes.current.get(next));
+    if (kind === "app") setTyping(next);
+    const wait = kind === "app" ? WALK_TYPING_MS : kind === "own" ? WALK_OWN_MS : 0;
+    timer.current = window.setTimeout(() => {
+      timer.current = null;
+      setTyping(null);
+      setWaiting((w) => {
+        const left = new Set(w);
+        left.delete(next);
+        return left;
+      });
+    }, wait);
+    // keys is read through keyList
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live, keyList, waiting]);
+  useEffect(
+    () => () => {
+      // Cleared and forgotten, so a part drawn again starts its landing again.
+      if (timer.current !== null) window.clearTimeout(timer.current);
+      timer.current = null;
+    },
+    [],
+  );
+
+  const settled = !live || !keys.some((k) => waiting.has(k));
+  useEffect(() => onSettled(settled), [settled, onSettled]);
+
+  if (!active) return <>{children}</>;
+  return (
+    <>
+      {kids.map((kid, i) => {
+        const key = keys[i];
+        const hidden = live && waiting.has(key);
+        return (
+          <div key={key} className="contents">
+            {live && typing === key ? <WalkTyping /> : null}
+            <div
+              ref={(el) => {
+                boxes.current.set(key, el);
+              }}
+              data-walk-land
+              hidden={hidden}
+              className="walk-bubble-in"
+            >
+              {kid}
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
 
 /** Within this of the bottom counts as at the bottom. */
 const AT_END_PX = 24;

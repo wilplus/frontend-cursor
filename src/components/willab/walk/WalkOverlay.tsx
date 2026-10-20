@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
 import OverlayCloseButton from "../OverlayCloseButton";
 import { useWalkSwipe } from "./useWalkSwipe";
-import { useWalkPart } from "./WalkThread";
+import { WalkLanding, useWalkPart } from "./WalkThread";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkOverlay — one screen of the Feedback walk (founder lock 2026-10-06)    */
@@ -104,6 +104,7 @@ export default function WalkOverlay({
   subtitle = null,
   footer,
   bare = false,
+  landing = true,
   testId,
   children,
 }: {
@@ -129,24 +130,32 @@ export default function WalkOverlay({
   /** Children go straight under the top bar instead of the scrolling body
    *  (the screens that stand apart lay themselves out). */
   bare?: boolean;
+  /** In the walk's thread: the bubbles land one after another (the typing
+   *  dots). Off where they must show at once (a practise records as it
+   *  opens). */
+  landing?: boolean;
   testId?: string;
   children?: ReactNode;
 }) {
   const part = useWalkPart();
   const ov = useRef<HTMLDivElement | null>(null);
   useWalkSwipe(ov, part ? null : nav);
-  // Drawn first as the newest part: its bubbles land one after the other.
-  const [lands] = useState(() => part?.now === true);
+  // Drawn first as the newest part: its bubbles land one after the other,
+  // and its footer waits until they have.
+  const [lands] = useState(() => part?.now === true && landing);
+  const [settled, setSettled] = useState(true);
   useEffect(() => {
     if (part?.now) part.close.current = onClose ?? null;
   });
   if (part) {
     return (
       <>
-        <div data-walk-part data-testid={part.now ? testId : undefined} className={cn("flex flex-col gap-4", lands && "walk-part-in")}>
-          {children}
+        <div data-walk-part data-testid={part.now ? testId : undefined} className="flex flex-col gap-4">
+          <WalkLanding on={lands && part.now} onSettled={setSettled}>
+            {children}
+          </WalkLanding>
         </div>
-        {part.now && part.dock && footer ? createPortal(footer, part.dock) : null}
+        {part.now && part.dock && footer && settled ? createPortal(footer, part.dock) : null}
       </>
     );
   }

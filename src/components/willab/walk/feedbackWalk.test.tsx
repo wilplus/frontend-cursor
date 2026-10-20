@@ -7,11 +7,13 @@ OUTCOME
   O3  Reopened from the Lounge, a clip I already judged shows as answered and is not asked again.
   O4  If the summary cannot be read, the walk goes straight back to my page.
   O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.
+  O6  A step's grey bubbles land one after another behind the typing dots, and its buttons come once they all have.
 PROVES   O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
          O2 -> a green moment says why it landed
          O3 -> reopened from the Lounge, the judging shows the moment already answered
          O4 -> skips the summary when it cannot be read, straight onto the page
          O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder
+         O6 -> a step's bubbles land behind the typing dots, then its buttons (founder 2026-10-20)
 WHY      Never-rule 1 (no scores to speakers); Feedback walk is a locked screen.
 */
 import { act } from "react";
@@ -219,6 +221,40 @@ describe("FeedbackWalk", () => {
     await act(async () => {});
     expect(live()).toBeNull();
     expect(props.onEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("a step's bubbles land behind the typing dots, then its buttons (founder 2026-10-20)", () => {
+    // A browser that welcomes motion.
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }));
+    vi.useFakeTimers();
+    // The clock runs on in small steps, each bubble scheduling the next.
+    const wait = (ms: number) => {
+      for (let t = 0; t < ms; t += 50) act(() => vi.advanceTimersByTime(50));
+    };
+    try {
+      draw(null);
+      draw({ seq: 1, at: 1 });
+      // The coach's word: the dots first, no button yet.
+      expect(live()!.querySelector("[data-walk-typing]")).not.toBeNull();
+      expect(now()!.querySelector("[data-walk-message]")!.closest("[hidden]")).not.toBeNull();
+      expect(live()!.querySelector("[data-testid='walk-forward']")).toBeNull();
+      wait(600);
+      expect(live()!.querySelector("[data-walk-typing]")).toBeNull();
+      expect(now()!.querySelector("[data-walk-message]")!.closest("[hidden]")).toBeNull();
+      forward();
+      // The praise: the speaker's clip, then the dots, then the grey bubble;
+      // Next once everything has landed.
+      expect(screen()).toBe("walk-screen-praise");
+      expect(live()!.querySelector("[data-testid='walk-forward']")).toBeNull();
+      wait(250);
+      expect(live()!.querySelector("[data-walk-typing]")).not.toBeNull();
+      wait(1500);
+      expect(live()!.querySelector("[data-walk-typing]")).toBeNull();
+      expect(live()!.querySelector("[data-testid='walk-forward']")).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("shows no read, family or score anywhere in the DOM (AC-9)", () => {

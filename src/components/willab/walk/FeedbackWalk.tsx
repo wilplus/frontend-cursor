@@ -906,6 +906,7 @@ function Thread<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment
       nav={ctx.nav(step, moment)}
       onClose={step.key === "practise" ? practiseCtx.back : ctx.close}
       footer={footer}
+      landing={false}
     >
       {steps.map((s, i) => (
         <Fragment key={`${s.key}:${s.attempt ?? 0}:${i}`}>
