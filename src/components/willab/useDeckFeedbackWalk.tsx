@@ -1103,6 +1103,18 @@ export function useDeckFeedbackWalk(args: {
   }, [replaying, items.length, model, openAt]);
   /** The walk showed the coach's note or a moment: the server hears it once
    *  per opening, behind the screen, and the Lounge's "new" clears. */
+  /** A walk screen reached the speaker: the server hears it at once, once
+   *  per opening (the coach's queue, the coach's feedback seen), whatever the
+   *  chat still waits for (founder 2026-10-20). */
+  const onReached = useCallback(
+    (step: WalkStep, moment: FeedbackWalkMoment<DocumentSuggestion> | null) => {
+      const { chunks: now, pendingOf: openOf, coachMessage: coach } = live.current;
+      const parts = moment ? (walkModel.partsOf[moment.index] ?? []) : [];
+      const openOn = now.filter((c) => parts.includes(c.part.id)).flatMap((c) => openOf(c));
+      tellShown(toldRef.current, step, moment, coach, openOn);
+    },
+    [walkModel],
+  );
   const onShown = useCallback(
     (
       step: WalkStep,
@@ -1111,10 +1123,13 @@ export function useDeckFeedbackWalk(args: {
       ai?: WalkAiShown | null,
       line?: string | null,
     ) => {
-      const { chunks: now, pendingOf: openOf, coachMessage: coach } = live.current;
+      const { coachMessage: coach } = live.current;
       const at = { moment: step.moment ?? null, attempt: step.attempt ?? null };
-      // The AI bubble in the locked one's place (N71) says what the screen said.
-      const aiSaid = ai ? aiVoiceChat(ai) : null;
+      // The AI bubble in the locked one's place (N71) says what the screen
+      // says once its clip is in; it keeps the plain words for a clip that
+      // never comes (founder 2026-10-20).
+      const plain = ai ? shownStep(step, moment, coach?.text ?? null, say, line ?? null) : null;
+      const aiSaid = ai ? aiVoiceChat(ai, plain?.body ?? null) : null;
       // Its clip is asked now, so the chat's bubble is drawn whole.
       if (ai) void readAiVoiceOnce(ai.practiceId);
       // A try's answer played again was said once, as the try was made.
@@ -1136,11 +1151,9 @@ export function useDeckFeedbackWalk(args: {
       if (answer && COACH_ANSWER_STEPS.has(step.key)) {
         post({ key: "coach-answer", moment: at.moment, attempt: null, author: "coach", body: `${CHUNK_SHEET_COPY.titleCoach}\n${answer.text}`, extra: { ...(answer.videoUrl ? { video: answer.videoUrl } : {}), ...part } });
       }
-      const parts = moment ? (walkModel.partsOf[moment.index] ?? []) : [];
-      const openOn = now.filter((c) => parts.includes(c.part.id)).flatMap((c) => openOf(c));
-      tellShown(toldRef.current, step, moment, coach, openOn);
+      onReached(step, moment);
     },
-    [walkModel, post],
+    [walkModel, post, onReached],
   );
 
   /** Another speaker's moment, shown or answered: in the chat. */
@@ -1183,6 +1196,7 @@ export function useDeckFeedbackWalk(args: {
           onClose={onClose}
           lines={lineBankIO}
           onShown={onShown}
+          onReached={onReached}
           onAnswer={onAnswer}
           onOthers={onOthers}
           reasons={greenReasons}
@@ -1207,6 +1221,7 @@ export function useDeckFeedbackWalk(args: {
       onForward,
       onClose,
       onShown,
+      onReached,
       onAnswer,
       onOthers,
       greenReasons,
