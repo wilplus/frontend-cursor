@@ -39,7 +39,7 @@ import { answerWord, type AnswerValue, type QueueSpeaker, type QueueTake, type R
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
 import type { MomentRead } from "@/services/api/coachWalk";
-import type { BlockPickQueue, ErrorAuditQueue, V4MomentPickQueue, V4SurerQueue } from "@/services/api/coachPanel";
+import type { BlindLine, BlockPickQueue, ErrorAuditQueue, V4MomentPickQueue, V4SurerQueue } from "@/services/api/coachPanel";
 import type { PanelSpeaker } from "@/services/api/coachSpeakers";
 
 /** A moment's clip, from the coach's review session. */
@@ -118,6 +118,9 @@ export type BlindRows = {
   v4Surer?: V4SurerQueue | null;
   onOpenV4Picks?: () => void;
   onOpenV4Surer?: () => void;
+  /** The founder's ⋯ → Delete on a line; absent for every other coach.
+   *  Resolves true once what waits on it is cleared for the week. */
+  onClear?: (line: BlindLine) => Promise<boolean>;
 };
 
 /** "Also waiting · blind": drawn only when the backend serves a line with
@@ -126,16 +129,27 @@ type BlindQueue = { items: readonly unknown[]; wording: Record<string, string> }
 
 /** The blind rows that have something waiting, in the panel's order, each
  *  with its row label (the backend's signed words). */
-function waitingRows(blind: BlindRows): { value: string; queue: BlindQueue; label: string; open?: () => void }[] {
+function waitingRows(blind: BlindRows): { value: string; line: BlindLine; queue: BlindQueue; label: string; open?: () => void }[] {
   const rows = [
-    { value: "audit", queue: blind.audit, label: (w: Record<string, string>) => w.title, open: blind.onOpenAudit },
-    { value: "picks", queue: blind.picks, label: (w: Record<string, string>) => w.short_title ?? w.title, open: blind.onOpenPicks },
-    { value: "v4picks", queue: blind.v4Picks, label: (w: Record<string, string>) => w.row, open: blind.onOpenV4Picks },
-    { value: "v4surer", queue: blind.v4Surer, label: (w: Record<string, string>) => w.row, open: blind.onOpenV4Surer },
+    { value: "audit", line: "error_audit" as const, queue: blind.audit, label: (w: Record<string, string>) => w.title, open: blind.onOpenAudit },
+    { value: "picks", line: "block_pick" as const, queue: blind.picks, label: (w: Record<string, string>) => w.short_title ?? w.title, open: blind.onOpenPicks },
+    { value: "v4picks", line: "v4_moment_pick" as const, queue: blind.v4Picks, label: (w: Record<string, string>) => w.row, open: blind.onOpenV4Picks },
+    { value: "v4surer", line: "v4_surer" as const, queue: blind.v4Surer, label: (w: Record<string, string>) => w.row, open: blind.onOpenV4Surer },
   ];
   return rows.flatMap((r) => (r.queue && r.queue.items.length > 0
-    ? [{ value: r.value, queue: r.queue, label: r.label(r.queue.wording) ?? "", open: r.open }]
+    ? [{ value: r.value, line: r.line, queue: r.queue, label: r.label(r.queue.wording) ?? "", open: r.open }]
     : []));
+}
+
+/** A blind line's ⋯, on the row's left edge: the founder's Delete of what
+ *  waits on it, for the week, behind its confirmation (founder 2026-10-20). */
+function blindMenu(label: string, line: BlindLine, onClear?: (line: BlindLine) => Promise<boolean>): ReactNode {
+  if (!onClear) return undefined;
+  const confirm = { title: COPY.clearBlindTitle(label), body: COPY.clearBlindBody, confirmLabel: COPY.delete };
+  return (
+    <ProjectRowMenu label={label} actionLabel={COPY.delete} confirm={confirm}
+      onDelete={() => onClear(line)} menuAlign="left" />
+  );
 }
 
 function BlindGroup({ blind }: { blind: BlindRows }) {
@@ -143,6 +157,7 @@ function BlindGroup({ blind }: { blind: BlindRows }) {
   if (rows.length === 0) return null;
   const choices: WalkChoice[] = rows.map((r) => ({
     value: r.value, label: r.label, subtitle: COPY.blindWaiting(r.queue.items.length), dot: true,
+    menu: blindMenu(r.label, r.line, blind.onClear),
   }));
   const line = rows.map((r) => r.queue.wording.queue_line).find((l) => l !== undefined) ?? "";
   return (
