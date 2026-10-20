@@ -18,7 +18,7 @@
 /*    DetailScreen     one exercise: its video, its instruction, what it     */
 /*                     treats; Use this one; Back to the list                 */
 /*    WordsScreen      the speaker's passage and player, the coach's words   */
-/*                     below with the grey picture and the pencil             */
+/*                     below with the coach's picture and the pencil          */
 /*    VideoScreen      Record (one action), Stop, Keep, Record again          */
 /*    KindScreen       What did {p} do well? / What kind of fix is it?        */
 /*    ShareScreen      Ready for {p}: exactly what the speaker will get       */
