@@ -2890,7 +2890,7 @@ function SummaryBubble({ message, record = null }: { message: LoungeMessage; rec
             data-summary-record
             onClick={record.onClick}
             disabled={record.disabled}
-            className="mb-1.5 mt-3.5 flex h-8 w-fit items-center gap-1.5 rounded-full border border-border bg-background px-3.5 text-[14px] font-semibold text-foreground disabled:cursor-default disabled:opacity-30"
+            className="mb-3 mt-5 flex h-8 w-fit items-center gap-1.5 rounded-full border border-border bg-background px-3.5 text-[14px] font-semibold text-foreground disabled:cursor-default disabled:opacity-30"
           >
             <span aria-hidden="true" className="h-2 w-2 rounded-full bg-record" />
             {record.label}
