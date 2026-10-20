@@ -404,6 +404,18 @@ function coachNoteChat(said: ReturnType<typeof shownStep>, coach: CoachMessage |
   return { author: "coach", body: said?.body ?? CHUNK_SHEET_COPY.titleCoach, extra: { video: coach.videoUrl } };
 }
 
+/** The coach's word for the chat, or null when the chat must not get a
+ *  copy (coachNoteToChat: once per Take, not in a replay, not while the chat
+ *  loads). Pure. */
+function coachNoteOnce(
+  said: ReturnType<typeof shownStep>,
+  coach: CoachMessage | null,
+  at: { thread: Parameters<typeof coachNoteToChat>[0]; take: string | null },
+  replay: boolean,
+): ReturnType<typeof shownStep> {
+  return coachNoteToChat(at.thread, at.take, coach?.takeSessionId ?? null, replay) ? coachNoteChat(said, coach) : null;
+}
+
 /** What each moment screen of the walk has on it, as the paragraph sheet
  *  reported it (0408). */
 const OPENED_AS: Readonly<Record<string, MomentShown>> = {
@@ -1153,11 +1165,7 @@ export function useDeckFeedbackWalk(args: {
       // N80, D4): never a second copy under "Later · from your coach", never
       // re-stamped to the bottom. Its video as a thumb in the bubble
       // (prototype v31).
-      if (step.key === "coachnote") {
-        const thread = threadRef.current;
-        const once = coachNoteToChat(thread.thread, thread.take, coach?.takeSessionId ?? null, Boolean(step.replay || walkModel.replay));
-        said = once ? coachNoteChat(said, coach) : null;
-      }
+      if (step.key === "coachnote") said = coachNoteOnce(said, coach, threadRef.current, Boolean(step.replay || walkModel.replay));
       said = withLateReason(said, step, moment, reasonsRef.current);
       // The label above a moment, and the speaker's clip before its bubble.
       const chat = said ? momentChat(walkModel.plan, step, moment) : null;
