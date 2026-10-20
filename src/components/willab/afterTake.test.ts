@@ -42,6 +42,18 @@ describe("after a Take", () => {
     expect(ids([ask, card, saved, summary(false, 5)])).toEqual(["card", "ask", "saved", "summary"]);
   });
 
+  it("holds the closing message behind the chain and puts the card above its batch (N89)", () => {
+    // The chain's row: the summary draws at once; the closing message waits.
+    const plain = row("summary", 1, "cadence", { summary: true, take_index: 2, ...take });
+    const closing = row("closing", 2, "text", { next_take: true, take_index: 2, ...take, held_for: "whatsapp", chain: [] });
+    const whatsapp = row("ask", 3, "text", { offer: "whatsapp", ...take });
+    expect(ids([plain, closing, whatsapp, row("card", 4, "walk_step", { step: "end", ...take })])).toEqual(["card", "summary", "ask"]);
+    expect(heldMessage([plain, closing, whatsapp])?.client_id).toBe("closing");
+    // Let go, it comes under what closed the ask, and the card stays above the batch.
+    const gone = row("closing", 5, "text", { next_take: true, take_index: 2, ...take });
+    expect(ids([plain, whatsapp, row("card", 4, "walk_step", { step: "end", ...take }), gone])).toEqual(["card", "summary", "ask", "closing"]);
+  });
+
   it("keeps the card above the admin's ask, stamped with the message it waits for alone", () => {
     const question = row("question", 2, "text", { offer: "consent", after_take: "summary" });
     const held = row("summary", 1, "cadence", { summary: true, take_index: 2, ...take, held_for: "admin" });

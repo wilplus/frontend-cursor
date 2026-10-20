@@ -296,9 +296,11 @@ export default function IdealTextOverlay({
     if (reviewAt?.step === "helpers" || coachOnly) return;
     // After a Take (no step asked for) the review is the live walk: wait
     // for its moments, which can land after the text, rather than settle
-    // on the finished one. An answered step tapped in the chat replays.
-    if (reviewWaiting) setReviewRequest((n) => n + 1);
-    else if (replayReady && reviewAt && !feedbackPending) setReplayRequest((n) => n + 1);
+    // on the finished one. A step tapped in the chat goes through the same
+    // door once the answers are read (N89: one mechanism); the replay's own
+    // read stays for a finished walk the page has not read yet.
+    if (reviewWaiting || (replayReady && reviewAt && !feedbackPending)) setReviewRequest((n) => n + 1);
+    else if (reviewAt && !feedbackPending) setReplayRequest((n) => n + 1);
     else return;
     reviewOpenedRef.current = true;
   }, [initialMode, coachOnly, reviewWaiting, replayReady, reviewAt, feedbackPending]);

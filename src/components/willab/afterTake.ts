@@ -6,19 +6,28 @@ import type { OfferType } from "./loungeOffers";
 /*  cannot have two actions at a time, like feedback and record"; backend     */
 /*  services/after_take.py).                                                   */
 /*                                                                            */
-/*  After the Feedback walk the chat shows the Take's card, then at most one   */
-/*  ask, then the message after the Take with "Record Take N". The backend    */
-/*  stores that message held back (metadata.held_for) while the ask is open;  */
-/*  the chat does not draw it, and the backend lets it go under whatever      */
-/*  closed the ask (a tap, a typed turn, the form closing).                   */
+/*  After the Feedback walk the chat shows the Take's card and its summary,   */
+/*  then the asks one at a time, then the closing message with "Record Take  */
+/*  N" (founder 2026-10-20, N89). The backend stores the closing message held */
+/*  back (metadata.next_take, held_for the ask in front of the speaker) while */
+/*  the chain runs; the chat does not draw it, and the backend advances the   */
+/*  chain under whatever closed each ask (a tap, a typed turn, the form       */
+/*  closing). In the chain's first form the summary itself was the held row  */
+/*  (metadata.summary); a row of that form still waiting is read the same.   */
 /* -------------------------------------------------------------------------- */
 
 type Meta = Pick<LoungeMessage, "metadata">;
 
+/** The row that waits behind the Take's asks: the closing message (N89), or
+ *  the summary of the chain's first form. */
+function heldRow(meta: Record<string, unknown>): boolean {
+  return meta.next_take === true || meta.summary === true;
+}
+
 /** The ask a message after a Take waits for, or null when it is drawn. */
 export function heldFor(m: Meta): string | null {
   const meta = m.metadata ?? {};
-  return meta.summary === true && typeof meta.held_for === "string" && meta.held_for ? meta.held_for : null;
+  return heldRow(meta) && typeof meta.held_for === "string" && meta.held_for ? meta.held_for : null;
 }
 
 /** The newest message still held back (messages oldest first), or null. */
@@ -49,7 +58,7 @@ function batchTake(m: Pick<LoungeMessage, "metadata">, takeOfAfter: ReadonlyMap<
   const after = typeof meta.after_take === "string" ? takeOfAfter.get(meta.after_take) : undefined;
   const take = typeof meta.take_session_id === "string" ? meta.take_session_id : after;
   if (typeof take !== "string") return null;
-  return meta.summary === true || typeof meta.offer === "string" ? take : null;
+  return heldRow(meta) || typeof meta.offer === "string" ? take : null;
 }
 
 function isEnd(m: Pick<LoungeMessage, "kind" | "metadata">, take: string): boolean {

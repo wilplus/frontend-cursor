@@ -50,9 +50,7 @@ import ReportCard, {
 } from "./ReportCard";
 import { latestIdealBubbleIds, versionBubblesWithReviewCard } from "./unreadFeedback";
 import IdealTextCard from "./IdealTextCard";
-import CoachUpdateLens from "./walk/CoachUpdateLens";
-import { MediaRefreshProvider } from "@/lib/media/mediaRefresh";
-import { markCoachFeedbackSeen, onTakeWordWatched } from "@/services/api/coachFeedbackSeen";
+import { onTakeWordWatched } from "@/services/api/coachFeedbackSeen";
 import { newCoachFeedbackFor, openedNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
 import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports";
 import { FLOW_COPY } from "./flowCopy";
@@ -388,7 +386,7 @@ export default function Lounge({
   const [seenUpdates, setSeenUpdates] = useState<ReadonlySet<string>>(readSeenUpdates);
   // The coach's word rings while the server says it is new (founder
   // 2026-10-19, N80), and opens alone in its lens.
-  const coachUpdates = useCoachUpdates(messages, thread.reload);
+  const coachUpdates = useCoachUpdates(messages);
   const stepWaits = (m: LoungeMessage) =>
     coachUpdates.waits(m, !seenUpdates.has(m.client_id) && waitingStep === m.client_id);
   // Helper words a later pick replaced: struck in the chat (prototype v31).
@@ -1201,6 +1199,9 @@ export default function Lounge({
   // closes. The backend lets it go itself after a tap on the question or a
   // typed turn; the forms (Save, Not now, See prices...) ask for it here.
   const waiting = useMemo(() => heldMessage(messages), [messages]);
+  // The Takes whose closing message is in the thread (N89): "Record Take N"
+  // is under it, not under the summary.
+  const closingTakes = useMemo(() => closingTakesOf(messages), [messages]);
   const lettingGoRef = useRef(false);
   const letGo = useCallback(async () => {
     if (lettingGoRef.current) return;
@@ -1585,10 +1586,9 @@ export default function Lounge({
               onOpenOlder={setOlderReview}
               onOpened={() => setSeenUpdates(keepSeenUpdate(item.message))}
               onOpenIdealText={openIdealText}
-              onOpenCoachUpdate={coachUpdates.open}
             />
-          ) : item.message.metadata?.summary === true ? (
-            <SummaryBubble key={item.reactKey} message={item.message} record={nextTakeOf(item.message)} />
+          ) : isSummaryLike(item.message.metadata) ? (
+            <SummaryBubble key={item.reactKey} message={item.message} record={recordFor(item.message, closingTakes, nextTakeOf)} />
           ) : (
             <Bubble
               key={item.reactKey}
@@ -1672,7 +1672,6 @@ export default function Lounge({
         newWords={olderNewWords}
         onClose={() => setOlderReview(null)}
       />
-      {coachUpdates.lens}
       {processingResume?.status === "failed" ? (
         <p className="mb-1.5 flex items-center justify-center gap-2 rounded-full bg-destructive/10 px-4 py-1.5 text-center text-[13px] text-destructive">
           {FLOW_COPY.failed}
@@ -2562,24 +2561,6 @@ function isCoachBubble(m: LoungeMessage): boolean {
   return m.kind === "walk_step" && meta.step === "coachnote" && meta.author === "coach";
 }
 
-/** A coach bubble's tap: its own word in the update lens, an older Take's
- *  too (D8). The "Later · from your coach" bubble and the walk's own copy of
- *  the word alike (C1: the coach's bubble is one of the coach's doors):
- *  tapped as a step, the copy of an earlier Take's word opened nothing, or
- *  a read-only review (founder 2026-10-20, "it didn't open really").
- *  Undefined for any other bubble. */
-function coachUpdateTap(message: LoungeMessage, onOpen?: (message: LoungeMessage) => void): (() => void) | undefined {
-  if (!isCoachBubble(message) || !onOpen) return undefined;
-  return () => onOpen(message);
-}
-
-/** The coach's words in their bubble: what follows its "Your coach" line. */
-function coachWordsOf(message: LoungeMessage | null): string | null {
-  const body = message?.body ?? "";
-  const nl = body.indexOf("\n");
-  return (nl >= 0 ? body.slice(nl + 1) : "").trim() || null;
-}
-
 /** The Take a coach bubble's word is of: the walk's copy of an earlier
  *  Take's word names it apart (as the server reads it). */
 function wordTakeOf(m: LoungeMessage): unknown {
@@ -2601,35 +2582,27 @@ function caughtUp(watched: ReadonlySet<string>, messages: readonly LoungeMessage
   return left.length === watched.size ? watched : new Set(left);
 }
 
-/** THE COACH'S WORD IN THE CHAT (founder 2026-10-19, N80; the approved
- *  two-phone prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk).
+/** THE COACH'S WORD IN THE CHAT (founder 2026-10-19, N80; 2026-10-20, N89:
+ *  one mechanism).
  *
- *  - `waits`: a coach bubble rings while the server marks it new
- *    (metadata.unseen), so a word watched in WhatsApp's in-app browser or on
- *    another device is not new here (D4), and a changed word or video is new
- *    again (D7). Watched on this page (the update's Close, or Continue on
- *    Step 0 in the walk) its bubbles stop at once, until a server read says
- *    the Take's word is not new: from then on the server's word rules
- *    again, so a later change rings. The walk's own copy, appended here
- *    without the server's mark, rings while the review waits on it (`other`),
- *    so ✕ on Step 0 keeps it. Any other bubble keeps `other`.
- *  - `open`: a "Later · from your coach" bubble opens its word alone in the
- *    update lens (D8). Close tells the server it was watched, and the
- *    project's "new" is read again; ✕ only closes, and the ring stays.
- *  - `lens`: the lens, mounted once. */
-export function useCoachUpdates(
-  messages: readonly LoungeMessage[],
-  /** Read the chat again: a coach video whose signed link has lapsed is
-   *  played from the fresh one (founder 2026-10-20: a word that "didn't
-   *  open really" may have been a video-only word with a dead link, which
-   *  without a refresher was an empty box and Close). */
-  refresh: () => Promise<unknown> | void = () => undefined,
-): {
+ *  `waits`: a coach bubble rings while the server marks it new
+ *  (metadata.unseen), so a word watched in WhatsApp's in-app browser or on
+ *  another device is not new here (D4), and a changed word or video is new
+ *  again (D7). Watched on this page (Continue on the coach's step in the
+ *  walk) its bubbles stop at once, until a server read says the Take's
+ *  word is not new: from then on the server's word rules again, so a later
+ *  change rings. The walk's own copy, appended here without the server's
+ *  mark, rings while the review waits on it (`other`), so ✕ on Step 0
+ *  keeps it. Any other bubble keeps `other`.
+ *
+ *  The tap is every bubble's (`bubbleTap`): the "Later · from your coach"
+ *  bubble and the walk's own copy open the Take's walk at the coach's place,
+ *  Step 0 for a general word and the moment's step for a word on a moment
+ *  (founder 2026-10-20: "THE SAME MECHANISM"). The word alone in its own
+ *  lens with "Close" (N80, D8) is history. */
+export function useCoachUpdates(messages: readonly LoungeMessage[]): {
   waits: (m: LoungeMessage, other: boolean) => boolean;
-  open: (m: LoungeMessage) => void;
-  lens: ReactNode;
 } {
-  const [update, setUpdate] = useState<LoungeMessage | null>(null);
   const [watched, setWatched] = useState<ReadonlySet<string>>(() => new Set());
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -2647,27 +2620,31 @@ export function useCoachUpdates(
       isCoachBubble(m) ? (m.metadata?.unseen === true || other) && !watched.has(coachBubbleKey(m)) : other,
     [watched],
   );
-  const done = useCallback(() => {
-    // The word's own Take (the walk's copy of an earlier Take's word names
-    // it apart), so Close marks the right one watched.
-    const take = update ? wordTakeOf(update) : null;
-    if (typeof take !== "string" || !take) return;
-    void markCoachFeedbackSeen({ takeSessionId: take });
-    void refreshNewCoachFeedback().catch(() => undefined);
-  }, [update]);
-  const video = update?.metadata?.video;
-  const lens = (
-    <MediaRefreshProvider refresh={refresh} payload={messages}>
-      <CoachUpdateLens
-        open={update !== null}
-        text={coachWordsOf(update)}
-        videoUrl={typeof video === "string" && video ? video : null}
-        onClose={() => setUpdate(null)}
-        onDone={done}
-      />
-    </MediaRefreshProvider>
-  );
-  return { waits, open: setUpdate, lens };
+  return { waits };
+}
+
+/** The Take's summary and, since N89, its closing message ("Look, practice
+ *  makes perfect…"): both drawn as the plain bubble, the record button
+ *  under whichever carries the next step. */
+function isSummaryLike(meta: Record<string, unknown> | null | undefined): boolean {
+  return meta?.summary === true || meta?.next_take === true;
+}
+
+/** The Takes whose closing message is in the thread. */
+function closingTakesOf(messages: readonly LoungeMessage[]): ReadonlySet<unknown> {
+  return new Set(messages.filter((m) => m.metadata?.next_take === true).map((m) => m.metadata?.take_session_id));
+}
+
+/** "Record Take N" under the closing message (N89); under the summary only
+ *  for a Take of the chain's first form, which has no closing message. */
+function recordFor(
+  message: LoungeMessage,
+  closingTakes: ReadonlySet<unknown>,
+  nextTakeOf: (m: LoungeMessage) => SummaryRecord | null,
+): SummaryRecord | null {
+  const meta = message.metadata ?? {};
+  if (meta.summary === true && closingTakes.has(meta.take_session_id)) return null;
+  return nextTakeOf(message);
 }
 
 /** One step of a review, lens off (founder lock 2026-10-12, section 1): the
@@ -2685,7 +2662,6 @@ export function WalkStepBubble({
   onOpenOlder,
   onOpened,
   onOpenIdealText,
-  onOpenCoachUpdate,
 }: {
   message: LoungeMessage;
   /** The review's end: its Ideal Text card's words; null otherwise. */
@@ -2705,8 +2681,6 @@ export function WalkStepBubble({
   onOpenOlder?: (older: { take: number; session: string }) => void;
   onOpened?: () => void;
   onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode, at?: WalkStepTarget | null) => void;
-  /** A "Later · from your coach" bubble tapped: its word alone (N80, D8). */
-  onOpenCoachUpdate?: (message: LoungeMessage) => void;
 }) {
   const meta = message.metadata ?? {};
   const arc = typeof meta.arc_id === "string" ? meta.arc_id : null;
@@ -2721,11 +2695,11 @@ export function WalkStepBubble({
   const clip = walkClipOf(meta.clip);
   if (!message.body.trim() && !clip) return null;
   const mine = message.role === "user";
-  const update = coachUpdateTap(message, onOpenCoachUpdate);
-  const open = update ?? bubbleTap(meta, lockedTake, onOpenIdealText, onOpened, onOpenOlder);
-  // A press starts the Ideal Text's read before the tap lands; the coach's
-  // update opens its own lens, not the Ideal Text.
-  const warm = open && !update ? () => warmIdealTextOpen(arc) : undefined;
+  // One mechanism (N89): a coach bubble opens the walk at the coach's place
+  // like any other bubble opens its step.
+  const open = bubbleTap(meta, lockedTake, onOpenIdealText, onOpened, onOpenOlder);
+  // A press starts the Ideal Text's read before the tap lands.
+  const warm = open ? () => warmIdealTextOpen(arc) : undefined;
   const hint = helpersHint(meta, lockedTake);
   const label = chatLabelOf(meta);
   const ai = clip || mine ? null : aiVoiceOfMeta(meta);

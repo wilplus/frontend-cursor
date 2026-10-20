@@ -442,20 +442,16 @@ button,
    the Lounge (max-w-3xl), with the lens's own sizes. The thread scrolls
    across the whole window, its bubbles in the column, so the wheel works
    beside them too; WalkThread hides its bar. A grey bubble stops at 40rem
-   and the speaker's at 34rem, so a line stays readable at 18.5px. The
-   coach's update lens (CoachUpdateLens, N80) is the same lens. */
-[data-feedback-walk] .walk-ov,
-[data-coach-update-lens] .walk-ov {
+   and the speaker's at 34rem, so a line stays readable at 18.5px. */
+[data-feedback-walk] .walk-ov {
   --walk-column: 48rem;
 }
-[data-feedback-walk] .walk-ov > [data-walk-thread-body],
-[data-coach-update-lens] .walk-ov > [data-walk-thread-body] {
+[data-feedback-walk] .walk-ov > [data-walk-thread-body] {
   margin-inline: 0;
   padding-inline: max(1.25rem, calc((100% - var(--walk-column)) / 2 + 1.25rem));
 }
 @media (min-width: 768px) {
-  [data-feedback-walk] [data-walk-message],
-  [data-coach-update-lens] [data-walk-message] {
+  [data-feedback-walk] [data-walk-message] {
     max-width: 40rem;
   }
   [data-feedback-walk] [data-walk-said] > span {

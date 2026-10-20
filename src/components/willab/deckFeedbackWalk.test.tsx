@@ -8,7 +8,7 @@ OUTCOME
   O1  Review feedback opens the walk on the first praise.
   O2  The arrows move through the walk's chat, step by step, without
       answering anything or closing it.
-  O3  A tap on a paragraph that still waits opens on what it asks (its
+  O3  A tap on a paragraph, with or without its black line, opens the same walk at what it asks (its
       praise just above it in the chat) and, once answered, lands back on
       the Ideal Text. Tapped again with nothing left, the text or its
       orange words, it opens the whole walk to scroll through, at the
@@ -21,9 +21,9 @@ OUTCOME
 PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's sheet"
          O2 -> "‹ › move through the walk's chat, never answering and never
                 closing it (founder 2026-10-20)"
-         O3 -> "a paragraph that waits opens on what it asks and lands on the
-                page; answered, it opens the whole walk with no buttons
-                (founder 2026-10-20)"
+         O3 -> "a paragraph with or without the line opens the same walk at
+                what it asks, its buttons as the step stands (founder
+                2026-10-20, N89)"
          O4 -> "helper words picked in the walk go through the deck's own
                 save: the words and the lock"
          O5 -> "Accept and practise writes through the accept lane and leaves the speaker's words on the page"
@@ -237,37 +237,38 @@ describe("the walk on the deck", () => {
     expect(p.onKeepMine).not.toHaveBeenCalled();
   });
 
-  it("a paragraph that waits opens on what it asks and lands on the page; answered, it opens the whole walk with no buttons (founder 2026-10-20)", async () => {
+  it("a paragraph with or without the line opens the same walk at what it asks, its buttons as the step stands (founder 2026-10-20, N89)", async () => {
     const p = props();
     await render(p);
     await click(paragraph("retention went up"));
-    // The helper words first, the confident moment just above them.
+    // The helper words first, the confident moment just above them, in the
+    // Take's whole walk (one mechanism: the same door as a Lounge bubble).
     expect(screen()).toBe("walk-screen-helpers");
     expect(live()!.querySelector("[data-walk-message]")!.textContent).toContain(COPY.titlePraise);
-    expect(pager()).toBeNull();
     // The confident moment met above them still reaches the coach's queue.
     expect(reportMomentEvent).toHaveBeenCalledWith("snip-1", "opened", ["praise"]);
+    // The step's own buttons: the picker's pill is there.
+    expect(live()!.querySelector("[data-walk-dock]")!.childElementCount).toBeGreaterThan(0);
     const word = [...live()!.querySelectorAll<HTMLButtonElement>("[data-walk-word-picker] button")]
       .find((w) => w.textContent === "retention");
     await click(word);
     await click(live()!.querySelector("[data-testid='walk-forward']"));
     expect(p.onSetRootPhrase).toHaveBeenCalledTimes(1);
-    // Nothing left on the paragraph: back on the Ideal Text.
+    // The one moment answered, the walk runs on to its end, onto the page.
     await act(async () => undefined);
     expect(live()).toBeNull();
-    // Tapped again, the text or its orange words: the whole walk to scroll
-    // through, opened at the helper words it answered, with no buttons.
-    const opensWhole = async (el: Element | null | undefined) => {
+    // Tapped again, the text or its orange words: the same walk at the
+    // helper words it answered, with the step's buttons as it stands.
+    const opensAgain = async (el: Element | null | undefined) => {
       await click(el);
-      const start = live()!.querySelector("[data-walk-start] > *");
-      expect(start?.getAttribute("data-walk-mark")).toBe(`Slide 2 · ${WALK_COPY.navHelperWords}`);
-      expect(live()!.querySelector("[data-walk-dock]")!.childElementCount).toBe(0);
-      expect(screen()).toBeNull();
+      expect(screen()).toBe("walk-screen-helpers");
+      expect(live()!.querySelector("[data-walk-dock]")!.childElementCount).toBeGreaterThan(0);
       await click(live()!.querySelector("button[aria-label='Close']"));
+      await act(async () => undefined);
+      expect(live()).toBeNull();
     };
-    await opensWhole(paragraph("retention went up"));
-    await act(async () => undefined);
-    await opensWhole(paragraph("retention went up")!.querySelector(".walk-helper-word"));
+    await opensAgain(paragraph("retention went up"));
+    await opensAgain(paragraph("retention went up")!.querySelector(".walk-helper-word"));
   });
 
   it("helper words picked in the walk go through the deck's own save: the words and the lock", async () => {

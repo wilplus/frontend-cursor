@@ -388,20 +388,35 @@ export function walkStart(model: FeedbackWalkModel<unknown>): number | null {
   return at >= 0 ? at : null;
 }
 
-/** A step tapped in the Lounge (lock 2026-10-12, section 1): where that
- *  step sits in the walk. `take`: the Take the bubble belongs to; `part`:
- *  its moment's paragraph, which finds the moment once others before it are
- *  answered (a moment's number is its place among the open ones). Null when
- *  this walk has no such step. */
-export type WalkStepTarget = { step: string; moment: number | null; take?: string | null; part?: string | null };
+/** Where a door opens the walk (lock 2026-10-12, section 1; founder
+ *  2026-10-20, N89: one mechanism for every door). A Lounge bubble names
+ *  its step; a paragraph of the Ideal Text names only itself (`part`); the
+ *  chat's own names for a moment's bubbles ("coach-answer", "clip:praise", a
+ *  try's answer) are not steps of the plan. `take`: the Take the bubble
+ *  belongs to; `part`: its moment's paragraph, which finds the moment once
+ *  others before it are answered (a moment's number is its place among the
+ *  open ones). A step the plan has is opened on itself; anything else opens
+ *  on the moment's action step (what it asks or asked, its praise just
+ *  above). Null when this walk has no step for it. */
+export type WalkStepTarget = { step?: string | null; moment?: number | null; take?: string | null; part?: string | null };
 export function walkStepAt(model: FeedbackWalkModel<unknown>, target: WalkStepTarget | null | undefined): number | null {
   if (!target) return null;
-  const at = (same: (s: WalkStep) => boolean) => model.plan.findIndex((s) => s.overlay !== false && s.key === target.step && same(s));
   const byPart = (s: WalkStep) => s.moment != null && model.moments[s.moment]?.partId === target.part;
-  const byMoment = (s: WalkStep) => (s.moment ?? null) === target.moment;
-  const found = target.part
-    ? [at((s) => byPart(s) && byMoment(s)), at(byPart)].find((i) => i >= 0) ?? -1
-    : at(byMoment);
+  const byMoment = (s: WalkStep) => (s.moment ?? null) === (target.moment ?? null);
+  let found = -1;
+  if (target.step) {
+    const step = target.step;
+    const at = (same: (s: WalkStep) => boolean) => model.plan.findIndex((s) => s.overlay !== false && s.key === step && same(s));
+    found = target.part
+      ? [at((s) => byPart(s) && byMoment(s)), at(byPart)].find((i) => i >= 0) ?? -1
+      : at(byMoment);
+  }
+  // No such step in this walk's plan (a paragraph, or a chat-only name): the
+  // moment's action step, by its paragraph or its number.
+  if (found < 0 && (!target.step || !model.plan.some((s) => s.key === target.step))) {
+    if (target.part) found = walkActionForPart(model, target.part) ?? -1;
+    else if (target.moment != null) found = stepForMoment(model.plan, target.moment) ?? -1;
+  }
   return found >= 0 ? replayThreadEnd(model.plan, found) : null;
 }
 
@@ -439,23 +454,6 @@ const onPart = (model: FeedbackWalkModel<unknown>, s: WalkStep, partId: string):
 export function walkActionForPart(model: FeedbackWalkModel<unknown>, partId: string): number | null {
   const ask = model.plan.findIndex((s) => onPart(model, s, partId) && s.key !== "praise");
   return ask >= 0 ? ask : walkStepForPart(model, partId);
-}
-
-/** A paragraph that still waits, walked on its own (founder 2026-10-20):
- *  only its own steps between the page and the end, so once they are
- *  answered the walk lands back on the Ideal Text. `at` is where it opens
- *  (walkActionForPart). Null when no moment of the walk is on it. Pure. */
-export function walkOfPart<R>(
-  model: FeedbackWalkModel<R>,
-  partId: string,
-): { model: FeedbackWalkModel<R>; at: number } | null {
-  const own = model.plan.filter((s) => onPart(model, s, partId));
-  if (own.length === 0) return null;
-  const action = model.plan[walkActionForPart(model, partId) ?? -1];
-  return {
-    model: { ...model, plan: [{ key: "page", overlay: false }, ...own, { key: "end", overlay: false }] },
-    at: 1 + Math.max(own.indexOf(action), 0),
-  };
 }
 
 /** Where a tap on a paragraph's helper words opens the walk (lock

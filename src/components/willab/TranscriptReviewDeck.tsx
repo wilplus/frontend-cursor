@@ -1394,11 +1394,12 @@ export default function TranscriptReviewDeck({
                       {...paragraphTap(
                         opens,
                         () => {
-                          // A moment that waits opens on what it asks; an
-                          // answered one, orange words too, the whole walk
-                          // to scroll, at what was answered there (founder
-                          // 2026-10-20). With no moment, the helper words.
-                          if (moment && (feedbackWalk.tapPart(c.part.id, true) || feedbackWalk.replayPart(c.part.id))) return;
+                          // One mechanism (founder 2026-10-20, N89): with
+                          // or without the black line the paragraph opens
+                          // the Take's walk at what it asks or asked, its
+                          // buttons as the step stands. With no moment, the
+                          // helper words alone.
+                          if (moment && feedbackWalk.openPart(c.part.id)) return;
                           feedbackWalk.openHelpers(c.part.id);
                         },
                       )}

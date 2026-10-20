@@ -100,7 +100,13 @@ step; the loop never waits for a coach.
   step ("✓ …" and Next for an answered one). A step still waiting has an
   orange outline, and "Continue review" shows above the message box until
   every step is answered. Answered steps are read only; an older Take's walk
-  is read only and ends on that Take's Ideal Text.
+  is read only and ends on that Take's Ideal Text. Every door opens the walk
+  the same way (one mechanism, founder 2026-10-20, N89): the whole Take's
+  walk, at the step the door names, live while that step waits (its own
+  buttons) and as given once answered (read only; the helper words still
+  editable on the latest Take, F3). A bubble whose name is not a step of the
+  walk (a coach's word on a moment, a clip, a try's answer) opens on its
+  moment's step.
 - **B11** ✕ turns the lens off and goes back where the step was opened
   from: the chat, or the Ideal Text page for a step opened from a paragraph.
   ✕ keeps a coach word's "new" ring.
@@ -116,7 +122,9 @@ step; the loop never waits for a coach.
   an earlier Take's word served in its place stays in the Lounge as the
   coach's bubble and neither opens Step 0 nor keeps "Continue review" up.
   The coach's own doors (the WhatsApp and email links, the dot card, the
-  bubble) still open it.
+  coach's bubble in the chat) open the walk at the coach's place: Step 0 for
+  a general word, the moment's step for a word on a particular moment (one
+  mechanism, N89, 2026-10-20).
 - **C2 Praise.** The Take's two highest-willfidence moments are shown,
   praise first and then the corrections, each group in slide order, and the
   score decides each: a moment at or above the floor is
@@ -234,16 +242,21 @@ step; the loop never waits for a coach.
   checks the line is there and falls back to the signed journey copy. After
   Take 1 it claims no progress. It asks whether the talk matches its title
   only with curiosity.
-- **D3** It ends on the next step, never with a question (one action at a
-  time, 2026-10-20); the Lounge puts "Record Take N" under it.
+- **D3** It ends on what the Take showed, never with a question and, since
+  N89 (2026-10-20), without the next step and without the record button:
+  the chain (D4) brings them.
 - **D4** In the chat the review ends with the Take's small card (the first
   slide, the project's name, a version tag such as "2.0", the coach's "new"
-  dot on the project's newest card), then at most one ask (E1), then the
-  summary as a plain bubble that cannot be tapped. The message after the
-  Take waits under the ask. The ask and its buttons are adjacent: the
-  card is moved above the Take's whole batch, the admin's asks included
-  (2026-10-20: the card had landed between the data question and its
-  buttons).
+  dot on the project's newest card) and the summary as a plain bubble that
+  cannot be tapped. Then the chain, one action at a time, each after the one
+  before is answered (founder 2026-10-20, N89): every ask that waits (E1),
+  each opened by Will's lead-in line and followed by the ask's buttons; and
+  only then "Look, practice makes perfect. If you're ready, let's go with the
+  next take. 💪" with "Record Take N" under it (backend
+  `services/after_take.py`). The closing message is held back while the
+  chain runs. The ask and its buttons are adjacent: the card is moved above
+  the Take's whole batch, the admin's asks included (2026-10-20: the card had
+  landed between the data question and its buttons).
 - **D5** A coach update arrives later under "Later · from your coach",
   outlined in orange: one bubble per Take word, moved to the bottom with the
   latest words and video, never stacked (N80). It rewrites the summary in
@@ -256,21 +269,32 @@ step; the loop never waits for a coach.
   coach video no longer plays anywhere in the chat (the file stays
   stored). Watching the word anywhere clears its "new" marks, and the walk
   writes the coach's words into the chat only once; only "Continue" on the
-  coach's step or "Close" on the bubble marks it watched. Tapping the bubble
-  opens only the coach's word in the lens, with "Close". During the review a
+  coach's step marks it watched. Tapping the bubble opens the walk at the
+  coach's place (C1; N89, 2026-10-20: the word alone in its own lens with
+  "Close", N80, is history). During the review a
   new or removed video with the same words makes the word new again (C1
   again); a later change updates the bubble in place. A coach update during a
   recording waits in the chat.
 
 ### E · The Take's one ask (backend `services/after_take.py`)
 
-- **E1** After the Take's card comes at most one ask, then the summary.
-  Take 1: "Did this help?" when the Take looks off, otherwise Will asks. From
-  Take 2: the CEO panel's ask, else WhatsApp (at most twice), else the home
-  screen (once), else Will, else "Did this help?". "Yes" brings "We're glad
-  it helped you." before the summary's last line. A typed message passes the
-  ask; "Not now" on the CEO panel's ask brings it back after the next Take
-  (2026-10-20). A distressed answer under "What would help?" gets the chat's
+- **E1** After the summary come the asks that wait, one at a time, in this
+  order (N89, 2026-10-20; until then at most one ask a Take). Take 1: Will's
+  question when he has one, then "Did this help?" when the Take looks off.
+  From Take 2: the CEO panel's ask, WhatsApp (at most twice), the home screen
+  (once), Will's question, "Did this help?" when the Take looks off. Will
+  opens WhatsApp, the home screen and "Did this help?" with a lead-in: one or
+  two sentences tied to this Take (never a grade, never advice; "Well, I can
+  see you're doing pretty good. What about adding the application to the
+  screen within one tap?", "You can add your phone number, to know where,
+  when you get the message." are the founder's examples), then the ask's
+  signed words with a light touch, checked as E2's variation is (no number,
+  the ask still said); Will's own question needs none, and the CEO panel's
+  asks are drawn as written. "Yes" to "Did this help?" brings "We're glad it
+  helped you.", then the next ask. A typed message passes the ask in front;
+  "Not now" on the CEO panel's ask brings it back after the next Take
+  (2026-10-20); an ask that no longer applies when its turn comes is
+  skipped. A distressed answer under "What would help?" gets the chat's
   safety reply (backend #1199).
 - **E2** Will asks only when something is off or missing, once per Take,
   the first that holds (`services/will_question.py`, N82): a breather when
@@ -311,18 +335,20 @@ step; the loop never waits for a coach.
 - **F3** Helper words are orange in the text; no pencil. The black margin
   line means something still waits: only a paragraph with a step still to
   answer wears it, and once answered the line goes (2026-10-20).
-- **F4** A paragraph with the black line opens on what it asks: its helper
-  words with its green moment just above, or the Clearer version or the
-  Exercise when that is what waits. Once that paragraph has nothing left, the
-  walk closes by itself onto the Ideal Text; other paragraphs, other speakers
-  and the summary stay behind "Continue review". The green moment still
-  reaches the chat and the coach's queue.
-- **F5** A paragraph without the line opens the whole finished walk as one
-  chat to scroll, no buttons, only ‹ › and ✕; other speakers and the summary
-  are not in it. It opens scrolled to the step that paragraph answered, its
-  green moment just above. Its orange helper words open the same walk, not
-  the picker; orange words on a paragraph with no moment in this Take still
-  open their helper words. A sentence that opens a step shows a light grey
+- **F4** A paragraph with the black line opens the whole Take's walk at the
+  step it asks (its helper words with its green moment just above, or the
+  Clearer version or the Exercise when that is what waits), exactly as a
+  paragraph without the line does (F5); only the step's buttons differ, its
+  own while it waits and read only once answered (one mechanism, N89,
+  2026-10-20; the paragraph's own narrowed walk that closed onto the Ideal
+  Text, the same morning, is history). ✕ goes back to the page (B11). The
+  green moment still reaches the chat and the coach's queue.
+- **F5** A paragraph without the line opens the same walk at the step that
+  paragraph answered, its green moment just above, read only as the step
+  stands (N89: the finished walk with no buttons, 2026-10-20 morning, is
+  history). Its orange helper words open the same walk, not the picker;
+  orange words on a paragraph with no moment in this Take still open their
+  helper words alone. A sentence that opens a step shows a light grey
   highlight while pressed; other text does nothing.
 - **F6** Buttons: "Record Take N" is the main button; the grey "Close" is the
   one way out, to the chat (no ✕ at the top); history is under ⋯.
@@ -479,8 +505,12 @@ step; the loop never waits for a coach.
   share your next take with others?", "General community", "Only my
   community", "Only me", "+ Add a community with a passcode".
 - **The Ideal Text:** "Record Take N", "Close".
+- **The chain's close:** "Look, practice makes perfect. If you're ready,
+  let's go with the next take." with an encouraging emoji (💪; signed
+  2026-10-20, N89), then "Record Take N".
 - **The one ask:** "Did this help?", "We're glad it helped you.", "What
-  would help?", "Skip"; Will's questions and tap answers as signed in N82
+  would help?", "Skip"; Will's lead-ins (E1) are his own words around the
+  ask's signed text, checked; Will's questions and tap answers as signed in N82
   (backend `services/will_question.py`; the questions may vary lightly from
   2026-10-20, the tap answers never): "Quick one: who's this talk really
   for? 🎯"; "When you finish, what do you want them to do? Or feel? 🤔";
@@ -521,6 +551,8 @@ deletes the line when the work is merged (the change goes to §6).
 
 The four lines above were filled from main's history by the page's keeper on
 2026-10-20; the sessions doing the work overwrite them when they push.
+- **N89 · one mechanism opens the walk** · B10, C1, D5, F4, F5 · founder 2026-10-20 ("the SAME WAY", "THE SAME MECHANISM"). Built: every door (a paragraph with or without the line, a Lounge bubble, the coach's word) opens the whole Take's walk at its step through one path; the narrowed walk, the finished walk with no buttons and the coach's own lens are gone · FE #897 · the founder checks the app. Open: the founder's "edit the helper words" wording for an answered helpers step; today it reads "Use these helper words" and "Keep these"
+- **N89 · the chain after the Take** · D3, D4, E1, K · founder 2026-10-20. Built: the summary without the next step and without the CTA; the closing message held behind the chain, each ask in turn with Will's lead-in, "Did this help?" when the Take looks off, then "Look, practice makes perfect…" with Record Take N (BE); the Lounge reads the closing message as the held row and puts the CTA under it (FE) · BE #1210, FE #897 · the founder checks the app. Choices made: "Did this help?" keeps its "looks off" condition and comes last; Take 1 still skips WhatsApp and the CEO panel's asks; the CEO panel's asks and Will's own question get no lead-in. Say if any is wrong
 - **The rewrite does not appear** · C4, C5 · founder 2026-10-20. Found: the served rewrite row carried no block id, so the walk drew it as a moment of its own and the Clearer version never attached (BE); a corrected moment with neither rewrite nor exercise was dropped instead of said again (FE). Both built · BE #1209, FE #896 · the founder checks the app
 - **The AI voice bubble loads, then disappears** · C6, H2 · founder 2026-10-20. Found: a failed clip cycle is final and its real failure code was lost (a permit refusal stored as its class name). Built: the code is kept and a permit the service could not read is retried once (BE). The cause for the founder's Takes is in Supabase `ai_voice_cycles` (`failure_kind`, `failure_code`): most likely the daily limits (10 clips a speaker, 30 in all; `AI_VOICE_DAILY_CLIPS_PER_SPEAKER`, `AI_VOICE_DAILY_CLIPS_TOTAL` on Railway) or a check the one generation failed (`AI_VOICE_GENERATION_RETRIES` is 0) · BE #1209 · the founder reads the row
 - **The coach's bubble did not open** · C1, D5 · founder 2026-10-20. Found: the walk's own copy of an earlier Take's word was tapped as a step and opened nothing (or a read-only review); the "Later" bubble opens the lens. Built: every coach bubble opens the coach's word in the lens, Close marks that word's Take, and a lapsed video link is refreshed · FE #896 · the founder checks the app
@@ -617,6 +649,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-20 · N89 · one mechanism opens a place in the walk: a paragraph with or without the line, a Lounge bubble and the coach's word all open the whole Take's walk at its step (B10, C1, D5, F4, F5); the chain after the Take: the summary without the next step, Will's lead-in before each ask, "Did this help?" when the Take looks off, then "Look, practice makes perfect…" with Record Take N (D3, D4, E1, K) · FE #897, BE #1210
 - 2026-10-20 · N88 · the walk opens the moment processing ends: the marks are baked in the run right after ready, the processing bubble waits for them, the page asks for late marks to its ceiling and closes its slot when it stops (A1, A2); the Clearer version is served on its moment and a corrected moment with nothing attached is said again (C4); the helpers wait for the marks (C3); every coach bubble opens the coach's word (D5); the ask and its buttons stay together (D4); the speaker-side practice gates read the speaker's page (WIL-90) · BE #1209, FE #896
 - 2026-10-20 · N80 · the speaker's side built: the coach's bubble opens only their word in the lens, with Close and the step's "Your coach" line; watched anywhere clears the ring; the walk writes the word into the chat once per Take (D5) · FE #872
 - 2026-10-20 · N87 · `WalkOverlay`'s subtitle takes several lines, for the coach panel's speaker screen (its page, C3); nothing on the walk's own screens changes · FE #895
