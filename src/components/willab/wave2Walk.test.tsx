@@ -179,11 +179,13 @@ describe("N48.3 Q11 A: the coach's word for the Take on screen", () => {
       // scroll; the text never shown in its place.
       const live = document.querySelector("[data-feedback-walk] .walk-layer:not(.walk-ghost)");
       expect(live).not.toBeNull();
-      // The coach's word above, then the moment: its praise and the helper
-      // words it was answered with, one thread.
+      // The walk stands on the praise, its Next in the dock; the coach's
+      // word above it and the helper words it was answered with below, one
+      // thread to scroll (founder 2026-10-21).
+      expect(live!.querySelector("[data-walk-now] [data-testid='walk-screen-praise']")).not.toBeNull();
       expect(live!.textContent).toContain(word.text);
-      expect(live!.textContent).toContain(COPY.titlePraise);
-      expect(live!.querySelector("[data-testid='walk-screen-helpers']")).not.toBeNull();
+      expect(live!.textContent).toContain(COPY.titleEmphasis);
+      expect(live!.querySelector("[data-walk-dock] [data-testid='walk-forward']")!.textContent).toBe(COPY.pagerNext);
       expect(reveal).not.toHaveBeenCalled();
       await act(async () => root.unmount());
       root = createRoot(container);

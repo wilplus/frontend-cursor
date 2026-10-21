@@ -12,10 +12,10 @@ PROVES   O1 -> opens on the coach's note and plays the same screens answered; he
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { WALK_COPY } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import FeedbackWalk from "./FeedbackWalk";
 import type { WalkJudgementSave } from "./useWalkJudging";
-import { buildFeedbackReplay, walkStart, walkStepAt, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
+import { buildFeedbackReplay, walkLastStep, walkStart, walkStepAt, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 import type { WalkPractiseIO } from "@/services/api/walkPractise";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -86,7 +86,14 @@ const PRACTISE: WalkPractiseIO<string> = {
   },
 } as unknown as WalkPractiseIO<string>;
 
-function draw(opts: { practiceId?: string; at?: (model: ReturnType<typeof buildFeedbackReplay<string>>) => number } = {}) {
+function draw(
+  opts: {
+    practiceId?: string;
+    at?: (model: ReturnType<typeof buildFeedbackReplay<string>>) => number;
+    /** The furthest part drawn: the whole walk, opened on `at` (founder 2026-10-21). */
+    head?: (model: ReturnType<typeof buildFeedbackReplay<string>>) => number;
+  } = {},
+) {
   const model = buildFeedbackReplay<string>({
     items: ITEMS,
     coachNote: true,
@@ -114,7 +121,11 @@ function draw(opts: { practiceId?: string; at?: (model: ReturnType<typeof buildF
     },
   };
   act(() => root.render(<FeedbackWalk {...props} request={null} />));
-  act(() => root.render(<FeedbackWalk {...props} request={{ seq: 1, at: opts.at?.(model) ?? walkStart(model)! }} />));
+  act(() =>
+    root.render(
+      <FeedbackWalk {...props} request={{ seq: 1, at: opts.at?.(model) ?? walkStart(model)!, ...(opts.head ? { head: opts.head(model) } : {}) }} />,
+    ),
+  );
   /** The host opens the walk again while the lens is still open (Next from
    *  a step played again to the step that waits). */
   return (at: (m: typeof model) => number) =>
@@ -171,6 +182,37 @@ describe("the finished walk, played again", () => {
     click(byTestId("walk-forward"));
     expect(["walk-screen-practise", "walk-screen-encourage", "walk-screen-improved"]).not.toContain(screen());
     expect(calls).toEqual(["helpers"]);
+  });
+
+  it("opened on a step already answered, the whole walk is in the thread: that step stands with its own buttons, Next moves on to the next part and nothing leaves (founder 2026-10-21)", () => {
+    draw({ at: (m) => walkStepAt(m, { step: "helpers", part: "p1" })!, head: (m) => walkLastStep(m)! });
+    const parts = () => live()!.querySelectorAll("[data-walk-part]").length;
+    // The helper words stand: their own buttons in the dock, the words as
+    // saved and still editable (F3).
+    expect(screen()).toBe("walk-screen-helpers");
+    expect(live()!.querySelector("[data-walk-now] [data-testid='walk-screen-helpers']")).not.toBeNull();
+    expect(byTestId("walk-forward")!.textContent).toBe(WALK_COPY.editHelperWords);
+    expect(byTestId("walk-skip")!.textContent).toBe(WALK_COPY.keepThese);
+    expect(picked()).toEqual(["growth", "doubled."]);
+    // Every part is there to scroll: the coach's word and the praise above,
+    // the clearer version as given and the exercise with its tries below.
+    const all = parts();
+    expect(all).toBeGreaterThanOrEqual(5);
+    expect(live()!.textContent).toContain("The new words.");
+    expect(live()!.textContent).toContain(WALK_COPY.practiseN(2));
+    expect(calls).toEqual([]);
+    // Keep these: the walk moves on to the next part; nothing leaves the
+    // thread, and the clearer version now has the buttons.
+    click(byTestId("walk-skip"));
+    expect(screen()).toBe("walk-screen-clearer");
+    expect(parts()).toBe(all);
+    expect(byTestId("walk-forward")!.textContent).toBe(COPY.pagerNext);
+    click(byTestId("walk-forward"));
+    // The exercise, one part with every try: it stands on its last answer.
+    expect(screen()).toBe("walk-screen-improved");
+    expect(live()!.querySelector("[data-walk-now]")!.textContent).toContain(WALK_COPY.practiseN(2));
+    expect(parts()).toBe(all);
+    expect(calls).toEqual([]);
   });
 
   it("a new opening while the lens stays open keeps the thread above it: nothing disappears (founder 2026-10-20)", () => {
