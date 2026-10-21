@@ -12,9 +12,21 @@ import LinkedInAuthButton from "@/components/auth/LinkedInAuthButton";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 import { claimOAuthRetry, isStateReplayError } from "@/lib/auth/oauthRetry";
 import { startOAuth } from "@/lib/auth/startOAuth";
+import { sameSitePath } from "@/lib/auth/sameSitePath";
 
 interface LoginFormProps {
   onSuccess?: () => void;
+}
+
+/** One more decode, for links that encoded the target twice; a malformed
+ *  one reads as no target. */
+function decodedOnce(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
 }
 
 export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
@@ -111,9 +123,11 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
         console.error("Error confirming session:", err);
       }
 
-      // Check for redirectTo parameter (from email links or protected routes)
+      // Check for redirectTo parameter (from email links or protected routes).
+      // Only a page on this site, checked AFTER decoding: get() has decoded
+      // once already, so "/%2Fevil.com" would decode to "//evil.com".
       const searchParams = new URLSearchParams(window.location.search);
-      const redirectTo = searchParams.get("redirectTo");
+      const redirectTo = sameSitePath(decodedOnce(searchParams.get("redirectTo")));
 
       // Brief delay so cookies are committed before navigation
       await new Promise((r) => setTimeout(r, 200));
@@ -123,10 +137,11 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
         return;
       }
 
-      // If there's an explicit redirect target, honour it
+      // If there's an explicit redirect target on this site, honour it;
+      // anything else falls through to the smart redirect below.
       if (redirectTo) {
         // replace, not push — so Back from the destination never returns here.
-        setTimeout(() => router.replace(decodeURIComponent(redirectTo)), 100);
+        setTimeout(() => router.replace(redirectTo), 100);
         return;
       }
 

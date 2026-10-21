@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import LinkedInAuthButton from "@/components/auth/LinkedInAuthButton";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 import { claimGuestProjects } from "@/services/api/projects";
+import { sameSitePath } from "@/lib/auth/sameSitePath";
 
 interface SignupFormProps {
   onSuccess?: () => void;
@@ -138,8 +139,8 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
 
       // ── 4. Back to where they came from (e.g. the booking page) ──────
       // Only same-site paths, so a crafted link cannot send them elsewhere.
-      const back = new URLSearchParams(window.location.search).get("redirectTo");
-      if (back && back.startsWith("/") && !back.startsWith("//")) {
+      const back = sameSitePath(new URLSearchParams(window.location.search).get("redirectTo"));
+      if (back) {
         window.location.replace(back);
         return;
       }

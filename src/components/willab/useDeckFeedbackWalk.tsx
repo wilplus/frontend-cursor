@@ -29,6 +29,7 @@ import {
   walkHelpersForPart,
   walkStart,
   walkStepForPart,
+  walkAsItStands,
   walkLastStep,
   walkStepAt,
   type WalkStepTarget,
@@ -208,6 +209,24 @@ const COACH_ANSWER_STEPS: ReadonlySet<string> = new Set(["coach", "praise", "cle
 
 /** The machine's answers on a try, posted as the try is made. */
 const TRY_ANSWER_STEPS: ReadonlySet<string> = new Set(["improved", "encourage", "thanks"]);
+
+/** How far the thread is drawn past `at` in the whole walk as it stands:
+ *  through the answered steps that follow it, up to the next step that
+ *  still waits or the tail. Pure. */
+function answeredRun<R>(
+  whole: FeedbackWalkModel<R>,
+  at: number,
+  waits: (moment: FeedbackWalkMoment<R>) => boolean,
+): number {
+  let head = at;
+  for (let j = at + 1; j < whole.plan.length; j += 1) {
+    const m = whole.plan[j].moment;
+    const moment = m == null ? undefined : whole.moments[m];
+    if (!moment || waits(moment)) break;
+    head = j;
+  }
+  return head;
+}
 
 /** One served item as the walk reads it. Pure. */
 function walkItemOf(
@@ -642,6 +661,8 @@ export function useDeckFeedbackWalk(args: {
   /** Opened from the coach's bubble: only what the coach sent (founder
    *  2026-10-14). */
   coachOnly?: boolean;
+  /** The coach's link names an earlier Take (N77): only its word. */
+  coachWordOnly?: boolean;
   /** The answered items on a paragraph (the replay reads them with the
    *  waiting ones, Q-IT643b A). */
   answeredOf?: (chunk: DeckChunk) => readonly DocumentSuggestion[];
@@ -733,10 +754,11 @@ export function useDeckFeedbackWalk(args: {
         items,
         coachNote: coachMessage !== null,
         coachOnly: args.coachOnly === true,
+        coachWordOnly: args.coachWordOnly === true,
         practiceOn,
         guest: false,
       }),
-    [items, coachMessage, practiceOn, args.coachOnly],
+    [items, coachMessage, practiceOn, args.coachOnly, args.coachWordOnly],
   );
 
   /* THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A): the
@@ -830,6 +852,30 @@ export function useDeckFeedbackWalk(args: {
       }),
     [replayItems, replayReady, coachMessage, practiceOn, helperWordsOf, triedByPart, triedByPractice],
   );
+  /* THE WHOLE TAKE'S WALK AS IT STANDS (founder 2026-10-21, B10: every door
+     opens the whole walk, "live while that step waits"): what is answered as
+     given, each moment that still waits live, all numbered as the Take's
+     walk numbered them. A door on a Take not yet finished opens this, never
+     the live walk alone, which holds only what waits, renumbered: a lone
+     piece, and a step the chat already holds posted again as a new one. */
+  const liveAll = useMemo(
+    () =>
+      replayReady
+        ? buildFeedbackWalk({ items: replayItems, coachNote: coachMessage !== null, coachOnly: args.coachOnly === true, practiceOn, guest: false })
+        : null,
+    [replayReady, replayItems, coachMessage, args.coachOnly, practiceOn],
+  );
+  const waitsOn = useCallback(
+    (moment: FeedbackWalkMoment<DocumentSuggestion>) => walkStepForPart(model, moment.partId) !== null,
+    [model],
+  );
+  const buildWhole = useCallback(
+    (answers: readonly OwnerAnswer[]) => {
+      const done = buildReplay(answers);
+      return liveAll ? walkAsItStands(done, liveAll, waitsOn) : done;
+    },
+    [buildReplay, liveAll, waitsOn],
+  );
   const canReplay = useMemo(
     () => replayable && walkStart(buildReplay(ownAnswers)) !== null,
     [replayable, buildReplay, ownAnswers],
@@ -888,15 +934,16 @@ export function useDeckFeedbackWalk(args: {
     // given: its live model holds only the tail (others, the summary), never
     // the step asked for (founder 2026-10-21).
     const liveAt = finished ? null : walkStepAt(model, target);
-    // An answered step opens as given, read-only (prototype v31).
-    const done = target && liveAt === null && replayReady ? buildReplay(ownAnswers) : null;
+    // The whole Take's walk, standing on the step asked for: as given once
+    // answered (prototype v31), live while it waits, its buttons in the dock
+    // either way, the parts before it there to scroll (founder 2026-10-21).
+    const done = target && replayReady ? (finished ? buildReplay(ownAnswers) : buildWhole(ownAnswers)) : null;
     const doneAt = done ? walkStepAt(done, target) : null;
     if (done && doneAt !== null) {
-      // The walk as given: standing on the step asked for, its buttons in
-      // the dock, every part before and after it there to scroll (founder
-      // 2026-10-21).
       setReplaying(done);
-      return openAt(doneAt, false, lens, undefined, walkLastStep(done));
+      // The parts after it too, as far as the walk was walked: on a finished
+      // Take its last step, else up to the next step that still waits.
+      return openAt(doneAt, false, lens, undefined, finished ? walkLastStep(done) : answeredRun(done, doneAt, waitsOn));
     }
     if (target?.part && liveAt === null) return false;
     // Opening marks nothing: only Continue on the coach's word does (N80).
@@ -907,7 +954,7 @@ export function useDeckFeedbackWalk(args: {
       return openAt(walkStart(done), false, lens, undefined, walkLastStep(done));
     }
     return openAt(liveAt ?? walkStart(model), false, lens);
-  }, [model, finished, openAt, otherTake, replayReady, buildReplay, ownAnswers]);
+  }, [model, finished, openAt, otherTake, replayReady, buildReplay, buildWhole, waitsOn, ownAnswers]);
 
   const openPart = useCallback((partId: string): boolean => review({ part: partId }, "page"), [review]);
 
@@ -1133,7 +1180,8 @@ export function useDeckFeedbackWalk(args: {
   // step played again, while a moment of this Take still waits, Next goes
   // to the live walk's first waiting step; with nothing waiting it plays on.
   const onForward = useCallback((): boolean => {
-    if (!replaying?.replay || items.length === 0) return false;
+    // The whole walk as it stands has what waits in it: Next walks on.
+    if (!replaying?.replay || replaying.asItStands || items.length === 0) return false;
     const at = walkStart(model);
     if (at === null) return false;
     setReplaying(null);

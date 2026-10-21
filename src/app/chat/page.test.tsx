@@ -33,8 +33,8 @@ describe("/chat deep links to the lens", () => {
 
 describe("/chat coach links, signed out", () => {
   it("sends a signed-out speaker to log in and back to the coach's link, never a guest's own project", () => {
-    const whatsapp = "/chat?lens=arc-1";
-    const email = "/chat?idealArc=arc-1&feedback=1";
+    const whatsapp = "/chat?lens=arc-1&take=take-1";
+    const email = "/chat?idealArc=arc-1&feedback=1&take=take-1";
     const link = { arcId: "arc-1", mode: "feedback" as const, signedIn: false, guestArcIds: [], sentBefore: null };
     for (const path of [whatsapp, email]) {
       const href = coachLinkLogin({ ...link, path });

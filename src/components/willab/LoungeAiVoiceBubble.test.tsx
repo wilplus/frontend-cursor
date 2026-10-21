@@ -5,12 +5,14 @@
 /*           feels immediate.                                                 */
 /*  OUTCOME                                                                   */
 /*    O1  When the page already asked for the clip, the bubble's first render */
-/*        has the player on that clip and the "why" line, and no second       */
-/*        request goes out.                                                   */
+/*        has the player on that clip, and no second request goes out. The   */
+/*        bubble is short in the chat: its first line, the voice and the ›    */
+/*        that opens its step; the "why" and the closing line are the walk's  */
+/*        (founder 2026-10-21).                                               */
 /*    O2  A clip still being made comes in when it lands; one that never      */
 /*        comes shows the step's plain words (founder 2026-10-20).            */
-/*  PROVES   O1 -> "draws the player and the why with the bubble when the     */
-/*                  page already asked for the clip"                          */
+/*  PROVES   O1 -> "draws the player with the bubble when the page already    */
+/*                  asked for the clip, short, with its ›"                     */
 /*           O2 -> "a clip still being made comes in when it lands, and one   */
 /*                  that never comes shows the plain words"                   */
 /* -------------------------------------------------------------------------- */
@@ -43,15 +45,27 @@ afterEach(() => {
   host.remove();
 });
 
-it("draws the player and the why with the bubble when the page already asked for the clip", async () => {
+it("draws the player with the bubble when the page already asked for the clip, short, with its ›", async () => {
   // The walk's host asks as its AI bubble is shown.
   await readAiVoiceOnce("pr-1");
   expect(outcomeCall).toHaveBeenCalledTimes(1);
+  const open = vi.fn();
   // A synchronous render: no effect or promise has run yet.
-  act(() => root.render(<LoungeAiVoiceBubble body="A line." practiceId="pr-1" then={null} seed="m1" avatar={null} />));
+  act(() =>
+    root.render(
+      <LoungeAiVoiceBubble body={"A line.\nNow say it."} practiceId="pr-1" then="Now say it." seed="m1" avatar={null} onOpen={open} />,
+    ),
+  );
   expect(host.querySelector(`button[aria-label="Play ${WALK_COPY.aiVoiceLabel}"]`)).not.toBeNull();
   expect(host.querySelector("audio")?.getAttribute("src")).toBe("blob:ai");
-  expect(host.querySelector("[data-lounge-ai-why]")?.textContent).toBe("It slows on March.");
+  // Short in the chat: the first line and the voice; the why and the
+  // closing line stand in the walk, which the › opens.
+  expect(host.textContent).toContain("A line.");
+  expect(host.textContent).not.toContain("It slows on March.");
+  expect(host.textContent).not.toContain("Now say it.");
+  const arrow = [...host.querySelectorAll("button")].find((b) => b.textContent === "›");
+  act(() => arrow!.click());
+  expect(open).toHaveBeenCalledTimes(1);
   await act(async () => {
     await Promise.resolve();
   });

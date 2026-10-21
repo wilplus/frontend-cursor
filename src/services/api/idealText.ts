@@ -2066,7 +2066,11 @@ export async function fetchIdealTextEnrichment(
   arcId: string,
   documentSnapshotId: string,
   sections?: readonly string[],
+  coachTake?: string | null,
 ): Promise<IdealTextEnrichmentResult> {
+  // A coach's link names its Take (backend N77): the primed lanes were
+  // asked without one, so that read goes to the network.
+  if (coachTake) return requestIdealTextEnrichment(arcId, documentSnapshotId, sections, coachTake);
   const primed = await takePrimedIdealTextEnrichment(
     arcId,
     documentSnapshotId,
@@ -2080,6 +2084,7 @@ async function requestIdealTextEnrichment(
   arcId: string,
   documentSnapshotId: string,
   sections?: readonly string[],
+  coachTake?: string | null,
 ): Promise<IdealTextEnrichmentResult> {
   const startedAt = typeof performance === "undefined" ? 0 : performance.now();
   const headers = await ownerReadHeaders();
@@ -2087,6 +2092,8 @@ async function requestIdealTextEnrichment(
     document_snapshot_id: documentSnapshotId,
   });
   if (sections?.length) query.set("sections", sections.join(","));
+  // The journey serves the word of the Take a coach's link names (N77).
+  if (coachTake) query.set("take", coachTake);
   let response: Response;
   try {
     response = await fetch(
@@ -2235,8 +2242,8 @@ export interface CoachMessage {
   videoUrl: string | null;
   takeIndex: number | null;
   publishedAt: string | null;
-  /** The Take the word belongs to (founder 2026-10-05, N48.3 Q11 A): the
-   *  backend serves the word of the Take on screen and names it, so the page
+  /** The Take the word belongs to (backend N77): the backend serves the
+   *  word of the Take on screen only and names it, so the page
    *  can tell an unseen word from one Step 0 already showed. Absent from an
    *  older backend. */
   takeSessionId?: string | null;

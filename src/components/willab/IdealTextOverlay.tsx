@@ -114,6 +114,7 @@ export default function IdealTextOverlay({
   arcId,
   analysisPending = false,
   initialMode = "notebook",
+  coachTake,
   reviewAt = null,
   onClose,
   onReadAloud,
@@ -131,6 +132,10 @@ export default function IdealTextOverlay({
   /** Chat completion actions can open the same document directly in its
    *  read-only delivery or export surface. */
   initialMode?: IdealTextLaunchMode;
+  /** The Take the coach's link names (`/chat?...&take=`; founder
+   *  2026-10-21, backend N77): the journey is read for that Take, and the
+   *  coach-only walk opens on its word. */
+  coachTake?: string | null;
   onClose: () => void;
   /** The host closes this overlay into the record flow for the NEXT official
    *  take of this presentation. Receives the current version as a take-count
@@ -414,6 +419,7 @@ export default function IdealTextOverlay({
           apply: (merged) => applySingle(merged, false),
           setPending,
           refetch: () => setRefetchNonce((value) => value + 1),
+          coachTake,
         });
       } else if (r.kind === "ready") {
         setIdeal(r.ideal);
@@ -432,7 +438,7 @@ export default function IdealTextOverlay({
     return () => {
       active = false;
     };
-  }, [arcId, analysisPending, refetchNonce, mediaNonce, mediaSettled]);
+  }, [arcId, analysisPending, refetchNonce, mediaNonce, mediaSettled, coachTake]);
 
   const displayText = notes ?? ideal?.text ?? "";
   // The page's helper words by part id for Presentation Mode and export,
@@ -973,6 +979,7 @@ export default function IdealTextOverlay({
             onReplayReady={setReplayReady}
             onLensClose={onClose}
             coachOnly={coachOnly}
+            coachTake={coachTake}
             onCoachOnlyEmpty={() => setCoachOnly(false)}
             onLensReveal={lens.reveal}
             onWalkEnd={walkEndFor(coachOnly, onClose, lens)}

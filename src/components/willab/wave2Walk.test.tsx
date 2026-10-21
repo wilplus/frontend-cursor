@@ -8,16 +8,23 @@
  *   O1  Every moment answered and an unseen coach word: Review feedback
  *       stays, opens Step 0 only on its tap, and goes once watched: only
  *       Continue clears it, ✕ keeps it, and a changed word (a new video)
- *       brings it back (N48.3 Q11 A; N80 D4, D7).
+ *       brings it back (N80 D4, D7; backend N77).
  *   O2  After Delete the paragraph rejoins the walk on its earlier answer,
  *       at once, not only when a moment is open on it (N48.2 Q6 A).
  *   O3  Every moment answered: a bubble of the Take tapped in the Lounge
  *       opens the walk as given on that moment, with the parts before and
  *       after it there to scroll, never the Ideal Text in its place
  *       (founder 2026-10-21, N90), the coach's word seen or not.
+ *   O4  One moment answered, one still waiting: the waiting one's bubble
+ *       opens the whole Take's walk, the answered praise above to scroll
+ *       and the Exercise live with its own buttons, under the number the
+ *       Take's walk gave it, so the chat gets no new bubble (founder
+ *       2026-10-21: "doesn't open the walk in a scrollable manner", "appears
+ *       as a last message in the chat").
  * PROVES   O1 -> "every moment answered: Review feedback stays for the unseen word, ..."
  *          O2 -> "a paragraph whose helper words were deleted is back in the walk on its earlier answer"
  *          O3 -> "every moment answered: a bubble tapped in the Lounge opens the walk on its moment, never the text"
+ *          O4 -> "one moment still waiting: its bubble opens the whole walk, the waiting step live, nothing new in the chat"
  * WHY      Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the
  *          deck's own rule (buildBookmarks), not on the rendered deck.
  */
@@ -34,6 +41,14 @@ import {
   type DocumentSuggestion,
 } from "@/services/api/idealText";
 
+/** The Lounge thread; null outside it (O1–O3), a stub for O4. */
+const chat = vi.hoisted(() => ({ thread: null as unknown }));
+vi.mock("./LoungeThreadContext", () => ({ useLoungeThreadMaybe: () => chat.thread }));
+vi.mock("@/services/api/consentChoices", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/api/consentChoices")>()),
+  practiseOfferedNow: () => true,
+  readPractiseOffered: async () => true,
+}));
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }));
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
   useVisibleLearningExposure: () => undefined,
@@ -100,6 +115,7 @@ Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => un
 let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
+  chat.thread = null;
   window.localStorage.clear();
   vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 404 })));
   container = document.createElement("div");
@@ -122,9 +138,9 @@ const pager = () => document.querySelector('[data-testid="feedback-pager"]');
 const walkScreen = () =>
   document.querySelector("[data-feedback-walk] .walk-layer:not(.walk-ghost) [data-testid^='walk-screen-']");
 
-/* --------------------------------------------------------------- Q11 A ---- */
+/* ------------------------------------------------- the Take's coach word ---- */
 
-describe("N48.3 Q11 A: the coach's word for the Take on screen", () => {
+describe("N80: the coach's word for the Take on screen", () => {
 
   it("every moment answered: Review feedback stays for the unseen word, opens Step 0 on its tap only, and goes once watched with Continue", async () => {
     const waiting = vi.fn();
@@ -190,6 +206,46 @@ describe("N48.3 Q11 A: the coach's word for the Take on screen", () => {
       await act(async () => root.unmount());
       root = createRoot(container);
     }
+  });
+});
+
+describe("B10: every door opens the whole Take's walk", () => {
+  it("one moment still waiting: its bubble opens the whole walk, the waiting step live, nothing new in the chat", async () => {
+    const at3 = text.indexOf("one more quarter");
+    // Paragraph 3's corrected moment, still waiting: its Exercise.
+    const waiting = {
+      ...answered, id: "s-cv3", start: at3, end: at3 + "one more quarter".length, quote: "one more quarter",
+      status: null, bookmarkTier: "weak", practicePrompt: true, snippetId: "snip-3", blockId: "block-3",
+      evidence: { kind: "snippet" },
+    } as unknown as DocumentSuggestion;
+    const append = vi.fn(async (draft: unknown) => draft);
+    chat.thread = { messages: [], loading: false, append, reload: vi.fn(async () => undefined) };
+    // The Lounge's Exercise bubble: the Take's walk numbered it 1, after the
+    // praise on paragraph 2.
+    const reviewAt = { step: "exVideo", moment: 1, take: "take-2", part: "p3" };
+    const p = { arcId: "arc-1", coachMessage: null, reviewAt, suggestions: [answered, waiting] };
+    await render({ ...p, reviewRequest: 0 });
+    await render({ ...p, reviewRequest: 1 });
+    for (let i = 0; i < 8; i += 1) {
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+    }
+    const live = document.querySelector("[data-feedback-walk] .walk-layer:not(.walk-ghost)");
+    expect(live).not.toBeNull();
+    // The whole walk: the answered praise on Slide 2 above, to scroll back to.
+    expect(live!.querySelector("[data-walk-mark='Slide 2']")).not.toBeNull();
+    // The Exercise stands live, its Practise in the dock.
+    expect(live!.querySelector("[data-walk-now] [data-testid='walk-screen-exVideo']")).not.toBeNull();
+    expect(live!.querySelector("[data-walk-dock] [data-testid='walk-practise']")).not.toBeNull();
+    // What the chat hears of it keeps the Take's number, so it is the same
+    // message as before, never a new one at the bottom.
+    const moments = append.mock.calls
+      .map(([draft]) => (draft as { metadata: { step: string; moment: number | null } }).metadata)
+      .filter((m) => m.step === "exVideo")
+      .map((m) => m.moment);
+    expect(moments.length).toBeGreaterThan(0);
+    expect(moments).toEqual(moments.map(() => 1));
   });
 });
 

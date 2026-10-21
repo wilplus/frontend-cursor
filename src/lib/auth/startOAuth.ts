@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { isStandalonePwa, markOAuthFromPwa } from "@/lib/pwa";
 import type { OAuthProvider } from "@/lib/auth/oauthRetry";
+import { sameSitePath } from "@/lib/auth/sameSitePath";
 
 export const AFTER_SIGN_IN_KEY = "willab_after_sign_in";
 
@@ -9,7 +10,7 @@ export function takeAfterSignIn(): string | null {
   try {
     const back = window.localStorage.getItem(AFTER_SIGN_IN_KEY);
     window.localStorage.removeItem(AFTER_SIGN_IN_KEY);
-    return back && back.startsWith("/") && !back.startsWith("//") ? back : null;
+    return sameSitePath(back);
   } catch {
     return null;
   }
@@ -40,8 +41,8 @@ export async function startOAuth(
   // The callback URL carries no query string (below), so the page to come
   // back to (e.g. the booking page) waits here for /auth/oauth-complete.
   try {
-    const back = new URLSearchParams(window.location.search).get("redirectTo");
-    if (back && back.startsWith("/") && !back.startsWith("//")) {
+    const back = sameSitePath(new URLSearchParams(window.location.search).get("redirectTo"));
+    if (back) {
       window.localStorage.setItem(AFTER_SIGN_IN_KEY, back);
     } else {
       window.localStorage.removeItem(AFTER_SIGN_IN_KEY);
