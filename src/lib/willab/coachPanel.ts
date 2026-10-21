@@ -110,9 +110,6 @@ export type PanelAction =
   /** A set-up just saved: straight to its judging, as the prototype's
    *  doImport does (history cleared, a soft cross-fade). */
   | { type: "corpusSetUp"; importId: string; topic: string }
-  /** One import judged: the next one's judging in its place, so ‹ still
-   *  goes back to the imports (founder 2026-10-21). */
-  | { type: "corpusNext"; importId: string; topic: string }
   /** Back to the imports after an import or a judged moment set (the
    *  prototype goes "back" there with nothing behind). */
   | { type: "corpusHome" }
@@ -314,8 +311,6 @@ function corpusReducer(state: PanelState, action: CorpusAction): PanelState {
       return push(state, { key: "corpus", importId: action.importId, topic: action.topic });
     case "corpusSetUp":
       return fresh(state, { key: "corpus", importId: action.importId, topic: action.topic }, "fade");
-    case "corpusNext":
-      return { ...state, screen: { key: "corpus", importId: action.importId, topic: action.topic }, dir: "forward" };
     case "corpusHome":
       return fresh(state, { key: "corpushome" }, "back");
   }

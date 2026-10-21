@@ -182,20 +182,24 @@ founder's rows are the founder's alone.
   refusal is waited out, an hourly one stops the batch. What did not import
   is named under the pill with the backend's sentence.
 
-- **H3** Judging goes on from one import to the next (2026-10-21): after an
-  import's last moment the next one in the list with moments waiting opens
-  by itself (an unfinished set-up and a done import are passed over, each
-  import once until the list is opened again), and the list when none is
-  left. In the list the done imports sit at the bottom, each group in the
-  list's own order. An answer moves on at once while its save runs behind
-  it; a refused save brings the coach back to that moment with the
-  backend's sentence, or says it on the panel once the import is left. No
-  new words.
+- **H3** The corpus is judged mixed (2026-10-21, N101; it replaces judging
+  one import after another, N99): opening an import starts rounds of clips
+  across every open import the coach may hear, the first with a clip of the
+  opened one; never one speaker twice in a row while another is left; up to
+  the same number of clips from each band of the machine's read (high,
+  neutral, low), so all three are there. The band decides only which clips
+  come in, never where they stand: the order is a seeded shuffle, nothing on
+  screen hints at the machine's read (BLIND COACH). The judging screen names
+  each clip's recording by its topic. An answer moves on at once while its
+  save runs behind it; a refused save brings the coach back to that clip
+  with the backend's sentence, or says it on the panel once the judging is
+  left. After a round, once its saves are in, the next round; when nothing
+  is left, the list. In the list the done imports sit at the bottom. No new
+  words.
 - **H4** The list comes in steps (2026-10-21, N100): the newest 50 imports
   first; reaching the bottom reads the next 50, the app's one loader showing
-  until they land. Judging one import after another (H3) reads the next step
-  when the ones read hold nothing left to judge. The list is no longer cut
-  at its newest 200. No new words.
+  until they land. The list is no longer cut at its newest 200. No new
+  words.
 
 ### I · Library and speaking errors (the founder's admin)
 
@@ -342,6 +346,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · N101 · the corpus is judged mixed: rounds across imports, never one speaker twice in a row, the machine's reads in equal measure, a blind order (H3) · BE #1232
 - 2026-10-21 · N100 · the training corpus list comes in steps as the coach scrolls (H4) · BE #1229
 - 2026-10-21 · N99 · judging goes on from one import to the next, done imports at the bottom, an answer moves on while it saves (H3)
 - 2026-10-21 · N96 · Import audio takes several files, one import each, inside the backend's upload limit (H2) · FE #913, BE #1218

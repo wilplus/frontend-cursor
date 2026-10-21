@@ -77,18 +77,6 @@ export function importOrder(imports: readonly TrainingImport[]): TrainingImport[
   return [...imports.filter((im) => !importDone(im)), ...imports.filter(importDone)];
 }
 
-/** The import judged after `afterId`, in the list's order and round from the
- *  top: the next whose moments can be judged and wait (or whose count the
- *  list does not say), never one in `skip`. Null when none is left. Pure. */
-export function nextToJudge(imports: readonly TrainingImport[], afterId: string,
-  skip: ReadonlySet<string>): TrainingImport | null {
-  const order = importOrder(imports);
-  const from = order.findIndex((im) => im.sessionId === afterId) + 1;
-  const ring = [...order.slice(from), ...order.slice(0, from)];
-  return ring.find((im) => im.sessionId !== afterId && !skip.has(im.sessionId)
-    && im.setupComplete && im.state === "done" && !importDone(im)) ?? null;
-}
-
 /** A finished import's ⋯ edits its set-up; an unfinished one opens its set-up
  *  on a tap already, and a running one is still being written. Pure. */
 export function importEditable(im: Pick<TrainingImport, "setupComplete" | "state">): boolean {
