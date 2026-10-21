@@ -161,6 +161,10 @@ founder's rows are the founder's alone.
 
 ### H · The training corpus
 
+How a coach's blind answer counts, on a speaker's Take (D) or an import
+(H), and every other source the app learns from, is one backend page:
+`docs/LEARNING-AND-QUORUM.md` (N102).
+
 - **H1** From its pinned button: the list of imports ("{n} imports", "{n}
   moments to judge"); **Import audio** ("Choose a file", "Audio or video, up
   to 30 minutes", "One recording · it is cut into moments you judge blind");
@@ -346,6 +350,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · N102 · H points to the one page for learning and the label quorum (backend `docs/LEARNING-AND-QUORUM.md`); no rule changes · FE #922, BE #1234
 - 2026-10-21 · N101 · the corpus is judged mixed: rounds across imports, never one speaker twice in a row, the machine's reads in equal measure, a blind order (H3) · BE #1232
 - 2026-10-21 · N100 · the training corpus list comes in steps as the coach scrolls (H4) · BE #1229
 - 2026-10-21 · N99 · judging goes on from one import to the next, done imports at the bottom, an answer moves on while it saves (H3)
