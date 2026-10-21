@@ -131,10 +131,10 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
     const again = shownStep({ key: "exVideo", moment: 0 }, top, null)?.body ?? "";
     expect(TOP_MOMENT_LINES.again).toContain(again);
     expect(again).not.toContain(WALK_COPY.lineA);
-    const video = { ...top, exercise: { video: "https://v", instruction: "Pause before the key words." } } as typeof top;
+    const video = { ...top, exercise: { video: "https://v", instruction: "Pause before the key words." } } as unknown as typeof top;
     const shown = shownStep({ key: "exVideo", moment: 0 }, video, null)?.body.split("\n") ?? [];
     expect(TOP_MOMENT_LINES.example).toContain(shown[0]);
-    const clearer = { ...top, clearer: { say: "I saw the movie.", before: [], after: [], reason: null } } as typeof top;
+    const clearer = { ...top, clearer: { say: "I saw the movie.", before: [], after: [], reason: null } } as unknown as typeof top;
     const said = shownStep({ key: "clearer", moment: 0 }, clearer, null, () => "Try it this way:")?.body.split("\n") ?? [];
     expect(TOP_MOMENT_LINES.clearer).toContain(said[0]);
     expect(said[1]).toBe("Try it this way:");
