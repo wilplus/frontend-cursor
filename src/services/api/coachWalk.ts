@@ -57,7 +57,7 @@ export interface MomentRead {
   /** null when the backend does not carry it (older deploy). */
   heard: HeardEntry[] | null;
   /** The moment's willfidence in whole percent, for the coach only (founder
-   *  2026-10-21, backend N102); null when the clip has no sound read. */
+   *  2026-10-21, backend N104); null when the clip has no sound read. */
   willfidence: number | null;
   /** null when nothing reached the coach from this moment. */
   request: CoachExerciseRequest | null;

@@ -498,7 +498,7 @@ export function revealLines(
     if (heard) lines.push({ label: COPY.machineHeard, value: heard });
   }
   // Last, for every kind: the machine's willfidence read, in whole percent
-  // (founder 2026-10-21, backend N102). None when the clip has no sound read.
+  // (founder 2026-10-21, backend N104). None when the clip has no sound read.
   if (read.willfidence !== null) lines.push({ label: COPY.willfidence, value: `${read.willfidence}%` });
   return lines;
 }
