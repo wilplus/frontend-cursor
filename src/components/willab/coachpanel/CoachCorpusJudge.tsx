@@ -12,8 +12,9 @@
 /*  read drops even the words field, fetchBlindConfidenceQueue); the clip is */
 /*  asked for by snippet through the coach-only playback route. The words of  */
 /*  a piece are NEVER drawn here, before or after the label. An answer moves  */
-/*  on to the next unlabelled piece by itself; after the last one, back to    */
-/*  the imports.                                                              */
+/*  on to the next unlabelled piece by itself, its save running behind it (a  */
+/*  refused save brings the coach back to that moment); after the last one,   */
+/*  on to the next import (founder 2026-10-21).                               */
 /* -------------------------------------------------------------------------- */
 
 import { useEffect, useRef, useState } from "react";
@@ -32,12 +33,14 @@ import {
   acknowledgeConfidenceChainRender, buildRatingBody, saveStateRating, type ConfidenceChainBlindHandle,
 } from "@/services/api/stateRatings";
 
-export default function CoachCorpusJudge({ importId, topic, onSaved, onDone, onBack, onClose }: {
+export default function CoachCorpusJudge({ importId, topic, onSaved, onSaveFail, onDone, onBack, onClose }: {
   importId: string;
   topic: string;
   /** An answer is saved: "Answer saved", as on a speaker's moment. */
   onSaved: () => void;
-  /** Every moment judged (or the last one passed): back to the imports. */
+  /** A save refused after this import was left: the backend's sentence. */
+  onSaveFail: (error: string) => void;
+  /** Every moment judged (or the last one passed): on to the next import. */
   onDone: () => void;
   onBack: () => void;
   onClose: () => void;
@@ -46,7 +49,8 @@ export default function CoachCorpusJudge({ importId, topic, onSaved, onDone, onB
   const [at, setAt] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
-  const saving = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const onDoneRef = useRef(onDone);
   useEffect(() => { onDoneRef.current = onDone; });
 
@@ -74,27 +78,33 @@ export default function CoachCorpusJudge({ importId, topic, onSaved, onDone, onB
     actorRole: "coach",
   });
 
-  async function answer(value: AnswerValue, exposureId: string | null): Promise<void> {
-    if (!piece || saving.current) return;
+  /** The label drawn on piece `index`, or taken off it again. */
+  const labelAt = (index: number, value: AnswerValue | null) => setQueue((q) => q ? { ...q, queue: q.queue.map((p, i) => (i !== index ? p
+    : { ...p, label: value === null ? null
+      : { value, unrateable: false, confident: value === "yes" ? true : value === "no" ? false : null, intensity: null, note: null } })) } : q);
+
+  /** The answer moves on at once; the save (seconds, on a busy backend)
+   *  runs behind it. A refusal takes the label off and brings the coach back
+   *  to that moment, or, once this import is left, says so on the panel. */
+  function answer(value: AnswerValue, exposureId: string | null): void {
+    if (!piece) return;
     const body = buildRatingBody(value);
     if (!body) return;
     if (piece.reReview) body.re_review = true;
-    saving.current = true;
     setError(null);
+    const index = at;
     const chain = piece.mlc2BlindReview && exposureId ? { handle: piece.mlc2BlindReview, exposureId } : null;
-    const result = await saveStateRating(piece.snippetId, body, chain);
-    saving.current = false;
-    if (!result.ok) {
-      setError(result.error ?? COPY.judgeFail);
+    void saveStateRating(piece.snippetId, body, chain).then((result) => {
+      if (result.ok) { onSaved(); return; }
+      const sentence = result.error ?? COPY.judgeFail;
+      if (!mounted.current) { onSaveFail(sentence); return; }
+      labelAt(index, null);
+      setAt(index);
+      setError(sentence);
       setAttempt((n) => n + 1);
-      return;
-    }
-    const labelled = pieces.map((p, i) => i === at || p.label !== null);
-    setQueue((q) => q ? { ...q, queue: q.queue.map((p, i) => (i === at
-      ? { ...p, label: { value, unrateable: false, confident: value === "yes" ? true : value === "no" ? false : null, intensity: null, note: null } }
-      : p)) } : q);
-    onSaved();
-    const next = nextUnlabelledIndex(labelled, at);
+    });
+    labelAt(index, value);
+    const next = nextUnlabelledIndex(pieces.map((p, i) => i === index || p.label !== null), index);
     if (next >= 0) setAt(next);
     else onDone();
   }
@@ -128,7 +138,7 @@ export default function CoachCorpusJudge({ importId, topic, onSaved, onDone, onB
           error={error ?? renderError ?? playback.error}
           attempt={attempt}
           // The chain's receipt never blocks the coach's own label (Q2).
-          onAnswer={(value) => void answer(value, exposureId)}
+          onAnswer={(value) => answer(value, exposureId)}
           onSkip={nav.onNext}
           onClose={onClose}
         />

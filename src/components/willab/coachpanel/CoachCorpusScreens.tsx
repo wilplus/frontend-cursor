@@ -6,7 +6,8 @@
 /*                                                                            */
 /*    CorpusHomeScreen     Training corpus: the imports, each with whose      */
 /*                         voice it is and how many moments wait, or its      */
-/*                         set-up not finished; the pill "Import audio"; a    */
+/*                         set-up not finished, the done ones at the bottom   */
+/*                         (founder 2026-10-21); the pill "Import audio"; a   */
 /*                         finished one's ⋯ → Edit (founder 2026-10-18), and  */
 /*                         for the founder ⋯ → Delete (founder 2026-10-19)    */
 /*    CorpusImportScreen   Import audio (or Finish the set-up, or Edit): the  */
@@ -62,6 +63,31 @@ export function importChoice(im: TrainingImport): WalkChoice {
   return { value, label: im.topic, subtitle: `${who} · ${COPY.momentsToJudgeOf(counts.left, counts.total)}`, dot: true };
 }
 
+/** Nothing left to judge: every moment labelled, or none to label. Pure. */
+export function importDone(im: TrainingImport): boolean {
+  if (!im.setupComplete || im.state === "running") return false;
+  const counts = momentsLeft(im);
+  return counts !== null && counts.left === 0;
+}
+
+/** The imports as the list draws them: the done ones at the bottom, each
+ *  group in the list's own order (founder 2026-10-21). Pure. */
+export function importOrder(imports: readonly TrainingImport[]): TrainingImport[] {
+  return [...imports.filter((im) => !importDone(im)), ...imports.filter(importDone)];
+}
+
+/** The import judged after `afterId`, in the list's order and round from the
+ *  top: the next whose moments can be judged and wait (or whose count the
+ *  list does not say), never one in `skip`. Null when none is left. Pure. */
+export function nextToJudge(imports: readonly TrainingImport[], afterId: string,
+  skip: ReadonlySet<string>): TrainingImport | null {
+  const order = importOrder(imports);
+  const from = order.findIndex((im) => im.sessionId === afterId) + 1;
+  const ring = [...order.slice(from), ...order.slice(0, from)];
+  return ring.find((im) => im.sessionId !== afterId && !skip.has(im.sessionId)
+    && im.setupComplete && im.state === "done" && !importDone(im)) ?? null;
+}
+
 /** A finished import's ⋯ edits its set-up; an unfinished one opens its set-up
  *  on a tap already, and a running one is still being written. Pure. */
 export function importEditable(im: Pick<TrainingImport, "setupComplete" | "state">): boolean {
@@ -108,7 +134,7 @@ export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onE
       {imports && imports.length > 0 ? (
         <WalkChoices
           label={COPY.trainingCorpus}
-          choices={imports.map((im) => ({
+          choices={importOrder(imports).map((im) => ({
             ...importChoice(im),
             menu: importMenu(im, onEdit, onDelete),
           }))}
