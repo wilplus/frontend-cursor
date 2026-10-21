@@ -726,9 +726,16 @@ at once, not only when a moment is open on it (N48.2 Q6 A).
 O3  Every moment answered: a bubble of the Take tapped in the Lounge
 opens the walk as given on that moment, with the parts before and
 after it there to scroll, never the Ideal Text in its place
-(founder 2026-10-21, N90), the coach's word seen or not.","O1 -> ""every moment answered: Review feedback stays for the unseen word, ...""
+(founder 2026-10-21, N90), the coach's word seen or not.
+O4  One moment answered, one still waiting: the waiting one's bubble
+opens the whole Take's walk, the answered praise above to scroll
+and the Exercise live with its own buttons, under the number the
+Take's walk gave it, so the chat gets no new bubble (founder
+2026-10-21: ""doesn't open the walk in a scrollable manner"", ""appears
+as a last message in the chat"").","O1 -> ""every moment answered: Review feedback stays for the unseen word, ...""
 O2 -> ""a paragraph whose helper words were deleted is back in the walk on its earlier answer""
-O3 -> ""every moment answered: a bubble tapped in the Lounge opens the walk on its moment, never the text""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
+O3 -> ""every moment answered: a bubble tapped in the Lounge opens the walk on its moment, never the text""
+O4 -> ""one moment still waiting: its bubble opens the whole walk, the waiting step live, nothing new in the chat""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
 src/components/willab/whatsappOffer.test.tsx,Story,"As a speaker, I want to leave my WhatsApp number to hear when my coach's feedback is in, with wrong numbers refused, so that the message reaches me.","O1  A number without its country code is refused on screen and nothing is sent.
 O2  A valid number is saved in full international form and the offer closes.
 O3  Not now sends nothing and closes.

@@ -124,7 +124,14 @@ step; the loop never waits for a coach.
   walk and not go to the next element of it"; the prototype's "this step
   is brought to the top", N91). "Review feedback" on a finished Take opens
   the whole walk standing on its newest step, the rest above to scroll
-  back to.
+  back to. On a Take not yet finished a door opens the same whole walk as
+  it stands: what is answered as given, what still waits live, each moment
+  under the number the Take's walk gave it, so a step the chat already
+  holds is never posted again as a new bubble (founder 2026-10-21: "the
+  opening of the bubbles doesn't open the walk in a scrollable manner";
+  the AI clip's bubble had opened a lone Exercise and landed again at the
+  bottom of the chat). "Continue review" still opens the live walk on what
+  waits.
 - **B11** ✕ turns the lens off and goes back where the step was opened
   from: the chat, or the Ideal Text page for a step opened from a paragraph.
   ✕ keeps a coach word's "new" ring.
@@ -728,6 +735,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · a door on a Take not yet finished opens the whole walk as it stands, the waiting step live and the answered parts to scroll, every moment under its Take's number: no lone piece, no step posted again at the bottom of the chat (B10) · FE #910
 - 2026-10-21 · "Good job" only when no level line is sent (C2, the docs to the app); the sharing question's three lines as the app says them (G1, K); "✓ Practised" the one ✓ line, over Next on a practised step, every other answered step Next alone (B10, K) · FE #907
 - 2026-10-21 · the lens against its page, the founder's eight answers: "N of 8 words" in place of "Tap the words" (C3; was "N of 6 words"); helper words without end punctuation in the speaker's bubble (B7); the Clearer version's new words no longer bold (B4); no "Clearer version" title (C5, K) and no "Exercise" title on the video path (C6, K); every try keeps its number and voice, a try the server did not keep included (C7; until then a late or unheard try was followed by another "Practise 1"); the ✕ beside ⋯ on the Ideal Text stays (F6; was "Close the one way out"); the harness's sample marks its highest moment and levels · FE #906
 
