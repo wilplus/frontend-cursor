@@ -65,7 +65,7 @@ vi.mock("./CoachCorpusJudge", () => ({
     <div data-testid="stub-corpus-judge">{importId}<button type="button" data-testid="stub-judged" onClick={onDone} /></div>
   ),
 }));
-import { blindPiece, type QueuePiece } from "@/services/api/trainingCorpus";
+import { blindPiece, type QueuePiece, type TrainingImport } from "@/services/api/trainingCorpus";
 import CoachPanel from "./CoachPanel";
 import { PANEL_START, panelReducer, type PanelAction, type PanelState } from "@/lib/willab/coachPanel";
 
@@ -187,7 +187,8 @@ describe("the training corpus in the panel", () => {
   });
 
   it("the done imports sit at the bottom, and judging goes on from one import to the next", async () => {
-    const at = (sessionId: string, more: Partial<typeof IMPORT>) => ({ ...IMPORT, sessionId, topic: sessionId, setupComplete: true, ...more });
+    const at = (sessionId: string, more: Partial<TrainingImport>): TrainingImport =>
+      ({ ...IMPORT, sessionId, topic: sessionId, setupComplete: true, ...more });
     fetchTrainingImports.mockResolvedValue([
       at("done", { queueCount: 2, labelledCount: 2 }),
       at("first", { queueCount: 3, labelledCount: 0 }),

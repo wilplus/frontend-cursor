@@ -295,12 +295,15 @@ function fresh(state: PanelState, screen: PanelScreen, dir?: WalkDir): PanelStat
   return { ...state, screen, history: [], dir };
 }
 
-export function panelReducer(state: PanelState, action: PanelAction): PanelState {
+type CorpusAction = Extract<PanelAction, { type: `corpus${string}` }>;
+
+function isCorpusAction(action: PanelAction): action is CorpusAction {
+  return action.type.startsWith("corpus");
+}
+
+/** The training corpus's steps (CO1 A). */
+function corpusReducer(state: PanelState, action: CorpusAction): PanelState {
   switch (action.type) {
-    case "open":
-      return fresh(state, { key: "queue" });
-    case "speakers":
-      return fresh(state, { key: "speakers" });
     case "corpus":
       return fresh(state, { key: "corpushome" });
     case "corpusImport":
@@ -315,6 +318,16 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
       return { ...state, screen: { key: "corpus", importId: action.importId, topic: action.topic }, dir: "forward" };
     case "corpusHome":
       return fresh(state, { key: "corpushome" }, "back");
+  }
+}
+
+export function panelReducer(state: PanelState, action: PanelAction): PanelState {
+  if (isCorpusAction(action)) return corpusReducer(state, action);
+  switch (action.type) {
+    case "open":
+      return fresh(state, { key: "queue" });
+    case "speakers":
+      return fresh(state, { key: "speakers" });
     case "willBank":
       return push(state, { key: "willbank" });
     case "close":
