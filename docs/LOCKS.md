@@ -1,5 +1,7 @@
 # Locked screens
 
+> A mirror of the backend repo's `main` (`docs/LOCKS.md` and the `FOUNDER-LOCK-*.md` files); where this page and the backend disagree, the backend wins (founder, 2026-10-21, backend N92).
+
 These screens are finished designs. Build them exactly as the prototype
 shows: same layout, flow, motion and wording, nothing added. To change one,
 ask the founder first, with a clickable prototype of the change. The written

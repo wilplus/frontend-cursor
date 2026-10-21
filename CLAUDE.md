@@ -40,6 +40,21 @@ line on that page, never a new file; a commit that changes one of its files
 check enforces that as well. The other locked screens get a page of the
 same shape the next time one of them is changed, in that change's PR.
 
+## One source of truth
+
+The single source of truth is the BACKEND repo's `main`
+(`wilplus/backend-cursor`), read in this order: `docs/SPEC-DECISIONS-LOG.md`
+(the founder's dated decisions), then `docs/CANONICAL_PRODUCT_CONTRACT.md`
+(the numbered clauses), then `docs/LOCKS.md` and the `FOUNDER-LOCK-*.md`
+files with their prototypes. Nothing is in force until it is written there
+and merged: not a decision said only in chat, a PR description, an open
+branch, or this repo's own docs. This repo's `docs/LOCKS.md` is a mirror;
+where it and the backend disagree, the backend wins. Write every founder
+decision made in chat into the backend decisions log right away, in its own
+small docs PR, never bundled with code that waits for review. Where code on
+main disagrees with those docs, the docs win and the code is a bug to fix
+(founder, 2026-10-21, backend N92).
+
 ## How to ship
 
 - Branch from `main` → PR → checks green → squash-merge. "Merge when green" is standing permission.
