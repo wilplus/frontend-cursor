@@ -321,7 +321,10 @@ O2 -> ""the same answer sends nothing""
 O3 -> ""a rewrite never reopens""
 O4 -> ""a failed save hands the deck the signed notice""","Founder QA1 A, decisions log N51.5; build plan D-FW-9."
 src/components/willab/coachMessageStep.test.tsx,Story,"As a speaker, I want my coach's message to open only when I ask for it, with the words, the Take and the video, so that it never interrupts me.","O1  The message never opens by itself; Review feedback opens it with the
-coach's words, the Take number and the video.","O1 -> ""never opens by itself (Q1); Review feedback shows the words, the Take and the video""","Founder 2026-09-29, Q1 (Final Screens L8)."
+coach's words, the Take number and the video.
+O2  The walk shows only the word of the Take on screen, never another
+Take's.","O1 -> ""never opens by itself (Q1); Review feedback shows the words, the Take and the video""
+O2 -> ""is the Take's own word, never an earlier Take's""","Founder 2026-09-29, Q1 (Final Screens L8); founder 2026-10-20 and backend N77 (the word shows on its own Take only)."
 src/components/willab/coachpanel/coachPanel.test.tsx,Story,"As a coach, I want to judge a moment before I see any words or the machine's read, with my queue in the order speakers sent, so that my judgement stays blind and I answer the right speaker first.","O1  Judge shows only the player, the question and the four answers.
 O2  The machine's read of a moment is fetched only after my rating is
 saved; a failed save stays on Judge, says so, and reads nothing.
@@ -703,7 +706,7 @@ O2 -> ""draws the frame with the helper words, and never the paragraph text (D6)
 src/components/willab/wave2Walk.test.tsx,Story,"As a speaker, I want my coach's unseen word reachable through ""Review feedback"" even when every moment is answered, and a paragraph whose helper words I deleted to rejoin the walk, so that I never miss my coach or a paragraph.","O1  Every moment answered and an unseen coach word: Review feedback
 stays, opens Step 0 only on its tap, and goes once watched: only
 Continue clears it, ✕ keeps it, and a changed word (a new video)
-brings it back (N48.3 Q11 A; N80 D4, D7).
+brings it back (N80 D4, D7; backend N77).
 O2  After Delete the paragraph rejoins the walk on its earlier answer,
 at once, not only when a moment is open on it (N48.2 Q6 A).
 O3  Every moment answered: a bubble of the Take tapped in the Lounge
