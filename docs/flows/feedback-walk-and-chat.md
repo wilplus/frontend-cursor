@@ -41,21 +41,30 @@ step; the loop never waits for a coach.
 
 ### A · After a Take
 
-- **A1** While the Take processes, the chat shows "Processing your
-  recording" with the typing dots (dots in place of the breathing mark,
-  2026-10-20). The bubble stays until the Take's text and its marks are
-  stored: the marks are baked in the processing run right after the Take
-  is ready, and the page asks for them until they are in (or for ninety
-  seconds), so the walk opens the moment the bubble ends (2026-10-20,
-  WIL-76).
-- **A2** The moment processing finishes, the walk opens, right away, with
-  nothing in between; the waiting screen before it stays as it is (founder,
-  2026-10-20, first review of this page). The Ideal Text shows only once the
-  page knows there is nothing to walk. The eight-second last resort counts
-  only once the page has loaded, its marks are in and its deck is up. The
-  page asks for late marks until its ninety seconds are up and then says
-  so; it never holds its slot open without asking (2026-10-20, WIL-76: the
-  typing dots that never ended).
+- **A1** While the Take processes, the waiting screen stays on screen. Once
+  the server holds the Take, the Lounge takes the wait over and shows the
+  same screen at once, full screen, never the chat in between (founder
+  2026-10-21, N109: "it is abrupt make it stay"). The bar shows 1% from the
+  first second (N109). Its ✕ shows the chat, where "Processing your
+  recording" waits with the typing dots (dots in place of the breathing
+  mark, 2026-10-20) and a tap opens the wait again. The wait stays until
+  the Take's text and its marks are stored: the marks are baked in the
+  processing run right after the Take is ready, and the page asks for them
+  until they are in (or for ninety seconds) (2026-10-20, WIL-76).
+- **A2** The moment processing finishes, the walk opens by itself, with
+  nothing in between: the waiting screen stays over it until the walk's
+  first step is on screen and lifts then, so "done" never opens onto the
+  walk still loading, also when the speaker had gone to the chat (founder
+  2026-10-21, N109: "it still loads the walk - so it is not done!"). The
+  waiting screen itself stays as it is (founder, 2026-10-20, first review of
+  this page). The Ideal Text shows only once the page knows there is nothing
+  to walk; the wait lifts onto it. The eight-second last resort counts only
+  once the page has loaded, its marks are in and its deck is up. The page
+  asks for late marks until its ninety seconds are up and then says so; it
+  never holds its slot open without asking (2026-10-20, WIL-76: the typing
+  dots that never ended). The wait lifts at the latest when those ninety
+  seconds and the last resort are spent, or when no lens has come after
+  five seconds (N109).
 - **A3** The loop never waits for a coach (2026-09-16, 2026-09-26). The
   coach's word opens the walk only when it is there.
 
@@ -707,6 +716,9 @@ page):
 - `src/lib/willab/feedbackWalkModel.ts` — the walk as mounted on the page.
 - `src/lib/willab/walkThread.ts` — the steps as Lounge messages, stored once.
 - `src/lib/willab/lensScreen.ts` — the lens's wait before the walk (A2).
+- `src/components/willab/useWaitScreen.ts`, `src/lib/willab/waitHandover.ts`
+  — the waiting screen from the Lab's hand-off to the walk's first step
+  (A1, A2).
 - `src/lib/willab/walkMotion.ts`, `src/lib/willab/walkLines.ts`,
   `src/lib/willab/praiseLevels.ts`, `src/lib/willab/walkPractise.ts`,
   `src/lib/willab/walkTries.ts` — motion, the line rotation, the opening
@@ -736,7 +748,8 @@ Tests that hold the promises: `src/components/willab/walk/feedbackWalk.test.tsx`
 `src/components/willab/deckFeedbackWalk.test.tsx`,
 `src/components/willab/walkReachesCoach.test.ts`,
 `src/components/willab/loungeNewCoachFeedback.test.tsx`,
-`src/lib/willab/walkPlan.test.ts`, `walkThread.test.ts`, `lensScreen.test.ts`;
+`src/lib/willab/walkPlan.test.ts`, `walkThread.test.ts`, `lensScreen.test.ts`,
+`waitHandover.test.ts`, `waitProgress.test.ts`;
 backend `tests/test_speaker_memory.py`. Every test's story: `docs/TEST-STORIES.csv`.
 
 ## 5. Prototypes
@@ -768,6 +781,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · N109 · the waiting screen stays: the Lounge shows the same screen the moment the Lab hands the Take over, in place of the chat (A1); it stays over the lens until the walk's first step is on screen, in place of closing when the text is stored and the lens opening on its typing dots (A2); the bar shows 1% from the first second, in place of "…" before the first report (A1) · FE #PR_FE, BE #1245
 - 2026-10-21 · N106 · the page's label line under its title, and the docs it names as clickable links; no rule changes · BE #1239, FE #926
 - 2026-10-21 · N102 · §I points to the one page for learning and the label quorum (backend [`docs/LEARNING-AND-QUORUM.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/LEARNING-AND-QUORUM.md)); no rule changes · FE #922, BE #1234
 - 2026-10-21 · WIL-93 · the coach's link opens the coach's feedback read or not: seen and answered, the word and the coach's answers as given (it opened and closed at once); with nothing of the coach's on the page, the chat at the coach's bubble, which pulses once (C1) · FE #919

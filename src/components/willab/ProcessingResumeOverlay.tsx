@@ -15,6 +15,8 @@ import { useBackDismiss } from "./useBackDismiss";
 /*  Deliberately presentation-only: it owns no upload, SSE, polling, retry or  */
 /*  document-settle effect. The always-mounted Lounge keeps the one lifecycle */
 /*  observer alive while this full-screen view opens and closes above it.      */
+/*  It opens by itself when the Lab hands its wait over, and stays over the   */
+/*  lens until the walk is on screen (useWaitScreen, founder 2026-10-21).      */
 /* -------------------------------------------------------------------------- */
 
 export default function ProcessingResumeOverlay({
@@ -76,15 +78,21 @@ export default function ProcessingResumeOverlay({
       <header className="flex h-12 shrink-0 items-center justify-end px-4">
         <OverlayCloseButton onClick={onClose} ariaLabel="Close processing" />
       </header>
+      {/* THE LAB'S OWN FRAME, to the pixel (founder 2026-10-21: "make it
+          stay"). The Lab hands its wait to this view in one commit, so the
+          column and the wrapper are the Lab's (labColumnClass and its
+          Processing): any difference would be the screen moving. */}
       <div
-        className={`scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col items-center overflow-y-auto px-4 pt-6 ${SCREEN_BOTTOM_GAP}`}
+        className={`scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 pt-6 ${SCREEN_BOTTOM_GAP}`}
       >
-        <ProcessingWait
-          progress={progress}
-          phase={phase}
-          cycleStartedAt={cycleStartedAt}
-          phaseStartedAt={phaseStartedAt}
-        />
+        <div className="flex flex-1 flex-col items-center justify-start pt-1 text-center sm:pt-3">
+          <ProcessingWait
+            progress={progress}
+            phase={phase}
+            cycleStartedAt={cycleStartedAt}
+            phaseStartedAt={phaseStartedAt}
+          />
+        </div>
       </div>
     </div>
   );
