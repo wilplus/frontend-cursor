@@ -659,6 +659,14 @@ The four lines above were filled from main's history by the page's keeper on
   query pack's `1-enough-data.sql` once `clips_with_both` reaches about 50,
   then show the founder the numbers; the founder decides (confirmed
   2026-10-20).
+- **WIL-32 · the speaker/coach disagreement signal** (backend
+  `docs/DESIGN-WIL-70-disagreement-signal-2026-10-18.md`): a design only,
+  nothing is built. Two parts don't match this page, and the founder
+  decides both. Its round one mixes a star clip and a disagreement clip into
+  judging your own moments, which left the walk (C10). Its round two serves
+  3 other voices every walk, at most 2 peers and at least 1 licensed
+  (founder 2026-10-19, written only in that note), where C8 serves one per
+  try (2026-10-21).
 - **A Stop tapped before the mic has started** may leave the typing dots
   up and the mic on (read in the code 2026-10-20, not reproduced): the
   recorder's stop does nothing until the mic reports started.
