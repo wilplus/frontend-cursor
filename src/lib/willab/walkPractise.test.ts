@@ -2,7 +2,9 @@
 STORY    As a speaker practising, I want each try answered with a line in words for what changed, never a number, so that I hear progress without a score.
 OUTCOME
   O1  The "not yet", "better" and "thanks" lines come from the approved wording and contain no digits.
+  O2  A try the server could not hear is a step that says so, in place of the machine's answer (founder, signed 2026-10-21).
 PROVES   O1 -> each try's line is the one for the reading that moved, never a number
+         O2 -> a try the server could not hear is a late step that says so
 WHY      Never-rule 1 (no scores to speakers).
 */
 import { describe, expect, it } from "vitest";
@@ -43,5 +45,17 @@ describe("the practise loop's plan", () => {
     expect(PRACTISE_LINES.notYet.settled_pitch).toContain(lines[0]);
     expect(PRACTISE_LINES.better.kept_moving).toContain(lines[1]);
     expect(lines[2]).toBe(PRACTISE_LINES.movedOn);
+  });
+
+  it("a try the server could not hear is a late step that says so", () => {
+    const checking = withChecking(PLAN, PRACTISE_AT);
+    const tried = { ...PLAN[PRACTISE_AT], attempt: 1 };
+    // The read lands after the checking step.
+    const plan = withRead(checking, PRACTISE_AT + 1, tried, null, { retryAttempt: 1, kind: "unheard" });
+    expect(plan[PRACTISE_AT + 2]).toMatchObject({ key: "late", kind: "unheard", attempt: 1 });
+    // A machine merely late says nothing of its own.
+    const late = withRead(checking, PRACTISE_AT + 1, tried, null, { retryAttempt: 1 });
+    expect(late[PRACTISE_AT + 2]).toMatchObject({ key: "late" });
+    expect(late[PRACTISE_AT + 2].kind).toBeUndefined();
   });
 });

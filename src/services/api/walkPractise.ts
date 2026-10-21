@@ -46,11 +46,23 @@ export type WalkPractiseTry = {
   audio?: { url: string; durationMs: number } | null;
 };
 
+/** A try the server could not hear: too short, no speech, not the passage
+ *  shown, or nothing to compare (founder 2026-10-21: "it should just say so,
+ *  and record once more or move on"). */
+export type WalkPractiseUnheard = { unheard: true };
+const UNHEARD_CODES: ReadonlySet<string> = new Set([
+  "AUDIO_TOO_SHORT",
+  "TRANSCRIPTION_FAILED",
+  "PASSAGE_MISMATCH",
+  "ANALYSIS_FAILED",
+]);
+
 export interface WalkPractiseIO<R> {
   open(item: R, passage: WalkPractisePassage): Promise<string | null>;
   /** `stoppedAtMs`: when the speaker pressed Stop, on the phone's clock
-   *  (V4 B1.4, O5); only measured, never shown. */
-  upload(practiceId: string, audio: Blob, durationSec: number, stoppedAtMs?: number): Promise<WalkPractiseTry | null>;
+   *  (V4 B1.4, O5); only measured, never shown. Null when the upload failed;
+   *  `unheard` when the server could not hear the try. */
+  upload(practiceId: string, audio: Blob, durationSec: number, stoppedAtMs?: number): Promise<WalkPractiseTry | WalkPractiseUnheard | null>;
   check(practiceId: string, attemptId: string): Promise<PracticeCheckResult | null>;
 }
 
@@ -91,7 +103,7 @@ export function walkPractiseIO<R>(source: (item: R) => WalkPractiseSource | null
     },
     async upload(practiceId, audio, durationSec, stoppedAtMs) {
       const result = await uploadConfidencePracticeAttempt(practiceId, audio, durationSec, stoppedAtMs);
-      if (!result.ok) return null;
+      if (!result.ok) return result.code && UNHEARD_CODES.has(result.code) ? { unheard: true } : null;
       const latest = [...result.practice.attempts].sort((a, b) => b.attemptIndex - a.attemptIndex)[0];
       if (!latest) return null;
       return {

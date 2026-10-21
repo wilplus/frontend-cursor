@@ -95,10 +95,12 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 
 /** "Open the walk at step `at`". A new `seq` is a new request; `how` is the
  *  move that brought the speaker there (‹ or › across the walk's models).
- *  `whole`: the finished walk to scroll through, every step at once, opened
- *  at `at`, with no buttons (founder 2026-10-20: a paragraph with nothing
- *  left to answer). */
-export type FeedbackWalkRequest = { seq: number; at: number; how?: WalkDir; whole?: boolean };
+ *  `start`: the step the thread opens on when it is not `at` (a Lounge
+ *  bubble or a paragraph of a walk already answered past it): the parts
+ *  before and after it are there to scroll, `at` stays the newest, with the
+ *  dock (founder 2026-10-21: "the WALK opens up immediately on that part,
+ *  but you can scroll to previous parts or scroll to the next ones"). */
+export type FeedbackWalkRequest = { seq: number; at: number; how?: WalkDir; start?: number };
 
 /** The coach's word for the Take, as the walk shows it. */
 export type FeedbackWalkCoachNote = {
@@ -265,7 +267,7 @@ export default function FeedbackWalk<R = unknown>({
   liveModel.current = model;
   const [walk, setWalk] = useState<FeedbackWalkModel<R>>(model);
   const [at, setAt] = useState(0);
-  const [whole, setWhole] = useState(false);
+  const [start, setStart] = useState<number | null>(null);
   const [picks, setPicks] = useState<Record<string, PhraseSelection | null>>({});
   // The answer given to each step in this opening, by the step's identity.
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -285,7 +287,7 @@ export default function FeedbackWalk<R = unknown>({
     setPicks(replayPicks(opened));
     setAnswers({});
     setAt(asked.at);
-    setWhole(asked.whole === true);
+    setStart(asked.start ?? null);
     openedAt.current = asked.at;
   }, [seq]);
 
@@ -479,8 +481,7 @@ export default function FeedbackWalk<R = unknown>({
     walk,
     reasons,
     at: (s) => plan.indexOf(s),
-    // The whole walk to scroll through has no live step.
-    head: whole ? -1 : at,
+    head: at,
     coachNote,
     takeIndex,
     forward,
@@ -561,7 +562,7 @@ export default function FeedbackWalk<R = unknown>({
 
   // The walk is one chat (founder 2026-10-20): the stage moves only as the
   // lens opens and closes, never between steps; the thread grows inside it.
-  const stage = { key: step.overlay === false ? "page" : "walk", overlay: step.overlay, head: at, seq, whole };
+  const stage = { key: step.overlay === false ? "page" : "walk", overlay: step.overlay, head: at, seq, start };
   const frame = useRef<HTMLDivElement | null>(null);
 
   return (
@@ -572,7 +573,7 @@ export default function FeedbackWalk<R = unknown>({
         screen={stage}
         render={(s, ghost) => (
           <WalkThread ghost={ghost} frame={frame} opening={s.seq} onClose={close}>
-            {renderThread(ctx, s.head, s.seq, backFromPractise, s.whole)}
+            {renderThread(ctx, s.head, s.seq, backFromPractise, s.start)}
           </WalkThread>
         )}
       />
@@ -790,7 +791,9 @@ function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
       footer={
         <WalkFooter
           pill={{
-            label: COPY.pillEmphasise,
+            // Words already given: the pill edits them (founder, signed
+            // 2026-10-21: "edit the helper words instead of save").
+            label: given ? WALK_COPY.editHelperWords : COPY.pillEmphasise,
             onClick: () => ctx.save(step, moment),
             disabled: picked === null,
             testId: "walk-forward",
@@ -1106,25 +1109,21 @@ function answerSaid(ctx: ScreenCtx, step: WalkStep): string | null {
   return answerBody(step, given);
 }
 
-/** What the whole walk to scroll through leaves out: drawn as earlier
- *  parts, these show nothing. */
-const NOT_IN_WHOLE: ReadonlySet<string> = new Set(["others", "summary"]);
-
 /** The thread: each step reached up to `head`, opened by its name when it
  *  changes, with the speaker's choice under it. Only the last part is live.
- *  A new opening (`seq`) draws the parts afresh. `whole`: every step of the
- *  walk, none live (no buttons), the part holding `head` marked where the
- *  thread opens (WalkThread). */
+ *  A new opening (`seq`) draws the parts afresh. `start`: the part holding
+ *  that step is marked where the thread opens (WalkThread scrolls to it),
+ *  with the parts before and after it there to scroll (founder
+ *  2026-10-21); null opens on the newest part. */
 function renderThread<R>(
   ctx: ScreenCtx<R>,
   head: number,
   seq: number | null,
   backFromPractise: () => void,
-  whole = false,
+  start: number | null = null,
 ): ReactNode {
-  const all = walkThreadParts(ctx.walk.plan, whole ? ctx.walk.plan.length - 1 : head);
-  const parts = whole ? all.filter((p) => !NOT_IN_WHOLE.has(ctx.walk.plan[p.at].key)) : all;
-  const start = whole ? parts.findIndex((p) => p.at >= head) : -1;
+  const parts = walkThreadParts(ctx.walk.plan, head);
+  const startAt = start !== null && start !== head ? parts.findIndex((p) => p.at >= start) : -1;
   let last: string | null = null;
   return parts.map((part, i) => {
     const step = ctx.walk.plan[part.at];
@@ -1135,13 +1134,13 @@ function renderThread<R>(
     const body = (
       <>
         {mark}
-        <WalkPart now={!whole && i === parts.length - 1}>{renderScreen(ctx, step, backFromPractise)}</WalkPart>
+        <WalkPart now={i === parts.length - 1}>{renderScreen(ctx, step, backFromPractise)}</WalkPart>
         {said ? <WalkSpeakerBubble>{said}</WalkSpeakerBubble> : null}
       </>
     );
     return (
       <Fragment key={`${seq ?? 0}:${part.key}`}>
-        {i === start ? (
+        {i === startAt ? (
           <div data-walk-start className="contents">
             {body}
           </div>

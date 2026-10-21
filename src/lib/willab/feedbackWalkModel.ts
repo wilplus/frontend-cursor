@@ -420,6 +420,16 @@ export function walkStepAt(model: FeedbackWalkModel<unknown>, target: WalkStepTa
   return found >= 0 ? replayThreadEnd(model.plan, found) : null;
 }
 
+/** The walk's last step on screen (not the page or the end): where a
+ *  finished walk is newest, so a step opened inside it has the parts after
+ *  it there to scroll (founder 2026-10-21). Null for a walk with no screen. */
+export function walkLastStep(model: FeedbackWalkModel<unknown>): number | null {
+  for (let i = model.plan.length - 1; i >= 0; i -= 1) {
+    if (model.plan[i].overlay !== false) return i;
+  }
+  return null;
+}
+
 /** An exercise played again opens on its last try's answer, so the whole
  *  thread (the Exercise, every try and its answer) is on screen at once
  *  (founder 2026-10-14: "an exercise already done plays its tries"). Any

@@ -193,11 +193,20 @@ function aiInstead(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkM
 
 /** After a late read (O5): the white outlined Practise again while a try
  *  is left, the late ones counted, so a machine that never answers still
- *  ends on Next after the third (founder 2026-10-18); then Next. */
+ *  ends on Next after the third (founder 2026-10-18); then Next. A try the
+ *  server could not hear offers both at once, Practise again and Next
+ *  (founder 2026-10-21: "record once more or move on"). */
 function LateFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
   const more = triesLeft(step) && triesRecorded(ctx.plan, ctx.at(step)) < WALK_MAX_TRIES;
   if (!more) return <WalkFooter pill={{ label: COPY.pagerNext, onClick: ctx.skip, testId: "walk-forward" }} />;
-  return <WalkFooter dot outline pill={{ label: COPY.pillPractiseAgain, onClick: ctx.again, testId: "walk-again" }} />;
+  return (
+    <WalkFooter
+      dot
+      outline
+      pill={{ label: COPY.pillPractiseAgain, onClick: ctx.again, testId: "walk-again" }}
+      second={step.kind === "unheard" ? { label: COPY.pagerNext, onClick: ctx.skip, testId: "walk-forward" } : null}
+    />
+  );
 }
 
 /* ---- the practise thread (founder 2026-10-13, P1 A, P2 A; 2026-10-20) ---- */
@@ -250,6 +259,9 @@ export function practiseThreadItem(
       return <EncourageMessage ctx={ctx} step={step} moment={moment} />;
     case "thanks":
       return <WalkMessage>{thanksLine(ctx.plan, ctx.at(step), ctx.say)}</WalkMessage>;
+    case "late":
+      // A try the server could not hear says so; a late read draws nothing.
+      return step.kind === "unheard" ? <WalkMessage>{WALK_COPY.unheard}</WalkMessage> : null;
     default:
       return null;
   }

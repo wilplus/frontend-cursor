@@ -321,9 +321,9 @@ export function useWalkPractise<R>(args: {
   // After Stop every move is instant (lock 2026-10-12, section 2.5: "the
   // walk returns instantly, with no rise animation"): the try's bubble
   // stays where it is while the mark breathes and the answer arrives.
-  const late = useCallback((processingAt: number, tried: WalkStep, retry: number) => {
+  const late = useCallback((processingAt: number, tried: WalkStep, retry: number, kind?: "unheard") => {
     const { plan: p, relay: lay } = live.current;
-    lay(withRead(p, processingAt, tried, null, { retryAttempt: retry }), processingAt + 1, "none");
+    lay(withRead(p, processingAt, tried, null, { retryAttempt: retry, kind }), processingAt + 1, "none");
   }, []);
 
   /** Upload the try, ask the machine, lay its answer in. */
@@ -359,6 +359,12 @@ export function useWalkPractise<R>(args: {
       const sent = await within(practiseIO.upload(practiceId, audio, durationSec, stoppedAtMs), UPLOAD_LIMIT_MS);
       if (!sent) {
         if (current()) late(checkingAt, from.step, attempt);
+        return;
+      }
+      if ("unheard" in sent) {
+        // The server could not hear the try: say so, then Practise again or
+        // Next (founder 2026-10-21).
+        if (current()) late(checkingAt, from.step, attempt, "unheard");
         return;
       }
       setTries((t) => ({ ...t, [moment]: { ...t[moment], practiceId } }));

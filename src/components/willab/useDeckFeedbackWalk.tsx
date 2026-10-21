@@ -29,6 +29,7 @@ import {
   walkHelpersForPart,
   walkStart,
   walkStepForPart,
+  walkLastStep,
   walkStepAt,
   type WalkStepTarget,
   type FeedbackWalkItem,
@@ -848,13 +849,13 @@ export function useDeckFeedbackWalk(args: {
   const practisingRef = useRef(false);
   // This opening is the review itself (the lens), not a step from the page.
   const lensRef = useRef(false);
-  const openAt = useCallback((at: number | null, practising = false, lens = false, how?: WalkDir): boolean => {
+  const openAt = useCallback((at: number | null, practising = false, lens = false, how?: WalkDir, start?: number | null): boolean => {
     if (at === null) return false;
     practisingRef.current = practising;
     lensRef.current = lens;
     toldRef.current = new Set<string>();
     seqRef.current += 1;
-    setRequest({ seq: seqRef.current, at, how });
+    setRequest({ seq: seqRef.current, at, how, ...(start != null && start !== at ? { start } : {}) });
     return true;
   }, []);
 
@@ -885,8 +886,10 @@ export function useDeckFeedbackWalk(args: {
     const done = target && liveAt === null && replayReady ? buildReplay(ownAnswers) : null;
     const doneAt = done ? walkStepAt(done, target) : null;
     if (done && doneAt !== null) {
+      // The finished walk: every part there to scroll, opened on the step
+      // asked for, the newest part with the dock (founder 2026-10-21).
       setReplaying(done);
-      return openAt(doneAt, false, lens);
+      return openAt(walkLastStep(done) ?? doneAt, false, lens, undefined, doneAt);
     }
     if (target?.part && liveAt === null) return false;
     // Opening marks nothing: only Continue on the coach's word does (N80).
@@ -1028,7 +1031,8 @@ export function useDeckFeedbackWalk(args: {
     // find the signed link again.
     const upload: typeof io.upload = async (practiceId, ...rest) => {
       const sent = await io.upload(practiceId, ...rest);
-      if (sent) {
+      // A try the server could not hear is no try: nothing in the chat.
+      if (sent && !("unheard" in sent)) {
         const on = openedOn.get(practiceId) ?? { moment: null, part_id: null };
         post({
           key: `try:${practiceId}`,

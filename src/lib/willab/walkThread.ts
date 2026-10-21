@@ -327,6 +327,10 @@ export function shownStep(
       return titled(COPY.titlePractise, line ?? encourageLine(one, 0));
     case "thanks":
       return app(line ?? thanksLine(one, 0));
+    case "late":
+      // The Lounge says the same words as the lens (B12): a try the server
+      // could not hear; a late read posts nothing.
+      return step.kind === "unheard" ? app(WALK_COPY.unheard) : null;
     default:
       return null;
   }

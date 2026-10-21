@@ -106,7 +106,11 @@ step; the loop never waits for a coach.
   buttons) and as given once answered (read only; the helper words still
   editable on the latest Take, F3). A bubble whose name is not a step of the
   walk (a coach's word on a moment, a clip, a try's answer) opens on its
-  moment's step.
+  moment's step. Opened on a step already answered past, the walk shows
+  that step first, with the parts before and after it there to scroll, and
+  the newest part at the end with the dock (founder 2026-10-21: "the WALK
+  opens up immediately on that part of the WALK, but you can scroll to
+  previous parts or scroll to the next ones").
 - **B11** ✕ turns the lens off and goes back where the step was opened
   from: the chat, or the Ideal Text page for a step opened from a paragraph.
   ✕ keeps a coach word's "new" ring.
@@ -143,7 +147,9 @@ step; the loop never waits for a coach.
   so the lens always has a step; with no moment at all the text shows.
 - **C3 Choose your helper words**, after each praised moment: a big bubble in
   the thread with large plain word buttons, no borders, chosen words orange;
-  "N of 6 words", "Use these helper words" and "Skip". Helper words stay
+  "N of 6 words", "Use these helper words" and "Skip"; once the words are
+  given, the pill reads "Edit the helper words" and the link "Keep these"
+  (founder, signed 2026-10-21). Helper words stay
   editable from the Lounge's helper-words bubble and in the next Take's
   walk, on the latest Take only (rule 5); an older Take's words are locked
   ("🔒 Take N"). They come from a moment that sounded confident. Opened from
@@ -201,8 +207,12 @@ step; the loop never waits for a coach.
   (2026-10-18). **Better:** "Good job", "That sounded more assured than the
   first.", Next; a Good job ends the practise. At most three tries, then
   Next alone, with the signed move-on line when the third was not praise. A
-  late answer offers Practise again while a try is left. The server still
-  accepts tries after a praise; the app no longer offers them. Played again,
+  late answer offers Practise again while a try is left. A try the server
+  could not hear (too short, no speech, not the passage, nothing to
+  compare) is answered "We couldn't hear that clearly. Try again." with
+  "Practise again" and "Next" (founder, signed 2026-10-21; until then it
+  looked like a late answer with nothing said). The server still accepts
+  tries after a praise; the app no longer offers them. Played again,
   a finished walk shows the thread and Next only: nothing is recorded there.
   Nothing else interrupts the practice.
 - **C8 Other speakers**, once, after the practice: one moment per try, at
@@ -257,9 +267,13 @@ step; the loop never waits for a coach.
   chain runs. The ask and its buttons are adjacent: the card is moved above
   the Take's whole batch, the admin's asks included (2026-10-20: the card had
   landed between the data question and its buttons).
-- **D5** A coach update arrives later under "Later · from your coach",
-  outlined in orange: one bubble per Take word, moved to the bottom with the
-  latest words and video, never stacked (N80). It rewrites the summary in
+- **D5** A coach update arrives under "Later · from your coach", outlined
+  in orange, at the bottom of the chat the moment the coach shares it, like
+  a new message, whether or not the review has ended (founder 2026-10-21;
+  until then a word shared during the review reached the chat only as the
+  walk's copy, among the Take's steps): one bubble per Take word, moved to
+  the bottom with the latest words and video, never stacked (N80). It
+  rewrites the summary in
   place; "Updated with your coach's note · see / hide the earlier version"
   shows the summary from before any coach note (or the first summary, when
   it already heard the coach). A video-only change does not rewrite the
@@ -294,7 +308,9 @@ step; the loop never waits for a coach.
   helped you.", then the next ask. A typed message passes the ask in front;
   "Not now" on the CEO panel's ask brings it back after the next Take
   (2026-10-20); an ask that no longer applies when its turn comes is
-  skipped. A distressed answer under "What would help?" gets the chat's
+  skipped. These choices (the condition and place of "Did this help?", Take
+  1's asks, which asks get a lead-in) were confirmed by the founder on
+  2026-10-21. A distressed answer under "What would help?" gets the chat's
   safety reply (backend #1199).
 - **E2** Will asks only when something is off or missing, once per Take,
   the first that holds (`services/will_question.py`, N82): a breather when
@@ -484,7 +500,9 @@ step; the loop never waits for a coach.
   recording", "Later · from your coach", "Updated with your coach's note ·
   see / hide the earlier version".
 - **Helper words:** "Choose your helper words", "N of 6 words", "Use these
-  helper words".
+  helper words", "Edit the helper words" (signed 2026-10-21), "Keep these".
+- **A try not heard:** "We couldn't hear that clearly. Try again." (signed
+  2026-10-21).
 - **The Clearer version:** "Here is a slightly more polished option:", "Do
   you accept and want to practise it?", "Accept and practise", "Keep my
   words"; for undermining words B10's "Say what you mean. Don't dance around
@@ -551,14 +569,16 @@ deletes the line when the work is merged (the change goes to §6).
 
 The four lines above were filled from main's history by the page's keeper on
 2026-10-20; the sessions doing the work overwrite them when they push.
-- **N89 · one mechanism opens the walk** · B10, C1, D5, F4, F5 · founder 2026-10-20 ("the SAME WAY", "THE SAME MECHANISM"). Built: every door (a paragraph with or without the line, a Lounge bubble, the coach's word) opens the whole Take's walk at its step through one path; the narrowed walk, the finished walk with no buttons and the coach's own lens are gone · FE #897 · the founder checks the app. Open: the founder's "edit the helper words" wording for an answered helpers step; today it reads "Use these helper words" and "Keep these"
-- **N89 · the chain after the Take** · D3, D4, E1, K · founder 2026-10-20. Built: the summary without the next step and without the CTA; the closing message held behind the chain, each ask in turn with Will's lead-in, "Did this help?" when the Take looks off, then "Look, practice makes perfect…" with Record Take N (BE); the Lounge reads the closing message as the held row and puts the CTA under it (FE) · BE #1210, FE #897 · the founder checks the app. Choices made: "Did this help?" keeps its "looks off" condition and comes last; Take 1 still skips WhatsApp and the CEO panel's asks; the CEO panel's asks and Will's own question get no lead-in. Say if any is wrong
+- **N90 · the walk's doors, checked in the app** · B10, C1, D5, F4, F5 · founder 2026-10-21: a coach's bubble and an Exercise bubble in the Lounge opened the Ideal Text page, not the walk; "the WALK opens up immediately on that part, but you can scroll to previous parts or scroll to the next ones". Built: a step already answered past opens the walk on that step with the parts before and after it there to scroll (FE) · FE — · the founder checks the app
+- **N90 · the coach's bubble at the bottom** · D5 · founder 2026-10-21 ("it should be at the bottom, like it's a new message"). Found: a word shared during the review was never written as its own bubble, so it reached the chat only as the walk's copy among the Take's steps. Built: the "Later · from your coach" bubble is written the moment the coach shares, review ended or not (BE) · BE #1211 · the founder checks the app
+- **N90 · a try not heard; Edit the helper words** · C3, C7, K · founder signed both lines 2026-10-21. Built: the walk says "We couldn't hear that clearly. Try again." with Practise again and Next on a 422 from the server; an answered helpers step's pill reads "Edit the helper words" (FE) · FE — · the founder checks the app
+- **N89 · one mechanism opens the walk** · B10, C1, D5, F4, F5 · founder 2026-10-20 ("the SAME WAY", "THE SAME MECHANISM"). Built: every door (a paragraph with or without the line, a Lounge bubble, the coach's word) opens the whole Take's walk at its step through one path; the narrowed walk, the finished walk with no buttons and the coach's own lens are gone · FE #897 · the founder checks the app; the "edit the helper words" wording signed 2026-10-21 (N90)
+- **N89 · the chain after the Take** · D3, D4, E1, K · founder 2026-10-20. Built: the summary without the next step and without the CTA; the closing message held behind the chain, each ask in turn with Will's lead-in, "Did this help?" when the Take looks off, then "Look, practice makes perfect…" with Record Take N (BE); the Lounge reads the closing message as the held row and puts the CTA under it (FE) · BE #1210, FE #897 · the founder checks the app. Choices made and confirmed 2026-10-21: "Did this help?" keeps its "looks off" condition and comes last; Take 1 still skips WhatsApp and the CEO panel's asks; the CEO panel's asks and Will's own question get no lead-in
 - **The rewrite does not appear** · C4, C5 · founder 2026-10-20. Found: the served rewrite row carried no block id, so the walk drew it as a moment of its own and the Clearer version never attached (BE); a corrected moment with neither rewrite nor exercise was dropped instead of said again (FE). Both built · BE #1209, FE #896 · the founder checks the app
 - **The AI voice bubble loads, then disappears** · C6, H2 · founder 2026-10-20. Found: a failed clip cycle is final and its real failure code was lost (a permit refusal stored as its class name). Built: the code is kept and a permit the service could not read is retried once (BE). The cause for the founder's Takes is in Supabase `ai_voice_cycles` (`failure_kind`, `failure_code`): most likely the daily limits (10 clips a speaker, 30 in all; `AI_VOICE_DAILY_CLIPS_PER_SPEAKER`, `AI_VOICE_DAILY_CLIPS_TOTAL` on Railway) or a check the one generation failed (`AI_VOICE_GENERATION_RETRIES` is 0) · BE #1209 · the founder reads the row
 - **The coach's bubble did not open** · C1, D5 · founder 2026-10-20. Found: the walk's own copy of an earlier Take's word was tapped as a step and opened nothing (or a read-only review); the "Later" bubble opens the lens. Built: every coach bubble opens the coach's word in the lens, Close marks that word's Take, and a lapsed video link is refreshed · FE #896 · the founder checks the app
 - **Helpers open as a separate single action** · C3, F5 · founder 2026-10-20. Found: the Lounge's helper-words bubble opened before the marks were in, so a paragraph with a moment showed its words alone. Built: it waits for the marks unless the paragraph already has its moment · FE #896 · the founder checks the app
 - **The card lands between the data question and its buttons** · D4 · founder 2026-10-20. Found: the admin's asks were stamped only with the message they wait for, so the card was not moved above them. Built: the ask carries its Take, and the order resolves older asks through the message they wait for · FE #896 · the founder checks the app
-- **A too-short practise try ends on the stale screen** · C7 · founder 2026-10-20 ("should just say so and record once more or move on"). Found: the server refuses the try (422: too short, not heard, not the passage, not comparable) and the walk drops the refusal, drawing an empty late step with Practise again alone. To build once the founder signs the line: the walk says it could not hear the try and offers Practise again and Next; proposed words, already in the backend's own messages: "We couldn't hear that clearly. Try again." · waits for the founder's word
 - **The lens scrolls** · B2, B5 · founder 2026-10-20 ("It is scrollable!"), read as WIL-89 working as drawn; say if that was a complaint · confirmed
 - **Review from the Lounge loads very long** · F1, A2 · founder 2026-10-20. The same cause as WIL-76: the marks computed live (20 to 40 s) or pending behind a queued bake; the bake in the run stores them before the Take is ready, so the tap finds them · BE #1209 · the founder checks the app
 
@@ -649,6 +669,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · N90 · a step already answered past opens the walk on that step with the parts before and after it there to scroll (B10); the coach's bubble is written at the bottom the moment the coach shares (D5); a try not heard says so with Practise again and Next (C7, K); an answered helpers step's pill reads "Edit the helper words" (C3, K); the chain's choices confirmed (E1) · FE —, BE #1211
 - 2026-10-20 · N89 · one mechanism opens a place in the walk: a paragraph with or without the line, a Lounge bubble and the coach's word all open the whole Take's walk at its step (B10, C1, D5, F4, F5); the chain after the Take: the summary without the next step, Will's lead-in before each ask, "Did this help?" when the Take looks off, then "Look, practice makes perfect…" with Record Take N (D3, D4, E1, K) · FE #897, BE #1210
 - 2026-10-20 · N88 · the walk opens the moment processing ends: the marks are baked in the run right after ready, the processing bubble waits for them, the page asks for late marks to its ceiling and closes its slot when it stops (A1, A2); the Clearer version is served on its moment and a corrected moment with nothing attached is said again (C4); the helpers wait for the marks (C3); every coach bubble opens the coach's word (D5); the ask and its buttons stay together (D4); the speaker-side practice gates read the speaker's page (WIL-90) · BE #1209, FE #896
 - 2026-10-20 · N80 · the speaker's side built: the coach's bubble opens only their word in the lens, with Close and the step's "Your coach" line; watched anywhere clears the ring; the walk writes the word into the chat once per Take (D5) · FE #872
