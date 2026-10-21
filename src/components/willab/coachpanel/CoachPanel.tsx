@@ -75,7 +75,7 @@ import {
   fetchCoachSpeakers, queueSpeakerFor, speakersFromQueue, type PanelSpeaker,
 } from "@/services/api/coachSpeakers";
 import {
-  eraseTrainingImport, fetchBlindConfidenceQueue, fetchTrainingImports, saveImportSetup, type TrainingImport,
+  eraseTrainingImport, fetchBlindConfidenceQueue, fetchTrainingImportsPage, saveImportSetup, type TrainingImport,
 } from "@/services/api/trainingCorpus";
 import { isFounderEmail } from "@/lib/founder";
 import { useUserEmail } from "../useUserEmail";
@@ -200,23 +200,55 @@ function useAllSpeakers(open: boolean) {
   return { speakers: read.speakers, loading: open && !read.done };
 }
 
-/** The imports, read each time Training corpus opens; null while dark. */
+type ImportSteps = { imports: TrainingImport[]; hasMore: boolean };
+
+/** The imports, read in steps (founder 2026-10-21, N100): the first each
+ *  time Training corpus opens, the next as the coach scrolls to the bottom;
+ *  null while dark. */
 function useImports(open: boolean) {
   const [imports, setImports] = useState<TrainingImport[] | null>(null);
+  const [next, setNext] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [tick, setTick] = useState(0);
+  const read = useRef<{ imports: TrainingImport[]; next: number | null }>({ imports: [], next: null });
+  const pending = useRef<Promise<ImportSteps> | null>(null);
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setLoading(true);
-    void fetchTrainingImports().then((next) => {
+    void fetchTrainingImportsPage(0).then((page) => {
       if (cancelled) return;
-      setImports(next);
+      read.current = { imports: page?.imports ?? [], next: page?.nextOffset ?? null };
+      setImports(page ? page.imports : null);
+      setNext(read.current.next);
       setLoading(false);
     });
     return () => { cancelled = true; };
   }, [open, tick]);
-  return { imports, loading, refresh: () => setTick((n) => n + 1) };
+  /** The next step, after the ones read; resolves to everything read so far
+   *  and whether more waits (a failed read says no, until the next scroll). */
+  const more = useCallback((): Promise<ImportSteps> => {
+    if (pending.current) return pending.current;
+    const from = read.current.next;
+    if (from === null) return Promise.resolve({ imports: read.current.imports, hasMore: false });
+    setLoadingMore(true);
+    pending.current = fetchTrainingImportsPage(from).then((page) => {
+      pending.current = null;
+      setLoadingMore(false);
+      if (!page) return { imports: read.current.imports, hasMore: false };
+      const seen = new Set(read.current.imports.map((im) => im.sessionId));
+      const all = [...read.current.imports, ...page.imports.filter((im) => !seen.has(im.sessionId))];
+      read.current = { imports: all, next: page.nextOffset };
+      setImports(all);
+      setNext(page.nextOffset);
+      return { imports: all, hasMore: page.nextOffset !== null };
+    });
+    return pending.current;
+  }, []);
+  /** The list's bottom while more waits or is on its way. */
+  const bottom = next !== null || loadingMore ? { loading: loadingMore, onMore: () => void more() } : null;
+  return { imports, loading, bottom, hasMore: next !== null, more, refresh: () => setTick((n) => n + 1) };
 }
 
 /** Will's questions (N83), the founder's only: read when the queue or the
@@ -364,11 +396,17 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
   }
 
   /** One import judged: straight on to the next with moments waiting, in
-   *  the list's order (founder 2026-10-21), read from the list as it was
-   *  drawn so the move costs no request; the imports when none is left. */
-  function judgeNext(doneId: string): void {
+   *  the list's order (founder 2026-10-21), from the steps already read so
+   *  the move costs no request, else from the next steps (N100); the
+   *  imports when none is left. */
+  async function judgeNext(doneId: string): Promise<void> {
     judgedRun.current.add(doneId);
-    const next = nextToJudge(corpus.imports ?? [], doneId, judgedRun.current);
+    let steps: ImportSteps = { imports: corpus.imports ?? [], hasMore: corpus.hasMore };
+    let next = nextToJudge(steps.imports, doneId, judgedRun.current);
+    while (!next && steps.hasMore) {
+      steps = await corpus.more();
+      next = nextToJudge(steps.imports, doneId, judgedRun.current);
+    }
     corpus.refresh();
     if (next) { dispatch({ type: "corpusNext", importId: next.sessionId, topic: next.topic }); return; }
     judgedRun.current.clear();
@@ -568,6 +606,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
     if (panel.key === "corpushome") {
       return (
         <CorpusHomeScreen imports={corpus.imports} loading={corpus.loading} fail={live ? corpusFail : null}
+          more={corpus.bottom}
           onImport={() => { setCorpusFail(null); setForm(BLANK_IMPORT); dispatch({ type: "corpusImport" }); }}
           onOpen={openImport} onEdit={editImport} onDelete={founder ? deleteImport : undefined} onClose={close} />
       );
@@ -583,7 +622,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
     if (panel.key === "corpus") {
       return live ? (
         <CoachCorpusJudge importId={panel.importId} topic={panel.topic} onSaved={() => say(COPY.toastJudged)}
-          onSaveFail={say} onDone={() => judgeNext(panel.importId)}
+          onSaveFail={say} onDone={() => void judgeNext(panel.importId)}
           onBack={() => dispatch({ type: "back" })} onClose={close} />
       ) : (
         <JudgeScreen nav={{ label: panel.topic, index: 0, total: 1, onBack: () => undefined, onNext: () => undefined }}

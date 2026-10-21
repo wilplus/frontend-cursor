@@ -191,6 +191,11 @@ founder's rows are the founder's alone.
   it; a refused save brings the coach back to that moment with the
   backend's sentence, or says it on the panel once the import is left. No
   new words.
+- **H4** The list comes in steps (2026-10-21, N100): the newest 50 imports
+  first; reaching the bottom reads the next 50, the app's one loader showing
+  until they land. Judging one import after another (H3) reads the next step
+  when the ones read hold nothing left to judge. The list is no longer cut
+  at its newest 200. No new words.
 
 ### I · Library and speaking errors (the founder's admin)
 
@@ -337,6 +342,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · N100 · the training corpus list comes in steps as the coach scrolls (H4) · BE #1229
 - 2026-10-21 · N99 · judging goes on from one import to the next, done imports at the bottom, an answer moves on while it saves (H3)
 - 2026-10-21 · N96 · Import audio takes several files, one import each, inside the backend's upload limit (H2) · FE #913, BE #1218
 - 2026-10-20 · N87 · this page replaces the lock file; the speaker's screen shows who the talk is for and what they should do under the goal, in the same small text (C3, J) · FE #895, BE #1208
