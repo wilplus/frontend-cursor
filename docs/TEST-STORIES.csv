@@ -345,8 +345,13 @@ O4  A link naming an earlier Take shows only that Take's word, then
 Continue: no coach moment answers follow, since those are the latest
 Take's and never mix with another Take's word.
 O5  A link naming the latest Take shows the word, then that Take's coach
-moment answers, as before.","O1, O2, O3 -> ""a late word on Take 1, opened from its link, opens Take 1's word; an old link opens as before""
-O4, O5 -> ""a link to an earlier Take shows its word and no moments of the latest Take; a link to the latest Take shows the word, then its moments""","Founder 2026-10-21 (backend N77, #1212): ""the links carry the Take the word was written on, and open that Take's coach-only walk with the word""; founder 2026-10-21 again: an earlier Take's link shows only its word, never the latest Take's moments."
+moment answers, as before.
+O6  Read or not (WIL-93): once the word was seen and the moments answered,
+the link still holds the word and the coach's answers, as given; with
+nothing of the coach's on the page it has nothing to open, and the
+chat is shown at the coach's bubble for that Take, else the newest.","O1, O2, O3 -> ""a late word on Take 1, opened from its link, opens Take 1's word; an old link opens as before""
+O4, O5 -> ""a link to an earlier Take shows its word and no moments of the latest Take; a link to the latest Take shows the word, then its moments""
+O6 -> ""the link opens the coach's feedback read or not; with nothing of the coach's the chat shows the coach's bubble""","Founder 2026-10-21 (backend N77, #1212): ""the links carry the Take the word was written on, and open that Take's coach-only walk with the word""; founder 2026-10-21 again: an earlier Take's link shows only its word, never the latest Take's moments. Founder 2026-10-21 (WIL-93), ""ok do it"": a link to feedback already seen opened and closed at once; it opens it again, as given."
 src/components/willab/coachMessageStep.test.tsx,Story,"As a speaker, I want my coach's message to open only when I ask for it, with the words, the Take and the video, so that it never interrupts me.","O1  The message never opens by itself; Review feedback opens it with the
 coach's words, the Take number and the video.
 O2  The walk shows only the word of the Take on screen, never another

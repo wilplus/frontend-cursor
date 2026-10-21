@@ -17,12 +17,19 @@ OUTCOME
       Take's and never mix with another Take's word.
   O5  A link naming the latest Take shows the word, then that Take's coach
       moment answers, as before.
+  O6  Read or not (WIL-93): once the word was seen and the moments answered,
+      the link still holds the word and the coach's answers, as given; with
+      nothing of the coach's on the page it has nothing to open, and the
+      chat is shown at the coach's bubble for that Take, else the newest.
 PROVES   O1, O2, O3 -> "a late word on Take 1, opened from its link, opens Take 1's word; an old link opens as before"
          O4, O5 -> "a link to an earlier Take shows its word and no moments of the latest Take; a link to the latest Take shows the word, then its moments"
+         O6 -> "the link opens the coach's feedback read or not; with nothing of the coach's the chat shows the coach's bubble"
 WHY      Founder 2026-10-21 (backend N77, #1212): "the links carry the Take
          the word was written on, and open that Take's coach-only walk with
          the word"; founder 2026-10-21 again: an earlier Take's link
-         shows only its word, never the latest Take's moments.
+         shows only its word, never the latest Take's moments. Founder
+         2026-10-21 (WIL-93), "ok do it": a link to feedback already seen
+         opened and closed at once; it opens it again, as given.
 */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -30,9 +37,10 @@ vi.mock("@/app/chat/page.client", () => ({ default: () => null }));
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => "tok" }));
 
 import ChatPage from "@/app/chat/page";
-import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
+import { buildFeedbackReplay, buildFeedbackWalk, walkStart, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 import { fetchIdealTextEnrichment, mapCoachMessage } from "@/services/api/idealText";
 import { coachLinkNamesEarlierTake, walkCoachWord } from "./TranscriptReviewDeck";
+import { COACH_BUBBLE_ATTR, coachBubbleFor } from "./useCoachBubbleFocus";
 
 const TAKE_1 = "11111111-0000-4000-8000-000000000001";
 const TAKE_2 = "22222222-0000-4000-8000-000000000002";
@@ -130,5 +138,36 @@ describe("the coach's link names the word's Take (backend N77)", () => {
     expect(walkFrom(TAKE_1)).toEqual(["page", "coachnote", "end"]);
     // O5: Take 2's link: the word, then the coach's answers on its moments.
     expect(walkFrom(TAKE_2)).toEqual(["page", "coachnote", "coach", "end"]);
+  });
+
+  it("the link opens the coach's feedback read or not; with nothing of the coach's the chat shows the coach's bubble", () => {
+    // A moment of the Take the speaker already answered, with the coach's answer on it.
+    const answered = {
+      partId: "p1", start: 0, blockId: "b1", slide: 0, paragraphText: "words of p1", slideLabel: "Slide 1",
+      tiered: true, coachAnswered: true,
+      coachAnswer: { kind: "note", text: "Breathe first.", videoUrl: null }, coachItem: "s-n",
+    } as FeedbackWalkItem<string>;
+    const asGiven = (coachNote: boolean, coachWordOnly: boolean) =>
+      buildFeedbackReplay({
+        items: [answered], coachNote, practiceOn: true, coachOnly: true, coachWordOnly,
+        answerOf: () => null, helperWordsOf: () => null,
+      });
+
+    // Seen and answered: the word, then the coach's answer, as given.
+    expect(asGiven(true, false).plan.map((step) => step.key)).toEqual(["page", "coachnote", "coach", "end"]);
+    // An earlier Take's link with no word for it: nothing on this page to open.
+    expect(walkStart(asGiven(false, true))).toBeNull();
+
+    // The chat then shows the coach's bubble: that Take's newest, else the newest.
+    const chat = document.createElement("div");
+    for (const take of [TAKE_1, TAKE_1, TAKE_2]) {
+      const bubble = document.createElement("button");
+      bubble.setAttribute(COACH_BUBBLE_ATTR, take);
+      chat.appendChild(bubble);
+    }
+    const bubbles = [...chat.children];
+    expect(coachBubbleFor(chat, TAKE_1)).toBe(bubbles[1]);
+    expect(coachBubbleFor(chat, null)).toBe(bubbles[2]);
+    expect(coachBubbleFor(chat, "another-take")).toBe(bubbles[2]);
   });
 });

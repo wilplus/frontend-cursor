@@ -707,6 +707,7 @@ export function useDeckFeedbackWalk(args: {
 } {
   const { chunks, groups, waiting, pendingOf, slideLabel, coachMessage, coachSeen, firstTake } = args;
   const { answeredOf, helperWordsOf, finished = false } = args;
+  const coachOnly = args.coachOnly === true;
   const practiceOn = usePracticeOn();
   const journal = useWalkJournalPost(true);
   const pageTake = args.takeSessionId ?? null;
@@ -841,6 +842,8 @@ export function useDeckFeedbackWalk(args: {
         items: replayItems,
         coachNote: replayReady && coachMessage !== null,
         practiceOn,
+        coachOnly: args.coachOnly === true,
+        coachWordOnly: args.coachWordOnly === true,
         answerOf: (item) => latestAnswerOf(item.id, answers),
         helperWordsOf: (partId) => helperWordsOf?.(partId) ?? null,
         triesOf: (moment) => {
@@ -850,7 +853,7 @@ export function useDeckFeedbackWalk(args: {
           return practiceId ? (triedByPractice[practiceId] ?? null) : null;
         },
       }),
-    [replayItems, replayReady, coachMessage, practiceOn, helperWordsOf, triedByPart, triedByPractice],
+    [replayItems, replayReady, coachMessage, practiceOn, helperWordsOf, triedByPart, triedByPractice, args.coachOnly, args.coachWordOnly],
   );
   /* THE WHOLE TAKE'S WALK AS IT STANDS (founder 2026-10-21, B10: every door
      opens the whole walk, "live while that step waits"): what is answered as
@@ -861,9 +864,9 @@ export function useDeckFeedbackWalk(args: {
   const liveAll = useMemo(
     () =>
       replayReady
-        ? buildFeedbackWalk({ items: replayItems, coachNote: coachMessage !== null, coachOnly: args.coachOnly === true, practiceOn, guest: false })
+        ? buildFeedbackWalk({ items: replayItems, coachNote: coachMessage !== null, coachOnly: args.coachOnly === true, coachWordOnly: args.coachWordOnly === true, practiceOn, guest: false })
         : null,
-    [replayReady, replayItems, coachMessage, args.coachOnly, practiceOn],
+    [replayReady, replayItems, coachMessage, args.coachOnly, args.coachWordOnly, practiceOn],
   );
   const waitsOn = useCallback(
     (moment: FeedbackWalkMoment<DocumentSuggestion>) => walkStepForPart(model, moment.partId) !== null,
@@ -930,6 +933,11 @@ export function useDeckFeedbackWalk(args: {
     if (target?.step === "helpers" && target.part && openHelpersRef.current(target.part)) return true;
     setReplaying(null);
     const lens = from === "chat";
+    // THE COACH'S DOOR (founder 2026-10-21, WIL-93: "ok do it"): the coach's
+    // whole walk for the Take, read or not. The live walk holds only what
+    // still waits, so a word already seen and moments already answered left
+    // it empty: it opened and closed at once.
+    const coachDoor = !target && coachOnly;
     // A finished Take (nothing waits, the coach's word seen) is walked as
     // given: its live model holds only the tail (others, the summary), never
     // the step asked for (founder 2026-10-21).
@@ -937,13 +945,15 @@ export function useDeckFeedbackWalk(args: {
     // The whole Take's walk, standing on the step asked for: as given once
     // answered (prototype v31), live while it waits, its buttons in the dock
     // either way, the parts before it there to scroll (founder 2026-10-21).
-    const done = target && replayReady ? (finished ? buildReplay(ownAnswers) : buildWhole(ownAnswers)) : null;
-    const doneAt = done ? walkStepAt(done, target) : null;
+    const done = (target || coachDoor) && replayReady ? (finished ? buildReplay(ownAnswers) : buildWhole(ownAnswers)) : null;
+    const doneAt = done ? (coachDoor ? walkStart(done) : walkStepAt(done, target)) : null;
     if (done && doneAt !== null) {
       setReplaying(done);
       // The parts after it too, as far as the walk was walked: on a finished
-      // Take its last step, else up to the next step that still waits.
-      return openAt(doneAt, false, lens, undefined, finished ? walkLastStep(done) : answeredRun(done, doneAt, waitsOn));
+      // Take its last step, else up to the next step that still waits. The
+      // coach's door, while something waits, goes step by step from the
+      // word, so its Continue still marks the word seen.
+      return openAt(doneAt, false, lens, undefined, finished ? walkLastStep(done) : coachDoor ? null : answeredRun(done, doneAt, waitsOn));
     }
     if (target?.part && liveAt === null) return false;
     // Opening marks nothing: only Continue on the coach's word does (N80).
@@ -954,7 +964,7 @@ export function useDeckFeedbackWalk(args: {
       return openAt(walkStart(done), false, lens, undefined, walkLastStep(done));
     }
     return openAt(liveAt ?? walkStart(model), false, lens);
-  }, [model, finished, openAt, otherTake, replayReady, buildReplay, buildWhole, waitsOn, ownAnswers]);
+  }, [model, finished, coachOnly, openAt, otherTake, replayReady, buildReplay, buildWhole, waitsOn, ownAnswers]);
 
   const openPart = useCallback((partId: string): boolean => review({ part: partId }, "page"), [review]);
 

@@ -10,6 +10,7 @@ import { MediaRefreshProvider, useMediaRefresher } from "@/lib/media/mediaRefres
 import ProcessingWait from "./ProcessingWait";
 import IdealTextPendingCoach from "./IdealTextPendingCoach";
 import OtherAccountLink from "./OtherAccountLink";
+import { showCoachBubble } from "./useCoachBubbleFocus";
 import LoadingState from "./LoadingState";
 import WalkLoading from "./walk/WalkLoading";
 import { useBackDismiss } from "./useBackDismiss";
@@ -58,7 +59,7 @@ import {
   type IdealTextSd,
 } from "./idealTextLoad";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { LENS_IDLE_MS, LENS_WATCHDOG_MS, WALK_STEP_SELECTOR, lensAddress, lensIdle, lensStillLoading, walkDoorReady } from "@/lib/willab/lensScreen";
+import { LENS_IDLE_MS, LENS_WATCHDOG_MS, WALK_STEP_SELECTOR, lensAddress, lensIdle, lensStillLoading, walkDoorReady, type LensPage } from "@/lib/willab/lensScreen";
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
 import IdealTextMenu, { FeedbackLoadingLine } from "./IdealTextMenu";
@@ -287,13 +288,7 @@ export default function IdealTextOverlay({
   }, [arcId, initialMode]);
   // The lens comes down as soon as the page knows there is nothing to walk
   // (founder 2026-10-14): the feedback settled and no step is opening.
-  const lensPage = {
-    status,
-    feedbackPending,
-    reviewWaiting,
-    walkRequested: reviewOpenedRef.current,
-    opensHelpers: reviewAt?.step === "helpers",
-  };
+  const lensPage = lensPageOf(status, feedbackPending, reviewWaiting, reviewOpenedRef.current, reviewAt, coachOnly);
   const lens = useLensScreen(arcId, initialMode, lensIdle(lensPage), lensStillLoading(lensPage));
   useEffect(() => {
     // The coach-feedback email and bubble open the review too: only helper
@@ -982,9 +977,12 @@ export default function IdealTextOverlay({
             onLensClose={onClose}
             coachOnly={coachOnly}
             coachTake={coachTake}
-            // Nothing of the coach's to show: back to the chat, where the
-            // coach's bubble is, never the text (founder 2026-10-21).
-            onCoachOnlyEmpty={onClose}
+            // Nothing of the coach's to show: back to the chat, at the
+            // coach's bubble, never the text (founder 2026-10-21, WIL-93).
+            onCoachOnlyEmpty={() => {
+              showCoachBubble(coachTake ?? null);
+              onClose();
+            }}
             onLensReveal={lens.reveal}
             onWalkEnd={walkEndFor(coachOnly, onClose, lens)}
             onWalkClose={() => {
@@ -1188,6 +1186,20 @@ export default function IdealTextOverlay({
     </div>
     </MediaRefreshProvider>
   );
+}
+
+/** What the lens screen reads of the page. A helper-words bubble and the
+ *  coach's door open their step by themselves, the coach's once the Take's
+ *  answers are read (WIL-93): the lens waits for it, never the text. */
+function lensPageOf(
+  status: string,
+  feedbackPending: boolean,
+  reviewWaiting: boolean | null,
+  walkRequested: boolean,
+  reviewAt: WalkStepTarget | null | undefined,
+  coachOnly: boolean,
+): LensPage {
+  return { status, feedbackPending, reviewWaiting, walkRequested, opensHelpers: reviewAt?.step === "helpers" || coachOnly };
 }
 
 /** The History under ⋯ once there is more than one version to show. */

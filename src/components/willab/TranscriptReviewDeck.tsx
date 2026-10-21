@@ -831,10 +831,12 @@ export default function TranscriptReviewDeck({
   // action"). Only a paragraph with no moment opens on its own words (F5).
   // The coach-only walk opens on the coach's first word (founder
   // 2026-10-14) once the feedback has settled: the walk keeps the steps it
-  // opens with, and the coach's answers can land with the feedback.
+  // opens with, and the coach's answers can land with the feedback. It
+  // waits for the Take's answers and tries too (at most REPLAY_WAIT_MS):
+  // what was seen opens as given (WIL-93, founder 2026-10-21).
   const coachOpenedRef = useRef(false);
   useEffect(() => {
-    if (!coachOnly || !deckReady || feedbackPending || coachOpenedRef.current) return;
+    if (!coachOnly || !deckReady || feedbackPending || !feedbackWalk.replaySettled || coachOpenedRef.current) return;
     coachOpenedRef.current = true;
     if (!feedbackWalk.review(null)) onCoachOnlyEmpty?.();
   }, [coachOnly, deckReady, feedbackPending, feedbackWalk, onCoachOnlyEmpty]);
