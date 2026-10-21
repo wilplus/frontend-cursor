@@ -271,7 +271,9 @@ step; the loop never waits for a coach.
   a finished walk shows the thread and Next only: nothing is recorded there.
   Nothing else interrupts the practice.
 - **C8 Other speakers**, once, after the practice: one moment per try, at
-  least one and at most three; none if no shared clips exist yet. The first
+  least one and at most three: other speakers' moments first, licensed
+  clips for the places left, none if there are neither (founder 2026-10-21,
+  N97). The first
   opens with Line B ("Now one moment from another speaker." / "Now N moments
   from other speakers.", or the community's name: "Now one moment from
   Invita."), the clip and "Does this sound confident to you?" in one system
@@ -662,6 +664,11 @@ The four lines above were filled from main's history by the page's keeper on
   query pack's `1-enough-data.sql` once `clips_with_both` reaches about 50,
   then show the founder the numbers; the founder decides (confirmed
   2026-10-20).
+- **WIL-32 · the speaker/coach disagreement signal** (founder 2026-10-21,
+  N97; backend `docs/DESIGN-WIL-70-disagreement-signal-2026-10-18.md` §6):
+  a clip where the speaker and the lone coach disagree goes first to a
+  second blind listener. It waits until speakers answer about their own
+  clips again; judging your own moments stays out of the walk (C10).
 - **A Stop tapped before the mic has started** may leave the typing dots
   up and the mic on (read in the code 2026-10-20, not reproduced): the
   recorder's stop does nothing until the mic reports started.
@@ -743,6 +750,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-10-21 · WIL-93 · the coach's WhatsApp and email links, tapped signed out, go to log in and back to the coach's feedback; a guest's own project stays on the guest's screens (C1) · FE #911
+- 2026-10-21 · N97 · WIL-32 decided: the speaker/coach disagreement signal stands and waits until speakers answer about their own clips again (§3); other speakers stay one per try, other speakers' moments first and licensed clips for the places left, replacing the note's 3 every walk of 2026-10-19 (C8) · FE #915, BE #1219
 - 2026-10-21 · the AI voice's bubble in the Lounge is short: its first line, the voice and the › every step bubble has; the why and the closing line stand in the walk it opens (B12) · FE #912
 - 2026-10-21 · a door on a Take not yet finished opens the whole walk as it stands, the waiting step live and the answered parts to scroll, every moment under its Take's number: no lone piece, no step posted again at the bottom of the chat (B10) · FE #910
 - 2026-10-21 · "Good job" only when no level line is sent (C2, the docs to the app); the sharing question's three lines as the app says them (G1, K); "✓ Practised" the one ✓ line, over Next on a practised step, every other answered step Next alone (B10, K) · FE #907
