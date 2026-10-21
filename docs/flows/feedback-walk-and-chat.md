@@ -160,6 +160,10 @@ step; the loop never waits for a coach.
   "Good job" and one line from B01–B09. Then "Next". Praise is never
   promised. A served moment with nothing attached is the moment said again,
   so the lens always has a step; with no moment at all the text shows.
+  Helper words kept from an earlier Take settle nothing: this Take's moment
+  on that paragraph is walked like any other, praise first (founder
+  2026-10-21: the Exercise had opened the walk and the confident moment came
+  later; the server already counted only this Take's words, 2026-10-13).
 - **C3 Choose your helper words**, after each praised moment: a big bubble in
   the thread with large plain word buttons, no borders, chosen words orange;
   "N of 6 words", "Use these helper words" and "Skip"; once the words are
@@ -365,7 +369,10 @@ step; the loop never waits for a coach.
 - **F2** The text never shows before the walk (A2).
 - **F3** Helper words are orange in the text; no pencil. The black margin
   line means something still waits: only a paragraph with a step still to
-  answer wears it, and once answered the line goes (2026-10-20).
+  answer wears it, and once answered the line goes (2026-10-20). Helper
+  words answer a paragraph's moment only when picked in this Take (the
+  speaker's bubble in the chat); words kept from an earlier Take do not
+  (2026-10-21).
 - **F4** A paragraph with the black line opens the whole Take's walk at the
   step it asks (its helper words with its green moment just above, or the
   Clearer version or the Exercise when that is what waits), exactly as a
@@ -688,6 +695,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · helper words kept from an earlier Take no longer settle this Take's moment on the page: the confident moment is walked first, before the correction, as the server already served it (C2, F3) · FE #904
 - 2026-10-21 · N93 · a clip that fails its check is made once more with a new seed, never a third time, and a try after a clip that was never made is not scored (C6, H2) · BE #1214, FE #902
 - 2026-10-21 · N92 · the coach's answer and video reach the speaker's page as they stand: the stored feedback rows re-read the coach's answer on every read, signed afresh; a coach's share asks for a rebake (C1, D5) · BE #1213
 - 2026-10-21 · N91 · a door brings its step to the top of the whole Take's walk, with that step's own buttons in the dock; Next moves on to the next part, after the last onto the page; scrolling and ‹ › move through every part (B5, B9, B10) · FE #899

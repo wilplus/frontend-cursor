@@ -1,13 +1,20 @@
 // @vitest-environment jsdom
 /*
-STORY    As a speaker, I want a paragraph I saved with helper words to lose
-         its feedback bar at once, so that the page shows my progress
-         straight away.
+STORY    As a speaker, I want a paragraph I saved with helper words in this
+         Take to lose its feedback bar at once, and a later Take's confident
+         moment to be praised first even on a paragraph that keeps my earlier
+         helper words, so that the page shows my progress and the walk starts
+         with what I did well.
 OUTCOME
-  O1  The saved paragraph has no bar but still opens when tapped, and
-      "Review feedback" is no longer offered.
+  O1  A paragraph saved with helper words in this Take has no bar but still
+      opens when tapped, and "Review feedback" is no longer offered.
+  O2  Helper words kept from an earlier Take settle nothing: this Take's
+      confident moment on that paragraph still waits, and the walk opens on
+      it before the correction.
 PROVES   O1 -> "the same moment on a paragraph whose helper words are saved draws no bar"
-WHY      Founder lock 2026-09-30, B7 / Q3.
+         O2 -> "helper words from an earlier Take: this Take's confident moment is walked first"
+WHY      Founder lock 2026-09-30, B7 / Q3; docs/flows/feedback-walk-and-chat.md
+         C2 ("praise first and then the corrections"), founder 2026-10-21.
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -17,6 +24,21 @@ import { forgetHeadlineReads } from "./useSlideHeadlines";
 import type { Part } from "@/lib/willab/documentParts";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 
+/** The Lounge thread: the speaker's helper-words bubbles for each Take. */
+const chat = vi.hoisted(() => ({ messages: [] as unknown[] }));
+vi.mock("./LoungeThreadContext", () => ({
+  useLoungeThreadMaybe: () => ({
+    messages: chat.messages,
+    loading: false,
+    append: async (draft: unknown) => draft,
+    reload: async () => undefined,
+  }),
+}));
+vi.mock("@/services/api/consentChoices", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/api/consentChoices")>()),
+  practiseOfferedNow: () => true,
+  readPractiseOffered: async () => true,
+}));
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }));
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
   useVisibleLearningExposure: () => undefined,
@@ -45,6 +67,19 @@ const waiting: DocumentSuggestion = {
   device: null, tentative: false, status: null, bookmarkTier: "confident",
   snippetAudioRef: "https://media/moment.wav", startOffsetMs: 0, durationMs: 9000,
 } as DocumentSuggestion;
+
+const at3 = text.indexOf("one more quarter");
+/** The Take's corrected moment, on paragraph 3. */
+const corrected: DocumentSuggestion = {
+  ...waiting, id: "s-cv3", start: at3, end: at3 + "one more quarter".length,
+  quote: "one more quarter", bookmarkTier: "weak", practicePrompt: true,
+} as DocumentSuggestion;
+
+/** The speaker's helper-words bubble for `part`, picked in `take`'s walk. */
+const picked = (part: string, take: string) => ({
+  id: `w-${part}-${take}`, client_id: `w-${part}-${take}`, role: "user", kind: "walk_step", body: "retention went up",
+  metadata: { take_session_id: take, words_of: part, step: `words:${part}:retention went up` },
+});
 
 const noop = async () => true;
 function props(over: Record<string, unknown> = {}) {
@@ -95,6 +130,7 @@ Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => un
 let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
+  chat.messages = [];
   forgetHeadlineReads();
   window.localStorage.clear();
   container = document.createElement("div");
@@ -130,6 +166,7 @@ describe("B7 / Q3: a paragraph saved with helper words carries no bar", () => {
 
   it("the same moment on a paragraph whose helper words are saved draws no bar", async () => {
     serveRoots([{ part_id: "p2", slide_index: 1, text: "retention went up" }]);
+    chat.messages = [picked("p2", "take-1")];
     const reviewWaiting = vi.fn();
     await render({ onReviewWaiting: reviewWaiting });
     const p2 = paragraphWith("retention went up");
@@ -143,5 +180,18 @@ describe("B7 / Q3: a paragraph saved with helper words carries no bar", () => {
     // Nothing waits on the page any more: "Review feedback" is not offered
     // for a moment the page shows no mark for.
     expect(reviewWaiting).toHaveBeenLastCalledWith(false);
+  });
+});
+
+describe("C2: a later Take's confident moment comes first", () => {
+  it("helper words from an earlier Take: this Take's confident moment is walked first", async () => {
+    // The words on paragraph 2 were picked in Take 1; this is Take 2.
+    serveRoots([{ part_id: "p2", slide_index: 1, text: "retention went up" }]);
+    chat.messages = [picked("p2", "take-1")];
+    const take2 = { takeSessionId: "take-2", takeCount: 2, suggestions: [waiting, corrected] };
+    await render(take2);
+    expect(paragraphWith("retention went up").getAttribute("data-settled")).toBeNull();
+    await render({ ...take2, reviewRequest: 1 });
+    expect(document.querySelector("[data-feedback-walk]")?.getAttribute("data-walk-step")).toBe("praise");
   });
 });
