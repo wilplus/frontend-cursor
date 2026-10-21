@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /*
 STORY    As a coach, I want the training corpus in the panel to go straight to
-         judging after set-up and let me rename finished imports, so that
-         corpus work is quick and blind.
+         judging after set-up, let me rename finished imports and import
+         several files at once, so that corpus work is quick and blind.
 OUTCOME
   O1  A saved set-up goes straight to judging that import, saying
       "Set up · {n} moments".
@@ -12,13 +12,23 @@ OUTCOME
   O5  A finished import's ⋯ → Edit opens its set-up filled in; Save renames
       it and goes back to the imports.
   O6  Only the founder's ⋯ carries Delete; confirming it erases the import.
+  O7  Several files in one Import: each its own import, one at a time in name
+      order, filed under the topic and its file's name; the moments of all
+      of them in the toast, a file that failed named with the backend's
+      sentence (founder 2026-10-21).
+  O8  Never over the upload limit: more files than the backend takes in an
+      hour are refused at the choice, and a refusal for the hour stops the
+      batch, naming every file it left.
 PROVES   O1 -> "a saved set-up goes straight to judging, with its count"
          O2 -> "a set-up with nothing to judge goes back to the imports, never to judging"
          O3 -> "a new import lands on the imports with its count"
          O4 -> "the panel's queue read carries no words of a piece"
          O5 -> "a finished import's ⋯ → Edit opens its set-up filled in; Save renames it and goes back"
          O6 -> "only the founder's ⋯ carries Delete; confirming it erases the import and reads the list again"
-WHY      Coach panel lock 2026-10-06 (training corpus, D-CP-20).
+         O7 -> "several files import one at a time, each its own import named by its file"
+         O8 -> "a choice over the upload limit is refused, and a refusal for the hour stops the batch"
+WHY      Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files
+         in one Import, founder 2026-10-21.
 */
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -133,6 +143,41 @@ describe("the training corpus in the panel", () => {
     expect(document.body.textContent).toContain("Imported · 3 moments");
   });
 
+  it("several files import one at a time, each its own import named by its file", async () => {
+    fetchTrainingImports.mockResolvedValue([]);
+    importTrainingAudio.mockImplementation(async (input: { file: File; onAccepted?: () => void }) => {
+      input.onAccepted?.();
+      if (input.file.name === "g10.mp4") return { ok: false, code: "AUDIO_REJECTED", error: "No speech in this file.", retryAfterSec: null };
+      return { ok: true, queueCount: input.file.name === "g1.mp4" ? 2 : 3 };
+    });
+    await openImport();
+    pick(["g10.mp4", "g2.mp4", "g1.mp4"].map((n) => new File(["x"], n, { type: "audio/mp4" })));
+    const screen = document.querySelector("[data-testid='coach-panel-corpusimport']")!;
+    expect(screen.querySelector("[data-testid='corpus-file']")!.textContent).toContain("3 files");
+    await submit(screen, "FOSDEM");
+    expect(importTrainingAudio.mock.calls.map(([i]) => [i.file.name, i.topic, i.language])).toEqual([
+      ["g1.mp4", "FOSDEM · g1", "en"], ["g2.mp4", "FOSDEM · g2", "en"], ["g10.mp4", "FOSDEM · g10", "en"],
+    ]);
+    expect(onImports()).not.toBeNull();
+    expect(document.body.textContent).toContain("Imported · 5 moments");
+    expect(document.querySelector("[role='alert']")!.textContent).toBe("g10.mp4: No speech in this file.");
+  });
+
+  it("a choice over the upload limit is refused, and a refusal for the hour stops the batch", async () => {
+    fetchTrainingImports.mockResolvedValue([]);
+    importTrainingAudio.mockResolvedValue({ ok: false, code: "RATE_LIMITED", error: "Too many requests — slow down and try again.", retryAfterSec: 3000 });
+    await openImport();
+    pick(Array.from({ length: 201 }, (_, i) => new File(["x"], `g${i}.mp4`, { type: "audio/mp4" })));
+    const screen = document.querySelector("[data-testid='coach-panel-corpusimport']")!;
+    expect(screen.querySelector("[role='alert']")!.textContent).toBe("Up to 200 files at a time");
+    expect(screen.querySelector("[data-testid='corpus-file']")!.textContent).toContain("Choose a file");
+    pick(["a.mp4", "b.mp4", "c.mp4"].map((n) => new File(["x"], n, { type: "audio/mp4" })));
+    await submit(screen, "FOSDEM");
+    expect(importTrainingAudio).toHaveBeenCalledTimes(1);
+    expect(document.querySelector("[role='alert']")!.textContent)
+      .toBe("a.mp4, b.mp4, c.mp4: Too many requests — slow down and try again.");
+  });
+
   it("the panel's queue read carries no words of a piece", () => {
     const piece = blindPiece(PIECE("a"));
     expect(piece.snippetId).toBe("a");
@@ -206,6 +251,25 @@ function Host({ start }: { start: PanelState }) {
 }
 
 const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+/** The imports, then Import audio. */
+async function openImport(): Promise<void> {
+  act(() => root.render(<Host start={CORPUS} />));
+  await flush();
+  click(document.querySelector("[data-testid='corpus-import-button']"));
+}
+/** Files chosen in the picker, as its onChange sees them. */
+function pick(files: File[]): void {
+  const input = document.querySelector<HTMLInputElement>("[data-testid='corpus-file-input']")!;
+  Object.defineProperty(input, "files", { value: files, configurable: true });
+  act(() => { input.dispatchEvent(new Event("change", { bubbles: true })); });
+}
+/** A topic, English, then Import. */
+async function submit(screen: Element, topic: string): Promise<void> {
+  type(screen.querySelector<HTMLInputElement>("[data-testid='corpus-topic']")!, topic);
+  choose(screen.querySelector<HTMLSelectElement>("[data-testid='corpus-language']")!, "en");
+  click(screen.querySelector("[data-testid='corpus-submit']"));
+  await flush();
+}
 const click = (el: Element | null) => act(() => { (el as HTMLElement).click(); });
 /** A chosen option, as React's onChange sees it. */
 function choose(select: HTMLSelectElement, value: string): void {

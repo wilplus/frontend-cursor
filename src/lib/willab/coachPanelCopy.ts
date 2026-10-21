@@ -195,6 +195,10 @@ const SIGNED = {
   cutIntoMoments: "it is cut into moments you judge blind",
   chooseAFile: "Choose a file",
   audioOrVideo: "Audio or video, up to 30 minutes",
+  /* several files in one Import (founder 2026-10-21) */
+  files: (n: number) => count(n, "file", "files"),
+  fileOf: (n: number, m: number) => `${n} of ${m}`,
+  upToFiles: (n: number) => `Up to ${n} files at a time`,
   imported: "Imported",
   moments: (n: number) => count(n, "moment", "moments"),
   /* Training corpus set-up */
