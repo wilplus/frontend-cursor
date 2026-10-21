@@ -140,9 +140,9 @@ export default function WalkOthers({
 
   if (past) return null;
   const footer = !clip ? null : reopened && answered !== null ? (
-    <WalkFooter pill={{ label: COPY.pagerNext, onClick: forward, testId: "walk-forward" }}>
-      <p className="m-0 text-center text-[13px] text-muted-foreground">{WALK_COPY.answered}</p>
-    </WalkFooter>
+    // Answered: the answer is the speaker's bubble above, Next alone under it
+    // ("✓ Practised" is the one ✓ line, founder 2026-10-21).
+    <WalkFooter pill={{ label: COPY.pagerNext, onClick: forward, testId: "walk-forward" }} />
   ) : (
     <WalkFooter>
       <WalkFaces answered={answered} given={reopened} onPick={pick} />

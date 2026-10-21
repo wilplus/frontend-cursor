@@ -216,7 +216,7 @@ describe("FeedbackWalk", () => {
     expect(props.onEnd).toHaveBeenCalledTimes(1);
   });
 
-  it("reopened from the Lounge, the judging shows the moment already answered: the answer as the speaker's bubble, ✓ Answered over Next", async () => {
+  it("reopened from the Lounge, the judging shows the moment already answered: the answer as the speaker's bubble, Next alone", async () => {
     vi.mocked(fetchOtherAnswers).mockResolvedValueOnce([
       { id: "c1", src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 5000, community: null, answer: "yes" },
     ]);
@@ -231,7 +231,9 @@ describe("FeedbackWalk", () => {
     // nothing is asked again (founder 2026-10-20).
     expect(said()).toEqual([`👍 ${WALK_COPY.judgeYes}`]);
     expect(live()!.querySelector("[data-walk-answer='yes']")).toBeNull();
-    expect(live()!.querySelector("[data-walk-dock]")!.textContent).toContain(WALK_COPY.answered);
+    // "✓ Practised" is the one ✓ line; a judging answered reads Next alone
+    // (founder 2026-10-21).
+    expect(live()!.querySelector("[data-walk-dock]")!.textContent).toBe(COPY.pagerNext);
     expect(fetchOtherClips).not.toHaveBeenCalled();
     expect(onOthers).not.toHaveBeenCalled(); // the chat already holds it
     forward();

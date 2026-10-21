@@ -103,7 +103,8 @@ step; the loop never waits for a coach.
   Next, which brings that step back; the recorder never gives way
   (2026-10-21: "away from", no longer only "back to an answered step").
 - **B10** From the Lounge, a bubble with › opens that Take's walk at that
-  step ("✓ …" and Next for an answered one). A step still waiting has an
+  step ("✓ Practised" over Next for an answered step that was practised,
+  Next alone for any other; 2026-10-21). A step still waiting has an
   orange outline, and "Continue review" shows above the message box until
   every step is answered. Answered steps are read only; an older Take's walk
   is read only and ends on that Take's Ideal Text. Every door opens the walk
@@ -158,9 +159,12 @@ step; the loop never waits for a coach.
   its clip as the speaker's orange bubble; on the highest moment the line
   "This was your most confident moment." (signed 2026-10-20; "This was
   your most confident moment so far." opens its clearer version or
-  Exercise when that moment is corrected); then the opening line by its level (W1–W10, three signed lines
-  a level, rotated; the cue line under it; `src/lib/willab/praiseLevels.ts`),
-  "Good job" and one line from B01–B09. Then "Next". Praise is never
+  Exercise when that moment is corrected); then the opening line by its
+  level (W1–W10, three signed lines a level, rotated;
+  `src/lib/willab/praiseLevels.ts`) and under it the cue's line from
+  B01–B09. "Good job" stands in for the level line only when no level is
+  sent (founder 2026-10-21: the level line is the praise's own title). Then
+  "Next". Praise is never
   promised. A served moment with nothing attached is the moment said again,
   so the lens always has a step; with no moment at all the text shows.
   Helper words kept from an earlier Take settle nothing: this Take's moment
@@ -410,10 +414,11 @@ step; the loop never waits for a coach.
 ### G · Sharing, before the next recording
 
 - **G1** Asked when "Record Take N" is tapped, from Take 2 on, never before
-  Take 1; the choice applies to the Take about to be recorded. "After all,
-  it's about speaking publicly!" (regular weight) and "Do you agree to share
-  your next take with others?"; in the Lounge one bubble, its three lines as
-  paragraphs (#847).
+  Take 1; the choice applies to the Take about to be recorded. "Before we
+  start the new take!", "After all, it's about speaking publicly!" (regular
+  weight) and "How big you want your audience?"; in the Lounge one bubble,
+  its three lines as paragraphs (#847; founder 2026-10-21: the app's words,
+  "Do you agree to share your next take with others?" is history).
 - **G2** The options: **General community.** **Only my community**, with the
   speaker's saved communities inside (a passcode entered once; one is ticked;
   several are all ticked and any can be unticked; "+ Add a community with a
@@ -533,7 +538,8 @@ step; the loop never waits for a coach.
   "Slide N", "Slide N · helper words", "Take N", "Other speakers",
   "Other speakers · N of N", "Practise N", "🔒 Take N", "Processing your
   recording", "Later · from your coach", "Updated with your coach's note ·
-  see / hide the earlier version".
+  see / hide the earlier version", "✓ Practised" (the one ✓ line, signed
+  2026-10-21).
 - **Helper words:** "Choose your helper words", "N of 8 words" (the cap,
   eight since 2026-10-15), "Use these helper words", "Edit the helper words" (signed 2026-10-21), "Keep these".
 - **A try not heard:** "We couldn't hear that clearly. Try again." (signed
@@ -554,9 +560,10 @@ step; the loop never waits for a coach.
 - **Other speakers:** Line B "Now one moment from another speaker." / "Now N
   moments from other speakers." / "Now one moment from {community}."; "Does
   this sound confident to you?"; "Yes", "In-between", "No", "Audio unclear".
-- **Sharing:** "After all, it's about speaking publicly!", "Do you agree to
-  share your next take with others?", "General community", "Only my
-  community", "Only me", "+ Add a community with a passcode".
+- **Sharing:** "Before we start the new take!", "After all, it's about
+  speaking publicly!", "How big you want your audience?", "General
+  community", "Only my community", "Only me", "+ Add a community with a
+  passcode".
 - **The Ideal Text:** "Record Take N", "Close".
 - **The chain's close:** "Look, practice makes perfect. If you're ready,
   let's go with the next take." with an encouraging emoji (💪; signed
@@ -589,7 +596,10 @@ step; the loop never waits for a coach.
   yet another practice for you to try!", "Exercise" and L2 "Here's how you
   could say it." as the Exercise's opening (L4 took their place, N82;
   "Exercise" on the video path too, 2026-10-21), "Clearer version" over the
-  Clearer version and "Tap the words" over the picker (2026-10-21).
+  Clearer version and "Tap the words" over the picker (2026-10-21); "✓ You
+  accepted and practised it", "✓ You kept your words", "✓ Skipped", "✓
+  Answered" and "Do you agree to share your next take with others?"
+  (2026-10-21).
 
 ---
 
@@ -708,6 +718,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · "Good job" only when no level line is sent (C2, the docs to the app); the sharing question's three lines as the app says them (G1, K); "✓ Practised" the one ✓ line, over Next on a practised step, every other answered step Next alone (B10, K) · FE #907
 - 2026-10-21 · the lens against its page, the founder's eight answers: "N of 8 words" in place of "Tap the words" (C3; was "N of 6 words"); helper words without end punctuation in the speaker's bubble (B7); the Clearer version's new words no longer bold (B4); no "Clearer version" title (C5, K) and no "Exercise" title on the video path (C6, K); every try keeps its number and voice, a try the server did not keep included (C7; until then a late or unheard try was followed by another "Practise 1"); the ✕ beside ⋯ on the Ideal Text stays (F6; was "Close the one way out"); the harness's sample marks its highest moment and levels · FE #906
 
 - 2026-10-21 · helper words kept from an earlier Take no longer settle this Take's moment on the page: the confident moment is walked first, before the correction, as the server already served it (C2, F3) · FE #904
