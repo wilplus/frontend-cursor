@@ -9,6 +9,7 @@ import { Sparkles } from "lucide-react";
 import { MediaRefreshProvider, useMediaRefresher } from "@/lib/media/mediaRefresh";
 import ProcessingWait from "./ProcessingWait";
 import IdealTextPendingCoach from "./IdealTextPendingCoach";
+import OtherAccountLink from "./OtherAccountLink";
 import LoadingState from "./LoadingState";
 import WalkLoading from "./walk/WalkLoading";
 import { useBackDismiss } from "./useBackDismiss";
@@ -158,7 +159,7 @@ export default function IdealTextOverlay({
   // The old "historical" read-only step (FE-3b, ?version) is gone: a version
   // bubble is a history marker, not a frozen destination.
   const [status, setStatus] = useState<
-    "loading" | "ready" | "instant" | "pending" | "error"
+    "loading" | "ready" | "instant" | "pending" | "notYours" | "error"
   >("loading");
   const [ideal, setIdeal] = useState<IdealText | null>(null);
   const [refetchNonce, setRefetchNonce] = useState(0);
@@ -277,7 +278,8 @@ export default function IdealTextOverlay({
   const [replayRequest, setReplayRequest] = useState(0);
   const reviewOpenedRef = useRef(false);
   // The coach's link opens only what the coach sent; with nothing of theirs
-  // to show once the feedback settled, it is the review.
+  // to show once the feedback settled, it goes back to the chat, where the
+  // coach's bubble is (founder 2026-10-21: "at least just open the lounge").
   const [coachOnly, setCoachOnly] = useState(initialMode === "feedback");
   useEffect(() => {
     reviewOpenedRef.current = false;
@@ -980,7 +982,9 @@ export default function IdealTextOverlay({
             onLensClose={onClose}
             coachOnly={coachOnly}
             coachTake={coachTake}
-            onCoachOnlyEmpty={() => setCoachOnly(false)}
+            // Nothing of the coach's to show: back to the chat, where the
+            // coach's bubble is, never the text (founder 2026-10-21).
+            onCoachOnlyEmpty={onClose}
             onLensReveal={lens.reveal}
             onWalkEnd={walkEndFor(coachOnly, onClose, lens)}
             onWalkClose={() => {
@@ -1065,6 +1069,9 @@ export default function IdealTextOverlay({
                 onReadAloud={onReadAloud}
                 onRetry={retryWhilePending}
               />
+            ) : shownStatus === "notYours" ? (
+              // The coach's link in another account (WIL-93): said, never waited on.
+              <OtherAccountLink />
             ) : shownStatus === "error" ? (
               <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">
                 Couldn&apos;t load your ideal text. Try again in a moment.
