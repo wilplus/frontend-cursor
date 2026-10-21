@@ -138,7 +138,12 @@ step; the loop never waits for a coach.
   The coach's own doors (the WhatsApp and email links, the dot card, the
   coach's bubble in the chat) open the walk at the coach's place: Step 0 for
   a general word, the moment's step for a word on a particular moment (one
-  mechanism, N89, 2026-10-20).
+  mechanism, N89, 2026-10-20). A coach's word on a moment reaches the page
+  as it stands, its video with it: the page's stored feedback rows re-read
+  the coach's answer on every read, the video's link signed afresh, and a
+  coach's share asks for the rows to be baked again (backend, N92,
+  2026-10-21: "the video was sent too with the coach feedback and didn't
+  pass through").
 - **C2 Praise.** The Take's two highest-willfidence moments are shown,
   praise first and then the corrections, each group in slide order, and the
   score decides each: a moment at or above the floor is
@@ -581,6 +586,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 The four lines above were filled from main's history by the page's keeper on
 2026-10-20; the sessions doing the work overwrite them when they push.
+- **N92 · the coach's video reaches the walk** · C1, D5 · founder 2026-10-21 ("the video was sent too with the coach feedback and didn't pass through"). Found: the speaker's feedback rows are served from a stored bake that only the speaker's own writes retire; the coach's answer, with its signed video link, stayed as baked, so a video added after the bake never arrived and a baked link went dark after six hours. Built: the bake re-reads the coach's answer on every read, one read per Take, the video signed afresh; a coach's share asks for one rebake (BE) · BE #1213 · the founder checks the app: the coach's bubble in the walk shows the video above the words
 - **N91 · the walk as one thread, from every door** · B5, B9, B10, F3 · founder 2026-10-21, two recordings (the app at 06:29; the prototype, "this is how it should be"): a door opened a lone fragment of the walk, the helper words opened from the Lounge did not scroll on to the next step, Next closed the walk instead of moving on. Found: the thread was drawn only up to the step the walk stood on, and the dock was always the newest part's. Built: the thread holds every part up to the walk's furthest; the step a door names stands with its own buttons and is brought to the top; Next moves on to the next part, after the last onto the page; scrolling and ‹ › move through every part; "Review feedback" opens the whole finished walk on its newest step (FE) · FE #899 · the founder checks the app; open: what was missing of the coach's feedback in the walk (the video, the fragment's audio, or the rest of the walk)
 - **N90 · the walk's doors, checked in the app** · B10, C1, D5, F4, F5 · founder 2026-10-21: a coach's bubble and an Exercise bubble in the Lounge opened the Ideal Text page, not the walk; "the WALK opens up immediately on that part, but you can scroll to previous parts or scroll to the next ones". Found: on a finished Take the door looked for the step in the live walk, which holds only its tail, and the page asked for the walk before the Take's marks had landed; both fell back to the text. Built: a step already answered past opens the walk as given on that step, the parts before and after it there to scroll, the newest moment's part at the end with the dock; the page waits for the marks before it asks (FE) · FE #898 · the founder checked the app the same morning: the dock belongs to the step itself and Next moves on, N91
 - **N90 · the coach's bubble at the bottom** · D5 · founder 2026-10-21 ("it should be at the bottom, like it's a new message"). Found: a word shared during the review was never written as its own bubble, so it reached the chat only as the walk's copy among the Take's steps. Built: the "Later · from your coach" bubble is written the moment the coach shares, review ended or not (BE) · BE #1211 · the founder checks the app
@@ -683,6 +689,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-10-21 · N93 · a clip that fails its check is made once more with a new seed, never a third time, and a try after a clip that was never made is not scored (C6, H2) · BE #1214, FE #902
+- 2026-10-21 · N92 · the coach's answer and video reach the speaker's page as they stand: the stored feedback rows re-read the coach's answer on every read, signed afresh; a coach's share asks for a rebake (C1, D5) · BE #1213
 - 2026-10-21 · N91 · a door brings its step to the top of the whole Take's walk, with that step's own buttons in the dock; Next moves on to the next part, after the last onto the page; scrolling and ‹ › move through every part (B5, B9, B10) · FE #899
 - 2026-10-21 · N90 · a step already answered past opens the walk on that step with the parts before and after it there to scroll (B10); the coach's bubble is written at the bottom the moment the coach shares (D5); a try not heard says so with Practise again and Next (C7, K); an answered helpers step's pill reads "Edit the helper words" (C3, K); the chain's choices confirmed (E1) · FE #898, BE #1211
 - 2026-10-20 · N89 · one mechanism opens a place in the walk: a paragraph with or without the line, a Lounge bubble and the coach's word all open the whole Take's walk at its step (B10, C1, D5, F4, F5); the chain after the Take: the summary without the next step, Will's lead-in before each ask, "Did this help?" when the Take looks off, then "Look, practice makes perfect…" with Record Take N (D3, D4, E1, K) · FE #897, BE #1210
