@@ -241,7 +241,7 @@ function handlers(rated: Map<string, string>, resolved: Set<string>, tone: strin
         const id = snip(c.url);
         if (!rated.has(id)) return json({ code: "BLIND_RATING_REQUIRED", error: "Rate the original moment first." }, 409);
         return json({ passage: PASSAGES[id], speaker_answer: SPEAKER_ANSWERS[id], coach_answer: rated.get(id) ?? null,
-          speaker_goal: null, request: request(id, resolved.has(id)), heard: MACHINE_HEARD[id], named_errors: [] });
+          speaker_goal: null, request: request(id, resolved.has(id)), heard: MACHINE_HEARD[id], willfidence: 72, named_errors: [] });
       } },
     { when: (c) => moment(c.url, "/exercise-request") && c.method === "PUT",
       reply: (c) => { const id = snip(c.url); resolved.add(id); return json({ request: request(id, true) }); } },
