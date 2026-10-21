@@ -190,6 +190,10 @@ O5 -> ""a failed save says so and changes nothing""","Founder 2026-09-26, the tr
 src/components/admin/ProjectDeletionQueue.test.tsx,Story,"As an operator, I want confirming a project deletion to ask me first and send once, so that no project is erased by a slip.","O1  Backing out of the ""are you sure"" sends nothing.
 O2  Confirming sends one confirm and shows ""Confirmed"" with the purge id.","O1 -> ""sends nothing when the operator backs out""
 O2 -> ""confirms once and shows the purge request id""",
+src/components/auth/LoginForm.test.tsx,Story,"As a person signing in from a link, I want to land on a page of our own site and never on another website, so that a crafted link cannot take me somewhere else right after I type my password.","O1  A redirectTo that leaves the site (another website, ""//"", one hidden
+behind an extra encoding or a backslash) is ignored: I land on /chat.
+O2  A redirectTo on our own site is still honoured, query and all.","O1 -> ""an off-site redirectTo (%s) lands on /chat""
+O2 -> ""a same-site redirectTo is still honoured""",Open redirect in the login form (2026-10-21). The coach's WhatsApp and email links rely on O2: they land on /login?redirectTo=/chat?lens=… (WIL-93).
 src/components/founder/GoldenJudging.test.tsx,Story,"As the founder, I want to judge golden pairs seeing the passage",,,
 src/components/legal/PublishedPolicyText.test.tsx,Story,"As a reader of the Privacy page, I want the stored policy or a plain ""could not load"" line, never an endless spinner or an old stand-in, so that I always know what I agreed to.","O1  The stored policy text is shown with its version number.
 O2  When no stored copy can be had, the ""could not load"" line is shown.","O1 -> ""shows the stored copy once it is published""
