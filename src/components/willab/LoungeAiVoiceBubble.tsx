@@ -7,11 +7,13 @@ import { forgetAiVoice, knownAiVoice, noteAiVoicePlay, readAiVoiceOnce, type AiV
 
 /* -------------------------------------------------------------------------- */
 /*  The AI version of your voice in the Lounge chat, lens off (founder lock    */
-/*  2026-10-12, N71 section 3: "the lens and the chat show the same bubble"). */
-/*  The walk's grey app bubble as a chat bubble: its lines, the label, the    */
-/*  one player and under it the server's sentence on what changed and why    */
-/*  (WIL-82, 2026-10-16); never plays by itself. The clip's link is fetched   */
-/*  afresh (it expires); a clip that is gone (deleted, off) leaves the lines. */
+/*  2026-10-12, N71 section 3). Short in the chat (founder 2026-10-21: "make  */
+/*  this bubble smaller without so much text; and add a small arrow"): its    */
+/*  first line, the label, the one player and the › that opens its step in   */
+/*  the walk, where the sentence on what changed and why (WIL-82) and the     */
+/*  closing line stand whole; never plays by itself. The clip's link is       */
+/*  fetched afresh (it expires); a clip that is gone (deleted, off) leaves    */
+/*  the line.                                                                 */
 /*                                                                            */
 /*  A clip still being made is asked again while the chat is open, and its   */
 /*  player comes in when it lands; one that never comes shows the step's      */
@@ -89,6 +91,7 @@ export default function LoungeAiVoiceBubble({
   };
 
   const head = then && body.endsWith(`\n${then}`) ? body.slice(0, -(then.length + 1)) : body;
+  const first = head.split("\n")[0];
   const ready = clip?.state === "ready" && clip.url;
   // The clip never came: the step's plain words, as the walk shows them.
   const gone = Boolean(fallback) && answered && (!clip || clip.state === "unavailable");
@@ -103,8 +106,11 @@ export default function LoungeAiVoiceBubble({
   return (
     <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
       {avatar}
-      <div data-lounge-ai-voice className="flex min-w-0 flex-1 flex-col rounded-[16px] bg-muted px-3 py-2 text-[15px] leading-[1.45] text-foreground">
-        {gone ? words(fallback as string) : words(head)}
+      <div
+        data-lounge-ai-voice
+        className={`relative flex min-w-0 flex-1 flex-col rounded-[16px] bg-muted py-2 pl-3 text-[15px] leading-[1.45] text-foreground ${onOpen ? "pr-[30px]" : "pr-3"}`}
+      >
+        {gone ? words(fallback as string) : words(first)}
         {ready ? (
           <>
             <span className="mt-2 flex items-center gap-[7px] text-[13px] font-semibold">
@@ -127,14 +133,22 @@ export default function LoungeAiVoiceBubble({
                 onError={renew}
               />
             </div>
-            {clip.why ? (
-              <span data-lounge-ai-why className="mt-2 whitespace-pre-wrap break-words">
-                {clip.why}
-              </span>
-            ) : null}
           </>
         ) : null}
-        {then && !gone ? words(then, "mt-2") : null}
+        {/* The › every step bubble has: its step opens in the walk. The
+            words are the keyboard's way in; this one is for the eye and the
+            finger. */}
+        {onOpen ? (
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-hidden="true"
+            onClick={onOpen}
+            className="absolute right-[11px] top-1/2 -translate-y-1/2 text-[20px] text-muted-foreground"
+          >
+            ›
+          </button>
+        ) : null}
       </div>
     </div>
   );
