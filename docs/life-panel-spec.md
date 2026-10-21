@@ -3,7 +3,7 @@
 > **Label: Reference** · how something works today; where it differs from the In force docs, they win. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
 
 **Status:** plan, not built. Spec of record. Build prompts are this file's pair,
-`docs/life-panel-fe-prompt.md`, and the backend's `PROMPT-BE-life-panel.md`.
+[`docs/life-panel-fe-prompt.md`](https://github.com/wilplus/frontend-cursor/blob/501da43874460770310b24fafc664c4f5e606114/docs/life-panel-fe-prompt.md), and the backend's `PROMPT-BE-life-panel.md`.
 **Date:** 2026-07-26
 **Gate:** two-tier. The principles engine is public behind consent (L-6); prayer
 and the founder-only surfaces stay on the allowlist. `LIFE_PANEL_ENABLED` kills

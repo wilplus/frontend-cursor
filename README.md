@@ -32,7 +32,9 @@ The backend's `main` is the one source of truth (backend N95).
 - [Life Panel — source artifacts still outside the repo](docs/life-panel-sources/README.md)
 - [The Life Panel — implementation document](docs/life-panel-spec.md)
 
-History and Archive are listed in the backend's master doc. `docs/archive/` holds older notes.
+History is listed in the backend's master doc. The archived notes left `main` on 2026-10-21
+(backend N107); every one is in git history, at
+[the last commit that had them](https://github.com/wilplus/frontend-cursor/tree/501da43874460770310b24fafc664c4f5e606114/docs).
 
 ## Setup
 

@@ -7,7 +7,7 @@ This folder contains **code for the backend** to implement the new assignment em
 ## Files
 
 - **`assignment_email.py`** – Builds the full HTML and documents how to call it from your send-assignment endpoint.
-- **`coach_message_after_homework.md`** – How to store and return the coach message so the homework flow shows “A message for you” (no video on the homework page). Includes POST send-assignment and GET session/status examples.
+- **[`coach_message_after_homework.md`](https://github.com/wilplus/frontend-cursor/blob/501da43874460770310b24fafc664c4f5e606114/docs/backend-reference/coach_message_after_homework.md)** – How to store and return the coach message so the homework flow shows “A message for you” (no video on the homework page). Includes POST send-assignment and GET session/status examples.
 
 ## Quick integration
 
@@ -18,4 +18,4 @@ This folder contains **code for the backend** to implement the new assignment em
    - Build the homework link (e.g. `FRONTEND_URL + "/dashboard"`).
    - Call `build_assignment_email_html(...)` and send the returned HTML via Resend.
 
-Design and behavior are specified in `docs/cursor-prompts/BACKEND_ASSIGNMENT_EMAIL.md` and match the frontend `CoachEmail` component.
+Design and behavior are specified in [`docs/cursor-prompts/BACKEND_ASSIGNMENT_EMAIL.md`](https://github.com/wilplus/frontend-cursor/blob/501da43874460770310b24fafc664c4f5e606114/docs/cursor-prompts/BACKEND_ASSIGNMENT_EMAIL.md) and match the frontend `CoachEmail` component.
