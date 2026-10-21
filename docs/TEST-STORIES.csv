@@ -320,6 +320,13 @@ O4  A save the server refuses hands the deck the signed
 O2 -> ""the same answer sends nothing""
 O3 -> ""a rewrite never reopens""
 O4 -> ""a failed save hands the deck the signed notice""","Founder QA1 A, decisions log N51.5; build plan D-FW-9."
+src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
+Take's word: the page asks the server for that Take's word and the
+coach's door opens it, never another Take's.
+O2  An old link without `take` opens as before: nothing extra is asked
+and the coach's door opens the word the server sent.
+O3  Opening the Take on screen's own review (any other door) never shows
+the earlier Take's word.","O1, O2, O3 -> ""a late word on Take 1, opened from its link, opens Take 1's word; an old link opens as before""","Founder 2026-10-21 (backend N77, #1212): ""the links carry the Take the word was written on, and open that Take's coach-only walk with the word""."
 src/components/willab/coachMessageStep.test.tsx,Story,"As a speaker, I want my coach's message to open only when I ask for it, with the words, the Take and the video, so that it never interrupts me.","O1  The message never opens by itself; Review feedback opens it with the
 coach's words, the Take number and the video.","O1 -> ""never opens by itself (Q1); Review feedback shows the words, the Take and the video""","Founder 2026-09-29, Q1 (Final Screens L8)."
 src/components/willab/coachpanel/coachPanel.test.tsx,Story,"As a coach, I want to judge a moment before I see any words or the machine's read, with my queue in the order speakers sent, so that my judgement stays blind and I answer the right speaker first.","O1  Judge shows only the player, the question and the four answers.

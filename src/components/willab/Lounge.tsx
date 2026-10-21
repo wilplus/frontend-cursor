@@ -240,6 +240,7 @@ export default function Lounge({
   initialBestPresentationArcId = null,
   initialIdealTextArcId = null,
   initialIdealTextMode = null,
+  initialIdealTextTake,
   recordingProgress = null,
 }: {
   state: WillabState;
@@ -261,6 +262,10 @@ export default function Lounge({
   /** With `&feedback=1` or `?lens=`, open that notebook on the coach's
    *  feedback; with `?lens=&mode=review`, on the review. */
   initialIdealTextMode?: "feedback" | "review" | null;
+  /** With `&take=<session_id>` (founder 2026-10-21, backend N77): the Take
+   *  the coach's link names; the coach-only walk opens on that Take's word.
+   *  For that open only: closing the notebook forgets it. */
+  initialIdealTextTake?: string | null;
   /** Seed from the upload response; reserved for future per-take state. */
   recordingProgress?: RecordingProgress | null;
 }) {
@@ -458,6 +463,8 @@ export default function Lounge({
       dispatch("insights_opened");
     }
     setIdealTextLaunchMode(mode);
+    // Only the coach's link names a Take; every other open is the Take on screen's.
+    setIdealTextCoachTake(null);
     setIdealTextArcId(arcId);
   }
 
@@ -490,11 +497,13 @@ export default function Lounge({
     if (idealLinkOpenedRef.current || !initialIdealTextArcId) return;
     idealLinkOpenedRef.current = true;
     if (initialIdealTextMode) setIdealTextLaunchMode(initialIdealTextMode);
+    // The Take the link names (backend N77): its word, not the latest's.
+    setIdealTextCoachTake(initialIdealTextTake ?? null);
     // The link's lens comes off the entry under the overlay, which sets it
     // on its own: closing it never lands back on the lens.
     lensAddress(null);
     setIdealTextArcId(initialIdealTextArcId);
-  }, [initialIdealTextArcId, initialIdealTextMode]);
+  }, [initialIdealTextArcId, initialIdealTextMode, initialIdealTextTake]);
 
   // Wave-3 — no standing / every-visit offer. The proactive strong-sides nudge
   // fires once at the post-send moment (A-4 / B-2); otherwise the bot stays
@@ -558,6 +567,7 @@ export default function Lounge({
   const [idealTextReviewAt, setIdealTextReviewAt] = useState<WalkStepTarget | null>(null);
   const [idealTextLaunchMode, setIdealTextLaunchMode] =
     useState<IdealTextLaunchMode>("notebook");
+  const [idealTextCoachTake, setIdealTextCoachTake] = useState<string | null>(null);
   const [confidencePracticeId, setConfidencePracticeId] = useState<
     string | null
   >(null);
@@ -1907,6 +1917,7 @@ export default function Lounge({
         <IdealTextOverlay
           arcId={idealTextArcId}
           initialMode={idealTextLaunchMode}
+          coachTake={idealTextCoachTake}
           reviewAt={idealTextReviewAt}
           // W4/W5 — while a take is in flight (EITHER phase: analysing, or
           // the document still assembling) the overlay shows its blocking
@@ -1923,6 +1934,7 @@ export default function Lounge({
             if (thread.signedIn) void refreshNewCoachFeedback();
             setIdealTextArcId(null);
             setIdealTextLaunchMode("notebook");
+            setIdealTextCoachTake(null);
           }}
           // SD — "Read it aloud": the re-read is just another recording. Seed
           // THIS presentation (only when the cache holds a different arc; the

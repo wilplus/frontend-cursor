@@ -211,6 +211,9 @@ export interface EnrichmentHooks {
   refetch: () => void;
   fetchLane?: typeof fetchIdealTextEnrichment;
   settle?: typeof settleIdealTextEnrichment;
+  /** The Take the coach's link names (backend N77): the prompt lane's
+   *  journey is read for it. Absent: the Take on screen's. */
+  coachTake?: string | null;
 }
 
 /** Ask both lanes at once and apply each the moment it answers (F1), then
@@ -244,7 +247,7 @@ export async function loadIdealTextEnrichment(
     return lane;
   };
   const [prompt, slow] = await Promise.all([
-    fetchLane(arcId, snapshot, PROMPT_LANE).then(applyOnLanding),
+    fetchLane(arcId, snapshot, PROMPT_LANE, hooks.coachTake).then(applyOnLanding),
     fetchLane(arcId, snapshot, SLOW_LANE).then(applyOnLanding),
   ]);
   if (!hooks.isCurrent()) return;
