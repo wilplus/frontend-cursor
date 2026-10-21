@@ -78,13 +78,14 @@ step() {
   fi
 }
 
-# The six steps of the `unit` job, in its order.
+# The seven steps of the `unit` job, in its order.
 step "Vitest" npm run test
 step "Lint" npm run lint
 step "Type-check" npx tsc --noEmit
 step "BFF single-idiom guard" npm run check:bff
 step "Complexity ratchet" npm run check:complexity
 step "Design-lock guard" npm run check:design-lock
+step "Docs guard" npm run check:docs
 
 # The step CI does not have and Vercel does. A green run without this proves
 # the sources type-check; it does not prove the app builds.
