@@ -51,7 +51,7 @@ import {
 } from "./CoachPanelScreens";
 import { useAnswerFlow } from "./CoachAnswerFlow";
 import {
-  BLANK_IMPORT, CorpusAnalyseScreen, CorpusHomeScreen, CorpusImportScreen, nextToJudge, type ImportForm,
+  BLANK_IMPORT, CorpusAnalyseScreen, CorpusHomeScreen, CorpusImportScreen, type ImportForm,
 } from "./CoachCorpusScreens";
 import { MAX_BATCH_FILES, batchFailLine, importBatch, inNameOrder } from "./corpusBatch";
 import { WillBankScreen } from "./WillBankScreen";
@@ -248,7 +248,7 @@ function useImports(open: boolean) {
   }, []);
   /** The list's bottom while more waits or is on its way. */
   const bottom = next !== null || loadingMore ? { loading: loadingMore, onMore: () => void more() } : null;
-  return { imports, loading, bottom, hasMore: next !== null, more, refresh: () => setTick((n) => n + 1) };
+  return { imports, loading, bottom, more, refresh: () => setTick((n) => n + 1) };
 }
 
 /** Will's questions (N83), the founder's only: read when the queue or the
@@ -374,8 +374,6 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
   const [corpusFail, setCorpusFail] = useState<string | null>(null);
   const [batch, setBatch] = useState<{ name: string; index: number; total: number } | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
-  /** The imports judged since the list was last open: never offered twice. */
-  const judgedRun = useRef(new Set<string>());
   const [blindOpen, setBlindOpen] = useState<"audit" | "picks" | "v4picks" | "v4surer" | null>(null);
   const blindLinks = useBlindLinks(blindOpen !== null);
   const refreshMedia = () => Promise.all([refreshTake(), blindLinks.refresh()]);
@@ -385,7 +383,6 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
   /** An import opens its set-up first when that is not finished (CO1 A). */
   function openImport(im: TrainingImport): void {
     setCorpusFail(null);
-    judgedRun.current.clear();
     if (!im.setupComplete) {
       setForm({ ...BLANK_IMPORT, topic: im.topic, speaker: im.speakerLabel ?? "", language: im.language });
       dispatch({ type: "corpusImport", setupOf: im.sessionId });
@@ -393,24 +390,6 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
     }
     if (im.state !== "done") return;
     dispatch({ type: "corpusJudge", importId: im.sessionId, topic: im.topic });
-  }
-
-  /** One import judged: straight on to the next with moments waiting, in
-   *  the list's order (founder 2026-10-21), from the steps already read so
-   *  the move costs no request, else from the next steps (N100); the
-   *  imports when none is left. */
-  async function judgeNext(doneId: string): Promise<void> {
-    judgedRun.current.add(doneId);
-    let steps: ImportSteps = { imports: corpus.imports ?? [], hasMore: corpus.hasMore };
-    let next = nextToJudge(steps.imports, doneId, judgedRun.current);
-    while (!next && steps.hasMore) {
-      steps = await corpus.more();
-      next = nextToJudge(steps.imports, doneId, judgedRun.current);
-    }
-    corpus.refresh();
-    if (next) { dispatch({ type: "corpusNext", importId: next.sessionId, topic: next.topic }); return; }
-    judgedRun.current.clear();
-    dispatch({ type: "corpusHome" });
   }
 
   /** A finished import's ⋯ → Edit: its set-up again, filled in. The list
@@ -621,8 +600,8 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
     if (panel.key === "corpusanalyse") return <CorpusAnalyseScreen batch={batch} onClose={close} />;
     if (panel.key === "corpus") {
       return live ? (
-        <CoachCorpusJudge importId={panel.importId} topic={panel.topic} onSaved={() => say(COPY.toastJudged)}
-          onSaveFail={say} onDone={() => void judgeNext(panel.importId)}
+        <CoachCorpusJudge startId={panel.importId} topic={panel.topic} onSaved={() => say(COPY.toastJudged)}
+          onSaveFail={say} onDone={() => { corpus.refresh(); dispatch({ type: "corpusHome" }); }}
           onBack={() => dispatch({ type: "back" })} onClose={close} />
       ) : (
         <JudgeScreen nav={{ label: panel.topic, index: 0, total: 1, onBack: () => undefined, onNext: () => undefined }}

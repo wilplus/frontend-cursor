@@ -19,13 +19,11 @@ OUTCOME
   O8  Never over the upload limit: more files than the backend takes in an
       hour are refused at the choice, and a refusal for the hour stops the
       batch, naming every file it left.
-  O9  The done imports sit at the bottom of the list; judging one import's
-      last moment goes straight on to the next with moments waiting, in the
-      list's order, and back to the list when none is left (founder
-      2026-10-21).
+  O9  The done imports sit at the bottom of the list; opening one starts the
+      judging, mixed across imports from a clip of it, and the list comes
+      back when nothing is left to judge (founder 2026-10-21, N101).
   O10 The list comes in steps (N100): reaching its bottom reads the next
-      step, the loader showing until it lands; judging on reads the next
-      step when the ones read hold nothing left to judge.
+      step, the loader showing until it lands.
 PROVES   O1 -> "a saved set-up goes straight to judging, with its count"
          O2 -> "a set-up with nothing to judge goes back to the imports, never to judging"
          O3 -> "a new import lands on the imports with its count"
@@ -34,12 +32,11 @@ PROVES   O1 -> "a saved set-up goes straight to judging, with its count"
          O6 -> "only the founder's ⋯ carries Delete; confirming it erases the import and reads the list again"
          O7 -> "several files import one at a time, each its own import named by its file"
          O8 -> "a choice over the upload limit is refused, and a refusal for the hour stops the batch"
-         O9 -> "the done imports sit at the bottom, and judging goes on from one import to the next"
+         O9 -> "the done imports sit at the bottom; judging starts from the opened one and comes back to the list"
          O10 -> "reaching the bottom of the list reads its next step"
-         O10 -> "judging goes on into the next step of the list"
 WHY      Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files
-         in one Import, and judging one import after another, founder
-         2026-10-21.
+         in one Import, the list in steps and the corpus judged mixed,
+         founder 2026-10-21.
 */
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -68,8 +65,8 @@ vi.mock("@/services/api/coachPanel", () => ({
 }));
 vi.mock("../coachwalk/useConfidenceChainReceipt", () => ({ useConfidenceChainReceipt: () => ({ current: null }) }));
 vi.mock("./CoachCorpusJudge", () => ({
-  default: ({ importId, onDone }: { importId: string; onDone: () => void }) => (
-    <div data-testid="stub-corpus-judge">{importId}<button type="button" data-testid="stub-judged" onClick={onDone} /></div>
+  default: ({ startId, onDone }: { startId: string; onDone: () => void }) => (
+    <div data-testid="stub-corpus-judge">{startId}<button type="button" data-testid="stub-judged" onClick={onDone} /></div>
   ),
 }));
 import { blindPiece, type QueuePiece, type TrainingImport } from "@/services/api/trainingCorpus";
@@ -204,7 +201,7 @@ describe("the training corpus in the panel", () => {
       .toBe("a.mp4, b.mp4, c.mp4: Too many requests — slow down and try again.");
   });
 
-  it("the done imports sit at the bottom, and judging goes on from one import to the next", async () => {
+  it("the done imports sit at the bottom; judging starts from the opened one and comes back to the list", async () => {
     const at = (sessionId: string, more: Partial<TrainingImport>): TrainingImport =>
       ({ ...IMPORT, sessionId, topic: sessionId, setupComplete: true, ...more });
     fetchTrainingImports.mockResolvedValue([
@@ -217,16 +214,15 @@ describe("the training corpus in the panel", () => {
     await flush();
     expect([...document.querySelectorAll("[data-walk-choice]")].map((c) => c.getAttribute("data-walk-choice")))
       .toEqual(["first", "unfinished", "second", "done"]);
-    click(document.querySelector("[data-walk-choice='first']"));
-    expect(judging()?.textContent).toBe("first");
-    click(document.querySelector("[data-testid='stub-judged']"));
-    await flush();
-    // The unfinished set-up and the done import are passed over.
+    const reads = fetchTrainingImports.mock.calls.length;
+    click(document.querySelector("[data-walk-choice='second']"));
+    // The judging (mixed across imports) starts from a clip of this one.
     expect(judging()?.textContent).toBe("second");
     click(document.querySelector("[data-testid='stub-judged']"));
     await flush();
     expect(judging()).toBeNull();
     expect(onImports()).not.toBeNull();
+    expect(fetchTrainingImports.mock.calls.length).toBeGreaterThan(reads);
   });
 
   it("reaching the bottom of the list reads its next step", async () => {
@@ -245,20 +241,6 @@ describe("the training corpus in the panel", () => {
     await act(async () => { land({ imports: [waiting("second")], nextOffset: null }); });
     expect(choices()).toEqual(["first", "second"]);
     expect(document.querySelector("[data-testid='corpus-more']")).toBeNull();
-  });
-
-  it("judging goes on into the next step of the list", async () => {
-    const waiting = (sessionId: string): TrainingImport =>
-      ({ ...IMPORT, sessionId, topic: sessionId, setupComplete: true, queueCount: 2, labelledCount: 0 });
-    fetchTrainingImportsPage
-      .mockResolvedValueOnce({ imports: [waiting("first")], nextOffset: 1 })
-      .mockResolvedValueOnce({ imports: [waiting("later")], nextOffset: null });
-    act(() => root.render(<Host start={CORPUS} />));
-    await flush();
-    click(document.querySelector("[data-walk-choice='first']"));
-    click(document.querySelector("[data-testid='stub-judged']"));
-    await flush();
-    expect(judging()?.textContent).toBe("later");
   });
 
   it("the panel's queue read carries no words of a piece", () => {

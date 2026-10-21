@@ -1,20 +1,22 @@
 "use client";
 
 /* -------------------------------------------------------------------------- */
-/*  One import's moments, judged blind on the panel's Judge screen (founder   */
-/*  lock 2026-10-06, CO1 A: "its moments are judged blind on the same judging */
-/*  screen"; build plan D-CP-20).                                              */
+/*  The training corpus judged blind on the panel's Judge screen (founder     */
+/*  lock 2026-10-06, CO1 A; build plan D-CP-20), mixed (founder 2026-10-21,   */
+/*  N101): rounds of clips across imports, never one speaker twice in a row,  */
+/*  the machine's reads in equal measure, the first round starting with a     */
+/*  clip of the import the coach opened (fetchMixedCorpusQueue).              */
 /*                                                                            */
 /*  What makes a corpus label honest stays exactly as the corpus page keeps   */
 /*  it: payload order (N2), no default answer (N3), the visible-render receipt */
 /*  before a blind answer (BlindExposureBoundary), the re-review flag, and no */
-/*  machine read anywhere (N1): the row carries nothing but ids (the blind   */
-/*  read drops even the words field, fetchBlindConfidenceQueue); the clip is */
-/*  asked for by snippet through the coach-only playback route. The words of  */
-/*  a piece are NEVER drawn here, before or after the label. An answer moves  */
-/*  on to the next unlabelled piece by itself, its save running behind it (a  */
-/*  refused save brings the coach back to that moment); after the last one,   */
-/*  on to the next import (founder 2026-10-21).                               */
+/*  machine read anywhere (N1): a round carries ids and the import's topic,  */
+/*  nothing else; the clip is asked for by snippet through the coach-only    */
+/*  playback route. The words of a piece are NEVER drawn here, before or     */
+/*  after the label. An answer moves on to the next clip by itself, its save */
+/*  running behind it (a refused save brings the coach back to that moment); */
+/*  after a round's last clip, once its saves are in, the next round; when   */
+/*  none is left, back to the imports.                                       */
 /* -------------------------------------------------------------------------- */
 
 import { useEffect, useRef, useState } from "react";
@@ -23,29 +25,31 @@ import type { WalkNav } from "../walk/WalkOverlay";
 import { BlindExposureBoundary } from "../BlindExposureBoundary";
 import { useCorpusClip } from "@/hooks/useCorpusClip";
 import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
-import { firstUnlabelledIndex, nextUnlabelledIndex } from "@/lib/willab/coachPanel";
+import { nextUnlabelledIndex } from "@/lib/willab/coachPanel";
 import type { AnswerValue } from "@/lib/willab/coachWalk";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
-import {
-  fetchBlindConfidenceQueue, type BlindConfidenceQueue, type BlindQueuePiece,
-} from "@/services/api/trainingCorpus";
+import { fetchMixedCorpusQueue, type MixedQueuePiece } from "@/services/api/trainingCorpus";
 import {
   acknowledgeConfidenceChainRender, buildRatingBody, saveStateRating, type ConfidenceChainBlindHandle,
 } from "@/services/api/stateRatings";
 
-export default function CoachCorpusJudge({ importId, topic, onSaved, onSaveFail, onDone, onBack, onClose }: {
-  importId: string;
+export default function CoachCorpusJudge({ startId, topic, onSaved, onSaveFail, onDone, onBack, onClose }: {
+  /** The import the coach opened: the first round starts with one of its clips. */
+  startId: string;
+  /** Its topic: the label while a round loads. */
   topic: string;
   /** An answer is saved: "Answer saved", as on a speaker's moment. */
   onSaved: () => void;
-  /** A save refused after this import was left: the backend's sentence. */
+  /** A save refused after the judging was left: the backend's sentence. */
   onSaveFail: (error: string) => void;
-  /** Every moment judged (or the last one passed): on to the next import. */
+  /** Nothing left to judge: back to the imports. */
   onDone: () => void;
   onBack: () => void;
   onClose: () => void;
 }) {
-  const [queue, setQueue] = useState<BlindConfidenceQueue | null | undefined>(undefined);
+  const [pieces, setPieces] = useState<MixedQueuePiece[] | null | undefined>(undefined);
+  const [round, setRound] = useState(0);
+  const [turning, setTurning] = useState(false);
   const [at, setAt] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -53,39 +57,56 @@ export default function CoachCorpusJudge({ importId, topic, onSaved, onSaveFail,
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const onDoneRef = useRef(onDone);
   useEffect(() => { onDoneRef.current = onDone; });
+  /** Clips answered in this sitting: never served again by a later round. */
+  const answered = useRef(new Set<string>());
+  /** This round's saves, each true once kept. */
+  const saves = useRef<Promise<boolean>[]>([]);
 
   useEffect(() => {
     let live = true;
-    void fetchBlindConfidenceQueue(importId).then((q) => {
+    void fetchMixedCorpusQueue(round === 0 ? startId : null).then((q) => {
       if (!live) return;
-      // An import with no moments is never judged: straight back to the
-      // imports, no dead Judge screen and no word of its own.
-      if (q && q.queue.length === 0) { onDoneRef.current(); return; }
-      setQueue(q);
-      if (q) setAt(firstUnlabelledIndex(q.queue.map((p) => p.label !== null)));
+      const fresh = q ? q.filter((p) => !answered.current.has(p.snippetId)) : null;
+      setTurning(false);
+      // Nothing left to judge: straight back to the imports, no dead Judge
+      // screen and no word of its own.
+      if (fresh && fresh.length === 0) { onDoneRef.current(); return; }
+      setPieces(fresh);
+      setAt(0);
     });
     return () => { live = false; };
-  }, [importId]);
+  }, [startId, round]);
 
-  const pieces = queue?.queue ?? [];
-  const piece: BlindQueuePiece | undefined = pieces[at];
-  const playback = useCorpusClip(queue ? piece?.snippetId ?? null : null);
+  const list = pieces ?? [];
+  const piece: MixedQueuePiece | undefined = list[at];
+  const playback = useCorpusClip(pieces && !turning ? piece?.snippetId ?? null : null);
 
   useVisibleLearningExposure({
     handles: piece?.learningExposures ?? [],
-    visibilityKey: `coach-panel-corpus:${importId}:${piece?.snippetId ?? "none"}`,
-    enabled: Boolean(queue) && piece !== undefined && piece.label === null,
+    visibilityKey: `coach-panel-corpus:mixed:${piece?.snippetId ?? "none"}`,
+    enabled: Boolean(pieces) && !turning && piece !== undefined && piece.label === null,
     actorRole: "coach",
   });
 
   /** The label drawn on piece `index`, or taken off it again. */
-  const labelAt = (index: number, value: AnswerValue | null) => setQueue((q) => q ? { ...q, queue: q.queue.map((p, i) => (i !== index ? p
+  const labelAt = (index: number, value: AnswerValue | null) => setPieces((q) => q ? q.map((p, i) => (i !== index ? p
     : { ...p, label: value === null ? null
-      : { value, unrateable: false, confident: value === "yes" ? true : value === "no" ? false : null, intensity: null, note: null } })) } : q);
+      : { value, unrateable: false, confident: value === "yes" ? true : value === "no" ? false : null, intensity: null, note: null } })) : q);
+
+  /** The round is done: once its saves are in, the next round. A refused
+   *  save has already brought the coach back to its moment; they stay. */
+  async function nextRound(): Promise<void> {
+    setTurning(true);
+    const kept = await Promise.all(saves.current);
+    saves.current = [];
+    if (!mounted.current) return;
+    if (kept.some((ok) => !ok)) { setTurning(false); return; }
+    setRound((n) => n + 1);
+  }
 
   /** The answer moves on at once; the save (seconds, on a busy backend)
    *  runs behind it. A refusal takes the label off and brings the coach back
-   *  to that moment, or, once this import is left, says so on the panel. */
+   *  to that moment, or, once the judging is left, says so on the panel. */
   function answer(value: AnswerValue, exposureId: string | null): void {
     if (!piece) return;
     const body = buildRatingBody(value);
@@ -93,32 +114,36 @@ export default function CoachCorpusJudge({ importId, topic, onSaved, onSaveFail,
     if (piece.reReview) body.re_review = true;
     setError(null);
     const index = at;
+    const snippetId = piece.snippetId;
     const chain = piece.mlc2BlindReview && exposureId ? { handle: piece.mlc2BlindReview, exposureId } : null;
-    void saveStateRating(piece.snippetId, body, chain).then((result) => {
-      if (result.ok) { onSaved(); return; }
+    answered.current.add(snippetId);
+    saves.current.push(saveStateRating(snippetId, body, chain).then((result) => {
+      if (result.ok) { onSaved(); return true; }
+      answered.current.delete(snippetId);
       const sentence = result.error ?? COPY.judgeFail;
-      if (!mounted.current) { onSaveFail(sentence); return; }
+      if (!mounted.current) { onSaveFail(sentence); return false; }
       labelAt(index, null);
       setAt(index);
       setError(sentence);
       setAttempt((n) => n + 1);
-    });
+      return false;
+    }));
     labelAt(index, value);
-    const next = nextUnlabelledIndex(pieces.map((p, i) => i === index || p.label !== null), index);
+    const next = nextUnlabelledIndex(list.map((p, i) => i === index || p.label !== null), index);
     if (next >= 0) setAt(next);
-    else onDone();
+    else void nextRound();
   }
 
   const nav: WalkNav = {
-    label: topic,
+    label: piece?.topic || topic,
     index: at,
-    total: Math.max(pieces.length, 1),
+    total: Math.max(list.length, 1),
     onBack: () => { setError(null); if (at > 0) setAt(at - 1); else onBack(); },
-    onNext: () => { setError(null); if (at < pieces.length - 1) setAt(at + 1); else onDone(); },
+    onNext: () => { setError(null); if (at < list.length - 1) setAt(at + 1); else void nextRound(); },
   };
 
-  if (queue === undefined || !piece) {
-    return <JudgeScreen nav={nav} momentId={`${importId}:${at}`} clip={null} error={queue === null ? COPY.readFail : null}
+  if (pieces === undefined || turning || !piece) {
+    return <JudgeScreen nav={nav} momentId={`mixed:${round}:${at}`} clip={null} error={pieces === null ? COPY.readFail : null}
       attempt={0} onAnswer={() => undefined} onClose={onClose} />;
   }
 

@@ -913,6 +913,28 @@ export async function fetchBlindConfidenceQueue(
   return queue ? { sessionId: queue.sessionId, queue: queue.queue.map(blindPiece) } : null;
 }
 
+/** A clip of the mixed round (N101): the blind piece and the topic of its
+ *  import, the label the judging screen already shows. Nothing else. */
+export type MixedQueuePiece = BlindQueuePiece & { topic: string };
+
+/** The next round of the training corpus judged mixed (founder 2026-10-21,
+ *  N101): clips across imports, never one speaker twice in a row, the
+ *  machine's reads in equal measure, in a blind order kept as it came (N2).
+ *  `start` is the import the coach opened, whose clip comes first. Null when
+ *  it could not be read; an empty round: nothing left to judge. */
+export async function fetchMixedCorpusQueue(
+  start?: string | null,
+): Promise<MixedQueuePiece[] | null> {
+  const qs = start ? `?start=${encodeURIComponent(start)}` : "";
+  const result = await bffFetch(`/api/v2/coach/corpus/mixed-queue${qs}`, { cache: "no-store" });
+  if (result.kind !== "response" || !result.ok) return null;
+  const queue = mapConfidenceQueue(result.body);
+  if (!queue) return null;
+  const rows = ((result.body as { queue?: unknown[] }).queue ?? []) as Record<string, unknown>[];
+  const topics = new Map(rows.map((r) => [str(r.snippet_id), str(r.topic)]));
+  return queue.queue.map((piece) => ({ ...blindPiece(piece), topic: topics.get(piece.snippetId) ?? "" }));
+}
+
 /* ---------------------------- a row's playback ----------------------------
  * GET /api/v2/coach/corpus/clips/<snippet_id>/playback (coach/admin only).
  * The backend answers a short-lived signed URL to the import's PARENT
