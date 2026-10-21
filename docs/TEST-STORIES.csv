@@ -732,14 +732,14 @@ O4  The AI clip appears with one sentence on what it does differently, never a n
 O5  At most 3 tries, all shown together in the chat with the steps before them; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.
 O6  The Exercise reaches the coach's queue the moment it is on screen, and the Lounge as the AI bubble once a clip is coming, even when I tap Practise first.
 O7  The voice Exercise cheers first: ""That was good. But what if you said it more like this?"", my AI voice, then ""Now try saying it like that.""; a not yet after it never repeats that opening.
-O8  A voice correction with nothing to offer (no exercise, no AI clip coming) is skipped: no ""Say this one like your confident moment."" on its own, in the walk or the chat; it still reaches the coach's queue.","O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
+O8  A voice correction with nothing to offer (no exercise, no AI clip coming) is skipped: no ""Say this one like your confident moment."" on its own, in the walk or the chat; it still reaches the coach's queue. The Take's most confident moment is not skipped: it says its own line and is said again (N109).","O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
 O2 -> praise on try 1: the line for the reading that moved ...
 O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
 O4 -> the bubble is there at once: the typing dots alone ..., with the clip, the speaker reads what this version does differently and why (WIL-82)
 O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing
 O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first
 O7 -> praise first: L4, the AI version of their voice, then L3, never ""Exercise""; every not yet after it says L5
-O8 -> with no exercise and no AI clip coming, the walk moves past it: no Line A alone, and the coach's queue still hears it","Never-rule 1 (no scores to speakers); founder 2026-10-21 (N108, ""Skip that moment"")."
+O8 -> with no exercise and no AI clip coming, the walk moves past it: no Line A alone, and the coach's queue still hears it; the Take's most confident moment with nothing to offer says its own line and is said again","Never-rule 1 (no scores to speakers); founder 2026-10-21 (N108, ""Skip that moment"")."
 src/components/willab/walk/walkReplay.test.tsx,Story,"As a speaker, I want to replay a finished walk with my answers shown and nothing written or recorded again, so that I can look back safely.","O1  The same screens play with my answers; only a change to my helper words is saved.
 O2  A done exercise plays my past tries and records nothing new.
 O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.","O1 -> opens on the coach's note and plays the same screens answered; helper words stay editable, nothing else writes
@@ -1031,12 +1031,17 @@ as shown, and no ""Practise"" bubble of its own for a try.
 O6  My coach's word for a Take is written into the chat once: not again
 when it shows again, not under its ""Later · from your coach"" bubble,
 not for an earlier Take's word, not in a replay, not while the chat is
-still loading (N80, D4).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
+still loading (N80, D4).
+O7  My most confident moment, when the walk goes on to make it better, is
+named as solid and confident in a line that fits what follows (a
+clearer version, an example, or saying it again), and is never told to
+sound like my confident moment (founder 2026-10-21).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
 O2 -> ""posts judging other speakers as the prototype's chat does, never their recording""
 O3 -> ""counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles""
 O4 -> ""asks the sharing question as one bubble, its lines as paragraphs, also for a question stored as three""
 O5 -> ""says the practise answer the walk showed, and writes no Practise bubble for a try (founder 2026-10-20)""
-O6 -> ""writes the coach's word into the chat once per Take""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word)."
+O6 -> ""writes the coach's word into the chat once per Take""
+O7 -> ""names the confident moment for what follows, never with Line A""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word)."
 src/services/api/accountDeletion.test.ts,Story,"As a speaker, I want ""delete my account"" to send one deletion request and show me how long I have to change my mind, and a refusal to change nothing, so that I can trust deletion and cancel it in time.","O1  Asking to delete sends one request with a one-time key and shows the
 pending deletion with its end date.
 O2  A refusal or no connection records nothing.

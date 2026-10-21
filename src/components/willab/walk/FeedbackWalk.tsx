@@ -22,7 +22,7 @@ import WalkAiVoice, { AI_EXERCISE_OPENING, aiVoiceComing, aiVoiceShown, type AiV
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
-import { clearerOpening, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
+import { clearerOpening, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import { WALK_MAX_TRIES, type WalkStep } from "@/lib/willab/walkPlan";
 import {
@@ -375,13 +375,17 @@ export default function FeedbackWalk<R = unknown>({
     if (s.moment == null) return null;
     const practiceId = practise.aiVoicePracticeOf(s.moment);
     const lines = practiceId ? aiVoiceComing(plan, i, practise.aiVoiceOf(s.moment)) : null;
-    return lines && practiceId ? { ...lines, practiceId } : null;
+    const moment = walk.moments[s.moment];
+    return lines && practiceId ? { ...(s.key === "exVideo" && moment ? topAiLines(lines, moment) : lines), practiceId } : null;
   };
   /** A voice correction with nothing to offer (founder 2026-10-21, N108):
    *  no exercise served and no AI clip, live once its ask came back without
-   *  one, played again when it had no try. Never Line A on its own. */
+   *  one, played again when it had no try. Never Line A on its own. The
+   *  Take's most confident moment is not one: it says its own line and is
+   *  said again (N109). */
   const bare = (s: WalkStep | undefined, i: number): boolean => {
-    if (s?.key !== "exVideo" || s.moment == null || walk.moments[s.moment]?.exercise != null) return false;
+    const moment = s?.moment == null ? undefined : walk.moments[s.moment];
+    if (s?.key !== "exVideo" || s.moment == null || !moment || moment.exercise != null || moment.highest) return false;
     if (s.replay || s.readOnly) return s.replay === true && walk.replay?.tries?.[s.moment] === undefined;
     const state = practise.aiVoiceOf(s.moment);
     return state !== undefined && !practise.aiVoiceAsking(s.moment) && aiVoiceShown(plan, i, state) === null;
@@ -903,7 +907,7 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
       {/* The coach's own clearer version is their bubble, with their photo
           and video, and is not said twice (founder 2026-10-20). */}
       <WalkMessage coach={clearer.byCoach === true} wide={clearer.byCoach === true}>
-        {moment.highest ? <span>{COPY.titleMostConfidentSoFar}</span> : null}
+        {moment.highest ? <span>{topMomentLine("clearer", moment)}</span> : null}
         {clearer.byCoach && moment.coachAnswer?.videoUrl ? (
           <CoachVideo src={moment.coachAnswer.videoUrl} className="my-2 w-full flex-none" />
         ) : null}
@@ -928,14 +932,16 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
       <Clip moment={moment} />
       {aiExercise(ctx, step, moment) ?? (ctx.bare(step) ? null : (
         <WalkMessage coach={exercise?.byCoach === true} wide>
-          {moment.highest ? <span>{COPY.titleMostConfidentSoFar}</span> : null}
+          {moment.highest ? <span>{topMomentLine(exercise?.video ? "example" : "again", moment)}</span> : null}
           {exercise?.video ? (
             <CoachVideo
               src={exercise.video}
               className="my-2 w-full max-h-[300px] flex-none [&>video]:aspect-[4/5] [&>video]:max-h-[300px] [&>video]:object-cover"
             />
           ) : null}
-          <span>{exercise?.instruction ?? WALK_COPY.lineA}</span>
+          {/* Line A asks for the confident moment's voice: not on that moment
+              itself (founder 2026-10-21). */}
+          {exercise?.instruction || !moment.highest ? <span>{exercise?.instruction ?? WALK_COPY.lineA}</span> : null}
         </WalkMessage>
       ))}
       <CoachAnswerBubble moment={moment} />
@@ -1034,6 +1040,13 @@ function ThreadFooter<R>({ ctx, step }: { ctx: ScreenCtx<R>; step: WalkStep }) {
   return <WalkFooter dot outline pill={{ label, onClick: practise, testId: "walk-practise" }} />;
 }
 
+/** On the Take's confident moment the Exercise's AI bubble opens with the
+ *  moment's own line, which already praises it, in place of L4's "That was
+ *  good. But…" (founder 2026-10-21: no praise said twice, no jump). */
+function topAiLines(lines: AiVoiceLines, moment: FeedbackWalkMoment<unknown>): AiVoiceLines {
+  return moment.highest ? { ...lines, title: undefined, line: topMomentLine("example", moment) } : lines;
+}
+
 /** No video fits this problem: the AI clip in the video's place (N71), the
  *  bubble there at once with the typing dots while the clip is being made
  *  (founder 2026-10-15). Otherwise the locked Exercise. */
@@ -1041,13 +1054,12 @@ function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
   const state = ctx.practise.aiVoiceOf(moment.index);
   const ai = aiVoiceShown(ctx.walk.plan, ctx.at(step), state);
   if (!ai) return null;
-  const lines = ai === "pending" ? AI_EXERCISE_OPENING : ai;
+  const lines = topAiLines(ai === "pending" ? AI_EXERCISE_OPENING : ai, moment);
   return (
     <WalkAiVoice
       seed={`ai-ex-${moment.index}`}
       state={state}
       {...lines}
-      title={moment.highest ? COPY.titleMostConfidentSoFar : lines.title}
       arrive
       onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
     />

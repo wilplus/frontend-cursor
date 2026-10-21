@@ -9,7 +9,7 @@ OUTCOME
   O5  At most 3 tries, all shown together in the chat with the steps before them; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.
   O6  The Exercise reaches the coach's queue the moment it is on screen, and the Lounge as the AI bubble once a clip is coming, even when I tap Practise first.
   O7  The voice Exercise cheers first: "That was good. But what if you said it more like this?", my AI voice, then "Now try saying it like that."; a not yet after it never repeats that opening.
-  O8  A voice correction with nothing to offer (no exercise, no AI clip coming) is skipped: no "Say this one like your confident moment." on its own, in the walk or the chat; it still reaches the coach's queue.
+  O8  A voice correction with nothing to offer (no exercise, no AI clip coming) is skipped: no "Say this one like your confident moment." on its own, in the walk or the chat; it still reaches the coach's queue. The Take's most confident moment is not skipped: it says its own line and is said again (N109).
 PROVES   O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
          O2 -> praise on try 1: the line for the reading that moved ...
          O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
@@ -17,13 +17,13 @@ PROVES   O1 -> Stop uploads through the attempts route, returns to the walk at o
          O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing
          O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first
          O7 -> praise first: L4, the AI version of their voice, then L3, never "Exercise"; every not yet after it says L5
-         O8 -> with no exercise and no AI clip coming, the walk moves past it: no Line A alone, and the coach's queue still hears it
+         O8 -> with no exercise and no AI clip coming, the walk moves past it: no Line A alone, and the coach's queue still hears it; the Take's most confident moment with nothing to offer says its own line and is said again
 WHY      Never-rule 1 (no scores to speakers); founder 2026-10-21 (N108, "Skip that moment").
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CHUNK_SHEET_COPY as COPY, PRACTISE_LINES, WALK_COPY } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "../idealEditCopy";
 import FeedbackWalk from "./FeedbackWalk";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 import { walkPractiseIO } from "@/services/api/walkPractise";
@@ -520,6 +520,15 @@ describe("a voice correction with nothing to offer (founder 2026-10-21, N108)", 
     expect(host.textContent).not.toContain(WALK_COPY.lineA);
     expect(onShown.mock.calls.some(([s]) => ["exVideo", "practise"].includes((s as { key: string }).key))).toBe(false);
     expect(mic.starts).toBe(0);
+  });
+
+  it("the Take's most confident moment with nothing to offer says its own line and is said again", async () => {
+    aiClip = "none";
+    draw({ items: PLAIN_ITEMS.map((i) => ({ ...i, highest: true })), at: 1 });
+    await settle();
+    expect(screen()).toBe("walk-screen-exVideo");
+    expect(TOP_MOMENT_LINES.again).toContain(message());
+    expect(host.textContent).not.toContain(WALK_COPY.lineA);
   });
 });
 

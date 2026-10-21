@@ -17,17 +17,22 @@ OUTCOME
       when it shows again, not under its "Later · from your coach" bubble,
       not for an earlier Take's word, not in a replay, not while the chat is
       still loading (N80, D4).
+  O7  My most confident moment, when the walk goes on to make it better, is
+      named as solid and confident in a line that fits what follows (a
+      clearer version, an example, or saying it again), and is never told to
+      sound like my confident moment (founder 2026-10-21).
 PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own message, with no score"
          O2 -> "posts judging other speakers as the prototype's chat does, never their recording"
          O3 -> "counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles"
          O4 -> "asks the sharing question as one bubble, its lines as paragraphs, also for a question stored as three"
          O5 -> "says the practise answer the walk showed, and writes no Practise bubble for a try (founder 2026-10-20)"
          O6 -> "writes the coach's word into the chat once per Take"
+         O7 -> "names the confident moment for what follows, never with Line A"
 WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12);
          founder 2026-10-19, N80 (when the coach changes their word).
 */
 import { describe, expect, it } from "vitest";
-import { CHUNK_SHEET_COPY as COPY, PRACTISE_LINES, WALK_COPY } from "@/components/willab/idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "@/components/willab/idealEditCopy";
 import { answerBody, coachNoteToChat, oneShareQuestion, othersAnswered, othersChat, shareChat, shownStep, stableUuid, walkStepDraft } from "./walkThread";
 
 describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
@@ -115,5 +120,23 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
     expect(coachNoteToChat(chat(), "t2", "t2", true)).toBe(false);
     // The chat still loading: what it holds is not known, so no copy yet.
     expect(coachNoteToChat({ messages: [], loading: true }, "t2", "t2", false)).toBe(false);
+  });
+
+  it("names the confident moment for what follows, never with Line A", () => {
+    const top = {
+      index: 0, highest: true, paragraphText: "Hi everyone, I've just been to the cinema.",
+      clip: { src: "x", startOffsetMs: null, durationMs: null, snippetId: "s1" },
+      exercise: null, clearer: null, praiseWords: [],
+    } as unknown as Parameters<typeof shownStep>[1];
+    const again = shownStep({ key: "exVideo", moment: 0 }, top, null)?.body ?? "";
+    expect(TOP_MOMENT_LINES.again).toContain(again);
+    expect(again).not.toContain(WALK_COPY.lineA);
+    const video = { ...top, exercise: { video: "https://v", instruction: "Pause before the key words." } } as unknown as typeof top;
+    const shown = shownStep({ key: "exVideo", moment: 0 }, video, null)?.body.split("\n") ?? [];
+    expect(TOP_MOMENT_LINES.example).toContain(shown[0]);
+    const clearer = { ...top, clearer: { say: "I saw the movie.", before: [], after: [], reason: null } } as unknown as typeof top;
+    const said = shownStep({ key: "clearer", moment: 0 }, clearer, null, () => "Try it this way:")?.body.split("\n") ?? [];
+    expect(TOP_MOMENT_LINES.clearer).toContain(said[0]);
+    expect(said[1]).toBe("Try it this way:");
   });
 });
