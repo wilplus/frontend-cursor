@@ -313,6 +313,10 @@ page):
   queue's speakers as the list draws them.
 - `src/app/admin/library/`, `src/app/admin/errors/` — the founder's Library
   and Speaking errors pages (I).
+- `src/lib/willab/coachWalkCopy.ts` — the coach walk's words (guarded since N111).
+- `src/lib/willab/coachPanel.ts` — the panel's state (guarded since N111).
+- `src/app/coach/corpus/` — the training corpus for a coach (H) (guarded since N111).
+- `src/app/admin/corpus/` — the training corpus for the founder (H) (guarded since N111).
 
 Frontend, shared (not guarded): `src/components/willab/walk/WalkOverlay.tsx`
 (the overlay the panel's screens use; its `subtitle` takes several lines),
@@ -354,6 +358,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · N111 · D2 and E1 stand: once a coach's answer is saved, the panel shows what the machine heard (in place of contract 34's amendment of 6 October); B3's blind lines are off; the page also guards the coach walk's words, the panel's state and both corpus screens (§4) · BE, FE
 - 2026-10-21 · N106 · the page's label line under its title, and the docs it names as clickable links; no rule changes · BE #1239, FE #926
 - 2026-10-21 · N104 · What happened gets a last line, Willfidence, in percent; the person's admin page loses the Confident Voice practice tile (E1) · FE #923, BE #1236
 - 2026-10-21 · N102 · H points to the one page for learning and the label quorum (backend [`docs/LEARNING-AND-QUORUM.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/LEARNING-AND-QUORUM.md)); no rule changes · FE #922, BE #1234

@@ -551,18 +551,20 @@ step; the loop never waits for a coach.
 
 The whole picture, every source the app learns from and how an answer
 becomes a label, is one backend page: [`docs/LEARNING-AND-QUORUM.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/LEARNING-AND-QUORUM.md) (N102).
-I1 to I5 are this flow's part of it; what it found open here (I1's "half
-praised and half low", I3's "200 labels") is in that page's §3.
+I1 to I5 are this flow's part of it. The two things it found open here, I1's
+"half praised and half low" and I3's "200 labels", the founder settled on 21
+October (backend N111).
 
 - **I1** Labels come only from blind answers: the coach, and other speakers
   inside practice. 👍 = 1, 😐 = 0.5, 👎 = 0. A label counts once two answers
   match. "Audio unclear" goes to a fresh judge; twice, and the clip is
-  quarantined. The clips judged are half praised and half low sentences.
+  quarantined.
 - **I2** The speaker's own answers are never labels (L3). The AI clip is
   never a label and never enters a training set. The coach never sees the
   machine's guess before answering.
 - **I3** Training tunes the willfidence weights against the soft label once
-  there are at least 200 labels, speaker-disjoint, checked on the sealed
+  there are at least 200 settled clips (two matching answers each, I1),
+  speaker-disjoint, checked on the sealed
   golden set and re-sealed under the new question version; the founder
   promotes it as `willfidence-v2`. Coaches answer with the same 👍 😐 👎,
   "Audio unclear" and the signed "Skip"; old answers stay.
@@ -735,7 +737,7 @@ The four lines above were filled from main's history by the page's keeper on
   up and the mic on (read in the code 2026-10-20, not reproduced): the
   recorder's stop does nothing until the mic reports started.
 - **FLOOR** is 0.6 until the blind judges calibrate it (H1).
-- **willfidence-v2** waits for 200 labels (I3).
+- **willfidence-v2** waits for 200 settled clips (I3).
 
 ## 4. Where it lives
 
@@ -759,6 +761,11 @@ page):
   lines, the practise loop, the tries.
 - `src/components/willab/useDeckFeedbackWalk.tsx` — how a paragraph tap
   opens the walk and the coach-queue report (F4, F5, I5).
+- `src/components/willab/NextTakeShareScreen.tsx` — sharing the next Take (G) (guarded since N111).
+- `src/lib/willab/coachLink.ts` — the coach's link (WIL-93) (guarded since N111).
+- `src/components/willab/OtherAccountLink.tsx` — the coach's link on another account (WIL-93) (guarded since N111).
+- `src/lib/willab/enrichmentSettle.ts` — the wait for the Take's reading to settle (A2) (guarded since N111).
+- `src/components/willab/TypingDots.tsx` — Will's typing dots (B8) (guarded since N111).
 
 Frontend, shared with other flows (not guarded): `src/components/willab/Lounge.tsx`
 (the chat), `src/components/willab/useLoungeThread.ts`,
@@ -816,6 +823,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-10-21 · N108 · the voice decides: the two strongest voices are shown, the strongest is "your most confident moment", a voice at the floor is praised (the Clearer version when its words need help) and only a voice under it gets the voice Exercise; a voice correction with no exercise and no AI clip is skipped, never Line A on its own, and still reaches the coach; the Take's most confident moment keeps its own line and is said again (N109) (C2, C4, H1) · BE #1242, BE #1243, FE #930
+- 2026-10-21 · N111 · I1 drops "half praised and half low" (N86, N101 and N97 set the order); I3's 200 labels are 200 settled clips; the page also guards the next-Take share screen, the coach's link, the reading's wait and the typing dots (§4) · BE, FE
 - 2026-10-21 · N110 · the waiting screen stays: the Lounge shows the same screen the moment the Lab hands the Take over, in place of the chat (A1); it stays over the lens until the walk's first step is on screen, in place of closing when the text is stored and the lens opening on its typing dots (A2); the bar shows 1% from the first second, in place of "…" before the first report (A1) · FE #931, BE #1245
 - 2026-10-21 · the top moment, when corrected, opens with its own line, named solid and confident and fitting what follows (a clearer version, an example, or saying it again), three phrasings each around the founder's line, in place of "so far"; on its AI clip it stands in for L4; no Line A on that moment (C2, K); the AI clip's wait no longer ends on a failed start or an empty read: the start is asked again three times, an empty read keeps waiting (C6, H2) · FE
 - 2026-10-21 · N106 · the page's label line under its title, and the docs it names as clickable links; no rule changes · BE #1239, FE #926

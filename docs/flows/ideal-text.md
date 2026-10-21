@@ -351,6 +351,12 @@ Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 - `src/components/willab/HelperWordsSheet.tsx`
 - `src/components/willab/ExportFormatDialog.tsx`
 - `src/components/willab/idealEditCopy.ts`
+- `src/components/willab/PresentMode.tsx` — Presentation Mode (guarded since N111).
+- `src/lib/willab/presentationDocument.ts` — the export's document (guarded since N111).
+- `src/lib/willab/presentationDocx.ts` — the export as Word (guarded since N111).
+- `src/lib/willab/presentationPdf.ts` — the export as PDF (guarded since N111).
+- `src/lib/willab/helperWordsOverlay.ts` — the helper words over the text (guarded since N111).
+- `src/lib/willab/paragraphOverlay.ts` — the paragraph sheet over the text (guarded since N111).
 
 Backend (`wilplus/backend-cursor`): the lock file this page replaces, [`docs/FOUNDER-LOCK-helper-words-2026-09-30.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-helper-words-2026-09-30.md) (history).
 
@@ -365,5 +371,6 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · N111 · the page also guards Presentation Mode, the export and the two sheets over the text (§4); no rule changes · BE, FE
 - 2026-10-21 · the walk's line over a corrected top moment is one of the confident moment's own lines (`TOP_MOMENT_LINES`) (`idealEditCopy.ts`; the walk's rules are on the Feedback walk page, C2) · FE
 - 2026-10-21 · N107 · this page replaces backend `FOUNDER-LOCK-helper-words-2026-09-30.md` as the place the rules live; the lock stays as history · BE #1241, FE #928
