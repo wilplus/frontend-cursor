@@ -50,7 +50,8 @@ export interface ProcessingTake {
   arcId: string | null;
   /** 1-based take index within the batch; null for standalone recordings. */
   takeIndex: number | null;
-  /** Epoch ms when the upload was accepted — drives the "taking longer" cap. */
+  /** Epoch ms when the wait began (the upload starting; before N109 its
+   *  acceptance) — the job's tip epoch and its age cap. */
   startedAt: number;
   /** Which wait this is. Older markers deserialize as "analysis". */
   phase: ProcessingPhase;

@@ -213,5 +213,5 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-21 · N109 · the flow, 5, in the present tense: the wait starts at 1% and stays on screen through the hand-over to the Lounge until the walk's first step is on screen, in place of "the processing wait as today (voice mark, stage label, **While you wait** tips), then the Ideal Text page" · FE #PR_FE, BE #1245
+- 2026-10-21 · N109 · the flow, 5, in the present tense: the wait starts at 1% and stays on screen through the hand-over to the Lounge until the walk's first step is on screen, in place of "the processing wait as today (voice mark, stage label, **While you wait** tips), then the Ideal Text page" · FE #931, BE #1245
 - 2026-10-21 · N107 · this page replaces backend `FOUNDER-LOCK-recording-screens-2026-10-07.md` as the place the rules live; the lock stays as history · BE #1241, FE #928

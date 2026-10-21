@@ -781,7 +781,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-21 · N109 · the waiting screen stays: the Lounge shows the same screen the moment the Lab hands the Take over, in place of the chat (A1); it stays over the lens until the walk's first step is on screen, in place of closing when the text is stored and the lens opening on its typing dots (A2); the bar shows 1% from the first second, in place of "…" before the first report (A1) · FE #PR_FE, BE #1245
+- 2026-10-21 · N109 · the waiting screen stays: the Lounge shows the same screen the moment the Lab hands the Take over, in place of the chat (A1); it stays over the lens until the walk's first step is on screen, in place of closing when the text is stored and the lens opening on its typing dots (A2); the bar shows 1% from the first second, in place of "…" before the first report (A1) · FE #931, BE #1245
 - 2026-10-21 · N106 · the page's label line under its title, and the docs it names as clickable links; no rule changes · BE #1239, FE #926
 - 2026-10-21 · N102 · §I points to the one page for learning and the label quorum (backend [`docs/LEARNING-AND-QUORUM.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/LEARNING-AND-QUORUM.md)); no rule changes · FE #922, BE #1234
 - 2026-10-21 · WIL-93 · the coach's link opens the coach's feedback read or not: seen and answered, the word and the coach's answers as given (it opened and closed at once); with nothing of the coach's on the page, the chat at the coach's bubble, which pulses once (C1) · FE #919
