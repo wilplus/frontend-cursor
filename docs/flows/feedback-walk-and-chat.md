@@ -756,7 +756,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-21 · WIL-93 · a coach's door with nothing of the coach's to show goes back to the chat, where the coach's bubble is, never to the text; the coach's link in another account says "This link is for another account." with "Log in with that account" instead of waiting on "Building your Ideal Text" (C1, K) · FE
+- 2026-10-21 · WIL-93 · a coach's door with nothing of the coach's to show goes back to the chat, where the coach's bubble is, never to the text; the coach's link in another account says "This link is for another account." with "Log in with that account" instead of waiting on "Building your Ideal Text" (C1, K) · FE #917
 - 2026-10-21 · WIL-93 · the coach's WhatsApp and email links, tapped signed out, go to log in and back to the coach's feedback; a guest's own project stays on the guest's screens (C1) · FE #911
 - 2026-10-21 · N97 · WIL-32 decided: the speaker/coach disagreement signal stands and waits until speakers answer about their own clips again (§3); other speakers stay one per try, other speakers' moments first and licensed clips for the places left, replacing the note's 3 every walk of 2026-10-19 (C8) · FE #915, BE #1219
 - 2026-10-21 · the AI voice's bubble in the Lounge is short: its first line, the voice and the › every step bubble has; the why and the closing line stand in the walk it opens (B12) · FE #912
