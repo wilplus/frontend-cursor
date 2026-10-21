@@ -67,6 +67,7 @@ import {
 } from "@/lib/willab/exploreArc";
 import { clearInsightsReady, setPendingSend } from "./sendStatus";
 import { readParked } from "./willabParked";
+import { COACH_BUBBLE_ATTR, useCoachBubbleFocus } from "./useCoachBubbleFocus";
 import { guestNeedsAccount } from "./GuestSignUpDialog";
 import ReadySignUpScreen from "./ReadySignUpScreen";
 import { isLabOverlay, type WillabEvent, type WillabState } from "./useWillabFlow";
@@ -392,6 +393,8 @@ export default function Lounge({
   // The coach's word rings while the server says it is new (founder
   // 2026-10-19, N80), and opens alone in its lens.
   const coachUpdates = useCoachUpdates(messages);
+  // The coach's door with nothing on its page shows the coach's bubble (WIL-93).
+  useCoachBubbleFocus();
   const stepWaits = (m: LoungeMessage) =>
     coachUpdates.waits(m, !seenUpdates.has(m.client_id) && waitingStep === m.client_id);
   // Helper words a later pick replaced: struck in the chat (prototype v31).
@@ -2573,6 +2576,12 @@ function isCoachBubble(m: LoungeMessage): boolean {
   return m.kind === "walk_step" && meta.step === "coachnote" && meta.author === "coach";
 }
 
+/** A coach's word bubble carries its word's Take, so the coach's door can
+ *  bring the chat to it (WIL-93, useCoachBubbleFocus). */
+function coachBubbleMark(m: LoungeMessage): Record<string, string> {
+  return isCoachBubble(m) ? { [COACH_BUBBLE_ATTR]: String(wordTakeOf(m) ?? "") } : {};
+}
+
 /** The Take a coach bubble's word is of: the walk's copy of an earlier
  *  Take's word names it apart (as the server reads it). */
 function wordTakeOf(m: LoungeMessage): unknown {
@@ -2879,6 +2888,7 @@ function AppStepBubble({
         type="button"
         data-bubble=""
         data-walk-step-bubble
+        {...coachBubbleMark(message)}
         onClick={open}
         onPointerDown={warm}
         className={`relative whitespace-pre-wrap break-words rounded-[16px] bg-muted py-2 pl-3 text-left text-[15px] leading-[1.45] text-foreground ${open ? "pr-[30px]" : "pr-3"} ${waiting ? "ring-2 ring-primary" : ""}`}

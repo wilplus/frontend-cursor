@@ -574,6 +574,10 @@ export function buildFeedbackReplay<R = unknown>(input: {
   items: readonly FeedbackWalkItem<R>[];
   coachNote: boolean;
   practiceOn: boolean;
+  /** The coach's door (WIL-93, founder 2026-10-21): only what the coach
+   *  sent, as given, read or not; `coachWordOnly` as in the live walk. */
+  coachOnly?: boolean;
+  coachWordOnly?: boolean;
   /** The speaker's latest answer on a Confident Voice item; null: none. */
   answerOf: (judge: R) => ConfidenceRatingValue | null;
   /** The helper words saved on a paragraph; null: none. */
@@ -584,7 +588,7 @@ export function buildFeedbackReplay<R = unknown>(input: {
   const items = input.items.map((i) =>
     i.judge != null && input.answerOf(i.judge) === null ? { ...i, judge: null } : i,
   );
-  const base = buildFeedbackWalk({ items, coachNote: input.coachNote, practiceOn: input.practiceOn, guest: false });
+  const base = buildFeedbackWalk({ items, coachNote: input.coachNote, practiceOn: input.practiceOn, guest: false, coachOnly: input.coachOnly, coachWordOnly: input.coachWordOnly });
   const tries: Record<number, ReplayTries> = {};
   const outcomes: Record<number, readonly TryOutcome[]> = {};
   for (const moment of base.moments) {
