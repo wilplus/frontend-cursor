@@ -86,7 +86,7 @@ export const CHUNK_SHEET_COPY = {
      below the floor and the walk goes on to its clearer version or
      exercise, so the speaker knows what they are hearing. */
   titleMostConfident: "This was your most confident moment.",
-  titleMostConfidentSoFar: "This was your most confident moment so far.",
+  titleMostConfidentSoFar: "This was a solid, confident moment we recognised. Here is an example to make it even better.",
   /* Step three, the only place the asynchronous side of the product reaches
      this sheet. The title carries the whole label: the offer card deliberately
      has no eyebrow and no corner icon, because the screen has already said
