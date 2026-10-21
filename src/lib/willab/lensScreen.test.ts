@@ -3,12 +3,14 @@ STORY    As a speaker, I want my text to appear as soon as there is nothing to w
 OUTCOME
   O1  When feedback has settled (or the page failed) with nothing to walk, the text shows.
   O2  While feedback, a coach review, a walk or helper words may still open, the waiting screen stays.
+  O3  A step I tapped in the chat opens only once the Take's moments are in and the page knows what waits, never the text in its place (founder 2026-10-21).
 PROVES   O1 -> comes down when the feedback settles with nothing to walk
          O2 -> stays while the marks may still land or a walk is opening
+         O3 -> a step asked for waits for the moments, then goes through the door
 */
 import { describe, expect, it } from "vitest";
 
-import { lensIdle, lensStillLoading } from "./lensScreen";
+import { lensIdle, lensStillLoading, walkDoorReady } from "./lensScreen";
 
 /* The lens screen (founder 2026-10-14): the text appears as soon as the page
  * knows there is nothing to walk, and never while a walk may still open. */
@@ -44,5 +46,14 @@ describe("the lens screen", () => {
     expect(lensStillLoading({ ...ready, status: "loading" })).toBe(true);
     expect(lensStillLoading({ ...ready, feedbackPending: true })).toBe(true);
     expect(lensStillLoading({ ...ready, reviewWaiting: null })).toBe(true);
+  });
+
+  it("a step asked for waits for the moments, then goes through the door", () => {
+    // The prompt lane lands before the marks: the deck may already say
+    // nothing waits, but the moments the step belongs to are not in yet.
+    expect(walkDoorReady({ feedbackPending: true, reviewWaiting: false })).toBe(false);
+    expect(walkDoorReady({ feedbackPending: false, reviewWaiting: null })).toBe(false);
+    expect(walkDoorReady({ feedbackPending: false, reviewWaiting: false })).toBe(true);
+    expect(walkDoorReady({ feedbackPending: false, reviewWaiting: true })).toBe(true);
   });
 });

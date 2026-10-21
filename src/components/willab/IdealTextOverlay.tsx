@@ -57,7 +57,7 @@ import {
   type IdealTextSd,
 } from "./idealTextLoad";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { LENS_IDLE_MS, LENS_WATCHDOG_MS, WALK_STEP_SELECTOR, lensAddress, lensIdle, lensStillLoading } from "@/lib/willab/lensScreen";
+import { LENS_IDLE_MS, LENS_WATCHDOG_MS, WALK_STEP_SELECTOR, lensAddress, lensIdle, lensStillLoading, walkDoorReady } from "@/lib/willab/lensScreen";
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
 import IdealTextMenu, { FeedbackLoadingLine } from "./IdealTextMenu";
@@ -296,14 +296,18 @@ export default function IdealTextOverlay({
     if (reviewAt?.step === "helpers" || coachOnly) return;
     // After a Take (no step asked for) the review is the live walk: wait
     // for its moments, which can land after the text, rather than settle
-    // on the finished one. A step tapped in the chat goes through the same
-    // door once the answers are read (N89: one mechanism); the replay's own
-    // read stays for a finished walk the page has not read yet.
-    if (reviewWaiting || (replayReady && reviewAt && !feedbackPending)) setReviewRequest((n) => n + 1);
-    else if (reviewAt && !feedbackPending) setReplayRequest((n) => n + 1);
+    // on the finished one. A step tapped in the chat goes through the one
+    // door (N89) once the Take's moments are in and the deck has said what
+    // waits: asked before that, the door found nothing to open and the page
+    // fell back to the text (founder 2026-10-21: a coach's bubble and an
+    // Exercise bubble on a finished Take opened the Ideal Text).
+    if (reviewAt) {
+      if (!walkDoorReady({ feedbackPending, reviewWaiting })) return;
+      setReviewRequest((n) => n + 1);
+    } else if (reviewWaiting) setReviewRequest((n) => n + 1);
     else return;
     reviewOpenedRef.current = true;
-  }, [initialMode, coachOnly, reviewWaiting, replayReady, reviewAt, feedbackPending]);
+  }, [initialMode, coachOnly, reviewWaiting, reviewAt, feedbackPending]);
 
   useEffect(() => {
     let active = true;

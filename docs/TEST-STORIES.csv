@@ -705,8 +705,13 @@ stays, opens Step 0 only on its tap, and goes once watched: only
 Continue clears it, ✕ keeps it, and a changed word (a new video)
 brings it back (N48.3 Q11 A; N80 D4, D7).
 O2  After Delete the paragraph rejoins the walk on its earlier answer,
-at once, not only when a moment is open on it (N48.2 Q6 A).","O1 -> ""every moment answered: Review feedback stays for the unseen word, ...""
-O2 -> ""a paragraph whose helper words were deleted is back in the walk on its earlier answer""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
+at once, not only when a moment is open on it (N48.2 Q6 A).
+O3  Every moment answered: a bubble of the Take tapped in the Lounge
+opens the walk as given on that moment, with the parts before and
+after it there to scroll, never the Ideal Text in its place
+(founder 2026-10-21, N90), the coach's word seen or not.","O1 -> ""every moment answered: Review feedback stays for the unseen word, ...""
+O2 -> ""a paragraph whose helper words were deleted is back in the walk on its earlier answer""
+O3 -> ""every moment answered: a bubble tapped in the Lounge opens the walk on its moment, never the text""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
 src/components/willab/whatsappOffer.test.tsx,Story,"As a speaker, I want to leave my WhatsApp number to hear when my coach's feedback is in, with wrong numbers refused, so that the message reaches me.","O1  A number without its country code is refused on screen and nothing is sent.
 O2  A valid number is saved in full international form and the offer closes.
 O3  Not now sends nothing and closes.
@@ -895,8 +900,10 @@ another project (or none) gets null.
 O2  Once the short window has passed, the Lab gets null and reads again.","O1 -> ""hands over the setup and the roots of the same project only""
 O2 -> ""hands over nothing once the window has passed""","Founder 2026-10-08 (P2): ""Record Take N"" starts without reading again."
 src/lib/willab/lensScreen.test.ts,Story,"As a speaker, I want my text to appear as soon as there is nothing to walk through, and not while a walk might still open, so that I'm neither stuck nor interrupted.","O1  When feedback has settled (or the page failed) with nothing to walk, the text shows.
-O2  While feedback, a coach review, a walk or helper words may still open, the waiting screen stays.","O1 -> comes down when the feedback settles with nothing to walk
-O2 -> stays while the marks may still land or a walk is opening",
+O2  While feedback, a coach review, a walk or helper words may still open, the waiting screen stays.
+O3  A step I tapped in the chat opens only once the Take's moments are in and the page knows what waits, never the text in its place (founder 2026-10-21).","O1 -> comes down when the feedback settles with nothing to walk
+O2 -> stays while the marks may still land or a walk is opening
+O3 -> a step asked for waits for the moments, then goes through the door",
 src/lib/willab/markedEditorSerialize.test.ts,Story,"As a speaker, I want opening and saving my Ideal Text without changes to send back exactly the text I received, so that my document is never silently rewritten.","O1  The real editor paints the document, and reading it back gives the same
 bytes, for every marker grammar (bold, underline, italic, accent,
 moment, paragraphs). Never-5: the Ideal Text stays what the speaker
@@ -934,7 +941,9 @@ O2  The steps come in the locked order: each praise with its helper words, then 
 O3  Every moment has a practice step, even with nothing attached.","O1 -> carries no number, read or score
 O2 -> praises each strong moment, practises each corrected one, and never asks the speaker to judge
 O3 -> a moment with nothing attached is the moment said again",Never-rule 1 (no scores to speakers).
-src/lib/willab/walkPractise.test.ts,Story,"As a speaker practising, I want each try answered with a line in words for what changed, never a number, so that I hear progress without a score.","O1  The ""not yet"", ""better"" and ""thanks"" lines come from the approved wording and contain no digits.","O1 -> each try's line is the one for the reading that moved, never a number",Never-rule 1 (no scores to speakers).
+src/lib/willab/walkPractise.test.ts,Story,"As a speaker practising, I want each try answered with a line in words for what changed, never a number, so that I hear progress without a score.","O1  The ""not yet"", ""better"" and ""thanks"" lines come from the approved wording and contain no digits.
+O2  A try the server could not hear is a step that says so, in place of the machine's answer (founder, signed 2026-10-21).","O1 -> each try's line is the one for the reading that moved, never a number
+O2 -> a try the server could not hear is a late step that says so",Never-rule 1 (no scores to speakers).
 src/lib/willab/walkReplay.test.ts,Story,"As a speaker replaying a finished walk, I want no judging step when I never answered, so that the replay does not ask me to judge out of nowhere.","O1  With no answers given, the replay has no judging step and no lone judging intro.","O1 -> with no answer given there is no judging at all, and no lone ""Judgement time!""",
 src/lib/willab/walkThread.test.ts,Story,"As a speaker, I want each step of my Feedback walk saved once in the Lounge, in the prototype's exact words, with no score and never other speakers' recordings, so that my chat history is clean and private.","O1  A step seen twice is stored once, as the app's or my own message, with
 no score in it.

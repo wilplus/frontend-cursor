@@ -87,3 +87,13 @@ export function lensAddress(arcId: string | null, mode: "review" | "feedback" = 
   }
   window.history.replaceState(window.history.state, "", url);
 }
+
+/** When a step asked for from the chat may go through the walk's one door
+ *  (N89): once the Take's moments are in (the marks no longer pending) and
+ *  the deck has said what waits. Asked before that, the door found nothing
+ *  to open and the page fell back to the text (founder 2026-10-21: a
+ *  coach's bubble and an Exercise bubble on a finished Take opened the
+ *  Ideal Text). Pure. */
+export function walkDoorReady(page: { feedbackPending: boolean; reviewWaiting: boolean | null }): boolean {
+  return !page.feedbackPending && page.reviewWaiting !== null;
+}
