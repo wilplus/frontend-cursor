@@ -849,13 +849,16 @@ export function useDeckFeedbackWalk(args: {
   const practisingRef = useRef(false);
   // This opening is the review itself (the lens), not a step from the page.
   const lensRef = useRef(false);
-  const openAt = useCallback((at: number | null, practising = false, lens = false, how?: WalkDir, start?: number | null): boolean => {
+  /** Opens the walk standing on `at`; `head`, further on, is the furthest
+   *  part drawn (a walk already answered past `at`: its parts there to
+   *  scroll, founder 2026-10-21). */
+  const openAt = useCallback((at: number | null, practising = false, lens = false, how?: WalkDir, head?: number | null): boolean => {
     if (at === null) return false;
     practisingRef.current = practising;
     lensRef.current = lens;
     toldRef.current = new Set<string>();
     seqRef.current += 1;
-    setRequest({ seq: seqRef.current, at, how, ...(start != null && start !== at ? { start } : {}) });
+    setRequest({ seq: seqRef.current, at, how, ...(head != null && head > at ? { head } : {}) });
     return true;
   }, []);
 
@@ -889,10 +892,11 @@ export function useDeckFeedbackWalk(args: {
     const done = target && liveAt === null && replayReady ? buildReplay(ownAnswers) : null;
     const doneAt = done ? walkStepAt(done, target) : null;
     if (done && doneAt !== null) {
-      // The finished walk: every part there to scroll, opened on the step
-      // asked for, the newest part with the dock (founder 2026-10-21).
+      // The walk as given: standing on the step asked for, its buttons in
+      // the dock, every part before and after it there to scroll (founder
+      // 2026-10-21).
       setReplaying(done);
-      return openAt(walkLastStep(done) ?? doneAt, false, lens, undefined, doneAt);
+      return openAt(doneAt, false, lens, undefined, walkLastStep(done));
     }
     if (target?.part && liveAt === null) return false;
     // Opening marks nothing: only Continue on the coach's word does (N80).
@@ -900,7 +904,7 @@ export function useDeckFeedbackWalk(args: {
     // the text in its place.
     if (done && walkStart(done) !== null && liveAt === null && walkStart(model) === null) {
       setReplaying(done);
-      return openAt(walkStart(done), false, lens);
+      return openAt(walkStart(done), false, lens, undefined, walkLastStep(done));
     }
     return openAt(liveAt ?? walkStart(model), false, lens);
   }, [model, finished, openAt, otherTake, replayReady, buildReplay, ownAnswers]);
@@ -913,11 +917,15 @@ export function useDeckFeedbackWalk(args: {
     if (!canReplay) return false;
     void ownAnswersOf(pageTake).then((answers) => {
       const again = buildReplay(answers);
-      const at = walkStepAt(again, target) ?? walkStart(again);
+      // The whole review in the thread: on the step asked for, else on its
+      // newest step with the rest above to scroll back to (the prototype's
+      // "Review feedback" on a finished Take).
+      const last = walkLastStep(again);
+      const at = walkStepAt(again, target) ?? last ?? walkStart(again);
       if (at === null) return;
       setOwnAnswers(answers);
       setReplaying(again);
-      openAt(at, false, true);
+      openAt(at, false, true, undefined, last);
     });
     return true;
   }, [canReplay, pageTake, buildReplay, openAt, otherTake]);
@@ -944,8 +952,10 @@ export function useDeckFeedbackWalk(args: {
       const now = replayReady ? buildReplay(ownAnswers) : null;
       const at = now ? walkHelpersForPart(now, partId) : null;
       if (now && at !== null) {
+        // The words as given, the rest of the walk there to scroll (founder
+        // 2026-10-21: "not scrollable to the next step of the walk").
         setReplaying(now);
-        return openAt(at);
+        return openAt(at, false, false, undefined, walkLastStep(now));
       }
       // No step for it in this Take's walk: the helper words on their own.
       const chunk = live.current.chunks.find((c) => c.part.id === partId);

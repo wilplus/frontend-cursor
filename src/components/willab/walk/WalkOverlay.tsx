@@ -142,9 +142,11 @@ export default function WalkOverlay({
   const part = useWalkPart();
   const ov = useRef<HTMLDivElement | null>(null);
   useWalkSwipe(ov, part ? null : nav);
-  // Drawn first as the newest part: its bubbles land one after the other,
-  // and its footer waits until they have.
-  const [lands] = useState(() => part?.now === true && landing);
+  // Drawn first as the newest part, the step the walk stands on: its
+  // bubbles land one after the other, and its footer waits until they
+  // have. A part already given (a walk opened on an earlier step) shows at
+  // once.
+  const [lands] = useState(() => part?.now === true && part.fresh && landing);
   const [settled, setSettled] = useState(true);
   useEffect(() => {
     if (part?.now) part.close.current = onClose ?? null;

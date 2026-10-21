@@ -26,9 +26,15 @@ import WalkFooter from "./WalkFooter";
 /*  The walk no longer swaps screens. Every step reached is a part of one     */
 /*  thread that grows downwards: the step's bubbles land under the ones       */
 /*  before, the speaker's answer as their own orange bubble, and the earlier  */
-/*  steps stay above to scroll back to. Only the newest part is live: its     */
-/*  footer is the dock under the thread and its ✕ is the bar's. There is no   */
-/*  message box.                                                              */
+/*  steps stay above to scroll back to. The part the walk stands on has the   */
+/*  dock: its footer is the buttons under the thread and its ✕ is the bar's.  */
+/*  There is no message box.                                                  */
+/*                                                                            */
+/*  A walk already answered, opened on one of its steps (a Lounge bubble,     */
+/*  the orange words, a paragraph; founder 2026-10-21, the prototype's "this  */
+/*  step is brought to the top"): the whole walk is in the thread, that step  */
+/*  at the top with its own buttons, the parts before and after it there to   */
+/*  scroll. Next moves on to the next part; at the end, onto the page.        */
 /*                                                                            */
 /*  Each step opens with its name as a small line (a mark): "Slide 2",        */
 /*  "Slide 2 · helper words", "Other speakers · 1 of 2", "Take 2". The bar    */
@@ -68,8 +74,12 @@ type Frame = {
 
 /** One part of the thread, as the screen inside it sees it. */
 export type WalkPartSlot = Frame & {
-  /** The newest part: its footer is the dock, its ✕ the bar's. */
+  /** The part the walk stands on: its footer is the dock, its ✕ the bar's. */
   now: boolean;
+  /** The newest part, last in the thread. First drawn as the one the walk
+   *  stands on, its bubbles land one by one; a part already given shows at
+   *  once. */
+  fresh: boolean;
 };
 
 const FrameContext = createContext<Frame | null>(null);
@@ -90,10 +100,14 @@ export function useMountedAsPast(): boolean {
   return past;
 }
 
-export function WalkPart({ now, children }: { now: boolean; children: ReactNode }) {
+export function WalkPart({ now, fresh = now, children }: { now: boolean; fresh?: boolean; children: ReactNode }) {
   const frame = useContext(FrameContext);
   if (!frame) return <>{children}</>;
-  return <PartContext.Provider value={{ ...frame, now: now && !frame.ghost }}>{children}</PartContext.Provider>;
+  return (
+    <PartContext.Provider value={{ ...frame, now: now && !frame.ghost, fresh: fresh && !frame.ghost }}>
+      {children}
+    </PartContext.Provider>
+  );
 }
 
 /** A step's name at the top of its part. */
@@ -291,7 +305,7 @@ function pictureOf(el: HTMLElement | null): string {
   const copy = el.cloneNode(true) as HTMLElement;
   copy.querySelectorAll("[data-walk-typing], [data-walk-loading]").forEach((n) => n.remove());
   copy.querySelectorAll("[hidden]").forEach((n) => n.removeAttribute("hidden"));
-  for (const name of ["data-testid", "data-walk-start", "data-walk-part"]) {
+  for (const name of ["data-testid", "data-walk-now", "data-walk-part"]) {
     copy.querySelectorAll(`[${name}]`).forEach((n) => n.removeAttribute(name));
   }
   return copy.innerHTML;
@@ -301,6 +315,7 @@ export default function WalkThread({
   ghost = false,
   frame,
   opening = null,
+  current = null,
   onClose,
   children,
 }: {
@@ -311,14 +326,17 @@ export default function WalkThread({
   /** Which opening of the walk the thread shows (the request's seq): a new
    *  one while the lens stays open keeps the thread above it. */
   opening?: number | null;
-  /** ✕ when the newest part names none. */
+  /** The step the walk stands on (its part is marked `data-walk-now`): each
+   *  change brings that part to the top. */
+  current?: number | null;
+  /** ✕ when the standing part names none. */
   onClose: () => void;
   children: ReactNode;
 }) {
   return ghost ? (
     <Still frame={frame} />
   ) : (
-    <LiveThread frame={frame} opening={opening} onClose={onClose}>
+    <LiveThread frame={frame} opening={opening} current={current} onClose={onClose}>
       {children}
     </LiveThread>
   );
@@ -327,11 +345,13 @@ export default function WalkThread({
 function LiveThread({
   frame,
   opening,
+  current,
   onClose,
   children,
 }: {
   frame: WalkThreadFrameRef;
   opening: number | null;
+  current: number | null;
   onClose: () => void;
   children: ReactNode;
 }) {
@@ -347,7 +367,13 @@ function LiveThread({
     follow.current = on;
     setFollowing(on);
   }, []);
-  const [bar, setBar] = useState<{ label: string | null; at: number; of: number }>({ label: null, at: -1, of: 0 });
+  // The bar: the mark in view, how many there are, and the standing part's.
+  const [bar, setBar] = useState<{ label: string | null; at: number; of: number; now: number }>({
+    label: null,
+    at: -1,
+    of: 0,
+    now: -1,
+  });
   // What the dock holds: any buttons, and whether they are the recorder.
   const [docked, setDocked] = useState({ any: false, recording: false });
 
@@ -358,6 +384,34 @@ function LiveThread({
 
   const marks = () => Array.from(body.current?.querySelectorAll<HTMLElement>("[data-walk-mark]") ?? []);
   const atEnd = (el: HTMLElement) => el.scrollHeight - el.scrollTop - el.clientHeight < AT_END_PX;
+  /** The part the walk stands on, as the thread marks it. */
+  const nowEl = () => body.current?.querySelector<HTMLElement>("[data-walk-now]") ?? null;
+  /** What of the standing part comes to the top: its name, else its first
+   *  bubble; null when the thread marks no standing part. */
+  const nowTarget = (): HTMLElement | null => {
+    const el = nowEl();
+    if (!el) return null;
+    return el.querySelector<HTMLElement>("[data-walk-mark]") ?? (el.firstElementChild as HTMLElement | null);
+  };
+  /** True when the standing part is the thread's last: the walk follows its
+   *  newest bubbles. False with parts after it (a walk opened on a step
+   *  already answered): the thread follows nothing. */
+  const standsLast = () => {
+    const el = nowEl();
+    return !el || el.nextElementSibling === null;
+  };
+  /** The standing part's name among the marks: the last mark in or above
+   *  it; the last mark when none is marked standing. -1 with no marks. */
+  const nowMark = useCallback((): number => {
+    const all = marks();
+    const el = nowEl();
+    if (!el) return all.length - 1;
+    let k = -1;
+    all.forEach((m, i) => {
+      if (el.contains(m) || (el.compareDocumentPosition(m) & Node.DOCUMENT_POSITION_PRECEDING) !== 0) k = i;
+    });
+    return k;
+  }, []);
   /** The mark of the part in view: the last one above the upper 40% of the
    *  thread; at the bottom, the last one. -1 with none. */
   const inView = useCallback((): number => {
@@ -375,35 +429,39 @@ function LiveThread({
   const readBar = useCallback(() => {
     const all = marks();
     const k = inView();
+    const now = nowMark();
     const label = k >= 0 ? (all[k].dataset.walkMark ?? null) : null;
-    setBar((was) => (was.label === label && was.at === k && was.of === all.length ? was : { label, at: k, of: all.length }));
-  }, [inView]);
-  /** Sizes the room under the thread so the newest step's name can reach
+    setBar((was) =>
+      was.label === label && was.at === k && was.of === all.length && was.now === now ? was : { label, at: k, of: all.length, now },
+    );
+  }, [inView, nowMark]);
+  /** Sizes the room under the thread so the standing step's name can reach
    *  the top. False when the step is taller than the thread (no room). */
   const sizeRoom = useCallback((): boolean => {
     const el = body.current;
     const under = room.current;
     if (!el || !under) return false;
     const all = marks();
-    const last = all[all.length - 1];
+    const target = nowTarget() ?? all[all.length - 1] ?? null;
     const pad = parseFloat(getComputedStyle(el).paddingBottom) || 0;
-    const step = last ? topIn(el, under) - topIn(el, last) + MARK_GAP_PX + pad : Infinity;
+    const step = target ? topIn(el, under) - topIn(el, target) + MARK_GAP_PX + pad : Infinity;
     const fits = step <= el.clientHeight;
     const height = `${fits ? Math.floor(el.clientHeight - step) : 0}px`;
     if (under.style.height !== height) under.style.height = height;
     return fits;
   }, []);
-  /** The newest step in view: its name at the top while it fits under it,
-   *  else down to its newest bubble. */
-  const toNewest = useCallback(
+  /** The standing step in view: its name at the top while the thread fits
+   *  under it, else down to its newest bubble; with parts after it, always
+   *  its name at the top (founder 2026-10-21). */
+  const toCurrent = useCallback(
     (smooth: boolean) => {
       const el = body.current;
       if (!el) return;
       const fits = sizeRoom();
       const all = marks();
-      const last = all[all.length - 1];
+      const target = nowTarget() ?? all[all.length - 1] ?? null;
       const bottom = el.scrollHeight - el.clientHeight;
-      const top = last && fits ? Math.max(0, Math.min(bottom, topIn(el, last) - MARK_GAP_PX)) : bottom;
+      const top = target && (fits || !standsLast()) ? Math.max(0, Math.min(bottom, topIn(el, target) - MARK_GAP_PX)) : bottom;
       if (Math.abs(el.scrollTop - top) < 2) return;
       if (typeof el.scrollTo === "function") el.scrollTo({ top, behavior: smooth && !reduced() ? "smooth" : "auto" });
       else el.scrollTop = top;
@@ -411,22 +469,23 @@ function LiveThread({
     [sizeRoom],
   );
 
+  // The step the walk stands on comes to the top, as the walk opens and each
+  // time it moves on. With parts after it the thread follows nothing
+  // (founder 2026-10-21); as the newest part it follows its bubbles.
+  useEffect(() => {
+    if (!body.current) return;
+    setFollow(standsLast());
+    toCurrent(false);
+    readBar();
+  }, [current, toCurrent, readBar, setFollow]);
+
   // New bubbles, and bubbles that grow (a clip loading, the AI bubble), are
   // followed while the thread follows; the room under it is kept in size.
   useEffect(() => {
     const el = body.current;
     if (!el) return;
-    // The whole finished walk opens at its paragraph's part, and follows
-    // nothing (founder 2026-10-20); every other opening on the newest step.
-    const start = el.querySelector<HTMLElement>("[data-walk-start] > *");
-    if (start) {
-      setFollow(false);
-      sizeRoom();
-      el.scrollTop = Math.max(0, topIn(el, start) - MARK_GAP_PX);
-    } else toNewest(false);
-    readBar();
     const changed = () => {
-      if (follow.current) toNewest(true);
+      if (follow.current) toCurrent(true);
       else sizeRoom();
       readBar();
     };
@@ -439,27 +498,27 @@ function LiveThread({
       seen?.disconnect();
       sized?.disconnect();
     };
-  }, [toNewest, sizeRoom, readBar, setFollow]);
+  }, [toCurrent, sizeRoom, readBar]);
 
   // Each redraw (a step reached, an answer laid in): the bar says the step
-  // in view, and the newest step is in view while the thread follows.
+  // in view, and the standing step is in view while the thread follows.
   useEffect(() => {
-    if (follow.current) toNewest(true);
+    if (follow.current) toCurrent(true);
     else sizeRoom();
     readBar();
   });
 
-  // Every tap in the dock: back to the newest step.
+  // Every tap in the dock: back to the standing step.
   useEffect(() => {
     if (!dock) return;
     const tapped = () => {
-      setFollow(true);
-      toNewest(true);
-      window.requestAnimationFrame?.(() => toNewest(true));
+      setFollow(standsLast());
+      toCurrent(true);
+      window.requestAnimationFrame?.(() => toCurrent(true));
     };
     dock.addEventListener("click", tapped, true);
     return () => dock.removeEventListener("click", tapped, true);
-  }, [dock, toNewest, setFollow]);
+  }, [dock, toCurrent, setFollow]);
 
   // What the dock holds, for the Next that stands in for it.
   useEffect(() => {
@@ -480,21 +539,21 @@ function LiveThread({
     const el = body.current;
     const all = marks();
     if (!el || all.length === 0) return;
-    const k = inView() + by;
-    if (by > 0 && k >= all.length - 1) {
+    const k = Math.max(0, Math.min(all.length - 1, inView() + by));
+    if (by > 0 && k >= all.length - 1 && standsLast()) {
       setFollow(true);
-      toNewest(true);
+      toCurrent(true);
       return;
     }
     setFollow(false);
-    const top = Math.max(0, topIn(el, all[Math.max(0, k)]) - MARK_GAP_PX);
+    const top = Math.max(0, topIn(el, all[k]) - MARK_GAP_PX);
     if (typeof el.scrollTo === "function") el.scrollTo({ top, behavior: reduced() ? "auto" : "smooth" });
     else el.scrollTop = top;
   };
 
-  // Scrolled back to an answered step, the dock reads Next: back to the
-  // newest step (founder 2026-10-20). The recorder stays where it is.
-  const back = !following && docked.any && !docked.recording && bar.at >= 0 && bar.at < bar.of - 1;
+  // Scrolled away from the step with the buttons, the dock reads Next:
+  // back to that step (founder 2026-10-20). The recorder stays where it is.
+  const back = !following && docked.any && !docked.recording && bar.at >= 0 && bar.now >= 0 && bar.at !== bar.now;
 
   const label = bar.label ?? undefined;
   return (
@@ -537,11 +596,11 @@ function LiveThread({
         data-walk-thread-body
         onScroll={() => {
           const el = body.current;
-          if (el && atEnd(el) && !follow.current) setFollow(true);
+          if (el && atEnd(el) && !follow.current && standsLast()) setFollow(true);
           readBar();
         }}
         onWheel={(e) => {
-          if (e.deltaY < 0) setFollow(false);
+          if (e.deltaY < 0 || !standsLast()) setFollow(false);
         }}
         onTouchMove={() => {
           setFollow(false);
@@ -568,8 +627,8 @@ function LiveThread({
             pill={{
               label: COPY.pagerNext,
               onClick: () => {
-                setFollow(true);
-                toNewest(true);
+                setFollow(standsLast());
+                toCurrent(true);
               },
               testId: "walk-to-newest",
             }}
