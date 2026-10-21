@@ -25,6 +25,11 @@ docs/flows/feedback-walk-and-chat.md
   src/lib/willab/walkTries.ts
   src/components/willab/useWaitScreen.ts
   src/lib/willab/waitHandover.ts
+  src/components/willab/NextTakeShareScreen.tsx
+  src/lib/willab/coachLink.ts
+  src/components/willab/OtherAccountLink.tsx
+  src/lib/willab/enrichmentSettle.ts
+  src/components/willab/TypingDots.tsx
 
 docs/flows/coach-panel.md
   src/components/willab/coachpanel/
@@ -34,6 +39,10 @@ docs/flows/coach-panel.md
   src/services/api/coachSpeakers.ts
   src/app/admin/library/
   src/app/admin/errors/
+  src/lib/willab/coachWalkCopy.ts
+  src/lib/willab/coachPanel.ts
+  src/app/coach/corpus/
+  src/app/admin/corpus/
 
 docs/flows/recording-screens.md
   src/components/willab/LabOverlay.tsx
@@ -42,6 +51,11 @@ docs/flows/recording-screens.md
   src/components/willab/recordingCopy.ts
   src/components/willab/useRecordingGestures.ts
   src/lib/willab/recordingGesture.ts
+  src/components/willab/DiscardTakeDialog.tsx
+  src/components/willab/RecordingAnalysisPresentation.tsx
+  src/components/willab/ProcessingWait.tsx
+  src/components/willab/SlideStage.tsx
+  src/components/willab/labFade.tsx
 
 docs/flows/consent-screens.md
   src/components/willab/Phase1AcceptanceFlow.tsx
@@ -54,6 +68,11 @@ docs/flows/consent-screens.md
   src/lib/appMenuLinks.ts
   src/lib/legal/dataConsentCopy.ts
   src/lib/legal/deleteAccountCopy.ts
+  src/lib/legal/acceptanceSteps.ts
+  src/components/willab/Phase1AcceptanceGate.tsx
+  src/components/willab/Mlc2FounderConsentGate.tsx
+  src/components/willab/ConsentAsk.tsx
+  src/components/legal/PublishedPolicyText.tsx
 
 docs/flows/ideal-text.md
   src/components/willab/IdealTextOverlay.tsx
@@ -68,6 +87,12 @@ docs/flows/ideal-text.md
   src/components/willab/HelperWordsSheet.tsx
   src/components/willab/ExportFormatDialog.tsx
   src/components/willab/idealEditCopy.ts
+  src/components/willab/PresentMode.tsx
+  src/lib/willab/presentationDocument.ts
+  src/lib/willab/presentationDocx.ts
+  src/lib/willab/presentationPdf.ts
+  src/lib/willab/helperWordsOverlay.ts
+  src/lib/willab/paragraphOverlay.ts
 
 docs/flows/ai-voice-practice.md
   src/components/willab/LoungeAiVoiceBubble.tsx
