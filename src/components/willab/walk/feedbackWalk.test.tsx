@@ -17,6 +17,7 @@ PROVES   O1 -> walks coach's note → praise → helper words → the next prais
          O6 -> a step's bubbles land behind the typing dots, then its buttons (founder 2026-10-20)
 WHY      Never-rule 1 (no scores to speakers); Feedback walk is a locked screen.
 */
+import { HELPER_WORDS_MAX } from "@/lib/willab/phraseTokens";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -184,7 +185,18 @@ describe("FeedbackWalk", () => {
     forward();
     forward(); // the helper words' pill is off until a word is picked
     expect(screen()).toBe("walk-screen-helpers");
-    click(live()!.querySelector("[data-testid='walk-skip']"));
+    // The picker counts the words against the cap, in place of "Tap the
+    // words" (founder 2026-10-21, C3).
+    const count = () => [...live()!.querySelectorAll("[data-walk-word-count]")].pop()!.textContent;
+    expect(count()).toBe(WALK_COPY.wordsOfMax(0, HELPER_WORDS_MAX));
+    const last = words().length - 1;
+    click(words()[last - 1]);
+    click(words()[last]);
+    expect(count()).toBe(WALK_COPY.wordsOfMax(2, HELPER_WORDS_MAX));
+    forward();
+    // The speaker's bubble says the words without the sentence's full stop
+    // (founder 2026-10-21, B7).
+    expect(said().pop()).toBe("that lead");
     expect(screen()).toBe("walk-screen-others"); // nobody to judge: it moves on
     await act(async () => {});
     expect(screen()).toBe("walk-screen-summary");
@@ -323,9 +335,13 @@ describe("the clearer version (D-FW-15)", () => {
     const fresh = msg().querySelector("[data-walk-new-words]")!;
     expect(fresh.textContent).toBe(OFFERED);
     expect([...fresh.querySelectorAll("em")].map((n) => n.textContent)).toEqual(["The", "match our price"]);
+    // No bold in any bubble, the new words too (founder 2026-10-21, B4).
+    expect(fresh.className).not.toMatch(/font-semibold|font-bold/);
+    // No "Clearer version" title: the bubble opens on the signed opener
+    // (founder 2026-10-21, K).
     const lines = [...msg().querySelectorAll(":scope > div > span:not([data-walk-new-words])")].map((n) => n.textContent);
-    expect(lines).toEqual([COPY.cardClearerVersion, WALK_LINE_BANK.B13.lines[0], WALK_LINE_BANK.B14.lines[0]]);
-    expect(lines.slice(1)).toEqual([WALK_COPY.clearerOffer, WALK_COPY.clearerAsk]);
+    expect(lines).toEqual([WALK_LINE_BANK.B13.lines[0], WALK_LINE_BANK.B14.lines[0]]);
+    expect(lines).toEqual([WALK_COPY.clearerOffer, WALK_COPY.clearerAsk]);
     const buttons = [...live()!.querySelectorAll("footer button, [data-walk-footer] button")].map((b) => b.textContent);
     expect(buttons).toContain(COPY.pillAcceptPractise);
     expect(buttons).toContain(COPY.linkKeepMyWords);
@@ -338,10 +354,10 @@ describe("the clearer version (D-FW-15)", () => {
     draw({ seq: 1, at: FIRST }, { model } as Over);
     const lines = [...msg().querySelectorAll(":scope > div > span:not([data-walk-new-words])")].map((n) => n.textContent);
     const opening = [WALK_LINE_BANK.B10.lines[0], WALK_LINE_BANK.B13.lines[4]];
-    expect(lines).toEqual([COPY.cardClearerVersion, ...opening, WALK_LINE_BANK.B14.lines[0]]);
+    expect(lines).toEqual([...opening, WALK_LINE_BANK.B14.lines[0]]);
     const step = model.plan[FIRST];
     const chat = shownStep(step, model.moments[step.moment!], null);
-    expect(chat!.body).toBe([COPY.cardClearerVersion, ...opening, OFFERED].join("\n"));
+    expect(chat!.body).toBe([...opening, OFFERED].join("\n"));
   });
 
   it("Keep my words records the decline and, with a practise to do, opens the recorder on the speaker's own sentence with Line A", () => {

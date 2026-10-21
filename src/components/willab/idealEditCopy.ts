@@ -434,6 +434,10 @@ export const WALK_COPY = {
   aiVoiceFirst: "That was good. But what if you said it more like this?",
   aiVoiceAgain: "Not yet. Listen to how you sound and how you might sound. Keep calm and try again.",
   practiseN: (n: number) => `Practise ${n}`,
+  /* The helper-words picker's count, in place of "Tap the words" (founder
+     2026-10-21, C3: "N of 6 words" as signed, with the cap as it stands:
+     eight since 2026-10-15). */
+  wordsOfMax: (n: number, max: number) => `${n} of ${max} words`,
   /* The lens, one to one with the locked prototype (v31, 2026-10-12): the
      top bar's words, the judging answers, the answered lines. */
   /** "Practise · Slide 3", the practise recorder's top bar. */
