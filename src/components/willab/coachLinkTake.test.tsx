@@ -75,10 +75,11 @@ async function openedWord(take: string | null, door: { coachOnly: boolean }) {
 
 describe("the coach's link names the word's Take (backend N77)", () => {
   it("a late word on Take 1, opened from its link, opens Take 1's word; an old link opens as before", async () => {
-    for (const link of [
+    const links: Record<string, string>[] = [
       { lens: "arc-1", take: TAKE_1 },
       { idealArc: "arc-1", feedback: "1", take: TAKE_1 },
-    ]) {
+    ];
+    for (const link of links) {
       const props = linkProps(link);
       expect(props).toMatchObject({ idealTextArcId: "arc-1", idealTextMode: "feedback", idealTextTake: TAKE_1 });
       const opened = await openedWord(props.idealTextTake, { coachOnly: true });
