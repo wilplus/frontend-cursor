@@ -599,8 +599,12 @@ src/components/willab/saveBehind.test.tsx,Story,"As a speaker, I want my taps sa
 the notice goes away.
 O2  Using helper words first locks the paragraph, then saves the words.","O1 -> ""a failure shows the notice, and Retry sends the same write again""
 O2 -> ""locks the untouched paragraph first, then saves the words""",Founder 2026-09-28 (tap and go).
-src/components/willab/savedParagraphNoBar.test.tsx,Story,"As a speaker, I want a paragraph I saved with helper words to lose its feedback bar at once, so that the page shows my progress straight away.","O1  The saved paragraph has no bar but still opens when tapped, and
-""Review feedback"" is no longer offered.","O1 -> ""the same moment on a paragraph whose helper words are saved draws no bar""","Founder lock 2026-09-30, B7 / Q3."
+src/components/willab/savedParagraphNoBar.test.tsx,Story,"As a speaker, I want a paragraph I saved with helper words in this Take to lose its feedback bar at once, and a later Take's confident moment to be praised first even on a paragraph that keeps my earlier helper words, so that the page shows my progress and the walk starts with what I did well.","O1  A paragraph saved with helper words in this Take has no bar but still
+opens when tapped, and ""Review feedback"" is no longer offered.
+O2  Helper words kept from an earlier Take settle nothing: this Take's
+confident moment on that paragraph still waits, and the walk opens on
+it before the correction.","O1 -> ""the same moment on a paragraph whose helper words are saved draws no bar""
+O2 -> ""helper words from an earlier Take: this Take's confident moment is walked first""","Founder lock 2026-09-30, B7 / Q3; docs/flows/feedback-walk-and-chat.md C2 (""praise first and then the corrections""), founder 2026-10-21."
 src/components/willab/sharedHeadlineRead.test.tsx,Story,"As a speaker, I want the page and the deck to share one helper-words read, so that the words show at once, do not flicker and are never stale.","O1  One read for the page and the deck; the deck draws it on its first render.
 O2  A document change both of them see asks once, and the new words show.
 O3  Closing a sheet, or a save, always reads again (even inside the share

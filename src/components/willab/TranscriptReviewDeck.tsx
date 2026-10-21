@@ -89,6 +89,8 @@ import { useCoachStep } from "./useCoachStep";
 import { useDeckFeedbackWalk, useWalkReplayRequest, walkFinished } from "./useDeckFeedbackWalk";
 import type { CoachMessage } from "@/services/api/idealText";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
+import { wordsPickedIn } from "@/lib/willab/walkThread";
+import { useLoungeThreadMaybe } from "./LoungeThreadContext";
 
 /* -------------------------------------------------------------------------- */
 /*  TranscriptReviewDeck — the ideal text as a slide deck (founder 2026-08-11, */
@@ -703,18 +705,29 @@ export default function TranscriptReviewDeck({
   }, [walk.pager, closeSheets, onJudged]);
 
   /* THE BAR'S ONE CONDITION. A Confident Voice judgement still waits on the
-     paragraph, and its helper words are not saved: a paragraph saved with
-     helper words carries no bar, its headline is its mark (founder lock
-     2026-09-30, B7 and its interpretation Q3; contract 24g). The server's
-     window withholds such a paragraph from the next read on; this keeps the
-     page true within the same visit too, so a moment practised and then
-     saved loses its bar as soon as its headline is on the page. */
+     paragraph, and its helper words are not saved IN THIS TAKE: a paragraph
+     saved with helper words carries no bar, its headline is its mark
+     (founder lock 2026-09-30, B7 and its interpretation Q3; contract 24g).
+     The server's window withholds such a paragraph from the next read on;
+     this keeps the page true within the same visit too, so a moment
+     practised and then saved loses its bar as soon as its headline is on the
+     page. Words kept from an earlier Take settle nothing here, as on the
+     server (`saved_paragraphs`, 2026-10-13): this Take's confident moment
+     on such a paragraph is still walked, praise first (founder 2026-10-21).
+     A pick in this Take is the speaker's bubble in the chat; without the
+     chat the page's own words count, as before. */
+  const thread = useLoungeThreadMaybe();
+  const threadMessages = thread?.messages;
+  const pickedNow = useMemo(
+    () => (threadMessages ? wordsPickedIn(threadMessages, takeSessionId ?? null) : null),
+    [threadMessages, takeSessionId],
+  );
   const barWaiting = useCallback(
     (c: DeckChunk) =>
       c.status === "waiting" &&
-      !headlines.has(c.part.id) &&
+      !(headlines.has(c.part.id) && (pickedNow === null || pickedNow.has(c.part.id))) &&
       markWorthShowing(stateOf(c).pending, summaryByParagraph.get(c.part.id)),
-    [headlines, stateOf, summaryByParagraph],
+    [headlines, pickedNow, stateOf, summaryByParagraph],
   );
   /* REVIEW FEEDBACK (founder 2026-09-26): the bottom button walks the waiting
      moments from the first one in text order — the same walk a tap on a

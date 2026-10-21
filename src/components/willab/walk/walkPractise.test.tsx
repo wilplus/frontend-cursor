@@ -309,6 +309,11 @@ describe("the practise screen", () => {
     expect(live()!.querySelector("[data-walk-dock] [data-testid='walk-again']")).not.toBeNull();
     expect(live()!.querySelector("[data-walk-dock] [data-testid='walk-forward']")).not.toBeNull();
     expect(calls.some((c) => c.url.includes("/check"))).toBe(false);
+    // The try the server did not keep still counts on screen: the next one
+    // is "Practise 2" (founder 2026-10-21, C7: "number it anyway").
+    click(live()!.querySelector("[data-walk-dock] [data-testid='walk-again']"));
+    await settle();
+    expect(live()!.querySelector("[data-walk-live-try]")?.textContent).toContain(WALK_COPY.practiseN(2));
   });
 });
 

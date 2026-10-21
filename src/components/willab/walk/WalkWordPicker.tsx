@@ -5,16 +5,19 @@ import {
   canTap,
   nextSelection,
   isPicked,
+  selectionLength,
+  HELPER_WORDS_MAX,
   type PhraseSelection,
 } from "@/lib/willab/phraseTokens";
-import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
+import { WALK_COPY } from "../idealEditCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkWordPicker — the helper-words picker, filling the screen (founder     */
 /*  lock 2026-10-12, moment and feedback chat, sections 2.3 and 9; prototype  */
-/*  v31 `.picker`): a 1.5px border, 24px corners, padding 18px 16px; "Tap the */
-/*  words" on the left and the count on the right, 13px uppercase; big plain  */
-/*  words at 25px with no borders, the chosen ones orange at 600.             */
+/*  v31 `.picker`): a 1.5px border, 24px corners, padding 18px 16px; the     */
+/*  count, "N of 8 words", 13px uppercase (founder 2026-10-21, C3: in place   */
+/*  of "Tap the words"); big plain words at 25px with no borders, the chosen  */
+/*  ones orange at 600.                                                       */
 /*                                                                            */
 /*  ONE RULE FOR EVERY PICKER (build plan D-IT-5; N51.5 QA4 A, N63 Q-B5 A):    */
 /*  `nextSelection` — a tap adds any word or takes a picked one away, up to   */
@@ -36,7 +39,7 @@ export default function WalkWordPicker({
       className="flex min-h-0 flex-1 flex-col gap-3.5 rounded-[24px] border-[1.5px] border-border px-4 py-[18px]"
     >
       <div className="text-[13px] uppercase tracking-[0.12em] text-muted-foreground">
-        <span>{COPY.cardTapWords}</span>
+        <span data-walk-word-count>{WALK_COPY.wordsOfMax(selectionLength(selection), HELPER_WORDS_MAX)}</span>
       </div>
       <div className="scrollbar-none flex min-h-0 flex-wrap content-start gap-1.5 overflow-y-auto text-[25px] leading-[1.3]">
         {words.map((word, index) => {

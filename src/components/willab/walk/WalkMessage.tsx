@@ -76,7 +76,7 @@ export default function WalkMessage({
  *  words with <em>. */
 export function WalkNewWords({ children }: { children: ReactNode }) {
   return (
-    <span data-walk-new-words className="block font-semibold [&_em]:not-italic [&_em]:text-primary">
+    <span data-walk-new-words className="block [&_em]:not-italic [&_em]:text-primary">
       {children}
     </span>
   );

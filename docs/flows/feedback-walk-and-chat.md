@@ -75,7 +75,8 @@ step; the loop never waits for a coach.
   message box.
 - **B4** Bubbles: the speaker orange on the right; the app and the coach
   light grey on the left with a small avatar (the coach's grey-blue). No
-  bold in any bubble. No sender labels, except "Your coach:" which opens the
+  bold in any bubble, the Clearer version's new words included (2026-10-21).
+  No sender labels, except "Your coach:" which opens the
   coach's bubble, with the colon (2026-10-20).
 - **B5** Nothing swaps. Each step reached lands under the one before;
   earlier steps stay above to scroll back to; nothing leaves the thread while
@@ -89,7 +90,9 @@ step; the loop never waits for a coach.
   · helper words", "Take 2", "Your coach"). The bar shows the step in view;
   ‹ › scroll to the step before or after, within this opening of the walk.
 - **B7** The step's buttons are a dock under the thread. A choice lands as
-  the speaker's orange bubble, in the words the Lounge stores; the next
+  the speaker's orange bubble, in the words the Lounge stores (helper words
+  without the sentence's punctuation at either end, "growth doubled" not
+  "growth doubled,", 2026-10-21); the next
   step's bubbles land one after another, each grey one behind the typing
   dots, 350 ms a bubble (the Lounge's beat, 2026-10-20), and its buttons once
   they have all landed. Next and Continue post nothing.
@@ -160,9 +163,15 @@ step; the loop never waits for a coach.
   "Good job" and one line from B01–B09. Then "Next". Praise is never
   promised. A served moment with nothing attached is the moment said again,
   so the lens always has a step; with no moment at all the text shows.
+  Helper words kept from an earlier Take settle nothing: this Take's moment
+  on that paragraph is walked like any other, praise first (founder
+  2026-10-21: the Exercise had opened the walk and the confident moment came
+  later; the server already counted only this Take's words, 2026-10-13).
 - **C3 Choose your helper words**, after each praised moment: a big bubble in
   the thread with large plain word buttons, no borders, chosen words orange;
-  "N of 6 words", "Use these helper words" and "Skip"; once the words are
+  "N of 8 words" at the top, the count against the cap (eight since
+  2026-10-15), in place of "Tap the words" (2026-10-21); "Use these helper
+  words" and "Skip"; once the words are
   given, the pill reads "Edit the helper words" and the link "Keep these"
   (founder, signed 2026-10-21). Helper words stay
   editable from the Lounge's helper-words bubble and in the next Take's
@@ -187,7 +196,8 @@ step; the loop never waits for a coach.
   undermining words, `rewrite_reason: "undermining"`, B10's "Say what you
   mean. Don't dance around it, just say it straight." and "Try saying it
   like this:" in its place, N85); the new text with the new words in orange;
-  "Do you accept and want to practise it?";
+  "Do you accept and want to practise it?", with no "Clearer version" title
+  over them (2026-10-21);
   "Accept and practise" / "Keep my words" (which practises their own
   sentence with Line A). At most one rewrite per corrected moment. An accepted version
   never changes the Ideal Text (rule 5): it gets there when it is said in the
@@ -200,7 +210,8 @@ step; the loop never waits for a coach.
   if you said it more like this?", the AI version of their voice, then L3
   "Now try saying it like that." (N82). When a library video fits exactly
   and targets the chosen problem, the video and its instruction (the coach's
-  when there is one, else Line A) take the clip's place, then "Practise".
+  when there is one, else Line A) take the clip's place, then "Practise";
+  no "Exercise" title on this path either (2026-10-21).
   Under the clip's player one signed sentence says why (L14–L18). Without a
   clip the Exercise is as locked. The Exercise is one thread showing its
   whole history: the clip, the Exercise, every try and its answer
@@ -210,7 +221,9 @@ step; the loop never waits for a coach.
   recorder in the dock (the strip with the dot, the clock and the bar;
   "Skip" in the Back style and a red "Stop" in the Finish-take style), the
   try as the orange "Practise N", the typing dots while it is checked, then
-  the answer. The recorder is the recording screen as re-locked 2026-10-12
+  the answer. Each try keeps its own number and its own voice on screen, a
+  try the server did not keep (late, not sent, not heard) included: the
+  next is numbered after it (2026-10-21). The recorder is the recording screen as re-locked 2026-10-12
   (N70) without the slide card; after Stop the walk returns instantly. The
   machine decides (H1): a Good job on the voice alone needs the margin,
   +0.05 (`after_practice.GOOD_JOB_MARGIN`, N84); a cleared problem, or a cue
@@ -365,7 +378,10 @@ step; the loop never waits for a coach.
 - **F2** The text never shows before the walk (A2).
 - **F3** Helper words are orange in the text; no pencil. The black margin
   line means something still waits: only a paragraph with a step still to
-  answer wears it, and once answered the line goes (2026-10-20).
+  answer wears it, and once answered the line goes (2026-10-20). Helper
+  words answer a paragraph's moment only when picked in this Take (the
+  speaker's bubble in the chat); words kept from an earlier Take do not
+  (2026-10-21).
 - **F4** A paragraph with the black line opens the whole Take's walk at the
   step it asks (its helper words with its green moment just above, or the
   Clearer version or the Exercise when that is what waits), exactly as a
@@ -381,8 +397,10 @@ step; the loop never waits for a coach.
   orange words on a paragraph with no moment in this Take still open their
   helper words alone. A sentence that opens a step shows a light grey
   highlight while pressed; other text does nothing.
-- **F6** Buttons: "Record Take N" is the main button; the grey "Close" is the
-  one way out, to the chat (no ✕ at the top); history is under ⋯.
+- **F6** Buttons: "Record Take N" is the main button, with the grey "Close"
+  under it; the ✕ beside ⋯ at the top closes the page too, both to the chat
+  (founder 2026-10-21: the ✕ stays, on a computer the eye looks top-right;
+  until then "Close" was the one way out); history is under ⋯.
 - **F7** Rule 5: the Ideal Text is only what the speaker said in their
   latest Take; their helper words stay until they pick new ones; every old
   version stays in the history.
@@ -435,7 +453,9 @@ step; the loop never waits for a coach.
   processing logs why nothing was stamped (2026-10-17).
 - **H2** The AI clip's problem (pace, pause, stress, fillers) is measured
   against the speaker's own usual delivery; the clip is made once per
-  exercise, at the end of the bake, checked before it is shown; the walk asks
+  exercise, at the end of the bake, checked before it is shown, and made
+  once more with a new seed when it fails its check, never a third time
+  (N93; a failed one is never shown, and a try after it is not scored); the walk asks
   for it after its first minute and shows it whenever it lands. The speaker's
   AI voice is made from Take 1 as the spoken Take is stored, beside its
   processing (N84; it used to wait for the end of processing). The whole
@@ -514,8 +534,8 @@ step; the loop never waits for a coach.
   "Other speakers · N of N", "Practise N", "🔒 Take N", "Processing your
   recording", "Later · from your coach", "Updated with your coach's note ·
   see / hide the earlier version".
-- **Helper words:** "Choose your helper words", "N of 6 words", "Use these
-  helper words", "Edit the helper words" (signed 2026-10-21), "Keep these".
+- **Helper words:** "Choose your helper words", "N of 8 words" (the cap,
+  eight since 2026-10-15), "Use these helper words", "Edit the helper words" (signed 2026-10-21), "Keep these".
 - **A try not heard:** "We couldn't hear that clearly. Try again." (signed
   2026-10-21).
 - **The Clearer version:** "Here is a slightly more polished option:", "Do
@@ -567,7 +587,9 @@ step; the loop never waits for a coach.
   inner critic 😌", "More about self-modeling theory", "I am going to judge
   them honestly", "Not sure", "Moment N of N", "It was better, and I have
   yet another practice for you to try!", "Exercise" and L2 "Here's how you
-  could say it." as the Exercise's opening (L4 took their place, N82).
+  could say it." as the Exercise's opening (L4 took their place, N82;
+  "Exercise" on the video path too, 2026-10-21), "Clearer version" over the
+  Clearer version and "Tap the words" over the picker (2026-10-21).
 
 ---
 
@@ -592,7 +614,7 @@ The four lines above were filled from main's history by the page's keeper on
 - **N89 · one mechanism opens the walk** · B10, C1, D5, F4, F5 · founder 2026-10-20 ("the SAME WAY", "THE SAME MECHANISM"). Built: every door (a paragraph with or without the line, a Lounge bubble, the coach's word) opens the whole Take's walk at its step through one path; the narrowed walk, the finished walk with no buttons and the coach's own lens are gone · FE #897 · the founder checks the app; the "edit the helper words" wording signed 2026-10-21 (N90)
 - **N89 · the chain after the Take** · D3, D4, E1, K · founder 2026-10-20. Built: the summary without the next step and without the CTA; the closing message held behind the chain, each ask in turn with Will's lead-in, "Did this help?" when the Take looks off, then "Look, practice makes perfect…" with Record Take N (BE); the Lounge reads the closing message as the held row and puts the CTA under it (FE) · BE #1210, FE #897 · the founder checks the app. Choices made and confirmed 2026-10-21: "Did this help?" keeps its "looks off" condition and comes last; Take 1 still skips WhatsApp and the CEO panel's asks; the CEO panel's asks and Will's own question get no lead-in
 - **The rewrite does not appear** · C4, C5 · founder 2026-10-20. Found: the served rewrite row carried no block id, so the walk drew it as a moment of its own and the Clearer version never attached (BE); a corrected moment with neither rewrite nor exercise was dropped instead of said again (FE). Both built · BE #1209, FE #896 · the founder checks the app
-- **The AI voice bubble loads, then disappears** · C6, H2 · founder 2026-10-20. Found: a failed clip cycle is final and its real failure code was lost (a permit refusal stored as its class name). Built: the code is kept and a permit the service could not read is retried once (BE). The cause for the founder's Takes is in Supabase `ai_voice_cycles` (`failure_kind`, `failure_code`): most likely the daily limits (10 clips a speaker, 30 in all; `AI_VOICE_DAILY_CLIPS_PER_SPEAKER`, `AI_VOICE_DAILY_CLIPS_TOTAL` on Railway) or a check the one generation failed (`AI_VOICE_GENERATION_RETRIES` is 0) · BE #1209 · the founder reads the row
+- **The AI voice bubble loads, then disappears** · C6, H2 · founder 2026-10-20. Found: a failed clip cycle is final and its real failure code was lost (a permit refusal stored as its class name); BE #1209 keeps the code and retries a permit the service could not read once. The founder read the row on 2026-10-21: a stress clip, made once, came out flat (0.02 dB of contrast; the two stress clips that passed had about 2.4) and failed its check (`validation`, `not_stressed`). Built (N93, founder 2026-10-21, "One more try"): a clip that fails its check is made once more with a new seed (`AI_VOICE_GENERATION_RETRIES` 1; 0 on Railway turns it off), and a try after a clip that was never made is no longer scored, so it can't hold the problem back for the speaker (BE) · BE #1209, BE #1214, FE #902 · the founder checks the app
 - **The coach's bubble did not open** · C1, D5 · founder 2026-10-20. Found: the walk's own copy of an earlier Take's word was tapped as a step and opened nothing (or a read-only review); the "Later" bubble opens the lens. Built: every coach bubble opens the coach's word in the lens, Close marks that word's Take, and a lapsed video link is refreshed · FE #896 · the founder checks the app
 - **Helpers open as a separate single action** · C3, F5 · founder 2026-10-20. Found: the Lounge's helper-words bubble opened before the marks were in, so a paragraph with a moment showed its words alone. Built: it waits for the marks unless the paragraph already has its moment · FE #896 · the founder checks the app
 - **The card lands between the data question and its buttons** · D4 · founder 2026-10-20. Found: the admin's asks were stamped only with the message they wait for, so the card was not moved above them. Built: the ask carries its Take, and the order resolves older asks through the message they wait for · FE #896 · the founder checks the app
@@ -686,6 +708,10 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · the lens against its page, the founder's eight answers: "N of 8 words" in place of "Tap the words" (C3; was "N of 6 words"); helper words without end punctuation in the speaker's bubble (B7); the Clearer version's new words no longer bold (B4); no "Clearer version" title (C5, K) and no "Exercise" title on the video path (C6, K); every try keeps its number and voice, a try the server did not keep included (C7; until then a late or unheard try was followed by another "Practise 1"); the ✕ beside ⋯ on the Ideal Text stays (F6; was "Close the one way out"); the harness's sample marks its highest moment and levels · FE #906
+
+- 2026-10-21 · helper words kept from an earlier Take no longer settle this Take's moment on the page: the confident moment is walked first, before the correction, as the server already served it (C2, F3) · FE #904
+- 2026-10-21 · N93 · a clip that fails its check is made once more with a new seed, never a third time, and a try after a clip that was never made is not scored (C6, H2) · BE #1214, FE #902
 - 2026-10-21 · N92 · the coach's answer and video reach the speaker's page as they stand: the stored feedback rows re-read the coach's answer on every read, signed afresh; a coach's share asks for a rebake (C1, D5) · BE #1213
 - 2026-10-21 · N91 · a door brings its step to the top of the whole Take's walk, with that step's own buttons in the dock; Next moves on to the next part, after the last onto the page; scrolling and ‹ › move through every part (B5, B9, B10) · FE #899
 - 2026-10-21 · N90 · a step already answered past opens the walk on that step with the parts before and after it there to scroll (B10); the coach's bubble is written at the bottom the moment the coach shares (D5); a try not heard says so with Practise again and Next (C7, K); an answered helpers step's pill reads "Edit the helper words" (C3, K); the chain's choices confirmed (E1) · FE #898, BE #1211

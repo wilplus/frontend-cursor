@@ -222,11 +222,32 @@ export function othersAnswered(messages: readonly LoungeMessage[], take: string)
   ).length;
 }
 
+/** The paragraphs whose helper words were picked in `take`'s walk: each
+ *  pick is the speaker's bubble, stored with its Take and paragraph
+ *  (`words_of`). Words kept from an earlier Take are not among them, so they
+ *  never settle this Take's moment (founder 2026-10-21). Pure. */
+export function wordsPickedIn(messages: readonly LoungeMessage[], take: string | null): Set<string> {
+  const out = new Set<string>();
+  for (const m of messages) {
+    const words = m.metadata?.words_of;
+    if (m.kind === "walk_step" && m.metadata?.take_session_id === take && typeof words === "string") out.add(words);
+  }
+  return out;
+}
+
 /** The speaker's answer to a step as their own bubble says it, in the
  *  walk's chat and the Lounge alike. Null: posted elsewhere (helper words, a
  *  clearer version's choice), or nothing to say: Practise and Practise
  *  again write nothing, the try itself is the speaker's bubble (founder
  *  2026-10-20, WIL-89). */
+/** Helper words as the speaker's own bubble says them: the words picked,
+ *  without the sentence's punctuation at either end ("growth doubled," →
+ *  "growth doubled"; founder 2026-10-21, B7). The words saved on the text
+ *  keep theirs. Pure. */
+export function helperWordsSaid(words: string): string {
+  return words.replace(/^[\p{P}\s]+|[\p{P}\s]+$/gu, "") || words;
+}
+
 export function answerBody(step: WalkStep, value: string): string | null {
   if (value === "skip" && ["helpers", "exVideo", "encourage"].includes(step.key)) return WALK_COPY.skip;
   return null;
@@ -269,7 +290,8 @@ export function praiseChat(
   return { author: "app", body: lines.filter((line) => line.trim() !== "").join("\n") };
 }
 
-/** The Exercise's bubble: its instruction under its title, with the video's
+/** The Exercise's bubble: its instruction, no title (founder 2026-10-21, K:
+ *  "Exercise" is no longer shown), with the video's
  *  thumb (prototype v31 `vthumb`) from the exercise's stored link (a library
  *  or coach upload's public address); the walk's own line when the moment
  *  has no exercise yet. */
@@ -279,10 +301,10 @@ function exerciseChat(
 ): { author: WalkAuthor; body: string; extra?: Record<string, unknown> } | null {
   if (!moment) return null;
   const ex = moment.exercise;
-  if (!ex) return { author: "app", body: `${soFar}${COPY.titleExercise}\n${WALK_COPY.lineA}` };
+  if (!ex) return { author: "app", body: `${soFar}${WALK_COPY.lineA}` };
   return {
     author: ex.byCoach ? "coach" : "app",
-    body: `${soFar}${COPY.titleExercise}\n${ex.instruction ?? WALK_COPY.lineA}`,
+    body: `${soFar}${ex.instruction ?? WALK_COPY.lineA}`,
     ...(ex.video ? { extra: { video: ex.video } } : {}),
   };
 }
@@ -321,10 +343,11 @@ export function shownStep(
       return app(COPY.titleEmphasis);
     case "clearer": {
       // The words that arrive, orange in the chat (prototype v31 `.new em`).
-      // Words that undermined the speaker open with B10 (N85).
+      // Words that undermined the speaker open with B10 (N85). No "Clearer
+      // version" title (founder 2026-10-21, K): the opener says it.
       const clearer = moment?.clearer;
       const said = clearer?.say
-        ? titled(soFar + COPY.cardClearerVersion, [...clearerOpening(clearer.reason, () => say("B13")), clearer.say].join("\n"))
+        ? app(soFar + [...clearerOpening(clearer.reason, () => say("B13")), clearer.say].join("\n"))
         : null;
       return said ? { ...said, extra: { new_words: moment?.clearer?.after ?? null } } : null;
     }
