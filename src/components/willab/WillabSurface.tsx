@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import LoadingState from "./LoadingState";
@@ -25,6 +26,13 @@ import {
   readExploreArc,
   writeExploreArc,
 } from "@/lib/willab/exploreArc";
+import { readProcessingTake } from "@/lib/willab/processingTake";
+import {
+  coachLinkLogin,
+  markCoachLinkSent,
+  readCoachLinkSent,
+} from "@/lib/willab/coachLink";
+import { readParked } from "./willabParked";
 import { LoungeThreadProvider } from "./LoungeThreadContext";
 import { afterChatBoot } from "@/lib/chatBoot";
 import {
@@ -92,6 +100,32 @@ export default function WillabSurface({
   // opens when that is done, so the chat is not drawn first (founder
   // 2026-10-18, usePendingSendHold).
   const handingOverTake = usePendingSendHold(signedIn);
+  // The coach's WhatsApp or email link opened signed out goes to log in and
+  // back to itself (founder 2026-10-21, WIL-93; coachLink.ts), before the
+  // Welcome or the guest's screens are drawn.
+  const router = useRouter();
+  const [linkLogin, setLinkLogin] = useState<string | null>(null);
+  useEffect(() => {
+    if (signedIn) markCoachLinkSent(null);
+    const path = `${window.location.pathname}${window.location.search}`;
+    const href = coachLinkLogin({
+      arcId: idealTextArcId,
+      mode: idealTextMode,
+      signedIn,
+      guestArcIds: [
+        readProcessingTake(null)?.arcId,
+        readExploreArc(null)?.arcId,
+        readParked()?.projectId,
+      ],
+      path,
+      sentBefore: readCoachLinkSent(),
+    });
+    if (!href) return;
+    markCoachLinkSent(path);
+    setLinkLogin(href);
+    router.replace(href);
+  }, [idealTextArcId, idealTextMode, signedIn, router]);
+  const linkWaits = linkLogin !== null || (idealTextMode === "feedback" && signedIn === null);
   // Warmed after the thread paints (founder 2026-10-16), not beside it: the
   // recording screens' chunks are not what a /chat open waits for.
   useEffect(
@@ -184,7 +218,7 @@ export default function WillabSurface({
 
   // Resolving the initial state post-mount (hydration-safe); and the wait
   // while a signed-up guest's Take is handed over, before its walk opens.
-  if (flow.state === null || handingOverTake) {
+  if (flow.state === null || handingOverTake || linkWaits) {
     return consentedShell(<LoadingState placement="surface" />);
   }
 

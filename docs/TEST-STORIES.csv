@@ -112,7 +112,11 @@ src/app/api/v2/user/takes/[takeSessionId]/share/route.test.ts,Story,"As a speake
 exactly this Take.","O1 -> ""relays the share body to the encoded take path""",
 src/app/chat/page.test.tsx,Story,"As a speaker tapping a WhatsApp or email link, I want to land on my coach's feedback or on the review, so that the link takes me where it says.","O1  A feedback link (lens, or idealArc with feedback) opens the feedback;
 a link with mode=review opens the review; a bare idealArc link opens
-neither.","O1 -> ""opens the coach's feedback from the WhatsApp and email links, the review with mode=review""",
+neither.
+O2  Tapped signed out, the coach's link goes to log in and back to the
+same link (WIL-93), once per tab; a project this device holds as a
+guest's work stays on the guest's own screens.","O1 -> ""opens the coach's feedback from the WhatsApp and email links, the review with mode=review""
+O2 -> ""sends a signed-out speaker to log in and back to the coach's link, never a guest's own project""",
 src/app/coach/corpus/corpusJudgeScreen.test.tsx,Story,"As a coach, I want an imported recording to open on the one Judge screen, save only my answer and move to the next unlabelled piece, so that judging is fast and blind.","O1  An import opens the walk's Judge screen and nothing of the workbench's
 labelling chrome (no note field, no Skip, no ""labelled"" count).
 O2  Never-2: before the coach answers, the sheet shows the question and

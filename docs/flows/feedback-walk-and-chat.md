@@ -162,7 +162,10 @@ step; the loop never waits for a coach.
   word are the latest Take's and never mix with another Take's word
   (founder, 2026-10-21). A link naming the latest Take, or none, shows the
   word, then the moment answers. A moment answer's link naming an earlier
-  Take shows that Take's word if it has one, and otherwise opens the text. A coach's word on a moment reaches the page
+  Take shows that Take's word if it has one, and otherwise opens the text.
+  Tapped where the speaker is signed out, the WhatsApp and email links go
+  to log in and come back to the same link, never to the guest's "Done"
+  screen (WIL-93, 2026-10-21). A coach's word on a moment reaches the page
   as it stands, its video with it: the page's stored feedback rows re-read
   the coach's answer on every read, the video's link signed afresh, and a
   coach's share asks for the rows to be baked again (backend, N92,
@@ -746,6 +749,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · WIL-93 · the coach's WhatsApp and email links, tapped signed out, go to log in and back to the coach's feedback; a guest's own project stays on the guest's screens (C1) · FE #911
 - 2026-10-21 · N97 · WIL-32 decided: the speaker/coach disagreement signal stands and waits until speakers answer about their own clips again (§3); other speakers stay one per try, other speakers' moments first and licensed clips for the places left, replacing the note's 3 every walk of 2026-10-19 (C8) · FE #915, BE #1219
 - 2026-10-21 · the AI voice's bubble in the Lounge is short: its first line, the voice and the › every step bubble has; the why and the closing line stand in the walk it opens (B12) · FE #912
 - 2026-10-21 · a door on a Take not yet finished opens the whole walk as it stands, the waiting step live and the answered parts to scroll, every moment under its Take's number: no lone piece, no step posted again at the bottom of the chat (B10) · FE #910
