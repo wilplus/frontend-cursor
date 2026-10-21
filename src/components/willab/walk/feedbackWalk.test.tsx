@@ -51,13 +51,13 @@ const ITEMS: FeedbackWalkItem[] = [
   {
     partId: "p1", start: 0, slide: 1, blockId: "b1", openCard: "praise",
     paragraphText: "Last quarter our growth doubled, and it came from two markets.",
-    slideLabel: "Slide 2", praiseWords: ["You opened with the number and let it sit."],
+    slideLabel: "Slide 2", praiseLine: "You opened with the number and let it sit.",
     clip: { src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 9000 },
   },
   {
     partId: "p2", start: 80, slide: 1, blockId: "b2", feedbackFamily: "great_formulation",
     paragraphText: "Two hires by March keep that lead.",
-    slideLabel: "Slide 2", praiseWords: [COPY.praiseTentative],
+    slideLabel: "Slide 2", praiseBank: "B09",
   },
 ];
 const NOTE = { text: "Let the pause after doubled breathe.", videoUrl: "data:video/mp4;base64,", takeIndex: 2 };
@@ -111,21 +111,23 @@ describe("FeedbackWalk", () => {
   const nextArrow = () => nav().querySelector<HTMLButtonElement>(`button[aria-label='${COPY.pagerNext}']`)!;
   const backArrow = () => nav().querySelector<HTMLButtonElement>(`button[aria-label='${COPY.pagerBack}']`)!;
 
-  it("a green moment says why it landed: the praise line alone, then the reason in its own bubble (founder 2026-10-18)", () => {
+  it("a green moment: the level line and one signed line for its cue, then why it landed in its own bubble (founder 2026-10-18, N94)", () => {
     const reason = {
       paragraphs: ["When you said “our growth doubled”", "No fillers, right on the slide."],
       quote: "our growth doubled",
     };
-    const lead = "It was your confident moment.";
+    const level = "Wow, great job. This really comes through! 🔥";
     const items: FeedbackWalkItem[] = [
-      { ...ITEMS[0], praiseWords: [lead, "A cue line."], praiseLead: [lead], praiseReason: reason },
+      { ...ITEMS[0], praiseLine: null, praiseTitle: level, praiseBank: "B07", praiseReason: reason },
     ];
     draw(
       { seq: 1, at: 1 },
       { model: buildFeedbackWalk({ items, coachNote: false, practiceOn: true, guest: false }), coachNote: null },
     );
     expect(screen()).toBe("walk-screen-praise");
-    expect(bubble()).toEqual([COPY.titlePraise, lead]);
+    // The level line and one signed line for its cue, no "Good job" and no
+    // cue sentence (founder 2026-10-21, N94).
+    expect(bubble()).toEqual([level, WALK_LINE_BANK.B07.lines[0]]);
     const why = live()!.querySelector("[data-walk-reason]")!;
     expect([...why.querySelectorAll("p")].map((p) => p.textContent)).toEqual(reason.paragraphs);
     expect(why.querySelector("[data-walk-quote]")!.textContent).toBe("“our growth doubled”");
@@ -138,8 +140,7 @@ describe("FeedbackWalk", () => {
       { model: buildFeedbackWalk({ items, coachNote: false, practiceOn: true, guest: false }), coachNote: null },
     );
     expect(screen()).toBe("walk-screen-praise");
-    expect(bubble()[0]).toBe(COPY.titleMostConfident);
-    expect(bubble()[1]).toBe(COPY.titlePraise);
+    expect(bubble()).toEqual([COPY.titleMostConfident, ITEMS[0].praiseLine]);
   });
 
   it("walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows", async () => {
@@ -162,7 +163,7 @@ describe("FeedbackWalk", () => {
     // orange bubble (lock 2026-10-12, section 2.2).
     expect(now()!.querySelector("h2")).toBeNull();
     expect(now()!.querySelector("[data-walk-player][data-walk-me]")).not.toBeNull();
-    expect(bubble()).toEqual([COPY.titlePraise, ITEMS[0].praiseWords![0]]);
+    expect(bubble()).toEqual([ITEMS[0].praiseLine]);
     expect(nav().getAttribute("aria-label")).toBe("Slide 2");
     // ‹ scrolls back up the thread; › is off at the newest step. The pill
     // alone moves the walk on.
@@ -177,7 +178,7 @@ describe("FeedbackWalk", () => {
     // The speaker's choice lands as their own bubble under the step.
     expect(said()).toEqual([WALK_COPY.skip]);
     expect(screen()).toBe("walk-screen-praise");
-    expect(bubble()).toEqual([COPY.titlePraise, COPY.praiseTentative]);
+    expect(bubble()).toEqual([WALK_LINE_BANK.B09.lines[0]]);
     // The answered picker stays in the thread, read only: only the newest
     // part is live.
     click(words()[0]);

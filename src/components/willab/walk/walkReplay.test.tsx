@@ -36,7 +36,7 @@ vi.mock("@/services/api/aiVoice", async (importOriginal) => ({
 
 const clip = { src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 9000 };
 const ITEMS: FeedbackWalkItem<string>[] = [
-  { partId: "p1", start: 0, slide: 1, blockId: "b1", openCard: "praise", paragraphText: "Last quarter our growth doubled.", slideLabel: "Slide 2", praiseWords: ["A signed line."], clip },
+  { partId: "p1", start: 0, slide: 1, blockId: "b1", openCard: "praise", paragraphText: "Last quarter our growth doubled.", slideLabel: "Slide 2", praiseLine: "A signed line.", clip },
   { partId: "p1", start: 1, slide: 1, blockId: "b1", feedbackFamily: "confident_voice", paragraphText: "Last quarter our growth doubled.", slideLabel: "Slide 2", clip, judge: "cv-1" },
   {
     partId: "p2", start: 50, slide: 1, blockId: "b2", feedbackFamily: "rewrite_clarity", paragraphText: "The old words.", slideLabel: "Slide 2", clip,

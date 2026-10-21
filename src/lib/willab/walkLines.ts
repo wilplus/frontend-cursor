@@ -40,6 +40,36 @@ export function clearerOpening(reason: string | null | undefined, opener: () => 
   return reason === "undermining" ? [WALK_LINE_BANK.B10.lines[0], WALK_LINE_BANK.B13.lines[4]] : [opener()];
 }
 
+/** The praise bank a cue fires (backend `line_bank.CUE_BANK`): each fires
+ *  only on the cue it names; B01 for a confident moment with no cue named,
+ *  B09, the gentle line, for a tentative one or a cue no bank names. Pure. */
+const CUE_BANK: Record<string, WalkBankKey> = {
+  wide_range: "B02",
+  full_volume: "B03",
+  no_hesitation: "B04",
+  settled_pitch: "B05",
+  kept_moving: "B06",
+  landed_ending: "B07",
+  opened_strong: "B08",
+};
+export function praiseBankFor(cueKeys: readonly string[], tentative: boolean): WalkBankKey {
+  if (tentative) return "B09";
+  const named = cueKeys.find((cue) => CUE_BANK[cue]);
+  if (named) return CUE_BANK[named];
+  return cueKeys.length ? "B09" : "B01";
+}
+
+/** The praise bubble's signed line under the level line (founder
+ *  2026-10-21, N94: no "Good job", no cue sentence): the line the row
+ *  carries when it carries one, else the next of its cue's bank. */
+export function praiseLineOf(
+  moment: { praiseLine?: string | null; praiseBank?: WalkBankKey | null },
+  say: (bank: WalkBankKey) => string,
+): string | null {
+  if (moment.praiseLine) return moment.praiseLine;
+  return moment.praiseBank ? say(moment.praiseBank) : null;
+}
+
 /** The server's memory, as the walk calls it (services/api/lineBank.ts). */
 export type WalkLinesIO = {
   /** {bank: index} each bank says next; null when it cannot be read. */

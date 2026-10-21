@@ -21,6 +21,7 @@
 /* -------------------------------------------------------------------------- */
 
 import type { PraiseReason } from "@/lib/willab/praiseReason";
+import type { WalkBankKey } from "./walkLines";
 import { clearerPieces, type ClearerPieces } from "./clearerPieces";
 import { phraseSelection, type PhraseSelection } from "./phraseTokens";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
@@ -59,8 +60,12 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
   /** On a praise: its words, the coach's or the signed line the item
    *  carries. Never made up here; none means none is shown. */
   praiseWords?: readonly string[] | null;
-  /** The praise's opening line by level (founder 2026-10-14); null: "Good job". */
+  /** The praise's opening line by level (founder 2026-10-14). */
   praiseTitle?: string | null;
+  /** The bank its cue fires, for the line under the level line (N94). */
+  praiseBank?: WalkBankKey | null;
+  /** The signed line the row carries, in that line's place. */
+  praiseLine?: string | null;
   /** The Take's highest moment (founder 2026-10-20): its bubble opens with
    *  "This was your most confident moment." */
   highest?: boolean;
@@ -159,6 +164,9 @@ export type FeedbackWalkMoment<R = unknown> = {
   slideLabel: string | null;
   praiseWords: readonly string[];
   praiseTitle?: string | null;
+  /** The praise bank its cue fires, and the row's own line (N94). */
+  praiseBank?: WalkBankKey | null;
+  praiseLine?: string | null;
   /** The Take's highest moment, praised or corrected (founder 2026-10-20). */
   highest?: boolean;
   /** The praise line alone, for when a reason follows it. */
@@ -302,6 +310,8 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     // The level rides the green row; the praise words may ride a separate
     // wording note. Whichever row carries the level names the screen.
     praiseTitle: group.find((i) => i.praiseTitle)?.praiseTitle ?? null,
+    praiseBank: praise?.praiseBank ?? null,
+    praiseLine: praise?.praiseLine ?? null,
     highest: group.some((i) => i.highest === true),
     praiseLead: praise?.praiseLead ?? praise?.praiseWords ?? [],
     praiseReason: group.find((i) => i.praiseReason)?.praiseReason ?? null,

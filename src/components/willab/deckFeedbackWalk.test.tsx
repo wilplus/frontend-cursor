@@ -36,10 +36,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { GuestGateContext } from "./GuestSignUpDialog";
-import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "./idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, WALK_COPY, WALK_LINE_BANK } from "./idealEditCopy";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { reportMomentEvent } from "@/services/api/momentEvents";
-import { PRAISE_CUE_COPY, PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
 import type { Part } from "@/lib/willab/documentParts";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 
@@ -188,10 +187,9 @@ describe("the walk on the deck", () => {
     expect(screen()).toBe("walk-screen-praise");
     expect(live()!.className).toContain("walk-m-open");
     expect(pager()).toBeNull();
-    // "Good job" is the bubble's first line, then the praise (lock 2026-10-12).
-    expect(live()!.querySelector("[data-walk-message]")!.textContent).toBe(
-      [COPY.titlePraise, [PRAISE_LEAD, PRAISE_CUE_COPY.landed_ending].join(" ")].join(""),
-    );
+    // One signed line for the cue it landed on, B07 for the ending: no
+    // "Good job" and no cue sentence (founder 2026-10-21, N94).
+    expect(live()!.querySelector("[data-walk-message]")!.textContent).toBe(WALK_LINE_BANK.B07.lines[0]);
     expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Slide 2");
   });
 
@@ -244,7 +242,7 @@ describe("the walk on the deck", () => {
     // The helper words first, the confident moment just above them, in the
     // Take's whole walk (one mechanism: the same door as a Lounge bubble).
     expect(screen()).toBe("walk-screen-helpers");
-    expect(live()!.querySelector("[data-walk-message]")!.textContent).toContain(COPY.titlePraise);
+    expect(live()!.querySelector("[data-walk-message]")!.textContent).toContain(WALK_LINE_BANK.B07.lines[0]);
     // The confident moment met above them still reaches the coach's queue.
     expect(reportMomentEvent).toHaveBeenCalledWith("snip-1", "opened", ["praise"]);
     // The step's own buttons: the picker's pill is there.

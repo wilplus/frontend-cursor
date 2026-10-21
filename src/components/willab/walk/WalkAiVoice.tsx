@@ -92,16 +92,16 @@ export function aiVoiceShown(
   }
   if (step.key !== "encourage" || state?.clip?.state !== "ready" || !inVoiceLane(plan, at, step.moment)) return null;
   if (aiShownBefore(plan, at, step.moment, shownOnExercise(plan, step.moment, state)) >= AI_VOICE_MAX) return null;
-  // The first "not yet" says L4 and L3; every later one L5 (founder
-  // 2026-10-13, P3 B). After the Exercise's own clip, which already opened
-  // with L4 (founder 2026-10-20, N82), every "not yet" says L5.
-  // The same clip each time, the words around it changing (founder
-  // 2026-10-18): it opens with the line for the reading that went the wrong
+  // The first "not yet" says L4 and L3, alone: a not-yet line before "That
+  // was good" said two things at once (founder 2026-10-21, N94); every later
+  // one L5 (founder 2026-10-13, P3 B). After the Exercise's own clip, which
+  // already opened with L4 (founder 2026-10-20, N82), every "not yet" says
+  // L5. The same clip each time, the words around it changing (founder
+  // 2026-10-18): L5 opens with the line for the reading that went the wrong
   // way when one clearly did (2026-10-13, B), else the general ones in turn.
-  const lead = encourageLine(plan, at);
   return aiShownBefore(plan, at, step.moment, shownOnExercise(plan, step.moment, state)) === 0
-    ? { lead, line: WALK_COPY.aiVoiceFirst, then: WALK_COPY.aiVoiceNow }
-    : { lead, line: WALK_COPY.aiVoiceAgain };
+    ? { line: WALK_COPY.aiVoiceFirst, then: WALK_COPY.aiVoiceNow }
+    : { lead: encourageLine(plan, at), line: WALK_COPY.aiVoiceAgain };
 }
 
 /** The AI bubble step `at` will show once its clip is in: its lines while

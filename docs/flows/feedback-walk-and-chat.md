@@ -159,8 +159,10 @@ step; the loop never waits for a coach.
   "This was your most confident moment." (signed 2026-10-20; "This was
   your most confident moment so far." opens its clearer version or
   Exercise when that moment is corrected); then the opening line by its level (W1–W10, three signed lines
-  a level, rotated; the cue line under it; `src/lib/willab/praiseLevels.ts`),
-  "Good job" and one line from B01–B09. Then "Next". Praise is never
+  a level, rotated; `src/lib/willab/praiseLevels.ts`) and one line from the
+  bank its cue fires (B01–B09, rotated; B01 with no cue named, B09 for a
+  tentative one; a line the row carries takes its place); no "Good job" and
+  no cue sentence (founder 2026-10-21, N94). Then "Next". Praise is never
   promised. A served moment with nothing attached is the moment said again,
   so the lens always has a step; with no moment at all the text shows.
   Helper words kept from an earlier Take settle nothing: this Take's moment
@@ -203,8 +205,9 @@ step; the loop never waits for a coach.
   never changes the Ideal Text (rule 5): it gets there when it is said in the
   next Take. After a try only the voice is checked, on the same lanes as the
   Exercise: better is the Good job and no clip; not yet brings the AI clip of
-  the accepted words (or their own after "Keep my words") with L4, L3, then
-  L5. A try with no sound read is a Good job. An answered Clearer version
+  the accepted words (or their own after "Keep my words") with L4 and L3
+  alone the first time, no not-yet line before "That was good" (founder
+  2026-10-21, N94), then L5. A try with no sound read is a Good job. An answered Clearer version
   stays read only, in the walk and from the Lounge.
 - **C6 The voice Exercise** opens with praise: L4 "That was good. But what
   if you said it more like this?", the AI version of their voice, then L3
@@ -229,11 +232,16 @@ step; the loop never waits for a coach.
   +0.05 (`after_practice.GOOD_JOB_MARGIN`, N84); a cleared problem, or a cue
   moved by at least half a within-speaker deviation, counts too; a clearer
   version's try with no sound read is a Good job; a smaller rise is a not
-  yet. It never asks the speaker how it sounded. **Not yet:** a not-yet line that changes each time, the
+  yet. It never asks the speaker how it sounded. **Not yet:** a not-yet line that changes each time (the
+  reading's own, below), the
   same AI clip with L5, and under it only "Practise" or "Practise again"
   with the red dot, no Next and no Skip, until a Good job or the third try
-  (2026-10-18). **Better:** "Good job", "That sounded more assured than the
-  first.", Next; a Good job ends the practise. At most three tries, then
+  (2026-10-18). **Better:** "Good job" and the line for the reading that
+  moved, Next; a Good job ends the practise. The lines are the 48 reading
+  lines, three a reading for better and for not yet, taken in turn (signed
+  2026-10-13; written into backend `docs/SIGNED-line-bank-2026-10-06.md`,
+  founder 2026-10-21, N94; "That sounded more assured than the first." is
+  dropped). At most three tries, then
   Next alone, with the signed move-on line when the third was not praise. A
   late answer offers Practise again while a try is left. A try the server
   could not hear (too short, no speech, not the passage, nothing to
@@ -263,9 +271,12 @@ step; the loop never waits for a coach.
 
 ### D · The closing summary
 
-- **D1** One plain bubble, two to four short sentences, by GPT-4o
+- **D1** One plain bubble, one or two short sentences, at most about 140
+  characters, by GPT-4o
   (`STRONG_MODEL`, backend `services/take_summary.py`) through the
-  processing-authorization path. Cheeky and curious, like a colleague: "you",
+  processing-authorization path: only a cheeky sum-up of the Take (founder
+  2026-10-21, N94: "make it shorter and only a cheeky summary of the take").
+  Cheeky, like a colleague: no greeting, "you",
   contractions, plain words, exclamation marks fine, one emoji at most; never
   "cue" or metric names; no numbers (a signed line's Take number aside),
   scores or verdicts; no cheerleading and no advice (the walk did). It
@@ -276,19 +287,25 @@ step; the loop never waits for a coach.
   from the audio analysis, the practice result, the coach's asks, at most two
   helper words, what the speaker said in an older Take (#1184) and Will's
   private note on them (`services/speaker_memory.py`). Its praise is one
-  signed line from `services/line_bank.py`, varied lightly at most; code
-  checks the line is there and falls back to the signed journey copy. After
-  Take 1 it claims no progress. It asks whether the talk matches its title
-  only with curiosity.
-- **D3** It ends on what the Take showed, never with a question and, since
-  N89 (2026-10-20), without the next step and without the record button:
-  the chain (D4) brings them.
+  signed line of one sentence from `services/line_bank.py`, varied lightly at
+  most; code checks the line is there and falls back to the signed journey
+  copy's first line (from Take 4, where that copy has none, the gentle B09
+  line: a fourth Take is never called the third, N94). After Take 1 it
+  claims no progress.
+- **D3** It asks nothing, no question anywhere, not about the content and
+  not about the title: that is Will's question, after it (N94; until then it
+  could ask whether the talk matched its title). Since N89 (2026-10-20) it
+  has no next step and no record button: the chain (D4) brings them.
 - **D4** In the chat the review ends with the Take's small card (the first
   slide, the project's name, a version tag such as "2.0", the coach's "new"
   dot on the project's newest card) and the summary as a plain bubble that
   cannot be tapped. Then the chain, one action at a time, each after the one
   before is answered (founder 2026-10-20, N89): every ask that waits (E1),
-  each opened by Will's lead-in line and followed by the ask's buttons; and
+  each opened by Will's lead-in line and followed by the ask's buttons;
+  Will's question opens with a bridge line instead, its own plain bubble
+  between the summary and the question, in the chat only, one a Take in
+  turn: "Ok, now let's dive into the content for a bit." / "Alright, let's
+  dive into the content for a moment." (founder 2026-10-21, N94); and
   only then "Look, practice makes perfect. If you're ready, let's go with the
   next take. 💪" with "Record Take N" under it (backend
   `services/after_take.py`). The closing message is held back while the
@@ -338,8 +355,13 @@ step; the loop never waits for a coach.
   (2026-10-20); an ask that no longer applies when its turn comes is
   skipped. These choices (the condition and place of "Did this help?", Take
   1's asks, which asks get a lead-in) were confirmed by the founder on
-  2026-10-21. A distressed answer under "What would help?" gets the chat's
-  safety reply (backend #1199).
+  2026-10-21. At most two asks a Take (founder 2026-10-21, N94): when more
+  wait, the home screen, then WhatsApp, then "Did this help?" wait for a
+  later Take; the CEO panel's ask and Will's question keep their turn, and
+  the order stays. A distressed answer under "What would help?" gets the
+  chat's safety reply (backend #1199), and after the safety reply the asks
+  wait until the speaker writes again (N94; until then the next ask or the
+  closing message landed right under it).
 - **E2** Will asks only when something is off or missing, once per Take,
   the first that holds (`services/will_question.py`, N82): a breather when
   the practice did not land or the voice dipped two Takes running (never two
@@ -376,22 +398,22 @@ step; the loop never waits for a coach.
   screen. The card opens the page on the text, from the top; every other
   bubble with › opens that Take's walk on that step.
 - **F2** The text never shows before the walk (A2).
-- **F3** Helper words are orange in the text; no pencil. The black margin
-  line means something still waits: only a paragraph with a step still to
-  answer wears it, and once answered the line goes (2026-10-20). Helper
+- **F3** Helper words are orange in the text; no pencil. No margin line:
+  the page opens only once the walk is done, so nothing waits on it
+  (founder 2026-10-21, N94: "drop the rule"; the black line of 2026-10-14
+  and 2026-10-20 is history). Helper
   words answer a paragraph's moment only when picked in this Take (the
   speaker's bubble in the chat); words kept from an earlier Take do not
   (2026-10-21).
-- **F4** A paragraph with the black line opens the whole Take's walk at the
-  step it asks (its helper words with its green moment just above, or the
-  Clearer version or the Exercise when that is what waits), exactly as a
-  paragraph without the line does (F5); only the step's buttons differ, its
+- **F4** A paragraph with a moment opens the whole Take's walk at its step
+  (its helper words with its green moment just above, or the Clearer
+  version or the Exercise); only the step's buttons differ, its
   own while it waits and read only once answered (one mechanism, N89,
   2026-10-20; the paragraph's own narrowed walk that closed onto the Ideal
   Text, the same morning, is history). ✕ goes back to the page (B11). The
   green moment still reaches the chat and the coach's queue.
-- **F5** A paragraph without the line opens the same walk at the step that
-  paragraph answered, its green moment just above, read only as the step
+- **F5** Answered, the paragraph opens the same walk at the step it
+  answered, its green moment just above, read only as the step
   stands (N89: the finished walk with no buttons, 2026-10-20 morning, is
   history). Its orange helper words open the same walk, not the picker;
   orange words on a paragraph with no moment in this Take still open their
@@ -410,14 +432,18 @@ step; the loop never waits for a coach.
 ### G · Sharing, before the next recording
 
 - **G1** Asked when "Record Take N" is tapped, from Take 2 on, never before
-  Take 1; the choice applies to the Take about to be recorded. "After all,
-  it's about speaking publicly!" (regular weight) and "Do you agree to share
-  your next take with others?"; in the Lounge one bubble, its three lines as
-  paragraphs (#847).
+  Take 1; the choice applies to the Take about to be recorded. Three
+  bubbles: "Before we start the new take!", "After all, it's about speaking
+  publicly!" (regular weight) and "How big you want your audience?"; in the
+  Lounge one bubble, its three lines as paragraphs (#847). The options say
+  who the Take is shared with, so nothing else is asked (founder 2026-10-21,
+  N94: "Do you agree to share your next take with others?" is dropped).
 - **G2** The options: **General community.** **Only my community**, with the
   speaker's saved communities inside (a passcode entered once; one is ticked;
   several are all ticked and any can be unticked; "+ Add a community with a
-  passcode" at the bottom). **Only me**, which stands alone.
+  passcode" at the bottom). **Only me**, which stands alone. Each keeps its
+  hint: "Fastest improvement in speaking publicly", "Slower but steady
+  growth", "Slowest progress, but safe".
 - **G3** Who you judge follows who you share with: only my community → that
   community first, the general community fills in; general community → the
   general community, and its members may hear your Take; only me → nobody
@@ -544,25 +570,36 @@ step; the loop never waits for a coach.
   it, just say it straight." and B13's "Try saying it like this:" (signed
   lines in a new place, N85).
 - **Praise:** "This was your most confident moment." and "This was your
-  most confident moment so far." (signed 2026-10-20).
-- **Practise:** Line A "Say this one like your confident moment."; "That
-  sounded more assured than the first."; the praise, not-yet and move-on
-  lines of the signed bank (backend `docs/SIGNED-line-bank-2026-10-06.md`,
-  `services/line_bank.py`); the opening lines W1–W10
+  most confident moment so far." (signed 2026-10-20); the level line
+  (W1–W10) and one line of B01–B09 (N94).
+- **Practise:** Line A "Say this one like your confident moment."; the 48
+  reading lines under "Good job" and in the not-yet (backend
+  `docs/SIGNED-line-bank-2026-10-06.md`, "The machine's reading lines", N94;
+  frontend `PRACTISE_LINES`); the move-on line "Great effort! Let's move on
+  and come back to this one later."; the opening lines W1–W10
   (`src/lib/willab/praiseLevels.ts`); the AI clip's L1–L18 (backend
   `FOUNDER-LOCK-ai-voice-practice-2026-10-12.md`).
 - **Other speakers:** Line B "Now one moment from another speaker." / "Now N
   moments from other speakers." / "Now one moment from {community}."; "Does
   this sound confident to you?"; "Yes", "In-between", "No", "Audio unclear".
-- **Sharing:** "After all, it's about speaking publicly!", "Do you agree to
-  share your next take with others?", "General community", "Only my
-  community", "Only me", "+ Add a community with a passcode".
+- **Sharing:** "Before we start the new take!", "After all, it's about
+  speaking publicly!", "How big you want your audience?", "General
+  community" ("Fastest improvement in speaking publicly"), "Only my
+  community" ("Slower but steady growth"), "Only me" ("Slowest progress, but
+  safe"), "+ Add a community with a passcode", "Passcode", "Add",
+  "Continue", "No community has that pass code.", "Couldn't share this take.
+  Try again." (N94).
+- **The summary and the bridge:** the summary is the model's words, its
+  fallbacks "Your first take is in 🎉", "Your second take is in 🎉", "Your
+  third take is in 🎉" (from Take 4 a B09 line); the bridge before Will's
+  question "Ok, now let's dive into the content for a bit.", "Alright,
+  let's dive into the content for a moment." (founder 2026-10-21, N94).
 - **The Ideal Text:** "Record Take N", "Close".
 - **The chain's close:** "Look, practice makes perfect. If you're ready,
   let's go with the next take." with an encouraging emoji (💪; signed
   2026-10-20, N89), then "Record Take N".
-- **The one ask:** "Did this help?", "We're glad it helped you.", "What
-  would help?", "Skip"; Will's lead-ins (E1) are his own words around the
+- **The one ask:** "Did this help?" with "No" and "Yes", "We're glad it
+  helped you.", "What would help?", "Skip", "Thanks!"; Will's lead-ins (E1) are his own words around the
   ask's signed text, checked; Will's questions and tap answers as signed in N82
   (backend `services/will_question.py`; the questions may vary lightly from
   2026-10-20, the tap answers never): "Quick one: who's this talk really
@@ -582,6 +619,29 @@ step; the loop never waits for a coach.
   Colleagues · Friends and family; sales: A buyer · Their team · The decision
   maker; customer service: A customer · A caller · My team; interviews: The
   hiring manager · A panel · A recruiter); goal: Say yes · Trust me · Get it.
+- **The other asks and the chat's own words** (signed in code, listed here
+  with the founder's OK, 2026-10-21, N94): WhatsApp "Want a WhatsApp when
+  your coach replies? Add your number.", "We will only use it to let you
+  know your coach texted you", "+44 7700 900123", "Not now", "Save",
+  "Saving…", "Enter the number with its country code, for example +44 7700
+  900123.", "Could not save the number. Try again.", "Saved ✓ We'll message
+  you on WhatsApp at {phone} when your coach's feedback is in."; the home
+  screen "Add WillpowerLab to your home screen? Your coach is one tap
+  away.", "Add to home screen", "Add WillpowerLab to your Home Screen", "Tap
+  Share (in the bottom bar)" / "(top-right)", "Choose Add to Home Screen",
+  "Got it", "Copy link", "Link copied"; the CEO panel's asks "One question
+  about how we use your data is still open. You can look at it and answer
+  yes or no." (its card's words are the consent screens'), "Artur set a
+  price for you: {Plan} for {$price} instead of {$list}, until {date}." /
+  "Artur set a price for you. See it on the pricing screen.", "Artur set a
+  price for you: a 1-on-1 lesson for {price} instead of {list}." / "Artur
+  set a price for you for a 1-on-1 lesson.", "See prices", "See times",
+  "Open"; the chat "Start your first recording", "Type here", "Load earlier
+  messages"; the processing view "Processing your recording", "Transcribing
+  your take", "Building your Ideal Text", "Finding feedback moments",
+  "Finding your anchors", "While you wait" and the twelve tips in
+  `src/components/willab/waitingTips.ts`; an answered step "✓ Answered",
+  "✓ You accepted and practised it", "✓ You kept your words".
 - **Signed, no longer shown:** "Judgement time!", "If you are honest when
   judging others, it will help you find your confident voice and calm the
   inner critic 😌", "More about self-modeling theory", "I am going to judge
@@ -589,7 +649,9 @@ step; the loop never waits for a coach.
   yet another practice for you to try!", "Exercise" and L2 "Here's how you
   could say it." as the Exercise's opening (L4 took their place, N82;
   "Exercise" on the video path too, 2026-10-21), "Clearer version" over the
-  Clearer version and "Tap the words" over the picker (2026-10-21).
+  Clearer version and "Tap the words" over the picker (2026-10-21); "Do you
+  agree to share your next take with others?" and "That sounded more
+  assured than the first." (N94).
 
 ---
 
@@ -656,7 +718,7 @@ page):
 
 Frontend, shared with other flows (not guarded): `src/components/willab/Lounge.tsx`
 (the chat), `src/components/willab/useLoungeThread.ts`,
-`src/components/willab/TranscriptReviewDeck.tsx` (the black line and the
+`src/components/willab/TranscriptReviewDeck.tsx` (the paragraph and the
 paragraph tap), `src/components/willab/IdealTextOverlay.tsx` and
 `idealTextLoad.ts` (the page and its loading), `src/components/willab/loungeReports.ts`.
 The Ideal Text's own files are in `scripts/design-locked-files.txt`.
@@ -708,6 +770,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · N94 · after the walk a short cheeky summary (one or two sentences, no greeting, no question; a fourth Take's fallback no longer called the third), a bridge line before Will's question in the chat, at most two asks a Take (the home screen, WhatsApp, then "Did this help?" wait), the asks wait after a safety reply (D1–D4, E1, K); the praise says the level line and one bank line for its cue, no "Good job", no cue sentence (C2, K); the first not yet says L4 and L3 alone (C5); the 48 reading lines signed into the line bank doc, "That sounded more assured than the first." dropped (C7, K); no black margin line on the Ideal Text (F3–F5); "Moment N of N" gone from the chat; sharing drops "Do you agree to share your next take with others?" for the three bubbles the app shows (G1, G2, K); the chat's code-only words listed (K) · FE #PENDING, BE #PENDING
 - 2026-10-21 · the lens against its page, the founder's eight answers: "N of 8 words" in place of "Tap the words" (C3; was "N of 6 words"); helper words without end punctuation in the speaker's bubble (B7); the Clearer version's new words no longer bold (B4); no "Clearer version" title (C5, K) and no "Exercise" title on the video path (C6, K); every try keeps its number and voice, a try the server did not keep included (C7; until then a late or unheard try was followed by another "Practise 1"); the ✕ beside ⋯ on the Ideal Text stays (F6; was "Close the one way out"); the harness's sample marks its highest moment and levels · FE #906
 
 - 2026-10-21 · helper words kept from an earlier Take no longer settle this Take's moment on the page: the confident moment is walked first, before the correction, as the server already served it (C2, F3) · FE #904

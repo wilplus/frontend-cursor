@@ -167,7 +167,7 @@ const AI_WHY = "You ran straight into \u201cthe window closes once\u201d. This v
 const PRAISE_ITEM: FeedbackWalkItem<string> = {
   partId: "p1", start: 0, slide: 1, blockId: "b1", openCard: "praise",
   paragraphText: "We opened with the number and let it sit.", slideLabel: "Slide 2",
-  praiseWords: ["You opened with the number and let it sit."],
+  praiseLine: "You opened with the number and let it sit.",
   clip: { src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 6000 },
 };
 
@@ -344,7 +344,10 @@ describe("words first, then voice (founder 2026-10-18)", () => {
     await settle(160);
     expect(screen()).toBe("walk-screen-encourage");
     expect(live()!.querySelector("[data-walk-ai-voice]")).not.toBeNull();
-    expect(live()!.textContent).toContain(WALK_COPY.aiVoiceFirst);
+    // L4 opens it, alone: no not-yet line before "That was good" (founder
+    // 2026-10-21, N94).
+    const bubble = live()!.querySelector("[data-walk-ai-voice]")!.closest("[data-walk-message]")!;
+    expect(bubble.textContent!.startsWith(WALK_COPY.aiVoiceFirst)).toBe(true);
     expect(live()!.textContent).toContain(WALK_COPY.aiVoiceNow);
   });
 
@@ -440,7 +443,7 @@ describe("the Exercise screen as one thread (founder 2026-10-16, 2026-10-18)", (
     expect(practisePill()!.textContent).toBe(COPY.pillPractiseAgain);
     expect(nextPill()).toBeNull();
     // The steps before stay above in the same chat (founder 2026-10-20).
-    expect(text()).toContain(PRAISE_ITEM.praiseWords![0]);
+    expect(text()).toContain(PRAISE_ITEM.praiseLine!);
     expect(text()).toContain(COPY.titleEmphasis);
     // Try 2, not yet: still Practise again alone. Try 3: the limit, Next alone, all three tries on screen.
     click(practisePill());

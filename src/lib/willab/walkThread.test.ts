@@ -47,7 +47,9 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
     const shown = othersChat(0, 2, null, null);
     expect(shown?.body).toBe("Now 2 moments from other speakers.");
     expect(shown?.extra).toEqual({ hint: "Does this sound confident to you?", heading: "Other speakers" });
-    expect(othersChat(1, 2, "Invita", null)?.body).toBe("Moment 2 of 2");
+    // The later ones say the question alone, as the lens does: "Moment n of
+    // N" is no longer shown (founder 2026-10-21, N94).
+    expect(othersChat(1, 2, "Invita", null)?.body).toBe("Does this sound confident to you?");
     expect(othersChat(0, 1, null, "yes")).toMatchObject({ author: "speaker", body: "👍 Yes" });
     expect(JSON.stringify(shown)).not.toMatch(/clip|src|http/);
   });

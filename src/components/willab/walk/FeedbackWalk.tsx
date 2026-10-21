@@ -22,7 +22,7 @@ import WalkAiVoice, { AI_EXERCISE_OPENING, aiVoiceComing, aiVoiceShown, type AiV
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
-import { clearerOpening, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
+import { clearerOpening, praiseLineOf, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import { WALK_MAX_TRIES, type WalkStep } from "@/lib/willab/walkPlan";
 import {
@@ -752,9 +752,9 @@ function PraiseReasonBubble({ reason }: { reason: PraiseReason }) {
   );
 }
 
-/** A green moment: the clip, then "Good job" and one signed line, then why
- *  it landed. While its reason is still being written, the signed line
- *  stands alone; if none comes, the cue lines follow it as before. */
+/** A green moment: the clip, then the level line and one signed line for
+ *  its cue (founder 2026-10-21, N94: no "Good job", no cue sentence), then
+ *  why it landed. */
 function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   const ok = () => {
     ctx.answer(step, "ok");
@@ -762,8 +762,7 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   };
   const clipId = moment.clip?.snippetId ?? null;
   const reason = moment.praiseReason ?? ctx.reasons?.of(clipId) ?? null;
-  const waiting = !reason && (ctx.reasons?.waiting(clipId) ?? false);
-  const words = reason || waiting ? (moment.praiseLead ?? moment.praiseWords) : moment.praiseWords;
+  const line = praiseLineOf(moment, (bank) => ctx.say(step, bank));
   return (
     <WalkOverlay
       testId={testId(step)}
@@ -774,8 +773,8 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
       <Clip moment={moment} />
       <WalkMessage>
         {moment.highest ? <span>{COPY.titleMostConfident}</span> : null}
-        <span>{moment.praiseTitle ?? COPY.titlePraise}</span>
-        {words.length > 0 ? <span>{words.join(" ")}</span> : null}
+        {moment.praiseTitle ? <span>{moment.praiseTitle}</span> : null}
+        {line ? <span>{line}</span> : null}
       </WalkMessage>
       {reason ? <PraiseReasonBubble reason={reason} /> : null}
       <CoachAnswerBubble moment={moment} />

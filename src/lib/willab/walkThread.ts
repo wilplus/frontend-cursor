@@ -13,7 +13,7 @@ import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "@/components/willab/idealEd
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import type { FeedbackWalkMoment } from "./feedbackWalkModel";
 import type { PraiseReason } from "./praiseReason";
-import { clearerOpening, type WalkBankKey } from "./walkLines";
+import { clearerOpening, praiseLineOf, type WalkBankKey } from "./walkLines";
 import type { WalkStep } from "./walkPlan";
 import { encourageLine, improvedLine, thanksLine } from "./walkPractise";
 
@@ -192,10 +192,12 @@ const FACES: Record<string, string> = {
 };
 
 /** Judging other speakers in the chat (prototype v31 `judge`, lens off):
- *  "Other speakers" (or the community) above the first, the bridge or
- *  "Moment n of N" with the question under it, and the speaker's answer as
- *  their own bubble ("👍 Yes"). Their clip is not posted: it is someone
- *  else's recording, and the chat draws none. Null: nothing to post. */
+ *  "Other speakers" (or the community) above the first, the bridge with the
+ *  question under it, then the question alone on each later one, as the
+ *  lens says it ("Moment n of N" is no longer shown, founder 2026-10-21,
+ *  N94), and the speaker's answer as their own bubble ("👍 Yes"). Their clip
+ *  is not posted: it is someone else's recording, and the chat draws none.
+ *  Null: nothing to post. */
 export function othersChat(
   at: number,
   of: number,
@@ -208,8 +210,8 @@ export function othersChat(
     key: "others",
     ...where,
     author: "app",
-    body: at === 0 ? othersBridge(of, from) : `Moment ${at + 1} ${COPY.pagerOf} ${of}`,
-    extra: { hint: COPY.confidenceQuestion, ...(at === 0 ? { heading: from ?? WALK_COPY.othersTitle } : {}) },
+    body: at === 0 ? othersBridge(of, from) : COPY.confidenceQuestion,
+    extra: at === 0 ? { hint: COPY.confidenceQuestion, heading: from ?? WALK_COPY.othersTitle } : {},
   };
 }
 
@@ -279,12 +281,12 @@ export function aiVoiceChat(
 export function praiseChat(
   moment: FeedbackWalkMoment<unknown>,
   reason: PraiseReason,
+  line: string | null,
 ): { author: WalkAuthor; body: string } {
-  const lead = (moment.praiseLead ?? moment.praiseWords).join(" ");
   const lines = [
     ...(moment.highest ? [COPY.titleMostConfident] : []),
-    moment.praiseTitle ?? COPY.titlePraise,
-    lead,
+    moment.praiseTitle ?? "",
+    line ?? "",
     ...reason.paragraphs,
   ];
   return { author: "app", body: lines.filter((line) => line.trim() !== "").join("\n") };
@@ -333,12 +335,14 @@ export function shownStep(
       // "Your coach:" over the words, as the lens writes it (founder
       // 2026-10-20: the colon).
       return coachText ? { author: "coach", body: `${COPY.titleCoachLine}\n${coachText}` } : null;
-    case "praise":
-      if (moment?.praiseReason) return praiseChat(moment, moment.praiseReason);
-      return titled(
-        `${moment?.highest ? `${COPY.titleMostConfident}\n` : ""}${moment?.praiseTitle ?? COPY.titlePraise}`,
-        moment?.praiseWords.join(" "),
-      );
+    case "praise": {
+      // The level line and one signed line for its cue (founder
+      // 2026-10-21, N94): no "Good job", no cue sentence.
+      if (!moment) return null;
+      const said = praiseLineOf(moment, say);
+      if (moment.praiseReason) return praiseChat(moment, moment.praiseReason, said);
+      return app([moment.highest ? COPY.titleMostConfident : "", moment.praiseTitle ?? "", said ?? ""].filter(Boolean).join("\n"));
+    }
     case "helpers":
       return app(COPY.titleEmphasis);
     case "clearer": {

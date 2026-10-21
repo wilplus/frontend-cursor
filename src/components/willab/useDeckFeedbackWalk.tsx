@@ -6,7 +6,7 @@ import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
 import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, momentChat, othersAnswered, othersChat, praiseChat, shownStep, walkStepDraft, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkStep } from "@/lib/willab/walkPlan";
-import type { WalkBankKey } from "@/lib/willab/walkLines";
+import { praiseBankFor, praiseLineOf, type WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkRequest, type WalkAiShown } from "./walk/FeedbackWalk";
@@ -194,10 +194,11 @@ function withLateReason<S extends { author: WalkAuthor; body: string } | null>(
   step: WalkStep,
   moment: FeedbackWalkMoment<DocumentSuggestion> | null,
   reasons: WalkPraiseReasons,
+  say: (bank: WalkBankKey) => string,
 ): S | ReturnType<typeof praiseChat> {
   if (!said || !moment || step.key !== "praise" || moment.praiseReason) return said;
   const reason = reasons.of(moment.clip?.snippetId);
-  return reason ? praiseChat(moment, reason) : said;
+  return reason ? praiseChat(moment, reason, praiseLineOf(moment, say)) : said;
 }
 
 /** The screens a moment's coach answer is drawn on. */
@@ -237,6 +238,8 @@ function walkItemOf(
     slideLabel: label,
     praiseWords: praise ? praiseWordsOf(item) : null,
     praiseTitle: praise ? praiseTitleFor(item.levelKey, item.id) : null,
+    praiseBank: praise ? praiseBankFor(item.cueKeys ?? [], item.tentative === true) : null,
+    praiseLine: praise ? (item.praiseLine ?? null) : null,
     highest: item.highestMoment === true,
     praiseLead: praise ? praiseLeadOf(item) : null,
     praiseReason: praise ? item.praiseReason ?? null : null,
@@ -1179,7 +1182,7 @@ export function useDeckFeedbackWalk(args: {
       // re-stamped to the bottom. Its video as a thumb in the bubble
       // (prototype v31).
       if (step.key === "coachnote") said = coachNoteOnce(said, coach, threadRef.current, Boolean(step.replay || walkModel.replay));
-      said = withLateReason(said, step, moment, reasonsRef.current);
+      said = withLateReason(said, step, moment, reasonsRef.current, say);
       // The label above a moment, and the speaker's clip before its bubble.
       const chat = said ? momentChat(walkModel.plan, step, moment) : null;
       // The moment's paragraph: a tap in the chat finds the step by it.
