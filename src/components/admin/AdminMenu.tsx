@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   AlertTriangle, BookOpen, CalendarDays, FlaskConical, Home,
-  Menu, PanelLeft, Target, Trash2, TrendingUp, Users, X,
+  Map as MapIcon, Menu, PanelLeft, Target, Trash2, TrendingUp, Users, X,
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import { probeAdmin, rememberedAdmin } from "@/components/admin/AdminGate";
@@ -22,7 +22,10 @@ import { cn } from "@/lib/utils";
 type Item = [href: string, label: string, Icon: typeof Home];
 
 const GROUPS: [string, Item[]][] = [
-  ["Overview", [["/admin/ceo", "CEO", Home]]],
+  ["Overview", [
+    ["/admin/ceo", "CEO", Home],
+    ["/admin/roadmap", "Roadmap", MapIcon],
+  ]],
   ["People", [
     ["/admin/users", "Users", Users],
     ["/admin/booking", "Bookings", CalendarDays],
