@@ -17,6 +17,10 @@ The backend's `main` is the one source of truth (backend N95).
 - [`CLAUDE.md`](CLAUDE.md), and [`AGENTS.md`](AGENTS.md) for other coding agents
 - [The Feedback walk and the chat](docs/flows/feedback-walk-and-chat.md)
 - [The coach panel](docs/flows/coach-panel.md)
+- [The Ideal Text page and its helper words](docs/flows/ideal-text.md)
+- [The recording screens](docs/flows/recording-screens.md)
+- [The consent screens and the Data & consent page](docs/flows/consent-screens.md)
+- [The AI version of your voice in practice](docs/flows/ai-voice-practice.md)
 
 **How it works today (Reference)**
 

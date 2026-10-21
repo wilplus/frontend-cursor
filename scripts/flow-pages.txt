@@ -32,3 +32,43 @@ docs/flows/coach-panel.md
   src/services/api/coachSpeakers.ts
   src/app/admin/library/
   src/app/admin/errors/
+
+docs/flows/recording-screens.md
+  src/components/willab/LabOverlay.tsx
+  src/components/willab/FinishTakeButton.tsx
+  src/components/willab/RecordingRoadmap.tsx
+  src/components/willab/recordingCopy.ts
+  src/components/willab/useRecordingGestures.ts
+  src/lib/willab/recordingGesture.ts
+
+docs/flows/consent-screens.md
+  src/components/willab/Phase1AcceptanceFlow.tsx
+  src/components/willab/WelcomeConsent.tsx
+  src/components/willab/PolicyUpdate.tsx
+  src/app/account/data-consent/page.tsx
+  src/components/account/
+  src/components/legal/LegalBackLink.tsx
+  src/components/AppMenu.tsx
+  src/lib/appMenuLinks.ts
+  src/lib/legal/dataConsentCopy.ts
+  src/lib/legal/deleteAccountCopy.ts
+
+docs/flows/ideal-text.md
+  src/components/willab/IdealTextOverlay.tsx
+  src/components/willab/IdealTextHeading.tsx
+  src/components/willab/IdealTextMenu.tsx
+  src/components/willab/IdealTextActions.tsx
+  src/components/willab/IdealTextReadout.tsx
+  src/components/willab/TranscriptReviewDeck.tsx
+  src/components/willab/DeckSlidePreview.tsx
+  src/components/willab/DeckChunkModal.tsx
+  src/components/willab/ParagraphSheet.tsx
+  src/components/willab/HelperWordsSheet.tsx
+  src/components/willab/ExportFormatDialog.tsx
+  src/components/willab/idealEditCopy.ts
+
+docs/flows/ai-voice-practice.md
+  src/components/willab/LoungeAiVoiceBubble.tsx
+  src/services/api/aiVoice.ts
+  src/app/api/v2/user/ai-voice/route.ts
+  src/app/api/v2/user/confidence-practice/[practiceId]/ai-voice/
