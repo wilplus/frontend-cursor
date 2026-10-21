@@ -642,6 +642,8 @@ export function useDeckFeedbackWalk(args: {
   /** Opened from the coach's bubble: only what the coach sent (founder
    *  2026-10-14). */
   coachOnly?: boolean;
+  /** The coach's link names an earlier Take (N77): only its word. */
+  coachWordOnly?: boolean;
   /** The answered items on a paragraph (the replay reads them with the
    *  waiting ones, Q-IT643b A). */
   answeredOf?: (chunk: DeckChunk) => readonly DocumentSuggestion[];
@@ -733,10 +735,11 @@ export function useDeckFeedbackWalk(args: {
         items,
         coachNote: coachMessage !== null,
         coachOnly: args.coachOnly === true,
+        coachWordOnly: args.coachWordOnly === true,
         practiceOn,
         guest: false,
       }),
-    [items, coachMessage, practiceOn, args.coachOnly],
+    [items, coachMessage, practiceOn, args.coachOnly, args.coachWordOnly],
   );
 
   /* THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A): the

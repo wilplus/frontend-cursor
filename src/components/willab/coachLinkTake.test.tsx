@@ -12,10 +12,17 @@ OUTCOME
       and the coach's door opens the word the server sent.
   O3  Opening the Take on screen's own review (any other door) never shows
       the earlier Take's word.
+  O4  A link naming an earlier Take shows only that Take's word, then
+      Continue: no coach moment answers follow, since those are the latest
+      Take's and never mix with another Take's word.
+  O5  A link naming the latest Take shows the word, then that Take's coach
+      moment answers, as before.
 PROVES   O1, O2, O3 -> "a late word on Take 1, opened from its link, opens Take 1's word; an old link opens as before"
+         O4, O5 -> "a link to an earlier Take shows its word and no moments of the latest Take; a link to the latest Take shows the word, then its moments"
 WHY      Founder 2026-10-21 (backend N77, #1212): "the links carry the Take
          the word was written on, and open that Take's coach-only walk with
-         the word".
+         the word"; founder 2026-10-21 again: an earlier Take's link
+         shows only its word, never the latest Take's moments.
 */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -23,8 +30,9 @@ vi.mock("@/app/chat/page.client", () => ({ default: () => null }));
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => "tok" }));
 
 import ChatPage from "@/app/chat/page";
+import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 import { fetchIdealTextEnrichment, mapCoachMessage } from "@/services/api/idealText";
-import { walkCoachWord } from "./TranscriptReviewDeck";
+import { coachLinkNamesEarlierTake, walkCoachWord } from "./TranscriptReviewDeck";
 
 const TAKE_1 = "11111111-0000-4000-8000-000000000001";
 const TAKE_2 = "22222222-0000-4000-8000-000000000002";
@@ -97,5 +105,30 @@ describe("the coach's link names the word's Take (backend N77)", () => {
     // O3: the review of Take 2, the Take on screen, never shows Take 1's word.
     const review = await openedWord(TAKE_1, { coachOnly: false });
     expect(review.word).toBeNull();
+  });
+
+  it("a link to an earlier Take shows its word and no moments of the latest Take; a link to the latest Take shows the word, then its moments", () => {
+    // The coach's answer on a moment of Take 2, the latest Take, the one on screen.
+    const answered = {
+      partId: "p1", start: 0, blockId: "b1", slide: 0, paragraphText: "words of p1", slideLabel: "Slide 1",
+      tiered: true, coachAnswered: true,
+      coachAnswer: { kind: "note", text: "Breathe first.", videoUrl: null }, coachItem: "s-n",
+    } as FeedbackWalkItem<string>;
+    const walkFrom = (coachTake: string) => {
+      const door = { coachOnly: true, coachTake, takeSessionId: TAKE_2 };
+      return buildFeedbackWalk({
+        items: [answered],
+        coachNote: true,
+        practiceOn: true,
+        guest: false,
+        coachOnly: true,
+        coachWordOnly: coachLinkNamesEarlierTake(door),
+      }).plan.map((step) => step.key);
+    };
+
+    // O4: Take 1's link: its word, then Continue onto the end; nothing of Take 2.
+    expect(walkFrom(TAKE_1)).toEqual(["page", "coachnote", "end"]);
+    // O5: Take 2's link: the word, then the coach's answers on its moments.
+    expect(walkFrom(TAKE_2)).toEqual(["page", "coachnote", "coach", "end"]);
   });
 });

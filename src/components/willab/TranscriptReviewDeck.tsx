@@ -246,6 +246,13 @@ export function walkCoachWord(
   return door.coachTake ? ownCoachWord(message, door.coachTake, null) : message;
 }
 
+/** The coach's link names an earlier Take than the one on screen (founder
+ *  2026-10-21, N77): the coach-only walk is that Take's word alone, with no
+ *  moments, since the moments are the Take on screen's. */
+export function coachLinkNamesEarlierTake(door: { coachOnly: boolean; coachTake: string | null | undefined; takeSessionId: string | null | undefined }): boolean {
+  return door.coachOnly && Boolean(door.coachTake && door.takeSessionId) && door.coachTake !== door.takeSessionId;
+}
+
 export default function TranscriptReviewDeck({
   title = "",
   statusChip = null,
@@ -805,6 +812,7 @@ export default function TranscriptReviewDeck({
     onEnd: onWalkEnd,
     onWalkClose,
     coachOnly,
+    coachWordOnly: coachLinkNamesEarlierTake({ coachOnly, coachTake, takeSessionId }),
   });
   /* AN UNSEEN COACH WORD IS WAITING TOO (founder 2026-10-05, N48.3 Q11 A):
      "Review feedback" stays for it after every moment is answered, and opens
