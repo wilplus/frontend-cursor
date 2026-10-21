@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { aiVoiceChat, answerBody, coachNoteToChat, momentChat, othersAnswered, othersChat, praiseChat, shownStep, walkStepDraft, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, momentChat, othersAnswered, othersChat, praiseChat, shownStep, walkStepDraft, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkStep } from "@/lib/willab/walkPlan";
 import type { WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
@@ -994,7 +994,9 @@ export function useDeckFeedbackWalk(args: {
 
   const saveHelperWords = useCallback((save: FeedbackWalkHelperWords) => {
     // Each new pick is its own bubble; the chat strikes the ones it replaces.
-    const words = stripRichMarkers(save.span.text);
+    // The speaker's bubble says the words without the sentence's punctuation
+    // at either end, as the walk shows them (founder 2026-10-21, B7).
+    const words = helperWordsSaid(stripRichMarkers(save.span.text));
     post({ key: `words:${save.partId}:${words}`, moment: null, attempt: null, author: "speaker", body: words, extra: { words_of: save.partId } });
     const { chunks: now, setRootPhrase, lockPart, saveBehind } = live.current;
     const chunk = now.find((c) => c.part.id === save.partId);

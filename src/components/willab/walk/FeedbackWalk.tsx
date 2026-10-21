@@ -3,7 +3,7 @@
 import { reasonRuns, type PraiseReason, type WalkPraiseReasons } from "@/lib/willab/praiseReason";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { answerBody } from "@/lib/willab/walkThread";
+import { answerBody, helperWordsSaid } from "@/lib/willab/walkThread";
 import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
@@ -878,7 +878,6 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
           and video, and is not said twice (founder 2026-10-20). */}
       <WalkMessage coach={clearer.byCoach === true} wide={clearer.byCoach === true}>
         {moment.highest ? <span>{COPY.titleMostConfidentSoFar}</span> : null}
-        <span>{COPY.cardClearerVersion}</span>
         {clearer.byCoach && moment.coachAnswer?.videoUrl ? (
           <CoachVideo src={moment.coachAnswer.videoUrl} className="my-2 w-full flex-none" />
         ) : null}
@@ -903,7 +902,6 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
       {aiExercise(ctx, step, moment) ?? (
         <WalkMessage coach={exercise?.byCoach === true} wide>
           {moment.highest ? <span>{COPY.titleMostConfidentSoFar}</span> : null}
-          <span>{COPY.titleExercise}</span>
           {exercise?.video ? (
             <CoachVideo
               src={exercise.video}
@@ -1110,7 +1108,7 @@ function answerSaid(ctx: ScreenCtx, step: WalkStep): string | null {
     const span = moment
       ? selectionSpan(moment.paragraphText, phraseTokens(moment.paragraphText), ctx.picks[pickKey(step)] ?? null)
       : null;
-    return span ? stripRichMarkers(span.text) : null;
+    return span ? helperWordsSaid(stripRichMarkers(span.text)) : null;
   }
   if (step.key === "clearer") {
     if (given === "keep") return COPY.linkKeepMyWords;

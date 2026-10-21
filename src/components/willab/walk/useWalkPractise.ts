@@ -352,27 +352,32 @@ export function useWalkPractise<R>(args: {
         },
       }));
       const practiceId = practiseIO ? await (opened.current.get(moment) ?? Promise.resolve(null)) : null;
+      // A try the server did not count is still a try on screen: the next
+      // one is numbered after it, so each keeps its own "Practise N" and its
+      // own voice (founder 2026-10-21, C7: "number it anyway, 1, 2, 3").
       if (!practiseIO || !practiceId) {
-        if (current()) late(checkingAt, from.step, attempt);
+        if (current()) late(checkingAt, from.step, attempt + 1);
         return;
       }
       const sent = await within(practiseIO.upload(practiceId, audio, durationSec, stoppedAtMs), UPLOAD_LIMIT_MS);
       if (!sent) {
-        if (current()) late(checkingAt, from.step, attempt);
+        if (current()) late(checkingAt, from.step, attempt + 1);
         return;
       }
       if ("unheard" in sent) {
         // The server could not hear the try: say so, then Practise again or
         // Next (founder 2026-10-21).
-        if (current()) late(checkingAt, from.step, attempt, "unheard");
+        if (current()) late(checkingAt, from.step, attempt + 1, "unheard");
         return;
       }
       setTries((t) => ({ ...t, [moment]: { ...t[moment], practiceId } }));
-      const tried: WalkStep = { ...from.step, attempt: sent.attempt };
+      // The server counts only the tries it kept; the screen never goes
+      // back below the number it already showed.
+      const tried: WalkStep = { ...from.step, attempt: Math.max(sent.attempt, attempt) };
       const read = await within(practiseIO.check(practiceId, sent.attemptId), limit);
       if (!current()) return;
       if (!read) {
-        late(checkingAt, tried, sent.attempt + 1);
+        late(checkingAt, tried, (tried.attempt ?? 1) + 1);
         return;
       }
       const { plan: p, relay: lay } = live.current;
