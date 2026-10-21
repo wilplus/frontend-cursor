@@ -45,10 +45,6 @@ The backend's `main` is the one source of truth (backend N95).
 
 - [HANDOFF — frontend (willab), 2026-08-14](docs/HANDOFF.md)
 - [The earlier, longer CLAUDE.md (2026-10-11)](docs/history/CLAUDE-2026-10-11.md)
-- [Frontend — what to know (short contract)](docs/FRONTEND-WHAT-TO-KNOW.md)
-- [BE handoff — plan management: one route still missing](docs/HANDOFF-BE-2026-07-31-token-subscriptions.md)
-- [Backend reference: Assignment email](docs/backend-reference/README.md)
-- [Handoffs — dated messages between the two repos (frontend copy)](docs/handoffs/README.md)
 
 Each one's label is in the backend's master doc. The archived notes left `main` on 2026-10-21
 (backend N107); every one is in git history, at
