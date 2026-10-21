@@ -669,10 +669,10 @@ function stepNav(_ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment): W
 }
 
 /** A step reopened: its answer as a line over a black Next. */
-function Answered({ ctx, line }: { ctx: ScreenCtx; line: string }) {
+function Answered({ ctx, line }: { ctx: ScreenCtx; line: string | null }) {
   return (
     <WalkFooter pill={{ label: COPY.pagerNext, onClick: ctx.forward, testId: "walk-forward" }}>
-      <p className="m-0 text-center text-[13px] text-muted-foreground">{line}</p>
+      {line ? <p className="m-0 text-center text-[13px] text-muted-foreground">{line}</p> : null}
     </WalkFooter>
   );
 }
@@ -857,10 +857,9 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
       onClose={ctx.close}
       footer={
         given ? (
-          <Answered
-            ctx={ctx}
-            line={given === "accept" ? WALK_COPY.answeredAccepted : given === "keep" ? WALK_COPY.answeredKept : WALK_COPY.answered}
-          />
+          // "✓ Practised" when a practise followed the choice, the one ✓
+          // line (founder 2026-10-21); with practice off, Next alone.
+          <Answered ctx={ctx} line={practiseOff ? null : WALK_COPY.answeredPractised} />
         ) : (
           <WalkFooter
             pill={{

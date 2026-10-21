@@ -320,6 +320,19 @@ O4  A save the server refuses hands the deck the signed
 O2 -> ""the same answer sends nothing""
 O3 -> ""a rewrite never reopens""
 O4 -> ""a failed save hands the deck the signed notice""","Founder QA1 A, decisions log N51.5; build plan D-FW-9."
+src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
+Take's word: the page asks the server for that Take's word and the
+coach's door opens it, never another Take's.
+O2  An old link without `take` opens as before: nothing extra is asked
+and the coach's door opens the word the server sent.
+O3  Opening the Take on screen's own review (any other door) never shows
+the earlier Take's word.
+O4  A link naming an earlier Take shows only that Take's word, then
+Continue: no coach moment answers follow, since those are the latest
+Take's and never mix with another Take's word.
+O5  A link naming the latest Take shows the word, then that Take's coach
+moment answers, as before.","O1, O2, O3 -> ""a late word on Take 1, opened from its link, opens Take 1's word; an old link opens as before""
+O4, O5 -> ""a link to an earlier Take shows its word and no moments of the latest Take; a link to the latest Take shows the word, then its moments""","Founder 2026-10-21 (backend N77, #1212): ""the links carry the Take the word was written on, and open that Take's coach-only walk with the word""; founder 2026-10-21 again: an earlier Take's link shows only its word, never the latest Take's moments."
 src/components/willab/coachMessageStep.test.tsx,Story,"As a speaker, I want my coach's message to open only when I ask for it, with the words, the Take and the video, so that it never interrupts me.","O1  The message never opens by itself; Review feedback opens it with the
 coach's words, the Take number and the video.","O1 -> ""never opens by itself (Q1); Review feedback shows the words, the Take and the video""","Founder 2026-09-29, Q1 (Final Screens L8)."
 src/components/willab/coachpanel/coachPanel.test.tsx,Story,"As a coach, I want to judge a moment before I see any words or the machine's read, with my queue in the order speakers sent, so that my judgement stays blind and I answer the right speaker first.","O1  Judge shows only the player, the question and the four answers.
@@ -713,9 +726,16 @@ at once, not only when a moment is open on it (N48.2 Q6 A).
 O3  Every moment answered: a bubble of the Take tapped in the Lounge
 opens the walk as given on that moment, with the parts before and
 after it there to scroll, never the Ideal Text in its place
-(founder 2026-10-21, N90), the coach's word seen or not.","O1 -> ""every moment answered: Review feedback stays for the unseen word, ...""
+(founder 2026-10-21, N90), the coach's word seen or not.
+O4  One moment answered, one still waiting: the waiting one's bubble
+opens the whole Take's walk, the answered praise above to scroll
+and the Exercise live with its own buttons, under the number the
+Take's walk gave it, so the chat gets no new bubble (founder
+2026-10-21: ""doesn't open the walk in a scrollable manner"", ""appears
+as a last message in the chat"").","O1 -> ""every moment answered: Review feedback stays for the unseen word, ...""
 O2 -> ""a paragraph whose helper words were deleted is back in the walk on its earlier answer""
-O3 -> ""every moment answered: a bubble tapped in the Lounge opens the walk on its moment, never the text""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
+O3 -> ""every moment answered: a bubble tapped in the Lounge opens the walk on its moment, never the text""
+O4 -> ""one moment still waiting: its bubble opens the whole walk, the waiting step live, nothing new in the chat""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
 src/components/willab/whatsappOffer.test.tsx,Story,"As a speaker, I want to leave my WhatsApp number to hear when my coach's feedback is in, with wrong numbers refused, so that the message reaches me.","O1  A number without its country code is refused on screen and nothing is sent.
 O2  A valid number is saved in full international form and the offer closes.
 O3  Not now sends nothing and closes.

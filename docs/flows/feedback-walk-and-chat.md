@@ -103,7 +103,8 @@ step; the loop never waits for a coach.
   Next, which brings that step back; the recorder never gives way
   (2026-10-21: "away from", no longer only "back to an answered step").
 - **B10** From the Lounge, a bubble with › opens that Take's walk at that
-  step ("✓ …" and Next for an answered one). A step still waiting has an
+  step ("✓ Practised" over Next for an answered step that was practised,
+  Next alone for any other; 2026-10-21). A step still waiting has an
   orange outline, and "Continue review" shows above the message box until
   every step is answered. Answered steps are read only; an older Take's walk
   is read only and ends on that Take's Ideal Text. Every door opens the walk
@@ -123,7 +124,14 @@ step; the loop never waits for a coach.
   walk and not go to the next element of it"; the prototype's "this step
   is brought to the top", N91). "Review feedback" on a finished Take opens
   the whole walk standing on its newest step, the rest above to scroll
-  back to.
+  back to. On a Take not yet finished a door opens the same whole walk as
+  it stands: what is answered as given, what still waits live, each moment
+  under the number the Take's walk gave it, so a step the chat already
+  holds is never posted again as a new bubble (founder 2026-10-21: "the
+  opening of the bubbles doesn't open the walk in a scrollable manner";
+  the AI clip's bubble had opened a lone Exercise and landed again at the
+  bottom of the chat). "Continue review" still opens the live walk on what
+  waits.
 - **B11** ✕ turns the lens off and goes back where the step was opened
   from: the chat, or the Ideal Text page for a step opened from a paragraph.
   ✕ keeps a coach word's "new" ring.
@@ -141,7 +149,16 @@ step; the loop never waits for a coach.
   The coach's own doors (the WhatsApp and email links, the dot card, the
   coach's bubble in the chat) open the walk at the coach's place: Step 0 for
   a general word, the moment's step for a word on a particular moment (one
-  mechanism, N89, 2026-10-20). A coach's word on a moment reaches the page
+  mechanism, N89, 2026-10-20). The WhatsApp and email links name the Take
+  the coach wrote on (`&take=<session_id>`, backend N77, 2026-10-21) and
+  open that Take's coach-only walk with its word, so a word left on an
+  earlier Take after a newer one still opens as that Take's word; a link
+  without it opens as before. A link naming an earlier Take shows only that
+  Take's word, then Continue: the coach's moment answers that follow the
+  word are the latest Take's and never mix with another Take's word
+  (founder, 2026-10-21). A link naming the latest Take, or none, shows the
+  word, then the moment answers. A moment answer's link naming an earlier
+  Take shows that Take's word if it has one, and otherwise opens the text. A coach's word on a moment reaches the page
   as it stands, its video with it: the page's stored feedback rows re-read
   the coach's answer on every read, the video's link signed afresh, and a
   coach's share asks for the rows to be baked again (backend, N92,
@@ -158,9 +175,12 @@ step; the loop never waits for a coach.
   its clip as the speaker's orange bubble; on the highest moment the line
   "This was your most confident moment." (signed 2026-10-20; "This was
   your most confident moment so far." opens its clearer version or
-  Exercise when that moment is corrected); then the opening line by its level (W1–W10, three signed lines
-  a level, rotated; the cue line under it; `src/lib/willab/praiseLevels.ts`),
-  "Good job" and one line from B01–B09. Then "Next". Praise is never
+  Exercise when that moment is corrected); then the opening line by its
+  level (W1–W10, three signed lines a level, rotated;
+  `src/lib/willab/praiseLevels.ts`) and under it the cue's line from
+  B01–B09. "Good job" stands in for the level line only when no level is
+  sent (founder 2026-10-21: the level line is the praise's own title). Then
+  "Next". Praise is never
   promised. A served moment with nothing attached is the moment said again,
   so the lens always has a step; with no moment at all the text shows.
   Helper words kept from an earlier Take settle nothing: this Take's moment
@@ -410,10 +430,11 @@ step; the loop never waits for a coach.
 ### G · Sharing, before the next recording
 
 - **G1** Asked when "Record Take N" is tapped, from Take 2 on, never before
-  Take 1; the choice applies to the Take about to be recorded. "After all,
-  it's about speaking publicly!" (regular weight) and "Do you agree to share
-  your next take with others?"; in the Lounge one bubble, its three lines as
-  paragraphs (#847).
+  Take 1; the choice applies to the Take about to be recorded. "Before we
+  start the new take!", "After all, it's about speaking publicly!" (regular
+  weight) and "How big you want your audience?"; in the Lounge one bubble,
+  its three lines as paragraphs (#847; founder 2026-10-21: the app's words,
+  "Do you agree to share your next take with others?" is history).
 - **G2** The options: **General community.** **Only my community**, with the
   speaker's saved communities inside (a passcode entered once; one is ticked;
   several are all ticked and any can be unticked; "+ Add a community with a
@@ -533,7 +554,8 @@ step; the loop never waits for a coach.
   "Slide N", "Slide N · helper words", "Take N", "Other speakers",
   "Other speakers · N of N", "Practise N", "🔒 Take N", "Processing your
   recording", "Later · from your coach", "Updated with your coach's note ·
-  see / hide the earlier version".
+  see / hide the earlier version", "✓ Practised" (the one ✓ line, signed
+  2026-10-21).
 - **Helper words:** "Choose your helper words", "N of 8 words" (the cap,
   eight since 2026-10-15), "Use these helper words", "Edit the helper words" (signed 2026-10-21), "Keep these".
 - **A try not heard:** "We couldn't hear that clearly. Try again." (signed
@@ -554,9 +576,10 @@ step; the loop never waits for a coach.
 - **Other speakers:** Line B "Now one moment from another speaker." / "Now N
   moments from other speakers." / "Now one moment from {community}."; "Does
   this sound confident to you?"; "Yes", "In-between", "No", "Audio unclear".
-- **Sharing:** "After all, it's about speaking publicly!", "Do you agree to
-  share your next take with others?", "General community", "Only my
-  community", "Only me", "+ Add a community with a passcode".
+- **Sharing:** "Before we start the new take!", "After all, it's about
+  speaking publicly!", "How big you want your audience?", "General
+  community", "Only my community", "Only me", "+ Add a community with a
+  passcode".
 - **The Ideal Text:** "Record Take N", "Close".
 - **The chain's close:** "Look, practice makes perfect. If you're ready,
   let's go with the next take." with an encouraging emoji (💪; signed
@@ -589,7 +612,10 @@ step; the loop never waits for a coach.
   yet another practice for you to try!", "Exercise" and L2 "Here's how you
   could say it." as the Exercise's opening (L4 took their place, N82;
   "Exercise" on the video path too, 2026-10-21), "Clearer version" over the
-  Clearer version and "Tap the words" over the picker (2026-10-21).
+  Clearer version and "Tap the words" over the picker (2026-10-21); "✓ You
+  accepted and practised it", "✓ You kept your words", "✓ Skipped", "✓
+  Answered" and "Do you agree to share your next take with others?"
+  (2026-10-21).
 
 ---
 
@@ -606,6 +632,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 The four lines above were filled from main's history by the page's keeper on
 2026-10-20; the sessions doing the work overwrite them when they push.
+- **N77 · the coach's link names the word's Take** · C1 · founder 2026-10-21 ("the links carry the Take the word was written on, and open that Take's coach-only walk with the word"). Found: with the earlier-Take fallback gone (BE #1212), the WhatsApp and email links open the latest Take, where an earlier Take's late word is no longer served. Built: the links carry `&take=<session_id>` (BE); the chat page reads it, the Ideal Text asks the journey for that Take and the coach-only walk opens on its word; an earlier Take's link shows that word alone, with no moments of the latest Take (founder 2026-10-21); without it, as before (FE) · FE #905 merges first, then BE #1212, then FE #903 · the founder checks the app
 - **N92 · the coach's video reaches the walk** · C1, D5 · founder 2026-10-21 ("the video was sent too with the coach feedback and didn't pass through"). Found: the speaker's feedback rows are served from a stored bake that only the speaker's own writes retire; the coach's answer, with its signed video link, stayed as baked, so a video added after the bake never arrived and a baked link went dark after six hours. Built: the bake re-reads the coach's answer on every read, one read per Take, the video signed afresh; a coach's share asks for one rebake (BE) · BE #1213 · the founder checks the app: the coach's bubble in the walk shows the video above the words
 - **N91 · the walk as one thread, from every door** · B5, B9, B10, F3 · founder 2026-10-21, two recordings (the app at 06:29; the prototype, "this is how it should be"): a door opened a lone fragment of the walk, the helper words opened from the Lounge did not scroll on to the next step, Next closed the walk instead of moving on. Found: the thread was drawn only up to the step the walk stood on, and the dock was always the newest part's. Built: the thread holds every part up to the walk's furthest; the step a door names stands with its own buttons and is brought to the top; Next moves on to the next part, after the last onto the page; scrolling and ‹ › move through every part; "Review feedback" opens the whole finished walk on its newest step (FE) · FE #899 · the founder checks the app; open: what was missing of the coach's feedback in the walk (the video, the fragment's audio, or the rest of the walk)
 - **N90 · the walk's doors, checked in the app** · B10, C1, D5, F4, F5 · founder 2026-10-21: a coach's bubble and an Exercise bubble in the Lounge opened the Ideal Text page, not the walk; "the WALK opens up immediately on that part, but you can scroll to previous parts or scroll to the next ones". Found: on a finished Take the door looked for the step in the live walk, which holds only its tail, and the page asked for the walk before the Take's marks had landed; both fell back to the text. Built: a step already answered past opens the walk as given on that step, the parts before and after it there to scroll, the newest moment's part at the end with the dock; the page waits for the marks before it asks (FE) · FE #898 · the founder checked the app the same morning: the dock belongs to the step itself and Next moves on, N91
@@ -708,6 +735,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · a door on a Take not yet finished opens the whole walk as it stands, the waiting step live and the answered parts to scroll, every moment under its Take's number: no lone piece, no step posted again at the bottom of the chat (B10) · FE #910
+- 2026-10-21 · "Good job" only when no level line is sent (C2, the docs to the app); the sharing question's three lines as the app says them (G1, K); "✓ Practised" the one ✓ line, over Next on a practised step, every other answered step Next alone (B10, K) · FE #907
 - 2026-10-21 · the lens against its page, the founder's eight answers: "N of 8 words" in place of "Tap the words" (C3; was "N of 6 words"); helper words without end punctuation in the speaker's bubble (B7); the Clearer version's new words no longer bold (B4); no "Clearer version" title (C5, K) and no "Exercise" title on the video path (C6, K); every try keeps its number and voice, a try the server did not keep included (C7; until then a late or unheard try was followed by another "Practise 1"); the ✕ beside ⋯ on the Ideal Text stays (F6; was "Close the one way out"); the harness's sample marks its highest moment and levels · FE #906
 
 - 2026-10-21 · helper words kept from an earlier Take no longer settle this Take's moment on the page: the confident moment is walked first, before the correction, as the server already served it (C2, F3) · FE #904
