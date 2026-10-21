@@ -252,6 +252,12 @@ plain text stays plain.","O1 -> ""makes a bubble that is only a URL a link"",
 src/components/willab/LoungeAiVoiceBubble.test.tsx,Story,"As a speaker in the Lounge, I want the AI version of my voice to",,,
 src/components/willab/NextTakeShareScreen.test.tsx,Story,"As a speaker before my next Take, I want nothing ticked for me and Continue to wait until I choose, with ""Only me"" counting as a choice, so that any sharing is my own decision.","O1  Nothing starts ticked, Continue is off, and choosing ""Only me"" turns
 it on.","O1 -> ""starts with nothing ticked; Continue waits for a choice, Only me counts""",Founder 2026-10-15 (Privacy 3.6 section 4d).
+src/components/willab/OtherAccountLink.test.tsx,Story,"As a speaker who opens my coach's WhatsApp or email link while signed in to my other account, I want to be told so and taken to log in with the right one, so that I reach my coach's feedback instead of a wait that never ends.","O1  The server's ""arc not found"" (the project is not in this account)
+reads as another account's link, never as a text still being built;
+any other 404 still reads as pending.
+O2  ""Log in with that account"" signs out and goes to log in, which comes
+back to the same link.","O1 -> ""another account's project is said, not waited on""
+O2 -> ""the button signs out and goes to log in, back to the link""","Founder 2026-10-21 (WIL-93): the coach's link opened in the other of two signed-in accounts sat on ""Building your Ideal Text"" at 99%."
 src/components/willab/Phase1AcceptanceFlow.test.tsx,Story,"As a new speaker, I want the agree button to open only after I choose my country and tick the recordings consent, with the documents readable but never in the way, and ""Do not agree"" recording nothing, so that my consent is deliberate.","O1  The screen shows the agreement, the documents and the one tick, with
 the button closed; it opens only with country and tick, never by
 itself, and then saves my country.

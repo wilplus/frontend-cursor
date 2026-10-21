@@ -1299,7 +1299,18 @@ export type IdealTextResult =
   // falls back to the live notebook, exactly as before.
   | { kind: "historicalUnavailable"; currentVersion: number | null }
   | { kind: "pending" } // 404 / not approved yet — coach still working
+  // 404 NOT_FOUND: the project is not in the signed-in account (WIL-93).
+  | { kind: "notYours" }
   | { kind: "error" };
+
+/** A 404 from the notebook read. "arc not found" (`NOT_FOUND`) is the
+ *  server's answer to an account the project is not in: the coach's link
+ *  opened in another account (founder 2026-10-21, WIL-93), never a text
+ *  still on its way, so it is not waited on. Any other 404 is pending. */
+async function notFoundResult(res: Response): Promise<IdealTextResult> {
+  const body = (await res.json().catch(() => null)) as { code?: unknown } | null;
+  return body?.code === "NOT_FOUND" ? { kind: "notYours" } : { kind: "pending" };
+}
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";
@@ -1645,7 +1656,7 @@ export async function fetchIdealText(
   } catch {
     return { kind: "error" };
   }
-  if (res.status === 404) return { kind: "pending" };
+  if (res.status === 404) return notFoundResult(res);
   if (!res.ok) return { kind: "error" };
   const body = (await res.json().catch(() => null)) as Record<
     string,
