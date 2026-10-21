@@ -66,3 +66,10 @@ jobs:
 
       - name: Design-lock guard
         run: npm run check:design-lock
+
+      # Docs guard (founder, 2026-10-21; backend N107 and N108): every part of
+      # the code has one home doc in README.md's table (or a flow page), every
+      # doc is listed there, and a new doc carries the founder's OK on its
+      # line. Compares the tree with origin/main, fetched above.
+      - name: Docs guard
+        run: npm run check:docs

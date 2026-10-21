@@ -36,7 +36,21 @@ The backend's `main` is the one source of truth (backend N95).
 - [Life Panel — source artifacts still outside the repo](docs/life-panel-sources/README.md)
 - [The Life Panel — implementation document](docs/life-panel-spec.md)
 
-History is listed in the backend's master doc. The archived notes left `main` on 2026-10-21
+**Pointers to the backend's rules (In force)**
+
+- [Locked screens](docs/LOCKS.md)
+- [Willab canonical product contract](docs/CANONICAL_PRODUCT_CONTRACT.md)
+
+**Kept as written (History and Archive), because the rules or the code still name them**
+
+- [HANDOFF — frontend (willab), 2026-08-14](docs/HANDOFF.md)
+- [The earlier, longer CLAUDE.md (2026-10-11)](docs/history/CLAUDE-2026-10-11.md)
+- [Frontend — what to know (short contract)](docs/FRONTEND-WHAT-TO-KNOW.md)
+- [BE handoff — plan management: one route still missing](docs/HANDOFF-BE-2026-07-31-token-subscriptions.md)
+- [Backend reference: Assignment email](docs/backend-reference/README.md)
+- [Handoffs — dated messages between the two repos (frontend copy)](docs/handoffs/README.md)
+
+Each one's label is in the backend's master doc. The archived notes left `main` on 2026-10-21
 (backend N107); every one is in git history, at
 [the last commit that had them](https://github.com/wilplus/frontend-cursor/tree/501da43874460770310b24fafc664c4f5e606114/docs).
 
