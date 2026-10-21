@@ -378,6 +378,18 @@ export default function FeedbackWalk<R = unknown>({
     const moment = walk.moments[s.moment];
     return lines && practiceId ? { ...(s.key === "exVideo" && moment ? topAiLines(lines, moment) : lines), practiceId } : null;
   };
+  /** A voice correction with nothing to offer (founder 2026-10-21, N108):
+   *  no exercise served and no AI clip, live once its ask came back without
+   *  one, played again when it had no try. Never Line A on its own. The
+   *  Take's most confident moment is not one: it says its own line and is
+   *  said again (N109). */
+  const bare = (s: WalkStep | undefined, i: number): boolean => {
+    const moment = s?.moment == null ? undefined : walk.moments[s.moment];
+    if (s?.key !== "exVideo" || s.moment == null || !moment || moment.exercise != null || moment.highest) return false;
+    if (s.replay || s.readOnly) return s.replay === true && walk.replay?.tries?.[s.moment] === undefined;
+    const state = practise.aiVoiceOf(s.moment);
+    return state !== undefined && !practise.aiVoiceAsking(s.moment) && aiVoiceShown(plan, i, state) === null;
+  };
   const shownRef = useRef(onShown);
   shownRef.current = onShown;
   const reachedRef = useRef(onReached);
@@ -419,12 +431,27 @@ export default function FeedbackWalk<R = unknown>({
     plan.forEach((s, i) => {
       if (i > at || s.key !== "exVideo" || s.moment == null) return;
       const told = `${seq}:${i}`;
+      // A bare correction the walk drops, or one played again, is never
+      // posted (N108); one already practised past is, as before.
+      if (bare(s, i) && (s.replay || i === at)) return;
       if (toldExercise.current.has(told) || practise.aiVoiceAsking(s.moment)) return;
       toldExercise.current.add(told);
       const moment = walk.moments[s.moment] ?? null;
       shownRef.current?.(s, moment, (bank) => sayLine(s, bank), chatAi(s, i), null);
     });
   });
+  // The bare correction leaves the live walk once its ask is answered
+  // (N108): it was reached, so the coach's queue heard it; its Exercise and
+  // practise go, and the walk stands on what follows them.
+  const aiVoiceOf = practise.aiVoiceOf;
+  useEffect(() => {
+    if (seq === null || !step || step.replay || !bare(step, at)) return;
+    const end = loopEnd(plan, at);
+    setReach((r) => (r > at ? Math.max(at, r - (end - at)) : r));
+    relay([...plan.slice(0, at), ...plan.slice(end)], at, "forward");
+    // The ask's answer lands as a new `aiVoiceOf`; `bare` reads it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seq, step, at, plan, relay, aiVoiceOf, walk.moments]);
   resetRef.current = () => {
     practise.reset();
     walkLines.reopen();
@@ -486,6 +513,7 @@ export default function FeedbackWalk<R = unknown>({
     walk,
     reasons,
     at: (s) => plan.indexOf(s),
+    bare: (s) => bare(s, plan.indexOf(s)),
     head: at,
     coachNote,
     takeIndex,
@@ -611,6 +639,8 @@ type ScreenCtx<R = unknown> = {
   walk: FeedbackWalkModel<R>;
   /** Where a step sits in the plan. */
   at: (step: WalkStep) => number;
+  /** A voice correction with nothing to offer (N108): no Line A alone. */
+  bare: (step: WalkStep) => boolean;
   /** The newest step reached: the live part of the thread. */
   head: number;
   coachNote: FeedbackWalkCoachNote | null;
@@ -893,13 +923,14 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
 }
 
 /** The Exercise's bubbles: the clip, then the AI clip or the locked Exercise
- *  (with no exercise served, the locked screen with Line A). */
+ *  (with no exercise served, the locked screen with Line A; with no AI clip
+ *  coming either, the clip alone as the walk moves past it, N108). */
 function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkStep; moment: FeedbackWalkMoment<R> }) {
   const exercise = moment.exercise;
   return (
     <>
       <Clip moment={moment} />
-      {aiExercise(ctx, step, moment) ?? (
+      {aiExercise(ctx, step, moment) ?? (ctx.bare(step) ? null : (
         <WalkMessage coach={exercise?.byCoach === true} wide>
           {moment.highest ? <span>{topMomentLine(exercise?.video ? "example" : "again", moment)}</span> : null}
           {exercise?.video ? (
@@ -912,7 +943,7 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
               itself (founder 2026-10-21). */}
           {exercise?.instruction || !moment.highest ? <span>{exercise?.instruction ?? WALK_COPY.lineA}</span> : null}
         </WalkMessage>
-      )}
+      ))}
       <CoachAnswerBubble moment={moment} />
     </>
   );
