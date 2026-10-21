@@ -23,6 +23,9 @@ OUTCOME
       last moment goes straight on to the next with moments waiting, in the
       list's order, and back to the list when none is left (founder
       2026-10-21).
+  O10 The list comes in steps (N100): reaching its bottom reads the next
+      step, the loader showing until it lands; judging on reads the next
+      step when the ones read hold nothing left to judge.
 PROVES   O1 -> "a saved set-up goes straight to judging, with its count"
          O2 -> "a set-up with nothing to judge goes back to the imports, never to judging"
          O3 -> "a new import lands on the imports with its count"
@@ -32,6 +35,8 @@ PROVES   O1 -> "a saved set-up goes straight to judging, with its count"
          O7 -> "several files import one at a time, each its own import named by its file"
          O8 -> "a choice over the upload limit is refused, and a refusal for the hour stops the batch"
          O9 -> "the done imports sit at the bottom, and judging goes on from one import to the next"
+         O10 -> "reaching the bottom of the list reads its next step"
+         O10 -> "judging goes on into the next step of the list"
 WHY      Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files
          in one Import, and judging one import after another, founder
          2026-10-21.
@@ -41,6 +46,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchTrainingImports = vi.fn();
+const fetchTrainingImportsPage = vi.fn();
 const saveImportSetup = vi.fn();
 const fetchBlindConfidenceQueue = vi.fn();
 const importTrainingAudio = vi.fn();
@@ -50,6 +56,7 @@ vi.mock("../useUserEmail", () => ({ useUserEmail: () => signedInEmail }));
 vi.mock("@/services/api/trainingCorpus", async (orig) => ({
   ...(await orig<typeof import("@/services/api/trainingCorpus")>()),
   fetchTrainingImports: (...a: unknown[]) => fetchTrainingImports(...a),
+  fetchTrainingImportsPage: (...a: unknown[]) => fetchTrainingImportsPage(...a),
   saveImportSetup: (...a: unknown[]) => saveImportSetup(...a),
   fetchBlindConfidenceQueue: (...a: unknown[]) => fetchBlindConfidenceQueue(...a),
   importTrainingAudio: (...a: unknown[]) => importTrainingAudio(...a),
@@ -83,6 +90,17 @@ beforeEach(() => {
   document.body.appendChild(host);
   root = createRoot(host);
   fetchTrainingImports.mockReset().mockResolvedValue([IMPORT]);
+  // One step holding the whole list, unless a test steps it.
+  fetchTrainingImportsPage.mockReset().mockImplementation(async () => {
+    const imports = await fetchTrainingImports();
+    return imports && { imports, nextOffset: null };
+  });
+  watchers.length = 0;
+  (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver = class {
+    constructor(seen: (entries: { isIntersecting: boolean }[]) => void) { watchers.push(seen); }
+    observe() {}
+    disconnect() {}
+  };
   saveImportSetup.mockReset().mockResolvedValue({ ok: true });
   fetchBlindConfidenceQueue.mockReset();
   importTrainingAudio.mockReset();
@@ -211,6 +229,38 @@ describe("the training corpus in the panel", () => {
     expect(onImports()).not.toBeNull();
   });
 
+  it("reaching the bottom of the list reads its next step", async () => {
+    const waiting = (sessionId: string): TrainingImport =>
+      ({ ...IMPORT, sessionId, topic: sessionId, setupComplete: true, queueCount: 2, labelledCount: 0 });
+    let land!: (page: unknown) => void;
+    fetchTrainingImportsPage
+      .mockResolvedValueOnce({ imports: [waiting("first")], nextOffset: 1 })
+      .mockReturnValueOnce(new Promise((r) => { land = r; }));
+    act(() => root.render(<Host start={CORPUS} />));
+    await flush();
+    expect(choices()).toEqual(["first"]);
+    act(() => { watchers.at(-1)!([{ isIntersecting: true }]); });
+    expect(fetchTrainingImportsPage).toHaveBeenLastCalledWith(1);
+    expect(document.querySelector("[data-testid='corpus-more'] [data-walk-loading]")).not.toBeNull();
+    await act(async () => { land({ imports: [waiting("second")], nextOffset: null }); });
+    expect(choices()).toEqual(["first", "second"]);
+    expect(document.querySelector("[data-testid='corpus-more']")).toBeNull();
+  });
+
+  it("judging goes on into the next step of the list", async () => {
+    const waiting = (sessionId: string): TrainingImport =>
+      ({ ...IMPORT, sessionId, topic: sessionId, setupComplete: true, queueCount: 2, labelledCount: 0 });
+    fetchTrainingImportsPage
+      .mockResolvedValueOnce({ imports: [waiting("first")], nextOffset: 1 })
+      .mockResolvedValueOnce({ imports: [waiting("later")], nextOffset: null });
+    act(() => root.render(<Host start={CORPUS} />));
+    await flush();
+    click(document.querySelector("[data-walk-choice='first']"));
+    click(document.querySelector("[data-testid='stub-judged']"));
+    await flush();
+    expect(judging()?.textContent).toBe("later");
+  });
+
   it("the panel's queue read carries no words of a piece", () => {
     const piece = blindPiece(PIECE("a"));
     expect(piece.snippetId).toBe("a");
@@ -284,6 +334,9 @@ function Host({ start }: { start: PanelState }) {
 }
 
 const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+/** The bottom-of-list watchers the screens set up, newest last. */
+const watchers: ((entries: { isIntersecting: boolean }[]) => void)[] = [];
+const choices = () => [...document.querySelectorAll("[data-walk-choice]")].map((c) => c.getAttribute("data-walk-choice"));
 /** The imports, then Import audio. */
 async function openImport(): Promise<void> {
   act(() => root.render(<Host start={CORPUS} />));

@@ -625,6 +625,26 @@ export async function fetchTrainingImports(
   const params = new URLSearchParams();
   if (userId) params.set("user_id", userId);
   if (options.includeArchived) params.set("include_archived", "1");
+  return (await readImports(params))?.imports ?? null;
+}
+
+/** How many imports one step of the coach panel's list reads (N100). */
+export const IMPORTS_STEP = 50;
+
+/** One step of the corpus index (founder 2026-10-21, N100): `limit` imports
+ *  from `offset`, newest first, and where the next step starts: null after
+ *  the last, or from a backend that reads the list whole. Null when it could
+ *  not be read. */
+export async function fetchTrainingImportsPage(
+  offset: number,
+  limit: number = IMPORTS_STEP,
+): Promise<{ imports: TrainingImport[]; nextOffset: number | null } | null> {
+  return readImports(new URLSearchParams({ limit: String(limit), offset: String(offset) }));
+}
+
+async function readImports(
+  params: URLSearchParams,
+): Promise<{ imports: TrainingImport[]; nextOffset: number | null } | null> {
   const qs = params.size > 0 ? `?${params.toString()}` : "";
   const result = await bffFetch(`/api/v2/coach/training-imports${qs}`, {
     cache: "no-store",
@@ -632,9 +652,14 @@ export async function fetchTrainingImports(
   if (result.kind !== "response" || !result.ok) return null;
   const body = result.body as Record<string, unknown> | null;
   if (!body || !Array.isArray(body.imports)) return null;
-  return body.imports
-    .map(mapTrainingImport)
-    .filter((i): i is TrainingImport => i !== null);
+  const from = Number(params.get("offset") ?? 0);
+  // A next step only ever moves on: anything else ends the list rather than
+  // reading the same step again.
+  const next = typeof body.next_offset === "number" && body.next_offset > from ? body.next_offset : null;
+  return {
+    imports: body.imports.map(mapTrainingImport).filter((i): i is TrainingImport => i !== null),
+    nextOffset: next,
+  };
 }
 
 /* ------------------------------ the queue --------------------------------- */

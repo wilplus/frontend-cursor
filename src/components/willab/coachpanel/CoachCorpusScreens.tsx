@@ -7,7 +7,8 @@
 /*    CorpusHomeScreen     Training corpus: the imports, each with whose      */
 /*                         voice it is and how many moments wait, or its      */
 /*                         set-up not finished, the done ones at the bottom   */
-/*                         (founder 2026-10-21); the pill "Import audio"; a   */
+/*                         (founder 2026-10-21), read in steps as the coach   */
+/*                         scrolls (N100); the pill "Import audio"; a         */
 /*                         finished one's ⋯ → Edit (founder 2026-10-18), and  */
 /*                         for the founder ⋯ → Delete (founder 2026-10-19)    */
 /*    CorpusImportScreen   Import audio (or Finish the set-up, or Edit): the  */
@@ -27,7 +28,7 @@
 /*  erases an import for good (founder 2026-10-19); coaches never see it.    */
 /* -------------------------------------------------------------------------- */
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import WalkOverlay from "../walk/WalkOverlay";
 import WalkChoices, { type WalkChoice } from "../walk/WalkChoices";
 import WalkFooter from "../walk/WalkFooter";
@@ -110,10 +111,36 @@ function importMenu(im: TrainingImport, onEdit: (im: TrainingImport) => void,
   return erase ? <ProjectRowMenu label={im.topic} actionLabel={COPY.delete} confirm={confirm} onDelete={erase} menuAlign="left" /> : undefined;
 }
 
-export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onEdit, onDelete, onClose }: {
+/** The bottom of the list while more imports wait (N100): reaching it reads
+ *  the next step, the app's one loader showing until it lands. A browser
+ *  without IntersectionObserver reads the steps one after another. */
+function MoreImports({ loading, onMore }: { loading: boolean; onMore: () => void }) {
+  const spot = useRef<HTMLDivElement | null>(null);
+  const ask = useRef(onMore);
+  useEffect(() => { ask.current = onMore; });
+  useEffect(() => {
+    const el = spot.current;
+    if (loading || !el) return;
+    if (typeof IntersectionObserver === "undefined") { ask.current(); return; }
+    const seen = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) ask.current();
+    });
+    seen.observe(el);
+    return () => seen.disconnect();
+  }, [loading]);
+  return (
+    <div ref={spot} data-testid="corpus-more" className="flex min-h-12 justify-center py-2">
+      {loading ? <WalkLoading /> : null}
+    </div>
+  );
+}
+
+export function CorpusHomeScreen({ imports, loading, more = null, fail, onImport, onOpen, onEdit, onDelete, onClose }: {
   /** null while it loads or when it could not be read. */
   imports: readonly TrainingImport[] | null;
   loading: boolean;
+  /** More imports wait after the ones read (N100); null when none does. */
+  more?: { loading: boolean; onMore: () => void } | null;
   /** The backend's own sentence when the last import or set-up was refused. */
   fail: string | null;
   onImport: () => void;
@@ -132,17 +159,20 @@ export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onE
   return (
     <WalkOverlay title={COPY.trainingCorpus} subtitle={COPY.corpusCaption} onClose={onClose} footer={footer} testId="coach-panel-corpushome">
       {imports && imports.length > 0 ? (
-        <WalkChoices
-          label={COPY.trainingCorpus}
-          choices={importOrder(imports).map((im) => ({
-            ...importChoice(im),
-            menu: importMenu(im, onEdit, onDelete),
-          }))}
-          onPick={(v) => {
-            const im = imports.find((i) => i.sessionId === v);
-            if (im) onOpen(im);
-          }}
-        />
+        <>
+          <WalkChoices
+            label={COPY.trainingCorpus}
+            choices={importOrder(imports).map((im) => ({
+              ...importChoice(im),
+              menu: importMenu(im, onEdit, onDelete),
+            }))}
+            onPick={(v) => {
+              const im = imports.find((i) => i.sessionId === v);
+              if (im) onOpen(im);
+            }}
+          />
+          {more ? <MoreImports loading={more.loading} onMore={more.onMore} /> : null}
+        </>
       ) : loading ? (
         <WalkLoading />
       ) : (

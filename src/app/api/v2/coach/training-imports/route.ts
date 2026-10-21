@@ -106,6 +106,11 @@ export async function GET(req: NextRequest) {
     if (userId) params.set("user_id", userId);
     // The founder's admin list shows archived imports too (Q-B15 A).
     if (req.nextUrl.searchParams.get("include_archived") === "1") params.set("include_archived", "1");
+    // The coach panel reads the list in steps (N100): numbers only.
+    for (const key of ["limit", "offset"]) {
+      const value = req.nextUrl.searchParams.get(key);
+      if (value && /^\d{1,6}$/.test(value)) params.set(key, value);
+    }
     const qs = params.size > 0 ? `?${params.toString()}` : "";
     return await callBackend(`/v2/coach/training-imports${qs}`, {
       method: "GET",
