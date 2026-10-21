@@ -91,6 +91,9 @@ export default function WillabSurface({
   // that project, which is its ideal text. Only "Start a new project" (or
   // resuming its draft) goes into the recording onboarding.
   const [pickedArcId, setPickedArcId] = useState<string | null>(null);
+  // The Take whose wait the Lab just handed to the Lounge, until the Lounge
+  // shows it (founder 2026-10-21: "make it stay"; useWaitScreen).
+  const [waitHandedOver, setWaitHandedOver] = useState<string | null>(null);
   // SPEC-lockin-loop §1 — the picker-mounted overlay's pending truth. Only
   // probing while that overlay is actually open; the Lounge and the Lab run
   // their own instances when they own the screen.
@@ -254,6 +257,8 @@ export default function WillabSurface({
         initialIdealTextMode={idealTextMode}
         initialIdealTextTake={idealTextTake}
         recordingProgress={recordingProgress}
+        waitHandedOver={waitHandedOver}
+        onWaitHandedOverShown={() => setWaitHandedOver(null)}
       />
       {/* Context-aware setup — WHICH project, asked before the Lab opens.
           Picking a title seeds the arc so the setup form prefills from it and
@@ -354,6 +359,7 @@ export default function WillabSurface({
           sessionId={sessionId}
           dispatch={flow.dispatch}
           onClose={flow.closeLab}
+          onWaitHandedOver={setWaitHandedOver}
           onRecordingProgress={setRecordingProgress}
         />
       )}

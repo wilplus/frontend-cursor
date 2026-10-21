@@ -147,6 +147,7 @@ export default function LabOverlay({
   sessionId,
   dispatch,
   onClose,
+  onWaitHandedOver,
   onRecordingProgress,
 }: {
   state: WillabState;
@@ -154,6 +155,10 @@ export default function LabOverlay({
   /** What happened in the Lab; useWillabFlow's table decides the state. */
   dispatch: (event: WillabEvent) => void;
   onClose: () => void;
+  /** The Take the server now holds, handed to the Lounge, which shows its
+   *  wait at once (founder 2026-10-21: "make it stay"). Called just before
+   *  `onClose`. */
+  onWaitHandedOver?: (sessionId: string) => void;
   onRecordingProgress?: (
     p: import("@/services/api/recordingProgress").RecordingProgress | null,
   ) => void;
@@ -605,6 +610,11 @@ export default function LabOverlay({
     }
     if (!blob || !context || uploadStartedRef.current) return;
     uploadStartedRef.current = true;
+    // ONE WAIT, ONE EPOCH (founder 2026-10-21: "make it stay"). The screen's
+    // advice and the job's marker share the moment the wait began, so the
+    // Lounge's view of this same wait opens on the advice already showing.
+    const waitStartedAt = Date.now();
+    setProcessingCycleStartedAt(waitStartedAt);
     recordedTakeRef.current = arcTakeIndex;
     // C7 — capture the named feeling for this take, then clear the active value.
     // Only overwrite when a fresh value is present so a retry / re-record
@@ -794,15 +804,13 @@ export default function LabOverlay({
           // initial document; Take 2+ proves 2.0/3.0 without rewriting its
           // canonical words. The served API must show that identity before the
           // blocking screen releases.
-          const startedAt = Date.now();
-          setProcessingCycleStartedAt(startedAt);
           writeProcessingTake(userId, {
             sessionId: result.sessionId,
             arcId: completedTake.arcId,
             takeIndex: completedTake.takeIndex,
-            startedAt,
+            startedAt: waitStartedAt,
             phase: "document",
-            phaseStartedAt: startedAt,
+            phaseStartedAt: Date.now(),
             progress: { stage: "document_assembly", percent: null },
           });
         }
@@ -812,7 +820,7 @@ export default function LabOverlay({
             : { stage: "completed", percent: 100 },
         );
         setProcessingReady(true);
-        leaveToChatRef.current(waitsForReview);
+        leaveToChatRef.current(waitsForReview, result.sessionId);
       } else if (result.kind === "ideal_text_unconfirmed") {
         // Synchronous execution reached the same locked Take 1 boundary as
         // queue/daemon mode. The take and feedback stay addressable; return to
@@ -841,17 +849,15 @@ export default function LabOverlay({
         setUploadStillProcessing(false);
         setProcessingProgress({ stage: "processing_recording", percent: 5 });
         setProcessingReady(false);
-        const startedAt = Date.now();
-        setProcessingCycleStartedAt(startedAt);
         writeProcessingTake(userId, {
           sessionId: result.sessionId,
           arcId: result.arcId ?? arcId,
           takeIndex: result.takeIndex ?? arcTakeIndex,
-          startedAt,
+          startedAt: waitStartedAt,
           progress: { stage: "processing_recording", percent: 5 },
         });
         setPollSessionId(result.sessionId);
-        leaveToChatRef.current();
+        leaveToChatRef.current(true, result.sessionId);
       } else if (result.kind === "rejected") {
         // R4-5 — the min-content gate (422) used to send the user back to the
         // Pre-record screen. That screen is gone, so surface the message in
@@ -1322,14 +1328,20 @@ export default function LabOverlay({
     void mic.start();
   }
 
-  /* THE WAIT IS IN THE CHAT (founder lock 2026-10-12, section 1): once the
-     server holds the Take, a signed-in speaker goes back to the Lounge,
-     which shows "Processing your recording" and opens the review when the
-     feedback is ready. A guest keeps this screen: their text opens here. */
-  const leaveToChatRef = useRef((go = true) => undefined as void);
-  leaveToChatRef.current = (go = true) => {
-    if (!go || signedIn !== true) return;
+  /* THE WAIT MOVES TO THE LOUNGE AND STAYS ON SCREEN (founder lock
+     2026-10-12, section 1; founder 2026-10-21: "it automatically closes and
+     opens the lounge, it is abrupt; make it stay"). Once the server holds
+     the Take, a signed-in speaker's wait is the Lounge's: it shows this same
+     screen at once, full screen, and opens the review when the feedback is
+     ready; its ✕ shows the chat, where "Processing your recording" waits. A
+     guest keeps this screen: their text opens here. */
+  const leaveToChatRef = useRef<
+    (go: boolean, takeSessionId: string | null) => void
+  >(() => undefined);
+  leaveToChatRef.current = (go, takeSessionId) => {
+    if (!go || !takeSessionId || signedIn !== true) return;
     mic.cancel();
+    onWaitHandedOver?.(takeSessionId);
     onClose();
   };
 

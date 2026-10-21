@@ -100,6 +100,20 @@ export function nextWaitPercent(
 /*  own and so can speak even when the analysis phase never reported.          */
 /* -------------------------------------------------------------------------- */
 
+/* -------------------------------------------------------------------------- */
+/*  THE BAR STARTS AT 1% (founder 2026-10-21: "when the processing starts it   */
+/*  should show at least 1% from the very first second so that user knows it   */
+/*  has at least started").                                                    */
+/*                                                                            */
+/*  This replaces the "…" above. The upload and the first report can take     */
+/*  seconds, and an empty bar with "…" read as nothing happening. 1% claims    */
+/*  only what is true from the first second: the wait has begun. A real report */
+/*  takes over the moment it is higher, and the bar still never falls.        */
+/* -------------------------------------------------------------------------- */
+
+/** The least the bar shows once the wait has begun. */
+export const WAIT_STARTED = 1;
+
 /** Where the analysis phase's own 100% lands on the shared bar. */
 export const ANALYSIS_CEILING = 90;
 
@@ -126,7 +140,8 @@ export function documentTailFraction(
   return 1 - Math.exp((-3 * Math.min(elapsedMs, capMs)) / capMs);
 }
 
-/** The percentage the wait screen shows, across both phases.
+/** The percentage the wait screen shows, across both phases: never less than
+ *  `WAIT_STARTED`, never more than `DOCUMENT_CEILING`.
  *
  *  `held` is the analysis phase's own percent as `nextWaitPercent` maintains
  *  it: real while reported, held afterwards, null before the first report.
@@ -149,12 +164,11 @@ export function waitPercent({
   phase: "analysis" | "document";
   phaseElapsedMs: number;
   capMs: number;
-}): number | null {
+}): number {
   const floor = clamp(previous);
   const scaled = share(clamp(held), 0, ANALYSIS_CEILING);
   if (phase === "analysis") {
-    if (scaled === null) return floor === null ? null : Math.round(floor);
-    return Math.round(floor === null ? scaled : Math.max(floor, scaled));
+    return Math.round(Math.max(WAIT_STARTED, floor ?? 0, scaled ?? 0));
   }
   /* THE DOCUMENT PHASE OWNS THE TOP SLICE.
    *

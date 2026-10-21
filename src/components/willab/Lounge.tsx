@@ -131,6 +131,7 @@ import {
   productSpec,
 } from "@/lib/productDiscovery";
 import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
+import { useWaitScreen } from "./useWaitScreen";
 import { usePinThreadBottom } from "./usePinThreadBottom";
 import { clearerPieces, type ClearerPiece } from "@/lib/willab/clearerPieces";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
@@ -243,6 +244,8 @@ export default function Lounge({
   initialIdealTextMode = null,
   initialIdealTextTake,
   recordingProgress = null,
+  waitHandedOver,
+  onWaitHandedOverShown,
 }: {
   state: WillabState;
   onStart: () => void;
@@ -269,6 +272,10 @@ export default function Lounge({
   initialIdealTextTake?: string | null;
   /** Seed from the upload response; reserved for future per-take state. */
   recordingProgress?: RecordingProgress | null;
+  /** The Take the Lab just handed over: its wait stays on screen here
+   *  (founder 2026-10-21, useWaitScreen). */
+  waitHandedOver?: string | null;
+  onWaitHandedOverShown?: () => void;
 }) {
   const userId = useUserId();
   const thread = useLoungeThreadCtx();
@@ -603,6 +610,21 @@ export default function Lounge({
     string | null
   >(null);
   const processingTriggerRef = useRef<HTMLButtonElement | null>(null);
+  // The one wait on screen, from the Lab's hand-off to the walk (founder
+  // 2026-10-21: "make it stay"; "it still loads the walk").
+  const waitScreen = useWaitScreen({
+    userId,
+    signedIn: thread.signedIn === true,
+    labOpen: isLabOverlay(state),
+    handedOver: waitHandedOver,
+    onHandedOverShown: onWaitHandedOverShown,
+    resume: processingResume,
+    openedSessionId: openedProcessingSessionId,
+    show: (view) => {
+      setProcessingResume(view);
+      setOpenedProcessingSessionId(view.sessionId);
+    },
+  });
   const [retryingProcessing, setRetryingProcessing] = useState(false);
   const [resumeWatch, setResumeWatch] = useState<{
     sessionId: string;
@@ -920,9 +942,13 @@ export default function Lounge({
       // The reload brings the Take's bubble; the journey message is no longer
       // posted (the closing summary takes over, lock 2026-10-12, section 3).
       // THE REVIEW OPENS BY ITSELF when the Take's feedback is ready, even if
-      // the speaker left the processing screen for the chat (section 1).
+      // the speaker left the processing screen for the chat (section 1). The
+      // wait stays over it until the walk is on screen (founder 2026-10-21).
       void reload().catch(() => undefined);
-      if (take.arcId) openIdealText(take.arcId, "review");
+      if (take.arcId) {
+        waitScreen.coverWalk(take.sessionId);
+        openIdealText(take.arcId, "review");
+      }
     },
     onExpired: (take) => {
       if (take.arcId && take.takeIndex === 1) {
@@ -2002,15 +2028,16 @@ export default function Lounge({
         />
       )}
 
-      {openedProcessingSessionId &&
-      processingResume?.sessionId === openedProcessingSessionId &&
-      processingResume.status === "analyzing" ? (
+      {waitScreen.view ? (
         <ProcessingResumeOverlay
-          progress={processingResume.progress}
-          phase={processingResume.phase}
-          cycleStartedAt={processingResume.startedAt}
-          phaseStartedAt={processingResume.phaseStartedAt}
-          onClose={closeProcessingOverlay}
+          progress={waitScreen.view.progress}
+          phase={waitScreen.view.phase}
+          cycleStartedAt={waitScreen.view.startedAt}
+          phaseStartedAt={waitScreen.view.phaseStartedAt}
+          onClose={() => {
+            waitScreen.lift();
+            closeProcessingOverlay();
+          }}
         />
       ) : null}
     </div>
