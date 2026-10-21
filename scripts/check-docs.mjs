@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* -------------------------------------------------------------------------- */
-/*  THE DOCS GUARD (founder, 2026-10-21; backend N107 and N110).               */
+/*  THE DOCS GUARD (founder, 2026-10-21; backend N107 and N111).               */
 /*                                                                            */
 /*  By 21 October 2026 the two repos held 423 Markdown files, because every    */
 /*  piece of work started a file of its own. N107 cut them down and said a     */

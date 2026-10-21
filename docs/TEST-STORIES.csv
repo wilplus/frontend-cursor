@@ -30,7 +30,7 @@ O5 -> ""fails a branch that changes a flow's file without its page"",
 ""a flow's test file never asks for the page"",
 ""names only pages and files that exist (a rename must update the list)"",
 ""each page names every file it guards""","CLAUDE.md ""Screens that are locked"" (build plan X5); the flow pages (founder, 2026-10-20: one page per user flow, growing by lines)."
-scripts/checkDocs.test.ts,Story,"As the founder, I want every part of the code to have one home doc and no new doc without my yes, so that the docs never pile up again (423 files by 21 October 2026; backend N107 and N110).","O1  Code no row of README.md's table covers is named; a flow page's files
+scripts/checkDocs.test.ts,Story,"As the founder, I want every part of the code to have one home doc and no new doc without my yes, so that the docs never pile up again (423 files by 21 October 2026; backend N107 and N111).","O1  Code no row of README.md's table covers is named; a flow page's files
 need no row; tests, docs and dot-folders are not code.
 O2  The most exact pattern wins; an equal claim by two homes, a pattern
 that matches nothing and a missing, History or Archive home are refused.

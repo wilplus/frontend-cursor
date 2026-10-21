@@ -1,7 +1,7 @@
 /*
 STORY    As the founder, I want every part of the code to have one home doc
          and no new doc without my yes, so that the docs never pile up again
-         (423 files by 21 October 2026; backend N107 and N110).
+         (423 files by 21 October 2026; backend N107 and N111).
 OUTCOME
   O1  Code no row of README.md's table covers is named; a flow page's files
       need no row; tests, docs and dot-folders are not code.
