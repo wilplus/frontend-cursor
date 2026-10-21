@@ -56,7 +56,7 @@ Each one's label is in the backend's master doc. The archived notes left `main` 
 
 ## Home docs for the code
 
-Every part of the code has one home doc (backend N107 and N108). A session that changes code writes what
+Every part of the code has one home doc (backend N107 and N110). A session that changes code writes what
 changed into the code's home doc, or into the pull request, never into a new file. "No page" means no doc
 describes that part: the code and its comments do, and a rule about it goes into the backend's decisions log.
 The files a flow page guards (`scripts/flow-pages.txt`) have that page as their home, whatever the table says.
