@@ -37,8 +37,12 @@ The Feedback walk and the chat have one page,
 in flight, what is open, one line per change. A change to this flow is a
 line on that page, never a new file; a commit that changes one of its files
 (`scripts/flow-pages.txt`) must change the page too, and the design-lock
-check enforces that as well. The other locked screens get a page of the
-same shape the next time one of them is changed, in that change's PR.
+check enforces that as well. Every other locked screen has a page of the
+same shape here: [`docs/flows/coach-panel.md`](docs/flows/coach-panel.md),
+[`docs/flows/ideal-text.md`](docs/flows/ideal-text.md),
+[`docs/flows/recording-screens.md`](docs/flows/recording-screens.md),
+[`docs/flows/consent-screens.md`](docs/flows/consent-screens.md) and
+[`docs/flows/ai-voice-practice.md`](docs/flows/ai-voice-practice.md) (backend N107).
 
 ## One source of truth
 
