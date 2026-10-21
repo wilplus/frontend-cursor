@@ -162,10 +162,10 @@ describe("the finished walk, played again", () => {
     expect(picked()).toEqual(["our", "growth", "doubled."]);
     click(byTestId("walk-forward"));
     expect(calls).toEqual(["helpers"]);
-    // The clearer version answered: "✓ You kept your words" over Next, no
-    // write and no recording.
+    // The clearer version answered and practised: "✓ Practised" over Next,
+    // the one ✓ line (founder 2026-10-21); no write and no recording.
     expect(screen()).toBe("walk-screen-clearer");
-    expect(live()!.textContent).toContain(WALK_COPY.answeredKept);
+    expect(live()!.textContent).toContain(WALK_COPY.answeredPractised);
     expect(byTestId("walk-keep")).toBeNull();
     click(byTestId("walk-forward"));
     expect(screen()).toBe("walk-screen-exVideo");

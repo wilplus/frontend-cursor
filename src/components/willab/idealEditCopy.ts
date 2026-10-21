@@ -450,12 +450,10 @@ export const WALK_COPY = {
   judgeInBetween: "In-between",
   judgeNo: "No",
   judgeUnclear: "Audio unclear",
-  /* An answered step, reopened. */
-  answeredAccepted: "✓ You accepted and practised it",
-  answeredKept: "✓ You kept your words",
+  /* An answered step, reopened: the one ✓ line, over Next where a practise
+     was done (founder 2026-10-21); every other answered step reads Next
+     alone. */
   answeredPractised: "✓ Practised",
-  answeredSkipped: "✓ Skipped",
-  answered: "✓ Answered",
 } as const;
 
 /* -------------------------------------------------------------------------- */
