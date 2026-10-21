@@ -13,7 +13,7 @@ import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "@/components/willab/idealEd
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import type { FeedbackWalkMoment } from "./feedbackWalkModel";
 import type { PraiseReason } from "./praiseReason";
-import { clearerOpening, type WalkBankKey } from "./walkLines";
+import { clearerOpening, topMomentLine, type WalkBankKey } from "./walkLines";
 import type { WalkStep } from "./walkPlan";
 import { encourageLine, improvedLine, thanksLine } from "./walkPractise";
 
@@ -297,14 +297,13 @@ export function praiseChat(
  *  has no exercise yet. */
 function exerciseChat(
   moment: FeedbackWalkMoment<unknown> | null,
-  soFar: string,
 ): { author: WalkAuthor; body: string; extra?: Record<string, unknown> } | null {
   if (!moment) return null;
   const ex = moment.exercise;
-  // On the confident moment itself: no Line A, and "an example" only with
-  // a video to show (founder 2026-10-21).
+  // On the confident moment itself its own line, for what follows (an
+  // example only with a video to show), and no Line A (founder 2026-10-21).
   const top = Boolean(moment.highest);
-  const head = top && ex?.video ? `${soFar}${COPY.titleMostConfidentExample}\n` : soFar;
+  const head = top ? `${topMomentLine(ex?.video ? "example" : "again", moment)}\n` : "";
   const line = ex?.instruction ?? (top ? "" : WALK_COPY.lineA);
   if (!ex) return { author: "app", body: `${head}${line}`.trim() };
   return {
@@ -330,8 +329,9 @@ export function shownStep(
   // The bubble's first line, as the prototype's chat writes it.
   const titled = (title: string, body: string | null | undefined) => app(body && body.trim() ? `${title}\n${body}` : null);
   // The Take's highest moment names itself first (founder 2026-10-20): as
-  // praise, or "so far" when the walk goes on to correct it.
-  const soFar = moment?.highest ? `${COPY.titleMostConfidentSoFar}\n` : "";
+  // praise, or with its own line when the walk goes on to make it better
+  // (founder 2026-10-21).
+  const top = moment?.highest ? `${topMomentLine("clearer", moment)}\n` : "";
   const one = [step];
   switch (step.key) {
     case "coachnote":
@@ -352,12 +352,12 @@ export function shownStep(
       // version" title (founder 2026-10-21, K): the opener says it.
       const clearer = moment?.clearer;
       const said = clearer?.say
-        ? app(soFar + (moment?.highest ? `${COPY.titleMostConfidentExample}\n` : "") + [...clearerOpening(clearer.reason, () => say("B13")), clearer.say].join("\n"))
+        ? app(top + [...clearerOpening(clearer.reason, () => say("B13")), clearer.say].join("\n"))
         : null;
       return said ? { ...said, extra: { new_words: moment?.clearer?.after ?? null } } : null;
     }
     case "exVideo":
-      return exerciseChat(moment, soFar);
+      return exerciseChat(moment);
     case "improved":
       return titled(COPY.titlePraise, line ?? improvedLine(one, 0));
     case "encourage":

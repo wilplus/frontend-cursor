@@ -86,9 +86,6 @@ export const CHUNK_SHEET_COPY = {
      below the floor and the walk goes on to its clearer version or
      exercise, so the speaker knows what they are hearing. */
   titleMostConfident: "This was your most confident moment.",
-  titleMostConfidentSoFar: "This was a solid, confident moment we recognised.",
-  /** Under it, only when an example follows (founder 2026-10-21). */
-  titleMostConfidentExample: "Here is an example to make it even better.",
   /* Step three, the only place the asynchronous side of the product reaches
      this sheet. The title carries the whole label: the offer card deliberately
      has no eyebrow and no corner icon, because the screen has already said
@@ -726,4 +723,30 @@ export const WALK_LINE_BANK = {
       "Want to give this version a go?",
     ],
   },
+} as const;
+
+/* The Take's confident moment, when the walk goes on to make it better
+   (founder 2026-10-21: "it was a solid confident moment we have recognised,
+   here is an example to make it even better", varied around that line and
+   aware of what follows). One line, picked by the moment so the lens and the
+   chat say the same; the first of each is the founder's own. */
+export const TOP_MOMENT_LINES = {
+  /** A clearer version follows, opened by its B13 line. */
+  clearer: [
+    "This was a solid, confident moment we recognised. Let's make it even better.",
+    "We picked this one out as solid and confident. A small change in the words could make it even better.",
+    "This one stood out as solid and confident, and it can get even better.",
+  ],
+  /** The AI version of their voice, or an exercise's video, follows. */
+  example: [
+    "This was a solid, confident moment we recognised. Here is an example to make it even better.",
+    "We picked this one out as solid and confident. Listen to how it could sound even stronger.",
+    "This one stood out as solid and confident. Here's how it could land even better.",
+  ],
+  /** No example to show: the words to say again follow. */
+  again: [
+    "This was a solid, confident moment we recognised. Say it once more, even more sure of yourself.",
+    "We picked this one out as solid and confident. Give it one more go and own every word.",
+    "This one stood out as solid and confident. Say it again and make it even stronger.",
+  ],
 } as const;
