@@ -165,6 +165,12 @@ Training wording v4's "the third thing to confirm" (amendment of 2026-10-15)
 no longer applies to the first-time screen.
 
 
+**Amended 2026-10-21 (backend N111): two prototypes join this page.** The policy update prompt,
+<https://claude.ai/artifact/GPRRXaivyrZE2UjrRZY93K> (version 2; the founder approved it on 15 October,
+"yeah approved"), as unified with every Lounge ask, <https://claude.ai/artifact/CzVL6JWK85tZDVpU9JRtgY>
+(version 2). The code already follows both (`PolicyUpdate.tsx`, and the Lounge's `LoungeTopUpCard.tsx`).
+
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
@@ -176,7 +182,6 @@ doing it fills its line in its PR and deletes the line when the work is merged (
 
 - **§1 in the present tense.** §1 is the lock as written, with its amendments after it. The next change to
   this screen rewrites the part it touches in the present tense, the way the walk's page did (backend N107).
-- **Two prototypes the frontend's old lock mirror listed** are in no backend doc: the policy update prompt <https://claude.ai/artifact/GPRRXaivyrZE2UjrRZY93K> (version 2), as unified with every Lounge ask <https://claude.ai/artifact/CzVL6JWK85tZDVpU9JRtgY> (version 2). Until the founder adds them here, they are not in force (backend N95).
 
 ## 4. Where it lives
 
@@ -192,6 +197,11 @@ Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 - `src/lib/appMenuLinks.ts`
 - `src/lib/legal/dataConsentCopy.ts`
 - `src/lib/legal/deleteAccountCopy.ts`
+- `src/lib/legal/acceptanceSteps.ts` — the acceptance screen's steps ("Agree and continue", "Choose your country") (guarded since N111).
+- `src/components/willab/Phase1AcceptanceGate.tsx` — the gate that shows the acceptance screen (guarded since N111).
+- `src/components/willab/Mlc2FounderConsentGate.tsx` — the founder's consent gate (guarded since N111).
+- `src/components/willab/ConsentAsk.tsx` — a consent ask: the training yes and the share choices (guarded since N111).
+- `src/components/legal/PublishedPolicyText.tsx` — the published policy text in its window (guarded since N111).
 
 Backend (`wilplus/backend-cursor`): the lock file this page replaces, [`docs/FOUNDER-LOCK-consent-screens-2026-10-07.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-consent-screens-2026-10-07.md) (history).
 
@@ -203,9 +213,12 @@ Every prototype link in §1, in the order it first appears:
 - <https://claude.ai/artifact/4jDJsvBAquMUgaGkJgHR76>
 - <https://claude.ai/artifact/YCM8rQKkkwA2HKb4UYajeo>
 - <https://claude.ai/artifact/6v4vEhppupQc9LC2tzbD6H>
+- <https://claude.ai/artifact/GPRRXaivyrZE2UjrRZY93K>
+- <https://claude.ai/artifact/CzVL6JWK85tZDVpU9JRtgY>
 
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · N111 · the policy update prompt and every Lounge ask, unified (both version 2), join §1 and §5, out of §3; the page also guards the consent files it missed (§4) · BE, FE
 - 2026-10-21 · N107 · this page replaces backend `FOUNDER-LOCK-consent-screens-2026-10-07.md` as the place the rules live; the lock stays as history · BE #1241, FE #928
