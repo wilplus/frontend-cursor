@@ -172,6 +172,15 @@ founder's rows are the founder's alone.
   (CO1 A). The delete confirmation opens as a full sheet (#869). The founder's
   erase of an import works on production's tables and never deletes from
   the read-only detector reconciliation (#1172, #1173).
+- **H2** Import audio takes several files at once (2026-10-21): each becomes
+  its own import under the same set-up, imported one at a time in name
+  order, filed as "{topic} · {file name}" so the list tells them apart (one
+  file keeps the topic as typed). The row says "{n} files"; the loader says
+  which file is on its way, "{name} · {i} of {n}". It stays inside the
+  backend's upload limit (20 a minute, 200 an hour per coach): more than 200
+  files is refused at the choice ("Up to 200 files at a time"), a per-minute
+  refusal is waited out, an hourly one stops the batch. What did not import
+  is named under the pill with the backend's sentence.
 
 ### I · Library and speaking errors (the founder's admin)
 
@@ -225,7 +234,8 @@ founder's rows are the founder's alone.
   recording · it is cut into moments you judge blind"; "Choose a file";
   "Audio or video, up to 30 minutes"; "Imported · {n} moments"; "Finish the
   set-up"; "Before its moments can be judged"; "Set-up not finished · finish
-  it before judging"; "Set up"; "{n} moments".
+  it before judging"; "Set up"; "{n} moments"; "{n} files"; "{i} of {n}";
+  "Up to {n} files at a time".
 - Library (admin): the lines in I1.
 - **Signed, no longer shown** (kept so they are not reused unsigned): "Your
   diagnosis first; the exercise comes next"; "Your diagnosis: {error}";
@@ -317,6 +327,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · Import audio takes several files, one import each, inside the backend's upload limit (H2)
 - 2026-10-20 · N87 · this page replaces the lock file; the speaker's screen shows who the talk is for and what they should do under the goal, in the same small text (C3, J) · FE #895, BE #1208
 - 2026-10-20 · N83 · the founder edits Will's questions on the coach panel, one row under the blind lists (B4) · FE #887, BE #1197
 - 2026-10-20 · the founder's ⋯ clears what waits on a blind list for the week (B5) · FE #880, BE #1185

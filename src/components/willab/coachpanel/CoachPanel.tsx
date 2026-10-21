@@ -51,6 +51,7 @@ import {
 } from "./CoachPanelScreens";
 import { useAnswerFlow } from "./CoachAnswerFlow";
 import { BLANK_IMPORT, CorpusAnalyseScreen, CorpusHomeScreen, CorpusImportScreen, type ImportForm } from "./CoachCorpusScreens";
+import { MAX_BATCH_FILES, batchFailLine, importBatch, inNameOrder } from "./corpusBatch";
 import { WillBankScreen } from "./WillBankScreen";
 import { fetchWillBank, saveWillBank, type WillBank, type WillBankItem } from "@/services/api/willBank";
 import CoachCorpusJudge from "./CoachCorpusJudge";
@@ -72,7 +73,7 @@ import {
   fetchCoachSpeakers, queueSpeakerFor, speakersFromQueue, type PanelSpeaker,
 } from "@/services/api/coachSpeakers";
 import {
-  eraseTrainingImport, fetchBlindConfidenceQueue, fetchTrainingImports, importTrainingAudio, saveImportSetup, type TrainingImport,
+  eraseTrainingImport, fetchBlindConfidenceQueue, fetchTrainingImports, saveImportSetup, type TrainingImport,
 } from "@/services/api/trainingCorpus";
 import { isFounderEmail } from "@/lib/founder";
 import { useUserEmail } from "../useUserEmail";
@@ -337,6 +338,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
   const [form, setForm] = useState<ImportForm>(BLANK_IMPORT);
   const [corpusBusy, setCorpusBusy] = useState(false);
   const [corpusFail, setCorpusFail] = useState<string | null>(null);
+  const [batch, setBatch] = useState<{ name: string; index: number; total: number } | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const [blindOpen, setBlindOpen] = useState<"audit" | "picks" | "v4picks" | "v4surer" | null>(null);
   const blindLinks = useBlindLinks(blindOpen !== null);
@@ -435,24 +437,31 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
       dispatch(n > 0 ? { type: "corpusSetUp", importId: setupOf, topic } : { type: "corpusHome" });
       return;
     }
-    if (!form.file) { setCorpusBusy(false); return; }
+    const files = form.files;
+    if (files.length === 0) { setCorpusBusy(false); return; }
     let accepted = false;
-    const outcome = await importTrainingAudio({
-      file: form.file, topic: form.topic.trim(), speakerLabel: form.speaker.trim() || null, note: form.source.trim() || null,
+    // One file or several, imported one at a time (corpusBatch): the loader
+    // from the first the backend takes, saying which file is on its way.
+    const result = await importBatch(files, {
+      topic: form.topic.trim(), speakerLabel: form.speaker.trim() || null, note: form.source.trim() || null,
       language: form.language, optionalStages: form.stages,
-      onAccepted: () => { accepted = true; dispatch({ type: "corpusAnalyse" }); },
+    }, {
+      onFile: (index) => setBatch({ name: files[index].name, index, total: files.length }),
+      onAccepted: () => { if (!accepted) dispatch({ type: "corpusAnalyse" }); accepted = true; },
     });
     setCorpusBusy(false);
-    if (!outcome.ok) {
-      // The backend's own sentence (a 410 while its switch is off, a
-      // rejected file): under the pill of the screen the coach is on.
-      setCorpusFail(outcome.error ?? COPY.answerFail);
+    setBatch(null);
+    // The backend's own sentence (a 410 while its switch is off, a rejected
+    // file), naming the files when there were several: under the pill of
+    // the screen the coach is on.
+    setCorpusFail(batchFailLine(result, files.length > 1, COPY.answerFail));
+    if (result.imported === 0) {
       if (accepted) dispatch({ type: "corpusHome" });
       return;
     }
     setForm(BLANK_IMPORT);
     corpus.refresh();
-    say(`${COPY.imported} · ${COPY.moments(outcome.queueCount)}`);
+    say(`${COPY.imported} · ${COPY.moments(result.moments)}`);
     dispatch({ type: "corpusHome" });
   }
 
@@ -553,7 +562,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
           onSubmit={() => void submitImport(panel.setupOf, panel.edit)} onBack={() => dispatch({ type: "back" })} onClose={close} />
       );
     }
-    if (panel.key === "corpusanalyse") return <CorpusAnalyseScreen onClose={close} />;
+    if (panel.key === "corpusanalyse") return <CorpusAnalyseScreen batch={batch} onClose={close} />;
     if (panel.key === "corpus") {
       return live ? (
         <CoachCorpusJudge importId={panel.importId} topic={panel.topic} onSaved={() => say(COPY.toastJudged)}
@@ -596,8 +605,16 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
       {/* On a computer, the same phone-width screens, centred (Q-B14 A). */}
       <WalkStage screen={stage} dir={state.dir} render={screenFor} className="walk-stage-column md:mx-auto md:max-w-[430px]"
         backdrop="fixed inset-0 z-50 hidden bg-muted md:block" />
-      <input ref={fileInput} type="file" accept="audio/*,video/mp4" className="hidden" data-testid="corpus-file-input"
-        onChange={(e) => { const f = e.target.files?.[0] ?? null; e.target.value = ""; if (f) setForm((prev) => ({ ...prev, file: f })); }} />
+      <input ref={fileInput} type="file" multiple accept="audio/*,video/mp4" className="hidden" data-testid="corpus-file-input"
+        onChange={(e) => {
+          const picked = inNameOrder(Array.from(e.target.files ?? []));
+          e.target.value = "";
+          if (picked.length === 0) return;
+          // Over the backend's upload limit, the choice is refused whole.
+          if (picked.length > MAX_BATCH_FILES) { setCorpusFail(COPY.upToFiles(MAX_BATCH_FILES)); return; }
+          setCorpusFail(null);
+          setForm((prev) => ({ ...prev, files: picked }));
+        }} />
       {toast ? <WalkToast key={toast.id} message={toast.text} onDone={() => setToast(null)} /> : null}
       {blindOpen === "audit" && blind.audit ? (
         <div className="fixed inset-0 z-50 md:mx-auto md:max-w-[430px]">

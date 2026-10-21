@@ -178,6 +178,9 @@ export interface ImportFailure {
    *  the attempt stays inspectable instead of living only in a response the
    *  coach already dismissed. */
   sessionId: string | null;
+  /** On a rate-limit refusal (`RATE_LIMITED`, 429): how many seconds until
+   *  the backend takes the next file. Null on every other failure. */
+  retryAfterSec: number | null;
 }
 
 export type ImportOutcome = ({ ok: true } & ImportResult) | ImportFailure;
@@ -197,6 +200,7 @@ function mapFailure(body: Record<string, unknown> | null): ImportFailure {
     language: strOrNull(body?.language),
     empty: reason !== null && EMPTY_REASONS.has(reason.toLowerCase()),
     sessionId: strOrNull(body?.session_id),
+    retryAfterSec: numOrNull(body?.retry_after_seconds),
   };
 }
 
@@ -539,6 +543,7 @@ function emptyFailure(): ImportFailure {
     language: null,
     empty: false,
     sessionId: null,
+    retryAfterSec: null,
   };
 }
 

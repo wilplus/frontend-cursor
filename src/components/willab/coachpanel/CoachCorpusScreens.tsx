@@ -10,16 +10,18 @@
 /*                         finished one's ⋯ → Edit (founder 2026-10-18), and  */
 /*                         for the founder ⋯ → Delete (founder 2026-10-19)    */
 /*    CorpusImportScreen   Import audio (or Finish the set-up, or Edit): the  */
-/*                         file, the corpus page's own fields and words, what */
-/*                         to run; Import is off until file, topic and        */
-/*                         language are set (Set up and Save need topic and   */
-/*                         language)                                          */
-/*    CorpusAnalyseScreen  the app's one loader, "Analysing on the server…"   */
+/*                         file or files (founder 2026-10-21), the corpus     */
+/*                         page's own fields and words, what to run; Import   */
+/*                         is off until a file, topic and language are set    */
+/*                         (Set up and Save need topic and language)          */
+/*    CorpusAnalyseScreen  the app's one loader, "Analysing on the server…",  */
+/*                         and with several files which one is on its way     */
 /*                                                                            */
 /*  The judging screen is the panel's own JudgeScreen (CoachPanelScreens),    */
 /*  driven by CoachCorpusJudge. Presentational: the host owns the state, the  */
 /*  fetches and the writes. Every word is COACH_PANEL_COPY's; the only        */
-/*  numbers are counts of moments (AC-9). Hide and restore are not here:     */
+/*  numbers are counts of moments (AC-9) and, with several files, of the     */
+/*  files (founder 2026-10-21). Hide and restore are not here:               */
 /*  they moved to the founder's admin area (Q-B15 A). The founder's Delete   */
 /*  erases an import for good (founder 2026-10-19); coaches never see it.    */
 /* -------------------------------------------------------------------------- */
@@ -127,7 +129,8 @@ export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onE
 /* ── the set-up ──────────────────────────────────────────────────────── */
 
 export interface ImportForm {
-  file: File | null;
+  /** In name order; several are imported one at a time (corpusBatch). */
+  files: readonly File[];
   topic: string;
   speaker: string;
   /** ISO-639-1, "" for auto-detect, null while not chosen. */
@@ -136,13 +139,13 @@ export interface ImportForm {
   stages: OptionalStage[];
 }
 
-export const BLANK_IMPORT: ImportForm = { file: null, topic: "", speaker: "", language: null, source: "", stages: [] };
+export const BLANK_IMPORT: ImportForm = { files: [], topic: "", speaker: "", language: null, source: "", stages: [] };
 
-/** Import needs a file, a topic and a language; a set-up (an import that
+/** Import needs a file or more, a topic and a language; a set-up (an import that
  *  exists) needs the topic and the language. Pure. */
 export function importReady(form: ImportForm, setupOf: string | null): boolean {
   if (!form.topic.trim() || form.language === null) return false;
-  return setupOf !== null || form.file !== null;
+  return setupOf !== null || form.files.length > 0;
 }
 
 const FIELD = "w-full rounded-[14px] border-[1.5px] border-border bg-background p-3.5 text-[17px] text-foreground outline-none focus:border-foreground";
@@ -204,8 +207,9 @@ export function CorpusImportScreen({ setupOf, edit = false, form, busy, fail, on
       {setupOf ? null : (
         <WalkChoices
           label={COPY.chooseAFile}
-          choices={[form.file
-            ? { value: "file", label: form.file.name, selected: true, mark: "check", testId: "corpus-file" }
+          choices={[form.files.length > 0
+            ? { value: "file", label: form.files.length === 1 ? form.files[0].name : COPY.files(form.files.length),
+                selected: true, mark: "check", testId: "corpus-file" }
             : { value: "file", label: COPY.chooseAFile, subtitle: COPY.audioOrVideo, testId: "corpus-file" }]}
           onPick={onPickFile}
         />
@@ -245,12 +249,21 @@ export function CorpusImportScreen({ setupOf, edit = false, form, busy, fail, on
 
 /* ── the loader ──────────────────────────────────────────────────────── */
 
-export function CorpusAnalyseScreen({ onClose }: { onClose: () => void }) {
+export function CorpusAnalyseScreen({ batch, onClose }: {
+  /** With several files: the one on its way and where it stands. */
+  batch?: { name: string; index: number; total: number } | null;
+  onClose: () => void;
+}) {
   return (
     <WalkOverlay onClose={onClose} testId="coach-panel-corpusanalyse">
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3.5 text-center">
         <WalkLoading />
         <p className="m-0 text-[15.5px] text-muted-foreground">{COPY.analysing}</p>
+        {batch && batch.total > 1 ? (
+          <p data-testid="corpus-batch" className="m-0 text-[13.5px] text-muted-foreground">
+            {`${batch.name} · ${COPY.fileOf(batch.index + 1, batch.total)}`}
+          </p>
+        ) : null}
       </div>
     </WalkOverlay>
   );
