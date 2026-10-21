@@ -88,7 +88,7 @@ beforeEach(() => {
   git(repo, "branch", "base");
   git(repo, "checkout", "-q", "-b", "work");
 });
-afterEach(() => rmSync(repo, { recursive: true, force: true }));
+afterEach(() => rmSync(repo, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }));
 
 const guard = () => run({ cwd: repo, base: "base", list, flows });
 
