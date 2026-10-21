@@ -48,6 +48,10 @@ export default function ChatPage({
   // `&feedback=1` (founder 2026-09-25, Q28 A): open with the sheet already on
   // the coach's first reviewed moment.
   const review = lensArcId !== null && firstQueryValue(searchParams.mode) === "review";
+  // `&take=<session_id>` (founder 2026-10-21, backend N77): the Take the
+  // coach wrote on, named by the WhatsApp and email links, so a word left on
+  // an earlier Take opens as that Take's word. Without it, as before.
+  const idealTextTake = firstQueryValue(searchParams.take);
   const idealTextMode =
     firstQueryValue(searchParams.feedback) === "1" || (lensArcId !== null && !review)
       ? "feedback"
@@ -63,6 +67,7 @@ export default function ChatPage({
         bestPresentationArcId={bestPresentationArcId}
         idealTextArcId={idealTextArcId}
         idealTextMode={idealTextMode}
+        idealTextTake={idealTextTake}
       />
     </Suspense>
   );

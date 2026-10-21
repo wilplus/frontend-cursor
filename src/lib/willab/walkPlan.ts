@@ -72,6 +72,10 @@ export type WalkPlanInput = {
   /** Opened from the coach's bubble: only what the coach sent (founder
    *  2026-10-14): their word for the Take, then the moments they answered. */
   coachOnly?: boolean;
+  /** The coach's link names an earlier Take (founder 2026-10-21, N77): the
+   *  coach-only walk is that Take's word alone. The moments are the latest
+   *  Take's and never follow another Take's word. */
+  coachWordOnly?: boolean;
 };
 
 /** Every screen the plan can name. */
@@ -152,7 +156,7 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
     // Everything the coach sent, each where it belongs (founder 2026-10-20):
     // their exercise as the Exercise, their clearer version as the Clearer
     // version, any other answer on its own screen.
-    for (const m of moments) {
+    for (const m of input.coachWordOnly ? [] : moments) {
       if (m.coachExercise && input.practiceOn) steps.push(...practiseOpening({ ...m, clearer: false, exercise: true }, true));
       else if (m.coachVersion) steps.push(...practiseOpening({ ...m, clearer: true }, input.practiceOn));
       else if (m.coach) steps.push(momentStep(m, "coach"));

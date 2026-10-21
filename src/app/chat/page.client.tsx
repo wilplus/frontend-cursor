@@ -16,12 +16,15 @@ export default function ChatPageClient({
   bestPresentationArcId,
   idealTextArcId,
   idealTextMode = null,
+  idealTextTake = null,
 }: {
   sessionId: string | null;
   insightSessionId: string | null;
   bestPresentationArcId: string | null;
   idealTextArcId: string | null;
   idealTextMode?: "feedback" | "review" | null;
+  /** `&take=<session_id>`: the Take the coach's link names. */
+  idealTextTake?: string | null;
 }) {
   return (
     <WillabSurface
@@ -30,6 +33,7 @@ export default function ChatPageClient({
       bestPresentationArcId={bestPresentationArcId}
       idealTextArcId={idealTextArcId}
       idealTextMode={idealTextMode}
+      idealTextTake={idealTextTake}
     />
   );
 }

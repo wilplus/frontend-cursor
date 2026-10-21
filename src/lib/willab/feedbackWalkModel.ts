@@ -346,6 +346,7 @@ export function buildFeedbackWalk<R = unknown>(input: {
   practiceOn: boolean;
   guest: boolean;
   coachOnly?: boolean;
+  coachWordOnly?: boolean;
 }): FeedbackWalkModel<R> {
   const groups = walkMomentGroups(input.items);
   const moments = groups.map((group, index) => momentOf(group, index));
@@ -355,6 +356,7 @@ export function buildFeedbackWalk<R = unknown>(input: {
     practiceOn: input.practiceOn,
     guest: input.guest,
     coachOnly: input.coachOnly,
+    coachWordOnly: input.coachWordOnly,
   }).filter((step) => {
     const moment = step.moment == null ? undefined : moments[step.moment];
     return (
