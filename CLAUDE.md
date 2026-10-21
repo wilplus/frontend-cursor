@@ -53,7 +53,7 @@ where it and the backend disagree, the backend wins. Write every founder
 decision made in chat into the backend decisions log right away, in its own
 small docs PR, never bundled with code that waits for review. Where code on
 main disagrees with those docs, the docs win and the code is a bug to fix
-(founder, 2026-10-21, backend N92).
+(founder, 2026-10-21, backend N93).
 
 ## How to ship
 
