@@ -293,4 +293,4 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-21 · N107 · this page replaces backend `FOUNDER-LOCK-ai-voice-practice-2026-10-12.md` as the place the rules live; the lock stays as history · BE #1241, FE #PENDING
+- 2026-10-21 · N107 · this page replaces backend `FOUNDER-LOCK-ai-voice-practice-2026-10-12.md` as the place the rules live; the lock stays as history · BE #1241, FE #928
