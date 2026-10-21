@@ -1,4 +1,6 @@
 # Backlog implementation — real repos (frontend-cursor / backend-cursor)
+
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
 **Date:** 2026-07-30 · **Verified:** `tsc --noEmit` ✅ · vitest **738/738** ✅ · `next build` ✅ · backend pytest (CI ignore-list) **2536 passed, 3 failed — identical to pre-change baseline, zero new failures** · Changes: FE 68 files (1 deletion), BE 25 files. All delivered as uncommitted working-tree changes for your `git diff` review.
 
 > Note: the overnight run before this targeted the stale `willab-all` copies — that work is superseded by this pass against the real repos (the copies' changes can be discarded; keep only what you already reviewed there if anything).

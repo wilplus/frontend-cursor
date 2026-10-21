@@ -1,5 +1,7 @@
 # Engineering audit — frontend (`frontend-cursor`) — 2026-09-13
 
+> **Label: History** · kept as written, because the rules still cite it. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 *Read-only audit, executed from the prompt kept in the backend repo at
 `backend-cursor/docs/audits/2026-09-13-engineering-audit-prompt.md`. Raw tool
 outputs are under [`raw/`](raw/). The founder's decision questions for BOTH

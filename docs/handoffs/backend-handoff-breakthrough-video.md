@@ -1,5 +1,7 @@
 # BE handoff: connect the breakthrough moment + coach breakthrough video
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **From:** Frontend
 **Date:** 2026-06-19
 **Scope:** Wire the breakthrough moment end-to-end and let a coach attach one explanatory video to it. The explanation text reuses the existing coach comment — no new text field. The FE already consumes everything (renders the video when present, nothing when null), so this is non-breaking.

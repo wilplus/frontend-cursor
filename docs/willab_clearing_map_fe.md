@@ -1,4 +1,6 @@
 # willab — FE Clearing Map
+
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
 **Companion to** `willab_design_decisions_beta.md` (§1–§14). This is the **"what already exists"** half: a grounded map of the willab-beta design onto the *current* FE repo, so build-agents implement the **delta**, not blind.
 **Read-only audit.** Every verdict cites a real path. `UNVERIFIED` where not confirmed. Verdicts: **REUSE · ADAPT · RELOCATE · DELETE · BUILD-NEW · CROSS-REPO(BE) · CONFLICT/RISK.**
 

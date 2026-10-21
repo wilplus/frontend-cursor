@@ -1,5 +1,7 @@
 # BE handoff — Training corpus, FE answer to rev 3
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **From:** frontend-cursor · **Date:** 2026-07-29
 **Status:** merged to `main` (FE `ce9e5cc`), rebased onto the speaker-sex build
 (`21161a8`, #186) and re-verified against it. Uploads now work against the real backend;

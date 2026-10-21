@@ -29,11 +29,11 @@ prototypes show. To change one, ask the founder first. A commit that
 changes a locked screen's file needs a last line
 `Founder-Approved: <where and when the founder said yes>`; the design-lock
 check enforces it. The prototypes and
-lock files are listed in `docs/LOCKS.md`. The earlier, longer
-version of this page is `docs/history/CLAUDE-2026-10-11.md`.
+lock files are listed in the backend's [`docs/LOCKS.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/LOCKS.md). The earlier, longer
+version of this page is [`docs/history/CLAUDE-2026-10-11.md`](docs/history/CLAUDE-2026-10-11.md).
 
 The Feedback walk and the chat have one page,
-`docs/flows/feedback-walk-and-chat.md`: the rules as they stand, what is
+[`docs/flows/feedback-walk-and-chat.md`](docs/flows/feedback-walk-and-chat.md): the rules as they stand, what is
 in flight, what is open, one line per change. A change to this flow is a
 line on that page, never a new file; a commit that changes one of its files
 (`scripts/flow-pages.txt`) must change the page too, and the design-lock
@@ -43,20 +43,22 @@ same shape the next time one of them is changed, in that change's PR.
 ## One source of truth
 
 The single source of truth is the BACKEND repo's `main`
-(`wilplus/backend-cursor`), read in this order: `docs/SPEC-DECISIONS-LOG.md`
-(the founder's dated decisions), then `docs/CANONICAL_PRODUCT_CONTRACT.md`
-(the numbered clauses), then `docs/LOCKS.md` and the `FOUNDER-LOCK-*.md`
+(`wilplus/backend-cursor`), read in this order: [`docs/SPEC-DECISIONS-LOG.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/SPEC-DECISIONS-LOG.md)
+(the founder's dated decisions), then [`docs/CANONICAL_PRODUCT_CONTRACT.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/CANONICAL_PRODUCT_CONTRACT.md)
+(the numbered clauses), then [`docs/LOCKS.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/LOCKS.md) and the `FOUNDER-LOCK-*.md`
 files with their prototypes. Nothing is in force until it is written there
 and merged: not a decision said only in chat, a PR description, an open
-branch, or this repo's own docs. This repo's `docs/LOCKS.md` is a mirror;
-where it and the backend disagree, the backend wins. Write every founder
+branch, or this repo's own docs. This repo's [`docs/LOCKS.md`](docs/LOCKS.md) only points to
+the backend's (backend N106). Write every founder
 decision made in chat into the backend decisions log right away, in its own
 small docs PR, never bundled with code that waits for review. Where code on
 main disagrees with those docs, the docs win and the code is a bug to fix
 (founder, 2026-10-21, backend N95). This repo's flow pages
-`docs/flows/feedback-walk-and-chat.md` and `docs/flows/coach-panel.md` also
+[`docs/flows/feedback-walk-and-chat.md`](docs/flows/feedback-walk-and-chat.md) and [`docs/flows/coach-panel.md`](docs/flows/coach-panel.md) also
 count for their flows, because the frontend design-lock guard requires them
-to change together with the code.
+to change together with the code. Every doc in both repos, with its label
+(In force, Reference, History or Archive) and a link, is listed in the
+backend's [`README.md`](https://github.com/wilplus/backend-cursor/blob/main/README.md) (backend N106).
 
 ## How to ship
 
@@ -85,7 +87,7 @@ Promises that must never break:
 - The coach's link opens the coach's feedback, whatever else is processing.
 - Will learns about each speaker: every answer and every Take's outcome is
   kept, and Will reads the speaker's private note (backend
-  `services/speaker_memory.py`, `docs/SPEAKER-MEMORY.md`). The founder reads
+  `services/speaker_memory.py`, [`docs/SPEAKER-MEMORY.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/SPEAKER-MEMORY.md)). The founder reads
   and corrects it on the person's admin page (`SpeakerMemory.tsx`).
 
 ## How to test (founder, 2026-10-12)

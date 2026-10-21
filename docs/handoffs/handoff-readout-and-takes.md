@@ -1,5 +1,7 @@
 # Handoff — readout per-slide, take cadence copy, best-presentation cleanup
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **From:** FE · **Date:** 2026-06-21 · Context: live testing on willpowerlab.com.
 
 The **top-priority FE** item is already done (readout now pages one snippet per screen — slide on top, text below, Back/Next, last → "Close"). The items below are the rest, split BE / FE.

@@ -1,5 +1,7 @@
 # Backend: Tutor countdown timer for first-time completers
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 The homework flow shows a **countdown timer** on step 0 (start screen):  
 “Your tutor has [HH:MM:SS] to send you feedback and a new homework on your email address.”
 

@@ -1,4 +1,6 @@
 # willab — Design Decisions (Developer Reference)
+
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
 **Audience:** the developer / coding agents implementing the commercial beta.
 **Companion to:** `willab_user_story_beta.md` (Spec v1.1 — the source-of-truth user story). This doc is the **design-decisions consolidation** and folds in the **v1.2 deltas** (see §10). Where this doc and v1.1 differ, the v1.2 delta list is authoritative; everything else defers to the spec.
 **Organization:** by component. Each section = purpose → locked decisions → states (where relevant) → code grounding → per-component deletions. Cross-cutting deletions and backend work are collected in §9 / §11.

@@ -1,5 +1,7 @@
 # BE handoff: stale tasks served as current, and where the Dalio ranking lives
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **From:** Frontend
 **Date:** 2026-08-02
 **Branch:** `claude/panel-instant-and-goal-order`

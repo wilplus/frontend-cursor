@@ -1,5 +1,7 @@
 # Copilot Draft Contract
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 Status: proposed, implementation guardrail  
 Scope: Training Studio draft editing, audit/approve/send flow, and learning-signal capture
 

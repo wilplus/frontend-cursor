@@ -1,5 +1,7 @@
 # Handoff — CSP `style-src` hardening, after the 2026-08-04 outage
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **Status:** the outage is fixed by rolling #242 back. The *hardening it was
 trying to do is still worth doing* — this document is what the next attempt
 needs to know so it does not repeat the same failure.

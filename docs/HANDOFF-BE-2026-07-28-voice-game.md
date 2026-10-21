@@ -1,5 +1,7 @@
 # BE handoff — Voice-game + star verdict (FE side is live on `main`)
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **From:** frontend-cursor · **Date:** 2026-07-28
 **Status:** FE shipped and merged. Everything below is what the BE must serve for
 the shipped screens to show real content. Nothing here is blocking a deploy — every

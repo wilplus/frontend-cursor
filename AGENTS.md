@@ -19,7 +19,7 @@ The filter is kept **identical** to the backend repo's copy on purpose —
 a divergence between the two is itself drift. Same rule applies here:
 this pointer must never grow a competing version of the doctrine.
 
-Project state, system map, shipping mechanics, and the maintainer
-checklist: [`docs/HANDOFF.md`](docs/HANDOFF.md) here, and the system-level
-[`docs/HANDOFF.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/HANDOFF.md)
-in `backend-cursor`.
+Every doc in both repos, with its label and a link: the backend's
+[`README.md`](https://github.com/wilplus/backend-cursor/blob/main/README.md) (backend N106), and this repo's own
+pages in [`README.md`](README.md). The older indexes, [`docs/HANDOFF.md`](docs/HANDOFF.md) here
+and in `backend-cursor`, are history.

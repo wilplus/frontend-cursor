@@ -1,5 +1,7 @@
 # What’s in place & edge cases
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 Quick reference for what the frontend does and where edge cases or backend assumptions matter.
 
 ---

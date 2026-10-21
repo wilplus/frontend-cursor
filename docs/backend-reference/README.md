@@ -1,5 +1,7 @@
 # Backend reference: Assignment email
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 This folder contains **code for the backend** to implement the new assignment email design. Copy into your backend repo and wire to your Resend (or other) email sender.
 
 ## Files

@@ -1,5 +1,7 @@
 # Chat bot audit — BE + FE prompts
 
+> **Label: History** · kept as written, because the rules still cite it. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **From:** FE · **Date:** 2026-06-21 · Source: live audit of the `/chat` Lounge Q&A (`POST /v2/chat/query`, guest), ~15 prompts across topics.
 
 Headline: the bot answers product-FAQ well and refuses prompt-injection, but it behaves like a **product librarian, not a speaking coach** — it inconsistently deflects the very anxiety questions its audience asks, has buggy language handling, leaks some off-topic generative requests, and never emits the record CTA (the FE already renders it). Most fixes are BE (prompt + master doc + funnel flags).

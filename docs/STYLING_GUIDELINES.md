@@ -1,5 +1,7 @@
 # Frontend styling guidelines
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 Use this when implementing or changing UI so new work matches the existing frontend.
 
 ---

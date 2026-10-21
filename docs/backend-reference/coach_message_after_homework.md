@@ -1,5 +1,7 @@
 # Backend: Coach message after homework (no video on homework flow)
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 The **homework flow** shows a text-only “A message for you” block when the backend returns **`tutor_video_description`** in GET session/status. There is **no video** on the homework page; the frontend does not use `tutor_video_url` anymore.
 
 - **Email**: You can still send an assignment email with an optional video (e.g. `video_url` + `video_description`). The email template can keep the video block if you want.

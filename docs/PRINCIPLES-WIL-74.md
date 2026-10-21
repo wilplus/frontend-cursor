@@ -1,5 +1,7 @@
 # WIL-74 principles (founder, 2026-10-20)
 
+> **Label: Reference** · how something works today; where it differs from the In force docs, they win. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 The full text is in the backend: `docs/PRINCIPLES-WIL-74-feedback-goals.md`
 in `wilplus/backend-cursor`. In short, the simplest thing that works:
 

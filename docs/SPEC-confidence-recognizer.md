@@ -1,5 +1,7 @@
 # Confidence recognizer — FE pointer
 
+> **Label: Reference** · how something works today; where it differs from the In force docs, they win. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **The canonical specification is not in this repo.** It lives in the backend:
 
 - `backend-cursor/docs/SPEC.md` — canonical v3

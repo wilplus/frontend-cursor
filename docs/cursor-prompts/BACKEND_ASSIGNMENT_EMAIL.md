@@ -1,5 +1,7 @@
 # Backend: Assignment Email (POST send-assignment)
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 When the backend sends the assignment email (e.g. via Resend) on **POST /v2/admin/students/<id>/send-assignment**, it should replicate the frontend’s **CoachEmail** layout and logic. The frontend reference is `src/components/CoachEmail.tsx` and the preview is `/admin/email-preview`.
 
 ---

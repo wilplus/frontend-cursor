@@ -1,5 +1,7 @@
 # FE prompt — The Life Panel
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **Repo:** `frontend-cursor` · **Spec of record:** `docs/life-panel-spec.md`
 **Pair:** `PROMPT-BE-life-panel.md` (backend repo)
 **Date:** 2026-07-26 · **Status:** FE built against the documented contract;

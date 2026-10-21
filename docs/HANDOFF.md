@@ -1,5 +1,7 @@
 # HANDOFF — frontend (willab), 2026-08-14
 
+> **Label: History** · kept as written, because the rules still cite it. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 State-of-the-world for a maintainer picking this repo up cold. The
 **system-level handoff** (product goal, backend architecture, billing,
 deploy, parked work) lives in `backend-cursor/docs/HANDOFF.md` — read that

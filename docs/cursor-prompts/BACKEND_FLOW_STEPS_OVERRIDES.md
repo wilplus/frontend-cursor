@@ -1,5 +1,7 @@
 # Backend: Persist and honor “flow steps” overrides (skip step 2 / step 4)
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 ---
 
 ## Problem summary (for backend team)

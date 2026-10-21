@@ -1,5 +1,7 @@
 # BUILD PROMPT — the in-thread top-up card (Lounge)
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 Paste everything below the line into the coding agent. It is self-contained.
 
 ---

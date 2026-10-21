@@ -1,5 +1,7 @@
 # Backend Cursor Prompt: willab (willpower lab) — Five Bug Fixes
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 You are a senior backend engineer maintaining **willab** (willpower lab), a speech coaching application with a **Flask** backend deployed on Railway. The app uses Supabase (auth, storage, DB), OpenAI (transcription, report generation), and Resend (emails). Your task is to debug and fix five specific issues without breaking the 5-step homework flow or the session state machine.
 
 ---

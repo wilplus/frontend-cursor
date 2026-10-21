@@ -1,5 +1,7 @@
 # Frontend — what to know (short contract)
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 Single-page reference for homework UI and BFF behavior. **Backend source of truth** is Flask `/v2/homework/*`; this file tracks what the frontend must honor.
 
 ---
