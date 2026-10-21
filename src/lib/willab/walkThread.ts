@@ -222,6 +222,19 @@ export function othersAnswered(messages: readonly LoungeMessage[], take: string)
   ).length;
 }
 
+/** The paragraphs whose helper words were picked in `take`'s walk: each
+ *  pick is the speaker's bubble, stored with its Take and paragraph
+ *  (`words_of`). Words kept from an earlier Take are not among them, so they
+ *  never settle this Take's moment (founder 2026-10-21). Pure. */
+export function wordsPickedIn(messages: readonly LoungeMessage[], take: string | null): Set<string> {
+  const out = new Set<string>();
+  for (const m of messages) {
+    const words = m.metadata?.words_of;
+    if (m.kind === "walk_step" && m.metadata?.take_session_id === take && typeof words === "string") out.add(words);
+  }
+  return out;
+}
+
 /** The speaker's answer to a step as their own bubble says it, in the
  *  walk's chat and the Lounge alike. Null: posted elsewhere (helper words, a
  *  clearer version's choice), or nothing to say: Practise and Practise
