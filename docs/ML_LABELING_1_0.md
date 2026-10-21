@@ -1,5 +1,7 @@
 # ML 1.0 labeling guide
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 This document defines the first production-safe labeling workflow for ML 1.0.
 
 ## Scope

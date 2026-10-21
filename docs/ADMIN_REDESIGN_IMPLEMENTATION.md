@@ -1,5 +1,7 @@
 # Willab Admin Redesign Implementation
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 This document captures the implemented backend changes in this repo and the frontend integration contract for the separate Next.js admin delivery.
 
 ## 1) Backend PR-ready change list

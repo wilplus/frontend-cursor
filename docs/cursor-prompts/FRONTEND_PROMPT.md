@@ -1,5 +1,7 @@
 # Frontend Cursor prompt: willab bugfixes (production-ready)
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 You are a senior frontend engineer working on **willab** (willpower lab), the speech coaching app: Next.js frontend with BFF (API routes proxy to Flask backend). The app runs a **5-step homework flow** for students: warm-up recording → metric questions → final recording → post-questions → report. Your task is to support **five backend bugfixes** and implement the **admin + student UI for the video feature** without breaking the flow or the existing API contract.
 
 ---

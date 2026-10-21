@@ -1,5 +1,7 @@
 # HANDOFF — willab pricing & billing surfaces (frontend)
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **To:** a coding agent · **From:** an investigation pass, 2026-08-13 · **Repo:** `frontend-cursor`
 **Branch:** `claude/pricing-modal-token-tab-br4mp8`
 

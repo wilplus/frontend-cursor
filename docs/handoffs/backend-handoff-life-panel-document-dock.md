@@ -1,5 +1,7 @@
 # BE handoff: the Life Panel document dock (kind-aware drafting)
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **From:** Frontend
 **Date:** 2026-07-31
 **Branch:** `claude/life-panel-ui-redesign-5nt1ze`

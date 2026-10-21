@@ -1,5 +1,7 @@
 # FE → BE — block variant picker: one anchoring assumption to confirm before the flag flips
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **Date:** 2026-08-03 · **From:** FE (frontend-cursor) · **Re:** BE handoff 2026-08-03
 (`BLOCK_VARIANTS_ENABLED`, picker / revisions / restore) · **Blocks:** the §10 sweep / flag flip
 **Three checkboxes, at the bottom. Everything above them is the evidence.**

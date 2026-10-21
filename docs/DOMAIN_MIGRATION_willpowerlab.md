@@ -1,5 +1,7 @@
 # Domain migration: `willonski.com` → `willpowerlab.com`
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 Canonical web/app domain is now **`https://www.willpowerlab.com`** (**`www` is canonical**). The apex `willpowerlab.com` 308-redirects to `www`. (Apex-as-canonical was dropped: GoDaddy domain-forwarding kept locking conflicting apex A records — `www` is a CNAME that auto-follows Vercel and is far more robust.)
 
 **Rules**

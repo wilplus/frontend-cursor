@@ -1,10 +1,12 @@
 # The Feedback walk and the chat
 
+> **Label: In force** · one of the rules, read in N95's order. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 One page for one loop: a Take is processed → the lens opens on the walk →
 the Ideal Text page → the Lounge chat, the Take's one ask and the summary →
 the next Take. Started 2026-10-20 from the two lock files it replaces
-(backend `FOUNDER-LOCK-feedback-walk-2026-10-06.md` and
-`FOUNDER-LOCK-moment-feedback-chat-2026-10-12.md`) and the walk's entries
+(backend [`FOUNDER-LOCK-feedback-walk-2026-10-06.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-feedback-walk-2026-10-06.md) and
+[`FOUNDER-LOCK-moment-feedback-chat-2026-10-12.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-moment-feedback-chat-2026-10-12.md)) and the walk's entries
 in the decisions log, edited to the present. Those files stay as history
 and are no longer edited.
 
@@ -20,7 +22,7 @@ and are no longer edited.
   change this page too; the design-lock check (`npm run check:design-lock`)
   enforces it. A backend PR that changes a rule here names the frontend PR
   that updates the page.
-- The decisions log (backend `docs/SPEC-DECISIONS-LOG.md`) keeps its
+- The decisions log (backend [`docs/SPEC-DECISIONS-LOG.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/SPEC-DECISIONS-LOG.md)) keeps its
   N-numbers; an entry for this flow is two lines and a link here.
 - No new words on screen without the founder's OK: every word is in §1 K.
 - Every other locked screen (the coach panel, the recording screens, the
@@ -253,7 +255,7 @@ step; the loop never waits for a coach.
   clip the Exercise is as locked. The Exercise is one thread showing its
   whole history: the clip, the Exercise, every try and its answer
   (2026-10-16). The clip's own rules: backend
-  `FOUNDER-LOCK-ai-voice-practice-2026-10-12.md`.
+  [`FOUNDER-LOCK-ai-voice-practice-2026-10-12.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-ai-voice-practice-2026-10-12.md).
 - **C7 Practise.** Every practise is one thread: the words to say, the
   recorder in the dock (the strip with the dot, the clock and the bar;
   "Skip" in the Back style and a red "Stop" in the Finish-take style), the
@@ -406,7 +408,7 @@ step; the loop never waits for a coach.
   carries them.
 - **E5** The founder edits Will's questions on the coach panel, under the
   blind lists ("Will · only you" → "Will's questions"; N83; backend
-  `FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md`). A question with no
+  [`FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md)). A question with no
   saved row keeps the signed words in code.
 
 ### F · The Ideal Text page, in the loop
@@ -444,7 +446,7 @@ step; the loop never waits for a coach.
   latest Take; their helper words stay until they pick new ones; every old
   version stays in the history.
 - **F8** Everything else on the page (how helper words look, the sheets,
-  Presentation Mode, export): backend `FOUNDER-LOCK-helper-words-2026-09-30.md`.
+  Presentation Mode, export): backend [`FOUNDER-LOCK-helper-words-2026-09-30.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-helper-words-2026-09-30.md).
 
 ### G · Sharing, before the next recording
 
@@ -499,7 +501,7 @@ step; the loop never waits for a coach.
   for it after its first minute and shows it whenever it lands. The speaker's
   AI voice is made from Take 1 as the spoken Take is stored, beside its
   processing (N84; it used to wait for the end of processing). The whole
-  rule: `FOUNDER-LOCK-ai-voice-practice-2026-10-12.md`.
+  rule: [`FOUNDER-LOCK-ai-voice-practice-2026-10-12.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-ai-voice-practice-2026-10-12.md).
 - **H3** The rewrite gate (`services/rewrite_gate.py`, 2026-10-18): the
   Clearer version only when **the words need help** (fillers or hedges at 3
   or more per 100 words; one word that undermines the speaker, apologising,
@@ -520,7 +522,7 @@ step; the loop never waits for a coach.
 ### I · Learning
 
 The whole picture, every source the app learns from and how an answer
-becomes a label, is one backend page: `docs/LEARNING-AND-QUORUM.md` (N102).
+becomes a label, is one backend page: [`docs/LEARNING-AND-QUORUM.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/LEARNING-AND-QUORUM.md) (N102).
 I1 to I5 are this flow's part of it; what it found open here (I1's "half
 praised and half low", I3's "200 labels") is in that page's §3.
 
@@ -537,7 +539,7 @@ praised and half low", I3's "200 labels") is in that page's §3.
   promotes it as `willfidence-v2`. Coaches answer with the same 👍 😐 👎,
   "Audio unclear" and the signed "Skip"; old answers stay.
 - **I4** Will learns about each speaker: every answer and every Take's
-  outcome is kept (`services/speaker_memory.py`, `docs/SPEAKER-MEMORY.md`).
+  outcome is kept (`services/speaker_memory.py`, [`docs/SPEAKER-MEMORY.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/SPEAKER-MEMORY.md)).
   Message relevance (practised, skipped, retried, whether the next Take rose)
   is a report for the founder, not a label. The before/after of each practice
   feeds the exercise picker.
@@ -595,10 +597,10 @@ praised and half low", I3's "200 labels") is in that page's §3.
   most confident moment so far." (signed 2026-10-20).
 - **Practise:** Line A "Say this one like your confident moment."; "That
   sounded more assured than the first."; the praise, not-yet and move-on
-  lines of the signed bank (backend `docs/SIGNED-line-bank-2026-10-06.md`,
+  lines of the signed bank (backend [`docs/SIGNED-line-bank-2026-10-06.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/SIGNED-line-bank-2026-10-06.md),
   `services/line_bank.py`); the opening lines W1–W10
   (`src/lib/willab/praiseLevels.ts`); the AI clip's L1–L18 (backend
-  `FOUNDER-LOCK-ai-voice-practice-2026-10-12.md`).
+  [`FOUNDER-LOCK-ai-voice-practice-2026-10-12.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-ai-voice-practice-2026-10-12.md)).
 - **Other speakers:** Line B "Now one moment from another speaker." / "Now N
   moments from other speakers." / "Now one moment from {community}."; "Does
   this sound confident to you?"; "Yes", "In-between", "No", "Audio unclear".
@@ -682,7 +684,7 @@ The four lines above were filled from main's history by the page's keeper on
   then show the founder the numbers; the founder decides (confirmed
   2026-10-20).
 - **WIL-32 · the speaker/coach disagreement signal** (founder 2026-10-21,
-  N97; backend `docs/DESIGN-WIL-70-disagreement-signal-2026-10-18.md` §6):
+  N97; backend [`docs/DESIGN-WIL-70-disagreement-signal-2026-10-18.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/DESIGN-WIL-70-disagreement-signal-2026-10-18.md) §6):
   a clip where the speaker and the lone coach disagree goes first to a
   second blind listener. It waits until speakers answer about their own
   clips again; judging your own moments stays out of the walk (C10).
@@ -766,7 +768,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-21 · N102 · §I points to the one page for learning and the label quorum (backend `docs/LEARNING-AND-QUORUM.md`); no rule changes · FE #922, BE #1234
+- 2026-10-21 · N106 · the page's label line under its title, and the docs it names as clickable links; no rule changes · BE #1239, FE #PENDING
+- 2026-10-21 · N102 · §I points to the one page for learning and the label quorum (backend [`docs/LEARNING-AND-QUORUM.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/LEARNING-AND-QUORUM.md)); no rule changes · FE #922, BE #1234
 - 2026-10-21 · WIL-93 · the coach's link opens the coach's feedback read or not: seen and answered, the word and the coach's answers as given (it opened and closed at once); with nothing of the coach's on the page, the chat at the coach's bubble, which pulses once (C1) · FE #919
 - 2026-10-21 · WIL-93 · a coach's door with nothing of the coach's to show goes back to the chat, where the coach's bubble is, never to the text; the coach's link in another account says "This link is for another account." with "Log in with that account" instead of waiting on "Building your Ideal Text" (C1, K) · FE #917
 - 2026-10-21 · WIL-93 · the coach's WhatsApp and email links, tapped signed out, go to log in and back to the coach's feedback; a guest's own project stays on the guest's screens (C1) · FE #911

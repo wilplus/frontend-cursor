@@ -1,5 +1,7 @@
 # FE PROMPT — Public Journal (blog) + admin CMS
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **Repo:** `frontend-cursor` (Next.js App Router, TypeScript, Tailwind, deployed at www.willpowerlab.com)
 **Status:** spec only until approved. Backend contract is in `docs/journal-be-prompt.md`.
 

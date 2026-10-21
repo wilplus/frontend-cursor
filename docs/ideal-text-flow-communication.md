@@ -1,5 +1,7 @@
 # Ideal-text flow — how the app talks to the user between takes
 
+> **Label: Reference** · how something works today; where it differs from the In force docs, they win. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **Status:** DRAFT — every user-facing string below is held for founder sign-off (LIVE LOOP).
 **Date:** 2026-08-05. **Founder ask:** *"the sequencing system, I need that to be as smooth as
 possible, between the ideal text and the next take… they need to be special but accompanied with

@@ -1,5 +1,7 @@
 # BE handoff — confident voice as the labelling engine, star video, and the deletion that is BLOCKED
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **Date:** 2026-07-30 · **From:** FE (frontend-cursor) · **Status:** one half shipped safe-ahead, one half blocked on you
 
 ## The change the founder asked for

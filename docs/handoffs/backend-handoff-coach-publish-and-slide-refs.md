@@ -1,5 +1,7 @@
 # BE handoff: coach publish floor + presentation_ref nullability
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **From:** Frontend
 **Date:** 2026-06-19
 **Scope:** Two BE contract gaps the FE is currently papering over. Both have shipped FE workarounds, but the workarounds are fragile and one of them masks a publish-failure bug. We want BE to own the correct behavior so the FE can delete the patches.

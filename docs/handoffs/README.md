@@ -1,5 +1,7 @@
 # Handoffs — dated messages between the two repos (frontend copy)
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 These files are conversation, not reference: each is a point-in-time handoff,
 answer or summary written for the other repo's maintainer. They were moved here
 from the repo root on 2026-09-14 (audit Q-A10) so the root only carries the

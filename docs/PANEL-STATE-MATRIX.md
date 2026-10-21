@@ -1,5 +1,7 @@
 # Panel-State Matrix — `/chat` surface (v1)
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **Status:** load-bearing acceptance artifact. Every prompt in the chat-refactor
 sequence (FE Prompts 1–3) cites this file. Tests in FE Prompt 2 must cover
 every row here.

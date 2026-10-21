@@ -1,5 +1,7 @@
 # Handoff — The Life Panel (FE)
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **State:** on `main` as of `463430a`. Built, verified, and **dark**. No user sees
 anything until the backend exists and `LIFE_PANEL_ENABLED=1`.
 

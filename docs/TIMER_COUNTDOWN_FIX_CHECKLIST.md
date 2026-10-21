@@ -1,5 +1,7 @@
 # Timer countdown fix checklist
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 Use this when the “Your tutor has [HH:MM:SS] to send you feedback…” timer does not appear after the user clicks “Send the homework to the coach!” (especially for newly signed-up users).
 
 ---

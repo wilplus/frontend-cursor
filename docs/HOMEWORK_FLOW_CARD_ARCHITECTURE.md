@@ -1,5 +1,7 @@
 # HomeworkFlowCard — Architecture Reference
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 > **Why this document exists:** `HomeworkFlowCard.tsx` is ~2,500 lines and intentionally not split into sub-components.
 > The cost of splitting (refactor risk, prop-drilling overhead) outweighs the benefit for the current team size.
 > This document is the substitute — read it once before touching the file.

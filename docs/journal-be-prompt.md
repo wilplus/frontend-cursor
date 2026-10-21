@@ -1,5 +1,7 @@
 # BE PROMPT — Journal (blog) content + media API
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **Repo:** `backend-cursor` (Flask). Consumed by the `frontend-cursor` Next.js app; the FE spec is in `docs/journal-fe-prompt.md` of that repo.
 **Status:** spec only until approved.
 

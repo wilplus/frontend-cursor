@@ -1,5 +1,7 @@
 # Sniper ratings & baseline — backend directions
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 The frontend and BFF now support:
 
 - **Student rating (1–10):** "How did that recording feel for you?" on the report step. Stored in `session_sniper_metrics.student_rating_1_10`. Only sessions with rating ≥ 8 update the Sniper baseline.

@@ -1,5 +1,7 @@
 # BE handoff — the `language` field: already shipped, and that was the problem
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **From:** frontend-cursor · **Date:** 2026-07-29 · **On `main`**
 **Answers:** your "FE prompt — the `language` field on the corpus import"
 **Prior:** `HANDOFF-BE-2026-07-29-corpus-rev3.md`

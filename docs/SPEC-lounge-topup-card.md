@@ -1,5 +1,7 @@
 # SPEC — the in-thread top-up card (Lounge)
 
+> **Label: Reference** · how something works today; where it differs from the In force docs, they win. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **Status:** DRAFT, not built. **Copy: every string below is placeholder awaiting founder sign-off.**
 **Date:** 2026-08-13 · **Repo:** frontend-cursor · **Depends on:** nothing new server-side.
 

@@ -1,5 +1,7 @@
 # BE handoff — `direction_label` is about to lose its only writer, and that breaks L2
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **Date:** 2026-07-30 · **From:** FE (frontend-cursor) · **Blocks:** deleting the blind labeler
 **One question, at the bottom. Everything above it is the evidence.**
 

@@ -1,5 +1,7 @@
 # BE handoff — delete the stress lane, wire the peer-review validation loop
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **Date:** 2026-08-03 · **From:** FE (frontend-cursor) · **Founder decision:** stress
 recognition is dead; the feature is pivoted into a **peer-review validation loop**
 (a user/peer flags whether the AI's confidence choice was correct — true/false).

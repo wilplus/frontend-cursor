@@ -1,5 +1,7 @@
 # BE handoff — plan management: one route still missing (the billing portal)
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **Date:** 2026-07-31 · **Corrected:** 2026-08-01 · **From:** FE (frontend-cursor)
 **One remaining ask, at the bottom. Everything above it is the evidence.**
 

@@ -1,5 +1,7 @@
 # Life Panel — source artifacts still outside the repo
 
+> **Label: Reference** · how something works today; where it differs from the In force docs, they win. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 Two parts of the panel were built from a **description** rather than from the
 original, because the originals live on the founder's machine and have never
 been in this repo (checked: no file, no git history, nothing in `cache/` or

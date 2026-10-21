@@ -1,5 +1,7 @@
 # Debug plan: which of the 3 metric-step failure points is failing
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 Use this plan to see **which one** of the three known failure modes is actually happening in your environment. Run the steps in order and record results.
 
 ---

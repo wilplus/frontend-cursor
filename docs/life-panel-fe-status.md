@@ -1,5 +1,7 @@
 # Life Panel FE — what shipped, what it assumes, what is still open
 
+> **Label: Reference** · how something works today; where it differs from the In force docs, they win. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 Companion to `docs/life-panel-fe-prompt.md`. Read this before wiring the
 backend: it is the list of everything the FE now expects from `/v2/life/*`, and
 the places where it went past the prompt.

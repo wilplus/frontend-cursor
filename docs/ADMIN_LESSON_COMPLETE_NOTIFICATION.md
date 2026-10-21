@@ -1,5 +1,7 @@
 # Admin notification when a lesson is complete
 
+> **Label: Archive** · out of date, and nothing needs it; it moves to an archive folder later. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 When a student **fully finishes a lesson** (homework flow completed and report generated), the admin should be notified.
 
 ## Required behavior

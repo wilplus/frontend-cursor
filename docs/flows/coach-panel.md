@@ -1,13 +1,15 @@
 # The coach panel
 
+> **Label: In force** · one of the rules, read in N95's order. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 One page for the coach's side: the Lounge door, the queue, a speaker, the
 blind Judge, what happened, the diagnosis, the cure, the coach's words and
 video, the share, the Summary, the word for a Take, the training corpus,
 and the founder's rows. Started 2026-10-20 from the lock it replaces
-(backend `FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md`, with its
+(backend [`FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md), with its
 amendments of 2026-10-19 and 2026-10-20) and the panel's entries in the
 decisions log, edited to the present. The lock file stays as history and is
-no longer edited. It works like `feedback-walk-and-chat.md`: §1 is the
+no longer edited. It works like [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md): §1 is the
 present, a change is a line, the design-lock check refuses a change to a
 file in `scripts/flow-pages.txt` without this page.
 
@@ -165,7 +167,7 @@ founder's rows are the founder's alone.
 
 How a coach's blind answer counts, on a speaker's Take (D) or an import
 (H), and every other source the app learns from, is one backend page:
-`docs/LEARNING-AND-QUORUM.md` (N102).
+[`docs/LEARNING-AND-QUORUM.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/LEARNING-AND-QUORUM.md) (N102).
 
 - **H1** From its pinned button: the list of imports ("{n} imports", "{n}
   moments to judge"); **Import audio** ("Choose a file", "Audio or video, up
@@ -352,8 +354,9 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · N106 · the page's label line under its title, and the docs it names as clickable links; no rule changes · BE #1239, FE #PENDING
 - 2026-10-21 · N104 · What happened gets a last line, Willfidence, in percent; the person's admin page loses the Confident Voice practice tile (E1) · FE #923, BE #1236
-- 2026-10-21 · N102 · H points to the one page for learning and the label quorum (backend `docs/LEARNING-AND-QUORUM.md`); no rule changes · FE #922, BE #1234
+- 2026-10-21 · N102 · H points to the one page for learning and the label quorum (backend [`docs/LEARNING-AND-QUORUM.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/LEARNING-AND-QUORUM.md)); no rule changes · FE #922, BE #1234
 - 2026-10-21 · N101 · the corpus is judged mixed: rounds across imports, never one speaker twice in a row, the machine's reads in equal measure, a blind order (H3) · BE #1232
 - 2026-10-21 · N100 · the training corpus list comes in steps as the coach scrolls (H4) · BE #1229
 - 2026-10-21 · N99 · judging goes on from one import to the next, done imports at the bottom, an answer moves on while it saves (H3)

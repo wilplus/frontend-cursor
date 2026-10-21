@@ -1,17 +1,38 @@
-# willab - willpower lab 🎙️
+# WillpowerLab frontend
 
-Next.js frontend for willab - willpower lab (practice interview sessions, Supabase auth, Flask backend).
+The Next.js frontend of WillpowerLab (willpowerlab.com, on Vercel). It talks to the backend,
+[`wilplus/backend-cursor`](https://github.com/wilplus/backend-cursor) (Flask, Railway, Supabase), through
+the BFF routes under `src/app/api/v2/*`.
 
-## What to do next (Task Master)
+## Start here
 
-This project uses [Task Master](https://docs.task-master.dev/) for task management. Use the **minimum** of markdown: tasks live in `.taskmaster/tasks/tasks.json` and optional PRD in `.taskmaster/docs/prd.txt`.
+Every doc in both repos, with its label (In force, Reference, History or Archive), is listed in the
+backend's master doc: **[`README.md` in `backend-cursor`](https://github.com/wilplus/backend-cursor/blob/main/README.md)** (backend N106).
+The backend's `main` is the one source of truth (backend N95).
 
-- **Next task:** `npx task-master next`
-- **List tasks:** `npx task-master list`
-- **Parse PRD → tasks:** `npx task-master parse-prd .taskmaster/docs/prd.txt`
-- **Expand tasks:** `npx task-master expand --all`
+## This repo's own pages
 
-**App description and flow:** The only source of truth is **`.taskmaster/docs/APP_DESCRIPTION.md`** (and other files in `.taskmaster/docs/`). Do not use other docs for the canonical app description. Older implementation notes and SQL scripts are in `docs/archive/`; `docs/migrations/` and other artifacts may remain in `docs/`.
+**The rules (In force)**
+
+- [`CLAUDE.md`](CLAUDE.md), and [`AGENTS.md`](AGENTS.md) for other coding agents
+- [The Feedback walk and the chat](docs/flows/feedback-walk-and-chat.md)
+- [The coach panel](docs/flows/coach-panel.md)
+
+**How it works today (Reference)**
+
+- [willab upload proxy (Cloudflare Worker)](cloudflare/upload-proxy/README.md)
+- [The two coach feedback lanes](docs/COACH-FEEDBACK-LANES.md)
+- [Designer brief — Wave 5 (October 2026)](docs/DESIGNER-BRIEF-wave5-2026-10.md)
+- [WIL-74 principles (founder, 2026-10-20)](docs/PRINCIPLES-WIL-74.md)
+- [Confidence recognizer — FE pointer](docs/SPEC-confidence-recognizer.md)
+- [SPEC — the in-thread top-up card (Lounge)](docs/SPEC-lounge-topup-card.md)
+- [Coach review flow — judgement first, one action per screen](docs/coach-review-flow/SPEC.md)
+- [Ideal-text flow — how the app talks to the user between takes](docs/ideal-text-flow-communication.md)
+- [Life Panel FE — what shipped, what it assumes, what is still open](docs/life-panel-fe-status.md)
+- [Life Panel — source artifacts still outside the repo](docs/life-panel-sources/README.md)
+- [The Life Panel — implementation document](docs/life-panel-spec.md)
+
+History and Archive are listed in the backend's master doc. `docs/archive/` holds older notes.
 
 ## Setup
 
@@ -21,6 +42,11 @@ This project uses [Task Master](https://docs.task-master.dev/) for task manageme
 
 ## Scripts
 
-- `npm run dev` — start dev server
-- `npm run build` / `npm run start` — production
-- `npx task-master next` — show next task (Task Master CLI)
+- `npm run dev`: start the dev server
+- `npm run build` / `npm run start`: production
+- `bash scripts/local_ci.sh`: the merge gate, run locally before pushing (Node 22)
+
+## Older tooling
+
+This repo once tracked tasks with [Task Master](https://docs.task-master.dev/) (`.taskmaster/`); its
+files are archived (backend N106). Its commands still work: `npx task-master next`, `npx task-master list`.
