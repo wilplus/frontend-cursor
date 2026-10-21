@@ -182,6 +182,16 @@ founder's rows are the founder's alone.
   refusal is waited out, an hourly one stops the batch. What did not import
   is named under the pill with the backend's sentence.
 
+- **H3** Judging goes on from one import to the next (2026-10-21): after an
+  import's last moment the next one in the list with moments waiting opens
+  by itself (an unfinished set-up and a done import are passed over, each
+  import once until the list is opened again), and the list when none is
+  left. In the list the done imports sit at the bottom, each group in the
+  list's own order. An answer moves on at once while its save runs behind
+  it; a refused save brings the coach back to that moment with the
+  backend's sentence, or says it on the panel once the import is left. No
+  new words.
+
 ### I · Library and speaking errors (the founder's admin)
 
 - **I1** Both left the coach's app for the founder's admin area, next to the
@@ -327,6 +337,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · N99 · judging goes on from one import to the next, done imports at the bottom, an answer moves on while it saves (H3)
 - 2026-10-21 · N96 · Import audio takes several files, one import each, inside the backend's upload limit (H2) · FE #913, BE #1218
 - 2026-10-20 · N87 · this page replaces the lock file; the speaker's screen shows who the talk is for and what they should do under the goal, in the same small text (C3, J) · FE #895, BE #1208
 - 2026-10-20 · N83 · the founder edits Will's questions on the coach panel, one row under the blind lists (B4) · FE #887, BE #1197

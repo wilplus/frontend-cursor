@@ -346,6 +346,10 @@ coach's words, the Take number and the video.
 O2  The walk shows only the word of the Take on screen, never another
 Take's.","O1 -> ""never opens by itself (Q1); Review feedback shows the words, the Take and the video""
 O2 -> ""is the Take's own word, never an earlier Take's""","Founder 2026-09-29, Q1 (Final Screens L8); founder 2026-10-20 and backend N77 (the word shows on its own Take only)."
+src/components/willab/coachpanel/coachCorpusJudge.test.tsx,Story,"As a coach judging the training corpus, I want each answer to move me on at once, so that judging is smooth even when saving is slow, and I never lose an answer the backend refused.","O1  An answer moves on to the next moment before its save comes back; the
+last one goes on to the next import.
+O2  A refused save takes the coach back to that moment with the backend's
+sentence; once the import is left, the panel is told instead.","O1, O2 -> ""an answer moves on at once, and a refused save comes back to its moment""","Founder 2026-10-21: judging the corpus one recording after another, smooth and fast (a label save took 9 s)."
 src/components/willab/coachpanel/coachPanel.test.tsx,Story,"As a coach, I want to judge a moment before I see any words or the machine's read, with my queue in the order speakers sent, so that my judgement stays blind and I answer the right speaker first.","O1  Judge shows only the player, the question and the four answers.
 O2  The machine's read of a moment is fetched only after my rating is
 saved; a failed save stays on Judge, says so, and reads nothing.
@@ -396,14 +400,19 @@ of them in the toast, a file that failed named with the backend's
 sentence (founder 2026-10-21).
 O8  Never over the upload limit: more files than the backend takes in an
 hour are refused at the choice, and a refusal for the hour stops the
-batch, naming every file it left.","O1 -> ""a saved set-up goes straight to judging, with its count""
+batch, naming every file it left.
+O9  The done imports sit at the bottom of the list; judging one import's
+last moment goes straight on to the next with moments waiting, in the
+list's order, and back to the list when none is left (founder
+2026-10-21).","O1 -> ""a saved set-up goes straight to judging, with its count""
 O2 -> ""a set-up with nothing to judge goes back to the imports, never to judging""
 O3 -> ""a new import lands on the imports with its count""
 O4 -> ""the panel's queue read carries no words of a piece""
 O5 -> ""a finished import's ⋯ → Edit opens its set-up filled in; Save renames it and goes back""
 O6 -> ""only the founder's ⋯ carries Delete; confirming it erases the import and reads the list again""
 O7 -> ""several files import one at a time, each its own import named by its file""
-O8 -> ""a choice over the upload limit is refused, and a refusal for the hour stops the batch""","Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files in one Import, founder 2026-10-21."
+O8 -> ""a choice over the upload limit is refused, and a refusal for the hour stops the batch""
+O9 -> ""the done imports sit at the bottom, and judging goes on from one import to the next""","Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files in one Import, and judging one import after another, founder 2026-10-21."
 src/components/willab/coachpanel/v4BlindSheets.test.tsx,Story,"As a coach, I want the two V4 sheets to show only the signed words and nothing the machine chose, and to save one answer each, so that my picks stay blind.","O1  Never-2: the moment-pick sheet shows the signed wording and the
 moments' words, and nothing the machine chose (snippet id, slice,
 sureness).

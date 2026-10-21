@@ -19,6 +19,10 @@ OUTCOME
   O8  Never over the upload limit: more files than the backend takes in an
       hour are refused at the choice, and a refusal for the hour stops the
       batch, naming every file it left.
+  O9  The done imports sit at the bottom of the list; judging one import's
+      last moment goes straight on to the next with moments waiting, in the
+      list's order, and back to the list when none is left (founder
+      2026-10-21).
 PROVES   O1 -> "a saved set-up goes straight to judging, with its count"
          O2 -> "a set-up with nothing to judge goes back to the imports, never to judging"
          O3 -> "a new import lands on the imports with its count"
@@ -27,8 +31,10 @@ PROVES   O1 -> "a saved set-up goes straight to judging, with its count"
          O6 -> "only the founder's ⋯ carries Delete; confirming it erases the import and reads the list again"
          O7 -> "several files import one at a time, each its own import named by its file"
          O8 -> "a choice over the upload limit is refused, and a refusal for the hour stops the batch"
+         O9 -> "the done imports sit at the bottom, and judging goes on from one import to the next"
 WHY      Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files
-         in one Import, founder 2026-10-21.
+         in one Import, and judging one import after another, founder
+         2026-10-21.
 */
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -55,7 +61,9 @@ vi.mock("@/services/api/coachPanel", () => ({
 }));
 vi.mock("../coachwalk/useConfidenceChainReceipt", () => ({ useConfidenceChainReceipt: () => ({ current: null }) }));
 vi.mock("./CoachCorpusJudge", () => ({
-  default: ({ importId }: { importId: string }) => <div data-testid="stub-corpus-judge">{importId}</div>,
+  default: ({ importId, onDone }: { importId: string; onDone: () => void }) => (
+    <div data-testid="stub-corpus-judge">{importId}<button type="button" data-testid="stub-judged" onClick={onDone} /></div>
+  ),
 }));
 import { blindPiece, type QueuePiece } from "@/services/api/trainingCorpus";
 import CoachPanel from "./CoachPanel";
@@ -176,6 +184,30 @@ describe("the training corpus in the panel", () => {
     expect(importTrainingAudio).toHaveBeenCalledTimes(1);
     expect(document.querySelector("[role='alert']")!.textContent)
       .toBe("a.mp4, b.mp4, c.mp4: Too many requests — slow down and try again.");
+  });
+
+  it("the done imports sit at the bottom, and judging goes on from one import to the next", async () => {
+    const at = (sessionId: string, more: Partial<typeof IMPORT>) => ({ ...IMPORT, sessionId, topic: sessionId, setupComplete: true, ...more });
+    fetchTrainingImports.mockResolvedValue([
+      at("done", { queueCount: 2, labelledCount: 2 }),
+      at("first", { queueCount: 3, labelledCount: 0 }),
+      at("unfinished", { setupComplete: false }),
+      at("second", { queueCount: 1, labelledCount: 0 }),
+    ]);
+    act(() => root.render(<Host start={CORPUS} />));
+    await flush();
+    expect([...document.querySelectorAll("[data-walk-choice]")].map((c) => c.getAttribute("data-walk-choice")))
+      .toEqual(["first", "unfinished", "second", "done"]);
+    click(document.querySelector("[data-walk-choice='first']"));
+    expect(judging()?.textContent).toBe("first");
+    click(document.querySelector("[data-testid='stub-judged']"));
+    await flush();
+    // The unfinished set-up and the done import are passed over.
+    expect(judging()?.textContent).toBe("second");
+    click(document.querySelector("[data-testid='stub-judged']"));
+    await flush();
+    expect(judging()).toBeNull();
+    expect(onImports()).not.toBeNull();
   });
 
   it("the panel's queue read carries no words of a piece", () => {
