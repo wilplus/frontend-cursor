@@ -365,4 +365,5 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · the walk's line over a corrected top moment is one of the confident moment's own lines (`TOP_MOMENT_LINES`) (`idealEditCopy.ts`; the walk's rules are on the Feedback walk page, C2) · FE
 - 2026-10-21 · N107 · this page replaces backend `FOUNDER-LOCK-helper-words-2026-09-30.md` as the place the rules live; the lock stays as history · BE #1241, FE #928

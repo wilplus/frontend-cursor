@@ -1034,12 +1034,17 @@ as shown, and no ""Practise"" bubble of its own for a try.
 O6  My coach's word for a Take is written into the chat once: not again
 when it shows again, not under its ""Later · from your coach"" bubble,
 not for an earlier Take's word, not in a replay, not while the chat is
-still loading (N80, D4).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
+still loading (N80, D4).
+O7  My most confident moment, when the walk goes on to make it better, is
+named as solid and confident in a line that fits what follows (a
+clearer version, an example, or saying it again), and is never told to
+sound like my confident moment (founder 2026-10-21).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
 O2 -> ""posts judging other speakers as the prototype's chat does, never their recording""
 O3 -> ""counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles""
 O4 -> ""asks the sharing question as one bubble, its lines as paragraphs, also for a question stored as three""
 O5 -> ""says the practise answer the walk showed, and writes no Practise bubble for a try (founder 2026-10-20)""
-O6 -> ""writes the coach's word into the chat once per Take""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word)."
+O6 -> ""writes the coach's word into the chat once per Take""
+O7 -> ""names the confident moment for what follows, never with Line A""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word)."
 src/services/api/accountDeletion.test.ts,Story,"As a speaker, I want ""delete my account"" to send one deletion request and show me how long I have to change my mind, and a refusal to change nothing, so that I can trust deletion and cancel it in time.","O1  Asking to delete sends one request with a one-time key and shows the
 pending deletion with its end date.
 O2  A refusal or no connection records nothing.
