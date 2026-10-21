@@ -484,7 +484,10 @@ O4  Helper words picked in the walk are saved through the deck's own
 save (the words, then the lock) and show orange in the text at once.
 O5  Never-5: Accept and practise saves the answer through the accept lane,
 and the deck still shows the speaker's own words, not the clearer ones.
-O6  A guest's pick asks to sign up, is not taken, and nothing is written.","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
+O6  A guest's pick asks to sign up, is not taken, and nothing is written.
+O7  A moment the walk went past (its helper words skipped, its practise
+skipped) loses its black line at once and is told to the server; its
+paragraph then opens the walk as given, never its practise again.","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
 O2 -> ""‹ › move through the walk's chat, never answering and never
 closing it (founder 2026-10-20)""
 O3 -> ""a paragraph with or without the line opens the same walk at
@@ -493,7 +496,9 @@ what it asks, its buttons as the step stands (founder
 O4 -> ""helper words picked in the walk go through the deck's own
 save: the words and the lock""
 O5 -> ""Accept and practise writes through the accept lane and leaves the speaker's words on the page""
-O6 -> ""a guest's pick asks to sign up and writes nothing""",Feedback walk lock 2026-10-06/2026-10-12. The paragraph sheet's accept lane is in acceptRewrite.test.tsx.
+O6 -> ""a guest's pick asks to sign up and writes nothing""
+O7 -> ""a moment walked through loses its black line and opens as
+given, never its practise again (founder 2026-10-21)""","Feedback walk lock 2026-10-06/2026-10-12; founder 2026-10-21 (""the black lines on the ideal text are still there even though I walked through them""). The paragraph sheet's accept lane is in acceptRewrite.test.tsx."
 src/components/willab/exerciseRenderedAck.test.tsx,Story,"As the founder, I want an exercise counted as shown only once the speaker actually saw it, once per view, silently, so that exercise data is honest.","O1  Nothing goes out on data load; the ack goes out once the card is
 about half visible.
 O2  Once per card per page view, even when the sheet is opened again.

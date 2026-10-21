@@ -18,6 +18,9 @@ OUTCOME
   O5  Never-5: Accept and practise saves the answer through the accept lane,
       and the deck still shows the speaker's own words, not the clearer ones.
   O6  A guest's pick asks to sign up, is not taken, and nothing is written.
+  O7  A moment the walk went past (its helper words skipped, its practise
+      skipped) loses its black line at once and is told to the server; its
+      paragraph then opens the walk as given, never its practise again.
 PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's sheet"
          O2 -> "‹ › move through the walk's chat, never answering and never
                 closing it (founder 2026-10-20)"
@@ -28,10 +31,14 @@ PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's 
                 save: the words and the lock"
          O5 -> "Accept and practise writes through the accept lane and leaves the speaker's words on the page"
          O6 -> "a guest's pick asks to sign up and writes nothing"
-WHY      Feedback walk lock 2026-10-06/2026-10-12. The paragraph sheet's
+         O7 -> "a moment walked through loses its black line and opens as
+                given, never its practise again (founder 2026-10-21)"
+WHY      Feedback walk lock 2026-10-06/2026-10-12; founder 2026-10-21 ("the
+         black lines on the ideal text are still there even though I walked
+         through them"). The paragraph sheet's
          accept lane is in acceptRewrite.test.tsx.
 */
-import { act, createElement } from "react";
+import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
@@ -272,6 +279,52 @@ describe("the walk on the deck", () => {
     };
     await opensAgain(paragraph("retention went up"));
     await opensAgain(paragraph("retention went up")!.querySelector(".walk-helper-word"));
+  });
+
+  it("a moment walked through loses its black line and opens as given, never its practise again (founder 2026-10-21)", async () => {
+    // Slide 2's praise and slide 3's correction, said again: the Take's most
+    // confident moment, so the walk never passes it by (N109).
+    const slide3 = text.indexOf("one more quarter");
+    const moment3 = {
+      ...judgement, id: "s-cv3", start: slide3, end: slide3 + "one more quarter".length,
+      quote: "one more quarter", blockId: "block-3", snippetId: "snip-3", highestMoment: true,
+      evidence: { projectId: "arc-1", takeSessionId: "take-2", slideIndex: 2, paragraphIndex: 2, start: 0, end: 16 },
+    } as unknown as DocumentSuggestion;
+    // The page keeps what the walk settles, as the Ideal Text does.
+    function Page(over: { reviewRequest?: number }) {
+      const [suggestions, setSuggestions] = useState<DocumentSuggestion[]>([judgement, praise, moment3]);
+      return createElement(TranscriptReviewDeck, {
+        ...props({ suggestions }),
+        ...over,
+        onJudged: (s: DocumentSuggestion, status: "approved" | "dismissed") =>
+          setSuggestions((all) => all.map((x) => (x.id === s.id ? { ...x, status } : x))),
+      });
+    }
+    const line = (words: string) => paragraph(words)!.className.includes("before:bg-foreground");
+    await act(async () => root.render(createElement(Page, {})));
+    expect(line("retention went up")).toBe(true);
+    expect(line("one more quarter")).toBe(true);
+    await act(async () => root.render(createElement(Page, { reviewRequest: 1 })));
+    expect(screen()).toBe("walk-screen-praise");
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    await click(live()!.querySelector("[data-testid='walk-skip']"));
+    // Past the helper words: slide 2 is answered, its line goes at once.
+    expect(line("retention went up")).toBe(false);
+    expect(reportMomentEvent).toHaveBeenCalledWith("snip-1", "skipped");
+    // Slide 3: Practise, then Skip on the recorder.
+    await click(live()!.querySelector("[data-testid='walk-practise']"));
+    await click(live()!.querySelector("[data-walk-dock] [data-testid='walk-skip']"));
+    await act(async () => undefined);
+    expect(line("one more quarter")).toBe(false);
+    expect(reportMomentEvent).toHaveBeenCalledWith("snip-3", "skipped");
+    // Nothing else to walk: onto the page.
+    expect(live()).toBeNull();
+    // Tapped, the paragraph opens the walk as given: Next, no Practise.
+    await click(paragraph("one more quarter"));
+    await act(async () => undefined);
+    expect(live()).not.toBeNull();
+    expect(live()!.querySelector("[data-testid='walk-practise']")).toBeNull();
+    expect(live()!.querySelector("[data-walk-dock] [data-testid='walk-forward']")!.textContent).toBe(COPY.pagerNext);
   });
 
   it("helper words picked in the walk go through the deck's own save: the words and the lock", async () => {

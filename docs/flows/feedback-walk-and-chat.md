@@ -447,7 +447,14 @@ step; the loop never waits for a coach.
   answer wears it, and once answered the line goes (2026-10-20). Helper
   words answer a paragraph's moment only when picked in this Take (the
   speaker's bubble in the chat); words kept from an earlier Take do not
-  (2026-10-21).
+  (2026-10-21). A moment is answered once the walk goes on past it: its
+  helper words used or skipped, its practise ended (a Good job, the third
+  try, Skip or Next), or passed by (C4). The line goes at once, and the
+  server hears a skip where the machine did not close the practice and no
+  helper words were used, so a reload agrees; the Take's other moments do
+  not take the answered ones' place (founder 2026-10-21: "the black lines on
+  the ideal text are still there even though I walked through them"; their
+  paragraphs opened the practise again).
 - **F4** A paragraph with the black line opens the whole Take's walk at the
   step it asks (its helper words with its green moment just above, or the
   Clearer version or the Exercise when that is what waits), exactly as a
@@ -827,6 +834,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · a moment the walk went past is answered: its black line goes at once and its paragraph opens the walk as given, no longer its practise again; a skip is told to the server where the machine did not close the practice, and the Take's other moments no longer take the answered ones' place on the next read (F3; until then only helper words picked in the walk settled a moment, since judging one's own moments left the walk) · FE #936, BE #1259
 - 2026-10-21 · N112 · a sentence that hedges gets its clearer version from a rule: its softening hedges left out, nothing added, a hedge's words that are not a hedge where they stand kept; it opens with C5's plain line (H3) · BE #1257, BE #1258, FE #935
 - 2026-10-21 · N108 · the voice decides: the two strongest voices are shown, the strongest is "your most confident moment", a voice at the floor is praised (the Clearer version when its words need help) and only a voice under it gets the voice Exercise; a voice correction with no exercise and no AI clip is skipped, never Line A on its own, and still reaches the coach; the Take's most confident moment keeps its own line and is said again (N109) (C2, C4, H1) · BE #1242, BE #1243, FE #930
 - 2026-10-21 · N111 · I1 drops "half praised and half low" (N86, N101 and N97 set the order); I3's 200 labels are 200 settled clips; the page also guards the next-Take share screen, the coach's link, the reading's wait and the typing dots (§4) · BE, FE
