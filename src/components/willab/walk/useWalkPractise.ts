@@ -24,6 +24,8 @@ const AI_VOICE_POLL_MS = 1000;
 const AI_VOICE_POLL_TRIES = 60;
 const AI_VOICE_SLOW_POLL_MS = 5000;
 const AI_VOICE_SLOW_TRIES = 120;
+const AI_VOICE_START_RETRIES = 3;
+const AI_VOICE_START_RETRY_MS = 2000;
 
 /** The clip as the screen holds it from the moment it is asked for: the
  *  bubble shows at once, with the typing dots (founder 2026-10-15). */
@@ -267,9 +269,11 @@ export function useWalkPractise<R>(args: {
         aiTimers.current.delete(timer);
         tries += 1;
         const read = await readAiVoice(practiceId);
-        const pending = !read.ok || read.data.clip?.state === "pending";
+        // A read that fails, or answers with no clip while one is being made
+        // (the server's own error answer), is the clip still on its way, not
+        // the end of the wait.
+        const pending = !read.ok || !read.data.clip || read.data.clip.state === "pending";
         if (pending && tries < AI_VOICE_POLL_TRIES + AI_VOICE_SLOW_TRIES) {
-          if (read.ok) keep(read.data);
           poll(practiceId);
           return;
         }
@@ -281,7 +285,13 @@ export function useWalkPractise<R>(args: {
     void (opened.current.get(index) ?? Promise.resolve(null)).then(async (practiceId) => {
       if (!practiceId) return keep(none);
       aiPractice.current.set(index, practiceId);
-      const asked = await ensureAiVoice(practiceId);
+      // A start that did not get through is asked again a few times before
+      // the bubble gives way to the plain recording.
+      let asked = await ensureAiVoice(practiceId);
+      for (let retry = 0; !asked.ok && retry < AI_VOICE_START_RETRIES; retry += 1) {
+        await new Promise((resolve) => setTimeout(resolve, AI_VOICE_START_RETRY_MS));
+        asked = await ensureAiVoice(practiceId);
+      }
       if (!asked.ok) return keep(none);
       keep(asked.data);
       if (asked.data.clip?.state === "pending") poll(practiceId);

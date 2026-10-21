@@ -108,11 +108,12 @@ function wordsToSay(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string
 }
 
 /** The bubble above the words to say: the served line (an exercise's
- *  instruction, a clearer version's `rewriteMove`), else Line A. */
-function lineAbove(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string {
-  if (step.kind === "instruction") return moment.exercise?.instruction ?? WALK_COPY.lineA;
-  if (step.kind === "words") return moment.clearer?.coachLine ?? WALK_COPY.lineA;
-  return WALK_COPY.lineA;
+ *  instruction, a clearer version's `rewriteMove`), else Line A; on the
+ *  Take's confident moment itself no Line A, the words alone (founder
+ *  2026-10-21). */
+function lineAbove(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string | null {
+  const served = step.kind === "instruction" ? moment.exercise?.instruction : step.kind === "words" ? moment.clearer?.coachLine : null;
+  return served ?? (moment.highest ? null : WALK_COPY.lineA);
 }
 
 /** The recorder's footer (N70): the Take's strip, then Skip as its Back
@@ -242,7 +243,7 @@ export function practiseThreadItem(
           {/* What to say, before the first try only (founder 2026-10-13). */}
           {firstTry ? (
             <WalkMessage coach={step.kind === "instruction" && moment.exercise?.byCoach === true} wide>
-              <span>{lineAbove(step, moment)}</span>
+              {lineAbove(step, moment) ? <span>{lineAbove(step, moment)}</span> : null}
               <span>
                 “<span data-walk-say>{wordsToSay(step, moment)}</span>”
               </span>

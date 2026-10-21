@@ -1,4 +1,4 @@
-import { WALK_COPY, WALK_LINE_BANK } from "@/components/willab/idealEditCopy";
+import { TOP_MOMENT_LINES, WALK_COPY, WALK_LINE_BANK } from "@/components/willab/idealEditCopy";
 import type { WalkStep } from "./walkPlan";
 
 /* -------------------------------------------------------------------------- */
@@ -115,4 +115,20 @@ export function createLineTurns(): LineTurns {
       touched.clear();
     },
   };
+}
+
+/** The confident moment's own line when the walk goes on to make it better
+ *  (founder 2026-10-21), for what follows it: a clearer version, an example
+ *  (the AI clip or a video), or the words said again. The moment picks the
+ *  phrasing, so the lens and the chat say the same line and a new Take
+ *  may say another. Pure. */
+export function topMomentLine(
+  follows: keyof typeof TOP_MOMENT_LINES,
+  moment: { clip?: { snippetId?: string | null } | null; paragraphText?: string; index?: number },
+): string {
+  const lines = TOP_MOMENT_LINES[follows];
+  const seed = moment.clip?.snippetId ?? moment.paragraphText ?? String(moment.index ?? 0);
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+  return lines[Math.abs(hash) % lines.length];
 }

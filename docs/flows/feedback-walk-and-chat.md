@@ -192,9 +192,17 @@ step; the loop never waits for a coach.
   praised with the softer line under the floor and the second highest
   always corrected, are history). A praised moment:
   its clip as the speaker's orange bubble; on the highest moment the line
-  "This was your most confident moment." (signed 2026-10-20; "This was
-  your most confident moment so far." opens its clearer version or
-  Exercise when that moment is corrected); then the opening line by its
+  "This was your most confident moment." (signed 2026-10-20; when that moment is
+  corrected, its clearer version or Exercise opens with one line that names
+  it solid and confident and fits what follows: a clearer version (then its
+  B13 line), an example (the AI clip, in place of L4's "That was good. But…",
+  or an exercise's video), or saying it again when no example came; three
+  phrasings each around the founder's "This was a solid, confident moment we
+  recognised. Here is an example to make it even better.", picked by the
+  moment so the lens and the chat say the same (K); Line A is never said on
+  that moment (founder, 2026-10-21: it had said "so far", gone straight to
+  the fix and asked the confident moment to sound like the confident moment;
+  "vary around the line I suggested … no abruptions"); then the opening line by its
   level (W1–W10, three signed lines a level, rotated;
   `src/lib/willab/praiseLevels.ts`) and under it the cue's line from
   B01–B09. "Good job" stands in for the level line only when no level is
@@ -594,7 +602,22 @@ praised and half low", I3's "200 labels") is in that page's §3.
   it, just say it straight." and B13's "Try saying it like this:" (signed
   lines in a new place, N85).
 - **Praise:** "This was your most confident moment." and "This was your
-  most confident moment so far." (signed 2026-10-20).
+  most confident moment so far." (signed 2026-10-20; the second is replaced by
+  the confident moment's own lines, `TOP_MOMENT_LINES` in
+  `idealEditCopy.ts`: for a clearer version "This was a solid, confident
+  moment we recognised. Let's make it even better." / "We picked this one out
+  as solid and confident. A small change in the words could make it even
+  better." / "This one stood out as solid and confident, and it can get even
+  better."; for an example "This was a solid, confident moment we recognised.
+  Here is an example to make it even better." / "We picked this one out as
+  solid and confident. Listen to how it could sound even stronger." / "This
+  one stood out as solid and confident. Here's how it could land even
+  better."; with no example "This was a solid, confident moment we
+  recognised. Say it once more, even more sure of yourself." / "We picked
+  this one out as solid and confident. Give it one more go and own every
+  word." / "This one stood out as solid and confident. Say it again and make
+  it even stronger." (founder 2026-10-21, variations around the founder's
+  line, to be confirmed in the PR).
 - **Practise:** Line A "Say this one like your confident moment."; "That
   sounded more assured than the first."; the praise, not-yet and move-on
   lines of the signed bank (backend [`docs/SIGNED-line-bank-2026-10-06.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/SIGNED-line-bank-2026-10-06.md),
@@ -768,6 +791,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · the top moment, when corrected, opens with its own line, named solid and confident and fitting what follows (a clearer version, an example, or saying it again), three phrasings each around the founder's line, in place of "so far"; on its AI clip it stands in for L4; no Line A on that moment (C2, K); the AI clip's wait no longer ends on a failed start or an empty read: the start is asked again three times, an empty read keeps waiting (C6, H2) · FE
 - 2026-10-21 · N106 · the page's label line under its title, and the docs it names as clickable links; no rule changes · BE #1239, FE #926
 - 2026-10-21 · N102 · §I points to the one page for learning and the label quorum (backend [`docs/LEARNING-AND-QUORUM.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/LEARNING-AND-QUORUM.md)); no rule changes · FE #922, BE #1234
 - 2026-10-21 · WIL-93 · the coach's link opens the coach's feedback read or not: seen and answered, the word and the coach's answers as given (it opened and closed at once); with nothing of the coach's on the page, the chat at the coach's bubble, which pulses once (C1) · FE #919
