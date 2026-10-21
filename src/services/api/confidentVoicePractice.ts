@@ -62,7 +62,9 @@ export interface ConfidencePractice {
 
 export type PracticeResult =
   | { ok: true; practice: ConfidencePractice }
-  | { ok: false; error: string | null };
+  /** `code`: the server's refusal (AUDIO_TOO_SHORT, PASSAGE_MISMATCH…), so the
+   *  walk can say a try could not be heard (founder 2026-10-21). */
+  | { ok: false; error: string | null; code: string | null };
 
 function attempt(raw: unknown): ConfidencePracticeAttempt | null {
   if (!raw || typeof raw !== "object") return null;
@@ -159,6 +161,7 @@ async function result(res: Response): Promise<PracticeResult> {
   return {
     ok: false,
     error: typeof data?.error === "string" ? data.error : null,
+    code: typeof data?.code === "string" ? data.code : null,
   };
 }
 
@@ -193,7 +196,7 @@ export async function startConfidencePractice(
   passage: PracticePassage = { kind: "exercise" },
 ): Promise<PracticeResult> {
   const headers = await tokenHeaders(true);
-  if (!headers) return { ok: false, error: null };
+  if (!headers) return { ok: false, error: null, code: null };
   try {
     const res = await fetch(
       `/api/v2/user/snippets/${encodeURIComponent(snippetId)}/confidence-practice`,
@@ -219,7 +222,7 @@ export async function startConfidencePractice(
     );
     return result(res);
   } catch {
-    return { ok: false, error: null };
+    return { ok: false, error: null, code: null };
   }
 }
 
@@ -228,7 +231,7 @@ export async function uploadConfidencePracticeAttempt(
   stoppedAtMs: number = Date.now(),
 ): Promise<PracticeResult> {
   const headers = await tokenHeaders();
-  if (!headers) return { ok: false, error: null };
+  if (!headers) return { ok: false, error: null, code: null };
   const form = new FormData();
   form.append("audio_file", audio, "practice.webm");
   form.append("duration_sec", String(durationSec));
@@ -241,7 +244,7 @@ export async function uploadConfidencePracticeAttempt(
     if (out.ok) reportPractiseTiming(practiceId, out.practice, stoppedAtMs, Date.now());
     return out;
   } catch {
-    return { ok: false, error: null };
+    return { ok: false, error: null, code: null };
   }
 }
 
@@ -275,7 +278,7 @@ export async function fetchConfidencePractice(
   practiceId: string,
 ): Promise<PracticeResult> {
   const headers = await tokenHeaders();
-  if (!headers) return { ok: false, error: null };
+  if (!headers) return { ok: false, error: null, code: null };
   try {
     const res = await fetch(
       `/api/v2/user/confidence-practice/${encodeURIComponent(practiceId)}`,
@@ -283,6 +286,6 @@ export async function fetchConfidencePractice(
     );
     return result(res);
   } catch {
-    return { ok: false, error: null };
+    return { ok: false, error: null, code: null };
   }
 }

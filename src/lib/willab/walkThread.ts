@@ -269,6 +269,24 @@ export function praiseChat(
   return { author: "app", body: lines.filter((line) => line.trim() !== "").join("\n") };
 }
 
+/** The Exercise's bubble: its instruction under its title, with the video's
+ *  thumb (prototype v31 `vthumb`) from the exercise's stored link (a library
+ *  or coach upload's public address); the walk's own line when the moment
+ *  has no exercise yet. */
+function exerciseChat(
+  moment: FeedbackWalkMoment<unknown> | null,
+  soFar: string,
+): { author: WalkAuthor; body: string; extra?: Record<string, unknown> } | null {
+  if (!moment) return null;
+  const ex = moment.exercise;
+  if (!ex) return { author: "app", body: `${soFar}${COPY.titleExercise}\n${WALK_COPY.lineA}` };
+  return {
+    author: ex.byCoach ? "coach" : "app",
+    body: `${soFar}${COPY.titleExercise}\n${ex.instruction ?? WALK_COPY.lineA}`,
+    ...(ex.video ? { extra: { video: ex.video } } : {}),
+  };
+}
+
 /** What a shown step says in the chat, and who says it; null: nothing.
  *  `say`: the signed line the walk's screen took from a bank, so the chat
  *  says the same one. `line`: the practise answer's line as the walk showed
@@ -310,23 +328,18 @@ export function shownStep(
         : null;
       return said ? { ...said, extra: { new_words: moment?.clearer?.after ?? null } } : null;
     }
-    case "exVideo": {
-      const ex = moment?.exercise;
-      if (!ex) return moment ? titled(soFar + COPY.titleExercise, WALK_COPY.lineA) : null;
-      // The video's thumb in the bubble (prototype v31 `vthumb`): the
-      // exercise's stored link (a library or coach upload's public address).
-      return {
-        author: ex.byCoach ? "coach" : "app",
-        body: `${soFar}${COPY.titleExercise}\n${ex.instruction ?? WALK_COPY.lineA}`,
-        ...(ex.video ? { extra: { video: ex.video } } : {}),
-      };
-    }
+    case "exVideo":
+      return exerciseChat(moment, soFar);
     case "improved":
       return titled(COPY.titlePraise, line ?? improvedLine(one, 0));
     case "encourage":
       return titled(COPY.titlePractise, line ?? encourageLine(one, 0));
     case "thanks":
       return app(line ?? thanksLine(one, 0));
+    case "late":
+      // The Lounge says the same words as the lens (B12): a try the server
+      // could not hear; a late read posts nothing.
+      return step.kind === "unheard" ? app(WALK_COPY.unheard) : null;
     default:
       return null;
   }

@@ -29,6 +29,7 @@ import {
   walkHelpersForPart,
   walkStart,
   walkStepForPart,
+  walkLastStep,
   walkStepAt,
   type WalkStepTarget,
   type FeedbackWalkItem,
@@ -848,13 +849,13 @@ export function useDeckFeedbackWalk(args: {
   const practisingRef = useRef(false);
   // This opening is the review itself (the lens), not a step from the page.
   const lensRef = useRef(false);
-  const openAt = useCallback((at: number | null, practising = false, lens = false, how?: WalkDir): boolean => {
+  const openAt = useCallback((at: number | null, practising = false, lens = false, how?: WalkDir, start?: number | null): boolean => {
     if (at === null) return false;
     practisingRef.current = practising;
     lensRef.current = lens;
     toldRef.current = new Set<string>();
     seqRef.current += 1;
-    setRequest({ seq: seqRef.current, at, how });
+    setRequest({ seq: seqRef.current, at, how, ...(start != null && start !== at ? { start } : {}) });
     return true;
   }, []);
 
@@ -880,18 +881,29 @@ export function useDeckFeedbackWalk(args: {
     if (target?.step === "helpers" && target.part && openHelpersRef.current(target.part)) return true;
     setReplaying(null);
     const lens = from === "chat";
-    const liveAt = walkStepAt(model, target);
+    // A finished Take (nothing waits, the coach's word seen) is walked as
+    // given: its live model holds only the tail (others, the summary), never
+    // the step asked for (founder 2026-10-21).
+    const liveAt = finished ? null : walkStepAt(model, target);
     // An answered step opens as given, read-only (prototype v31).
     const done = target && liveAt === null && replayReady ? buildReplay(ownAnswers) : null;
     const doneAt = done ? walkStepAt(done, target) : null;
     if (done && doneAt !== null) {
+      // The finished walk: every part there to scroll, opened on the step
+      // asked for, the newest part with the dock (founder 2026-10-21).
       setReplaying(done);
-      return openAt(doneAt, false, lens);
+      return openAt(walkLastStep(done) ?? doneAt, false, lens, undefined, doneAt);
     }
     if (target?.part && liveAt === null) return false;
     // Opening marks nothing: only Continue on the coach's word does (N80).
+    // A finished walk with no such step still opens, at its start, never
+    // the text in its place.
+    if (done && walkStart(done) !== null && liveAt === null && walkStart(model) === null) {
+      setReplaying(done);
+      return openAt(walkStart(done), false, lens);
+    }
     return openAt(liveAt ?? walkStart(model), false, lens);
-  }, [model, openAt, otherTake, replayReady, buildReplay, ownAnswers]);
+  }, [model, finished, openAt, otherTake, replayReady, buildReplay, ownAnswers]);
 
   const openPart = useCallback((partId: string): boolean => review({ part: partId }, "page"), [review]);
 
@@ -1028,7 +1040,8 @@ export function useDeckFeedbackWalk(args: {
     // find the signed link again.
     const upload: typeof io.upload = async (practiceId, ...rest) => {
       const sent = await io.upload(practiceId, ...rest);
-      if (sent) {
+      // A try the server could not hear is no try: nothing in the chat.
+      if (sent && !("unheard" in sent)) {
         const on = openedOn.get(practiceId) ?? { moment: null, part_id: null };
         post({
           key: `try:${practiceId}`,

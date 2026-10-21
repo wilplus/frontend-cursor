@@ -160,14 +160,16 @@ export function withRead(
   at: number,
   practise: WalkStep,
   read: PractiseRead | null,
-  opts: { retryAttempt?: number } = {},
+  opts: { retryAttempt?: number; kind?: "unheard" } = {},
 ): WalkStep[] {
   const head = plan.slice(0, at + 1);
   const rest = plan.slice(loopEnd(plan, at));
   const base = { moment: practise.moment, slide: practise.slide, ...(practise.readOnly ? { readOnly: true } : {}) };
   if (read === null) {
+    // No read: the machine was late, or (`kind` "unheard") it could not hear
+    // the try and says so (founder 2026-10-21).
     const retry = opts.retryAttempt ?? (practise.attempt ?? 1);
-    return [...head, { key: "late", ...base, attempt: retry }, ...rest];
+    return [...head, { key: "late", ...base, attempt: retry, ...(opts.kind ? { kind: opts.kind } : {}) }, ...rest];
   }
   const attempt = practise.attempt ?? 1;
   const asked = read.next === "moved_on" ? { ...practise, attempt: Math.max(attempt, WALK_MAX_TRIES) } : practise;

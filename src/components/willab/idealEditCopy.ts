@@ -350,6 +350,13 @@ export const WALK_COPY = {
   journalEyebrow: "Journal",
   judgementPromise: "I am going to judge them honestly",
   skip: "Skip",
+  /* A try the server could not hear (too short, no speech, not the passage,
+     not comparable): the walk says so and offers Practise again or Next
+     (founder, signed 2026-10-21). */
+  unheard: "We couldn't hear that clearly. Try again.",
+  /* The answered helpers step's pill (founder, signed 2026-10-21: "edit the
+     helper words instead of save"). */
+  editHelperWords: "Edit the helper words",
   /* The clearer version's message, around the new words. */
   clearerOffer: "Here is a slightly more polished option:",
   clearerAsk: "Do you accept and want to practise it?",

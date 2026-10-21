@@ -11,8 +11,13 @@
  *       brings it back (N48.3 Q11 A; N80 D4, D7).
  *   O2  After Delete the paragraph rejoins the walk on its earlier answer,
  *       at once, not only when a moment is open on it (N48.2 Q6 A).
+ *   O3  Every moment answered: a bubble of the Take tapped in the Lounge
+ *       opens the walk as given on that moment, with the parts before and
+ *       after it there to scroll, never the Ideal Text in its place
+ *       (founder 2026-10-21, N90), the coach's word seen or not.
  * PROVES   O1 -> "every moment answered: Review feedback stays for the unseen word, ..."
  *          O2 -> "a paragraph whose helper words were deleted is back in the walk on its earlier answer"
+ *          O3 -> "every moment answered: a bubble tapped in the Lounge opens the walk on its moment, never the text"
  * WHY      Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the
  *          deck's own rule (buildBookmarks), not on the rendered deck.
  */
@@ -20,6 +25,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
+import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
 import { buildBookmarks, helperWordsDeleted } from "./feedbackPager";
 import type { Part } from "@/lib/willab/documentParts";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
@@ -153,6 +159,35 @@ describe("N48.3 Q11 A: the coach's word for the Take on screen", () => {
     // new again (D7), and Review feedback is back.
     await at(2, { ...WORD, videoUrl: "https://media/coach-feedback/take-2/new.mp4?sig=1" });
     expect(waiting).toHaveBeenLastCalledWith(true);
+  });
+
+  it("every moment answered: a bubble tapped in the Lounge opens the walk on its moment, never the text", async () => {
+    // The Lounge's bubble for the answered moment (its praise on paragraph 2).
+    const reviewAt = { step: "praise", moment: 0, take: "take-2", part: "p2" };
+    for (const word of [WORD, { ...WORD, unseen: false }]) {
+      const reveal = vi.fn();
+      const p = { arcId: "arc-1", coachMessage: word, reviewAt, onLensReveal: reveal };
+      await render({ ...p, reviewRequest: 0 });
+      await render({ ...p, reviewRequest: 1 });
+      // The Take's answers are read first; then the walk opens.
+      for (let i = 0; i < 6; i += 1) {
+        await act(async () => {
+          await new Promise((r) => setTimeout(r, 0));
+        });
+      }
+      // The walk as given, open on the praise, the rest of it there to
+      // scroll; the text never shown in its place.
+      const live = document.querySelector("[data-feedback-walk] .walk-layer:not(.walk-ghost)");
+      expect(live).not.toBeNull();
+      // The coach's word above, then the moment: its praise and the helper
+      // words it was answered with, one thread.
+      expect(live!.textContent).toContain(word.text);
+      expect(live!.textContent).toContain(COPY.titlePraise);
+      expect(live!.querySelector("[data-testid='walk-screen-helpers']")).not.toBeNull();
+      expect(reveal).not.toHaveBeenCalled();
+      await act(async () => root.unmount());
+      root = createRoot(container);
+    }
   });
 });
 

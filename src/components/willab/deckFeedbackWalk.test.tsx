@@ -257,11 +257,14 @@ describe("the walk on the deck", () => {
     // The one moment answered, the walk runs on to its end, onto the page.
     await act(async () => undefined);
     expect(live()).toBeNull();
-    // Tapped again, the text or its orange words: the same walk at the
-    // helper words it answered, with the step's buttons as it stands.
+    // Tapped again, the text or its orange words: the same walk as given,
+    // open on the helper words it answered, the parts before and after
+    // there to scroll, the newest part keeping the dock (founder
+    // 2026-10-21).
     const opensAgain = async (el: Element | null | undefined) => {
       await click(el);
-      expect(screen()).toBe("walk-screen-helpers");
+      await act(async () => undefined);
+      expect(live()!.querySelector("[data-testid='walk-screen-helpers']")).not.toBeNull();
       expect(live()!.querySelector("[data-walk-dock]")!.childElementCount).toBeGreaterThan(0);
       await click(live()!.querySelector("button[aria-label='Close']"));
       await act(async () => undefined);

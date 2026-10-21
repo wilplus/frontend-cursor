@@ -145,6 +145,8 @@ describe("the finished walk, played again", () => {
     // The words saved are drawn chosen and still editable (lock 2026-10-12,
     // section 2.3): "Keep these" moves on; a new pick hands the host the words.
     expect(byTestId("walk-skip")!.textContent).toBe(WALK_COPY.keepThese);
+    // Words already given: the pill edits them (founder, signed 2026-10-21).
+    expect(byTestId("walk-forward")!.textContent).toBe(WALK_COPY.editHelperWords);
     click(live()!.querySelectorAll("[data-walk-word-picker] button")[2]); // "our", next to the phrase
     expect(picked()).toEqual(["our", "growth", "doubled."]);
     click(byTestId("walk-forward"));

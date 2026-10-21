@@ -296,6 +296,20 @@ describe("the practise screen", () => {
     expect(upload.body).toBeInstanceOf(FormData);
     expect(calls.some((c) => c.url.endsWith("/attempts/a1/check") && c.method === "POST")).toBe(true);
   });
+
+  it("a try the server could not hear says so, then Practise again or Next (founder, signed 2026-10-21)", async () => {
+    uploadFails = true;
+    draw();
+    await accept();
+    stop();
+    await settle();
+    // The server refused the try (422): the walk says it could not hear it
+    // and offers both ways on, record once more or move on.
+    expect(message()).toBe(WALK_COPY.unheard);
+    expect(live()!.querySelector("[data-walk-dock] [data-testid='walk-again']")).not.toBeNull();
+    expect(live()!.querySelector("[data-walk-dock] [data-testid='walk-forward']")).not.toBeNull();
+    expect(calls.some((c) => c.url.includes("/check"))).toBe(false);
+  });
 });
 
 describe("the machine's answer", () => {
