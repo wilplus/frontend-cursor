@@ -60,6 +60,15 @@ to change together with the code. Every doc in both repos, with its label
 (In force, Reference, History or Archive) and a link, is listed in the
 backend's [`README.md`](https://github.com/wilplus/backend-cursor/blob/main/README.md) (backend N106).
 
+## Docs
+
+Every doc is listed in the backend's
+[`README.md`](https://github.com/wilplus/backend-cursor/blob/main/README.md)
+with its label (backend N106). Don't start a new doc: edit the area's rules
+page in `docs/flows/` or the master doc. Handoffs and prompts for coding agents
+go in the pull request description, not in a file. A new doc needs the
+founder's OK and a line in the master doc (backend N107).
+
 ## How to ship
 
 - Branch from `main` → PR → checks green → squash-merge. "Merge when green" is standing permission.

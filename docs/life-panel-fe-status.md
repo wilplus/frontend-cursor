@@ -2,7 +2,7 @@
 
 > **Label: Reference** · how something works today; where it differs from the In force docs, they win. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
 
-Companion to `docs/life-panel-fe-prompt.md`. Read this before wiring the
+Companion to [`docs/life-panel-fe-prompt.md`](https://github.com/wilplus/frontend-cursor/blob/501da43874460770310b24fafc664c4f5e606114/docs/life-panel-fe-prompt.md). Read this before wiring the
 backend: it is the list of everything the FE now expects from `/v2/life/*`, and
 the places where it went past the prompt.
 
@@ -333,4 +333,4 @@ leave open.
   it: `apply` stamps `origin_document_id` so a principle read out of a file is
   distinguishable from one the engine derived, and the review row renders a
   long line in full instead of the first 500 characters of it. The ANSWERED box
-  at the top of `docs/handoffs/backend-handoff-life-panel-document-dock.md` has the mapping.
+  at the top of [`docs/handoffs/backend-handoff-life-panel-document-dock.md`](https://github.com/wilplus/frontend-cursor/blob/501da43874460770310b24fafc664c4f5e606114/docs/handoffs/backend-handoff-life-panel-document-dock.md) has the mapping.
