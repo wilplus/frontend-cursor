@@ -193,10 +193,13 @@ step; the loop never waits for a coach.
   always corrected, are history). A praised moment:
   its clip as the speaker's orange bubble; on the highest moment the line
   "This was your most confident moment." (signed 2026-10-20; "This was a
-  solid, confident moment we recognised. Here is an example to make it even
-  better." opens its clearer version or Exercise when that moment is
-  corrected; founder, 2026-10-21: it had said "so far" and gone straight to
-  the fix); then the opening line by its
+  solid, confident moment we recognised." opens its clearer version or
+  Exercise when that moment is corrected, with "Here is an example to make it
+  even better." under it whenever an example follows (the clearer version,
+  the AI clip, an exercise's video); there Line A is never said, so with no
+  example the words to say stand alone (founder, 2026-10-21: it had said
+  "so far", gone straight to the fix and asked the confident moment to sound
+  like the confident moment); then the opening line by its
   level (W1–W10, three signed lines a level, rotated;
   `src/lib/willab/praiseLevels.ts`) and under it the cue's line from
   B01–B09. "Good job" stands in for the level line only when no level is
@@ -597,8 +600,8 @@ praised and half low", I3's "200 labels") is in that page's §3.
   lines in a new place, N85).
 - **Praise:** "This was your most confident moment." and "This was your
   most confident moment so far." (signed 2026-10-20; the second is replaced by
-  "This was a solid, confident moment we recognised. Here is an example to make
-  it even better.", founder 2026-10-21).
+  "This was a solid, confident moment we recognised." and "Here is an example
+  to make it even better.", founder 2026-10-21).
 - **Practise:** Line A "Say this one like your confident moment."; "That
   sounded more assured than the first."; the praise, not-yet and move-on
   lines of the signed bank (backend [`docs/SIGNED-line-bank-2026-10-06.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/SIGNED-line-bank-2026-10-06.md),
@@ -772,7 +775,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-21 · the top moment, when corrected, says "This was a solid, confident moment we recognised. Here is an example to make it even better." before its Clearer version or Exercise, in place of "so far" (C2, K); the AI clip's wait no longer ends on a failed start or an empty read: the start is asked again three times, an empty read keeps waiting (C6, H2) · FE
+- 2026-10-21 · the top moment, when corrected, says "This was a solid, confident moment we recognised." in place of "so far", and "Here is an example to make it even better." only when an example follows; no Line A on that moment (C2, K); the AI clip's wait no longer ends on a failed start or an empty read: the start is asked again three times, an empty read keeps waiting (C6, H2) · FE
 - 2026-10-21 · N106 · the page's label line under its title, and the docs it names as clickable links; no rule changes · BE #1239, FE #926
 - 2026-10-21 · N102 · §I points to the one page for learning and the label quorum (backend [`docs/LEARNING-AND-QUORUM.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/LEARNING-AND-QUORUM.md)); no rule changes · FE #922, BE #1234
 - 2026-10-21 · WIL-93 · the coach's link opens the coach's feedback read or not: seen and answered, the word and the coach's answers as given (it opened and closed at once); with nothing of the coach's on the page, the chat at the coach's bubble, which pulses once (C1) · FE #919

@@ -877,6 +877,7 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
           and video, and is not said twice (founder 2026-10-20). */}
       <WalkMessage coach={clearer.byCoach === true} wide={clearer.byCoach === true}>
         {moment.highest ? <span>{COPY.titleMostConfidentSoFar}</span> : null}
+        {moment.highest ? <span>{COPY.titleMostConfidentExample}</span> : null}
         {clearer.byCoach && moment.coachAnswer?.videoUrl ? (
           <CoachVideo src={moment.coachAnswer.videoUrl} className="my-2 w-full flex-none" />
         ) : null}
@@ -901,13 +902,16 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
       {aiExercise(ctx, step, moment) ?? (
         <WalkMessage coach={exercise?.byCoach === true} wide>
           {moment.highest ? <span>{COPY.titleMostConfidentSoFar}</span> : null}
+          {moment.highest && exercise?.video ? <span>{COPY.titleMostConfidentExample}</span> : null}
           {exercise?.video ? (
             <CoachVideo
               src={exercise.video}
               className="my-2 w-full max-h-[300px] flex-none [&>video]:aspect-[4/5] [&>video]:max-h-[300px] [&>video]:object-cover"
             />
           ) : null}
-          <span>{exercise?.instruction ?? WALK_COPY.lineA}</span>
+          {/* Line A asks for the confident moment's voice: not on that moment
+              itself (founder 2026-10-21). */}
+          {exercise?.instruction || !moment.highest ? <span>{exercise?.instruction ?? WALK_COPY.lineA}</span> : null}
         </WalkMessage>
       )}
       <CoachAnswerBubble moment={moment} />
@@ -1019,7 +1023,7 @@ function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
       seed={`ai-ex-${moment.index}`}
       state={state}
       {...lines}
-      title={moment.highest ? COPY.titleMostConfidentSoFar : lines.title}
+      title={moment.highest ? `${COPY.titleMostConfidentSoFar} ${COPY.titleMostConfidentExample}` : lines.title}
       arrive
       onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
     />

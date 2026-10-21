@@ -301,10 +301,15 @@ function exerciseChat(
 ): { author: WalkAuthor; body: string; extra?: Record<string, unknown> } | null {
   if (!moment) return null;
   const ex = moment.exercise;
-  if (!ex) return { author: "app", body: `${soFar}${WALK_COPY.lineA}` };
+  // On the confident moment itself: no Line A, and "an example" only with
+  // a video to show (founder 2026-10-21).
+  const top = Boolean(moment.highest);
+  const head = top && ex?.video ? `${soFar}${COPY.titleMostConfidentExample}\n` : soFar;
+  const line = ex?.instruction ?? (top ? "" : WALK_COPY.lineA);
+  if (!ex) return { author: "app", body: `${head}${line}`.trim() };
   return {
     author: ex.byCoach ? "coach" : "app",
-    body: `${soFar}${ex.instruction ?? WALK_COPY.lineA}`,
+    body: `${head}${line}`.trim(),
     ...(ex.video ? { extra: { video: ex.video } } : {}),
   };
 }
@@ -347,7 +352,7 @@ export function shownStep(
       // version" title (founder 2026-10-21, K): the opener says it.
       const clearer = moment?.clearer;
       const said = clearer?.say
-        ? app(soFar + [...clearerOpening(clearer.reason, () => say("B13")), clearer.say].join("\n"))
+        ? app(soFar + (moment?.highest ? `${COPY.titleMostConfidentExample}\n` : "") + [...clearerOpening(clearer.reason, () => say("B13")), clearer.say].join("\n"))
         : null;
       return said ? { ...said, extra: { new_words: moment?.clearer?.after ?? null } } : null;
     }
