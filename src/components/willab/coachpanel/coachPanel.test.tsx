@@ -142,6 +142,7 @@ const READ: MomentRead = {
   coachAnswer: null,
   speakerGoal: null,
   practice: null,
+  willfidence: 64,
   heard: [{ kind: "error", key: "rushing", label: "Rushing" }, { kind: "error", key: "ec", label: "Ending compression" }],
   request: { spotted: [{ errorId: "rushing", label: "Rushing" }, { errorId: "ec", label: "Ending compression" }] } as MomentRead["request"],
 };
@@ -269,6 +270,7 @@ describe("CoachPanel", () => {
     expect(document.querySelector("[data-walk-toast]")!.textContent).toBe(COPY.toastJudged);
     await flush();
     expect(document.querySelector("[data-testid='coach-panel-passage']")!.textContent).toBe(READ.passage);
+    expect(document.querySelector("[data-testid='coach-panel-facts']")!.textContent).toContain("Willfidence64%");
   });
 
   it("the founder's ⋯ deletes a waiting speaker's moments, the greyed one's too, behind its confirmation; other coaches have none", async () => {

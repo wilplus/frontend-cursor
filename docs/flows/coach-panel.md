@@ -101,8 +101,10 @@ founder's rows are the founder's alone.
 
 ### E · What happened, the diagnosis, the cure
 
-- **E1** What happened: the passage with its player; three lines: You, the
-  speaker, The machine heard.
+- **E1** What happened: the passage with its player; the lines: You, the
+  speaker, The machine heard, and last **Willfidence** with the moment's
+  willfidence in whole percent (the coach's only number; none when the clip
+  has no sound read; founder 2026-10-21, N104).
 - **E2** Error moments, the diagnosis first: "What kind of error is it?" The
   errors the machine heard come first, marked "The machine heard this"; then
   the others; then "Something else · Name a new error" (light grey card) and
@@ -226,7 +228,7 @@ How a coach's blind answer counts, on a speaker's Take (D) or an import
   the text"; "Take N".
 - Judge: "Judge this moment"; "Does the speaker sound confident here?";
   "Yes", "In-between", "No", "Audio unclear"; "{p} · moment 1 of 4".
-- What happened: "What happened"; "You"; "The machine heard".
+- What happened: "What happened"; "You"; "The machine heard"; "Willfidence".
 - Diagnosis: "What kind of error is it?"; "The machine heard this";
   "Something else"; "Name a new error"; "I don't hear an error"; "Name the
   error"; "A few words, as you would say it to another coach"; "e.g.
@@ -350,6 +352,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · N104 · What happened gets a last line, Willfidence, in percent; the person's admin page loses the Confident Voice practice tile (E1) · FE #923, BE #1236
 - 2026-10-21 · N102 · H points to the one page for learning and the label quorum (backend `docs/LEARNING-AND-QUORUM.md`); no rule changes · FE #922, BE #1234
 - 2026-10-21 · N101 · the corpus is judged mixed: rounds across imports, never one speaker twice in a row, the machine's reads in equal measure, a blind order (H3) · BE #1232
 - 2026-10-21 · N100 · the training corpus list comes in steps as the coach scrolls (H4) · BE #1229

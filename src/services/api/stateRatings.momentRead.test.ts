@@ -20,7 +20,7 @@ const BODY = { state_id: "confidence", value: "yes" as const, idempotency_key: "
 const MOMENT = {
   passage: "We grew revenue forty percent.", speaker_answer: "no", coach_answer: "yes",
   speaker_goal: "Sound sure.", heard: [{ kind: "error", key: "rushing", label: "Rushing" }],
-  request: null, practice: null,
+  willfidence: 64, request: null, practice: null,
 };
 
 function answer(body: unknown, status = 200) {
@@ -41,6 +41,7 @@ describe("saveStateRating carries What happened back (C2)", () => {
         coachAnswer: "yes",
         speakerGoal: "Sound sure.",
         heard: [{ kind: "error", key: "rushing", label: "Rushing" }],
+        willfidence: 64,
         request: null,
         practice: null,
       },
