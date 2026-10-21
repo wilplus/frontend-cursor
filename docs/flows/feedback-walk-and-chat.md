@@ -183,14 +183,17 @@ step; the loop never waits for a coach.
   coach's share asks for the rows to be baked again (backend, N92,
   2026-10-21: "the video was sent too with the coach feedback and didn't
   pass through").
-- **C2 Praise.** The Take's two highest-willfidence moments are shown,
-  praise first and then the corrections, each group in slide order, and the
-  score decides each: a moment at or above the floor is
-  praised, one below it is corrected (C4); both strong, two praises and no
-  practise; both weak, two corrections (founder, 2026-10-20, on the page's
-  first review; the fixed roles of 2026-10-14 and 2026-10-17, the highest
-  praised with the softer line under the floor and the second highest
-  always corrected, are history). A praised moment:
+- **C2 Praise.** The Take's two strongest voices are shown, praise first
+  and then the corrections, each group in slide order, and the voice decides
+  each: a moment whose voice reaches the floor is praised unless its words
+  need help (then the Clearer version, C5), one whose voice is under it is
+  corrected (C4); both strong, two praises and no practise; both weak, two
+  corrections (founder, 2026-10-21, N108: "Voice decides", after a moment
+  that "was a confident moment ... even more confident than the first one"
+  was told "Say this one like your confident moment."; until then S × W
+  decided, 2026-10-20, so weaker words could put a stronger voice under the
+  floor; the fixed roles of 2026-10-14 and 2026-10-17 are history). A
+  praised moment:
   its clip as the speaker's orange bubble; on the highest moment the line
   "This was your most confident moment." (signed 2026-10-20; "This was
   your most confident moment so far." opens its clearer version or
@@ -229,7 +232,11 @@ step; the loop never waits for a coach.
   Clearer version is served on its moment (the row names the moment's
   block; until 2026-10-20 it did not, so the walk never drew it, "the
   rewrite doesn't appear at all"). A corrected moment with neither a
-  clearer version nor an exercise is said again, never dropped (C2).
+  clearer version nor an exercise is said again with the AI clip; when no
+  AI clip comes either, the walk moves past it, never Line A on its own,
+  and the moment still reaches the coach (founder 2026-10-21, N108: "Skip
+  that moment"; it was "said again, never dropped", N88). Played again with
+  no try, it shows the clip alone.
 - **C5 The Clearer version.** The speaker's words with the changed words
   crossed out; "Here is a slightly more polished option:" (when the reason is
   undermining words, `rewrite_reason: "undermining"`, B10's "Say what you
@@ -479,10 +486,12 @@ step; the loop never waits for a coach.
   willfidence(sentence) = S × W                 0 … 1
     S = voice_confidence (7 cues vs the speaker's own baseline)
     W = mean of: few fillers/hedges · fits the slide · holds together
-  shown     = the two highest, at most one per slide (a one-slide Take shows
-              one); clips with enough words rank before short ones
-              (founder confirmed 2026-10-20, with praise before corrections)
-  each      ≥ FLOOR → praised; < FLOOR → corrected      (2026-10-20)
+  shown     = the two strongest voices (S, then S × W), at most one per
+              slide (a one-slide Take shows one); clips with enough words
+              rank before short ones (N108, 2026-10-21)
+  each      S ≥ FLOOR → praised, unless the words need help (H3) → the
+              Clearer version; S < FLOOR → corrected: the Clearer version
+              when the words need help, else the voice Exercise (N108)
   highest   = the first in rank; its bubble opens with the signed line (C2)
   try       = Δ willfidence vs the original ≥ MARGIN (+0.05) → better
   ```
@@ -512,7 +521,8 @@ step; the loop never waits for a coach.
   fillers and hedges at least 0.1 better, fewer undermining words, or the
   sentence mended; still theirs, 6 words in 10, no new number or name; no
   longer than what they said and 5 words or more; not turned down before on
-  the same words). Anything else → the voice Exercise. For undermining words
+  the same words). Anything else → the voice Exercise, for a voice under the
+  floor only; a voice at the floor is praised instead (N108). For undermining words
   a rule writes the clearer version (`take_feedback_manager.
   _undermining_rewrites`): the same sentence with its apologies, asks for
   permission, self-doubt and softening hedges left out, never a word added;
@@ -768,6 +778,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-21 · N108 · the voice decides: the two strongest voices are shown, the strongest is "your most confident moment", a voice at the floor is praised (the Clearer version when its words need help) and only a voice under it gets the voice Exercise; a voice correction with no exercise and no AI clip is skipped, never Line A on its own, and still reaches the coach (C2, C4, H1) · BE #1242, BE #1243, FE #PR_FE
 - 2026-10-21 · N106 · the page's label line under its title, and the docs it names as clickable links; no rule changes · BE #1239, FE #926
 - 2026-10-21 · N102 · §I points to the one page for learning and the label quorum (backend [`docs/LEARNING-AND-QUORUM.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/LEARNING-AND-QUORUM.md)); no rule changes · FE #922, BE #1234
 - 2026-10-21 · WIL-93 · the coach's link opens the coach's feedback read or not: seen and answered, the word and the coach's answers as given (it opened and closed at once); with nothing of the coach's on the page, the chat at the coach's bubble, which pulses once (C1) · FE #919

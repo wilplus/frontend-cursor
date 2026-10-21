@@ -220,6 +220,20 @@ describe("B10: every door opens the whole Take's walk", () => {
     } as unknown as DocumentSuggestion;
     const append = vi.fn(async (draft: unknown) => draft);
     chat.thread = { messages: [], loading: false, append, reload: vi.fn(async () => undefined) };
+    // Its AI clip is on its way: a correction with nothing to offer is
+    // passed over (founder 2026-10-21, N108), this one stands.
+    const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/confidence-practice")) {
+        return json({ practice: {
+          id: "11111111-1111-4111-8111-111111111111", status: "open", kind: "plain", passage: "one more quarter", attempts: [],
+          exercise: { exercise_id: "plain", version: 1, title: "", instruction: "" },
+        } });
+      }
+      if (url.endsWith("/ai-voice")) return json({ demo: "ai_voice", clip: { state: "pending", url: null } });
+      return new Response("{}", { status: 404 });
+    }));
     // The Lounge's Exercise bubble: the Take's walk numbered it 1, after the
     // praise on paragraph 2.
     const reviewAt = { step: "exVideo", moment: 1, take: "take-2", part: "p3" };
