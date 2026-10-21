@@ -67,6 +67,20 @@ export function openingPlace(
   return at;
 }
 
+/** The same wait, learning its job's epoch, keeps the advice it opened on.
+ *
+ *  A wait screen appears before the server has accepted the Take, under a
+ *  stand-in epoch of its own; the job's epoch arrives with the acceptance.
+ *  Rolling again then would swap the advice under the reader in the first
+ *  seconds of the wait (founder 2026-10-21: "it is abrupt; make it stay").
+ *  Only carried when the job has no place of its own yet. */
+export function carryPlace(fromEpoch: number, toEpoch: number): void {
+  const seen = PLACE_BY_CYCLE.get(fromEpoch);
+  if (typeof seen === "number" && !PLACE_BY_CYCLE.has(toEpoch)) {
+    rememberPlace(toEpoch, seen);
+  }
+}
+
 /** Test seam. Nothing in the app calls it. */
 export function forgetPlaces(): void {
   PLACE_BY_CYCLE.clear();

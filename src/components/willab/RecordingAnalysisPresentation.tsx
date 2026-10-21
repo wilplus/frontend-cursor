@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { availableWaitingTips } from "./processingWaitingTips";
 import {
+  carryPlace,
   clampPlace,
   openingPlace,
   placeFromScroll,
@@ -113,6 +114,9 @@ export default function RecordingAnalysisPresentation({
     (node: HTMLDivElement | null) => {
       scrollerRef.current = node;
       if (!node || placedFor.current === cycleEpoch) return;
+      // The stand-in epoch hands its place to the job's (see carryPlace).
+      const was = placedFor.current;
+      if (was !== null && was === localCycleRef.current) carryPlace(was, cycleEpoch);
       placedFor.current = cycleEpoch;
       const at = openingPlace(cycleEpoch, waitingTips.length);
       setPlace(at);

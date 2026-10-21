@@ -23,6 +23,8 @@ docs/flows/feedback-walk-and-chat.md
   src/lib/willab/praiseLevels.ts
   src/lib/willab/walkPractise.ts
   src/lib/willab/walkTries.ts
+  src/components/willab/useWaitScreen.ts
+  src/lib/willab/waitHandover.ts
 
 docs/flows/coach-panel.md
   src/components/willab/coachpanel/
