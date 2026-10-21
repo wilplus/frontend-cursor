@@ -501,6 +501,23 @@ export function walkAsItStands<R>(
   return { ...replay, plan, asItStands: true };
 }
 
+/** How the walk left a moment it stood on live (founder 2026-10-21: "the
+ *  black lines on the ideal text are still there even though I walked
+ *  through them"): its practise ended on a Good job or on the third try
+ *  (the machine closed the practice either way), or the walk went on past
+ *  it (its helper words, Skip, Next on a try not heard or checked late, a
+ *  correction with nothing to offer). */
+export type WalkMomentEnd = "good_job" | "third_try" | "passed";
+
+/** How moment `moment` ended, read from its steps before `upTo`, where the
+ *  walk lands next. Pure. */
+export function momentEnd(plan: readonly WalkStep[], upTo: number, moment: number): WalkMomentEnd {
+  const before = plan.slice(0, upTo).filter((s) => s.moment === moment);
+  if (before.some((s) => s.key === "improved")) return "good_job";
+  if (before.some((s) => s.key === "thanks")) return "third_try";
+  return "passed";
+}
+
 /** Where a tap on a paragraph's helper words opens the walk (lock
  *  2026-10-12, section 4): that paragraph's helper-words step. Null when
  *  the paragraph has none. */

@@ -37,7 +37,7 @@ import {
   withNextTry,
 } from "@/lib/willab/walkPractise";
 import type { WalkPractiseIO } from "@/services/api/walkPractise";
-import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
+import { momentEnd, type FeedbackWalkModel, type FeedbackWalkMoment, type WalkMomentEnd } from "@/lib/willab/feedbackWalkModel";
 import type { ClearerPiece } from "@/lib/willab/clearerPieces";
 import { phraseTokens, selectionSpan, type PhraseSelection } from "@/lib/willab/phraseTokens";
 import type { RootPhraseSpan } from "@/services/api/partLock";
@@ -187,6 +187,10 @@ type Props<R> = {
   /** The speaker answered a step (not a replay): the host shows the answer
    *  as their own bubble in the chat, as the thread does. */
   onAnswer?: (step: WalkStep, value: string) => void;
+  /** The walk went on past a moment it stood on live (founder 2026-10-21):
+   *  the host settles it, so its black line goes and its paragraph opens
+   *  the walk as given. ✕, and back from a try, settle nothing. */
+  onMomentDone?: (moment: FeedbackWalkMoment<R>, end: WalkMomentEnd) => void;
   /** Another speaker's moment shown (`answer` null) or answered: the host
    *  posts it to the chat. Nothing is drawn from it. */
   onOthers?: (at: number, of: number, from: string | null, answer: string | null) => void;
@@ -260,6 +264,7 @@ export default function FeedbackWalk<R = unknown>({
   onShown,
   onReached,
   onAnswer,
+  onMomentDone,
   onOthers,
   reasons = null,
   othersJudged = 0,
@@ -299,6 +304,15 @@ export default function FeedbackWalk<R = unknown>({
 
   // `how` is kept for the callers; the thread does not slide (2026-10-20).
   const go = useCallback((to: number, _how?: WalkDir) => setAt(to), []);
+  /** Landing on `to` goes on past the live moment stood on: the host hears
+   *  how it ended (founder 2026-10-21). */
+  const leftRef = useRef<(steps: readonly WalkStep[], to: number) => void>(() => undefined);
+  leftRef.current = (steps, to) => {
+    const from = step?.moment;
+    if (from == null || step.replay || step.readOnly || steps[to]?.moment === from) return;
+    const moment = walk.moments[from];
+    if (moment) onMomentDone?.(moment, momentEnd(steps, to, from));
+  };
   /** Move to `to` on `steps`; the page underneath ends the walk. A try
    *  played again is never stood on: its recorder and check are passed over
    *  to the answer it got (walk first, 2026-10-14). */
@@ -307,6 +321,7 @@ export default function FeedbackWalk<R = unknown>({
       const clamp = (i: number) => Math.max(0, Math.min(i, steps.length - 1));
       let at2 = clamp(to);
       while (steps[at2]?.replay && (steps[at2].key === "practise" || steps[at2].key === "processing")) at2 = clamp(at2 + 1);
+      if (how === "forward") leftRef.current(steps, at2);
       go(at2, how);
       setReach((r) => Math.max(r, at2));
       if (steps[at2]?.overlay === false) onEnd();

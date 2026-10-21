@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, momentChat, othersAnswered, othersChat, praiseChat, shownStep, walkStepDraft, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, momentChat, othersAnswered, othersChat, praiseChat, shownStep, walkStepDraft, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkStep } from "@/lib/willab/walkPlan";
 import type { WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
@@ -22,7 +22,7 @@ import {
   type SaveBehind,
 } from "./saveBehind";
 import { answerChanged, latestAnswerOf, reopensJudgement } from "@/lib/willab/changeJudgement";
-import { judgedStatus } from "@/lib/willab/chunkSteps";
+import { isConfidentVoiceFeedback, judgedStatus } from "@/lib/willab/chunkSteps";
 import {
   buildFeedbackReplay,
   buildFeedbackWalk,
@@ -32,6 +32,7 @@ import {
   walkAsItStands,
   walkLastStep,
   walkStepAt,
+  type WalkMomentEnd,
   type WalkStepTarget,
   type FeedbackWalkItem,
   type FeedbackWalkItemExercise,
@@ -359,6 +360,22 @@ export function skipJudgements(
     }
     settle(item);
   }
+}
+
+/** A moment the walk went past (founder 2026-10-21), settled at once as the
+ *  server settles it on its next read: approved on a Good job or helper
+ *  words used, else dismissed. One the machine did not close and no helper
+ *  words saved is told to the server as skipped, the paragraph sheet's
+ *  Skip, so a reload agrees. */
+function settleWalked(
+  items: readonly DocumentSuggestion[],
+  end: WalkMomentEnd,
+  wordsUsed: boolean,
+  settle: (item: DocumentSuggestion, status: "approved" | "dismissed") => void,
+): void {
+  const status = end === "good_job" || wordsUsed ? "approved" : "dismissed";
+  if (end === "passed" && !wordsUsed) skipJudgements(items, (item) => settle(item, status));
+  else for (const item of items) settle(item, status);
 }
 
 /** The practice an item's exercise was opened on, when the server named
@@ -883,7 +900,11 @@ export function useDeckFeedbackWalk(args: {
     () => replayable && walkStart(buildReplay(ownAnswers)) !== null,
     [replayable, buildReplay, ownAnswers],
   );
-  // The model the walk is opened on: the replay's while it plays.
+  // The model the walk is opened on, held while it is open as the walk
+  // holds it: the replay's while it plays, else the live walk as it stood at
+  // the opening. A moment settled as the walk goes past it (`momentDone`)
+  // leaves the live model, which numbers its moments afresh; the chat and
+  // the coach's queue still hear the steps the speaker sees.
   const [replaying, setReplaying] = useState<typeof model | null>(null);
   const walkModel = replaying ?? model;
   const walkModelRef = useRef(walkModel);
@@ -898,6 +919,9 @@ export function useDeckFeedbackWalk(args: {
   const practisingRef = useRef(false);
   // This opening is the review itself (the lens), not a step from the page.
   const lensRef = useRef(false);
+  // The paragraphs whose helper words this opening saved (the chat may not
+  // hold the speaker's bubble yet).
+  const wordsSavedRef = useRef(new Set<string>());
   /** Opens the walk standing on `at`; `head`, further on, is the furthest
    *  part drawn (a walk already answered past `at`: its parts there to
    *  scroll, founder 2026-10-21). */
@@ -906,6 +930,7 @@ export function useDeckFeedbackWalk(args: {
     practisingRef.current = practising;
     lensRef.current = lens;
     toldRef.current = new Set<string>();
+    wordsSavedRef.current = new Set<string>();
     seqRef.current += 1;
     setRequest({ seq: seqRef.current, at, how, ...(head != null && head > at ? { head } : {}) });
     return true;
@@ -963,6 +988,7 @@ export function useDeckFeedbackWalk(args: {
       setReplaying(done);
       return openAt(walkStart(done), false, lens, undefined, walkLastStep(done));
     }
+    setReplaying(model);
     return openAt(liveAt ?? walkStart(model), false, lens);
   }, [model, finished, coachOnly, openAt, otherTake, replayReady, buildReplay, buildWhole, waitsOn, ownAnswers]);
 
@@ -1003,7 +1029,7 @@ export function useDeckFeedbackWalk(args: {
       // finished walk's, where the words stay editable.
       const liveAt = walkHelpersForPart(model, partId);
       if (liveAt !== null) {
-        setReplaying(null);
+        setReplaying(model);
         return openAt(liveAt);
       }
       const now = replayReady ? buildReplay(ownAnswers) : null;
@@ -1055,6 +1081,7 @@ export function useDeckFeedbackWalk(args: {
     // at either end, as the walk shows them (founder 2026-10-21, B7).
     const words = helperWordsSaid(stripRichMarkers(save.span.text));
     post({ key: `words:${save.partId}:${words}`, moment: null, attempt: null, author: "speaker", body: words, extra: { words_of: save.partId } });
+    wordsSavedRef.current.add(save.partId);
     const { chunks: now, setRootPhrase, lockPart, saveBehind } = live.current;
     const chunk = now.find((c) => c.part.id === save.partId);
     if (!chunk) return;
@@ -1088,6 +1115,22 @@ export function useDeckFeedbackWalk(args: {
   }, []);
   const skipJudging = useCallback((items: DocumentSuggestion[]) => {
     skipJudgements(items, (item) => live.current.onJudged?.(item, "dismissed"));
+  }, []);
+  /* WALKED THROUGH IS ANSWERED (founder 2026-10-21: "the black lines on the
+     ideal text are still there even though I walked through them"). Since
+     the walk stopped asking the speaker to judge their own moments, nothing
+     settled a moment it went past, so its paragraph kept the black line and
+     opened its practise again. A paragraph's own practise and the coach's
+     door settle nothing. */
+  const momentDone = useCallback((moment: FeedbackWalkMoment<DocumentSuggestion>, end: WalkMomentEnd) => {
+    const { chunks: now, pendingOf: openOf, onJudged, coachOnly: coachDoor } = live.current;
+    if (practisingRef.current || coachDoor) return;
+    const parts = walkModelRef.current.partsOf[moment.index] ?? [moment.partId];
+    const open = now.filter((c) => parts.includes(c.part.id)).flatMap((c) => openOf(c)).filter(isConfidentVoiceFeedback);
+    const { thread: chat, take: on } = threadRef.current;
+    const picked = chat && on ? wordsPickedIn(chat.messages, on) : null;
+    const words = parts.some((p) => wordsSavedRef.current.has(p) || picked?.has(p) === true);
+    settleWalked(open, end, words, (item, status) => onJudged?.(item, status));
   }, []);
   const practise = useMemo(() => {
     const io = walkPractiseIO<DocumentSuggestion>(suggestionSource);
@@ -1194,7 +1237,7 @@ export function useDeckFeedbackWalk(args: {
     if (!replaying?.replay || replaying.asItStands || items.length === 0) return false;
     const at = walkStart(model);
     if (at === null) return false;
-    setReplaying(null);
+    setReplaying(model);
     openAt(at, false, lensRef.current);
     return true;
   }, [replaying, items.length, model, openAt]);
@@ -1300,6 +1343,7 @@ export function useDeckFeedbackWalk(args: {
           onShown={onShown}
           onReached={onReached}
           onAnswer={onAnswer}
+          onMomentDone={momentDone}
           onOthers={onOthers}
           reasons={greenReasons}
           othersJudged={othersJudged}
@@ -1325,6 +1369,7 @@ export function useDeckFeedbackWalk(args: {
       onShown,
       onReached,
       onAnswer,
+      momentDone,
       onOthers,
       greenReasons,
       othersJudged,
