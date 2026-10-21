@@ -6,7 +6,7 @@ One page for one loop: a Take is processed → the lens opens on the walk →
 the Ideal Text page → the Lounge chat, the Take's one ask and the summary →
 the next Take. Started 2026-10-20 from the two lock files it replaces
 (backend [`FOUNDER-LOCK-feedback-walk-2026-10-06.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-feedback-walk-2026-10-06.md) and
-[`FOUNDER-LOCK-moment-feedback-chat-2026-10-12.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-moment-feedback-chat-2026-10-12.md)) and the walk's entries
+[`FOUNDER-LOCK-moment-feedback-chat-2026-10-12.md`](https://github.com/wilplus/backend-cursor/blob/51c67077c3bb09d5a22211f55d9d122919b9983f/docs/FOUNDER-LOCK-moment-feedback-chat-2026-10-12.md)) and the walk's entries
 in the decisions log, edited to the present. Those files stay as history
 and are no longer edited.
 
@@ -433,7 +433,7 @@ step; the loop never waits for a coach.
   carries them.
 - **E5** The founder edits Will's questions on the coach panel, under the
   blind lists ("Will · only you" → "Will's questions"; N83; backend
-  [`FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md)). A question with no
+  [`FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md`](https://github.com/wilplus/backend-cursor/blob/51c67077c3bb09d5a22211f55d9d122919b9983f/docs/FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md)). A question with no
   saved row keeps the signed words in code.
 
 ### F · The Ideal Text page, in the loop

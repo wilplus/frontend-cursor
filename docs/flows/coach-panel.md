@@ -6,7 +6,7 @@ One page for the coach's side: the Lounge door, the queue, a speaker, the
 blind Judge, what happened, the diagnosis, the cure, the coach's words and
 video, the share, the Summary, the word for a Take, the training corpus,
 and the founder's rows. Started 2026-10-20 from the lock it replaces
-(backend [`FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md), with its
+(backend [`FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md`](https://github.com/wilplus/backend-cursor/blob/51c67077c3bb09d5a22211f55d9d122919b9983f/docs/FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md), with its
 amendments of 2026-10-19 and 2026-10-20) and the panel's entries in the
 decisions log, edited to the present. The lock file stays as history and is
 no longer edited. It works like [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md): §1 is the

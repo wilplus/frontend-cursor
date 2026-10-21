@@ -38,7 +38,8 @@ import { TOKENS_COPY, actionLabel, formatShortDate, formatTokens } from "./copy"
 /*  2. A way to CHANGE or CANCEL an existing plan. Buying a first plan works    */
 /*     (TokenPlanCards), but switching or stopping needs Stripe's billing        */
 /*     portal, which the backend has no route for — see                         */
-/*     docs/HANDOFF-BE-2026-07-31-token-subscriptions.md.                       */
+/*     the backend handoff of 2026-07-31, at its last version:                 */
+/*     https://github.com/wilplus/frontend-cursor/blob/36de5b1b244b363d661143a91a1a149fd2f04761/docs/HANDOFF-BE-2026-07-31-token-subscriptions.md  */
 /*                                                                            */
 /*  No streaks, no "you've used X%", no comparison, no praise                  */
 /*  for spending little (AC-9). The ledger is a receipt, not a report card.    */
