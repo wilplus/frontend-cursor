@@ -6,6 +6,7 @@ import {
   decideCeoHostRoute,
 } from "@/lib/ceo/hostRouting";
 import { strayAuthCallbackUrl } from "@/lib/auth/strayCallback";
+import { sameSitePath } from "@/lib/auth/sameSitePath";
 
 // "/panel" — the Life Panel is signed-in only. The SECOND gate (feature flag,
 // consent, allowlist) is server-side in `/v2/life/state`, which 404s: this
@@ -438,14 +439,9 @@ function signedInDestination(
 ): string | null {
   if (pathname === "/") return isCeoHost ? null : "/chat";
   if (isAuthRoute(pathname) && pathname !== "/update-password") {
-    return sameSitePath(searchParams.get("redirectTo"));
+    return sameSitePath(searchParams.get("redirectTo")) ?? "/chat";
   }
   return null;
-}
-
-/** A same-site path to go to after sign-in, else /chat. */
-function sameSitePath(back: string | null): string {
-  return back && back.startsWith("/") && !back.startsWith("//") ? back : "/chat";
 }
 
 export const config = {
