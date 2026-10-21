@@ -190,6 +190,9 @@ export type FeedbackWalkModel<R = unknown> = {
   /** The finished walk played again (Q-IT643b A): the answers as given,
    *  drawn pressed. Absent on the live walk. */
   replay?: FeedbackWalkReplay | null;
+  /** The whole Take's walk as it stands (walkAsItStands): what is answered
+   *  as given, what still waits live, so Next walks on through it. */
+  asItStands?: boolean;
 };
 
 /** The tries a moment's practise already had, as the replay plays them
@@ -346,6 +349,7 @@ export function buildFeedbackWalk<R = unknown>(input: {
   practiceOn: boolean;
   guest: boolean;
   coachOnly?: boolean;
+  coachWordOnly?: boolean;
 }): FeedbackWalkModel<R> {
   const groups = walkMomentGroups(input.items);
   const moments = groups.map((group, index) => momentOf(group, index));
@@ -355,6 +359,7 @@ export function buildFeedbackWalk<R = unknown>(input: {
     practiceOn: input.practiceOn,
     guest: input.guest,
     coachOnly: input.coachOnly,
+    coachWordOnly: input.coachWordOnly,
   }).filter((step) => {
     const moment = step.moment == null ? undefined : moments[step.moment];
     return (
@@ -467,6 +472,33 @@ const onPart = (model: FeedbackWalkModel<unknown>, s: WalkStep, partId: string):
 export function walkActionForPart(model: FeedbackWalkModel<unknown>, partId: string): number | null {
   const ask = model.plan.findIndex((s) => onPart(model, s, partId) && s.key !== "praise");
   return ask >= 0 ? ask : walkStepForPart(model, partId);
+}
+
+/** The whole Take's walk as it stands (founder 2026-10-21, B10: every door
+ *  opens the whole walk, "live while that step waits"): the finished walk
+ *  as given, with each moment that still waits drawn live, its own steps
+ *  from `live`. Both are built from the same items, so a moment keeps the
+ *  number the Take's walk gave it, and the chat hears a step it already
+ *  holds as the same message. Pure. */
+export function walkAsItStands<R>(
+  replay: FeedbackWalkModel<R>,
+  live: FeedbackWalkModel<R>,
+  waits: (moment: FeedbackWalkMoment<R>) => boolean,
+): FeedbackWalkModel<R> {
+  const plan: WalkStep[] = [];
+  const drawn = new Set<number>();
+  for (const step of replay.plan) {
+    const m = step.moment;
+    const moment = m == null ? undefined : replay.moments[m];
+    if (m == null || !moment || !waits(moment)) {
+      plan.push(step);
+      continue;
+    }
+    if (drawn.has(m)) continue;
+    drawn.add(m);
+    plan.push(...live.plan.filter((s) => s.moment === m));
+  }
+  return { ...replay, plan, asItStands: true };
 }
 
 /** Where a tap on a paragraph's helper words opens the walk (lock

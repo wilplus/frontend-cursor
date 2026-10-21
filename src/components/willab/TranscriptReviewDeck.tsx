@@ -234,6 +234,27 @@ export function ownCoachWord(
   return message;
 }
 
+/** The word the walk opens with. Every door but the coach's: this Take's
+ *  word only (founder 2026-10-20). The coach's own door (`coachOnly`): the
+ *  word of the Take the coach's link names (`coachTake`; founder
+ *  2026-10-21, backend N77: "the links carry the Take the word was written
+ *  on"), that Take's only; with no Take named, this Take's own word
+ *  (backend N77 drops the earlier-Take fallback). */
+export function walkCoachWord(
+  message: CoachMessage | null,
+  door: { coachOnly: boolean; coachTake: string | null | undefined; takeSessionId: string | null | undefined; takeCount: number | null | undefined },
+): CoachMessage | null {
+  if (!door.coachOnly) return ownCoachWord(message, door.takeSessionId, door.takeCount);
+  return ownCoachWord(message, door.coachTake ?? door.takeSessionId, door.coachTake ? null : door.takeCount);
+}
+
+/** The coach's link names an earlier Take than the one on screen (founder
+ *  2026-10-21, N77): the coach-only walk is that Take's word alone, with no
+ *  moments, since the moments are the Take on screen's. */
+export function coachLinkNamesEarlierTake(door: { coachOnly: boolean; coachTake: string | null | undefined; takeSessionId: string | null | undefined }): boolean {
+  return door.coachOnly && Boolean(door.coachTake && door.takeSessionId) && door.coachTake !== door.takeSessionId;
+}
+
 export default function TranscriptReviewDeck({
   title = "",
   statusChip = null,
@@ -273,6 +294,7 @@ export default function TranscriptReviewDeck({
   onWalkEnd,
   onWalkClose,
   coachOnly = false,
+  coachTake,
   onCoachOnlyEmpty,
   onLensReveal,
   renderNextStep,
@@ -382,6 +404,9 @@ export default function TranscriptReviewDeck({
   /** Opened from the coach's bubble: the walk shows only what the coach
    *  sent, and opens on it at once (founder 2026-10-14). */
   coachOnly?: boolean;
+  /** The Take the coach's link names (`&take=`, backend N77): the
+   *  coach-only walk opens on that Take's word. */
+  coachTake?: string | null;
   /** The feedback settled and the coach-only walk has nothing to open. */
   onCoachOnlyEmpty?: () => void;
   /** The lens screen comes down and the text shows (the host's own). */
@@ -739,8 +764,10 @@ export default function TranscriptReviewDeck({
   );
   /* THE WALK SHOWS ONLY THIS TAKE'S COACH WORD (founder 2026-10-20, "change
      it!"; backend N77): a word left on an earlier Take stays in the Lounge
-     as the coach's bubble and opens nothing in a new Take's review. */
-  const walkCoachMessage = ownCoachWord(coachMessage, takeSessionId, takeCount);
+     as the coach's bubble and opens nothing in a new Take's review. The
+     coach's own door (`coachOnly`) opens the word of the Take its link
+     names, or this Take's own word (`walkCoachWord`). */
+  const walkCoachMessage = walkCoachWord(coachMessage, { coachOnly, coachTake, takeSessionId, takeCount });
   const coachStep = useCoachStep({
     arcId,
     message: walkCoachMessage,
@@ -786,6 +813,7 @@ export default function TranscriptReviewDeck({
     onEnd: onWalkEnd,
     onWalkClose,
     coachOnly,
+    coachWordOnly: coachLinkNamesEarlierTake({ coachOnly, coachTake, takeSessionId }),
   });
   /* AN UNSEEN COACH WORD IS WAITING TOO (founder 2026-10-05; N80):
      "Review feedback" stays for it after every moment is answered, and opens

@@ -58,6 +58,7 @@ export default function WillabSurface({
   bestPresentationArcId,
   idealTextArcId = null,
   idealTextMode = null,
+  idealTextTake,
 }: {
   sessionId: string | null;
   /** D3 — user deep-link target from `/chat?insight=<id>`; opens the in-Lounge
@@ -71,6 +72,9 @@ export default function WillabSurface({
   /** `&feedback=1` or `?lens=`: open on the coach's feedback;
    *  `?lens=&mode=review`: the review. */
   idealTextMode?: "feedback" | "review" | null;
+  /** `&take=<session_id>`: the Take the coach's link names (backend N77);
+   *  the coach-only walk opens on that Take's word. */
+  idealTextTake?: string | null;
 }) {
   const flow = useWillabFlow();
   const [recordingProgress, setRecordingProgress] =
@@ -214,6 +218,7 @@ export default function WillabSurface({
         initialBestPresentationArcId={bestPresentationArcId}
         initialIdealTextArcId={idealTextArcId}
         initialIdealTextMode={idealTextMode}
+        initialIdealTextTake={idealTextTake}
         recordingProgress={recordingProgress}
       />
       {/* Context-aware setup — WHICH project, asked before the Lab opens.
