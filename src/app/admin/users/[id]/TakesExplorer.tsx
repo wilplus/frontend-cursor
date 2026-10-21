@@ -20,6 +20,9 @@ interface TakeRow {
   pieces: number;
   take: Record<string, number | null>;
   piece_means: Record<string, number | null>;
+  /** The Take's willfidence in whole percent; null when no piece has a sound
+   *  read (founder 2026-10-21, backend N103). */
+  willfidence?: number | null;
   /** The Take's AI clip (the voice Exercise): the problem practised, the next
    *  try's outcome and, for fillers, hesitations per 100 words before and after. */
   ai_clip?: {
@@ -76,6 +79,7 @@ const COLS: Col[] = [
   { key: "voiced_ratio", label: "Voiced ratio", get: (t) => t.piece_means.voiced_ratio },
   { key: "emphasis_per_min", label: "Emphasis / min", get: (t) => t.piece_means.emphasis_per_min },
   { key: "energy_ratio", label: "Energy ratio", get: (t) => t.piece_means.energy_ratio },
+  { key: "willfidence", label: "Willfidence", get: (t) => t.willfidence ?? null },
   { key: "status", label: "Status", get: (t) => t.status },
 ];
 const NUMERIC = COLS.filter((c) => !["created_at", "project", "kind", "status", "ai_clip", "ai_clip_fillers"].includes(c.key));
