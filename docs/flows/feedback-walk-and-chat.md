@@ -75,7 +75,8 @@ step; the loop never waits for a coach.
   message box.
 - **B4** Bubbles: the speaker orange on the right; the app and the coach
   light grey on the left with a small avatar (the coach's grey-blue). No
-  bold in any bubble. No sender labels, except "Your coach:" which opens the
+  bold in any bubble, the Clearer version's new words included (2026-10-21).
+  No sender labels, except "Your coach:" which opens the
   coach's bubble, with the colon (2026-10-20).
 - **B5** Nothing swaps. Each step reached lands under the one before;
   earlier steps stay above to scroll back to; nothing leaves the thread while
@@ -89,7 +90,9 @@ step; the loop never waits for a coach.
   · helper words", "Take 2", "Your coach"). The bar shows the step in view;
   ‹ › scroll to the step before or after, within this opening of the walk.
 - **B7** The step's buttons are a dock under the thread. A choice lands as
-  the speaker's orange bubble, in the words the Lounge stores; the next
+  the speaker's orange bubble, in the words the Lounge stores (helper words
+  without the sentence's punctuation at either end, "growth doubled" not
+  "growth doubled,", 2026-10-21); the next
   step's bubbles land one after another, each grey one behind the typing
   dots, 350 ms a bubble (the Lounge's beat, 2026-10-20), and its buttons once
   they have all landed. Next and Continue post nothing.
@@ -166,7 +169,9 @@ step; the loop never waits for a coach.
   later; the server already counted only this Take's words, 2026-10-13).
 - **C3 Choose your helper words**, after each praised moment: a big bubble in
   the thread with large plain word buttons, no borders, chosen words orange;
-  "N of 6 words", "Use these helper words" and "Skip"; once the words are
+  "N of 8 words" at the top, the count against the cap (eight since
+  2026-10-15), in place of "Tap the words" (2026-10-21); "Use these helper
+  words" and "Skip"; once the words are
   given, the pill reads "Edit the helper words" and the link "Keep these"
   (founder, signed 2026-10-21). Helper words stay
   editable from the Lounge's helper-words bubble and in the next Take's
@@ -191,7 +196,8 @@ step; the loop never waits for a coach.
   undermining words, `rewrite_reason: "undermining"`, B10's "Say what you
   mean. Don't dance around it, just say it straight." and "Try saying it
   like this:" in its place, N85); the new text with the new words in orange;
-  "Do you accept and want to practise it?";
+  "Do you accept and want to practise it?", with no "Clearer version" title
+  over them (2026-10-21);
   "Accept and practise" / "Keep my words" (which practises their own
   sentence with Line A). At most one rewrite per corrected moment. An accepted version
   never changes the Ideal Text (rule 5): it gets there when it is said in the
@@ -204,7 +210,8 @@ step; the loop never waits for a coach.
   if you said it more like this?", the AI version of their voice, then L3
   "Now try saying it like that." (N82). When a library video fits exactly
   and targets the chosen problem, the video and its instruction (the coach's
-  when there is one, else Line A) take the clip's place, then "Practise".
+  when there is one, else Line A) take the clip's place, then "Practise";
+  no "Exercise" title on this path either (2026-10-21).
   Under the clip's player one signed sentence says why (L14–L18). Without a
   clip the Exercise is as locked. The Exercise is one thread showing its
   whole history: the clip, the Exercise, every try and its answer
@@ -214,7 +221,9 @@ step; the loop never waits for a coach.
   recorder in the dock (the strip with the dot, the clock and the bar;
   "Skip" in the Back style and a red "Stop" in the Finish-take style), the
   try as the orange "Practise N", the typing dots while it is checked, then
-  the answer. The recorder is the recording screen as re-locked 2026-10-12
+  the answer. Each try keeps its own number and its own voice on screen, a
+  try the server did not keep (late, not sent, not heard) included: the
+  next is numbered after it (2026-10-21). The recorder is the recording screen as re-locked 2026-10-12
   (N70) without the slide card; after Stop the walk returns instantly. The
   machine decides (H1): a Good job on the voice alone needs the margin,
   +0.05 (`after_practice.GOOD_JOB_MARGIN`, N84); a cleared problem, or a cue
@@ -388,8 +397,10 @@ step; the loop never waits for a coach.
   orange words on a paragraph with no moment in this Take still open their
   helper words alone. A sentence that opens a step shows a light grey
   highlight while pressed; other text does nothing.
-- **F6** Buttons: "Record Take N" is the main button; the grey "Close" is the
-  one way out, to the chat (no ✕ at the top); history is under ⋯.
+- **F6** Buttons: "Record Take N" is the main button, with the grey "Close"
+  under it; the ✕ beside ⋯ at the top closes the page too, both to the chat
+  (founder 2026-10-21: the ✕ stays, on a computer the eye looks top-right;
+  until then "Close" was the one way out); history is under ⋯.
 - **F7** Rule 5: the Ideal Text is only what the speaker said in their
   latest Take; their helper words stay until they pick new ones; every old
   version stays in the history.
@@ -523,8 +534,8 @@ step; the loop never waits for a coach.
   "Other speakers · N of N", "Practise N", "🔒 Take N", "Processing your
   recording", "Later · from your coach", "Updated with your coach's note ·
   see / hide the earlier version".
-- **Helper words:** "Choose your helper words", "N of 6 words", "Use these
-  helper words", "Edit the helper words" (signed 2026-10-21), "Keep these".
+- **Helper words:** "Choose your helper words", "N of 8 words" (the cap,
+  eight since 2026-10-15), "Use these helper words", "Edit the helper words" (signed 2026-10-21), "Keep these".
 - **A try not heard:** "We couldn't hear that clearly. Try again." (signed
   2026-10-21).
 - **The Clearer version:** "Here is a slightly more polished option:", "Do
@@ -576,7 +587,9 @@ step; the loop never waits for a coach.
   inner critic 😌", "More about self-modeling theory", "I am going to judge
   them honestly", "Not sure", "Moment N of N", "It was better, and I have
   yet another practice for you to try!", "Exercise" and L2 "Here's how you
-  could say it." as the Exercise's opening (L4 took their place, N82).
+  could say it." as the Exercise's opening (L4 took their place, N82;
+  "Exercise" on the video path too, 2026-10-21), "Clearer version" over the
+  Clearer version and "Tap the words" over the picker (2026-10-21).
 
 ---
 
@@ -694,6 +707,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-21 · the lens against its page, the founder's eight answers: "N of 8 words" in place of "Tap the words" (C3; was "N of 6 words"); helper words without end punctuation in the speaker's bubble (B7); the Clearer version's new words no longer bold (B4); no "Clearer version" title (C5, K) and no "Exercise" title on the video path (C6, K); every try keeps its number and voice, a try the server did not keep included (C7; until then a late or unheard try was followed by another "Practise 1"); the ✕ beside ⋯ on the Ideal Text stays (F6; was "Close the one way out"); the harness's sample marks its highest moment and levels · FE #___
 
 - 2026-10-21 · helper words kept from an earlier Take no longer settle this Take's moment on the page: the confident moment is walked first, before the correction, as the server already served it (C2, F3) · FE #904
 - 2026-10-21 · N93 · a clip that fails its check is made once more with a new seed, never a third time, and a try after a clip that was never made is not scored (C6, H2) · BE #1214, FE #902

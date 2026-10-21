@@ -5,6 +5,7 @@ import FeedbackWalk, {
   type FeedbackWalkHelperWords,
   type FeedbackWalkRequest,
 } from "@/components/willab/walk/FeedbackWalk";
+import { praiseTitleFor } from "@/lib/willab/praiseLevels";
 import { walkPractiseIO, type WalkPractiseSource } from "@/services/api/walkPractise";
 import type { ConfidentVoicePracticeOffer } from "@/services/api/idealText";
 import WalkEndSheet from "@/components/willab/walk/WalkEndSheet";
@@ -125,6 +126,11 @@ const EXERCISE_OFFER: ConfidentVoicePracticeOffer = {
   chosenByCoach: true,
 };
 
+/** The harness's highest moment: the first praised one, as the server marks
+ *  the Take's top moment (founder 2026-10-20), so the screens draw "This was
+ *  your most confident moment." and a level's opening line. */
+const HIGHEST = MOMENTS.find((m) => m.praise)?.index ?? -1;
+
 /** The fixtures as the page hands them to the walk: one item per moment. */
 function liveItems(audioSrc: string, exerciseVideo: boolean): FeedbackWalkItem<string>[] {
   return MOMENTS.map((m) => ({
@@ -136,6 +142,8 @@ function liveItems(audioSrc: string, exerciseVideo: boolean): FeedbackWalkItem<s
     paragraphText: PARAGRAPHS[m.index],
     slideLabel: SLIDE_LABEL,
     praiseWords: m.praise ? [m.praise.text] : null,
+    praiseTitle: m.praise ? praiseTitleFor(m.index === HIGHEST ? "W8" : "W6", `harness-${m.index}`) : null,
+    highest: m.index === HIGHEST,
     clip: { src: audioSrc, startOffsetMs: 0, durationMs: m.durationMs },
     rewrite: rewriteOf(m),
     item: m.clearer ? `rewrite-${m.index}` : null,
