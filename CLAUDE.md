@@ -53,7 +53,10 @@ where it and the backend disagree, the backend wins. Write every founder
 decision made in chat into the backend decisions log right away, in its own
 small docs PR, never bundled with code that waits for review. Where code on
 main disagrees with those docs, the docs win and the code is a bug to fix
-(founder, 2026-10-21, backend N93).
+(founder, 2026-10-21, backend N94). This repo's flow pages
+`docs/flows/feedback-walk-and-chat.md` and `docs/flows/coach-panel.md` also
+count for their flows, because the frontend design-lock guard requires them
+to change together with the code.
 
 ## How to ship
 
