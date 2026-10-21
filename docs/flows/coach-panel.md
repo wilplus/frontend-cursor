@@ -327,7 +327,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-21 · Import audio takes several files, one import each, inside the backend's upload limit (H2)
+- 2026-10-21 · N96 · Import audio takes several files, one import each, inside the backend's upload limit (H2) · FE #913, BE #1218
 - 2026-10-20 · N87 · this page replaces the lock file; the speaker's screen shows who the talk is for and what they should do under the goal, in the same small text (C3, J) · FE #895, BE #1208
 - 2026-10-20 · N83 · the founder edits Will's questions on the coach panel, one row under the blind lists (B4) · FE #887, BE #1197
 - 2026-10-20 · the founder's ⋯ clears what waits on a blind list for the week (B5) · FE #880, BE #1185
