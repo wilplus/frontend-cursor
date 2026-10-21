@@ -217,10 +217,12 @@ function liveOpenPartId(
  *  and touch steps between slides. */
 const ONE_PAGE = true;
 
-/** The coach's word for the Take on screen, or null when the word the
- *  server sent belongs to an earlier Take (founder 2026-10-20). The Take's
- *  session id decides; without one, its index; without either, the word is
- *  taken as the Take's own. */
+/** The coach's word for the Take on screen, or null when the word belongs
+ *  to another Take (founder 2026-10-20). Since backend N77 (#1212) the
+ *  server sends only the word of the Take on screen; this stays as the
+ *  guard for a journey section kept from an earlier read. The Take's session
+ *  id decides; without one, its index; without either, the word is taken as
+ *  the Take's own. */
 export function ownCoachWord(
   message: CoachMessage | null,
   takeSessionId: string | null | undefined,
@@ -236,14 +238,14 @@ export function ownCoachWord(
  *  word only (founder 2026-10-20). The coach's own door (`coachOnly`): the
  *  word of the Take the coach's link names (`coachTake`; founder
  *  2026-10-21, backend N77: "the links carry the Take the word was written
- *  on"), that Take's only; with no Take named, the word the server sent,
- *  as before. */
+ *  on"), that Take's only; with no Take named, this Take's own word
+ *  (backend N77 drops the earlier-Take fallback). */
 export function walkCoachWord(
   message: CoachMessage | null,
   door: { coachOnly: boolean; coachTake: string | null | undefined; takeSessionId: string | null | undefined; takeCount: number | null | undefined },
 ): CoachMessage | null {
   if (!door.coachOnly) return ownCoachWord(message, door.takeSessionId, door.takeCount);
-  return door.coachTake ? ownCoachWord(message, door.coachTake, null) : message;
+  return ownCoachWord(message, door.coachTake ?? door.takeSessionId, door.coachTake ? null : door.takeCount);
 }
 
 /** The coach's link names an earlier Take than the one on screen (founder
@@ -761,11 +763,10 @@ export default function TranscriptReviewDeck({
     [bookmarks, barWaiting],
   );
   /* THE WALK SHOWS ONLY THIS TAKE'S COACH WORD (founder 2026-10-20, "change
-     it!"): an earlier Take's word, which the server serves in its place
-     (N48.3 Q11 A), no longer opens Step 0 of a new Take's review and no
-     longer keeps "Continue review" up; it stays in the Lounge as the coach's
-     bubble. The coach's own door (`coachOnly`) opens the word of the Take
-     its link names, or whatever word the server sent (`walkCoachWord`). */
+     it!"; backend N77): a word left on an earlier Take stays in the Lounge
+     as the coach's bubble and opens nothing in a new Take's review. The
+     coach's own door (`coachOnly`) opens the word of the Take its link
+     names, or this Take's own word (`walkCoachWord`). */
   const walkCoachMessage = walkCoachWord(coachMessage, { coachOnly, coachTake, takeSessionId, takeCount });
   const coachStep = useCoachStep({
     arcId,
@@ -814,7 +815,7 @@ export default function TranscriptReviewDeck({
     coachOnly,
     coachWordOnly: coachLinkNamesEarlierTake({ coachOnly, coachTake, takeSessionId }),
   });
-  /* AN UNSEEN COACH WORD IS WAITING TOO (founder 2026-10-05, N48.3 Q11 A):
+  /* AN UNSEEN COACH WORD IS WAITING TOO (founder 2026-10-05; N80):
      "Review feedback" stays for it after every moment is answered, and opens
      on Step 0 (J1: only on the tap; nothing opens by itself). */
   const coachWordWaiting = coachStep.unseen;

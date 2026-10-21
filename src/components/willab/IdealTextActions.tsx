@@ -47,7 +47,7 @@ export default function IdealTextActions({
   takeCount?: number | null;
   /** A moment of this Take still waits for the speaker's judgement, or the
    *  coach left a word on this Take that Step 0 has not shown yet (founder
-   *  2026-10-05, N48.3 Q11 A). */
+   *  2026-10-05; backend N77). */
   reviewWaiting?: boolean;
   /** Walk the waiting moments, from the first one in text order. */
   onReview?: () => void;

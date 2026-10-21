@@ -6,8 +6,12 @@ STORY    As a speaker, I want my coach's message to open only when I ask for
 OUTCOME
   O1  The message never opens by itself; Review feedback opens it with the
       coach's words, the Take number and the video.
+  O2  The walk shows only the word of the Take on screen, never another
+      Take's.
 PROVES   O1 -> "never opens by itself (Q1); Review feedback shows the words, the Take and the video"
-WHY      Founder 2026-09-29, Q1 (Final Screens L8).
+         O2 -> "is the Take's own word, never an earlier Take's"
+WHY      Founder 2026-09-29, Q1 (Final Screens L8); founder 2026-10-20 and
+         backend N77 (the word shows on its own Take only).
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -64,8 +68,8 @@ describe("step 0", () => {
 });
 
 /* The walk shows only this Take's coach word (founder 2026-10-20, "change
- * it!"): an earlier Take's word, served in its place (N48.3 Q11 A), stays
- * in the Lounge and opens nothing in a new Take's review. */
+ * it!"; backend N77): a word for another Take opens nothing in this Take's
+ * review; an earlier Take's word stays in the Lounge as its bubble. */
 describe("the coach's word in a new Take's walk", () => {
   const word = { ...MSG, takeSessionId: "take-2" };
   it("is the Take's own word, never an earlier Take's", () => {

@@ -13,7 +13,7 @@ import { markCoachFeedbackSeen } from "@/services/api/coachFeedbackSeen";
  *    read again.
  *  - Continue calls `next` (the host's "go to the first waiting moment"),
  *    which does nothing when nothing waits.
- *  - REACHABLE WHILE UNSEEN (founder 2026-10-05, N48.3 Q11 A): `unseen` says
+ *  - REACHABLE WHILE UNSEEN (founder 2026-10-05; backend N77): `unseen` says
  *    the word for the Take on screen has not been watched yet, so the host
  *    keeps "Review feedback" on the page for it even after every moment is
  *    answered.
