@@ -56,6 +56,9 @@ export interface MomentRead {
   speakerGoal: string | null;
   /** null when the backend does not carry it (older deploy). */
   heard: HeardEntry[] | null;
+  /** The moment's willfidence in whole percent, for the coach only (founder
+   *  2026-10-21, backend N104); null when the clip has no sound read. */
+  willfidence: number | null;
   /** null when nothing reached the coach from this moment. */
   request: CoachExerciseRequest | null;
   /** The speaker's chosen practice recording, with the coach's own saved
@@ -109,6 +112,8 @@ export function mapMomentRead(raw: unknown): MomentRead | null {
     coachAnswer: isAnswer(r.coach_answer) ? r.coach_answer : null,
     speakerGoal: typeof r.speaker_goal === "string" && r.speaker_goal ? r.speaker_goal : null,
     heard: mapHeard(r.heard),
+    willfidence: typeof r.willfidence === "number" && Number.isFinite(r.willfidence)
+      ? Math.min(100, Math.max(0, Math.round(r.willfidence))) : null,
     request: mapCoachExerciseRequest(r.request),
     practice: mapMomentPractice(r.practice),
   };

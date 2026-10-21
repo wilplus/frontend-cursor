@@ -134,6 +134,7 @@ const SIGNED = {
   /* What happened */
   whatHappened: "What happened",
   machineHeard: "The machine heard",
+  willfidence: "Willfidence",
   /* the diagnosis */
   whatKindOfError: "What kind of error is it?",
   machineHeardThis: "The machine heard this",
