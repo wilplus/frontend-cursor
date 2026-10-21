@@ -8,7 +8,7 @@
  *   O1  Every moment answered and an unseen coach word: Review feedback
  *       stays, opens Step 0 only on its tap, and goes once watched: only
  *       Continue clears it, ✕ keeps it, and a changed word (a new video)
- *       brings it back (N48.3 Q11 A; N80 D4, D7).
+ *       brings it back (N80 D4, D7; backend N77).
  *   O2  After Delete the paragraph rejoins the walk on its earlier answer,
  *       at once, not only when a moment is open on it (N48.2 Q6 A).
  *   O3  Every moment answered: a bubble of the Take tapped in the Lounge
@@ -122,9 +122,9 @@ const pager = () => document.querySelector('[data-testid="feedback-pager"]');
 const walkScreen = () =>
   document.querySelector("[data-feedback-walk] .walk-layer:not(.walk-ghost) [data-testid^='walk-screen-']");
 
-/* --------------------------------------------------------------- Q11 A ---- */
+/* ------------------------------------------------- the Take's coach word ---- */
 
-describe("N48.3 Q11 A: the coach's word for the Take on screen", () => {
+describe("N80: the coach's word for the Take on screen", () => {
 
   it("every moment answered: Review feedback stays for the unseen word, opens Step 0 on its tap only, and goes once watched with Continue", async () => {
     const waiting = vi.fn();

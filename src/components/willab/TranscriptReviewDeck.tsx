@@ -215,10 +215,12 @@ function liveOpenPartId(
  *  and touch steps between slides. */
 const ONE_PAGE = true;
 
-/** The coach's word for the Take on screen, or null when the word the
- *  server sent belongs to an earlier Take (founder 2026-10-20). The Take's
- *  session id decides; without one, its index; without either, the word is
- *  taken as the Take's own. */
+/** The coach's word for the Take on screen, or null when the word belongs
+ *  to another Take (founder 2026-10-20). Since backend N77 (#1212) the
+ *  server sends only the word of the Take on screen; this stays as the
+ *  guard for a journey section kept from an earlier read. The Take's session
+ *  id decides; without one, its index; without either, the word is taken as
+ *  the Take's own. */
 export function ownCoachWord(
   message: CoachMessage | null,
   takeSessionId: string | null | undefined,
@@ -723,12 +725,9 @@ export default function TranscriptReviewDeck({
     [bookmarks, barWaiting],
   );
   /* THE WALK SHOWS ONLY THIS TAKE'S COACH WORD (founder 2026-10-20, "change
-     it!"): an earlier Take's word, which the server serves in its place
-     (N48.3 Q11 A), no longer opens Step 0 of a new Take's review and no
-     longer keeps "Continue review" up; it stays in the Lounge as the coach's
-     bubble. The coach's own door (`coachOnly`) still opens whatever word
-     the server sent. */
-  const walkCoachMessage = coachOnly ? coachMessage : ownCoachWord(coachMessage, takeSessionId, takeCount);
+     it!"; backend N77): a word left on an earlier Take stays in the Lounge
+     as the coach's bubble and opens nothing in a new Take's review. */
+  const walkCoachMessage = ownCoachWord(coachMessage, takeSessionId, takeCount);
   const coachStep = useCoachStep({
     arcId,
     message: walkCoachMessage,
@@ -775,7 +774,7 @@ export default function TranscriptReviewDeck({
     onWalkClose,
     coachOnly,
   });
-  /* AN UNSEEN COACH WORD IS WAITING TOO (founder 2026-10-05, N48.3 Q11 A):
+  /* AN UNSEEN COACH WORD IS WAITING TOO (founder 2026-10-05; N80):
      "Review feedback" stays for it after every moment is answered, and opens
      on Step 0 (J1: only on the tap; nothing opens by itself). */
   const coachWordWaiting = coachStep.unseen;
