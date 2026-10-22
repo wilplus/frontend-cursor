@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { TriangleAlert } from "lucide-react";
 import Footer from "@/components/Footer";
 import PendingCoachSend from "@/components/willab/PendingCoachSend";
 import GuestProjectClaim from "@/components/willab/GuestProjectClaim";
@@ -78,6 +79,14 @@ export const viewport = {
 // so per-request rendering is the marginal cost, not a new one.
 export const dynamic = "force-dynamic";
 
+// Outage banner (founder, the Claude Code chat, 22 October 2026, during the
+// Railway security incident: "show a banner on the top of the site ... servers
+// are temporarily down, will be back soon!"). The founder's own words, so no
+// new words on screen. Temporary: revert this when the servers are back.
+// Full-screen overlays (recording, Ideal Text, the walk, consent) sit above it
+// at z-30, so those locked screens are unchanged.
+const OUTAGE_NOTICE = "Servers are temporarily down, will be back soon!";
+
 export default function RootLayout({
   children,
 }: {
@@ -92,6 +101,13 @@ export default function RootLayout({
         use h-full so they fill the content slot instead of the document.
       */}
       <body className="flex h-[100dvh] flex-col font-sans antialiased">
+        <div
+          role="status"
+          className="flex shrink-0 items-center justify-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-900 sm:text-sm"
+        >
+          <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
+          <span>{OUTAGE_NOTICE}</span>
+        </div>
         <div className="flex-1 overflow-y-auto">{children}</div>
         <Footer />
         <Toaster position="top-center" />
