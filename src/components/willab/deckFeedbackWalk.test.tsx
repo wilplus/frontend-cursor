@@ -21,6 +21,9 @@ OUTCOME
   O7  A moment the walk went past (its helper words skipped, its practise
       skipped) loses its black line at once and is told to the server; its
       paragraph then opens the walk as given, never its practise again.
+  O8  A moment whose voice sounded confident and whose words are reworded
+      offers its helper words after the rewording; one whose voice did not,
+      only the rewording (N113).
 PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's sheet"
          O2 -> "‹ › move through the walk's chat, never answering and never
                 closing it (founder 2026-10-20)"
@@ -33,9 +36,12 @@ PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's 
          O6 -> "a guest's pick asks to sign up and writes nothing"
          O7 -> "a moment walked through loses its black line and opens as
                 given, never its practise again (founder 2026-10-21)"
+         O8 -> "a confident voice whose words are reworded gets its helper
+                words after the rewording (founder 2026-10-22, N113)"
 WHY      Feedback walk lock 2026-10-06/2026-10-12; founder 2026-10-21 ("the
          black lines on the ideal text are still there even though I walked
-         through them"). The paragraph sheet's
+         through them"); 2026-10-22 (N113, "After the rewording"). The
+         paragraph sheet's
          accept lane is in acceptRewrite.test.tsx.
 */
 import { act, createElement, useState } from "react";
@@ -401,5 +407,30 @@ describe("the clearer version in the walk (D-FW-15)", () => {
     expect(screen()).not.toBe("walk-screen-clearer");
     expect(paragraph("retention went up")!.textContent).toBe(SLIDES[1]);
     expect(container.querySelector("[data-chunk]")!.parentElement!.textContent).not.toContain("retention rose");
+  });
+
+  it("a confident voice whose words are reworded gets its helper words after the rewording (founder 2026-10-22, N113)", async () => {
+    // Practice off, so Accept moves straight on.
+    practice.on = false;
+    for (const confident of [true, false]) {
+      // Served as V3 serves it: the moment corrected with its Clearer
+      // version, flagged when its voice reached the floor.
+      const moment = {
+        ...judgement, bookmarkTier: "standard", practicePrompt: true, helperWordsPrompt: confident,
+      } as unknown as DocumentSuggestion;
+      await render(props({ suggestions: [moment, rewrite] }));
+      await render({ ...props({ suggestions: [moment, rewrite] }), reviewRequest: confident ? 1 : 2 });
+      expect(screen()).toBe("walk-screen-clearer");
+      await click(live()!.querySelector("[data-testid='walk-forward']"));
+      await act(async () => undefined);
+      if (confident) {
+        expect(screen()).toBe("walk-screen-helpers");
+        expect(live()!.querySelector("[data-walk-word-picker] button")).not.toBeNull();
+      } else {
+        expect(live()?.querySelector("[data-testid='walk-screen-helpers']") ?? null).toBeNull();
+      }
+      await act(async () => root.unmount());
+      root = createRoot(container);
+    }
   });
 });

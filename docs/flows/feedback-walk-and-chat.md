@@ -226,8 +226,12 @@ step; the loop never waits for a coach.
   on that paragraph is walked like any other, praise first (founder
   2026-10-21: the Exercise had opened the walk and the confident moment came
   later; the server already counted only this Take's words, 2026-10-13).
-- **C3 Choose your helper words**, after each praised moment: a big bubble in
-  the thread with large plain word buttons, no borders, chosen words orange;
+- **C3 Choose your helper words**, after each praised moment, and after the
+  Clearer version of a moment whose voice reached the floor (C5; founder
+  2026-10-22, N113: "After the rewording"; until then helper words came only
+  after a praise, so a Take whose strong voices were all reworded had none):
+  a big bubble in the thread with large plain word buttons, no borders,
+  chosen words orange;
   "N of 8 words" at the top, the count against the cap (eight since
   2026-10-15), in place of "Tap the words" (2026-10-21); "Use these helper
   words" and "Skip"; once the words are
@@ -269,7 +273,9 @@ step; the loop never waits for a coach.
   Exercise: better is the Good job and no clip; not yet brings the AI clip of
   the accepted words (or their own after "Keep my words") with L4, L3, then
   L5. A try with no sound read is a Good job. An answered Clearer version
-  stays read only, in the walk and from the Lounge.
+  stays read only, in the walk and from the Lounge. When the moment's voice
+  reached the floor, its helper words (C3) follow the Clearer version and
+  its practise, after a Skip too (N113).
 - **C6 The voice Exercise** opens with praise: L4 "That was good. But what
   if you said it more like this?", the AI version of their voice, then L3
   "Now try saying it like that." (N82). When a library video fits exactly
@@ -515,7 +521,8 @@ step; the loop never waits for a coach.
               slide (a one-slide Take shows one); clips with enough words
               rank before short ones (N108, 2026-10-21)
   each      S ≥ FLOOR → praised, unless the words need help (H3) → the
-              Clearer version; S < FLOOR → corrected: the Clearer version
+              Clearer version, then its helper words (N113); S < FLOOR →
+              corrected: the Clearer version
               when the words need help, else the voice Exercise (N108)
   highest   = the first in rank; its bubble opens with the signed line (C2)
   try       = Δ willfidence vs the original ≥ MARGIN (+0.05) → better
@@ -834,6 +841,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-22 · N113 · a moment whose voice reached the floor and whose words get the Clearer version keeps it and its practise, then its helper words, as after a praise; the server says which with `helper_words_prompt`, a flag, never the score; a voice under the floor is unchanged (C3, C5, H1) · FE, BE
 - 2026-10-21 · a moment the walk went past is answered: its black line goes at once and its paragraph opens the walk as given, no longer its practise again; a skip is told to the server where the machine did not close the practice, and the Take's other moments no longer take the answered ones' place on the next read (F3; until then only helper words picked in the walk settled a moment, since judging one's own moments left the walk) · FE #936, BE #1259
 - 2026-10-21 · N112 · a sentence that hedges gets its clearer version from a rule: its softening hedges left out, nothing added, a hedge's words that are not a hedge where they stand kept; it opens with C5's plain line (H3) · BE #1257, BE #1258, FE #935
 - 2026-10-21 · N108 · the voice decides: the two strongest voices are shown, the strongest is "your most confident moment", a voice at the floor is praised (the Clearer version when its words need help) and only a voice under it gets the voice Exercise; a voice correction with no exercise and no AI clip is skipped, never Line A on its own, and still reaches the coach; the Take's most confident moment keeps its own line and is said again (N109) (C2, C4, H1) · BE #1242, BE #1243, FE #930

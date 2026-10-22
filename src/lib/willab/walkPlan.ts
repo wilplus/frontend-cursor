@@ -7,7 +7,9 @@
 /*                                                                            */
 /*    the page → the coach's note (only when there is one) → every praise,    */
 /*    each followed by its helper words → the practising (a clearer version,  */
-/*    an exercise, or the moment said again) → other speakers' moments →     */
+/*    an exercise, or the moment said again; a confident voice's clearer      */
+/*    version is followed by its helper words, N113) → other speakers'        */
+/*    moments →                                                               */
 /*    the closing summary → the page. Sharing is asked before the next        */
 /*    recording instead.                                                      */
 /*    "Judgement time!" and judging your own moments are gone (founder lock   */
@@ -56,6 +58,9 @@ export type WalkMoment = {
   /** The coach's answer is a clearer version of the words (founder
    *  2026-10-20): drawn as the Clearer version, not as a note. */
   coachVersion?: boolean;
+  /** A corrected moment whose voice sounded confident (founder 2026-10-22,
+   *  N113): its helper words follow its Clearer version and its practise. */
+  helpers?: boolean;
 };
 
 export type WalkPlanInput = {
@@ -173,7 +178,11 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
     if (m.coach && !m.praise && !isPractiseMoment(m)) steps.push(momentStep(m, "coach"));
   }
   for (const m of moments) {
-    if (isPractiseMoment(m)) steps.push(...practiseOpening(m, input.practiceOn));
+    if (!isPractiseMoment(m)) continue;
+    steps.push(...practiseOpening(m, input.practiceOn));
+    // A confident voice whose words were reworded: its helper words after
+    // the rewording (founder 2026-10-22, N113: "After the rewording").
+    if (m.helpers) steps.push(momentStep(m, "helpers"));
   }
   // Sharing is asked before the next recording now (lock 2026-10-12, §5).
   steps.push({ key: "others" });
@@ -272,6 +281,8 @@ export type WalkFeedbackItem = {
   coachExercise?: boolean;
   /** The coach answered with a clearer version of the words. */
   coachVersion?: boolean;
+  /** The voice reached the floor (`helperWordsPrompt`, backend N113). */
+  helperWordsPrompt?: boolean;
 };
 
 /** The feedback items grouped into the Take's moments, in page order: one
@@ -330,6 +341,9 @@ function lockedMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
     const clearer = target && has((i) => Boolean(i.hasRewrite));
     const exercise = target && !clearer && has((i) => Boolean(i.hasExercise));
     const practise = target && !clearer && !exercise;
+    // A corrected moment whose voice reached the floor keeps its helper
+    // words, after its practise (founder 2026-10-22, N113).
+    const helpers = target && has((i) => Boolean(i.helperWordsPrompt));
     return {
       index,
       slide: group[0].slide,
@@ -337,6 +351,7 @@ function lockedMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
       ...(clearer ? { clearer } : {}),
       ...(exercise ? { exercise } : {}),
       ...(practise ? { practise } : {}),
+      ...(helpers ? { helpers } : {}),
       judged: true,
       ...(has((i) => Boolean(i.coachAnswered)) ? { coach: true } : {}),
       ...(has((i) => Boolean(i.coachExercise)) ? { coachExercise: true } : {}),
