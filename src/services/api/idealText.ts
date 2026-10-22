@@ -271,6 +271,10 @@ export interface DocumentSuggestion {
    *  bubble with "This was your most confident moment." A flag, never the
    *  score. */
   highestMoment?: boolean;
+  /** A shown moment whose voice reached the floor (founder 2026-10-22,
+   *  backend N113): the walk offers its helper words, also after its
+   *  Clearer version. A flag, never the score. */
+  helperWordsPrompt?: boolean;
   /** Why the green moment landed, in words (founder 2026-10-18;
    *  backend services/praise_reason). Absent until it is written. */
   praiseReason?: PraiseReason | null;
@@ -755,6 +759,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     bookmarkTier: readBookmarkTier(record.bookmark_tier),
     levelKey: readNonEmptyString(record.level_key),
     highestMoment: record.highest_moment === true,
+    helperWordsPrompt: record.helper_words_prompt === true,
     praiseReason: readPraiseReason(record.praise_reason),
     practicePrompt: record.practice_prompt === true,
     coachRequest: mapCoachRequest(record.coach_request),

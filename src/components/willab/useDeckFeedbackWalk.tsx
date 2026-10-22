@@ -248,7 +248,7 @@ function walkItemOf(
     slide,
     blockId: item.blockId ?? null,
     hasRewrite: rewrite !== null,
-    ...(tiered ? { tiered, green, practicePrompt: item.practicePrompt === true } : {}),
+    ...(tiered ? { tiered, green, practicePrompt: item.practicePrompt === true, helperWordsPrompt: item.helperWordsPrompt === true } : {}),
     openCard: item.openCard ?? null,
     feedbackFamily: item.feedbackFamily ?? null,
     hasExercise: exercise !== null,
