@@ -81,11 +81,13 @@ export const dynamic = "force-dynamic";
 
 // Outage banner (founder, the Claude Code chat, 22 October 2026, during the
 // Railway security incident: "show a banner on the top of the site ... servers
-// are temporarily down, will be back soon!"). The founder's own words, so no
-// new words on screen. Temporary: revert this when the servers are back.
+// are temporarily down, will be back soon!"). Same day, with Railway's deploys
+// still paused, the founder changed the words to "there is a high upstream
+// traffic - please visit us tomorrow!". The founder's own words, so no new
+// words on screen. Temporary: revert this when the servers are back.
 // Full-screen overlays (recording, Ideal Text, the walk, consent) sit above it
 // at z-30, so those locked screens are unchanged.
-const OUTAGE_NOTICE = "Servers are temporarily down, will be back soon!";
+const OUTAGE_NOTICE = "There is a high upstream traffic - please visit us tomorrow!";
 
 export default function RootLayout({
   children,
