@@ -332,6 +332,19 @@ doing it fills its line in its PR and deletes the line when the work is merged (
 
 ## 3. Still open
 
+- **Full stops missing between sentences** (founder 2026-10-23: "Don't build
+  anything just add it to the development plan"). On the founder's Take 4 the
+  Ideal Text ran sentences together where a piece ended without its full stop
+  ("Startup is just a job It's a job…", "we need vitality We need emotions…",
+  "composed out of emotions It should be…"). The 2026-07-20 smoothing fence
+  allows one terminal mark, at the end of the document only, so a full stop
+  between sentences needs the founder's OK before anything is built
+  (backend `services/transcript_smoothing.py`, `services/transcript_document.py`).
+- **"rewrite" heard as "route ride"** (same day, same Take). Whisper misheard a
+  word the speaker said twice. Planned: the app's own words ("rewrite", "Take",
+  "Ideal Text") join the talk's vocabulary hint by default, so Whisper is told
+  them (backend `services/snippet_transcription.py`; the talk's
+  `domain_vocabulary`). Not built.
 - **§1 in the present tense.** §1 is the lock as written, with its amendments after it. The next change to
   this screen rewrites the part it touches in the present tense, the way the walk's page did (backend N107).
 
