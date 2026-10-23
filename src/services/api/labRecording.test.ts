@@ -10,12 +10,15 @@ OUTCOME
   O4  A payment problem says the recording is safe, not that analysis failed.
   O5  A Take I discard while it uploads is reported as discarded and is not
       re-sent another way.
+  O6  A recording with no audio in it is never sent: I am asked to record
+      again, as for a Take with no clear speech.
 PROVES   O1 -> "appends slides + presentation_ref + slide_advances when a deck is attached"
          O2 -> "sends only the canonical project id and upload key"
          O3 -> "routes a 504 with session_id into the async 'processing' path"
          O4 -> "keeps 402 out of the analysis-failed path"
          O5 -> "reports `discarded`, never the connection-error copy",
                "does NOT re-send the discarded take down the BFF lane"
+         O6 -> "asks for the take again instead of sending an empty recording"
 WHY      Never-rule 3: never break record -> process -> Ideal Text.
 */
 import { readFileSync } from "node:fs";
@@ -110,6 +113,20 @@ describe("submitLabRecording — §S deck fields ride the multipart upload", () 
       { index: 0, t_ms: 0 },
       { index: 1, t_ms: 4200 },
     ]);
+  });
+});
+
+describe("submitLabRecording — an empty recording is never sent", () => {
+  it("asks for the take again instead of sending an empty recording", async () => {
+    const res = await submitLabRecording({
+      ...baseInput(),
+      audioBlob: new Blob([], { type: "audio/webm" }),
+    });
+    expect(res).toEqual({
+      kind: "rejected",
+      message: "That take was too short or had no clear speech, so let's try again.",
+    });
+    expect(captured).toBeNull();
   });
 });
 
