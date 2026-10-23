@@ -665,6 +665,24 @@ October (backend N111).
 
 ### K · Words on screen (all signed)
 
+- **Said fresh, from the signed meaning** (founder 2026-10-23, N123: "please
+  do not make the asks fixed all the time, please make them fairly smart
+  like there should be some flexibility"; then "both"). Each ask after the
+  Take (E1, E2, the CEO panel's included) and each of the walk's own lines
+  (the AI clip's opener, tip and closer; the Clearer version's opener and
+  question; Line A; the not-yet and move-on lines; Line B and "Does this
+  sound confident to you?") keeps its signed line below as its anchor. Will
+  says it fresh for this speaker and this Take (their name, their talk, how
+  the Take went, what was said before), one or two short sentences, never
+  the same wording twice in a row. A check keeps it only when it still
+  means the signed line, carries no number or score, keeps the speaker's
+  own words and quoted phrase, and stays short; otherwise the signed line
+  shows. The walk's lines are written once per Take while it is processed,
+  so the lens and the chat say the same and nothing waits. Never varied:
+  buttons and tap answers, the praise lines (N122), consent and sharing
+  words, the legal lines, the AI clip's label "AI version of your voice",
+  "We couldn't hear that clearly. Try again.", the safety reply.
+
 - **The walk's labels:** "Your coach:", "Continue", "Next", "Good job",
   "Skip", "Practise", "Practise again", "Stop", "Close", "Continue review",
   "Slide N", "Slide N · helper words", "Take N", "Other speakers",
@@ -784,6 +802,7 @@ deletes the line when the work is merged (the change goes to §6).
 The four lines above were filled from main's history by the page's keeper on
 2026-10-20; the sessions doing the work overwrite them when they push.
 - **N120 · the walk speaks like a coach** · C0, C2, C5, C6, C7, K · founder 2026-10-23 ("could we make it more flexible and human like more appealing and inviting"; "as a coach I would use here more friendly language and make it shorter focused on one only thing"; "say it stronger; or lean on this sentence"; "also add the name at the start: Hi Artur, good to see you back!"; then every line signed in the chat). To build: the hello with the first name from the account; the AI clip's one short bubble (opener, tip ", like this:", clip, "Your turn." / "Try again."); the new banks in the line bank (BE `services/line_bank.py` with `docs/SIGNED-line-bank-2026-10-06.md`, its parity test; FE `idealEditCopy.ts`, `praiseLevels.ts`, `walkThread.ts`, `FeedbackWalk.tsx`); the commit carries the founder's `Founder-Approved:` line · decided, not built · the founder checks the app
+- **N123 · the asks and the walk's lines said fresh** · E1, E2, K · founder 2026-10-23 ("please do not make the asks fixed all the time, please make them fairly smart like there should be some flexibility"; "both"). To build: one call per ask and one per Take for the walk's lines, under the Take's processing authorization, kept only past the check (the same kind as `will_question.vary`), the signed line otherwise; stored with the Take so the lens and the chat agree; never twice the same wording in a row per speaker · decided, not built · the founder checks the app
 - **N122 · confident moments practised, the praise kept short, new bubbles at the bottom** · B5, C2, C6, H1, K · founder 2026-10-23 on the review page ("do we practice the confident moments? I think yes we should!"; "the 3 dots loading should be at the bottom"; "i like this old version more it is shorter!"; then "ok this is good" on the six choices). To build, with N120: a praised moment carries a practice (`confident_practice`) and its AI clip lane; the walk plans praise, practise, helper words (FE `walkPlan.ts`); bubbles and dots land at the bottom (FE `WalkThread.tsx`); in a shown block the moment is its highest willfidence servable clip (BE, with N118); the first name from the account (BE `GET /v2/user/profile` `first_name`); the AI clip names `problem` and `phrase`, the app picks the signed tip · decided, not built · the founder checks the app
 - **N121 · the rewrite gate reads the words on screen** · H3 · founder 2026-10-23 ("But for the help where do you source the fillers? From the corrected transcript? There won't be any fillers cause they are already corrected"; then "Yes, add it to N118"). Found: gate 1 counted fillers on the clip's raw transcript, hesitations included, and gate 2 measured a rewrite's lift against the worse of the raw and the shown words, so a moment could be sent to a rewrite for ums the speaker never saw, and almost any rewrite passed as "a real fix". To build, with N118: both halves read the shown words (BE `services/rewrite_gate.py`, `services/moment_pick.py`) · decided, not built · the founder checks the app
 - **N119 · three moments to judge, high, middle and low** · C8, G4 · founder 2026-10-23 ("I am choosing that my audience is only me, but still I should be getting the judgements"; "3 clips (high, middle, low willfidence) from 3 different speakers"; then "Yes, the basis covers it", "First in their level", "Show fewer"). Found: the walk's training clips were read only from the licensed corpus table (0410), which nothing fills, so with no community clips the queue was empty and the step was left out without a word; the clips the coaches judge are the imported corpus, a different store. To build: the queue draws one clip per level from community clips first, then the imported corpus and the licensed corpus, three different speakers, a blind order, fixed per Take, played by a short-lived signed link; speakers' answers on imported clips in a table of their own, never labels (migration); an empty queue is logged (BE `services/lend_your_ear.py`, `services/communities.py`); the walk always asks for three (FE `WalkOthers.tsx`) · decided, not built · the founder checks the app
@@ -905,6 +924,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-23 · N123 · every ask after the Take and the walk's own lines are said fresh around their signed line, checked, the signed line the fallback; was: Will's question with a light touch, the CEO panel's asks as written, the walk's lines from the signed banks only (E1, E2, K) · decided, build in §2
 - 2026-10-23 · N122 · a praised moment is practised with the AI clip's short bubble, then its helper words, was "two praises and no practise" (C2); the praise keeps its three lines, N120's one-sentence praise dropped (C2, K); bubbles and dots land at the bottom and the thread follows, was the newest step brought to the top (B5); a shown block's moment is its highest willfidence servable clip (H1) · decided, build in §2
 - 2026-10-23 · N121 · the rewrite gate reads the words the speaker sees, so hesitations never make the words need help or a rewrite a real fix; they reach the speaker through the AI clip's fillers tip; was: both halves also read the clip's raw transcript (H3) · decided, build in §2
 - 2026-10-23 · N120 · a hello with the speaker's first name opens the walk (C0); the praise is one sentence built from the level, cue and closer pieces, was the title "This was your most confident moment." over the level line and the cue line (C2); the AI clip's bubble is one short bubble, an opener, one tip ", like this:", the clip and "Your turn.", was L4, the clip, L3 and L14–L18 under the player (C6); a try not yet better gets the same bubble with "Try again.", was a not-yet line and the clip with L5 (C5, C7); the words in K · decided, build in §2
