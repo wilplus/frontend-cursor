@@ -6,9 +6,12 @@ OUTCOME
   O2  Stop hands over a recording that is not empty and releases the mic.
   O3  The whole Take is handed over even when the browser is slow to deliver
       it and Finish is tapped twice.
+  O4  The phone's screen stays on while the Take records, so it cannot lock
+      and cut the mic off; it may lock again once the Take ends.
 PROVES   O1 -> records at once on start
          O2 -> hands over a real take on stop and releases the stream
          O3 -> hands over the whole take when it arrives late and Finish is tapped twice
+         O4 -> keeps the screen awake while recording and lets it lock after
 WHY      Never-rule 3 (never break record → process → Ideal Text).
 */
 import { act, createElement } from "react";
@@ -81,6 +84,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+  Reflect.deleteProperty(navigator, "wakeLock");
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -126,5 +130,23 @@ describe("the Lab's mic", () => {
     if (mic.state.status === "stopped") {
       expect(mic.state.audioBlob.size).toBeGreaterThan(0);
     }
+  });
+
+  it("keeps the screen awake while recording and lets it lock after", async () => {
+    const release = vi.fn(async () => undefined);
+    const request = vi.fn(async () => ({ release }));
+    Object.defineProperty(navigator, "wakeLock", {
+      configurable: true,
+      value: { request },
+    });
+    await act(async () => {
+      await mic.start();
+    });
+    expect(request).toHaveBeenCalledWith("screen");
+    expect(release).not.toHaveBeenCalled();
+    await act(async () => {
+      await mic.stop();
+    });
+    expect(release).toHaveBeenCalled();
   });
 });

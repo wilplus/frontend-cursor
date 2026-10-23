@@ -824,9 +824,12 @@ O3 -> ""reads a corrupt payload as nothing parked""",
 src/hooks/useDualCaptureMic.test.tsx,Story,"As a speaker, I want the mic to record the moment I press start and to hand over a real recording and free the mic when I stop, so that every Take is captured.","O1  Start asks for the mic once, starts recording at once and notes when the sound began.
 O2  Stop hands over a recording that is not empty and releases the mic.
 O3  The whole Take is handed over even when the browser is slow to deliver
-it and Finish is tapped twice.","O1 -> records at once on start
+it and Finish is tapped twice.
+O4  The phone's screen stays on while the Take records, so it cannot lock
+and cut the mic off; it may lock again once the Take ends.","O1 -> records at once on start
 O2 -> hands over a real take on stop and releases the stream
-O3 -> hands over the whole take when it arrives late and Finish is tapped twice",Never-rule 3 (never break record → process → Ideal Text).
+O3 -> hands over the whole take when it arrives late and Finish is tapped twice
+O4 -> keeps the screen awake while recording and lets it lock after",Never-rule 3 (never break record → process → Ideal Text).
 src/lib/api/bffFetch.test.ts,Story,"As a developer, I want every call to our own server routes to carry the sign-in token and to report ""no connection"" separately from a server answer, so that screens handle being offline correctly.","O1  The call carries the sign-in token and only the options it was given.
 O2  A dropped connection comes back as ""network"", never as a server answer.","O1 -> sends the Bearer header and only the options it was given
 O2 -> reports a thrown fetch as network, never as a response",

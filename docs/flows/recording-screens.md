@@ -173,6 +173,11 @@ green); the app shows the speaker's own slides, unchanged.
   Nothing on Take 1, nothing else on the screen moves. Words and placement
   chosen by the founder in chat, 2026-10-18, from the decision page
   <https://claude.ai/artifact/JUwW4FfFzyUhgCpPrMAKjG>.
+- **2026-10-23 · the screen stays on while a Take records (N116).** While the
+  mic records, the app holds the browser's screen wake lock, so a phone
+  cannot lock itself on a long slide and cut the mic off; it asks again when
+  the page is back in view and lets go when the Take ends. Nothing on screen
+  changes. Lives in `src/hooks/useDualCaptureMic.ts`.
 
 
 ## 2. In flight
@@ -217,6 +222,8 @@ Every prototype link in §1, in the order it first appears:
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-23 · N116 · the screen stays on while a Take records; the Take's audio is kept in one-second pieces and an empty recording is never sent (it is asked for again) · BE #1268, FE #942
 
 - 2026-10-21 · N111 · the page also guards the recording screens' files it missed: the discard dialog, the wait while a Take is processed, the slide and the fade (§4); no rule changes · BE, FE
 - 2026-10-21 · N110 · the flow, 5, in the present tense: the wait starts at 1% and stays on screen through the hand-over to the Lounge until the walk's first step is on screen, in place of "the processing wait as today (voice mark, stage label, **While you wait** tips), then the Ideal Text page" · FE #931, BE #1245

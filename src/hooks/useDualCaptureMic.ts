@@ -511,6 +511,39 @@ export function useDualCaptureMic(opts?: {
     };
   }, [teardown]);
 
+  // The screen stays on while a Take records (founder 2026-10-23, N116): a
+  // phone that locked itself on a long slide cut the mic off and the Take
+  // reached the server empty. The browser drops the lock whenever the page is
+  // hidden, so it is asked for again when the page is back. No wake lock (an
+  // older browser, a refusal) records exactly as before.
+  const recording = state.status === "recording";
+  useEffect(() => {
+    if (!recording || !("wakeLock" in navigator)) return;
+    let live = true;
+    let lock: WakeLockSentinel | null = null;
+    const hold = async () => {
+      try {
+        const next = await navigator.wakeLock.request("screen");
+        const previous = lock;
+        lock = live ? next : null;
+        void previous?.release().catch(() => undefined);
+        if (!live) void next.release().catch(() => undefined);
+      } catch {
+        /* refused or not allowed here: the Take records as before */
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void hold();
+    };
+    void hold();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      live = false;
+      document.removeEventListener("visibilitychange", onVisible);
+      void lock?.release().catch(() => undefined);
+    };
+  }, [recording]);
+
   /** Monotonic timestamp of the recorder's start event, or null if it never
    *  fired. A getter, not state: reading it must not re-render the recorder. */
   const getAudioStartedAt = useCallback(() => audioStartedAtRef.current, []);
