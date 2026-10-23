@@ -438,14 +438,15 @@ export function useDualCaptureMic(opts?: {
       });
     }
 
-    // Stop recorder and wait for the final ondataavailable event. The bound
-    // only keeps a recorder that never answers from jamming Finish; it is
-    // generous because a slow device can take longer than half a second to
-    // deliver the last chunk, and whatever has not arrived is lost.
+    // Stop recorder and wait for the final ondataavailable event, but never
+    // long: the screen does not move until this resolves, and a 3 s bound made
+    // Finish look like it needed a second tap on the phone (founder
+    // 2026-10-23). The one-second chunks are already in hand, so a slow
+    // device loses at most the last second, never the Take.
     const recorder = recorderRef.current;
     if (recorder) {
       await new Promise<void>((resolve) => {
-        const safetyTimer = setTimeout(resolve, 3000);
+        const safetyTimer = setTimeout(resolve, 600);
         recorder.onstop = () => {
           clearTimeout(safetyTimer);
           resolve();

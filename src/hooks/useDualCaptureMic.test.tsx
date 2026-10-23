@@ -4,13 +4,14 @@ STORY    As a speaker, I want the mic to record the moment I press start and to 
 OUTCOME
   O1  Start asks for the mic once, starts recording at once and notes when the sound began.
   O2  Stop hands over a recording that is not empty and releases the mic.
-  O3  The whole Take is handed over even when the browser is slow to deliver
-      it and Finish is tapped twice.
+  O3  One tap on Finish is enough: the Take is handed over within a moment,
+      and not empty, even when the browser is slow to deliver the last of the
+      audio and Finish is tapped twice.
   O4  The phone's screen stays on while the Take records, so it cannot lock
       and cut the mic off; it may lock again once the Take ends.
 PROVES   O1 -> records at once on start
          O2 -> hands over a real take on stop and releases the stream
-         O3 -> hands over the whole take when it arrives late and Finish is tapped twice
+         O3 -> hands over the take at once when the audio comes late and Finish is tapped twice
          O4 -> keeps the screen awake while recording and lets it lock after
 WHY      Never-rule 3 (never break record → process → Ideal Text).
 */
@@ -31,13 +32,22 @@ let deliverAfterMs = 0;
 class FakeRecorder {
   static isTypeSupported = () => true;
   state = "inactive";
-  start = vi.fn(() => {
+  tick: ReturnType<typeof setInterval> | undefined;
+  start = vi.fn((timeslice?: number) => {
     this.state = "recording";
     this.onstart?.();
+    // Like a browser: with a timeslice, a chunk of audio every timeslice.
+    if (timeslice) {
+      this.tick = setInterval(
+        () => this.ondataavailable?.({ data: new Blob(["x"]) }),
+        timeslice,
+      );
+    }
   });
   stop = vi.fn(() => {
     // Like a browser: the recorder is inactive at once, its audio comes after.
     this.state = "inactive";
+    clearInterval(this.tick);
     const deliver = () => {
       this.ondataavailable?.({ data: new Blob(["x"]) });
       this.onstop?.();
@@ -114,17 +124,19 @@ describe("the Lab's mic", () => {
     expect(tracks[0].stop).toHaveBeenCalled();
   });
 
-  it("hands over the whole take when it arrives late and Finish is tapped twice", async () => {
+  it("hands over the take at once when the audio comes late and Finish is tapped twice", async () => {
     vi.useFakeTimers();
     deliverAfterMs = 1500;
     await act(async () => {
       await mic.start();
     });
     await act(async () => {
-      const first = mic.stop();
-      const second = mic.stop();
-      await vi.advanceTimersByTimeAsync(2000);
-      await Promise.all([first, second]);
+      await vi.advanceTimersByTimeAsync(2500); // the speaker talks
+    });
+    await act(async () => {
+      void mic.stop();
+      void mic.stop();
+      await vi.advanceTimersByTimeAsync(700); // one tap's wait, not the phone's
     });
     expect(mic.state.status).toBe("stopped");
     if (mic.state.status === "stopped") {
