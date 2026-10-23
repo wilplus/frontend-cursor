@@ -6,7 +6,8 @@
 /*  speaker's situation, the locked order of screens:                          */
 /*                                                                            */
 /*    the page → the coach's note (only when there is one) → every praise,    */
-/*    each followed by its helper words → the practising (a clearer version,  */
+/*    each practised with its AI clip when the server marks it (N122) and     */
+/*    followed by its helper words → the practising (a clearer version,       */
 /*    an exercise, or the moment said again; a confident voice's clearer      */
 /*    version is followed by its helper words, N113) → other speakers'        */
 /*    moments →                                                               */
@@ -61,6 +62,9 @@ export type WalkMoment = {
   /** A corrected moment whose voice sounded confident (founder 2026-10-22,
    *  N113): its helper words follow its Clearer version and its practise. */
   helpers?: boolean;
+  /** A praised moment practised with its AI clip (founder 2026-10-23,
+   *  N122): after its praise, before its helper words. */
+  confident?: boolean;
 };
 
 export type WalkPlanInput = {
@@ -86,6 +90,9 @@ export type WalkPlanInput = {
 /** Every screen the plan can name. */
 export type WalkStepKey =
   | "page"
+  /** The walk's hello (founder 2026-10-23, N120): never planned, drawn
+   *  above the first step and told to the chat once. */
+  | "hello"
   | "coachnote"
   /** The coach's answer on a moment no other screen shows, and every
    *  answered moment in the coach-only walk (founder 2026-10-14). */
@@ -171,7 +178,14 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
   }
   for (const m of moments) {
     if (!m.praise) continue;
-    steps.push(momentStep(m, "praise"), momentStep(m, "helpers"));
+    steps.push(momentStep(m, "praise"));
+    // A confident moment is practised too (founder 2026-10-23, N122): the
+    // AI clip's short bubble, then the mic, before its helper words. With
+    // no clip coming the walk moves past it (FeedbackWalk's `bare`).
+    if (m.confident && input.practiceOn) {
+      steps.push(momentStep(m, "exVideo"), momentStep(m, "practise", { kind: "moment", attempt: 1 }));
+    }
+    steps.push(momentStep(m, "helpers"));
   }
   // A moment only the coach speaks to gets its own screen.
   for (const m of moments) {
@@ -283,6 +297,9 @@ export type WalkFeedbackItem = {
   coachVersion?: boolean;
   /** The voice reached the floor (`helperWordsPrompt`, backend N113). */
   helperWordsPrompt?: boolean;
+  /** A praised moment the walk practises with its AI clip
+   *  (`confidentPractice`, backend N122). */
+  confidentPractice?: boolean;
 };
 
 /** The feedback items grouped into the Take's moments, in page order: one
@@ -344,10 +361,13 @@ function lockedMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
     // A corrected moment whose voice reached the floor keeps its helper
     // words, after its practise (founder 2026-10-22, N113).
     const helpers = target && has((i) => Boolean(i.helperWordsPrompt));
+    // A praised moment the server marks is practised with its AI clip (N122).
+    const confident = praise && has((i) => Boolean(i.confidentPractice));
     return {
       index,
       slide: group[0].slide,
       ...(praise ? { praise } : {}),
+      ...(confident ? { confident } : {}),
       ...(clearer ? { clearer } : {}),
       ...(exercise ? { exercise } : {}),
       ...(practise ? { practise } : {}),

@@ -161,6 +161,9 @@ export type FeedbackWalkMoment<R = unknown> = {
   praiseTitle?: string | null;
   /** The Take's highest moment, praised or corrected (founder 2026-10-20). */
   highest?: boolean;
+  /** Praised (N122): its practise follows the praise, so it never shows
+   *  its clip again, Line A or the confident moment's own line. */
+  praised?: boolean;
   /** The praise line alone, for when a reason follows it. */
   praiseLead?: readonly string[];
   /** Why the green moment landed, when it reached the page with the row. */
@@ -306,6 +309,7 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     // wording note. Whichever row carries the level names the screen.
     praiseTitle: group.find((i) => i.praiseTitle)?.praiseTitle ?? null,
     highest: group.some((i) => i.highest === true),
+    praised: group.some((i) => isPraise(i) || i.green === true),
     praiseLead: praise?.praiseLead ?? praise?.praiseWords ?? [],
     praiseReason: group.find((i) => i.praiseReason)?.praiseReason ?? null,
     clip,

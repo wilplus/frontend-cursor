@@ -18,11 +18,11 @@ import { practiseThreadFooter, practiseThreadItem, type PractiseScreenCtx } from
 import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
 import WalkSummary from "./WalkSummary";
-import WalkAiVoice, { AI_EXERCISE_OPENING, aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
+import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
-import { clearerOpening, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
+import { aiClipLines, clearerOpening, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import { WALK_MAX_TRIES, type WalkStep } from "@/lib/willab/walkPlan";
 import {
@@ -128,6 +128,9 @@ type Props<R> = {
   coachNote: FeedbackWalkCoachNote | null;
   /** The project's first Take. */
   firstTake: boolean;
+  /** The speaker's first name, from the account, for the walk's hello
+   *  (founder 2026-10-23, N120); null or absent: the hello without it. */
+  firstName?: string | null;
   /** The Take reviewed, for the summary's "Take N". */
   takeIndex?: number | null;
   /** A guest known to the caller. Without it the page's guest gate decides
@@ -248,6 +251,8 @@ export default function FeedbackWalk<R = unknown>({
   model,
   request,
   coachNote,
+  firstTake,
+  firstName = null,
   takeIndex = null,
   guest = false,
   onGuest,
@@ -376,12 +381,22 @@ export default function FeedbackWalk<R = unknown>({
   // What the speaker now sees, for the host (D-FW-19): only once the walk
   // was asked open, and only an overlay screen; with its AI bubble, once
   // the screen knows whether it has one.
-  const ai = step?.moment != null ? aiVoiceShown(plan, at, practise.aiVoiceOf(step.moment)) : null;
+  const walkLines = useWalkLines(linesIO);
+  const { say: sayLine } = walkLines;
+  /** The Take's most confident moment's own line in its AI bubble, when the
+   *  walk goes on to make that corrected moment better (N109); a praised
+   *  moment's practise opens like any other (N122). */
+  const ownLine = (s: WalkStep): string | null => {
+    const moment = s.moment == null ? undefined : walk.moments[s.moment];
+    return s.key === "exVideo" && moment?.highest && !moment.praised ? topMomentLine("example", moment) : null;
+  };
+  const ai =
+    step?.moment != null
+      ? aiVoiceShown(plan, at, practise.aiVoiceOf(step.moment), (bank) => sayLine(step, bank), ownLine(step))
+      : null;
   const aiPractice = step?.moment != null && ai && ai !== "pending" ? practise.aiVoicePracticeOf(step.moment) : undefined;
   const aiState = step?.moment != null ? practise.aiVoiceOf(step.moment) : undefined;
   const aiKey = ai === "pending" ? "pending" : `${aiState?.demo ?? ""}|${aiState?.clip?.state ?? ""}|${aiPractice ?? ""}|${ai?.line ?? ""}`;
-  const walkLines = useWalkLines(linesIO);
-  const { say: sayLine } = walkLines;
   /** The AI bubble step `s` (at `i`) gives the chat: the one its clip will
    *  make, once one is coming or in, with the practice the chat reads it
    *  from; null: the plain step (founder 2026-10-20: a message is posted
@@ -389,18 +404,21 @@ export default function FeedbackWalk<R = unknown>({
   const chatAi = (s: WalkStep, i: number): WalkAiShown | null => {
     if (s.moment == null) return null;
     const practiceId = practise.aiVoicePracticeOf(s.moment);
-    const lines = practiceId ? aiVoiceComing(plan, i, practise.aiVoiceOf(s.moment)) : null;
-    const moment = walk.moments[s.moment];
-    return lines && practiceId ? { ...(s.key === "exVideo" && moment ? topAiLines(lines, moment) : lines), practiceId } : null;
+    const lines = practiceId
+      ? aiVoiceComing(plan, i, practise.aiVoiceOf(s.moment), (bank) => sayLine(s, bank), ownLine(s))
+      : null;
+    return lines && practiceId ? { ...lines, practiceId } : null;
   };
   /** A voice correction with nothing to offer (founder 2026-10-21, N108):
    *  no exercise served and no AI clip, live once its ask came back without
    *  one, played again when it had no try. Never Line A on its own. The
    *  Take's most confident moment is not one: it says its own line and is
-   *  said again (N109). */
+   *  said again (N109). A praised moment's practise with no AI clip is one
+   *  too: the praise stands on its own (N122). */
   const bare = (s: WalkStep | undefined, i: number): boolean => {
     const moment = s?.moment == null ? undefined : walk.moments[s.moment];
-    if (s?.key !== "exVideo" || s.moment == null || !moment || moment.exercise != null || moment.highest) return false;
+    if (s?.key !== "exVideo" || s.moment == null || !moment || moment.exercise != null) return false;
+    if (moment.highest && !moment.praised) return false;
     if (s.replay || s.readOnly) return s.replay === true && walk.replay?.tries?.[s.moment] === undefined;
     const state = practise.aiVoiceOf(s.moment);
     return state !== undefined && !practise.aiVoiceAsking(s.moment) && aiVoiceShown(plan, i, state) === null;
@@ -409,6 +427,20 @@ export default function FeedbackWalk<R = unknown>({
   shownRef.current = onShown;
   const reachedRef = useRef(onReached);
   reachedRef.current = onReached;
+  // The walk's hello (founder 2026-10-23, N120): drawn once above the walk's
+  // first opening, and told to the chat once, before its first step.
+  const hello = WALK_COPY.hello(firstName, firstTake);
+  const helloSeq = useRef<number | null>(null);
+  if (seq !== null && helloSeq.current === null) helloSeq.current = seq;
+  const helloTold = useRef(false);
+  useEffect(() => {
+    if (seq === null || helloTold.current || !step || step.overlay === false) return;
+    helloTold.current = true;
+    const greet: WalkStep = { key: "hello" };
+    shownRef.current?.(greet, null, (bank) => sayLine(greet, bank), null, hello);
+    // Once per walk: the words are fixed when it opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seq, step]);
   useEffect(() => {
     if (seq === null || !step || step.overlay === false) return;
     const moment = step.moment != null ? (walk.moments[step.moment] ?? null) : null;
@@ -449,7 +481,8 @@ export default function FeedbackWalk<R = unknown>({
       // A bare correction the walk drops, or one played again, is never
       // posted (N108); one already practised past is, as before.
       if (bare(s, i) && (s.replay || i === at)) return;
-      if (toldExercise.current.has(told) || practise.aiVoiceAsking(s.moment)) return;
+      // Once its tip is known (N120): the chat says what the bubble says.
+      if (toldExercise.current.has(told) || practise.aiVoiceAsking(s.moment) || !aiTipKnown(practise.aiVoiceOf(s.moment))) return;
       toldExercise.current.add(told);
       const moment = walk.moments[s.moment] ?? null;
       shownRef.current?.(s, moment, (bank) => sayLine(s, bank), chatAi(s, i), null);
@@ -628,10 +661,23 @@ export default function FeedbackWalk<R = unknown>({
         screen={stage}
         render={(s, ghost) => (
           <WalkThread ghost={ghost} frame={frame} opening={s.seq} current={s.at} onClose={close}>
+            {s.seq !== null && s.seq === helloSeq.current ? <WalkHello text={hello} /> : null}
             {renderThread(ctx, s.head, s.seq, backFromPractise, s.at)}
           </WalkThread>
         )}
       />
+    </div>
+  );
+}
+
+/** The walk's hello, the first bubble of its chat (founder 2026-10-23,
+ *  N120). */
+function WalkHello({ text }: { text: string }) {
+  return (
+    <div data-walk-hello className="contents">
+      <WalkMessage>
+        <span>{text}</span>
+      </WalkMessage>
     </div>
   );
 }
@@ -942,10 +988,12 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
  *  coming either, the clip alone as the walk moves past it, N108). */
 function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkStep; moment: FeedbackWalkMoment<R> }) {
   const exercise = moment.exercise;
+  // A praised moment's practise follows its praise (N122): its clip is
+  // just above, and it has the AI clip or nothing, never Line A.
   return (
     <>
-      <Clip moment={moment} />
-      {aiExercise(ctx, step, moment) ?? (ctx.bare(step) ? null : (
+      {moment.praised ? null : <Clip moment={moment} />}
+      {aiExercise(ctx, step, moment) ?? (ctx.bare(step) || moment.praised ? null : (
         <WalkMessage coach={exercise?.byCoach === true} wide>
           {moment.highest ? <span>{topMomentLine(exercise?.video ? "example" : "again", moment)}</span> : null}
           {exercise?.video ? (
@@ -1055,21 +1103,18 @@ function ThreadFooter<R>({ ctx, step }: { ctx: ScreenCtx<R>; step: WalkStep }) {
   return <WalkFooter dot outline pill={{ label, onClick: practise, testId: "walk-practise" }} />;
 }
 
-/** On the Take's confident moment the Exercise's AI bubble opens with the
- *  moment's own line, which already praises it, in place of L4's "That was
- *  good. But…" (founder 2026-10-21: no praise said twice, no jump). */
-function topAiLines(lines: AiVoiceLines, moment: FeedbackWalkMoment<unknown>): AiVoiceLines {
-  return moment.highest ? { ...lines, title: undefined, line: topMomentLine("example", moment) } : lines;
-}
-
 /** No video fits this problem: the AI clip in the video's place (N71), the
  *  bubble there at once with the typing dots while the clip is being made
  *  (founder 2026-10-15). Otherwise the locked Exercise. */
 function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
   const state = ctx.practise.aiVoiceOf(moment.index);
-  const ai = aiVoiceShown(ctx.walk.plan, ctx.at(step), state);
+  const say = (bank: WalkBankKey) => ctx.say(step, bank);
+  // The Take's most confident moment, corrected: its own line in the
+  // opener's place (N109); a praised one's practise opens like any other.
+  const own = moment.highest && !moment.praised ? topMomentLine("example", moment) : null;
+  const ai = aiVoiceShown(ctx.walk.plan, ctx.at(step), state, say, own);
   if (!ai) return null;
-  const lines = topAiLines(ai === "pending" ? AI_EXERCISE_OPENING : ai, moment);
+  const lines: AiVoiceLines = ai === "pending" ? aiClipLines(say, state?.clip, false, own) : ai;
   return (
     <WalkAiVoice
       seed={`ai-ex-${moment.index}`}

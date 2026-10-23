@@ -102,6 +102,9 @@ export function momentChat(
   moment: FeedbackWalkMoment<unknown> | null,
 ): { label: Record<string, unknown>; clip: Record<string, unknown> | null } | null {
   if (!moment || !CHAT_MOMENT_STEPS.has(step.key)) return null;
+  // A praised moment's practise follows its praise (N122): its clip and
+  // label are already just above.
+  if (step.key === "exVideo" && moment.praised) return null;
   const slide = moment.slideLabel && /^Slide \d+$/.test(moment.slideLabel) ? moment.slideLabel : null;
   const greens = plan.filter((s) => s.key === "praise").map((s) => s.moment);
   const label =
@@ -298,7 +301,9 @@ export function praiseChat(
 function exerciseChat(
   moment: FeedbackWalkMoment<unknown> | null,
 ): { author: WalkAuthor; body: string; extra?: Record<string, unknown> } | null {
-  if (!moment) return null;
+  // A praised moment's practise has the AI clip or nothing (N122): never
+  // Line A, and no plain words to stand in for a clip that never comes.
+  if (!moment || moment.praised) return null;
   const ex = moment.exercise;
   // On the confident moment itself its own line, for what follows (an
   // example only with a video to show), and no Line A (founder 2026-10-21).
@@ -334,6 +339,9 @@ export function shownStep(
   const top = moment?.highest ? `${topMomentLine("clearer", moment)}\n` : "";
   const one = [step];
   switch (step.key) {
+    case "hello":
+      // The walk's hello (N120), in the words it drew.
+      return app(line);
     case "coachnote":
       // "Your coach:" over the words, as the lens writes it (founder
       // 2026-10-20: the colon).

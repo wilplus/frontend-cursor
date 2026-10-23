@@ -5,25 +5,27 @@ OUTCOME
   O1  Stopping a try uploads it and asks for a check, and I am back in the walk at once.
   O2  A better try gets praise in words for what improved, then the walk moves on.
   O3  A "not yet" on the clearer words brings the AI version of my voice; a good try does not.
-  O4  The AI clip appears with one sentence on what it does differently, never a number.
+  O4  The AI clip comes in one short bubble: a one-word opener, one tip quoting my phrase and ending ", like this:", my AI voice, then "Your turn."; never a long explanation, never a number (N120).
   O5  At most 3 tries, all shown together in the chat with the steps before them; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.
   O6  The Exercise reaches the coach's queue the moment it is on screen, and the Lounge as the AI bubble once a clip is coming, even when I tap Practise first.
-  O7  The voice Exercise cheers first: "That was good. But what if you said it more like this?", my AI voice, then "Now try saying it like that."; a not yet after it never repeats that opening.
+  O7  A try not yet better gets the same short bubble, opened with "Close." and closed with "Try again.", with only "Practise again" (N120).
   O8  A voice correction with nothing to offer (no exercise, no AI clip coming) is skipped: no "Say this one like your confident moment." on its own, in the walk or the chat; it still reaches the coach's queue. The Take's most confident moment is not skipped: it says its own line and is said again (N109).
+  O9  A praised moment is practised too: after its praise the short bubble with my AI voice and "Your turn.", up to three tries, a Good job ends it, then its helper words; with no AI clip the praise goes straight to its helper words (N122).
 PROVES   O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
          O2 -> praise on try 1: the line for the reading that moved ...
          O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
-         O4 -> the bubble is there at once: the typing dots alone ..., with the clip, the speaker reads what this version does differently and why (WIL-82)
+         O4 -> the bubble is there at once: the typing dots alone ..., the AI clip comes in one short bubble: the opener, the tip quoting their phrase, the clip, then “Your turn.” (N120)
          O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing
          O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first
-         O7 -> praise first: L4, the AI version of their voice, then L3, never "Exercise"; every not yet after it says L5
+         O7 -> a try not yet better gets the same short bubble, opened with “Close.” and closed with “Try again.”, with only Practise again (N120)
          O8 -> with no exercise and no AI clip coming, the walk moves past it: no Line A alone, and the coach's queue still hears it; the Take's most confident moment with nothing to offer says its own line and is said again
-WHY      Never-rule 1 (no scores to speakers); founder 2026-10-21 (N108, "Skip that moment").
+         O9 -> a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122), with no AI clip the praise goes straight to its helper words (N122)
+WHY      Never-rule 1 (no scores to speakers); founder 2026-10-21 (N108, "Skip that moment"); 2026-10-23 (N120, "make it shorter focused on one only thing"; N122, "do we practice the confident moments? I think yes we should!").
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CHUNK_SHEET_COPY as COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "../idealEditCopy";
+import { AI_CLIP_BANK, CHUNK_SHEET_COPY as COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "../idealEditCopy";
 import FeedbackWalk from "./FeedbackWalk";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 import { walkPractiseIO } from "@/services/api/walkPractise";
@@ -158,7 +160,9 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
     return Promise.resolve(
       json({
         demo: "ai_voice",
-        clip: ready ? { state: "ready", url: "https://media.example/ai.mp3", duration_ms: 3000, why: AI_WHY } : { state: "pending", url: null },
+        clip: ready
+          ? { state: "ready", url: "https://media.example/ai.mp3", duration_ms: 3000, why: AI_WHY, problem: "pause", phrase: AI_PHRASE }
+          : { state: "pending", url: null },
       }),
     );
   }
@@ -167,6 +171,19 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
 
 /** The server's sentence under the clip (L15, the pause clip). */
 const AI_WHY = "You ran straight into \u201cthe window closes once\u201d. This version stops for a moment before it. The pause makes the listener wait for what comes next, so it lands.";
+/** The clip's problem and phrase (N120): the tip quotes the phrase. */
+const AI_PHRASE = "the window closes once";
+const PAUSE_TIPS = AI_CLIP_BANK.AIpause.map((tip) => `${tip.replace("{phrase}", AI_PHRASE)}, like this:`);
+/** The first bubble's line: an opener, then a pause tip. */
+const firstBubble = (line: string | null | undefined) =>
+  AI_CLIP_BANK.AIopen.some((o) => PAUSE_TIPS.some((t) => line === `${o} ${t}`));
+/** The not-yet bubble's line: "Close.", then a pause tip. */
+const againBubble = (line: string | null | undefined) => PAUSE_TIPS.some((t) => line === `Close. ${t}`);
+/** The bubble's lines as drawn: every span of the newest AI bubble. */
+const aiSpans = () =>
+  [...([...(live()?.querySelectorAll("[data-walk-message]") ?? [])].filter((m) => m.querySelector("[data-walk-ai-voice]")).pop()?.querySelectorAll(":scope > span, :scope > div > span") ?? [])].map(
+    (n) => n.textContent,
+  );
 
 /** A praise before the exercise, so ‹ › have somewhere to go. */
 const PRAISE_ITEM: FeedbackWalkItem<string> = {
@@ -359,8 +376,8 @@ describe("words first, then voice (founder 2026-10-18)", () => {
     await settle(160);
     expect(screen()).toBe("walk-screen-encourage");
     expect(live()!.querySelector("[data-walk-ai-voice]")).not.toBeNull();
-    expect(live()!.textContent).toContain(WALK_COPY.aiVoiceFirst);
-    expect(live()!.textContent).toContain(WALK_COPY.aiVoiceNow);
+    expect(againBubble(aiSpans()[0])).toBe(true);
+    expect(aiSpans()).toContain(AI_CLIP_BANK.AIend[1]);
   });
 
   it("good energy on the clearer words is a Good job with no AI clip", async () => {
@@ -388,7 +405,7 @@ describe("the AI version of your voice on the Exercise (founder 2026-10-15)", ()
     expect(live()!.querySelector("[data-walk-ai-voice]")).not.toBeNull();
     expect(live()!.querySelector("[data-walk-ai-waiting] [data-typing-glyph]")).not.toBeNull();
     expect(live()!.querySelector("[data-voice-mark]")).toBeNull();
-    expect(live()!.textContent).toContain(WALK_COPY.aiVoiceFirst);
+    expect(AI_CLIP_BANK.AIopen).toContain(aiSpans()[0]);
     expect(calls.filter((c) => c.url.endsWith("/ai-voice") && c.method === "POST")).toHaveLength(1);
     // The player takes the dots' place once the clip is ready (read every second).
     await settle(150);
@@ -397,38 +414,40 @@ describe("the AI version of your voice on the Exercise (founder 2026-10-15)", ()
     expect(calls.filter((c) => c.url.endsWith("/ai-voice") && c.method === "GET")).toHaveLength(1);
   });
 
-  it("with the clip, the speaker reads what this version does differently and why: one sentence under the player, before \"Now try\", with no number (WIL-82)", async () => {
+  it("the AI clip comes in one short bubble: the opener, the tip quoting their phrase, the clip, then “Your turn.” (N120)", async () => {
     draw({ items: EXERCISE_ITEMS, at: 1 });
-    await settle(60);
-    // Nothing to explain while the clip is still being made.
+    await settle(210);
+    const spans = aiSpans();
+    expect(firstBubble(spans[0])).toBe(true);
+    // The clip keeps its label (L1), beside its small "AI" mark.
+    expect(spans.some((t) => t?.endsWith(WALK_COPY.aiVoiceLabel))).toBe(true);
+    expect(spans[spans.length - 1]).toBe(AI_CLIP_BANK.AIend[0]);
+    const text = live()!.textContent ?? "";
+    // Never the long explanation, nor the old lines (L3, L4, L14-L18).
     expect(live()!.querySelector("[data-walk-ai-why]")).toBeNull();
-    await settle(150);
-    const bubble = live()!.querySelector("[data-walk-message]")!;
-    expect(bubble.querySelector("[data-walk-ai-why]")!.textContent).toBe(AI_WHY);
-    const text = bubble.textContent ?? "";
-    expect(text.indexOf(AI_WHY)).toBeGreaterThan(text.indexOf(WALK_COPY.aiVoiceLabel));
-    expect(text.indexOf(AI_WHY)).toBeLessThan(text.indexOf(WALK_COPY.aiVoiceNow));
-    // The player's clock is the only figure.
-    expect(text.replace(/\d+:\d{2}/g, "")).not.toMatch(/\d/);
+    expect(text).not.toContain(AI_WHY);
+    expect(text).not.toContain("That was good. But");
+    expect(text).not.toContain("Now try saying it like that.");
+    // In the bubble, the player's clock is the only figure.
+    expect(spans.join(" ").replace(/\d+:\d{2}/g, "")).not.toMatch(/\d/);
   });
 });
 
-describe("the voice Exercise opens with praise first (founder 2026-10-20, N82)", () => {
-  it("praise first: L4, the AI version of their voice, then L3, never \"Exercise\"; every not yet after it says L5", async () => {
+describe("a try not yet better (founder 2026-10-23, N120)", () => {
+  it("a try not yet better gets the same short bubble, opened with “Close.” and closed with “Try again.”, with only Practise again (N120)", async () => {
     draw({ items: [PRAISE_ITEM, ...EXERCISE_ITEMS], at: 3 });
     await settle(150);
-    const said = () => live()!.textContent ?? "";
-    const times = (line: string) => said().split(line).length - 1;
-    expect(times(WALK_COPY.aiVoiceFirst)).toBe(1);
-    expect(said()).toContain(WALK_COPY.aiVoiceNow);
-    expect(said()).not.toContain(WALK_COPY.aiVoiceExercise);
-    expect(live()!.querySelector("[data-walk-message]")!.textContent).not.toContain(COPY.titleExercise);
     answers = [{ next: "again", key: "effort" }];
     click(live()!.querySelector("[data-testid='walk-practise']"));
     await tryAndRead();
     await settle(160);
-    expect(said()).toContain(WALK_COPY.aiVoiceAgain);
-    expect(times(WALK_COPY.aiVoiceFirst)).toBe(1);
+    expect(screen()).toBe("walk-screen-encourage");
+    const spans = aiSpans();
+    expect(againBubble(spans[0])).toBe(true);
+    expect(spans[spans.length - 1]).toBe(AI_CLIP_BANK.AIend[1]);
+    expect(live()!.textContent).not.toContain("Not yet. Listen to how you sound");
+    expect(live()!.querySelector("[data-testid='walk-practise']")!.textContent).toBe(COPY.pillPractiseAgain);
+    expect(live()!.querySelector("[data-testid='walk-forward']")).toBeNull();
   });
 });
 
@@ -499,11 +518,15 @@ describe("the AI voice reaches the chat (founder 2026-10-20)", () => {
     click(live()!.querySelector("[data-testid='walk-practise']"));
     expect(onShown.mock.calls.some(([s]) => (s as { key: string }).key === "exVideo")).toBe(false);
     // The ask answers (the clip is on its way): the Exercise is posted as the
-    // AI bubble with its practice, the clip coming in when it lands.
-    await settle();
+    // AI bubble with its practice once its tip is known, the clip coming in
+    // when it lands.
+    await settle(150);
     const told = onShown.mock.calls.filter(([s]) => (s as { key: string }).key === "exVideo");
     expect(told).toHaveLength(1);
-    expect(told[0][3]).toMatchObject({ line: WALK_COPY.aiVoiceFirst, then: WALK_COPY.aiVoiceNow, practiceId: expect.any(String) });
+    expect(told[0][3]).toMatchObject({ then: AI_CLIP_BANK.AIend[0], practiceId: expect.any(String) });
+    // The Lounge says what the walk's bubble says (N120): posted once its tip is known.
+    expect(firstBubble(told[0][3].line)).toBe(true);
+    expect(told[0][3].line).toBe(aiSpans()[0]);
     expect(told[0][3].title).toBeUndefined();
   });
 });
@@ -529,6 +552,42 @@ describe("a voice correction with nothing to offer (founder 2026-10-21, N108)", 
     expect(screen()).toBe("walk-screen-exVideo");
     expect(TOP_MOMENT_LINES.again).toContain(message());
     expect(host.textContent).not.toContain(WALK_COPY.lineA);
+  });
+});
+
+describe("confident moments are practised (founder 2026-10-23, N122)", () => {
+  const CONFIDENT: FeedbackWalkItem<string> = {
+    ...PRAISE_ITEM, openCard: null, tiered: true, green: true, confidentPractice: true, item: "s-praise",
+  };
+
+  it("a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122)", async () => {
+    draw({ items: [CONFIDENT], at: 1 });
+    expect(screen()).toBe("walk-screen-praise");
+    forward();
+    await settle(210);
+    expect(screen()).toBe("walk-screen-exVideo");
+    const spans = aiSpans();
+    expect(firstBubble(spans[0])).toBe(true);
+    expect(spans[spans.length - 1]).toBe(AI_CLIP_BANK.AIend[0]);
+    // Never the corrected moment's words on a praised one.
+    expect(host.textContent).not.toContain(WALK_COPY.lineA);
+    answers = [{ next: "praise", key: "cue:landed_ending" }];
+    click(live()!.querySelector("[data-testid='walk-practise']"));
+    await tryAndRead();
+    expect(screen()).toBe("walk-screen-improved");
+    forward();
+    await settle();
+    expect(screen()).toBe("walk-screen-helpers");
+  });
+
+  it("with no AI clip the praise goes straight to its helper words (N122)", async () => {
+    aiClip = "none";
+    draw({ items: [CONFIDENT], at: 1 });
+    forward();
+    await settle(60);
+    expect(screen()).toBe("walk-screen-helpers");
+    expect(host.textContent).not.toContain(WALK_COPY.lineA);
+    expect(mic.starts).toBe(0);
   });
 });
 

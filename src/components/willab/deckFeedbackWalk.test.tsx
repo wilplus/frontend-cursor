@@ -202,7 +202,7 @@ describe("the walk on the deck", () => {
     expect(live()!.className).toContain("walk-m-open");
     expect(pager()).toBeNull();
     // "Good job" is the bubble's first line, then the praise (lock 2026-10-12).
-    expect(live()!.querySelector("[data-walk-message]")!.textContent).toBe(
+    expect(live()!.querySelector("[data-walk-part] [data-walk-message]")!.textContent).toBe(
       [COPY.titlePraise, [PRAISE_LEAD, PRAISE_CUE_COPY.landed_ending].join(" ")].join(""),
     );
     expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Slide 2");
@@ -257,7 +257,7 @@ describe("the walk on the deck", () => {
     // The helper words first, the confident moment just above them, in the
     // Take's whole walk (one mechanism: the same door as a Lounge bubble).
     expect(screen()).toBe("walk-screen-helpers");
-    expect(live()!.querySelector("[data-walk-message]")!.textContent).toContain(COPY.titlePraise);
+    expect(live()!.querySelector("[data-walk-part] [data-walk-message]")!.textContent).toContain(COPY.titlePraise);
     // The confident moment met above them still reaches the coach's queue.
     expect(reportMomentEvent).toHaveBeenCalledWith("snip-1", "opened", ["praise"]);
     // The step's own buttons: the picker's pill is there.

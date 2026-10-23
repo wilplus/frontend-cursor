@@ -376,6 +376,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-23 · N120 · the shared copy file (`idealEditCopy.ts`) gains the walk's hello and the AI clip's short bubble (`AI_CLIP_BANK`) and loses the walk's L2 to L5; nothing on the Ideal Text page changes · BE #1279
 - 2026-10-23 · N126 · a full stop may go in silently between two sentences where the speaker paused; was: one closing mark at the end of the document only (the 2026-07-20 fence) · decided, build in §2
 - 2026-10-21 · N111 · the page also guards Presentation Mode, the export and the two sheets over the text (§4); no rule changes · BE, FE
 - 2026-10-21 · the walk's line over a corrected top moment is one of the confident moment's own lines (`TOP_MOMENT_LINES`) (`idealEditCopy.ts`; the walk's rules are on the Feedback walk page, C2) · FE

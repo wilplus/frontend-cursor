@@ -27,7 +27,7 @@ import WalkAiVoice, { aiVoiceShown } from "./WalkAiVoice";
 /*                dock: the Take's strip (dot, clock, bar) and Skip / red Stop */
 /*    processing  the typing dots under the try while it is checked          */
 /*    improved    "Good job" and a signed line                                */
-/*    encourage   the AI clip or "Practise" and the signed encouragement      */
+/*    encourage   the AI clip's short bubble, or the signed encouragement     */
 /*    thanks      after the third try that is not praise: the move-on line    */
 /*    late        a read that came late or not at all (O5): Practise again    */
 /*                while a try is left, else Next                              */
@@ -174,13 +174,15 @@ function EncourageMessage({ ctx, step, moment }: { ctx: PractiseScreenCtx; step:
   );
 }
 
-/** In the voice Exercise and after a clearer version's try (founder
- *  2026-10-18), a ready AI clip takes the encouragement's place,
- *  at most AI_VOICE_MAX per exercise (N71): L4 and L3 the first time after
- *  a try, L5 every later time. Anything else: the locked encouragement. */
+/** In the voice Exercise, a praised moment's practise and after a clearer
+ *  version's try (founder 2026-10-18), a ready AI clip takes the
+ *  encouragement's place, at most AI_VOICE_MAX per exercise (N71), in the
+ *  short bubble: "Close.", a tip, the clip, "Try again." (N120). Anything
+ *  else: the locked encouragement. */
 function aiInstead(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
   const state = ctx.aiVoiceOf?.(moment.index);
-  const ai = aiVoiceShown(ctx.plan, ctx.at(step), state);
+  const say = ctx.say;
+  const ai = aiVoiceShown(ctx.plan, ctx.at(step), state, say ? (bank) => say(step, bank) : undefined);
   if (!ai || ai === "pending") return null;
   return (
     <WalkAiVoice

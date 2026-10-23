@@ -731,13 +731,16 @@ O2  A good moment shows the praise line, then why it landed, quoting my words; t
 O3  Reopened from the Lounge, a clip I already judged shows as answered and is not asked again.
 O4  If the summary cannot be read, the walk goes straight back to my page.
 O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.
-O6  A step's grey bubbles land one after another behind the typing dots, and its buttons come once they all have.","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
+O6  A step's grey bubbles land one after another behind the typing dots, and its buttons come once they all have; each new bubble, and the typing dots before it, land at the bottom, right above the buttons, and the thread follows them until I scroll up by hand (N122).
+O7  The walk opens once with ""Hi {name}, good to see you back!"" (Take 1: ""Hi {name}, great to meet you!""; no name: the same without it), and the Lounge keeps the same words (N120).","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
 O2 -> a green moment says why it landed,
 the Take's highest moment opens with “This was your most confident moment.”
 O3 -> reopened from the Lounge, the judging shows the moment already answered
 O4 -> skips the summary when it cannot be read, straight onto the page
 O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder
-O6 -> a step's bubbles land behind the typing dots, then its buttons (founder 2026-10-20)",Never-rule 1 (no scores to speakers); Feedback walk is a locked screen.
+O6 -> a step's bubbles land behind the typing dots, then its buttons (founder 2026-10-20),
+new bubbles land at the bottom and the thread follows them until the speaker scrolls up by hand (N122)
+O7 -> the walk opens once with the hello and the speaker's first name (N120)","Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, ""add the name at the start""; N122, ""the 3 dots loading should be at the bottom"")."
 src/components/willab/walk/walkCopy.test.ts,Guard,"Every word the walk can show comes from the signed copy, and no signed walk line carries a digit.","Never 4: a literal word typed into a walk/*.tsx primitive (JSX text,
 a string child, an accessible name, title, placeholder) that is not in
 WALK_COPY or CHUNK_SHEET_COPY. Never 1: a digit in a signed walk line
@@ -747,18 +750,20 @@ digit         -> ""no signed walk line carries a digit""",If removed: An unsigne
 src/components/willab/walk/walkPractise.test.tsx,Story,"As a speaker, I want to practise inside the walk's chat (record, hear an answer in words, hear an AI version of my voice, at most 3 tries), so that practice is quick, kind and free of numbers.","O1  Stopping a try uploads it and asks for a check, and I am back in the walk at once.
 O2  A better try gets praise in words for what improved, then the walk moves on.
 O3  A ""not yet"" on the clearer words brings the AI version of my voice; a good try does not.
-O4  The AI clip appears with one sentence on what it does differently, never a number.
+O4  The AI clip comes in one short bubble: a one-word opener, one tip quoting my phrase and ending "", like this:"", my AI voice, then ""Your turn.""; never a long explanation, never a number (N120).
 O5  At most 3 tries, all shown together in the chat with the steps before them; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.
 O6  The Exercise reaches the coach's queue the moment it is on screen, and the Lounge as the AI bubble once a clip is coming, even when I tap Practise first.
-O7  The voice Exercise cheers first: ""That was good. But what if you said it more like this?"", my AI voice, then ""Now try saying it like that.""; a not yet after it never repeats that opening.
-O8  A voice correction with nothing to offer (no exercise, no AI clip coming) is skipped: no ""Say this one like your confident moment."" on its own, in the walk or the chat; it still reaches the coach's queue. The Take's most confident moment is not skipped: it says its own line and is said again (N109).","O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
+O7  A try not yet better gets the same short bubble, opened with ""Close."" and closed with ""Try again."", with only ""Practise again"" (N120).
+O8  A voice correction with nothing to offer (no exercise, no AI clip coming) is skipped: no ""Say this one like your confident moment."" on its own, in the walk or the chat; it still reaches the coach's queue. The Take's most confident moment is not skipped: it says its own line and is said again (N109).
+O9  A praised moment is practised too: after its praise the short bubble with my AI voice and ""Your turn."", up to three tries, a Good job ends it, then its helper words; with no AI clip the praise goes straight to its helper words (N122).","O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
 O2 -> praise on try 1: the line for the reading that moved ...
 O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
-O4 -> the bubble is there at once: the typing dots alone ..., with the clip, the speaker reads what this version does differently and why (WIL-82)
+O4 -> the bubble is there at once: the typing dots alone ..., the AI clip comes in one short bubble: the opener, the tip quoting their phrase, the clip, then “Your turn.” (N120)
 O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing
 O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first
-O7 -> praise first: L4, the AI version of their voice, then L3, never ""Exercise""; every not yet after it says L5
-O8 -> with no exercise and no AI clip coming, the walk moves past it: no Line A alone, and the coach's queue still hears it; the Take's most confident moment with nothing to offer says its own line and is said again","Never-rule 1 (no scores to speakers); founder 2026-10-21 (N108, ""Skip that moment"")."
+O7 -> a try not yet better gets the same short bubble, opened with “Close.” and closed with “Try again.”, with only Practise again (N120)
+O8 -> with no exercise and no AI clip coming, the walk moves past it: no Line A alone, and the coach's queue still hears it; the Take's most confident moment with nothing to offer says its own line and is said again
+O9 -> a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122), with no AI clip the praise goes straight to its helper words (N122)","Never-rule 1 (no scores to speakers); founder 2026-10-21 (N108, ""Skip that moment""); 2026-10-23 (N120, ""make it shorter focused on one only thing""; N122, ""do we practice the confident moments? I think yes we should!"")."
 src/components/willab/walk/walkReplay.test.tsx,Story,"As a speaker, I want to replay a finished walk with my answers shown and nothing written or recorded again, so that I can look back safely.","O1  The same screens play with my answers; only a change to my helper words is saved.
 O2  A done exercise plays my past tries and records nothing new.
 O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.","O1 -> opens on the coach's note and plays the same screens answered; helper words stay editable, nothing else writes
@@ -1043,10 +1048,12 @@ src/lib/willab/waitProgress.test.ts,Story,"As a speaker, I want the wait bar to 
 O2  From the first second, before anything is reported, the bar shows at least 1%.","O1 -> NEVER reaches a full bar, even past the cap
 O2 -> shows 1% before the first report, and a real report takes over","Founder 2026-09-22: ""100% means instant switch to the ideal text"". Founder 2026-10-21: ""at least 1% from the very first second""."
 src/lib/willab/walkPlan.test.ts,Story,"As a speaker, I want the walk to praise each of my shown moments that sounded sure and practise each that did not, never ask me to judge, never show a score, and give every moment a step, so that feedback is in words and always has something to show.","O1  The plan holds no number, read or score.
-O2  The steps come in the locked order: each praise with its helper words, then each correction (clearer version, practise), others, summary, never a judging step; two praises or two corrections are ordinary Takes (founder 2026-10-20).
-O3  Every moment has a practice step, even with nothing attached.","O1 -> carries no number, read or score
+O2  The steps come in order: each praise, its practise, then its helper words; each correction (clearer version, practise); others; the summary; never a judging step; two praises or two corrections are ordinary Takes (founder 2026-10-20; N122).
+O3  Every moment has a practice step, even with nothing attached.
+O4  A praised moment the server does not mark for practice, or with practice off, goes straight to its helper words (N122).","O1 -> carries no number, read or score
 O2 -> praises each strong moment, practises each corrected one, and never asks the speaker to judge
-O3 -> a moment with nothing attached is the moment said again",Never-rule 1 (no scores to speakers).
+O3 -> a moment with nothing attached is the moment said again
+O4 -> a praised moment not marked for practice, or with practice off, goes straight to its helper words","Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, ""do we practice the confident moments? I think yes we should!"")."
 src/lib/willab/walkPractise.test.ts,Story,"As a speaker practising, I want each try answered with a line in words for what changed, never a number, so that I hear progress without a score.","O1  The ""not yet"", ""better"" and ""thanks"" lines come from the approved wording and contain no digits.
 O2  A try the server could not hear is a step that says so, in place of the machine's answer (founder, signed 2026-10-21).","O1 -> each try's line is the one for the reading that moved, never a number
 O2 -> a try the server could not hear is a late step that says so",Never-rule 1 (no scores to speakers).
@@ -1068,13 +1075,16 @@ still loading (N80, D4).
 O7  My most confident moment, when the walk goes on to make it better, is
 named as solid and confident in a line that fits what follows (a
 clearer version, an example, or saying it again), and is never told to
-sound like my confident moment (founder 2026-10-21).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
+sound like my confident moment (founder 2026-10-21).
+O8  The hello and the short AI bubble are stored once, and the Lounge
+says the same words as the walk (N120).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
 O2 -> ""posts judging other speakers as the prototype's chat does, never their recording""
 O3 -> ""counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles""
 O4 -> ""asks the sharing question as one bubble, its lines as paragraphs, also for a question stored as three""
 O5 -> ""says the practise answer the walk showed, and writes no Practise bubble for a try (founder 2026-10-20)""
 O6 -> ""writes the coach's word into the chat once per Take""
-O7 -> ""names the confident moment for what follows, never with Line A""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word)."
+O7 -> ""names the confident moment for what follows, never with Line A""
+O8 -> ""stores the hello and the short AI bubble once, in the walk's own words""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word)."
 src/services/api/accountDeletion.test.ts,Story,"As a speaker, I want ""delete my account"" to send one deletion request and show me how long I have to change my mind, and a refusal to change nothing, so that I can trust deletion and cancel it in time.","O1  Asking to delete sends one request with a one-time key and shows the
 pending deletion with its end date.
 O2  A refusal or no connection records nothing.
