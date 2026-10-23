@@ -4,9 +4,11 @@ OUTCOME
   O1  A moment with nothing from a coach still gets the exercise screen and is practised; a coach's exercise, once shared, takes its place.
   O2  A step tapped in the Lounge opens that same moment, even after earlier moments were answered.
   O3  A corrected moment with neither a clearer version nor an exercise is still said again (founder 2026-10-20), never dropped.
+  O4  Two shown moments on one slide, even in one paragraph, are two moments with their own steps, each named with that slide (founder 2026-10-23, N118).
 PROVES   O1 -> never waits for a coach: a moment with nothing served still gets the locked Exercise screen, then is said again
          O2 -> opens the bubble's own moment, found by its paragraph once moments before it are answered
          O3 -> a corrected moment with nothing attached is said again, not dropped
+         O4 -> two moments on one long slide are two moments, each named with that slide
 WHY      Never-rule 3 (coaches are never in the way of the next Take).
 */
 import { describe, expect, it } from "vitest";
@@ -72,6 +74,23 @@ describe("the exercise (D-FW-17; walk lock flow 8, WQ2 B, Q-B15 A)", () => {
       "page", "exVideo", "practise:moment", "others", "summary", "end",
     ]);
     expect(model.moments[0].practiseItem).toBe("s-own");
+  });
+});
+
+describe("two moments on one slide (founder 2026-10-23, N118)", () => {
+  it("two moments on one long slide are two moments, each named with that slide", () => {
+    // One slide, one paragraph, two blocks: the Take's two best moments.
+    const onSlide = { partId: "p3", slide: 2, slideLabel: "Slide 3", tiered: true };
+    const praised = item({ ...onSlide, start: 0, blockId: "b1", green: true, highest: true, item: "s-1" }) as FeedbackWalkItem<string>;
+    const corrected = item({ ...onSlide, start: 400, blockId: "b2", practicePrompt: true, item: "s-2" }) as FeedbackWalkItem<string>;
+    const model = buildFeedbackWalk({ items: [praised, corrected], coachNote: false, practiceOn: true, guest: false });
+    expect(model.moments.map((m) => [m.index, m.slideLabel, m.highest])).toEqual([
+      [0, "Slide 3", true],
+      [1, "Slide 3", false],
+    ]);
+    const stepsOf = (moment: number) => model.plan.filter((s) => s.moment === moment).map((s) => s.key);
+    expect(stepsOf(0)).toContain("praise");
+    expect(stepsOf(1)).toContain("practise");
   });
 });
 

@@ -982,9 +982,11 @@ O2 -> ""the retired /recordings/[id] page sends the speaker to the Lounge, not t
 O3 -> ""reserves a bookmark's place only while the server says it is coming""","Founder 2026-09-22: a gate parallel sessions run, not a document they skip. Twin: backend tests/test_f1_loop_contract.py. The wait bar's ceiling lives in waitProgress.test.ts."
 src/lib/willab/feedbackWalkModel.test.ts,Story,"As a speaker, I want the Feedback walk to give every moment a practice step even when no coach has answered, so that a coach never holds up my next Take.","O1  A moment with nothing from a coach still gets the exercise screen and is practised; a coach's exercise, once shared, takes its place.
 O2  A step tapped in the Lounge opens that same moment, even after earlier moments were answered.
-O3  A corrected moment with neither a clearer version nor an exercise is still said again (founder 2026-10-20), never dropped.","O1 -> never waits for a coach: a moment with nothing served still gets the locked Exercise screen, then is said again
+O3  A corrected moment with neither a clearer version nor an exercise is still said again (founder 2026-10-20), never dropped.
+O4  Two shown moments on one slide, even in one paragraph, are two moments with their own steps, each named with that slide (founder 2026-10-23, N118).","O1 -> never waits for a coach: a moment with nothing served still gets the locked Exercise screen, then is said again
 O2 -> opens the bubble's own moment, found by its paragraph once moments before it are answered
-O3 -> a corrected moment with nothing attached is said again, not dropped",Never-rule 3 (coaches are never in the way of the next Take).
+O3 -> a corrected moment with nothing attached is said again, not dropped
+O4 -> two moments on one long slide are two moments, each named with that slide",Never-rule 3 (coaches are never in the way of the next Take).
 src/lib/willab/idealTextDecisions.test.ts,Story,"As a speaker, I want accepting or keeping a suggestion on my Ideal Text saved to the right place for its kind, so that my decision sticks and a suggestion with missing ids sends nothing broken.","O1  A new-take block upgrade goes to blocks/decide, and nowhere else.
 O2  A prior-take change goes to its own route, and nowhere else.
 O3  Every other source rides the per-snippet feedback POST; a coach
