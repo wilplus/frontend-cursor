@@ -156,6 +156,10 @@ step; the loop never waits for a coach.
 
 ### C · The walk, in order
 
+- **C0 Hello.** The walk opens once with the speaker's first name: "Hi
+  {name}, good to see you back!", on Take 1 "Hi {name}, great to meet
+  you!"; with no name on the account "Hi, good to see you back!" / "Hi,
+  great to meet you!" (founder 2026-10-23, N120).
 - **C1 Your coach.** First, if there is one: "Your coach:", the coach's
   bubble (video or words only; everything the coach sent), then "Continue".
   Only this Take's coach word opens it (2026-10-20, narrowing N48.3 Q11 A):
@@ -205,22 +209,25 @@ step; the loop never waits for a coach.
   decided, 2026-10-20, so weaker words could put a stronger voice under the
   floor; the fixed roles of 2026-10-14 and 2026-10-17 are history). A
   praised moment:
-  its clip as the speaker's orange bubble; on the highest moment the line
-  "This was your most confident moment." (signed 2026-10-20; when that moment is
-  corrected, its clearer version or Exercise opens with one line that names
+  its clip as the speaker's orange bubble, then one sentence built from
+  signed pieces (founder 2026-10-23, N120): on the highest moment "It seems
+  like this was your most confident moment, cause it was {level}, {cue},
+  {closer}", on the other "This one was {level}, {cue}, {closer}"; {level}
+  by the moment's level (W1–W10, one piece a level), {cue} by the clip's
+  strongest confident voice cue (left out when none stands out), {closer}
+  rotated (K). Until then "This was your most confident moment." (signed
+  2026-10-20), the level line (three a level, `praiseLevels.ts`) and the
+  cue's line from B01–B09 stood apart, "Good job" standing in when no level
+  was sent. When the highest moment is corrected, its clearer version or Exercise opens with one line that names
   it solid and confident and fits what follows: a clearer version (then its
-  B13 line), an example (the AI clip, in place of L4's "That was good. But…",
+  B13 line), an example (the AI clip, in place of the AI bubble's opener, C6,
   or an exercise's video), or saying it again when no example came; three
   phrasings each around the founder's "This was a solid, confident moment we
   recognised. Here is an example to make it even better.", picked by the
   moment so the lens and the chat say the same (K); Line A is never said on
   that moment (founder, 2026-10-21: it had said "so far", gone straight to
   the fix and asked the confident moment to sound like the confident moment;
-  "vary around the line I suggested … no abruptions"); then the opening line by its
-  level (W1–W10, three signed lines a level, rotated;
-  `src/lib/willab/praiseLevels.ts`) and under it the cue's line from
-  B01–B09. "Good job" stands in for the level line only when no level is
-  sent (founder 2026-10-21: the level line is the praise's own title). Then
+  "vary around the line I suggested … no abruptions"). Then
   "Next". Praise is never
   promised. A served moment with nothing attached is the moment said again,
   so the lens always has a step; with no moment at all the text shows.
@@ -273,18 +280,21 @@ step; the loop never waits for a coach.
   never changes the Ideal Text (rule 5): it gets there when it is said in the
   next Take. After a try only the voice is checked, on the same lanes as the
   Exercise: better is the Good job and no clip; not yet brings the AI clip of
-  the accepted words (or their own after "Keep my words") with L4, L3, then
-  L5. A try with no sound read is a Good job. An answered Clearer version
+  the accepted words (or their own after "Keep my words") in C6's short
+  bubble, closed by "Try again." (N120; until then L4, L3, then L5). A try with no sound read is a Good job. An answered Clearer version
   stays read only, in the walk and from the Lounge. When the moment's voice
   reached the floor, its helper words (C3) follow the Clearer version and
   its practise, after a Skip too (N113).
-- **C6 The voice Exercise** opens with praise: L4 "That was good. But what
-  if you said it more like this?", the AI version of their voice, then L3
-  "Now try saying it like that." (N82). When a library video fits exactly
+- **C6 The voice Exercise** opens with one short bubble (founder
+  2026-10-23, N120): a one-word opener ("Nice." / "Close." / "Good."), one
+  tip for the problem the clip fixes, ending ", like this:" (K), the AI
+  version of their voice, then "Your turn."; until then L4 "That was good.
+  But what if you said it more like this?", the clip and L3 "Now try saying
+  it like that." (N82), with L14–L18 under the player. When a library video fits exactly
   and targets the chosen problem, the video and its instruction (the coach's
   when there is one, else Line A) take the clip's place, then "Practise";
   no "Exercise" title on this path either (2026-10-21).
-  Under the clip's player one signed sentence says why (L14–L18). Without a
+  The tip takes the place of the sentence under the player. Without a
   clip the Exercise is as locked. The Exercise is one thread showing its
   whole history: the clip, the Exercise, every try and its answer
   (2026-10-16). The clip's own rules: backend
@@ -301,8 +311,9 @@ step; the loop never waits for a coach.
   +0.05 (`after_practice.GOOD_JOB_MARGIN`, N84); a cleared problem, or a cue
   moved by at least half a within-speaker deviation, counts too; a clearer
   version's try with no sound read is a Good job; a smaller rise is a not
-  yet. It never asks the speaker how it sounded. **Not yet:** a not-yet line that changes each time, the
-  same AI clip with L5, and under it only "Practise" or "Practise again"
+  yet. It never asks the speaker how it sounded. **Not yet:** C6's short bubble again, an opener and the
+  tip, the same AI clip, then "Try again." (N120; until then a not-yet line
+  that changes each time and the clip with L5), and under it only "Practise" or "Practise again"
   with the red dot, no Next and no Skip, until a Good job or the third try
   (2026-10-18). **Better:** "Good job", "That sounded more assured than the
   first.", Next; a Good job ends the practise. At most three tries, then
@@ -571,7 +582,12 @@ step; the loop never waits for a coach.
   fillers and hedges at least 0.1 better, fewer undermining words, or the
   sentence mended; still theirs, 6 words in 10, no new number or name; no
   longer than what they said and 5 words or more; not turned down before on
-  the same words). Anything else → the voice Exercise, for a voice under the
+  the same words). Both halves read the words the speaker sees, the Ideal
+  Text's own words after the silent smoothing, so hesitations ("um", "uh")
+  that never reach the screen neither make the words need help nor make a
+  rewrite a real fix; they reach the speaker only through the AI clip's
+  fillers tip (founder 2026-10-23, N121; until then both halves also read
+  the clip's raw transcript, hesitations included). Anything else → the voice Exercise, for a voice under the
   floor only; a voice at the floor is praised instead (N108). For undermining words
   a rule writes the clearer version (`take_feedback_manager.
   _undermining_rewrites`): the same sentence with its apologies, asks for
@@ -660,6 +676,31 @@ October (backend N111).
   words"; for undermining words B10's "Say what you mean. Don't dance around
   it, just say it straight." and B13's "Try saying it like this:" (signed
   lines in a new place, N85).
+- **Hello (N120, signed 2026-10-23):** "Hi {name}, good to see you
+  back!", on Take 1 "Hi {name}, great to meet you!"; with no name "Hi, good
+  to see you back!" / "Hi, great to meet you!".
+- **The praise sentence (N120, signed 2026-10-23):** "It seems like this
+  was your most confident moment, cause it was {level}, {cue}, {closer}" and
+  "This one was {level}, {cue}, {closer}". {level}: W1 "a good start", W2
+  "getting there, step by step", W3 "smooth", W4 "nice and steady", W5
+  "really yours", W6 "strong and sure", W7 "really strong", W8 "spot on", W9
+  "you at your best", W10 "Mount Everest level". {cue}: the ending came down
+  "no question mark at the end"; a strong opening "a strong start from the
+  first word"; the pitch moved "your voice moving up and down"; loud and
+  soft "loud where it mattered"; few stops "no stops"; a lower voice "your
+  voice calm and low"; kept the pace "a good, steady pace"; surer than usual
+  "more sure than usual"; no single cue: left out. {closer}: "you simply
+  fired it!", "you just said it!", "you owned it!".
+- **The AI clip's bubble (N120, signed 2026-10-23):** openers "Nice.",
+  "Close.", "Good."; tips, each followed by ", like this:": stress "Say
+  “{phrase}” stronger", "Lean on “{phrase}”", "Push “{phrase}” a little
+  more"; pause "Pause before “{phrase}”", "Take a breath before “{phrase}”",
+  "Let “{phrase}” wait a beat"; pace "Slow it down a little", "Take your
+  time", "A bit slower"; fillers "Say it without the ums", "Straight
+  through, no ums", "Drop the ums"; nothing off "Lean on “{phrase}”", "Give
+  “{phrase}” more weight", "Say “{phrase}” a little stronger"; then "Your
+  turn." (the first bubble) or "Try again." (after a try that is not yet
+  better). The clip keeps its label "AI version of your voice".
 - **Praise:** "This was your most confident moment." and "This was your
   most confident moment so far." (signed 2026-10-20; the second is replaced by
   the confident moment's own lines, `TOP_MOMENT_LINES` in
@@ -725,7 +766,10 @@ October (backend N111).
   Clearer version and "Tap the words" over the picker (2026-10-21); "✓ You
   accepted and practised it", "✓ You kept your words", "✓ Skipped", "✓
   Answered" and "Do you agree to share your next take with others?"
-  (2026-10-21).
+  (2026-10-21); the praise title "This was your most confident moment.",
+  the level lines (W1–W10) and the cue lines (B01–B09) as lines of their
+  own, "Good job" in place of a level, and the AI clip's L3, L4, L5 and
+  L14–L18 in the walk (2026-10-23, N120).
 
 ---
 
@@ -742,6 +786,8 @@ deletes the line when the work is merged (the change goes to §6).
 
 The four lines above were filled from main's history by the page's keeper on
 2026-10-20; the sessions doing the work overwrite them when they push.
+- **N120 · the walk speaks like a coach** · C0, C2, C5, C6, C7, K · founder 2026-10-23 ("could we make it more flexible and human like more appealing and inviting"; "as a coach I would use here more friendly language and make it shorter focused on one only thing"; "say it stronger; or lean on this sentence"; "also add the name at the start: Hi Artur, good to see you back!"; then every line signed in the chat). To build: the hello with the first name from the account; the praise as one sentence from the level, cue and closer pieces; the AI clip's one short bubble (opener, tip ", like this:", clip, "Your turn." / "Try again."); the new banks in the line bank (BE `services/line_bank.py` with `docs/SIGNED-line-bank-2026-10-06.md`, its parity test; FE `idealEditCopy.ts`, `praiseLevels.ts`, `walkThread.ts`, `FeedbackWalk.tsx`); the commit carries the founder's `Founder-Approved:` line · decided, not built · the founder checks the app
+- **N121 · the rewrite gate reads the words on screen** · H3 · founder 2026-10-23 ("But for the help where do you source the fillers? From the corrected transcript? There won't be any fillers cause they are already corrected"; then "Yes, add it to N118"). Found: gate 1 counted fillers on the clip's raw transcript, hesitations included, and gate 2 measured a rewrite's lift against the worse of the raw and the shown words, so a moment could be sent to a rewrite for ums the speaker never saw, and almost any rewrite passed as "a real fix". To build, with N118: both halves read the shown words (BE `services/rewrite_gate.py`, `services/moment_pick.py`) · decided, not built · the founder checks the app
 - **N119 · three moments to judge, high, middle and low** · C8, G4 · founder 2026-10-23 ("I am choosing that my audience is only me, but still I should be getting the judgements"; "3 clips (high, middle, low willfidence) from 3 different speakers"; then "Yes, the basis covers it", "First in their level", "Show fewer"). Found: the walk's training clips were read only from the licensed corpus table (0410), which nothing fills, so with no community clips the queue was empty and the step was left out without a word; the clips the coaches judge are the imported corpus, a different store. To build: the queue draws one clip per level from community clips first, then the imported corpus and the licensed corpus, three different speakers, a blind order, fixed per Take, played by a short-lived signed link; speakers' answers on imported clips in a table of their own, never labels (migration); an empty queue is logged (BE `services/lend_your_ear.py`, `services/communities.py`); the walk always asks for three (FE `WalkOthers.tsx`) · decided, not built · the founder checks the app
 - **N118 · the two best moments, one per paragraph** · C2, H1 · founder 2026-10-23 ("it should be minimum 2; best two"; "it doesnt have to be separate slide"; "don't show two moments on the same paragraph"; "you can extend the paragraph"). Found: the pick took at most one moment per slide, so a one-slide Take showed one and a long slide's second great moment lost to a weaker slide; a slide with no playable clip gave none. To build: the pick ranks by S × W across the Take, one per block, no slide limit, the stronger voice of the two named the most confident; the block boundary moves when the two best share a block, and a one-block Take is split (BE `services/moment_pick.py`, the partition in `services/take_feedback_policy_v3.py`, contract 24a); the walk already makes one moment per block, to check in the app with two on one slide (FE) · decided, not built · the founder checks the app
 - **N77 · the coach's link names the word's Take** · C1 · founder 2026-10-21 ("the links carry the Take the word was written on, and open that Take's coach-only walk with the word"). Found: with the earlier-Take fallback gone (BE #1212), the WhatsApp and email links open the latest Take, where an earlier Take's late word is no longer served. Built: the links carry `&take=<session_id>` (BE); the chat page reads it, the Ideal Text asks the journey for that Take and the coach-only walk opens on its word; an earlier Take's link shows that word alone, with no moments of the latest Take (founder 2026-10-21); without it, as before (FE) · FE #905 merges first, then BE #1212, then FE #903 · the founder checks the app
@@ -861,6 +907,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-23 · N121 · the rewrite gate reads the words the speaker sees, so hesitations never make the words need help or a rewrite a real fix; they reach the speaker through the AI clip's fillers tip; was: both halves also read the clip's raw transcript (H3) · decided, build in §2
+- 2026-10-23 · N120 · a hello with the speaker's first name opens the walk (C0); the praise is one sentence built from the level, cue and closer pieces, was the title "This was your most confident moment." over the level line and the cue line (C2); the AI clip's bubble is one short bubble, an opener, one tip ", like this:", the clip and "Your turn.", was L4, the clip, L3 and L14–L18 under the player (C6); a try not yet better gets the same bubble with "Try again.", was a not-yet line and the clip with L5 (C5, C7); the words in K · decided, build in §2
 - 2026-10-23 · N119 · other speakers: three moments every walk, one read high, one middle, one low, three different speakers, community clips first in their level and the training corpus (the imported clips the coaches judge, and the licensed corpus) for the rest, fewer only with fewer speakers; was "one moment per try, at least one and at most three: other speakers' moments first, licensed clips for the places left" (C8) and "the training clips mixed into judging are the licensed corpus" (G4) · decided, build in §2
 - 2026-10-23 · N118 · the two best moments by willfidence (S × W), however low, one per block and no longer one per slide; the stronger voice of the two is the most confident; when the two best share a block its boundary moves, and a one-block Take is split in two; was "the two strongest voices (S, then S × W), at most one per slide (a one-slide Take shows one)", the highest the first in rank (C2, H1) · decided, build in §2
 

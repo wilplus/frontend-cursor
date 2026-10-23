@@ -242,6 +242,30 @@ sounds better gets the Good job and no clip. The clip is asked when the
 practise of the clearer words starts, never prewarmed at the bake: until the
 speaker accepts, the words are not chosen. Praise still never gets a clip.
 
+### Decided after the lock (2026-10-23, N120, the coach's voice)
+
+**One short bubble.** The founder (Claude Code session, 2026-10-23: "as a
+coach I would use here more friendly language and make it shorter focused on
+one only thing without the general assessment"; "say it stronger; or lean on
+this sentence"; every line signed in the chat) amends section 2's Exercise
+screen and "not yet": the AI clip comes in one bubble, a one-word opener
+("Nice." / "Close." / "Good."), one tip for the problem the clip fixes ending
+", like this:", the clip, then "Your turn." (the Exercise screen) or "Try
+again." (a try not yet better). The tip quotes the speaker's own phrase where
+the problem has one. L3, L4, L5 and L14 to L18 are no longer said in the walk;
+L1 stays as the clip's label. The tips, signed:
+
+| Problem | Tips (one shown, rotating) |
+|---|---|
+| stress | Say “‹the phrase›” stronger · Lean on “‹the phrase›” · Push “‹the phrase›” a little more |
+| pause | Pause before “‹the phrase›” · Take a breath before “‹the phrase›” · Let “‹the phrase›” wait a beat |
+| pace | Slow it down a little · Take your time · A bit slower |
+| fillers | Say it without the ums · Straight through, no ums · Drop the ums |
+| nothing off (the default clip) | Lean on “‹the phrase›” · Give “‹the phrase›” more weight · Say “‹the phrase›” a little stronger |
+
+The Take's most confident moment keeps its own line in place of the opener
+(the walk's page, C2).
+
 ### 7. Order of work
 
 Build end to end, test with the founder's own voice, then counsel (L12,
@@ -257,7 +281,7 @@ first review).
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
 doing it fills its line in its PR and deletes the line when the work is merged (the change goes to §6).
 
-- None yet.
+- **N120 · the AI clip in one short bubble** · §2, §6, the walk's C6 and C7 · founder 2026-10-23, every line signed in the chat · decided, not built; built with the walk's N120 line · the founder checks the app
 
 ## 3. Still open
 
@@ -293,4 +317,5 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-23 · N120 · the AI clip comes in one short bubble, an opener, one tip ", like this:", the clip and "Your turn." or "Try again."; was L4, the clip, L3 and L14–L18 under the player, and L5 after a try · decided, build in §2
 - 2026-10-21 · N107 · this page replaces backend `FOUNDER-LOCK-ai-voice-practice-2026-10-12.md` as the place the rules live; the lock stays as history · BE #1241, FE #928
