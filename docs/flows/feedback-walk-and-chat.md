@@ -192,7 +192,9 @@ step; the loop never waits for a coach.
   coach's share asks for the rows to be baked again (backend, N92,
   2026-10-21: "the video was sent too with the coach feedback and didn't
   pass through").
-- **C2 Praise.** The Take's two strongest voices are shown, praise first
+- **C2 Praise.** The Take's two best moments are shown, however low,
+  never two in one paragraph and both on one slide when that is where they
+  are (H1; founder, 2026-10-23, N118: "minimum 2; best two"), praise first
   and then the corrections, each group in slide order, and the voice decides
   each: a moment whose voice reaches the floor is praised unless its words
   need help (then the Clearer version, C5), one whose voice is under it is
@@ -517,14 +519,21 @@ step; the loop never waits for a coach.
   willfidence(sentence) = S × W                 0 … 1
     S = voice_confidence (7 cues vs the speaker's own baseline)
     W = mean of: few fillers/hedges · fits the slide · holds together
-  shown     = the two strongest voices (S, then S × W), at most one per
-              slide (a one-slide Take shows one); clips with enough words
-              rank before short ones (N108, 2026-10-21)
+  shown     = the two highest willfidence (S × W) of the Take, however
+              low, at most one per ~75-word block, two on one slide
+              allowed; clips with enough words rank before short ones;
+              fewer than two only with fewer than two playable clips
+              (N118, 2026-10-23)
+  blocks    = when the two best share a block, the boundary between them
+              moves so each has its own (40 … 120 words, never across a
+              slide, never cutting a clip); a one-block Take is split the
+              same way when each clip has 5 words or more (N118)
   each      S ≥ FLOOR → praised, unless the words need help (H3) → the
               Clearer version, then its helper words (N113); S < FLOOR →
               corrected: the Clearer version
               when the words need help, else the voice Exercise (N108)
-  highest   = the first in rank; its bubble opens with the signed line (C2)
+  highest   = of the two, the stronger voice (S); its bubble opens with
+              the signed line (C2, N118)
   try       = Δ willfidence vs the original ≥ MARGIN (+0.05) → better
   ```
 
@@ -724,6 +733,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 The four lines above were filled from main's history by the page's keeper on
 2026-10-20; the sessions doing the work overwrite them when they push.
+- **N118 · the two best moments, one per paragraph** · C2, H1 · founder 2026-10-23 ("it should be minimum 2; best two"; "it doesnt have to be separate slide"; "don't show two moments on the same paragraph"; "you can extend the paragraph"). Found: the pick took at most one moment per slide, so a one-slide Take showed one and a long slide's second great moment lost to a weaker slide; a slide with no playable clip gave none. To build: the pick ranks by S × W across the Take, one per block, no slide limit, the stronger voice of the two named the most confident; the block boundary moves when the two best share a block, and a one-block Take is split (BE `services/moment_pick.py`, the partition in `services/take_feedback_policy_v3.py`, contract 24a); the walk already makes one moment per block, to check in the app with two on one slide (FE) · decided, not built · the founder checks the app
 - **N77 · the coach's link names the word's Take** · C1 · founder 2026-10-21 ("the links carry the Take the word was written on, and open that Take's coach-only walk with the word"). Found: with the earlier-Take fallback gone (BE #1212), the WhatsApp and email links open the latest Take, where an earlier Take's late word is no longer served. Built: the links carry `&take=<session_id>` (BE); the chat page reads it, the Ideal Text asks the journey for that Take and the coach-only walk opens on its word; an earlier Take's link shows that word alone, with no moments of the latest Take (founder 2026-10-21); without it, as before (FE) · FE #905 merges first, then BE #1212, then FE #903 · the founder checks the app
 - **N92 · the coach's video reaches the walk** · C1, D5 · founder 2026-10-21 ("the video was sent too with the coach feedback and didn't pass through"). Found: the speaker's feedback rows are served from a stored bake that only the speaker's own writes retire; the coach's answer, with its signed video link, stayed as baked, so a video added after the bake never arrived and a baked link went dark after six hours. Built: the bake re-reads the coach's answer on every read, one read per Take, the video signed afresh; a coach's share asks for one rebake (BE) · BE #1213 · the founder checks the app: the coach's bubble in the walk shows the video above the words
 - **N91 · the walk as one thread, from every door** · B5, B9, B10, F3 · founder 2026-10-21, two recordings (the app at 06:29; the prototype, "this is how it should be"): a door opened a lone fragment of the walk, the helper words opened from the Lounge did not scroll on to the next step, Next closed the walk instead of moving on. Found: the thread was drawn only up to the step the walk stood on, and the dock was always the newest part's. Built: the thread holds every part up to the walk's furthest; the step a door names stands with its own buttons and is brought to the top; Next moves on to the next part, after the last onto the page; scrolling and ‹ › move through every part; "Review feedback" opens the whole finished walk on its newest step (FE) · FE #899 · the founder checks the app; open: what was missing of the coach's feedback in the walk (the video, the fragment's audio, or the rest of the walk)
@@ -840,6 +850,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-23 · N118 · the two best moments by willfidence (S × W), however low, one per block and no longer one per slide; the stronger voice of the two is the most confident; when the two best share a block its boundary moves, and a one-block Take is split in two; was "the two strongest voices (S, then S × W), at most one per slide (a one-slide Take shows one)", the highest the first in rank (C2, H1) · decided, build in §2
 
 - 2026-10-22 · N113 · a moment whose voice reached the floor and whose words get the Clearer version keeps it and its practise, then its helper words, as after a praise; the server says which with `helper_words_prompt`, a flag, never the score; a voice under the floor is unchanged (C3, C5, H1) · FE, BE
 - 2026-10-21 · a moment the walk went past is answered: its black line goes at once and its paragraph opens the walk as given, no longer its practise again; a skip is told to the server where the machine did not close the practice, and the Take's other moments no longer take the answered ones' place on the next read (F3; until then only helper words picked in the walk settled a moment, since judging one's own moments left the walk) · FE #936, BE #1259
