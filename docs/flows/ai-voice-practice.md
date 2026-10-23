@@ -301,8 +301,7 @@ first review).
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
 doing it fills its line in its PR and deletes the line when the work is merged (the change goes to §6).
 
-- **N122 · praised moments practised with a clip** · §1, the walk's C2 · founder 2026-10-23 · decided, not built; built with the walk's N122 line · the founder checks the app
-- **N120 · the AI clip in one short bubble** · §2, §6, the walk's C6 and C7 · founder 2026-10-23, every line signed in the chat · decided, not built; built with the walk's N120 line · the founder checks the app
+Nothing in flight.
 
 ## 3. Still open
 
@@ -338,6 +337,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-23 · N120, N122 · built: the clip in one short bubble (opener, tip by problem with the speaker's phrase, the clip, "Your turn." / "Try again."), the server naming the clip's `problem` and `phrase` as soon as it chooses them; a praised moment's practise gets its clip, started early by the bake like a corrected moment's · BE #1279
 - 2026-10-23 · N122 · a praised moment is practised with a clip too; was "Never with praise" and "Praise still never gets a clip" · decided, build in §2
 - 2026-10-23 · N120 · the AI clip comes in one short bubble, an opener, one tip ", like this:", the clip and "Your turn." or "Try again."; was L4, the clip, L3 and L14–L18 under the player, and L5 after a try · decided, build in §2
 - 2026-10-21 · N107 · this page replaces backend `FOUNDER-LOCK-ai-voice-practice-2026-10-12.md` as the place the rules live; the lock stays as history · BE #1241, FE #928

@@ -41,16 +41,16 @@ import WalkFooter from "./WalkFooter";
 /*  shows the mark of the part in view; ‹ › scroll to the mark before or      */
 /*  after.                                                                    */
 /*                                                                            */
-/*  The newest step comes to the top (founder 2026-10-20: "the bubbles in the */
-/*  lenses should not disappear but be brought to the top"; prototype         */
-/*  https://claude.ai/artifact/MpiAtrUz4DNBKm3EvhA6fm): its name moves to the */
-/*  top of the thread and its bubbles land under it, the steps before it      */
-/*  above, to scroll back to. A room under the thread lets the name reach the */
-/*  top; a step taller than the thread follows down to its newest bubble.    */
-/*  After every tap in the dock the thread goes back to the newest step, and  */
-/*  it keeps following until the speaker scrolls up by hand. Scrolled back   */
-/*  to an answered step, the dock reads Next, which brings the newest step    */
-/*  back; the recorder never gives way.                                       */
+/*  New bubbles land at the bottom (founder 2026-10-23, N122: "the 3 dots     */
+/*  loading should be at the bottom"): each new bubble, and the typing dots   */
+/*  before it, land right above the buttons, as in the Lounge, and the thread */
+/*  follows them down. After every tap in the dock the thread goes back to    */
+/*  the newest bubble, and it keeps following until the speaker scrolls up by */
+/*  hand. Scrolled back to an answered step, the dock reads Next, which       */
+/*  brings the newest step back; the recorder never gives way. (From 20 to   */
+/*  23 October the newest step came to the top, its name at the top of the   */
+/*  thread, with a room under the thread to let it get there.) A door into a  */
+/*  step already answered still brings that step's name to the top (N91).    */
 /*                                                                            */
 /*  A new opening while the lens stays open (Next from a step played again   */
 /*  to the step that waits) keeps what the thread showed above it, as a still */
@@ -436,11 +436,17 @@ function LiveThread({
     );
   }, [inView, nowMark]);
   /** Sizes the room under the thread so the standing step's name can reach
-   *  the top. False when the step is taller than the thread (no room). */
+   *  the top, on a door into a step already answered (N91). A live walk
+   *  has none: its newest bubbles sit right above the buttons (N122).
+   *  False when the step is taller than the thread (no room). */
   const sizeRoom = useCallback((): boolean => {
     const el = body.current;
     const under = room.current;
     if (!el || !under) return false;
+    if (standsLast()) {
+      if (under.style.height !== "0px") under.style.height = "0px";
+      return false;
+    }
     const all = marks();
     const target = nowTarget() ?? all[all.length - 1] ?? null;
     const pad = parseFloat(getComputedStyle(el).paddingBottom) || 0;
@@ -450,18 +456,18 @@ function LiveThread({
     if (under.style.height !== height) under.style.height = height;
     return fits;
   }, []);
-  /** The standing step in view: its name at the top while the thread fits
-   *  under it, else down to its newest bubble; with parts after it, always
-   *  its name at the top (founder 2026-10-21). */
+  /** The standing step in view: on a live walk its newest bubble, at the
+   *  bottom (N122); with parts after it, its name at the top (founder
+   *  2026-10-21). */
   const toCurrent = useCallback(
     (smooth: boolean) => {
       const el = body.current;
       if (!el) return;
-      const fits = sizeRoom();
+      sizeRoom();
       const all = marks();
       const target = nowTarget() ?? all[all.length - 1] ?? null;
       const bottom = el.scrollHeight - el.clientHeight;
-      const top = target && (fits || !standsLast()) ? Math.max(0, Math.min(bottom, topIn(el, target) - MARK_GAP_PX)) : bottom;
+      const top = target && !standsLast() ? Math.max(0, Math.min(bottom, topIn(el, target) - MARK_GAP_PX)) : bottom;
       if (Math.abs(el.scrollTop - top) < 2) return;
       if (typeof el.scrollTo === "function") el.scrollTo({ top, behavior: smooth && !reduced() ? "smooth" : "auto" });
       else el.scrollTop = top;
@@ -469,9 +475,9 @@ function LiveThread({
     [sizeRoom],
   );
 
-  // The step the walk stands on comes to the top, as the walk opens and each
-  // time it moves on. With parts after it the thread follows nothing
-  // (founder 2026-10-21); as the newest part it follows its bubbles.
+  // As the walk opens and each time it moves on: the newest bubble in view
+  // at the bottom (N122). With parts after it the thread follows nothing
+  // and the standing step's name comes to the top (founder 2026-10-21).
   useEffect(() => {
     if (!body.current) return;
     setFollow(standsLast());

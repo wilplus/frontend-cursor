@@ -34,6 +34,9 @@ export interface UserProfile {
    *  This is queue routing only; it is never a label or a model feature.
    *  null = supported but not configured; undefined = old backend contract. */
   proficient_languages: string[] | null | undefined;
+  /** The first word of the account's name, for the walk's hello (backend
+   *  N120); null with no name. */
+  first_name: string | null;
 }
 
 export interface UserProfileDraft {
@@ -67,6 +70,7 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
     // undefined, "", 0, missing field) → false. Prevents a typo or a BE
     // response shape drift from silently surfacing the coach UI.
     is_coach: data.is_coach === true,
+    first_name: typeof data.first_name === "string" && data.first_name.trim() ? data.first_name.trim() : null,
     proficient_languages: !("proficient_languages" in data)
       ? undefined
       : Array.isArray(data.proficient_languages)

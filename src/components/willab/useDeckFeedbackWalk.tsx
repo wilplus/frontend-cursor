@@ -61,6 +61,7 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 import type { LockResult } from "./DeckChunkModal";
 import { praiseTitleFor } from "@/lib/willab/praiseLevels";
 import { useGreenReasons } from "./walk/useGreenReasons";
+import { fetchUserProfileShared } from "@/services/api/userProfile";
 import type { WalkPraiseReasons } from "@/lib/willab/praiseReason";
 
 /* -------------------------------------------------------------------------- */
@@ -248,7 +249,16 @@ function walkItemOf(
     slide,
     blockId: item.blockId ?? null,
     hasRewrite: rewrite !== null,
-    ...(tiered ? { tiered, green, practicePrompt: item.practicePrompt === true, helperWordsPrompt: item.helperWordsPrompt === true } : {}),
+    ...(tiered
+      ? {
+          tiered,
+          green,
+          practicePrompt: item.practicePrompt === true,
+          helperWordsPrompt: item.helperWordsPrompt === true,
+          // A praised moment practised with its AI clip (backend N122).
+          confidentPractice: item.confidentPractice === true,
+        }
+      : {}),
     openCard: item.openCard ?? null,
     feedbackFamily: item.feedbackFamily ?? null,
     hasExercise: exercise !== null,
@@ -1320,6 +1330,21 @@ export function useDeckFeedbackWalk(args: {
     [post, walkModel],
   );
 
+  // The walk's hello names the speaker (N120): the first name from the
+  // account, read once per page with the rest of the profile (a guest, or a
+  // read that fails: the hello without a name).
+  const [firstName, setFirstName] = useState<string | null>(null);
+  useEffect(() => {
+    let on = true;
+    void fetchUserProfileShared()
+      .then((profile) => {
+        if (on) setFirstName(profile?.first_name ?? null);
+      })
+      .catch(() => undefined);
+    return () => {
+      on = false;
+    };
+  }, []);
   const element = useMemo(
     () => (
         <FeedbackWalk
@@ -1327,6 +1352,7 @@ export function useDeckFeedbackWalk(args: {
           request={request}
           coachNote={coachMessage}
           firstTake={firstTake}
+          firstName={firstName}
           takeIndex={args.takeIndex ?? null}
           onSaveHelperWords={saveHelperWords}
           onAcceptClearer={acceptClearer}
@@ -1354,6 +1380,7 @@ export function useDeckFeedbackWalk(args: {
       request,
       coachMessage,
       firstTake,
+      firstName,
       args.takeIndex,
       summary,
       saveHelperWords,

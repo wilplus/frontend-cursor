@@ -333,6 +333,29 @@ export const CHUNK_SHEET_COPY = {
 /*  eyebrow above the post in the walk was signed with Q-B4 A (N62).          */
 /* -------------------------------------------------------------------------- */
 
+/* -------------------------------------------------------------------------- */
+/*  THE AI CLIP'S ONE SHORT BUBBLE (founder 2026-10-23, N120, signed in the   */
+/*  Claude Code chat, "Signed as drafted"; backend                            */
+/*  docs/SIGNED-line-bank-2026-10-06.md, "The AI clip's bubble"; copied       */
+/*  exactly). An opener, one tip for the problem the clip fixes followed by  */
+/*  ", like this:", the clip, then the closer. {phrase} is the speaker's own */
+/*  phrase. Each bank rotates (walkLines).                                    */
+/* -------------------------------------------------------------------------- */
+
+export const AI_CLIP_BANK = {
+  /** The opener, on the first bubble. */
+  AIopen: ["Nice.", "Good."],
+  /** The opener, after a try that is not yet better. */
+  AIagain: ["Close."],
+  AIstress: ["Say “{phrase}” stronger", "Lean on “{phrase}”", "Push “{phrase}” a little more"],
+  AIpause: ["Pause before “{phrase}”", "Take a breath before “{phrase}”", "Let “{phrase}” wait a beat"],
+  AIpace: ["Slow it down a little", "Take your time", "A bit slower"],
+  AIfill: ["Say it without the ums", "Straight through, no ums", "Drop the ums"],
+  AInone: ["Lean on “{phrase}”", "Give “{phrase}” more weight", "Say “{phrase}” a little stronger"],
+  /** The closer: the first bubble, then after a try that is not yet better. */
+  AIend: ["Your turn.", "Try again."],
+} as const;
+
 export const WALK_COPY = {
   /* A practise the machine did not hear improve: encouragement, then another
      practise, until praise or Skip. */
@@ -422,16 +445,17 @@ export const WALK_COPY = {
   /* The practise (founder lock 2026-10-12, sections 2.5 and 8). */
   lineA: "Say this one like your confident moment.",
   /* The AI version of your voice (founder lock 2026-10-12, N71; L1-L5
-     signed 2026-10-12). L1 labels every AI clip; L2 and L3 on the Exercise
-     screen when no video fits; L4 and L3 on the first "not yet"; L5 on
-     every later one. */
+     signed 2026-10-12). L1 labels every AI clip. L2 to L5 and L14 to L18 are
+     no longer said in the walk: the clip comes in one short bubble
+     (AI_CLIP_BANK, N120). */
   aiVoiceLabel: "AI version of your voice",
   /* The small mark beside L1, as the prototype draws it. */
   aiVoiceBadge: "AI",
-  aiVoiceExercise: "Here’s how you could say it.",
-  aiVoiceNow: "Now try saying it like that.",
-  aiVoiceFirst: "That was good. But what if you said it more like this?",
-  aiVoiceAgain: "Not yet. Listen to how you sound and how you might sound. Keep calm and try again.",
+  /* The walk's hello, once as it opens (founder 2026-10-23, N120, signed in
+     the chat): with the first name from the account; without one, the same
+     lines without it. */
+  hello: (name: string | null, firstTake: boolean) =>
+    `Hi${name ? ` ${name}` : ""}, ${firstTake ? "great to meet you!" : "good to see you back!"}`,
   practiseN: (n: number) => `Practise ${n}`,
   /* The helper-words picker's count, in place of "Tap the words" (founder
      2026-10-21, C3: "N of 6 words" as signed, with the cap as it stands:

@@ -7,15 +7,18 @@ OUTCOME
   O3  Reopened from the Lounge, a clip I already judged shows as answered and is not asked again.
   O4  If the summary cannot be read, the walk goes straight back to my page.
   O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.
-  O6  A step's grey bubbles land one after another behind the typing dots, and its buttons come once they all have.
+  O6  A step's grey bubbles land one after another behind the typing dots, and its buttons come once they all have; each new bubble, and the typing dots before it, land at the bottom, right above the buttons, and the thread follows them until I scroll up by hand (N122).
+  O7  The walk opens once with "Hi {name}, good to see you back!" (Take 1: "Hi {name}, great to meet you!"; no name: the same without it), and the Lounge keeps the same words (N120).
 PROVES   O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
          O2 -> a green moment says why it landed,
                the Take's highest moment opens with “This was your most confident moment.”
          O3 -> reopened from the Lounge, the judging shows the moment already answered
          O4 -> skips the summary when it cannot be read, straight onto the page
          O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder
-         O6 -> a step's bubbles land behind the typing dots, then its buttons (founder 2026-10-20)
-WHY      Never-rule 1 (no scores to speakers); Feedback walk is a locked screen.
+         O6 -> a step's bubbles land behind the typing dots, then its buttons (founder 2026-10-20),
+               new bubbles land at the bottom and the thread follows them until the speaker scrolls up by hand (N122)
+         O7 -> the walk opens once with the hello and the speaker's first name (N120)
+WHY      Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, "add the name at the start"; N122, "the 3 dots loading should be at the bottom").
 */
 import { HELPER_WORDS_MAX } from "@/lib/willab/phraseTokens";
 import { act } from "react";
@@ -283,6 +286,74 @@ describe("FeedbackWalk", () => {
       vi.useRealTimers();
       vi.unstubAllGlobals();
     }
+  });
+
+  it("new bubbles land at the bottom and the thread follows them until the speaker scrolls up by hand (N122)", () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }));
+    vi.useFakeTimers();
+    const wait = (ms: number) => {
+      for (let t = 0; t < ms; t += 50) act(() => vi.advanceTimersByTime(50));
+    };
+    // The thread holds more than it shows: 1000 tall, 400 in view.
+    const isBody = (el: HTMLElement) => el.hasAttribute("data-walk-thread-body");
+    const tall = vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return isBody(this) ? 1000 : 0;
+    });
+    const seen = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return isBody(this) ? 400 : 0;
+    });
+    const tops: number[] = [];
+    const was = Element.prototype.scrollTo;
+    Element.prototype.scrollTo = function (this: Element, to?: ScrollToOptions | number) {
+      const top = typeof to === "object" ? (to.top ?? 0) : 0;
+      tops.push(top);
+      (this as HTMLElement).scrollTop = top;
+    } as typeof Element.prototype.scrollTo;
+    try {
+      draw(null);
+      draw({ seq: 1, at: 1 });
+      wait(600);
+      // The coach's word landed at the bottom, the thread followed it there,
+      // and no room under it pushes the step's name up to the top.
+      expect(tops.at(-1)).toBe(600);
+      expect(live()!.querySelector<HTMLElement>("[data-walk-room]")!.style.height).toBe("0px");
+      forward();
+      wait(100);
+      // Scrolled up by hand: the praise's bubbles land without pulling the thread down.
+      act(() => {
+        live()!.querySelector("[data-walk-thread-body]")!.dispatchEvent(new WheelEvent("wheel", { deltaY: -120, bubbles: true }));
+      });
+      tops.length = 0;
+      wait(1800);
+      expect(tops).toEqual([]);
+    } finally {
+      Element.prototype.scrollTo = was;
+      tall.mockRestore();
+      seen.mockRestore();
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("the walk opens once with the hello and the speaker's first name (N120)", () => {
+    const hello = () => [...live()!.querySelectorAll("[data-walk-hello]")].map((n) => n.textContent);
+    const onShown = vi.fn();
+    draw({ seq: 1, at: 1 }, { firstName: "Artur", onShown });
+    expect(hello()).toEqual(["Hi Artur, good to see you back!"]);
+    // The Lounge keeps the same words, once.
+    const told = () => onShown.mock.calls.filter(([s]) => (s as { key: string }).key === "hello").map((c) => c[4]);
+    expect(told()).toEqual(["Hi Artur, good to see you back!"]);
+    forward();
+    expect(hello()).toEqual(["Hi Artur, good to see you back!"]);
+    expect(told()).toHaveLength(1);
+    act(() => root.unmount());
+    root = createRoot(host);
+    draw({ seq: 1, at: 1 }, { firstName: "Artur", firstTake: true });
+    expect(hello()).toEqual(["Hi Artur, great to meet you!"]);
+    act(() => root.unmount());
+    root = createRoot(host);
+    draw({ seq: 1, at: 1 }, { firstName: null });
+    expect(hello()).toEqual(["Hi, good to see you back!"]);
   });
 
   it("shows no read, family or score anywhere in the DOM (AC-9)", () => {

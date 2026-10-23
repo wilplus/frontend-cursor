@@ -1,4 +1,5 @@
-import { TOP_MOMENT_LINES, WALK_COPY, WALK_LINE_BANK } from "@/components/willab/idealEditCopy";
+import { AI_CLIP_BANK, TOP_MOMENT_LINES, WALK_COPY, WALK_LINE_BANK } from "@/components/willab/idealEditCopy";
+import type { AiClipProblem } from "@/services/api/aiVoice";
 import type { WalkStep } from "./walkPlan";
 
 /* -------------------------------------------------------------------------- */
@@ -21,14 +22,47 @@ import type { WalkStep } from "./walkPlan";
 /* -------------------------------------------------------------------------- */
 
 /** A signed bank the walk says lines from: B01 to B14, the encouragement
- *  when nothing moved (NX3a) and the thank-you after the third try (CM3b). */
-export type WalkBankKey = keyof typeof WALK_LINE_BANK | "NX3a" | "CM3b";
+ *  when nothing moved (NX3a), the thank-you after the third try (CM3b) and
+ *  the AI clip's bubble (N120). */
+export type WalkBankKey = keyof typeof WALK_LINE_BANK | "NX3a" | "CM3b" | keyof typeof AI_CLIP_BANK;
 
 /** The bank's signed lines, in their signed order. */
 export function linesOf(bank: WalkBankKey): readonly string[] {
   if (bank === "NX3a") return WALK_COPY.encourageNothingMoved;
   if (bank === "CM3b") return WALK_COPY.afterThirdTry;
-  return WALK_LINE_BANK[bank].lines;
+  if (bank in AI_CLIP_BANK) return AI_CLIP_BANK[bank as keyof typeof AI_CLIP_BANK];
+  return WALK_LINE_BANK[bank as keyof typeof WALK_LINE_BANK].lines;
+}
+
+/** The tip's bank for the problem the clip fixes (N120). */
+const TIP_BANK: Record<AiClipProblem, keyof typeof AI_CLIP_BANK> = {
+  stress: "AIstress",
+  pause: "AIpause",
+  pace: "AIpace",
+  fillers: "AIfill",
+  default: "AInone",
+};
+
+/** The AI clip's one short bubble (founder 2026-10-23, N120): the opener
+ *  ("Nice." / "Good."; "Close." after a try not yet better), one tip for
+ *  the problem the clip fixes quoting the speaker's phrase, ending ",
+ *  like this:", then "Your turn." or "Try again.". `own`: the Take's most
+ *  confident moment's own line, which takes the opener's place (C2). A
+ *  tip that needs a phrase the clip does not name is left out, never
+ *  guessed. Pure apart from `say`. */
+export function aiClipLines(
+  say: (bank: WalkBankKey) => string,
+  clip: { problem?: AiClipProblem | null; phrase?: string | null } | null | undefined,
+  again: boolean,
+  own: string | null = null,
+): { lead?: string; line: string; then: string } {
+  const bank = clip?.problem ? TIP_BANK[clip.problem] : null;
+  const tip = bank ? say(bank) : null;
+  const said = tip && (!tip.includes("{phrase}") || clip?.phrase) ? `${tip.replace("{phrase}", clip?.phrase ?? "")}, like this:` : null;
+  const opener = own ?? say(again ? "AIagain" : "AIopen");
+  const then = AI_CLIP_BANK.AIend[again ? 1 : 0];
+  if (own) return said ? { lead: own, line: said, then } : { line: own, then };
+  return { line: said ? `${opener} ${said}` : opener, then };
 }
 
 /** The clearer version's opening lines, above the new words. Words that

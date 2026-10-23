@@ -231,7 +231,10 @@ describe("B10: every door opens the whole Take's walk", () => {
           exercise: { exercise_id: "plain", version: 1, title: "", instruction: "" },
         } });
       }
-      if (url.endsWith("/ai-voice")) return json({ demo: "ai_voice", clip: { state: "pending", url: null } });
+      // Still being made, its problem already chosen (N120): the chat can say it.
+      if (url.endsWith("/ai-voice")) {
+        return json({ demo: "ai_voice", clip: { state: "pending", url: null, problem: "stress", phrase: "one more quarter" } });
+      }
       return new Response("{}", { status: 404 });
     }));
     // The Lounge's Exercise bubble: the Take's walk numbered it 1, after the

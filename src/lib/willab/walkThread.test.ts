@@ -21,6 +21,8 @@ OUTCOME
       named as solid and confident in a line that fits what follows (a
       clearer version, an example, or saying it again), and is never told to
       sound like my confident moment (founder 2026-10-21).
+  O8  The hello and the short AI bubble are stored once, and the Lounge
+      says the same words as the walk (N120).
 PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own message, with no score"
          O2 -> "posts judging other speakers as the prototype's chat does, never their recording"
          O3 -> "counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles"
@@ -28,12 +30,14 @@ PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own
          O5 -> "says the practise answer the walk showed, and writes no Practise bubble for a try (founder 2026-10-20)"
          O6 -> "writes the coach's word into the chat once per Take"
          O7 -> "names the confident moment for what follows, never with Line A"
+         O8 -> "stores the hello and the short AI bubble once, in the walk's own words"
 WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12);
          founder 2026-10-19, N80 (when the coach changes their word).
 */
 import { describe, expect, it } from "vitest";
 import { CHUNK_SHEET_COPY as COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "@/components/willab/idealEditCopy";
-import { answerBody, coachNoteToChat, oneShareQuestion, othersAnswered, othersChat, shareChat, shownStep, stableUuid, walkStepDraft } from "./walkThread";
+import { aiVoiceChat, answerBody, coachNoteToChat, momentChat, oneShareQuestion, othersAnswered, othersChat, shareChat, shownStep, stableUuid, walkStepDraft } from "./walkThread";
+import type { WalkStep } from "./walkPlan";
 
 describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
   it("stores a step seen twice once, as the app's or the speaker's own message, with no score", () => {
@@ -138,5 +142,24 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
     const said = shownStep({ key: "clearer", moment: 0 }, clearer, null, () => "Try it this way:")?.body.split("\n") ?? [];
     expect(TOP_MOMENT_LINES.clearer).toContain(said[0]);
     expect(said[1]).toBe("Try it this way:");
+  });
+});
+
+describe("the hello and the AI clip's short bubble in the Lounge (founder 2026-10-23, N120)", () => {
+  it("stores the hello and the short AI bubble once, in the walk's own words", () => {
+    const hello = "Hi Artur, good to see you back!";
+    expect(shownStep({ key: "hello" } as WalkStep, null, null, undefined, hello)).toEqual({ author: "app", body: hello });
+    const entry = { take: "t1", arcId: "a1", key: "hello", moment: null, attempt: null, author: "app" as const, body: hello };
+    // Told twice, one message: the same id each time.
+    expect(walkStepDraft(entry).clientId).toBe(walkStepDraft({ ...entry }).clientId);
+    const said = aiVoiceChat({ line: "Nice. Lean on “four days”, like this:", then: "Your turn.", practiceId: "p1" });
+    expect(said.body).toBe("Nice. Lean on “four days”, like this:\nYour turn.");
+    expect(said.extra).toEqual({ ai_voice: { practice_id: "p1", then: "Your turn." } });
+    // A praised moment's practise (N122): no second copy of the speaker's
+    // clip, and never Line A in the chat.
+    const praised = { index: 0, praised: true, praiseWords: [], partId: "p1", paragraphText: "", slideLabel: "Slide 1", clip: null, clearer: null, practiseItem: null, exercise: null, judgeItem: null };
+    const practise = { key: "exVideo", moment: 0 } as WalkStep;
+    expect(shownStep(practise, praised, null)).toBeNull();
+    expect(momentChat([practise], practise, praised)).toBeNull();
   });
 });

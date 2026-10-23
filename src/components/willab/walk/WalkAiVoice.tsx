@@ -5,22 +5,24 @@ import { WALK_COPY } from "../idealEditCopy";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "../TypingDots";
 import WalkMessage from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
+import { aiClipLines, linesOf, type WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkStep } from "@/lib/willab/walkPlan";
-import { encourageLine } from "@/lib/willab/walkPractise";
 import type { AiVoiceState } from "@/services/api/aiVoice";
 
 /* -------------------------------------------------------------------------- */
 /*  The AI version of your voice in the walk (founder lock 2026-10-12, N71;    */
 /*  prototype https://claude.ai/artifact/G8Am3fR3f3SzAdTkwyUGKZ v8).           */
 /*                                                                            */
-/*  One grey app bubble: a signed line, the label (L1), the one player and,   */
-/*  under it, the server's one signed sentence on what this version does      */
-/*  differently and why (WIL-82, founder 2026-10-16, L14-L16; it may quote   */
-/*  the target words, nothing else of the sentence). It never plays by       */
-/*  itself. At most three per exercise. The voice Exercise, and a clearer    */
-/*  version's not yet (founder 2026-10-18, "words first, then voice": the   */
-/*  clip says the accepted words); never praise.                             */
-/*  The first "not yet" always says L4 then L3 (founder 2026-10-13, P3 B).    */
+/*  One short grey bubble (founder 2026-10-23, N120: "make it shorter focused */
+/*  on one only thing"): a one-word opener, one tip for the problem the clip  */
+/*  fixes quoting the speaker's phrase and ending ", like this:", the label   */
+/*  (L1) and the one player, then "Your turn."; after a try not yet better    */
+/*  "Close." opens it and "Try again." closes it (`aiClipLines`, the signed   */
+/*  AI_CLIP_BANK). It never plays by itself. At most three per exercise. The  */
+/*  voice Exercise, a clearer version's not yet (founder 2026-10-18, "words   */
+/*  first, then voice": the clip says the accepted words) and a praised       */
+/*  moment's practise (N122). L2 to L5 and the sentence under the player      */
+/*  (L14 to L18) are no longer said.                                          */
 /*                                                                            */
 /*  The Exercise bubble is there at once (founder 2026-10-15): the Lounge's   */
 /*  typing dots alone first, then the bubble lands with the dots where the    */
@@ -67,41 +69,38 @@ export function aiShownBefore(plan: readonly WalkStep[], at: number, moment: num
   return shown;
 }
 
-/** What an AI bubble says around its clip; `lead` is the reading's line a
- *  "not yet" opens with (founder 2026-10-13, B). */
+/** What an AI bubble says around its clip: `lead`, the Take's most
+ *  confident moment's own line in the opener's place (C2); `line`, the
+ *  opener and the tip; `then`, "Your turn." or "Try again.". */
 export type AiVoiceLines = { title?: string; lead?: string; line: string; then?: string };
 
-/** The voice Exercise opens with praise first (founder 2026-10-20, N82): L4,
- *  the AI version of their voice, then L3. It replaces "Exercise" and "Here’s
- *  how you could say it." when the clip is there or on its way. */
-export const AI_EXERCISE_OPENING: AiVoiceLines = { line: WALK_COPY.aiVoiceFirst, then: WALK_COPY.aiVoiceNow };
+/** The signed line a bubble takes from a bank: the walk's own turn of the
+ *  bank for the bubble's screen; without one, the bank's first line. */
+export type AiSay = (bank: WalkBankKey) => string;
+const firstLine: AiSay = (bank) => linesOf(bank)[0];
 
 /** The AI bubble step `at` shows in place of the locked one, for the screen
  *  and the chat alike: its lines, "pending" while the Exercise screen waits
- *  on the clip, or null (the locked screen). */
+ *  on the clip, or null (the locked screen). `own`: the Take's most
+ *  confident moment's own line, on its Exercise (N109). */
 export function aiVoiceShown(
   plan: readonly WalkStep[],
   at: number,
   state: AiVoiceState | undefined,
+  say: AiSay = firstLine,
+  own: string | null = null,
 ): AiVoiceLines | "pending" | null {
   const step = plan[at];
   if (!step || step.moment == null) return null;
   if (step.key === "exVideo") {
-    if (aiOnExercise(state)) return AI_EXERCISE_OPENING;
+    if (aiOnExercise(state)) return aiClipLines(say, state?.clip, false, own);
     return aiPendingOnExercise(state) ? "pending" : null;
   }
   if (step.key !== "encourage" || state?.clip?.state !== "ready" || !inVoiceLane(plan, at, step.moment)) return null;
   if (aiShownBefore(plan, at, step.moment, shownOnExercise(plan, step.moment, state)) >= AI_VOICE_MAX) return null;
-  // The first "not yet" says L4 and L3; every later one L5 (founder
-  // 2026-10-13, P3 B). After the Exercise's own clip, which already opened
-  // with L4 (founder 2026-10-20, N82), every "not yet" says L5.
-  // The same clip each time, the words around it changing (founder
-  // 2026-10-18): it opens with the line for the reading that went the wrong
-  // way when one clearly did (2026-10-13, B), else the general ones in turn.
-  const lead = encourageLine(plan, at);
-  return aiShownBefore(plan, at, step.moment, shownOnExercise(plan, step.moment, state)) === 0
-    ? { lead, line: WALK_COPY.aiVoiceFirst, then: WALK_COPY.aiVoiceNow }
-    : { lead, line: WALK_COPY.aiVoiceAgain };
+  // The same clip each time, in the same short bubble: "Close.", a tip,
+  // the clip, "Try again." (founder 2026-10-23, N120).
+  return aiClipLines(say, state.clip, true);
 }
 
 /** The AI bubble step `at` will show once its clip is in: its lines while
@@ -112,13 +111,21 @@ export function aiVoiceComing(
   plan: readonly WalkStep[],
   at: number,
   state: AiVoiceState | undefined,
+  say: AiSay = firstLine,
+  own: string | null = null,
 ): AiVoiceLines | null {
   const clip = state?.clip;
   if (!state || !clip || (clip.state !== "ready" && clip.state !== "pending")) return null;
   const asReady: AiVoiceState = { ...state, clip: { ...clip, state: "ready", url: clip.url ?? "coming" } };
-  const lines = aiVoiceShown(plan, at, asReady);
+  const lines = aiVoiceShown(plan, at, asReady, say, own);
   return lines && lines !== "pending" ? lines : null;
 }
+
+/** The bubble's tip is known: the clip is final, or the server has named
+ *  what it fixes (N120). The chat posts the bubble once, so it waits for
+ *  this, never posting a bubble the walk will word differently. */
+export const aiTipKnown = (state: AiVoiceState | undefined): boolean =>
+  state?.clip?.state !== "pending" || Boolean(state.clip.problem);
 
 /** The bubbles that already landed in this page's life: a screen drawn
  *  again (the stage's leaving copy, ‹ and ›) shows its bubble at once. */
@@ -184,16 +191,9 @@ export default function WalkAiVoice({
         {WALK_COPY.aiVoiceLabel}
       </span>
       {clip?.state === "ready" && clip.url ? (
-        <>
-          <div onClickCapture={onPlay} className="mt-2">
-            <WalkPlayer look="bare" seed={seed} src={clip.url} durationMs={clip.durationMs} label={WALK_COPY.aiVoiceLabel} />
-          </div>
-          {clip.why ? (
-            <span data-walk-ai-why className="mt-2">
-              {clip.why}
-            </span>
-          ) : null}
-        </>
+        <div onClickCapture={onPlay} className="mt-2">
+          <WalkPlayer look="bare" seed={seed} src={clip.url} durationMs={clip.durationMs} label={WALK_COPY.aiVoiceLabel} />
+        </div>
       ) : (
         <div data-walk-ai-waiting className="mt-2 flex min-h-8 items-center justify-center">
           <TypingGlyph />

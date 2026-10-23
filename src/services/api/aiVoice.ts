@@ -2,15 +2,32 @@ import { outcomeCall as call, type Outcome } from "@/lib/api/bffCall";
 
 /* The AI version of your voice (founder lock 2026-10-12, N71). What the walk
    may know: video or AI clip on the Exercise screen, the clip's state and
-   short-lived link, and with a ready clip the server's one signed sentence
-   on what it does differently and why (WIL-82, founder 2026-10-16). No id,
-   setting or check result (AC-9). */
+   short-lived link, and what the clip fixes and the phrase it is made with
+   (founder 2026-10-23, N120), from which the walk picks the signed tip. The
+   server's sentence on what changed and why (WIL-82) still arrives and is
+   no longer shown. No id, setting or check result (AC-9). */
 
 export type AiVoiceDemo = "video" | "ai_voice" | "none";
 
+/** What the clip fixes (founder 2026-10-23, N120): the walk picks the
+ *  signed tip for it. "default": nothing was off, the main point said a
+ *  little stronger. */
+export type AiClipProblem = "pace" | "pause" | "stress" | "fillers" | "default";
+
+const PROBLEMS: ReadonlySet<string> = new Set(["pace", "pause", "stress", "fillers", "default"]);
+
 export interface AiVoiceState {
   demo: AiVoiceDemo;
-  clip: { state: "pending" | "ready" | "unavailable"; url: string | null; durationMs: number | null; why: string | null } | null;
+  clip: {
+    state: "pending" | "ready" | "unavailable";
+    url: string | null;
+    durationMs: number | null;
+    why: string | null;
+    /** What the clip fixes and the speaker's own phrase it is made with,
+     *  once the server has chosen (N120); never a number. */
+    problem?: AiClipProblem | null;
+    phrase?: string | null;
+  } | null;
 }
 
 export function mapAiVoice(data: Record<string, unknown>): AiVoiceState {
@@ -25,6 +42,8 @@ export function mapAiVoice(data: Record<string, unknown>): AiVoiceState {
           url: typeof raw.url === "string" ? raw.url : null,
           durationMs: typeof raw.duration_ms === "number" ? raw.duration_ms : null,
           why: typeof raw.why === "string" && raw.why.trim() ? raw.why : null,
+          problem: typeof raw.problem === "string" && PROBLEMS.has(raw.problem) ? (raw.problem as AiClipProblem) : null,
+          phrase: typeof raw.phrase === "string" && raw.phrase.trim() ? raw.phrase.trim() : null,
         }
       : null,
   };
