@@ -279,6 +279,13 @@ two more clips a Take, inside the same limits (section 5). The server names
 the clip's problem and phrase (`problem`, `phrase`); the app picks the signed
 tip.
 
+### Decided after the lock (2026-10-23, N123, said fresh)
+
+The bubble's opener, tip and closer are said fresh around their signed lines
+(the walk's page, K, N123), checked, the signed line the fallback; the tip
+always quotes the speaker's phrase where its problem has one. The clip's label
+L1 "AI version of your voice" is never varied.
+
 ### 7. Order of work
 
 Build end to end, test with the founder's own voice, then counsel (L12,
