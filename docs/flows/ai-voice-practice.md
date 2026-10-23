@@ -266,6 +266,19 @@ L1 stays as the clip's label. The tips, signed:
 The Take's most confident moment keeps its own line in place of the opener
 (the walk's page, C2).
 
+### Decided after the lock (2026-10-23, N122, confident moments)
+
+**Praise gets a clip.** The founder (Claude Code session, 2026-10-23: "do we
+practice the confident moments? I think yes we should!") amends section 1's
+"Never with praise" and the 2026-10-18 "Praise still never gets a clip": a
+praised moment is practised too, with the same short bubble of N120, the clip
+of its own sentence a little stronger, up to three tries; a Good job ends it.
+With no clip (it failed its check, the provider is down, a limit is reached,
+no AI voice yet) there is no practise and the praise stands on its own. Up to
+two more clips a Take, inside the same limits (section 5). The server names
+the clip's problem and phrase (`problem`, `phrase`); the app picks the signed
+tip.
+
 ### 7. Order of work
 
 Build end to end, test with the founder's own voice, then counsel (L12,
@@ -281,6 +294,7 @@ first review).
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
 doing it fills its line in its PR and deletes the line when the work is merged (the change goes to §6).
 
+- **N122 · praised moments practised with a clip** · §1, the walk's C2 · founder 2026-10-23 · decided, not built; built with the walk's N122 line · the founder checks the app
 - **N120 · the AI clip in one short bubble** · §2, §6, the walk's C6 and C7 · founder 2026-10-23, every line signed in the chat · decided, not built; built with the walk's N120 line · the founder checks the app
 
 ## 3. Still open
@@ -317,5 +331,6 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-23 · N122 · a praised moment is practised with a clip too; was "Never with praise" and "Praise still never gets a clip" · decided, build in §2
 - 2026-10-23 · N120 · the AI clip comes in one short bubble, an opener, one tip ", like this:", the clip and "Your turn." or "Try again."; was L4, the clip, L3 and L14–L18 under the player, and L5 after a try · decided, build in §2
 - 2026-10-21 · N107 · this page replaces backend `FOUNDER-LOCK-ai-voice-practice-2026-10-12.md` as the place the rules live; the lock stays as history · BE #1241, FE #928
