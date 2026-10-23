@@ -328,18 +328,10 @@ Done when:
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
 doing it fills its line in its PR and deletes the line when the work is merged (the change goes to §6).
 
-- None yet.
+- **N126 · a full stop between sentences, where the speaker paused** · the smoothing fence (backend `services/transcript_smoothing.py`) · founder 2026-10-23 (the recommendation taken: "For the 6 questions use your recommendations"). Found on the founder's Take 4: the Ideal Text ran sentences together where a piece ended without its full stop ("Startup is just a job It's a job…"). To build: where a piece ends with no closing mark, the next begins with a capital, and the recording has a clear pause at that seam, one full stop goes in silently; nothing else changes · decided, not built · the founder checks the app
 
 ## 3. Still open
 
-- **Full stops missing between sentences** (founder 2026-10-23: "Don't build
-  anything just add it to the development plan"). On the founder's Take 4 the
-  Ideal Text ran sentences together where a piece ended without its full stop
-  ("Startup is just a job It's a job…", "we need vitality We need emotions…",
-  "composed out of emotions It should be…"). The 2026-07-20 smoothing fence
-  allows one terminal mark, at the end of the document only, so a full stop
-  between sentences needs the founder's OK before anything is built
-  (backend `services/transcript_smoothing.py`, `services/transcript_document.py`).
 - **"rewrite" heard as "route ride"** (same day, same Take). Whisper misheard a
   word the speaker said twice. Planned: the app's own words ("rewrite", "Take",
   "Ideal Text") join the talk's vocabulary hint by default, so Whisper is told
@@ -384,6 +376,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-23 · N126 · a full stop may go in silently between two sentences where the speaker paused; was: one closing mark at the end of the document only (the 2026-07-20 fence) · decided, build in §2
 - 2026-10-21 · N111 · the page also guards Presentation Mode, the export and the two sheets over the text (§4); no rule changes · BE, FE
 - 2026-10-21 · the walk's line over a corrected top moment is one of the confident moment's own lines (`TOP_MOMENT_LINES`) (`idealEditCopy.ts`; the walk's rules are on the Feedback walk page, C2) · FE
 - 2026-10-21 · N107 · this page replaces backend `FOUNDER-LOCK-helper-words-2026-09-30.md` as the place the rules live; the lock stays as history · BE #1241, FE #928
