@@ -822,8 +822,11 @@ O3  A corrupt or foreign payload reads as ""nothing parked"", never a throw.","O
 O2 -> ""fills in the fields an older payload lacks""
 O3 -> ""reads a corrupt payload as nothing parked""",
 src/hooks/useDualCaptureMic.test.tsx,Story,"As a speaker, I want the mic to record the moment I press start and to hand over a real recording and free the mic when I stop, so that every Take is captured.","O1  Start asks for the mic once, starts recording at once and notes when the sound began.
-O2  Stop hands over a recording that is not empty and releases the mic.","O1 -> records at once on start
-O2 -> hands over a real take on stop and releases the stream",Never-rule 3 (never break record → process → Ideal Text).
+O2  Stop hands over a recording that is not empty and releases the mic.
+O3  The whole Take is handed over even when the browser is slow to deliver
+it and Finish is tapped twice.","O1 -> records at once on start
+O2 -> hands over a real take on stop and releases the stream
+O3 -> hands over the whole take when it arrives late and Finish is tapped twice",Never-rule 3 (never break record → process → Ideal Text).
 src/lib/api/bffFetch.test.ts,Story,"As a developer, I want every call to our own server routes to carry the sign-in token and to report ""no connection"" separately from a server answer, so that screens handle being offline correctly.","O1  The call carries the sign-in token and only the options it was given.
 O2  A dropped connection comes back as ""network"", never as a server answer.","O1 -> sends the Bearer header and only the options it was given
 O2 -> reports a thrown fetch as network, never as a response",
@@ -1145,12 +1148,15 @@ O2  The upload names only the project and its one upload key.
 O3  A server timeout on a stored recording shows as ""still processing"".
 O4  A payment problem says the recording is safe, not that analysis failed.
 O5  A Take I discard while it uploads is reported as discarded and is not
-re-sent another way.","O1 -> ""appends slides + presentation_ref + slide_advances when a deck is attached""
+re-sent another way.
+O6  A recording with no audio in it is never sent: I am asked to record
+again, as for a Take with no clear speech.","O1 -> ""appends slides + presentation_ref + slide_advances when a deck is attached""
 O2 -> ""sends only the canonical project id and upload key""
 O3 -> ""routes a 504 with session_id into the async 'processing' path""
 O4 -> ""keeps 402 out of the analysis-failed path""
 O5 -> ""reports `discarded`, never the connection-error copy"",
-""does NOT re-send the discarded take down the BFF lane""",Never-rule 3: never break record -> process -> Ideal Text.
+""does NOT re-send the discarded take down the BFF lane""
+O6 -> ""asks for the take again instead of sending an empty recording""",Never-rule 3: never break record -> process -> Ideal Text.
 src/services/api/learningExposures.test.ts,Story,"As the founder, I want a record that a speaker saw feedback counted as saved only when every part of it was accepted, so that the learning record never claims a speaker saw something they didn't.","O1  If any one receipt is refused, the whole save reports ""not saved"".","O1 -> ""returns false when any surface receipt is not accepted""",
 src/services/api/mlc2Consent.test.ts,Story,"As a speaker, I want agreeing to training use refused clearly while pooled training is switched off, so that I never think I agreed to something that isn't running.","O1  While pooled training is off, the agreement is refused with the
 server's own explanation.","O1 -> ""keeps consent writes fail-closed when Phase 2 is disabled""",

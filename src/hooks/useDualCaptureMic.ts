@@ -173,6 +173,12 @@ export function useDualCaptureMic(opts?: {
   // One in-flight start at a time; cleared in a finally so the latch can
   // never stick (success, early-return, or throw) and jam the mic.
   const startingRef = useRef(false);
+  // The stop in flight, so a second Finish tap joins it instead of starting
+  // its own. MediaRecorder.stop() turns the recorder "inactive" at once but
+  // delivers the audio in a LATER task: a second stop() saw "inactive",
+  // composed the blob from no chunks and handed the Lab an empty Take
+  // (backend 400 "audio_file is empty", founder 2026-10-23).
+  const stoppingRef = useRef<Promise<void> | null>(null);
   // Generation token for the getUserMedia async gap (C5). start() awaits the
   // permission prompt; if the Lab is closed (cancel / unmount) during that gap,
   // teardown() can't release a stream that doesn't exist yet, and nothing runs
@@ -238,7 +244,11 @@ export function useDualCaptureMic(opts?: {
     // A retake must never inherit the previous take's audio anchor.
     audioStartedAtRef.current = null;
     try {
-      recorder.start();
+      // A chunk every second, as useVoiceNote and useCoachVideoRecorder do:
+      // the Take is already in hand while it is spoken, so a browser that is
+      // slow to deliver the last chunk at stop costs at most that last second,
+      // never the whole recording.
+      recorder.start(1000);
     } catch {
       // The held track died under us (a long wait on the learning screen,
       // the OS took the mic). Say so; "Try again" opens it afresh.
@@ -349,8 +359,8 @@ export function useDualCaptureMic(opts?: {
         audioBitsPerSecond: 48_000,
       });
       // Fires when capture actually starts, which is what audio t=0 means.
-      // Not first-chunk timing: start() is called without a timeslice, so
-      // ondataavailable only fires once, at stop.
+      // Not first-chunk timing: the first chunk only arrives a timeslice
+      // after start.
       recorder.onstart = () => {
         audioStartedAtRef.current =
           typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -407,11 +417,7 @@ export function useDualCaptureMic(opts?: {
     }
   }, [begin, lang, teardown, wantTranscript]);
 
-  const stop = useCallback(async () => {
-    // No-op if not actively recording — callers may invoke stop()
-    // defensively (route change, blur) and we shouldn't change state.
-    if (!recorderRef.current && !recognitionRef.current) return;
-
+  const finishRecording = useCallback(async () => {
     // Stop recognition first to flush any pending final result. We
     // race against a 400ms safety bound so a stuck recognition end
     // event doesn't block the send.
@@ -432,11 +438,14 @@ export function useDualCaptureMic(opts?: {
       });
     }
 
-    // Stop recorder and wait for the final ondataavailable event.
+    // Stop recorder and wait for the final ondataavailable event. The bound
+    // only keeps a recorder that never answers from jamming Finish; it is
+    // generous because a slow device can take longer than half a second to
+    // deliver the last chunk, and whatever has not arrived is lost.
     const recorder = recorderRef.current;
     if (recorder) {
       await new Promise<void>((resolve) => {
-        const safetyTimer = setTimeout(resolve, 600);
+        const safetyTimer = setTimeout(resolve, 3000);
         recorder.onstop = () => {
           clearTimeout(safetyTimer);
           resolve();
@@ -471,6 +480,20 @@ export function useDualCaptureMic(opts?: {
 
     setState({ status: "stopped", finalText, audioBlob: blob, durationSec });
   }, []);
+
+  const stop = useCallback((): Promise<void> => {
+    // A second tap while the first stop is still collecting the audio waits
+    // for that same stop (see stoppingRef).
+    if (stoppingRef.current) return stoppingRef.current;
+    // No-op if not actively recording — callers may invoke stop()
+    // defensively (route change, blur) and we shouldn't change state.
+    if (!recorderRef.current && !recognitionRef.current) return Promise.resolve();
+    const stopping = finishRecording().finally(() => {
+      stoppingRef.current = null;
+    });
+    stoppingRef.current = stopping;
+    return stopping;
+  }, [finishRecording]);
 
   const cancel = useCallback(() => {
     teardown();

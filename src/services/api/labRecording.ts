@@ -118,6 +118,12 @@ export type LabUploadResult =
       ref?: string;
     };
 
+/** What the recording screen says when a Take has no clear speech in it: the
+ *  backend's 422 gate when it sends no wording, and an empty recording that
+ *  never leaves the browser (see guardRecordingInput). */
+const NO_CLEAR_SPEECH =
+  "That take was too short or had no clear speech, so let's try again.";
+
 /** FE-1 (P0, 2026-07-20) — the recording state machine's ONE invariant, at the
  *  single choke point every upload passes through.
  *
@@ -149,6 +155,13 @@ export function guardRecordingInput(
       ok: false,
       message: "Something went wrong on our end.",
     };
+  }
+  // An empty recording (the browser handed over no audio) never reaches the
+  // network: the backend can only refuse it, 400 "audio_file is empty", which
+  // the speaker read as a broken upload (founder 2026-10-23). Refused here like
+  // a take with no clear speech, so the recording screen offers Record again.
+  if (input.audioBlob.size === 0) {
+    return { ok: false, message: NO_CLEAR_SPEECH };
   }
   if (input.recordingKind === "read") {
     if (!input.pairedSessionId) {
@@ -466,9 +479,7 @@ function mapLabFailure(
   if (response.status === 422) {
     return {
       kind: "rejected",
-      message:
-        error ??
-        "That take was too short or had no clear speech, so let's try again.",
+      message: error ?? NO_CLEAR_SPEECH,
     };
   }
   if (response.status === 402) {
