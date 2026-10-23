@@ -606,6 +606,25 @@ step; the loop never waits for a coach.
   added; a hedge's words that are not a hedge where they stand ("I think
   about it", "this kind of problem") stay. It carries no `rewrite_reason`,
   so it opens with C5's "Here is a slightly more polished option:".
+  Four more signals, each written by a rule that only takes words out
+  (founder 2026-10-23, N124, on his own Take 4, where the four rules above
+  found nothing a coach would have left): **a restart**, a phrase begun and
+  begun again at once in the same sentence ("if you could be just, if you
+  could just, help me"), keeps the last attempt; **an approval tag** at the
+  end of a sentence (", okay?", ", right?", ", you know?", ", yeah?") goes
+  and the sentence ends on a full stop; **a playing-down "just"** ("is just
+  a job", "if you could just", "I just wanted to") goes, never where "just"
+  means a time or an exactness ("just now", "just in time", "just before",
+  "just as"); **a weak opener** ("So,", "And so,", "So yeah,", "Well,") at
+  the start of a sentence goes, never "so that" or "so far". A restart, an
+  approval tag or a playing-down "just" makes the words need help on its
+  own, as an undermining word does (the approval tag and the "just" open
+  with B10's line, as undermining words do); weak openers count with the
+  fillers (3 or more per 100 words). One rewrite per sentence carries every
+  rule at once, so a sentence rewritten for one reason loses its weak
+  opener too; a rewrite is a real fix when it removes any of them. A
+  deliberate repeat across sentences ("I will say it again. …") is never
+  touched.
 
 ### I · Learning
 
@@ -802,6 +821,7 @@ deletes the line when the work is merged (the change goes to §6).
 The four lines above were filled from main's history by the page's keeper on
 2026-10-20; the sessions doing the work overwrite them when they push.
 - **N120 · the walk speaks like a coach** · C0, C2, C5, C6, C7, K · founder 2026-10-23 ("could we make it more flexible and human like more appealing and inviting"; "as a coach I would use here more friendly language and make it shorter focused on one only thing"; "say it stronger; or lean on this sentence"; "also add the name at the start: Hi Artur, good to see you back!"; then every line signed in the chat). To build: the hello with the first name from the account; the AI clip's one short bubble (opener, tip ", like this:", clip, "Your turn." / "Try again."); the new banks in the line bank (BE `services/line_bank.py` with `docs/SIGNED-line-bank-2026-10-06.md`, its parity test; FE `idealEditCopy.ts`, `praiseLevels.ts`, `walkThread.ts`, `FeedbackWalk.tsx`); the commit carries the founder's `Founder-Approved:` line · decided, not built · the founder checks the app
+- **N124 · the rules find what speech really does** · H3 · founder 2026-10-23 ("Let's do 1-4", on his Take 4: the four rules wrote no rewrite, and the frames since 20 October showed rewrites on 3% of shown moments). To build, first in the queue: four deletion rules (restart, approval tag, playing-down "just", weak opener) in `services/undermining.py` and `services/take_feedback_manager.py` beside N85 and N112, counted by the gate (`services/rewrite_gate.py`) and as a real fix; golden rows from the founder's Take 4 · decided, not built · the founder checks the app
 - **N123 · the asks and the walk's lines said fresh** · E1, E2, K · founder 2026-10-23 ("please do not make the asks fixed all the time, please make them fairly smart like there should be some flexibility"; "both"). To build: one call per ask and one per Take for the walk's lines, under the Take's processing authorization, kept only past the check (the same kind as `will_question.vary`), the signed line otherwise; stored with the Take so the lens and the chat agree; never twice the same wording in a row per speaker · decided, not built · the founder checks the app
 - **N122 · confident moments practised, the praise kept short, new bubbles at the bottom** · B5, C2, C6, H1, K · founder 2026-10-23 on the review page ("do we practice the confident moments? I think yes we should!"; "the 3 dots loading should be at the bottom"; "i like this old version more it is shorter!"; then "ok this is good" on the six choices). To build, with N120: a praised moment carries a practice (`confident_practice`) and its AI clip lane; the walk plans praise, practise, helper words (FE `walkPlan.ts`); bubbles and dots land at the bottom (FE `WalkThread.tsx`); in a shown block the moment is its highest willfidence servable clip (BE, with N118); the first name from the account (BE `GET /v2/user/profile` `first_name`); the AI clip names `problem` and `phrase`, the app picks the signed tip · decided, not built · the founder checks the app
 - **N121 · the rewrite gate reads the words on screen** · H3 · founder 2026-10-23 ("But for the help where do you source the fillers? From the corrected transcript? There won't be any fillers cause they are already corrected"; then "Yes, add it to N118"). Found: gate 1 counted fillers on the clip's raw transcript, hesitations included, and gate 2 measured a rewrite's lift against the worse of the raw and the shown words, so a moment could be sent to a rewrite for ums the speaker never saw, and almost any rewrite passed as "a real fix". To build, with N118: both halves read the shown words (BE `services/rewrite_gate.py`, `services/moment_pick.py`) · decided, not built · the founder checks the app
@@ -924,6 +944,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-23 · N124 · four more rule signals for the Clearer version: restarts, approval tags, a playing-down "just", weak openers; was: hedges, undermining words, a broken sentence and repeated phrases only (H3) · decided, build in §2
 - 2026-10-23 · N123 · every ask after the Take and the walk's own lines are said fresh around their signed line, checked, the signed line the fallback; was: Will's question with a light touch, the CEO panel's asks as written, the walk's lines from the signed banks only (E1, E2, K) · decided, build in §2
 - 2026-10-23 · N122 · a praised moment is practised with the AI clip's short bubble, then its helper words, was "two praises and no practise" (C2); the praise keeps its three lines, N120's one-sentence praise dropped (C2, K); bubbles and dots land at the bottom and the thread follows, was the newest step brought to the top (B5); a shown block's moment is its highest willfidence servable clip (H1) · decided, build in §2
 - 2026-10-23 · N121 · the rewrite gate reads the words the speaker sees, so hesitations never make the words need help or a rewrite a real fix; they reach the speaker through the AI clip's fillers tip; was: both halves also read the clip's raw transcript (H3) · decided, build in §2
