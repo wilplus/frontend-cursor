@@ -315,10 +315,15 @@ step; the loop never waits for a coach.
   tries after a praise; the app no longer offers them. Played again,
   a finished walk shows the thread and Next only: nothing is recorded there.
   Nothing else interrupts the practice.
-- **C8 Other speakers**, once, after the practice: one moment per try, at
-  least one and at most three: other speakers' moments first, licensed
-  clips for the places left, none if there are neither (founder 2026-10-21,
-  N97). The first
+- **C8 Other speakers**, once, after the practice: three moments, one the
+  machine reads high, one in the middle and one low, each from a different
+  speaker, never the speaker's own and never one they already judged, in a
+  shuffled order so the place never tells the level; the set is fixed for
+  the Take. A community clip takes its level's place when there is one; the
+  training corpus fills the rest (G4). With fewer than three different
+  speakers it shows fewer, never one speaker twice; with none the step is
+  left out and the server logs it (founder 2026-10-23, N119; until then one
+  moment per try, N97). The first
   opens with Line B ("Now one moment from another speaker." / "Now N moments
   from other speakers.", or the community's name: "Now one moment from
   Invita."), the clip and "Does this sound confident to you?" in one system
@@ -507,7 +512,11 @@ step; the loop never waits for a coach.
 - **G4** Consent is per Take, revocable, stamped with the version of the
   words the speaker saw; taking it back removes the Take from every community
   queue. Only the voices of people who agreed reach others; the training
-  clips mixed into judging are the licensed corpus. Community answers are
+  clips mixed into judging are the training corpus: the imported clips the
+  coaches judge, under the corpus basis (CO2), and the licensed corpus
+  (founder 2026-10-23, N119; until then the licensed corpus alone, which
+  was empty). A speaker's answer on a training clip is never a label.
+  Community answers are
   peer ratings, kept apart from the coach's, the speaker's own and the
   machine's (L3).
 
@@ -733,6 +742,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 The four lines above were filled from main's history by the page's keeper on
 2026-10-20; the sessions doing the work overwrite them when they push.
+- **N119 · three moments to judge, high, middle and low** · C8, G4 · founder 2026-10-23 ("I am choosing that my audience is only me, but still I should be getting the judgements"; "3 clips (high, middle, low willfidence) from 3 different speakers"; then "Yes, the basis covers it", "First in their level", "Show fewer"). Found: the walk's training clips were read only from the licensed corpus table (0410), which nothing fills, so with no community clips the queue was empty and the step was left out without a word; the clips the coaches judge are the imported corpus, a different store. To build: the queue draws one clip per level from community clips first, then the imported corpus and the licensed corpus, three different speakers, a blind order, fixed per Take, played by a short-lived signed link; speakers' answers on imported clips in a table of their own, never labels (migration); an empty queue is logged (BE `services/lend_your_ear.py`, `services/communities.py`); the walk always asks for three (FE `WalkOthers.tsx`) · decided, not built · the founder checks the app
 - **N118 · the two best moments, one per paragraph** · C2, H1 · founder 2026-10-23 ("it should be minimum 2; best two"; "it doesnt have to be separate slide"; "don't show two moments on the same paragraph"; "you can extend the paragraph"). Found: the pick took at most one moment per slide, so a one-slide Take showed one and a long slide's second great moment lost to a weaker slide; a slide with no playable clip gave none. To build: the pick ranks by S × W across the Take, one per block, no slide limit, the stronger voice of the two named the most confident; the block boundary moves when the two best share a block, and a one-block Take is split (BE `services/moment_pick.py`, the partition in `services/take_feedback_policy_v3.py`, contract 24a); the walk already makes one moment per block, to check in the app with two on one slide (FE) · decided, not built · the founder checks the app
 - **N77 · the coach's link names the word's Take** · C1 · founder 2026-10-21 ("the links carry the Take the word was written on, and open that Take's coach-only walk with the word"). Found: with the earlier-Take fallback gone (BE #1212), the WhatsApp and email links open the latest Take, where an earlier Take's late word is no longer served. Built: the links carry `&take=<session_id>` (BE); the chat page reads it, the Ideal Text asks the journey for that Take and the coach-only walk opens on its word; an earlier Take's link shows that word alone, with no moments of the latest Take (founder 2026-10-21); without it, as before (FE) · FE #905 merges first, then BE #1212, then FE #903 · the founder checks the app
 - **N92 · the coach's video reaches the walk** · C1, D5 · founder 2026-10-21 ("the video was sent too with the coach feedback and didn't pass through"). Found: the speaker's feedback rows are served from a stored bake that only the speaker's own writes retire; the coach's answer, with its signed video link, stayed as baked, so a video added after the bake never arrived and a baked link went dark after six hours. Built: the bake re-reads the coach's answer on every read, one read per Take, the video signed afresh; a coach's share asks for one rebake (BE) · BE #1213 · the founder checks the app: the coach's bubble in the walk shows the video above the words
@@ -851,6 +861,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-23 · N119 · other speakers: three moments every walk, one read high, one middle, one low, three different speakers, community clips first in their level and the training corpus (the imported clips the coaches judge, and the licensed corpus) for the rest, fewer only with fewer speakers; was "one moment per try, at least one and at most three: other speakers' moments first, licensed clips for the places left" (C8) and "the training clips mixed into judging are the licensed corpus" (G4) · decided, build in §2
 - 2026-10-23 · N118 · the two best moments by willfidence (S × W), however low, one per block and no longer one per slide; the stronger voice of the two is the most confident; when the two best share a block its boundary moves, and a one-block Take is split in two; was "the two strongest voices (S, then S × W), at most one per slide (a one-slide Take shows one)", the highest the first in rank (C2, H1) · decided, build in §2
 
 - 2026-10-22 · N113 · a moment whose voice reached the floor and whose words get the Clearer version keeps it and its practise, then its helper words, as after a praise; the server says which with `helper_words_prompt`, a flag, never the score; a voice under the floor is unchanged (C3, C5, H1) · FE, BE
