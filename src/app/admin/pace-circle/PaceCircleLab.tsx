@@ -20,6 +20,7 @@ import {
   FRAME_MS,
   INSTANT_CONFIG,
   InstantMeter,
+  periodicity,
   zoneLevel,
   type InstantRead,
   type InstantConfig,
@@ -46,6 +47,8 @@ export default function PaceCircleLab() {
   const readRef = useRef<InstantRead | null>(null);
   const cfgRef = useRef<InstantConfig>(INSTANT_CONFIG);
   const meterRef = useRef<InstantMeter | null>(null);
+  const voiceLikeRef = useRef(0);
+  const [voiceLikeLive, setVoiceLikeLive] = useState(0);
   const stopRef = useRef<(() => void) | null>(null);
 
   const [phase, setPhase] = useState<Phase>("idle");
@@ -53,13 +56,23 @@ export default function PaceCircleLab() {
   const [live, setLive] = useState<InstantRead | null>(null);
   const [tauMs, setTauMs] = useState(INSTANT_CONFIG.activityTauMs);
   const [marginDb, setMarginDb] = useState(INSTANT_CONFIG.voiceMarginDb);
-  cfgRef.current = { ...INSTANT_CONFIG, activityTauMs: tauMs, voiceMarginDb: marginDb, silenceMarginDb: Math.max(4, marginDb - 7) };
+  const [minPitch, setMinPitch] = useState(INSTANT_CONFIG.minPeriodicity);
+  cfgRef.current = {
+    ...INSTANT_CONFIG,
+    activityTauMs: tauMs,
+    voiceMarginDb: marginDb,
+    silenceMarginDb: Math.max(4, marginDb - 7),
+    minPeriodicity: minPitch,
+  };
   if (meterRef.current) meterRef.current.cfg = cfgRef.current;
 
   // The numbers panel refreshes a few times a second, not every frame.
   useEffect(() => {
     if (!showNumbers) return;
-    const id = window.setInterval(() => setLive(readRef.current), 250);
+    const id = window.setInterval(() => {
+      setLive(readRef.current);
+      setVoiceLikeLive(voiceLikeRef.current);
+    }, 250);
     return () => window.clearInterval(id);
   }, [showNumbers]);
 
@@ -138,6 +151,22 @@ export default function PaceCircleLab() {
     const analyser = audio.createAnalyser();
     analyser.fftSize = 32768; // ~0.7 s of samples, so a late tick still finds its frames
     source.connect(high).connect(low).connect(analyser);
+    // A second, lower branch to hear pitch: a voice's fundamental and first
+    // harmonics live under 1 kHz; hum under 70 Hz is cut.
+    const pitchHigh = audio.createBiquadFilter();
+    pitchHigh.type = "highpass";
+    pitchHigh.frequency.value = 70;
+    const pitchLow = audio.createBiquadFilter();
+    pitchLow.type = "lowpass";
+    pitchLow.frequency.value = 1000;
+    const pitchAnalyser = audio.createAnalyser();
+    pitchAnalyser.fftSize = 2048;
+    source.connect(pitchHigh).connect(pitchLow).connect(pitchAnalyser);
+    const pitchBuf = new Float32Array(pitchAnalyser.fftSize);
+    // Every 4th sample (the branch is under 1 kHz), the newest ~40 ms.
+    const step = 4;
+    const pitchRate = audio.sampleRate / step;
+    const pitchWin = new Float32Array(Math.round(pitchRate * 0.04));
 
     const meter = new InstantMeter(cfgRef.current);
     meterRef.current = meter;
@@ -152,6 +181,11 @@ export default function PaceCircleLab() {
       if (frames <= 0) return;
       lastTick += frames * FRAME_MS;
       analyser.getFloatTimeDomainData(buffer);
+      pitchAnalyser.getFloatTimeDomainData(pitchBuf);
+      const startAt = pitchBuf.length - pitchWin.length * step;
+      for (let i = 0; i < pitchWin.length; i++) pitchWin[i] = pitchBuf[startAt + i * step];
+      const voiceLike = periodicity(pitchWin, pitchRate);
+      voiceLikeRef.current = voiceLike;
       // One RMS per 10 ms slice of the newest samples, oldest first.
       for (let f = frames - 1; f >= 0; f--) {
         const end = buffer.length - f * frameSamples;
@@ -159,7 +193,7 @@ export default function PaceCircleLab() {
         let sum = 0;
         for (let i = begin; i < end; i++) sum += buffer[i] * buffer[i];
         const rms = Math.sqrt(sum / Math.max(1, end - begin));
-        readRef.current = meter.push(20 * Math.log10(rms + 1e-9));
+        readRef.current = meter.push(20 * Math.log10(rms + 1e-9), voiceLike);
       }
     }, FRAME_MS);
 
@@ -238,12 +272,16 @@ export default function PaceCircleLab() {
             <dd>{live ? `${live.floorDb.toFixed(1)} dB` : "—"}</dd>
             <dt className="text-muted-foreground">Voice</dt>
             <dd>{live?.voiced ? "speaking" : "quiet"}</dd>
+            <dt className="text-muted-foreground">How voice-like the sound is now</dt>
+            <dd>{live ? `${Math.round(voiceLikeLive * 100)}%` : "—"}</dd>
             <dt className="text-muted-foreground">Voice in the last moment</dt>
             <dd>{live ? `${Math.round(live.activity * 100)}%` : "—"}</dd>
           </dl>
           <div className="flex flex-col gap-3">
             <Slider id="pc-tau" label="Follows the voice over" value={tauMs} min={150} max={2000} step={50}
               show={sec(tauMs)} onChange={setTauMs} />
+            <Slider id="pc-pitch" label="A voice must be at least this voice-like" value={minPitch} min={0.3} max={0.9} step={0.05}
+              show={`${Math.round(minPitch * 100)}%`} onChange={setMinPitch} />
             <Slider id="pc-margin" label="Voice must be louder than the room by" value={marginDb} min={8} max={30} step={1}
               show={`${marginDb} dB`} onChange={setMarginDb} />
           </div>

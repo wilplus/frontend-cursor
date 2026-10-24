@@ -434,14 +434,45 @@ export type InstantConfig = {
   minGapMs: number;
   /** Time constant of `activity`: how fast the dot follows the voice. */
   activityTauMs: number;
+  /** A sound counts as voice only this voice-like (0..1, see periodicity):
+   *  a voice has pitch, a breath, a click or a rustle does not. */
+  minPeriodicity: number;
 };
 export const INSTANT_CONFIG: InstantConfig = {
   voiceMarginDb: 15,
   voiceOnMs: 80,
   silenceMarginDb: 8,
   minGapMs: 250,
-  activityTauMs: 500,
+  activityTauMs: 300,
+  minPeriodicity: 0.6,
 };
+
+/** How voice-like a stretch of sound is, 0..1: the best normalised
+ *  autocorrelation over the lags of a speaking voice's pitch (80-400 Hz).
+ *  Voiced speech repeats itself and scores high (0.7 and up); a breath,
+ *  hiss, a click or a rustle is random and scores low (under 0.4). */
+export function periodicity(x: Float32Array, sampleRate: number): number {
+  const minLag = Math.floor(sampleRate / 400);
+  const maxLag = Math.ceil(sampleRate / 80);
+  const n = x.length - maxLag;
+  if (n <= minLag) return 0;
+  let best = 0;
+  for (let lag = minLag; lag <= maxLag; lag++) {
+    let xy = 0;
+    let xx = 0;
+    let yy = 0;
+    for (let i = 0; i < n; i++) {
+      const a = x[i];
+      const b = x[i + lag];
+      xy += a * b;
+      xx += a * a;
+      yy += b * b;
+    }
+    const r = xx > 0 && yy > 0 ? xy / Math.sqrt(xx * yy) : 0;
+    if (r > best) best = r;
+  }
+  return best;
+}
 
 export class InstantMeter {
   /** Settings may be changed while listening (the tuning sliders). */
@@ -462,7 +493,7 @@ export class InstantMeter {
     this.cfg = { ...INSTANT_CONFIG, ...cfg };
   }
 
-  push(db: number): InstantRead {
+  push(db: number, voiceLike = 1): InstantRead {
     const c = this.cfg;
     this.frames += 1;
     // A microphone's first moments are often pure digital zeros, far quieter
@@ -487,8 +518,13 @@ export class InstantMeter {
 
     // The first 0.3 s after Start never counts as voice (the microphone's click).
     if (this.frames <= 30) return this.silent(db);
-    this.loudRun = db > floor + c.voiceMarginDb ? this.loudRun + 1 : 0;
-    this.voiced = this.voiced ? db > floor + c.silenceMarginDb : this.loudRun * FRAME_MS >= c.voiceOnMs;
+    // Voice is loud enough AND has pitch; it stays on while it is still
+    // somewhat loud and somewhat pitched (a breath is neither for long).
+    const pitched = voiceLike >= c.minPeriodicity;
+    this.loudRun = db > floor + c.voiceMarginDb && pitched ? this.loudRun + 1 : 0;
+    this.voiced = this.voiced
+      ? db > floor + c.silenceMarginDb && voiceLike >= c.minPeriodicity - 0.2
+      : this.loudRun * FRAME_MS >= c.voiceOnMs;
 
     if (this.voiced) this.gapRun = 0;
     else this.gapRun = Math.min(this.gapRun + 1, 100000);
