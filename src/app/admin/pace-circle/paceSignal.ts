@@ -568,7 +568,12 @@ export class InstantMeter {
             : this.activity < 0.75
               ? gentle * c.riseMidBoost
               : gentle * c.riseTopBoost;
-      this.activity = Math.min(1, this.activity + speed * FRAME_MS);
+      // Founder 2026-10-24: from 0.6 to 0.75 the climb is 37% slower, from
+      // 0.75 on 44% slower, unless the speaker has gone 22 s without even a
+      // small pause: then nothing holds it back and it runs into the red.
+      const unbroken = this.runMs >= 22000;
+      const brake = unbroken ? 1 : this.activity >= 0.75 ? 0.56 : this.activity >= 0.6 ? 0.63 : 1;
+      this.activity = Math.min(1, this.activity + speed * brake * FRAME_MS);
     } else if (!pause) {
       // A gap between words (under minGapMs) is still speech: hold.
     } else {
