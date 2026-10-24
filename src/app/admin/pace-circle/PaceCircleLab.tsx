@@ -340,6 +340,17 @@ function draw(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, ball: { 
     ctx.stroke();
   }
 
+  // 0 at the left end, 1 at the right end (founder 2026-10-24; this
+  // founder-only bench, not the speaker's screen)
+  ctx.globalAlpha = 0.75;
+  ctx.fillStyle = "#6b7078";
+  ctx.font = `600 ${Math.round(Math.max(12, h * 0.11))}px system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  const labelY = cy + track * 1.9;
+  ctx.fillText("0", cx + place(-1) * half, labelY);
+  ctx.fillText("1", cx + place(1) * half, labelY);
+
   // the dot: puffy, in the pause's colour, gently breathing
   const bx = Math.max(-1, Math.min(1, ball.x));
   const x = cx + place(bx) * half;
