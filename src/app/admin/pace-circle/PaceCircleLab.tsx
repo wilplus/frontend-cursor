@@ -279,6 +279,13 @@ function Slider(props: {
   );
 }
 
+/** Where the scale's centre sits: 27% of the way from the middle of the bar
+ *  towards its right end (founder 2026-10-24, "let's see how it goes"; set
+ *  it back to 0 to undo). The left (pausing) side gets longer, the right
+ *  (talking) side shorter; the ends stay the ends. */
+const CENTRE_SHIFT = 0.27;
+const place = (x: number) => (x < 0 ? CENTRE_SHIFT + x * (1 + CENTRE_SHIFT) : CENTRE_SHIFT + x * (1 - CENTRE_SHIFT));
+
 function draw(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, ball: { x: number }, dot: string) {
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
@@ -310,8 +317,8 @@ function draw(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, ball: { 
     ctx.strokeStyle = `rgb(${rgb.join(",")})`;
     ctx.lineWidth = track;
     ctx.beginPath();
-    ctx.moveTo(cx + from * half, cy);
-    ctx.lineTo(cx + to * half, cy);
+    ctx.moveTo(cx + place(from) * half, cy);
+    ctx.lineTo(cx + place(to) * half, cy);
     ctx.stroke();
   };
   ctx.lineCap = "butt";
@@ -324,7 +331,7 @@ function draw(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, ball: { 
   // ticks: the centre, the green middle's edges and the ends
   ctx.strokeStyle = "#8a8f96";
   for (const q of [-1, -0.5, 0, 0.5, 1]) {
-    const x = cx + q * half;
+    const x = cx + place(q) * half;
     const len = q === 0 ? track * 1.6 : track * 0.9;
     ctx.globalAlpha = q === 0 ? 0.55 : 0.3;
     ctx.lineWidth = q === 0 ? 2 : 1.5;
@@ -336,7 +343,7 @@ function draw(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, ball: { 
 
   // the dot: puffy, in the pause's colour, gently breathing
   const bx = Math.max(-1, Math.min(1, ball.x));
-  const x = cx + bx * half;
+  const x = cx + place(bx) * half;
   const r = Math.max(14, h * 0.2); // steady: no breathing, so a still dot means silence
   const halo = ctx.createRadialGradient(x, cy, r * 0.8, x, cy, r * 2.2);
   halo.addColorStop(0, dot);
