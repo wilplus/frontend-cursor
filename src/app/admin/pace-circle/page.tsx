@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /* -------------------------------------------------------------------------- */
 /*  /admin/pace-circle — the Pace Circle's microphone test page (founder      */
-/*  2026-10-24; backend decisions log N130, N131).                            */
+/*  2026-10-24; backend decisions log N130, N133).                            */
 /*                                                                            */
 /*  FOUNDER ONLY, the same check /admin/pace uses: anyone else gets Not       */
 /*  Found. It is a test bench for tuning the starting values on a real voice, */

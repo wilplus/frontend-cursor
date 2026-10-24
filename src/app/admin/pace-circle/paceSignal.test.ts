@@ -16,7 +16,7 @@ PROVES   O1 -> "counts syllables per second of speech", "leaves pauses out, so a
          O4 -> "goes right when fast, left when slow, up with no pauses, down with many", "holds an axis that is not ready yet"
          O5 -> "moves to the speaker's own rhythm gradually, at most 80%, inside the healthy band"
 WHY      CONSTRUCT fence: SPEC §17 pace-speed-v1, pace-pause-share-v1 and
-         pace-pause-length-v1 each move one thing on the screen (N131).
+         pace-pause-length-v1 each move one thing on the screen (N133).
 */
 import { describe, expect, it } from "vitest";
 import {

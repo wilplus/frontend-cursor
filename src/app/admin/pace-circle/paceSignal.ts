@@ -1,6 +1,6 @@
 /* -------------------------------------------------------------------------- */
 /*  The Pace Circle's three live reads (founder 2026-10-24; backend decisions  */
-/*  log N130, N131; SPEC §17 pace-speed-v1, pace-pause-share-v1,              */
+/*  log N130, N133; SPEC §17 pace-speed-v1, pace-pause-share-v1,              */
 /*  pace-pause-length-v1). Pure: one loudness frame in (dB, every 10 ms),     */
 /*  the reads out. No transcript, no network, nothing stored.                 */
 /*                                                                            */
@@ -187,7 +187,7 @@ export class PaceMeter {
 
 export type Centre = { speed: number; share: number };
 
-/** Research starting centre (N131): the rate syllables are said while
+/** Research starting centre (N133): the rate syllables are said while
  *  talking, about 5 a second in English; about a quarter of the time silent. */
 export const RESEARCH_CENTRE: Centre = { speed: 5.0, share: 0.28 };
 /** The personal centre never leaves this band (N130). */

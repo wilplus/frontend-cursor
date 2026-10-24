@@ -1,7 +1,7 @@
 "use client";
 
 /* -------------------------------------------------------------------------- */
-/*  The Pace Circle test bench (founder 2026-10-24; N130, N131). One soft      */
+/*  The Pace Circle test bench (founder 2026-10-24; N130, N133). One soft      */
 /*  circle, one puffy orange ball: speed moves it left and right, how much    */
 /*  of the time the founder pauses moves it up and down, and the rim shows    */
 /*  the pause happening now (green, amber, deep amber, never red).            */
