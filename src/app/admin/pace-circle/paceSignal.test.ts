@@ -150,7 +150,7 @@ describe("the pause happening now (pace-pause-length-v1)", () => {
 
 describe("the ball and the centre", () => {
   const read = (speed: number | null, share: number | null): PaceRead => ({
-    calibrated: true, floorDb: FLOOR, voiced: true, speed, share, pauseMs: 0, speechSec: 10,
+    calibrated: true, floorDb: FLOOR, voiced: true, speed, share, pauseMs: 0, speechSec: 10, wpm10: null, wpm30: null, wpm60: null,
   });
 
   it("goes right when fast, left when slow, up with no pauses, down with many", () => {

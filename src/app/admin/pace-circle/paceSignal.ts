@@ -68,7 +68,18 @@ export type PaceRead = {
   pauseMs: number;
   /** Seconds of speech heard so far (pauses taken out). */
   speechSec: number;
+  /** Estimated words per minute over the last 10 s, 30 s and 60 s of
+   *  listening, pauses included (syllables ÷ SYLLABLES_PER_WORD); null until
+   *  3 s have been heard. A window not yet full uses what has been heard. */
+  wpm10: number | null;
+  wpm30: number | null;
+  wpm60: number | null;
 };
+
+/** English averages about 1.5 syllables a word. */
+export const SYLLABLES_PER_WORD = 1.5;
+const WPM_WINDOWS_MS = [10000, 30000, 60000] as const;
+const WPM_MIN_MS = 3000;
 
 export class PaceMeter {
   private cfg: PaceConfig;
@@ -80,6 +91,7 @@ export class PaceMeter {
   private index = 0; // frames since calibration ended
   private speechFrames = 0;
   private lastPeak: number | null = null;
+  private peakTimes: number[] = []; // frame index of every syllable in the last 60 s
   // running averages
   private syll = 0; // decayed syllable count
   private speechW = 0; // decayed seconds of speech
@@ -142,6 +154,8 @@ export class PaceMeter {
 
     this.pickPeak(e, floor);
     this.index += 1;
+    const oldest = this.index - WPM_WINDOWS_MS[WPM_WINDOWS_MS.length - 1] / FRAME_MS;
+    while (this.peakTimes.length && this.peakTimes[0] < oldest) this.peakTimes.shift();
     return this.read();
   }
 
@@ -157,6 +171,7 @@ export class PaceMeter {
         if (this.extremeVoiced && spaced) {
           this.lastPeak = this.extremeAt;
           this.syll += 1;
+          this.peakTimes.push(this.extremeAt);
         }
         this.seeking = "valley";
         this.extreme = e;
@@ -174,7 +189,10 @@ export class PaceMeter {
   private read(): PaceRead {
     const c = this.cfg;
     if (this.floor === null) {
-      return { calibrated: false, floorDb: null, voiced: false, speed: null, share: null, pauseMs: 0, speechSec: 0 };
+      return {
+        calibrated: false, floorDb: null, voiced: false, speed: null, share: null, pauseMs: 0, speechSec: 0,
+        wpm10: null, wpm30: null, wpm60: null,
+      };
     }
     const speechMs = Math.max(0, this.speechFrames) * FRAME_MS;
     const speed = speechMs >= c.minSpeechForSpeedMs && this.speechW > 0 ? this.syll / this.speechW : null;
@@ -188,8 +206,52 @@ export class PaceMeter {
       share,
       pauseMs,
       speechSec: speechMs / 1000,
+      wpm10: this.wpm(WPM_WINDOWS_MS[0]),
+      wpm30: this.wpm(WPM_WINDOWS_MS[1]),
+      wpm60: this.wpm(WPM_WINDOWS_MS[2]),
     };
   }
+
+  private wpm(windowMs: number): number | null {
+    const heardMs = Math.min(windowMs, this.index * FRAME_MS);
+    if (heardMs < WPM_MIN_MS) return null;
+    const from = this.index - heardMs / FRAME_MS;
+    let n = 0;
+    for (let i = this.peakTimes.length - 1; i >= 0 && this.peakTimes[i] >= from; i--) n++;
+    return (n / SYLLABLES_PER_WORD) * (60000 / heardMs);
+  }
+}
+
+/* ── The pace scale (founder 2026-10-24) ──────────────────────────────────── */
+
+/** The healthy band, in words per minute, and where the scale's ends sit.
+ *  Wide on purpose, so many speaking styles sit inside it. */
+export type WpmBand = { low: number; high: number; floor: number; ceiling: number };
+export const WPM_BAND: WpmBand = { low: 110, high: 175, floor: 70, ceiling: 220 };
+/** The healthy zone fills the middle of the scale, from -ZONE to +ZONE. */
+export const ZONE = 0.4;
+
+/** How far one window is outside the band: 0 inside, up to ±1 at an end. */
+function outside(v: number | null, b: WpmBand): number {
+  if (v === null) return 0;
+  if (v > b.high) return Math.min(1, (v - b.high) / (b.ceiling - b.high));
+  if (v < b.low) return -Math.min(1, (b.low - v) / (b.low - b.floor));
+  return 0;
+}
+
+/** Where the dot heads on the scale (-1 left .. +1 right). If words per
+ *  minute over 10 s, 30 s or 60 s is above the band it goes right, below it
+ *  goes left, by the window furthest out. Inside the band it drifts gently
+ *  inside the healthy zone with the live speed, so it moves as you speak. */
+export function scaleTarget(read: PaceRead, band: WpmBand, liveCentre: number, hold: number): number {
+  if (read.wpm10 === null) return hold;
+  const outs = [read.wpm10, read.wpm30, read.wpm60].map((v) => outside(v, band));
+  const worst = outs.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), 0);
+  if (worst !== 0) return Math.sign(worst) * (ZONE + (1 - ZONE) * Math.abs(worst));
+  const mid = (band.low + band.high) / 2;
+  const inBand = (read.wpm10 - mid) / ((band.high - band.low) / 2); // -1..1 across the band
+  const live = read.speed === null ? 0 : (read.speed - liveCentre) / REACH.speed;
+  return clamp(0.6 * inBand + 0.4 * live, -1, 1) * ZONE * 0.95;
 }
 
 /* ── From reads to the screen ─────────────────────────────────────────────── */

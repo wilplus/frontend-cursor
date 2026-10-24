@@ -18,7 +18,9 @@ import {
   PaceMeter,
   RESEARCH_CENTRE,
   RIM_STOPS,
-  ballTarget,
+  WPM_BAND,
+  ZONE,
+  scaleTarget,
   blendCentre,
   foldSession,
   median,
@@ -80,12 +82,16 @@ export default function PaceCircleLab() {
   const [researchSpeed, setResearchSpeed] = useState(RESEARCH_CENTRE.speed);
   const [amberMs, setAmberMs] = useState(RIM_STOPS.amberMs);
   const [deepMs, setDeepMs] = useState(RIM_STOPS.deepMs);
+  const [bandLow, setBandLow] = useState(WPM_BAND.low);
+  const [bandHigh, setBandHigh] = useState(WPM_BAND.high);
+  const bandRef = useRef(WPM_BAND);
 
   useEffect(() => setPersonal(loadPersonal()), []);
 
   const { centre, weight } = blendCentre({ speed: researchSpeed, share: RESEARCH_CENTRE.share }, personal);
   centreRef.current = centre;
   stopsRef.current = { amberMs, deepMs: Math.max(deepMs, amberMs + 500) };
+  bandRef.current = { ...WPM_BAND, low: bandLow, high: Math.max(bandHigh, bandLow + 10) };
 
   // The numbers panel refreshes a few times a second, not every frame.
   useEffect(() => {
@@ -123,7 +129,7 @@ export default function PaceCircleLab() {
       last = now;
       const read = readRef.current;
       // Left and right only (founder 2026-10-24: "just x axes with the colour for the pause").
-      if (read?.calibrated) held = { x: ballTarget(read, centreRef.current, held).x, y: 0 };
+      if (read?.calibrated) held = { x: scaleTarget(read, bandRef.current, centreRef.current.speed, held.x), y: 0 };
       const k = reduce ? 12 : 6; // ~0.4 s to settle: smooth, never laggy (N134)
       const d = 2 * Math.sqrt(k);
       ball.vx += (k * (held.x - ball.x) - d * ball.vx) * dt;
@@ -228,7 +234,7 @@ export default function PaceCircleLab() {
   const listening = phase === "calibrating" || phase === "listening";
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-4 py-8">
+    <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 px-4 py-8">
       <div className="w-full">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Founder only · test bench</p>
         <h1 className="text-2xl font-semibold">Pace scale</h1>
@@ -237,7 +243,7 @@ export default function PaceCircleLab() {
         </p>
       </div>
 
-      <div className="relative aspect-[3/1] w-full max-w-[min(94vw,720px)]">
+      <div className="relative aspect-[4/1] w-full">
         <canvas ref={canvasRef} className="h-full w-full" aria-label="The pace scale" />
         {phase === "calibrating" && (
           <p className="absolute inset-x-0 bottom-2 text-center text-sm text-muted-foreground">
@@ -284,7 +290,15 @@ export default function PaceCircleLab() {
             <dd>{live?.floorDb != null ? `${live.floorDb.toFixed(1)} dB` : "—"}</dd>
             <dt className="text-muted-foreground">Voice</dt>
             <dd>{live?.voiced ? "speaking" : "quiet"}</dd>
-            <dt className="text-muted-foreground">Speed</dt>
+            <dt className="text-muted-foreground">Words a minute (10 s · 30 s · 60 s)</dt>
+            <dd>
+              {[live?.wpm10, live?.wpm30, live?.wpm60].map((v) => (v == null ? "—" : Math.round(v))).join(" · ")}
+            </dd>
+            <dt className="text-muted-foreground">Healthy band</dt>
+            <dd>
+              {bandLow}–{Math.max(bandHigh, bandLow + 10)} words a minute
+            </dd>
+            <dt className="text-muted-foreground">Live speed (drift in the middle)</dt>
             <dd>{live?.speed != null ? `${live.speed.toFixed(2)} syll/s` : "not enough speech yet"}</dd>
             <dt className="text-muted-foreground">Pause now</dt>
             <dd>{live?.pauseMs ? `${(live.pauseMs / 1000).toFixed(1)} s` : "—"}</dd>
@@ -301,7 +315,11 @@ export default function PaceCircleLab() {
             </dd>
           </dl>
           <div className="flex flex-col gap-3">
-            <Slider id="pc-speed" label="Research speed centre" value={researchSpeed} min={3.5} max={6.5} step={0.1}
+            <Slider id="pc-low" label="Too slow below" value={bandLow} min={70} max={150} step={5}
+              show={`${bandLow} wpm`} onChange={setBandLow} />
+            <Slider id="pc-high" label="Rushing above" value={bandHigh} min={130} max={220} step={5}
+              show={`${bandHigh} wpm`} onChange={setBandHigh} />
+            <Slider id="pc-speed" label="Live speed centre" value={researchSpeed} min={3.5} max={6.5} step={0.1}
               show={`${researchSpeed.toFixed(1)} syll/s`} onChange={setResearchSpeed} />
             <Slider id="pc-amber" label="Dot turns orange at" value={amberMs} min={600} max={2500} step={100}
               show={`${(amberMs / 1000).toFixed(1)} s`} onChange={setAmberMs} />
@@ -390,10 +408,20 @@ function draw(
   ctx.lineTo(right, cy);
   ctx.stroke();
 
-  // ticks: the centre, and quarters either side
+  // the healthy zone: a soft wider stretch in the middle
+  ctx.lineCap = "round";
+  ctx.globalAlpha = 0.28;
+  ctx.strokeStyle = "rgb(62,169,120)";
+  ctx.lineWidth = track;
+  ctx.beginPath();
+  ctx.moveTo(cx - ZONE * half, cy);
+  ctx.lineTo(cx + ZONE * half, cy);
+  ctx.stroke();
+
+  // ticks: the centre, the zone's edges and the ends
   ctx.lineCap = "butt";
   ctx.strokeStyle = "#8a8f96";
-  for (const q of [-1, -0.5, 0, 0.5, 1]) {
+  for (const q of [-1, -ZONE, 0, ZONE, 1]) {
     const x = cx + q * half;
     const len = q === 0 ? track * 1.6 : track * 0.9;
     ctx.globalAlpha = q === 0 ? 0.55 : 0.3;
