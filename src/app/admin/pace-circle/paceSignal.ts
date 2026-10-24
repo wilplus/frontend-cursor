@@ -441,10 +441,12 @@ export type InstantConfig = {
    *  fallUpperMs, from 0.5 to 0 in fallLowerMs (founder 2026-10-24). */
   fallUpperMs: number;
   fallLowerMs: number;
-  /** While speaking the dot climbs slowly from 0 to 0.65 in riseBaseMs of
-   *  voice, then riseMidBoost times faster to 0.75, then riseTopBoost times
-   *  faster to 1: fluent speech with too few pauses speeds up towards the
-   *  end (founder 2026-10-24). */
+  /** While speaking the dot first jumps from 0 to the middle (0.5) in
+   *  riseJumpMs of voice, then climbs gently from 0.5 to 0.65 in riseBaseMs,
+   *  then riseMidBoost times faster to 0.75 and riseTopBoost times faster to
+   *  1: fluent speech with too few pauses speeds up towards the end
+   *  (founder 2026-10-24). */
+  riseJumpMs: number;
   riseBaseMs: number;
   riseMidBoost: number;
   riseTopBoost: number;
@@ -458,7 +460,8 @@ export const INSTANT_CONFIG: InstantConfig = {
   minPeriodicity: 0.6,
   fallUpperMs: 2600, // doubled after the founder's first try (2026-10-24)
   fallLowerMs: 5000,
-  riseBaseMs: 4000,
+  riseJumpMs: 800,
+  riseBaseMs: 1500,
   riseMidBoost: 1.25,
   riseTopBoost: 1.37,
 };
@@ -554,10 +557,18 @@ export class InstantMeter {
   private out(voiced: boolean, pause: boolean, floor: number, db: number): InstantRead {
     const c = this.cfg;
     if (voiced) {
-      // Speaking: climb slowly to 0.65, then faster, then faster still.
-      const base = 0.65 / Math.max(FRAME_MS, c.riseBaseMs); // per ms
-      const boost = this.activity < 0.65 ? 1 : this.activity < 0.75 ? c.riseMidBoost : c.riseTopBoost;
-      this.activity = Math.min(1, this.activity + base * boost * FRAME_MS);
+      // Speaking: jump to the middle, climb gently to 0.65, then faster,
+      // then faster still (speeds per ms).
+      const gentle = 0.15 / Math.max(FRAME_MS, c.riseBaseMs);
+      const speed =
+        this.activity < 0.5
+          ? 0.5 / Math.max(FRAME_MS, c.riseJumpMs)
+          : this.activity < 0.65
+            ? gentle
+            : this.activity < 0.75
+              ? gentle * c.riseMidBoost
+              : gentle * c.riseTopBoost;
+      this.activity = Math.min(1, this.activity + speed * FRAME_MS);
     } else if (!pause) {
       // A gap between words (under minGapMs) is still speech: hold.
     } else {

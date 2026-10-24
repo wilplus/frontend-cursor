@@ -54,25 +54,25 @@ export default function PaceCircleLab() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [showNumbers, setShowNumbers] = useState(false);
   const [live, setLive] = useState<InstantRead | null>(null);
-  const [tauMs, setTauMs] = useState(INSTANT_CONFIG.activityTauMs);
   const [marginDb, setMarginDb] = useState(INSTANT_CONFIG.voiceMarginDb);
   const [minPitch, setMinPitch] = useState(INSTANT_CONFIG.minPeriodicity);
   const [fallUpper, setFallUpper] = useState(INSTANT_CONFIG.fallUpperMs);
   const [fallLower, setFallLower] = useState(INSTANT_CONFIG.fallLowerMs);
+  const [riseJump, setRiseJump] = useState(INSTANT_CONFIG.riseJumpMs);
   const [riseBase, setRiseBase] = useState(INSTANT_CONFIG.riseBaseMs);
   cfgRef.current = {
     ...INSTANT_CONFIG,
-    activityTauMs: tauMs,
     voiceMarginDb: marginDb,
     silenceMarginDb: Math.max(4, marginDb - 7),
     minPeriodicity: minPitch,
     fallUpperMs: fallUpper,
     fallLowerMs: fallLower,
+    riseJumpMs: riseJump,
     riseBaseMs: riseBase,
   };
   // Seconds of continuous voice for each climb stage, for the version line.
-  const midMs = (riseBase / 0.65) * 0.1 / INSTANT_CONFIG.riseMidBoost;
-  const topMs = (riseBase / 0.65) * 0.25 / INSTANT_CONFIG.riseTopBoost;
+  const midMs = ((riseBase / 0.15) * 0.1) / INSTANT_CONFIG.riseMidBoost;
+  const topMs = ((riseBase / 0.15) * 0.25) / INSTANT_CONFIG.riseTopBoost;
   if (meterRef.current) meterRef.current.cfg = cfgRef.current;
 
   // The numbers panel refreshes a few times a second, not every frame.
@@ -244,8 +244,8 @@ export default function PaceCircleLab() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Version 24 Oct, 18:30 · speaking 0 → 0.65 in {sec(riseBase)}, 0.65 → 0.75 in {sec(midMs)}, 0.75 → 1 in{" "}
-        {sec(topMs)} · in silence 1 → 0.5 in {sec(fallUpper)}, 0.5 → 0 in {sec(fallLower)}
+        Version 24 Oct, 19:00 · speaking: 0 → 0.5 in {sec(riseJump)}, 0.5 → 0.65 in {sec(riseBase)}, 0.65 → 0.75 in{" "}
+        {sec(midMs)}, 0.75 → 1 in {sec(topMs)} · pausing: 1 → 0.5 in {sec(fallUpper)}, 0.5 → 0 in {sec(fallLower)}
       </p>
 
       <div className="flex flex-wrap items-center justify-center gap-3">
@@ -292,17 +292,20 @@ export default function PaceCircleLab() {
             <dd>{live ? `${Math.round(live.activity * 100)}%` : "—"}</dd>
           </dl>
           <div className="flex flex-col gap-3">
-            <Slider id="pc-tau" label="Follows the voice over" value={tauMs} min={150} max={2000} step={50}
-              show={sec(tauMs)} onChange={setTauMs} />
-            <Slider id="pc-rise-base" label="Speaking, 0 → 0.65 takes" value={riseBase} min={500} max={15000} step={250}
+            <p className="text-xs font-semibold text-muted-foreground">While you speak (seconds of voice)</p>
+            <Slider id="pc-rise-jump" label="From 0 to the middle" value={riseJump} min={200} max={4000} step={100}
+              show={sec(riseJump)} onChange={setRiseJump} />
+            <Slider id="pc-rise-base" label="From the middle to 0.65 (then it speeds up)" value={riseBase} min={300} max={8000} step={100}
               show={sec(riseBase)} onChange={setRiseBase} />
-            <Slider id="pc-fall-upper" label="In silence, 1 → 0.5 takes" value={fallUpper} min={300} max={8000} step={100}
+            <p className="text-xs font-semibold text-muted-foreground">While you pause</p>
+            <Slider id="pc-fall-upper" label="From 1 back to the middle" value={fallUpper} min={300} max={8000} step={100}
               show={sec(fallUpper)} onChange={setFallUpper} />
-            <Slider id="pc-fall-lower" label="In silence, 0.5 → 0 takes" value={fallLower} min={500} max={15000} step={250}
+            <Slider id="pc-fall-lower" label="From the middle down to 0" value={fallLower} min={500} max={15000} step={250}
               show={sec(fallLower)} onChange={setFallLower} />
-            <Slider id="pc-pitch" label="A voice must be at least this voice-like" value={minPitch} min={0.3} max={0.9} step={0.05}
+            <p className="text-xs font-semibold text-muted-foreground">What counts as your voice</p>
+            <Slider id="pc-pitch" label="How voice-like (higher ignores more breaths and noise)" value={minPitch} min={0.3} max={0.9} step={0.05}
               show={`${Math.round(minPitch * 100)}%`} onChange={setMinPitch} />
-            <Slider id="pc-margin" label="Voice must be louder than the room by" value={marginDb} min={8} max={30} step={1}
+            <Slider id="pc-margin" label="How much louder than the room (higher ignores more noise)" value={marginDb} min={8} max={30} step={1}
               show={`${marginDb} dB`} onChange={setMarginDb} />
           </div>
         </div>
