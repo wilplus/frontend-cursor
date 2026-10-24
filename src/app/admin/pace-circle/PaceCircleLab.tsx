@@ -95,7 +95,7 @@ export default function PaceCircleLab() {
       last = now;
       const read = readRef.current;
       // Nothing heard yet is one long pause: the far left.
-      const target = read ? instantTarget(read, stopsRef.current) : -1;
+      const target = read ? recentre(instantTarget(read, stopsRef.current)) : -1;
       const k = reduce ? 80 : 40; // ~0.15 s glide: smooth, no lag
       const d = 2 * Math.sqrt(k);
       ball.vx += (k * (target - ball.x) - d * ball.vx) * dt;
@@ -296,6 +296,12 @@ function Slider(props: {
  *  tried 27% right and 27% left, then "bring it back do not move anything").
  *  Kept as one setting in case it is tried again. */
 const CENTRE_SHIFT = 0;
+/** Recentring (founder 2026-10-24): normal fast speech, as on YouTube, read
+ *  about 0.75 on the 0..1 scale; what read 0.75 now reads 0.5. In the
+ *  meter's -1..1 terms the old +0.5 becomes 0; the ends stay the ends.
+ *  Set to 0 to undo. */
+const TYPICAL = 0.5;
+const recentre = (x: number) => (x >= TYPICAL ? (x - TYPICAL) / (1 - TYPICAL) : (x - TYPICAL) / (1 + TYPICAL));
 /** The bar's ends sit this far in from the canvas edges (share of width). */
 const END_INSET = 0.07;
 const place = (x: number) => (x < 0 ? CENTRE_SHIFT + x * (1 + CENTRE_SHIFT) : CENTRE_SHIFT + x * (1 - CENTRE_SHIFT));
