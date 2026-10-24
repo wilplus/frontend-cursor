@@ -443,6 +443,7 @@ export class InstantMeter {
   // The quietest level of the last 3 s, from a ring of 10 ms frames.
   private recent = new Float32Array(300).fill(Infinity);
   private at = 0;
+  private frames = 0;
 
   constructor(cfg: Partial<InstantConfig> = {}) {
     this.cfg = { ...INSTANT_CONFIG, ...cfg };
@@ -450,6 +451,12 @@ export class InstantMeter {
 
   push(db: number): InstantRead {
     const c = this.cfg;
+    this.frames += 1;
+    // A microphone's first moments are often pure digital zeros, far quieter
+    // than any real room. Taking that as the room made the real room look
+    // like a voice, so the dot jumped to 1 at Start (founder 2026-10-24).
+    // Such frames are silence and never the room.
+    if (!Number.isFinite(db) || db < -100) return this.silent(db);
     // The room is the quietest moment of the last 3 s, always. Speech has
     // dips between words, so a voice still stands out; steady noise (a fan,
     // traffic, a microphone settling) has none, so within a couple of
@@ -462,9 +469,11 @@ export class InstantMeter {
     for (let i = 0; i < this.recent.length; i++) if (this.recent[i] < quietest) quietest = this.recent[i];
     if (this.floor === null) this.floor = db;
     else if (quietest < this.floor) this.floor += (quietest - this.floor) * 0.3;
-    else this.floor = Math.min(quietest, this.floor + 0.03); // rises up to 3 dB a second
+    else this.floor = Math.min(quietest, this.floor + 0.1); // rises up to 10 dB a second
     const floor = this.floor;
 
+    // The first 0.3 s after Start never counts as voice (the microphone's click).
+    if (this.frames <= 30) return this.silent(db);
     this.loudRun = db > floor + c.voiceMarginDb ? this.loudRun + 1 : 0;
     this.voiced = this.voiced ? db > floor + c.silenceMarginDb : this.loudRun * FRAME_MS >= c.voiceOnMs;
 
@@ -475,6 +484,17 @@ export class InstantMeter {
     else this.runMs += FRAME_MS;
 
     return { voiced: this.voiced, runMs: this.runMs, pauseMs: pause ? this.gapRun * FRAME_MS : 0, floorDb: floor, db };
+  }
+
+  /** A frame that is silence whatever its level. */
+  private silent(db: number): InstantRead {
+    this.voiced = false;
+    this.loudRun = 0;
+    this.gapRun = Math.min(this.gapRun + 1, 100000);
+    const pause = this.gapRun * FRAME_MS >= this.cfg.minGapMs;
+    if (pause) this.runMs = 0;
+    else this.runMs += FRAME_MS;
+    return { voiced: false, runMs: this.runMs, pauseMs: pause ? this.gapRun * FRAME_MS : 0, floorDb: this.floor ?? db, db };
   }
 }
 
