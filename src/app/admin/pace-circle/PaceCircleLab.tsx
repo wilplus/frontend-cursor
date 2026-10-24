@@ -1,13 +1,14 @@
 "use client";
 
 /* -------------------------------------------------------------------------- */
-/*  The live pace scale (founder 2026-10-24, "No delay, please!!!"). One    */
-/*  horizontal scale and one puffy dot, moved only by what is known at once:  */
-/*  while you talk it moves right, the longer without a breath the further;   */
-/*  while you pause it moves left, the longer the pause the further. Before   */
-/*  you speak it is one long pause: far left, red. The dot's colour is its    */
-/*  place: green in the middle half, orange towards the ends, red at the      */
-/*  very edges. No averages, so nothing waits.                                */
+/*  The live pace scale (founder 2026-10-24: "use the metric that can be    */
+/*  calculated and processed real time ... there is no delay"). One          */
+/*  horizontal scale and one puffy dot, moved by one signal recalculated     */
+/*  every 10 ms: how much of the last half second had voice in it. Silence   */
+/*  rests it on 0 (left); talking with no gaps carries it to 1 (right);      */
+/*  normal speech, with its small gaps, sits between. Its colour is its      */
+/*  place: green in the middle half, orange towards the ends, red at the     */
+/*  very edges.                                                              */
 /*                                                                            */
 /*  Listen only. The microphone's loudness is read every 10 ms in this tab;   */
 /*  no audio leaves it and nothing is recorded. The numbers panel is for      */
@@ -17,12 +18,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FRAME_MS,
-  INSTANT_STOPS,
+  INSTANT_CONFIG,
   InstantMeter,
-  instantTarget,
   zoneLevel,
   type InstantRead,
-  type InstantStops,
+  type InstantConfig,
 } from "./paceSignal";
 
 // The dot's colours, kept here because the canvas needs real values.
@@ -44,22 +44,17 @@ type Phase = "idle" | "starting" | "listening" | "denied";
 export default function PaceCircleLab() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const readRef = useRef<InstantRead | null>(null);
-  const stopsRef = useRef<InstantStops>(INSTANT_STOPS);
+  const cfgRef = useRef<InstantConfig>(INSTANT_CONFIG);
+  const meterRef = useRef<InstantMeter | null>(null);
   const stopRef = useRef<(() => void) | null>(null);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [showNumbers, setShowNumbers] = useState(false);
   const [live, setLive] = useState<InstantRead | null>(null);
-  const [greenRun, setGreenRun] = useState(INSTANT_STOPS.greenRunMs);
-  const [redRun, setRedRun] = useState(INSTANT_STOPS.redRunMs);
-  const [greenPause, setGreenPause] = useState(INSTANT_STOPS.greenPauseMs);
-  const [redPause, setRedPause] = useState(INSTANT_STOPS.redPauseMs);
-  stopsRef.current = {
-    greenRunMs: greenRun,
-    redRunMs: Math.max(redRun, greenRun + 500),
-    greenPauseMs: greenPause,
-    redPauseMs: Math.max(redPause, greenPause + 300),
-  };
+  const [tauMs, setTauMs] = useState(INSTANT_CONFIG.activityTauMs);
+  const [marginDb, setMarginDb] = useState(INSTANT_CONFIG.voiceMarginDb);
+  cfgRef.current = { ...INSTANT_CONFIG, activityTauMs: tauMs, voiceMarginDb: marginDb, silenceMarginDb: Math.max(4, marginDb - 7) };
+  if (meterRef.current) meterRef.current.cfg = cfgRef.current;
 
   // The numbers panel refreshes a few times a second, not every frame.
   useEffect(() => {
@@ -95,7 +90,8 @@ export default function PaceCircleLab() {
       last = now;
       const read = readRef.current;
       // Nothing heard yet is one long pause: the far left.
-      const target = read ? instantTarget(read, stopsRef.current) : -1;
+      // How much of the last moment had voice: 0 silence (left) .. 1 no gaps (right).
+      const target = read ? read.activity * 2 - 1 : -1;
       const k = reduce ? 80 : 40; // ~0.15 s glide: smooth, no lag
       const d = 2 * Math.sqrt(k);
       ball.vx += (k * (target - ball.x) - d * ball.vx) * dt;
@@ -143,7 +139,8 @@ export default function PaceCircleLab() {
     analyser.fftSize = 32768; // ~0.7 s of samples, so a late tick still finds its frames
     source.connect(high).connect(low).connect(analyser);
 
-    const meter = new InstantMeter();
+    const meter = new InstantMeter(cfgRef.current);
+    meterRef.current = meter;
     const buffer = new Float32Array(analyser.fftSize);
     const frameSamples = Math.max(1, Math.round((audio.sampleRate * FRAME_MS) / 1000));
     let lastTick = performance.now();
@@ -241,20 +238,14 @@ export default function PaceCircleLab() {
             <dd>{live ? `${live.floorDb.toFixed(1)} dB` : "—"}</dd>
             <dt className="text-muted-foreground">Voice</dt>
             <dd>{live?.voiced ? "speaking" : "quiet"}</dd>
-            <dt className="text-muted-foreground">Talking without a pause</dt>
-            <dd>{live?.runMs ? sec(live.runMs) : "—"}</dd>
-            <dt className="text-muted-foreground">Pause now</dt>
-            <dd>{live?.pauseMs ? (live.pauseMs > 60000 ? "long" : sec(live.pauseMs)) : "—"}</dd>
+            <dt className="text-muted-foreground">Voice in the last moment</dt>
+            <dd>{live ? `${Math.round(live.activity * 100)}%` : "—"}</dd>
           </dl>
           <div className="flex flex-col gap-3">
-            <Slider id="pc-green-run" label="Talking: green up to" value={greenRun} min={1000} max={8000} step={250}
-              show={sec(greenRun)} onChange={setGreenRun} />
-            <Slider id="pc-red-run" label="Talking: red after" value={redRun} min={3000} max={15000} step={500}
-              show={sec(redRun)} onChange={setRedRun} />
-            <Slider id="pc-green-pause" label="Pause: green up to" value={greenPause} min={300} max={2500} step={100}
-              show={sec(greenPause)} onChange={setGreenPause} />
-            <Slider id="pc-red-pause" label="Pause: red after" value={redPause} min={1000} max={6000} step={100}
-              show={sec(redPause)} onChange={setRedPause} />
+            <Slider id="pc-tau" label="Follows the voice over" value={tauMs} min={150} max={2000} step={50}
+              show={sec(tauMs)} onChange={setTauMs} />
+            <Slider id="pc-margin" label="Voice must be louder than the room by" value={marginDb} min={8} max={30} step={1}
+              show={`${marginDb} dB`} onChange={setMarginDb} />
           </div>
         </div>
       )}

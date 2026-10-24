@@ -419,6 +419,9 @@ export type InstantRead = {
   pauseMs: number;
   floorDb: number;
   db: number;
+  /** 0..1: how much of the last moment (about activityTauMs) had voice in
+   *  it, updated every 10 ms. 0 in silence, 1 talking with no gaps. */
+  activity: number;
 };
 
 export type InstantConfig = {
@@ -429,11 +432,21 @@ export type InstantConfig = {
   silenceMarginDb: number;
   /** A gap shorter than this is between words, not a pause. */
   minGapMs: number;
+  /** Time constant of `activity`: how fast the dot follows the voice. */
+  activityTauMs: number;
 };
-export const INSTANT_CONFIG: InstantConfig = { voiceMarginDb: 12, voiceOnMs: 40, silenceMarginDb: 6, minGapMs: 250 };
+export const INSTANT_CONFIG: InstantConfig = {
+  voiceMarginDb: 15,
+  voiceOnMs: 80,
+  silenceMarginDb: 8,
+  minGapMs: 250,
+  activityTauMs: 500,
+};
 
 export class InstantMeter {
-  private cfg: InstantConfig;
+  /** Settings may be changed while listening (the tuning sliders). */
+  cfg: InstantConfig;
+  private activity = 0;
   private floor: number | null = null;
   private voiced = false;
   private loudRun = 0;
@@ -483,7 +496,20 @@ export class InstantMeter {
     if (pause) this.runMs = 0;
     else this.runMs += FRAME_MS;
 
-    return { voiced: this.voiced, runMs: this.runMs, pauseMs: pause ? this.gapRun * FRAME_MS : 0, floorDb: floor, db };
+    return this.out(this.voiced, pause, floor, db);
+  }
+
+  private out(voiced: boolean, pause: boolean, floor: number, db: number): InstantRead {
+    const keep = Math.exp(-FRAME_MS / Math.max(FRAME_MS, this.cfg.activityTauMs));
+    this.activity = this.activity * keep + (voiced ? 1 - keep : 0);
+    return {
+      voiced,
+      runMs: this.runMs,
+      pauseMs: pause ? this.gapRun * FRAME_MS : 0,
+      floorDb: floor,
+      db,
+      activity: this.activity,
+    };
   }
 
   /** A frame that is silence whatever its level. */
@@ -494,7 +520,7 @@ export class InstantMeter {
     const pause = this.gapRun * FRAME_MS >= this.cfg.minGapMs;
     if (pause) this.runMs = 0;
     else this.runMs += FRAME_MS;
-    return { voiced: false, runMs: this.runMs, pauseMs: pause ? this.gapRun * FRAME_MS : 0, floorDb: this.floor ?? db, db };
+    return this.out(false, pause, this.floor ?? db, db);
   }
 }
 
