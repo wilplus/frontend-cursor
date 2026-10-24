@@ -18,8 +18,10 @@ import { othersBridge, othersChat } from "@/lib/willab/walkThread";
 /*  WalkOthers — judge other speakers, once, after practice (founder lock      */
 /*  2026-10-12, moment and feedback chat, section 2.6; prototype v31 `judge`). */
 /*                                                                            */
-/*  One moment per try, at least 1 and at most 3; none to judge, the walk     */
-/*  goes on. The bridge line, the clip and the question in one grey bubble;   */
+/*  The Take's moments, up to three: one the machine reads high, one middle  */
+/*  and one low, three speakers, fixed for the Take (founder 2026-10-23,      */
+/*  N119; until then one per try). None to judge, the walk goes on. The      */
+/*  bridge line, the clip and the question in one grey bubble;               */
 /*  three full-width tall cards, 👍 Yes · 😐 In-between · 👎 No, and "Audio    */
 /*  unclear" as a small grey link. An answer fills the card's edge black,     */
 /*  holds 0.28 s and moves on; it stays locked once given, and the step       */
@@ -40,21 +42,22 @@ import { othersBridge, othersChat } from "@/lib/willab/walkThread";
 type Loaded = { clips: OtherClip[]; given: Record<string, ConfidenceRatingValue> };
 
 /** What the screen shows: the answers already given in this walk, oldest
- *  first (`judged` of them, at most three), else the queue to judge. */
-async function load(judged: number, count: number): Promise<Loaded> {
+ *  first (`judged` of them, at most three), else the Take's queue to judge,
+ *  as many as the server sends, at most three. */
+async function load(judged: number, take: string | null): Promise<Loaded> {
   if (judged > 0) {
     const answers = (await fetchOtherAnswers()).slice(0, Math.min(3, judged)).reverse();
     if (answers.length > 0) {
       return { clips: answers, given: Object.fromEntries(answers.map((a) => [a.id, a.answer])) };
     }
   }
-  const list = await fetchOtherClips();
-  return { clips: list.slice(0, Math.max(1, Math.min(3, count))), given: {} };
+  const list = await fetchOtherClips(take);
+  return { clips: list.slice(0, 3), given: {} };
 }
 
 export default function WalkOthers({
   testId,
-  count,
+  take = null,
   judged = 0,
   skip,
   onDone,
@@ -63,8 +66,8 @@ export default function WalkOthers({
   onChat,
 }: {
   testId?: string;
-  /** How many to judge: one per practise try, 1 to 3. */
-  count: number;
+  /** The Take whose walk this is: the server's set for it (N119). */
+  take?: string | null;
   /** How many the speaker already judged in this walk (the chat's count):
    *  reopened, those are shown answered. */
   judged?: number;
@@ -100,7 +103,7 @@ export default function WalkOthers({
       return;
     }
     let live = true;
-    void load(judged, count).then((loaded) => {
+    void load(judged, take).then((loaded) => {
       if (!live) return;
       if (loaded.clips.length === 0) {
         done.current();
@@ -113,7 +116,7 @@ export default function WalkOthers({
     return () => {
       live = false;
     };
-  }, [past, skip, count, judged]);
+  }, [past, skip, take, judged]);
 
   const clip = clips?.[at];
   const answered = clip ? given[clip.id] ?? null : null;

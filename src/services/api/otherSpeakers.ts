@@ -45,9 +45,11 @@ function mapAnswers(data: Record<string, unknown>): OtherAnswer[] {
   });
 }
 
-/** The moments to judge after practice; none on any failure. */
-export async function fetchOtherClips(): Promise<OtherClip[]> {
-  const res = await call("/api/v2/user/communities/queue", { method: "GET" }, mapClips);
+/** The moments to judge after practice, for the walk of `take` (N119): one
+ *  per level, three speakers, fixed for the Take. None on any failure. */
+export async function fetchOtherClips(take?: string | null): Promise<OtherClip[]> {
+  const query = take ? `?take=${encodeURIComponent(take)}` : "";
+  const res = await call(`/api/v2/user/communities/queue${query}`, { method: "GET" }, mapClips);
   return res.ok ? res.data : [];
 }
 
