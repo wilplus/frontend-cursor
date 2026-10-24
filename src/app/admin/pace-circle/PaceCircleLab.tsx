@@ -1,11 +1,13 @@
 "use client";
 
 /* -------------------------------------------------------------------------- */
-/*  The pace scale test bench (founder 2026-10-24; N130, N133, N134). One     */
-/*  simple horizontal scale and one puffy dot: rushing moves the dot right,   */
-/*  too slow moves it left, and the dot's colour shows the pause happening    */
-/*  now: green while all is fine, through orange to red as a pause gets       */
-/*  awkward (founder 2026-10-24, replacing the circle and its rim).           */
+/*  The silence scale test bench (founder 2026-10-24; N130, N133, N134). One  */
+/*  horizontal scale and one puffy dot, moved by one signal: how much of the  */
+/*  recent time was silence. Before you speak it is one long pause, so the    */
+/*  dot rests at the far left, red. Speaking moves it right, through orange   */
+/*  into the green middle; speaking with almost no pauses (rushing) carries   */
+/*  it on to the right edge. The dot's colour is its place on the scale:      */
+/*  green in the middle half, orange towards the ends, red only at the edges. */
 /*                                                                            */
 /*  Listen only. The microphone's loudness is read every 10 ms in this tab;   */
 /*  no audio leaves it and nothing is recorded. The numbers panel is for      */
@@ -16,42 +18,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FRAME_MS,
   PaceMeter,
-  RESEARCH_CENTRE,
-  RIM_STOPS,
-  WPM_BAND,
-  ZONE,
-  scaleTarget,
-  blendCentre,
-  foldSession,
-  median,
-  rimLevel,
-  type Centre,
+  SILENCE_METER,
+  SILENCE_STOPS,
+  silenceTarget,
+  zoneLevel,
   type PaceRead,
-  type Personal,
+  type SilenceStops,
 } from "./paceSignal";
 
-const STORE_KEY = "paceCircle.personal.v1";
-
-function loadPersonal(): Personal | null {
-  try {
-    const raw = window.localStorage.getItem(STORE_KEY);
-    return raw ? (JSON.parse(raw) as Personal) : null;
-  } catch {
-    return null;
-  }
-}
-function savePersonal(p: Personal | null) {
-  try {
-    if (p) window.localStorage.setItem(STORE_KEY, JSON.stringify(p));
-    else window.localStorage.removeItem(STORE_KEY);
-  } catch {
-    /* private window or blocked storage: the baseline just isn't kept */
-  }
-}
-
 // The dot's colours, kept here because the canvas needs real values.
-// Green while the pauses are fine, through orange to red as one gets
-// awkward (founder 2026-10-24).
 const COLOURS = {
   green: [62, 169, 120],
   amber: [240, 146, 40],
@@ -70,28 +45,22 @@ type Phase = "idle" | "starting" | "calibrating" | "listening" | "denied";
 export default function PaceCircleLab() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const readRef = useRef<PaceRead | null>(null);
-  const centreRef = useRef<Centre>(RESEARCH_CENTRE);
-  const stopsRef = useRef(RIM_STOPS);
+  const stopsRef = useRef<SilenceStops>(SILENCE_STOPS);
   const stopRef = useRef<(() => void) | null>(null);
-  const speedsRef = useRef<number[]>([]);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [showNumbers, setShowNumbers] = useState(false);
   const [live, setLive] = useState<PaceRead | null>(null);
-  const [personal, setPersonal] = useState<Personal | null>(null);
-  const [researchSpeed, setResearchSpeed] = useState(RESEARCH_CENTRE.speed);
-  const [amberMs, setAmberMs] = useState(RIM_STOPS.amberMs);
-  const [deepMs, setDeepMs] = useState(RIM_STOPS.deepMs);
-  const [bandLow, setBandLow] = useState(WPM_BAND.low);
-  const [bandHigh, setBandHigh] = useState(WPM_BAND.high);
-  const bandRef = useRef(WPM_BAND);
+  const [greenLow, setGreenLow] = useState(SILENCE_STOPS.greenLow);
+  const [greenHigh, setGreenHigh] = useState(SILENCE_STOPS.greenHigh);
+  const [redLow, setRedLow] = useState(SILENCE_STOPS.redLow);
+  const [redHigh, setRedHigh] = useState(SILENCE_STOPS.redHigh);
 
-  useEffect(() => setPersonal(loadPersonal()), []);
-
-  const { centre, weight } = blendCentre({ speed: researchSpeed, share: RESEARCH_CENTRE.share }, personal);
-  centreRef.current = centre;
-  stopsRef.current = { amberMs, deepMs: Math.max(deepMs, amberMs + 500) };
-  bandRef.current = { ...WPM_BAND, low: bandLow, high: Math.max(bandHigh, bandLow + 10) };
+  // Keep the four stops in order whatever the sliders say.
+  const gl = Math.max(greenLow, redLow + 0.02);
+  const gh = Math.max(greenHigh, gl + 0.05);
+  const rh = Math.max(redHigh, gh + 0.05);
+  stopsRef.current = { redLow, greenLow: gl, greenHigh: gh, redHigh: Math.min(rh, 0.98) };
 
   // The numbers panel refreshes a few times a second, not every frame.
   useEffect(() => {
@@ -100,16 +69,14 @@ export default function PaceCircleLab() {
     return () => window.clearInterval(id);
   }, [showNumbers]);
 
-  // Drawing: a critically damped spring, so the ball drifts and never jumps.
+  // Drawing: a critically damped spring, so the dot glides and never jumps.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const ball = { x: 0, y: 0, vx: 0, vy: 0 };
-    let held = { x: 0, y: 0 };
-    let glow = 0;
+    const ball = { x: -1, y: 0, vx: 0, vy: 0 };
     let raf = 0;
     let last = performance.now();
 
@@ -128,17 +95,13 @@ export default function PaceCircleLab() {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       const read = readRef.current;
-      // Left and right only (founder 2026-10-24: "just x axes with the colour for the pause").
-      if (read?.calibrated) held = { x: scaleTarget(read, bandRef.current, centreRef.current.speed, held.x), y: 0 };
-      const k = reduce ? 12 : 6; // ~0.4 s to settle: smooth, never laggy (N134)
+      // Nothing heard yet is one long pause: the far left.
+      const target = read?.calibrated && read.share !== null ? silenceTarget(read.share, stopsRef.current) : -1;
+      const k = reduce ? 12 : 4;
       const d = 2 * Math.sqrt(k);
-      ball.vx += (k * (held.x - ball.x) - d * ball.vx) * dt;
-      ball.vy += (k * (held.y - ball.y) - d * ball.vy) * dt;
+      ball.vx += (k * (target - ball.x) - d * ball.vx) * dt;
       ball.x += ball.vx * dt;
-      ball.y += ball.vy * dt;
-      const pauseMs = read?.pauseMs ?? 0;
-      glow += ((pauseMs > 0 ? 1 : 0.5) - glow) * Math.min(1, dt * 3);
-      draw(ctx, canvas, ball, dotRgb(rimLevel(pauseMs, stopsRef.current)), glow, now / 1000, reduce);
+      draw(ctx, canvas, ball, dotRgb(zoneLevel(ball.x)));
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
@@ -151,14 +114,6 @@ export default function PaceCircleLab() {
   const stop = useCallback(() => {
     stopRef.current?.();
     stopRef.current = null;
-    const read = readRef.current;
-    const speed = median(speedsRef.current);
-    if (read?.calibrated && speed !== null && read.share !== null && read.speechSec >= 20) {
-      const next = foldSession(loadPersonal(), { speechMinutes: read.speechSec / 60, speed, share: read.share });
-      savePersonal(next);
-      setPersonal(next);
-    }
-    speedsRef.current = [];
     readRef.current = null;
     setPhase("idle");
   }, []);
@@ -178,7 +133,7 @@ export default function PaceCircleLab() {
     const audio = new AudioCtx();
     await audio.resume();
     const source = audio.createMediaStreamSource(stream);
-    // Keep the voice's vowel band, where syllables are loudest.
+    // Keep the voice's band, so hum and hiss count as room, not voice.
     const high = audio.createBiquadFilter();
     high.type = "highpass";
     high.frequency.value = 250;
@@ -189,11 +144,10 @@ export default function PaceCircleLab() {
     analyser.fftSize = 32768; // ~0.7 s of samples, so a late tick still finds its frames
     source.connect(high).connect(low).connect(analyser);
 
-    const meter = new PaceMeter();
+    const meter = new PaceMeter(SILENCE_METER);
     const buffer = new Float32Array(analyser.fftSize);
     const frameSamples = Math.max(1, Math.round((audio.sampleRate * FRAME_MS) / 1000));
     let lastTick = performance.now();
-    let lastSpeedSample = 0;
     setPhase("calibrating");
 
     const id = window.setInterval(() => {
@@ -209,17 +163,9 @@ export default function PaceCircleLab() {
         let sum = 0;
         for (let i = begin; i < end; i++) sum += buffer[i] * buffer[i];
         const rms = Math.sqrt(sum / Math.max(1, end - begin));
-        const read = meter.push(20 * Math.log10(rms + 1e-9));
-        readRef.current = read;
+        readRef.current = meter.push(20 * Math.log10(rms + 1e-9));
       }
-      const read = readRef.current;
-      if (read?.calibrated) {
-        setPhase((p) => (p === "calibrating" ? "listening" : p));
-        if (read.speed !== null && now - lastSpeedSample > 1000) {
-          speedsRef.current.push(read.speed);
-          lastSpeedSample = now;
-        }
-      }
+      if (readRef.current?.calibrated) setPhase((p) => (p === "calibrating" ? "listening" : p));
     }, FRAME_MS);
 
     stopRef.current = () => {
@@ -232,15 +178,14 @@ export default function PaceCircleLab() {
   useEffect(() => () => stopRef.current?.(), []);
 
   const listening = phase === "calibrating" || phase === "listening";
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 px-4 py-8">
       <div className="w-full">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Founder only · test bench</p>
         <h1 className="text-2xl font-semibold">Pace scale</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Listens only: nothing is recorded or sent. Your baseline stays in this browser.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">Listens only: nothing is recorded or sent.</p>
       </div>
 
       <div className="relative aspect-[4/1] w-full">
@@ -290,54 +235,26 @@ export default function PaceCircleLab() {
             <dd>{live?.floorDb != null ? `${live.floorDb.toFixed(1)} dB` : "—"}</dd>
             <dt className="text-muted-foreground">Voice</dt>
             <dd>{live?.voiced ? "speaking" : "quiet"}</dd>
-            <dt className="text-muted-foreground">Words a minute (10 s · 30 s · 60 s)</dt>
-            <dd>
-              {[live?.wpm10, live?.wpm30, live?.wpm60].map((v) => (v == null ? "—" : Math.round(v))).join(" · ")}
-            </dd>
-            <dt className="text-muted-foreground">Healthy band</dt>
-            <dd>
-              {bandLow}–{Math.max(bandHigh, bandLow + 10)} words a minute
-            </dd>
-            <dt className="text-muted-foreground">Live speed (drift in the middle)</dt>
-            <dd>{live?.speed != null ? `${live.speed.toFixed(2)} syll/s` : "not enough speech yet"}</dd>
+            <dt className="text-muted-foreground">Silent, last ~6 s</dt>
+            <dd>{live?.share != null ? pct(live.share) : "—"}</dd>
             <dt className="text-muted-foreground">Pause now</dt>
             <dd>{live?.pauseMs ? `${(live.pauseMs / 1000).toFixed(1)} s` : "—"}</dd>
             <dt className="text-muted-foreground">Speech this session</dt>
             <dd>{live ? `${live.speechSec.toFixed(0)} s` : "—"}</dd>
-            <dt className="text-muted-foreground">Centre in use</dt>
+            <dt className="text-muted-foreground">Green middle</dt>
             <dd>
-              {centre.speed.toFixed(2)} syll/s
-            </dd>
-            <dt className="text-muted-foreground">Your own share of it</dt>
-            <dd>
-              {Math.round(weight * 100)}%
-              {personal ? ` (from ${personal.speechMinutes.toFixed(1)} min of speech)` : ""}
+              {pct(stopsRef.current.greenLow)}–{pct(stopsRef.current.greenHigh)} silent
             </dd>
           </dl>
           <div className="flex flex-col gap-3">
-            <Slider id="pc-low" label="Too slow below" value={bandLow} min={70} max={150} step={5}
-              show={`${bandLow} wpm`} onChange={setBandLow} />
-            <Slider id="pc-high" label="Rushing above" value={bandHigh} min={130} max={220} step={5}
-              show={`${bandHigh} wpm`} onChange={setBandHigh} />
-            <Slider id="pc-speed" label="Live speed centre" value={researchSpeed} min={3.5} max={6.5} step={0.1}
-              show={`${researchSpeed.toFixed(1)} syll/s`} onChange={setResearchSpeed} />
-            <Slider id="pc-amber" label="Dot turns orange at" value={amberMs} min={600} max={2500} step={100}
-              show={`${(amberMs / 1000).toFixed(1)} s`} onChange={setAmberMs} />
-            <Slider id="pc-deep" label="Dot turns red at" value={deepMs} min={1500} max={5000} step={100}
-              show={`${(deepMs / 1000).toFixed(1)} s`} onChange={setDeepMs} />
-            <button
-              type="button"
-              onClick={() => {
-                savePersonal(null);
-                setPersonal(null);
-              }}
-              className="self-start rounded-full border px-4 py-1.5 text-xs"
-            >
-              Forget my baseline
-            </button>
-            <p className="text-xs text-muted-foreground">
-              A session of 20 seconds of speech or more joins your baseline when you press Stop.
-            </p>
+            <Slider id="pc-red-low" label="Red at the right (rushing) below" value={redLow} min={0} max={0.15} step={0.01}
+              show={`${pct(redLow)} silent`} onChange={setRedLow} />
+            <Slider id="pc-green-low" label="Green starts at" value={greenLow} min={0.05} max={0.35} step={0.01}
+              show={`${pct(greenLow)} silent`} onChange={setGreenLow} />
+            <Slider id="pc-green-high" label="Green ends at" value={greenHigh} min={0.25} max={0.65} step={0.01}
+              show={`${pct(greenHigh)} silent`} onChange={setGreenHigh} />
+            <Slider id="pc-red-high" label="Red at the left (long pause) above" value={redHigh} min={0.5} max={0.95} step={0.01}
+              show={`${pct(redHigh)} silent`} onChange={setRedHigh} />
           </div>
         </div>
       )}
@@ -375,15 +292,7 @@ function Slider(props: {
   );
 }
 
-function draw(
-  ctx: CanvasRenderingContext2D,
-  canvas: HTMLCanvasElement,
-  ball: { x: number; y: number },
-  dot: string,
-  glow: number,
-  t: number,
-  reduce: boolean,
-) {
+function draw(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, ball: { x: number }, dot: string) {
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
   const cy = h / 2;
@@ -408,20 +317,26 @@ function draw(
   ctx.lineTo(right, cy);
   ctx.stroke();
 
-  // the healthy zone: a soft wider stretch in the middle
-  ctx.lineCap = "round";
-  ctx.globalAlpha = 0.28;
-  ctx.strokeStyle = "rgb(62,169,120)";
-  ctx.lineWidth = track;
-  ctx.beginPath();
-  ctx.moveTo(cx - ZONE * half, cy);
-  ctx.lineTo(cx + ZONE * half, cy);
-  ctx.stroke();
-
-  // ticks: the centre, the zone's edges and the ends
+  // faint tints for the three stretches: green middle, orange, red edges
+  const tint = (from: number, to: number, rgb: readonly number[], alpha: number) => {
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = `rgb(${rgb.join(",")})`;
+    ctx.lineWidth = track;
+    ctx.beginPath();
+    ctx.moveTo(cx + from * half, cy);
+    ctx.lineTo(cx + to * half, cy);
+    ctx.stroke();
+  };
   ctx.lineCap = "butt";
+  tint(-0.5, 0.5, COLOURS.green, 0.22);
+  tint(-0.9, -0.5, COLOURS.amber, 0.16);
+  tint(0.5, 0.9, COLOURS.amber, 0.16);
+  tint(-1, -0.9, COLOURS.deep, 0.16);
+  tint(0.9, 1, COLOURS.deep, 0.16);
+
+  // ticks: the centre, the green middle's edges and the ends
   ctx.strokeStyle = "#8a8f96";
-  for (const q of [-1, -ZONE, 0, ZONE, 1]) {
+  for (const q of [-1, -0.5, 0, 0.5, 1]) {
     const x = cx + q * half;
     const len = q === 0 ? track * 1.6 : track * 0.9;
     ctx.globalAlpha = q === 0 ? 0.55 : 0.3;
@@ -435,11 +350,11 @@ function draw(
   // the dot: puffy, in the pause's colour, gently breathing
   const bx = Math.max(-1, Math.min(1, ball.x));
   const x = cx + bx * half;
-  const r = Math.max(14, h * 0.2) * (1 + (reduce ? 0 : Math.sin(t * 1.6) * 0.03));
+  const r = Math.max(14, h * 0.2); // steady: no breathing, so a still dot means silence
   const halo = ctx.createRadialGradient(x, cy, r * 0.8, x, cy, r * 2.2);
   halo.addColorStop(0, dot);
   halo.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.globalAlpha = 0.35 * glow;
+  ctx.globalAlpha = 0.3;
   ctx.fillStyle = halo;
   ctx.beginPath();
   ctx.arc(x, cy, r * 2.2, 0, Math.PI * 2);

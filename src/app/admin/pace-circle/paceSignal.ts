@@ -36,6 +36,9 @@ export type PaceConfig = {
   peakProminenceDb: number;
   /** No two syllables closer than this (caps the count near 8 a second). */
   minPeakSpacingMs: number;
+  /** Sound must stay above the voice line this long before it counts as
+   *  voice, so a click or a cough in the room does not (0 = at once). */
+  minVoiceMs: number;
   /** Speed waits for this much speech before its first read. */
   minSpeechForSpeedMs: number;
   /** Share waits for this much listening before its first read. */
@@ -52,6 +55,7 @@ export const DEFAULT_CONFIG: PaceConfig = {
   silenceMarginDb: 6,
   peakProminenceDb: 3,
   minPeakSpacingMs: 120,
+  minVoiceMs: 0,
   minSpeechForSpeedMs: 600,
   minListenForShareMs: 1000,
 };
@@ -88,6 +92,7 @@ export class PaceMeter {
   private voiced = false;
   private env: number | null = null;
   private gapRun = 0; // frames in the current silent run
+  private loudRun = 0; // frames in a row above the voice line
   private index = 0; // frames since calibration ended
   private speechFrames = 0;
   private lastPeak: number | null = null;
@@ -126,7 +131,10 @@ export class PaceMeter {
     this.env = this.env === null ? db : this.env + (db - this.env) * 0.5;
     const e = this.env;
     const floor = this.floor;
-    this.voiced = this.voiced ? e > floor + c.silenceMarginDb : e > floor + c.voiceMarginDb;
+    this.loudRun = e > floor + c.voiceMarginDb ? this.loudRun + 1 : 0;
+    this.voiced = this.voiced
+      ? e > floor + c.silenceMarginDb
+      : this.loudRun * FRAME_MS >= Math.max(FRAME_MS, c.minVoiceMs);
 
     let pause = false;
     if (this.voiced) {
@@ -338,4 +346,62 @@ export function median(values: number[]): number | null {
   const s = [...values].sort((a, b) => a - b);
   const mid = Math.floor(s.length / 2);
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+/* ── The silence scale (founder 2026-10-24) ────────────────────────────────── */
+
+/** The one signal: how much of the recent time was silence. Before anyone
+ *  speaks it is all silence, an endless pause: the dot rests at the far
+ *  left, red. Speaking moves it right through orange into the green middle;
+ *  speaking with almost no pauses carries it on to the right edge. */
+export type SilenceStops = {
+  /** Share of silence below which it is rushing (red at the right edge). */
+  redLow: number;
+  /** The green middle runs between these shares of silence. */
+  greenLow: number;
+  greenHigh: number;
+  /** Share of silence above which it is one long pause (red at the left). */
+  redHigh: number;
+};
+export const SILENCE_STOPS: SilenceStops = { redLow: 0.05, greenLow: 0.15, greenHigh: 0.45, redHigh: 0.7 };
+
+/** The meter settings for the silence scale: a running share over about
+ *  6 s that starts as all silence, and voice only when clearly louder than
+ *  the room for 80 ms. */
+export const SILENCE_METER: Partial<PaceConfig> = {
+  shareTauMs: 6000,
+  shareStart: 1,
+  minListenForShareMs: 0,
+  voiceMarginDb: 14,
+  silenceMarginDb: 8,
+  minVoiceMs: 80,
+};
+
+/** Where the dot heads (-1 left .. +1 right) for a share of silence. The
+ *  green middle covers -0.5..+0.5, orange runs on to ±0.9, red is the last
+ *  tenth at each end. */
+export function silenceTarget(share: number, s: SilenceStops = SILENCE_STOPS): number {
+  const mid = (s.greenLow + s.greenHigh) / 2;
+  const points: [number, number][] = [
+    [0, 1], [s.redLow, 0.9], [s.greenLow, 0.5], [mid, 0], [s.greenHigh, -0.5], [s.redHigh, -0.9], [1, -1],
+  ];
+  const v = clamp(share, 0, 1);
+  for (let i = 1; i < points.length; i++) {
+    const [a, xa] = points[i - 1];
+    const [b, xb] = points[i];
+    if (v <= b) return b === a ? xb : xa + ((v - a) / (b - a)) * (xb - xa);
+  }
+  return -1;
+}
+
+/** 0 = green, 1 = orange, 2 = red, by how far the dot is from the middle:
+ *  green in the middle half, orange towards the ends, red only at the very
+ *  edges, with short blends between. */
+export function zoneLevel(x: number): number {
+  const d = Math.abs(x);
+  if (d <= 0.45) return 0;
+  if (d < 0.55) return (d - 0.45) / 0.1;
+  if (d <= 0.85) return 1;
+  if (d < 0.92) return 1 + (d - 0.85) / 0.07;
+  return 2;
 }
