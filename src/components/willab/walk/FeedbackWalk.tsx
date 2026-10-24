@@ -73,7 +73,7 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /*    practise…  every practise loop is one thread: the words to say, each    */
 /*               try, the check and the answer; the recorder is the dock      */
 /*               (WalkPractiseScreens)                                        */
-/*    others     other speakers' moments to judge, one per try (WalkOthers)   */
+/*    others     other speakers' moments to judge, the Take's three (N119)    */
 /*    summary    the closing summary, "Take N"; Next closes the walk onto the */
 /*               Ideal Text (WalkSummary)                                     */
 /*                                                                            */
@@ -133,6 +133,9 @@ type Props<R> = {
   firstName?: string | null;
   /** The Take reviewed, for the summary's "Take N". */
   takeIndex?: number | null;
+  /** The Take's id: other speakers' moments are the server's set for it
+   *  (N119). */
+  takeId?: string | null;
   /** A guest known to the caller. Without it the page's guest gate decides
    *  (GuestGateContext), exactly as the Feedback sheet asks it. */
   guest?: boolean;
@@ -254,6 +257,7 @@ export default function FeedbackWalk<R = unknown>({
   firstTake,
   firstName = null,
   takeIndex = null,
+  takeId = null,
   guest = false,
   onGuest,
   onSaveHelperWords,
@@ -565,6 +569,7 @@ export default function FeedbackWalk<R = unknown>({
     head: at,
     coachNote,
     takeIndex,
+    takeId,
     forward,
     forwardFrom,
     close,
@@ -706,6 +711,8 @@ type ScreenCtx<R = unknown> = {
   head: number;
   coachNote: FeedbackWalkCoachNote | null;
   takeIndex: number | null;
+  /** The Take the walk is about: other speakers' set for it (N119). */
+  takeId: string | null;
   /** The pill: on to the next step that waits. */
   forward: () => void;
   forwardFrom: (step: WalkStep) => void;
@@ -1126,15 +1133,13 @@ function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
   );
 }
 
-/** Other speakers' moments, one per recorded try before this step (lock
- *  2026-10-12, 2.6): each Stop lays in a checking screen, so a try queued
- *  after a "Not yet" and skipped is not counted. */
+/** Other speakers' moments: the Take's set, up to three, one per level and
+ *  three speakers (founder 2026-10-23, N119; until then one per try). */
 function Others(ctx: ScreenCtx, step: WalkStep) {
-  const tries = ctx.walk.plan.slice(0, ctx.at(step)).filter((s) => s.key === "processing").length;
   return (
     <WalkOthers
       testId={testId(step)}
-      count={tries}
+      take={ctx.takeId}
       judged={ctx.othersJudged}
       skip={Boolean(step.readOnly || step.replay)}
       onDone={() => ctx.forwardFrom(step)}

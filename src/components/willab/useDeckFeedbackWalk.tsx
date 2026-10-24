@@ -1354,6 +1354,7 @@ export function useDeckFeedbackWalk(args: {
           firstTake={firstTake}
           firstName={firstName}
           takeIndex={args.takeIndex ?? null}
+          takeId={take}
           onSaveHelperWords={saveHelperWords}
           onAcceptClearer={acceptClearer}
           onKeepWords={keepWords}
@@ -1382,6 +1383,7 @@ export function useDeckFeedbackWalk(args: {
       firstTake,
       firstName,
       args.takeIndex,
+      take,
       summary,
       saveHelperWords,
       acceptClearer,

@@ -9,6 +9,7 @@ OUTCOME
   O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.
   O6  A step's grey bubbles land one after another behind the typing dots, and its buttons come once they all have; each new bubble, and the typing dots before it, land at the bottom, right above the buttons, and the thread follows them until I scroll up by hand (N122).
   O7  The walk opens once with "Hi {name}, good to see you back!" (Take 1: "Hi {name}, great to meet you!"; no name: the same without it), and the Lounge keeps the same words (N120).
+  O8  Other speakers asks for my Take's moments and shows each one the server sends, up to three ("Now 3 moments from other speakers."), however many tries I made; with none the step is left out (N119).
 PROVES   O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
          O2 -> a green moment says why it landed,
                the Take's highest moment opens with “This was your most confident moment.”
@@ -18,7 +19,8 @@ PROVES   O1 -> walks coach's note → praise → helper words → the next prais
          O6 -> a step's bubbles land behind the typing dots, then its buttons (founder 2026-10-20),
                new bubbles land at the bottom and the thread follows them until the speaker scrolls up by hand (N122)
          O7 -> the walk opens once with the hello and the speaker's first name (N120)
-WHY      Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, "add the name at the start"; N122, "the 3 dots loading should be at the bottom").
+         O8 -> other speakers: the Take's three moments, whatever the tries (N119)
+WHY      Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, "add the name at the start"; N122, "the 3 dots loading should be at the bottom"; N119, "3 clips (high, middle, low willfidence) from 3 different speakers").
 */
 import { HELPER_WORDS_MAX } from "@/lib/willab/phraseTokens";
 import { act } from "react";
@@ -243,6 +245,21 @@ describe("FeedbackWalk", () => {
     await act(async () => {});
     expect(live()).toBeNull();
     expect(props.onEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("other speakers: the Take's three moments, whatever the tries (N119)", async () => {
+    const clip = (id: string) => ({ id, src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 4000, community: null });
+    vi.mocked(fetchOtherClips).mockClear();
+    vi.mocked(fetchOtherClips).mockResolvedValueOnce([clip("c1"), clip("c2"), clip("c3")]);
+    const props = draw(null, { summary: async () => null, takeId: "take-7" });
+    const others = props.model.plan.findIndex((s) => s.key === "others");
+    expect(props.model.plan.slice(0, others).some((s) => s.key === "processing")).toBe(false); // no try made
+    draw({ seq: 1, at: others }, { summary: async () => null, takeId: "take-7" });
+    await act(async () => {});
+    expect(fetchOtherClips).toHaveBeenCalledWith("take-7");
+    expect(screen()).toBe("walk-screen-others");
+    expect(now()!.textContent).toContain(WALK_COPY.othersMany(3));
+    expect(marks().pop()).toBe(`${WALK_COPY.othersTitle} · 1 ${COPY.pagerOf} 3`);
   });
 
   it("skips the summary when it cannot be read, straight onto the page", async () => {
