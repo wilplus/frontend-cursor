@@ -244,7 +244,7 @@ export default function PaceCircleLab() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Version 24 Oct, 19:15 (more sensitive) · speaking: 0 → 0.5 in {sec(riseJump)}, 0.5 → 0.65 in {sec(riseBase)}, 0.65 → 0.75 in{" "}
+        Version 24 Oct, 19:30 · speaking: 0 → 0.5 in {sec(riseJump)}, 0.5 → 0.65 in {sec(riseBase)}, 0.65 → 0.75 in{" "}
         {sec(midMs)}, 0.75 → 1 in {sec(topMs)} · pausing: 1 → 0.5 in {sec(fallUpper)}, 0.5 → 0 in {sec(fallLower)}
       </p>
 

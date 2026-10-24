@@ -461,7 +461,7 @@ export const INSTANT_CONFIG: InstantConfig = {
   fallUpperMs: 2600, // doubled after the founder's first try (2026-10-24)
   fallLowerMs: 5000,
   riseJumpMs: 400,
-  riseBaseMs: 1500,
+  riseBaseMs: 1300, // slightly quicker past the middle (founder 2026-10-24)
   riseMidBoost: 1.25,
   riseTopBoost: 1.37,
 };
