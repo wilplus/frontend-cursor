@@ -1,13 +1,13 @@
 "use client";
 
 /* -------------------------------------------------------------------------- */
-/*  The silence scale test bench (founder 2026-10-24; N130, N133, N134). One  */
-/*  horizontal scale and one puffy dot, moved by one signal: how much of the  */
-/*  recent time was silence. Before you speak it is one long pause, so the    */
-/*  dot rests at the far left, red. Speaking moves it right, through orange   */
-/*  into the green middle; speaking with almost no pauses (rushing) carries   */
-/*  it on to the right edge. The dot's colour is its place on the scale:      */
-/*  green in the middle half, orange towards the ends, red only at the edges. */
+/*  The live pace scale (founder 2026-10-24, "No delay, please!!!"). One    */
+/*  horizontal scale and one puffy dot, moved only by what is known at once:  */
+/*  while you talk it moves right, the longer without a breath the further;   */
+/*  while you pause it moves left, the longer the pause the further. Before   */
+/*  you speak it is one long pause: far left, red. The dot's colour is its    */
+/*  place: green in the middle half, orange towards the ends, red at the      */
+/*  very edges. No averages, so nothing waits.                                */
 /*                                                                            */
 /*  Listen only. The microphone's loudness is read every 10 ms in this tab;   */
 /*  no audio leaves it and nothing is recorded. The numbers panel is for      */
@@ -17,13 +17,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FRAME_MS,
-  PaceMeter,
-  SILENCE_METER,
-  SILENCE_STOPS,
-  silenceTarget,
+  INSTANT_STOPS,
+  InstantMeter,
+  instantTarget,
   zoneLevel,
-  type PaceRead,
-  type SilenceStops,
+  type InstantRead,
+  type InstantStops,
 } from "./paceSignal";
 
 // The dot's colours, kept here because the canvas needs real values.
@@ -40,27 +39,27 @@ function dotRgb(level: number): string {
   return `rgb(${c.join(",")})`;
 }
 
-type Phase = "idle" | "starting" | "calibrating" | "listening" | "denied";
+type Phase = "idle" | "starting" | "listening" | "denied";
 
 export default function PaceCircleLab() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const readRef = useRef<PaceRead | null>(null);
-  const stopsRef = useRef<SilenceStops>(SILENCE_STOPS);
+  const readRef = useRef<InstantRead | null>(null);
+  const stopsRef = useRef<InstantStops>(INSTANT_STOPS);
   const stopRef = useRef<(() => void) | null>(null);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [showNumbers, setShowNumbers] = useState(false);
-  const [live, setLive] = useState<PaceRead | null>(null);
-  const [greenLow, setGreenLow] = useState(SILENCE_STOPS.greenLow);
-  const [greenHigh, setGreenHigh] = useState(SILENCE_STOPS.greenHigh);
-  const [redLow, setRedLow] = useState(SILENCE_STOPS.redLow);
-  const [redHigh, setRedHigh] = useState(SILENCE_STOPS.redHigh);
-
-  // Keep the four stops in order whatever the sliders say.
-  const gl = Math.max(greenLow, redLow + 0.02);
-  const gh = Math.max(greenHigh, gl + 0.05);
-  const rh = Math.max(redHigh, gh + 0.05);
-  stopsRef.current = { redLow, greenLow: gl, greenHigh: gh, redHigh: Math.min(rh, 0.98) };
+  const [live, setLive] = useState<InstantRead | null>(null);
+  const [greenRun, setGreenRun] = useState(INSTANT_STOPS.greenRunMs);
+  const [redRun, setRedRun] = useState(INSTANT_STOPS.redRunMs);
+  const [greenPause, setGreenPause] = useState(INSTANT_STOPS.greenPauseMs);
+  const [redPause, setRedPause] = useState(INSTANT_STOPS.redPauseMs);
+  stopsRef.current = {
+    greenRunMs: greenRun,
+    redRunMs: Math.max(redRun, greenRun + 500),
+    greenPauseMs: greenPause,
+    redPauseMs: Math.max(redPause, greenPause + 300),
+  };
 
   // The numbers panel refreshes a few times a second, not every frame.
   useEffect(() => {
@@ -96,8 +95,8 @@ export default function PaceCircleLab() {
       last = now;
       const read = readRef.current;
       // Nothing heard yet is one long pause: the far left.
-      const target = read?.calibrated && read.share !== null ? silenceTarget(read.share, stopsRef.current) : -1;
-      const k = reduce ? 12 : 4;
+      const target = read ? instantTarget(read, stopsRef.current) : -1;
+      const k = reduce ? 80 : 40; // ~0.15 s glide: smooth, no lag
       const d = 2 * Math.sqrt(k);
       ball.vx += (k * (target - ball.x) - d * ball.vx) * dt;
       ball.x += ball.vx * dt;
@@ -144,11 +143,11 @@ export default function PaceCircleLab() {
     analyser.fftSize = 32768; // ~0.7 s of samples, so a late tick still finds its frames
     source.connect(high).connect(low).connect(analyser);
 
-    const meter = new PaceMeter(SILENCE_METER);
+    const meter = new InstantMeter();
     const buffer = new Float32Array(analyser.fftSize);
     const frameSamples = Math.max(1, Math.round((audio.sampleRate * FRAME_MS) / 1000));
     let lastTick = performance.now();
-    setPhase("calibrating");
+    setPhase("listening");
 
     const id = window.setInterval(() => {
       const now = performance.now();
@@ -165,7 +164,6 @@ export default function PaceCircleLab() {
         const rms = Math.sqrt(sum / Math.max(1, end - begin));
         readRef.current = meter.push(20 * Math.log10(rms + 1e-9));
       }
-      if (readRef.current?.calibrated) setPhase((p) => (p === "calibrating" ? "listening" : p));
     }, FRAME_MS);
 
     stopRef.current = () => {
@@ -177,8 +175,8 @@ export default function PaceCircleLab() {
 
   useEffect(() => () => stopRef.current?.(), []);
 
-  const listening = phase === "calibrating" || phase === "listening";
-  const pct = (v: number) => `${Math.round(v * 100)}%`;
+  const listening = phase === "listening";
+  const sec = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 px-4 py-8">
@@ -190,11 +188,6 @@ export default function PaceCircleLab() {
 
       <div className="relative aspect-[4/1] w-full">
         <canvas ref={canvasRef} className="h-full w-full" aria-label="The pace scale" />
-        {phase === "calibrating" && (
-          <p className="absolute inset-x-0 bottom-2 text-center text-sm text-muted-foreground">
-            Stay quiet for two seconds while it hears the room…
-          </p>
-        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-3">
@@ -231,30 +224,24 @@ export default function PaceCircleLab() {
       {showNumbers && (
         <div className="grid w-full gap-4 rounded-xl border p-4 text-sm sm:grid-cols-2">
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 tabular-nums">
-            <dt className="text-muted-foreground">Room (noise floor)</dt>
-            <dd>{live?.floorDb != null ? `${live.floorDb.toFixed(1)} dB` : "—"}</dd>
+            <dt className="text-muted-foreground">Room (learned as it goes)</dt>
+            <dd>{live ? `${live.floorDb.toFixed(1)} dB` : "—"}</dd>
             <dt className="text-muted-foreground">Voice</dt>
             <dd>{live?.voiced ? "speaking" : "quiet"}</dd>
-            <dt className="text-muted-foreground">Silent, last ~6 s</dt>
-            <dd>{live?.share != null ? pct(live.share) : "—"}</dd>
+            <dt className="text-muted-foreground">Talking without a pause</dt>
+            <dd>{live?.runMs ? sec(live.runMs) : "—"}</dd>
             <dt className="text-muted-foreground">Pause now</dt>
-            <dd>{live?.pauseMs ? `${(live.pauseMs / 1000).toFixed(1)} s` : "—"}</dd>
-            <dt className="text-muted-foreground">Speech this session</dt>
-            <dd>{live ? `${live.speechSec.toFixed(0)} s` : "—"}</dd>
-            <dt className="text-muted-foreground">Green middle</dt>
-            <dd>
-              {pct(stopsRef.current.greenLow)}–{pct(stopsRef.current.greenHigh)} silent
-            </dd>
+            <dd>{live?.pauseMs ? (live.pauseMs > 60000 ? "long" : sec(live.pauseMs)) : "—"}</dd>
           </dl>
           <div className="flex flex-col gap-3">
-            <Slider id="pc-red-low" label="Red at the right (rushing) below" value={redLow} min={0} max={0.15} step={0.01}
-              show={`${pct(redLow)} silent`} onChange={setRedLow} />
-            <Slider id="pc-green-low" label="Green starts at" value={greenLow} min={0.05} max={0.35} step={0.01}
-              show={`${pct(greenLow)} silent`} onChange={setGreenLow} />
-            <Slider id="pc-green-high" label="Green ends at" value={greenHigh} min={0.25} max={0.65} step={0.01}
-              show={`${pct(greenHigh)} silent`} onChange={setGreenHigh} />
-            <Slider id="pc-red-high" label="Red at the left (long pause) above" value={redHigh} min={0.5} max={0.95} step={0.01}
-              show={`${pct(redHigh)} silent`} onChange={setRedHigh} />
+            <Slider id="pc-green-run" label="Talking: green up to" value={greenRun} min={1000} max={8000} step={250}
+              show={sec(greenRun)} onChange={setGreenRun} />
+            <Slider id="pc-red-run" label="Talking: red after" value={redRun} min={3000} max={15000} step={500}
+              show={sec(redRun)} onChange={setRedRun} />
+            <Slider id="pc-green-pause" label="Pause: green up to" value={greenPause} min={300} max={2500} step={100}
+              show={sec(greenPause)} onChange={setGreenPause} />
+            <Slider id="pc-red-pause" label="Pause: red after" value={redPause} min={1000} max={6000} step={100}
+              show={sec(redPause)} onChange={setRedPause} />
           </div>
         </div>
       )}

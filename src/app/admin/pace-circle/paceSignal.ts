@@ -405,3 +405,81 @@ export function zoneLevel(x: number): number {
   if (d < 0.92) return 1 + (d - 0.85) / 0.07;
   return 2;
 }
+
+/* ── The live scale: no windows, no delay (founder 2026-10-24) ─────────────── */
+
+/** What can be known at once, every 10 ms: is the voice on, how long has the
+ *  speaker been talking since the last pause, and how long has the current
+ *  pause run. No average, so nothing waits. */
+export type InstantRead = {
+  voiced: boolean;
+  /** Talking since the last pause (gaps under minGapMs are part of it). */
+  runMs: number;
+  /** The pause happening now (0 while talking). */
+  pauseMs: number;
+  floorDb: number;
+  db: number;
+};
+
+export type InstantConfig = {
+  /** Voice is this far over the room, for voiceOnMs, to turn on... */
+  voiceMarginDb: number;
+  voiceOnMs: number;
+  /** ...and stays on until it falls under the room plus this. */
+  silenceMarginDb: number;
+  /** A gap shorter than this is between words, not a pause. */
+  minGapMs: number;
+};
+export const INSTANT_CONFIG: InstantConfig = { voiceMarginDb: 12, voiceOnMs: 40, silenceMarginDb: 6, minGapMs: 250 };
+
+export class InstantMeter {
+  private cfg: InstantConfig;
+  private floor: number | null = null;
+  private voiced = false;
+  private loudRun = 0;
+  // Before anyone speaks it is one long pause.
+  private gapRun = 100000;
+  private runMs = 0;
+
+  constructor(cfg: Partial<InstantConfig> = {}) {
+    this.cfg = { ...INSTANT_CONFIG, ...cfg };
+  }
+
+  push(db: number): InstantRead {
+    const c = this.cfg;
+    // The room is learned as it goes: the floor drops at once to anything
+    // quieter, and creeps up (0.5 dB a second) only while nobody speaks.
+    if (this.floor === null) this.floor = db;
+    else if (db < this.floor) this.floor += (db - this.floor) * 0.3;
+    else if (!this.voiced) this.floor = Math.min(db, this.floor + 0.005);
+    const floor = this.floor;
+
+    this.loudRun = db > floor + c.voiceMarginDb ? this.loudRun + 1 : 0;
+    this.voiced = this.voiced ? db > floor + c.silenceMarginDb : this.loudRun * FRAME_MS >= c.voiceOnMs;
+
+    if (this.voiced) this.gapRun = 0;
+    else this.gapRun = Math.min(this.gapRun + 1, 100000);
+    const pause = this.gapRun * FRAME_MS >= c.minGapMs;
+    if (pause) this.runMs = 0;
+    else this.runMs += FRAME_MS;
+
+    return { voiced: this.voiced, runMs: this.runMs, pauseMs: pause ? this.gapRun * FRAME_MS : 0, floorDb: floor, db };
+  }
+}
+
+/** Where talking and pausing take the dot. Talking pushes it right, the
+ *  longer without a breath the further; a pause pulls it left, the longer
+ *  the further. Green to ±0.5, orange to ±0.9, red at the ends. */
+export type InstantStops = { greenRunMs: number; redRunMs: number; greenPauseMs: number; redPauseMs: number };
+export const INSTANT_STOPS: InstantStops = { greenRunMs: 4000, redRunMs: 9000, greenPauseMs: 1000, redPauseMs: 2500 };
+
+function ramp(v: number, green: number, red: number): number {
+  if (v <= green) return (v / green) * 0.5;
+  if (v <= red) return 0.5 + ((v - green) / (red - green)) * 0.4;
+  return Math.min(1, 0.9 + ((v - red) / red) * 0.1);
+}
+
+export function instantTarget(read: InstantRead, s: InstantStops = INSTANT_STOPS): number {
+  if (read.pauseMs > 0) return -ramp(read.pauseMs, s.greenPauseMs, s.redPauseMs);
+  return ramp(read.runMs, s.greenRunMs, s.redRunMs);
+}
