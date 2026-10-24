@@ -2,9 +2,9 @@
 
 /* -------------------------------------------------------------------------- */
 /*  The Pace Circle test bench (founder 2026-10-24; N130, N133, N134). One soft      */
-/*  circle, one puffy orange ball: speed moves it left and right, how much    */
-/*  of the time the founder pauses moves it up and down, and the rim shows    */
-/*  the pause happening now (green, amber, deep amber, never red).            */
+/*  circle, one puffy orange ball: speed moves it left and right (only), and  */
+/*  the rim shows the pause happening now (green, amber, deep amber, never    */
+/*  red). Up and down were dropped to keep it simple (founder 2026-10-24).    */
 /*                                                                            */
 /*  Listen only. The microphone's loudness is read every 10 ms in this tab;   */
 /*  no audio leaves it and nothing is recorded. The numbers panel is for      */
@@ -76,13 +76,12 @@ export default function PaceCircleLab() {
   const [live, setLive] = useState<PaceRead | null>(null);
   const [personal, setPersonal] = useState<Personal | null>(null);
   const [researchSpeed, setResearchSpeed] = useState(RESEARCH_CENTRE.speed);
-  const [researchShare, setResearchShare] = useState(RESEARCH_CENTRE.share);
   const [amberMs, setAmberMs] = useState(RIM_STOPS.amberMs);
   const [deepMs, setDeepMs] = useState(RIM_STOPS.deepMs);
 
   useEffect(() => setPersonal(loadPersonal()), []);
 
-  const { centre, weight } = blendCentre({ speed: researchSpeed, share: researchShare }, personal);
+  const { centre, weight } = blendCentre({ speed: researchSpeed, share: RESEARCH_CENTRE.share }, personal);
   centreRef.current = centre;
   stopsRef.current = { amberMs, deepMs: Math.max(deepMs, amberMs + 500) };
 
@@ -121,7 +120,8 @@ export default function PaceCircleLab() {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       const read = readRef.current;
-      if (read?.calibrated) held = ballTarget(read, centreRef.current, held);
+      // Left and right only (founder 2026-10-24: "just x axes with the colour for the pause").
+      if (read?.calibrated) held = { x: ballTarget(read, centreRef.current, held).x, y: 0 };
       const k = reduce ? 12 : 6; // ~0.4 s to settle: smooth, never laggy (N134)
       const d = 2 * Math.sqrt(k);
       ball.vx += (k * (held.x - ball.x) - d * ball.vx) * dt;
@@ -284,15 +284,13 @@ export default function PaceCircleLab() {
             <dd>{live?.voiced ? "speaking" : "quiet"}</dd>
             <dt className="text-muted-foreground">Speed</dt>
             <dd>{live?.speed != null ? `${live.speed.toFixed(2)} syll/s` : "not enough speech yet"}</dd>
-            <dt className="text-muted-foreground">Share silent</dt>
-            <dd>{live?.share != null ? `${Math.round(live.share * 100)}%` : "listening…"}</dd>
             <dt className="text-muted-foreground">Pause now</dt>
             <dd>{live?.pauseMs ? `${(live.pauseMs / 1000).toFixed(1)} s` : "—"}</dd>
             <dt className="text-muted-foreground">Speech this session</dt>
             <dd>{live ? `${live.speechSec.toFixed(0)} s` : "—"}</dd>
             <dt className="text-muted-foreground">Centre in use</dt>
             <dd>
-              {centre.speed.toFixed(2)} syll/s · {Math.round(centre.share * 100)}% silent
+              {centre.speed.toFixed(2)} syll/s
             </dd>
             <dt className="text-muted-foreground">Your own share of it</dt>
             <dd>
@@ -303,8 +301,6 @@ export default function PaceCircleLab() {
           <div className="flex flex-col gap-3">
             <Slider id="pc-speed" label="Research speed centre" value={researchSpeed} min={3.5} max={6.5} step={0.1}
               show={`${researchSpeed.toFixed(1)} syll/s`} onChange={setResearchSpeed} />
-            <Slider id="pc-share" label="Research share centre" value={researchShare} min={0.1} max={0.5} step={0.01}
-              show={`${Math.round(researchShare * 100)}%`} onChange={setResearchShare} />
             <Slider id="pc-amber" label="Rim turns amber at" value={amberMs} min={600} max={2500} step={100}
               show={`${(amberMs / 1000).toFixed(1)} s`} onChange={setAmberMs} />
             <Slider id="pc-deep" label="Rim turns deep amber at" value={deepMs} min={1500} max={5000} step={100}
@@ -402,15 +398,20 @@ function draw(
   ctx.arc(cx, cy, R, 0, Math.PI * 2);
   ctx.stroke();
 
-  // the centre, faint
+  // the ball's track, faint, with a mark at the centre
   ctx.globalAlpha = 0.35;
   ctx.lineWidth = 1.5;
   ctx.strokeStyle = "#8a8f96";
   ctx.setLineDash([3, 6]);
   ctx.beginPath();
-  ctx.arc(cx, cy, R * 0.28, 0, Math.PI * 2);
+  ctx.moveTo(cx - R * 0.82, cy);
+  ctx.lineTo(cx + R * 0.82, cy);
   ctx.stroke();
   ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - R * 0.08);
+  ctx.lineTo(cx, cy + R * 0.08);
+  ctx.stroke();
 
   // the ball, kept inside the disc, gently breathing
   let bx = ball.x;
