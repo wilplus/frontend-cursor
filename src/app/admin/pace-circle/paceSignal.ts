@@ -452,15 +452,15 @@ export type InstantConfig = {
   riseTopBoost: number;
 };
 export const INSTANT_CONFIG: InstantConfig = {
-  voiceMarginDb: 15,
-  voiceOnMs: 80,
-  silenceMarginDb: 8,
+  voiceMarginDb: 9,
+  voiceOnMs: 30,
+  silenceMarginDb: 4,
   minGapMs: 250,
   activityTauMs: 300,
-  minPeriodicity: 0.6,
+  minPeriodicity: 0.4,
   fallUpperMs: 2600, // doubled after the founder's first try (2026-10-24)
   fallLowerMs: 5000,
-  riseJumpMs: 800,
+  riseJumpMs: 400,
   riseBaseMs: 1500,
   riseMidBoost: 1.25,
   riseTopBoost: 1.37,
