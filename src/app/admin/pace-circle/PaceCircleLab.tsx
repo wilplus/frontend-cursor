@@ -1,10 +1,11 @@
 "use client";
 
 /* -------------------------------------------------------------------------- */
-/*  The Pace Circle test bench (founder 2026-10-24; N130, N133, N134). One soft      */
-/*  circle, one puffy orange ball: speed moves it left and right (only), and  */
-/*  the rim shows the pause happening now (green, amber, deep amber, never    */
-/*  red). Up and down were dropped to keep it simple (founder 2026-10-24).    */
+/*  The pace scale test bench (founder 2026-10-24; N130, N133, N134). One     */
+/*  simple horizontal scale and one puffy dot: rushing moves the dot right,   */
+/*  too slow moves it left, and the dot's colour shows the pause happening    */
+/*  now: green while all is fine, through orange to red as a pause gets       */
+/*  awkward (founder 2026-10-24, replacing the circle and its rim).           */
 /*                                                                            */
 /*  Listen only. The microphone's loudness is read every 10 ms in this tab;   */
 /*  no audio leaves it and nothing is recorded. The numbers panel is for      */
@@ -46,15 +47,16 @@ function savePersonal(p: Personal | null) {
   }
 }
 
-// Colours of the circle, kept here because the canvas needs real values.
+// The dot's colours, kept here because the canvas needs real values.
+// Green while the pauses are fine, through orange to red as one gets
+// awkward (founder 2026-10-24).
 const COLOURS = {
   green: [62, 169, 120],
-  amber: [240, 162, 58],
-  deep: [214, 120, 40],
-  ball: [255, 106, 0],
+  amber: [240, 146, 40],
+  deep: [214, 66, 56],
 } as const;
 
-function rimRgb(level: number): string {
+function dotRgb(level: number): string {
   const mix = (a: readonly number[], b: readonly number[], t: number) =>
     a.map((v, i) => Math.round(v + (b[i] - v) * t));
   const c = level <= 1 ? mix(COLOURS.green, COLOURS.amber, level) : mix(COLOURS.amber, COLOURS.deep, level - 1);
@@ -130,7 +132,7 @@ export default function PaceCircleLab() {
       ball.y += ball.vy * dt;
       const pauseMs = read?.pauseMs ?? 0;
       glow += ((pauseMs > 0 ? 1 : 0.5) - glow) * Math.min(1, dt * 3);
-      draw(ctx, canvas, ball, rimRgb(rimLevel(pauseMs, stopsRef.current)), glow, now / 1000, reduce);
+      draw(ctx, canvas, ball, dotRgb(rimLevel(pauseMs, stopsRef.current)), glow, now / 1000, reduce);
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
@@ -229,14 +231,14 @@ export default function PaceCircleLab() {
     <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-4 py-8">
       <div className="w-full">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Founder only · test bench</p>
-        <h1 className="text-2xl font-semibold">Pace Circle</h1>
+        <h1 className="text-2xl font-semibold">Pace scale</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Listens only: nothing is recorded or sent. Your baseline stays in this browser.
         </p>
       </div>
 
-      <div className="relative aspect-square w-full max-w-[min(90vw,560px)]">
-        <canvas ref={canvasRef} className="h-full w-full" aria-label="The Pace Circle" />
+      <div className="relative aspect-[3/1] w-full max-w-[min(94vw,720px)]">
+        <canvas ref={canvasRef} className="h-full w-full" aria-label="The pace scale" />
         {phase === "calibrating" && (
           <p className="absolute inset-x-0 bottom-2 text-center text-sm text-muted-foreground">
             Stay quiet for two seconds while it hears the room…
@@ -301,9 +303,9 @@ export default function PaceCircleLab() {
           <div className="flex flex-col gap-3">
             <Slider id="pc-speed" label="Research speed centre" value={researchSpeed} min={3.5} max={6.5} step={0.1}
               show={`${researchSpeed.toFixed(1)} syll/s`} onChange={setResearchSpeed} />
-            <Slider id="pc-amber" label="Rim turns amber at" value={amberMs} min={600} max={2500} step={100}
+            <Slider id="pc-amber" label="Dot turns orange at" value={amberMs} min={600} max={2500} step={100}
               show={`${(amberMs / 1000).toFixed(1)} s`} onChange={setAmberMs} />
-            <Slider id="pc-deep" label="Rim turns deep amber at" value={deepMs} min={1500} max={5000} step={100}
+            <Slider id="pc-deep" label="Dot turns red at" value={deepMs} min={1500} max={5000} step={100}
               show={`${(deepMs / 1000).toFixed(1)} s`} onChange={setDeepMs} />
             <button
               type="button"
@@ -359,83 +361,73 @@ function draw(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
   ball: { x: number; y: number },
-  rim: string,
+  dot: string,
   glow: number,
   t: number,
   reduce: boolean,
 ) {
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
-  const cx = w / 2;
   const cy = h / 2;
-  const R = Math.min(w, h) * 0.36;
+  const pad = Math.max(24, h * 0.35);
+  const left = pad;
+  const right = w - pad;
+  const half = (right - left) / 2;
+  const cx = left + half;
+  const track = Math.max(10, h * 0.12);
   ctx.clearRect(0, 0, w, h);
 
-  // the rim's soft glow
-  const halo = ctx.createRadialGradient(cx, cy, R * 0.85, cx, cy, R * 1.35);
-  halo.addColorStop(0, rim);
+  // the scale: one soft rounded bar
+  ctx.globalAlpha = 1;
+  ctx.lineCap = "round";
+  ctx.lineWidth = track;
+  const bar = ctx.createLinearGradient(0, cy - track / 2, 0, cy + track / 2);
+  bar.addColorStop(0, "#f4f2ee");
+  bar.addColorStop(1, "#e2ded7");
+  ctx.strokeStyle = bar;
+  ctx.beginPath();
+  ctx.moveTo(left, cy);
+  ctx.lineTo(right, cy);
+  ctx.stroke();
+
+  // ticks: the centre, and quarters either side
+  ctx.lineCap = "butt";
+  ctx.strokeStyle = "#8a8f96";
+  for (const q of [-1, -0.5, 0, 0.5, 1]) {
+    const x = cx + q * half;
+    const len = q === 0 ? track * 1.6 : track * 0.9;
+    ctx.globalAlpha = q === 0 ? 0.55 : 0.3;
+    ctx.lineWidth = q === 0 ? 2 : 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x, cy - len);
+    ctx.lineTo(x, cy + len);
+    ctx.stroke();
+  }
+
+  // the dot: puffy, in the pause's colour, gently breathing
+  const bx = Math.max(-1, Math.min(1, ball.x));
+  const x = cx + bx * half;
+  const r = Math.max(14, h * 0.2) * (1 + (reduce ? 0 : Math.sin(t * 1.6) * 0.03));
+  const halo = ctx.createRadialGradient(x, cy, r * 0.8, x, cy, r * 2.2);
+  halo.addColorStop(0, dot);
   halo.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.globalAlpha = 0.3 * glow;
+  ctx.globalAlpha = 0.35 * glow;
   ctx.fillStyle = halo;
   ctx.beginPath();
-  ctx.arc(cx, cy, R * 1.35, 0, Math.PI * 2);
+  ctx.arc(x, cy, r * 2.2, 0, Math.PI * 2);
   ctx.fill();
-
-  // the puffy disc
-  ctx.globalAlpha = 1;
-  const disc = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.35, R * 0.1, cx, cy, R);
-  disc.addColorStop(0, "#ffffff");
-  disc.addColorStop(1, "#ece9e3");
-  ctx.fillStyle = disc;
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = dot;
   ctx.beginPath();
-  ctx.arc(cx, cy, R, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.lineWidth = Math.max(6, R * 0.05);
-  ctx.strokeStyle = rim;
-  ctx.globalAlpha = 0.85;
-  ctx.beginPath();
-  ctx.arc(cx, cy, R, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // the ball's track, faint, with a mark at the centre
-  ctx.globalAlpha = 0.35;
-  ctx.lineWidth = 1.5;
-  ctx.strokeStyle = "#8a8f96";
-  ctx.setLineDash([3, 6]);
-  ctx.beginPath();
-  ctx.moveTo(cx - R * 0.82, cy);
-  ctx.lineTo(cx + R * 0.82, cy);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - R * 0.08);
-  ctx.lineTo(cx, cy + R * 0.08);
-  ctx.stroke();
-
-  // the ball, kept inside the disc, gently breathing
-  let bx = ball.x;
-  let by = -ball.y;
-  const m = Math.hypot(bx, by);
-  if (m > 0.82) {
-    bx *= 0.82 / m;
-    by *= 0.82 / m;
-  }
-  const x = cx + bx * R;
-  const y = cy + by * R;
-  const r = R * 0.16 * (1 + (reduce ? 0 : Math.sin(t * 1.6) * 0.03));
-  const [br, bg, bb] = COLOURS.ball;
-  ctx.globalAlpha = 0.22;
-  ctx.fillStyle = `rgb(${br},${bg},${bb})`;
-  ctx.beginPath();
-  ctx.ellipse(x, y + r * 0.9, r * 0.9, r * 0.3, 0, 0, Math.PI * 2);
+  ctx.ellipse(x, cy + r * 0.95, r * 0.85, r * 0.28, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 1;
-  const grad = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
-  grad.addColorStop(0, "#ffb27a");
-  grad.addColorStop(1, `rgb(${br},${bg},${bb})`);
+  const grad = ctx.createRadialGradient(x - r * 0.35, cy - r * 0.4, r * 0.1, x, cy, r);
+  grad.addColorStop(0, "rgba(255,255,255,0.75)");
+  grad.addColorStop(0.35, dot);
+  grad.addColorStop(1, dot);
   ctx.fillStyle = grad;
   ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.arc(x, cy, r, 0, Math.PI * 2);
   ctx.fill();
 }

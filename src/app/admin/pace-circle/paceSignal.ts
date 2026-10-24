@@ -224,7 +224,7 @@ export function ballTarget(read: PaceRead, centre: Centre, hold: { x: number; y:
 export type RimStops = { amberMs: number; deepMs: number };
 export const RIM_STOPS: RimStops = { amberMs: 1200, deepMs: 2500 };
 
-/** 0 = green, 1 = amber, 2 = deep amber, with blends between (never red). */
+/** 0 = green, 1 = orange, 2 = red, with blends between (founder 2026-10-24). */
 export function rimLevel(pauseMs: number, stops: RimStops = RIM_STOPS): number {
   const fade = 400;
   if (pauseMs <= stops.amberMs - fade) return 0;
