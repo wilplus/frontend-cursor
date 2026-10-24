@@ -449,8 +449,8 @@ export const INSTANT_CONFIG: InstantConfig = {
   minGapMs: 250,
   activityTauMs: 300,
   minPeriodicity: 0.6,
-  fallUpperMs: 1300,
-  fallLowerMs: 2500,
+  fallUpperMs: 2600, // doubled after the founder's first try (2026-10-24)
+  fallLowerMs: 5000,
 };
 
 /** How voice-like a stretch of sound is, 0..1: the best normalised

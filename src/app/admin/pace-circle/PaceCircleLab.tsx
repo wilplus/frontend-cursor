@@ -57,12 +57,16 @@ export default function PaceCircleLab() {
   const [tauMs, setTauMs] = useState(INSTANT_CONFIG.activityTauMs);
   const [marginDb, setMarginDb] = useState(INSTANT_CONFIG.voiceMarginDb);
   const [minPitch, setMinPitch] = useState(INSTANT_CONFIG.minPeriodicity);
+  const [fallUpper, setFallUpper] = useState(INSTANT_CONFIG.fallUpperMs);
+  const [fallLower, setFallLower] = useState(INSTANT_CONFIG.fallLowerMs);
   cfgRef.current = {
     ...INSTANT_CONFIG,
     activityTauMs: tauMs,
     voiceMarginDb: marginDb,
     silenceMarginDb: Math.max(4, marginDb - 7),
     minPeriodicity: minPitch,
+    fallUpperMs: fallUpper,
+    fallLowerMs: fallLower,
   };
   if (meterRef.current) meterRef.current.cfg = cfgRef.current;
 
@@ -234,6 +238,10 @@ export default function PaceCircleLab() {
         </span>
       </div>
 
+      <p className="text-xs text-muted-foreground">
+        Version 24 Oct, 18:00 · in silence 1 → 0.5 in {sec(fallUpper)}, 0.5 → 0 in {sec(fallLower)}
+      </p>
+
       <div className="flex flex-wrap items-center justify-center gap-3">
         {listening ? (
           <button type="button" onClick={stop} className="rounded-full bg-foreground px-6 py-3 text-background">
@@ -280,6 +288,10 @@ export default function PaceCircleLab() {
           <div className="flex flex-col gap-3">
             <Slider id="pc-tau" label="Follows the voice over" value={tauMs} min={150} max={2000} step={50}
               show={sec(tauMs)} onChange={setTauMs} />
+            <Slider id="pc-fall-upper" label="In silence, 1 → 0.5 takes" value={fallUpper} min={300} max={8000} step={100}
+              show={sec(fallUpper)} onChange={setFallUpper} />
+            <Slider id="pc-fall-lower" label="In silence, 0.5 → 0 takes" value={fallLower} min={500} max={15000} step={250}
+              show={sec(fallLower)} onChange={setFallLower} />
             <Slider id="pc-pitch" label="A voice must be at least this voice-like" value={minPitch} min={0.3} max={0.9} step={0.05}
               show={`${Math.round(minPitch * 100)}%`} onChange={setMinPitch} />
             <Slider id="pc-margin" label="Voice must be louder than the room by" value={marginDb} min={8} max={30} step={1}
