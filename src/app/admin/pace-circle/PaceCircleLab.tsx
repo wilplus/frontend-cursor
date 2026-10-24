@@ -296,12 +296,10 @@ function Slider(props: {
  *  tried 27% right and 27% left, then "bring it back do not move anything").
  *  Kept as one setting in case it is tried again. */
 const CENTRE_SHIFT = 0;
-/** Recentring (founder 2026-10-24). First the old 0.75 was moved to the
- *  middle; then "exactly the same thing ... but the opposite": the old 0.25
- *  reads 0.5, so everything above it is squeezed into the right half and the
- *  rushed side is reached sooner and held longer. In the meter's -1..1
- *  terms the old -0.5 becomes 0; the ends stay the ends. Set to 0 to undo. */
-const TYPICAL = -0.5;
+/** Recentring (founder 2026-10-24): tried the old 0.75 and the old 0.25 as
+ *  the middle, then "bring it all back to where we were before". 0 means no
+ *  recentring; kept as one setting in case it is tried again. */
+const TYPICAL = 0;
 const recentre = (x: number) => (x >= TYPICAL ? (x - TYPICAL) / (1 - TYPICAL) : (x - TYPICAL) / (1 + TYPICAL));
 /** The bar's ends sit this far in from the canvas edges (share of width). */
 const END_INSET = 0.07;
