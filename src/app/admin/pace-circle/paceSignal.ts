@@ -437,6 +437,10 @@ export type InstantConfig = {
   /** A sound counts as voice only this voice-like (0..1, see periodicity):
    *  a voice has pitch, a breath, a click or a rustle does not. */
   minPeriodicity: number;
+  /** In silence the dot falls at a steady speed, slowly: from 1 to 0.5 in
+   *  fallUpperMs, from 0.5 to 0 in fallLowerMs (founder 2026-10-24). */
+  fallUpperMs: number;
+  fallLowerMs: number;
 };
 export const INSTANT_CONFIG: InstantConfig = {
   voiceMarginDb: 15,
@@ -445,6 +449,8 @@ export const INSTANT_CONFIG: InstantConfig = {
   minGapMs: 250,
   activityTauMs: 300,
   minPeriodicity: 0.6,
+  fallUpperMs: 1300,
+  fallLowerMs: 2500,
 };
 
 /** How voice-like a stretch of sound is, 0..1: the best normalised
@@ -536,8 +542,17 @@ export class InstantMeter {
   }
 
   private out(voiced: boolean, pause: boolean, floor: number, db: number): InstantRead {
-    const keep = Math.exp(-FRAME_MS / Math.max(FRAME_MS, this.cfg.activityTauMs));
-    this.activity = this.activity * keep + (voiced ? 1 - keep : 0);
+    if (voiced) {
+      // Speaking: rise as fast as before.
+      const keep = Math.exp(-FRAME_MS / Math.max(FRAME_MS, this.cfg.activityTauMs));
+      this.activity = this.activity * keep + (1 - keep);
+    } else {
+      // Silence: fall slowly and steadily, slower still below 0.5, so a
+      // breath or a gap between words only nudges it and only a real pause
+      // brings it to 0 (founder 2026-10-24).
+      const span = this.activity > 0.5 ? this.cfg.fallUpperMs : this.cfg.fallLowerMs;
+      this.activity = Math.max(0, this.activity - (0.5 * FRAME_MS) / Math.max(FRAME_MS, span));
+    }
     return {
       voiced,
       runMs: this.runMs,
