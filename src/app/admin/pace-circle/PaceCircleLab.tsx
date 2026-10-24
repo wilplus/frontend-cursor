@@ -59,6 +59,7 @@ export default function PaceCircleLab() {
   const [minPitch, setMinPitch] = useState(INSTANT_CONFIG.minPeriodicity);
   const [fallUpper, setFallUpper] = useState(INSTANT_CONFIG.fallUpperMs);
   const [fallLower, setFallLower] = useState(INSTANT_CONFIG.fallLowerMs);
+  const [riseBase, setRiseBase] = useState(INSTANT_CONFIG.riseBaseMs);
   cfgRef.current = {
     ...INSTANT_CONFIG,
     activityTauMs: tauMs,
@@ -67,7 +68,11 @@ export default function PaceCircleLab() {
     minPeriodicity: minPitch,
     fallUpperMs: fallUpper,
     fallLowerMs: fallLower,
+    riseBaseMs: riseBase,
   };
+  // Seconds of continuous voice for each climb stage, for the version line.
+  const midMs = (riseBase / 0.65) * 0.1 / INSTANT_CONFIG.riseMidBoost;
+  const topMs = (riseBase / 0.65) * 0.25 / INSTANT_CONFIG.riseTopBoost;
   if (meterRef.current) meterRef.current.cfg = cfgRef.current;
 
   // The numbers panel refreshes a few times a second, not every frame.
@@ -239,7 +244,8 @@ export default function PaceCircleLab() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Version 24 Oct, 18:00 · in silence 1 → 0.5 in {sec(fallUpper)}, 0.5 → 0 in {sec(fallLower)}
+        Version 24 Oct, 18:30 · speaking 0 → 0.65 in {sec(riseBase)}, 0.65 → 0.75 in {sec(midMs)}, 0.75 → 1 in{" "}
+        {sec(topMs)} · in silence 1 → 0.5 in {sec(fallUpper)}, 0.5 → 0 in {sec(fallLower)}
       </p>
 
       <div className="flex flex-wrap items-center justify-center gap-3">
@@ -288,6 +294,8 @@ export default function PaceCircleLab() {
           <div className="flex flex-col gap-3">
             <Slider id="pc-tau" label="Follows the voice over" value={tauMs} min={150} max={2000} step={50}
               show={sec(tauMs)} onChange={setTauMs} />
+            <Slider id="pc-rise-base" label="Speaking, 0 → 0.65 takes" value={riseBase} min={500} max={15000} step={250}
+              show={sec(riseBase)} onChange={setRiseBase} />
             <Slider id="pc-fall-upper" label="In silence, 1 → 0.5 takes" value={fallUpper} min={300} max={8000} step={100}
               show={sec(fallUpper)} onChange={setFallUpper} />
             <Slider id="pc-fall-lower" label="In silence, 0.5 → 0 takes" value={fallLower} min={500} max={15000} step={250}

@@ -441,6 +441,13 @@ export type InstantConfig = {
    *  fallUpperMs, from 0.5 to 0 in fallLowerMs (founder 2026-10-24). */
   fallUpperMs: number;
   fallLowerMs: number;
+  /** While speaking the dot climbs slowly from 0 to 0.65 in riseBaseMs of
+   *  voice, then riseMidBoost times faster to 0.75, then riseTopBoost times
+   *  faster to 1: fluent speech with too few pauses speeds up towards the
+   *  end (founder 2026-10-24). */
+  riseBaseMs: number;
+  riseMidBoost: number;
+  riseTopBoost: number;
 };
 export const INSTANT_CONFIG: InstantConfig = {
   voiceMarginDb: 15,
@@ -451,6 +458,9 @@ export const INSTANT_CONFIG: InstantConfig = {
   minPeriodicity: 0.6,
   fallUpperMs: 2600, // doubled after the founder's first try (2026-10-24)
   fallLowerMs: 5000,
+  riseBaseMs: 4000,
+  riseMidBoost: 1.25,
+  riseTopBoost: 1.37,
 };
 
 /** How voice-like a stretch of sound is, 0..1: the best normalised
@@ -542,15 +552,19 @@ export class InstantMeter {
   }
 
   private out(voiced: boolean, pause: boolean, floor: number, db: number): InstantRead {
+    const c = this.cfg;
     if (voiced) {
-      // Speaking: rise as fast as before.
-      const keep = Math.exp(-FRAME_MS / Math.max(FRAME_MS, this.cfg.activityTauMs));
-      this.activity = this.activity * keep + (1 - keep);
+      // Speaking: climb slowly to 0.65, then faster, then faster still.
+      const base = 0.65 / Math.max(FRAME_MS, c.riseBaseMs); // per ms
+      const boost = this.activity < 0.65 ? 1 : this.activity < 0.75 ? c.riseMidBoost : c.riseTopBoost;
+      this.activity = Math.min(1, this.activity + base * boost * FRAME_MS);
+    } else if (!pause) {
+      // A gap between words (under minGapMs) is still speech: hold.
     } else {
       // Silence: fall slowly and steadily, slower still below 0.5, so a
       // breath or a gap between words only nudges it and only a real pause
       // brings it to 0 (founder 2026-10-24).
-      const span = this.activity > 0.5 ? this.cfg.fallUpperMs : this.cfg.fallLowerMs;
+      const span = this.activity > 0.5 ? c.fallUpperMs : c.fallLowerMs;
       this.activity = Math.max(0, this.activity - (0.5 * FRAME_MS) / Math.max(FRAME_MS, span));
     }
     return {
