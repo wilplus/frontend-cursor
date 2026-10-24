@@ -440,6 +440,9 @@ export class InstantMeter {
   // Before anyone speaks it is one long pause.
   private gapRun = 100000;
   private runMs = 0;
+  // The quietest level of the last 3 s, from a ring of 10 ms frames.
+  private recent = new Float32Array(300).fill(Infinity);
+  private at = 0;
 
   constructor(cfg: Partial<InstantConfig> = {}) {
     this.cfg = { ...INSTANT_CONFIG, ...cfg };
@@ -447,11 +450,19 @@ export class InstantMeter {
 
   push(db: number): InstantRead {
     const c = this.cfg;
-    // The room is learned as it goes: the floor drops at once to anything
-    // quieter, and creeps up (0.5 dB a second) only while nobody speaks.
+    // The room is the quietest moment of the last 3 s, always. Speech has
+    // dips between words, so a voice still stands out; steady noise (a fan,
+    // traffic, a microphone settling) has none, so within a couple of
+    // seconds it becomes the room and reads as silence. Before, the room was
+    // learned only while nobody spoke, so a louder room could read as a
+    // voice that never stopped and push the dot to 1 (founder 2026-10-24).
+    this.recent[this.at] = db;
+    this.at = (this.at + 1) % this.recent.length;
+    let quietest = Infinity;
+    for (let i = 0; i < this.recent.length; i++) if (this.recent[i] < quietest) quietest = this.recent[i];
     if (this.floor === null) this.floor = db;
-    else if (db < this.floor) this.floor += (db - this.floor) * 0.3;
-    else if (!this.voiced) this.floor = Math.min(db, this.floor + 0.005);
+    else if (quietest < this.floor) this.floor += (quietest - this.floor) * 0.3;
+    else this.floor = Math.min(quietest, this.floor + 0.03); // rises up to 3 dB a second
     const floor = this.floor;
 
     this.loudRun = db > floor + c.voiceMarginDb ? this.loudRun + 1 : 0;

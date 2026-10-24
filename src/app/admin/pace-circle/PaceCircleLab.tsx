@@ -186,8 +186,21 @@ export default function PaceCircleLab() {
         <p className="mt-1 text-sm text-muted-foreground">Listens only: nothing is recorded or sent.</p>
       </div>
 
-      <div className="relative aspect-[4/1] w-full">
+      <div className="relative w-full" style={{ height: "clamp(150px, 22vw, 260px)" }}>
         <canvas ref={canvasRef} className="h-full w-full" aria-label="The pace scale" />
+        {/* 0 and 1 under the bar's ends (founder 2026-10-24; founder-only bench) */}
+        <span
+          className="pointer-events-none absolute top-[74%] -translate-x-1/2 text-3xl font-bold text-foreground"
+          style={{ left: `${END_INSET * 100}%` }}
+        >
+          0
+        </span>
+        <span
+          className="pointer-events-none absolute top-[74%] translate-x-1/2 text-3xl font-bold text-foreground"
+          style={{ right: `${END_INSET * 100}%` }}
+        >
+          1
+        </span>
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-3">
@@ -283,13 +296,15 @@ function Slider(props: {
  *  tried 27% right and 27% left, then "bring it back do not move anything").
  *  Kept as one setting in case it is tried again. */
 const CENTRE_SHIFT = 0;
+/** The bar's ends sit this far in from the canvas edges (share of width). */
+const END_INSET = 0.07;
 const place = (x: number) => (x < 0 ? CENTRE_SHIFT + x * (1 + CENTRE_SHIFT) : CENTRE_SHIFT + x * (1 - CENTRE_SHIFT));
 
 function draw(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, ball: { x: number }, dot: string) {
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
   const cy = h / 2;
-  const pad = Math.max(24, h * 0.35);
+  const pad = w * END_INSET; // the bar's ends; the 0 and 1 labels sit under them
   const left = pad;
   const right = w - pad;
   const half = (right - left) / 2;
@@ -343,14 +358,15 @@ function draw(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, ball: { 
   // the dot: puffy, in the pause's colour, gently breathing
   const bx = Math.max(-1, Math.min(1, ball.x));
   const x = cx + place(bx) * half;
-  const r = Math.max(14, h * 0.2); // steady: no breathing, so a still dot means silence
-  const halo = ctx.createRadialGradient(x, cy, r * 0.8, x, cy, r * 2.2);
+  // steady (no breathing, so a still dot means silence), and small enough to stay inside the canvas at the ends
+  const r = Math.max(12, Math.min(h * 0.16, w * END_INSET * 0.6));
+  const halo = ctx.createRadialGradient(x, cy, r * 0.8, x, cy, r * 1.7);
   halo.addColorStop(0, dot);
   halo.addColorStop(1, "rgba(0,0,0,0)");
   ctx.globalAlpha = 0.3;
   ctx.fillStyle = halo;
   ctx.beginPath();
-  ctx.arc(x, cy, r * 2.2, 0, Math.PI * 2);
+  ctx.arc(x, cy, r * 1.7, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 0.18;
   ctx.fillStyle = dot;
