@@ -10,11 +10,15 @@ OUTCOME
       down with many, and holds an axis that is not ready yet.
   O5  The centre moves to the speaker's own rhythm gradually, at most 80%,
       inside the healthy band (N130).
+  O6  The reads move as the speaker speaks: speed catches up with a new
+      speed within about two seconds, and a pause sinks the ball while it
+      lasts (N134).
 PROVES   O1 -> "counts syllables per second of speech", "leaves pauses out, so a pause does not make the speaker slower"
          O2 -> "counts only gaps of a quarter second or longer"
          O3 -> "turns the rim green, amber, deep amber and never further"
          O4 -> "goes right when fast, left when slow, up with no pauses, down with many", "holds an axis that is not ready yet"
          O5 -> "moves to the speaker's own rhythm gradually, at most 80%, inside the healthy band"
+         O6 -> "catches up with a new speed within about two seconds", "sinks a little more with every moment of a pause"
 WHY      CONSTRUCT fence: SPEC §17 pace-speed-v1, pace-pause-share-v1 and
          pace-pause-length-v1 each move one thing on the screen (N133).
 */
@@ -81,8 +85,15 @@ describe("speaking speed (pace-speed-v1)", () => {
   });
 
   it("waits for enough speech before it reads", () => {
-    const r = talk(calibrated(), 800, 5);
+    const r = talk(calibrated(), 300, 5);
     expect(r.speed).toBeNull();
+  });
+
+  it("catches up with a new speed within about two seconds", () => {
+    const m = calibrated();
+    talk(m, 6000, 3);
+    const r = talk(m, 2500, 6.5);
+    expect(r.speed!).toBeGreaterThan(5.3);
   });
 });
 
@@ -90,8 +101,8 @@ describe("how much of the time you pause (pace-pause-share-v1)", () => {
   it("counts only gaps of a quarter second or longer", () => {
     const m = calibrated();
     let r!: PaceRead;
-    // 10 s of speech with 150 ms gaps: not pauses
-    for (let i = 0; i < 20; i++) {
+    // 20 s of speech with 150 ms gaps: not pauses
+    for (let i = 0; i < 40; i++) {
       talk(m, 350, 5);
       r = quiet(m, 150);
     }
@@ -108,6 +119,16 @@ describe("how much of the time you pause (pace-pause-share-v1)", () => {
     }
     expect(r.share!).toBeGreaterThan(0.4);
     expect(r.share!).toBeLessThan(0.6);
+  });
+
+  it("sinks a little more with every moment of a pause", () => {
+    const m = calibrated();
+    talk(m, 4000, 5);
+    const before = quiet(m, 300).share!;
+    const during = quiet(m, 700).share!;
+    const later = quiet(m, 1000).share!;
+    expect(during).toBeGreaterThan(before);
+    expect(later).toBeGreaterThan(during);
   });
 });
 

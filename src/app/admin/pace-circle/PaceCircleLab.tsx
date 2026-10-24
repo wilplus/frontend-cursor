@@ -1,7 +1,7 @@
 "use client";
 
 /* -------------------------------------------------------------------------- */
-/*  The Pace Circle test bench (founder 2026-10-24; N130, N133). One soft      */
+/*  The Pace Circle test bench (founder 2026-10-24; N130, N133, N134). One soft      */
 /*  circle, one puffy orange ball: speed moves it left and right, how much    */
 /*  of the time the founder pauses moves it up and down, and the rim shows    */
 /*  the pause happening now (green, amber, deep amber, never red).            */
@@ -122,7 +122,7 @@ export default function PaceCircleLab() {
       last = now;
       const read = readRef.current;
       if (read?.calibrated) held = ballTarget(read, centreRef.current, held);
-      const k = reduce ? 6 : 2.2;
+      const k = reduce ? 12 : 6; // ~0.4 s to settle: smooth, never laggy (N134)
       const d = 2 * Math.sqrt(k);
       ball.vx += (k * (held.x - ball.x) - d * ball.vx) * dt;
       ball.vy += (k * (held.y - ball.y) - d * ball.vy) * dt;

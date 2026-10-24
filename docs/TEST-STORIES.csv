@@ -60,11 +60,15 @@ O3  The rim goes green, amber, deep amber, and never further.
 O4  The ball goes right when fast, left when slow, up with few pauses,
 down with many, and holds an axis that is not ready yet.
 O5  The centre moves to the speaker's own rhythm gradually, at most 80%,
-inside the healthy band (N130).","O1 -> ""counts syllables per second of speech"", ""leaves pauses out, so a pause does not make the speaker slower""
+inside the healthy band (N130).
+O6  The reads move as the speaker speaks: speed catches up with a new
+speed within about two seconds, and a pause sinks the ball while it
+lasts (N134).","O1 -> ""counts syllables per second of speech"", ""leaves pauses out, so a pause does not make the speaker slower""
 O2 -> ""counts only gaps of a quarter second or longer""
 O3 -> ""turns the rim green, amber, deep amber and never further""
 O4 -> ""goes right when fast, left when slow, up with no pauses, down with many"", ""holds an axis that is not ready yet""
-O5 -> ""moves to the speaker's own rhythm gradually, at most 80%, inside the healthy band""","CONSTRUCT fence: SPEC §17 pace-speed-v1, pace-pause-share-v1 and pace-pause-length-v1 each move one thing on the screen (N133)."
+O5 -> ""moves to the speaker's own rhythm gradually, at most 80%, inside the healthy band""
+O6 -> ""catches up with a new speed within about two seconds"", ""sinks a little more with every moment of a pause""","CONSTRUCT fence: SPEC §17 pace-speed-v1, pace-pause-share-v1 and pace-pause-length-v1 each move one thing on the screen (N133)."
 src/app/api/_lib/backend.test.ts,Story,"As a speaker, I want every app-to-server call to carry my sign-in and fail with a plain message, so that I never see a broken screen or someone else's data.","O1  Signed in: the backend gets my token and its answer reaches me as is.
 O2  Signed out: 401 with the shared words, and no backend call at all.
 O3  The backend unreachable: 502 with the generic words.

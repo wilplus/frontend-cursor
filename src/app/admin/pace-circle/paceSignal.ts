@@ -1,16 +1,19 @@
 /* -------------------------------------------------------------------------- */
 /*  The Pace Circle's three live reads (founder 2026-10-24; backend decisions  */
-/*  log N130, N133; SPEC §17 pace-speed-v1, pace-pause-share-v1,              */
+/*  log N130, N133, N134; SPEC §17 pace-speed-v2, pace-pause-share-v2,        */
 /*  pace-pause-length-v1). Pure: one loudness frame in (dB, every 10 ms),     */
 /*  the reads out. No transcript, no network, nothing stored.                 */
 /*                                                                            */
-/*  - speed: syllables (peaks in the voice's loudness) per second of speech   */
-/*    over the last ~5 s, pauses taken out;                                   */
-/*  - share: the part of the last ~45 s that was silence, counting only gaps  */
-/*    of 250 ms or longer;                                                    */
+/*  - speed: syllables (peaks in the voice's loudness) per second of speech,  */
+/*    a running average over about the last 1.5 s of speech, pauses taken out;  */
+/*  - share: how much of about the last 8 s was silence, as a running         */
+/*    average, counting only gaps of 250 ms or longer;                        */
 /*  - pauseMs: how long the current gap has run, 0 while speaking.            */
 /*                                                                            */
-/*  Silence is quieter than the room, measured in the first 2 s.              */
+/*  Both averages move a little on every syllable and every 10 ms of pause,   */
+/*  so the ball moves as the speaker speaks (N134: "it moves slowly but it   */
+/*  constantly moves"). Silence is quieter than the room, measured in the     */
+/*  first 2 s.                                                                */
 /* -------------------------------------------------------------------------- */
 
 export const FRAME_MS = 10;
@@ -18,8 +21,12 @@ export const FRAME_MS = 10;
 export type PaceConfig = {
   calibrateMs: number;
   minGapMs: number;
-  speedWindowMs: number;
-  shareWindowMs: number;
+  /** Time constant of the speed average, in milliseconds of speech. */
+  speedTauMs: number;
+  /** Time constant of the pause-share average, in milliseconds. */
+  shareTauMs: number;
+  /** Where the share average starts, so the ball starts near the centre. */
+  shareStart: number;
   /** A frame is voiced above floor + voiceMarginDb, and stays voiced until it
    *  drops under floor + silenceMarginDb (hysteresis, so a voice hovering on
    *  the line does not flicker). */
@@ -29,23 +36,24 @@ export type PaceConfig = {
   peakProminenceDb: number;
   /** No two syllables closer than this (caps the count near 8 a second). */
   minPeakSpacingMs: number;
-  /** Speed waits for this much speech in its window before it reads. */
+  /** Speed waits for this much speech before its first read. */
   minSpeechForSpeedMs: number;
-  /** Share waits for this much listening before it reads. */
+  /** Share waits for this much listening before its first read. */
   minListenForShareMs: number;
 };
 
 export const DEFAULT_CONFIG: PaceConfig = {
   calibrateMs: 2000,
   minGapMs: 250,
-  speedWindowMs: 5000,
-  shareWindowMs: 45000,
+  speedTauMs: 1500,
+  shareTauMs: 8000,
+  shareStart: 0.28,
   voiceMarginDb: 10,
   silenceMarginDb: 6,
   peakProminenceDb: 3,
   minPeakSpacingMs: 120,
-  minSpeechForSpeedMs: 1500,
-  minListenForShareMs: 8000,
+  minSpeechForSpeedMs: 600,
+  minListenForShareMs: 1000,
 };
 
 export type PaceRead = {
@@ -54,7 +62,7 @@ export type PaceRead = {
   voiced: boolean;
   /** Syllables per second of speech; null until there is enough speech. */
   speed: number | null;
-  /** 0..1 of the window that was pause; null until enough listening. */
+  /** 0..1 of the recent time that was pause; null until enough listening. */
   share: number | null;
   /** Length of the gap happening now, once it is a pause (>= minGapMs). */
   pauseMs: number;
@@ -62,21 +70,22 @@ export type PaceRead = {
   speechSec: number;
 };
 
-const VOICED = 0;
-const SHORT_GAP = 1; // silence too short to be a pause: part of speech
-const PAUSE = 2;
-
 export class PaceMeter {
   private cfg: PaceConfig;
   private calib: number[] = [];
   private floor: number | null = null;
   private voiced = false;
   private env: number | null = null;
-  private frames: number[] = []; // VOICED | SHORT_GAP | PAUSE, newest last
   private gapRun = 0; // frames in the current silent run
-  private peaks: number[] = []; // frame index of each syllable
   private index = 0; // frames since calibration ended
   private speechFrames = 0;
+  private lastPeak: number | null = null;
+  // running averages
+  private syll = 0; // decayed syllable count
+  private speechW = 0; // decayed seconds of speech
+  private share: number;
+  private readonly speedKeep: number;
+  private readonly shareKeep: number;
   // peak picking with hysteresis
   private seeking: "peak" | "valley" = "peak";
   private extreme = -Infinity;
@@ -85,6 +94,9 @@ export class PaceMeter {
 
   constructor(cfg: Partial<PaceConfig> = {}) {
     this.cfg = { ...DEFAULT_CONFIG, ...cfg };
+    this.share = this.cfg.shareStart;
+    this.speedKeep = Math.exp(-FRAME_MS / this.cfg.speedTauMs);
+    this.shareKeep = Math.exp(-FRAME_MS / this.cfg.shareTauMs);
   }
 
   push(db: number): PaceRead {
@@ -104,31 +116,32 @@ export class PaceMeter {
     const floor = this.floor;
     this.voiced = this.voiced ? e > floor + c.silenceMarginDb : e > floor + c.voiceMarginDb;
 
+    let pause = false;
     if (this.voiced) {
-      this.frames.push(VOICED);
       this.gapRun = 0;
     } else {
       this.gapRun += 1;
-      const isPause = this.gapRun * FRAME_MS >= c.minGapMs;
-      this.frames.push(isPause ? PAUSE : SHORT_GAP);
-      // the moment a gap becomes a pause, the whole run was pause
-      if (isPause && (this.gapRun - 1) * FRAME_MS < c.minGapMs) {
-        for (let i = 1; i < this.gapRun && i <= this.frames.length; i++) {
-          this.frames[this.frames.length - i] = PAUSE;
-        }
-        this.speechFrames -= this.gapRun - 1;
+      pause = this.gapRun * FRAME_MS >= c.minGapMs;
+      // The moment a gap becomes a pause, the whole run was pause: take its
+      // earlier frames back out of speech and put them into the share.
+      if (pause && (this.gapRun - 1) * FRAME_MS < c.minGapMs) {
+        const back = this.gapRun - 1;
+        this.speechFrames -= back;
+        this.speechW = Math.max(0, this.speechW - (back * FRAME_MS) / 1000);
+        this.share += (1 - this.share) * (1 - Math.pow(this.shareKeep, back));
       }
     }
-    if (this.frames[this.frames.length - 1] !== PAUSE) this.speechFrames += 1;
+
+    if (!pause) {
+      // speech (voiced, or a gap too short to be a pause): speed averages on
+      this.speechFrames += 1;
+      this.syll *= this.speedKeep;
+      this.speechW = this.speechW * this.speedKeep + FRAME_MS / 1000;
+    }
+    this.share = this.share * this.shareKeep + (pause ? 1 - this.shareKeep : 0);
 
     this.pickPeak(e, floor);
     this.index += 1;
-
-    const keep = Math.ceil(c.shareWindowMs / FRAME_MS);
-    if (this.frames.length > keep) this.frames.splice(0, this.frames.length - keep);
-    const oldestPeak = this.index - Math.ceil(c.speedWindowMs / FRAME_MS);
-    while (this.peaks.length && this.peaks[0] < oldestPeak) this.peaks.shift();
-
     return this.read();
   }
 
@@ -140,9 +153,11 @@ export class PaceMeter {
         this.extremeAt = this.index;
         this.extremeVoiced = e > floor + c.voiceMarginDb;
       } else if (e < this.extreme - c.peakProminenceDb) {
-        const last = this.peaks[this.peaks.length - 1];
-        const spaced = last === undefined || (this.extremeAt - last) * FRAME_MS >= c.minPeakSpacingMs;
-        if (this.extremeVoiced && spaced) this.peaks.push(this.extremeAt);
+        const spaced = this.lastPeak === null || (this.extremeAt - this.lastPeak) * FRAME_MS >= c.minPeakSpacingMs;
+        if (this.extremeVoiced && spaced) {
+          this.lastPeak = this.extremeAt;
+          this.syll += 1;
+        }
         this.seeking = "valley";
         this.extreme = e;
       }
@@ -161,15 +176,9 @@ export class PaceMeter {
     if (this.floor === null) {
       return { calibrated: false, floorDb: null, voiced: false, speed: null, share: null, pauseMs: 0, speechSec: 0 };
     }
-    const speedFrames = Math.ceil(c.speedWindowMs / FRAME_MS);
-    const recent = this.frames.slice(-speedFrames);
-    const speechMs = recent.filter((f) => f !== PAUSE).length * FRAME_MS;
-    const speed = speechMs >= c.minSpeechForSpeedMs ? this.peaks.length / (speechMs / 1000) : null;
-    const listenedMs = this.frames.length * FRAME_MS;
-    const share =
-      listenedMs >= c.minListenForShareMs
-        ? this.frames.filter((f) => f === PAUSE).length / this.frames.length
-        : null;
+    const speechMs = Math.max(0, this.speechFrames) * FRAME_MS;
+    const speed = speechMs >= c.minSpeechForSpeedMs && this.speechW > 0 ? this.syll / this.speechW : null;
+    const share = this.index * FRAME_MS >= c.minListenForShareMs ? this.share : null;
     const pauseMs = this.gapRun * FRAME_MS >= c.minGapMs ? this.gapRun * FRAME_MS : 0;
     return {
       calibrated: true,
@@ -178,7 +187,7 @@ export class PaceMeter {
       speed,
       share,
       pauseMs,
-      speechSec: (Math.max(0, this.speechFrames) * FRAME_MS) / 1000,
+      speechSec: speechMs / 1000,
     };
   }
 }
