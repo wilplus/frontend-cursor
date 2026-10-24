@@ -54,6 +54,17 @@ no build -> ""is INCOMPLETE, never GREEN, when the build is skipped""
 node   -> ""stops before its first step, naming the Node it found""","If removed: The gate's GREEN could stop meaning ""every step passed""."
 scripts/storiesCsv.test.ts,Guard,"docs/TEST-STORIES.csv lists every frontend test file's story, and every test file has one.","C1  a new or edited test whose STORY/GUARD header is missing, or not copied into the CSV",C1 -> every test file has a story and the CSV is current,If removed: the founder reviews a stories file that silently stops matching the tests.
 src/app/admin/libraryAndErrorsGate.test.ts,Story,"As the founder, I want the exercise library, speaking-errors and",,,
+src/app/admin/pace-circle/paceSignal.test.ts,Story,"As the founder, I want the Pace Circle's ball and rim to follow my voice as the three signed definitions say, so that tuning it on a real voice tunes the right thing.","O1  Speed counts syllables per second of speech, with pauses left out.
+O2  Only gaps of a quarter second or longer count as pause.
+O3  The rim goes green, amber, deep amber, and never further.
+O4  The ball goes right when fast, left when slow, up with few pauses,
+down with many, and holds an axis that is not ready yet.
+O5  The centre moves to the speaker's own rhythm gradually, at most 80%,
+inside the healthy band (N130).","O1 -> ""counts syllables per second of speech"", ""leaves pauses out, so a pause does not make the speaker slower""
+O2 -> ""counts only gaps of a quarter second or longer""
+O3 -> ""turns the rim green, amber, deep amber and never further""
+O4 -> ""goes right when fast, left when slow, up with no pauses, down with many"", ""holds an axis that is not ready yet""
+O5 -> ""moves to the speaker's own rhythm gradually, at most 80%, inside the healthy band""","CONSTRUCT fence: SPEC §17 pace-speed-v1, pace-pause-share-v1 and pace-pause-length-v1 each move one thing on the screen (N131)."
 src/app/api/_lib/backend.test.ts,Story,"As a speaker, I want every app-to-server call to carry my sign-in and fail with a plain message, so that I never see a broken screen or someone else's data.","O1  Signed in: the backend gets my token and its answer reaches me as is.
 O2  Signed out: 401 with the shared words, and no backend call at all.
 O3  The backend unreachable: 502 with the generic words.
