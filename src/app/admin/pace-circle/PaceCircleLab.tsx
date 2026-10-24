@@ -279,12 +279,10 @@ function Slider(props: {
   );
 }
 
-/** Where the scale's centre sits: 27% of the way from the middle of the bar
- *  towards its LEFT end (founder 2026-10-24: tried 27% right, then "bring it
- *  back and move it to the left, 27%"; set it to 0 to undo). The left
- *  (pausing) side gets shorter, the right (talking) side longer; the ends
- *  stay the ends. */
-const CENTRE_SHIFT = -0.27;
+/** Where the scale's centre sits: the middle of the bar (founder 2026-10-24:
+ *  tried 27% right and 27% left, then "bring it back do not move anything").
+ *  Kept as one setting in case it is tried again. */
+const CENTRE_SHIFT = 0;
 const place = (x: number) => (x < 0 ? CENTRE_SHIFT + x * (1 + CENTRE_SHIFT) : CENTRE_SHIFT + x * (1 - CENTRE_SHIFT));
 
 function draw(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, ball: { x: number }, dot: string) {
