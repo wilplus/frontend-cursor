@@ -573,8 +573,9 @@ export class InstantMeter {
       // small pause: then nothing holds it back and it runs into the red.
       const unbroken = this.runMs >= 22000;
       const zone = this.activity >= 0.75 ? 0.56 : this.activity >= 0.6 ? 0.63 : 1;
-      // And everything from the middle up 50% slower again (founder 2026-10-24).
-      const brake = unbroken ? 1 : this.activity >= 0.5 ? zone * 0.5 : 1;
+      // 0.3 to 0.5 at half the base speed; the middle up at a quarter of it
+      // (75% slower), on top of the 0.6 and 0.75 brakes (founder 2026-10-24).
+      const brake = unbroken ? 1 : this.activity >= 0.5 ? zone * 0.25 : this.activity >= 0.3 ? 0.5 : 1;
       this.activity = Math.min(1, this.activity + speed * brake * FRAME_MS);
     } else if (!pause) {
       // A gap between words (under minGapMs) is still speech: hold.
