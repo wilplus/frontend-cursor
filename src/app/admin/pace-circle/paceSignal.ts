@@ -590,7 +590,8 @@ export class InstantMeter {
       // brings it to 0 (founder 2026-10-24).
       const span = this.activity > 0.5 ? c.fallUpperMs : c.fallLowerMs;
       // Below 0.37 it sinks to 0 another 60% slower (founder 2026-10-25).
-      const sink = this.activity < 0.37 ? 0.4 : 1;
+      // And between 0.4 and 0.6 it falls 50% slower (founder 2026-10-25).
+      const sink = this.activity < 0.37 ? 0.4 : this.activity >= 0.4 && this.activity <= 0.6 ? 0.5 : 1;
       this.activity = Math.max(0, this.activity - (sink * 0.5 * FRAME_MS) / Math.max(FRAME_MS, span));
     }
     return {
