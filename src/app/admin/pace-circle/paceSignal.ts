@@ -577,14 +577,21 @@ export class InstantMeter {
       // (75% slower), on top of the 0.6 and 0.75 brakes (founder 2026-10-24).
       const brake = unbroken ? 1 : this.activity >= 0.5 ? zone * 0.25 : this.activity >= 0.3 ? 0.5 : 1;
       this.activity = Math.min(1, this.activity + speed * brake * FRAME_MS);
-    } else if (!pause) {
-      // A gap between words (under minGapMs) is still speech: hold.
+    } else if (!pause && this.activity <= 0.75) {
+      // A gap between words (under minGapMs) is still speech: hold. Above
+      // 0.75 even a small gap counts (below), so it comes back sooner.
+    } else if (this.activity > 0.75) {
+      // Founder 2026-10-25: above 0.75 any gap, even a small one, brings it
+      // back towards 0.5 fast: 0.75 to 0.5 in about 0.5 s of quiet.
+      this.activity = Math.max(0.5, this.activity - (0.5 * FRAME_MS) / 1000);
     } else {
       // Silence: fall slowly and steadily, slower still below 0.5, so a
       // breath or a gap between words only nudges it and only a real pause
       // brings it to 0 (founder 2026-10-24).
       const span = this.activity > 0.5 ? c.fallUpperMs : c.fallLowerMs;
-      this.activity = Math.max(0, this.activity - (0.5 * FRAME_MS) / Math.max(FRAME_MS, span));
+      // Below 0.37 it sinks to 0 another 60% slower (founder 2026-10-25).
+      const sink = this.activity < 0.37 ? 0.4 : 1;
+      this.activity = Math.max(0, this.activity - (sink * 0.5 * FRAME_MS) / Math.max(FRAME_MS, span));
     }
     return {
       voiced,

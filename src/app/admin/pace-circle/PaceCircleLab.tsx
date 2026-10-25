@@ -244,7 +244,7 @@ export default function PaceCircleLab() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Version 24 Oct, 20:30 · 0.3 → 0.5 at 50%, 0.5 → 1 at 25% speed, unless 22 s without a pause · speaking: 0 → 0.5 in {sec(riseJump)}, 0.5 → 0.65 in {sec(riseBase)}, 0.65 → 0.75 in{" "}
+        Version 25 Oct, 06:00 · above 0.75 any gap brings it back fast; below 0.37 it sinks 60% slower · 0.3 → 0.5 at 50%, 0.5 → 1 at 25% speed, unless 22 s without a pause · speaking: 0 → 0.5 in {sec(riseJump)}, 0.5 → 0.65 in {sec(riseBase)}, 0.65 → 0.75 in{" "}
         {sec(midMs)}, 0.75 → 1 in {sec(topMs)} · pausing: 1 → 0.5 in {sec(fallUpper)}, 0.5 → 0 in {sec(fallLower)}
       </p>
 
