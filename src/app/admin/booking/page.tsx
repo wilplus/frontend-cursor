@@ -264,18 +264,23 @@ function BookingAdmin() {
  *  through it pays that price now, and it becomes their lesson price. */
 function PriceLink({ currency }: { currency: string }) {
   const [amount, setAmount] = useState("35");
+  const [minutes, setMinutes] = useState("15");
   const [url, setUrl] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // cents 0: the meeting without a price (founder 2026-10-19).
-  const make = async (e: FormEvent, cents = Math.round(Number(amount) * 100)) => {
+  // cents 0: the meeting without a price (founder 2026-10-19). `length` sets
+  // that link's meeting length in minutes (founder 2026-10-25); without it the
+  // page's own length applies.
+  const make = async (e: FormEvent, cents = Math.round(Number(amount) * 100), length?: number) => {
     e.preventDefault();
     setUrl(null);
     setErr(null);
     setCopied(false);
     try {
-      const res = await fetch(`/api/v2/admin/booking/price-link?price_cents=${cents}`, { cache: "no-store" });
+      const q = new URLSearchParams({ price_cents: String(cents) });
+      if (length !== undefined) q.set("duration_min", String(length));
+      const res = await fetch(`/api/v2/admin/booking/price-link?${q}`, { cache: "no-store" });
       const b = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
       if (res.ok && b.url) setUrl(b.url);
       else setErr(b.error || "Could not make the link. Try again.");
@@ -296,10 +301,14 @@ function PriceLink({ currency }: { currency: string }) {
           <span className="self-center text-sm text-muted-foreground">{currency.toUpperCase()}</span>
           <button type="submit" className="whitespace-nowrap rounded-[10px] bg-foreground px-[18px] py-2.5 font-semibold text-background">Make link</button>
         </div>
-        <button type="button" onClick={(e) => void make(e, 0)}
-          className="justify-self-start rounded-[10px] border border-border px-3 py-2.5 text-sm">
-          Make a link without a price
-        </button>
+        <div className="flex gap-2.5">
+          <input aria-label="Length" className={field} type="number" min="15" max="240" step="5" value={minutes} onChange={(e) => setMinutes(e.target.value)} />
+          <span className="self-center text-sm text-muted-foreground">min</span>
+          <button type="button" onClick={(e) => void make(e, 0, Math.round(Number(minutes)))}
+            className="whitespace-nowrap rounded-[10px] border border-border px-3 py-2.5 text-sm">
+            Make a link without a price
+          </button>
+        </div>
         <p className="-mt-2 text-[13px] text-muted-foreground">
           No price is shown anywhere and nothing is paid. Their own lesson price stays as it is.
         </p>

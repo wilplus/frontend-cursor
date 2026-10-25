@@ -202,16 +202,16 @@ export default function BookingPage({ info, ipZone, link }: { info: PageInfo; ip
     const to = zoned(month.y, month.m + 1, 1, 0, 0, tz);
     let live = true;
     setSlots(null);
-    fetch(`/api/v2/booking/${info.slug}/slots?from=${new Date(from).toISOString()}&to=${new Date(to).toISOString()}`, {
-      cache: "no-store",
-    })
+    // A price link may set the meeting's length; the times offered fit it.
+    const q = `from=${new Date(from).toISOString()}&to=${new Date(to).toISOString()}${link ? `&link=${encodeURIComponent(link)}` : ""}`;
+    fetch(`/api/v2/booking/${info.slug}/slots?${q}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : { slots: [] }))
       .then((b: { slots?: string[] }) => live && setSlots((b.slots || []).map((s) => Date.parse(s))))
       .catch(() => live && setSlots([]));
     return () => {
       live = false;
     };
-  }, [month, tz, info.slug]);
+  }, [month, tz, info.slug, link]);
 
   const byDay = useMemo(() => {
     const map = new Map<string, number[]>();
