@@ -236,6 +236,18 @@ function answeredRun<R>(
   return head;
 }
 
+/** Where the walk as given stands, opened at `at`. A finished walk opened
+ *  from the chat (`lens`) stands on its newest step when it does not hold
+ *  the step asked for (the Take alone) or holds it in its tail (the summary,
+ *  which steps aside once given, so nothing stayed on screen and the page
+ *  showed the text: founder 2026-10-26, "the feedback walk opens the ideal
+ *  text instead of the feedback walk!"; B10). Pure. */
+function standAtOf<R>(done: FeedbackWalkModel<R> | null, at: number | null, finished: boolean, lens: boolean): number | null {
+  if (!done || !finished || !lens) return at;
+  const newest = walkLastStep(done) ?? walkStart(done);
+  return newest !== null && (at === null || at > newest) ? newest : at;
+}
+
 /** One served item as the walk reads it. Pure. */
 function walkItemOf(
   item: DocumentSuggestion,
@@ -1024,14 +1036,8 @@ export function useDeckFeedbackWalk(args: {
     // either way, the parts before it there to scroll (founder 2026-10-21).
     const done = (target || coachDoor) && replayReady ? (finished ? buildReplay(ownAnswers) : buildWhole(ownAnswers)) : null;
     const doneAt = done ? (coachDoor ? walkStart(done) : walkStepAt(done, target)) : null;
-    // A door from the chat never shows the text in the walk's place: a
-    // finished walk asked for a step it does not hold (the Take alone), or
-    // for its tail (the summary, which steps aside once given, so nothing
-    // stayed on screen), stands on its newest step, the rest above to
-    // scroll (B10; founder 2026-10-26: "the feedback walk opens the ideal
-    // text instead of the feedback walk!").
-    const newest = done && finished && lens ? (walkLastStep(done) ?? walkStart(done)) : null;
-    const standAt = newest !== null && (doneAt === null || doneAt > newest) ? newest : doneAt;
+    // A door from the chat never shows the text in the walk's place.
+    const standAt = standAtOf(done, doneAt, finished, lens);
     if (done && standAt !== null) {
       setReplaying(done);
       // The parts after it too, as far as the walk was walked: on a finished
