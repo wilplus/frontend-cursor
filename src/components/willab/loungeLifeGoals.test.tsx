@@ -4,8 +4,10 @@ STORY    As the founder, I want to set one life goal in the lens by answering on
 OUTCOME
   O1  Start opens the lens with the paper-notebook line; the space, three open questions, Will's draft with my words, goal or want, ambitious, give up, the horizon and the quarter come one at a time, and the goal is set with its ladder and the line that sends me out to live it.
   O2  With every open question skipped, Will drafts nothing and says so.
+  O3  A new goal that pulls against a kept one is asked "When they clash, which wins?" before it is set, and the answer is noted for both ladders (N185).
 PROVES   O1 -> sets a goal from my answers, one step at a time
          O2 -> drafts nothing when I said nothing
+         O3 -> asks which wins when two goals clash, before the new one is set
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -20,6 +22,8 @@ const api = vi.hoisted(() => ({
   finishGoal: vi.fn(),
   changeStep: vi.fn(),
   transcribeAnswer: vi.fn(),
+  checkClash: vi.fn(),
+  answerClash: vi.fn(),
 }));
 vi.mock("@/services/api/lifeGoals", () => api);
 
@@ -43,6 +47,7 @@ beforeEach(async () => {
   api.getLifeGoals.mockResolvedValue({ enabled: true, goals: [], draft: null });
   api.answerLifeGoalsAsk.mockResolvedValue(true);
   api.saveDraft.mockImplementation(async (id, space, ladder) => ({ id: "g1", space, status: "draft", ladder, changes: {} }));
+  api.checkClash.mockResolvedValue(null);
   api.draftGoal.mockResolvedValue({ goal: GOAL, quotes: ["the place people learn to speak"] });
   api.finishGoal.mockImplementation(async () => [
     { body: "ladder", metadata: { life_goal: { id: "g1", space: "career", status: "active", ladder: { goal: GOAL }, changes: {} } } },
@@ -125,5 +130,38 @@ describe("life goals lens", () => {
     expect(text()).toContain("I have nothing of yours to draft from yet. Let's do this another time.");
     expect(api.draftGoal).not.toHaveBeenCalled();
     expect(api.finishGoal).not.toHaveBeenCalled();
+  });
+
+  it("asks which wins when two goals clash, before the new one is set", async () => {
+    const career = { id: "c1", space: "career", status: "active", ladder: { goal: GOAL, give: "My evenings." }, changes: {} };
+    api.getLifeGoals.mockResolvedValue({ enabled: true, goals: [career], draft: null });
+    api.checkClash.mockResolvedValue({
+      with: "c1",
+      line: "💼 Career will want your evenings. 🏡 Personal life gives up work after 7 pm.",
+      options: [
+        { wins: "g1", emoji: "🏡", label: "Personal life" },
+        { wins: "c1", emoji: "💼", label: "Career" },
+        { wins: "each_time", emoji: "⚖️", label: "I decide each time" },
+      ],
+    });
+    api.answerClash.mockResolvedValue({ text: "🏡 Personal life wins", goal: {} });
+    await act(async () => goals.openLens({ mode: "add", space: "personal" }));
+    await settle();
+    await tap("Yes, personal life");
+    await type("Dinner with my family, every evening.");
+    await tap("Skip");
+    await tap("Skip");
+    await tap("Accept");
+    await tap("The long run");
+    await tap("Yes");
+    await type("Work after 7 pm.");
+    await tap("1 year");
+    await type("Home by 7, four nights a week.");
+    expect(text()).toContain("When they clash, which wins?");
+    expect(api.finishGoal).not.toHaveBeenCalled();
+    await tap("Personal life");
+    expect(api.answerClash).toHaveBeenCalledWith("g1", "c1", "g1");
+    expect(text()).toContain("Noted. On both ladders: when they clash, personal life wins.");
+    expect(api.finishGoal).toHaveBeenCalledWith("g1", null);
   });
 });

@@ -1,4 +1,4 @@
-import type { HorizonKey, LifeGoal, SpaceKey, StepKey } from "@/services/api/lifeGoals";
+import type { ClashOption, HorizonKey, LifeGoal, SpaceKey, StepKey } from "@/services/api/lifeGoals";
 
 /* -------------------------------------------------------------------------- */
 /*  Life goals — the lens's rules that are not drawing (backend N172; rules:   */
@@ -62,6 +62,13 @@ export const LIFE_GOALS_COPY = {
   stillFits: "Yes, it still fits",
   changeToo: "Change it too",
   changedOn: (date: string) => `Noted. Changed on ${date}.`,
+  // N185: the clash between two goals (M12).
+  whichWins: "When they clash, which wins?",
+  eachTime: "I decide each time",
+  clashNoted: "Noted. On both ladders:",
+  whenClash: (who: string) => `when they clash, ${who}.`,
+  wins: (label: string) => `${label.charAt(0).toLowerCase()}${label.slice(1)} wins`,
+  youDecide: "you decide each time",
   noted: "Noted.",
   accept: "Accept",
   edit: "Edit",
@@ -83,6 +90,7 @@ export const LIFE_GOALS_COPY = {
     quarter: "THIS QUARTER",
     nextQuarter: "NEXT QUARTER",
     talk: "TALK GOAL",
+    clash: "WHEN THEY CLASH",
   },
   by: (when: string) => `by ${when}`,
   changed: (date: string) => `changed ${date}`,
@@ -170,7 +178,9 @@ export function dayLabel(iso: string): string {
 }
 
 export type Rung = {
-  step: "goal" | "want" | "give" | StepKey | "quarter" | "talk";
+  step: "goal" | "want" | "give" | StepKey | "quarter" | "talk" | "clash";
+  /** On a clash: the other goal's id. */
+  with?: string;
   label: string;
   /** The small grey words after the label: when, and when it changed. */
   note: string | null;
@@ -198,5 +208,24 @@ export function ladderRungs(goal: Pick<LifeGoal, "ladder" | "changes" | "talk">)
   for (const step of ["y10", "y3", "y1"] as const) push(step, L[step], ladder.steps?.[step]?.text, ladder.steps?.[step]?.by);
   push("quarter", ladder.quarter?.next ? L.nextQuarter : L.quarter, ladder.quarter?.text, ladder.quarter?.by);
   push("talk", L.talk, goal.talk);
+  for (const clash of ladder.clashes ?? []) {
+    push("clash", L.clash, clash.text);
+    rungs[rungs.length - 1].with = clash.with;
+  }
   return rungs;
+}
+
+/** The answers to "When they clash, which wins?" for two goals, as the
+ *  backend names them: the space, or the first words when both share one. */
+export function clashOptions(goal: Pick<LifeGoal, "id" | "space" | "ladder">, other: Pick<LifeGoal, "id" | "space" | "ladder">): ClashOption[] {
+  const twin = goal.space === other.space;
+  const label = (g: typeof goal) => {
+    if (!twin) return SPACES[g.space].name;
+    const words = (g.ladder.goal ?? SPACES[g.space].name).split(/\s+/);
+    return words.slice(0, 4).join(" ") + (words.length > 4 ? "…" : "");
+  };
+  return [
+    ...[goal, other].map((g) => ({ wins: g.id, emoji: SPACES[g.space].emoji, label: label(g) })),
+    { wins: "each_time", emoji: "⚖️", label: LIFE_GOALS_COPY.eachTime },
+  ];
 }
