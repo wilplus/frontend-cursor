@@ -456,7 +456,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N140, N151, N178, N203 · built, switched off: the bar and the practices line on the walk's end card, "How do you feel?" with a Skip before every Take but the plan's first, "Is this for {date}?" on a new project with Yes and No · BE #1389, FE (this PR)
+- 2026-10-26 · N140, N151, N178, N203 · built, switched off: the bar and the practices line on the walk's end card, "How do you feel?" with a Skip before every Take but the plan's first, "Is this for {date}?" on a new project with Yes and No · BE #1389, FE #1018
 
 - 2026-10-26 · N203, N204 · built, switched off until the migration: the questions, the calls, the card, the practice days in the chat, changing the plan, the plan's end; §2 lists what is still to come, §3 what was built where the prototype doesn't say. Was: nothing built · BE #1386, FE #1016
 
