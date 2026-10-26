@@ -8,7 +8,7 @@ import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
 import WalkStage from "./WalkStage";
-import WalkThread, { WalkPart, WalkSpeakerBubble, WalkThreadMark, useMountedAsPast } from "./WalkThread";
+import WalkThread, { WalkEdited, WalkPart, WalkSpeakerBubble, WalkThreadMark, useMountedAsPast } from "./WalkThread";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage, { WalkNewWords } from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
@@ -17,7 +17,7 @@ import WalkWordPicker from "./WalkWordPicker";
 import { practiseThreadFooter, practiseThreadItem, type PractiseScreenCtx } from "./WalkPractiseScreens";
 import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
-import WalkSummary from "./WalkSummary";
+import WalkSummary, { type WalkStoredSummary } from "./WalkSummary";
 import WalkTempo from "./WalkTempo";
 import { TEMPO_COPY, type TempoEvent, type TempoStretch } from "@/lib/willab/tempoStep";
 import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
@@ -110,6 +110,8 @@ export type FeedbackWalkCoachNote = {
   text: string | null;
   videoUrl: string | null;
   takeIndex: number | null;
+  /** Changed after it was first shared: "Edited" on it (N192, B13). */
+  edited?: boolean;
 };
 
 /** What a helper-words save carries: the paragraph, the span in the words
@@ -164,6 +166,12 @@ type Props<R> = {
   /** The closing summary's words (lock, section 3); null: the step is
    *  skipped. */
   summary?: (() => Promise<string | null>) | null;
+  /** The summary as the chat holds it, shown at once and in a walk played
+   *  again: it lives in the walk only (N192, D4). */
+  storedSummary?: WalkStoredSummary | null;
+  /** The paragraphs whose helper words were picked again in this Take:
+   *  their answer says "Edited" (N192, B13). */
+  editedWords?: ReadonlySet<string>;
   /** The walk ran out: the page underneath. */
   onEnd: () => void;
   /** Next on a step played again: true when the host moved the walk itself
@@ -215,6 +223,8 @@ type Props<R> = {
   /** What the tempo step did, for the chat and for Will (N166 step 4). */
   onTempo?: (event: TempoEvent) => void;
 };
+
+const NO_EDITS: ReadonlySet<string> = new Set();
 
 /** The AI bubble a screen showed, for the chat. */
 export type WalkAiShown = AiVoiceLines & { practiceId: string };
@@ -273,6 +283,8 @@ export default function FeedbackWalk<R = unknown>({
   practise: practiseIO = null,
   readLimitMs,
   summary = null,
+  storedSummary = null,
+  editedWords = NO_EDITS,
   onEnd,
   onForward,
   onClose,
@@ -649,6 +661,8 @@ export default function FeedbackWalk<R = unknown>({
     pastLoop,
     practise,
     summary,
+    storedSummary,
+    editedWords,
     nav: (s, moment) => stepNav(ctx, s, moment),
     say: walkLines.say,
     onOthers,
@@ -744,6 +758,8 @@ type ScreenCtx<R = unknown> = {
   pastLoop: () => void;
   practise: WalkPractise;
   summary: (() => Promise<string | null>) | null;
+  storedSummary: WalkStoredSummary | null;
+  editedWords: ReadonlySet<string>;
   nav: (step: WalkStep, moment: FeedbackWalkMoment<unknown>) => WalkNav;
   /** The signed line a screen says (D-FW-3). */
   say: SayLine;
@@ -833,6 +849,7 @@ function CoachNote(ctx: ScreenCtx, step: WalkStep) {
         <span>{COPY.titleCoachLine}</span>
         {note?.videoUrl ? <CoachVideo src={note.videoUrl} className="my-2 w-full flex-none" /> : null}
         {note?.text ? <span>{note.text}</span> : null}
+        {note?.edited ? <WalkEdited /> : null}
       </WalkMessage>
     </WalkOverlay>
   );
@@ -1195,6 +1212,7 @@ function Summary(ctx: ScreenCtx, step: WalkStep) {
       testId={testId(step)}
       takeIndex={ctx.takeIndex}
       fetchText={ctx.summary}
+      stored={ctx.storedSummary}
       onBack={noop}
       backDisabled
       onNext={() => ctx.forwardFrom(step)}
@@ -1239,6 +1257,14 @@ function partLabel(ctx: ScreenCtx, step: WalkStep): string | null {
   if (step.key === "tempo") return TEMPO_COPY.mark;
   const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];
   return moment ? (stepNav(ctx, step, moment).position ?? null) : null;
+}
+
+/** Helper words picked again in this Take: their answer, in place, says
+ *  "Edited" (N192, B13; no second bubble, no struck-through words). */
+function wordsEdited(ctx: ScreenCtx, step: WalkStep): boolean {
+  if (step.key !== "helpers" || step.moment == null) return false;
+  const moment = ctx.walk.moments[step.moment];
+  return moment ? ctx.editedWords.has(moment.partId) : false;
 }
 
 /** The speaker's choice on a step, as their own bubble under it: the same
@@ -1293,7 +1319,7 @@ function renderThread<R>(
         <WalkPart now={i === now} fresh={i === parts.length - 1}>
           {renderScreen(ctx, step, backFromPractise)}
         </WalkPart>
-        {said ? <WalkSpeakerBubble>{said}</WalkSpeakerBubble> : null}
+        {said ? <WalkSpeakerBubble edited={wordsEdited(ctx, step)}>{said}</WalkSpeakerBubble> : null}
       </>
     );
     return (
