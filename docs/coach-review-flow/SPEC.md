@@ -1,6 +1,6 @@
 # Coach review flow — judgement first, one action per screen
 
-> **Label: Reference** · how something works today; where it differs from the In force docs, they win. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+> **Label: Archive** · out of date, and nothing needs it: it says so itself ("Retired 2026-10-01"); the coach panel's rules page replaced it (docs/flows/coach-panel.md). Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
 
 > **Retired 2026-10-01.** The take-review overlay, its per-snippet card, the
 > wrap-up page and the arc-level delivery this flow describes were removed

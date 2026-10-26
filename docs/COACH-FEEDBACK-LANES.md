@@ -1,6 +1,6 @@
 # The two coach feedback lanes
 
-> **Label: Reference** · how something works today; where it differs from the In force docs, they win. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+> **Label: Archive** · out of date, and nothing needs it: its lanes use star verdicts and challenge/threat routing, both retired (contract clause 41; L1). Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
 
 > **Partly retired 2026-10-01.** The host, card, hook and publish client this
 > document names for the review lane (`CoachReviewOverlay`,

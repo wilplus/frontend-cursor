@@ -1,6 +1,6 @@
 # Ideal-text flow — how the app talks to the user between takes
 
-> **Label: Reference** · how something works today; where it differs from the In force docs, they win. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+> **Label: History** · kept as written, because the rules or the code still name it. Out of date: a draft from 2026-08-05; what the app says between Takes now is the walk's page (docs/flows/feedback-walk-and-chat.md, N88, N89). Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
 
 **Status:** DRAFT — every user-facing string below is held for founder sign-off (LIVE LOOP).
 **Date:** 2026-08-05. **Founder ask:** *"the sequencing system, I need that to be as smooth as
