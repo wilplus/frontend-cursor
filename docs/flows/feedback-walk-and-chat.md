@@ -423,14 +423,13 @@ step; the loop never waits for a coach.
 
 ### E · The Take's one ask (backend `services/after_take.py`)
 
-- **E1** After the summary come the asks that wait, one at a time, in this
-  order (N89, 2026-10-20; until then at most one ask a Take). Take 1:
-  WhatsApp once the Take has gone to the coach, Will's question when he has
-  one, then "Did this help?" when the Take looks off; within the two asks a
-  Take, "Did this help?" waits on Take 1 rather than WhatsApp (backend N171,
-  2026-10-26). From Take 2: the CEO panel's ask, WhatsApp (at most twice in
+- **E1** After the summary comes one ask at most: the first that waits, in
+  this order; the others wait for a later Take (backend N189, 2026-10-26;
+  was at most two, N94). The order: the CEO panel's ask, WhatsApp (from Take
+  1 once the Take has gone to the coach, backend N171; at most twice in
   all), the home screen (once), Will's question, "Did this help?" when the
-  Take looks off. Will
+  Take looks off. So Take 1 brings the WhatsApp ask and Take 2 the home
+  screen. Will
   opens WhatsApp, the home screen and "Did this help?" with a lead-in: one or
   two sentences tied to this Take (never a grade, never advice; "Well, I can
   see you're doing pretty good. What about adding the application to the
@@ -921,7 +920,7 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- **N171** · notifications and reminders: the WhatsApp ask from Take 1 (E1) and WhatsApp replies (STOP, its words signed in N174) · E1 · decided, not built · BE #1326. One WhatsApp or, without a number, one email for a coach's sitting (C1's doors) · C1 · built, in review · BE #1333
+- **N171, N189** · messages: the WhatsApp ask from Take 1 and one ask a Take (E1); replies reach us and STOP removes the number (its words signed in N174), with no check message when a number is saved, since the app shows it back; coach-feedback messages wait from 21:00 to 8:00 in the speaker's time zone (C1's doors) · C1, E1 · decided, not built · BE #1326, #1360
 
 - **The plan** (backend N129 onward) · the diagnosis, the plan card, the practice days and the plan's end have their own page, [`the-plan.md`](the-plan.md); it meets this page in the Lounge, in the walk's level moment (C, N134 item 2), the bar on the end sheet (N140 item 11) and the pace practice in a pace week (the tempo step), and in the chat's day line before each day's first message (N169, the-plan.md G3) · decided, not built · its rules live there, not here (backend N160)
 
@@ -1066,6 +1065,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N189 · one ask after each Take, the first that waits in E1's order, the others for a later Take; was at most two (N94) (E1) · BE #1360, FE (this PR)
 - 2026-10-26 · docs audit · the tempo step's block moves from §2 to §1 T, word for word, now that its build steps are done; §2 keeps one line for what is left; §3, §4 and §5 point to §1 T. Was: the whole feature in §2 · —
 - 2026-10-26 · N161, N167 · B3 and D4 name the plan's record buttons: under the plan card, in place of "Type here", only "Start your first recording" (N161); on a practice day one record button in the chat, in the newest bubble, the closing message keeping its words and giving its button up (N167); the plan decided, not built. Was: "The Lounge has no record button, only the message box" (B3); the closing message keeping "Record Take N" under it, with no newer bubble named (D4) · —
 - 2026-10-26 · N182 · the Sunday note (L) and life goals (M), with their words, in-flight lines and prototypes, moved to [`principles.md`](principles.md): the principles are their own feature, ring 6, apart from the speaking coach · BE #1344, FE #993
