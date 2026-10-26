@@ -82,8 +82,12 @@ step; the loop never waits for a coach.
 - **B3** Lens off is the Lounge, the main view: the same steps as chat
   bubbles, 15px, 16px corners, 20px avatar. A step that asks is a message
   with controls; answered, it locks and keeps the answer, which also shows as
-  the speaker's own bubble. The Lounge has no record button, only the
-  message box.
+  the speaker's own bubble. Under the thread, the Lounge has no record
+  button, only the message box; "Record Take N" is in the thread, under the
+  closing message (D4). With a plan, under the plan card, in place of
+  "Type here", there is only "Start your first recording" (N161), and on a
+  practice day the chat has one record button, in the newest bubble (N167);
+  the plan is decided, not built ([`the-plan.md`](the-plan.md) E5, G6).
 - **B4** Bubbles: the speaker orange on the right; the app and the coach
   light grey on the left with a small avatar (the coach's grey-blue). No
   bold in any bubble, the Clearer version's new words included (2026-10-21).
@@ -386,8 +390,12 @@ step; the loop never waits for a coach.
   each opened by Will's lead-in line and followed by the ask's buttons; and
   only then "Look, practice makes perfect. If you're ready, let's go with the
   next take. 💪" with "Record Take N" under it (backend
-  `services/after_take.py`). The closing message is held back while the
-  chain runs. The ask and its buttons are adjacent: the card is moved above
+  `services/after_take.py`). On a practice day the chat has one record
+  button, in the newest bubble: the closing message keeps its words and
+  gives its button up to the practice day's bubble that comes after it
+  (N167; decided, not built, [`the-plan.md`](the-plan.md) G6). The closing
+  message is held back while the chain runs. The ask and its buttons are
+  adjacent: the card is moved above
   the Take's whole batch, the admin's asks included (2026-10-20: the card had
   landed between the data question and its buttons).
 - **D5** A coach update arrives under "Later · from your coach", outlined
@@ -1054,6 +1062,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N161, N167 · B3 and D4 name the plan's record buttons: under the plan card, in place of "Type here", only "Start your first recording" (N161); on a practice day one record button in the chat, in the newest bubble, the closing message keeping its words and giving its button up (N167); the plan decided, not built. Was: "The Lounge has no record button, only the message box" (B3); the closing message keeping "Record Take N" under it, with no newer bubble named (D4) · —
 - 2026-10-26 · N182 · the Sunday note (L) and life goals (M), with their words, in-flight lines and prototypes, moved to [`principles.md`](principles.md): the principles are their own feature, ring 6, apart from the speaking coach · BE #1344, FE #993
 - 2026-10-26 · N181 · the tempo step is the founder's "Sniper"; a speaker without a plan gets it from Take 2 when the Take has a stretch outside the green; it reaches people as the `tempo_step` ring widens; was: only the plan's pace or pause week, later · BE #1344, FE #993
 
