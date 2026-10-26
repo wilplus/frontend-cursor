@@ -316,14 +316,14 @@ export default function BookingPage({ info, ipZone, link }: { info: PageInfo; ip
                   <span className="py-1 font-normal text-muted-foreground">{signedIn.email}</span>
                 </div>
               )}
-              {/* The confirmation and a reminder 1 hour before, on WhatsApp
-                  (founder 2026-10-25, backend N144). */}
+              {/* The confirmation on WhatsApp (founder 2026-10-25, backend N144;
+                  no reminder for now, N145). */}
               <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="bk-whatsapp">
                 <span>WhatsApp number <span className="text-muted-foreground">(optional)</span></span>
                 <input id="bk-whatsapp" className={field} type="tel" inputMode="tel" autoComplete="tel"
                   placeholder={WHATSAPP_COPY.placeholder} value={form.whatsapp}
                   onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} />
-                <span className="font-normal text-muted-foreground">We&apos;ll confirm your time here and remind you 1 hour before.</span>
+                <span className="font-normal text-muted-foreground">We&apos;ll confirm your time here.</span>
               </label>
               <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="bk-note">
                 <span>Anything {info.host_name.split(" ")[0]} should know? <span className="text-muted-foreground">(optional)</span></span>
