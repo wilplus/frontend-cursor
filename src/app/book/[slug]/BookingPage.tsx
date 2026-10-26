@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import Logo from "@/components/Logo";
+import { WHATSAPP_COPY } from "@/components/willab/WillabWhatsAppPrompt";
 import { bookingUrl, clearBookingReturn, readBookingReturn, saveBookingReturn } from "@/lib/booking/returnTo";
 import {
   allZones, city, dayKey, detectedZone, fmtDay, fmtShortDay, fmtTime, gmtLabel, money, parts,
@@ -50,6 +51,7 @@ const ERRORS: Record<string, string> = {
   EMAIL_INVALID: "Check the email address. It should look like name@example.com.",
   PAYMENTS_OFF: "Payments aren't set up yet. Try again later.",
   RATE_LIMITED: "Too many tries. Wait a few minutes and try again.",
+  WHATSAPP_INVALID: WHATSAPP_COPY.invalid,
 };
 
 /* Stripe's card form inside the page. Without the publishable key on Vercel the
@@ -153,7 +155,7 @@ export default function BookingPage({ info, ipZone, link }: { info: PageInfo; ip
   const [slots, setSlots] = useState<number[] | null>(null);
   const [selDay, setSelDay] = useState<string | null>(null);
   const [slot, setSlot] = useState<number | null>(null);
-  const [form, setForm] = useState({ name: "", note: "" });
+  const [form, setForm] = useState({ name: "", note: "", whatsapp: "" });
   // null = still asking; "signed-out" = no account session.
   const [offer, setOffer] = useState<Offer | "signed-out" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -244,7 +246,7 @@ export default function BookingPage({ info, ipZone, link }: { info: PageInfo; ip
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            start: new Date(slot).toISOString(), name, note: form.note, timezone: tz,
+            start: new Date(slot).toISOString(), name, note: form.note, timezone: tz, whatsapp: form.whatsapp,
             embedded: !!stripePromise && !skipPayment, skip_payment: skipPayment, link,
           }),
         });
@@ -314,6 +316,15 @@ export default function BookingPage({ info, ipZone, link }: { info: PageInfo; ip
                   <span className="py-1 font-normal text-muted-foreground">{signedIn.email}</span>
                 </div>
               )}
+              {/* The confirmation and a reminder 1 hour before, on WhatsApp
+                  (founder 2026-10-25, backend N144). */}
+              <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="bk-whatsapp">
+                <span>WhatsApp number <span className="text-muted-foreground">(optional)</span></span>
+                <input id="bk-whatsapp" className={field} type="tel" inputMode="tel" autoComplete="tel"
+                  placeholder={WHATSAPP_COPY.placeholder} value={form.whatsapp}
+                  onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} />
+                <span className="font-normal text-muted-foreground">We&apos;ll confirm your time here and remind you 1 hour before.</span>
+              </label>
               <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="bk-note">
                 <span>Anything {info.host_name.split(" ")[0]} should know? <span className="text-muted-foreground">(optional)</span></span>
                 <textarea id="bk-note" className={`${field} h-16 md:h-auto md:min-h-[84px]`} value={form.note}
