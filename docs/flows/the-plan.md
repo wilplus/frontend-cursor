@@ -223,10 +223,15 @@ stand. The entries keep their N-numbers and stay the record.
    says the same words as its message in the chat, written at the same
    moment, and tapping it opens the chat at that day line. It goes at 9:00
    in the speaker's time zone by default, changed in "Change your plan", with
-   no new question before Take 1. Its first channel is WhatsApp, with the
-   words of N154, asked as today's WhatsApp ask, once a privacy version names
-   it and Meta approves its template; web push (built for the Life Panel)
-   comes second (N153, N154, N169).
+   no new question before Take 1. Its first channel is the speaker's own
+   calendar, one the phone subscribes to: it follows "Change your plan" and
+   the deadline's "Edit", stops when the plan ends, rings at the reminder's
+   time and links to the chat at that day's line; the phone rings it, so the
+   day's hello is written when the app first opens that day. Its second is
+   WhatsApp, with the words of N154, asked as today's WhatsApp ask, once a
+   privacy version names it and Meta approves its template. No web push for
+   speakers. The calendar offer's words wait for the founder's OK (N153,
+   N154, N169, N174).
 12. Every reminder, on any channel: opt-in and off by default; at most one
    practice reminder a day, never twice on the same local day, between 8:00
    and 21:00 in the speaker's time zone; it says what is ready, never "come
@@ -400,6 +405,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N174 · the practice-day reminder, when it comes: the speaker's own calendar first (a subscribed calendar that follows the plan), then WhatsApp; no web push for speakers (G11). Was: WhatsApp first, web push second (N169 item 6) · BE #1331, FE (this PR)
 - 2026-10-26 · N173 · signed: the "Today, one thing" lines for pauses, filler words, a voice that moves and make it yours; the ratings' questions; "Booked: …" and "You're all set. Here's your plan."; the day after the deadline; the coach's queue line for a stalled level. Was: waiting for the founder's OK · BE #1330, FE #982
 
 - 2026-10-26 · N169 · the chat in time order: a day line before each day's first message; the practice-day hello once per practice day, at the first open or the reminder, never after a Take; the plan card only when made or changed, "See your plan" opens it in a sheet; the hello names the level again; today's one thing carries the key line and the recording; the reminders' rules, 9:00 by default, WhatsApp first then web push; a good-luck line on the deadline's morning. Was: the hello and the closed card right under Take 1 (N167) · BE #1325, FE #977
