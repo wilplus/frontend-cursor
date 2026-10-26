@@ -68,7 +68,7 @@ import { useUserEmail } from "./useUserEmail";
 import { useReviewTempo } from "./walk/useReviewTempo";
 import { useRingState } from "@/hooks/useRingState";
 import { postTempoGame } from "@/services/api/reviewTempo";
-import { TEMPO_DRAFT_COPY, TEMPO_STEP_FEATURE, type TempoEvent } from "@/lib/willab/tempoStep";
+import { TEMPO_COPY, TEMPO_STEP_FEATURE, type TempoEvent } from "@/lib/willab/tempoStep";
 
 /* -------------------------------------------------------------------------- */
 /*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
@@ -799,13 +799,13 @@ export function useDeckFeedbackWalk(args: {
       const say = (key: string, author: "app" | "speaker", body: string, attempt: number | null = null) =>
         post({ key, moment: null, attempt, author, body });
       if (event.kind === "opened") {
-        say("tempo:open", "app", [TEMPO_DRAFT_COPY.game[tempo.reading], TEMPO_DRAFT_COPY.task(tempo.topic), TEMPO_DRAFT_COPY.room].join("\n"));
+        say("tempo:open", "app", [TEMPO_COPY.game[tempo.reading], TEMPO_COPY.task(tempo.topic), TEMPO_COPY.room].join("\n"));
       } else if (event.kind === "try") {
-        say("tempo:try", "speaker", TEMPO_DRAFT_COPY.tryLabel(event.n), event.n);
-        say("tempo:comment", "app", TEMPO_DRAFT_COPY.comment[event.result], event.n);
+        say("tempo:try", "speaker", TEMPO_COPY.tryLabel(event.n), event.n);
+        say("tempo:comment", "app", TEMPO_COPY.comment[event.result], event.n);
       } else {
-        if (event.close) say("tempo:close", "app", TEMPO_DRAFT_COPY.close[event.close]);
-        else say("tempo:skip", "speaker", TEMPO_DRAFT_COPY.skip);
+        if (event.close) say("tempo:close", "app", TEMPO_COPY.close[event.close]);
+        else say("tempo:skip", "speaker", TEMPO_COPY.skip);
         const arcId = args.arcId ?? null;
         if (arcId && take) void postTempoGame(arcId, take, tempo.reading, event);
       }

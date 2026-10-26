@@ -19,7 +19,7 @@ import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
 import WalkSummary from "./WalkSummary";
 import WalkTempo from "./WalkTempo";
-import { TEMPO_DRAFT_COPY, type TempoEvent, type TempoStretch } from "@/lib/willab/tempoStep";
+import { TEMPO_COPY, type TempoEvent, type TempoStretch } from "@/lib/willab/tempoStep";
 import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
@@ -1236,7 +1236,7 @@ function partLabel(ctx: ScreenCtx, step: WalkStep): string | null {
   if (step.key === "coachnote") return COPY.titleCoach;
   if (step.key === "summary") return ctx.takeIndex != null ? `${COPY.historyTake} ${ctx.takeIndex}` : COPY.historyTake;
   if (step.key === "others") return null;
-  if (step.key === "tempo") return TEMPO_DRAFT_COPY.mark;
+  if (step.key === "tempo") return TEMPO_COPY.mark;
   const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];
   return moment ? (stepNav(ctx, step, moment).position ?? null) : null;
 }

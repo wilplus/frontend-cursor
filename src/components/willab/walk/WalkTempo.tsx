@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { startPaceMic, type PaceMic } from "@/lib/willab/pace/paceMic";
 import {
-  TEMPO_DRAFT_COPY as W,
+  TEMPO_COPY as W,
   TEMPO_MAX_TRIES,
   closeOf,
   readTry,
@@ -31,8 +31,7 @@ import { WalkSpeakerBubble, useMountedAsPast } from "./WalkThread";
 /*  third, the closing line comes by itself; Next goes on with the walk.     */
 /*                                                                            */
 /*  Listen only: the scale reads the microphone in this tab, nothing is      */
-/*  recorded or sent. The words are drafts (TEMPO_DRAFT_COPY): the step is   */
-/*  shown only behind the founder's switch until they are signed.            */
+/*  recorded or sent. Every word is signed (TEMPO_COPY, backend N178).       */
 /* -------------------------------------------------------------------------- */
 
 /** One point of a try's path every 200 ms. */
