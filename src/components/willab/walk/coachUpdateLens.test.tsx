@@ -77,7 +77,8 @@ afterEach(async () => {
 });
 
 const bubble = () => host.querySelector<HTMLButtonElement>("[data-walk-step-bubble]")!;
-const rings = () => bubble().className.includes("ring-2");
+// The ring is the bubble's orange outline, a border with no tail (N192).
+const rings = () => bubble().hasAttribute("data-outlined");
 const seenCalls = () => bff.mock.calls.filter(([path]) => path === "/api/v2/user/coach-feedback/seen");
 
 describe("the coach's changed word (N80, N89)", () => {
