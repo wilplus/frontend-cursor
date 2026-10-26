@@ -69,6 +69,16 @@ export const LIFE_GOALS_COPY = {
   whenClash: (who: string) => `when they clash, ${who}.`,
   wins: (label: string) => `${label.charAt(0).toLowerCase()}${label.slice(1)} wins`,
   youDecide: "you decide each time",
+  // N172 M13, N186: the quarter comes back.
+  didItMove: "Did it move?",
+  outcomes: [
+    { key: "got_there", emoji: "🎯", label: "It got there" },
+    { key: "moved", emoji: "↗️", label: "It moved" },
+    { key: "stalled", emoji: "⏸️", label: "It stalled" },
+  ],
+  inTheWay: "What got in the way?",
+  notesToo: "Your notes said it too:",
+  moveForward: (by: string) => `What would move it forward by ${by}?`,
   noted: "Noted.",
   accept: "Accept",
   edit: "Edit",
@@ -169,6 +179,14 @@ export function quarterQuestion(by: string, weeks: string, target: string | null
   return target
     ? `Then what must be true ${when}, to be on track for “${target.replace(/\.$/, "")}”?`
     : `What must be true ${when}?`;
+}
+
+/** The last day of the quarter after the one ending on ``iso`` (M13):
+ *  "31 March" after "2026-12-31". */
+export function nextQuarterBy(iso: string): string {
+  const [year, month] = iso.slice(0, 10).split("-").map(Number);
+  const end = new Date(year, Math.floor((month - 1) / 3) * 3 + 6, 0);
+  return `${end.getDate()} ${MONTHS[end.getMonth()]}`;
 }
 
 /** "3 November" for a change's ISO date. */

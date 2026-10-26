@@ -118,7 +118,7 @@ import {
 } from "./feedbackCheck";
 import { postFeedbackCheck, type FeedbackCheckChoice } from "@/services/api/feedbackCheck";
 import { SundayActions, useVoiceNotebook, VoiceNoteBar, VoiceNoteMic } from "./useVoiceNotebook";
-import { LifeGoalBubble, lensAskOf, lifeGoalOf, useLifeGoals } from "./LoungeLifeGoals";
+import { LifeGoalBubble, lensAskOf, lifeGoalOf, quarterAskOf, useLifeGoals } from "./LoungeLifeGoals";
 import type { SundayChoice } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import WillQuestionBubble, { willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
@@ -1182,7 +1182,7 @@ export default function Lounge({
     if (type === "joke") return;
     const rank: Record<OfferType, number> = {
       joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0, feedback_check: 0,
-      voice_notebook: 0, sunday_note: 0, sunday_principle: 0, life_goals: 0,
+      voice_notebook: 0, sunday_note: 0, sunday_principle: 0, life_goals: 0, life_goals_quarter: 0,
     };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
@@ -1766,6 +1766,7 @@ export default function Lounge({
           onNotebook={notebook.answer}
           onSunday={notebook.sunday}
           onLifeGoals={lifeGoals.answerAsk}
+          onLifeGoalsQuarter={(choice) => lifeGoals.answerQuarter(quarterAskOf(messages), choice)}
           onResolve={() => {
             // A Take's ask closed: its message comes under it (the question's
             // taps let it go on the backend, "No" keeps it waiting).
@@ -2098,6 +2099,7 @@ function OfferActions({
   onNotebook,
   onSunday,
   onLifeGoals,
+  onLifeGoalsQuarter,
   onResolve,
 }: {
   type: OfferType;
@@ -2117,23 +2119,26 @@ function OfferActions({
   onSunday: (choice: SundayChoice) => void;
   /** "One more thing: your life goals." (step 3, N172 M1). */
   onLifeGoals: (choice: "start" | "not_now") => void;
+  /** "{emoji} {step}. Did it move?" (N172 M13, N186). */
+  onLifeGoalsQuarter: (choice: "start" | "not_now") => void;
   onResolve: () => void;
 }) {
   const router = useRouter();
   if (type === "sunday_note" || type === "sunday_principle") {
     return <SundayActions type={type} onSunday={onSunday} onResolve={onResolve} />;
   }
-  if (type === "life_goals") {
+  if (type === "life_goals" || type === "life_goals_quarter") {
+    const pick = type === "life_goals" ? onLifeGoals : onLifeGoalsQuarter;
     return (
       <SymmetricPair
         closeLabel="Not now"
         onClose={() => {
-          onLifeGoals("not_now");
+          pick("not_now");
           onResolve();
         }}
         actionLabel="Start"
         onAction={() => {
-          onLifeGoals("start");
+          pick("start");
           onResolve();
         }}
       />

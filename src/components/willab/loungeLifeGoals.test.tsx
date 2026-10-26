@@ -5,9 +5,11 @@ OUTCOME
   O1  Start opens the lens with the paper-notebook line; the space, three open questions, Will's draft with my words, goal or want, ambitious, give up, the horizon and the quarter come one at a time, and the goal is set with its ladder and the line that sends me out to live it.
   O2  With every open question skipped, Will drafts nothing and says so.
   O3  A new goal that pulls against a kept one is asked "When they clash, which wins?" before it is set, and the answer is noted for both ladders (N185).
+  O4  When the quarter comes back, Start asks "Did it move?" (never a score), what got in the way, shows my own notes that say it too, and asks for the next quarter's step (N186).
 PROVES   O1 -> sets a goal from my answers, one step at a time
          O2 -> drafts nothing when I said nothing
          O3 -> asks which wins when two goals clash, before the new one is set
+         O4 -> brings the quarter back: did it move, my notes, the next step
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -24,6 +26,10 @@ const api = vi.hoisted(() => ({
   transcribeAnswer: vi.fn(),
   checkClash: vi.fn(),
   answerClash: vi.fn(),
+  quarterDue: vi.fn(),
+  answerQuarterAsk: vi.fn(),
+  quarterNotes: vi.fn(),
+  reviewQuarter: vi.fn(),
 }));
 vi.mock("@/services/api/lifeGoals", () => api);
 
@@ -48,6 +54,7 @@ beforeEach(async () => {
   api.answerLifeGoalsAsk.mockResolvedValue(true);
   api.saveDraft.mockImplementation(async (id, space, ladder) => ({ id: "g1", space, status: "draft", ladder, changes: {} }));
   api.checkClash.mockResolvedValue(null);
+  api.quarterDue.mockResolvedValue(false);
   api.draftGoal.mockResolvedValue({ goal: GOAL, quotes: ["the place people learn to speak"] });
   api.finishGoal.mockImplementation(async () => [
     { body: "ladder", metadata: { life_goal: { id: "g1", space: "career", status: "active", ladder: { goal: GOAL }, changes: {} } } },
@@ -163,5 +170,31 @@ describe("life goals lens", () => {
     expect(api.answerClash).toHaveBeenCalledWith("g1", "c1", "g1");
     expect(text()).toContain("Noted. On both ladders: when they clash, personal life wins.");
     expect(api.finishGoal).toHaveBeenCalledWith("g1", null);
+  });
+
+  it("brings the quarter back: did it move, my notes, the next step", async () => {
+    const career = {
+      id: "c1",
+      space: "career",
+      status: "active",
+      ladder: { goal: GOAL, quarter: { text: "Ten paying teams.", by: "31 December", asked: "2026-12-31" } },
+      changes: {},
+    };
+    api.getLifeGoals.mockResolvedValue({ enabled: true, goals: [career], draft: null });
+    api.quarterNotes.mockResolvedValue([{ text: "Too many late calls again.", on: "12 November" }]);
+    api.reviewQuarter.mockResolvedValue({ ...career, ladder: { ...career.ladder, quarter: { text: "Twenty paying teams.", by: "31 March" } } });
+    await act(async () => goals.openLens({ mode: "quarter", goalId: "c1" }));
+    await settle();
+    expect(text()).toContain("Did it move?");
+    await tap("It moved");
+    expect(text()).toContain("What got in the way?");
+    await type("Late calls.");
+    expect(api.quarterNotes).toHaveBeenCalledWith("c1", "Late calls.");
+    expect(text()).toContain("Your notes said it too:");
+    expect(text()).toContain("“Too many late calls again.”");
+    expect(text()).toContain("What would move it forward by 31 March?");
+    await type("Twenty paying teams.");
+    expect(api.reviewQuarter).toHaveBeenCalledWith("c1", "moved", "Late calls.", "Twenty paying teams.");
+    expect(text()).toContain("Noted.");
   });
 });
