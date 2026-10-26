@@ -176,42 +176,64 @@ stand. The entries keep their N-numbers and stay the record.
    otherwise three practices a week on days the speaker picks; with no date,
    eight weeks (N135, N140).
 2. One practice is one Take with its walk, about 15 minutes (N131).
-3. On a practice day Will says so as the Lounge opens: "Hi Artur, good to see
-   you back! Today is practice 2 of 9." (N140; the level is on the card,
-   N167). Then the card, closed: "This week's level", the level, its line
-   with the speaker's recording, "Why this line?" and the bar; "See your
-   plan" opens the list and "Change your plan". Progress has one unit:
-   there is no "Week {n} of {weeks}", and "{n} of {total} practices done.
-   Next: {day}." shows only after the Take, on the walk's end sheet (N167).
-4. After the card, one grey bubble, drawn as the app's closing message is
-   today (N89), with "● Record Take N" inside, under its words: "Today, one
-   thing: say your key line a little slower than the rest. You've got this
-   💪" (the wedding toast: "take a breath before your key line"; a
-   speaker's own case: "give your key line a little more room"). The chat
-   has one record button, in the newest bubble: the previous Take's closing
-   message keeps its words and gives its button up, and a line written after
-   it moves the bubble below. The last practice and the next plan show the
-   same bubble with N89's closing line. No "Start a new project" under it:
-   the "+" next to "Type here" opens the projects, as today. Will's hello,
-   the card and the button fit on the first screen (N167).
-5. The walk shows the Take's best moment and the moment where this week's
+3. The chat reads in time order. A day line, small and grey, comes before
+   the first message of each day, in the speaker's time zone: "Monday 26
+   October" (N169).
+4. Will's practice-day hello is written once per practice day: the first
+   time the app opens that day, or when that day's reminder goes once there
+   is one, whichever is first. Never right after a Take, never on a day off,
+   not when a Take was already recorded that day. Missed practice days leave
+   no trace: no catch-up hello, no "you missed"; "practice {n} of {total}"
+   counts the Takes done plus one. A Take on a day off is a practice (N131,
+   N169).
+5. On a practice day, under the day line: "Hi Artur, good to see you back!
+   Today is practice 2 of 9: Let your key line land." (N140), the bar under
+   it, and "See your plan", which opens the plan in a sheet ("Your plan",
+   "This week's level", the list with "Book", "Change your plan"). The plan
+   card itself is posted in the chat only when the plan is made or changed.
+   Progress has one unit: there is no "Week {n} of {weeks}", and "{n} of
+   {total} practices done. Next: {day}." shows only after the Take, on the
+   walk's end sheet (N167, N169).
+6. Then today's one thing, one grey bubble drawn as the app's closing message
+   is today (N89): "Today, one thing: say your key line a little slower than
+   the rest. You've got this 💪" (the wedding toast: "take a breath before
+   your key line"; a speaker's own case: "give your key line a little more
+   room"), the key line in the speaker's words, their recording ("How you
+   said it") and "● Record Take N" inside. The chat has one record button, in
+   the newest bubble: the previous Take's closing message keeps its words and
+   gives its button up, and a line written after it moves the bubble below.
+   The last practice and the next plan show the same bubble with N89's
+   closing line. No "Start a new project" under it: the "+" next to "Type
+   here" opens the projects, as today (N167, N169).
+7. The walk shows the Take's best moment and the moment where this week's
    level shows most; when no moment shows it, the two best, as today (N134;
    the walk's page).
-6. In a pace or pause week the speaker practises their pace, from Take 2
+8. In a pace or pause week the speaker practises their pace, from Take 2
    (Take 1 has no Ideal Text yet). The pace practice is the tempo step of
    the Feedback walk and nowhere else: not the coach panel, not the Lounge,
    not before the Take. Its rules are on the walk's page, §2 "Tempo"
    (N130, N134, N140, N142, N162).
-7. A practise that slowed down gets its own lines, said in turn: "You gave it
+9. A practise that slowed down gets its own lines, said in turn: "You gave it
    room, and it landed." · "Slower, and every word counted." · "That pace
    lets them keep up with you." (N140).
-8. A level moves on after two Takes in a row reach it, or when its time runs
+10. A level moves on after two Takes in a row reach it, or when its time runs
    out. After three Takes without moving, it switches to the next
    intervention in its row, and the coach sees it in their queue (N134).
-9. There is no practice-day reminder for now. When it comes, it is the
-   WhatsApp ask under the plan card, the same as today's WhatsApp ask, with
-   the words of N154, after a new privacy version names it and Meta approves
-   its template (N153, N154, N155).
+11. There is no practice-day reminder for now (N155). When it comes: it
+   says the same words as its message in the chat, written at the same
+   moment, and tapping it opens the chat at that day line. It goes at 9:00
+   in the speaker's time zone by default, changed in "Change your plan", with
+   no new question before Take 1. Its first channel is WhatsApp, with the
+   words of N154, asked as today's WhatsApp ask, once a privacy version names
+   it and Meta approves its template; web push (built for the Life Panel)
+   comes second (N153, N154, N169).
+12. Every reminder, on any channel: opt-in and off by default; at most one
+   practice reminder a day, never twice on the same local day, between 8:00
+   and 21:00 in the speaker's time zone; it says what is ready, never "come
+   back", never a count of missed days, never a number about the voice
+   (Never 1); outside the app the level's name at most, never the key line,
+   the transcript or the recording; it stops when the plan ends; it never
+   stands in the way of a Take (Never 3) (N169).
 
 ### H · Changing the plan
 
@@ -232,6 +254,10 @@ stand. The entries keep their N-numbers and stay the record.
    event" (the questions again, a new plan) or "Keep practising" (a new
    two-month plan from their Takes, no questions, its first ratings before
    its first Take) (N149, N151, N157).
+3. On the deadline's morning, a short good-luck line in the chat and on the
+   chosen channel; the morning after, "How did it go?" with the link outside
+   the app, beside the message in the chat (2). Their words wait for the
+   founder's OK (N169).
 
 ### J · Not in this version
 
@@ -269,15 +295,15 @@ Signed:
   Your coach can change it." · "Ask your coach" · "Done. Your plan now runs
   to {date}." · "Done. You'll practise on {days}." · "I've told your coach.
   You can talk it over on your next call." · "I have a new event" (N140).
-- Practice days: "Today is practice {n} of {total}." · "{n} of {total}
+- Practice days: "Today is practice {n} of {total}: {level}." · "{n} of {total}
   practices done. Next: {day}." · "This week's level: {level}. Here's where
-  it shows:" · the three pace lines (G7) (N140) · "This week's level" · "See
+  it shows:" · the three pace lines (G9) (N140) · "This week's level" · "See
   your plan" · "Book" (a call not booked yet) · "Today, one thing: say your
   key line a little slower than the rest. You've got this 💪" · "Today, one
   thing: take a breath before your key line. You've got this 💪" · "Today,
   one thing: give your key line a little more room. You've got this 💪"
   (N167) · "Edit" and "Your deadline: {date}" under the calls' calendar
-  (N168).
+  (N168) · the day line, "{weekday} {date} {month}" (N169).
 - Kept for the reminder, when it comes: "Want a WhatsApp on your practice
   days? Add your number." · "We'll only use it to remind you on practice days
   and to tell you when your coach texted you" · "Saved ✓ We'll message you
@@ -361,6 +387,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-26 · N169 · the chat in time order: a day line before each day's first message; the practice-day hello once per practice day, at the first open or the reminder, never after a Take; the plan card only when made or changed, "See your plan" opens it in a sheet; the hello names the level again; today's one thing carries the key line and the recording; the reminders' rules, 9:00 by default, WhatsApp first then web push; a good-luck line on the deadline's morning. Was: the hello and the closed card right under Take 1 (N167) · BE #1325, FE #977
 
 - 2026-10-26 · N168 · "Edit" next to "Your deadline: {date}" under the calls' calendar: the same calendar moves the deadline, then the call again. Was: the deadline moved only from "Change your plan" · BE #1323, FE #975
 
