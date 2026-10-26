@@ -49,11 +49,11 @@ Life Panel.
    goal you can steer by. Keep yours here, and when the jitters come back
    before your next talk, we'll show you what you're doing it for." Then
    "Your notes are private. Only you and Will read them. Keep a voice
-   notebook?" with Yes | Not now. Once only (N194; not built yet).
+   notebook?" with Yes | Not now. Once only (N195; not built yet).
 
 ### K · Words on screen (all signed)
 
-- **How it begins (A5, N194):** the three bubbles quoted in A5, word for
+- **How it begins (A5, N195):** the three bubbles quoted in A5, word for
   word; then the notebook's "Your notes are private. Only you and Will read
   them. Keep a voice notebook?", "Yes", "Not now" and "Noted." (2026-10-20).
 
@@ -279,7 +279,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N194 · A5: the first tap on the mic, before the notebook's question, says why it exists in three bubbles (the jitters, a place for your goals, a goal you can steer by); was: the question alone · BE #1369
+- 2026-10-26 · N195 · A5: the first tap on the mic, before the notebook's question, says why it exists in three bubbles (the jitters, a place for your goals, a goal you can steer by); was: the question alone · BE #1369
 
 - 2026-10-26 · N191 · built (M14): under a # note's "Noted.", a note that says a goal's quarter step should be different is asked about once, quoting it, the new words only from the note; Change writes it with the earlier words kept and shows the ladder, Not now changes nothing · BE #1359, #1361, FE (this PR)
 - 2026-10-26 · N186 · built (M13): no clock; the first time the Lounge opens on the quarter's last day (or later, "The quarter ended on {date}."), "Did it move?" with Not now | Start; the lens asks how it went in words, what got in the way, quotes their own notes only when some match, and sets the next quarter's step with the earlier one kept · BE #1354, #1356, FE (this PR)
