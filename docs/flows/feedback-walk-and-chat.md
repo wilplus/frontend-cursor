@@ -901,11 +901,15 @@ The four lines above were filled from main's history by the page's keeper on
 - **The lens scrolls** · B2, B5 · founder 2026-10-20 ("It is scrollable!"), read as WIL-89 working as drawn; say if that was a complaint · confirmed
 - **Review from the Lounge loads very long** · F1, A2 · founder 2026-10-20. The same cause as WIL-76: the marks computed live (20 to 40 s) or pending behind a queued bake; the bake in the run stores them before the Take is ready, so the tap finds them · BE #1209 · the founder checks the app
 
-- **Tempo · the pace step** · C (a new step after the practise moment), K · founder 2026-10-24 to 2026-10-26 · designed, to build next · everything about this feature is in this block.
+- **Tempo · the pace step** · C (a new step after the practise moment), K · founder 2026-10-24 to 2026-10-26, backend N162 · designed, to build next · everything about this feature is in this block.
 
   **In one line.** After a Take where the speaker rushed or dragged, the walk
   plays that stretch back and asks them to talk about the same thing again
   while a dot on a scale follows their pace live.
+
+  **Where and when** (N162).
+  - In the Feedback walk only. Never in the coach panel, the Lounge, or before the Take.
+  - It shows when the diagnosis and the plan say so: in a pace or pause week, from Take 2 ([the plan](the-plan.md), item 5).
 
   **The scale.** A dot on a horizontal line. It moves right while you talk
   and left while you pause. Green in the middle, orange towards the ends,
@@ -927,7 +931,6 @@ The four lines above were filled from main's history by the page's keeper on
   | Question | Default |
   |---|---|
   | Every word above | Drafts until signed into K (Never 4) |
-  | When the step shows | Only on a Take with a stretch outside the green |
   | Which stretch | The one the scale reads furthest from the green |
   | Where in the walk | Right after the practise moment |
   | How many tries | Up to three |
@@ -1058,6 +1061,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N162 · the pace practice is the tempo step of the Feedback walk only, shown in a pace or pause week from Take 2; was: before the Take, 2 minutes, where it sat open · BE #1316, FE #969
 - 2026-10-26 · N158 · the Sunday note locked as a lens (L): only when asked, only from # notes, two bubbles and Not now | Investigate in the Lounge, the bug, the principle, the reflection and the new principle one step at a time in the lens, Accept or Edit; was the whole form in one bubble every Sunday at 6 pm, read from the Takes and the chat, with Old | New · —
 
 - 2026-10-24 · N118 (second part), N128 · built: when the Take's two best clips share a paragraph, the cut between them moves so each gets a paragraph of its own (40 to 120 words, never across a slide, never cutting a clip), and a one-paragraph Take is split in two when each clip has 5 words or more; the paragraphs made are new ones with new ids, and a Take whose feedback is frozen keeps its paragraphs; also fixed, a frozen Take no longer loses a moment whose clip was not its paragraph's loudest (C2, H1) · BE #1284
