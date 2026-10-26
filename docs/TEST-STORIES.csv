@@ -570,6 +570,9 @@ after the first read and two retries.
 O3  Take 1 has no helper words, does not read them, and starts at once.","O1 -> ""a good read shows the words on the first frame""
 O2 -> ""still starts within 1.5 s when the read fails every time""
 O3 -> ""Take 1 starts at once, without a read""","Build plan D-RC-4: the words used to land a moment after the first slide. The host is LabOverlay's wiring in miniature (real hook, real auto-start, real recording phase)."
+src/components/willab/loungeLifeGoals.test.tsx,Story,"As the founder, I want to set one life goal in the lens by answering one question at a time, so that the goal comes from my words and lands as a ladder in my chat.","O1  Start opens the lens; the space, three open questions, Will's draft with my words, goal or want, ambitious, give up, the horizon and the quarter come one at a time, and the goal is set with its ladder.
+O2  With every open question skipped, Will drafts nothing and says so.","O1 -> sets a goal from my answers, one step at a time
+O2 -> drafts nothing when I said nothing",
 src/components/willab/loungeNewCoachFeedback.test.tsx,Story,"As a speaker, I want my project's latest Ideal Text bubble in the Lounge to say ""new"" when coach feedback is waiting, never as a count, so that I know to look without seeing a number.","O1  While the project's flag is true, its latest bubble itself wears the
 stroke and the mark (one bubble, never a copy), and a tap on it opens
 the feedback.
@@ -1012,6 +1015,13 @@ O2  While feedback, a coach review, a walk or helper words may still open, the w
 O3  A step I tapped in the chat opens only once the Take's moments are in and the page knows what waits, never the text in its place (founder 2026-10-21).","O1 -> comes down when the feedback settles with nothing to walk
 O2 -> stays while the marks may still land or a walk is opening
 O3 -> a step asked for waits for the moments, then goes through the door",
+src/lib/willab/lifeGoals.test.ts,Story,"As the founder setting a life goal, I want Will to work back from my horizon to this quarter with real dates, so that every step is aimed at the one above it and the quarter is never one that is already ending.","O1  Three years asks the year first; ten years asks three years, then the year; a lifetime asks ten years, then the year; one year asks none.
+O2  The quarter's last day is the date, with the weeks left in words; with less than four weeks left it is the next quarter's (the four-week rule).
+O3  The quarter question aims at the step above it, in my words.
+O4  The ladder shows each step with its date, leaves out what I skipped, and shows a changed step's date and earlier words.","O1 -> works back from each horizon
+O2 -> applies the four-week rule
+O3 -> aims the quarter at the step above
+O4 -> draws the ladder with dates, changes and gaps",
 src/lib/willab/markedEditorSerialize.test.ts,Story,"As a speaker, I want opening and saving my Ideal Text without changes to send back exactly the text I received, so that my document is never silently rewritten.","O1  The real editor paints the document, and reading it back gives the same
 bytes, for every marker grammar (bold, underline, italic, accent,
 moment, paragraphs). Never-5: the Ideal Text stays what the speaker
