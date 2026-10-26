@@ -16,6 +16,7 @@
 /*                                       &practice=0 with personalised         */
 /*                                       practice off (D-FW-15); &exvideo=0    */
 /*                                       its exercise with no video (D-FW-17)  */
+/*                                       &tempo=1 with the tempo step (N164)  */
 /*                                       &replay=1 the walk already finished: */
 /*                                       the page's "Review feedback" link    */
 /*                                       plays it again (Q-IT643b A)          */
@@ -64,7 +65,7 @@ type Mode =
   | { kind: "index" }
   | { kind: "single"; name: ScreenName }
   | { kind: "flow" }
-  | { kind: "live"; guest: boolean; practiceOn: boolean; exerciseVideo: boolean; finished: boolean }
+  | { kind: "live"; guest: boolean; practiceOn: boolean; exerciseVideo: boolean; finished: boolean; tempo: boolean }
   | { kind: "paragraph"; view: ParagraphView }
   | { kind: "lounge"; view: LoungeView };
 
@@ -81,6 +82,7 @@ function readMode(search: string): Mode {
       practiceOn: q.get("practice") !== "0",
       exerciseVideo: q.get("exvideo") !== "0",
       finished: q.get("replay") === "1",
+      tempo: q.get("tempo") === "1",
     };
   }
   if (q.get("flow") === "1") return { kind: "flow" };
@@ -286,6 +288,7 @@ function Harness() {
         practiceOn={mode.practiceOn}
         exerciseVideo={mode.exerciseVideo}
         finished={mode.finished}
+        tempo={mode.tempo}
       />
     );
   }

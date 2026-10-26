@@ -32,6 +32,7 @@ import {
   withOutcomes,
   type TryOutcome,
   type WalkFeedbackItem,
+  type WalkIntervention,
   type WalkStep,
   type WalkStepKey,
 } from "./walkPlan";
@@ -230,6 +231,7 @@ export const WALK_PHASE_SCREENS: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>
   "clearer",
   "exVideo",
   "practise",
+  "tempo",
   "others",
   "summary",
   "intro",
@@ -354,6 +356,7 @@ export function buildFeedbackWalk<R = unknown>(input: {
   guest: boolean;
   coachOnly?: boolean;
   coachWordOnly?: boolean;
+  interventions?: readonly WalkIntervention[];
 }): FeedbackWalkModel<R> {
   const groups = walkMomentGroups(input.items);
   const moments = groups.map((group, index) => momentOf(group, index));
@@ -364,6 +367,7 @@ export function buildFeedbackWalk<R = unknown>(input: {
     guest: input.guest,
     coachOnly: input.coachOnly,
     coachWordOnly: input.coachWordOnly,
+    interventions: input.interventions,
   }).filter((step) => {
     const moment = step.moment == null ? undefined : moments[step.moment];
     return (

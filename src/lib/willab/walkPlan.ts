@@ -67,8 +67,17 @@ export type WalkMoment = {
   confident?: boolean;
 };
 
+/** A practice the walk adds for a Take beyond its moments, chosen by the
+ *  diagnosis and the plan (backend N162). Each kind is one step key with its
+ *  own screen; a new one is a new kind here, its place in buildWalkPlan and
+ *  its screen. The first is the tempo step (N164). */
+export type WalkIntervention = "tempo";
+
 export type WalkPlanInput = {
   moments: readonly WalkMoment[];
+  /** The practices this Take adds, after the practise moments; none by
+   *  default. Never in the coach-only walk or for a guest. */
+  interventions?: readonly WalkIntervention[];
   /** The coach has a word for this Take (their video and/or their words). */
   coachNote: boolean;
   /** Personalised practice is on. Off: a clearer version offers "Accept" and
@@ -114,6 +123,8 @@ export type WalkStepKey =
    *  over the intro, never planned. */
   | "journal"
   | "judge"
+  /** The tempo step (backend N162, N164): right after the practise moments. */
+  | "tempo"
   /** Judge other speakers, once, after the practising (lock 2026-10-12). */
   | "others"
   /** The closing summary, the last lens step (lock 2026-10-12, section 2.7). */
@@ -198,6 +209,8 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
     // the rewording (founder 2026-10-22, N113: "After the rewording").
     if (m.helpers) steps.push(momentStep(m, "helpers"));
   }
+  // The Take's interventions, right after the practise moment (N164 item 2).
+  if (!input.guest) for (const kind of input.interventions ?? []) steps.push({ key: kind });
   // Sharing is asked before the next recording now (lock 2026-10-12, §5).
   steps.push({ key: "others" });
   steps.push({ key: "summary" });

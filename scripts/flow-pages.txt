@@ -15,6 +15,9 @@ docs/flows/feedback-walk-and-chat.md
   src/components/willab/WalkEnd.tsx
   src/components/willab/useDeckFeedbackWalk.tsx
   src/lib/willab/walkPlan.ts
+  src/lib/willab/tempoStep.ts
+  src/lib/willab/pace/
+  src/components/willab/pace/
   src/lib/willab/feedbackWalkModel.ts
   src/lib/willab/walkThread.ts
   src/lib/willab/lensScreen.ts

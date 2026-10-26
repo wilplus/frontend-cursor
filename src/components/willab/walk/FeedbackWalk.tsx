@@ -8,7 +8,7 @@ import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
 import WalkStage from "./WalkStage";
-import WalkThread, { WalkPart, WalkSpeakerBubble, WalkThreadMark } from "./WalkThread";
+import WalkThread, { WalkPart, WalkSpeakerBubble, WalkThreadMark, useMountedAsPast } from "./WalkThread";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage, { WalkNewWords } from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
@@ -18,6 +18,8 @@ import { practiseThreadFooter, practiseThreadItem, type PractiseScreenCtx } from
 import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
 import WalkSummary from "./WalkSummary";
+import WalkTempo from "./WalkTempo";
+import { TEMPO_DRAFT_COPY, type TempoStretch } from "@/lib/willab/tempoStep";
 import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
@@ -207,6 +209,9 @@ type Props<R> = {
    *  walk, as the chat holds their answers: the judging reopened from the
    *  Lounge shows them answered (founder 2026-10-18). */
   othersJudged?: number;
+  /** The tempo step's stretch, when the plan has a "tempo" step (backend
+   *  N162, N164); absent: the step is passed by. */
+  tempo?: TempoStretch | null;
 };
 
 /** The AI bubble a screen showed, for the chat. */
@@ -277,6 +282,7 @@ export default function FeedbackWalk<R = unknown>({
   onOthers,
   reasons = null,
   othersJudged = 0,
+  tempo = null,
 }: Props<R>) {
   const liveModel = useRef(model);
   liveModel.current = model;
@@ -644,6 +650,7 @@ export default function FeedbackWalk<R = unknown>({
     say: walkLines.say,
     onOthers,
     othersJudged,
+    tempo,
   };
 
   // The walk is one chat (founder 2026-10-20): the stage moves only as the
@@ -740,6 +747,7 @@ type ScreenCtx<R = unknown> = {
   /** Green moments' reasons that arrived after the walk opened. */
   reasons: WalkPraiseReasons | null;
   othersJudged: number;
+  tempo: TempoStretch | null;
 };
 
 const noop = () => undefined;
@@ -1149,6 +1157,24 @@ function Others(ctx: ScreenCtx, step: WalkStep) {
   );
 }
 
+/** The tempo step (backend N162, N164): the stretch practised on the pace
+ *  scale. With no stretch it is passed by. */
+function Tempo(ctx: ScreenCtx, step: WalkStep) {
+  if (!ctx.tempo || step.readOnly || step.replay) return <PassBy onPass={() => ctx.forwardFrom(step)} />;
+  return <WalkTempo testId={testId(step)} stretch={ctx.tempo} onDone={() => ctx.forwardFrom(step)} onClose={ctx.close} />;
+}
+
+/** A step with nothing to show moves the walk on once drawn. */
+function PassBy({ onPass }: { onPass: () => void }) {
+  const past = useMountedAsPast();
+  const pass = useRef(onPass);
+  pass.current = onPass;
+  useEffect(() => {
+    if (!past) pass.current();
+  }, [past]);
+  return null;
+}
+
 /** The closing summary, the last lens step. */
 function Summary(ctx: ScreenCtx, step: WalkStep) {
   return (
@@ -1168,6 +1194,7 @@ function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep, backFromPractise: ()
   if (step.key === "coachnote") return CoachNote(ctx, step);
   if (step.key === "others") return Others(ctx, step);
   if (step.key === "summary") return Summary(ctx, step);
+  if (step.key === "tempo") return Tempo(ctx, step);
   const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];
   if (!moment) return null;
   if (step.key === "coach") return CoachAnswer(ctx, step, moment);
@@ -1196,6 +1223,7 @@ function partLabel(ctx: ScreenCtx, step: WalkStep): string | null {
   if (step.key === "coachnote") return COPY.titleCoach;
   if (step.key === "summary") return ctx.takeIndex != null ? `${COPY.historyTake} ${ctx.takeIndex}` : COPY.historyTake;
   if (step.key === "others") return null;
+  if (step.key === "tempo") return TEMPO_DRAFT_COPY.mark;
   const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];
   return moment ? (stepNav(ctx, step, moment).position ?? null) : null;
 }

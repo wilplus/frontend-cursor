@@ -5,7 +5,7 @@ import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
 import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, momentChat, othersAnswered, othersChat, praiseChat, shownStep, walkStepDraft, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
-import type { WalkStep } from "@/lib/willab/walkPlan";
+import type { WalkIntervention, WalkStep } from "@/lib/willab/walkPlan";
 import type { WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
@@ -63,6 +63,9 @@ import { praiseTitleFor } from "@/lib/willab/praiseLevels";
 import { useGreenReasons } from "./walk/useGreenReasons";
 import { fetchUserProfileShared } from "@/services/api/userProfile";
 import type { WalkPraiseReasons } from "@/lib/willab/praiseReason";
+import { isFounderEmail } from "@/lib/founder";
+import { useUserEmail } from "./useUserEmail";
+import { TEMPO_STAND_IN } from "@/lib/willab/tempoStep";
 
 /* -------------------------------------------------------------------------- */
 /*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
@@ -736,6 +739,11 @@ export function useDeckFeedbackWalk(args: {
   const { answeredOf, helperWordsOf, finished = false } = args;
   const coachOnly = args.coachOnly === true;
   const practiceOn = usePracticeOn();
+  /* THE TEMPO STEP (backend N162, N164): founder-only on a stand-in stretch
+     until the backend sends the Take's own (build step 3) and the plan
+     turns it on in a pace or pause week (step 6). */
+  const tempoOn = isFounderEmail(useUserEmail());
+  const interventions = useMemo<readonly WalkIntervention[]>(() => (tempoOn ? ["tempo"] : []), [tempoOn]);
   const journal = useWalkJournalPost(true);
   const pageTake = args.takeSessionId ?? null;
 
@@ -785,8 +793,9 @@ export function useDeckFeedbackWalk(args: {
         coachWordOnly: args.coachWordOnly === true,
         practiceOn,
         guest: false,
+        interventions,
       }),
-    [items, coachMessage, practiceOn, args.coachOnly, args.coachWordOnly],
+    [items, coachMessage, practiceOn, args.coachOnly, args.coachWordOnly, interventions],
   );
 
   /* THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A): the
@@ -1374,6 +1383,7 @@ export function useDeckFeedbackWalk(args: {
           onOthers={onOthers}
           reasons={greenReasons}
           othersJudged={othersJudged}
+          tempo={tempoOn ? TEMPO_STAND_IN : null}
         />
     ),
     [
@@ -1402,6 +1412,7 @@ export function useDeckFeedbackWalk(args: {
       onOthers,
       greenReasons,
       othersJudged,
+      tempoOn,
     ],
   );
 
