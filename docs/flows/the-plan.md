@@ -165,9 +165,10 @@ stand. The entries keep their N-numbers and stay the record.
    level shows most; when no moment shows it, the two best, as today (N134;
    the walk's page).
 5. In a pace or pause week the speaker practises their pace, from Take 2
-   (Take 1 has no Ideal Text yet). The pace practice itself, the pace scale
-   that replaced the Pace Circle, has its home on the walk's page as the
-   tempo step; where it sits is open (§3) (N130, N134, N140, N142).
+   (Take 1 has no Ideal Text yet). The pace practice is the tempo step of
+   the Feedback walk and nowhere else: not the coach panel, not the Lounge,
+   not before the Take. Its rules are on the walk's page, §2 "Tempo"
+   (N130, N134, N140, N142, N162).
 6. A practise that slowed down gets its own lines, said in turn: "You gave it
    room, and it landed." · "Slower, and every word counted." · "That pace
    lets them keep up with you." (N140).
@@ -278,11 +279,9 @@ Waiting for the founder's OK:
 
 ## 3. Still open
 
-- **Where the pace practice sits.** The plan's entries put it before the
-  Take in a pace or pause week, 2 minutes (N134 item 7, N140 item 8). The
-  walk's page draws it as the tempo step inside the walk, after the practise
-  moment (its §2 "Tempo"). The card's line "Before each Take this week: 2
-  minutes with the Pace Circle" follows the answer.
+- **The card's pace line.** "Before each Take this week: 2 minutes with the
+  Pace Circle" no longer fits: the practice is in the walk now (N162). New
+  words wait for the founder's OK.
 - **Two calls from the "one moment" explanation** (26 October): judge
   "better" on the level's own reading (recommended yes); a second level
   moment per walk (recommended no).
@@ -327,6 +326,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N162 · the pace practice is the tempo step of the Feedback walk only, shown in a pace or pause week from Take 2; was: before the Take, 2 minutes, where it sat open · BE #1316, FE #969
 - 2026-10-26 · N161 · the rating shows in the chat as the speaker's answer; the kickoff call is booked before the plan, then the summary call offered (Skip or Book now); "Book", not "Book and pay"; then "You're all set. Here's your plan."; the card in one typeface and three sizes; under it only the practice button. Was: the pick not written back; the calls under the card; "Book and pay" and "Next" · BE #1315, FE #968
 - 2026-10-26 · N160 · this page is the plan's one home; was a section of the walk's page (N146 item 2) · BE #1314, FE #967
 - 2026-10-26 · N157 · the ratings one at a time in the footer; a simpler card with "Plan"; the kickoff and summary calls booked under it, either can wait, paid as today; no weekly call · BE #1311
