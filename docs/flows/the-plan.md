@@ -5,7 +5,7 @@
 One page for the diagnosis and the plan: the questions a new speaker answers
 in the Lounge before the first Take, what the diagnosis reads, the plan card
 and the two calls with the coach, the practice days, changing the plan, and
-the plan's end at the deadline. Started 2026-10-26 (backend N159) from the
+the plan's end at the deadline. Started 2026-10-26 (backend N160) from the
 decisions log's entries N129 to N157, folded here into the rules as they
 stand. The entries keep their N-numbers and stay the record.
 
@@ -313,7 +313,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N159 · this page is the plan's one home; was a section of the walk's page (N146 item 2) · BE #, FE #
+- 2026-10-26 · N160 · this page is the plan's one home; was a section of the walk's page (N146 item 2) · BE #1314, FE #967
 - 2026-10-26 · N157 · the ratings one at a time in the footer; a simpler card with "Plan"; the kickoff and summary calls booked under it, either can wait, paid as today; no weekly call · BE #1311
 - 2026-10-26 · N155 · no practice-day reminder for now · BE #1309
 - 2026-10-26 · N154 · the words of N153 signed · BE #1308
