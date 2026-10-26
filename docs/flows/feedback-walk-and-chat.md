@@ -464,11 +464,11 @@ step; the loop never waits for a coach.
 
 - **E1** After the summary comes one ask at most: the first that waits, in
   this order; the others wait for a later Take (backend N189, 2026-10-26;
-  was at most two, N94). The order: the CEO panel's ask, WhatsApp (from Take
-  1 once the Take has gone to the coach, backend N171; at most twice in
-  all), the home screen (once), Will's question, "Did this help?" when the
-  Take looks off. So Take 1 brings the WhatsApp ask and Take 2 the home
-  screen. Will
+  was at most two, N94). The order: the CEO panel's ask (from Take 2),
+  WhatsApp (from Take 1 once the Take has gone to the coach, backend N171;
+  at most twice in all), the home screen (once, from Take 2), Will's
+  question, "Did this help?" when the Take looks off. So Take 1 brings the
+  WhatsApp ask and Take 2 the home screen. Will
   opens WhatsApp, the home screen and "Did this help?" with a lead-in: one or
   two sentences tied to this Take (never a grade, never advice; "Well, I can
   see you're doing pretty good. What about adding the application to the
@@ -970,7 +970,8 @@ deletes the line when the work is merged (the change goes to §6).
 
 - **N192** · the chat shows a Take's walk as one bubble: "Feedback walk" with the Take's date and ›, its Ideal Text card under it; an edit says "Edited" in place, nothing at the bottom; the summary in the walk only; the coach's word in the walk, a later word at the bottom, a changed word Edited in place; the sharing choice as one line on the recording; the outline a full stroke with no tail · B1, B3, B10, B12, B13, C1, C3, D4, D5, F1, F3, G1, K · decided, not built · BE #1364, FE (this PR)
 
-- **N171, N189** · messages: the WhatsApp ask from Take 1 and one ask a Take (E1); replies reach us and STOP removes the number (its words signed in N174), with no check message when a number is saved, since the app shows it back; coach-feedback messages wait from 21:00 to 8:00 in the speaker's time zone (C1's doors) · C1, E1 · decided, not built · BE #1326, #1360
+- **N171, N189** · the WhatsApp ask from Take 1 and one ask a Take · E1 · built, in review · BE #1370
+- **N171, N189, N193** · messages: replies reach us and STOP removes the number (its words signed in N174), with no check message when a number is saved, since the app shows it back; coach-feedback messages wait from 21:00 to 8:00 in the time zone of the speaker's country of residence, and in the United States go only between 11:00 and 21:00 New York time (C1's doors) · C1 · decided, not built · BE #1326, #1360, #1367
 
 - **The plan** (backend N129 onward) · the diagnosis, the plan card, the practice days and the plan's end have their own page, [`the-plan.md`](the-plan.md); it meets this page in the Lounge, in the walk's level moment (C, N134 item 2), the bar on the end sheet (N140 item 11) and the pace practice in a pace week (the tempo step), and in the chat's day line before each day's first message (N169, the-plan.md G3) · decided, not built · its rules live there, not here (backend N160)
 
