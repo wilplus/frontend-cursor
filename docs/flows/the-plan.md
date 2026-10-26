@@ -408,7 +408,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N181 · the pace step (G): a speaker without a plan gets it from Take 2 when the Take has a stretch outside the green; it is the founder's "Sniper" · BE #1344, FE (this PR)
+- 2026-10-26 · N181 · the pace step (G): a speaker without a plan gets it from Take 2 when the Take has a stretch outside the green; it is the founder's "Sniper" · BE #1344, FE #993
 
 - 2026-10-26 · N178 · the speaker's own ratings are never shown back as a number; before any Take but the first, only the feelings check, with a Skip; the deadline question, a new event's or new project's questions and the ratings before a later Take move to after it. Was: the number in an orange bubble (N161); those questions before the Take (N147, N149, N151) · BE #1339
 - 2026-10-26 · N177 · the practice-day reminder, when it comes: the speaker picks an email or a WhatsApp; no calendar, no web push (G11). Was: the speaker's own calendar first, then WhatsApp (N174) · BE #1338, FE (this PR)

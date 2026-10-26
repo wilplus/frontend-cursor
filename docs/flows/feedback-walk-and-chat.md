@@ -1054,8 +1054,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N182 · the Sunday note (L) and life goals (M), with their words, in-flight lines and prototypes, moved to [`principles.md`](principles.md): the principles are their own feature, ring 6, apart from the speaking coach · BE #1344, FE (this PR)
-- 2026-10-26 · N181 · the tempo step is the founder's "Sniper"; a speaker without a plan gets it from Take 2 when the Take has a stretch outside the green; it reaches people as the `tempo_step` ring widens; was: only the plan's pace or pause week, later · BE #1344, FE (this PR)
+- 2026-10-26 · N182 · the Sunday note (L) and life goals (M), with their words, in-flight lines and prototypes, moved to [`principles.md`](principles.md): the principles are their own feature, ring 6, apart from the speaking coach · BE #1344, FE #993
+- 2026-10-26 · N181 · the tempo step is the founder's "Sniper"; a speaker without a plan gets it from Take 2 when the Take has a stretch outside the green; it reaches people as the `tempo_step` ring widens; was: only the plan's pace or pause week, later · BE #1344, FE #993
 
 - 2026-10-26 · N179 · the tempo step's words signed and listed in K; was drafts shown to the founder only · BE (decisions log), FE (this PR)
 - 2026-10-26 · N178 · the tempo step stays before the Ideal Text with a Skip, and the whole walk gets a time limit (open); helper words up to eight confirmed. Was: N130's "never between a Take and the Ideal Text"; the cap written as six in the contract · BE #1339
