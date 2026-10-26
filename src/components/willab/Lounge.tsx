@@ -118,9 +118,11 @@ import {
   feedbackCheckTarget,
 } from "./feedbackCheck";
 import { postFeedbackCheck, type FeedbackCheckChoice } from "@/services/api/feedbackCheck";
-import { SundayActions, useVoiceNotebook, VoiceNoteBar, VoiceNoteMic } from "./useVoiceNotebook";
+import { useVoiceNotebook, VoiceNoteBar, VoiceNoteMic } from "./useVoiceNotebook";
+import SundayLens, { SundayHeadBubble } from "./SundayLens";
+import { sundayAskOf, sundayHeadOf, sundayWaiting } from "@/lib/willab/sundayNote";
 import { LifeGoalBubble, lensAskOf, lifeGoalOf, quarterAskOf, changeAskOf, useLifeGoals } from "./LoungeLifeGoals";
-import type { SundayChoice } from "@/services/api/voiceNotebook";
+import { answerSundayNote } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import WillQuestionBubble, { willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
@@ -1200,7 +1202,7 @@ export default function Lounge({
     if (type === "joke") return;
     const rank: Record<OfferType, number> = {
       joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0, feedback_check: 0,
-      voice_notebook: 0, sunday_note: 0, sunday_principle: 0, life_goals: 0, life_goals_quarter: 0, life_goals_change: 0,
+      voice_notebook: 0, sunday_note: 0, life_goals: 0, life_goals_quarter: 0, life_goals_change: 0,
     };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
@@ -1359,6 +1361,9 @@ export default function Lounge({
   // Life goals (Will learning plan, step 3, N172): the ask's Start, a
   // ladder's ›, or a reply that opens the lens.
   const lifeGoals = useLifeGoals({ signedIn: thread.signedIn, reload });
+  // The Sunday note's lens, opened on one note (N158 L3, L8).
+  const [sunday, setSunday] = useState<{ id: string; nonce: number } | null>(null);
+  const openSunday = useCallback((id: string) => setSunday({ id, nonce: Date.now() }), []);
 
   // A message still waiting while no ask is in front of the speaker would
   // never show (a typed turn the backend could not store, say): let it go,
@@ -1607,6 +1612,14 @@ export default function Lounge({
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
       {lifeGoals.lens}
+      <SundayLens
+        noteId={sunday?.id ?? null}
+        nonce={sunday?.nonce ?? 0}
+        onClose={() => {
+          setSunday(null);
+          void reload();
+        }}
+      />
       {/* Founder 2026-07-30 — the status region above the thread is GONE, and
           with it the last top banner. U5 moved the sent confirmation into the
           thread and U6 did the same for insights ready; the parked card was
@@ -1695,6 +1708,8 @@ export default function Lounge({
               willOpen={i === shownItems.length - 1}
               onWillAnswer={answerWillQuestion}
               onOpenLifeGoal={(goalId) => lifeGoals.openLens({ mode: "see", goalId })}
+              onOpenSunday={openSunday}
+              sundayWaiting={(id) => sundayWaiting(messages, id)}
               animate={
                 i === shownItems.length - 1 &&
                 baselineRef.current !== null &&
@@ -1797,7 +1812,12 @@ export default function Lounge({
             if (target) void answerFeedbackCheck(target, choice);
           }}
           onNotebook={notebook.answer}
-          onSunday={notebook.sunday}
+          onSundayNote={(choice) => {
+            const id = sundayAskOf(messages);
+            if (!id) return;
+            if (choice === "investigate") openSunday(id);
+            else void answerSundayNote(id, "dismiss").then(() => reload());
+          }}
           onLifeGoals={lifeGoals.answerAsk}
           onLifeGoalsQuarter={(choice) => lifeGoals.answerQuarter(quarterAskOf(messages), choice)}
           onLifeGoalsChange={(choice) => lifeGoals.answerChange(changeAskOf(messages), choice)}
@@ -2131,7 +2151,7 @@ function OfferActions({
   bookHref,
   onFeedbackCheck,
   onNotebook,
-  onSunday,
+  onSundayNote,
   onLifeGoals,
   onLifeGoalsQuarter,
   onLifeGoalsChange,
@@ -2151,7 +2171,8 @@ function OfferActions({
   /** "Keep a voice notebook?" (Will learning plan, step 1). */
   onNotebook: (choice: "yes" | "not_now") => void;
   /** The Sunday note's Old | New, then Not now | Add principle (step 2). */
-  onSunday: (choice: SundayChoice) => void;
+  /** The Sunday note's case: Not now | Investigate (N158 L2). */
+  onSundayNote: (choice: "investigate" | "not_now") => void;
   /** "One more thing: your life goals." (step 3, N172 M1). */
   onLifeGoals: (choice: "start" | "not_now") => void;
   /** "{emoji} {step}. Did it move?" (N172 M13, N186). */
@@ -2161,8 +2182,21 @@ function OfferActions({
   onResolve: () => void;
 }) {
   const router = useRouter();
-  if (type === "sunday_note" || type === "sunday_principle") {
-    return <SundayActions type={type} onSunday={onSunday} onResolve={onResolve} />;
+  if (type === "sunday_note") {
+    return (
+      <SymmetricPair
+        closeLabel="Not now"
+        onClose={() => {
+          onSundayNote("not_now");
+          onResolve();
+        }}
+        actionLabel="Investigate"
+        onAction={() => {
+          onSundayNote("investigate");
+          onResolve();
+        }}
+      />
+    );
   }
   if (type === "life_goals_change") {
     return (
@@ -2336,14 +2370,22 @@ function askBubble(
     willOpen,
     onWillAnswer,
     onOpenLifeGoal,
+    onOpenSunday,
+    sundayWaiting,
   }: {
     activeOffer?: OfferType | null;
     onOpenOffer?: (type: OfferType) => void;
     willOpen: boolean;
     onWillAnswer?: (target: WillQuestionTarget, choice: string) => Promise<void>;
     onOpenLifeGoal?: (goalId: string) => void;
+    onOpenSunday?: (noteId: string) => void;
+    sundayWaiting?: (noteId: string) => boolean;
   },
 ) {
+  const head = sundayHeadOf(message.metadata);
+  if (head) {
+    return <SundayHeadBubble body={message.body} waiting={sundayWaiting?.(head) ?? false} onOpen={() => onOpenSunday?.(head)} />;
+  }
   const goal = lifeGoalOf(message.metadata);
   if (goal) return <LifeGoalBubble goal={goal} onOpen={() => onOpenLifeGoal?.(goal.id)} />;
   const will = willQuestionOf(message.metadata);
@@ -2384,6 +2426,8 @@ function Bubble({
   willOpen = false,
   onWillAnswer,
   onOpenLifeGoal,
+  onOpenSunday,
+  sundayWaiting,
   animate = false,
   latestForArc = false,
   shareLine = null,
@@ -2417,10 +2461,14 @@ function Bubble({
   onWillAnswer?: (target: WillQuestionTarget, choice: string) => Promise<void>;
   /** A set life goal's ladder: its › opens the lens on it (N172 M10). */
   onOpenLifeGoal?: (goalId: string) => void;
+  /** The Sunday note's "We spotted a pattern!": its › opens the lens again
+   *  where it stands, with the orange outline while it waits (N158 L8). */
+  onOpenSunday?: (noteId: string) => void;
+  sundayWaiting?: (noteId: string) => boolean;
   /** U3 — true only for a freshly-arrived last message → sequential reveal. */
   animate?: boolean;
 }) {
-  const ask = askBubble(message, { activeOffer, onOpenOffer, willOpen, onWillAnswer, onOpenLifeGoal });
+  const ask = askBubble(message, { activeOffer, onOpenOffer, willOpen, onWillAnswer, onOpenLifeGoal, onOpenSunday, sundayWaiting });
   if (ask) return ask;
   if (
     message.kind === "recording_summary" ||

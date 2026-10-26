@@ -81,7 +81,7 @@ Life Panel.
 
 ### L · The Sunday note (backend `services/sunday_note.py`; locked 2026-10-26, N158)
 
-The prototype is the design: <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo> (§5). Not built yet.
+The prototype is the design: <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo> (§5). Built 2026-10-26: the lens is `SundayLens.tsx`, every question and answer a row of the one thread written by the backend (`/v2/notebook/sunday/<id>`, `/answer`).
 
 - **L1** On Sunday by itself, and whenever asked (N170). On Sunday from 6 pm
   in the speaker's time zone, once, Will brings L2 by itself when the last
@@ -251,7 +251,6 @@ where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
 - **N172** · life goals (M) · M · M1–M15 built (M15 with N197: backend #1373, FE this PR); then this week's focus on the ladder (no source yet) · BE #1335, FE (this PR)
-- **N158, N170** · the Sunday note as a lens, on Sunday by itself when there is a pattern and whenever asked in any words, from the last seven days · L · locked 2026-10-26, not built; the backend half (only # notes, only when asked, no Old | New) is on backend branch `claude/gracious-faraday-x8tin9`, not merged · —
 
 ## 3. Still open
 
@@ -286,6 +285,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N158, N170 · built (L): the Sunday note as a lens; only the # notes of the last seven days; on Sunday from 6 pm by itself only when they show a pattern, and whenever asked in any words; "We spotted a pattern!" and the case with Not now | Investigate; the lens asks the bug, the principle held, the reflection and Will's new principle (Accept, Edit, Not now); the bubble's › reopens it where it stands. What stopped: the long case form, Old | New and its "Add principle" footer · BE #1382, FE (this PR)
 - 2026-10-26 · N197 · built (M15): the ladders on the Life Panel's Goals screen, above the three bets; a tapped step opens the lens over the panel on that step; History lists every version, dated; "＋ Add a goal"; nothing before the first goal (`LifeGoalsLadders.tsx`) · BE #1371, #1373, FE (this PR)
 - 2026-10-26 · N195 · A5: the first tap on the mic, before the notebook's question, says why it exists in three bubbles (the jitters, a place for your goals, a goal you can steer by); was: the question alone · BE #1369, FE #1008
 - 2026-10-26 · N191 · built (M14): under a # note's "Noted.", a note that says a goal's quarter step should be different is asked about once, quoting it, the new words only from the note; Change writes it with the earlier words kept and shows the ladder, Not now changes nothing · BE #1359, #1361, FE (this PR)
