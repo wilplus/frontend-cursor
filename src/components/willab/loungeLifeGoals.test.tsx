@@ -2,7 +2,7 @@
 /*
 STORY    As the founder, I want to set one life goal in the lens by answering one question at a time, so that the goal comes from my words and lands as a ladder in my chat.
 OUTCOME
-  O1  Start opens the lens; the space, three open questions, Will's draft with my words, goal or want, ambitious, give up, the horizon and the quarter come one at a time, and the goal is set with its ladder.
+  O1  Start opens the lens with the paper-notebook line; the space, three open questions, Will's draft with my words, goal or want, ambitious, give up, the horizon and the quarter come one at a time, and the goal is set with its ladder and the line that sends me out to live it.
   O2  With every open question skipped, Will drafts nothing and says so.
 PROVES   O1 -> sets a goal from my answers, one step at a time
          O2 -> drafts nothing when I said nothing
@@ -92,6 +92,7 @@ describe("life goals lens", () => {
     await act(async () => goals.answerAsk("start"));
     await settle();
     expect(api.answerLifeGoalsAsk).toHaveBeenCalledWith("start");
+    expect(text()).toContain("📓 Use your notebook!");
     expect(text()).toContain("Which matters most right now?");
     await tap("Career");
     expect(text()).toContain("What do you truly want most in your career?");
@@ -110,6 +111,7 @@ describe("life goals lens", () => {
     await type("Ten paying teams.");
     expect(api.finishGoal).toHaveBeenCalledWith("g1", null);
     expect(text()).toContain("Noted. Your career goal is set.");
+    expect(text()).toContain("That's the base. Now go and live it. Come back for a short recap.");
     expect(reload).toHaveBeenCalled();
   });
 

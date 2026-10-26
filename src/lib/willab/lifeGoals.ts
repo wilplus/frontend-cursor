@@ -47,6 +47,11 @@ export const LIFE_GOALS_COPY = {
   byWhen: "By when?",
   nearlyOver: "This quarter is nearly over, so let's aim at the next one.",
   setGoal: (space: SpaceKey) => `Noted. Your ${SPACES[space].name.toLowerCase()} goal is set.`,
+  // N180, N183: the app is the base; the details go on paper, and the
+  // speaker goes and lives it.
+  notebookHead: "📓 Use your notebook!",
+  notebook: "Keep the details in your own notebook, the paper one. Here we keep only the base.",
+  goLive: "That's the base. Now go and live it. Come back for a short recap.",
   pickStep: "Tap the step that is wrong.",
   allRight: "All still right",
   now: "Now:",

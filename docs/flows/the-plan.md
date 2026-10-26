@@ -240,6 +240,11 @@ stand. The entries keep their N-numbers and stay the record.
    (Never 1); outside the app the level's name at most, never the key line,
    the transcript or the recording; it stops when the plan ends; it never
    stands in the way of a Take (Never 3) (N169).
+13. The proverbial 15 minutes (N180, N183): as soon as a practice day's
+   practice is done, Will says in the chat "That's your 15 minutes for
+   today." and "Now go and live it, away from the phone." Never on a clock
+   and never on other days; nothing is locked and the message box stays.
+   The founder first, then everyone.
 
 ### H · Changing the plan
 
@@ -277,6 +282,8 @@ stand. The entries keep their N-numbers and stay the record.
 
 Signed:
 
+- The proverbial 15 minutes (G13, N183): "That's your 15 minutes for
+  today." · "Now go and live it, away from the phone."
 - The questions: "Hi! A few quick questions before your first practice." ·
   "When is your deadline?" · "Pick a date" · "No date yet" · "That's fine.
   Let's give it two months, until {date}." · "I assume you came here to
@@ -408,6 +415,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N180, N183 · G13: when a practice day's practice is done, "That's your 15 minutes for today." and "Now go and live it, away from the phone."; never on a clock, never on other days; built with the practice days · —
 - 2026-10-26 · N181 · the pace step (G): a speaker without a plan gets it from Take 2 when the Take has a stretch outside the green; it is the founder's "Sniper" · BE #1344, FE #993
 
 - 2026-10-26 · N178 · the speaker's own ratings are never shown back as a number; before any Take but the first, only the feelings check, with a Skip; the deadline question, a new event's or new project's questions and the ratings before a later Take move to after it. Was: the number in an orange bubble (N161); those questions before the Take (N147, N149, N151) · BE #1339
