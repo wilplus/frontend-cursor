@@ -10,8 +10,9 @@ decisions log's entries N129 to N157, folded here into the rules as they
 stand; each later entry about the plan is folded in the same way. The entries
 keep their N-numbers and stay the record.
 
-**Nothing on this page is built yet.** The founder holds the build (N147,
-"not yet"); §2 says where it stands.
+**Nothing on this page is built yet.** The build started on 26 October 2026,
+one to one with the prototype (N203, which lifts N147's "not yet"); §2 says
+where it stands.
 
 **How this page works**
 
@@ -365,8 +366,9 @@ Waiting for the founder's OK:
 ## 2. In flight
 
 - **The plan** · all of §1 · decided from 24 October 2026 (N129 onward;
-  the latest are in §6), drawn on the prototype (§5) · not built: the founder holds the
-  build (N147) · the build plan: <https://claude.ai/artifact/5wuXkBNDctRcbxYs9V7R8A>
+  the latest are in §6), drawn on the prototype (§5) · being built, one to one
+  with the prototype, in nine builds behind the switch, the founder first
+  (N203) · the build plan: <https://claude.ai/artifact/5wuXkBNDctRcbxYs9V7R8A>
 
 ## 3. Still open
 
@@ -376,10 +378,20 @@ Waiting for the founder's OK:
   "better" on the level's own reading (recommended yes); a second level
   moment per walk (recommended no).
 - **The words in §1 K** still waiting for the founder's OK.
+- **Where the prototype (version 27) is older than a decision** (N203): the
+  build follows the decision, and the prototype is redrawn to match. The last
+  practice's two ratings come after its Take, not before it (N178). The
+  practice-day reminder's WhatsApp ask before Take 1 is left out (N155,
+  N177); the WhatsApp ask after each Take stays. After a practice day's walk,
+  the two lines of G13 (N183), which the prototype doesn't draw. The calls
+  are paid as the booking page is paid, in tokens once N198 is built.
+- **The coach's side** (the plan and its level in the coach panel, a stuck
+  level in the queue) isn't drawn; the coach panel is locked, so it is drawn
+  for the founder's OK before it is built (N203).
 
 ## 4. Where it lives
 
-Nothing is built. When it is, it touches these places, each with its own
+Nothing is built yet (N203). When it is, it touches these places, each with its own
 page for what it owns:
 
 - The Lounge (`src/components/willab/Lounge*`, `useWillabFlow.ts`): the
@@ -415,6 +427,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-26 · N203 · the build starts, one to one with the prototype; §2 and §3 say where the prototype is older than a decision. Was: the founder holds the build (N147) · BE #1384, FE (this PR)
 
 - 2026-10-26 · docs audit · the intro and §2 no longer stop at N157; §5 names the prototype's newest version, 27 (N169). Was: "N129 to N157", version 17 · —
 - 2026-10-26 · N180, N183 · G13: when a practice day's practice is done, "That's your 15 minutes for today." and "Now go and live it, away from the phone."; never on a clock, never on other days; built with the practice days · —
