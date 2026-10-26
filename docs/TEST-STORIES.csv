@@ -729,6 +729,9 @@ O2 -> ""words from an earlier Take save on the paragraph""",F1 Repair Plan Phase
 src/components/willab/useWillabFlow.test.ts,Story,"As a speaker, I want the app always to go record, then process, then Ideal Text, then the next Take, so that the loop never breaks.","O1  Starting, stopping and finishing processing lead to the readout;
 from there the next Take, a pause, or ""sign up to send"" (and on to
 review) are expected steps.","O1 -> ""is the record → process → Ideal Text loop""",Never 3; audit Q-C4.
+src/components/willab/voiceNotebook.test.tsx,Story,"As the founder in a rush, I want to say a note and close the app, so that what I said is kept and I can see it was written as I meant it.","O1  While I speak, my words appear in my note; leaving the app sends the note, it is not thrown away (N194).
+O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).","O1 -> writes my words as I speak and keeps the note when I leave the app
+O2 -> keeps a note that cannot go and sends it once when back online",
 src/components/willab/walk/coachUpdateLens.test.tsx,Story,"As a speaker, I want my coach's changed word to wait for me in the chat under ""Later · from your coach"" and open the walk at my coach's place when I tap it, the same way every bubble opens its step, so that I watch exactly what my coach sent, where it belongs.","O1  The coach's bubble rings while the server says the word is new; a tap
 opens the Take's walk at the coach's step (Step 0 for a general word),
 not a screen of its own; nothing is marked watched by the tap.

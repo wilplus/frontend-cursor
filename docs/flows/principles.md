@@ -42,6 +42,35 @@ Life Panel.
    lens; the principles in the Life Panel. Never on the recording screens,
    never shown to a coach. Private like the notebook (N158, N172, N182).
 
+### B · The voice note, written as it is said (decided 2026-10-26, N194)
+
+The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe>.
+
+1. A tap on the mic records at once, and the person's own orange "# " note
+   appears at the bottom of the thread with a cursor. The words appear in
+   it as they are said; the newest one or two are lighter while they may
+   still change. The bar under the thread stays: delete, the running time,
+   send (founder 2026-10-20).
+2. On send, the hesitations fade out and the note settles. The backend
+   transcribes the whole recording and cleans it as before; those words are
+   the kept note and replace the live ones. Will's typing dots while it goes,
+   then the note with a small tick under it, and "Noted.".
+3. Only delete throws a note away. Leaving the app, or the Lounge, keeps
+   what was said and sends it. What is recorded is written to the phone
+   every few seconds, so the note survives the app being closed at any
+   moment. A note that cannot leave the phone waits there under a small
+   clock and goes the next time the app is open with a connection, once
+   (the app names each note, and the backend keeps a name once).
+4. A tap on one's own voice note opens its words in the message box, with
+   close on the left and send on the right, to fix a word. Send replaces the
+   note's words in the thread and in the notebook. Will does not answer
+   again.
+5. The live words are a preview: every second and a half, the last few
+   seconds go to the same transcription provider under the
+   processing-authorization path, and nothing of them is kept.
+6. Only the notebook's notes. The life goals lens's small mic records as
+   before.
+
 ### K · Words on screen (all signed)
 
 - **The Sunday note (L; approved with the lock, 2026-10-26, N158):** "We
@@ -64,6 +93,10 @@ Life Panel.
   each time"; with N186 (M13): "The quarter ended on {date}.";
   "That's the base. Now go and live it. Come back for a short recap.". With N170: "Nothing stands out in your notes from the last
   seven days yet."; "There are no # notes from the last seven days yet."
+- **The voice note (B; approved with the prototype, 2026-10-26, N194):** no
+  new words on screen; "Noted." as before; the icons: the cursor, the tick,
+  the clock. Read by screen readers only: "Fix this note", "Close", "Kept",
+  "Waiting to send".
 
 ### L · The Sunday note (backend `services/sunday_note.py`; locked 2026-10-26, N158)
 
@@ -238,7 +271,9 @@ deletes the line when the work is merged (the change goes to §6).
 
 - The voice notebook: backend `services/voice_notebook.py`,
   `routes/v2/voice_notebook.py`; frontend `src/components/willab/useVoiceNote*`,
-  `src/services/api/voiceNotebook.ts`, `src/app/api/v2/notebook/`.
+  `src/services/api/voiceNotebook.ts`, `src/app/api/v2/notebook/`; written
+  as it is said (B): `src/lib/willab/liveNoteWords.ts` and the phone's
+  outbox `src/lib/willab/voiceNoteOutbox.ts`.
 - The Sunday note: backend `services/sunday_note.py`; frontend
   `src/app/api/v2/notebook/sunday/`.
 - Life goals: backend `services/life_goals.py`, `routes/v2/life_goals.py`;
@@ -252,6 +287,8 @@ deletes the line when the work is merged (the change goes to §6).
 
 ## 5. Prototypes
 
+- The voice note, written as it is said
+  <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (N194, 2026-10-26).
 - The Sunday note as a lens <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo>
   (N158, 2026-10-26); asking for it
   <https://claude.ai/artifact/M5GWxvbNPRbkEjoL2ivZxB> (N170, 2026-10-26).
@@ -261,6 +298,8 @@ deletes the line when the work is merged (the change goes to §6).
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-26 · N194 · built (B): the voice note is written as it is said, settles on send with a tick and "Noted.", is kept when the app is left (the phone's outbox, sent once by its name), waits under a clock without a connection, and a tap on it fixes its words; the life goals mic is unchanged · BE (backend PR), FE (this PR)
 
 - 2026-10-26 · N186 · built (M13): no clock; the first time the Lounge opens on the quarter's last day (or later, "The quarter ended on {date}."), "Did it move?" with Not now | Start; the lens asks how it went in words, what got in the way, quotes their own notes only when some match, and sets the next quarter's step with the earlier one kept · BE #1354, #1356, FE (this PR)
 - 2026-10-26 · N185 · built (M12): before a new goal is set, Will checks once per pair whether it pulls against a kept goal, from their words only, and asks "When they clash, which wins?"; the answer is the step WHEN THEY CLASH on both ladders, changed by tapping with the earlier answer kept · BE #1351, #1353, FE (this PR)
