@@ -75,10 +75,10 @@ export const TEMPO_STAND_IN: TempoStretch = {
   },
 };
 
-/** DRAFT words, as the prototype has them: not signed, so the step shows
- *  only behind the founder's switch until they move to the signed bank
- *  (Never 4; build step 5, N166 item 5). */
-export const TEMPO_DRAFT_COPY = {
+/** The step's words, signed by the founder 2026-10-26 (backend N179; the
+ *  walk's page §1 K). A change to any of them needs the founder's OK
+ *  (Never 4). */
+export const TEMPO_COPY = {
   mark: "Tempo",
   game: {
     rushed: "That part went fast. 🏃 Let's try a little game.",
