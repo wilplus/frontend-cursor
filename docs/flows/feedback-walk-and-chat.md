@@ -416,10 +416,13 @@ step; the loop never waits for a coach.
 ### E · The Take's one ask (backend `services/after_take.py`)
 
 - **E1** After the summary come the asks that wait, one at a time, in this
-  order (N89, 2026-10-20; until then at most one ask a Take). Take 1: Will's
-  question when he has one, then "Did this help?" when the Take looks off.
-  From Take 2: the CEO panel's ask, WhatsApp (at most twice), the home screen
-  (once), Will's question, "Did this help?" when the Take looks off. Will
+  order (N89, 2026-10-20; until then at most one ask a Take). Take 1:
+  WhatsApp once the Take has gone to the coach, Will's question when he has
+  one, then "Did this help?" when the Take looks off; within the two asks a
+  Take, "Did this help?" waits on Take 1 rather than WhatsApp (backend N171,
+  2026-10-26). From Take 2: the CEO panel's ask, WhatsApp (at most twice in
+  all), the home screen (once), Will's question, "Did this help?" when the
+  Take looks off. Will
   opens WhatsApp, the home screen and "Did this help?" with a lead-in: one or
   two sentences tied to this Take (never a grade, never advice; "Well, I can
   see you're doing pretty good. What about adding the application to the
@@ -873,6 +876,8 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
+- **N171** · notifications and reminders: the WhatsApp ask from Take 1 (E1); one WhatsApp or, without a number, one email for a coach's sitting, sent after 10 quiet minutes and none once the speaker opened the coach's feedback (C1's doors); WhatsApp replies (STOP) · E1, C1 · decided, not built · BE #1326
+
 - **The plan** (backend N129 to N157) · the diagnosis, the plan card, the practice days and the plan's end have their own page, [`the-plan.md`](the-plan.md); it meets this page in the Lounge, in the walk's level moment (C, N134 item 2), the bar on the end sheet (N140 item 11) and the pace practice in a pace week (the tempo step), and in the chat's day line before each day's first message (N169, the-plan.md G3) · decided, not built · its rules live there, not here (backend N160)
 
 - **WIL-76** · the stale processing step (urgent) · A1, A2 · confirmed in the app 2026-10-20 ("it doesn't open right after the processing"). Built: the marks are baked in the run right after ready (BE), the processing bubble waits for them and the page keeps asking for late marks to its ceiling and closes its slot when it stops (FE) · BE #1209, FE #896 · the founder checks the app
@@ -1072,6 +1077,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N171 · the WhatsApp ask from Take 1, once the Take has gone to the coach, first in Take 1's asks, "Did this help?" waiting rather than it; was: from Take 2, never on Take 1 (E1) · BE #1326, FE (this PR)
 - 2026-10-26 · N166 · built: the tempo step runs on the Take's own stretch, the clip the pace scale reads furthest from the green over the Take's word timings, fast or slow, with its topic in a few words (else "that part"); with no clip outside the green there is no tempo step; was the stand-in stretch · BE (this change), FE (this PR)
 - 2026-10-26 · N166 · built: the walk takes a list of interventions, empty by default, and the tempo step is its first: right after the practise moments, never in the coach-only walk or for a guest; its screen, founder-only on a stand-in stretch, with draft words; the pace meter and scale moved to shared code, the bench unchanged · FE (this PR)
 - 2026-10-26 · N162 · the pace practice is the tempo step of the Feedback walk only, shown in a pace or pause week from Take 2; was: before the Take, 2 minutes, where it sat open · BE #1316, FE #969
