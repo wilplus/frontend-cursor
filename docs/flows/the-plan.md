@@ -400,7 +400,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N173 · signed: the "Today, one thing" lines for pauses, filler words, a voice that moves and make it yours; the ratings' questions; "Booked: …" and "You're all set. Here's your plan."; the day after the deadline; the coach's queue line for a stalled level. Was: waiting for the founder's OK · BE #1330
+- 2026-10-26 · N173 · signed: the "Today, one thing" lines for pauses, filler words, a voice that moves and make it yours; the ratings' questions; "Booked: …" and "You're all set. Here's your plan."; the day after the deadline; the coach's queue line for a stalled level. Was: waiting for the founder's OK · BE #1330, FE #982
 
 - 2026-10-26 · N169 · the chat in time order: a day line before each day's first message; the practice-day hello once per practice day, at the first open or the reminder, never after a Take; the plan card only when made or changed, "See your plan" opens it in a sheet; the hello names the level again; today's one thing carries the key line and the recording; the reminders' rules, 9:00 by default, WhatsApp first then web push; a good-luck line on the deadline's morning. Was: the hello and the closed card right under Take 1 (N167) · BE #1325, FE #977
 
