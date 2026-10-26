@@ -327,7 +327,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N161 · the rating shows in the chat as the speaker's answer; the kickoff call is booked before the plan, then the summary call offered (Skip or Book now); "Book", not "Book and pay"; then "You're all set. Here's your plan."; the card in one typeface and three sizes; under it only the practice button. Was: the pick not written back; the calls under the card; "Book and pay" and "Next" · BE #, FE #
+- 2026-10-26 · N161 · the rating shows in the chat as the speaker's answer; the kickoff call is booked before the plan, then the summary call offered (Skip or Book now); "Book", not "Book and pay"; then "You're all set. Here's your plan."; the card in one typeface and three sizes; under it only the practice button. Was: the pick not written back; the calls under the card; "Book and pay" and "Next" · BE #1315, FE #968
 - 2026-10-26 · N160 · this page is the plan's one home; was a section of the walk's page (N146 item 2) · BE #1314, FE #967
 - 2026-10-26 · N157 · the ratings one at a time in the footer; a simpler card with "Plan"; the kickoff and summary calls booked under it, either can wait, paid as today; no weekly call · BE #1311
 - 2026-10-26 · N155 · no practice-day reminder for now · BE #1309
