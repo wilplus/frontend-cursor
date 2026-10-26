@@ -21,8 +21,10 @@ backend repo unless they start with `src/`. Rewriting §1 in the present tense i
 Clickable prototype (the reference for every screen, phone and desktop):
 <https://claude.ai/artifact/TuMKSE2BH364ZQ1Eq4UMdd>, version 2. A copy of
 the page as locked is kept in `docs/design/consent-screens-2026-10-07.html`.
-The frontend's CLAUDE.md carries the rule ("Design lock — the consent
-screens").
+The frontend's CLAUDE.md carried the rule ("Design lock — the consent
+screens") until 2026-10-11; that text is now in
+[`docs/history/CLAUDE-2026-10-11.md`](../history/CLAUDE-2026-10-11.md), and today's
+CLAUDE.md points here.
 
 ### What it covers
 
@@ -220,5 +222,6 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · docs audit · the pointer to CLAUDE.md's "Design lock" section names its history copy; no rule changed · —
 - 2026-10-21 · N111 · the policy update prompt and every Lounge ask, unified (both version 2), join §1 and §5, out of §3; the page also guards the consent files it missed (§4) · BE, FE
 - 2026-10-21 · N107 · this page replaces backend `FOUNDER-LOCK-consent-screens-2026-10-07.md` as the place the rules live; the lock stays as history · BE #1241, FE #928

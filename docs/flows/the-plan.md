@@ -7,7 +7,8 @@ in the Lounge before the first Take, what the diagnosis reads, the plan card
 and the two calls with the coach, the practice days, changing the plan, and
 the plan's end at the deadline. Started 2026-10-26 (backend N160) from the
 decisions log's entries N129 to N157, folded here into the rules as they
-stand. The entries keep their N-numbers and stay the record.
+stand; each later entry about the plan is folded in the same way. The entries
+keep their N-numbers and stay the record.
 
 **Nothing on this page is built yet.** The founder holds the build (N147,
 "not yet"); §2 says where it stands.
@@ -363,8 +364,8 @@ Waiting for the founder's OK:
 
 ## 2. In flight
 
-- **The plan** · all of §1 · decided from 24 to 26 October 2026 (N129 to
-  N157), drawn on the prototype (§5) · not built: the founder holds the
+- **The plan** · all of §1 · decided from 24 October 2026 (N129 onward;
+  the latest are in §6), drawn on the prototype (§5) · not built: the founder holds the
   build (N147) · the build plan: <https://claude.ai/artifact/5wuXkBNDctRcbxYs9V7R8A>
 
 ## 3. Still open
@@ -399,8 +400,8 @@ page for what it owns:
 The design is the prototype; the newest wins where two disagree.
 
 - **The flow, welcome to Take 2 and the plan's end:**
-  <https://claude.ai/artifact/ApK5fCkbc55aVN4iYQLdcn> (version 17,
-  2026-10-26), with three speakers to try Will's replies (N150).
+  <https://claude.ai/artifact/ApK5fCkbc55aVN4iYQLdcn> (version 27,
+  2026-10-26, N169), with three speakers to try Will's replies (N150).
 - **How the plan is built from the intake, and each case's walk:**
   <https://claude.ai/artifact/UfMSksquehX596LMgU3MgN> (2026-10-26).
 - **The decision pages:** the open points
@@ -415,6 +416,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · docs audit · the intro and §2 no longer stop at N157; §5 names the prototype's newest version, 27 (N169). Was: "N129 to N157", version 17 · —
 - 2026-10-26 · N180, N183 · G13: when a practice day's practice is done, "That's your 15 minutes for today." and "Now go and live it, away from the phone."; never on a clock, never on other days; built with the practice days · —
 - 2026-10-26 · N181 · the pace step (G): a speaker without a plan gets it from Take 2 when the Take has a stretch outside the green; it is the founder's "Sniper" · BE #1344, FE #993
 
