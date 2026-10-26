@@ -9,10 +9,12 @@ OUTCOME
       that matches nothing and a missing, History or Archive home are refused.
   O3  Every doc is listed in README.md.
   O4  A doc the base doesn't have needs Founder-Approved on its README.md line.
+  O5  Every N-number a rules page cites is an entry in the backend's log.
 PROVES   O1 -> "names code no row covers, and nothing else"
          O2 -> "lets the most exact pattern win", "refuses an equal claim, a stale row and a bad home"
          O3 -> "names a doc README.md doesn't list"
          O4 -> "refuses a new doc without the founder's OK and passes it with one"
+         O5 -> "names an N-number the backend log doesn't have"
 WHY      Backend N107: a new doc is not started; the area's page is edited.
 */
 import { execFileSync } from "node:child_process";
@@ -20,7 +22,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { END, START, checkHomes, checkListed, homeOf, parseHomes, run } from "./check-docs.mjs";
+import { END, START, checkCitations, checkHomes, checkListed, homeOf, parseHomes, run } from "./check-docs.mjs";
 
 const GIT_ENV = {
   ...process.env,
@@ -112,5 +114,18 @@ describe("the docs themselves", () => {
     write("README.md", `${table("| A | `src/a.ts`, `flow-pages.txt` | No page |")}\n- [New](docs/new.md) · Founder-Approved: decision page, 2026-10-21\n`);
     git("commit", "-q", "-am", "the founder said yes");
     expect(run({ cwd: dir, base: "base", flows }).code).toBe(0);
+  });
+});
+
+describe("citations", () => {
+  it("names an N-number the backend log doesn't have", () => {
+    const log = "**N1 · a\n\n**N4 · b\n\n**N70 · c\n\n**N70.1 · d\n";
+    const pages = {
+      "docs/flows/walk.md": "N1, N4, N70.1 and N91 (never logged, known); N5 is not an entry; N of 8 words.",
+      "CLAUDE.md": "backend N4",
+    };
+    expect(checkCitations(pages, log)).toEqual([
+      "docs/flows/walk.md cites N5, which the backend's decisions log doesn't have. Log the decision there first (backend N95), or fix the number. An entry merged minutes ago can take a few minutes to show.",
+    ]);
   });
 });
