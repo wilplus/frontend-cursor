@@ -496,7 +496,10 @@ step; the loop never waits for a coach.
   skipped. These choices (the condition and place of "Did this help?", Take
   1's asks, which asks get a lead-in) were confirmed by the founder on
   2026-10-21. A distressed answer under "What would help?" gets the chat's
-  safety reply (backend #1199).
+  safety reply (backend #1199). The WhatsApp ask's form says, over the
+  number field: "We will only use it to let you know your coach texted
+  you, or that your call starts soon." The same number gets a booked call's
+  reminder; the booking form asks for none (backend N207, 2026-10-26).
 - **E2** Will asks only when something is off or missing, once per Take,
   the first that holds (`services/will_question.py`, N82): a breather when
   the practice did not land or the voice dipped two Takes running (never two
@@ -1130,6 +1133,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N207 · the WhatsApp ask's form names the booked call: "We will only use it to let you know your coach texted you, or that your call starts soon."; the booking form asks for no number, and a booked call's reminder goes to the number saved here; was "… your coach texted you" (E1) · BE #1391, #1395, FE (this PR)
 - 2026-10-26 · N140 item 11, N203 · the walk's end card shows the plan's bar and "{n} of {total} practices done. Next: {day}." between its title and its next step, for a speaker with an active plan; nothing for anyone else · BE #1386, FE #1018
 - 2026-10-26 · N192 (B10) · fixed: the chat's Feedback walk, and "Continue review", always tell the page where to open the walk: the coach's word while it waits, the step the review waits on, else the walk's newest part, else the Take alone; a finished walk asked for a step it does not hold, or for its summary, stands on its newest step. Was: asked with no step, the page opened only a walk it could see waiting, so a walk paused on its summary, or with no part to stand on, showed the Ideal Text in its place (founder 2026-10-26: "the feedback walk opens the ideal text instead of the feedback walk!") · FE (this PR)
 - 2026-10-26 · N202 · a Take's Feedback walk and its Ideal Text card are one pair: the Feedback walk as wide as the card (80% of the chat, at most 384px), the card right under it, 3px apart, their left corners drawn in, no tail on the Feedback walk; the card drawn at its Feedback walk's place, what was said in between under the pair; while the walk runs its "ready" card is not drawn, and the coach's "new" dot sits on the newest card drawn; a walk left before its end pairs with its "ready" card; was: the Feedback walk as wide as its words (at least 190px), the card where the walk's end wrote it, and the "ready" card drawn above the Feedback walk while the walk ran (B3, D4) · BE #1383, FE (this PR)

@@ -80,7 +80,8 @@ export const DATA_CONSENT_COPY = {
   // Fixes 2 and 3 (founder, prototype, 2026-10-15: "I approve the 7 fixes as
   // in the prototype"). Privacy 3.6 §4 and §4d promise both "at any time".
   whatsappTitle: "WhatsApp",
-  whatsappOn: (phone: string) => `We message ${phone} when your coach’s feedback is in.`,
+  // The booked call added with the booking's reminder (backend N207).
+  whatsappOn: (phone: string) => `We message ${phone} when your coach’s feedback is in and 10 minutes before a booked call.`,
   whatsappRemove: "Remove",
   whatsappConfirmTitle: "Remove your number?",
   whatsappConfirmBody: "We stop the WhatsApp messages and delete your number.",
