@@ -853,6 +853,68 @@ them.
 
 ---
 
+### T · The tempo step (the pace step)
+
+Founder 2026-10-24 to 2026-10-26, backend N162, N166, N179, N181. Built: the founder and whoever the rings panel's `tempo_step` row reaches see it (§2 says what is left). Everything about this feature is in this block; it moved here from §2 when its build steps were done (docs audit, 2026-10-26).
+
+**In one line.** After a Take where the speaker rushed or dragged, the walk
+plays that stretch back and asks them to talk about the same thing again
+while a dot on a scale follows their pace live.
+
+**Where and when** (N162, N178).
+- In the Feedback walk only. Never in the coach panel, the Lounge, or before the Take.
+- It sits before the Ideal Text, so it always has a Skip, and the whole walk has a time limit (N178, which replaces N130's "never between a Take and the Ideal Text" for the walk's own practice steps). Open: the limit; the founder sets it (§3).
+- It shows when the diagnosis and the plan say so: in a pace or pause week, from Take 2 ([the plan](the-plan.md), item 5). A speaker without a plan gets it from Take 2 whenever the pace scale finds a stretch outside the green, once in that walk (N181).
+- It is the founder's "Sniper": the pace exercise of N129. The old Strength/Pace dartboard stays retired (N127, N181).
+
+**The scale.** A dot on a horizontal line. It moves right while you talk
+and left while you pause. Green in the middle, orange towards the ends,
+red at the edges. No number, ever (Never 1). How the dot moves is settled:
+backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
+
+**The step, in order** (as drawn in [Tempo in the Walk](https://claude.ai/artifact/VJd5MeFGgZy7e3Q8M1EQXV)):
+
+1. The speaker's clip, with the rushed or dragged stretch marked.
+2. Will's bubble, from what the stretch was: "That part went fast. 🏃 Let's try a little game." or "That part slowed down, with long pauses. 🐢 Let's try a little game."
+3. Will's bubble with the stretch's topic: "Tell me more about {topic}, and keep the ball in the green."
+4. Will's bubble: "🤫 Find a quiet spot first."
+5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar. Nothing else appears until Stop.
+6. The try: the dot's path, then one comment: "Better. You let it breathe." / "Still rushed. Take a breath after each offer." / "A bit slow. Keep the words moving between the pauses."
+7. **Practise again**. After the second try, also **See how it went**. After the third, a one-line summary (for example "Dynamic. You paused where it mattered. 🔥"), then the walk goes on.
+
+**Decided** (the founder, N166 and N179; each as the prototype draws it):
+
+| Question | Decision |
+|---|---|
+| Every word above | Signed, listed in §1 K (N179) |
+| Which stretch | The one the scale reads furthest from the green |
+| Where in the walk | Right after the practise moment |
+| How many tries | Up to three |
+| A noisy room | The quiet-spot line only; no listening check |
+
+**The build, in order** (N166 item 5):
+
+| Step | What | Where it stands |
+|---|---|---|
+| 1 | The meter and the scale move from the bench to shared code; the walk gets its list of interventions, empty by default | Built |
+| 2 | The step's screen in the walk, founder-only, on a stand-in stretch (the beds for sale) | Built |
+| 3 | The Take's own stretch, its reading and its topic: the backend replays the pace scale's rules over the Take's word timings and takes the clip furthest from the green; the topic is one small-model call under the Take's processing authorization, else "that part"; no stretch, no step | Built |
+| 4 | Kept: the step's lines, each try and its comment, and the closing line are Lounge messages like every other step; the game (the stretch's reading, each try's result and the dot's path, how it ended; never audio) is one speaker-memory event, so Will's note learns it in words | Built |
+| 5 | The words signed (N179) and listed in §1 K | Built |
+| 6 | Who sees it: the founder, and whoever the `tempo_step` row in the rings panel (`/admin/rings`) reaches; no row, nobody else. The backend answers the step only to them. The ring is widened, then turned on for everyone: a speaker without a plan when the Take needs it, a speaker with a plan in a pace or pause week (N147, N181) | Built (the plan part waits on the plan; the speaker without a plan needs no build) |
+
+**The code.**
+- The plan: `src/lib/willab/walkPlan.ts`, `WalkIntervention` and the `tempo` step key. A new intervention is a new kind there, its place in `buildWalkPlan` and its screen.
+- The step: `src/components/willab/walk/WalkTempo.tsx`; what a try means and the signed words (`TEMPO_COPY`): `src/lib/willab/tempoStep.ts`.
+- The meter: `src/lib/willab/pace/` (`paceSignal.ts`, `paceMic.ts`); the scale: `src/components/willab/pace/PaceScale.tsx`.
+- The stretch: backend `services/tempo_stretch.py` (route `GET /v2/explore/arc/<arc>/review/tempo/<take>`), asked once per Take by `useReviewTempo.ts` through `src/services/api/reviewTempo.ts`. The scale reads slow only on pauses of several seconds, so most stretches it picks are rushed.
+- What is kept: backend `POST /v2/explore/arc/<arc>/review/tempo/<take>` (`tempo_stretch.keep_tries`, a speaker-memory event of kind `take` with its `tempo` part, docs/SPEAKER-MEMORY.md), sent by `postTempoGame` in `src/services/api/reviewTempo.ts` when the game ends.
+- Who sees it today: the founder's account, and anyone the rings panel's `tempo_step` row reaches (`useDeckFeedbackWalk.tsx`, `useRingState`; backend `tempo_stretch.tempo_is_on`). To try it on the dev harness: `/dev/feedback-walk?live=1&tempo=1` (the stand-in stretch).
+- The founder's bench, `src/app/admin/pace-circle/`, uses the same meter and scale.
+
+**History.** The [Pace Circle brief](https://claude.ai/artifact/VJ2uSugQWmbAsmReyxuufz)
+(2026-10-24, N130, N133): a circle with three reads, replaced by the scale (N142).
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches ·
@@ -861,7 +923,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 - **N171** · notifications and reminders: the WhatsApp ask from Take 1 (E1) and WhatsApp replies (STOP, its words signed in N174) · E1 · decided, not built · BE #1326. One WhatsApp or, without a number, one email for a coach's sitting (C1's doors) · C1 · built, in review · BE #1333
 
-- **The plan** (backend N129 to N157) · the diagnosis, the plan card, the practice days and the plan's end have their own page, [`the-plan.md`](the-plan.md); it meets this page in the Lounge, in the walk's level moment (C, N134 item 2), the bar on the end sheet (N140 item 11) and the pace practice in a pace week (the tempo step), and in the chat's day line before each day's first message (N169, the-plan.md G3) · decided, not built · its rules live there, not here (backend N160)
+- **The plan** (backend N129 onward) · the diagnosis, the plan card, the practice days and the plan's end have their own page, [`the-plan.md`](the-plan.md); it meets this page in the Lounge, in the walk's level moment (C, N134 item 2), the bar on the end sheet (N140 item 11) and the pace practice in a pace week (the tempo step), and in the chat's day line before each day's first message (N169, the-plan.md G3) · decided, not built · its rules live there, not here (backend N160)
 
 - **WIL-76** · the stale processing step (urgent) · A1, A2 · confirmed in the app 2026-10-20 ("it doesn't open right after the processing"). Built: the marks are baked in the run right after ready (BE), the processing bubble waits for them and the page keeps asking for late marks to its ceiling and closes its slot when it stops (FE) · BE #1209, FE #896 · the founder checks the app
 - **WIL-89** · the lens as one chat: the opening order, the lenses, the interventions × chat awareness · B, C1, F · built and merged: FE #868, #882, #885, #886; BE #1170, #1190, #1194, #1196. Whether it works as drawn is the founder's check in the app ("success?") · to confirm
@@ -887,71 +949,13 @@ The four lines above were filled from main's history by the page's keeper on
 - **The lens scrolls** · B2, B5 · founder 2026-10-20 ("It is scrollable!"), read as WIL-89 working as drawn; say if that was a complaint · confirmed
 - **Review from the Lounge loads very long** · F1, A2 · founder 2026-10-20. The same cause as WIL-76: the marks computed live (20 to 40 s) or pending behind a queued bake; the bake in the run stores them before the Take is ready, so the tap finds them · BE #1209 · the founder checks the app
 
-- **Tempo · the pace step** · C (a new step after the practise moment), K · founder 2026-10-24 to 2026-10-26, backend N162, N166 · steps 1 and 2 built · everything about this feature is in this block.
-
-  **In one line.** After a Take where the speaker rushed or dragged, the walk
-  plays that stretch back and asks them to talk about the same thing again
-  while a dot on a scale follows their pace live.
-
-  **Where and when** (N162, N178).
-  - In the Feedback walk only. Never in the coach panel, the Lounge, or before the Take.
-  - It sits before the Ideal Text, so it always has a Skip, and the whole walk has a time limit (N178, which replaces N130's "never between a Take and the Ideal Text" for the walk's own practice steps). Open: the limit; the founder sets it (§3).
-  - It shows when the diagnosis and the plan say so: in a pace or pause week, from Take 2 ([the plan](the-plan.md), item 5). A speaker without a plan gets it from Take 2 whenever the pace scale finds a stretch outside the green, once in that walk (N181).
-  - It is the founder's "Sniper": the pace exercise of N129. The old Strength/Pace dartboard stays retired (N127, N181).
-
-  **The scale.** A dot on a horizontal line. It moves right while you talk
-  and left while you pause. Green in the middle, orange towards the ends,
-  red at the edges. No number, ever (Never 1). How the dot moves is settled:
-  backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
-
-  **The step, in order** (as drawn in [Tempo in the Walk](https://claude.ai/artifact/VJd5MeFGgZy7e3Q8M1EQXV)):
-
-  1. The speaker's clip, with the rushed or dragged stretch marked.
-  2. Will's bubble, from what the stretch was: "That part went fast. 🏃 Let's try a little game." or "That part slowed down, with long pauses. 🐢 Let's try a little game."
-  3. Will's bubble with the stretch's topic: "Tell me more about {topic}, and keep the ball in the green."
-  4. Will's bubble: "🤫 Find a quiet spot first."
-  5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar. Nothing else appears until Stop.
-  6. The try: the dot's path, then one comment: "Better. You let it breathe." / "Still rushed. Take a breath after each offer." / "A bit slow. Keep the words moving between the pauses."
-  7. **Practise again**. After the second try, also **See how it went**. After the third, a one-line summary (for example "Dynamic. You paused where it mattered. 🔥"), then the walk goes on.
-
-  **Decided** (the founder, N166 and N179; each as the prototype draws it):
-
-  | Question | Decision |
-  |---|---|
-  | Every word above | Signed, listed in §1 K (N179) |
-  | Which stretch | The one the scale reads furthest from the green |
-  | Where in the walk | Right after the practise moment |
-  | How many tries | Up to three |
-  | A noisy room | The quiet-spot line only; no listening check |
-
-  **The build, in order** (N166 item 5):
-
-  | Step | What | Where it stands |
-  |---|---|---|
-  | 1 | The meter and the scale move from the bench to shared code; the walk gets its list of interventions, empty by default | Built |
-  | 2 | The step's screen in the walk, founder-only, on a stand-in stretch (the beds for sale) | Built |
-  | 3 | The Take's own stretch, its reading and its topic: the backend replays the pace scale's rules over the Take's word timings and takes the clip furthest from the green; the topic is one small-model call under the Take's processing authorization, else "that part"; no stretch, no step | Built |
-  | 4 | Kept: the step's lines, each try and its comment, and the closing line are Lounge messages like every other step; the game (the stretch's reading, each try's result and the dot's path, how it ended; never audio) is one speaker-memory event, so Will's note learns it in words | Built |
-  | 5 | The words signed (N179) and listed in §1 K | Built |
-  | 6 | Who sees it: the founder, and whoever the `tempo_step` row in the rings panel (`/admin/rings`) reaches; no row, nobody else. The backend answers the step only to them. The ring is widened, then turned on for everyone: a speaker without a plan when the Take needs it, a speaker with a plan in a pace or pause week (N147, N181) | Built (the plan part waits on the plan; the speaker without a plan needs no build) |
-
-  **The code.**
-  - The plan: `src/lib/willab/walkPlan.ts`, `WalkIntervention` and the `tempo` step key. A new intervention is a new kind there, its place in `buildWalkPlan` and its screen.
-  - The step: `src/components/willab/walk/WalkTempo.tsx`; what a try means and the signed words (`TEMPO_COPY`): `src/lib/willab/tempoStep.ts`.
-  - The meter: `src/lib/willab/pace/` (`paceSignal.ts`, `paceMic.ts`); the scale: `src/components/willab/pace/PaceScale.tsx`.
-  - The stretch: backend `services/tempo_stretch.py` (route `GET /v2/explore/arc/<arc>/review/tempo/<take>`), asked once per Take by `useReviewTempo.ts` through `src/services/api/reviewTempo.ts`. The scale reads slow only on pauses of several seconds, so most stretches it picks are rushed.
-  - What is kept: backend `POST /v2/explore/arc/<arc>/review/tempo/<take>` (`tempo_stretch.keep_tries`, a speaker-memory event of kind `take` with its `tempo` part, docs/SPEAKER-MEMORY.md), sent by `postTempoGame` in `src/services/api/reviewTempo.ts` when the game ends.
-  - Who sees it today: the founder's account, and anyone the rings panel's `tempo_step` row reaches (`useDeckFeedbackWalk.tsx`, `useRingState`; backend `tempo_stretch.tempo_is_on`). To try it on the dev harness: `/dev/feedback-walk?live=1&tempo=1` (the stand-in stretch).
-  - The founder's bench, `src/app/admin/pace-circle/`, uses the same meter and scale.
-
-  **History.** The [Pace Circle brief](https://claude.ai/artifact/VJ2uSugQWmbAsmReyxuufz)
-  (2026-10-24, N130, N133): a circle with three reads, replaced by the scale (N142).
+- **Tempo · the pace step** · §1 T · built; it reaches the founder and the `tempo_step` ring. Left: widening the ring, then turning it on for everyone (N181), and the plan's pace weeks, which wait on the plan (N147) · the founder decides when
 
 ## 3. Still open
 
 - **The walk's time limit** (N178): the whole walk, the tempo step included, gets one; the founder sets it.
 
-- **Tempo step**: its open questions, with defaults, are in its block in §2.
+- **Tempo step**: its questions are decided (§1 T); only the walk's time limit above is open.
 
 - **Self-judgement of your own practice try** is off for launch (2026-10-12):
   4 speaker answers, 21 clips with coach answers, 1 with both. Re-run the
@@ -1020,7 +1024,7 @@ Backend (`wilplus/backend-cursor`): `services/moment_pick.py`,
 `services/coach_moments_queue.py` (I5); `services/chat_query.py` (the
 Lounge's turn).
 
-The tempo step: its files are in its block in §2.
+The tempo step: its files are in §1 T, "The code".
 
 Tests that hold the promises: `src/components/willab/walk/feedbackWalk.test.tsx`,
 `walkPractise.test.tsx`, `walkReplay.test.tsx`,
@@ -1049,7 +1053,7 @@ The design is the prototype; the newest wins where two disagree.
   first <https://claude.ai/artifact/Bsf3x3HWN2jJVY35edRKw8> (2026-10-14); the
   AI voice <https://claude.ai/artifact/G8Am3fR3f3SzAdTkwyUGKZ> (v8). The
   Sunday note's and life goals' prototypes are on [`principles.md`](principles.md) §5.
-- **Tempo step:** its prototypes are in its block in §2.
+- **Tempo step:** its prototypes are in §1 T.
 - **The base:** moment and feedback as one chat with a lens
   <https://claude.ai/artifact/TXbwmupWJio6N1gHqdEa7p> (version 27, locked
   2026-10-12; 31 final).
@@ -1062,6 +1066,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · docs audit · the tempo step's block moves from §2 to §1 T, word for word, now that its build steps are done; §2 keeps one line for what is left; §3, §4 and §5 point to §1 T. Was: the whole feature in §2 · —
 - 2026-10-26 · N161, N167 · B3 and D4 name the plan's record buttons: under the plan card, in place of "Type here", only "Start your first recording" (N161); on a practice day one record button in the chat, in the newest bubble, the closing message keeping its words and giving its button up (N167); the plan decided, not built. Was: "The Lounge has no record button, only the message box" (B3); the closing message keeping "Record Take N" under it, with no newer bubble named (D4) · —
 - 2026-10-26 · N182 · the Sunday note (L) and life goals (M), with their words, in-flight lines and prototypes, moved to [`principles.md`](principles.md): the principles are their own feature, ring 6, apart from the speaking coach · BE #1344, FE #993
 - 2026-10-26 · N181 · the tempo step is the founder's "Sniper"; a speaker without a plan gets it from Take 2 when the Take has a stretch outside the green; it reaches people as the `tempo_step` ring widens; was: only the plan's pace or pause week, later · BE #1344, FE #993

@@ -27,8 +27,10 @@ navigation of the 2026-10-07 prototype
 (<https://claude.ai/artifact/9CFAAP2Ue7pvRdLvdesn9h>, version 7, copy in
 `docs/design/recording-screens-2026-10-07.html`), which stays as history.
 The flow and motion below are the 2026-10-12 design.
-The frontend's CLAUDE.md carries the rule ("Design lock — the recording
-screens"). This lock wins over the Ideal Text lock's line on Recording Mode
+The frontend's CLAUDE.md carried the rule ("Design lock — the recording
+screens") until 2026-10-11; that text is now in
+[`docs/history/CLAUDE-2026-10-11.md`](../history/CLAUDE-2026-10-11.md), and today's
+CLAUDE.md points here. This lock wins over the Ideal Text lock's line on Recording Mode
 for the screens below.
 
 ### How the design came about (founder, chat, 7 October)
@@ -223,6 +225,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · docs audit · the pointer to CLAUDE.md's "Design lock" section names its history copy; no rule changed · —
 - 2026-10-23 · N116 · the screen stays on while a Take records; the Take's audio is kept in one-second pieces and an empty recording is never sent (it is asked for again) · BE #1268, FE #942
 
 - 2026-10-21 · N111 · the page also guards the recording screens' files it missed: the discard dialog, the wait while a Take is processed, the slide and the fade (§4); no rule changes · BE, FE
