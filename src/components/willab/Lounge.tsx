@@ -2123,7 +2123,7 @@ function OfferActions({
   onLifeGoals: (choice: "start" | "not_now") => void;
   /** "{emoji} {step}. Did it move?" (N172 M13, N186). */
   onLifeGoalsQuarter: (choice: "start" | "not_now") => void;
-  /** "Change {emoji} this quarter to “…”?" (N172 M14, N187). */
+  /** "Change {emoji} this quarter to “…”?" (N172 M14, N189). */
   onLifeGoalsChange: (choice: "change" | "not_now") => void;
   onResolve: () => void;
 }) {
