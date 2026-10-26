@@ -123,8 +123,10 @@ stand. The entries keep their N-numbers and stay the record.
 2. Under "Plan", in bullet points: the practice days ("15 minutes, 3 times
    a week: Mon, Wed, Fri", or "15 minutes every day"); in a pace or pause
    week, "This week your walk has a pace game"; "Kickoff call with your
-   coach" and "Summary call with your coach", each with its time once
-   booked. Then "Change your plan" (N157, N163).
+   coach", with its time once booked; "Your deadline: {date}", the date in
+   orange (for example "Sat 14 Nov"); "Summary call with your coach", with
+   its time once booked. The booked times are green. Then "Change your
+   plan" (N157, N163, N164).
 3. The progress bar shows on the card on a practice day and on the
    walk's end sheet, one part per Take. It fills with what the speaker did,
    never with a measure of the voice. The end sheet is a locked screen; this
@@ -262,7 +264,8 @@ Waiting for the founder's OK:
   your kickoff call." · "{n} of 2 booked" · "Your deadline" · "Skip" · "Book"
   · "Book now" · "Booked: {day, date, time}." · "Would you also like to book
   your summary call? It's after your deadline, to look back and plan what's
-  next." · "You're all set. Here's your plan."
+  next." · "You're all set. Here's your plan." · "Your deadline: {date}"
+  (N164)
 - The plan's end: "Your deadline was {date}." · "How did it go? Tell me in a
   voice message." · "Thank you for telling me." · "Your summary call" · "15
   minutes with your coach, to look back and plan what's next." · "Choose a
@@ -323,6 +326,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N164 · the deadline in the plan's list, between the two calls, the date in orange · BE #1318, FE #971
 - 2026-10-26 · N163 · the card's pace line, signed: "This week your walk has a pace game"; was "Before each Take this week: 2 minutes with the Pace Circle" · BE #1317, FE #970
 - 2026-10-26 · N162 · the pace practice is the tempo step of the Feedback walk only, shown in a pace or pause week from Take 2; was: before the Take, 2 minutes, where it sat open · BE #1316, FE #969
 - 2026-10-26 · N161 · the rating shows in the chat as the speaker's answer; the kickoff call is booked before the plan, then the summary call offered (Skip or Book now); "Book", not "Book and pay"; then "You're all set. Here's your plan."; the card in one typeface and three sizes; under it only the practice button. Was: the pick not written back; the calls under the card; "Book and pay" and "Next" · BE #1315, FE #968
