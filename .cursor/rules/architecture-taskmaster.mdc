@@ -5,6 +5,8 @@ alwaysApply: false
 
 # Architecture (homework + credits)
 
+> **Out of date (docs audit, 2026-10-26):** the homework routes and the −5 credit charge below are from the old homework flow; those routes no longer exist. Do not build from this file. Tokens and prices today: the backend's contract clauses 48 to 51. The rules: the backend's decisions log and contract, and this repo's `docs/flows/` pages (backend N95).
+
 ## Status
 
 - **`GET /v2/homework/session/status`** is the source of truth for step, waiting flags, tutor video fields, and **`credits`**. The BFF mirrors this under `/api/homework/session/status`.
