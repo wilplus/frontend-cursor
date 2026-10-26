@@ -575,10 +575,12 @@ O3 -> ""Take 1 starts at once, without a read""","Build plan D-RC-4: the words u
 src/components/willab/loungeLifeGoals.test.tsx,Story,"As the founder, I want to set one life goal in the lens by answering one question at a time, so that the goal comes from my words and lands as a ladder in my chat.","O1  Start opens the lens with the paper-notebook line; the space, three open questions, Will's draft with my words, goal or want, ambitious, give up, the horizon and the quarter come one at a time, and the goal is set with its ladder and the line that sends me out to live it.
 O2  With every open question skipped, Will drafts nothing and says so.
 O3  A new goal that pulls against a kept one is asked ""When they clash, which wins?"" before it is set, and the answer is noted for both ladders (N185).
-O4  When the quarter comes back, Start asks ""Did it move?"" (never a score), what got in the way, shows my own notes that say it too, and asks for the next quarter's step (N186).","O1 -> sets a goal from my answers, one step at a time
+O4  When the quarter comes back, Start asks ""Did it move?"" (never a score), what got in the way, shows my own notes that say it too, and asks for the next quarter's step (N186).
+O5  Under a note that sounds like a change, Change changes the goal the newest ask named, and the thread is read again (N191).","O1 -> sets a goal from my answers, one step at a time
 O2 -> drafts nothing when I said nothing
 O3 -> asks which wins when two goals clash, before the new one is set
-O4 -> brings the quarter back: did it move, my notes, the next step",
+O4 -> brings the quarter back: did it move, my notes, the next step
+O5 -> a note that sounds like a change: Change goes to the goal it asked about",
 src/components/willab/loungeNewCoachFeedback.test.tsx,Story,"As a speaker, I want my project's latest Ideal Text bubble in the Lounge to say ""new"" when coach feedback is waiting, never as a count, so that I know to look without seeing a number.","O1  While the project's flag is true, its latest bubble itself wears the
 stroke and the mark (one bubble, never a copy), and a tap on it opens
 the feedback.
