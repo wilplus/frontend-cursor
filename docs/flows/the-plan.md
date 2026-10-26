@@ -223,10 +223,15 @@ stand. The entries keep their N-numbers and stay the record.
    says the same words as its message in the chat, written at the same
    moment, and tapping it opens the chat at that day line. It goes at 9:00
    in the speaker's time zone by default, changed in "Change your plan", with
-   no new question before Take 1. Its first channel is WhatsApp, with the
-   words of N154, asked as today's WhatsApp ask, once a privacy version names
-   it and Meta approves its template; web push (built for the Life Panel)
-   comes second (N153, N154, N169).
+   no new question before Take 1. Its first channel is the speaker's own
+   calendar, one the phone subscribes to: it follows "Change your plan" and
+   the deadline's "Edit", stops when the plan ends, rings at the reminder's
+   time and links to the chat at that day's line; the phone rings it, so the
+   day's hello is written when the app first opens that day. Its second is
+   WhatsApp, with the words of N154, asked as today's WhatsApp ask, once a
+   privacy version names it and Meta approves its template. No web push for
+   speakers. The calendar offer's words wait for the founder's OK (N153,
+   N154, N169, N174).
 12. Every reminder, on any channel: opt-in and off by default; at most one
    practice reminder a day, never twice on the same local day, between 8:00
    and 21:00 in the speaker's time zone; it says what is ready, never "come
@@ -303,7 +308,20 @@ Signed:
   thing: take a breath before your key line. You've got this 💪" · "Today,
   one thing: give your key line a little more room. You've got this 💪"
   (N167) · "Edit" and "Your deadline: {date}" under the calls' calendar
-  (N168) · the day line, "{weekday} {date} {month}" (N169).
+  (N168) · the day line, "{weekday} {date} {month}" (N169) · "Today, one
+  thing: a short pause between your ideas. You've got this 💪" · "Today, one
+  thing: say each idea once, without the extras. You've got this 💪" ·
+  "Today, one thing: lean on your numbers. You've got this 💪" · "Today, one
+  thing: say it like your best moment. You've got this 💪" (N173).
+- The ratings, the calls and the plan's end (N173): "How stressed do you feel
+  about it right now?" · "How ready do you feel for it right now?" ·
+  "Booked: {weekday date month}, {time}." · "You're all set. Here's your
+  plan." · "Your deadline was {date}." · "How did it go? Tell me in a voice
+  message." · "Thank you for telling me." · "Your summary call" · "What's
+  next?" · "Keep practising".
+- The coach's queue, for a level that hasn't moved in three Takes (N134 item
+  4, N173): "{name} · {level}" · "Three Takes without moving. Next in the
+  row: your video."
 - Kept for the reminder, when it comes: "Want a WhatsApp on your practice
   days? Add your number." · "We'll only use it to remind you on practice days
   and to tell you when your coach texted you" · "Saved ✓ We'll message you
@@ -317,22 +335,21 @@ Waiting for the founder's OK:
   for you to call it a success?" · "How will you open? Say your first
   sentence." · the plain key line, "If your audience remembers one sentence
   from you, what is it? Say it the way you'll say it."
-- The ratings: "Two quick taps before your plan." · "How stressed do you feel
-  about it right now?" · "How ready do you feel for it right now?" · "Calm" ·
-  "Very stressed" · "Not ready" · "Fully ready".
+- The ratings: "Two quick taps before your plan." · "Calm" · "Very
+  stressed" · "Not ready" · "Fully ready".
 - The plan and the calls: "Why this line?" · "Plan" · "Kickoff call with your
   coach" · "Summary call with your coach" · "Before I
   show you your plan, pick a time for a 15-minute call with your coach. It's
   your kickoff call." · "{n} of 2 booked" · "Your deadline" · "Skip" · "Book"
-  · "Book now" · "Booked: {day, date, time}." · "Would you also like to book
-  your summary call? It's after your deadline, to look back and plan what's
-  next." · "You're all set. Here's your plan." · "Your deadline: {date}"
-  (N164)
-- The plan's end: "Your deadline was {date}." · "How did it go? Tell me in a
-  voice message." · "Thank you for telling me." · "Your summary call" · "15
-  minutes with your coach, to look back and plan what's next." · "Choose a
-  date" · "Not now" · "What's next?" · "Keep practising" · "Here's your next
-  plan." · "Is this for {date}?"
+  · "Book now" · "Would you also like to book your summary call? It's after
+  your deadline, to look back and plan what's next." · "Your deadline:
+  {date}" (N164)
+- The plan's end: "15 minutes with your coach, to look back and plan what's
+  next." · "Choose a date" · "Not now" · "Here's your next plan." · "Is this
+  for {date}?" · the deadline morning's good-luck line, still to be written
+  (N169).
+- The pace game's words are the tempo step's, on the walk's page §2 "Tempo"
+  (N166), not here.
 
 ---
 
@@ -387,6 +404,9 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-26 · N174 · the practice-day reminder, when it comes: the speaker's own calendar first (a subscribed calendar that follows the plan), then WhatsApp; no web push for speakers (G11). Was: WhatsApp first, web push second (N169 item 6) · BE #1331, FE (this PR)
+- 2026-10-26 · N173 · signed: the "Today, one thing" lines for pauses, filler words, a voice that moves and make it yours; the ratings' questions; "Booked: …" and "You're all set. Here's your plan."; the day after the deadline; the coach's queue line for a stalled level. Was: waiting for the founder's OK · BE #1330, FE #982
 
 - 2026-10-26 · N169 · the chat in time order: a day line before each day's first message; the practice-day hello once per practice day, at the first open or the reminder, never after a Take; the plan card only when made or changed, "See your plan" opens it in a sheet; the hello names the level again; today's one thing carries the key line and the recording; the reminders' rules, 9:00 by default, WhatsApp first then web push; a good-luck line on the deadline's morning. Was: the hello and the closed card right under Take 1 (N167) · BE #1325, FE #977
 

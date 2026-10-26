@@ -814,7 +814,14 @@ October (backend N111).
   you take from this?"; "Next"; "Skip"; "Will suggests a new principle:";
   "Accept"; "Edit"; "Add principle"; "Noted. Added to your principles.";
   "Noted."; "Close". The four 👾 bug names are the founder's own form
-  (2026-10-20). With N170: "Nothing stands out in your notes from the last
+  (2026-10-20).
+- **Life goals (M; approved with the build, 2026-10-26, N172):** every line
+  quoted in M1 to M14, as drawn on the prototype (version 7); the space
+  names 🏡 Personal life, 💼 Career, 🌍 The greater good; the ladder's labels
+  LIFE GOAL, A WANT, HELD KNOWINGLY, GIVING UP, IN TEN YEARS, IN THREE
+  YEARS, IN A YEAR, THIS QUARTER, NEXT QUARTER, TALK GOAL, THIS WEEK, "from
+  your practice", "changed {date}", "Earlier:"; the field's "Say it or type
+  it"; "Type instead". With N170: "Nothing stands out in your notes from the last
   seven days yet."; "There are no # notes from the last seven days yet."
 - **Signed, no longer shown:** "Judgement time!", "If you are honest when
   judging others, it will help you find your confident voice and calm the
@@ -881,6 +888,93 @@ The prototype is the design: <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo>
   (founder 2026-10-26: the user could not tell what it asked); a case
   written before still answers it.
 
+### M · Life goals (backend `services/life_goals.py`; decided 2026-10-26, N172)
+
+The prototype is the design: <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24> (§5, version 7). Founder only (ring 6, `life_goals`), in the Lounge and its lens; never on the recording screens, never shown to a coach. Private like the notebook. No number about the speaker (Never 1): horizons and dates are the speaker's own.
+
+- **M1** When it is asked. Once, right after the first # note's "Noted."
+  (voice or typed): two grey bubbles, "One more thing: your life goals." and
+  "One goal today. Say or type your answers.", with Not now | Start in
+  place of the message box (as L2). Not now lands as the speaker's bubble,
+  then "Noted."; Will asks once more after the next # note; a second Not now
+  and it waits for the speaker to ask.
+- **M2** Asked in the speaker's own words, any day ("#goals", "can I add
+  another goal?", "I want a goal for my health"): Will goes by the meaning;
+  "Of course, you can add a new goal anytime. Let's do it." and the lens
+  opens by itself, because they asked. "#goals" with goals kept opens the
+  ladders (M10): "Your goals." and the spaces in one line.
+- **M3** The lens (L3's frame, the bar "‹ Life goals ›"), one goal per
+  sitting. "Which matters most right now?": 🏡 Personal life, 💼 Career, 🌍
+  The greater good as tall answers (L4's), each marked "· has a goal" when
+  it holds one. A space may hold more than one goal; a space with a goal
+  shows it ("{space} already has a goal:") and asks "Keep both, or let the
+  new one replace it?" (Keep both · Replace it; the old one stays in its
+  history). When the ask named what they want, Will places it first: "That
+  sounds like {space}." (Yes, {space} · Another space).
+- **M4** Three open questions, said with the small mic or typed, each with
+  Skip: "What do you truly want most {in your career}?", "What will
+  actually fulfil you?", "What fits your nature and strengths?". When the
+  ask already said what they want, Will quotes it instead of the first:
+  "You said: “…”". All three skipped: "I have nothing of yours to draft
+  from yet. Let's do this another time." and Close; Will never invents a
+  goal.
+- **M5** Will's draft, only from their words, quoting them: "Will's draft,
+  from your words:", the goal, "From: “…” · “…”". Accept · Edit (a field
+  with the words, "Keep this goal").
+- **M6** "Is this what you want in the long run, or something you want
+  now?" (🎯 The long run · ⏳ Something I want now). A want: "What would
+  having it give you?", then "Then the goal may be under it:", the redraft
+  quoting the answer, and "“{want}” stays beside it, as a want you hold
+  knowingly." Accept · Edit.
+- **M7** "Is it ambitious enough?" (🚀 Yes · ⬆️ Not yet). Not yet: "Make it
+  bigger:" and a field with the goal, "Keep this goal".
+- **M8** "What will you give up for it?" Said or typed, or Skip.
+- **M9** "By when?" (🌱 1 year · 🌿 3 years · 🌳 10 years · ♾️ A lifetime),
+  a date on the ladder. Will works back one step per screen, each aimed at
+  the step above: 3 years asks the year ("For it to be true by {date}, where
+  must it be by {date}?"); 10 years asks three years, then the year; a
+  lifetime asks ten years ("It's a lifetime goal. Where must it be by
+  {date}?"), then the year; 1 year asks none. Then the quarter: "Then what
+  must be true by {quarter's last day}, {n} weeks from now, to be on track
+  for “{step}”?" (without a step above: "What must be true by …?"). With
+  less than four weeks left in the quarter, "This quarter is nearly over, so
+  let's aim at the next one." and the next quarter's last day.
+- **M10** The ladder, one bubble per goal: the space, then LIFE GOAL · by
+  {date}, A WANT, HELD KNOWINGLY, GIVING UP, IN TEN YEARS, IN THREE YEARS,
+  IN A YEAR (each · by {date}), THIS QUARTER or NEXT QUARTER · by {date};
+  under the goal the talk serves (career unless the speaker moves it), TALK
+  GOAL and THIS WEEK · from your practice. A skipped step is left out. Then
+  "Noted. Your {space} goal is set." and Close; the Lounge keeps the thread
+  and the bubble opens the lens again (L8).
+- **M11** Changing a step: "#goals" or the › on a ladder bubble opens "Tap
+  the step that is wrong." and the ladder, each step a row with ›; This week
+  has none (it comes from the practice). A tap: "Now: {step}", "What should
+  it say?", a field, "Keep the change", Back. The talk goal says first "This
+  is your setup answer too. Changing it here changes it there." and changes
+  it there. A changed step asks once about the next one down: "Does “…”
+  still get you there?" (✅ Yes, it still fits · ✏️ Change it too). Then
+  "Noted. Changed on {date}." and the ladder with "· changed {date}" and
+  "Earlier: …". Done; "All still right" leaves it. Every version is kept,
+  dated.
+- **M12** A second goal whose give-up pulls against another goal: Will names
+  both in one bubble and asks once "When they clash, which wins?" ({space} ·
+  {space} · ⚖️ I decide each time); "Noted. On both ladders: when they
+  clash, …".
+- **M13** The quarter comes back on its last day, once per goal with a
+  quarter step, in the Lounge: "The quarter ends today." and "{emoji} {step}.
+  Did it move?" with Not now | Start. The lens: the ladder, "Did it move?"
+  (🎯 It got there · ↗️ It moved · ⏸️ It stalled), never a score; moved or
+  stalled: "What got in the way?", then, only when some match, "Your notes
+  said it too:" and their own # notes quoted with their dates; "What would
+  move it forward by {next quarter's last day}?"; the ladder; "Noted.".
+- **M14** A # note that sounds like a change: Will asks once in the Lounge,
+  quoting it: "Change {emoji} this quarter to “…”?" and "Now: …. From your
+  note: “…”", Not now | Change; Change: "Noted. {emoji} This quarter is now
+  “…”. “…” stays in its history." Never a change by itself.
+- **M15** Kept in the Life Panel's store as its top layer, above the three
+  bets; every version dated. Will reads the ladders and their dated changes
+  before it chats and before the Sunday note.
+
 ---
 
 ## 2. In flight
@@ -889,7 +983,9 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- **N171** · notifications and reminders: the WhatsApp ask from Take 1 (E1); one WhatsApp or, without a number, one email for a coach's sitting, sent after 10 quiet minutes and none once the speaker opened the coach's feedback (C1's doors); WhatsApp replies (STOP) · E1, C1 · decided, not built · BE #1326
+- **N172** · life goals (M) · M · decided 2026-10-26; build order: M1–M11 first (the ask, the lens, the ladder, changing a step), then M12 (the clash), M13 (the quarter comes back) and M14 (a note that sounds like a change) · —
+
+- **N171** · notifications and reminders: the WhatsApp ask from Take 1 (E1) and WhatsApp replies (STOP, its words signed in N174) · E1 · decided, not built · BE #1326. One WhatsApp or, without a number, one email for a coach's sitting (C1's doors) · C1 · built, in review · BE #1333
 
 - **The plan** (backend N129 to N157) · the diagnosis, the plan card, the practice days and the plan's end have their own page, [`the-plan.md`](the-plan.md); it meets this page in the Lounge, in the walk's level moment (C, N134 item 2), the bar on the end sheet (N140 item 11) and the pace practice in a pace week (the tempo step), and in the chat's day line before each day's first message (N169, the-plan.md G3) · decided, not built · its rules live there, not here (backend N160)
 
@@ -961,8 +1057,8 @@ The four lines above were filled from main's history by the page's keeper on
   | 1 | The meter and the scale move from the bench to shared code; the walk gets its list of interventions, empty by default | Built |
   | 2 | The step's screen in the walk, founder-only, on a stand-in stretch (the beds for sale) | Built |
   | 3 | The Take's own stretch, its reading and its topic: the backend replays the pace scale's rules over the Take's word timings and takes the clip furthest from the green; the topic is one small-model call under the Take's processing authorization, else "that part"; no stretch, no step | Built |
-  | 4 | Each try's path, comment and the closing line kept for Will (the path only, never the audio) | Next |
-  | 5 | The words signed and moved to K | Waits on the founder |
+  | 4 | Kept: the step's lines, each try and its comment, and the closing line are Lounge messages like every other step; the game (the stretch's reading, each try's result and the dot's path, how it ended; never audio) is one speaker-memory event, so Will's note learns it in words | Built |
+  | 5 | The words signed and moved to K | Next, waits on the founder |
   | 6 | Who sees it: a per-speaker switch, then the plan in a pace or pause week (N147) | To do |
 
   **The code.**
@@ -970,6 +1066,7 @@ The four lines above were filled from main's history by the page's keeper on
   - The step: `src/components/willab/walk/WalkTempo.tsx`; what a try means and the draft words: `src/lib/willab/tempoStep.ts`.
   - The meter: `src/lib/willab/pace/` (`paceSignal.ts`, `paceMic.ts`); the scale: `src/components/willab/pace/PaceScale.tsx`.
   - The stretch: backend `services/tempo_stretch.py` (route `GET /v2/explore/arc/<arc>/review/tempo/<take>`), asked once per Take by `useReviewTempo.ts` through `src/services/api/reviewTempo.ts`. The scale reads slow only on pauses of several seconds, so most stretches it picks are rushed.
+  - What is kept: backend `POST /v2/explore/arc/<arc>/review/tempo/<take>` (`tempo_stretch.keep_tries`, a speaker-memory event of kind `take` with its `tempo` part, docs/SPEAKER-MEMORY.md), sent by `postTempoGame` in `src/services/api/reviewTempo.ts` when the game ends.
   - Who sees it today: the founder's account, in `useDeckFeedbackWalk.tsx`. To try it on the dev harness: `/dev/feedback-walk?live=1&tempo=1` (the stand-in stretch).
   - The founder's bench, `src/app/admin/pace-circle/`, uses the same meter and scale.
 
@@ -1077,7 +1174,8 @@ The design is the prototype; the newest wins where two disagree.
   AI voice <https://claude.ai/artifact/G8Am3fR3f3SzAdTkwyUGKZ> (v8); the
   Sunday note as a lens <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo> (N158,
   2026-10-26); asking for it <https://claude.ai/artifact/M5GWxvbNPRbkEjoL2ivZxB>
-  (N170, 2026-10-26).
+  (N170, 2026-10-26); life goals <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24>
+  (N172, version 7, 2026-10-26).
 - **Tempo step:** its prototypes are in its block in §2.
 - **The base:** moment and feedback as one chat with a lens
   <https://claude.ai/artifact/TXbwmupWJio6N1gHqdEa7p> (version 27, locked
@@ -1091,6 +1189,9 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N172 · life goals decided (M): asked once after the first # note and once more after the next, or whenever asked; one goal per sitting in a lens; drafted only from the speaker's words; goal or want; a horizon and the steps worked back to the quarter, with the four-week rule; the ladder; changing a step with its history; kept in the Life Panel · —
+- 2026-10-26 · N171, N174 · built: the coach's doors send one message for a coach's sitting, 10 minutes after the last share, naming that Take: the WhatsApp when the speaker left a number, else the email (also when the WhatsApp cannot go), and none once the speaker opened the coach's feedback; was one WhatsApp and one email for every share (C1) · BE #1333
+- 2026-10-26 · N166 · built: the tempo step writes the chat (its opening lines, each try and its comment, the closing line, or the Skip) and keeps the game for Will (each try's result and path, how it ended; never audio) as a speaker-memory event his note reads in words; was nothing kept · BE (this change), FE (this PR)
 - 2026-10-26 · N171 · the WhatsApp ask from Take 1, once the Take has gone to the coach, first in Take 1's asks, "Did this help?" waiting rather than it; was: from Take 2, never on Take 1 (E1) · BE #1326, FE (this PR)
 - 2026-10-26 · N166 · built: the tempo step runs on the Take's own stretch, the clip the pace scale reads furthest from the green over the Take's word timings, fast or slow, with its topic in a few words (else "that part"); with no clip outside the green there is no tempo step; was the stand-in stretch · BE (this change), FE (this PR)
 - 2026-10-26 · N166 · built: the walk takes a list of interventions, empty by default, and the tempo step is its first: right after the practise moments, never in the coach-only walk or for a guest; its screen, founder-only on a stand-in stretch, with draft words; the pace meter and scale moved to shared code, the bench unchanged · FE (this PR)
