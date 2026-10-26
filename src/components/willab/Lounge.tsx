@@ -8,7 +8,7 @@ import Linkified from "./Linkified";
 import dynamic from "next/dynamic";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "./LoungeAiVoiceBubble";
-import { CHUNK_SHEET_COPY } from "./idealEditCopy";
+import { CHUNK_SHEET_COPY, WALK_COPY } from "./idealEditCopy";
 import { postChatQuery, type ChatQueryResponse } from "@/services/api/chatQuery";
 import { warmIdealTextOpen } from "@/services/api/idealText";
 import { newestStamp, refreshNewCoachFeedback, stampLoungeMessage, type LoungeMessage } from "@/services/api/loungeMessages";
@@ -44,6 +44,7 @@ import {
 import { stageLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import ReportCard, {
+  reportDateLabel,
   refreshLiveIdealDoc,
   type FeedbackBubbleTarget,
   type IdealTextRetryTarget,
@@ -58,7 +59,7 @@ import { PROCESSING_STAGES } from "./ProcessingWait";
 import type { IdealTextLaunchMode } from "./IdealTextOverlay";
 import { lensAddress } from "@/lib/willab/lensScreen";
 import { startOpenTrace } from "@/lib/willab/openTrace";
-import { oneShareQuestion } from "@/lib/willab/walkThread";
+import { chatDrawsStep, chatWalks, shareLines, type ChatWalk } from "@/lib/willab/walkThread";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import {
   clearExploreArc,
@@ -391,12 +392,22 @@ export default function Lounge({
   // Each project's latest Ideal Text bubble wears the unread-feedback dot
   // (founder 2026-09-25, Q39 B).
   const latestIdealIds = useMemo(() => latestIdealBubbleIds(threadItems), [threadItems]);
-  // One Ideal Text bubble per Take (founder 2026-10-14); the sharing
-  // question as one bubble (founder 2026-10-19).
+  // A Take's walk is one bubble, the Feedback walk, at its first step's place
+  // (founder 2026-10-26, N192, B3): its other steps stay stored (B1) and are
+  // drawn in the walk only. Who heard the Take is one line on its recording
+  // (G1), and the summary is the walk's last step (D4).
+  const walks = useMemo(() => chatWalks(drawnOf(threadItems)), [threadItems]);
+  const walkAt = useMemo(() => new Map(walks.map((walk) => [walk.at, walk])), [walks]);
+  const shares = useMemo(() => shareLines(drawnOf(threadItems)), [threadItems]);
+  const summaries = useMemo(() => summaryByTake(drawnOf(threadItems)), [threadItems]);
+  // One Ideal Text bubble per Take (founder 2026-10-14).
   const shownItems = useMemo(() => {
     const hidden = versionBubblesWithReviewCard(threadItems);
-    return oneShareQuestion(threadItems.filter((item) => !hidden.has(item.message.client_id)));
-  }, [threadItems]);
+    const closing = closingTakesOf(drawnOf(threadItems));
+    return threadItems.filter(
+      (item) => !hidden.has(item.message.client_id) && chatShows(item.message, walkAt, closing),
+    );
+  }, [threadItems, walkAt]);
   // "Continue review" (founder lock 2026-10-12, section 1): the newest walk
   // step names its project and is not the review's end.
   const reviewToContinue = useMemo(() => continueReviewArc(threadItems), [threadItems]);
@@ -414,7 +425,14 @@ export default function Lounge({
   useCoachBubbleFocus();
   const stepWaits = (m: LoungeMessage) =>
     coachUpdates.waits(m, !seenUpdates.has(m.client_id) && waitingStep === m.client_id);
-  // Helper words a later pick replaced: struck in the chat (prototype v31).
+  // A Feedback walk wears the outline while one of its steps waits: the step
+  // the review waits on, or the walk's own copy of a coach's word not yet
+  // seen (B10, D5). Those are what its tap marks seen.
+  const walkWaits = (walk: ChatWalk): LoungeMessage[] =>
+    threadItems
+      .map((item) => item.message)
+      .filter((m) => takeIdOf(m) === walk.take && m.kind === "walk_step" && !chatDrawsStep(m) && stepWaits(m));
+  // Helper words a later pick replaced: an older Take's review leaves them out.
   const replacedWords = useMemo(() => replacedWordIds(threadItems), [threadItems]);
   const olderNewWords = useMemo(() => clearerNewWordsOf(threadItems), [threadItems]);
   // An older Take's review, reopened from one of its bubbles: its steps as
@@ -1480,6 +1498,10 @@ export default function Lounge({
       const screen = shownItems.map((item) => item.message);
       const history = thread.signedIn
         ? screenHistory(screen, {
+            walkOf: (m) => {
+              const walk = walkAt.get(m.client_id);
+              return walk ? { take: walk.takeIndex, summary: summaries.get(walk.take) ?? null } : null;
+            },
             cardOf: (m) => reviewCardOf(m, threadItems),
             coachWaits: (m) =>
               latestIdealIds.has(m.client_id) &&
@@ -1628,13 +1650,23 @@ export default function Lounge({
         ) : threadItems.length === 0 ? (
           <LoungeEmptyState onStart={onStartNewProject ?? onStart} />
         ) : (
-          shownItems.map((item, i) => item.message.kind === "walk_step" ? (
+          shownItems.map((item, i) => walkAt.has(item.message.client_id) ? (
+            <FeedbackWalkBubble
+              key={item.reactKey}
+              walk={walkAt.get(item.message.client_id) as ChatWalk}
+              older={olderTake(item.message.metadata)}
+              waits={walkWaits(walkAt.get(item.message.client_id) as ChatWalk)}
+              live={reviewToContinue}
+              onOpenOlder={setOlderReview}
+              onOpened={(seen) => seen.forEach((m) => setSeenUpdates(keepSeenUpdate(m)))}
+              onOpenIdealText={openIdealText}
+            />
+          ) : item.message.kind === "walk_step" ? (
             <WalkStepBubble
               key={item.reactKey}
               message={item.message}
               card={reviewCardOf(item.message, threadItems)}
               latest={latestIdealIds.has(item.message.client_id)}
-              replaced={replacedWords.has(item.message.client_id)}
               newWords={olderNewWords.get(item.message.client_id)}
               waiting={stepWaits(item.message)}
               lockedTake={olderTake(item.message.metadata)}
@@ -1652,6 +1684,7 @@ export default function Lounge({
             <Bubble
               key={item.reactKey}
               message={item.message}
+              shareLine={shares.get(item.message.client_id) ?? null}
               onOpenBestPresentation={(arcId) =>
                 openIdealText(arcId)
               }
@@ -2373,8 +2406,11 @@ function Bubble({
   onOpenLifeGoal,
   animate = false,
   latestForArc = false,
+  shareLine = null,
 }: {
   message: LoungeMessage;
+  /** A recording's line: who heard the Take (G1, N192). */
+  shareLine?: string | null;
   /** The project's latest Ideal Text bubble: it wears the dot (Q39 B). */
   latestForArc?: boolean;
   onViewInsights?: (sessionId: string) => void;
@@ -2424,6 +2460,7 @@ function Bubble({
         onOpenIdealText={onOpenIdealText}
         onRetryIdealText={onRetryIdealText}
         latestForArc={latestForArc}
+        shareLine={shareLine}
       />
     );
   }
@@ -2758,6 +2795,36 @@ function isSummaryLike(meta: Record<string, unknown> | null | undefined): boolea
   return meta?.summary === true || meta?.next_take === true;
 }
 
+/** The thread's messages, in the order the chat has them. */
+function drawnOf(items: readonly ThreadItem[]): LoungeMessage[] {
+  return items.map((item) => item.message);
+}
+
+const takeIdOf = (m: LoungeMessage): string | null =>
+  typeof m.metadata?.take_session_id === "string" ? m.metadata.take_session_id : null;
+
+/** Whether the chat draws a message (founder 2026-10-26, N192): of a Take's
+ *  walk, only its Feedback walk (at its first step), its Ideal Text card and
+ *  the coach's "Later" bubble (B3); the summary is the walk's last step
+ *  (D4), except for a Take of the chain's first form, with no closing
+ *  message, whose summary carries "Record Take N". */
+function chatShows(m: LoungeMessage, walkAt: ReadonlyMap<string, ChatWalk>, closing: ReadonlySet<unknown>): boolean {
+  if (m.kind === "walk_step") return chatDrawsStep(m) || walkAt.has(m.client_id);
+  if (m.metadata?.summary === true) return !closing.has(m.metadata.take_session_id);
+  return true;
+}
+
+/** Each Take's summary as written, for Will's reading of the screen: it is
+ *  inside the Feedback walk now (N192). */
+function summaryByTake(messages: readonly LoungeMessage[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const m of messages) {
+    const take = takeIdOf(m);
+    if (m.metadata?.summary === true && take && m.body.trim()) out.set(take, m.body.trim());
+  }
+  return out;
+}
+
 /** The Takes whose closing message is in the thread. */
 function closingTakesOf(messages: readonly LoungeMessage[]): ReadonlySet<unknown> {
   return new Set(messages.filter((m) => m.metadata?.next_take === true).map((m) => m.metadata?.take_session_id));
@@ -2775,6 +2842,79 @@ function recordFor(
   return nextTakeOf(message);
 }
 
+/** A Take's walk in the chat (founder 2026-10-26, N192, B3, B10): one grey
+ *  bubble, "Feedback walk", and under it the walk's date, with "Edited"
+ *  before it once something in the walk changed (B13) and "🔒 Take N" for
+ *  an older Take, and the › that opens the walk. While a step in it waits it
+ *  wears the orange outline, a full stroke with no tail (`data-outlined`).
+ *  A tap opens the Take's whole walk: an older Take's read only; live on
+ *  what waits while the review waits; on the coach's word while the walk's
+ *  own copy of it is not yet seen (C1); else standing on its newest step. */
+function FeedbackWalkBubble({
+  walk,
+  older,
+  waits,
+  live,
+  onOpenOlder,
+  onOpened,
+  onOpenIdealText,
+}: {
+  walk: ChatWalk;
+  /** An older Take's number: its walk is history, read only. */
+  older: number | null;
+  /** Its steps that wait (the outline); a tap marks them seen. */
+  waits: LoungeMessage[];
+  /** The project whose review waits ("Continue review"); null: none. */
+  live: string | null;
+  onOpenOlder: (older: { take: number; session: string }) => void;
+  onOpened: (seen: LoungeMessage[]) => void;
+  onOpenIdealText: (arcId: string, mode?: IdealTextLaunchMode, at?: WalkStepTarget | null) => void;
+}) {
+  const waiting = waits.length > 0;
+  const coach = walk.coachCopies[0];
+  const date = reportDateLabel(walk.date);
+  const open = () => {
+    onOpened(waits);
+    if (older !== null) {
+      onOpenOlder({ take: older, session: walk.take });
+      return;
+    }
+    if (!walk.arcId) return;
+    const coachWaits = waits.find((m) => m.metadata?.step === "coachnote");
+    if (!coachWaits && live === walk.arcId) {
+      onOpenIdealText(walk.arcId, "review");
+      return;
+    }
+    const at = coachWaits ?? walk.newest;
+    onOpenIdealText(walk.arcId, "review", at ? doorOf(at.metadata ?? {}) : null);
+  };
+  return (
+    <div data-row="app" className="mr-auto flex max-w-[88%] items-end gap-1.5">
+      <button
+        type="button"
+        data-bubble=""
+        data-feedback-walk={walk.take}
+        data-outlined={waiting ? "" : undefined}
+        {...(coach ? { [COACH_BUBBLE_ATTR]: String(wordTakeOf(coach) ?? "") } : {})}
+        onClick={open}
+        onPointerDown={() => warmIdealTextOpen(walk.arcId)}
+        className={`relative flex min-w-[190px] flex-col rounded-[16px] bg-muted text-left text-[15px] leading-[1.45] text-foreground ${waiting ? "border-2 border-primary py-[6px] pl-[10px] pr-[28px]" : "py-2 pl-3 pr-[30px]"}`}
+      >
+        <span>{WALK_COPY.feedbackWalk}</span>
+        <span className="mt-0.5 flex items-baseline gap-2.5 text-[11.5px] leading-[1.3] text-muted-foreground">
+          {older !== null ? <span>{`🔒 ${CHUNK_SHEET_COPY.historyTake} ${older}`}</span> : null}
+          <span className="ml-auto whitespace-nowrap">
+            {[walk.edited ? WALK_COPY.edited : null, date].filter(Boolean).join(" ")}
+          </span>
+        </span>
+        <span aria-hidden="true" className="absolute right-[11px] top-1/2 -translate-y-1/2 text-[20px] text-muted-foreground">
+          ›
+        </span>
+      </button>
+    </div>
+  );
+}
+
 /** One step of a review, lens off (founder lock 2026-10-12, section 1): the
  *  speaker's orange on the right, the app's and the coach's light grey on
  *  the left with a small avatar (the coach's grey-blue); 15px text, 16px
@@ -2783,7 +2923,7 @@ export function WalkStepBubble({
   message,
   card,
   latest = false,
-  replaced = false,
+  edited = false,
   newWords,
   waiting = false,
   lockedTake = null,
@@ -2796,8 +2936,8 @@ export function WalkStepBubble({
   card: { title: string; take: number | null } | null;
   /** The project's newest Ideal Text card: it carries the coach's "new" dot. */
   latest?: boolean;
-  /** Helper words a later pick replaced: struck through. */
-  replaced?: boolean;
+  /** Helper words picked again since (B13): "Edited" at their end. */
+  edited?: boolean;
   /** A clearer version posted before its new words were stored: worked
    *  out from the speaker's words above it. */
   newWords?: ClearerPiece[];
@@ -2856,7 +2996,8 @@ export function WalkStepBubble({
             data-bubble=""
             className="max-w-[85%] whitespace-pre-wrap break-words rounded-[16px] bg-primary px-3 py-2 text-left text-[15px] leading-[1.45] text-primary-foreground"
           >
-            <span className={replaced ? "line-through opacity-70" : undefined}>{message.body}</span>
+            {message.body}
+            {edited ? <span className="ml-2 whitespace-nowrap text-[11.5px] text-primary-foreground/80">{WALK_COPY.edited}</span> : null}
           </button>
         </div>
       ) : (
@@ -2903,9 +3044,15 @@ function OlderTakeReview({
   onClose: () => void;
 }) {
   if (!older) return null;
-  const steps = items.filter(
+  // Helper words picked again show once, their latest, marked Edited (B13,
+  // N192; until then the old pick stayed, struck through).
+  const own = items.filter(
     (item) => item.message.kind === "walk_step" && item.message.metadata?.take_session_id === older.session,
   );
+  const repicked = new Set(
+    own.filter((item) => replaced.has(item.message.client_id)).map((item) => String(item.message.metadata?.words_of)),
+  );
+  const steps = own.filter((item) => !replaced.has(item.message.client_id));
   return (
     <div data-walk-column className="fixed inset-0 z-[90] flex flex-col bg-background">
       <WalkOverlay testId="older-take-review" caption={`${CHUNK_SHEET_COPY.historyTake} ${older.take}`} onClose={onClose}>
@@ -2915,7 +3062,7 @@ function OlderTakeReview({
               key={item.reactKey}
               message={item.message}
               card={null}
-              replaced={replaced.has(item.message.client_id)}
+              edited={typeof item.message.metadata?.words_of === "string" && repicked.has(item.message.metadata.words_of)}
               newWords={newWords.get(item.message.client_id)}
               lockedTake={older.take}
             />
@@ -2937,17 +3084,24 @@ function stepTap(
   const free = step === "others";
   if (lockedTake !== null && !free) return undefined;
   if (step === "share") return () => onOpenIdealText?.(arc, "share");
-  const target: WalkStepTarget | null = step
-    ? {
-        step: exerciseStepOf(step),
-        moment: typeof meta.moment === "number" ? meta.moment : null,
-        take: free || typeof meta.take_session_id !== "string" ? null : meta.take_session_id,
-        part: typeof meta.part_id === "string" ? meta.part_id : null,
-      }
-    : null;
+  const door = doorOf(meta);
+  const target: WalkStepTarget | null = door && free ? { ...door, take: null } : door;
   return () => {
     onOpened?.();
     onOpenIdealText?.(arc, "review", target);
+  };
+}
+
+/** Where a step's door opens the walk: its step (a try's opens its
+ *  exercise), its moment, its Take and its paragraph. Null: no step. */
+function doorOf(meta: Record<string, unknown>): WalkStepTarget | null {
+  const step = typeof meta.step === "string" ? meta.step : null;
+  if (!step) return null;
+  return {
+    step: exerciseStepOf(step),
+    moment: typeof meta.moment === "number" ? meta.moment : null,
+    take: typeof meta.take_session_id === "string" ? meta.take_session_id : null,
+    part: typeof meta.part_id === "string" ? meta.part_id : null,
   };
 }
 
@@ -2998,7 +3152,8 @@ function AppStepBubble({
         {...coachBubbleMark(message)}
         onClick={open}
         onPointerDown={warm}
-        className={`relative whitespace-pre-wrap break-words rounded-[16px] bg-muted py-2 pl-3 text-left text-[15px] leading-[1.45] text-foreground ${open ? "pr-[30px]" : "pr-3"} ${waiting ? "ring-2 ring-primary" : ""}`}
+        data-outlined={waiting ? "" : undefined}
+        className={`relative whitespace-pre-wrap break-words rounded-[16px] bg-muted text-left text-[15px] leading-[1.45] text-foreground ${outlinePad(waiting, open !== undefined)}`}
       >
         {cut > 0 ? (
           <>
@@ -3019,6 +3174,9 @@ function AppStepBubble({
           message.body
         )}
         {hint ? <span className="mt-[3px] block text-[12.5px] text-muted-foreground">{hint}</span> : null}
+        {meta.edited === true ? (
+          <span className="mt-[3px] block text-right text-[11.5px] text-muted-foreground">{WALK_COPY.edited}</span>
+        ) : null}
         {open ? (
           <span aria-hidden="true" className="absolute right-[11px] top-1/2 -translate-y-1/2 text-[20px] text-muted-foreground">
             ›
@@ -3027,6 +3185,14 @@ function AppStepBubble({
       </button>
     </div>
   );
+}
+
+/** An outlined bubble's padding: the orange outline is a 2px border (N192:
+ *  "well visible and not cut"), the padding taking the 2px back so nothing
+ *  moves; with › the right side keeps its room. */
+function outlinePad(outlined: boolean, arrow: boolean): string {
+  if (outlined) return `border-2 border-primary py-[6px] pl-[10px] ${arrow ? "pr-[28px]" : "pr-[10px]"}`;
+  return `py-2 pl-3 ${arrow ? "pr-[30px]" : "pr-3"}`;
 }
 
 /** A clearer version's last line as its pieces, the words that arrive
@@ -3140,8 +3306,6 @@ function ExerciseThumb({ src }: { src: string }) {
   );
 }
 
-/** The helper words a later pick for the same paragraph of the same Take
- *  replaced (prototype v31: the old pick stays, struck through). */
 /** Clearer-version bubbles posted before their new words were stored: the
  *  orange words, worked out from the speaker's words in the clip just above
  *  (the same moment of the same Take). */
@@ -3162,6 +3326,8 @@ export function clearerNewWordsOf(items: readonly ThreadItem[]): Map<string, Cle
   return out;
 }
 
+/** The helper words a later pick for the same paragraph of the same Take
+ *  replaced: an older Take's review shows only the latest (N192). */
 export function replacedWordIds(items: readonly ThreadItem[]): Set<string> {
   const latest = new Map<string, string>();
   const all: [string, string][] = [];
@@ -3237,9 +3403,7 @@ function SummaryBubble({ message, record = null }: { message: LoungeMessage; rec
               onClick={() => setEarlierOpen((open) => !open)}
               className="mt-2 block text-left text-[12.5px] text-muted-foreground underline underline-offset-[3px]"
             >
-              {earlierOpen
-                ? "Updated with your coach's note · hide the earlier version"
-                : "Updated with your coach's note · see the earlier version"}
+              {earlierOpen ? WALK_COPY.summaryHideEarlier : WALK_COPY.summarySeeEarlier}
             </button>
             {earlierOpen ? (
               <span className="mt-1.5 block border-t border-border pt-1.5 text-[13.5px] text-muted-foreground">

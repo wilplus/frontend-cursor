@@ -14,7 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import OverlayCloseButton from "../OverlayCloseButton";
 import { CHUNK_DELAY_MS, TypingGlyph } from "../TypingDots";
 import WalkFooter from "./WalkFooter";
@@ -120,13 +120,29 @@ export function WalkThreadMark({ label }: { label: string }) {
 }
 
 /** The speaker's own answer: their orange bubble on the right. */
-export function WalkSpeakerBubble({ children }: { children: ReactNode }) {
+export function WalkSpeakerBubble({ children, edited = false }: { children: ReactNode; edited?: boolean }) {
   return (
     <div data-walk-said className="flex justify-end">
       <span className="max-w-[88%] rounded-[22px] bg-primary px-[17px] py-[13px] text-[18.5px] leading-[1.45] text-primary-foreground">
         {children}
+        {edited ? (
+          <span data-walk-edited className="ml-2.5 whitespace-nowrap text-[13px] text-primary-foreground/80">
+            {WALK_COPY.edited}
+          </span>
+        ) : null}
       </span>
     </div>
+  );
+}
+
+/** "Edited" at the end of a grey bubble whose words changed after they were
+ *  said, small and grey, as WhatsApp marks an edited message (founder
+ *  2026-10-26, N192, B13). */
+export function WalkEdited() {
+  return (
+    <span data-walk-edited className="self-end text-[13px] text-muted-foreground">
+      {WALK_COPY.edited}
+    </span>
   );
 }
 

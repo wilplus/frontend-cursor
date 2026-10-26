@@ -9,8 +9,9 @@ OUTCOME
       their recording.
   O3  The count of other speakers' moments I judged in a Take comes from my
       own answers in that Take only.
-  O4  The sharing question shows as one message, also when it was stored as
-      three.
+  O4  The sharing question is stored as before, and the chat says my choice
+      as one line under the Take I recorded next, also for a question stored
+      as three (N192, G1).
   O5  The Lounge says what the walk's chat said: the practise answer's line
       as shown, and no "Practise" bubble of its own for a try.
   O6  My coach's word for a Take is written into the chat once: not again
@@ -23,20 +24,31 @@ OUTCOME
       sound like my confident moment (founder 2026-10-21).
   O8  The hello and the short AI bubble are stored once, and the Lounge
       says the same words as the walk (N120).
+  O9  In the chat a Take's walk is one Feedback walk at its first step's
+      place, standing on its newest step; its card and the coach's "Later"
+      bubble stay its own, and every other step is the walk's (N192, B3).
+  O10 The Feedback walk says Edited when I pick helper words again, when
+      my coach changes their word, or when a coach's note rewrites the
+      summary, and not otherwise (N192, B13).
+  O11 The walk shows my summary as the chat holds it, with the version a
+      coach's note replaced (N192, D4, D5).
 PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own message, with no score"
          O2 -> "posts judging other speakers as the prototype's chat does, never their recording"
          O3 -> "counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles"
-         O4 -> "asks the sharing question as one bubble, its lines as paragraphs, also for a question stored as three"
+         O4 -> "stores the sharing question and says the choice as one line on the next recording, also for a question stored as three"
          O5 -> "says the practise answer the walk showed, and writes no Practise bubble for a try (founder 2026-10-20)"
          O6 -> "writes the coach's word into the chat once per Take"
          O7 -> "names the confident moment for what follows, never with Line A"
          O8 -> "stores the hello and the short AI bubble once, in the walk's own words"
+         O9 -> "draws a Take's walk as one Feedback walk at its first step, its card and the coach's Later bubble their own"
+         O10 -> "marks the Feedback walk Edited for a second pick, a changed coach word or a rewritten summary, and only then"
+         O11 -> "gives the walk the summary as the chat holds it, with the version a coach's note replaced"
 WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12);
          founder 2026-10-19, N80 (when the coach changes their word).
 */
 import { describe, expect, it } from "vitest";
 import { CHUNK_SHEET_COPY as COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "@/components/willab/idealEditCopy";
-import { aiVoiceChat, answerBody, coachNoteToChat, momentChat, oneShareQuestion, othersAnswered, othersChat, shareChat, shownStep, stableUuid, walkStepDraft } from "./walkThread";
+import { aiVoiceChat, answerBody, chatDrawsStep, chatWalks, coachNoteToChat, momentChat, othersAnswered, othersChat, shareChat, shareLines, shownStep, stableUuid, storedSummaryOf, walkStepDraft, wordsEditedIn } from "./walkThread";
 import type { WalkStep } from "./walkPlan";
 
 describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
@@ -70,7 +82,7 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
     expect(othersAnswered(messages, "t1")).toBe(2);
     expect(othersAnswered(messages, "t3")).toBe(0);
   });
-  it("asks the sharing question as one bubble, its lines as paragraphs, also for a question stored as three", () => {
+  it("stores the sharing question and says the choice as one line on the next recording, also for a question stored as three", () => {
     const question = `${WALK_COPY.shareBefore}\n\n${WALK_COPY.shareTitle}\n\n${WALK_COPY.shareAudience}`;
     const posted = shareChat(3, ["none"], []);
     expect(posted.map((d) => [d.role, d.body])).toEqual([
@@ -91,7 +103,15 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
       stored("bot", WALK_COPY.shareAudience, 3),
       stored("user", WALK_COPY.shareOnlyMe, 4),
     ];
-    expect(oneShareQuestion(old).map((x) => x.message.body)).toEqual(["Record Take 3", question, WALK_COPY.shareOnlyMe]);
+    const recording = {
+      client_id: "rec3", role: "user" as const, kind: "recording_summary" as const, body: "",
+      metadata: {}, client_created_at: "2026-10-18T10:01:00Z",
+    };
+    // The chat draws none of them: the choice is a line on the recording.
+    expect(old.every((x) => !chatDrawsStep(x.message))).toBe(true);
+    expect(shareLines([...old.map((x) => x.message), recording])).toEqual(new Map([["rec3", WALK_COPY.shareOnlyMe]]));
+    // A recording with no question before it has no line.
+    expect(shareLines([recording]).size).toBe(0);
   });
 
   it("says the practise answer the walk showed, and writes no Practise bubble for a try (founder 2026-10-20)", () => {
@@ -161,5 +181,51 @@ describe("the hello and the AI clip's short bubble in the Lounge (founder 2026-1
     const practise = { key: "exVideo", moment: 0 } as WalkStep;
     expect(shownStep(practise, praised, null)).toBeNull();
     expect(momentChat([practise], practise, praised)).toBeNull();
+  });
+});
+
+describe("the walk in the chat (founder 2026-10-26, N192)", () => {
+  const step = (id: string, meta: Record<string, unknown>, role: "user" | "bot" = "bot", body = "x") => ({
+    client_id: id, role, kind: "walk_step" as const, body,
+    metadata: { take_session_id: "t2", arc_id: "a1", take_index: 2, ...meta },
+    client_created_at: `2026-10-25T10:00:${id.padStart(2, "0")}Z`,
+  });
+
+  it("draws a Take's walk as one Feedback walk at its first step, its card and the coach's Later bubble their own", () => {
+    const thread = [
+      step("1", { step: "hello" }),
+      step("2", { step: "praise", moment: 0 }),
+      step("3", { step: "helpers", moment: 0 }),
+      step("4", { step: "words:p1:growth", words_of: "p1" }, "user"),
+      step("5", { step: "others" }),
+      step("6", { step: "end" }),
+      step("7", { step: "coachnote", author: "coach", coach_update: true }),
+    ];
+    const [walk] = chatWalks(thread);
+    expect(walk).toMatchObject({ take: "t2", arcId: "a1", takeIndex: 2, at: "1", edited: false });
+    // It opens standing on its newest part, never Other speakers (C8).
+    expect(walk.newest?.client_id).toBe("3");
+    expect(thread.filter(chatDrawsStep).map((m) => m.client_id)).toEqual(["6", "7"]);
+    // A Take with nothing but its card has no Feedback walk.
+    expect(chatWalks([step("9", { step: "end" })])).toEqual([]);
+  });
+
+  it("marks the Feedback walk Edited for a second pick, a changed coach word or a rewritten summary, and only then", () => {
+    const base = [step("1", { step: "praise", moment: 0 }), step("2", { step: "words:p1:growth", words_of: "p1" }, "user")];
+    expect(chatWalks(base)[0].edited).toBe(false);
+    const picked = [...base, step("3", { step: "words:p1:growth doubled", words_of: "p1" }, "user")];
+    expect(chatWalks(picked)[0].edited).toBe(true);
+    expect(wordsEditedIn(picked, "t2")).toEqual(new Set(["p1"]));
+    expect(chatWalks([...base, step("4", { step: "coachnote", author: "coach", coach_update: true, edited: true })])[0].edited).toBe(true);
+    const summary = { ...step("5", { summary: true, coach_update: true, earlier: "Before the note." }), kind: "text" as const };
+    expect(chatWalks([...base, summary])[0].edited).toBe(true);
+  });
+
+  it("gives the walk the summary as the chat holds it, with the version a coach's note replaced", () => {
+    const summary = { ...step("5", { summary: true }, "bot", " Take 2, and it landed. "), kind: "text" as const };
+    expect(storedSummaryOf([summary], "t2")).toEqual({ text: "Take 2, and it landed.", earlier: null });
+    const rewritten = { ...summary, metadata: { ...summary.metadata, coach_update: true, earlier: "Before the note." } };
+    expect(storedSummaryOf([rewritten], "t2")).toEqual({ text: "Take 2, and it landed.", earlier: "Before the note." });
+    expect(storedSummaryOf([rewritten], "t3")).toBeNull();
   });
 });

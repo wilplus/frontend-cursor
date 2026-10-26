@@ -41,6 +41,15 @@ Life Panel.
 4. Where it shows: the Sunday note and life goals in the Lounge and their
    lens; the principles in the Life Panel. Never on the recording screens,
    never shown to a coach. Private like the notebook (N158, N172, N182).
+5. How it begins. The first time the person taps the mic, before the
+   notebook's question, Will says why it exists in three grey bubbles: "The
+   jitters before a talk are often about more than the talk. Underneath is a
+   bigger question: where is my life going?" · "So we made a place for your
+   answer: your goals, in your own words." · "A goal you can recall is a
+   goal you can steer by. Keep yours here, and when the jitters come back
+   before your next talk, we'll show you what you're doing it for." Then
+   "Your notes are private. Only you and Will read them. Keep a voice
+   notebook?" with Yes | Not now. Once only (N195; not built yet).
 
 ### B · The voice note, written as it is said (decided 2026-10-26, N194)
 
@@ -72,6 +81,10 @@ The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe>.
    before.
 
 ### K · Words on screen (all signed)
+
+- **How it begins (A5, N195):** the three bubbles quoted in A5, word for
+  word; then the notebook's "Your notes are private. Only you and Will read
+  them. Keep a voice notebook?", "Yes", "Not now" and "Noted." (2026-10-20).
 
 - **The Sunday note (L; approved with the lock, 2026-10-26, N158):** "We
   spotted a pattern!"; "Not now"; "Investigate"; "Sunday note"; "What one of
@@ -304,6 +317,7 @@ deletes the line when the work is merged (the change goes to §6).
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-10-26 · N194 · built (B): the voice note is written as it is said, settles on send with a tick and "Noted.", is kept when the app is left (the phone's outbox, sent once by its name), waits under a clock without a connection, and a tap on it fixes its words; the life goals mic is unchanged · BE (backend PR), FE (this PR)
+- 2026-10-26 · N195 · A5: the first tap on the mic, before the notebook's question, says why it exists in three bubbles (the jitters, a place for your goals, a goal you can steer by); was: the question alone · BE #1369, FE #1008
 - 2026-10-26 · N191 · built (M14): under a # note's "Noted.", a note that says a goal's quarter step should be different is asked about once, quoting it, the new words only from the note; Change writes it with the earlier words kept and shows the ladder, Not now changes nothing · BE #1359, #1361, FE (this PR)
 - 2026-10-26 · N186 · built (M13): no clock; the first time the Lounge opens on the quarter's last day (or later, "The quarter ended on {date}."), "Did it move?" with Not now | Start; the lens asks how it went in words, what got in the way, quotes their own notes only when some match, and sets the next quarter's step with the earlier one kept · BE #1354, #1356, FE (this PR)
 - 2026-10-26 · N185 · built (M12): before a new goal is set, Will checks once per pair whether it pulls against a kept goal, from their words only, and asks "When they clash, which wins?"; the answer is the step WHEN THEY CLASH on both ladders, changed by tapping with the earlier answer kept · BE #1351, #1353, FE (this PR)

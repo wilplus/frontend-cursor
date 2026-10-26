@@ -1128,8 +1128,9 @@ O2  Judging other speakers is posted in the prototype's words, without
 their recording.
 O3  The count of other speakers' moments I judged in a Take comes from my
 own answers in that Take only.
-O4  The sharing question shows as one message, also when it was stored as
-three.
+O4  The sharing question is stored as before, and the chat says my choice
+as one line under the Take I recorded next, also for a question stored
+as three (N192, G1).
 O5  The Lounge says what the walk's chat said: the practise answer's line
 as shown, and no ""Practise"" bubble of its own for a try.
 O6  My coach's word for a Take is written into the chat once: not again
@@ -1141,14 +1142,25 @@ named as solid and confident in a line that fits what follows (a
 clearer version, an example, or saying it again), and is never told to
 sound like my confident moment (founder 2026-10-21).
 O8  The hello and the short AI bubble are stored once, and the Lounge
-says the same words as the walk (N120).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
+says the same words as the walk (N120).
+O9  In the chat a Take's walk is one Feedback walk at its first step's
+place, standing on its newest step; its card and the coach's ""Later""
+bubble stay its own, and every other step is the walk's (N192, B3).
+O10 The Feedback walk says Edited when I pick helper words again, when
+my coach changes their word, or when a coach's note rewrites the
+summary, and not otherwise (N192, B13).
+O11 The walk shows my summary as the chat holds it, with the version a
+coach's note replaced (N192, D4, D5).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
 O2 -> ""posts judging other speakers as the prototype's chat does, never their recording""
 O3 -> ""counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles""
-O4 -> ""asks the sharing question as one bubble, its lines as paragraphs, also for a question stored as three""
+O4 -> ""stores the sharing question and says the choice as one line on the next recording, also for a question stored as three""
 O5 -> ""says the practise answer the walk showed, and writes no Practise bubble for a try (founder 2026-10-20)""
 O6 -> ""writes the coach's word into the chat once per Take""
 O7 -> ""names the confident moment for what follows, never with Line A""
-O8 -> ""stores the hello and the short AI bubble once, in the walk's own words""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word)."
+O8 -> ""stores the hello and the short AI bubble once, in the walk's own words""
+O9 -> ""draws a Take's walk as one Feedback walk at its first step, its card and the coach's Later bubble their own""
+O10 -> ""marks the Feedback walk Edited for a second pick, a changed coach word or a rewritten summary, and only then""
+O11 -> ""gives the walk the summary as the chat holds it, with the version a coach's note replaced""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word)."
 src/services/api/accountDeletion.test.ts,Story,"As a speaker, I want ""delete my account"" to send one deletion request and show me how long I have to change my mind, and a refusal to change nothing, so that I can trust deletion and cancel it in time.","O1  Asking to delete sends one request with a one-time key and shows the
 pending deletion with its end date.
 O2  A refusal or no connection records nothing.
