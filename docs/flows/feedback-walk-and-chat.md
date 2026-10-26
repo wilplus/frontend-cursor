@@ -983,7 +983,7 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- **N172** · life goals (M) · M · decided 2026-10-26; build order: M1–M11 first (the ask, the lens, the ladder, changing a step), then M12 (the clash), M13 (the quarter comes back) and M14 (a note that sounds like a change) · —
+- **N172** · life goals (M) · M · M1–M11 built in this PR and backend #1335 (waiting on the migration's outside review); then M12 (the clash), M13 (the quarter comes back), M14 (a note that sounds like a change), the ladders in the Life Panel's own screens and this week's focus on the ladder (no source yet) · BE #1335, FE (this PR)
 
 - **N171** · notifications and reminders: the WhatsApp ask from Take 1 (E1) and WhatsApp replies (STOP, its words signed in N174) · E1 · decided, not built · BE #1326. One WhatsApp or, without a number, one email for a coach's sitting (C1's doors) · C1 · built, in review · BE #1333
 
@@ -1189,6 +1189,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N172 · built (M1–M11): the ask after a # note with Not now | Start; "#goals" or an ask in your own words opens the lens; one goal per sitting, the open questions said with the small mic or typed, Will's draft quoting only your words, goal or want, ambitious, give up, the horizon worked back to the quarter with the four-week rule, the ladder in the Lounge with its ›, a step changed with its earlier words kept; the lens is the walk's frame (`LoungeLifeGoals.tsx`); the pair shows above the message box, as the notebook's and the WhatsApp ask's do · BE #1335, FE (this PR)
 - 2026-10-26 · N172 · life goals decided (M): asked once after the first # note and once more after the next, or whenever asked; one goal per sitting in a lens; drafted only from the speaker's words; goal or want; a horizon and the steps worked back to the quarter, with the four-week rule; the ladder; changing a step with its history; kept in the Life Panel · —
 - 2026-10-26 · N171, N174 · built: the coach's doors send one message for a coach's sitting, 10 minutes after the last share, naming that Take: the WhatsApp when the speaker left a number, else the email (also when the WhatsApp cannot go), and none once the speaker opened the coach's feedback; was one WhatsApp and one email for every share (C1) · BE #1333
 - 2026-10-26 · N166 · built: the tempo step writes the chat (its opening lines, each try and its comment, the closing line, or the Skip) and keeps the game for Will (each try's result and path, how it ended; never audio) as a speaker-memory event his note reads in words; was nothing kept · BE (this change), FE (this PR)
