@@ -7,6 +7,7 @@ import {
   TEMPO_MAX_TRIES,
   closeOf,
   readTry,
+  type TempoEvent,
   type TempoStretch,
   type TempoTry,
 } from "@/lib/willab/tempoStep";
@@ -46,11 +47,14 @@ export default function WalkTempo({
   stretch,
   onDone,
   onClose,
+  onEvent,
 }: {
   testId?: string;
   stretch: TempoStretch;
   onDone: () => void;
   onClose: () => void;
+  /** What happened, for the chat and for Will (N166 step 4). */
+  onEvent?: (event: TempoEvent) => void;
 }) {
   const past = useMountedAsPast();
   const [phase, setPhase] = useState<Phase>("idle");
@@ -60,6 +64,18 @@ export default function WalkTempo({
   const mic = useRef<PaceMic | null>(null);
   const timers = useRef<number[]>([]);
   const path = useRef<number[]>([]);
+  const tell = useRef(onEvent);
+  tell.current = onEvent;
+  const ended = useRef(false);
+  useEffect(() => {
+    if (!past) tell.current?.({ kind: "opened" });
+  }, [past]);
+  // The game ends once: the closing line, or a Skip before any try.
+  const end = useCallback((played: { result: TempoTry; path: number[] }[]) => {
+    if (ended.current) return;
+    ended.current = true;
+    tell.current?.({ kind: "ended", tries: played, close: played.length ? closeOf(played.map((t) => t.result)) : null });
+  }, []);
 
   const halt = useCallback(() => {
     mic.current?.stop();
@@ -93,12 +109,15 @@ export default function WalkTempo({
   const stop = useCallback(() => {
     halt();
     const taken = path.current.slice();
-    setTries((had) => {
-      const next = [...had, { result: readTry(taken), path: taken }];
-      setPhase(next.length >= TEMPO_MAX_TRIES ? "closed" : "commented");
-      return next;
-    });
-  }, [halt]);
+    const result = readTry(taken);
+    const next = [...tries, { result, path: taken }];
+    setTries(next);
+    tell.current?.({ kind: "try", n: next.length, result });
+    if (next.length >= TEMPO_MAX_TRIES) {
+      setPhase("closed");
+      end(next);
+    } else setPhase("commented");
+  }, [halt, tries, end]);
 
   useEffect(() => {
     if (phase !== "listening") return;
@@ -108,9 +127,10 @@ export default function WalkTempo({
 
   const skip = useCallback(() => {
     halt();
+    end(tries);
     if (tries.length > 0) setPhase("closed");
     else onDone();
-  }, [halt, tries.length, onDone]);
+  }, [halt, tries, end, onDone]);
 
   const nav: WalkNav = {
     position: W.mark,
@@ -185,7 +205,10 @@ export default function WalkTempo({
     }
     if (phase === "closed") return <WalkFooter pill={{ label: W.next, onClick: onDone, testId: "walk-forward" }} />;
     if (phase === "commented") {
-      const finish = tries.length >= 2 ? [{ label: W.finish, onClick: () => setPhase("closed"), testId: "walk-tempo-finish" }] : [];
+      const finish = tries.length >= 2 ? [{ label: W.finish, onClick: () => {
+                setPhase("closed");
+                end(tries);
+              }, testId: "walk-tempo-finish" }] : [];
       return (
         <WalkFooter
           dot

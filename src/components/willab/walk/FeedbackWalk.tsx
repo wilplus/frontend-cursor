@@ -19,7 +19,7 @@ import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
 import WalkSummary from "./WalkSummary";
 import WalkTempo from "./WalkTempo";
-import { TEMPO_DRAFT_COPY, type TempoStretch } from "@/lib/willab/tempoStep";
+import { TEMPO_DRAFT_COPY, type TempoEvent, type TempoStretch } from "@/lib/willab/tempoStep";
 import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
@@ -212,6 +212,8 @@ type Props<R> = {
   /** The tempo step's stretch, when the plan has a "tempo" step (backend
    *  N162, N166); absent: the step is passed by. */
   tempo?: TempoStretch | null;
+  /** What the tempo step did, for the chat and for Will (N166 step 4). */
+  onTempo?: (event: TempoEvent) => void;
 };
 
 /** The AI bubble a screen showed, for the chat. */
@@ -283,6 +285,7 @@ export default function FeedbackWalk<R = unknown>({
   reasons = null,
   othersJudged = 0,
   tempo = null,
+  onTempo,
 }: Props<R>) {
   const liveModel = useRef(model);
   liveModel.current = model;
@@ -651,6 +654,7 @@ export default function FeedbackWalk<R = unknown>({
     onOthers,
     othersJudged,
     tempo,
+    onTempo,
   };
 
   // The walk is one chat (founder 2026-10-20): the stage moves only as the
@@ -748,6 +752,7 @@ type ScreenCtx<R = unknown> = {
   reasons: WalkPraiseReasons | null;
   othersJudged: number;
   tempo: TempoStretch | null;
+  onTempo?: (event: TempoEvent) => void;
 };
 
 const noop = () => undefined;
@@ -1161,7 +1166,15 @@ function Others(ctx: ScreenCtx, step: WalkStep) {
  *  scale. With no stretch it is passed by. */
 function Tempo(ctx: ScreenCtx, step: WalkStep) {
   if (!ctx.tempo || step.readOnly || step.replay) return <PassBy onPass={() => ctx.forwardFrom(step)} />;
-  return <WalkTempo testId={testId(step)} stretch={ctx.tempo} onDone={() => ctx.forwardFrom(step)} onClose={ctx.close} />;
+  return (
+    <WalkTempo
+      testId={testId(step)}
+      stretch={ctx.tempo}
+      onDone={() => ctx.forwardFrom(step)}
+      onClose={ctx.close}
+      onEvent={ctx.onTempo}
+    />
+  );
 }
 
 /** A step with nothing to show moves the walk on once drawn. */

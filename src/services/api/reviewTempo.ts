@@ -1,5 +1,5 @@
 import { bffFetch } from "@/lib/api/bffFetch";
-import type { TempoStretch } from "@/lib/willab/tempoStep";
+import type { TempoEvent, TempoStretch } from "@/lib/willab/tempoStep";
 
 /** The Take's stretch for the walk's tempo step (backend N162, N166): the
  *  clip the pace scale reads furthest from the green, fast or slow, and what
@@ -30,4 +30,24 @@ export function readTempo(raw: unknown): TempoStretch | null {
     topic: text(t.topic),
     said: { before: text(said.before), stretch: text(said.stretch), after: text(said.after) },
   };
+}
+
+/** Keep the Take's tempo game for Will (backend N166 step 4): each try's
+ *  result and the dot's path, and how it ended. Never audio. A failure is
+ *  dropped: the walk never waits on it. */
+export async function postTempoGame(
+  arcId: string,
+  takeId: string,
+  reading: TempoStretch["reading"],
+  game: Extract<TempoEvent, { kind: "ended" }>,
+): Promise<void> {
+  try {
+    await bffFetch(`/api/v2/explore/arc/${encodeURIComponent(arcId)}/review/tempo/${encodeURIComponent(takeId)}`, {
+      method: "POST",
+      cache: "no-store",
+      json: { reading, tries: game.tries.map((t) => ({ result: t.result, path: t.path.slice(0, 300) })), close: game.close },
+    });
+  } catch {
+    // Will learns less from this Take; the speaker's walk goes on.
+  }
 }
