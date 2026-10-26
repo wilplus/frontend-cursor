@@ -31,6 +31,15 @@ export type TempoTry = "ok" | "rush" | "slow";
 /** How the step closes. */
 export type TempoClose = "dynamic" | "rush" | "slow";
 
+/** What the step tells its host as it goes (N166 step 4): it opened, a try
+ *  was read, or the game ended (each try's result and path, and how it
+ *  ended; none when skipped before a try). The host writes the chat and
+ *  keeps the game for Will. */
+export type TempoEvent =
+  | { kind: "opened" }
+  | { kind: "try"; n: number; result: TempoTry }
+  | { kind: "ended"; tries: { result: TempoTry; path: number[] }[]; close: TempoClose | null };
+
 /** A try's path: the meter's activity, 0..1, sampled through the try.
  *  Mostly in the green: ok. Otherwise the side it spent longer on; too
  *  short to tell reads as slow. */

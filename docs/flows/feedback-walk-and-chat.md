@@ -961,8 +961,8 @@ The four lines above were filled from main's history by the page's keeper on
   | 1 | The meter and the scale move from the bench to shared code; the walk gets its list of interventions, empty by default | Built |
   | 2 | The step's screen in the walk, founder-only, on a stand-in stretch (the beds for sale) | Built |
   | 3 | The Take's own stretch, its reading and its topic: the backend replays the pace scale's rules over the Take's word timings and takes the clip furthest from the green; the topic is one small-model call under the Take's processing authorization, else "that part"; no stretch, no step | Built |
-  | 4 | Each try's path, comment and the closing line kept for Will (the path only, never the audio) | Next |
-  | 5 | The words signed and moved to K | Waits on the founder |
+  | 4 | Kept: the step's lines, each try and its comment, and the closing line are Lounge messages like every other step; the game (the stretch's reading, each try's result and the dot's path, how it ended; never audio) is one speaker-memory event, so Will's note learns it in words | Built |
+  | 5 | The words signed and moved to K | Next, waits on the founder |
   | 6 | Who sees it: a per-speaker switch, then the plan in a pace or pause week (N147) | To do |
 
   **The code.**
@@ -970,6 +970,7 @@ The four lines above were filled from main's history by the page's keeper on
   - The step: `src/components/willab/walk/WalkTempo.tsx`; what a try means and the draft words: `src/lib/willab/tempoStep.ts`.
   - The meter: `src/lib/willab/pace/` (`paceSignal.ts`, `paceMic.ts`); the scale: `src/components/willab/pace/PaceScale.tsx`.
   - The stretch: backend `services/tempo_stretch.py` (route `GET /v2/explore/arc/<arc>/review/tempo/<take>`), asked once per Take by `useReviewTempo.ts` through `src/services/api/reviewTempo.ts`. The scale reads slow only on pauses of several seconds, so most stretches it picks are rushed.
+  - What is kept: backend `POST /v2/explore/arc/<arc>/review/tempo/<take>` (`tempo_stretch.keep_tries`, a speaker-memory event of kind `take` with its `tempo` part, docs/SPEAKER-MEMORY.md), sent by `postTempoGame` in `src/services/api/reviewTempo.ts` when the game ends.
   - Who sees it today: the founder's account, in `useDeckFeedbackWalk.tsx`. To try it on the dev harness: `/dev/feedback-walk?live=1&tempo=1` (the stand-in stretch).
   - The founder's bench, `src/app/admin/pace-circle/`, uses the same meter and scale.
 
@@ -1091,6 +1092,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N166 · built: the tempo step writes the chat (its opening lines, each try and its comment, the closing line, or the Skip) and keeps the game for Will (each try's result and path, how it ended; never audio) as a speaker-memory event his note reads in words; was nothing kept · BE (this change), FE (this PR)
 - 2026-10-26 · N171 · the WhatsApp ask from Take 1, once the Take has gone to the coach, first in Take 1's asks, "Did this help?" waiting rather than it; was: from Take 2, never on Take 1 (E1) · BE #1326, FE (this PR)
 - 2026-10-26 · N166 · built: the tempo step runs on the Take's own stretch, the clip the pace scale reads furthest from the green over the Take's word timings, fast or slow, with its topic in a few words (else "that part"); with no clip outside the green there is no tempo step; was the stand-in stretch · BE (this change), FE (this PR)
 - 2026-10-26 · N166 · built: the walk takes a list of interventions, empty by default, and the tempo step is its first: right after the practise moments, never in the coach-only walk or for a guest; its screen, founder-only on a stand-in stretch, with draft words; the pace meter and scale moved to shared code, the bench unchanged · FE (this PR)
