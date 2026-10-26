@@ -89,7 +89,7 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
   // The quarter comes back (backend N172 M13, N186): Not now | Start. The
   // backend writes "{emoji} {step}. Did it move?"; this is only the fallback.
   life_goals_quarter: "Did it move?",
-  // A note that sounds like a change (backend N172 M14, N189): Not now |
+  // A note that sounds like a change (backend N172 M14, N190): Not now |
   // Change. The backend writes the ask quoting the note; this is only the
   // fallback.
   life_goals_change: "Change this quarter?",
