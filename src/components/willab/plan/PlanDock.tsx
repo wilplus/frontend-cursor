@@ -21,6 +21,7 @@ export type PlanActions = {
   saveDeadline: (day: string) => void;
   startFirst: () => void;
   next: (choice: "keep_practising" | "new_event") => void;
+  sameEvent: (yes: boolean) => void;
 };
 
 function Chip({ label, onClick, icon }: { label: string; onClick: () => void; icon?: boolean }) {
@@ -174,6 +175,15 @@ function NextChips({ actions }: { actions: PlanActions }) {
   );
 }
 
+function SameEventChips({ actions }: { actions: PlanActions }) {
+  return (
+    <div className="flex flex-wrap justify-end gap-2" data-plan-dock="same_event">
+      <Chip label={PLAN_COPY.yes} onClick={() => actions.sameEvent(true)} />
+      <Chip label={PLAN_COPY.no} onClick={() => actions.sameEvent(false)} />
+    </div>
+  );
+}
+
 /** Which footer a plan shows, or null for the message box. */
 export function dockFor(plan: Plan | null, booking: CallWhich | null): string | null {
   if (!plan || plan.waiting) return booking ? "book" : null;
@@ -183,6 +193,7 @@ export function dockFor(plan: Plan | null, booking: CallWhich | null): string | 
   if (plan.step === "stress" || plan.step === "ready") return plan.step;
   if (plan.step === "kickoff" || plan.step === "summary") return "call";
   if (plan.step === "whats_next") return "next";
+  if (plan.step === "same_event") return "same_event";
   if (plan.status === "active" && !plan.first_take_done) return "start";
   return null;
 }
@@ -234,5 +245,6 @@ export default function PlanDock({
   if (kind === "stress") return <Scale key="stress" lo={PLAN_COPY.stressLo} hi={PLAN_COPY.stressHi} onPick={actions.rating} />;
   if (kind === "ready") return <Scale key="ready" lo={PLAN_COPY.readyLo} hi={PLAN_COPY.readyHi} onPick={actions.rating} />;
   if (kind === "next") return <NextChips actions={actions} />;
+  if (kind === "same_event") return <SameEventChips actions={actions} />;
   return <StartFirst onStart={actions.startFirst} />;
 }

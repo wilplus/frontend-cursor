@@ -52,6 +52,8 @@ export const PLAN_COPY = {
   stressHi: "Very stressed",
   readyLo: "Not ready",
   readyHi: "Fully ready",
+  yes: "Yes",
+  no: "No",
 } as const;
 
 const MONTHS = [

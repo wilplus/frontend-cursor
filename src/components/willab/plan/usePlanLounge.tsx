@@ -9,6 +9,8 @@ import {
   changePlan,
   getPlan,
   nextPlan,
+  rememberPlan,
+  sameEvent,
   sendPlanAnswer,
   sendRating,
   startNewEvent,
@@ -116,6 +118,8 @@ export function usePlanLounge({
   );
 
   const plan: Plan | null = state?.enabled ? state.plan : null;
+  // The recording screens read it: "How do you feel?" before a plan's Takes.
+  useEffect(() => rememberPlan(plan), [plan]);
 
   const actions: PlanActions = useMemo(
     () => ({
@@ -131,6 +135,7 @@ export function usePlanLounge({
       saveDeadline: (day) => void run(() => changePlan({ deadline: day })),
       startFirst: () => onStartRecording?.(plan?.topic ?? null),
       next: (choice) => void run(() => nextPlan(choice)),
+      sameEvent: (yes) => void run(() => sameEvent(yes)),
     }),
     [run, onStartRecording, plan?.topic],
   );

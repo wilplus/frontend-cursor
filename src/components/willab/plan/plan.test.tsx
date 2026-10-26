@@ -16,10 +16,14 @@
 /*        the Lounge.                                                         */
 /*    O4  The chat has one record button: a practice day's one thing holds   */
 /*        it until a newer Take's closing message takes it back (N167).      */
+/*    O5  A new project's question takes Yes or No in the footer (H2), and   */
+/*        "How do you feel?" comes before a Take only once the plan's first  */
+/*        Take is recorded (D4).                                              */
 /*  PROVES   O1 -> "each step has its own footer"                             */
 /*           O2 -> "a rating is sent once and never written back"             */
 /*           O3 -> "the plan's rows are drawn as the prototype draws them"    */
 /*           O4 -> "the newest bubble holds the one record button"            */
+/*           O5 -> "a new project's question, and the feelings before a Take" */
 /*  WHY      The plan, built one to one with the prototype (founder           */
 /*           2026-10-26, backend N203, N204); docs/flows/the-plan.md §1.     */
 /* -------------------------------------------------------------------------- */
@@ -28,6 +32,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { Plan } from "@/services/api/plan";
+import { feelingsDue, rememberPlan } from "@/services/api/plan";
 import PlanDock, { dockFor, type PlanActions } from "./PlanDock";
 import { newestOneOf, planRowFor, type PlanRowCtx } from "./PlanRows";
 
@@ -84,6 +89,7 @@ function actions(): PlanActions {
     saveDeadline: vi.fn(),
     startFirst: vi.fn(),
     next: vi.fn(),
+    sameEvent: vi.fn(),
   };
 }
 
@@ -166,4 +172,22 @@ it("the newest bubble holds the one record button", () => {
   expect(record.textContent).toContain("Record Take 2");
   act(() => record.click());
   expect(c.onRecordNext).toHaveBeenCalledWith("arc-1");
+});
+
+it("a new project's question, and the feelings before a Take", () => {
+  const active: Plan = { ...PLAN, status: "active", step: "same_event", first_take_done: true };
+  expect(dockFor(active, null)).toBe("same_event");
+  const a = actions();
+  act(() => root.render(<PlanDock plan={active} busy={false} booking={null} onCloseBooking={() => {}} actions={a} />));
+  const no = [...host.querySelectorAll("button")].find((b) => b.textContent === "No") as HTMLButtonElement;
+  act(() => no.click());
+  expect(a.sameEvent).toHaveBeenCalledWith(false);
+
+  rememberPlan(null);
+  expect(feelingsDue()).toBe(false);
+  rememberPlan({ ...PLAN, status: "active", step: "done", first_take_done: false });
+  expect(feelingsDue()).toBe(false);
+  rememberPlan({ ...PLAN, status: "active", step: "done", first_take_done: true });
+  expect(feelingsDue()).toBe(true);
+  rememberPlan(null);
 });
