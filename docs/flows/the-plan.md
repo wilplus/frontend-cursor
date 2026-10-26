@@ -388,7 +388,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N169 · the chat in time order: a day line before each day's first message; the practice-day hello once per practice day, at the first open or the reminder, never after a Take; the plan card only when made or changed, "See your plan" opens it in a sheet; the hello names the level again; today's one thing carries the key line and the recording; the reminders' rules, 9:00 by default, WhatsApp first then web push; a good-luck line on the deadline's morning. Was: the hello and the closed card right under Take 1 (N167) · BE #1325
+- 2026-10-26 · N169 · the chat in time order: a day line before each day's first message; the practice-day hello once per practice day, at the first open or the reminder, never after a Take; the plan card only when made or changed, "See your plan" opens it in a sheet; the hello names the level again; today's one thing carries the key line and the recording; the reminders' rules, 9:00 by default, WhatsApp first then web push; a good-luck line on the deadline's morning. Was: the hello and the closed card right under Take 1 (N167) · BE #1325, FE #977
 
 - 2026-10-26 · N168 · "Edit" next to "Your deadline: {date}" under the calls' calendar: the same calendar moves the deadline, then the call again. Was: the deadline moved only from "Change your plan" · BE #1323, FE #975
 
