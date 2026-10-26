@@ -74,7 +74,10 @@ Every doc is listed in the backend's
 with its label (backend N106). Don't start a new doc: edit the area's rules
 page in `docs/flows/` or the master doc. Handoffs and prompts for coding agents
 go in the pull request description, not in a file. A new doc needs the
-founder's OK and a line in the master doc (backend N107).
+founder's OK and a line in the master doc (backend N107). The docs guard
+(`npm run check:docs`) also reads the backend's decisions log and refuses a
+rules page that cites an N-number the log doesn't have: log the decision
+there first.
 
 ## How to ship
 

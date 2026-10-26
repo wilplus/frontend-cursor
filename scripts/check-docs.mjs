@@ -21,6 +21,12 @@
 /*     not have must be linked from a README.md line that carries              */
 /*     `Founder-Approved: <where and when the founder said yes>`.              */
 /*                                                                            */
+/*  4. Every N-number a rules page cites (CLAUDE.md, README.md, a doc         */
+/*     labelled In force) is an entry in the backend's decisions log, which   */
+/*     the check reads from GitHub; nothing is in force until it is written   */
+/*     there (backend N95; docs audit, 2026-10-26). N78 and N91 were cited    */
+/*     but never written; the log's header says so.                           */
+/*                                                                            */
 /*  Patterns: "dir/" covers the folder, "*" matches within one path segment,   */
 /*  anything else is one exact file. The most exact pattern wins (an exact     */
 /*  path, then the longest pattern without its "*"); two equally exact         */
@@ -46,6 +52,12 @@ const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
 const LINK = /\]\(([^)\s]+)\)/g;
 const UNEDITED = /\*\*Label: (History|Archive)\*\*/;
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+export const LOG_URL = "https://raw.githubusercontent.com/wilplus/backend-cursor/main/docs/SPEC-DECISIONS-LOG.md";
+const ENTRY = /^\*\*N(\d+) ·/gm;
+const CITE = /(?<![A-Za-z0-9_\-./#])N(\d{1,3})(?!\d)/g;
+const IN_FORCE = "**Label: In force**";
+/** Cited but never written as entries; the backend log's header lists them. */
+const KNOWN_UNLOGGED = new Set([78, 91]);
 
 /** The rows of the home-doc table: [{ part, patterns, home }], home null for "No page". */
 export function parseHomes(readme) {
@@ -136,18 +148,44 @@ export function checkNew(added, readme) {
     );
 }
 
+/** Rules pages whose N-numbers cite the backend log, from N95's order. */
+export function checkCitations(pages, log) {
+  const have = new Set([...log.matchAll(ENTRY)].map((m) => Number(m[1])));
+  const problems = [];
+  for (const [path, text] of Object.entries(pages)) {
+    const cited = new Set([...text.matchAll(CITE)].map((m) => Number(m[1])));
+    const missing = [...cited].filter((k) => !have.has(k) && !KNOWN_UNLOGGED.has(k)).sort((a, b) => a - b);
+    if (missing.length)
+      problems.push(
+        `${path} cites ${missing.map((k) => `N${k}`).join(", ")}, which the backend's decisions log doesn't have. ` +
+          "Log the decision there first (backend N95), or fix the number. An entry merged minutes ago can take a few minutes to show.",
+      );
+  }
+  return problems;
+}
+
+function rulesPages(files, cwd) {
+  const pages = {};
+  for (const f of files.filter((f) => f.endsWith(".md") && !f.startsWith("."))) {
+    const text = readFileSync(join(cwd, f), "utf8");
+    if (f === "CLAUDE.md" || f === MASTER || text.slice(0, 2000).includes(IN_FORCE)) pages[f] = text;
+  }
+  return pages;
+}
+
 function git(cwd, args) {
   return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 }
 
 /** Run the guard. Returns { code, lines }: 0 clean, 1 problems, 2 the base could not be resolved. */
-export function run({ cwd = ROOT, base = "origin/main", flows = FLOW_PAGES_PATH } = {}) {
+export function run({ cwd = ROOT, base = "origin/main", flows = FLOW_PAGES_PATH, log } = {}) {
   const files = git(cwd, ["ls-files"]).split("\n").filter(Boolean);
   const readme = readFileSync(join(cwd, MASTER), "utf8");
   const rows = parseHomes(readme);
   const problems = [
     ...checkHomes(files, rows, parseFlowPages(readFileSync(flows, "utf8")), cwd),
     ...checkListed(files, readme),
+    ...(typeof log === "string" ? checkCitations(rulesPages(files, cwd), log) : []),
   ];
   let code = 0;
   try {
@@ -169,14 +207,22 @@ export function run({ cwd = ROOT, base = "origin/main", flows = FLOW_PAGES_PATH 
     };
   }
   const count = files.filter(isCode).length;
-  return { code: 0, lines: [`docs guard: clean. ${count} code files with a home doc in ${rows.length} rows or a flow page; every doc listed; no unapproved new doc.`] };
+  const cites = typeof log === "string" ? "every N cited is in the backend log" : "citations not checked (the backend log could not be read)";
+  return { code: 0, lines: [`docs guard: clean. ${count} code files with a home doc in ${rows.length} rows or a flow page; every doc listed; no unapproved new doc; ${cites}.`] };
 }
 
 const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invokedDirectly) {
   const args = process.argv.slice(2);
   const i = args.indexOf("--base");
-  const { code, lines } = run({ base: i >= 0 ? args[i + 1] : process.env.DOCS_GUARD_BASE || "origin/main" });
+  let log = null;
+  try {
+    const res = await fetch(process.env.DOCS_GUARD_LOG_URL || LOG_URL, { signal: AbortSignal.timeout(15000) });
+    if (res.ok) log = await res.text();
+  } catch {
+    log = null;
+  }
+  const { code, lines } = run({ base: i >= 0 ? args[i + 1] : process.env.DOCS_GUARD_BASE || "origin/main", log });
   console.log(lines.join("\n"));
   process.exit(code);
 }
