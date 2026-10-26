@@ -107,7 +107,7 @@ export function useVoiceNotebook({
           setKept((now) => new Set(now).add(id));
         }
         // Kept: the hesitations fade out, then the kept note takes its place
-        // with the tick and "Noted." (N198).
+        // with the tick and "Noted." (N199).
         if (outcome.kind === "kept") {
           setSettling(n.key);
           await new Promise((done) => setTimeout(done, SETTLE_MS));
@@ -301,7 +301,7 @@ export function VoiceNoteBar({ notebook }: { notebook: VoiceNotebook }) {
 }
 
 /** The note while it is said, then the notes on the phone not yet kept,
- *  then Will's typing dots while one is on its way (backend N194, N198).
+ *  then Will's typing dots while one is on its way (backend N194, N199).
  *  The wave comes first and the words follow it: the words replace the wave
  *  they cover, and the wave they have not reached stays at the end. Sits at
  *  the bottom of the thread. */
@@ -371,7 +371,7 @@ const WAVE_BARS = 34;
 
 /** The voice the words have not reached yet: one bar per 140 ms, its height
  *  the mic's level. While the note is said, the newest bar is now; after
- *  send, the bars shimmer while Will writes them down (N198). */
+ *  send, the bars shimmer while Will writes them down (N199). */
 function Wave({ levels, waiting, live = false }: { levels: readonly number[]; waiting: boolean; live?: boolean }) {
   const bars = levels.slice(-WAVE_BARS);
   // At the very start of a note there is no level yet: three quiet bars, so

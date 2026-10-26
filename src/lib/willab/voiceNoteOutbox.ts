@@ -19,7 +19,7 @@ export interface OutboxNote {
    *  until it is kept. */
   words: string;
   /** The wave the words had not reached when it was sent (levels 0 to 1):
-   *  drawn after the words until the note is kept (backend N198). */
+   *  drawn after the words until the note is kept (backend N199). */
   tail?: number[];
   /** Still being said in this page; a note left open by a closed app is not. */
   open: boolean;

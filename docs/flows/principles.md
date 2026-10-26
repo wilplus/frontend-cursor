@@ -51,7 +51,7 @@ Life Panel.
    "Your notes are private. Only you and Will read them. Keep a voice
    notebook?" with Yes | Not now. Once only (N195; not built yet).
 
-### B · The voice note: the wave first, the words follow (decided 2026-10-26, N194; amended the same day, N198)
+### B · The voice note: the wave first, the words follow (decided 2026-10-26, N194; amended the same day, N199)
 
 The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
 
@@ -64,12 +64,12 @@ The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
    path: Vercel, Railway, the processing-authorization permit, Whisper)
    and replace the stretch of wave they cover, a phrase at a time. The
    phrase still being heard is lighter until its whole piece has been heard
-   (N198).
+   (N199).
 3. On send, the note stays where it is: the wave the words have not reached
    shimmers while Will's typing dots show. When the backend has kept it,
    the hesitations fade out with a line through them, and the kept note
    takes its place: the backend's transcription of the whole recording,
-   cleaned as before, with a small tick under it, and "Noted." (N198).
+   cleaned as before, with a small tick under it, and "Noted." (N199).
 4. Only delete throws a note away. Leaving the app, or the Lounge, keeps
    what was said and sends it. What is recorded is written to the phone
    every few seconds, so the note survives the app being closed at any
@@ -113,7 +113,7 @@ The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
   "That's the base. Now go and live it. Come back for a short recap.". With N170: "Nothing stands out in your notes from the last
   seven days yet."; "There are no # notes from the last seven days yet."
 - **The voice note (B; approved with the prototype, 2026-10-26, N194,
-  N198):** no new words on screen; "Noted." as before; the wave, the tick,
+  N199):** no new words on screen; "Noted." as before; the wave, the tick,
   the clock. Read by screen readers only: "Fix this note", "Close", "Kept",
   "Waiting to send".
 
@@ -311,7 +311,7 @@ deletes the line when the work is merged (the change goes to §6).
 ## 5. Prototypes
 
 - The voice note <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (N194,
-  2026-10-26; version 4, the wave first and the words follow, N198).
+  2026-10-26; version 4, the wave first and the words follow, N199).
 - The Sunday note as a lens <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo>
   (N158, 2026-10-26); asking for it
   <https://claude.ai/artifact/M5GWxvbNPRbkEjoL2ivZxB> (N170, 2026-10-26).
@@ -322,7 +322,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N198 · B1–B3: the wave of the voice shows at once and the words follow it a phrase at a time, 2 to 4 seconds behind; after send the unwritten wave shimmers, then the hesitations fade and the kept note lands; was: the words appear as they are said, with a cursor · BE #1379, FE (this PR)
+- 2026-10-26 · N199 · B1–B3: the wave of the voice shows at once and the words follow it a phrase at a time, 2 to 4 seconds behind; after send the unwritten wave shimmers, then the hesitations fade and the kept note lands; was: the words appear as they are said, with a cursor · BE #1379, FE #1009
 - 2026-10-26 · N194 · built (B): the voice note is written as it is said, settles on send with a tick and "Noted.", is kept when the app is left (the phone's outbox, sent once by its name), waits under a clock without a connection, and a tap on it fixes its words; the life goals mic is unchanged · BE (backend PR), FE (this PR)
 - 2026-10-26 · N195 · A5: the first tap on the mic, before the notebook's question, says why it exists in three bubbles (the jitters, a place for your goals, a goal you can steer by); was: the question alone · BE #1369, FE #1008
 - 2026-10-26 · N191 · built (M14): under a # note's "Noted.", a note that says a goal's quarter step should be different is asked about once, quoting it, the new words only from the note; Change writes it with the earlier words kept and shows the ladder, Not now changes nothing · BE #1359, #1361, FE (this PR)

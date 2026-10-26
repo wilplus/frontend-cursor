@@ -2,7 +2,7 @@
 /*
 STORY    As the founder in a rush, I want to say a note and close the app, so that what I said is kept and I can see it was written as I meant it.
 OUTCOME
-  O1  The moment I tap, my note shows the wave of my voice; the words follow it; leaving the app sends the note, it is not thrown away (N194, N198).
+  O1  The moment I tap, my note shows the wave of my voice; the words follow it; leaving the app sends the note, it is not thrown away (N194, N199).
   O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).
 PROVES   O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
          O2 -> keeps a note that cannot go and sends it once when back online

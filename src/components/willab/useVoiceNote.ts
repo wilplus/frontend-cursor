@@ -15,7 +15,7 @@ import { dropNote, keepNote, noteKey, type OutboxNote } from "@/lib/willab/voice
 /*  nothing here touches a Take.                                              */
 /*                                                                            */
 /*  The notebook's notes (``notebook: true``) show the wave first, and the    */
-/*  words follow (backend N194, N198); the life goals lens records as before. */
+/*  words follow (backend N194, N199); the life goals lens records as before. */
 /*                                                                            */
 /*  The wave: the mic's level, read on the phone every 140 ms, so the note    */
 /*  shows at once that it hears. The words: a second recorder on the same    */
@@ -97,7 +97,7 @@ export function useVoiceNote({
   /** The finished recording; resolves when it is sent (or failed). For the
    *  notebook it is already in the outbox. */
   onDone: (note: OutboxNote) => Promise<void>;
-  /** The voice notebook (N194, N198): the wave and the words, the outbox,
+  /** The voice notebook (N194, N199): the wave and the words, the outbox,
    *  and a note kept when the app is left. Off, the recording is sent or
    *  thrown away as it always was. */
   notebook?: boolean;
@@ -286,7 +286,7 @@ export function useVoiceNote({
         return;
       }
       // Into the outbox first: from here the note survives the app closing.
-      // The thread shows it at once, with the wave not yet written (N198).
+      // The thread shows it at once, with the wave not yet written (N199).
       setPhase("idle");
       void keepNote(note).then(() => {
         if (mountedRef.current) void onDoneRef.current(note);
