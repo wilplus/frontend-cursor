@@ -74,7 +74,7 @@ export type LensOpen = {
   /** See one goal only (its ladder bubble's ›). */
   goalId?: string;
   /** Change this step of ``goalId`` at once: a step tapped on the Life
-   *  Panel's ladder (M15, N196). ``with`` names the other goal of a clash. */
+   *  Panel's ladder (M15, N197). ``with`` names the other goal of a clash. */
   step?: Rung["step"];
   with?: string;
 };

@@ -40,7 +40,7 @@ export default function GoalsPage() {
   return (
     <>
       {/* The life goals ladders, the top layer above the three bets (backend
-          N172 M15, N196). Nothing at all before the first goal is set. */}
+          N172 M15, N197). Nothing at all before the first goal is set. */}
       <LifeGoalsLadders />
       <PanelLede lede={VIEWS.goals.lede} />
       <Resource resource={resource}>

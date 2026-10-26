@@ -6,7 +6,7 @@ import { LIFE_GOALS_COPY as COPY, dayLabel, type Rung } from "@/lib/willab/lifeG
 import type { GoalVersion, LifeGoal } from "@/services/api/lifeGoals";
 
 /* -------------------------------------------------------------------------- */
-/*  Life goals on the Goals screen (backend N172 M15, N196; rules              */
+/*  Life goals on the Goals screen (backend N172 M15, N197; rules              */
 /*  docs/flows/principles.md §1 M15; prototype                                 */
 /*  https://claude.ai/artifact/BeKgTGi1KXvF5ruvMEiA33).                        */
 /*                                                                            */

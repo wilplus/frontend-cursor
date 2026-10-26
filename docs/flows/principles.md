@@ -61,7 +61,7 @@ Life Panel.
   it"; "Type instead". With N183 (M16): "📓 Use your notebook!"; "Keep the
   details in your own notebook, the paper one. Here we keep only the base.";
   with N185 (M12): the label WHEN THEY CLASH, "{space} wins", "You decide
-  each time"; with N186 (M13): "The quarter ended on {date}."; with N196
+  each time"; with N186 (M13): "The quarter ended on {date}."; with N197
   (M15): "History", "Hide history", "Set on {date}", "＋ Add a goal";
   "That's the base. Now go and live it. Come back for a short recap.". With N170: "Nothing stands out in your notes from the last
   seven days yet."; "There are no # notes from the last seven days yet."
@@ -214,7 +214,7 @@ The prototype is the design: <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24>
   prototype version 9, scene 5).
 - **M15** Kept in the Life Panel's store as its top layer, above the three
   bets; every version dated. Will reads the ladders and their dated changes
-  before it chats and before the Sunday note. On the Goals screen (N196,
+  before it chats and before the Sunday note. On the Goals screen (N197,
   prototype <https://claude.ai/artifact/BeKgTGi1KXvF5ruvMEiA33>): "Life
   goals" above "Three bets, in order.", one ladder per set goal, each step a
   row with › that opens the lens over the panel on that step; under each
@@ -237,7 +237,7 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- **N172** · life goals (M) · M · M1–M15 built (M15 with N196: backend #1373, FE this PR); then this week's focus on the ladder (no source yet) · BE #1335, FE (this PR)
+- **N172** · life goals (M) · M · M1–M15 built (M15 with N197: backend #1373, FE this PR); then this week's focus on the ladder (no source yet) · BE #1335, FE (this PR)
 - **N158, N170** · the Sunday note as a lens, on Sunday by itself when there is a pattern and whenever asked in any words, from the last seven days · L · locked 2026-10-26, not built; the backend half (only # notes, only when asked, no Old | New) is on backend branch `claude/gracious-faraday-x8tin9`, not merged · —
 
 ## 3. Still open
@@ -273,7 +273,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N196 · built (M15): the ladders on the Life Panel's Goals screen, above the three bets; a tapped step opens the lens over the panel on that step; History lists every version, dated; "＋ Add a goal"; nothing before the first goal (`LifeGoalsLadders.tsx`) · BE #1371, #1373, FE (this PR)
+- 2026-10-26 · N197 · built (M15): the ladders on the Life Panel's Goals screen, above the three bets; a tapped step opens the lens over the panel on that step; History lists every version, dated; "＋ Add a goal"; nothing before the first goal (`LifeGoalsLadders.tsx`) · BE #1371, #1373, FE (this PR)
 - 2026-10-26 · N191 · built (M14): under a # note's "Noted.", a note that says a goal's quarter step should be different is asked about once, quoting it, the new words only from the note; Change writes it with the earlier words kept and shows the ladder, Not now changes nothing · BE #1359, #1361, FE (this PR)
 - 2026-10-26 · N186 · built (M13): no clock; the first time the Lounge opens on the quarter's last day (or later, "The quarter ended on {date}."), "Did it move?" with Not now | Start; the lens asks how it went in words, what got in the way, quotes their own notes only when some match, and sets the next quarter's step with the earlier one kept · BE #1354, #1356, FE (this PR)
 - 2026-10-26 · N185 · built (M12): before a new goal is set, Will checks once per pair whether it pulls against a kept goal, from their words only, and asks "When they clash, which wins?"; the answer is the step WHEN THEY CLASH on both ladders, changed by tapping with the earlier answer kept · BE #1351, #1353, FE (this PR)
