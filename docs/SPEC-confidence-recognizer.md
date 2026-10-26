@@ -2,15 +2,15 @@
 
 > **Label: Reference** · how something works today; where it differs from the In force docs, they win. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
 
-**The canonical specification is not in this repo.** It lives in the backend:
+**The rules are not in this repo.** They are the backend's decisions log and contract, and this repo's [`docs/flows/coach-panel.md`](flows/coach-panel.md) (backend N95). The background lives in the backend:
 
-- `backend-cursor/docs/SPEC.md` — canonical v3
+- `backend-cursor/docs/SPEC.md` — v3, Reference since N95
 - `backend-cursor/docs/SPEC-APPENDIX-A-verbal-computations.md`
 - `backend-cursor/docs/SPEC-APPENDIX-B-progression.md`
 - `backend-cursor/docs/SPEC-APPENDIX-C-intervention-contract.md`
 
 This file exists so nobody reimplements from memory. It carries only what the
-FE needs, and defers to SPEC.md on every point of conflict.
+FE needs, and defers to the decisions log and the contract on every point of conflict.
 
 ---
 

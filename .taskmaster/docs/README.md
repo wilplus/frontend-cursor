@@ -1,5 +1,7 @@
 # Task Master docs (willab - willpower lab 🎙️)
 
+> **Label: Archive** · out of date: it describes the old homework flow, whose routes no longer exist. It is not a source of truth, whatever it says below: the rules are the backend's decisions log, contract and LOCKS, and this repo's `docs/flows/` pages (backend N95). Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **Taskmaster is the only source of truth for this app.** All app description, flow, contracts, implementation notes, and “what is missing” live here. Do not rely on other project docs for the canonical description.
 
 | File | Purpose |

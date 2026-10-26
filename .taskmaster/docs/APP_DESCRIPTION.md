@@ -1,5 +1,7 @@
 # willab - willpower lab 🎙️ — App description (single source of truth)
 
+> **Label: Archive** · out of date: it describes the old homework flow, whose routes no longer exist. It is not a source of truth, whatever it says below: the rules are the backend's decisions log, contract and LOCKS, and this repo's `docs/flows/` pages (backend N95). Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+
 **Taskmaster is the only source of truth for this app.** Everything you need to understand the product, flow, contracts, implementation, and gaps is in this folder. Use this file for Cursor, onboarding, and task planning.
 
 ---
