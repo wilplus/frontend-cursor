@@ -204,7 +204,7 @@ Written in the present tense.
   time, the IP address and the device. The speaker never sees it.
 - `/change-password`, which nothing linked to, is gone; the card replaces it.
 
-### Amended 2026-10-26: the page is called Settings (backend N195)
+### Amended 2026-10-26: the page is called Settings (backend N196)
 
 The founder in the Claude Code chat: "in the hamburger change the data & consent to 'settings'", then, for the
 page's title and the recording screen's line, "yes change it to “Settings”". Written in the present tense.
@@ -267,7 +267,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N195 · the page is called Settings: the ☰ menu's row, the title and the recording screen's line · BE, FE
+- 2026-10-26 · N196 · the page is called Settings: the ☰ menu's row, the title and the recording screen's line · BE, FE
 - 2026-10-26 · N190 · Email and password on Data & consent: change email with a link, change password, Forgot password? and Set a password, the security log; `/change-password` goes · BE, FE
 - 2026-10-26 · docs audit · the pointer to CLAUDE.md's "Design lock" section names its history copy; no rule changed · —
 - 2026-10-21 · N111 · the policy update prompt and every Lounge ask, unified (both version 2), join §1 and §5, out of §3; the page also guards the consent files it missed (§4) · BE, FE

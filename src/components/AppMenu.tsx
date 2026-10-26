@@ -228,7 +228,7 @@ export default function AppMenu({
               onClick={() => setOpen(false)}
             >
               {/* The Data & consent page, called Settings (founder
-                  2026-10-26, backend N195). */}
+                  2026-10-26, backend N196). */}
               Settings
             </Link>
           ) : null}

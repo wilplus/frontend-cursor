@@ -8,7 +8,7 @@
 /* -------------------------------------------------------------------------- */
 
 export const DATA_CONSENT_COPY = {
-  // "Settings" since founder 2026-10-26 (backend N195); the address stays
+  // "Settings" since founder 2026-10-26 (backend N196); the address stays
   // /account/data-consent.
   title: "Settings",
   intro:
