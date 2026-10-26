@@ -216,6 +216,15 @@ page's title and the recording screen's line, "yes change it to “Settings”".
 - The address stays `/account/data-consent`; the documents already accepted keep their words. Where this page says
   "Data & consent" above, it means this page.
 
+### Amended 2026-10-26: the WhatsApp card names the booked call (backend N207)
+
+The founder in the Claude Code chat, choosing "Change the words": the booking form asks for no WhatsApp number,
+and a booked call's reminder goes to the number saved on the account, so the card says so. Written in the present
+tense.
+
+- With a number saved, the WhatsApp card reads "We message {number} when your coach’s feedback is in and 10
+  minutes before a booked call." Remove, its confirm and the card without a number stay as they are.
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
@@ -267,6 +276,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N207 · the WhatsApp card names the booked call: "We message {number} when your coach’s feedback is in and 10 minutes before a booked call." · BE #1391, #1395, FE (this PR)
 - 2026-10-26 · N196 · the page is called Settings: the ☰ menu's row, the title and the recording screen's line · BE, FE
 - 2026-10-26 · N190 · Email and password on Data & consent: change email with a link, change password, Forgot password? and Set a password, the security log; `/change-password` goes · BE, FE
 - 2026-10-26 · docs audit · the pointer to CLAUDE.md's "Design lock" section names its history copy; no rule changed · —

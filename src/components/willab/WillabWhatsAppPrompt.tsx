@@ -15,15 +15,17 @@ import SymmetricPair from "./SymmetricPair";
 /*  Same shape as the install offer (WillabInstallPrompt): a persisted thread  */
 /*  bubble plus a footer action pair that replaces the record button. It asks  */
 /*  for a phone number so "The feedback from your coach is in!" also reaches   */
-/*  the speaker on WhatsApp. It is asked at the end of a Take, from Take 2,    */
-/*  at most twice, as that Take's one ask (founder 2026-10-20; the backend    */
-/*  writes it, services/after_take.py); it no longer comes at send time.      */
+/*  the speaker on WhatsApp. It is asked at the end of a Take, from Take 1    */
+/*  (backend N171), at most twice, as that Take's one ask (founder 2026-10-20; */
+/*  the backend writes it, services/after_take.py). The same number gets the  */
+/*  booking's reminder (backend N207); the booking form asks for none.        */
 /* -------------------------------------------------------------------------- */
 
 /** Footer and error copy (WhatsApp offer). No em-dashes (house style). */
 export const WHATSAPP_COPY = {
-  // The card's title (founder 2026-10-15), word for word.
-  title: "We will only use it to let you know your coach texted you",
+  // The card's title (founder 2026-10-15), word for word; the call added
+  // when the booking's reminder came to this number (backend N207).
+  title: "We will only use it to let you know your coach texted you, or that your call starts soon.",
   label: "Phone number for WhatsApp",
   placeholder: "+44 7700 900123",
   notNow: "Not now",
