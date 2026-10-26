@@ -2,7 +2,7 @@ import type { HorizonKey, LifeGoal, SpaceKey, StepKey } from "@/services/api/lif
 
 /* -------------------------------------------------------------------------- */
 /*  Life goals — the lens's rules that are not drawing (backend N172; rules:   */
-/*  docs/flows/feedback-walk-and-chat.md §1 M; prototype                       */
+/*  docs/flows/principles.md §1 M; prototype                       */
 /*  https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24, version 7).              */
 /*                                                                            */
 /*  Every line here is signed (N172). No new words without the founder's OK.  */

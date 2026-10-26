@@ -44,7 +44,7 @@ import { WalkLink, WalkPill } from "./walk/WalkFooter";
 
 /* -------------------------------------------------------------------------- */
 /*  Life goals in the Lounge (Will learning plan, step 3; backend N172, rules  */
-/*  docs/flows/feedback-walk-and-chat.md §1 M, prototype                        */
+/*  docs/flows/principles.md §1 M, prototype                        */
 /*  https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24 version 7). Founder only */
 /*  (ring 6): the backend says whether it is on.                              */
 /*                                                                            */
