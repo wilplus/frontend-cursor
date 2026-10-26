@@ -8,7 +8,9 @@
 /* -------------------------------------------------------------------------- */
 
 export const DATA_CONSENT_COPY = {
-  title: "Data & consent",
+  // "Settings" since founder 2026-10-26 (backend N196); the address stays
+  // /account/data-consent.
+  title: "Settings",
   intro:
     "Your recordings are used to run your own coaching. They are not used to train models.",
   // Approved by the founder 2026-09-28 (decision 21): the card shown only
@@ -38,7 +40,7 @@ export const DATA_CONSENT_COPY = {
   agreeAgain: "Agree again",
   erasureFinishing: "Your practice recordings are still being deleted.",
   recordScreenOff:
-    "Recording is off because you withdrew your consent. You can turn it back on in Data & consent.",
+    "Recording is off because you withdrew your consent. You can turn it back on in Settings.",
   privacyUnavailable:
     "The privacy policy couldn’t be loaded. Refresh the page to try again.",
   // Approved by the founder 2026-09-25 ("yes"), decision 2.
