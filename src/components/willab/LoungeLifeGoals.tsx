@@ -73,6 +73,10 @@ export type LensOpen = {
   space?: SpaceKey;
   /** See one goal only (its ladder bubble's ›). */
   goalId?: string;
+  /** Change this step of ``goalId`` at once: a step tapped on the Life
+   *  Panel's ladder (M15, N197). ``with`` names the other goal of a clash. */
+  step?: Rung["step"];
+  with?: string;
 };
 
 type Item = { id: number; who: "will" | "me"; node: ReactNode };
@@ -711,6 +715,16 @@ async function seeGoals(ctx: Ctx, open: LensOpen): Promise<void> {
   }
 }
 
+/** A step tapped on the Life Panel's ladder (M15): changed at once, then the
+ *  ladder as it is now. */
+async function changeTapped(ctx: Ctx, open: LensOpen): Promise<void> {
+  const goal = ctx.state.goals.find((g) => g.id === open.goalId);
+  if (!goal || !open.step) return;
+  const updated =
+    open.step === "clash" ? await changeClash(ctx, goal, open.with) : await changeOne(ctx, goal, open.step);
+  if (updated) await ctx.s.say(COPY.changedOn(dayLabel(new Date().toISOString())), <LadderCard key="after" goal={updated} />);
+}
+
 /** A tapped WHEN THEY CLASH: asked again, the earlier answer kept (M12). */
 async function changeClash(ctx: Ctx, goal: LifeGoal, otherId: string | undefined): Promise<LifeGoal | null> {
   const { s } = ctx;
@@ -900,8 +914,10 @@ function LifeGoalsLens({
     const flow =
       open.mode === "quarter"
         ? quarterBack(ctx, open)
-        : open.mode === "see" && state.goals.length
-          ? seeGoals(ctx, open)
+        : open.mode === "see" && open.step
+          ? changeTapped(ctx, open)
+          : open.mode === "see" && state.goals.length
+            ? seeGoals(ctx, open)
           : addGoal(ctx, open);
     void flow
       .then(() => ui.dock(<DockColumn><WalkPill action={{ label: COPY.close, onClick: onClose }} /></DockColumn>))
@@ -929,9 +945,17 @@ function LifeGoalsLens({
 
 /* ── In the Lounge ─────────────────────────────────────────────────────── */
 
-/** Life goals for the Lounge: whether they are on, the ask's answer, and
- *  the lens. */
-export function useLifeGoals({ signedIn, reload }: { signedIn: boolean; reload: () => Promise<unknown> }) {
+/** Life goals for the Lounge (and the Life Panel's Goals screen, with
+ *  ``lounge: false``): whether they are on, the ask's answer, and the lens. */
+export function useLifeGoals({
+  signedIn,
+  reload,
+  lounge = true,
+}: {
+  signedIn: boolean;
+  reload: () => Promise<unknown>;
+  lounge?: boolean;
+}) {
   const [state, setState] = useState<LifeGoalsState | null>(null);
   const [open, setOpen] = useState<(LensOpen & { nonce: number }) | null>(null);
   const refresh = useCallback(async () => {
@@ -950,7 +974,7 @@ export function useLifeGoals({ signedIn, reload }: { signedIn: boolean; reload: 
 
   // The Lounge opened: the quarter comes back when one is due (N186).
   useEffect(() => {
-    if (!signedIn) return;
+    if (!signedIn || !lounge) return;
     void quarterDue().then((wrote) => (wrote ? reload() : undefined));
     // Once per opening of the Lounge.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -977,12 +1001,22 @@ export function useLifeGoals({ signedIn, reload }: { signedIn: boolean; reload: 
 
   return {
     enabled: state?.enabled === true,
+    goals: state?.goals ?? [],
     openLens,
     answerAsk: (choice: "start" | "not_now") => void answerAsk(choice),
     answerQuarter: (goalId: string | null, choice: "start" | "not_now") => void answerQuarter(goalId, choice),
     answerChange: (goalId: string | null, choice: "change" | "not_now") => void answerChange(goalId, choice),
     lens: (
-      <LifeGoalsLens open={open} state={state} onClose={() => setOpen(null)} reload={reload} refresh={refresh} />
+      <LifeGoalsLens
+        open={open}
+        state={state}
+        onClose={() => {
+          setOpen(null);
+          void refresh();
+        }}
+        reload={reload}
+        refresh={refresh}
+      />
     ),
   };
 }

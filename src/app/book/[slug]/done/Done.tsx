@@ -17,7 +17,9 @@ export interface Confirmation {
   due_cents?: number;
 }
 
-export default function Done({ info, booking }: { info: PageInfo; booking: Confirmation | null }) {
+export default function Done({ info, booking, paidTokens = 0 }: {
+  info: PageInfo; booking: Confirmation | null; paidTokens?: number;
+}) {
   if (!booking || booking.status !== "confirmed") {
     return (
       <Shell>
@@ -61,7 +63,12 @@ export default function Done({ info, booking }: { info: PageInfo; booking: Confi
               <a href={booking.meet_url} className="underline" target="_blank" rel="noreferrer">{booking.meet_url}</a>
             </dd>
           </div>
-          {(() => {
+          {paidTokens > 0 && booking.price_cents === 0 ? (
+            <div className={row}>
+              <dt className="text-muted-foreground">Paid</dt>
+              <dd>{new Intl.NumberFormat("en-GB").format(paidTokens)} tokens</dd>
+            </div>
+          ) : (() => {
             // Booked without paying: show what is still to be paid, at the
             // price they had when booking (e.g. the first-lesson discount).
             const due = booking.price_cents === 0 ? booking.due_cents || 0 : 0;

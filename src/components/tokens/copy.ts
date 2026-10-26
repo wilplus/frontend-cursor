@@ -115,6 +115,24 @@ export const TOKENS_COPY = {
   /** Back from Stripe. The tier arrives by webhook a moment later, so this
    *  promises an update rather than asserting a balance we cannot see yet. */
   walletPlanSuccess: "Payment received. Your new plan is being applied.",
+
+  /* ------------- everything in tokens (backend N198, signed) -------------- */
+
+  /** Signed 2026-10-26 on the pricing prototype, version 3 ("accepted, start
+   *  the build"). Shown only once the backend serves the N198 price list. */
+  planIntro:
+    "Every package comes with the same things: calls with your coach, an AI analysis of every Take, and exercises built around the way you speak. A bigger package lasts longer and costs less per token.",
+  planSave: (usd: number) => `Save $${usd}`,
+  planText: {
+    practice:
+      "About a month. One call with your coach to agree on what to work on, then practice built from your own Takes.",
+    coaching:
+      "About two months. A call to start, a call to finish, a written review in between, and practice all the way through.",
+    intensive:
+      "About three months. Three calls, two written reviews, and enough practice for the new habits to stick.",
+  } as Record<string, string>,
+  coachCall: "Call with your coach, 15 minutes",
+  coachLesson: "Lesson with your coach, 60 minutes",
   walletPlanCancelled: "No change made.",
 
   /* --------------------- the in-thread top-up card ----------------------- */

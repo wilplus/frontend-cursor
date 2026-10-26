@@ -163,6 +163,11 @@ export interface TokenPrices {
   /** Ascending by maxSeconds. */
   bands: TokenBand[];
   tiers: Record<string, TokenTier>;
+  /** Stored units in one token as shown. 100 once everything is in tokens
+   *  (backend N198), 1 before. Every number above is already as shown. */
+  displayUnit: number;
+  /** The coach's time, tokens a minute; null until N198 is on. */
+  coachMinute: number | null;
 }
 
 export function mapTokenPrices(raw: unknown): TokenPrices | null {
@@ -205,7 +210,14 @@ export function mapTokenPrices(raw: unknown): TokenPrices | null {
     }
   }
 
-  return { priceVersion: str(raw.price_version), actions, bands, tiers };
+  return {
+    priceVersion: str(raw.price_version),
+    actions,
+    bands,
+    tiers,
+    displayUnit: num(raw.display_unit) ?? 1,
+    coachMinute: num(raw.coach_minute),
+  };
 }
 
 /** The prices probe, with FAILURE SEPARATED FROM OFF.

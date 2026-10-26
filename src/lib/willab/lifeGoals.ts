@@ -79,6 +79,11 @@ export const LIFE_GOALS_COPY = {
   inTheWay: "What got in the way?",
   notesToo: "Your notes said it too:",
   moveForward: (by: string) => `What would move it forward by ${by}?`,
+  // N197: the ladders on the Life Panel's Goals screen (M15).
+  history: "History",
+  hideHistory: "Hide history",
+  setOn: (date: string) => `Set on ${date}`,
+  addGoal: "＋ Add a goal",
   noted: "Noted.",
   accept: "Accept",
   edit: "Edit",

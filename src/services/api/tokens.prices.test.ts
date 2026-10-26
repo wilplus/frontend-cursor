@@ -10,10 +10,14 @@ OUTCOME
       for next time.
   O3  A lost connection keeps the shown list; pricing turned off removes it.
   O4  A damaged saved copy is never shown.
+  O5  Once everything is in tokens (backend N198), the list says so: the
+      unit and the coach's minute come through; a list from before reads as
+      it always did.
 PROVES   O1 -> "is kept from a live read and served first on the next open, then confirmed behind it"
          O2 -> "replaces the shown list when the backend publishes a new one"
          O3 -> "keeps the shown list through a blip, and drops it when pricing is turned off"
          O4 -> "never serves a copy the parser rejects"
+         O5 -> "carries the unit and the coach's minute, and an older list reads as before"
 */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -23,6 +27,7 @@ vi.mock("@/lib/api/auth-client", () => ({
 
 import {
   fetchTokenPricesRead,
+  mapTokenPrices,
   resetTokenPricesCache,
   subscribeTokenPrices,
   type TokenPricesRead,
@@ -141,3 +146,15 @@ function resetMemoryOnly() {
   resetTokenPricesCache();
   if (kept) localStorage.setItem("willab.tokenPrices", kept);
 }
+
+describe("everything in tokens (backend N198)", () => {
+  it("carries the unit and the coach's minute, and an older list reads as before", () => {
+    const v4 = mapTokenPrices({ enabled: true, actions: { chat: 1 }, bands: [], tiers: {},
+      display_unit: 100, coach_minute: 200 });
+    expect(v4?.displayUnit).toBe(100);
+    expect(v4?.coachMinute).toBe(200);
+    const before = mapTokenPrices({ enabled: true, actions: { chat: 150 }, bands: [], tiers: {} });
+    expect(before?.displayUnit).toBe(1);
+    expect(before?.coachMinute).toBeNull();
+  });
+});

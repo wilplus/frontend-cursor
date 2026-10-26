@@ -42,6 +42,18 @@ export type LifeGoal = {
   changes: Partial<Record<ChangeableStep | "clash", { on: string; earlier: string | null }>>;
   /** The talk goal (the setup answer), on the career goal. */
   talk?: string;
+  /** The day it was made, and every version newest first, with the
+   *  quarter's answers in words (the Life Panel's History, M15). */
+  set_on?: string;
+  history?: GoalVersion[];
+};
+
+export type GoalVersion = {
+  on: string;
+  step: ChangeableStep | "clash" | "quarter_review";
+  before?: string | null;
+  after?: string | null;
+  outcome?: QuarterOutcome | null;
 };
 
 export type LifeGoalsState = { enabled: boolean; goals: LifeGoal[]; draft: LifeGoal | null };

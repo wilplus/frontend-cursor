@@ -230,6 +230,9 @@ src/components/founder/GoldenJudging.test.tsx,Story,"As the founder, I want to j
 src/components/legal/PublishedPolicyText.test.tsx,Story,"As a reader of the Privacy page, I want the stored policy or a plain ""could not load"" line, never an endless spinner or an old stand-in, so that I always know what I agreed to.","O1  The stored policy text is shown with its version number.
 O2  When no stored copy can be had, the ""could not load"" line is shown.","O1 -> ""shows the stored copy once it is published""
 O2 -> ""shows the unavailable line once the record answers without a copy""","Founder 2026-09-25, F3 = A."
+src/components/life/lifeGoalsLadders.test.tsx,Story,"As the founder, I want my life goals ladders on top of the Life Panel's Goals screen, with every version dated, so that my goals and my three bets are in one place.","O1  With a set goal, ""Life goals"" shows its ladder, ""Set on {date}"" and History, which lists every version newest first with its date; a tapped step opens the lens on that step.
+O2  Before the first goal is set, nothing new shows.","O1 -> shows my ladders with every version dated
+O2 -> shows nothing before my first goal",
 src/components/rings/RingAnnouncementSheet.test.tsx,Story,"As a speaker, I want a feature announcement I can dismiss with Not now, and its Yes off until a policy exists, so that nothing turns on or records consent without me.","O1  Not now records the decision, hides the sheet, records no consent.
 O2  Without a policy, Yes is a disabled button (no link to the data
 choices), the sheet says why, and pressing it records nothing.","O1 -> ""not now records the answer, hides the sheet and creates no consent""
@@ -1345,10 +1348,14 @@ unchanged answer from the server changes nothing on screen.
 O2  A new price list from the server replaces the shown one and is kept
 for next time.
 O3  A lost connection keeps the shown list; pricing turned off removes it.
-O4  A damaged saved copy is never shown.","O1 -> ""is kept from a live read and served first on the next open, then confirmed behind it""
+O4  A damaged saved copy is never shown.
+O5  Once everything is in tokens (backend N198), the list says so: the
+unit and the coach's minute come through; a list from before reads as
+it always did.","O1 -> ""is kept from a live read and served first on the next open, then confirmed behind it""
 O2 -> ""replaces the shown list when the backend publishes a new one""
 O3 -> ""keeps the shown list through a blip, and drops it when pricing is turned off""
-O4 -> ""never serves a copy the parser rejects""",
+O4 -> ""never serves a copy the parser rejects""
+O5 -> ""carries the unit and the coach's minute, and an older list reads as before""",
 src/services/api/tokens.shared.test.ts,Story,"As a speaker, I want my balance read once per page and re-read after I spend, so that the number I see is never from before a purchase.","O1  Wallets reading at the same time share one balance request.
 O2  A spend anywhere in the app (the tokens-spent window event) drops the
 shared read: the wallet asks the server again and shows the new number.

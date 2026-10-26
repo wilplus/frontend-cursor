@@ -5,6 +5,7 @@ import { EMPTY, GOAL_ORDER, VIEWS } from "@/lib/life/copy";
 import { isPastDue, orderGoals } from "@/lib/life/goalOrder";
 import { betByKey } from "@/lib/life/types";
 import { fetchGoals } from "@/services/api/life";
+import LifeGoalsLadders from "@/components/life/LifeGoalsLadders";
 import {
   EmptyState,
   PanelLede,
@@ -38,6 +39,9 @@ export default function GoalsPage() {
 
   return (
     <>
+      {/* The life goals ladders, the top layer above the three bets (backend
+          N172 M15, N197). Nothing at all before the first goal is set. */}
+      <LifeGoalsLadders />
       <PanelLede lede={VIEWS.goals.lede} />
       <Resource resource={resource}>
         {(bets) =>
