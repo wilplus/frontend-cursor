@@ -7,7 +7,9 @@ per slide, the **Ideal Text**, and gives evidence-backed feedback after every
 Take. Then they record the next Take. That loop is the product.
 
 Second priority: coach review, Confident Voice and practice. These never
-slow the loop down.
+slow the loop down. The plan (diagnosis, practice days, calls) chooses what
+each walk practises; when it competes with the loop, the loop wins (backend
+N129, N178).
 
 This repo: **frontend** (Next.js, Vercel, willpowerlab.com). It talks to the
 backend, `wilplus/backend-cursor` (Flask, Railway, Supabase), through the BFF
@@ -15,9 +17,9 @@ routes under `src/app/api/v2/*`.
 
 ## Never
 
-1. **No scores, numbers or verdicts shown to speakers.** Feedback is in words. A processing-progress percentage and a token price are not about the speaker and are allowed (founder, 2026-10-19).
+1. **No scores, numbers or verdicts shown to speakers.** Feedback is in words. A processing-progress percentage and a token price are not about the speaker and are allowed (founder, 2026-10-19), and so is a count of where the speaker is in their plan ("Practice 2 of 9"); their own 1 to 10 answers are never shown back (backend N178).
 2. **No coach sees the machine's guess before answering.** Coach judgements stay blind.
-3. **Never break record → process → Ideal Text → next Take.** Coaches and exercises are never in the way; the plan's questions come once, before the first Take (backend N136, N140).
+3. **Never break record → process → Ideal Text → next Take.** Coaches and exercises are never in the way; the plan's questions come once, before the first Take; before any other Take, only the feelings check, with a Skip (backend N136, N140, N178).
 4. **No new words on screen without the founder's OK.**
 5. **The Ideal Text is only what the speaker said in their latest Take.** Their helper words stay until they pick new ones. Every old version stays in the history.
 
@@ -42,7 +44,8 @@ same shape here: [`docs/flows/coach-panel.md`](docs/flows/coach-panel.md),
 [`docs/flows/ideal-text.md`](docs/flows/ideal-text.md),
 [`docs/flows/recording-screens.md`](docs/flows/recording-screens.md),
 [`docs/flows/consent-screens.md`](docs/flows/consent-screens.md) and
-[`docs/flows/ai-voice-practice.md`](docs/flows/ai-voice-practice.md) (backend N107).
+[`docs/flows/ai-voice-practice.md`](docs/flows/ai-voice-practice.md) (backend N107). The plan has a page of the same shape,
+[`docs/flows/the-plan.md`](docs/flows/the-plan.md): a rules page, locked once its first part is built (backend N160, N178).
 
 ## One source of truth
 

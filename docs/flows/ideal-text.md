@@ -95,6 +95,8 @@ Done when:
 
 *Amended 2026-10-12 (founder, Claude Code session 2026-10-12, "Increase helper-words limit from 4 to 6"; approved): the limit is six words. Read "four" in B3 as "six" and "the fifth tap" as "the seventh tap"; the counter reads "N of 6 words". Phrases saved under the old limit are unchanged.*
 
+*Amended 2026-10-26 (founder, the docs audit, backend N178): the limit is eight words, as the app has done since 2026-10-15 ("N of 8 words", `HELPER_WORDS_MAX = 8`). Read "four" in B3 as "eight", "the fifth tap" as "the ninth tap", and contract 13's limit as eight.*
+
 *Amended 2026-10-06 (founder, Navigation Panel QA4 A; ledger A004a, A004b; decisions log N51): B3's tap-by-tap model stands — each tap adds one word, the fifth tap does nothing and the untapped words grey out. The 26 September two-tap rule (the run-based picking A004a and A004b describe) is retired; the designer rebuilds the picker to this lock.*
 
 #### B4 — Helper words have their own overlay.
@@ -375,6 +377,8 @@ Every prototype link in §1, in the order it first appears:
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-26 · N178 · helper words: up to eight in one pick, as the app does since 2026-10-15. Was: six (2026-10-12) · BE #1339
 
 - 2026-10-23 · N120 · the shared copy file (`idealEditCopy.ts`) gains the walk's hello and the AI clip's short bubble (`AI_CLIP_BANK`) and loses the walk's L2 to L5; nothing on the Ideal Text page changes · BE #1279
 - 2026-10-23 · N126 · a full stop may go in silently between two sentences where the speaker paused; was: one closing mark at the end of the document only (the 2026-07-20 fence) · decided, build in §2
