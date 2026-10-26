@@ -279,7 +279,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N195 · A5: the first tap on the mic, before the notebook's question, says why it exists in three bubbles (the jitters, a place for your goals, a goal you can steer by); was: the question alone · BE #1369
+- 2026-10-26 · N195 · A5: the first tap on the mic, before the notebook's question, says why it exists in three bubbles (the jitters, a place for your goals, a goal you can steer by); was: the question alone · BE #1369, FE #1008
 
 - 2026-10-26 · N191 · built (M14): under a # note's "Noted.", a note that says a goal's quarter step should be different is asked about once, quoting it, the new words only from the note; Change writes it with the earlier words kept and shows the ladder, Not now changes nothing · BE #1359, #1361, FE (this PR)
 - 2026-10-26 · N186 · built (M13): no clock; the first time the Lounge opens on the quarter's last day (or later, "The quarter ended on {date}."), "Did it move?" with Not now | Start; the lens asks how it went in words, what got in the way, quotes their own notes only when some match, and sets the next quarter's step with the earlier one kept · BE #1354, #1356, FE (this PR)
