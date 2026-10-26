@@ -118,7 +118,7 @@ import {
 } from "./feedbackCheck";
 import { postFeedbackCheck, type FeedbackCheckChoice } from "@/services/api/feedbackCheck";
 import { SundayActions, useVoiceNotebook, VoiceNoteBar, VoiceNoteMic } from "./useVoiceNotebook";
-import { LifeGoalBubble, lensAskOf, lifeGoalOf, quarterAskOf, useLifeGoals } from "./LoungeLifeGoals";
+import { LifeGoalBubble, lensAskOf, lifeGoalOf, quarterAskOf, changeAskOf, useLifeGoals } from "./LoungeLifeGoals";
 import type { SundayChoice } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import WillQuestionBubble, { willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
@@ -1182,7 +1182,7 @@ export default function Lounge({
     if (type === "joke") return;
     const rank: Record<OfferType, number> = {
       joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0, feedback_check: 0,
-      voice_notebook: 0, sunday_note: 0, sunday_principle: 0, life_goals: 0, life_goals_quarter: 0,
+      voice_notebook: 0, sunday_note: 0, sunday_principle: 0, life_goals: 0, life_goals_quarter: 0, life_goals_change: 0,
     };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
@@ -1767,6 +1767,7 @@ export default function Lounge({
           onSunday={notebook.sunday}
           onLifeGoals={lifeGoals.answerAsk}
           onLifeGoalsQuarter={(choice) => lifeGoals.answerQuarter(quarterAskOf(messages), choice)}
+          onLifeGoalsChange={(choice) => lifeGoals.answerChange(changeAskOf(messages), choice)}
           onResolve={() => {
             // A Take's ask closed: its message comes under it (the question's
             // taps let it go on the backend, "No" keeps it waiting).
@@ -2100,6 +2101,7 @@ function OfferActions({
   onSunday,
   onLifeGoals,
   onLifeGoalsQuarter,
+  onLifeGoalsChange,
   onResolve,
 }: {
   type: OfferType;
@@ -2121,11 +2123,29 @@ function OfferActions({
   onLifeGoals: (choice: "start" | "not_now") => void;
   /** "{emoji} {step}. Did it move?" (N172 M13, N186). */
   onLifeGoalsQuarter: (choice: "start" | "not_now") => void;
+  /** "Change {emoji} this quarter to “…”?" (N172 M14, N191). */
+  onLifeGoalsChange: (choice: "change" | "not_now") => void;
   onResolve: () => void;
 }) {
   const router = useRouter();
   if (type === "sunday_note" || type === "sunday_principle") {
     return <SundayActions type={type} onSunday={onSunday} onResolve={onResolve} />;
+  }
+  if (type === "life_goals_change") {
+    return (
+      <SymmetricPair
+        closeLabel="Not now"
+        onClose={() => {
+          onLifeGoalsChange("not_now");
+          onResolve();
+        }}
+        actionLabel="Change"
+        onAction={() => {
+          onLifeGoalsChange("change");
+          onResolve();
+        }}
+      />
+    );
   }
   if (type === "life_goals" || type === "life_goals_quarter") {
     const pick = type === "life_goals" ? onLifeGoals : onLifeGoalsQuarter;

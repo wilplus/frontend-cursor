@@ -24,6 +24,7 @@ import {
 import {
   answerClash,
   answerLifeGoalsAsk,
+  answerNoteChange,
   answerQuarterAsk,
   changeStep,
   checkClash,
@@ -961,6 +962,13 @@ export function useLifeGoals({ signedIn, reload }: { signedIn: boolean; reload: 
     if (choice === "start") openLens({ mode: "quarter", goalId });
   }
 
+  async function answerChange(goalId: string | null, choice: "change" | "not_now"): Promise<void> {
+    if (goalId && (await answerNoteChange(goalId, choice))) {
+      await reload();
+      await refresh();
+    }
+  }
+
   async function answerAsk(choice: "start" | "not_now"): Promise<void> {
     if (!(await answerLifeGoalsAsk(choice))) return;
     await reload();
@@ -972,6 +980,7 @@ export function useLifeGoals({ signedIn, reload }: { signedIn: boolean; reload: 
     openLens,
     answerAsk: (choice: "start" | "not_now") => void answerAsk(choice),
     answerQuarter: (goalId: string | null, choice: "start" | "not_now") => void answerQuarter(goalId, choice),
+    answerChange: (goalId: string | null, choice: "change" | "not_now") => void answerChange(goalId, choice),
     lens: (
       <LifeGoalsLens open={open} state={state} onClose={() => setOpen(null)} reload={reload} refresh={refresh} />
     ),
@@ -980,13 +989,24 @@ export function useLifeGoals({ signedIn, reload }: { signedIn: boolean; reload: 
 
 export type LifeGoals = ReturnType<typeof useLifeGoals>;
 
-/** The goal whose quarter came back: the newest "Did it move?" row's. */
-export function quarterAskOf(messages: readonly { metadata?: Record<string, unknown> | null }[]): string | null {
+type Rows = readonly { metadata?: Record<string, unknown> | null }[];
+
+function newestAsk(messages: Rows, offer: string, key: string): string | null {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const meta = messages[i].metadata;
-    if (meta?.offer === "life_goals_quarter" && typeof meta.life_goal_quarter === "string") return meta.life_goal_quarter;
+    if (meta?.offer === offer && typeof meta[key] === "string") return meta[key] as string;
   }
   return null;
+}
+
+/** The goal whose quarter came back: the newest "Did it move?" row's. */
+export function quarterAskOf(messages: Rows): string | null {
+  return newestAsk(messages, "life_goals_quarter", "life_goal_quarter");
+}
+
+/** The goal a note would change: the newest "Change … this quarter" ask's (M14). */
+export function changeAskOf(messages: Rows): string | null {
+  return newestAsk(messages, "life_goals_change", "life_goal_change");
 }
 
 /** What a chat reply asks of the lens (M2): ``{"life_goals_open": "add" |
