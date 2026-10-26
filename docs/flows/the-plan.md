@@ -36,10 +36,15 @@ stand. The entries keep their N-numbers and stay the record.
 1. Every new speaker is diagnosed and gets a plan. The questions come once,
    after consent and before the first Take, and can't be skipped; only the
    date can (N136, N146).
-2. A speaker who already has Takes is asked only "When is your deadline?".
-   Their plan is built from the Takes they have (N147).
+2. A speaker who already has Takes is asked only "When is your deadline?",
+   after their next Take, never before it. Their plan is built from the Takes
+   they have (N147, N178).
 3. One plan runs at a time. A new event gets the questions again and a new
-   plan; the old plan stays in the history (N140).
+   plan; the old plan stays in the history (N140). Its questions come after a
+   Take, never before one (N178).
+4. Before any Take but the first, the only thing shown is the feelings check,
+   one tap, with a Skip (D4). Every other question on this page waits until
+   after the Take (Never 3; N178).
 
 ### B · The questions, in the Lounge
 
@@ -101,17 +106,16 @@ stand. The entries keep their N-numbers and stay the record.
 1. A plan's first practice and its last practice get two ratings from 1 to
    10: how stressed and how ready the speaker feels. On the first practice
    they come at the end of the questions, before the plan card; on the last
-   practice, before its Take (N148, N151).
+   practice, after its Take (N148, N151, N178).
 2. One question at a time: the question in the thread, its scale in the
-   footer in place of "Type here". The pick shows in the chat as the
-   speaker's own answer, an orange bubble with the number they tapped, on the
-   first and the last practice alike (N157, N161).
-3. Beyond the speaker's own answer, the number is never shown again. The
-   founder and the coach see it; Will speaks of it only in words (Never 1;
-   N149, N161).
+   footer in place of "Type here". The number they tapped is never shown
+   back to them; how the chat answers the tap waits for the founder's words
+   (§3; N178, which changes N161's orange bubble with the number).
+3. The founder and the coach see the number; Will speaks of it only in words
+   (Never 1; N149, N178).
 4. Every practice in between gets only "How do you feel?" (Nervous, Excited,
-   Calm, Not sure), today's screen, unchanged. Today it shows once per new
-   project, before Take 1 (N151; the recording screens' page).
+   Calm, Not sure), today's screen, with a Skip. Today it shows once per new
+   project, before Take 1 (N151, N178; the recording screens' page).
 
 ### E · The plan card
 
@@ -243,19 +247,20 @@ stand. The entries keep their N-numbers and stay the record.
    the speaker's to change, and the plan recalculates. The level is the
    coach's: "Ask your coach". "I have a new event" starts the questions again
    (N140).
-2. A new project asks "Is this for 14 November?" (the plan's deadline). Yes
-   keeps the plan; no starts "When is your deadline?" and the questions for a
-   new plan. New slides or a rewrite for the same event keep the plan (N149).
+2. A new project asks "Is this for 14 November?" (the plan's deadline),
+   after its first Take, not before it (N178). Yes keeps the plan; no starts
+   "When is your deadline?" and the questions for a new plan. New slides or a
+   rewrite for the same event keep the plan (N149).
 
 ### I · The plan's end
 
-1. At the last practice, the two ratings come before the Take (D1).
+1. At the last practice, the two ratings come after the Take (D1; N178).
 2. The first time the speaker opens the app on or after the deadline: "How
    did it go?" as a voice message. Then the summary call: shown with its time
    if it was booked, offered if not. Then "What's next?": "I have a new
    event" (the questions again, a new plan) or "Keep practising" (a new
-   two-month plan from their Takes, no questions, its first ratings before
-   its first Take) (N149, N151, N157).
+   two-month plan from their Takes, no questions, its first ratings after
+   its first Take) (N149, N151, N157, N178).
 3. On the deadline's morning, a short good-luck line in the chat and on the
    chosen channel; the morning after, "How did it go?" with the link outside
    the app, beside the message in the chat (2). Their words wait for the
@@ -357,6 +362,8 @@ Waiting for the founder's OK:
 
 ## 3. Still open
 
+- **How the chat answers a rating tap**, now that the number is not shown
+  back (N178): the words wait for the founder (Never 4).
 - **Two calls from the "one moment" explanation** (26 October): judge
   "better" on the level's own reading (recommended yes); a second level
   moment per walk (recommended no).
@@ -401,6 +408,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N178 · the speaker's own ratings are never shown back as a number; before any Take but the first, only the feelings check, with a Skip; the deadline question, a new event's or new project's questions and the ratings before a later Take move to after it. Was: the number in an orange bubble (N161); those questions before the Take (N147, N149, N151) · BE #1339
 - 2026-10-26 · N177 · the practice-day reminder, when it comes: the speaker picks an email or a WhatsApp; no calendar, no web push (G11). Was: the speaker's own calendar first, then WhatsApp (N174) · BE #1338, FE (this PR)
 - 2026-10-26 · N176 · signed: the other follow-up templates, the ratings' intro and scale ends, the calls' words and the plan's end; only the good-luck line still waits. Was: waiting for the founder's OK · BE #1337, FE #989
 
