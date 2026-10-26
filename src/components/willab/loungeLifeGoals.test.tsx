@@ -6,7 +6,7 @@ OUTCOME
   O2  With every open question skipped, Will drafts nothing and says so.
   O3  A new goal that pulls against a kept one is asked "When they clash, which wins?" before it is set, and the answer is noted for both ladders (N185).
   O4  When the quarter comes back, Start asks "Did it move?" (never a score), what got in the way, shows my own notes that say it too, and asks for the next quarter's step (N186).
-  O5  Under a note that sounds like a change, Change changes the goal the newest ask named, and the thread is read again (N190).
+  O5  Under a note that sounds like a change, Change changes the goal the newest ask named, and the thread is read again (N191).
 PROVES   O1 -> sets a goal from my answers, one step at a time
          O2 -> drafts nothing when I said nothing
          O3 -> asks which wins when two goals clash, before the new one is set
