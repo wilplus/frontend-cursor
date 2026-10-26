@@ -66,6 +66,8 @@ import type { WalkPraiseReasons } from "@/lib/willab/praiseReason";
 import { isFounderEmail } from "@/lib/founder";
 import { useUserEmail } from "./useUserEmail";
 import { useReviewTempo } from "./walk/useReviewTempo";
+import { postTempoGame } from "@/services/api/reviewTempo";
+import { TEMPO_DRAFT_COPY, type TempoEvent } from "@/lib/willab/tempoStep";
 
 /* -------------------------------------------------------------------------- */
 /*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
@@ -785,6 +787,28 @@ export function useDeckFeedbackWalk(args: {
     const takeIndex = live.current.takeIndex ?? null;
     void to.append(walkStepDraft({ ...entry, take: on, arcId, takeIndex })).catch(() => undefined);
   }, []);
+  /* The tempo step in the chat and for Will (N166 step 4): its opening
+     lines, each try and its comment, the closing line, as Lounge messages
+     like every other step; the game itself kept for Will's note. */
+  const onTempo = useCallback(
+    (event: TempoEvent) => {
+      if (!tempo) return;
+      const say = (key: string, author: "app" | "speaker", body: string, attempt: number | null = null) =>
+        post({ key, moment: null, attempt, author, body });
+      if (event.kind === "opened") {
+        say("tempo:open", "app", [TEMPO_DRAFT_COPY.game[tempo.reading], TEMPO_DRAFT_COPY.task(tempo.topic), TEMPO_DRAFT_COPY.room].join("\n"));
+      } else if (event.kind === "try") {
+        say("tempo:try", "speaker", TEMPO_DRAFT_COPY.tryLabel(event.n), event.n);
+        say("tempo:comment", "app", TEMPO_DRAFT_COPY.comment[event.result], event.n);
+      } else {
+        if (event.close) say("tempo:close", "app", TEMPO_DRAFT_COPY.close[event.close]);
+        else say("tempo:skip", "speaker", TEMPO_DRAFT_COPY.skip);
+        const arcId = args.arcId ?? null;
+        if (arcId && take) void postTempoGame(arcId, take, tempo.reading, event);
+      }
+    },
+    [tempo, post, args.arcId, take],
+  );
   const model = useMemo(
     () =>
       buildFeedbackWalk({
@@ -1385,6 +1409,7 @@ export function useDeckFeedbackWalk(args: {
           reasons={greenReasons}
           othersJudged={othersJudged}
           tempo={tempo}
+          onTempo={onTempo}
         />
     ),
     [
@@ -1414,6 +1439,7 @@ export function useDeckFeedbackWalk(args: {
       greenReasons,
       othersJudged,
       tempo,
+      onTempo,
     ],
   );
 
