@@ -424,6 +424,8 @@ async function addGoal(ctx: Ctx, open: LensOpen): Promise<void> {
   const done = new Set((ladder.progress ?? "").split(",").filter(Boolean));
   // A draft reopens where it stopped: its answered questions show at once.
   s.fast.current = resume !== null;
+  // The first time, before anything else: the details go on paper (N183).
+  if (!resume && !state.goals.length) await s.say(COPY.notebookHead, COPY.notebook);
   const space = resume ? await shownSpace(s, resume.space) : await pickSpace(ctx, open);
   const sit: Sitting = {
     ctx, s, id: resume?.id ?? null, space, ladder, answers: { ...(ladder.answers ?? {}) }, done,
@@ -546,7 +548,7 @@ async function setGoal(sit: Sitting): Promise<void> {
   if (!sit.id) sit.id = (await saveDraft(null, sit.space, sit.ladder))?.id ?? null;
   const rows = sit.id ? await finishGoal(sit.id, sit.replaces) : null;
   const set = rows?.map((row) => lifeGoalOf(row.metadata)).find(Boolean) ?? null;
-  if (set) await sit.s.say(<LadderCard key="ladder" goal={set} />, COPY.setGoal(sit.space));
+  if (set) await sit.s.say(<LadderCard key="ladder" goal={set} />, COPY.setGoal(sit.space), COPY.goLive);
   await sit.ctx.refresh();
   await sit.ctx.reload();
 }

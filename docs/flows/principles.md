@@ -58,7 +58,9 @@ Life Panel.
   LIFE GOAL, A WANT, HELD KNOWINGLY, GIVING UP, IN TEN YEARS, IN THREE
   YEARS, IN A YEAR, THIS QUARTER, NEXT QUARTER, TALK GOAL, THIS WEEK, "from
   your practice", "changed {date}", "Earlier:"; the field's "Say it or type
-  it"; "Type instead". With N170: "Nothing stands out in your notes from the last
+  it"; "Type instead". With N183 (M16): "📓 Use your notebook!"; "Keep the
+  details in your own notebook, the paper one. Here we keep only the base.";
+  "That's the base. Now go and live it. Come back for a short recap.". With N170: "Nothing stands out in your notes from the last
   seven days yet."; "There are no # notes from the last seven days yet."
 
 ### L · The Sunday note (backend `services/sunday_note.py`; locked 2026-10-26, N158)
@@ -198,6 +200,13 @@ The prototype is the design: <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24>
 - **M15** Kept in the Life Panel's store as its top layer, above the three
   bets; every version dated. Will reads the ladders and their dated changes
   before it chats and before the Sunday note.
+- **M16** The base, not the details (backend N180, N183). The first time the
+  lens opens (no goal yet, no draft), before the space: "📓 Use your
+  notebook!" and "Keep the details in your own notebook, the paper one. Here
+  we keep only the base." When a goal is set, after "Noted. Your … goal is
+  set.": "That's the base. Now go and live it. Come back for a short recap."
+  (in the lens and in the Lounge). The voice notebook stays for short #
+  notes for Will; the long personal writing goes in the paper notebook.
 
 ---
 
@@ -243,6 +252,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N180, N183 · built (M16): "📓 Use your notebook!" and the paper-notebook line the first time the lens opens; "That's the base. Now go and live it. Come back for a short recap." when a goal is set; the voice notebook stays for short # notes · BE (this change), FE (this PR)
 - 2026-10-26 · N182 · this page: the principles, the Sunday note and life goals are their own feature, ring 6, apart from the speaking coach; L and M moved here from the walk's page with their letters, words, in-flight lines and prototypes · BE #1344, FE #993
 - 2026-10-26 · N172 · built (M1–M11): the ask after a # note with Not now | Start; "#goals" or an ask in your own words opens the lens; one goal per sitting, the open questions said with the small mic or typed, Will's draft quoting only your words, goal or want, ambitious, give up, the horizon worked back to the quarter with the four-week rule, the ladder in the Lounge with its ›, a step changed with its earlier words kept; the lens is the walk's frame (`LoungeLifeGoals.tsx`); the pair shows above the message box, as the notebook's and the WhatsApp ask's do · BE #1335, FE (this PR)
 - 2026-10-26 · N172 · life goals decided (M): asked once after the first # note and once more after the next, or whenever asked; one goal per sitting in a lens; drafted only from the speaker's words; goal or want; a horizon and the steps worked back to the quarter, with the four-week rule; the ladder; changing a step with its history; kept in the Life Panel · —
