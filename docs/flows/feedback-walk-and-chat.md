@@ -247,7 +247,7 @@ step; the loop never waits for a coach.
   a big bubble in the thread with large plain word buttons, no borders,
   chosen words orange;
   "N of 8 words" at the top, the count against the cap (eight since
-  2026-10-15), in place of "Tap the words" (2026-10-21); "Use these helper
+  2026-10-15; N178), in place of "Tap the words" (2026-10-21); "Use these helper
   words" and "Skip"; once the words are
   given, the pill reads "Edit the helper words" and the link "Keep these"
   (founder, signed 2026-10-21). Helper words stay
@@ -1035,8 +1035,9 @@ The four lines above were filled from main's history by the page's keeper on
   plays that stretch back and asks them to talk about the same thing again
   while a dot on a scale follows their pace live.
 
-  **Where and when** (N162).
+  **Where and when** (N162, N178).
   - In the Feedback walk only. Never in the coach panel, the Lounge, or before the Take.
+  - It sits before the Ideal Text, so it always has a Skip, and the whole walk has a time limit (N178, which replaces N130's "never between a Take and the Ideal Text" for the walk's own practice steps). Open: the limit; the founder sets it (§3).
   - It shows when the diagnosis and the plan say so: in a pace or pause week, from Take 2 ([the plan](the-plan.md), item 5).
 
   **The scale.** A dot on a horizontal line. It moves right while you talk
@@ -1088,6 +1089,8 @@ The four lines above were filled from main's history by the page's keeper on
   (2026-10-24, N130, N133): a circle with three reads, replaced by the scale (N142).
 
 ## 3. Still open
+
+- **The walk's time limit** (N178): the whole walk, the tempo step included, gets one; the founder sets it.
 
 - **Tempo step**: its open questions, with defaults, are in its block in §2.
 
@@ -1204,6 +1207,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-10-26 · N179 · the tempo step's words signed and listed in K; was drafts shown to the founder only · BE (decisions log), FE (this PR)
+- 2026-10-26 · N178 · the tempo step stays before the Ideal Text with a Skip, and the whole walk gets a time limit (open); helper words up to eight confirmed. Was: N130's "never between a Take and the Ideal Text"; the cap written as six in the contract · BE #1339
 - 2026-10-26 · N172 · built (M1–M11): the ask after a # note with Not now | Start; "#goals" or an ask in your own words opens the lens; one goal per sitting, the open questions said with the small mic or typed, Will's draft quoting only your words, goal or want, ambitious, give up, the horizon worked back to the quarter with the four-week rule, the ladder in the Lounge with its ›, a step changed with its earlier words kept; the lens is the walk's frame (`LoungeLifeGoals.tsx`); the pair shows above the message box, as the notebook's and the WhatsApp ask's do · BE #1335, FE (this PR)
 - 2026-10-26 · N166 · built: who has the tempo step is a ring, the `tempo_step` row in the rings panel, besides the founder; the backend answers the step and keeps the game only for them; was the founder only · BE (this change), FE (this PR)
 - 2026-10-26 · N172 · life goals decided (M): asked once after the first # note and once more after the next, or whenever asked; one goal per sitting in a lens; drafted only from the speaker's words; goal or want; a horizon and the steps worked back to the quarter, with the four-week rule; the ladder; changing a step with its history; kept in the Life Panel · —
