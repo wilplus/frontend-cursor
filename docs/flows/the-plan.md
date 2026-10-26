@@ -370,14 +370,14 @@ Waiting for the founder's OK:
 - **The plan** · all of §1 · decided from 24 October 2026 (N129 onward;
   the latest are in §6), drawn on the prototype (§5) · the build plan:
   <https://claude.ai/artifact/5wuXkBNDctRcbxYs9V7R8A>
-  - Built, switched off until the migration (N203, N204): A, B, C, D1 to D3,
-    E, F, G3 to G6, G13, H1, I1, I2, J, K.
-  - Still to come: the bar and "{n} of {total} practices done. Next: {day}."
-    on the walk's end sheet (E3, G5; the walk is locked, the change approved,
-    N140); the level's moment in the walk (G7); the feelings check between a
-    plan's first and last practice (D4; the recording screens); a level
-    moving on and the coach's queue (G10); "Is this for {date}?" on a new
-    project (H2); the coach's side, drawn first for the founder's OK (N204).
+  - Built, switched off until the migration (N203, N204): A, B, C, D, E,
+    F, G3 to G6, G13, H, I1, I2, J, K; the bar and "{n} of {total}
+    practices done. Next: {day}." on the walk's end card (E3, G5; the walk
+    is locked, the change approved, N140); THIS WEEK on the life goals
+    ladder (N172 M10, BE #1390, FE #1017).
+  - Still to come: the level's moment in the walk (G7); a level moving on
+    and the coach's queue (G10); the coach's side, drawn first for the
+    founder's OK (N204).
 
 ## 3. Still open
 
@@ -455,6 +455,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-26 · N140, N151, N178, N203 · built, switched off: the bar and the practices line on the walk's end card, "How do you feel?" with a Skip before every Take but the plan's first, "Is this for {date}?" on a new project with Yes and No · BE #1389, FE (this PR)
 
 - 2026-10-26 · N203, N204 · built, switched off until the migration: the questions, the calls, the card, the practice days in the chat, changing the plan, the plan's end; §2 lists what is still to come, §3 what was built where the prototype doesn't say. Was: nothing built · BE #1386, FE #1016
 

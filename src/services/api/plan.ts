@@ -16,7 +16,8 @@ export type PlanStep =
   | "summary"
   | "done"
   | "how_it_went"
-  | "whats_next";
+  | "whats_next"
+  | "same_event";
 
 export type PlanCall = { starts_at: string; text: string; short: string } | null;
 
@@ -176,6 +177,26 @@ export function nextPlan(choice: "new_event" | "keep_practising"): Promise<PlanS
  *  next Take (N178). */
 export function startNewEvent(): Promise<PlanState | null> {
   return send("/api/v2/plan/new-event", { json: { tz: browserZone() } });
+}
+
+/* The plan as last read, for the screens outside the Lounge: the recording
+   screens ask whether "How do you feel?" comes before this Take (D4). */
+let lastPlan: Plan | null = null;
+
+export function rememberPlan(plan: Plan | null): void {
+  lastPlan = plan;
+}
+
+/** Before any Take but a plan's first, "How do you feel?" with a Skip (D4;
+ *  backend N151, N178): once the plan's first Take is recorded. */
+export function feelingsDue(): boolean {
+  return lastPlan !== null && lastPlan.status === "active" && lastPlan.first_take_done;
+}
+
+/** "Is this for {date}?" on a new project (H2): Yes keeps the plan; No
+ *  starts the questions for a new one. */
+export function sameEvent(yes: boolean): Promise<PlanState | null> {
+  return send("/api/v2/plan/same-event", { json: { yes, tz: browserZone() } });
 }
 
 /** The URL that plays a voice answer (the key line's "How you said it"). */

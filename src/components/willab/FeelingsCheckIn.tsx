@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { recordFeeling, type Feeling } from "./willabFeelings";
+import { feelingsDue } from "@/services/api/plan";
 
 /* -------------------------------------------------------------------------- */
 /*  FeelingsCheckIn — first-recording onboarding, step 0 (U10)                 */
@@ -98,6 +99,19 @@ export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
         <div className="mt-5 rounded-2xl bg-primary/5 p-4">
           <p className="text-[15px] leading-relaxed text-foreground">{reply}</p>
         </div>
+      ) : null}
+      {/* A plan's practice between its first and last gets this screen
+          before every Take, with a Skip (docs/flows/the-plan.md D4; N151,
+          N178). Its first Take had the two ratings instead. */}
+      {!picked && feelingsDue() ? (
+        <button
+          type="button"
+          onClick={onReady}
+          data-feelings-skip
+          className="mt-5 self-center py-2 text-[15px] text-muted-foreground hover:text-foreground"
+        >
+          Skip
+        </button>
       ) : null}
     </div>
   );
