@@ -404,7 +404,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N176 · signed: the other follow-up templates, the ratings' intro and scale ends, the calls' words and the plan's end; only the good-luck line still waits. Was: waiting for the founder's OK · BE #1337
+- 2026-10-26 · N176 · signed: the other follow-up templates, the ratings' intro and scale ends, the calls' words and the plan's end; only the good-luck line still waits. Was: waiting for the founder's OK · BE #1337, FE #989
 
 - 2026-10-26 · N175 · signed: "Why this line?", "Plan", "Kickoff call with your coach", "Summary call with your coach", "Your deadline: {date}". Was: waiting for the founder's OK · BE #1336, FE #987
 
