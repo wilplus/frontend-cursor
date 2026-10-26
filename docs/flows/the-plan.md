@@ -121,10 +121,10 @@ stand. The entries keep their N-numbers and stay the record.
    and "Why this line?", which opens one sentence from what was heard (N153,
    N154, N157, N161).
 2. Under "Plan", in bullet points: the practice days ("15 minutes, 3 times
-   a week: Mon, Wed, Fri", or "15 minutes every day"); the pace practice in a
-   pace or pause week; "Kickoff call with your coach" and "Summary call with
-   your coach", each with its time once booked. Then "Change your plan"
-   (N157).
+   a week: Mon, Wed, Fri", or "15 minutes every day"); in a pace or pause
+   week, "This week your walk has a pace game"; "Kickoff call with your
+   coach" and "Summary call with your coach", each with its time once
+   booked. Then "Change your plan" (N157, N163).
 3. The progress bar shows on the card on a practice day and on the
    walk's end sheet, one part per Take. It fills with what the speaker did,
    never with a measure of the voice. The end sheet is a locked screen; this
@@ -228,8 +228,8 @@ Signed:
 - The plan: "Thanks! Here's your plan." · "Ready by {date}" · "Your next
   level" · the five level names · "How you said it" · "Why this line:" and
   its sentence · "15 minutes, 3 times a week: {days}" · "15 minutes every
-  day" · "Before each Take this week: 2 minutes with the Pace Circle" ·
-  "Change your plan" (N140, N154).
+  day" · "This week your walk has a pace game" (N163) · "Change your
+  plan" (N140, N154).
 - Changing the plan: "Your plan" · "Deadline" · "Practice days" · "Your
   level" · "Pick 3 days." · "Save" · "Your deadline is close, so you
   practise every day." · "Your level comes from what I heard in your voice.
@@ -279,9 +279,6 @@ Waiting for the founder's OK:
 
 ## 3. Still open
 
-- **The card's pace line.** "Before each Take this week: 2 minutes with the
-  Pace Circle" no longer fits: the practice is in the walk now (N162). New
-  words wait for the founder's OK.
 - **Two calls from the "one moment" explanation** (26 October): judge
   "better" on the level's own reading (recommended yes); a second level
   moment per walk (recommended no).
@@ -326,6 +323,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N163 · the card's pace line, signed: "This week your walk has a pace game"; was "Before each Take this week: 2 minutes with the Pace Circle" · BE #1317, FE #970
 - 2026-10-26 · N162 · the pace practice is the tempo step of the Feedback walk only, shown in a pace or pause week from Take 2; was: before the Take, 2 minutes, where it sat open · BE #1316, FE #969
 - 2026-10-26 · N161 · the rating shows in the chat as the speaker's answer; the kickoff call is booked before the plan, then the summary call offered (Skip or Book now); "Book", not "Book and pay"; then "You're all set. Here's your plan."; the card in one typeface and three sizes; under it only the practice button. Was: the pick not written back; the calls under the card; "Book and pay" and "Next" · BE #1315, FE #968
 - 2026-10-26 · N160 · this page is the plan's one home; was a section of the walk's page (N146 item 2) · BE #1314, FE #967
