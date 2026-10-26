@@ -116,23 +116,27 @@ stand. The entries keep their N-numbers and stay the record.
 ### E · The plan card
 
 1. After the calls (F), Will says "You're all set. Here's your plan." Then
-   the card: "Ready by {date}"; under "Your next level", the level, the key
-   line in the speaker's own words, their recording of it ("How you said it")
-   and "Why this line?", which opens one sentence from what was heard (N153,
-   N154, N157, N161).
+   the card: under "Your next level", the level, the key line in the
+   speaker's own words, their recording of it ("How you said it", from a
+   small grey play button) and "Why this line?", which opens one sentence
+   from what was heard. No "Ready by {date}" heading: the deadline is the
+   orange line in the list (N153, N154, N157, N161, N167).
 2. Under "Plan", in bullet points: the practice days ("15 minutes, 3 times
    a week: Mon, Wed, Fri", or "15 minutes every day"); in a pace or pause
    week, "This week your walk has a pace game"; "Kickoff call with your
    coach", with its time once booked; "Your deadline: {date}", the date in
    orange (for example "Sat 14 Nov"); "Summary call with your coach", with
-   its time once booked. The booked times are green. Then "Change your
-   plan" (N157, N163, N164).
+   its time once booked. The booked times are green. A call not booked yet
+   reads "Book", a link that opens the same calendar in the footer (F); then
+   "Booked: {when}." Then "Change your plan" (N157, N163, N164, N167).
 3. The progress bar shows on the card on a practice day and on the
    walk's end sheet, one part per Take. It fills with what the speaker did,
    never with a measure of the voice. The end sheet is a locked screen; this
    change is approved (N129, N131, N140).
 4. The card uses one typeface, the app's own, and three sizes: the date, the
-   text, the small labels (N161).
+   text, the small labels (N161). Text colours read on white (4.5:1): the
+   orange #C2410C, the green #1F7A4A, the grey #737373. Every link has a
+   fingertip's tap area; the text keeps its size (N167).
 5. Under the card, in place of "Type here", only "Start your first
    recording" (N161).
 
@@ -162,22 +166,38 @@ stand. The entries keep their N-numbers and stay the record.
    eight weeks (N135, N140).
 2. One practice is one Take with its walk, about 15 minutes (N131).
 3. On a practice day Will says so as the Lounge opens: "Hi Artur, good to see
-   you back! Today is practice 2 of 9: Let your key line land." (N140).
-4. The walk shows the Take's best moment and the moment where this week's
+   you back! Today is practice 2 of 9." (N140; the level is on the card,
+   N167). Then the card, closed: "This week's level", the level, its line
+   with the speaker's recording, "Why this line?" and the bar; "See your
+   plan" opens the list and "Change your plan". Progress has one unit:
+   there is no "Week {n} of {weeks}", and "{n} of {total} practices done.
+   Next: {day}." shows only after the Take, on the walk's end sheet (N167).
+4. After the card, one grey bubble, drawn as the app's closing message is
+   today (N89), with "● Record Take N" inside, under its words: "Today, one
+   thing: say your key line a little slower than the rest. You've got this
+   💪" (the wedding toast: "take a breath before your key line"; a
+   speaker's own case: "give your key line a little more room"). The chat
+   has one record button, in the newest bubble: the previous Take's closing
+   message keeps its words and gives its button up, and a line written after
+   it moves the bubble below. The last practice and the next plan show the
+   same bubble with N89's closing line. No "Start a new project" under it:
+   the "+" next to "Type here" opens the projects, as today. Will's hello,
+   the card and the button fit on the first screen (N167).
+5. The walk shows the Take's best moment and the moment where this week's
    level shows most; when no moment shows it, the two best, as today (N134;
    the walk's page).
-5. In a pace or pause week the speaker practises their pace, from Take 2
+6. In a pace or pause week the speaker practises their pace, from Take 2
    (Take 1 has no Ideal Text yet). The pace practice is the tempo step of
    the Feedback walk and nowhere else: not the coach panel, not the Lounge,
    not before the Take. Its rules are on the walk's page, §2 "Tempo"
    (N130, N134, N140, N142, N162).
-6. A practise that slowed down gets its own lines, said in turn: "You gave it
+7. A practise that slowed down gets its own lines, said in turn: "You gave it
    room, and it landed." · "Slower, and every word counted." · "That pace
    lets them keep up with you." (N140).
-7. A level moves on after two Takes in a row reach it, or when its time runs
+8. A level moves on after two Takes in a row reach it, or when its time runs
    out. After three Takes without moving, it switches to the next
    intervention in its row, and the coach sees it in their queue (N134).
-8. There is no practice-day reminder for now. When it comes, it is the
+9. There is no practice-day reminder for now. When it comes, it is the
    WhatsApp ask under the plan card, the same as today's WhatsApp ask, with
    the words of N154, after a new privacy version names it and Meta approves
    its template (N153, N154, N155).
@@ -227,7 +247,7 @@ Signed:
   what is it? Say it the way you'll say it." · "Who will be in the room on
   {date}, and how many?" · "How long will you speak, and will you have
   slides?" (N140).
-- The plan: "Thanks! Here's your plan." · "Ready by {date}" · "Your next
+- The plan: "Thanks! Here's your plan." · "Your next
   level" · the five level names · "How you said it" · "Why this line:" and
   its sentence · "15 minutes, 3 times a week: {days}" · "15 minutes every
   day" · "This week your walk has a pace game" (N163) · "Change your
@@ -238,10 +258,14 @@ Signed:
   Your coach can change it." · "Ask your coach" · "Done. Your plan now runs
   to {date}." · "Done. You'll practise on {days}." · "I've told your coach.
   You can talk it over on your next call." · "I have a new event" (N140).
-- Practice days: "Today is practice {n} of {total}: {level}." · "{n} of
-  {total} practices done. Next: {day}." · "Week {n} of {weeks}" · "This
-  week's level: {level}. Here's where it shows:" · the three pace lines (G6)
-  (N140).
+- Practice days: "Today is practice {n} of {total}." · "{n} of {total}
+  practices done. Next: {day}." · "This week's level: {level}. Here's where
+  it shows:" · the three pace lines (G7) (N140) · "This week's level" · "See
+  your plan" · "Book" (a call not booked yet) · "Today, one thing: say your
+  key line a little slower than the rest. You've got this 💪" · "Today, one
+  thing: take a breath before your key line. You've got this 💪" · "Today,
+  one thing: give your key line a little more room. You've got this 💪"
+  (N167).
 - Kept for the reminder, when it comes: "Want a WhatsApp on your practice
   days? Add your number." · "We'll only use it to remind you on practice days
   and to tell you when your coach texted you" · "Saved ✓ We'll message you
@@ -259,7 +283,7 @@ Waiting for the founder's OK:
   about it right now?" · "How ready do you feel for it right now?" · "Calm" ·
   "Very stressed" · "Not ready" · "Fully ready".
 - The plan and the calls: "Why this line?" · "Plan" · "Kickoff call with your
-  coach" · "Summary call with your coach" · "(not booked yet)" · "Before I
+  coach" · "Summary call with your coach" · "Before I
   show you your plan, pick a time for a 15-minute call with your coach. It's
   your kickoff call." · "{n} of 2 booked" · "Your deadline" · "Skip" · "Book"
   · "Book now" · "Booked: {day, date, time}." · "Would you also like to book
@@ -325,6 +349,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-26 · N167 · a practice day: "Record Take N" inside a bubble after the card, one record button in the chat; the card closed ("This week's level", the bar, "See your plan"); progress in one unit; no "Ready by" heading; "Book" on a call not booked; readable colours, a small grey play, fingertip tap areas. Was: a black "Record Take 2" pill and "Start a new project" under the full card; "Week 1 of 3"; "(not booked yet)" · BE #1322
 
 - 2026-10-26 · N164 · the deadline in the plan's list, between the two calls, the date in orange · BE #1318, FE #971
 - 2026-10-26 · N163 · the card's pace line, signed: "This week your walk has a pace game"; was "Before each Take this week: 2 minutes with the Pace Circle" · BE #1317, FE #970
