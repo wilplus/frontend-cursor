@@ -223,15 +223,12 @@ stand. The entries keep their N-numbers and stay the record.
    says the same words as its message in the chat, written at the same
    moment, and tapping it opens the chat at that day line. It goes at 9:00
    in the speaker's time zone by default, changed in "Change your plan", with
-   no new question before Take 1. Its first channel is the speaker's own
-   calendar, one the phone subscribes to: it follows "Change your plan" and
-   the deadline's "Edit", stops when the plan ends, rings at the reminder's
-   time and links to the chat at that day's line; the phone rings it, so the
-   day's hello is written when the app first opens that day. Its second is
-   WhatsApp, with the words of N154, asked as today's WhatsApp ask, once a
-   privacy version names it and Meta approves its template. No web push for
-   speakers. The calendar offer's words wait for the founder's OK (N153,
-   N154, N169, N174).
+   no new question before Take 1. The speaker picks one of two: an email
+   or a WhatsApp, the WhatsApp with the words of N154, asked as today's
+   WhatsApp ask, once a privacy version names it and Meta approves its
+   template; the email with its own unsubscribe link. No calendar and no
+   web push. The two-option offer and the email's words wait for the
+   founder's OK (N153, N154, N169, N174, N176).
 12. Every reminder, on any channel: opt-in and off by default; at most one
    practice reminder a day, never twice on the same local day, between 8:00
    and 21:00 in the speaker's time zone; it says what is ready, never "come
@@ -405,6 +402,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N176 · the practice-day reminder, when it comes: the speaker picks an email or a WhatsApp; no calendar, no web push (G11). Was: the speaker's own calendar first, then WhatsApp (N174) · BE #1338, FE (this PR)
 - 2026-10-26 · N175 · signed: "Why this line?", "Plan", "Kickoff call with your coach", "Summary call with your coach", "Your deadline: {date}". Was: waiting for the founder's OK · BE #1336, FE #987
 
 - 2026-10-26 · N174 · the practice-day reminder, when it comes: the speaker's own calendar first (a subscribed calendar that follows the plan), then WhatsApp; no web push for speakers (G11). Was: WhatsApp first, web push second (N169 item 6) · BE #1331, FE (this PR)
