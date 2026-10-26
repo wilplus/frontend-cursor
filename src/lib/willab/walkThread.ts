@@ -451,6 +451,72 @@ export function chatWalks(messages: readonly LoungeMessage[]): ChatWalk[] {
   return [...walks.values()].map((w) => ({ ...w, edited: edited.has(w.take) }));
 }
 
+/** A Take's version bubble ("Your ideal text is ready", or verified): the
+ *  project's card for that Take before its review's end card exists. */
+function versionOf(m: LoungeMessage, walk: ChatWalk): boolean {
+  const meta = m.metadata ?? {};
+  const version = typeof meta.version === "string" && meta.version.trim() ? Number(meta.version) : meta.version;
+  return (
+    m.kind === "ideal_text" &&
+    (meta.variant === "ready" || meta.variant === "verified") &&
+    walk.arcId !== null &&
+    meta.arc_id === walk.arcId &&
+    walk.takeIndex !== null &&
+    version === walk.takeIndex
+  );
+}
+
+/** THE PAIR (founder 2026-10-26, N202): each Take's Ideal Text card is drawn
+ *  right under its Feedback walk, the same width, as one pair, wherever the
+ *  card was written; what was said in between stays under the pair. The
+ *  card is the review's end; a walk left before its end (the next Take was
+ *  recorded) pairs with its Take's version bubble. While the walk still runs
+ *  (`live`: the project whose review waits, its newest walk) its card is held
+ *  back: the walk's end brings it (N202, question 1). Pure: the chat's drawn
+ *  messages in; out, the card under each walk (keyed by the walk's `at`) and
+ *  the cards not drawn (an earlier copy of a Take's card, or the live walk's). */
+export function walkPairs(
+  messages: readonly LoungeMessage[],
+  walks: readonly ChatWalk[],
+  live: string | null,
+): { cardOf: Map<string, string>; held: Set<string> } {
+  const cardOf = new Map<string, string>();
+  const held = new Set<string>();
+  const liveWalk = live ? [...walks].reverse().find((w) => w.arcId === live) ?? null : null;
+  for (const walk of walks) {
+    const ends = messages.filter((m) => m.kind === "walk_step" && m.metadata?.step === "end" && takeOf(m) === walk.take);
+    const cards = ends.length > 0 ? ends : messages.filter((m) => versionOf(m, walk));
+    if (cards.length === 0) continue;
+    if (walk === liveWalk && ends.length === 0) {
+      cards.forEach((m) => held.add(m.client_id));
+      continue;
+    }
+    cardOf.set(walk.at, cards[cards.length - 1].client_id);
+    cards.slice(0, -1).forEach((m) => held.add(m.client_id));
+  }
+  return { cardOf, held };
+}
+
+/** The chat in the order it is drawn (N202): each Take's card right after
+ *  its Feedback walk, the cards held back left out, the rest as written. */
+export function inPairs<T>(
+  items: readonly T[],
+  idOf: (item: T) => string,
+  pairs: { cardOf: ReadonlyMap<string, string>; held: ReadonlySet<string> },
+): T[] {
+  const byId = new Map(items.map((item) => [idOf(item), item]));
+  const moved = new Set(pairs.cardOf.values());
+  const out: T[] = [];
+  for (const item of items) {
+    const id = idOf(item);
+    if (moved.has(id) || pairs.held.has(id)) continue;
+    out.push(item);
+    const card = byId.get(pairs.cardOf.get(id) ?? "");
+    if (card) out.push(card);
+  }
+  return out;
+}
+
 /** Who heard each Take, as one line under its recording (G1, N192): the
  *  sharing choice the speaker gave before it, in its own words ("Only my
  *  community (Invita)"). Keyed by the recording's message. */

@@ -83,14 +83,26 @@ step; the loop never waits for a coach.
   computer the lens is as wide as the Lounge's chat column (max-w-3xl); the
   Ideal Text's Record Take and Close sit in the same column (2026-10-20).
 - **B3** Lens off is the Lounge, the main view: 15px, 16px corners, 20px
-  avatar. A Take is its recording, one "Feedback walk" bubble and, once the
-  walk is done, the Take's Ideal Text card under it (founder 2026-10-26,
-  N192: "there should be just the ideal text after the take and the feedback
-  walk above it"; "make sure that all of these are in one bubble now in a
-  bubble with a date and a small arrow to open it"; then "go with A", over
-  the card alone with a black line on every paragraph the walk has something
-  on, and one card with a Feedback walk row, both drawn). Nothing else the
-  walk says is drawn in the chat: the hello, the coach's word (D5), the
+  avatar. A Take is its recording, then one pair: its "Feedback walk" bubble
+  and, right under it once the walk is done, the Take's Ideal Text card
+  (founder 2026-10-26, N192: "there should be just the ideal text after the
+  take and the feedback walk above it"; "make sure that all of these are in
+  one bubble now in a bubble with a date and a small arrow to open it"; then
+  "go with A", over the card alone with a black line on every paragraph the
+  walk has something on, and one card with a Feedback walk row, both drawn;
+  N202: "can the ideal text and the feedback walk be similar width and always
+  together, first the feedback walk and the ideal text bubble next, but always
+  as two bubble pair", then "yes, go with both recommendations"). The
+  Feedback walk is as wide as the card (80% of the chat, at most 384px) from
+  the moment it lands; the card sits 3px under it, their left corners drawn
+  in where they meet, and the Feedback walk has no tail: the card closes the
+  pair. The pair stays under the Take's recording: what lands while the walk
+  waits (the speaker writing to Will) stays under the pair, and the card
+  joins its Feedback walk there when the walk ends; nothing moves (N202,
+  question 2). While the walk runs, the Take's card is not drawn: its "Your
+  ideal text is ready" card waits for the walk's end (N202, question 1); a
+  walk left before its end (the next Take recorded) pairs with that card.
+  Nothing else the walk says is drawn in the chat: the hello, the coach's word (D5), the
   praise, "Choose your helper words" and the speaker's words, the clearer
   version and the choice, the AI voice's bubble, the tries and their
   answers, other speakers and the answers, and the summary (D4) are in the
@@ -417,7 +429,8 @@ step; the loop never waits for a coach.
   the chain (D4) brings them.
 - **D4** In the chat the review ends with the Take's small card (the first
   slide, the project's name, a version tag such as "2.0", the coach's "new"
-  dot on the project's newest card) under its Feedback walk. The summary is
+  dot on the project's newest card drawn) right under its Feedback walk, one
+  pair (B3, N202). The summary is
   the walk's last step (C9) and is not drawn in the chat (founder
   2026-10-26, N192, question 1: "In the walk only"). Then the chain, one action at a time, each after the one
   before is answered (founder 2026-10-20, N89): every ask that waits (E1),
@@ -1088,7 +1101,8 @@ The design is the prototype; the newest wins where two disagree.
 
 - **Current:** the Feedback walk in the chat
   <https://claude.ai/artifact/Xb51mpaFDguFdBuL8Gjv18> (N192, 2026-10-26,
-  version 5, decided; version 3 drew the two ways not chosen); the lens,
+  version 5, decided; version 3 drew the two ways not chosen; version 6, the
+  pair, N202, with "As built" to compare); the lens,
   the Ideal Text and the Lounge
   <https://claude.ai/artifact/MpiAtrUz4DNBKm3EvhA6fm> (2026-10-20); the lens
   as one chat <https://claude.ai/artifact/P5fHFguyCgjhMGPsmH7UaD> (N81);
@@ -1116,6 +1130,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N202 · a Take's Feedback walk and its Ideal Text card are one pair: the Feedback walk as wide as the card (80% of the chat, at most 384px), the card right under it, 3px apart, their left corners drawn in, no tail on the Feedback walk; the card drawn at its Feedback walk's place, what was said in between under the pair; while the walk runs its "ready" card is not drawn, and the coach's "new" dot sits on the newest card drawn; a walk left before its end pairs with its "ready" card; was: the Feedback walk as wide as its words (at least 190px), the card where the walk's end wrote it, and the "ready" card drawn above the Feedback walk while the walk ran (B3, D4) · BE #1383, FE (this PR)
 - 2026-10-26 · N192 · built: the Lounge draws a Take's walk as one "Feedback walk" bubble at its first step, with the walk's date and ›, "🔒 Take N" for an older Take and "Edited" once something in it changed; its card and the coach's "Later" bubble stay their own; the walk's other steps, the summary (kept where it carries "Record Take N", a Take before N89) and the sharing bubbles are not drawn; the sharing choice is a line on the recording; an outlined bubble is a 2px border with no tail; in the walk, "Edited" on helper words picked again, on the coach's changed word and on a summary a coach's note rewrote, with its earlier version; the walk shows the summary as the chat holds it, also when played again; Will reads the Feedback walk with the Take's summary in it; a coach's changed word keeps its bubble's place, marked edited (BE) · BE #1368, FE (this PR)
 - 2026-10-26 · N171, N189 · built: one ask after each Take, the first that waits in E1's order, the others for a later Take; the WhatsApp ask can be Take 1's, the CEO panel's ask and the home screen from Take 2; was at most two a Take, and never WhatsApp after Take 1 (E1) · BE #1370, FE (this PR)
 - 2026-10-26 · N192 · the chat shows a Take as its recording, one "Feedback walk" bubble with its date and ›, and its Ideal Text card; an edit says "Edited" in place; the summary, the coach's word from the walk and the sharing question leave the chat (the choice is a line on the recording); the outline a full stroke; the card alone with black lines on the text, and one card with a Feedback walk row, were drawn and not chosen; was: the same steps as chat bubbles, a step that asks locks and shows its answer as the speaker's bubble (B3); a bubble with › opens its step, "✓ Practised" over Next (B10); the Lounge says the lens's words, the AI voice's short bubble (B12); helper words editable from the Lounge's helper-words bubble, a new pick a new bubble and the old one struck through (C3); the summary a plain bubble under the card (D4); the walk's copy of the coach's word in the chat, a changed word moved to the bottom (D5); "Record Take N", the question and the choice as three bubbles (G1) · BE #1364, FE (this PR)

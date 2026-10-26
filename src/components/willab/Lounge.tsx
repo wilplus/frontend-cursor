@@ -59,7 +59,7 @@ import { PROCESSING_STAGES } from "./ProcessingWait";
 import type { IdealTextLaunchMode } from "./IdealTextOverlay";
 import { lensAddress } from "@/lib/willab/lensScreen";
 import { startOpenTrace } from "@/lib/willab/openTrace";
-import { chatDrawsStep, chatWalks, shareLines, type ChatWalk } from "@/lib/willab/walkThread";
+import { chatDrawsStep, chatWalks, inPairs, shareLines, walkPairs, type ChatWalk } from "@/lib/willab/walkThread";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import {
   clearExploreArc,
@@ -382,9 +382,6 @@ export default function Lounge({
   // The thread in the order it is drawn (founder 2026-10-20): what the
   // chat reads as "the newest" is what shows last.
   const drawn = useMemo(() => threadItems.map((item) => item.message), [threadItems]);
-  // Each project's latest Ideal Text bubble wears the unread-feedback dot
-  // (founder 2026-09-25, Q39 B).
-  const latestIdealIds = useMemo(() => latestIdealBubbleIds(threadItems), [threadItems]);
   // A Take's walk is one bubble, the Feedback walk, at its first step's place
   // (founder 2026-10-26, N192, B3): its other steps stay stored (B1) and are
   // drawn in the walk only. Who heard the Take is one line on its recording
@@ -393,17 +390,28 @@ export default function Lounge({
   const walkAt = useMemo(() => new Map(walks.map((walk) => [walk.at, walk])), [walks]);
   const shares = useMemo(() => shareLines(drawnOf(threadItems)), [threadItems]);
   const summaries = useMemo(() => summaryByTake(drawnOf(threadItems)), [threadItems]);
+  // "Continue review" (founder lock 2026-10-12, section 1): the newest walk
+  // step names its project and is not the review's end.
+  const reviewToContinue = useMemo(() => continueReviewArc(threadItems), [threadItems]);
   // One Ideal Text bubble per Take (founder 2026-10-14).
-  const shownItems = useMemo(() => {
+  const drawnItems = useMemo(() => {
     const hidden = versionBubblesWithReviewCard(threadItems);
     const closing = closingTakesOf(drawnOf(threadItems));
     return threadItems.filter(
       (item) => !hidden.has(item.message.client_id) && chatShows(item.message, walkAt, closing),
     );
   }, [threadItems, walkAt]);
-  // "Continue review" (founder lock 2026-10-12, section 1): the newest walk
-  // step names its project and is not the review's end.
-  const reviewToContinue = useMemo(() => continueReviewArc(threadItems), [threadItems]);
+  // Each Take's Ideal Text card right under its Feedback walk, one pair
+  // (founder 2026-10-26, N202); a walk that still runs has no card yet.
+  const pairs = useMemo(() => walkPairs(drawnOf(drawnItems), walks, reviewToContinue), [drawnItems, walks, reviewToContinue]);
+  const shownItems = useMemo(() => inPairs(drawnItems, (item) => item.message.client_id, pairs), [drawnItems, pairs]);
+  const pairedCards = useMemo(() => new Set(pairs.cardOf.values()), [pairs]);
+  // Each project's latest Ideal Text bubble wears the unread-feedback dot
+  // (founder 2026-09-25, Q39 B): of the cards drawn, not one held back.
+  const latestIdealIds = useMemo(
+    () => latestIdealBubbleIds(threadItems.filter((item) => !pairs.held.has(item.message.client_id))),
+    [threadItems, pairs],
+  );
   // The step it waits on wears the orange outline (same section).
   const waitingStep = useMemo(() => waitingStepId(threadItems, reviewToContinue), [threadItems, reviewToContinue]);
   // Each bubble's Take, and each project's newest: an older Take's steps are
@@ -1609,6 +1617,62 @@ export default function Lounge({
     }
   }
 
+  // One drawn item of the thread: a walk step (the review's end card), a
+  // summary, or any other bubble.
+  const drawItem = (item: ThreadItem, i: number) =>
+    item.message.kind === "walk_step" ? (
+      <WalkStepBubble
+        key={item.reactKey}
+        message={item.message}
+        card={reviewCardOf(item.message, threadItems)}
+        latest={latestIdealIds.has(item.message.client_id)}
+        newWords={olderNewWords.get(item.message.client_id)}
+        waiting={stepWaits(item.message)}
+        lockedTake={olderTake(item.message.metadata)}
+        onOpenOlder={setOlderReview}
+        onOpened={() => setSeenUpdates(keepSeenUpdate(item.message))}
+        onOpenIdealText={openIdealText}
+      />
+    ) : isSummaryLike(item.message.metadata) ? (
+      <SummaryBubble key={item.reactKey} message={item.message} record={recordFor(item.message, closingTakes, nextTakeOf)} />
+    ) : (
+      <Bubble
+        key={item.reactKey}
+        message={item.message}
+        shareLine={shares.get(item.message.client_id) ?? null}
+        onOpenBestPresentation={(arcId) =>
+          openIdealText(arcId)
+        }
+        onOpenTranscripts={() => setLibraryOpen(true)}
+        // A GUEST'S WAY BACK TO THE TEXT (founder live test
+        // 2026-10-05): the coach's feedback page needs an account, and
+        // a guest gets no "your text is ready" bubble, so a guest's
+        // recording bubble opens the Ideal Text it made.
+        onOpenFeedback={
+          thread.signedIn
+            ? setFeedbackTarget
+            : (target) => openIdealText(target.arcId)
+        }
+        onOpenIdealText={openIdealText}
+        latestForArc={latestIdealIds.has(item.message.client_id)}
+        onRetryIdealText={retryIdealTextFromCard}
+        onOpenConfidencePractice={setConfidencePracticeId}
+        onChip={onChip}
+        activeOffer={activeOffer}
+        onOpenOffer={setActiveOffer}
+        willOpen={i === shownItems.length - 1}
+        onWillAnswer={answerWillQuestion}
+        onOpenLifeGoal={(goalId) => lifeGoals.openLens({ mode: "see", goalId })}
+        onOpenSunday={openSunday}
+        sundayWaiting={(id) => sundayWaiting(messages, id)}
+        animate={
+          i === shownItems.length - 1 &&
+          baselineRef.current !== null &&
+          !baselineRef.current.has(item.message.client_id)
+        }
+      />
+    );
+
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
       {lifeGoals.lens}
@@ -1654,69 +1718,37 @@ export default function Lounge({
         ) : threadItems.length === 0 ? (
           <LoungeEmptyState onStart={onStartNewProject ?? onStart} />
         ) : (
-          shownItems.map((item, i) => walkAt.has(item.message.client_id) ? (
-            <FeedbackWalkBubble
-              key={item.reactKey}
-              walk={walkAt.get(item.message.client_id) as ChatWalk}
-              older={olderTake(item.message.metadata)}
-              waits={walkWaits(walkAt.get(item.message.client_id) as ChatWalk)}
-              live={reviewToContinue}
-              onOpenOlder={setOlderReview}
-              onOpened={(seen) => seen.forEach((m) => setSeenUpdates(keepSeenUpdate(m)))}
-              onOpenIdealText={openIdealText}
-            />
-          ) : item.message.kind === "walk_step" ? (
-            <WalkStepBubble
-              key={item.reactKey}
-              message={item.message}
-              card={reviewCardOf(item.message, threadItems)}
-              latest={latestIdealIds.has(item.message.client_id)}
-              newWords={olderNewWords.get(item.message.client_id)}
-              waiting={stepWaits(item.message)}
-              lockedTake={olderTake(item.message.metadata)}
-              onOpenOlder={setOlderReview}
-              onOpened={() => setSeenUpdates(keepSeenUpdate(item.message))}
-              onOpenIdealText={openIdealText}
-            />
-          ) : isSummaryLike(item.message.metadata) ? (
-            <SummaryBubble key={item.reactKey} message={item.message} record={recordFor(item.message, closingTakes, nextTakeOf)} />
-          ) : (
-            <Bubble
-              key={item.reactKey}
-              message={item.message}
-              shareLine={shares.get(item.message.client_id) ?? null}
-              onOpenBestPresentation={(arcId) =>
-                openIdealText(arcId)
-              }
-              onOpenTranscripts={() => setLibraryOpen(true)}
-              // A GUEST'S WAY BACK TO THE TEXT (founder live test
-              // 2026-10-05): the coach's feedback page needs an account, and
-              // a guest gets no "your text is ready" bubble, so a guest's
-              // recording bubble opens the Ideal Text it made.
-              onOpenFeedback={
-                thread.signedIn
-                  ? setFeedbackTarget
-                  : (target) => openIdealText(target.arcId)
-              }
-              onOpenIdealText={openIdealText}
-              latestForArc={latestIdealIds.has(item.message.client_id)}
-              onRetryIdealText={retryIdealTextFromCard}
-              onOpenConfidencePractice={setConfidencePracticeId}
-              onChip={onChip}
-              activeOffer={activeOffer}
-              onOpenOffer={setActiveOffer}
-              willOpen={i === shownItems.length - 1}
-              onWillAnswer={answerWillQuestion}
-              onOpenLifeGoal={(goalId) => lifeGoals.openLens({ mode: "see", goalId })}
-              onOpenSunday={openSunday}
-              sundayWaiting={(id) => sundayWaiting(messages, id)}
-              animate={
-                i === shownItems.length - 1 &&
-                baselineRef.current !== null &&
-                !baselineRef.current.has(item.message.client_id)
-              }
-            />
-          ))
+          shownItems.map((item, i) => {
+            const id = item.message.client_id;
+            // A Take's card is drawn under its Feedback walk, as one pair (N202).
+            if (pairedCards.has(id)) return null;
+            const walk = walkAt.get(id);
+            if (!walk) return drawItem(item, i);
+            const cardId = pairs.cardOf.get(id);
+            const next = shownItems[i + 1];
+            const card = cardId && next?.message.client_id === cardId ? next : null;
+            const bubble = (
+              <FeedbackWalkBubble
+                key={item.reactKey}
+                walk={walk}
+                older={olderTake(item.message.metadata)}
+                waits={walkWaits(walk)}
+                live={reviewToContinue}
+                paired={card !== null}
+                onOpenOlder={setOlderReview}
+                onOpened={(seen) => seen.forEach((m) => setSeenUpdates(keepSeenUpdate(m)))}
+                onOpenIdealText={openIdealText}
+              />
+            );
+            return card ? (
+              <div key={item.reactKey} data-walk-pair="" className="flex flex-col gap-[3px]">
+                {bubble}
+                {drawItem(card, i + 1)}
+              </div>
+            ) : (
+              bubble
+            );
+          })
         )}
 
         {/* While a Take processes (founder lock 2026-10-12, section 1): a
@@ -2877,12 +2909,16 @@ function recordFor(
  *  wears the orange outline, a full stroke with no tail (`data-outlined`).
  *  A tap opens the Take's whole walk: an older Take's read only; live on
  *  what waits while the review waits; on the coach's word while the walk's
- *  own copy of it is not yet seen (C1); else standing on its newest step. */
+ *  own copy of it is not yet seen (C1); else standing on its newest step.
+ *  It is as wide as the Take's Ideal Text card, which sits right under it
+ *  once the walk is done, one pair (founder 2026-10-26, N202): then it has
+ *  no tail, the card closes the pair (`data-paired`, globals.css). */
 function FeedbackWalkBubble({
   walk,
   older,
   waits,
   live,
+  paired,
   onOpenOlder,
   onOpened,
   onOpenIdealText,
@@ -2894,6 +2930,8 @@ function FeedbackWalkBubble({
   waits: LoungeMessage[];
   /** The project whose review waits ("Continue review"); null: none. */
   live: string | null;
+  /** The Take's Ideal Text card is drawn right under it (N202). */
+  paired: boolean;
   onOpenOlder: (older: { take: number; session: string }) => void;
   onOpened: (seen: LoungeMessage[]) => void;
   onOpenIdealText: (arcId: string, mode?: IdealTextLaunchMode, at?: WalkStepTarget | null) => void;
@@ -2917,16 +2955,17 @@ function FeedbackWalkBubble({
     onOpenIdealText(walk.arcId, "review", at ? doorOf(at.metadata ?? {}) : null);
   };
   return (
-    <div data-row="app" className="mr-auto flex max-w-[88%] items-end gap-1.5">
+    <div data-row="app" className="mr-auto flex w-[80%] max-w-sm">
       <button
         type="button"
         data-bubble=""
         data-feedback-walk={walk.take}
         data-outlined={waiting ? "" : undefined}
+        data-paired={paired ? "" : undefined}
         {...(coach ? { [COACH_BUBBLE_ATTR]: String(wordTakeOf(coach) ?? "") } : {})}
         onClick={open}
         onPointerDown={() => warmIdealTextOpen(walk.arcId)}
-        className={`relative flex min-w-[190px] flex-col rounded-[16px] bg-muted text-left text-[15px] leading-[1.45] text-foreground ${waiting ? "border-2 border-primary py-[6px] pl-[10px] pr-[28px]" : "py-2 pl-3 pr-[30px]"}`}
+        className={`relative flex min-w-0 flex-1 flex-col rounded-[16px] bg-muted text-left text-[15px] leading-[1.45] text-foreground ${waiting ? "border-2 border-primary py-[6px] pl-[10px] pr-[28px]" : "py-2 pl-3 pr-[30px]"}`}
       >
         <span>{WALK_COPY.feedbackWalk}</span>
         <span className="mt-0.5 flex items-baseline gap-2.5 text-[11.5px] leading-[1.3] text-muted-foreground">
