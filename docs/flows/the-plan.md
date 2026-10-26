@@ -428,7 +428,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N203 · the build starts, one to one with the prototype; §2 and §3 say where the prototype is older than a decision. Was: the founder holds the build (N147) · BE #1384, FE (this PR)
+- 2026-10-26 · N203 · the build starts, one to one with the prototype; §2 and §3 say where the prototype is older than a decision. Was: the founder holds the build (N147) · BE #1384, FE #1014
 
 - 2026-10-26 · docs audit · the intro and §2 no longer stop at N157; §5 names the prototype's newest version, 27 (N169). Was: "N129 to N157", version 17 · —
 - 2026-10-26 · N180, N183 · G13: when a practice day's practice is done, "That's your 15 minutes for today." and "Now go and live it, away from the phone."; never on a clock, never on other days; built with the practice days · —
