@@ -6,15 +6,15 @@ import PaceCircleLab from "./PaceCircleLab";
 export const dynamic = "force-dynamic";
 
 /* -------------------------------------------------------------------------- */
-/*  /admin/pace-circle — the Pace Circle's microphone test page (founder      */
-/*  2026-10-24; backend decisions log N130, N133).                            */
+/*  /admin/pace-circle — the pace scale's bench (founder 2026-10-24 to 26;     */
+/*  backend decisions log N142, SPEC §17 pace-scale-v1). Its home doc is the  */
+/*  Feedback walk's page, docs/flows/feedback-walk-and-chat.md §2 "Tempo":    */
+/*  the scale will become a step of the walk; until then it runs only here.   */
 /*                                                                            */
 /*  FOUNDER ONLY, the same check /admin/pace uses: anyone else gets Not       */
-/*  Found. It is a test bench for tuning the starting values on a real voice, */
-/*  not the speaker's screen: no speaker can reach it, nothing links to it,   */
-/*  and it never sits between a Take and the Ideal Text. It listens only:     */
-/*  no audio is recorded, sent or stored; the founder's own running baseline  */
-/*  stays in this browser.                                                    */
+/*  Found. No speaker can reach it, nothing links to it, and it never sits    */
+/*  between a Take and the Ideal Text. It listens only: no audio is           */
+/*  recorded, sent or stored.                                                 */
 /* -------------------------------------------------------------------------- */
 
 export default async function AdminPaceCirclePage() {
