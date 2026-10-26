@@ -1024,15 +1024,23 @@ export function useDeckFeedbackWalk(args: {
     // either way, the parts before it there to scroll (founder 2026-10-21).
     const done = (target || coachDoor) && replayReady ? (finished ? buildReplay(ownAnswers) : buildWhole(ownAnswers)) : null;
     const doneAt = done ? (coachDoor ? walkStart(done) : walkStepAt(done, target)) : null;
-    if (done && doneAt !== null) {
+    // A door from the chat never shows the text in the walk's place: a
+    // finished walk asked for a step it does not hold (the Take alone), or
+    // for its tail (the summary, which steps aside once given, so nothing
+    // stayed on screen), stands on its newest step, the rest above to
+    // scroll (B10; founder 2026-10-26: "the feedback walk opens the ideal
+    // text instead of the feedback walk!").
+    const newest = done && finished && lens ? (walkLastStep(done) ?? walkStart(done)) : null;
+    const standAt = newest !== null && (doneAt === null || doneAt > newest) ? newest : doneAt;
+    if (done && standAt !== null) {
       setReplaying(done);
       // The parts after it too, as far as the walk was walked: on a finished
       // Take its last step, else up to the next step that still waits. The
       // coach's door, while something waits, goes step by step from the
       // word, so its Continue still marks the word seen.
-      return openAt(doneAt, false, lens, undefined, finished ? walkLastStep(done) : coachDoor ? null : answeredRun(done, doneAt, waitsOn));
+      return openAt(standAt, false, lens, undefined, finished ? walkLastStep(done) : coachDoor ? null : answeredRun(done, standAt, waitsOn));
     }
-    if (target?.part && liveAt === null) return false;
+    if (target?.part && liveAt === null && !lens) return false;
     // Opening marks nothing: only Continue on the coach's word does (N80).
     // A finished walk with no such step still opens, at its start, never
     // the text in its place.

@@ -59,7 +59,7 @@ import { PROCESSING_STAGES } from "./ProcessingWait";
 import type { IdealTextLaunchMode } from "./IdealTextOverlay";
 import { lensAddress } from "@/lib/willab/lensScreen";
 import { startOpenTrace } from "@/lib/willab/openTrace";
-import { chatDrawsStep, chatWalks, inPairs, shareLines, walkPairs, type ChatWalk } from "@/lib/willab/walkThread";
+import { chatDrawsStep, chatWalks, doorOf, feedbackWalkDoor, inPairs, shareLines, walkPairs, type ChatWalk } from "@/lib/willab/walkThread";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import {
   clearExploreArc,
@@ -1944,7 +1944,11 @@ export default function Lounge({
         <button
           type="button"
           data-testid="continue-review"
-          onClick={() => openIdealText(reviewToContinue, "review")}
+          // The same door as the waiting Feedback walk's (B10, N192).
+          onClick={() => {
+            const walk = walks.filter((w) => w.arcId === reviewToContinue).at(-1);
+            openIdealText(reviewToContinue, "review", walk ? feedbackWalkDoor(walk, walkWaits(walk), reviewToContinue) : null);
+          }}
           className="mb-2 flex h-[46px] w-full items-center justify-center rounded-full bg-foreground text-[15px] font-semibold text-background"
         >
           Continue review
@@ -2946,13 +2950,7 @@ function FeedbackWalkBubble({
       return;
     }
     if (!walk.arcId) return;
-    const coachWaits = waits.find((m) => m.metadata?.step === "coachnote");
-    if (!coachWaits && live === walk.arcId) {
-      onOpenIdealText(walk.arcId, "review");
-      return;
-    }
-    const at = coachWaits ?? walk.newest;
-    onOpenIdealText(walk.arcId, "review", at ? doorOf(at.metadata ?? {}) : null);
+    onOpenIdealText(walk.arcId, "review", feedbackWalkDoor(walk, waits, live));
   };
   return (
     <div data-row="app" className="mr-auto flex w-[80%] max-w-sm">
@@ -3157,25 +3155,6 @@ function stepTap(
     onOpened?.();
     onOpenIdealText?.(arc, "review", target);
   };
-}
-
-/** Where a step's door opens the walk: its step (a try's opens its
- *  exercise), its moment, its Take and its paragraph. Null: no step. */
-function doorOf(meta: Record<string, unknown>): WalkStepTarget | null {
-  const step = typeof meta.step === "string" ? meta.step : null;
-  if (!step) return null;
-  return {
-    step: exerciseStepOf(step),
-    moment: typeof meta.moment === "number" ? meta.moment : null,
-    take: typeof meta.take_session_id === "string" ? meta.take_session_id : null,
-    part: typeof meta.part_id === "string" ? meta.part_id : null,
-  };
-}
-
-/** A try ("Practise N") or the answer it got opens its exercise, the whole
- *  thread with every try (walk first, 2026-10-14). */
-function exerciseStepOf(step: string): string {
-  return step.startsWith("try:") || ["improved", "encourage", "thanks"].includes(step) ? "exVideo" : step;
 }
 
 /** The helper words' hint: "Tap the words", or "🔒 Take N" once a newer
