@@ -350,7 +350,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N167 · a practice day: "Record Take N" inside a bubble after the card, one record button in the chat; the card closed ("This week's level", the bar, "See your plan"); progress in one unit; no "Ready by" heading; "Book" on a call not booked; readable colours, a small grey play, fingertip tap areas. Was: a black "Record Take 2" pill and "Start a new project" under the full card; "Week 1 of 3"; "(not booked yet)" · BE #1322
+- 2026-10-26 · N167 · a practice day: "Record Take N" inside a bubble after the card, one record button in the chat; the card closed ("This week's level", the bar, "See your plan"); progress in one unit; no "Ready by" heading; "Book" on a call not booked; readable colours, a small grey play, fingertip tap areas. Was: a black "Record Take 2" pill and "Start a new project" under the full card; "Week 1 of 3"; "(not booked yet)" · BE #1322, FE #973
 
 - 2026-10-26 · N164 · the deadline in the plan's list, between the two calls, the date in orange · BE #1318, FE #971
 - 2026-10-26 · N163 · the card's pace line, signed: "This week your walk has a pace game"; was "Before each Take this week: 2 minutes with the Pace Circle" · BE #1317, FE #970
