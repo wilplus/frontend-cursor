@@ -901,15 +901,52 @@ The four lines above were filled from main's history by the page's keeper on
 - **The lens scrolls** · B2, B5 · founder 2026-10-20 ("It is scrollable!"), read as WIL-89 working as drawn; say if that was a complaint · confirmed
 - **Review from the Lounge loads very long** · F1, A2 · founder 2026-10-20. The same cause as WIL-76: the marks computed live (20 to 40 s) or pending behind a queued bake; the bake in the run stores them before the Take is ready, so the tap finds them · BE #1209 · the founder checks the app
 
-- **Tempo · the pace scale as a step of the walk** · C (a new step after the practise moment), K · founder 2026-10-24 to 2026-10-26. **The one place for this feature: read this line, then the four below.**
-  - *What it is.* A dot on a horizontal scale moved live by your voice: it climbs while you talk, sinks while you pause; green in the middle, orange towards the ends, red at the edges; never a number (Never 1). The algorithm and its settled speeds: backend decisions log N142 and [`docs/SPEC.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/SPEC.md) §17 `pace-scale-v1` (it supersedes the Pace Circle's three reads of N133 and the circle of N130).
-  - *The step, as drawn* ([Tempo in the Walk](https://claude.ai/artifact/VJd5MeFGgZy7e3Q8M1EQXV), §5): your clip with the stretch you rushed or dragged marked; three bubbles: a line read from that stretch ("That part went fast. 🏃 Let's try a little game."), the task with the stretch's topic and the rule ("Tell me more about the beds for sale, and keep the ball in the green."), and "🤫 Find a quiet spot first."; under them the scale, asleep; **I'm ready** wakes it with the recording bar; nothing else lands until Stop; then your try with its path and a short comment; Practise again, or after try 2 "See how it went"; after try 3 a one-line summary; then the walk goes on. Every word is a draft until signed (Never 4).
-  - *Where it runs today.* Only the founder's bench, `src/app/admin/pace-circle/` (`paceSignal.ts` holds the meter), founder-only, listen only. Nothing in the walk yet.
-  - *To build* (not started): backend, per Take, the stretch, its reading (fast or slow) and its topic, from the same voice rules; frontend, the step in the walk reusing the bench's meter · decided as a prototype, not built · the founder signs the words and the open points in §3
+- **Tempo · the pace step** · C (a new step after the practise moment), K · founder 2026-10-24 to 2026-10-26 · designed, to build next · everything about this feature is in this block.
+
+  **In one line.** After a Take where the speaker rushed or dragged, the walk
+  plays that stretch back and asks them to talk about the same thing again
+  while a dot on a scale follows their pace live.
+
+  **The scale.** A dot on a horizontal line. It moves right while you talk
+  and left while you pause. Green in the middle, orange towards the ends,
+  red at the edges. No number, ever (Never 1). How the dot moves is settled:
+  backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
+
+  **The step, in order** (as drawn in [Tempo in the Walk](https://claude.ai/artifact/VJd5MeFGgZy7e3Q8M1EQXV)):
+
+  1. The speaker's clip, with the rushed or dragged stretch marked.
+  2. Will's bubble, from what the stretch was: "That part went fast. 🏃 Let's try a little game." or "That part slowed down, with long pauses. 🐢 Let's try a little game."
+  3. Will's bubble with the stretch's topic: "Tell me more about {topic}, and keep the ball in the green."
+  4. Will's bubble: "🤫 Find a quiet spot first."
+  5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar. Nothing else appears until Stop.
+  6. The try: the dot's path, then one comment: "Better. You let it breathe." / "Still rushed. Take a breath after each offer." / "A bit slow. Keep the words moving between the pauses."
+  7. **Practise again**. After the second try, also **See how it went**. After the third, a one-line summary (for example "Dynamic. You paused where it mattered. 🔥"), then the walk goes on.
+
+  **To decide before the build** (the founder; the default is what the prototype draws):
+
+  | Question | Default |
+  |---|---|
+  | Every word above | Drafts until signed into K (Never 4) |
+  | When the step shows | Only on a Take with a stretch outside the green |
+  | Which stretch | The one the scale reads furthest from the green |
+  | Where in the walk | Right after the practise moment |
+  | How many tries | Up to three |
+  | A noisy room | The quiet-spot line only; no listening check |
+
+  **To build.** Backend: per Take, the stretch, whether it was fast or slow,
+  and its topic, under the Take's processing authorization. Frontend: the
+  step in the walk, reusing the bench's meter.
+
+  **The code today.** Only the founder's bench, `src/app/admin/pace-circle/`:
+  `paceSignal.ts` is the meter, `PaceCircleLab.tsx` the scale. Founder-only,
+  nothing in the walk yet.
+
+  **History.** The [Pace Circle brief](https://claude.ai/artifact/VJ2uSugQWmbAsmReyxuufz)
+  (2026-10-24, N130, N133): a circle with three reads, replaced by the scale (N142).
 
 ## 3. Still open
 
-- **Tempo step** (§2): where it sits (after the practise moment, or its own exercise under Practise again); which stretch (the Take's longest run without a pause, or the slowest); two or three tries; the room as a line, or a two-second listen that greys the dot when it is noisy; every word on the step.
+- **Tempo step**: its open questions, with defaults, are in its block in §2.
 
 - **Self-judgement of your own practice try** is off for launch (2026-10-12):
   4 speaker answers, 21 clips with coach answers, 1 with both. Re-run the
@@ -978,9 +1015,7 @@ Backend (`wilplus/backend-cursor`): `services/moment_pick.py`,
 `services/coach_moments_queue.py` (I5); `services/chat_query.py` (the
 Lounge's turn).
 
-The tempo step (§2), not in the walk yet: the founder's bench
-`src/app/admin/pace-circle/` (`paceSignal.ts`, the meter; `PaceCircleLab.tsx`,
-the scale); backend definition `docs/SPEC.md` §17 `pace-scale-v1`.
+The tempo step: its files are in its block in §2.
 
 Tests that hold the promises: `src/components/willab/walk/feedbackWalk.test.tsx`,
 `walkPractise.test.tsx`, `walkReplay.test.tsx`,
@@ -1010,10 +1045,7 @@ The design is the prototype; the newest wins where two disagree.
   AI voice <https://claude.ai/artifact/G8Am3fR3f3SzAdTkwyUGKZ> (v8); the
   Sunday note as a lens <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo> (N158,
   2026-10-26).
-- **Tempo step (in design):** Tempo in the Walk
-  <https://claude.ai/artifact/VJd5MeFGgZy7e3Q8M1EQXV> (2026-10-26); the
-  Pace Circle brief <https://claude.ai/artifact/VJ2uSugQWmbAsmReyxuufz>
-  (2026-10-24, history: the circle became the scale).
+- **Tempo step:** its prototypes are in its block in §2.
 - **The base:** moment and feedback as one chat with a lens
   <https://claude.ai/artifact/TXbwmupWJio6N1gHqdEa7p> (version 27, locked
   2026-10-12; 31 final).
