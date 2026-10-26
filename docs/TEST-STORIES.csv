@@ -141,6 +141,23 @@ O5  A re-review piece still says so on its write.","O1, O2 -> ""opens on the Jud
 O3     -> ""an answer writes the ternary body only, then moves on in payload order""
 O4     -> ""after the last unlabelled piece the sheet closes, back on the workbench""
 O5     -> ""a re-review piece says so on its write""","Never-2; founder 2026-09-30 B9 / P2-16 (""one instrument in the product; the workbench's own chrome is deleted"")."
+src/components/account/AccountSignInCard.test.tsx,Story,"As a speaker, I want to change my email and my password on Data & consent, and get a link when I forgot the password, so that I keep my account when I lose an address or a password (backend N190).","O1  Change email sends the new address and my current password; the card
+then says the link went and the email changes when I open it. A wrong
+password says ""That password isn’t right."" and keeps the form.
+O2  An account that signs in with Google reads ""You sign in with Google."",
+asks no password to change the email, and Set a password says where
+the link went.
+O3  Change password sends nothing while the two new passwords differ; a
+change says ""Password updated.""; Forgot password? says where the reset
+link went.
+O4  Back from the email's link the card says ""Your email is now …"" and
+refreshes the session, so the menu shows the new address; a link that
+failed says the page's ""Couldn’t save that. Try again.""
+O5  When the account can't be read, there is no card.","O1 -> ""sends the change and says the link went; a wrong password keeps the form""
+O2 -> ""a Google account sets a password with a link""
+O3 -> ""checks the new password twice, then updates; Forgot password? sends the link""
+O4 -> ""back from the link it says the new email and refreshes the session""
+O5 -> ""no card when the account can't be read""","WIL-95, founder 2026-10-26 (backend N190; rules in docs/flows/consent-screens.md §1, ""Amended 2026-10-26"")."
 src/components/account/DataConsentChoices.test.tsx,Story,"As a speaker, I want turning off practice or withdrawing sensitive information to ask first and take effect only on confirm, so that I control my data (consent, on the record step of the loop).","O1  Turning practice off asks first; nothing is sent until I confirm, then
 the page says practice is off.
 O2  Turning practice back on needs no confirm and is sent at once.
@@ -575,10 +592,12 @@ O3 -> ""Take 1 starts at once, without a read""","Build plan D-RC-4: the words u
 src/components/willab/loungeLifeGoals.test.tsx,Story,"As the founder, I want to set one life goal in the lens by answering one question at a time, so that the goal comes from my words and lands as a ladder in my chat.","O1  Start opens the lens with the paper-notebook line; the space, three open questions, Will's draft with my words, goal or want, ambitious, give up, the horizon and the quarter come one at a time, and the goal is set with its ladder and the line that sends me out to live it.
 O2  With every open question skipped, Will drafts nothing and says so.
 O3  A new goal that pulls against a kept one is asked ""When they clash, which wins?"" before it is set, and the answer is noted for both ladders (N185).
-O4  When the quarter comes back, Start asks ""Did it move?"" (never a score), what got in the way, shows my own notes that say it too, and asks for the next quarter's step (N186).","O1 -> sets a goal from my answers, one step at a time
+O4  When the quarter comes back, Start asks ""Did it move?"" (never a score), what got in the way, shows my own notes that say it too, and asks for the next quarter's step (N186).
+O5  Under a note that sounds like a change, Change changes the goal the newest ask named, and the thread is read again (N191).","O1 -> sets a goal from my answers, one step at a time
 O2 -> drafts nothing when I said nothing
 O3 -> asks which wins when two goals clash, before the new one is set
-O4 -> brings the quarter back: did it move, my notes, the next step",
+O4 -> brings the quarter back: did it move, my notes, the next step
+O5 -> a note that sounds like a change: Change goes to the goal it asked about",
 src/components/willab/loungeNewCoachFeedback.test.tsx,Story,"As a speaker, I want my project's latest Ideal Text bubble in the Lounge to say ""new"" when coach feedback is waiting, never as a count, so that I know to look without seeing a number.","O1  While the project's flag is true, its latest bubble itself wears the
 stroke and the mark (one bubble, never a copy), and a tap on it opens
 the feedback.

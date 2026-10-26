@@ -6,10 +6,12 @@ OUTCOME
   O2  With every open question skipped, Will drafts nothing and says so.
   O3  A new goal that pulls against a kept one is asked "When they clash, which wins?" before it is set, and the answer is noted for both ladders (N185).
   O4  When the quarter comes back, Start asks "Did it move?" (never a score), what got in the way, shows my own notes that say it too, and asks for the next quarter's step (N186).
+  O5  Under a note that sounds like a change, Change changes the goal the newest ask named, and the thread is read again (N191).
 PROVES   O1 -> sets a goal from my answers, one step at a time
          O2 -> drafts nothing when I said nothing
          O3 -> asks which wins when two goals clash, before the new one is set
          O4 -> brings the quarter back: did it move, my notes, the next step
+         O5 -> a note that sounds like a change: Change goes to the goal it asked about
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -30,10 +32,11 @@ const api = vi.hoisted(() => ({
   answerQuarterAsk: vi.fn(),
   quarterNotes: vi.fn(),
   reviewQuarter: vi.fn(),
+  answerNoteChange: vi.fn(),
 }));
 vi.mock("@/services/api/lifeGoals", () => api);
 
-import { useLifeGoals } from "./LoungeLifeGoals";
+import { changeAskOf, useLifeGoals } from "./LoungeLifeGoals";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -196,5 +199,18 @@ describe("life goals lens", () => {
     await type("Twenty paying teams.");
     expect(api.reviewQuarter).toHaveBeenCalledWith("c1", "moved", "Late calls.", "Twenty paying teams.");
     expect(text()).toContain("Noted.");
+  });
+
+  it("a note that sounds like a change: Change goes to the goal it asked about", async () => {
+    api.answerNoteChange.mockResolvedValue(true);
+    const rows = [
+      { metadata: { offer: "life_goals_change", life_goal_change: "old" } },
+      { metadata: { life_goal_change: "c1" } },
+      { metadata: { offer: "life_goals_change", life_goal_change: "c1" } },
+    ];
+    await act(async () => goals.answerChange(changeAskOf(rows), "change"));
+    await settle();
+    expect(api.answerNoteChange).toHaveBeenCalledWith("c1", "change");
+    expect(reload).toHaveBeenCalled();
   });
 });

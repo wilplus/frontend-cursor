@@ -3,7 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import RingAnnouncementSheet from "@/components/rings/RingAnnouncementSheet";
 
 /**
- * Protects all routes under (protected): dashboard, profile, recordings, change-password.
+ * Protects all routes under (protected): dashboard, profile, recordings.
  * Validates session on every request so that shared links open in another browser/device
  * do not show another user's session — user is redirected to login.
  * (Middleware also enforces this; this is a server-side safeguard.)
