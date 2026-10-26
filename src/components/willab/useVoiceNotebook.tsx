@@ -106,7 +106,7 @@ export function useVoiceNotebook({
 
 export type VoiceNotebook = ReturnType<typeof useVoiceNotebook>;
 
-const OWN_ASKS: readonly OfferType[] = ["voice_notebook", "sunday_note", "sunday_principle"];
+const OWN_ASKS: readonly OfferType[] = ["voice_notebook", "sunday_note", "sunday_principle", "life_goals"];
 
 /** The Sunday note's footer (founder's form, 2026-10-20): Old | New for the
  *  week's bug, then Not now | Add principle for Will's new principle. */
