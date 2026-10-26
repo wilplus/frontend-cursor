@@ -11,7 +11,7 @@
 
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "@/components/willab/idealEditCopy";
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
-import type { FeedbackWalkMoment } from "./feedbackWalkModel";
+import type { FeedbackWalkMoment, WalkStepTarget } from "./feedbackWalkModel";
 import type { PraiseReason } from "./praiseReason";
 import { clearerOpening, topMomentLine, type WalkBankKey } from "./walkLines";
 import type { WalkStep } from "./walkPlan";
@@ -495,6 +495,40 @@ export function walkPairs(
     cards.slice(0, -1).forEach((m) => held.add(m.client_id));
   }
   return { cardOf, held };
+}
+
+/** Where a step's door opens the walk: its step (a try's opens its
+ *  exercise), its moment, its Take and its paragraph. Null: no step. */
+export function doorOf(meta: Record<string, unknown>): WalkStepTarget | null {
+  const step = typeof meta.step === "string" ? meta.step : null;
+  if (!step) return null;
+  return {
+    step: exerciseStepOf(step),
+    moment: typeof meta.moment === "number" ? meta.moment : null,
+    take: typeof meta.take_session_id === "string" ? meta.take_session_id : null,
+    part: typeof meta.part_id === "string" ? meta.part_id : null,
+  };
+}
+
+/** A try ("Practise N") or the answer it got opens its exercise, the whole
+ *  thread with every try (walk first, 2026-10-14). */
+function exerciseStepOf(step: string): string {
+  return step.startsWith("try:") || ["improved", "encourage", "thanks"].includes(step) ? "exVideo" : step;
+}
+
+/** Where the chat's Feedback walk, and "Continue review" for it, open the
+ *  walk (B10, N192): on the coach's word while it waits (C1); while the
+ *  review waits, on the step it waits on; once done, on the walk's newest
+ *  part; else on the Take alone, which the page opens live on what waits,
+ *  or, once done, on its newest step. Always a door: asked with none, the
+ *  page opened only a walk it could see waiting, and a walk paused on its
+ *  summary or with no part to stand on showed the Ideal Text in its place
+ *  (founder 2026-10-26: "the feedback walk opens the ideal text instead of
+ *  the feedback walk!"). */
+export function feedbackWalkDoor(walk: ChatWalk, waits: readonly LoungeMessage[], live: string | null): WalkStepTarget {
+  const coach = waits.find((m) => m.metadata?.step === "coachnote");
+  const at = coach ?? (live !== null && live === walk.arcId ? waits[0] : walk.newest);
+  return (at ? doorOf(at.metadata ?? {}) : null) ?? { take: walk.take };
 }
 
 /** The chat in the order it is drawn (N202): each Take's card right after

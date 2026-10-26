@@ -21,10 +21,16 @@
  *       Take's walk gave it, so the chat gets no new bubble (founder
  *       2026-10-21: "doesn't open the walk in a scrollable manner", "appears
  *       as a last message in the chat").
+ *   O5  Every moment answered: the chat's Feedback walk naming a step the
+ *       finished walk does not hold (its summary, or the Take alone) opens
+ *       the whole walk on its newest step, never the Ideal Text in its place
+ *       (founder 2026-10-26: "the feedback walk opens the ideal text instead
+ *       of the feedback walk!"; B10, N192).
  * PROVES   O1 -> "every moment answered: Review feedback stays for the unseen word, ..."
  *          O2 -> "a paragraph whose helper words were deleted is back in the walk on its earlier answer"
  *          O3 -> "every moment answered: a bubble tapped in the Lounge opens the walk on its moment, never the text"
  *          O4 -> "one moment still waiting: its bubble opens the whole walk, the waiting step live, nothing new in the chat"
+ *          O5 -> "every moment answered: the Feedback walk naming no step of the walk opens it on its newest step, never the text"
  * WHY      Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the
  *          deck's own rule (buildBookmarks), not on the rendered deck.
  */
@@ -202,6 +208,33 @@ describe("N80: the coach's word for the Take on screen", () => {
       expect(live!.textContent).toContain(word.text);
       expect(live!.textContent).toContain(COPY.titleEmphasis);
       expect(live!.querySelector("[data-walk-dock] [data-testid='walk-forward']")!.textContent).toBe(COPY.pagerNext);
+      expect(reveal).not.toHaveBeenCalled();
+      await act(async () => root.unmount());
+      root = createRoot(container);
+    }
+  });
+});
+
+describe("B10: the Feedback walk opens the walk, never the text", () => {
+  it("every moment answered: the Feedback walk naming no step of the walk opens it on its newest step, never the text", async () => {
+    // The Feedback walk of a walk paused on its summary, and of a walk with
+    // no part to stand on: the Take alone.
+    for (const reviewAt of [{ step: "summary", take: "take-2" }, { take: "take-2" }]) {
+      const reveal = vi.fn();
+      const p = { arcId: "arc-1", coachMessage: { ...WORD, unseen: false }, reviewAt, onLensReveal: reveal };
+      await render({ ...p, reviewRequest: 0 });
+      await render({ ...p, reviewRequest: 1 });
+      for (let i = 0; i < 6; i += 1) {
+        await act(async () => {
+          await new Promise((r) => setTimeout(r, 0));
+        });
+      }
+      // The whole walk as given, on its newest step (the praise's helper
+      // words), the coach's word and the praise above to scroll.
+      const live = document.querySelector("[data-feedback-walk] .walk-layer:not(.walk-ghost)");
+      expect(live).not.toBeNull();
+      expect(live!.querySelector("[data-walk-now] [data-testid='walk-screen-helpers']")).not.toBeNull();
+      expect(live!.textContent).toContain(WORD.text);
       expect(reveal).not.toHaveBeenCalled();
       await act(async () => root.unmount());
       root = createRoot(container);
