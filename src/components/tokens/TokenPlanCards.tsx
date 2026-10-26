@@ -46,6 +46,7 @@ export default function TokenPlanCards({
   tiers,
   currentTier,
   promotion = null,
+  everythingInTokens = false,
 }: {
   /** The served tier list, name → allowance/price. */
   tiers: Record<string, TokenTier>;
@@ -53,6 +54,9 @@ export default function TokenPlanCards({
   currentTier: string | null;
   /** A price the admin set for this person on one plan (step 3). */
   promotion?: PlanPromotion | null;
+  /** The N198 price list is live: each card says what it is for and what
+   *  it saves against the smallest package's rate. */
+  everythingInTokens?: boolean;
 }) {
   const [busyTier, setBusyTier] = useState<string | null>(null);
   // Starts true and only ever goes false, when the server tells us it cannot
@@ -87,6 +91,14 @@ export default function TokenPlanCards({
   if (cards.length === 0) return null;
 
   const free = tiers.free;
+  // What a package saves: its tokens at the smallest package's rate, less its
+  // price. Whole dollars; none for the smallest.
+  const base = cards.length ? tiers[cards[0]] : null;
+  const saves = (name: string): number => {
+    if (!base || base.tokensPerMonth <= 0) return 0;
+    const t = tiers[name];
+    return Math.round((t.tokensPerMonth * base.usdPerMonth) / base.tokensPerMonth - t.usdPerMonth);
+  };
 
   return (
     <div className="w-full space-y-4">
@@ -94,6 +106,9 @@ export default function TokenPlanCards({
         <p className="text-[13px] text-muted-foreground">
           {TOKENS_COPY.planFreeLine(formatTokens(free.tokensPerMonth))}
         </p>
+      ) : null}
+      {everythingInTokens ? (
+        <p className="text-[13px] text-muted-foreground">{TOKENS_COPY.planIntro}</p>
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-3 sm:items-stretch sm:gap-3">
@@ -145,6 +160,12 @@ export default function TokenPlanCards({
                 <p className="text-sm font-medium text-foreground">
                   {TOKENS_COPY.planCardTokens(formatTokens(tier.tokensPerMonth))}
                 </p>
+                {everythingInTokens && saves(name) > 0 ? (
+                  <p className="text-sm text-foreground">{TOKENS_COPY.planSave(saves(name))}</p>
+                ) : null}
+                {everythingInTokens && TOKENS_COPY.planText[name] ? (
+                  <p className="pt-2 text-[13px] text-muted-foreground">{TOKENS_COPY.planText[name]}</p>
+                ) : null}
               </div>
 
               {isCurrent ? (

@@ -43,9 +43,51 @@ export interface Offer {
   price_link?: boolean;
   email?: string;
   name?: string;
+  /** Booking with tokens (backend N198): the price and the balance as shown,
+   *  and whether it covers it. Absent or null while it is off. */
+  tokens?: { price: number; balance: number; enough: boolean } | null;
+}
+
+const BTN = "min-h-[50px] w-full rounded-xl border border-foreground px-[18px] py-3 font-semibold disabled:opacity-60";
+const BTN_MAIN = `${BTN} bg-foreground text-background`;
+const BTN_SECOND = `${BTN} bg-background text-foreground`;
+
+/** The ways to pay, and the line under them. Tokens come first when they
+ *  cover the price (backend N198); the card and "pay after" stay. */
+function PayButtons({ info, offer, link, sending, onPay }: {
+  info: PageInfo; offer: Offer | null; link?: string; sending: boolean;
+  onPay: (e: FormEvent, skipPayment: boolean, payWithTokens: boolean) => void;
+}) {
+  const tokens = !info.hide_price && offer?.tokens?.enough ? offer.tokens : null;
+  const locked = sending || !!offer?.preview;
+  const cardLabel = info.hide_price ? (sending ? "Booking…" : "Book")
+    : sending ? "Opening payment…" : `Book and pay ${money(offer?.price_cents ?? info.price_cents, info.currency)}`;
+  return (
+    <>
+      <div className="grid gap-2">
+        {tokens && (
+          <button type="button" disabled={locked} onClick={(e) => onPay(e, false, true)} className={BTN_MAIN}>
+            {sending ? "Booking…" : `Book with ${new Intl.NumberFormat("en-GB").format(tokens.price)} tokens`}
+          </button>
+        )}
+        <button type="submit" disabled={locked} className={tokens ? BTN_SECOND : BTN_MAIN}>{cardLabel}</button>
+        {/* A price link is paid when you book. */}
+        {!link && !offer?.price_link && (
+          <button type="button" disabled={locked} onClick={(e) => onPay(e, true, false)} className={BTN_SECOND}>
+            Book &amp; pay after the lesson
+          </button>
+        )}
+      </div>
+      <p className="text-[13px] text-muted-foreground">
+        You&apos;ll get a calendar invite with the Google Meet link by email.
+        {tokens && " Cancel at least 12 hours before and the tokens come back."}
+      </p>
+    </>
+  );
 }
 
 const ERRORS: Record<string, string> = {
+  NOT_ENOUGH_TOKENS: "Not enough tokens.",
   SLOT_TAKEN: "That time was just taken. Pick another.",
   NAME_REQUIRED: "Add your name.",
   EMAIL_INVALID: "Check the email address. It should look like name@example.com.",
@@ -234,7 +276,7 @@ export default function BookingPage({ info, ipZone, link }: { info: PageInfo; ip
   const zones = useMemo(() => allZones([tz, info.host_timezone]), [tz, info.host_timezone]);
 
   const submit = useCallback(
-    async (e: FormEvent, skipPayment = false) => {
+    async (e: FormEvent, skipPayment = false, payWithTokens = false) => {
       e.preventDefault();
       if (slot === null) return;
       const name = form.name.trim();
@@ -247,7 +289,8 @@ export default function BookingPage({ info, ipZone, link }: { info: PageInfo; ip
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             start: new Date(slot).toISOString(), name, note: form.note, timezone: tz, whatsapp: form.whatsapp,
-            embedded: !!stripePromise && !skipPayment, skip_payment: skipPayment, link,
+            embedded: !!stripePromise && !skipPayment && !payWithTokens, skip_payment: skipPayment, link,
+            pay_with_tokens: payWithTokens,
           }),
         });
         const body = (await res.json().catch(() => ({}))) as { url?: string; client_secret?: string; code?: string };
@@ -331,23 +374,8 @@ export default function BookingPage({ info, ipZone, link }: { info: PageInfo; ip
                   onChange={(e) => setForm({ ...form, note: e.target.value })} />
               </label>
               {error && <p className="text-[13px] text-destructive">{error}</p>}
-              <div className="grid gap-2">
-                <button type="submit" disabled={sending || !!signedIn?.preview}
-                  className="min-h-[50px] w-full rounded-xl border border-foreground bg-foreground px-[18px] py-3 font-semibold text-background disabled:opacity-60">
-                  {info.hide_price ? (sending ? "Booking…" : "Book")
-                    : sending ? "Opening payment…" : `Book and pay ${money(signedIn?.price_cents ?? info.price_cents, info.currency)}`}
-                </button>
-                {/* A price link is paid when you book. */}
-                {!link && !signedIn?.price_link && (
-                <button type="button" disabled={sending || !!signedIn?.preview} onClick={(e) => void submit(e, true)}
-                  className="min-h-[50px] w-full rounded-xl border border-foreground bg-background px-[18px] py-3 font-semibold text-foreground disabled:opacity-60">
-                  Book &amp; pay after the lesson
-                </button>
-                )}
-              </div>
-              <p className="text-[13px] text-muted-foreground">
-                You&apos;ll get a calendar invite with the Google Meet link by email.
-              </p>
+              <PayButtons info={info} offer={signedIn} link={link} sending={sending}
+                onPay={(e, skipPayment, payWithTokens) => void submit(e, skipPayment, payWithTokens)} />
             </form>
             )}
           </div>

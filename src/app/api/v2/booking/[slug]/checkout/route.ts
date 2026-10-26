@@ -21,6 +21,8 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
   }
   if (body.embedded === true) forwarded.embedded = true;
   if (body.skip_payment === true) forwarded.skip_payment = true;
+  // Paid from the account's tokens (backend N198); the backend checks the balance.
+  if (body.pay_with_tokens === true) forwarded.pay_with_tokens = true;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
   if (ip) headers["X-Forwarded-For"] = ip;

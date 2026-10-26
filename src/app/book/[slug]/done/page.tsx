@@ -13,7 +13,7 @@ export default async function Page({
   searchParams,
 }: {
   params: { slug: string };
-  searchParams: { session_id?: string; booking?: string };
+  searchParams: { session_id?: string; booking?: string; tokens?: string };
 }) {
   const info = await loadPage(params.slug);
   if (!info) notFound();
@@ -27,5 +27,8 @@ export default async function Page({
   } catch {
     booking = null;
   }
-  return <Done info={info} booking={booking} />;
+  // Paid with tokens (backend N198): the row holds no money price, so the
+  // count the booking took rides the link back.
+  const paidTokens = Math.max(0, Math.floor(Number(searchParams.tokens) || 0));
+  return <Done info={info} booking={booking} paidTokens={paidTokens} />;
 }
