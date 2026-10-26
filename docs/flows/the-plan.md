@@ -158,6 +158,17 @@ stand. The entries keep their N-numbers and stay the record.
    N157, N161).
 5. The plan's calls are these two; there is no weekly call (N157).
 6. Then "You're all set. Here's your plan." and the card (E) (N161).
+7. Under the calendar, "Your deadline: {date}" (for example "Sat 14 Nov")
+   with a small "Edit" next to it. "Edit" turns the same calendar into the
+   deadline's: "Your deadline" above it, the deadline ringed in orange, any
+   day after today; with a call booked, the deadline stays after the kickoff
+   and before the summary call. "Back" returns to the call; "Save" keeps the
+   new date, and Will says "Done. Your plan now runs to {date}." (and "Your
+   deadline is close, so you practise every day." when it is two weeks away
+   or less), as "Change your plan" does. The plan follows, the calendar goes
+   back to the call, and a call picked but not booked that no longer fits is
+   cleared. It works before the plan and from a call's "Book" in the list
+   (N168).
 
 ### G · Practice days
 
@@ -265,7 +276,8 @@ Signed:
   key line a little slower than the rest. You've got this 💪" · "Today, one
   thing: take a breath before your key line. You've got this 💪" · "Today,
   one thing: give your key line a little more room. You've got this 💪"
-  (N167).
+  (N167) · "Edit" and "Your deadline: {date}" under the calls' calendar
+  (N168).
 - Kept for the reminder, when it comes: "Want a WhatsApp on your practice
   days? Add your number." · "We'll only use it to remind you on practice days
   and to tell you when your coach texted you" · "Saved ✓ We'll message you
@@ -349,6 +361,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-26 · N168 · "Edit" next to "Your deadline: {date}" under the calls' calendar: the same calendar moves the deadline, then the call again. Was: the deadline moved only from "Change your plan" · BE #1323
 
 - 2026-10-26 · N167 · a practice day: "Record Take N" inside a bubble after the card, one record button in the chat; the card closed ("This week's level", the bar, "See your plan"); progress in one unit; no "Ready by" heading; "Book" on a call not booked; readable colours, a small grey play, fingertip tap areas. Was: a black "Record Take 2" pill and "Start a new project" under the full card; "Week 1 of 3"; "(not booked yet)" · BE #1322, FE #973
 
