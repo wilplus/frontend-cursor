@@ -118,6 +118,7 @@ import {
 } from "./feedbackCheck";
 import { postFeedbackCheck, type FeedbackCheckChoice } from "@/services/api/feedbackCheck";
 import { SundayActions, useVoiceNotebook, VoiceNoteBar, VoiceNoteMic } from "./useVoiceNotebook";
+import { LifeGoalBubble, lensAskOf, lifeGoalOf, useLifeGoals } from "./LoungeLifeGoals";
 import type { SundayChoice } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import WillQuestionBubble, { willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
@@ -1181,7 +1182,7 @@ export default function Lounge({
     if (type === "joke") return;
     const rank: Record<OfferType, number> = {
       joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0, feedback_check: 0,
-      voice_notebook: 0, sunday_note: 0, sunday_principle: 0,
+      voice_notebook: 0, sunday_note: 0, sunday_principle: 0, life_goals: 0,
     };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
@@ -1337,6 +1338,9 @@ export default function Lounge({
 
   // The founder's voice notebook (Will learning plan, step 1, 2026-10-20).
   const notebook = useVoiceNotebook({ signedIn: thread.signedIn, threadLoading, drawn, openOffer, reload });
+  // Life goals (Will learning plan, step 3, N172): the ask's Start, a
+  // ladder's ›, or a reply that opens the lens.
+  const lifeGoals = useLifeGoals({ signedIn: thread.signedIn, reload });
 
   // A message still waiting while no ask is in front of the speaker would
   // never show (a typed turn the backend could not store, say): let it go,
@@ -1436,6 +1440,8 @@ export default function Lounge({
       setActiveOffer((open) => (open === "whatsapp" ? null : open));
     }
     if (saved === "invalid") whatsapp.setDraft(typed);
+    const lens = lensAskOf(resp.row_metadata);
+    if (lens) lifeGoals.openLens(lens);
     if (resp.after_take) {
       setActiveOffer(null);
       void reload().catch(() => undefined);
@@ -1578,6 +1584,7 @@ export default function Lounge({
 
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
+      {lifeGoals.lens}
       {/* Founder 2026-07-30 — the status region above the thread is GONE, and
           with it the last top banner. U5 moved the sent confirmation into the
           thread and U6 did the same for insights ready; the parked card was
@@ -1654,6 +1661,7 @@ export default function Lounge({
               onOpenOffer={setActiveOffer}
               willOpen={i === shownItems.length - 1}
               onWillAnswer={answerWillQuestion}
+              onOpenLifeGoal={(goalId) => lifeGoals.openLens({ mode: "see", goalId })}
               animate={
                 i === shownItems.length - 1 &&
                 baselineRef.current !== null &&
@@ -1757,6 +1765,7 @@ export default function Lounge({
           }}
           onNotebook={notebook.answer}
           onSunday={notebook.sunday}
+          onLifeGoals={lifeGoals.answerAsk}
           onResolve={() => {
             // A Take's ask closed: its message comes under it (the question's
             // taps let it go on the backend, "No" keeps it waiting).
@@ -2088,6 +2097,7 @@ function OfferActions({
   onFeedbackCheck,
   onNotebook,
   onSunday,
+  onLifeGoals,
   onResolve,
 }: {
   type: OfferType;
@@ -2105,11 +2115,29 @@ function OfferActions({
   onNotebook: (choice: "yes" | "not_now") => void;
   /** The Sunday note's Old | New, then Not now | Add principle (step 2). */
   onSunday: (choice: SundayChoice) => void;
+  /** "One more thing: your life goals." (step 3, N172 M1). */
+  onLifeGoals: (choice: "start" | "not_now") => void;
   onResolve: () => void;
 }) {
   const router = useRouter();
   if (type === "sunday_note" || type === "sunday_principle") {
     return <SundayActions type={type} onSunday={onSunday} onResolve={onResolve} />;
+  }
+  if (type === "life_goals") {
+    return (
+      <SymmetricPair
+        closeLabel="Not now"
+        onClose={() => {
+          onLifeGoals("not_now");
+          onResolve();
+        }}
+        actionLabel="Start"
+        onAction={() => {
+          onLifeGoals("start");
+          onResolve();
+        }}
+      />
+    );
   }
   if (type === "voice_notebook") {
     return (
@@ -2249,13 +2277,17 @@ function askBubble(
     onOpenOffer,
     willOpen,
     onWillAnswer,
+    onOpenLifeGoal,
   }: {
     activeOffer?: OfferType | null;
     onOpenOffer?: (type: OfferType) => void;
     willOpen: boolean;
     onWillAnswer?: (target: WillQuestionTarget, choice: string) => Promise<void>;
+    onOpenLifeGoal?: (goalId: string) => void;
   },
 ) {
+  const goal = lifeGoalOf(message.metadata);
+  if (goal) return <LifeGoalBubble goal={goal} onOpen={() => onOpenLifeGoal?.(goal.id)} />;
   const will = willQuestionOf(message.metadata);
   if (will) {
     return (
@@ -2293,6 +2325,7 @@ function Bubble({
   onOpenOffer,
   willOpen = false,
   onWillAnswer,
+  onOpenLifeGoal,
   animate = false,
   latestForArc = false,
 }: {
@@ -2321,10 +2354,12 @@ function Bubble({
   /** N82 — the newest bubble: Will's question shows its answers to tap. */
   willOpen?: boolean;
   onWillAnswer?: (target: WillQuestionTarget, choice: string) => Promise<void>;
+  /** A set life goal's ladder: its › opens the lens on it (N172 M10). */
+  onOpenLifeGoal?: (goalId: string) => void;
   /** U3 — true only for a freshly-arrived last message → sequential reveal. */
   animate?: boolean;
 }) {
-  const ask = askBubble(message, { activeOffer, onOpenOffer, willOpen, onWillAnswer });
+  const ask = askBubble(message, { activeOffer, onOpenOffer, willOpen, onWillAnswer, onOpenLifeGoal });
   if (ask) return ask;
   if (
     message.kind === "recording_summary" ||

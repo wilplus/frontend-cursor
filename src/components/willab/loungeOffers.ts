@@ -30,7 +30,8 @@ export type OfferType =
   | "feedback_check"
   | "voice_notebook"
   | "sunday_note"
-  | "sunday_principle";
+  | "sunday_principle"
+  | "life_goals";
 
 const OFFER_TYPES: readonly OfferType[] = [
   "install",
@@ -43,6 +44,7 @@ const OFFER_TYPES: readonly OfferType[] = [
   "voice_notebook",
   "sunday_note",
   "sunday_principle",
+  "life_goals",
 ];
 
 /** The bubble prompt persisted as the message body. No em-dashes (house style). */
@@ -76,6 +78,10 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
   // these are only the fallbacks.
   sunday_note: "CASE AT HAND",
   sunday_principle: "NEW PRINCIPLE ⚜️",
+  // Life goals (Will learning plan, step 3; backend N172 M1): asked after
+  // the first # note, Not now | Start. Backend COPY["ask_more"] in
+  // services/life_goals.py; this is only the fallback.
+  life_goals: "One goal today. Say or type your answers.",
   joke:
     "I'm just a simple system, but I noticed you weren't feeling great before this presentation. Want me to crack a joke?",
 };
