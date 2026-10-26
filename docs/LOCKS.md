@@ -10,7 +10,4 @@ screen has its rules page in this repo: [the Feedback walk and the chat](flows/f
 [the recording screens](flows/recording-screens.md), [the consent screens](flows/consent-screens.md) and
 [the AI voice in practice](flows/ai-voice-practice.md) (backend N107).
 
-One thing the mirror listed is not in the backend's lock file and waits for the founder: on the
-consent screens' row, the policy update prompt <https://claude.ai/artifact/GPRRXaivyrZE2UjrRZY93K>
-(version 2), as unified with every Lounge ask <https://claude.ai/artifact/CzVL6JWK85tZDVpU9JRtgY>
-(version 2). Until it is written into the backend, it is not in force (N95).
+Backend N111 (2026-10-21) added both prototypes the mirror listed to [the consent screens' rules](flows/consent-screens.md), §1 and §5: the policy update prompt <https://claude.ai/artifact/GPRRXaivyrZE2UjrRZY93K> (version 2), as unified with every Lounge ask <https://claude.ai/artifact/CzVL6JWK85tZDVpU9JRtgY> (version 2).

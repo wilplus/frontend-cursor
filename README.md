@@ -27,13 +27,8 @@ The backend's `main` is the one source of truth (backend N95).
 **How it works today (Reference)**
 
 - [willab upload proxy (Cloudflare Worker)](cloudflare/upload-proxy/README.md)
-- [The two coach feedback lanes](docs/COACH-FEEDBACK-LANES.md)
-- [Designer brief — Wave 5 (October 2026)](docs/DESIGNER-BRIEF-wave5-2026-10.md)
 - [WIL-74 principles (founder, 2026-10-20)](docs/PRINCIPLES-WIL-74.md)
 - [Confidence recognizer — FE pointer](docs/SPEC-confidence-recognizer.md)
-- [SPEC — the in-thread top-up card (Lounge)](docs/SPEC-lounge-topup-card.md)
-- [Coach review flow — judgement first, one action per screen](docs/coach-review-flow/SPEC.md)
-- [Ideal-text flow — how the app talks to the user between takes](docs/ideal-text-flow-communication.md)
 - [Life Panel FE — what shipped, what it assumes, what is still open](docs/life-panel-fe-status.md)
 - [Life Panel — source artifacts still outside the repo](docs/life-panel-sources/README.md)
 - [The Life Panel — implementation document](docs/life-panel-spec.md)
@@ -47,6 +42,11 @@ The backend's `main` is the one source of truth (backend N95).
 
 - [HANDOFF — frontend (willab), 2026-08-14](docs/HANDOFF.md)
 - [The earlier, longer CLAUDE.md (2026-10-11)](docs/history/CLAUDE-2026-10-11.md)
+- [Ideal-text flow — how the app talks to the user between takes](docs/ideal-text-flow-communication.md)
+- [Designer brief — Wave 5 (October 2026)](docs/DESIGNER-BRIEF-wave5-2026-10.md)
+- [SPEC — the in-thread top-up card (Lounge)](docs/SPEC-lounge-topup-card.md)
+- [The two coach feedback lanes](docs/COACH-FEEDBACK-LANES.md)
+- [Coach review flow — judgement first, one action per screen](docs/coach-review-flow/SPEC.md)
 
 Each one's label is in the backend's master doc. The archived notes left `main` on 2026-10-21
 (backend N107); every one is in git history, at

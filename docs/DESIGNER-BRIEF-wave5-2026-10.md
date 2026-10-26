@@ -1,6 +1,6 @@
 # Designer brief — Wave 5 (October 2026)
 
-> **Label: Reference** · how something works today; where it differs from the In force docs, they win. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
+> **Label: History** · kept as written, because the rules or the code still name it. Out of date: a one-off brief for wave 5, pinned to its commits. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
 
 **For the designer's session.** Founder decisions, decisions log N48.6
 (2026-10-05), verbatim:
