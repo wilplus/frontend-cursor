@@ -469,6 +469,15 @@ export const WALK_COPY = {
   navHelperWords: "helper words",
   /** The link under the picker once the words are chosen. */
   keepThese: "Keep these",
+  /** A Take's walk in the chat, one bubble with its date and › (founder
+   *  2026-10-26, N192, the founder's own words). */
+  feedbackWalk: "Feedback walk",
+  /** Something in the walk changed after it was said, marked in place as
+   *  WhatsApp marks an edited message (N192, B13). */
+  edited: "Edited",
+  /** Under a summary a coach's note rewrote (D5, signed). */
+  summarySeeEarlier: "Updated with your coach's note · see the earlier version",
+  summaryHideEarlier: "Updated with your coach's note · hide the earlier version",
   judgeYes: "Yes",
   judgeInBetween: "In-between",
   judgeNo: "No",

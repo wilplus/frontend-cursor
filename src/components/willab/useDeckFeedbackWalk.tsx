@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, momentChat, othersAnswered, othersChat, praiseChat, shownStep, walkStepDraft, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, momentChat, othersAnswered, othersChat, praiseChat, shownStep, storedSummaryOf, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkIntervention, WalkStep } from "@/lib/willab/walkPlan";
 import type { WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
@@ -870,6 +870,11 @@ export function useDeckFeedbackWalk(args: {
   // The judging of other speakers, reopened from the Lounge, shows the
   // moments already answered in this walk (founder 2026-10-18).
   const othersJudged = useMemo(() => (threadMessages && take ? othersAnswered(threadMessages, take) : 0), [threadMessages, take]);
+  // The chat draws a Take's walk as one bubble (N192): the walk shows the
+  // summary as the chat holds it, and says "Edited" on helper words picked
+  // again in this Take.
+  const storedSummary = useMemo(() => (threadMessages && take ? storedSummaryOf(threadMessages, take) : null), [threadMessages, take]);
+  const editedWords = useMemo(() => (threadMessages && take ? wordsEditedIn(threadMessages, take) : null), [threadMessages, take]);
   const [triedByPractice, setTriedByPractice] = useState<Readonly<Record<string, ReplayTries | null>>>({});
   const askedPractices = useRef(new Set<string>());
   useEffect(() => {
@@ -1400,6 +1405,8 @@ export function useDeckFeedbackWalk(args: {
           onSkipJudging={skipJudging}
           journal={journal}
           summary={summary}
+          storedSummary={storedSummary}
+          editedWords={editedWords ?? undefined}
           onEnd={onEnd}
           onForward={onForward}
           onClose={onClose}
@@ -1424,6 +1431,8 @@ export function useDeckFeedbackWalk(args: {
       args.takeIndex,
       take,
       summary,
+      storedSummary,
+      editedWords,
       saveHelperWords,
       acceptClearer,
       keepWords,
