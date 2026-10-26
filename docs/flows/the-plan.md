@@ -456,7 +456,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N203, N204 · built, switched off until the migration: the questions, the calls, the card, the practice days in the chat, changing the plan, the plan's end; §2 lists what is still to come, §3 what was built where the prototype doesn't say. Was: nothing built · BE #1386, FE (this PR)
+- 2026-10-26 · N203, N204 · built, switched off until the migration: the questions, the calls, the card, the practice days in the chat, changing the plan, the plan's end; §2 lists what is still to come, §3 what was built where the prototype doesn't say. Was: nothing built · BE #1386, FE #1016
 
 - 2026-10-26 · N203 · the build starts, one to one with the prototype; §2 and §3 say where the prototype is older than a decision. Was: the founder holds the build (N147) · BE #1384, FE #1014
 
