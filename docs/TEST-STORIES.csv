@@ -1345,10 +1345,14 @@ unchanged answer from the server changes nothing on screen.
 O2  A new price list from the server replaces the shown one and is kept
 for next time.
 O3  A lost connection keeps the shown list; pricing turned off removes it.
-O4  A damaged saved copy is never shown.","O1 -> ""is kept from a live read and served first on the next open, then confirmed behind it""
+O4  A damaged saved copy is never shown.
+O5  Once everything is in tokens (backend N198), the list says so: the
+unit and the coach's minute come through; a list from before reads as
+it always did.","O1 -> ""is kept from a live read and served first on the next open, then confirmed behind it""
 O2 -> ""replaces the shown list when the backend publishes a new one""
 O3 -> ""keeps the shown list through a blip, and drops it when pricing is turned off""
-O4 -> ""never serves a copy the parser rejects""",
+O4 -> ""never serves a copy the parser rejects""
+O5 -> ""carries the unit and the coach's minute, and an older list reads as before""",
 src/services/api/tokens.shared.test.ts,Story,"As a speaker, I want my balance read once per page and re-read after I spend, so that the number I see is never from before a purchase.","O1  Wallets reading at the same time share one balance request.
 O2  A spend anywhere in the app (the tokens-spent window event) drops the
 shared read: the wallet asks the server again and shows the new number.
