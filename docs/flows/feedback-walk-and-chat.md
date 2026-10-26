@@ -804,7 +804,7 @@ October (backend N111).
   Colleagues · Friends and family; sales: A buyer · Their team · The decision
   maker; customer service: A customer · A caller · My team; interviews: The
   hiring manager · A panel · A recruiter); goal: Say yes · Trust me · Get it.
-- **The Sunday note (L; approved with the lock, 2026-10-26, N157):** "We
+- **The Sunday note (L; approved with the lock, 2026-10-26, N158):** "We
   spotted a pattern!"; "Not now"; "Investigate"; "Sunday note"; "What one of
   those was it?"; "Add a new bug"; "Name the new bug"; "Add"; "Back"; "Did
   you have a principle in place already?"; "None yet"; "Reflections: what do
@@ -826,7 +826,7 @@ October (backend N111).
   (2026-10-23, N120). The praise keeps its own lines (N122: the
   one-sentence praise of N120 was dropped before it was built).
 
-### L · The Sunday note (backend `services/sunday_note.py`; locked 2026-10-26, N157)
+### L · The Sunday note (backend `services/sunday_note.py`; locked 2026-10-26, N158)
 
 The prototype is the design: <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo> (§5). Not built yet.
 
@@ -878,7 +878,7 @@ deletes the line when the work is merged (the change goes to §6).
 - **WIL-84, WIL-86** · videos match (the coach's changed word and video, N80) · C1, D5 · built and merged: BE #1160, FE #861, FE #872 (the speaker's side). One backend follow-up stays: a later change of the coach's word updates the in-review bubble in place (D5) · to confirm in the app
 - **WIL-90** · the exercise is blocked · C6, C7 · BE #1206 fixed the coach's gate; built 2026-10-20: the Manager's exercise offer, the verbal-cue gate and the error-presence audit read the speaker's own page too · BE #1209 · the founder checks the app
 
-- **N157** · the Sunday note as a lens · L · locked 2026-10-26, not built; the backend half (only # notes, only when asked, no Old | New) is on backend branch `claude/gracious-faraday-x8tin9`, not merged · —
+- **N158** · the Sunday note as a lens · L · locked 2026-10-26, not built; the backend half (only # notes, only when asked, no Old | New) is on backend branch `claude/gracious-faraday-x8tin9`, not merged · —
 
 The four lines above were filled from main's history by the page's keeper on
 2026-10-20; the sessions doing the work overwrite them when they push.
@@ -994,7 +994,7 @@ The design is the prototype; the newest wins where two disagree.
   <https://claude.ai/artifact/8nGuDXywGDWAZje3EcFMaj> (2026-10-16); Walk
   first <https://claude.ai/artifact/Bsf3x3HWN2jJVY35edRKw8> (2026-10-14); the
   AI voice <https://claude.ai/artifact/G8Am3fR3f3SzAdTkwyUGKZ> (v8); the
-  Sunday note as a lens <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo> (N157,
+  Sunday note as a lens <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo> (N158,
   2026-10-26).
 - **The base:** moment and feedback as one chat with a lens
   <https://claude.ai/artifact/TXbwmupWJio6N1gHqdEa7p> (version 27, locked
@@ -1008,7 +1008,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N157 · the Sunday note locked as a lens (L): only when asked, only from # notes, two bubbles and Not now | Investigate in the Lounge, the bug, the principle, the reflection and the new principle one step at a time in the lens, Accept or Edit; was the whole form in one bubble every Sunday at 6 pm, read from the Takes and the chat, with Old | New · —
+- 2026-10-26 · N158 · the Sunday note locked as a lens (L): only when asked, only from # notes, two bubbles and Not now | Investigate in the Lounge, the bug, the principle, the reflection and the new principle one step at a time in the lens, Accept or Edit; was the whole form in one bubble every Sunday at 6 pm, read from the Takes and the chat, with Old | New · —
 
 - 2026-10-24 · N118 (second part), N128 · built: when the Take's two best clips share a paragraph, the cut between them moves so each gets a paragraph of its own (40 to 120 words, never across a slide, never cutting a clip), and a one-paragraph Take is split in two when each clip has 5 words or more; the paragraphs made are new ones with new ids, and a Take whose feedback is frozen keeps its paragraphs; also fixed, a frozen Take no longer loses a moment whose clip was not its paragraph's loudest (C2, H1) · BE #1284
 - 2026-10-24 · N119 · built: other speakers are three moments every walk, one the machine reads high, one middle, one low, three different speakers, never the speaker's own or one they judged, in a blind order fixed for the Take; community clips first in their level, then the imported corpus the coaches judge (played by a short-lived signed link, audio only), then the licensed corpus; fewer only with fewer speakers or levels, and an empty or short set is logged with why; a speaker's answer on an imported clip is kept once in its own table, never a label; the walk asks with its Take and shows what the server sends, was one moment per try (C8, G4) · BE #1280
