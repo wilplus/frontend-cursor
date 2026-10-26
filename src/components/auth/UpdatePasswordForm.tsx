@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import { passwordLinkUsed } from "@/services/api/accountSignIn";
 
 // Helper to extract tokens from URL (handles both hash and query params)
 function extractTokensFromUrl(): {
@@ -238,6 +239,10 @@ export default function UpdatePasswordForm() {
       }
 
       toast.success("Password updated. Redirecting you to sign in with your new password.");
+
+      // The security log and the notice (backend N187), while the link's
+      // session can still say who it was. Best effort: the password is set.
+      await passwordLinkUsed();
 
       // Reset flow only: sign out so they are not logged in; they must sign in with the new password.
       await supabase.auth.signOut();

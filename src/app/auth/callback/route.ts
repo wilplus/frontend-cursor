@@ -1,11 +1,86 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { callBackend } from "@/app/api/_lib/backend";
+import { clientHeaders } from "@/app/api/_lib/accountRoute";
+
+const DATA_CONSENT = "/account/data-consent";
+
+/** A Supabase client on this request's cookies, writing any it sets onto
+ *  `response` (the getAll/setAll API; see the recovery branch below). */
+function cookieClient(req: NextRequest, response: NextResponse) {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return req.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set({ name, value, ...options });
+          });
+        },
+      },
+    }
+  );
+}
+
+/** Email and password on Data & consent (backend N187): the link that
+ *  changes the email. The one-time token is the proof, so it works on any
+ *  device; the backend changes the email and logs it. Back to the card,
+ *  through sign-in when this browser has no session. */
+async function confirmEmailChange(req: NextRequest, token: string): Promise<NextResponse> {
+  let outcome = "failed";
+  try {
+    const response = await callBackend("/v2/account/email/confirm", {
+      method: "POST",
+      requireAuth: false,
+      token: null,
+      headers: { ...clientHeaders(req), "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+    if (response.ok) outcome = "changed";
+  } catch (err) {
+    console.error("[Auth Callback] Email change not confirmed:", err);
+  }
+  const card = `${DATA_CONSENT}?email=${outcome}`;
+  // Reading the session can refresh it; the fresh cookies ride on the
+  // redirect that is returned, never on one that is thrown away.
+  const toCard = NextResponse.redirect(new URL(card, req.url));
+  const { data } = await cookieClient(req, toCard).auth.getSession();
+  if (data.session) return toCard;
+  const login = new URL("/login", req.url);
+  login.searchParams.set("redirectTo", card);
+  return NextResponse.redirect(login);
+}
+
+/** The card's Forgot password? and Set a password links carry Supabase's
+ *  token hash: verified here, so the session is in the cookies before Set
+ *  new password opens. */
+async function verifyRecoveryLink(req: NextRequest, tokenHash: string): Promise<NextResponse> {
+  const response = NextResponse.redirect(new URL("/update-password", req.url));
+  const { error } = await cookieClient(req, response).auth.verifyOtp({
+    type: "recovery",
+    token_hash: tokenHash,
+  });
+  if (error) {
+    console.error("[Auth Callback] Recovery link not verified:", error);
+    return NextResponse.redirect(new URL("/reset-password?error=expired", req.url));
+  }
+  return response;
+}
 
 export async function GET(req: NextRequest) {
   const requestUrl = new URL(req.url);
   const code = requestUrl.searchParams.get("code");
   const type = requestUrl.searchParams.get("type"); // Supabase adds ?type=recovery for password reset
   const next = requestUrl.searchParams.get("next");
+
+  const emailToken = requestUrl.searchParams.get("token");
+  if (type === "email_change" && emailToken) return confirmEmailChange(req, emailToken);
+  const tokenHash = requestUrl.searchParams.get("token_hash");
+  if (type === "recovery" && tokenHash) return verifyRecoveryLink(req, tokenHash);
 
   // Password recovery: only treat as recovery when explicitly flagged.
   // OAuth providers (LinkedIn, etc.) return ?code=xxx with no type param —

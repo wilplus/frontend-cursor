@@ -37,7 +37,8 @@ CLAUDE.md points here.
    "Do not agree"), and **Nothing was recorded** ("Go back" / "Read the
    documents again").
 2. **Data & consent.** Personalised practice, Sensitive information in
-   recordings, Help improve WillpowerLab, Your projects, Delete my account
+   recordings, Help improve WillpowerLab, Your projects, Email and password
+   (amended 2026-10-26, below), Delete my account
    with its confirm and the 7-day cancel, each with its confirm and its
    outcome line.
 3. **Before each Take.** **Turn on the learning?** while the training
@@ -173,6 +174,36 @@ no longer applies to the first-time screen.
 (version 2). The code already follows both (`PolicyUpdate.tsx`, and the Lounge's `LoungeTopUpCard.tsx`).
 
 
+### Amended 2026-10-26: Email and password (backend N187)
+
+Approved on the clickable prototype <https://claude.ai/artifact/5tNVcdnq9PjkTyHHm9hzfT> (version 1; copy
+in backend `docs/design/settings-email-password-2026-10-26.html`): "approved, implement it" (WIL-95).
+Written in the present tense.
+
+- **The card.** Data & consent has an **Email and password** card between Your projects and Support:
+  **Email** with the address and **Change**; **Password** with dots and **Change**.
+- **Change email.** **New email** and, for an account with a password, **Current password**, then
+  **Send link** / **Cancel**. A link goes to the new address and a notice to the old one, and the card
+  says "We sent a link to {new}. Your email changes when you open it." Opening the link changes the email
+  and brings the person back to the card, through sign-in on a browser without a session: "Your email is
+  now {new}." Only the newest link works, for 24 hours, once.
+- **Change password.** **Current password**, **New password** ("At least 6 characters"), **Confirm new
+  password**, then **Update password** / **Cancel**, and **Forgot password?** under them. A change signs
+  the person out on their other devices, sends a notice and says "Password updated." Forgot password?
+  says "We sent a reset link to {email}."; the link opens Set new password, which works as it does from
+  the login page and signs out everywhere.
+- **No password yet.** An account that signs in with Google or LinkedIn reads "You sign in with Google."
+  (or LinkedIn) with **Set a password**, which says "We sent a link to {email}. Open it to set a
+  password."; its email form has no password field.
+- **Refusals**, under the form: "Enter an email address.", "That is already your email.", "That email
+  already has an account.", "That password isn’t right.", "Password must be at least 6 characters.",
+  "Passwords do not match." Anything else, and a link that no longer works, is the page's "Couldn’t save
+  that. Try again." (the second until the founder words it, N187 item 6).
+- **The emails** are the prototype's five, in its words (backend `services/email_account_security.py`).
+- **The log.** Every request, change and wrong password is a row in the backend's security log, with the
+  time, the IP address and the device. The speaker never sees it.
+- `/change-password`, which nothing linked to, is gone; the card replaces it.
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
@@ -217,11 +248,13 @@ Every prototype link in §1, in the order it first appears:
 - <https://claude.ai/artifact/6v4vEhppupQc9LC2tzbD6H>
 - <https://claude.ai/artifact/GPRRXaivyrZE2UjrRZY93K>
 - <https://claude.ai/artifact/CzVL6JWK85tZDVpU9JRtgY>
+- <https://claude.ai/artifact/5tNVcdnq9PjkTyHHm9hzfT>
 
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N187 · Email and password on Data & consent: change email with a link, change password, Forgot password? and Set a password, the security log; `/change-password` goes · BE, FE
 - 2026-10-26 · docs audit · the pointer to CLAUDE.md's "Design lock" section names its history copy; no rule changed · —
 - 2026-10-21 · N111 · the policy update prompt and every Lounge ask, unified (both version 2), join §1 and §5, out of §3; the page also guards the consent files it missed (§4) · BE, FE
 - 2026-10-21 · N107 · this page replaces backend `FOUNDER-LOCK-consent-screens-2026-10-07.md` as the place the rules live; the lock stays as history · BE #1241, FE #928
