@@ -11,6 +11,7 @@ import {
   SPACE_ORDER,
   STEPS_BACK,
   horizonDate,
+  clashOptions,
   ladderRungs,
   quarterEnd,
   quarterQuestion,
@@ -20,8 +21,10 @@ import {
   type Rung,
 } from "@/lib/willab/lifeGoals";
 import {
+  answerClash,
   answerLifeGoalsAsk,
   changeStep,
+  checkClash,
   draftGoal,
   finishGoal,
   getLifeGoals,
@@ -290,7 +293,7 @@ export function LadderCard({
       {ladderRungs(goal).map((rung) =>
         onPick ? (
           <button
-            key={rung.step}
+            key={`${rung.step}${rung.with ?? ""}`}
             type="button"
             onClick={() => onPick(rung)}
             className="relative block w-full border-t border-foreground/10 py-1.5 pr-7 text-left first-of-type:border-t-0"
@@ -299,7 +302,7 @@ export function LadderCard({
             <ChevronRight aria-hidden className="absolute right-0 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           </button>
         ) : (
-          <span key={rung.step} className="block py-0.5">
+          <span key={`${rung.step}${rung.with ?? ""}`} className="block py-0.5">
             <RungBody rung={rung} small={small} />
           </span>
         ),
@@ -445,7 +448,29 @@ async function addGoal(ctx: Ctx, open: LensOpen): Promise<void> {
   ladder.give = (await wordsAnswer(s)) ?? undefined;
   keep(sit, "give");
   await workBack(ctx, ladder, (key) => keep(sit, key));
+  await clash(sit);
   await setGoal(sit);
+}
+
+/** Before the ladder: a kept goal this one pulls against, and which wins
+ *  when they clash, once per pair (M12, N185). */
+async function clash(sit: Sitting): Promise<void> {
+  await sit.saving;
+  if (!sit.id) sit.id = (await saveDraft(null, sit.space, sit.ladder))?.id ?? null;
+  const found = sit.id && sit.ctx.state.goals.length ? await checkClash(sit.id) : null;
+  if (!sit.id || !found) return;
+  await sit.s.say(found.line, COPY.whichWins);
+  const option = found.options[await tapAnswer(sit.s, found.options)];
+  if (await answerClash(sit.id, found.with, option.wins)) await sayClashNoted(sit.s, option);
+}
+
+async function sayClashNoted(s: Script, option: { wins: string; label: string }): Promise<void> {
+  const who = option.wins === "each_time" ? COPY.youDecide : COPY.wins(option.label);
+  await s.say(
+    <span key="clash">
+      {COPY.clashNoted} <b>{COPY.whenClash(who)}</b>
+    </span>,
+  );
 }
 
 async function shownSpace(s: Script, space: SpaceKey): Promise<SpaceKey> {
@@ -610,7 +635,7 @@ const BELOW: Partial<Record<ChangeableStep, readonly ChangeableStep[]>> = {
   y1: ["quarter"],
 };
 
-const RUNG_NAME: Record<ChangeableStep, string> = {
+const RUNG_NAME: Record<ChangeableStep | "clash", string> = {
   goal: "Life goal",
   want: "A want, held knowingly",
   give: "Giving up",
@@ -619,6 +644,7 @@ const RUNG_NAME: Record<ChangeableStep, string> = {
   y1: "In a year",
   quarter: "This quarter",
   talk: "Talk goal",
+  clash: "When they clash",
 };
 
 function stepText(goal: LifeGoal, step: ChangeableStep): string | undefined {
@@ -630,10 +656,10 @@ async function seeGoals(ctx: Ctx, open: LensOpen): Promise<void> {
   const { s } = ctx;
   let goals = ctx.state.goals.filter((goal) => !open.goalId || goal.id === open.goalId);
   if (!goals.length) return;
-  type Pick = { goal: LifeGoal; step: ChangeableStep } | null;
+  type Pick = { goal: LifeGoal; rung: Rung } | null;
   const ladders = (pick: (value: Pick) => void) =>
     goals.map((goal) => (
-      <LadderCard key={`${goal.id}-${JSON.stringify(goal.changes)}`} goal={goal} onPick={(rung) => pick({ goal, step: rung.step as ChangeableStep })} />
+      <LadderCard key={`${goal.id}-${JSON.stringify(goal.changes)}-${JSON.stringify(goal.ladder.clashes)}`} goal={goal} onPick={(rung) => pick({ goal, rung })} />
     ));
   let resolvePick: ((value: Pick) => void) | null = null;
   const choose = (value: Pick) => resolvePick?.(value);
@@ -660,12 +686,37 @@ async function seeGoals(ctx: Ctx, open: LensOpen): Promise<void> {
       }
       return;
     }
-    const updated = await changeOne(ctx, pick.goal, pick.step);
+    const updated =
+      pick.rung.step === "clash"
+        ? await changeClash(ctx, pick.goal, pick.rung.with)
+        : await changeOne(ctx, pick.goal, pick.rung.step);
     if (!updated) continue;
     changed = true;
-    goals = goals.map((goal) => (goal.id === updated.id ? updated : goal));
+    const other = updated.ladder.clashes?.find((c) => c.with === pick.rung.with);
+    goals = goals.map((goal) => {
+      if (goal.id === updated.id) return updated;
+      // The other ladder shows the same answer (N185).
+      if (pick.rung.step !== "clash" || goal.id !== pick.rung.with || !other) return goal;
+      const clashes = (goal.ladder.clashes ?? []).map((c) => (c.with === updated.id ? { ...c, wins: other.wins, text: other.text } : c));
+      return { ...goal, ladder: { ...goal.ladder, clashes } };
+    });
     await s.say(COPY.changedOn(dayLabel(new Date().toISOString())), ...ladders(choose));
   }
+}
+
+/** A tapped WHEN THEY CLASH: asked again, the earlier answer kept (M12). */
+async function changeClash(ctx: Ctx, goal: LifeGoal, otherId: string | undefined): Promise<LifeGoal | null> {
+  const { s } = ctx;
+  const other = ctx.state.goals.find((g) => g.id === otherId);
+  if (!other) return null;
+  await s.me(RUNG_NAME.clash);
+  await s.say(COPY.whichWins);
+  const options = clashOptions(goal, other);
+  const option = options[await tapAnswer(s, options)];
+  const kept = await answerClash(goal.id, other.id, option.wins);
+  if (!kept) return null;
+  await ctx.refresh();
+  return kept.goal;
 }
 
 async function changeOne(ctx: Ctx, goal: LifeGoal, step: ChangeableStep): Promise<LifeGoal | null> {

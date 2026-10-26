@@ -60,6 +60,8 @@ Life Panel.
   your practice", "changed {date}", "Earlier:"; the field's "Say it or type
   it"; "Type instead". With N183 (M16): "📓 Use your notebook!"; "Keep the
   details in your own notebook, the paper one. Here we keep only the base.";
+  with N185 (M12): the label WHEN THEY CLASH, "{space} wins", "You decide
+  each time";
   "That's the base. Now go and live it. Come back for a short recap.". With N170: "Nothing stands out in your notes from the last
   seven days yet."; "There are no # notes from the last seven days yet."
 
@@ -169,7 +171,8 @@ The prototype is the design: <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24>
   {date}, A WANT, HELD KNOWINGLY, GIVING UP, IN TEN YEARS, IN THREE YEARS,
   IN A YEAR (each · by {date}), THIS QUARTER or NEXT QUARTER · by {date};
   under the goal the talk serves (career unless the speaker moves it), TALK
-  GOAL and THIS WEEK · from your practice. A skipped step is left out. Then
+  GOAL and THIS WEEK · from your practice; then WHEN THEY CLASH, one row per
+  goal it clashes with (M12). A skipped step is left out. Then
   "Noted. Your {space} goal is set." and Close; the Lounge keeps the thread
   and the bubble opens the lens again (L8).
 - **M11** Changing a step: "#goals" or the › on a ladder bubble opens "Tap
@@ -182,10 +185,15 @@ The prototype is the design: <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24>
   "Noted. Changed on {date}." and the ladder with "· changed {date}" and
   "Earlier: …". Done; "All still right" leaves it. Every version is kept,
   dated.
-- **M12** A second goal whose give-up pulls against another goal: Will names
-  both in one bubble and asks once "When they clash, which wins?" ({space} ·
-  {space} · ⚖️ I decide each time); "Noted. On both ladders: when they
-  clash, …".
+- **M12** A second goal whose give-up pulls against another goal (N185):
+  before the new goal is set, Will checks once per pair, from their words
+  only, names both in one bubble and asks "When they clash, which wins?"
+  ({emoji} {space} · {emoji} {space} · ⚖️ I decide each time; when both
+  goals share a space, each is named by its first words); "Noted. On both
+  ladders: when they clash, {space} wins." (or "you decide each time.").
+  Both ladders get the step WHEN THEY CLASH: "{emoji} {space} wins" or "You
+  decide each time". It changes by tapping, like any step (M11), with the
+  same three answers; the earlier answer is kept with its date.
 - **M13** The quarter comes back on its last day, once per goal with a
   quarter step, in the Lounge: "The quarter ends today." and "{emoji} {step}.
   Did it move?" with Not now | Start. The lens: the ladder, "Did it move?"
@@ -216,7 +224,7 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- **N172** · life goals (M) · M · M1–M11 built in this PR and backend #1335 (merged); then M12 (the clash), M13 (the quarter comes back), M14 (a note that sounds like a change), the ladders in the Life Panel's own screens and this week's focus on the ladder (no source yet) · BE #1335, FE (this PR)
+- **N172** · life goals (M) · M · M1–M12 built (M12 with N185: backend #1353, FE this PR); then M13 (the quarter comes back), M14 (a note that sounds like a change), the ladders in the Life Panel's own screens and this week's focus on the ladder (no source yet) · BE #1335, FE (this PR)
 - **N158, N170** · the Sunday note as a lens, on Sunday by itself when there is a pattern and whenever asked in any words, from the last seven days · L · locked 2026-10-26, not built; the backend half (only # notes, only when asked, no Old | New) is on backend branch `claude/gracious-faraday-x8tin9`, not merged · —
 
 ## 3. Still open
@@ -252,6 +260,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N185 · built (M12): before a new goal is set, Will checks once per pair whether it pulls against a kept goal, from their words only, and asks "When they clash, which wins?"; the answer is the step WHEN THEY CLASH on both ladders, changed by tapping with the earlier answer kept · BE #1351, #1353, FE (this PR)
 - 2026-10-26 · N180, N183 · built (M16): "📓 Use your notebook!" and the paper-notebook line the first time the lens opens; "That's the base. Now go and live it. Come back for a short recap." when a goal is set; the voice notebook stays for short # notes · BE (this change), FE (this PR)
 - 2026-10-26 · N182 · this page: the principles, the Sunday note and life goals are their own feature, ring 6, apart from the speaking coach; L and M moved here from the walk's page with their letters, words, in-flight lines and prototypes · BE #1344, FE #993
 - 2026-10-26 · N172 · built (M1–M11): the ask after a # note with Not now | Start; "#goals" or an ask in your own words opens the lens; one goal per sitting, the open questions said with the small mic or typed, Will's draft quoting only your words, goal or want, ambitious, give up, the horizon worked back to the quarter with the four-week rule, the ladder in the Lounge with its ›, a step changed with its earlier words kept; the lens is the walk's frame (`LoungeLifeGoals.tsx`); the pair shows above the message box, as the notebook's and the WhatsApp ask's do · BE #1335, FE (this PR)

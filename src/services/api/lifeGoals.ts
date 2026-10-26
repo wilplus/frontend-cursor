@@ -9,6 +9,9 @@ export type SpaceKey = "personal" | "career" | "good";
 export type HorizonKey = "1y" | "3y" | "10y" | "life";
 export type StepKey = "y10" | "y3" | "y1";
 export type ChangeableStep = "goal" | "want" | "give" | StepKey | "quarter" | "talk";
+/** A clash with another goal (M12): that goal's id, who wins, the words. */
+export type Clash = { with: string; wins: string; text: string };
+export type ClashOption = { wins: string; emoji: string; label: string };
 
 export type Ladder = {
   goal?: string;
@@ -20,6 +23,8 @@ export type Ladder = {
   horizon_by?: string;
   steps?: Partial<Record<StepKey, { text: string; by?: string | null }>>;
   quarter?: { text: string; by?: string | null; next?: boolean };
+  /** Kept by the server, never written by the lens (N185). */
+  clashes?: Clash[];
   answers?: { want_most?: string; fulfil?: string; nature?: string; under?: string };
   /** The lens's own record of the questions already answered, so it reopens
    *  where it stopped. */
@@ -32,7 +37,7 @@ export type LifeGoal = {
   status: "draft" | "active" | "replaced" | "dropped";
   ladder: Ladder;
   /** The newest change of each step: its date and the words before it. */
-  changes: Partial<Record<ChangeableStep, { on: string; earlier: string | null }>>;
+  changes: Partial<Record<ChangeableStep | "clash", { on: string; earlier: string | null }>>;
   /** The talk goal (the setup answer), on the career goal. */
   talk?: string;
 };
@@ -119,4 +124,29 @@ export async function changeStep(id: string, step: ChangeableStep, text: string)
     method: "POST",
     json: { step, text },
   })) as LifeGoal | null;
+}
+
+/** Before a goal is set (M12): the kept goal it pulls against, the line
+ *  that names both and the answers; null when there is none. */
+export async function checkClash(
+  id: string,
+): Promise<{ with: string; line: string; options: ClashOption[] } | null> {
+  const body = (await call(`/api/v2/life-goals/${encodeURIComponent(id)}/clash/check`, {
+    method: "POST",
+    json: {},
+  })) as { clash?: { with?: unknown; line?: unknown; options?: unknown } | null } | null;
+  const clash = body?.clash;
+  if (!clash || typeof clash.with !== "string" || typeof clash.line !== "string" || !Array.isArray(clash.options)) {
+    return null;
+  }
+  return { with: clash.with, line: clash.line, options: clash.options as ClashOption[] };
+}
+
+/** Which wins when they clash, kept on both ladders; the goal as it is now. */
+export async function answerClash(id: string, other: string, wins: string): Promise<{ text: string; goal: LifeGoal } | null> {
+  const body = (await call(`/api/v2/life-goals/${encodeURIComponent(id)}/clash`, {
+    method: "POST",
+    json: { with: other, wins },
+  })) as { text?: unknown; goal?: LifeGoal } | null;
+  return typeof body?.text === "string" && body.goal ? { text: body.text, goal: body.goal } : null;
 }
