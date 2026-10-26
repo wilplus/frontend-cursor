@@ -1,7 +1,7 @@
 /*
 STORY    As a speaker in a pace week, I want the walk to give me a tempo game right after my practise moment, read each try from where the ball stayed, and close with one line in words, so that I feel my pace change without a score.
 OUTCOME
-  O1  The tempo step sits right after the practise moments and before other speakers; without it the walk is unchanged (N164).
+  O1  The tempo step sits right after the practise moments and before other speakers; without it the walk is unchanged (N166).
   O2  It never appears in the coach-only walk or for a guest (N162).
   O3  A try that stays mostly in the green reads as better; otherwise the side the ball leaned to.
   O4  The step closes "dynamic" once a try was better and the last was not rushed; otherwise the side the tries leaned to.
@@ -9,7 +9,7 @@ PROVES   O1 -> "comes right after the practise moments, before other speakers", 
          O2 -> "is never in the coach-only walk or a guest's"
          O3 -> "reads a try from where the ball stayed"
          O4 -> "closes on one line from the tries"
-WHY      Founder 2026-10-26 (backend N162: "in the feedback walk only"; N164: "go with the defaults"); Never-rule 1.
+WHY      Founder 2026-10-26 (backend N162: "in the feedback walk only"; N166: "go with the defaults"); Never-rule 1.
 */
 import { describe, expect, it } from "vitest";
 import { buildWalkPlan, type WalkMoment } from "./walkPlan";

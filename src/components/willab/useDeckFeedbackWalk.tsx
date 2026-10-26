@@ -739,7 +739,7 @@ export function useDeckFeedbackWalk(args: {
   const { answeredOf, helperWordsOf, finished = false } = args;
   const coachOnly = args.coachOnly === true;
   const practiceOn = usePracticeOn();
-  /* THE TEMPO STEP (backend N162, N164): founder-only on a stand-in stretch
+  /* THE TEMPO STEP (backend N162, N166): founder-only on a stand-in stretch
      until the backend sends the Take's own (build step 3) and the plan
      turns it on in a pace or pause week (step 6). */
   const tempoOn = isFounderEmail(useUserEmail());

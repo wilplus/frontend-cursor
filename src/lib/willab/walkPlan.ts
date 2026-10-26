@@ -70,7 +70,7 @@ export type WalkMoment = {
 /** A practice the walk adds for a Take beyond its moments, chosen by the
  *  diagnosis and the plan (backend N162). Each kind is one step key with its
  *  own screen; a new one is a new kind here, its place in buildWalkPlan and
- *  its screen. The first is the tempo step (N164). */
+ *  its screen. The first is the tempo step (N166). */
 export type WalkIntervention = "tempo";
 
 export type WalkPlanInput = {
@@ -123,7 +123,7 @@ export type WalkStepKey =
    *  over the intro, never planned. */
   | "journal"
   | "judge"
-  /** The tempo step (backend N162, N164): right after the practise moments. */
+  /** The tempo step (backend N162, N166): right after the practise moments. */
   | "tempo"
   /** Judge other speakers, once, after the practising (lock 2026-10-12). */
   | "others"
@@ -209,7 +209,7 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
     // the rewording (founder 2026-10-22, N113: "After the rewording").
     if (m.helpers) steps.push(momentStep(m, "helpers"));
   }
-  // The Take's interventions, right after the practise moment (N164 item 2).
+  // The Take's interventions, right after the practise moment (N166 item 2).
   if (!input.guest) for (const kind of input.interventions ?? []) steps.push({ key: kind });
   // Sharing is asked before the next recording now (lock 2026-10-12, §5).
   steps.push({ key: "others" });

@@ -210,7 +210,7 @@ type Props<R> = {
    *  Lounge shows them answered (founder 2026-10-18). */
   othersJudged?: number;
   /** The tempo step's stretch, when the plan has a "tempo" step (backend
-   *  N162, N164); absent: the step is passed by. */
+   *  N162, N166); absent: the step is passed by. */
   tempo?: TempoStretch | null;
 };
 
@@ -1157,7 +1157,7 @@ function Others(ctx: ScreenCtx, step: WalkStep) {
   );
 }
 
-/** The tempo step (backend N162, N164): the stretch practised on the pace
+/** The tempo step (backend N162, N166): the stretch practised on the pace
  *  scale. With no stretch it is passed by. */
 function Tempo(ctx: ScreenCtx, step: WalkStep) {
   if (!ctx.tempo || step.readOnly || step.replay) return <PassBy onPass={() => ctx.forwardFrom(step)} />;

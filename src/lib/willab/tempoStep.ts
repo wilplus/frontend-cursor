@@ -1,6 +1,6 @@
 /* -------------------------------------------------------------------------- */
 /*  The tempo step — the pace scale as a step of the Feedback walk (backend  */
-/*  N162, N164; the walk's page §2 "Tempo"; prototype Tempo in the Walk      */
+/*  N162, N166; the walk's page §2 "Tempo"; prototype Tempo in the Walk      */
 /*  https://claude.ai/artifact/VJd5MeFGgZy7e3Q8M1EQXV).                       */
 /*                                                                            */
 /*  The stretch of the Take the speaker rushed or dragged is played back;     */
@@ -12,11 +12,11 @@
 
 import { zoneLevel } from "./pace/paceSignal";
 
-/** Up to three tries (N164 item 3). */
+/** Up to three tries (N166 item 3). */
 export const TEMPO_MAX_TRIES = 3;
 
 /** The stretch the step practises: the one the scale reads furthest from
- *  the green (N164 item 1), what it was, and what it was about. */
+ *  the green (N166 item 1), what it was, and what it was about. */
 export type TempoStretch = {
   reading: "rushed" | "slow";
   /** What the stretch was about, said back in Will's task line. */
@@ -49,7 +49,7 @@ export function closeOf(tries: readonly TempoTry[]): TempoClose {
   return count("rush") >= count("slow") ? "rush" : "slow";
 }
 
-/** Until the backend sends the Take's own stretch (build step 3, N164
+/** Until the backend sends the Take's own stretch (build step 3, N166
  *  item 5), the founder walks the step on this one. */
 export const TEMPO_STAND_IN: TempoStretch = {
   reading: "rushed",
@@ -64,7 +64,7 @@ export const TEMPO_STAND_IN: TempoStretch = {
 
 /** DRAFT words, as the prototype has them: not signed, so the step shows
  *  only behind the founder's switch until they move to the signed bank
- *  (Never 4; build step 5, N164 item 5). */
+ *  (Never 4; build step 5, N166 item 5). */
 export const TEMPO_DRAFT_COPY = {
   mark: "Tempo",
   game: {

@@ -16,7 +16,7 @@
 /*                                       &practice=0 with personalised         */
 /*                                       practice off (D-FW-15); &exvideo=0    */
 /*                                       its exercise with no video (D-FW-17)  */
-/*                                       &tempo=1 with the tempo step (N164)  */
+/*                                       &tempo=1 with the tempo step (N166)  */
 /*                                       &replay=1 the walk already finished: */
 /*                                       the page's "Review feedback" link    */
 /*                                       plays it again (Q-IT643b A)          */

@@ -18,7 +18,7 @@ import RecordingStrip from "./RecordingStrip";
 import { WalkSpeakerBubble, useMountedAsPast } from "./WalkThread";
 
 /* -------------------------------------------------------------------------- */
-/*  WalkTempo — the tempo step of the walk (backend N162, N164; the walk's    */
+/*  WalkTempo — the tempo step of the walk (backend N162, N166; the walk's    */
 /*  page §2 "Tempo"; prototype https://claude.ai/artifact/VJd5MeFGgZy7e3Q8M1EQXV). */
 /*                                                                            */
 /*  The speaker's stretch with the rushed or dragged part marked; three of   */

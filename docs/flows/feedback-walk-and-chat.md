@@ -901,7 +901,7 @@ The four lines above were filled from main's history by the page's keeper on
 - **The lens scrolls** · B2, B5 · founder 2026-10-20 ("It is scrollable!"), read as WIL-89 working as drawn; say if that was a complaint · confirmed
 - **Review from the Lounge loads very long** · F1, A2 · founder 2026-10-20. The same cause as WIL-76: the marks computed live (20 to 40 s) or pending behind a queued bake; the bake in the run stores them before the Take is ready, so the tap finds them · BE #1209 · the founder checks the app
 
-- **Tempo · the pace step** · C (a new step after the practise moment), K · founder 2026-10-24 to 2026-10-26, backend N162, N164 · steps 1 and 2 built · everything about this feature is in this block.
+- **Tempo · the pace step** · C (a new step after the practise moment), K · founder 2026-10-24 to 2026-10-26, backend N162, N166 · steps 1 and 2 built · everything about this feature is in this block.
 
   **In one line.** After a Take where the speaker rushed or dragged, the walk
   plays that stretch back and asks them to talk about the same thing again
@@ -936,7 +936,7 @@ The four lines above were filled from main's history by the page's keeper on
   | How many tries | Up to three |
   | A noisy room | The quiet-spot line only; no listening check |
 
-  **The build, in order** (N164 item 5):
+  **The build, in order** (N166 item 5):
 
   | Step | What | Where it stands |
   |---|---|---|
@@ -1071,7 +1071,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N164 · built: the walk takes a list of interventions, empty by default, and the tempo step is its first: right after the practise moments, never in the coach-only walk or for a guest; its screen, founder-only on a stand-in stretch, with draft words; the pace meter and scale moved to shared code, the bench unchanged · FE (this PR)
+- 2026-10-26 · N166 · built: the walk takes a list of interventions, empty by default, and the tempo step is its first: right after the practise moments, never in the coach-only walk or for a guest; its screen, founder-only on a stand-in stretch, with draft words; the pace meter and scale moved to shared code, the bench unchanged · FE (this PR)
 - 2026-10-26 · N162 · the pace practice is the tempo step of the Feedback walk only, shown in a pace or pause week from Take 2; was: before the Take, 2 minutes, where it sat open · BE #1316, FE #969
 - 2026-10-26 · N158 · the Sunday note locked as a lens (L): only when asked, only from # notes, two bubbles and Not now | Investigate in the Lounge, the bug, the principle, the reflection and the new principle one step at a time in the lens, Accept or Edit; was the whole form in one bubble every Sunday at 6 pm, read from the Takes and the chat, with Old | New · —
 

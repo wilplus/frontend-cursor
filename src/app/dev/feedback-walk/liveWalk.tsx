@@ -201,7 +201,7 @@ export default function LiveWalk({
   exerciseVideo?: boolean;
   /** Start with the walk already finished (&replay=1). */
   finished?: boolean;
-  /** The tempo step on its stand-in stretch (&tempo=1, N164). */
+  /** The tempo step on its stand-in stretch (&tempo=1, N166). */
   tempo?: boolean;
 }) {
   const audioSrc = useToneSrc();
