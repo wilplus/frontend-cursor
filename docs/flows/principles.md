@@ -208,7 +208,8 @@ The prototype is the design: <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24>
   note: “…”", Not now | Change; Change: "Noted. {emoji} This quarter is now
   “…”. “…” stays in its history." and the ladder. Never a change by itself.
   The new words and the quote are found word for word in the note, else
-  nothing is asked; asked once per note; only the quarter step (N191;
+  nothing is asked; asked once per note; only the quarter step, "this
+  quarter only is fine" (N191;
   prototype version 9, scene 5).
 - **M15** Kept in the Life Panel's store as its top layer, above the three
   bets; every version dated. Will reads the ladders and their dated changes
@@ -229,7 +230,7 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- **N172** · life goals (M) · M · M1–M14 built (M14 with N191: backend #1361, FE this PR); then a note that changes another step (waits for the founder), the ladders in the Life Panel's own screens and this week's focus on the ladder (no source yet) · BE #1335, FE (this PR)
+- **N172** · life goals (M) · M · M1–M14 built (M14 with N191: backend #1361, FE this PR); then the ladders in the Life Panel's own screens and this week's focus on the ladder (no source yet) · BE #1335, FE (this PR)
 - **N158, N170** · the Sunday note as a lens, on Sunday by itself when there is a pattern and whenever asked in any words, from the last seven days · L · locked 2026-10-26, not built; the backend half (only # notes, only when asked, no Old | New) is on backend branch `claude/gracious-faraday-x8tin9`, not merged · —
 
 ## 3. Still open
