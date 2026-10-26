@@ -651,14 +651,17 @@ button,
 /* THE TAIL ON THE LAST BUBBLE OF A RUN (founder 2026-10-14, WhatsApp-like):
    a row is the app's (`data-row="app"`, left) or the speaker's ("me",
    right); the bubble (`data-bubble`) of a row whose next sibling is not of
-   the same side gets a small tail at its bottom corner. */
-[data-row="app"]:not(:has(+ [data-row="app"])) [data-bubble],
-[data-row="app"][data-bubble]:not(:has(+ [data-row="app"])) {
+   the same side gets a small tail at its bottom corner. An outlined bubble
+   (`data-outlined`: a step or a coach's word that waits) has none: the
+   tail covered its stroke at the corner (founder 2026-10-26, N192: "make
+   sure it is well visible and not cut"). */
+[data-row="app"]:not(:has(+ [data-row="app"])) [data-bubble]:not([data-outlined]),
+[data-row="app"][data-bubble]:not([data-outlined]):not(:has(+ [data-row="app"])) {
   position: relative;
   border-bottom-left-radius: 4px;
 }
-[data-row="app"]:not(:has(+ [data-row="app"])) [data-bubble]::before,
-[data-row="app"][data-bubble]:not(:has(+ [data-row="app"]))::before {
+[data-row="app"]:not(:has(+ [data-row="app"])) [data-bubble]:not([data-outlined])::before,
+[data-row="app"][data-bubble]:not([data-outlined]):not(:has(+ [data-row="app"]))::before {
   content: "";
   position: absolute;
   left: -7px;

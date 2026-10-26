@@ -2271,6 +2271,9 @@ export interface CoachMessage {
    *  Close on the update), and again when the coach changes its words or
    *  video. Absent or false: nothing waits for it. */
   unseen?: boolean;
+  /** The coach changed the word after first sharing it: the walk says
+   *  "Edited" on it (N192, B13). */
+  edited?: boolean;
 }
 
 /** null unless the coach sent a message or a video. */
@@ -2294,6 +2297,7 @@ export function mapCoachMessage(raw: unknown): CoachMessage | null {
         ? r.take_session_id
         : null,
     unseen: r.unseen === true,
+    edited: r.edited === true,
   };
 }
 
