@@ -138,6 +138,8 @@ import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
 import { useWaitScreen } from "./useWaitScreen";
 import { usePinThreadBottom } from "./usePinThreadBottom";
 import { clearerPieces, type ClearerPiece } from "@/lib/willab/clearerPieces";
+import { usePlanLounge } from "./plan/usePlanLounge";
+import { planRowFor, type PlanRowCtx } from "./plan/PlanRows";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { afterChatBoot } from "@/lib/chatBoot";
 
@@ -242,6 +244,7 @@ export default function Lounge({
   onStart,
   onStartNewProject,
   onStartInProject,
+  onStartPlanRecording,
   dispatch,
   initialBestPresentationArcId = null,
   initialIdealTextArcId = null,
@@ -259,6 +262,9 @@ export default function Lounge({
    *  project is already known, so the picker is skipped entirely and the Lab
    *  opens straight onto the prefilled setup. */
   onStartInProject?: () => void;
+  /** The plan's "Start your first recording" (the-plan.md E5): the set-up
+   *  with the topic filled in from the voice message, no feelings check. */
+  onStartPlanRecording?: (topic: string | null) => void;
   /** What happened; useWillabFlow's table decides the state. */
   dispatch: (event: WillabEvent) => void;
   /** C — when set (from /chat?arc=<arc_id>), open the BestPresentationOverlay
@@ -1026,7 +1032,20 @@ export default function Lounge({
   // project's newest summary carries "Record Take N", which opens the text
   // the way its own button does (from Take 2 on, the sharing question
   // first). Held while a Take is still landing, as the "+" is.
+  // The plan in the Lounge (docs/flows/the-plan.md): its rows, its footer in
+  // place of the message box, its sheets. Off unless the ring row reaches.
+  const plan = usePlanLounge({
+    signedIn: thread.signedIn,
+    thread,
+    setThinking: setBotThinking,
+    onStartRecording: onStartPlanRecording,
+    onRecordNext: (arc) => openIdealText(arc, "share"),
+    recordHeld: takeInFlight,
+  });
   const nextTakeOf = (m: LoungeMessage): SummaryRecord | null => {
+    // A practice day's one thing, newer than this message, holds the chat's
+    // one record button (N167).
+    if (plan.oneHoldsRecord) return null;
     const meta = m.metadata ?? {};
     const arc = meta.arc_id;
     const take = meta.take_index;
@@ -1654,6 +1673,7 @@ export default function Lounge({
             : (target) => openIdealText(target.arcId)
         }
         onOpenIdealText={openIdealText}
+        planRows={plan.rows}
         latestForArc={latestIdealIds.has(item.message.client_id)}
         onRetryIdealText={retryIdealTextFromCard}
         onOpenConfidencePractice={setConfidencePracticeId}
@@ -1716,7 +1736,7 @@ export default function Lounge({
         {thread.loading ? (
           <TypingDots label="Loading" />
         ) : threadItems.length === 0 ? (
-          <LoungeEmptyState onStart={onStartNewProject ?? onStart} />
+          <LoungeEmptyState onStart={onStartNewProject ?? onStart} hidden={plan.holdsEmpty} />
         ) : (
           shownItems.map((item, i) => {
             const id = item.message.client_id;
@@ -1954,9 +1974,11 @@ export default function Lounge({
           Continue review
         </button>
       ) : null}
+      {plan.dock}
+      {plan.sheets}
       <PolicyUpdateComposer>
       <VoiceNoteBar notebook={notebook} />
-      <form onSubmit={handleSend} className={`${notebook.composerDisplay} items-end gap-1`}>
+      <form onSubmit={handleSend} className={`${plan.composerDisplay(notebook.composerDisplay)} items-end gap-1`}>
         {/* THE "+" (founder 2026-10-12, WhatsApp-like): it opens the
             projects, where "Start a new project" starts one. It replaced the
             Record button. Held while a Take is still landing, for the same
@@ -2408,6 +2430,7 @@ function askBubble(
     onOpenLifeGoal,
     onOpenSunday,
     sundayWaiting,
+    planRows,
   }: {
     activeOffer?: OfferType | null;
     onOpenOffer?: (type: OfferType) => void;
@@ -2416,8 +2439,11 @@ function askBubble(
     onOpenLifeGoal?: (goalId: string) => void;
     onOpenSunday?: (noteId: string) => void;
     sundayWaiting?: (noteId: string) => boolean;
+    planRows?: PlanRowCtx;
   },
 ) {
+  const planned = planRowFor(message, planRows);
+  if (planned) return <>{planned}</>;
   const head = sundayHeadOf(message.metadata);
   if (head) {
     return <SundayHeadBubble body={message.body} waiting={sundayWaiting?.(head) ?? false} onOpen={() => onOpenSunday?.(head)} />;
@@ -2464,6 +2490,7 @@ function Bubble({
   onOpenLifeGoal,
   onOpenSunday,
   sundayWaiting,
+  planRows,
   animate = false,
   latestForArc = false,
   shareLine = null,
@@ -2501,10 +2528,12 @@ function Bubble({
    *  where it stands, with the orange outline while it waits (N158 L8). */
   onOpenSunday?: (noteId: string) => void;
   sundayWaiting?: (noteId: string) => boolean;
+  /** The plan's rows (docs/flows/the-plan.md): drawn by their metadata. */
+  planRows?: PlanRowCtx;
   /** U3 — true only for a freshly-arrived last message → sequential reveal. */
   animate?: boolean;
 }) {
-  const ask = askBubble(message, { activeOffer, onOpenOffer, willOpen, onWillAnswer, onOpenLifeGoal, onOpenSunday, sundayWaiting });
+  const ask = askBubble(message, { activeOffer, onOpenOffer, willOpen, onWillAnswer, onOpenLifeGoal, onOpenSunday, sundayWaiting, planRows });
   if (ask) return ask;
   if (
     message.kind === "recording_summary" ||
@@ -2660,10 +2689,13 @@ function Bubble({
   );
 }
 
-function LoungeEmptyState({ onStart }: { onStart: () => void }) {
+function LoungeEmptyState({ onStart, hidden }: { onStart: () => void; hidden: boolean }) {
   // ONE BUTTON, CENTRED, NOTHING ELSE (founder 2026-10-12). With no project
   // yet there is nothing to choose between, so it goes straight to the new
   // project's onboarding; the "+" beside the message box opens the projects.
+  // With the plan (the-plan.md B1) its questions come first, so the button
+  // waits while the plan is read and stays away while it asks.
+  if (hidden) return null;
   return (
     <div className="flex flex-1 items-center justify-center px-6">
       <button
