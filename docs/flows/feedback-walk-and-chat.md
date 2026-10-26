@@ -901,7 +901,7 @@ The four lines above were filled from main's history by the page's keeper on
 - **The lens scrolls** · B2, B5 · founder 2026-10-20 ("It is scrollable!"), read as WIL-89 working as drawn; say if that was a complaint · confirmed
 - **Review from the Lounge loads very long** · F1, A2 · founder 2026-10-20. The same cause as WIL-76: the marks computed live (20 to 40 s) or pending behind a queued bake; the bake in the run stores them before the Take is ready, so the tap finds them · BE #1209 · the founder checks the app
 
-- **Tempo · the pace step** · C (a new step after the practise moment), K · founder 2026-10-24 to 2026-10-26, backend N162 · designed, to build next · everything about this feature is in this block.
+- **Tempo · the pace step** · C (a new step after the practise moment), K · founder 2026-10-24 to 2026-10-26, backend N162, N166 · steps 1 and 2 built · everything about this feature is in this block.
 
   **In one line.** After a Take where the speaker rushed or dragged, the walk
   plays that stretch back and asks them to talk about the same thing again
@@ -936,13 +936,23 @@ The four lines above were filled from main's history by the page's keeper on
   | How many tries | Up to three |
   | A noisy room | The quiet-spot line only; no listening check |
 
-  **To build.** Backend: per Take, the stretch, whether it was fast or slow,
-  and its topic, under the Take's processing authorization. Frontend: the
-  step in the walk, reusing the bench's meter.
+  **The build, in order** (N166 item 5):
 
-  **The code today.** Only the founder's bench, `src/app/admin/pace-circle/`:
-  `paceSignal.ts` is the meter, `PaceCircleLab.tsx` the scale. Founder-only,
-  nothing in the walk yet.
+  | Step | What | Where it stands |
+  |---|---|---|
+  | 1 | The meter and the scale move from the bench to shared code; the walk gets its list of interventions, empty by default | Built |
+  | 2 | The step's screen in the walk, founder-only, on a stand-in stretch (the beds for sale) | Built |
+  | 3 | The Take's own stretch, its reading and its topic from the backend's per-clip pace reads, under the Take's processing authorization | Next |
+  | 4 | Each try's path, comment and the closing line kept for Will (the path only, never the audio) | To do |
+  | 5 | The words signed and moved to K | Waits on the founder |
+  | 6 | Who sees it: a per-speaker switch, then the plan in a pace or pause week (N147) | To do |
+
+  **The code.**
+  - The plan: `src/lib/willab/walkPlan.ts`, `WalkIntervention` and the `tempo` step key. A new intervention is a new kind there, its place in `buildWalkPlan` and its screen.
+  - The step: `src/components/willab/walk/WalkTempo.tsx`; what a try means and the draft words: `src/lib/willab/tempoStep.ts`.
+  - The meter: `src/lib/willab/pace/` (`paceSignal.ts`, `paceMic.ts`); the scale: `src/components/willab/pace/PaceScale.tsx`.
+  - Who sees it today: the founder's account, in `useDeckFeedbackWalk.tsx`. To try it on the dev harness: `/dev/feedback-walk?live=1&tempo=1`.
+  - The founder's bench, `src/app/admin/pace-circle/`, uses the same meter and scale.
 
   **History.** The [Pace Circle brief](https://claude.ai/artifact/VJ2uSugQWmbAsmReyxuufz)
   (2026-10-24, N130, N133): a circle with three reads, replaced by the scale (N142).
@@ -1061,6 +1071,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N166 · built: the walk takes a list of interventions, empty by default, and the tempo step is its first: right after the practise moments, never in the coach-only walk or for a guest; its screen, founder-only on a stand-in stretch, with draft words; the pace meter and scale moved to shared code, the bench unchanged · FE (this PR)
 - 2026-10-26 · N162 · the pace practice is the tempo step of the Feedback walk only, shown in a pace or pause week from Take 2; was: before the Take, 2 minutes, where it sat open · BE #1316, FE #969
 - 2026-10-26 · N158 · the Sunday note locked as a lens (L): only when asked, only from # notes, two bubbles and Not now | Investigate in the Lounge, the bug, the principle, the reflection and the new principle one step at a time in the lens, Accept or Edit; was the whole form in one bubble every Sunday at 6 pm, read from the Takes and the chat, with Old | New · —
 

@@ -5,6 +5,7 @@ import FeedbackWalk, {
   type FeedbackWalkHelperWords,
   type FeedbackWalkRequest,
 } from "@/components/willab/walk/FeedbackWalk";
+import { TEMPO_STAND_IN } from "@/lib/willab/tempoStep";
 import { praiseTitleFor } from "@/lib/willab/praiseLevels";
 import { walkPractiseIO, type WalkPractiseSource } from "@/services/api/walkPractise";
 import type { ConfidentVoicePracticeOffer } from "@/services/api/idealText";
@@ -193,12 +194,15 @@ export default function LiveWalk({
   practiceOn,
   exerciseVideo = true,
   finished: startFinished = false,
+  tempo = false,
 }: {
   guest: boolean;
   practiceOn: boolean;
   exerciseVideo?: boolean;
   /** Start with the walk already finished (&replay=1). */
   finished?: boolean;
+  /** The tempo step on its stand-in stretch (&tempo=1, N166). */
+  tempo?: boolean;
 }) {
   const audioSrc = useToneSrc();
   const model = useMemo(
@@ -208,8 +212,9 @@ export default function LiveWalk({
         coachNote: true,
         practiceOn,
         guest,
+        interventions: tempo ? ["tempo"] : [],
       }),
-    [audioSrc, guest, practiceOn, exerciseVideo],
+    [audioSrc, guest, practiceOn, exerciseVideo, tempo],
   );
   const [request, setRequest] = useState<FeedbackWalkRequest | null>(null);
   const [end, setEnd] = useState(false);
@@ -286,6 +291,7 @@ export default function LiveWalk({
         request={request}
         coachNote={{ text: COACH_NOTE, videoUrl: NO_VIDEO, takeIndex: TAKE_SHOWN }}
         firstTake={false}
+        tempo={tempo ? TEMPO_STAND_IN : null}
         guest={guest}
         onGuest={() => setSignUp(true)}
         onSaveHelperWords={(save) => setSaved((list) => [...list, save])}
