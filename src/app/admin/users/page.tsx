@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import AdminGate from "@/components/admin/AdminGate";
+import SignupCounts from "@/components/admin/SignupCounts";
 
 interface AdminUser {
   user_id: string;
@@ -129,6 +130,8 @@ function UserDirectory() {
           {activeSearch ? ` for “${activeSearch}”` : ""}
         </p>
       </div>
+
+      <SignupCounts />
 
       <form onSubmit={submitSearch} className="mt-6 flex gap-2">
         <label htmlFor="admin-user-search" className="sr-only">
