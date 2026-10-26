@@ -103,3 +103,9 @@ docs/flows/ai-voice-practice.md
   src/services/api/aiVoice.ts
   src/app/api/v2/user/ai-voice/route.ts
   src/app/api/v2/user/confidence-practice/[practiceId]/ai-voice/
+
+docs/flows/the-plan.md
+  src/components/willab/plan/
+  src/lib/willab/planCopy.ts
+  src/services/api/plan.ts
+  src/app/api/v2/plan/

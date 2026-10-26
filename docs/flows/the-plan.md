@@ -10,9 +10,11 @@ decisions log's entries N129 to N157, folded here into the rules as they
 stand; each later entry about the plan is folded in the same way. The entries
 keep their N-numbers and stay the record.
 
-**Nothing on this page is built yet.** The build started on 26 October 2026,
-one to one with the prototype (N203, which lifts N147's "not yet"); §2 says
-where it stands.
+**Built, switched off.** The build started on 26 October 2026, one to one
+with the prototype (N203, which lifts N147's "not yet"). The questions, the
+calls, the plan card, the practice days in the chat, changing the plan and
+the plan's end are built and wait for their migration, which brings the ring
+row `plan` at ring 5 (N204). §2 says what is built and what is still to come.
 
 **How this page works**
 
@@ -366,9 +368,16 @@ Waiting for the founder's OK:
 ## 2. In flight
 
 - **The plan** · all of §1 · decided from 24 October 2026 (N129 onward;
-  the latest are in §6), drawn on the prototype (§5) · being built, one to one
-  with the prototype, in nine builds behind the switch, the founder first
-  (N203) · the build plan: <https://claude.ai/artifact/5wuXkBNDctRcbxYs9V7R8A>
+  the latest are in §6), drawn on the prototype (§5) · the build plan:
+  <https://claude.ai/artifact/5wuXkBNDctRcbxYs9V7R8A>
+  - Built, switched off until the migration (N203, N204): A, B, C, D1 to D3,
+    E, F, G3 to G6, G13, H1, I1, I2, J, K.
+  - Still to come: the bar and "{n} of {total} practices done. Next: {day}."
+    on the walk's end sheet (E3, G5; the walk is locked, the change approved,
+    N140); the level's moment in the walk (G7); the feelings check between a
+    plan's first and last practice (D4; the recording screens); a level
+    moving on and the coach's queue (G10); "Is this for {date}?" on a new
+    project (H2); the coach's side, drawn first for the founder's OK (N204).
 
 ## 3. Still open
 
@@ -378,6 +387,12 @@ Waiting for the founder's OK:
   "better" on the level's own reading (recommended yes); a second level
   moment per walk (recommended no).
 - **The words in §1 K** still waiting for the founder's OK.
+- **As built, where the prototype doesn't say** (N203): after a rating tap the
+  next question follows with nothing between, until the words in the first
+  line above are signed; "Choose a date" on the summary call opens the plan's
+  own calendar in the footer, as "Book" does, rather than the booking page;
+  the day line comes with the practice day's hello and the day after the
+  deadline, not yet before every day's first message (G3).
 - **Where the prototype (version 27) is older than a decision** (N203): the
   build follows the decision, and the prototype is redrawn to match. The last
   practice's two ratings come after its Take, not before it (N178). The
@@ -391,12 +406,25 @@ Waiting for the founder's OK:
 
 ## 4. Where it lives
 
-Nothing is built yet (N203). When it is, it touches these places, each with its own
-page for what it owns:
+The plan's own code, guarded by this page (`scripts/flow-pages.txt`):
 
-- The Lounge (`src/components/willab/Lounge*`, `useWillabFlow.ts`): the
-  questions, the ratings, the plan card, the calls, the practice-day greeting
-  and the plan's end. The walk's page owns the Lounge's other rules.
+- `src/components/willab/plan/`: the footer by step (`PlanDock.tsx`), the
+  calls' calendar (`PlanCalendar.tsx`), the card (`PlanCard.tsx`), the rows in
+  the thread (`PlanRows.tsx`), the two sheets (`PlanSheet.tsx`), the voice
+  player and the hook the Lounge calls (`usePlanLounge.tsx`).
+- `src/lib/willab/planCopy.ts`: the words the app draws itself.
+- `src/services/api/plan.ts` and `src/app/api/v2/plan/`: the calls to the
+  backend's `/v2/plan` (backend `services/plan.py`, `services/plan_flow.py`).
+
+It touches these places, each with its own page for what it owns:
+
+- The Lounge (`Lounge.tsx`): one hook call, the plan's rows drawn from the ask
+  bubbles, its footer in place of the message box, and the empty Lounge's
+  button held while the plan asks. The walk's page owns the Lounge's other
+  rules.
+- `WillabSurface.tsx` and `src/lib/willab/setupDraft.ts`: "Start your first
+  recording" opens the set-up with the topic filled in, without the feelings
+  check (E5, B7).
 - The recording screens (`src/components/willab/RecordingSetup.tsx`,
   `FeelingsCheckIn.tsx`): the topic filled in, and the feelings check only
   between a plan's first and last practice. Their page owns the rest.
@@ -427,6 +455,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-26 · N203, N204 · built, switched off until the migration: the questions, the calls, the card, the practice days in the chat, changing the plan, the plan's end; §2 lists what is still to come, §3 what was built where the prototype doesn't say. Was: nothing built · BE #1386, FE (this PR)
 
 - 2026-10-26 · N203 · the build starts, one to one with the prototype; §2 and §3 say where the prototype is older than a decision. Was: the founder holds the build (N147) · BE #1384, FE #1014
 
