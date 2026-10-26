@@ -66,8 +66,9 @@ import type { WalkPraiseReasons } from "@/lib/willab/praiseReason";
 import { isFounderEmail } from "@/lib/founder";
 import { useUserEmail } from "./useUserEmail";
 import { useReviewTempo } from "./walk/useReviewTempo";
+import { useRingState } from "@/hooks/useRingState";
 import { postTempoGame } from "@/services/api/reviewTempo";
-import { TEMPO_DRAFT_COPY, type TempoEvent } from "@/lib/willab/tempoStep";
+import { TEMPO_DRAFT_COPY, TEMPO_STEP_FEATURE, type TempoEvent } from "@/lib/willab/tempoStep";
 
 /* -------------------------------------------------------------------------- */
 /*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
@@ -741,10 +742,12 @@ export function useDeckFeedbackWalk(args: {
   const { answeredOf, helperWordsOf, finished = false } = args;
   const coachOnly = args.coachOnly === true;
   const practiceOn = usePracticeOn();
-  /* THE TEMPO STEP (backend N162, N166): founder-only until the plan turns
-     it on in a pace or pause week (build step 6); on the Take's own stretch
-     from the backend (step 3), and only when one left the green. */
-  const tempoOn = isFounderEmail(useUserEmail());
+  /* THE TEMPO STEP (backend N162, N166): the founder, and whoever the rings
+     panel's `tempo_step` row reaches (build step 6; the plan's pace or pause
+     week once the plan is built, N147). On the Take's own stretch from the
+     backend (step 3), and only when one left the green. */
+  const ringState = useRingState();
+  const tempoOn = isFounderEmail(useUserEmail()) || ringState?.featuresOn.has(TEMPO_STEP_FEATURE) === true;
   const journal = useWalkJournalPost(true);
   const pageTake = args.takeSessionId ?? null;
 
