@@ -18,6 +18,8 @@ interface TakeRow {
   kind: string | null;
   duration_s: number | null;
   pieces: number;
+  /** One line of what was said; the full text is only in the CSV (WIL-110). */
+  transcript?: string;
   take: Record<string, number | null>;
   piece_means: Record<string, number | null>;
   /** The Take's willfidence in whole percent; null when no piece has a sound
@@ -59,6 +61,7 @@ const COLS: Col[] = [
   { key: "project", label: "Project", get: (t) => t.project },
   { key: "take_index", label: "Take", get: (t) => t.take_index },
   { key: "kind", label: "Kind", get: (t) => t.kind },
+  { key: "transcript", label: "Transcript", get: (t) => t.transcript || null },
   { key: "duration_s", label: "Length (s)", get: (t) => t.duration_s },
   { key: "pieces", label: "Pieces", get: (t) => t.pieces },
   { key: "wpm", label: "WPM", get: (t) => t.take.wpm },
@@ -82,25 +85,40 @@ const COLS: Col[] = [
   { key: "willfidence", label: "Willfidence", get: (t) => t.willfidence ?? null },
   { key: "status", label: "Status", get: (t) => t.status },
 ];
-const NUMERIC = COLS.filter((c) => !["created_at", "project", "kind", "status", "ai_clip", "ai_clip_fillers"].includes(c.key));
+const NUMERIC = COLS.filter((c) => !["created_at", "project", "kind", "transcript", "status", "ai_clip", "ai_clip_fillers"].includes(c.key));
 
 const fmt = (v: number | string | null | undefined) =>
   v === null || v === undefined || v === "" ? "—"
     : typeof v === "number" ? (Number.isInteger(v) ? v.toLocaleString("en-US") : v.toFixed(2)) : String(v);
 const day = (v: string | null) => (v ? new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" }) : "—");
 
-/** Every Take, every column, as a CSV file. */
-function exportCsv(rows: TakeRow[], id: string) {
+/** The full transcripts for the CSV, by Take id. The backend releases them
+ *  to the founder only, and only for a speaker who said yes to training; for
+ *  anyone else (or on any failure) the map is empty and the column stays blank. */
+async function fetchTranscripts(id: string): Promise<Record<string, string>> {
+  try {
+    const r = await fetch(`/api/v2/admin/people/${encodeURIComponent(id)}/transcripts`, { cache: "no-store" });
+    const b = await r.json().catch(() => ({}));
+    return r.ok && b.allowed === true && b.transcripts ? b.transcripts : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Every Take, every column, as a CSV file. The file name carries no user id. */
+async function exportCsv(rows: TakeRow[], id: string) {
+  const full = await fetchTranscripts(id);
   const cell = (v: number | string | null) => {
     const t = v === null || v === undefined ? "" : String(v);
     return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
   };
+  const value = (c: Col, r: TakeRow) => (c.key === "transcript" ? full[r.id] ?? "" : c.get(r));
   const lines = [["take_id", ...COLS.map((c) => c.key)].join(",")]
-    .concat(rows.map((r) => [r.id, ...COLS.map((c) => c.get(r))].map(cell).join(",")));
+    .concat(rows.map((r) => [r.id, ...COLS.map((c) => value(c, r))].map(cell).join(",")));
   const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
   const a = document.createElement("a");
   a.href = url;
-  a.download = `takes-${id}.csv`;
+  a.download = `takes-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -182,7 +200,7 @@ export default function TakesExplorer({ id }: { id: string }) {
               <input aria-label="Min" type="number" placeholder="min" className={`${field} w-20`} value={f.min} onChange={(e) => setF({ ...f, min: e.target.value })} />
               <input aria-label="Max" type="number" placeholder="max" className={`${field} w-20`} value={f.max} onChange={(e) => setF({ ...f, max: e.target.value })} />
               <span className="ml-auto text-xs text-muted-foreground">{shown.length} of {rows.length} Takes</span>
-              <button type="button" onClick={() => exportCsv(rows, id)}
+              <button type="button" onClick={() => void exportCsv(rows, id)}
                 className="rounded-lg border border-border px-2.5 py-1.5 text-sm font-medium">Export CSV</button>
             </div>
 
@@ -206,7 +224,9 @@ export default function TakesExplorer({ id }: { id: string }) {
                         className={`cursor-pointer border-b border-border hover:bg-muted ${open === t.id ? "bg-muted" : ""}`}>
                         {COLS.map((c) => (
                           <td key={c.key} className="whitespace-nowrap px-2 py-1.5">
-                            {c.key === "created_at" ? day(t.created_at) : fmt(c.get(t))}
+                            {c.key === "created_at" ? day(t.created_at)
+                              : c.key === "transcript" ? <span className="block max-w-[22rem] truncate text-muted-foreground">{fmt(c.get(t))}</span>
+                              : fmt(c.get(t))}
                           </td>
                         ))}
                       </tr>
@@ -226,7 +246,7 @@ export default function TakesExplorer({ id }: { id: string }) {
                 {Object.entries(baseline.features).map(([k, v]) => `${k} ${fmt(v.mean ?? null)} ± ${fmt(v.sd ?? null)}`).join(" · ")}
               </p>
             )}
-            <p className="text-xs text-muted-foreground">Click a Take to see each piece with every stored measure. F0 to energy ratio are averages of the pieces. AI clip: the problem the clip practised and how the next try went; for fillers, hesitations per 100 words in the practised sentence and in the next try.</p>
+            <p className="text-xs text-muted-foreground">Click a Take to see each piece with every stored measure. F0 to energy ratio are averages of the pieces. AI clip: the problem the clip practised and how the next try went; for fillers, hesitations per 100 words in the practised sentence and in the next try. Transcript: one line here; the CSV carries the full text only for speakers who said yes to training.</p>
           </>
         )}
       </div>
