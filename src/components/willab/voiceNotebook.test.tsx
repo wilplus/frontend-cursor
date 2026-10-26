@@ -2,9 +2,9 @@
 /*
 STORY    As the founder in a rush, I want to say a note and close the app, so that what I said is kept and I can see it was written as I meant it.
 OUTCOME
-  O1  While I speak, my words appear in my note; leaving the app sends the note, it is not thrown away (N194).
+  O1  The moment I tap, my note shows the wave of my voice; the words follow it; leaving the app sends the note, it is not thrown away (N194, N198).
   O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).
-PROVES   O1 -> writes my words as I speak and keeps the note when I leave the app
+PROVES   O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
          O2 -> keeps a note that cannot go and sends it once when back online
 */
 import { act, createElement } from "react";
@@ -104,9 +104,12 @@ async function startNote() {
 }
 
 describe("the voice note, written as it is said", () => {
-  it("writes my words as I speak and keeps the note when I leave the app", async () => {
+  it("shows the wave at once, then my words, and keeps the note when I leave the app", async () => {
     api.hearPiece.mockResolvedValue("um so the opening felt rushed");
     const { main, piece } = await startNote();
+    // Before anything is heard back: the wave, from the phone alone.
+    expect(container.querySelector('[data-testid="voice-note-wave"]')).not.toBeNull();
+    expect(api.hearPiece).not.toHaveBeenCalled();
     main.say("a");
     piece.say("a");
     await settle(1500);
@@ -134,13 +137,13 @@ describe("the voice note, written as it is said", () => {
     await settle(1000);
 
     expect(container.querySelector('[aria-label="Waiting to send"]')).not.toBeNull();
-    expect(container.textContent).toContain("Ask Marta for the mic");
+    expect(container.textContent).toContain("ask Marta for the mic");
     expect(reload).not.toHaveBeenCalled();
 
     await act(async () => {
       window.dispatchEvent(new Event("online"));
     });
-    await settle();
+    await settle(1000);
 
     expect(api.sendVoiceNote).toHaveBeenCalledTimes(2);
     expect(api.sendVoiceNote.mock.calls[1]![2]).toBe(api.sendVoiceNote.mock.calls[0]![2]);

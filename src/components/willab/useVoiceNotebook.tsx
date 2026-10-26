@@ -17,6 +17,7 @@ import {
 import type { OfferType } from "./loungeOffers";
 import { clock, useVoiceNote } from "./useVoiceNote";
 import { dropNote, waitingNotes, type OutboxNote } from "@/lib/willab/voiceNoteOutbox";
+import { wordsOf, type LiveWord } from "@/lib/willab/liveNoteWords";
 import TypingDots, { TypingGlyph } from "./TypingDots";
 
 /* -------------------------------------------------------------------------- */
@@ -74,6 +75,7 @@ export function useVoiceNotebook({
   const [sending, setSending] = useState<string | null>(null);
   const [offline, setOffline] = useState<Set<string>>(new Set());
   const [kept, setKept] = useState<Set<string>>(new Set());
+  const [settling, setSettling] = useState<string | null>(null);
   const flushingRef = useRef(false);
   // The note being said right now: the recorder below fills it in, and the
   // flush leaves that note alone.
@@ -104,7 +106,14 @@ export function useVoiceNotebook({
           const id = outcome.clientId;
           setKept((now) => new Set(now).add(id));
         }
+        // Kept: the hesitations fade out, then the kept note takes its place
+        // with the tick and "Noted." (N198).
+        if (outcome.kind === "kept") {
+          setSettling(n.key);
+          await new Promise((done) => setTimeout(done, SETTLE_MS));
+        }
         await reloadRef.current();
+        setSettling(null);
         setWaiting((now) => now.filter((w) => w.key !== n.key));
         setOffline((now) => {
           const next = new Set(now);
@@ -200,6 +209,8 @@ export function useVoiceNotebook({
     sending,
     offline,
     kept,
+    /** The note whose hesitations are fading out, just kept. */
+    settling,
     fixing,
     /** A tap on one's own voice note: its words into the box to fix. */
     fix: (clientId: string, body: string) => setFixing({ clientId, draft: body.replace(/^#\s*/, "") }),
@@ -213,6 +224,9 @@ export function useVoiceNotebook({
 }
 
 export type VoiceNotebook = ReturnType<typeof useVoiceNotebook>;
+
+/** How long the hesitations take to fade once a note is kept. */
+const SETTLE_MS = 700;
 
 const OWN_ASKS: readonly OfferType[] = ["voice_notebook", "sunday_note", "sunday_principle", "life_goals", "life_goals_quarter", "life_goals_change"];
 
@@ -239,21 +253,19 @@ export function SundayActions({
 }
 
 /** The mic, right of the message box: only where the notebook is on and the
- *  box is empty; held while a note settles. A note on its way no longer
- *  holds it: the outbox sends notes one after another (N194). */
+ *  box is empty. A note on its way never holds it: the outbox sends notes
+ *  one after another (N194). */
 export function VoiceNoteMic({ notebook, draft }: { notebook: VoiceNotebook; draft: string }) {
   if (!notebook.enabled || draft.trim()) return null;
-  const sending = notebook.note.phase === "settling";
   return (
     <button
       type="button"
       onClick={notebook.tapMic}
-      disabled={sending}
       aria-label="Voice note"
       data-testid="voice-note-mic"
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted disabled:cursor-default disabled:text-muted-foreground/50"
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
     >
-      <Mic className={`h-5 w-5 ${sending ? "animate-pulse" : ""}`} aria-hidden />
+      <Mic className="h-5 w-5" aria-hidden />
     </button>
   );
 }
@@ -288,60 +300,94 @@ export function VoiceNoteBar({ notebook }: { notebook: VoiceNotebook }) {
   );
 }
 
-/** The note while it is said and while it settles, then the notes on the
- *  phone not yet kept, then Will's typing dots while one is on its way
- *  (backend N194). Sits at the bottom of the thread. */
+/** The note while it is said, then the notes on the phone not yet kept,
+ *  then Will's typing dots while one is on its way (backend N194, N198).
+ *  The wave comes first and the words follow it: the words replace the wave
+ *  they cover, and the wave they have not reached stays at the end. Sits at
+ *  the bottom of the thread. */
 export function VoiceNoteThread({ notebook }: { notebook: VoiceNotebook }) {
-  const { note, waiting, sending, offline } = notebook;
-  const live = note.phase === "recording" || note.phase === "settling";
+  const { note, waiting, sending, offline, settling } = notebook;
+  const live = note.phase === "recording";
   const endRef = useRef<HTMLDivElement | null>(null);
-  const wordCount = note.words.length;
+  const growth = note.words.length + Math.floor(note.wave.length / 20);
   useEffect(() => {
-    if (live) endRef.current?.scrollIntoView?.({ block: "end" });
-  }, [live, wordCount, waiting.length]);
+    if (live || waiting.length) endRef.current?.scrollIntoView?.({ block: "end" });
+  }, [live, growth, waiting.length]);
   if (!live && !waiting.length) return null;
   return (
     <>
-      {waiting.map((w) => (
-        <div key={w.key} className="ml-auto flex max-w-[85%] flex-col items-end gap-1" data-testid="voice-note-waiting">
-          <div className="whitespace-pre-wrap break-words rounded-2xl bg-primary px-3 py-2 text-[15px] text-primary-foreground">
-            {w.words ? `# ${w.words}` : <span className="flex items-center gap-1.5"># <TypingGlyph className="[&>span]:bg-primary-foreground/70" /></span>}
+      {waiting.map((w) => {
+        const settles = settling === w.key;
+        const waits = offline.has(w.key) && sending !== w.key;
+        return (
+          <div key={w.key} className="ml-auto flex max-w-[85%] flex-col items-end gap-1" data-testid="voice-note-waiting">
+            <div className="whitespace-pre-wrap break-words rounded-2xl bg-primary px-3 py-2 text-[15px] text-primary-foreground">
+              {"# "}
+              <NoteWords words={wordsOf(w.words)} settling={settles} />
+              {settles ? null : <Wave levels={w.tail ?? []} waiting={!waits} />}
+            </div>
+            {waits ? <Clock className="mr-1 h-3.5 w-3.5 text-muted-foreground" aria-label="Waiting to send" role="img" /> : null}
           </div>
-          {offline.has(w.key) && sending !== w.key ? (
-            <Clock className="mr-1 h-3.5 w-3.5 text-muted-foreground" aria-label="Waiting to send" role="img" />
-          ) : null}
-        </div>
-      ))}
+        );
+      })}
       {live ? (
         <div
           className="ml-auto max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-primary px-3 py-2 text-[15px] text-primary-foreground"
           data-testid="voice-note-live"
         >
           {"# "}
-          {note.words.map((w, i) => (
-            <span
-              key={i}
-              className={`transition-opacity duration-300 ${
-                note.phase === "settling"
-                  ? w.filler
-                    ? "line-through opacity-25"
-                    : ""
-                  : w.fresh
-                    ? "opacity-60"
-                    : ""
-              }`}
-            >
-              {w.text}{" "}
-            </span>
-          ))}
-          {note.phase === "recording" ? (
-            <span aria-hidden className="ml-px inline-block h-[17px] w-[2px] translate-y-[3px] animate-pulse bg-primary-foreground" />
-          ) : null}
+          <NoteWords words={note.words} settling={false} />
+          <Wave levels={note.wave.map((b) => b.level)} waiting={false} live />
         </div>
       ) : null}
       {sending && !offline.has(sending) ? <TypingDots /> : null}
       <div ref={endRef} />
     </>
+  );
+}
+
+/** The note's words: the piece still being heard lighter; on settling, the
+ *  hesitations fade out with a line through them. */
+function NoteWords({ words, settling }: { words: readonly LiveWord[]; settling: boolean }) {
+  return (
+    <>
+      {words.map((w, i) => (
+        <span
+          key={i}
+          className={`transition-opacity duration-300 ${
+            settling ? (w.filler ? "line-through opacity-25" : "") : w.fresh ? "opacity-70" : ""
+          }`}
+        >
+          {w.text}{" "}
+        </span>
+      ))}
+    </>
+  );
+}
+
+/** Bars shown at most: about five seconds of voice, which is the most the
+ *  words fall behind. */
+const WAVE_BARS = 34;
+
+/** The voice the words have not reached yet: one bar per 140 ms, its height
+ *  the mic's level. While the note is said, the newest bar is now; after
+ *  send, the bars shimmer while Will writes them down (N198). */
+function Wave({ levels, waiting, live = false }: { levels: readonly number[]; waiting: boolean; live?: boolean }) {
+  const bars = levels.slice(-WAVE_BARS);
+  // At the very start of a note there is no level yet: three quiet bars, so
+  // the note shows at once that it is listening.
+  const shown = live && bars.length < 3 ? [...bars, ...Array(3 - bars.length).fill(0.1)] : bars;
+  if (!shown.length) return null;
+  return (
+    <span
+      aria-hidden
+      data-testid="voice-note-wave"
+      className={`ml-0.5 inline-flex h-[18px] translate-y-[3px] items-center gap-[2px] ${waiting ? "animate-pulse" : ""}`}
+    >
+      {shown.map((level, i) => (
+        <span key={i} className="w-[3px] rounded-full bg-primary-foreground" style={{ height: `${4 + Math.round(level * 14)}px` }} />
+      ))}
+    </span>
   );
 }
 
