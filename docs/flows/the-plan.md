@@ -405,7 +405,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N175 · signed: "Why this line?", "Plan", "Kickoff call with your coach", "Summary call with your coach", "Your deadline: {date}". Was: waiting for the founder's OK · BE #1336
+- 2026-10-26 · N175 · signed: "Why this line?", "Plan", "Kickoff call with your coach", "Summary call with your coach", "Your deadline: {date}". Was: waiting for the founder's OK · BE #1336, FE #987
 
 - 2026-10-26 · N174 · the practice-day reminder, when it comes: the speaker's own calendar first (a subscribed calendar that follows the plan), then WhatsApp; no web push for speakers (G11). Was: WhatsApp first, web push second (N169 item 6) · BE #1331, FE (this PR)
 - 2026-10-26 · N173 · signed: the "Today, one thing" lines for pauses, filler words, a voice that moves and make it yours; the ratings' questions; "Booked: …" and "You're all set. Here's your plan."; the day after the deadline; the coach's queue line for a stalled level. Was: waiting for the founder's OK · BE #1330, FE #982
