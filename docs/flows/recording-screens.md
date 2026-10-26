@@ -185,7 +185,7 @@ green); the app shows the speaker's own slides, unchanged.
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
 doing it fills its line in its PR and deletes the line when the work is merged (the change goes to §6).
 
-- None yet.
+- **The plan's two touches on the set-up** · the topic arrives filled in from the plan's voice message (backend N141); "How do you feel?" shows before every practice between a plan's first and last, and the stress and readiness ratings take its place on those two (backend N151, N157) · the set-up's first question and the feelings check · decided, not built · rules: [`the-plan.md`](the-plan.md) §1 B7, D
 
 ## 3. Still open
 

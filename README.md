@@ -21,6 +21,7 @@ The backend's `main` is the one source of truth (backend N95).
 - [The recording screens](docs/flows/recording-screens.md)
 - [The consent screens and the Data & consent page](docs/flows/consent-screens.md)
 - [The AI version of your voice in practice](docs/flows/ai-voice-practice.md)
+- [The plan: from the first questions to the deadline](docs/flows/the-plan.md) · Founder-Approved: the Claude Code chat, 26 October 2026, "Okay", to the plan having its own flow page (backend N159)
 
 **How it works today (Reference)**
 

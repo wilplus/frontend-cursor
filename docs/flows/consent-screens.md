@@ -176,7 +176,7 @@ no longer applies to the first-time screen.
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
 doing it fills its line in its PR and deletes the line when the work is merged (the change goes to §6).
 
-- None yet.
+- **The plan's questions after the acceptance** · "Agree and continue" opens the Lounge with the plan's questions, not the empty Lounge; the screen itself does not change · the flow after the screen · decided (backend N136, N146), not built · rules: [`the-plan.md`](the-plan.md) §1 B
 
 ## 3. Still open
 
