@@ -330,24 +330,23 @@ Signed:
   on WhatsApp at {number} on your practice days and when your coach's
   feedback is in." · "Today's practice is ready: {level}." (N140, N154).
 
+- The rest of the plan's words (N176): the follow-up templates "What
+  worries you most about it?" · "Have you given a talk like this before? How
+  did it go?" · "What has to happen for you to call it a success?" · "How
+  will you open? Say your first sentence." · the plain key line, "If your
+  audience remembers one sentence from you, what is it? Say it the way
+  you'll say it."; the ratings "Two quick taps before your plan." · "Calm" ·
+  "Very stressed" · "Not ready" · "Fully ready"; the calls "Before I show
+  you your plan, pick a time for a 15-minute call with your coach. It's your
+  kickoff call." · "{n} of 2 booked" · "Your deadline" · "Skip" · "Book" ·
+  "Book now" · "Would you also like to book your summary call? It's after
+  your deadline, to look back and plan what's next."; the plan's end "15
+  minutes with your coach, to look back and plan what's next." · "Choose a
+  date" · "Not now" · "Here's your next plan." · "Is this for {date}?".
+
 Waiting for the founder's OK:
 
-- The other follow-up templates: "What worries you most about it?" · "Have
-  you given a talk like this before? How did it go?" · "What has to happen
-  for you to call it a success?" · "How will you open? Say your first
-  sentence." · the plain key line, "If your audience remembers one sentence
-  from you, what is it? Say it the way you'll say it."
-- The ratings: "Two quick taps before your plan." · "Calm" · "Very
-  stressed" · "Not ready" · "Fully ready".
-- The plan and the calls: "Before I show you your plan, pick a time for a
-  15-minute call with your coach. It's your kickoff call." · "{n} of 2
-  booked" · "Your deadline" · "Skip" · "Book" · "Book now" · "Would you also
-  like to book your summary call? It's after your deadline, to look back and
-  plan what's next."
-- The plan's end: "15 minutes with your coach, to look back and plan what's
-  next." · "Choose a date" · "Not now" · "Here's your next plan." · "Is this
-  for {date}?" · the deadline morning's good-luck line, still to be written
-  (N169).
+- The deadline morning's good-luck line, still to be written (N169).
 - The pace game's words are the tempo step's, on the walk's page §2 "Tempo"
   (N166), not here.
 
@@ -404,6 +403,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-26 · N176 · signed: the other follow-up templates, the ratings' intro and scale ends, the calls' words and the plan's end; only the good-luck line still waits. Was: waiting for the founder's OK · BE #1337, FE #989
 
 - 2026-10-26 · N175 · signed: "Why this line?", "Plan", "Kickoff call with your coach", "Summary call with your coach", "Your deadline: {date}". Was: waiting for the founder's OK · BE #1336, FE #987
 
