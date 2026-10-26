@@ -2,7 +2,7 @@
 /*
 STORY    As a speaker, I want to change my email and my password on Data &
          consent, and get a link when I forgot the password, so that I keep
-         my account when I lose an address or a password (backend N189).
+         my account when I lose an address or a password (backend N190).
 OUTCOME
   O1  Change email sends the new address and my current password; the card
       then says the link went and the email changes when I open it. A wrong
@@ -22,7 +22,7 @@ PROVES   O1 -> "sends the change and says the link went; a wrong password keeps 
          O3 -> "checks the new password twice, then updates; Forgot password? sends the link"
          O4 -> "back from the link it says the new email and refreshes the session"
          O5 -> "no card when the account can't be read"
-WHY      WIL-95, founder 2026-10-26 (backend N189; rules in
+WHY      WIL-95, founder 2026-10-26 (backend N190; rules in
          docs/flows/consent-screens.md §1, "Amended 2026-10-26").
 */
 import { act, createElement } from "react";

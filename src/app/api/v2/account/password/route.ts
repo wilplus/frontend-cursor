@@ -2,5 +2,5 @@ import { accountRoute } from "@/app/api/_lib/accountRoute";
 
 export const runtime = "nodejs";
 
-/* Change password: checks the current one, signs out the other devices (N189). */
+/* Change password: checks the current one, signs out the other devices (N190). */
 export const POST = accountRoute("POST", "/v2/account/password");

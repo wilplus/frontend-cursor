@@ -174,7 +174,7 @@ no longer applies to the first-time screen.
 (version 2). The code already follows both (`PolicyUpdate.tsx`, and the Lounge's `LoungeTopUpCard.tsx`).
 
 
-### Amended 2026-10-26: Email and password (backend N189)
+### Amended 2026-10-26: Email and password (backend N190)
 
 Approved on the clickable prototype <https://claude.ai/artifact/5tNVcdnq9PjkTyHHm9hzfT> (version 1; copy
 in backend `docs/design/settings-email-password-2026-10-26.html`): "approved, implement it" (WIL-95).
@@ -198,7 +198,7 @@ Written in the present tense.
 - **Refusals**, under the form: "Enter an email address.", "That is already your email.", "That email
   already has an account.", "That password isn’t right.", "Password must be at least 6 characters.",
   "Passwords do not match." Anything else, and a link that no longer works, is the page's "Couldn’t save
-  that. Try again." (the second until the founder words it, N189 item 6).
+  that. Try again." (the second until the founder words it, N190 item 6).
 - **The emails** are the prototype's five, in its words (backend `services/email_account_security.py`).
 - **The log.** Every request, change and wrong password is a row in the backend's security log, with the
   time, the IP address and the device. The speaker never sees it.
@@ -254,7 +254,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N189 · Email and password on Data & consent: change email with a link, change password, Forgot password? and Set a password, the security log; `/change-password` goes · BE, FE
+- 2026-10-26 · N190 · Email and password on Data & consent: change email with a link, change password, Forgot password? and Set a password, the security log; `/change-password` goes · BE, FE
 - 2026-10-26 · docs audit · the pointer to CLAUDE.md's "Design lock" section names its history copy; no rule changed · —
 - 2026-10-21 · N111 · the policy update prompt and every Lounge ask, unified (both version 2), join §1 and §5, out of §3; the page also guards the consent files it missed (§4) · BE, FE
 - 2026-10-21 · N107 · this page replaces backend `FOUNDER-LOCK-consent-screens-2026-10-07.md` as the place the rules live; the lock stays as history · BE #1241, FE #928

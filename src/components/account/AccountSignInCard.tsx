@@ -1,7 +1,7 @@
 "use client";
 
 /* -------------------------------------------------------------------------- */
-/*  Email and password, in Data & consent (founder 2026-10-26, backend N189:  */
+/*  Email and password, in Data & consent (founder 2026-10-26, backend N190:  */
 /*  "approved, implement it", on the prototype backend docs/design/           */
 /*  settings-email-password-2026-10-26.html, WIL-95).                         */
 /*                                                                            */

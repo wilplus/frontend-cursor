@@ -240,7 +240,7 @@ export default function UpdatePasswordForm() {
 
       toast.success("Password updated. Redirecting you to sign in with your new password.");
 
-      // The security log and the notice (backend N189), while the link's
+      // The security log and the notice (backend N190), while the link's
       // session can still say who it was. Best effort: the password is set.
       await passwordLinkUsed();
 
