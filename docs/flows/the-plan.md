@@ -208,10 +208,12 @@ stand. The entries keep their N-numbers and stay the record.
 8. A level moves on after two Takes in a row reach it, or when its time runs
    out. After three Takes without moving, it switches to the next
    intervention in its row, and the coach sees it in their queue (N134).
-9. There is no practice-day reminder for now. When it comes, it is the
-   WhatsApp ask under the plan card, the same as today's WhatsApp ask, with
-   the words of N154, after a new privacy version names it and Meta approves
-   its template (N153, N154, N155).
+9. There is no practice-day reminder for now. When it comes, the plan card
+   first offers to add the practice days to the speaker's own calendar (no
+   permission prompt, no Meta template), then the WhatsApp ask, the same as
+   today's WhatsApp ask, with the words of N154, for those who want it, after
+   a new privacy version names it and Meta approves its template. The
+   calendar offer's words wait for the founder's OK (N153, N154, N155, N169).
 
 ### H · Changing the plan
 
@@ -362,6 +364,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N169 · when the practice-day reminder comes, "add to your calendar" first and the WhatsApp ask second (G9). Was: the WhatsApp ask alone · BE #1326, FE (this PR)
 - 2026-10-26 · N168 · "Edit" next to "Your deadline: {date}" under the calls' calendar: the same calendar moves the deadline, then the call again. Was: the deadline moved only from "Change your plan" · BE #1323, FE #975
 
 - 2026-10-26 · N167 · a practice day: "Record Take N" inside a bubble after the card, one record button in the chat; the card closed ("This week's level", the bar, "See your plan"); progress in one unit; no "Ready by" heading; "Book" on a call not booked; readable colours, a small grey play, fingertip tap areas. Was: a black "Record Take 2" pill and "Start a new project" under the full card; "Week 1 of 3"; "(not booked yet)" · BE #1322, FE #973
