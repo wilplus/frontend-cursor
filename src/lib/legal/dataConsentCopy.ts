@@ -83,7 +83,7 @@ export const DATA_CONSENT_COPY = {
   whatsappConfirmTitle: "Remove your number?",
   whatsappConfirmBody: "We stop the WhatsApp messages and delete your number.",
   whatsappOff: "Off. Add your number in the Lounge to get a message when your coach’s feedback is in.",
-  // Email and password (founder 2026-10-26, backend N187: "approved, implement
+  // Email and password (founder 2026-10-26, backend N189: "approved, implement
   // it", on the prototype backend docs/design/settings-email-password-2026-10-26.html).
   accountTitle: "Email and password",
   accountEmail: "Email",

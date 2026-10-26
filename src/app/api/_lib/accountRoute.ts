@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { callBackend } from "@/app/api/_lib/backend";
 
 /* -------------------------------------------------------------------------- */
-/*  accountRoute — the BFF routes of Email and password (backend N187).       */
+/*  accountRoute — the BFF routes of Email and password (backend N189).       */
 /*                                                                            */
 /*  A relay like proxyRoute, plus the two things the security log keeps: the  */
 /*  speaker's IP address and device. Vercel's own address would otherwise be  */
