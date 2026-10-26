@@ -213,6 +213,9 @@ src/components/founder/GoldenJudging.test.tsx,Story,"As the founder, I want to j
 src/components/legal/PublishedPolicyText.test.tsx,Story,"As a reader of the Privacy page, I want the stored policy or a plain ""could not load"" line, never an endless spinner or an old stand-in, so that I always know what I agreed to.","O1  The stored policy text is shown with its version number.
 O2  When no stored copy can be had, the ""could not load"" line is shown.","O1 -> ""shows the stored copy once it is published""
 O2 -> ""shows the unavailable line once the record answers without a copy""","Founder 2026-09-25, F3 = A."
+src/components/life/lifeGoalsLadders.test.tsx,Story,"As the founder, I want my life goals ladders on top of the Life Panel's Goals screen, with every version dated, so that my goals and my three bets are in one place.","O1  With a set goal, ""Life goals"" shows its ladder, ""Set on {date}"" and History, which lists every version newest first with its date; a tapped step opens the lens on that step.
+O2  Before the first goal is set, nothing new shows.","O1 -> shows my ladders with every version dated
+O2 -> shows nothing before my first goal",
 src/components/rings/RingAnnouncementSheet.test.tsx,Story,"As a speaker, I want a feature announcement I can dismiss with Not now, and its Yes off until a policy exists, so that nothing turns on or records consent without me.","O1  Not now records the decision, hides the sheet, records no consent.
 O2  Without a policy, Yes is a disabled button (no link to the data
 choices), the sheet says why, and pressing it records nothing.","O1 -> ""not now records the answer, hides the sheet and creates no consent""
