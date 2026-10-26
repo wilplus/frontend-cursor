@@ -1,7 +1,7 @@
 import { bffFetch } from "@/lib/api/bffFetch";
 
 /* Life goals (Will learning plan, step 3; backend N172, services/life_goals.py;
-   rules: docs/flows/feedback-walk-and-chat.md §1 M). Founder only (ring 6):
+   rules: docs/flows/principles.md §1 M). Founder only (ring 6):
    the backend answers enabled false, and 404 to the rest, for anyone else.
    Writes that put rows into the Lounge answer them; the caller reloads. */
 

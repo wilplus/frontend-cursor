@@ -216,7 +216,7 @@ stand. The entries keep their N-numbers and stay the record.
    (Take 1 has no Ideal Text yet). The pace practice is the tempo step of
    the Feedback walk and nowhere else: not the coach panel, not the Lounge,
    not before the Take. Its rules are on the walk's page, §2 "Tempo"
-   (N130, N134, N140, N142, N162).
+   (N130, N134, N140, N142, N162). A speaker without a plan gets the same step from Take 2 when the Take has a stretch outside the green; it is the founder's "Sniper" (N181).
 9. A practise that slowed down gets its own lines, said in turn: "You gave it
    room, and it landed." · "Slower, and every word counted." · "That pace
    lets them keep up with you." (N140).
@@ -407,6 +407,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-26 · N181 · the pace step (G): a speaker without a plan gets it from Take 2 when the Take has a stretch outside the green; it is the founder's "Sniper" · BE #1344, FE (this PR)
 
 - 2026-10-26 · N178 · the speaker's own ratings are never shown back as a number; before any Take but the first, only the feelings check, with a Skip; the deadline question, a new event's or new project's questions and the ratings before a later Take move to after it. Was: the number in an orange bubble (N161); those questions before the Take (N147, N149, N151) · BE #1339
 - 2026-10-26 · N177 · the practice-day reminder, when it comes: the speaker picks an email or a WhatsApp; no calendar, no web push (G11). Was: the speaker's own calendar first, then WhatsApp (N174) · BE #1338, FE (this PR)
