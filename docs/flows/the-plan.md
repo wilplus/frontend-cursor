@@ -103,20 +103,23 @@ stand. The entries keep their N-numbers and stay the record.
    they come at the end of the questions, before the plan card; on the last
    practice, before its Take (N148, N151).
 2. One question at a time: the question in the thread, its scale in the
-   footer in place of "Type here". The pick is not written back into the
-   thread (N157).
-3. The numbers are never shown to the speaker. The founder and the coach see
-   them; Will speaks of them only in words (Never 1; N149).
+   footer in place of "Type here". The pick shows in the chat as the
+   speaker's own answer, an orange bubble with the number they tapped, on the
+   first and the last practice alike (N157, N161).
+3. Beyond the speaker's own answer, the number is never shown again. The
+   founder and the coach see it; Will speaks of it only in words (Never 1;
+   N149, N161).
 4. Every practice in between gets only "How do you feel?" (Nervous, Excited,
    Calm, Not sure), today's screen, unchanged. Today it shows once per new
    project, before Take 1 (N151; the recording screens' page).
 
 ### E · The plan card
 
-1. "Thanks! Here's your plan." Then the card: "Ready by {date}"; under "Your
-   next level", the level, the key line in the speaker's own words, their
-   recording of it ("How you said it") and "Why this line?", which opens one
-   sentence from what was heard (N153, N154, N157).
+1. After the calls (F), Will says "You're all set. Here's your plan." Then
+   the card: "Ready by {date}"; under "Your next level", the level, the key
+   line in the speaker's own words, their recording of it ("How you said it")
+   and "Why this line?", which opens one sentence from what was heard (N153,
+   N154, N157, N161).
 2. Under "Plan", in bullet points: the practice days ("15 minutes, 3 times
    a week: Mon, Wed, Fri", or "15 minutes every day"); the pace practice in a
    pace or pause week; "Kickoff call with your coach" and "Summary call with
@@ -126,20 +129,29 @@ stand. The entries keep their N-numbers and stay the record.
    walk's end sheet, one part per Take. It fills with what the speaker did,
    never with a measure of the voice. The end sheet is a locked screen; this
    change is approved (N129, N131, N140).
+4. The card uses one typeface, the app's own, and three sizes: the date, the
+   text, the small labels (N161).
+5. Under the card, in place of "Type here", only "Start your first
+   recording" (N161).
 
-### F · The two calls with the coach
+### F · The two calls with the coach, before the plan
 
-1. Under the card, the footer books the two calls in place of "Type here":
-   the kickoff call, before the deadline, then the summary call, after it.
-   A calendar like the deadline's, with the deadline marked, then a time,
-   then "Book and pay". The footer counts "1 of 2 booked" (N157).
-2. Either call can wait ("Next"), so no coach stands in the way of the first
+1. After the ratings, before the plan card, Will says "Before I show you
+   your plan, pick a time for a 15-minute call with your coach. It's your
+   kickoff call." The footer, in place of "Type here", shows a calendar like
+   the deadline's, with the deadline marked, then a time, then "Book". The
+   kickoff comes before the deadline (N157, N161).
+2. Then Will offers the summary call: "Would you also like to book your
+   summary call? It's after your deadline, to look back and plan what's
+   next." The calendar again, with "Skip" or "Book now"; no yes-or-no
+   question first. The footer counts "1 of 2 booked" (N157, N161).
+3. Either call can wait ("Skip"), so no coach stands in the way of the first
    Take (Never 3). A kickoff not booked is offered again after Take 1 (N157).
-3. Calls are paid as the booking page is paid today, and free with a link
-   that has no price (N143, N157).
-4. The plan's calls are these two; there is no weekly call (N157).
-5. Then Will says "You're all set." and "Start your first recording" takes
-   the footer's place (N157).
+4. Calls are paid as the booking page is paid today, and free with a link
+   that has no price; the button says "Book", not "Book and pay" (N143,
+   N157, N161).
+5. The plan's calls are these two; there is no weekly call (N157).
+6. Then "You're all set. Here's your plan." and the card (E) (N161).
 
 ### G · Practice days
 
@@ -244,10 +256,12 @@ Waiting for the founder's OK:
   about it right now?" · "How ready do you feel for it right now?" · "Calm" ·
   "Very stressed" · "Not ready" · "Fully ready".
 - The plan and the calls: "Why this line?" · "Plan" · "Kickoff call with your
-  coach" · "Summary call with your coach" · "(not booked yet)" · "Now let's
-  book your two calls with your coach." · "{n} of 2 booked" · "Your deadline"
-  · "Next" · "Booked: {day, date, time}." · "You can book your summary call
-  now, or later." · "You're all set."
+  coach" · "Summary call with your coach" · "(not booked yet)" · "Before I
+  show you your plan, pick a time for a 15-minute call with your coach. It's
+  your kickoff call." · "{n} of 2 booked" · "Your deadline" · "Skip" · "Book"
+  · "Book now" · "Booked: {day, date, time}." · "Would you also like to book
+  your summary call? It's after your deadline, to look back and plan what's
+  next." · "You're all set. Here's your plan."
 - The plan's end: "Your deadline was {date}." · "How did it go? Tell me in a
   voice message." · "Thank you for telling me." · "Your summary call" · "15
   minutes with your coach, to look back and plan what's next." · "Choose a
@@ -297,7 +311,7 @@ page for what it owns:
 The design is the prototype; the newest wins where two disagree.
 
 - **The flow, welcome to Take 2 and the plan's end:**
-  <https://claude.ai/artifact/ApK5fCkbc55aVN4iYQLdcn> (version 16,
+  <https://claude.ai/artifact/ApK5fCkbc55aVN4iYQLdcn> (version 17,
   2026-10-26), with three speakers to try Will's replies (N150).
 - **How the plan is built from the intake, and each case's walk:**
   <https://claude.ai/artifact/UfMSksquehX596LMgU3MgN> (2026-10-26).
@@ -313,6 +327,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N161 · the rating shows in the chat as the speaker's answer; the kickoff call is booked before the plan, then the summary call offered (Skip or Book now); "Book", not "Book and pay"; then "You're all set. Here's your plan."; the card in one typeface and three sizes; under it only the practice button. Was: the pick not written back; the calls under the card; "Book and pay" and "Next" · BE #, FE #
 - 2026-10-26 · N160 · this page is the plan's one home; was a section of the walk's page (N146 item 2) · BE #1314, FE #967
 - 2026-10-26 · N157 · the ratings one at a time in the footer; a simpler card with "Plan"; the kickoff and summary calls booked under it, either can wait, paid as today; no weekly call · BE #1311
 - 2026-10-26 · N155 · no practice-day reminder for now · BE #1309
