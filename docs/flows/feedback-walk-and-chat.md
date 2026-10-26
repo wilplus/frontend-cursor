@@ -464,11 +464,11 @@ step; the loop never waits for a coach.
 
 - **E1** After the summary comes one ask at most: the first that waits, in
   this order; the others wait for a later Take (backend N189, 2026-10-26;
-  was at most two, N94). The order: the CEO panel's ask, WhatsApp (from Take
-  1 once the Take has gone to the coach, backend N171; at most twice in
-  all), the home screen (once), Will's question, "Did this help?" when the
-  Take looks off. So Take 1 brings the WhatsApp ask and Take 2 the home
-  screen. Will
+  was at most two, N94). The order: the CEO panel's ask (from Take 2),
+  WhatsApp (from Take 1 once the Take has gone to the coach, backend N171;
+  at most twice in all), the home screen (once, from Take 2), Will's
+  question, "Did this help?" when the Take looks off. So Take 1 brings the
+  WhatsApp ask and Take 2 the home screen. Will
   opens WhatsApp, the home screen and "Did this help?" with a lead-in: one or
   two sentences tied to this Take (never a grade, never advice; "Well, I can
   see you're doing pretty good. What about adding the application to the
@@ -970,7 +970,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 - **N192** · the chat shows a Take's walk as one bubble: "Feedback walk" with the Take's date and ›, its Ideal Text card under it; an edit says "Edited" in place, nothing at the bottom; the summary in the walk only; the coach's word in the walk, a later word at the bottom, a changed word Edited in place; the sharing choice as one line on the recording; the outline a full stroke with no tail · B1, B3, B10, B12, B13, C1, C3, D4, D5, F1, F3, G1, K · decided, not built · BE #1364, FE (this PR)
 
-- **N171, N189** · messages: the WhatsApp ask from Take 1 and one ask a Take (E1); replies reach us and STOP removes the number (its words signed in N174), with no check message when a number is saved, since the app shows it back; coach-feedback messages wait from 21:00 to 8:00 in the speaker's time zone (C1's doors) · C1, E1 · decided, not built · BE #1326, #1360
+- **N171, N189, N193** · messages: replies reach us and STOP removes the number (its words signed in N174), with no check message when a number is saved, since the app shows it back; coach-feedback messages wait from 21:00 to 8:00 in the time zone of the speaker's country of residence, and in the United States go only between 11:00 and 21:00 New York time (C1's doors) · C1 · decided, not built · BE #1326, #1360, #1367
 
 - **The plan** (backend N129 onward) · the diagnosis, the plan card, the practice days and the plan's end have their own page, [`the-plan.md`](the-plan.md); it meets this page in the Lounge, in the walk's level moment (C, N134 item 2), the bar on the end sheet (N140 item 11) and the pace practice in a pace week (the tempo step), and in the chat's day line before each day's first message (N169, the-plan.md G3) · decided, not built · its rules live there, not here (backend N160)
 
@@ -1118,6 +1118,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N171, N189 · built: one ask after each Take, the first that waits in E1's order, the others for a later Take; the WhatsApp ask can be Take 1's, the CEO panel's ask and the home screen from Take 2; was at most two a Take, and never WhatsApp after Take 1 (E1) · BE #1370, FE (this PR)
 - 2026-10-26 · N192 · the chat shows a Take as its recording, one "Feedback walk" bubble with its date and ›, and its Ideal Text card; an edit says "Edited" in place; the summary, the coach's word from the walk and the sharing question leave the chat (the choice is a line on the recording); the outline a full stroke; the card alone with black lines on the text, and one card with a Feedback walk row, were drawn and not chosen; was: the same steps as chat bubbles, a step that asks locks and shows its answer as the speaker's bubble (B3); a bubble with › opens its step, "✓ Practised" over Next (B10); the Lounge says the lens's words, the AI voice's short bubble (B12); helper words editable from the Lounge's helper-words bubble, a new pick a new bubble and the old one struck through (C3); the summary a plain bubble under the card (D4); the walk's copy of the coach's word in the chat, a changed word moved to the bottom (D5); "Record Take N", the question and the choice as three bubbles (G1) · BE #1364, FE (this PR)
 - 2026-10-26 · N189 · one ask after each Take, the first that waits in E1's order, the others for a later Take; was at most two (N94) (E1) · BE #1360, FE (this PR)
 - 2026-10-26 · docs audit · the tempo step's block moves from §2 to §1 T, word for word, now that its build steps are done; §2 keeps one line for what is left; §3, §4 and §5 point to §1 T. Was: the whole feature in §2 · —
