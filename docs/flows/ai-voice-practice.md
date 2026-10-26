@@ -286,6 +286,15 @@ The bubble's opener, tip and closer are said fresh around their signed lines
 always quotes the speaker's phrase where its problem has one. The clip's label
 L1 "AI version of your voice" is never varied.
 
+### Decided after the lock (2026-10-26, N188, the limits)
+
+Each speaker gets at most 3 new clips a day and 20 a calendar month; it was
+10 a day, with no monthly limit. No new voice is made while the plan's voice
+slots are full, counted from the voices the app has made (Starter has 10).
+Over a limit the walk shows the video or nothing, as when a clip fails, and
+the Take is never held. This amends section 5's limits line; the month's
+credit stop is unchanged.
+
 ### 7. Order of work
 
 Build end to end, test with the founder's own voice, then counsel (L12,
@@ -337,6 +346,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N188 · the limits: 3 clips a day and 20 a month for each speaker, and no new voice while the plan's voice slots are full; was 10 a day with no monthly limit · BE #1363
 - 2026-10-23 · N120, N122 · built: the clip in one short bubble (opener, tip by problem with the speaker's phrase, the clip, "Your turn." / "Try again."), the server naming the clip's `problem` and `phrase` as soon as it chooses them; a praised moment's practise gets its clip, started early by the bake like a corrected moment's · BE #1279
 - 2026-10-23 · N122 · a praised moment is practised with a clip too; was "Never with praise" and "Praise still never gets a clip" · decided, build in §2
 - 2026-10-23 · N120 · the AI clip comes in one short bubble, an opener, one tip ", like this:", the clip and "Your turn." or "Try again."; was L4, the clip, L3 and L14–L18 under the player, and L5 after a try · decided, build in §2

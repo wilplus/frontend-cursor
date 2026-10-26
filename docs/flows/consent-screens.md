@@ -178,6 +178,7 @@ no longer applies to the first-time screen.
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
 doing it fills its line in its PR and deletes the line when the work is merged (the change goes to §6).
 
+- **One "Messages" place** · on Data & consent: WhatsApp on or off with the number, email on or off, practice reminders on or off with their time, in place of the WhatsApp card, the email's unsubscribe links and the reminder in "Change your plan" · Data & consent · decided (backend N189), its design and words wait for the founder · BE #1360
 - **The plan's questions after the acceptance** · "Agree and continue" opens the Lounge with the plan's questions, not the empty Lounge; the screen itself does not change · the flow after the screen · decided (backend N136, N146), not built · rules: [`the-plan.md`](the-plan.md) §1 B
 
 ## 3. Still open
