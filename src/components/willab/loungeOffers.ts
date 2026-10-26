@@ -32,7 +32,8 @@ export type OfferType =
   | "sunday_note"
   | "sunday_principle"
   | "life_goals"
-  | "life_goals_quarter";
+  | "life_goals_quarter"
+  | "life_goals_change";
 
 const OFFER_TYPES: readonly OfferType[] = [
   "install",
@@ -47,6 +48,7 @@ const OFFER_TYPES: readonly OfferType[] = [
   "sunday_principle",
   "life_goals",
   "life_goals_quarter",
+  "life_goals_change",
 ];
 
 /** The bubble prompt persisted as the message body. No em-dashes (house style). */
@@ -87,6 +89,10 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
   // The quarter comes back (backend N172 M13, N186): Not now | Start. The
   // backend writes "{emoji} {step}. Did it move?"; this is only the fallback.
   life_goals_quarter: "Did it move?",
+  // A note that sounds like a change (backend N172 M14, N187): Not now |
+  // Change. The backend writes the ask quoting the note; this is only the
+  // fallback.
+  life_goals_change: "Change this quarter?",
   joke:
     "I'm just a simple system, but I noticed you weren't feeling great before this presentation. Want me to crack a joke?",
 };

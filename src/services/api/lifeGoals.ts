@@ -192,3 +192,9 @@ export async function reviewQuarter(
     json: { outcome, in_the_way: inTheWay, next },
   })) as LifeGoal | null;
 }
+
+/** Change or Not now under a note that sounds like a change (M14); the rows
+ *  are in the thread. */
+export async function answerNoteChange(id: string, choice: "change" | "not_now"): Promise<boolean> {
+  return (await call(`/api/v2/life-goals/${encodeURIComponent(id)}/change`, { method: "POST", json: { choice } })) !== null;
+}
