@@ -105,8 +105,10 @@ export const LIFE_GOALS_COPY = {
     quarter: "THIS QUARTER",
     nextQuarter: "NEXT QUARTER",
     talk: "TALK GOAL",
+    week: "THIS WEEK",
     clash: "WHEN THEY CLASH",
   },
+  fromPractice: "from your practice",
   by: (when: string) => `by ${when}`,
   changed: (date: string) => `changed ${date}`,
   earlier: "Earlier:",
@@ -201,7 +203,7 @@ export function dayLabel(iso: string): string {
 }
 
 export type Rung = {
-  step: "goal" | "want" | "give" | StepKey | "quarter" | "talk" | "clash";
+  step: "goal" | "want" | "give" | StepKey | "quarter" | "talk" | "week" | "clash";
   /** On a clash: the other goal's id. */
   with?: string;
   label: string;
@@ -212,11 +214,11 @@ export type Rung = {
 };
 
 /** The ladder's rows, top to bottom (M10); a skipped step is left out. */
-export function ladderRungs(goal: Pick<LifeGoal, "ladder" | "changes" | "talk">): Rung[] {
+export function ladderRungs(goal: Pick<LifeGoal, "ladder" | "changes" | "talk" | "week">): Rung[] {
   const { ladder } = goal;
   const changes = goal.changes ?? {};
   const rungs: Rung[] = [];
-  const push = (step: Rung["step"], label: string, text: string | undefined, when?: string | null) => {
+  const push = (step: Exclude<Rung["step"], "week">, label: string, text: string | undefined, when?: string | null) => {
     if (!text) return;
     const change = changes[step];
     const note = [when ? LIFE_GOALS_COPY.by(when) : null, change ? LIFE_GOALS_COPY.changed(dayLabel(change.on)) : null]
@@ -231,6 +233,9 @@ export function ladderRungs(goal: Pick<LifeGoal, "ladder" | "changes" | "talk">)
   for (const step of ["y10", "y3", "y1"] as const) push(step, L[step], ladder.steps?.[step]?.text, ladder.steps?.[step]?.by);
   push("quarter", ladder.quarter?.next ? L.nextQuarter : L.quarter, ladder.quarter?.text, ladder.quarter?.by);
   push("talk", L.talk, goal.talk);
+  // This week's level comes from the plan's practice, read-only (M10; the
+  // plan's G5): never a row with ›.
+  if (goal.week) rungs.push({ step: "week", label: L.week, note: LIFE_GOALS_COPY.fromPractice, text: goal.week, earlier: null });
   for (const clash of ladder.clashes ?? []) {
     push("clash", L.clash, clash.text);
     rungs[rungs.length - 1].with = clash.with;

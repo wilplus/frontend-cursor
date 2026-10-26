@@ -4,8 +4,10 @@ STORY    As the founder, I want my life goals ladders on top of the Life Panel's
 OUTCOME
   O1  With a set goal, "Life goals" shows its ladder, "Set on {date}" and History, which lists every version newest first with its date; a tapped step opens the lens on that step.
   O2  Before the first goal is set, nothing new shows.
+  O3  While a plan runs, the career ladder shows THIS WEEK with the plan's level, as a plain row, never a step to change.
 PROVES   O1 -> shows my ladders with every version dated
          O2 -> shows nothing before my first goal
+         O3 -> shows this week's level from my plan, read-only
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -70,5 +72,15 @@ describe("life goals on the Goals screen", () => {
     api.getLifeGoals.mockResolvedValue({ enabled: true, goals: [], draft: null });
     await mount();
     expect(container.textContent).toBe("");
+  });
+
+  it("shows this week's level from my plan, read-only", async () => {
+    api.getLifeGoals.mockResolvedValue({ enabled: true, goals: [{ ...CAREER, week: "Let your key line land" }], draft: null });
+    await mount();
+    expect(text()).toContain("THIS WEEK");
+    expect(text()).toContain("from your practice");
+    const buttons = [...document.querySelectorAll("button")].map((b) => b.textContent ?? "");
+    expect(buttons.some((b) => b.includes("Let your key line land"))).toBe(false);
+    expect(text()).toContain("Let your key line land");
   });
 });

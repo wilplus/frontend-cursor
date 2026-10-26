@@ -291,7 +291,7 @@ export function LadderCard({
   onPick,
   small = false,
 }: {
-  goal: Pick<LifeGoal, "space" | "ladder" | "changes" | "talk">;
+  goal: Pick<LifeGoal, "space" | "ladder" | "changes" | "talk" | "week">;
   onPick?: (rung: Rung) => void;
   small?: boolean;
 }) {
@@ -302,7 +302,7 @@ export function LadderCard({
         {space.emoji} {space.name}
       </b>
       {ladderRungs(goal).map((rung) =>
-        onPick ? (
+        onPick && rung.step !== "week" ? (
           <button
             key={`${rung.step}${rung.with ?? ""}`}
             type="button"
@@ -697,6 +697,7 @@ async function seeGoals(ctx: Ctx, open: LensOpen): Promise<void> {
       }
       return;
     }
+    if (pick.rung.step === "week") continue; // the plan's, never changed here
     const updated =
       pick.rung.step === "clash"
         ? await changeClash(ctx, pick.goal, pick.rung.with)
@@ -719,7 +720,7 @@ async function seeGoals(ctx: Ctx, open: LensOpen): Promise<void> {
  *  ladder as it is now. */
 async function changeTapped(ctx: Ctx, open: LensOpen): Promise<void> {
   const goal = ctx.state.goals.find((g) => g.id === open.goalId);
-  if (!goal || !open.step) return;
+  if (!goal || !open.step || open.step === "week") return;
   const updated =
     open.step === "clash" ? await changeClash(ctx, goal, open.with) : await changeOne(ctx, goal, open.step);
   if (updated) await ctx.s.say(COPY.changedOn(dayLabel(new Date().toISOString())), <LadderCard key="after" goal={updated} />);
