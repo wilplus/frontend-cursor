@@ -65,7 +65,7 @@ import { fetchUserProfileShared } from "@/services/api/userProfile";
 import type { WalkPraiseReasons } from "@/lib/willab/praiseReason";
 import { isFounderEmail } from "@/lib/founder";
 import { useUserEmail } from "./useUserEmail";
-import { TEMPO_STAND_IN } from "@/lib/willab/tempoStep";
+import { useReviewTempo } from "./walk/useReviewTempo";
 
 /* -------------------------------------------------------------------------- */
 /*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
@@ -739,11 +739,10 @@ export function useDeckFeedbackWalk(args: {
   const { answeredOf, helperWordsOf, finished = false } = args;
   const coachOnly = args.coachOnly === true;
   const practiceOn = usePracticeOn();
-  /* THE TEMPO STEP (backend N162, N166): founder-only on a stand-in stretch
-     until the backend sends the Take's own (build step 3) and the plan
-     turns it on in a pace or pause week (step 6). */
+  /* THE TEMPO STEP (backend N162, N166): founder-only until the plan turns
+     it on in a pace or pause week (build step 6); on the Take's own stretch
+     from the backend (step 3), and only when one left the green. */
   const tempoOn = isFounderEmail(useUserEmail());
-  const interventions = useMemo<readonly WalkIntervention[]>(() => (tempoOn ? ["tempo"] : []), [tempoOn]);
   const journal = useWalkJournalPost(true);
   const pageTake = args.takeSessionId ?? null;
 
@@ -752,6 +751,8 @@ export function useDeckFeedbackWalk(args: {
     [chunks, groups, waiting, pendingOf, slideLabel],
   );
   const take = useMemo(() => reviewedTake(items, pageTake), [items, pageTake]);
+  const tempo = useReviewTempo(tempoOn && !coachOnly ? (args.arcId ?? null) : null, take);
+  const interventions = useMemo<readonly WalkIntervention[]>(() => (tempo ? ["tempo"] : []), [tempo]);
   /* WHY THE GREEN MOMENT LANDED (founder 2026-10-18): a green clip that
      reached the page before its reason was written is asked for here, and
      the walk draws it once it is in. */
@@ -1383,7 +1384,7 @@ export function useDeckFeedbackWalk(args: {
           onOthers={onOthers}
           reasons={greenReasons}
           othersJudged={othersJudged}
-          tempo={tempoOn ? TEMPO_STAND_IN : null}
+          tempo={tempo}
         />
     ),
     [
@@ -1412,7 +1413,7 @@ export function useDeckFeedbackWalk(args: {
       onOthers,
       greenReasons,
       othersJudged,
-      tempoOn,
+      tempo,
     ],
   );
 

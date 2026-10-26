@@ -18,6 +18,7 @@ docs/flows/feedback-walk-and-chat.md
   src/lib/willab/tempoStep.ts
   src/lib/willab/pace/
   src/components/willab/pace/
+  src/services/api/reviewTempo.ts
   src/lib/willab/feedbackWalkModel.ts
   src/lib/willab/walkThread.ts
   src/lib/willab/lensScreen.ts
