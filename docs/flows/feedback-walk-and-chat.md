@@ -715,7 +715,7 @@ October (backend N111).
   words, the legal lines, the AI clip's label "AI version of your voice",
   "We couldn't hear that clearly. Try again.", the safety reply.
 
-- **The tempo step (N178, signed 2026-10-26):** the bar "Tempo"; Will's
+- **The tempo step (N179, signed 2026-10-26):** the bar "Tempo"; Will's
   opening "That part went fast. 🏃 Let's try a little game." (rushed) or
   "That part slowed down, with long pauses. 🐢 Let's try a little game."
   (slow), "Tell me more about {topic}, and keep the ball in the green."
@@ -1054,11 +1054,11 @@ The four lines above were filled from main's history by the page's keeper on
   6. The try: the dot's path, then one comment: "Better. You let it breathe." / "Still rushed. Take a breath after each offer." / "A bit slow. Keep the words moving between the pauses."
   7. **Practise again**. After the second try, also **See how it went**. After the third, a one-line summary (for example "Dynamic. You paused where it mattered. 🔥"), then the walk goes on.
 
-  **Decided** (the founder, N166 and N178; each as the prototype draws it):
+  **Decided** (the founder, N166 and N179; each as the prototype draws it):
 
   | Question | Decision |
   |---|---|
-  | Every word above | Signed, listed in §1 K (N178) |
+  | Every word above | Signed, listed in §1 K (N179) |
   | Which stretch | The one the scale reads furthest from the green |
   | Where in the walk | Right after the practise moment |
   | How many tries | Up to three |
@@ -1072,7 +1072,7 @@ The four lines above were filled from main's history by the page's keeper on
   | 2 | The step's screen in the walk, founder-only, on a stand-in stretch (the beds for sale) | Built |
   | 3 | The Take's own stretch, its reading and its topic: the backend replays the pace scale's rules over the Take's word timings and takes the clip furthest from the green; the topic is one small-model call under the Take's processing authorization, else "that part"; no stretch, no step | Built |
   | 4 | Kept: the step's lines, each try and its comment, and the closing line are Lounge messages like every other step; the game (the stretch's reading, each try's result and the dot's path, how it ended; never audio) is one speaker-memory event, so Will's note learns it in words | Built |
-  | 5 | The words signed (N178) and listed in §1 K | Built |
+  | 5 | The words signed (N179) and listed in §1 K | Built |
   | 6 | Who sees it: the founder, and whoever the `tempo_step` row in the rings panel (`/admin/rings`) reaches; no row, nobody else. The backend answers the step only to them. Later the plan's pace or pause week (N147) | Built (the plan part waits on the plan) |
 
   **The code.**
@@ -1203,7 +1203,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N178 · the tempo step's words signed and listed in K; was drafts shown to the founder only · BE (decisions log), FE (this PR)
+- 2026-10-26 · N179 · the tempo step's words signed and listed in K; was drafts shown to the founder only · BE (decisions log), FE (this PR)
 - 2026-10-26 · N172 · built (M1–M11): the ask after a # note with Not now | Start; "#goals" or an ask in your own words opens the lens; one goal per sitting, the open questions said with the small mic or typed, Will's draft quoting only your words, goal or want, ambitious, give up, the horizon worked back to the quarter with the four-week rule, the ladder in the Lounge with its ›, a step changed with its earlier words kept; the lens is the walk's frame (`LoungeLifeGoals.tsx`); the pair shows above the message box, as the notebook's and the WhatsApp ask's do · BE #1335, FE (this PR)
 - 2026-10-26 · N166 · built: who has the tempo step is a ring, the `tempo_step` row in the rings panel, besides the founder; the backend answers the step and keeps the game only for them; was the founder only · BE (this change), FE (this PR)
 - 2026-10-26 · N172 · life goals decided (M): asked once after the first # note and once more after the next, or whenever asked; one goal per sitting in a lens; drafted only from the speaker's words; goal or want; a horizon and the steps worked back to the quarter, with the four-week rule; the ladder; changing a step with its history; kept in the Life Panel · —

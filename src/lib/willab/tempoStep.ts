@@ -75,7 +75,7 @@ export const TEMPO_STAND_IN: TempoStretch = {
   },
 };
 
-/** The step's words, signed by the founder 2026-10-26 (backend N178; the
+/** The step's words, signed by the founder 2026-10-26 (backend N179; the
  *  walk's page §1 K). A change to any of them needs the founder's OK
  *  (Never 4). */
 export const TEMPO_COPY = {

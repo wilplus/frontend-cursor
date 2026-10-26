@@ -31,7 +31,7 @@ import { WalkSpeakerBubble, useMountedAsPast } from "./WalkThread";
 /*  third, the closing line comes by itself; Next goes on with the walk.     */
 /*                                                                            */
 /*  Listen only: the scale reads the microphone in this tab, nothing is      */
-/*  recorded or sent. Every word is signed (TEMPO_COPY, backend N178).       */
+/*  recorded or sent. Every word is signed (TEMPO_COPY, backend N179).       */
 /* -------------------------------------------------------------------------- */
 
 /** One point of a try's path every 200 ms. */
