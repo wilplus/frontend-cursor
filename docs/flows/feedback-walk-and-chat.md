@@ -1059,7 +1059,7 @@ The four lines above were filled from main's history by the page's keeper on
   | 3 | The Take's own stretch, its reading and its topic: the backend replays the pace scale's rules over the Take's word timings and takes the clip furthest from the green; the topic is one small-model call under the Take's processing authorization, else "that part"; no stretch, no step | Built |
   | 4 | Kept: the step's lines, each try and its comment, and the closing line are Lounge messages like every other step; the game (the stretch's reading, each try's result and the dot's path, how it ended; never audio) is one speaker-memory event, so Will's note learns it in words | Built |
   | 5 | The words signed and moved to K | Next, waits on the founder |
-  | 6 | Who sees it: a per-speaker switch, then the plan in a pace or pause week (N147) | To do |
+  | 6 | Who sees it: the founder, and whoever the `tempo_step` row in the rings panel (`/admin/rings`) reaches; no row, nobody else. The backend answers the step only to them. Later the plan's pace or pause week (N147) | Built (the plan part waits on the plan) |
 
   **The code.**
   - The plan: `src/lib/willab/walkPlan.ts`, `WalkIntervention` and the `tempo` step key. A new intervention is a new kind there, its place in `buildWalkPlan` and its screen.
@@ -1067,7 +1067,7 @@ The four lines above were filled from main's history by the page's keeper on
   - The meter: `src/lib/willab/pace/` (`paceSignal.ts`, `paceMic.ts`); the scale: `src/components/willab/pace/PaceScale.tsx`.
   - The stretch: backend `services/tempo_stretch.py` (route `GET /v2/explore/arc/<arc>/review/tempo/<take>`), asked once per Take by `useReviewTempo.ts` through `src/services/api/reviewTempo.ts`. The scale reads slow only on pauses of several seconds, so most stretches it picks are rushed.
   - What is kept: backend `POST /v2/explore/arc/<arc>/review/tempo/<take>` (`tempo_stretch.keep_tries`, a speaker-memory event of kind `take` with its `tempo` part, docs/SPEAKER-MEMORY.md), sent by `postTempoGame` in `src/services/api/reviewTempo.ts` when the game ends.
-  - Who sees it today: the founder's account, in `useDeckFeedbackWalk.tsx`. To try it on the dev harness: `/dev/feedback-walk?live=1&tempo=1` (the stand-in stretch).
+  - Who sees it today: the founder's account, and anyone the rings panel's `tempo_step` row reaches (`useDeckFeedbackWalk.tsx`, `useRingState`; backend `tempo_stretch.tempo_is_on`). The words are still drafts: switching it on for a speaker shows them unsigned words (Never 4). To try it on the dev harness: `/dev/feedback-walk?live=1&tempo=1` (the stand-in stretch).
   - The founder's bench, `src/app/admin/pace-circle/`, uses the same meter and scale.
 
   **History.** The [Pace Circle brief](https://claude.ai/artifact/VJ2uSugQWmbAsmReyxuufz)
@@ -1189,6 +1189,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N166 · built: who has the tempo step is a ring, the `tempo_step` row in the rings panel, besides the founder; the backend answers the step and keeps the game only for them; was the founder only · BE (this change), FE (this PR)
 - 2026-10-26 · N172 · life goals decided (M): asked once after the first # note and once more after the next, or whenever asked; one goal per sitting in a lens; drafted only from the speaker's words; goal or want; a horizon and the steps worked back to the quarter, with the four-week rule; the ladder; changing a step with its history; kept in the Life Panel · —
 - 2026-10-26 · N171, N174 · built: the coach's doors send one message for a coach's sitting, 10 minutes after the last share, naming that Take: the WhatsApp when the speaker left a number, else the email (also when the WhatsApp cannot go), and none once the speaker opened the coach's feedback; was one WhatsApp and one email for every share (C1) · BE #1333
 - 2026-10-26 · N166 · built: the tempo step writes the chat (its opening lines, each try and its comment, the closing line, or the Skip) and keeps the game for Will (each try's result and path, how it ended; never audio) as a speaker-memory event his note reads in words; was nothing kept · BE (this change), FE (this PR)
