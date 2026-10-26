@@ -13,6 +13,7 @@ import {
   horizonDate,
   clashOptions,
   ladderRungs,
+  nextQuarterBy,
   quarterEnd,
   quarterQuestion,
   stepDate,
@@ -23,11 +24,15 @@ import {
 import {
   answerClash,
   answerLifeGoalsAsk,
+  answerQuarterAsk,
   changeStep,
   checkClash,
   draftGoal,
   finishGoal,
   getLifeGoals,
+  quarterDue,
+  quarterNotes,
+  reviewQuarter,
   redraftGoal,
   saveDraft,
   transcribeAnswer,
@@ -60,7 +65,8 @@ import { WalkLink, WalkPill } from "./walk/WalkFooter";
 /* -------------------------------------------------------------------------- */
 
 export type LensOpen = {
-  mode: "add" | "see";
+  /** "quarter": the quarter came back for ``goalId`` (M13). */
+  mode: "add" | "see" | "quarter";
   /** The ask said what they want ("I want to get healthier"). */
   said?: string;
   space?: SpaceKey;
@@ -751,6 +757,40 @@ async function changeOne(ctx: Ctx, goal: LifeGoal, step: ChangeableStep): Promis
   return updated;
 }
 
+/** The quarter came back (M13, N186): did it move, what got in the way,
+ *  their own notes when some match, the next quarter's step. Never a score. */
+async function quarterBack(ctx: Ctx, open: LensOpen): Promise<void> {
+  const { s } = ctx;
+  const goal = ctx.state.goals.find((g) => g.id === open.goalId);
+  const quarter = goal?.ladder.quarter;
+  if (!goal || !quarter) return;
+  await s.say(<LadderCard key="ladder" goal={goal} />, COPY.didItMove);
+  const outcome = COPY.outcomes[await tapAnswer(s, COPY.outcomes)].key;
+  let inTheWay: string | null = null;
+  if (outcome !== "got_there") {
+    await s.say(COPY.inTheWay);
+    inTheWay = await wordsAnswer(s);
+    const notes = inTheWay ? await quarterNotes(goal.id, inTheWay) : [];
+    if (notes.length) {
+      await s.say(
+        COPY.notesToo,
+        ...notes.map((note) => (
+          <span key={`${note.on}${note.text}`}>
+            “{note.text}” <span className="text-muted-foreground">· {note.on}</span>
+          </span>
+        )),
+      );
+    }
+  }
+  const ended = quarter.asked ?? quarter.on ?? new Date().toISOString().slice(0, 10);
+  await s.say(COPY.moveForward(nextQuarterBy(ended)));
+  const next = await wordsAnswer(s);
+  const updated = await reviewQuarter(goal.id, outcome, inTheWay, next);
+  if (updated) await s.say(<LadderCard key="after" goal={updated} />, COPY.noted);
+  await ctx.refresh();
+  await ctx.reload();
+}
+
 /* ── The lens ──────────────────────────────────────────────────────────── */
 
 function LensFrame({
@@ -856,7 +896,12 @@ function LifeGoalsLens({
     };
     const s = script(ui);
     const ctx: Ctx = { s, state, reload, refresh };
-    const flow = open.mode === "see" && state.goals.length ? seeGoals(ctx, open) : addGoal(ctx, open);
+    const flow =
+      open.mode === "quarter"
+        ? quarterBack(ctx, open)
+        : open.mode === "see" && state.goals.length
+          ? seeGoals(ctx, open)
+          : addGoal(ctx, open);
     void flow
       .then(() => ui.dock(<DockColumn><WalkPill action={{ label: COPY.close, onClick: onClose }} /></DockColumn>))
       .catch((error: unknown) => {
@@ -902,6 +947,20 @@ export function useLifeGoals({ signedIn, reload }: { signedIn: boolean; reload: 
     [refresh],
   );
 
+  // The Lounge opened: the quarter comes back when one is due (N186).
+  useEffect(() => {
+    if (!signedIn) return;
+    void quarterDue().then((wrote) => (wrote ? reload() : undefined));
+    // Once per opening of the Lounge.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn]);
+
+  async function answerQuarter(goalId: string | null, choice: "start" | "not_now"): Promise<void> {
+    if (!goalId || !(await answerQuarterAsk(goalId, choice))) return;
+    await reload();
+    if (choice === "start") openLens({ mode: "quarter", goalId });
+  }
+
   async function answerAsk(choice: "start" | "not_now"): Promise<void> {
     if (!(await answerLifeGoalsAsk(choice))) return;
     await reload();
@@ -912,6 +971,7 @@ export function useLifeGoals({ signedIn, reload }: { signedIn: boolean; reload: 
     enabled: state?.enabled === true,
     openLens,
     answerAsk: (choice: "start" | "not_now") => void answerAsk(choice),
+    answerQuarter: (goalId: string | null, choice: "start" | "not_now") => void answerQuarter(goalId, choice),
     lens: (
       <LifeGoalsLens open={open} state={state} onClose={() => setOpen(null)} reload={reload} refresh={refresh} />
     ),
@@ -919,6 +979,15 @@ export function useLifeGoals({ signedIn, reload }: { signedIn: boolean; reload: 
 }
 
 export type LifeGoals = ReturnType<typeof useLifeGoals>;
+
+/** The goal whose quarter came back: the newest "Did it move?" row's. */
+export function quarterAskOf(messages: readonly { metadata?: Record<string, unknown> | null }[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const meta = messages[i].metadata;
+    if (meta?.offer === "life_goals_quarter" && typeof meta.life_goal_quarter === "string") return meta.life_goal_quarter;
+  }
+  return null;
+}
 
 /** What a chat reply asks of the lens (M2): ``{"life_goals_open": "add" |
  *  "see", "said"?, "space"?}`` in its row metadata. Not an offer: the lens

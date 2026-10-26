@@ -22,7 +22,9 @@ export type Ladder = {
   horizon?: HorizonKey;
   horizon_by?: string;
   steps?: Partial<Record<StepKey, { text: string; by?: string | null }>>;
-  quarter?: { text: string; by?: string | null; next?: boolean };
+  /** ``on``: the quarter's last day once a review set it; ``asked``: the
+   *  last day it came back for (M13, N186). Both the server's. */
+  quarter?: { text: string; by?: string | null; next?: boolean; on?: string; asked?: string };
   /** Kept by the server, never written by the lens (N185). */
   clashes?: Clash[];
   answers?: { want_most?: string; fulfil?: string; nature?: string; under?: string };
@@ -149,4 +151,44 @@ export async function answerClash(id: string, other: string, wins: string): Prom
     json: { with: other, wins },
   })) as { text?: unknown; goal?: LifeGoal } | null;
   return typeof body?.text === "string" && body.goal ? { text: body.text, goal: body.goal } : null;
+}
+
+export type QuarterOutcome = "got_there" | "moved" | "stalled";
+
+/** The Lounge opened (N186): the quarter's two bubbles when one is due; true
+ *  when rows were written, so the caller reloads. */
+export async function quarterDue(): Promise<boolean> {
+  const body = (await call("/api/v2/life-goals/quarter/due", { method: "POST", json: {} })) as {
+    messages?: unknown;
+  } | null;
+  return Array.isArray(body?.messages) && body.messages.length > 0;
+}
+
+/** Start or Not now under "Did it move?"; the rows are in the thread. */
+export async function answerQuarterAsk(id: string, choice: "start" | "not_now"): Promise<boolean> {
+  return (await call(`/api/v2/life-goals/${encodeURIComponent(id)}/quarter/ask`, { method: "POST", json: { choice } })) !== null;
+}
+
+/** Their own # notes from the quarter that say what got in the way too. */
+export async function quarterNotes(id: string, inTheWay: string): Promise<{ text: string; on: string }[]> {
+  const body = (await call(`/api/v2/life-goals/${encodeURIComponent(id)}/quarter/notes`, {
+    method: "POST",
+    json: { in_the_way: inTheWay },
+  })) as { notes?: unknown } | null;
+  return Array.isArray(body?.notes)
+    ? body.notes.filter((n): n is { text: string; on: string } => typeof n?.text === "string" && typeof n?.on === "string")
+    : [];
+}
+
+/** How the quarter went, in words, and the next quarter's step. */
+export async function reviewQuarter(
+  id: string,
+  outcome: QuarterOutcome,
+  inTheWay: string | null,
+  next: string | null,
+): Promise<LifeGoal | null> {
+  return (await call(`/api/v2/life-goals/${encodeURIComponent(id)}/quarter`, {
+    method: "POST",
+    json: { outcome, in_the_way: inTheWay, next },
+  })) as LifeGoal | null;
 }

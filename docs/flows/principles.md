@@ -61,7 +61,7 @@ Life Panel.
   it"; "Type instead". With N183 (M16): "📓 Use your notebook!"; "Keep the
   details in your own notebook, the paper one. Here we keep only the base.";
   with N185 (M12): the label WHEN THEY CLASH, "{space} wins", "You decide
-  each time";
+  each time"; with N186 (M13): "The quarter ended on {date}.";
   "That's the base. Now go and live it. Come back for a short recap.". With N170: "Nothing stands out in your notes from the last
   seven days yet."; "There are no # notes from the last seven days yet."
 
@@ -196,7 +196,9 @@ The prototype is the design: <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24>
   same three answers; the earlier answer is kept with its date.
 - **M13** The quarter comes back on its last day, once per goal with a
   quarter step, in the Lounge: "The quarter ends today." and "{emoji} {step}.
-  Did it move?" with Not now | Start. The lens: the ladder, "Did it move?"
+  Did it move?" with Not now | Start. No clock (N186): they are waiting the
+  first time the Lounge opens that day; opened later, "The quarter ended on
+  {date}." in place of the first. The lens: the ladder, "Did it move?"
   (🎯 It got there · ↗️ It moved · ⏸️ It stalled), never a score; moved or
   stalled: "What got in the way?", then, only when some match, "Your notes
   said it too:" and their own # notes quoted with their dates; "What would
@@ -224,7 +226,7 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- **N172** · life goals (M) · M · M1–M12 built (M12 with N185: backend #1353, FE this PR); then M13 (the quarter comes back), M14 (a note that sounds like a change), the ladders in the Life Panel's own screens and this week's focus on the ladder (no source yet) · BE #1335, FE (this PR)
+- **N172** · life goals (M) · M · M1–M13 built (M13 with N186: backend #1356, FE this PR); then M14 (a note that sounds like a change), the ladders in the Life Panel's own screens and this week's focus on the ladder (no source yet) · BE #1335, FE (this PR)
 - **N158, N170** · the Sunday note as a lens, on Sunday by itself when there is a pattern and whenever asked in any words, from the last seven days · L · locked 2026-10-26, not built; the backend half (only # notes, only when asked, no Old | New) is on backend branch `claude/gracious-faraday-x8tin9`, not merged · —
 
 ## 3. Still open
@@ -260,6 +262,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N186 · built (M13): no clock; the first time the Lounge opens on the quarter's last day (or later, "The quarter ended on {date}."), "Did it move?" with Not now | Start; the lens asks how it went in words, what got in the way, quotes their own notes only when some match, and sets the next quarter's step with the earlier one kept · BE #1354, #1356, FE (this PR)
 - 2026-10-26 · N185 · built (M12): before a new goal is set, Will checks once per pair whether it pulls against a kept goal, from their words only, and asks "When they clash, which wins?"; the answer is the step WHEN THEY CLASH on both ladders, changed by tapping with the earlier answer kept · BE #1351, #1353, FE (this PR)
 - 2026-10-26 · N180, N183 · built (M16): "📓 Use your notebook!" and the paper-notebook line the first time the lens opens; "That's the base. Now go and live it. Come back for a short recap." when a goal is set; the voice notebook stays for short # notes · BE (this change), FE (this PR)
 - 2026-10-26 · N182 · this page: the principles, the Sunday note and life goals are their own feature, ring 6, apart from the speaking coach; L and M moved here from the walk's page with their letters, words, in-flight lines and prototypes · BE #1344, FE #993
