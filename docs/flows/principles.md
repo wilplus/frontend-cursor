@@ -250,7 +250,7 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- **N172** · life goals (M) · M · M1–M15 built (M15 with N197: backend #1373, FE this PR); then this week's focus on the ladder (no source yet) · BE #1335, FE (this PR)
+Nothing is in flight: L and M are built (2026-10-26).
 
 ## 3. Still open
 
@@ -285,6 +285,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N172 · built (M10, the last piece): THIS WEEK on the career ladder is this week's level from the plan (the plan's G5, backend #1386), a plain row with no ›, in the lens, on the Goals screen and in Will's prompt; nothing while no plan runs · BE #1390, FE (this PR)
 - 2026-10-26 · N158, N170 · built (L): the Sunday note as a lens; only the # notes of the last seven days; on Sunday from 6 pm by itself only when they show a pattern, and whenever asked in any words; "We spotted a pattern!" and the case with Not now | Investigate; the lens asks the bug, the principle held, the reflection and Will's new principle (Accept, Edit, Not now); the bubble's › reopens it where it stands. What stopped: the long case form, Old | New and its "Add principle" footer · BE #1382, FE (this PR)
 - 2026-10-26 · N197 · built (M15): the ladders on the Life Panel's Goals screen, above the three bets; a tapped step opens the lens over the panel on that step; History lists every version, dated; "＋ Add a goal"; nothing before the first goal (`LifeGoalsLadders.tsx`) · BE #1371, #1373, FE (this PR)
 - 2026-10-26 · N195 · A5: the first tap on the mic, before the notebook's question, says why it exists in three bubbles (the jitters, a place for your goals, a goal you can steer by); was: the question alone · BE #1369, FE #1008

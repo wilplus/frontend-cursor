@@ -42,6 +42,9 @@ export type LifeGoal = {
   changes: Partial<Record<ChangeableStep | "clash", { on: string; earlier: string | null }>>;
   /** The talk goal (the setup answer), on the career goal. */
   talk?: string;
+  /** This week's level from the plan, on the career goal while a plan runs
+   *  (M10; the plan's G5). Read-only. */
+  week?: string;
   /** The day it was made, and every version newest first, with the
    *  quarter's answers in words (the Life Panel's History, M15). */
   set_on?: string;
