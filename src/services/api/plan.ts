@@ -55,6 +55,8 @@ export type Plan = {
   topic: string | null;
   /** A new event's plan, waiting for the next Take before its questions. */
   waiting: boolean;
+  /** The plan's own yes (backend N211): "granted" while its switch is off. */
+  consent?: "granted" | "declined" | "unanswered";
 };
 
 export type PlanState = { enabled: boolean; plan: Plan | null; wrote: boolean };
@@ -194,10 +196,18 @@ export function rememberPlan(plan: Plan | null): void {
   lastPlan = plan;
 }
 
+/** "How do you feel?" may be asked: always for a speaker without a plan
+ *  (backend N215), and with a plan only after its own yes (D5; backend N211,
+ *  N217). A plan from before the yes existed reads as granted. */
+export function feelingsAllowed(): boolean {
+  return lastPlan === null || lastPlan.consent === undefined || lastPlan.consent === "granted";
+}
+
 /** Before any Take but a plan's first, "How do you feel?" with a Skip (D4;
- *  backend N151, N178): once the plan's first Take is recorded. */
+ *  backend N151, N178): once the plan's first Take is recorded, and only
+ *  after the plan's own yes. */
 export function feelingsDue(): boolean {
-  return lastPlan !== null && lastPlan.status === "active" && lastPlan.first_take_done;
+  return lastPlan !== null && lastPlan.status === "active" && lastPlan.first_take_done && feelingsAllowed();
 }
 
 /** "Is this for {date}?" on a new project (H2): Yes keeps the plan; No

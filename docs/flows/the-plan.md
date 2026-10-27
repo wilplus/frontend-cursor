@@ -122,11 +122,12 @@ built and what is still to come.
 4. Every practice in between gets only "How do you feel?" (Nervous, Excited,
    Calm, Not sure), today's screen, with a Skip. Today it shows once per new
    project, before Take 1, with a Skip too (N151, N178, N211; the recording
-   screens' page). It moves behind the plan's personal yes (5) in a later
-   change; today it is asked as before (N211).
+   screens' page). With a plan it is asked only after the plan's own yes (5);
+   without one it stays as today (N215), and answering is the yes for that one
+   answer. The screen says "Your coach sees your answer." (N211, N217).
 5. **The plan's own yes.** The personal questions (the worry question, the
-   two ratings in 1, "How did it go?" at the plan's end (I2) and, in a later
-   change, the feelings check in 4) are asked only after the speaker says yes
+   two ratings in 1, "How did it go?" at the plan's end (I2) and the feelings
+   check in 4) are asked only after the speaker says yes
    to a question of its own, once. Will asks it after the speaker's voice
    answer about the event, before any personal question: "A few of my
    questions are personal: how stressed and how ready you feel, what worries
@@ -471,10 +472,6 @@ Waiting for the founder's OK:
   N177); the WhatsApp ask after each Take stays. After a practice day's walk,
   the two lines of G13 (N183), which the prototype doesn't draw. The calls
   are paid as the booking page is paid, in tokens once N198 is built.
-- **Where the plan's own yes is asked for a speaker without a plan** (D5,
-  N211): the feelings check is asked of them too, so it moves behind the yes
-  only once the founder says where the yes is asked. Until then it is asked as
-  before, and `PLAN_CONSENT_ENABLED` stays off.
 
 ## 4. Where it lives
 
@@ -536,6 +533,8 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-10-27 · N213 · built: the coach's side. A plan reaches the coach's queue as "New plan", "Asked about their level" or "Three Takes without moving"; the level is picked blind, then What happened; a stuck level is answered with the coach's video as their word on the latest Take (C5, G10, H1). The plan keeps the key line's recording again after the questions. Was: the stuck level noted for a queue not yet built · BE #1415, FE
+
+- 2026-10-27 · N215, N217 · built, switched off until Privacy 3.9: the feelings check (D4) behind the plan's own yes, and "Your coach sees your answer." on its screen; a speaker without a plan keeps it as today, with no ask and no card. Was: the feelings check outside the yes · FE (this PR), BE (with it)
 
 - 2026-10-27 · N211 · built, switched off until Privacy 3.9: D5, the plan's own yes; the worry question, the two ratings and "How did it go?" wait for it; the card "Personal answers in your plan" in Data & consent turns it on and off, off deletes the personal answers. Was: asked of everyone · BE #1416, FE (this PR)
 
