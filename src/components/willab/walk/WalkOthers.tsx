@@ -31,7 +31,10 @@ import { othersBridge, othersChat } from "@/lib/willab/walkThread";
 /*  already judged in this walk, as many as the chat holds their answers      */
 /*  (`judged`), each with the answer they gave, its card orange, "✓ Answered" */
 /*  over Next. Nothing is asked again and nothing is posted; with no answer   */
-/*  kept, the queue is asked afresh as before.                                */
+/*  kept, the queue is asked afresh as before. The count is read once, when   */
+/*  the step opens: the chat counts each answer given here at once, and a    */
+/*  live answer never loads the step again (it then stood on a moment it no   */
+/*  longer held, the typing dots for good; 2026-10-27).                      */
 /*                                                                            */
 /*  In the walk's chat (founder 2026-10-20, WIL-89): each moment lands under  */
 /*  the one before with its name ("Other speakers · 2 of 3"), the answer as   */
@@ -88,6 +91,8 @@ export default function WalkOthers({
   const past = useMountedAsPast();
   const done = useRef(onDone);
   done.current = onDone;
+  // As many as the chat held when the step opened, never the live count.
+  const judgedAtOpen = useRef(judged);
   const timer = useRef<number | null>(null);
   useEffect(
     () => () => {
@@ -103,7 +108,7 @@ export default function WalkOthers({
       return;
     }
     let live = true;
-    void load(judged, take).then((loaded) => {
+    void load(judgedAtOpen.current, take).then((loaded) => {
       if (!live) return;
       if (loaded.clips.length === 0) {
         done.current();
@@ -116,7 +121,7 @@ export default function WalkOthers({
     return () => {
       live = false;
     };
-  }, [past, skip, take, judged]);
+  }, [past, skip, take]);
 
   const clip = clips?.[at];
   const answered = clip ? given[clip.id] ?? null : null;

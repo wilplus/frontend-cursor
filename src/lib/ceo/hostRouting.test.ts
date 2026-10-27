@@ -47,6 +47,9 @@ describe("CEO hostname routing", () => {
       "allow"
     );
     expect(
+      decide(CEO_CANONICAL_HOST, "/api/v2/admin/signup-counts").action
+    ).toBe("allow");
+    expect(
       decide(CEO_CANONICAL_HOST, "/api/v2/admin/tokens/grant").action
     ).toBe("allow");
     expect(decide(CEO_CANONICAL_HOST, "/dashboard").action).toBe(

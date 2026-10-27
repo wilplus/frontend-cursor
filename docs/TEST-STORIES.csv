@@ -825,7 +825,7 @@ O4  If the summary cannot be read, the walk goes straight back to my page.
 O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.
 O6  A step's grey bubbles land one after another behind the typing dots, and its buttons come once they all have; each new bubble, and the typing dots before it, land at the bottom, right above the buttons, and the thread follows them until I scroll up by hand (N122).
 O7  The walk opens once with ""Hi {name}, good to see you back!"" (Take 1: ""Hi {name}, great to meet you!""; no name: the same without it), and the Lounge keeps the same words (N120).
-O8  Other speakers asks for my Take's moments and shows each one the server sends, up to three (""Now 3 moments from other speakers.""), however many tries I made; with none the step is left out (N119).
+O8  Other speakers asks for my Take's moments and shows each one the server sends, up to three (""Now 3 moments from other speakers.""), however many tries I made; with none the step is left out (N119). My answer on one moves me on to the next, though the chat counts it at once.
 O9  On a plan, the moment where this week's level shows most opens with ""This week's level: {level}. Here's where it shows:"" above my clip; no other moment does (G7, backend N209).","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
 O2 -> a green moment says why it landed,
 the Take's highest moment opens with “This was your most confident moment.”
@@ -835,7 +835,7 @@ O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the serve
 O6 -> a step's bubbles land behind the typing dots, then its buttons (founder 2026-10-20),
 new bubbles land at the bottom and the thread follows them until the speaker scrolls up by hand (N122)
 O7 -> the walk opens once with the hello and the speaker's first name (N120)
-O8 -> other speakers: the Take's three moments, whatever the tries (N119)
+O8 -> other speakers: the Take's three moments, whatever the tries (N119); an answer moves on to the next
 O9 -> on a plan, the level's moment says where this week's level shows, above the clip (G7, N209)","Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, ""add the name at the start""; N122, ""the 3 dots loading should be at the bottom""; N119, ""3 clips (high, middle, low willfidence) from 3 different speakers"")."
 src/components/willab/walk/walkCopy.test.ts,Guard,"Every word the walk can show comes from the signed copy, and no signed walk line carries a digit.","Never 4: a literal word typed into a walk/*.tsx primitive (JSX text,
 a string child, an accessible name, title, placeholder) that is not in
