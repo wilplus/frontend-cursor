@@ -187,7 +187,7 @@ green); the app shows the speaker's own slides, unchanged.
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
 doing it fills its line in its PR and deletes the line when the work is merged (the change goes to §6).
 
-- **The plan's two touches on the set-up** · the topic arrives filled in from the plan's voice message (backend N141); "How do you feel?" shows before every practice between a plan's first and last, and the stress and readiness ratings take its place on those two (backend N151, N157) · the set-up's first question and the feelings check · built, switched off until the plan's migration (N203, N204): "Start your first recording" opens the set-up with the topic filled in and no feelings check; with an active plan, every later Take opens "How do you feel?" first, with a Skip, then the project's stored setup · rules: [`the-plan.md`](the-plan.md) §1 B7, D
+- **The plan's two touches on the set-up** · the topic arrives filled in from the plan's voice message (backend N141); "How do you feel?" shows before every practice between a plan's first and last, and the stress and readiness ratings take its place on those two (backend N151, N157) · the set-up's first question and the feelings check · built, on for ring 5 since 27 October 2026 (N203, N204, backend #1394): "Start your first recording" opens the set-up with the topic filled in and no feelings check; with an active plan, every later Take opens "How do you feel?" first, with a Skip, then the project's stored setup · rules: [`the-plan.md`](the-plan.md) §1 B7, D
 
 ## 3. Still open
 
