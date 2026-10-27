@@ -10,6 +10,7 @@ OUTCOME
   O6  A step's grey bubbles land one after another behind the typing dots, and its buttons come once they all have; each new bubble, and the typing dots before it, land at the bottom, right above the buttons, and the thread follows them until I scroll up by hand (N122).
   O7  The walk opens once with "Hi {name}, good to see you back!" (Take 1: "Hi {name}, great to meet you!"; no name: the same without it), and the Lounge keeps the same words (N120).
   O8  Other speakers asks for my Take's moments and shows each one the server sends, up to three ("Now 3 moments from other speakers."), however many tries I made; with none the step is left out (N119).
+  O9  On a plan, the moment where this week's level shows most opens with "This week's level: {level}. Here's where it shows:" above my clip; no other moment does (G7, backend N209).
 PROVES   O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
          O2 -> a green moment says why it landed,
                the Take's highest moment opens with “This was your most confident moment.”
@@ -20,6 +21,7 @@ PROVES   O1 -> walks coach's note → praise → helper words → the next prais
                new bubbles land at the bottom and the thread follows them until the speaker scrolls up by hand (N122)
          O7 -> the walk opens once with the hello and the speaker's first name (N120)
          O8 -> other speakers: the Take's three moments, whatever the tries (N119)
+         O9 -> on a plan, the level's moment says where this week's level shows, above the clip (G7, N209)
 WHY      Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, "add the name at the start"; N122, "the 3 dots loading should be at the bottom"; N119, "3 clips (high, middle, low willfidence) from 3 different speakers").
 */
 import { HELPER_WORDS_MAX } from "@/lib/willab/phraseTokens";
@@ -435,6 +437,22 @@ describe("the clearer version (D-FW-15)", () => {
     const buttons = [...live()!.querySelectorAll("footer button, [data-walk-footer] button")].map((b) => b.textContent);
     expect(buttons).toContain(COPY.pillAcceptPractise);
     expect(buttons).toContain(COPY.linkKeepMyWords);
+  });
+
+  it("on a plan, the level's moment says where this week's level shows, above the clip (G7, N209)", () => {
+    const level = "Say it once, and it lands";
+    const items = REWRITE_ITEMS.map((i) => (i.partId === "p3" ? { ...i, planLevel: level } : i));
+    const model = buildFeedbackWalk({ items, coachNote: false, practiceOn: true, guest: false });
+    draw({ seq: 1, at: FIRST }, { model, onAcceptClearer: vi.fn(), onKeepWords: vi.fn() } as Over);
+    expect(screen()).toBe("walk-screen-clearer");
+    const line = now()!.querySelector("[data-walk-level]")!;
+    expect(line.textContent).toBe(`This week's level: ${level}. Here's where it shows:`);
+    const player = now()!.querySelector("[data-walk-player][data-walk-me]")!;
+    expect(line.compareDocumentPosition(player) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The other corrected moment says nothing about the level.
+    draw({ seq: 2, at: FIRST + 2 }, { model, onAcceptClearer: vi.fn(), onKeepWords: vi.fn() } as Over);
+    expect(screen()).toBe("walk-screen-clearer");
+    expect(now()!.querySelector("[data-walk-level]")).toBeNull();
   });
 
   it("names words that undermined the speaker: B10's \"Say what you mean\" and \"Try saying it like this:\", on screen and in the chat (N85)", () => {

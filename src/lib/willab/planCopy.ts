@@ -54,7 +54,24 @@ export const PLAN_COPY = {
   readyHi: "Fully ready",
   yes: "Yes",
   no: "No",
+  /** On the walk's moment where this week's level shows most (G7; signed,
+   *  N140; backend N209). */
+  levelHere: (level: string) => `This week's level: ${level}. Here's where it shows:`,
 } as const;
+
+/** The five levels by their key, as the walk's moment names them (backend
+ *  services/plan.py LEVELS; signed, N132, N134). */
+export const LEVEL_NAMES: Readonly<Record<string, string>> = {
+  say_once: "Say it once, and it lands",
+  key_line: "Let your key line land",
+  pauses: "Pauses that hold the room",
+  voice_moves: "A voice that moves",
+  make_it_yours: "Make it yours",
+};
+
+/** A served level key's name, or null for none or one the app doesn't know. */
+export const levelNameOf = (key: string | null | undefined): string | null =>
+  key && Object.prototype.hasOwnProperty.call(LEVEL_NAMES, key) ? LEVEL_NAMES[key] : null;
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
