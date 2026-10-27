@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import {
+  answerConsent,
   answerDeadline,
   askCoach,
   bookCall,
@@ -136,6 +137,7 @@ export function usePlanLounge({
       startFirst: () => onStartRecording?.(plan?.topic ?? null),
       next: (choice) => void run(() => nextPlan(choice)),
       sameEvent: (yes) => void run(() => sameEvent(yes)),
+      consent: (yes) => void run(() => answerConsent(yes)),
     }),
     [run, onStartRecording, plan?.topic],
   );

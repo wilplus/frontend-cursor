@@ -49,6 +49,18 @@ export const DATA_CONSENT_COPY = {
   // Signed by the founder 2026-09-26 (backend SPEC-DECISIONS-LOG N10). The
   // switch's own sentence is not here: the backend serves it, exactly as the
   // database holds and fingerprints it.
+  // The plan's own yes (founder 2026-10-27, "approved as drawn", backend
+  // N211): the card, its two lines, its turn-off question and its outcome
+  // line. Will's ask in the Lounge is services/plan.py COPY, not here.
+  planTitle: "Personal answers in your plan",
+  planOn:
+    "Will asks how stressed and how ready you feel, what worries you, and how you feel before each Take. Your coach and Will use the answers to shape your plan.",
+  planOff:
+    "Off. Turn it on and Will asks how stressed and how ready you feel, what worries you, and how you feel before each Take.",
+  planOffTitle: "Turn off personal answers?",
+  planOffBody:
+    "We stop asking, and delete the personal answers you have given. Your plan stays.",
+  planOffDone: "Off. We deleted your personal answers.",
   trainingTitle: "Help improve WillpowerLab",
   trainingOffTitle: "Turn off training?",
   trainingOffBody:

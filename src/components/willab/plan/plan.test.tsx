@@ -19,11 +19,15 @@
 /*    O5  A new project's question takes Yes or No in the footer (H2), and   */
 /*        "How do you feel?" comes before a Take only once the plan's first  */
 /*        Take is recorded (D4).                                              */
+/*    O6  Will's ask for the plan's own yes is drawn as his bubble with Read   */
+/*        more, its footer is "Not now" and "Yes, ask me" and nothing else   */
+/*        is taken while he waits (N211).                                     */
 /*  PROVES   O1 -> "each step has its own footer"                             */
 /*           O2 -> "a rating is sent once and never written back"             */
 /*           O3 -> "the plan's rows are drawn as the prototype draws them"    */
 /*           O4 -> "the newest bubble holds the one record button"            */
 /*           O5 -> "a new project's question, and the feelings before a Take" */
+/*           O6 -> "Will asks for the plan's own yes"                         */
 /*  WHY      The plan, built one to one with the prototype (founder           */
 /*           2026-10-26, backend N203, N204); docs/flows/the-plan.md §1.     */
 /* -------------------------------------------------------------------------- */
@@ -90,6 +94,7 @@ function actions(): PlanActions {
     startFirst: vi.fn(),
     next: vi.fn(),
     sameEvent: vi.fn(),
+    consent: vi.fn(),
   };
 }
 
@@ -190,4 +195,22 @@ it("a new project's question, and the feelings before a Take", () => {
   rememberPlan({ ...PLAN, status: "active", step: "done", first_take_done: true });
   expect(feelingsDue()).toBe(true);
   rememberPlan(null);
+});
+
+it("Will asks for the plan's own yes", () => {
+  const waiting: Plan = { ...PLAN, step: "consent" };
+  expect(dockFor(waiting, null)).toBe("consent");
+  const a = actions();
+  act(() => root.render(<PlanDock plan={waiting} busy={false} booking={null} onCloseBooking={() => {}} actions={a} />));
+  const labels = [...host.querySelectorAll("button")].map((b) => b.textContent);
+  expect(labels).toEqual(["Not now", "Yes, ask me"]);
+  act(() => (host.querySelectorAll("button")[1] as HTMLButtonElement).click());
+  act(() => (host.querySelectorAll("button")[0] as HTMLButtonElement).click());
+  expect(a.consent).toHaveBeenNthCalledWith(1, true);
+  expect(a.consent).toHaveBeenNthCalledWith(2, false);
+
+  const ask = "A few of my questions are personal: how stressed and how ready you feel, what worries you, and how you feel before each Take.";
+  act(() => root.render(<>{planRowFor(row({ plan_ask: "consent" }, ask), ctx(waiting))}</>));
+  expect(host.querySelector("[data-bubble]")?.textContent).toContain(ask);
+  expect([...host.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Read more"]);
 });

@@ -18,6 +18,7 @@ import DataConsentChoices from "@/components/account/DataConsentChoices";
 import PolicyUpdateCard from "@/components/account/PolicyUpdateCard";
 import TrainingConsentCard from "@/components/account/TrainingConsentCard";
 import AiVoiceCard from "@/components/account/AiVoiceCard";
+import PlanConsentCard from "@/components/account/PlanConsentCard";
 import WhatsAppCard from "@/components/account/WhatsAppCard";
 import ProjectsCard from "@/components/account/ProjectsCard";
 import AccountSignInCard from "@/components/account/AccountSignInCard";
@@ -54,6 +55,7 @@ export default function DataConsentPage() {
           <TrainingConsentCard onOffered={setTrainingOffered} />
         </div>
         <AiVoiceCard />
+        <PlanConsentCard />
         <WhatsAppCard />
         <ProjectsCard />
         <AccountSignInCard />
