@@ -656,6 +656,12 @@ step; the loop never waits for a coach.
   highest   = of the two, the stronger voice (S); its bubble opens with
               the signed line (C2, N118)
   try       = Δ willfidence vs the original ≥ MARGIN (+0.05) → better
+  plan      = on a plan (the-plan.md G7, N134 item 2, N209): the best
+              moment, then the clip where this week's level shows most
+              (services/plan_walk.py), always practised with the level's
+              own practice, its line above the clip; no clip shows it →
+              the two best, as above; the level is the one the plan had
+              when the Take was recorded
   ```
 
   The unit is the sentence. FLOOR is 0.6 at launch, then calibrated so
@@ -1010,7 +1016,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 - **N171, N189, N193** · messages: replies reach us and STOP removes the number (its words signed in N174), with no check message when a number is saved, since the app shows it back; coach-feedback messages wait from 21:00 to 8:00 in the time zone of the speaker's country of residence, and in the United States go only between 11:00 and 21:00 New York time (C1's doors) · C1 · decided, not built · BE #1326, #1360, #1367
 
-- **The plan** (backend N129 onward) · the diagnosis, the plan card, the practice days and the plan's end have their own page, [`the-plan.md`](the-plan.md); it meets this page in the Lounge, in the walk's level moment (C, N134 item 2), the bar on the end sheet (N140 item 11) and the pace practice in a pace week (the tempo step), and in the chat's day line before each day's first message (N169, the-plan.md G3) · decided, not built · its rules live there, not here (backend N160). Built, on for ring 5 since 27 October 2026 (N203, N204, backend #1394): the plan in the Lounge, and the bar with "{n} of {total} practices done. Next: {day}." on the walk's end card (`WalkEnd.tsx`, `PlanProgress`); the level's moment in the walk is still to come
+- **The plan** (backend N129 onward) · the diagnosis, the plan card, the practice days and the plan's end have their own page, [`the-plan.md`](the-plan.md); it meets this page in the Lounge, in the walk's level moment (C, N134 item 2), the bar on the end sheet (N140 item 11) and the pace practice in a pace week (the tempo step), and in the chat's day line before each day's first message (N169, the-plan.md G3) · decided, not built · its rules live there, not here (backend N160). Built, on for ring 5 since 27 October 2026 (N203, N204, backend #1394): the plan in the Lounge, and the bar with "{n} of {total} practices done. Next: {day}." on the walk's end card (`WalkEnd.tsx`, `PlanProgress`); and since 27 October the level's moment in the walk (H1, N209: "This week's level: {level}. Here's where it shows:" above the clip, `LevelHere` in `FeedbackWalk.tsx`)
 
 - **WIL-76** · the stale processing step (urgent) · A1, A2 · confirmed in the app 2026-10-20 ("it doesn't open right after the processing"). Built: the marks are baked in the run right after ready (BE), the processing bubble waits for them and the page keeps asking for late marks to its ceiling and closes its slot when it stops (FE) · BE #1209, FE #896 · the founder checks the app
 - **WIL-89** · the lens as one chat: the opening order, the lenses, the interventions × chat awareness · B, C1, F · built and merged: FE #868, #882, #885, #886; BE #1170, #1190, #1194, #1196. Whether it works as drawn is the founder's check in the app ("success?") · to confirm
@@ -1157,6 +1163,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-27 · N209 · on a plan, the walk's second moment is where this week's level shows most, opening with "This week's level: {level}. Here's where it shows:" above the clip (signed, the-plan.md K) and practised with the level's own practice, on screen and in the chat; no clip shows the level, the two best; off a plan, nothing changes (H1) · BE #1406, FE #1024
 - 2026-10-26 · N207 · the WhatsApp ask's form names the booked call: "We will only use it to let you know your coach texted you, or that your call starts soon."; the booking form asks for no number, and a booked call's reminder goes to the number saved here; was "… your coach texted you" (E1) · BE #1391, #1395, FE (this PR)
 - 2026-10-26 · N140 item 11, N203 · the walk's end card shows the plan's bar and "{n} of {total} practices done. Next: {day}." between its title and its next step, for a speaker with an active plan; nothing for anyone else · BE #1386, FE #1018
 - 2026-10-27 · — · B3, B10, B13, D4 and D5 rewritten to read easily: short headed bullets, the founder's words in one bracket at the end; no rule changed · FE (this PR)

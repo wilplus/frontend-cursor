@@ -277,6 +277,9 @@ export interface DocumentSuggestion {
   helperWordsPrompt?: boolean;
   /** A praised moment the walk practises with its AI clip (backend N122). */
   confidentPractice?: boolean;
+  /** On a plan, the moment where this week's level shows most (backend
+   *  G7, N209): the level's key, a word, never a score. */
+  planLevel?: string | null;
   /** Why the green moment landed, in words (founder 2026-10-18;
    *  backend services/praise_reason). Absent until it is written. */
   praiseReason?: PraiseReason | null;
@@ -763,6 +766,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     highestMoment: record.highest_moment === true,
     helperWordsPrompt: record.helper_words_prompt === true,
     confidentPractice: record.confident_practice === true,
+    planLevel: readNonEmptyString(record.plan_level),
     praiseReason: readPraiseReason(record.praise_reason),
     practicePrompt: record.practice_prompt === true,
     coachRequest: mapCoachRequest(record.coach_request),

@@ -14,8 +14,9 @@ keep their N-numbers and stay the record.
 with the prototype (N203, which lifts N147's "not yet"). The questions, the
 calls, the plan card, the practice days in the chat, changing the plan and
 the plan's end are built; their migration, with the ring row `plan` at ring 5
-(N204), merged on 27 October 2026 (backend #1394). §2 says what is built and
-what is still to come.
+(N204), merged on 27 October 2026 (backend #1394). The level's moment in the
+walk and a level moving on followed the same day (N209). §2 says what is
+built and what is still to come.
 
 **How this page works**
 
@@ -215,8 +216,18 @@ what is still to come.
    closing line. No "Start a new project" under it: the "+" next to "Type
    here" opens the projects, as today (N167, N169).
 7. The walk shows the Take's best moment and the moment where this week's
-   level shows most; when no moment shows it, the two best, as today (N134;
-   the walk's page).
+   level shows most; when no moment shows it, the two best, as today (N134,
+   N209). The level's moment opens with "This week's level: {level}.
+   Here's where it shows:" above the speaker's clip, and is practised with
+   the level's own practice, its row of the treatment picker: the AI
+   version of the voice with its pace tip ("Let your key line land"), its
+   pause tip ("Pauses that hold the room") or its stress tip ("A voice that
+   moves"); the Clearer version ("Say it once, and it lands"). "Make it
+   yours" keeps the walk as today. Where a level shows is read on each clip
+   against the speaker's own usual on that Take, the key line's clip first
+   when it shows it; never shown as a number. A walk reads the level the
+   plan had when its Take was recorded, so it reads the same on every
+   opening (the walk's page, H1).
 8. In a pace or pause week the speaker practises their pace, from Take 2
    (Take 1 has no Ideal Text yet). The pace practice is the tempo step of
    the Feedback walk and nowhere else: not the coach panel, not the Lounge,
@@ -225,9 +236,21 @@ what is still to come.
 9. A practise that slowed down gets its own lines, said in turn: "You gave it
    room, and it landed." · "Slower, and every word counted." · "That pace
    lets them keep up with you." (N140).
-10. A level moves on after two Takes in a row reach it, or when its time runs
-   out. After three Takes without moving, it switches to the next
-   intervention in its row, and the coach sees it in their queue (N134).
+10. A Take reaches its level when the check that picked the level no
+   longer fires on that Take, read on the whole Take (the key line no
+   longer faster than the rest; pauses no longer few and short; filler
+   words no longer many; the pitch no longer flat); never shown (N209). Two
+   Takes in a row that reach it, or its time running out (a week in a plan
+   of up to six weeks, two weeks in a longer one; a plan of two weeks or
+   less keeps one level), and the next level is the next thing heard:
+   strongest first, the next level whose check fires on the latest Take,
+   never one the plan already had; when none fires, "Make it yours", which
+   stays. The speaker just sees it: the next hello and the plan name the
+   new level, and nothing is said about their voice. A coach's level is
+   never moved by the machine (C5). After three Takes on a level without
+   moving, the next intervention in its row, and the coach sees it in
+   their queue; until the coach's side is built, the stuck level is noted
+   for the queue and the walk keeps the level's own practice (N134, N209).
 11. There is no practice-day reminder for now (N155). When it comes: it
    says the same words as its message in the chat, written at the same
    moment, and tapping it opens the chat at that day line. It goes at 9:00
@@ -377,17 +400,16 @@ Waiting for the founder's OK:
     practices done. Next: {day}." on the walk's end card (E3, G5; the walk
     is locked, the change approved, N140); THIS WEEK on the life goals
     ladder (N172 M10, BE #1390, FE #1017).
-  - Still to come: the level's moment in the walk (G7); a level moving on
-    and the coach's queue (G10); the coach's side, drawn first for the
-    founder's OK (N204).
+  - Built on 27 October 2026 (N209): the level's moment in the walk (G7);
+    a level moving on, and a stuck level noted for the coach's queue (G10)
+    · BE #1406, FE #1024.
+  - Still to come: the coach's side, drawn first for the founder's OK
+    (N204), with the coach's recorded exercise for a stuck level (G10).
 
 ## 3. Still open
 
 - **How the chat answers a rating tap**, now that the number is not shown
   back (N178): the words wait for the founder (Never 4).
-- **Two calls from the "one moment" explanation** (26 October): judge
-  "better" on the level's own reading (recommended yes); a second level
-  moment per walk (recommended no).
 - **The words in §1 K** still waiting for the founder's OK.
 - **As built, where the prototype doesn't say** (N203): after a rating tap the
   next question follows with nothing between, until the words in the first
@@ -457,6 +479,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-27 · N209 · built: G7, the walk's second moment is where this week's level shows most, under "This week's level: {level}. Here's where it shows:", practised with the level's own practice; G10, two Takes in a row that reach the level, or its time run out, and the next thing heard becomes the level; three Takes without moving noted for the coach's queue. §3's two calls from 26 October answered (N209 items 1 and 2). Was: the walk's two best moments for every speaker, and one level for the whole plan · BE #1406, FE #1024
 
 - 2026-10-27 · N204 · on for ring 5: the plan's migration merged, with its four tables and the ring row `plan` at ring 5, after the founder's outside review (Grok: OK to merge). Was: built, switched off · BE #1394, FE #1021
 

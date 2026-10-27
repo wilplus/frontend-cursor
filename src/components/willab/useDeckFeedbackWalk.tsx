@@ -41,6 +41,7 @@ import {
 import type { DeckChunk } from "@/lib/willab/deckChunks";
 import type { PractiseCard } from "@/lib/willab/paragraphOverlay";
 import { clearerPieces } from "@/lib/willab/clearerPieces";
+import { PLAN_COPY, levelNameOf } from "@/lib/willab/planCopy";
 import { phraseSelection, quoteSpan } from "@/lib/willab/phraseTokens";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { PRAISE_LEAD, praiseLines } from "@/lib/willab/trackedChangeWhy";
@@ -214,6 +215,22 @@ function withLateReason<S extends { author: WalkAuthor; body: string } | null>(
 const REPLAY_WAIT_MS = 4000;
 
 const COACH_ANSWER_STEPS: ReadonlySet<string> = new Set(["coach", "praise", "clearer", "exVideo"]);
+/** The screens a level's moment opens its practise on (G7, N209). */
+const LEVEL_STEPS: ReadonlySet<string> = new Set(["clearer", "exVideo"]);
+
+/** The moment where this week's level shows most (G7, N209): the chat
+ *  posts the level's line above its clip, as on the screen, when the step
+ *  itself is said. */
+function postLevel(
+  post: (entry: Omit<WalkThreadEntry, "take" | "arcId">) => void,
+  step: WalkStep,
+  moment: FeedbackWalkMoment<DocumentSuggestion> | null,
+  said: boolean,
+  at: { moment: number | null; attempt: number | null; extra: Record<string, unknown> },
+): void {
+  if (!said || !moment?.planLevel || !LEVEL_STEPS.has(step.key)) return;
+  post({ key: `level:${step.key}`, ...at, author: "app", body: PLAN_COPY.levelHere(moment.planLevel) });
+}
 
 /** The machine's answers on a try, posted as the try is made. */
 const TRY_ANSWER_STEPS: ReadonlySet<string> = new Set(["improved", "encourage", "thanks"]);
@@ -286,6 +303,8 @@ function walkItemOf(
     praiseWords: praise ? praiseWordsOf(item) : null,
     praiseTitle: praise ? praiseTitleFor(item.levelKey, item.id) : null,
     highest: item.highestMoment === true,
+    // On a plan, the moment where this week's level shows most (G7, N209).
+    planLevel: levelNameOf(item.planLevel),
     praiseLead: praise ? praiseLeadOf(item) : null,
     praiseReason: praise ? item.praiseReason ?? null : null,
     clip: item.snippetAudioRef
@@ -1351,6 +1370,7 @@ export function useDeckFeedbackWalk(args: {
       const chat = said ? momentChat(walkModel.plan, step, moment) : null;
       // The moment's paragraph: a tap in the chat finds the step by it.
       const part = { part_id: moment?.partId ?? null };
+      postLevel(post, step, moment, Boolean(said), { ...at, extra: { ...part } });
       if (chat?.clip) post({ key: `clip:${step.key}`, ...at, author: "speaker", body: "", extra: { ...chat.label, clip: chat.clip, ...part } });
       if (said) post({ key: step.key, ...at, ...said, extra: { ...(chat?.clip ? {} : chat?.label), ...said.extra, ...part } });
       // The coach's answer on the moment: their bubble in the chat too.
