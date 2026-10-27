@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import SignupForm from "@/components/auth/SignupForm";
+import SignupSeen from "@/components/auth/SignupSeen";
 import Logo from "@/components/Logo";
 
 export const metadata: Metadata = {
@@ -21,6 +22,7 @@ export default function SignupPage() {
           </p>
         </div>
         <SignupForm />
+        <SignupSeen />
       </div>
     </div>
   );
