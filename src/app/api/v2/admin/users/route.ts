@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const source = req.nextUrl.searchParams;
   const forwarded = new URLSearchParams();
-  for (const key of ["search", "limit", "offset"]) {
+  for (const key of ["search", "limit", "offset", "view"]) {
     const value = source.get(key);
     if (value) forwarded.set(key, value);
   }
