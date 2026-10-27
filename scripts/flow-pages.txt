@@ -41,6 +41,7 @@ docs/flows/coach-panel.md
   src/lib/willab/coachPanelCopy.ts
   src/lib/willab/coachWalk.ts
   src/services/api/coachSpeakers.ts
+  src/services/api/coachPlans.ts
   src/app/admin/library/
   src/app/admin/errors/
   src/lib/willab/coachWalkCopy.ts

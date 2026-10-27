@@ -264,11 +264,54 @@ How a coach's blind answer counts, on a speaker's Take (D) or an import
   it before judging"; "Set up"; "{n} moments"; "{n} files"; "{i} of {n}";
   "Up to {n} files at a time".
 - Library (admin): the lines in I1.
+- Their plan (N213, K): "New plan"; "Asked about their level"; "Three Takes
+  without moving"; "Their plan"; "New plan · deadline {date}"; "{level} ·
+  three Takes without moving"; "Which level comes first?"; "Why it
+  matters"; "Their key line"; "Deadline"; "Stress"; "Ready"; "Keep yours";
+  "Three Takes without moving. Next in the row: your video." (N173). The
+  levels' names are the plan's own (the-plan.md C3).
 - **Signed, no longer shown** (kept so they are not reused unsigned): "Your
   diagnosis first; the exercise comes next"; "Your diagnosis: {error}";
   "nothing in the library treats it yet"; "You don't hear an error"; "So the
   library can offer it to the next speaker"; the orange "Private · training"
   line; "Not sure" (judging moved to three answers, 2026-10-12).
+
+### K · The speaker's plan (N213)
+
+- **K1** A speaker's plan reaches the queue on their card when it waits on
+  a coach, with the dot, before the speakers waiting on moments: "New plan"
+  (the machine picked a level from the questions and no coach has answered
+  it), "Asked about their level" (their "Ask your coach",
+  [the plan](the-plan.md) H1), "Three Takes without moving" (a stuck level,
+  the plan's G10). With moments waiting too: "{line} · {n} moments
+  waiting". A speaker with no Take yet gets a card of their own. Who may see
+  it is who may hear the speaker: the queue's language gate, and for a
+  speaker with no Take, the language of their voice message. The Lounge
+  bubble counts them.
+- **K2** On their page, "Their plan" above their Takes: "New plan · deadline
+  {date}", "Asked about their level", or "{level} · three Takes without
+  moving".
+- **K3** A new plan and "Asked about their level" open "Which level comes
+  first?" (‹ Their plan): "Why it matters" with their voice message, "Their
+  key line" in their words with how they said it, then the five levels.
+  "Audio unclear" under them takes the plan out of this coach's queue only.
+  Blind: nothing of the plan's level is read before the pick (Never 2).
+- **K4** The pick opens "What happened" (‹ Their plan): the key line; You,
+  The machine heard, Deadline, and Stress and Ready only when the speaker
+  gave them (N211). "Keep yours" goes back to the queue, read again;
+  "Change my answer" back to the five levels. The coach's level wins and
+  the machine never moves it (the plan's C5); the plan leaves every coach's
+  queue until the speaker asks again or the level is stuck again.
+- **K5** A stuck level opens on its name and "Three Takes without moving.
+  Next in the row: your video." (‹ {p}), with the panel's own Record, Stop,
+  Keep and Record again; then "Ready for {p}" with the video and "Share with
+  {p}". It reaches the speaker as the coach's word on their latest Take (G2
+  to G4), the words the coach already sent there kept; the toast "Shared
+  with {p}"; the plan leaves the queue.
+- **K6** As built, where the prototype doesn't say: a plan made from Takes
+  has no voice message or key line, so it reaches the queue only by the
+  speaker's ask or a stuck level; "Their plan" shows only while the plan
+  waits.
 
 ---
 
@@ -302,7 +345,7 @@ page):
   Summary), `CoachAnswerFlow.tsx` and `CoachAnswerScreens.tsx` (E, F, G),
   `CoachWords.tsx`, `CoachVideoBox.tsx`, `CoachCorpusScreens.tsx` and
   `CoachCorpusJudge.tsx` (H), `V4BlindSheets.tsx` (B3), `WillBankScreen.tsx`
-  (B4).
+  (B4), `CoachPlanFlow.tsx` (K).
 - `src/components/willab/coachwalk/` — the coach's walk from the Lounge:
   the bubble, the entry, the blind Judge sheet, the moments queue hook.
 - `src/lib/willab/coachPanelCopy.ts` — every signed word (J).
@@ -311,6 +354,8 @@ page):
   `call_to_action` per Take (C3).
 - `src/services/api/coachSpeakers.ts` — the Speakers list (C5) and the
   queue's speakers as the list draws them.
+- `src/services/api/coachPlans.ts` and `src/app/api/v2/coach/plans/` — the
+  speaker's plan (K); `mapMomentsQueue` reads the speaker's `plan` (K1).
 - `src/app/admin/library/`, `src/app/admin/errors/` — the founder's Library
   and Speaking errors pages (I).
 - `src/lib/willab/coachWalkCopy.ts` — the coach walk's words (guarded since N111).
@@ -328,21 +373,24 @@ Backend (`wilplus/backend-cursor`): `services/coach_moments_queue.py`
 (G2), `services/coach_listen_again.py` (D2), `services/will_question.py`
 (B4's bank, `admin_view`, `save_bank`), `routes/v2/coach.py`
 (`/v2/coach/queue/moments`, `/v2/coach/speakers`), `routes/v2/people.py`
-(`/v2/admin/will-questions`).
+(`/v2/admin/will-questions`), `services/plan_coach.py` and
+`routes/v2/coach_plans.py` (K).
 
 Tests that hold the promises: `src/components/willab/coachpanel/coachPanel.test.tsx`,
-`coachPanelCorpus.test.tsx`, `v4BlindSheets.test.tsx`, `willBank.test.tsx`,
+`coachPlan.test.tsx`, `coachPanelCorpus.test.tsx`, `v4BlindSheets.test.tsx`, `willBank.test.tsx`,
 `src/components/willab/coachwalk/coachJudgeSheet.test.tsx`,
 `coachWalkBubble.test.tsx`, `src/lib/willab/coachWalk.test.ts`; backend
 `tests/test_coach_blind_gate.py`, `tests/test_coach_reach_alarm.py`,
 `tests/test_coach_founder_closes_moments.py`, `tests/test_coach_queue_talk_setup.py`,
-`tests/test_will_question.py`. Every test's story: `docs/TEST-STORIES.csv`.
+`tests/test_will_question.py`, `tests/test_plan_coach.py`. Every test's story: `docs/TEST-STORIES.csv`.
 
 ## 5. Prototypes
 
 The design is the prototype; the newest wins where two disagree.
 
-- **Current:** who the talk is for and what they should do, under the goal
+- **Current:** the speaker's plan, row "The plan"
+  <https://claude.ai/artifact/QznwCAgkBHAVAGDMKVUKvE> (N213, 2026-10-27);
+  who the talk is for and what they should do, under the goal
   <https://claude.ai/artifact/UiZzNZs5623NkforaeR4PM> (N87, 2026-10-20);
   Will's questions <https://claude.ai/artifact/WLZ1KY6dX1RBLXiNU73F9N> (N83);
   the saved video, Record again, Remove the video
@@ -358,6 +406,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-27 · N213 · a speaker's plan reaches the queue and their page: a new plan and their ask picked blind, then What happened; a stuck level answered with the coach's video as their word on the latest Take (K, J) · BE #1415, FE
 - 2026-10-21 · N111 · D2 and E1 stand: once a coach's answer is saved, the panel shows what the machine heard (in place of contract 34's amendment of 6 October); B3's blind lines are off; the page also guards the coach walk's words, the panel's state and both corpus screens (§4) · BE, FE
 - 2026-10-21 · N106 · the page's label line under its title, and the docs it names as clickable links; no rule changes · BE #1239, FE #926
 - 2026-10-21 · N104 · What happened gets a last line, Willfidence, in percent; the person's admin page loses the Confident Voice practice tile (E1) · FE #923, BE #1236

@@ -105,7 +105,7 @@ built and what is still to come.
 4. "Um" and "uh" don't count for the filler-words level (N134).
 5. A coach can change the level, and a coach's change always wins. The coach
    hears blind and never sees the machine's guess first (Never 2; N129,
-   N134, N140).
+   N134, N140). The coach's side: [the coach panel](coach-panel.md) K (N213).
 
 ### D · Stress and readiness
 
@@ -276,9 +276,10 @@ built and what is still to come.
    stays. The speaker just sees it: the next hello and the plan name the
    new level, and nothing is said about their voice. A coach's level is
    never moved by the machine (C5). After three Takes on a level without
-   moving, the next intervention in its row, and the coach sees it in
-   their queue; until the coach's side is built, the stuck level is noted
-   for the queue and the walk keeps the level's own practice (N134, N209).
+   moving, the next intervention in its row: the coach sees it in their
+   queue and answers with their video, which reaches the speaker as the
+   coach's word on their latest Take ([the coach panel](coach-panel.md)
+   K5); the walk keeps the level's own practice (N134, N209, N213).
 11. There is no practice-day reminder for now (N155). When it comes: it
    says the same words as its message in the chat, written at the same
    moment, and tapping it opens the chat at that day line. It goes at 9:00
@@ -306,8 +307,9 @@ built and what is still to come.
 
 1. "Change your plan" opens the plan: the deadline and the practice days are
    the speaker's to change, and the plan recalculates. The level is the
-   coach's: "Ask your coach". "I have a new event" starts the questions again
-   (N140).
+   coach's: "Ask your coach", which reaches the coach's queue as "Asked about
+   their level" ([the coach panel](coach-panel.md) K1, N213). "I have a new
+   event" starts the questions again (N140).
 2. A new project asks "Is this for 14 November?" (the plan's deadline),
    after its first Take, not before it (N178). Yes keeps the plan; no starts
    "When is your deadline?" and the questions for a new plan. New slides or a
@@ -446,8 +448,10 @@ Waiting for the founder's OK:
     until Privacy 3.9 is published: D5, the plan's own yes: Will's ask with
     Read more, the footer's two buttons, the card in Data & consent · BE
     #1416, FE (this PR).
-  - Still to come: the coach's side, drawn first for the founder's OK
-    (N204), with the coach's recorded exercise for a stuck level (G10).
+  - Built on 27 October 2026 (N213): the coach's side, as its prototype
+    draws it ([the coach panel](coach-panel.md) K): the plan in the coach's
+    queue, the level picked blind (C5), "Ask your coach" (H1), the coach's
+    video for a stuck level (G10) · BE #1415, FE.
 
 ## 3. Still open
 
@@ -471,9 +475,6 @@ Waiting for the founder's OK:
   N211): the feelings check is asked of them too, so it moves behind the yes
   only once the founder says where the yes is asked. Until then it is asked as
   before, and `PLAN_CONSENT_ENABLED` stays off.
-- **The coach's side** (the plan and its level in the coach panel, a stuck
-  level in the queue) isn't drawn; the coach panel is locked, so it is drawn
-  for the founder's OK before it is built (N203).
 
 ## 4. Where it lives
 
@@ -491,6 +492,8 @@ The plan's own code, guarded by this page (`scripts/flow-pages.txt`):
   `src/components/account/PlanConsentCard.tsx` (the card, guarded by the
   consent screens' page), `src/services/api/planConsent.ts` (backend
   `services/plan_consent.py`).
+- The coach's side is the coach panel's (its page, K): `CoachPlanFlow.tsx`,
+  `src/services/api/coachPlans.ts` (backend `services/plan_coach.py`).
 
 It touches these places, each with its own page for what it owns:
 
@@ -531,6 +534,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-27 · N213 · built: the coach's side. A plan reaches the coach's queue as "New plan", "Asked about their level" or "Three Takes without moving"; the level is picked blind, then What happened; a stuck level is answered with the coach's video as their word on the latest Take (C5, G10, H1). The plan keeps the key line's recording again after the questions. Was: the stuck level noted for a queue not yet built · BE #1415, FE
 
 - 2026-10-27 · N211 · built, switched off until Privacy 3.9: D5, the plan's own yes; the worry question, the two ratings and "How did it go?" wait for it; the card "Personal answers in your plan" in Data & consent turns it on and off, off deletes the personal answers. Was: asked of everyone · BE #1416, FE (this PR)
 
