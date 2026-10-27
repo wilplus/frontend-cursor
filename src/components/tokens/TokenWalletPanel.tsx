@@ -164,16 +164,6 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
                     </span>
                   </li>
                 ))}
-                {prices.coachMinute !== null
-                  ? ([[TOKENS_COPY.coachCall, 15], [TOKENS_COPY.coachLesson, 60]] as const).map(([label, minutes]) => (
-                      <li key={label} className="flex items-baseline justify-between gap-4 text-[13px]">
-                        <span>{label}</span>
-                        <span className="tabular-nums text-muted-foreground">
-                          {formatTokens((prices.coachMinute ?? 0) * minutes)}
-                        </span>
-                      </li>
-                    ))
-                  : null}
               </ul>
             </section>
           ) : null}

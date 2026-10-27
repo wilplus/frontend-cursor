@@ -1385,13 +1385,11 @@ shared read: the wallet asks the server again and shows the new number.
 O3  An unreadable balance is not shared: the next wallet asks again.","O1 -> ""serves every wallet from one request""
 O2 -> ""a spend makes the wallet read the balance again""
 O3 -> ""does not share an unreadable balance: the next wallet asks again""","Founder 2026-10-16: one balance request per open, not one per wallet."
-src/services/api/tokens.test.ts,Story,"As a speaker, I want a failed balance check shown as ""unknown"" (not zero), ""out of tokens"" to keep its renewal date and leave recording on, and no price shown when the charge state is unknown, so that I'm never wrongly blocked or charged.","O1  A missing or broken answer means tokens are off, never on.
+src/services/api/tokens.test.ts,Story,"As a speaker, I want a failed balance check shown as ""unknown"" (not zero), and ""out of tokens"" to keep its renewal date and leave recording on, so that I'm never wrongly blocked.","O1  A missing or broken answer means tokens are off, never on.
 O2  A balance the server couldn't read is ""unknown"", not zero.
-O3  ""Out of tokens"" keeps the renewal date.
-O4  No price label is shown when it isn't known whether I was charged.","O1 -> ""treats a missing or malformed envelope as off, never as enabled""
+O3  ""Out of tokens"" keeps the renewal date.","O1 -> ""treats a missing or malformed envelope as off, never as enabled""
 O2 -> ""reads available:false as UNKNOWN, never as zero""
-O3 -> ""reports can_record:false as EXHAUSTED, keeping the renewal date""
-O4 -> ""shows nothing when the charge state is unknown, never assuming unpaid""",Never-rule 3: a bad balance read must never hide the record button.
+O3 -> ""reports can_record:false as EXHAUSTED, keeping the renewal date""",Never-rule 3: a bad balance read must never hide the record button.
 src/services/api/trainingConsent.refusals.test.ts,Story,"As a speaker, I want a training-consent change that fails to say why, so that my screen never shows a choice that did not save (consent).","O1  Offline: the save is refused with NETWORK.
 O2  A server refusal comes back with the server's own code (e.g. a stale
 copy of the sentence), never as a saved state.

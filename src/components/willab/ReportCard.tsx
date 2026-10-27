@@ -26,7 +26,6 @@ import {
   insightView,
   readoutView,
 } from "./loungeReports";
-import ArcActionPrice from "@/components/tokens/ArcActionPrice";
 import IdealTextCard from "./IdealTextCard";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 
@@ -142,11 +141,6 @@ function renderFeedbackReportCard(
         <span className="font-semibold">
           Feedback{takeIndex != null ? ` · Take ${takeIndex}` : ""}
         </span>
-        {/* Price BEFORE opening — this bubble is the trigger, and the overlay
-            it opens is what gets charged. Shown only while this arc still
-            owes the `insights` charge; once paid it is free forever and the
-            price disappears rather than lingering as a wrong label. */}
-        {arcId ? <ArcActionPrice arcId={arcId} action="insights" /> : null}
       </p>
       {message.body ? (
         <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
