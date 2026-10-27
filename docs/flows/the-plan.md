@@ -10,11 +10,12 @@ decisions log's entries N129 to N157, folded here into the rules as they
 stand; each later entry about the plan is folded in the same way. The entries
 keep their N-numbers and stay the record.
 
-**Built, switched off.** The build started on 26 October 2026, one to one
+**Built, on for ring 5.** The build started on 26 October 2026, one to one
 with the prototype (N203, which lifts N147's "not yet"). The questions, the
 calls, the plan card, the practice days in the chat, changing the plan and
-the plan's end are built and wait for their migration, which brings the ring
-row `plan` at ring 5 (N204). §2 says what is built and what is still to come.
+the plan's end are built; their migration, with the ring row `plan` at ring 5
+(N204), merged on 27 October 2026 (backend #1394). §2 says what is built and
+what is still to come.
 
 **How this page works**
 
@@ -370,7 +371,8 @@ Waiting for the founder's OK:
 - **The plan** · all of §1 · decided from 24 October 2026 (N129 onward;
   the latest are in §6), drawn on the prototype (§5) · the build plan:
   <https://claude.ai/artifact/5wuXkBNDctRcbxYs9V7R8A>
-  - Built, switched off until the migration (N203, N204): A, B, C, D, E,
+  - Built, on for ring 5 since 27 October 2026 (N203, N204, backend
+    #1394): A, B, C, D, E,
     F, G3 to G6, G13, H, I1, I2, J, K; the bar and "{n} of {total}
     practices done. Next: {day}." on the walk's end card (E3, G5; the walk
     is locked, the change approved, N140); THIS WEEK on the life goals
@@ -455,6 +457,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-27 · N204 · on for ring 5: the plan's migration merged, with its four tables and the ring row `plan` at ring 5, after the founder's outside review (Grok: OK to merge). Was: built, switched off · BE #1394, FE (this PR)
 
 - 2026-10-26 · N140, N151, N178, N203 · built, switched off: the bar and the practices line on the walk's end card, "How do you feel?" with a Skip before every Take but the plan's first, "Is this for {date}?" on a new project with Yes and No · BE #1389, FE #1018
 
