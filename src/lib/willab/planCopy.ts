@@ -54,6 +54,14 @@ export const PLAN_COPY = {
   readyHi: "Fully ready",
   yes: "Yes",
   no: "No",
+  /** Will's ask for the plan's own yes: the two buttons and Read more
+   *  (founder 2026-10-27, "approved as drawn", backend N211). */
+  consentYes: "Yes, ask me",
+  consentNo: "Not now",
+  readMore: "Read more",
+  privacyPolicy: "Privacy Policy",
+  /** The Read more window's title: Privacy section 4e of the version in force. */
+  consentWindow: (version: string) => `Privacy Policy ${version}, section 4e`,
   /** On the walk's moment where this week's level shows most (G7; signed,
    *  N140; backend N209). */
   levelHere: (level: string) => `This week's level: ${level}. Here's where it shows:`,

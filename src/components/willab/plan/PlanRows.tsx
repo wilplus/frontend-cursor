@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { answerAudioUrl, type CallWhich, type Plan } from "@/services/api/plan";
 import { PLAN_COPY } from "@/lib/willab/planCopy";
+import PlanReadMore from "@/components/legal/PlanReadMore";
 import PlanCard, { PlanBar } from "./PlanCard";
 import { VoicePlayer } from "./VoicePlayer";
 
@@ -106,6 +107,18 @@ function Hello({ message, ctx }: { message: LoungeMessage; ctx: PlanRowCtx }) {
   );
 }
 
+/** Will's ask for the plan's own yes: his words, then Read more (N211). The
+ *  two buttons are the footer's. */
+function ConsentAsk({ message }: { message: LoungeMessage }) {
+  return (
+    <WillBubble>
+      <div className="whitespace-pre-wrap">
+        {message.body} <PlanReadMore />
+      </div>
+    </WillBubble>
+  );
+}
+
 function SummaryCall({ ctx }: { ctx: PlanRowCtx }) {
   const call = ctx.plan?.calls.summary ?? null;
   return (
@@ -141,6 +154,7 @@ export function planRowFor(message: LoungeMessage, ctx: PlanRowCtx | undefined):
   if (meta.plan_hello) return <Hello message={message} ctx={ctx} />;
   if (meta.plan_one) return <OneThing message={message} ctx={ctx} />;
   if (meta.plan_summary_call) return <SummaryCall ctx={ctx} />;
+  if (meta.plan_ask === "consent") return <ConsentAsk message={message} />;
   if (typeof meta.day_line === "string") {
     return (
       <>

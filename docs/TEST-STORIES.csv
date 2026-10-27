@@ -198,6 +198,16 @@ and the page says consent is given.
 O3  A grant the backend does not confirm is not shown as given.","O1 -> ""sends nothing until the box is ticked""
 O2 -> ""records the consent only through the explicit action, with the exact status""
 O3 -> ""a grant the backend does not confirm is not shown as given""","Q7 (founder 2026-09-29), L3: only the checkbox here records a consent."
+src/components/account/PlanConsentCard.test.tsx,Story,"As a speaker, I want to turn the plan's personal questions on or off in Data & consent, and to be told only what was really deleted, so that I share how I feel only when I choose to.","O1  Nobody sees the card unless the backend says it applies to them (the
+switch, the ring) or it cannot be read.
+O2  Off, it says so and Turn on sends the yes; on, it says what Will asks.
+O3  Turning off asks first with the signed words, sends nothing until
+confirmed, and says ""We deleted your personal answers"" only once the
+backend has.
+O4  A turn-off the backend could not finish says so and leaves the yes on.","O1 -> ""hidden unless the backend offers it""
+O2 -> ""off by default, and Turn on sends the yes""
+O3 -> ""asks first, and says deleted only after it is""
+O4 -> ""a turn-off that fails leaves the yes on""","Founder 2026-10-27, the plan's own yes, approved as drawn (backend N211); the card is docs/flows/the-plan.md D."
 src/components/account/PolicyUpdateCard.test.tsx,Story,"As a speaker, I want a ""what's changed"" card only when a newer policy replaced mine, opening the normal acceptance screen, so that I can re-accept easily.","O1  Card shown when I accepted an earlier version; Accept opens the
 ordinary acceptance screen; accepting there hides the card.
 O2  No card when my receipt is current or I never agreed before.","O1 -> ""offers the update and opens the ordinary acceptance screen""
@@ -231,6 +241,12 @@ src/components/auth/LoginForm.test.tsx,Story,"As a person signing in from a link
 behind an extra encoding or a backslash) is ignored: I land on /chat.
 O2  A redirectTo on our own site is still honoured, query and all.","O1 -> ""an off-site redirectTo (%s) lands on /chat""
 O2 -> ""a same-site redirectTo is still honoured""",Open redirect in the login form (2026-10-21). The coach's WhatsApp and email links rely on O2: they land on /login?redirectTo=/chat?lens=… (WIL-93).
+src/components/auth/WhatsAppAuth.test.tsx,Story,"As someone signing up or in with WhatsApp, I want to give my number, type the code WhatsApp brings and, when I am new, my name, so that I am in without an email or a password.","O1  Signing up: a number without its country code is refused before any
+code is sent; a wrong code says so; the right one asks a new account
+its name, keeps the number as the account's WhatsApp number, and lands.
+O2  Signing in never makes an account: a number no account signs in with
+says so and points to sign-up, and the number is not saved anywhere.","O1 -> ""signing up: number, code, name, and the number is kept""
+O2 -> ""signing in with an unknown number says so and makes nothing""","Founder 2026-10-27, backend N214."
 src/components/founder/GoldenJudging.test.tsx,Story,"As the founder, I want to judge golden pairs seeing the passage",,,
 src/components/legal/PublishedPolicyText.test.tsx,Story,"As a reader of the Privacy page, I want the stored policy or a plain ""could not load"" line, never an endless spinner or an old stand-in, so that I always know what I agreed to.","O1  The stored policy text is shown with its version number.
 O2  When no stored copy can be had, the ""could not load"" line is shown.","O1 -> ""shows the stored copy once it is published""
@@ -940,6 +956,8 @@ O2  If the words have changed since, it is dropped and never sent.
 O3  If my account cannot take it yet, it is kept for later.","O1 -> is sent once after sign-in, for the words they saw
 O2 -> is never sent once the words in force changed
 O3 -> is kept for later when the account has not accepted the policy yet",
+src/lib/legal/policySection.test.ts,Story,"As a speaker reading Will's ask for the plan's own yes, I want Read more to open exactly Privacy section 4e, so that I read what I am saying yes to and nothing else.","O1  Section 4e is shown from its heading to the next numbered heading; a
+copy without it is shown whole rather than not at all.","O1 -> ""Read more opens section 4e and stops at the next heading""","Founder 2026-10-27, the plan's own yes (backend N211)."
 src/lib/legal/policyText.test.ts,Story,"As a speaker, I want the Terms page to show exactly the stored text I accept, so that my receipt matches what I read.","O1  With a policy in force, the page shows its stored text and version.
 O2  With no policy in force, the page shows the fallback.","O1 -> shows the stored terms when a policy is active
 O2 -> falls back when no policy is active",
