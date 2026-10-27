@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { recordFeeling, type Feeling } from "./willabFeelings";
-import { feelingsDue } from "@/services/api/plan";
 
 /* -------------------------------------------------------------------------- */
 /*  FeelingsCheckIn — first-recording onboarding, step 0 (U10)                 */
@@ -100,10 +99,10 @@ export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
           <p className="text-[15px] leading-relaxed text-foreground">{reply}</p>
         </div>
       ) : null}
-      {/* A plan's practice between its first and last gets this screen
-          before every Take, with a Skip (docs/flows/the-plan.md D4; N151,
-          N178). Its first Take had the two ratings instead. */}
-      {!picked && feelingsDue() ? (
+      {/* A Skip wherever the check shows: how a speaker feels is theirs to
+          share, so it is never asked without a way past it (docs/flows/
+          the-plan.md D4; backend N211). Skipping stores nothing. */}
+      {!picked ? (
         <button
           type="button"
           onClick={onReady}
