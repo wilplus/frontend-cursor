@@ -402,7 +402,7 @@ Waiting for the founder's OK:
     ladder (N172 M10, BE #1390, FE #1017).
   - Built on 27 October 2026 (N209): the level's moment in the walk (G7);
     a level moving on, and a stuck level noted for the coach's queue (G10)
-    · BE (this build's PR), FE (this PR).
+    · BE #1406, FE #1024.
   - Still to come: the coach's side, drawn first for the founder's OK
     (N204), with the coach's recorded exercise for a stuck level (G10).
 
@@ -480,7 +480,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-27 · N209 · built: G7, the walk's second moment is where this week's level shows most, under "This week's level: {level}. Here's where it shows:", practised with the level's own practice; G10, two Takes in a row that reach the level, or its time run out, and the next thing heard becomes the level; three Takes without moving noted for the coach's queue. §3's two calls from 26 October answered (N209 items 1 and 2). Was: the walk's two best moments for every speaker, and one level for the whole plan · BE (this build's PR), FE (this PR)
+- 2026-10-27 · N209 · built: G7, the walk's second moment is where this week's level shows most, under "This week's level: {level}. Here's where it shows:", practised with the level's own practice; G10, two Takes in a row that reach the level, or its time run out, and the next thing heard becomes the level; three Takes without moving noted for the coach's queue. §3's two calls from 26 October answered (N209 items 1 and 2). Was: the walk's two best moments for every speaker, and one level for the whole plan · BE #1406, FE #1024
 
 - 2026-10-27 · N204 · on for ring 5: the plan's migration merged, with its four tables and the ring row `plan` at ring 5, after the founder's outside review (Grok: OK to merge). Was: built, switched off · BE #1394, FE #1021
 
