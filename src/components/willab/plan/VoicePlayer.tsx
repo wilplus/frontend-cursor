@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 
 /* A small voice player (prototype version 27: the speaker's orange voice
-   bubble, and the grey "How you said it" under the key line). It plays one
-   recording kept by the plan; the bars are drawn, not measured. */
+   bubble, and the grey "How you said it" under the key line; the coach's
+   dark one, backend N213). It plays one recording kept by the plan; the bars
+   are drawn, not measured. */
 
 function bars(n: number, seed: number): number[] {
   let s = seed;
@@ -32,7 +33,7 @@ export function VoicePlayer({
   durationMs,
 }: {
   src: string;
-  tone: "orange" | "grey";
+  tone: "orange" | "grey" | "dark";
   label?: string;
   durationMs?: number | null;
 }) {
@@ -64,7 +65,9 @@ export function VoicePlayer({
   };
 
   const orange = tone === "orange";
-  const heights = bars(orange ? 24 : 18, seedOf(src));
+  const dark = tone === "dark";
+  const icon = orange ? "#FF640A" : dark ? "#FFFFFF" : "#121212";
+  const heights = bars(orange || dark ? 24 : 18, seedOf(src));
   const lit = Math.round(progress * heights.length);
   return (
     <div className="flex items-center gap-2.5" data-plan-player>
@@ -72,25 +75,25 @@ export function VoicePlayer({
         type="button"
         onClick={toggle}
         aria-label={playing ? "Pause" : "Play"}
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${orange ? "bg-white" : "bg-[#E2E2E2]"}`}
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${orange ? "bg-white" : dark ? "bg-[#121212]" : "bg-[#E2E2E2]"}`}
       >
         {playing ? (
           <svg width="10" height="12" viewBox="0 0 10 12" aria-hidden="true">
-            <rect x="1" y="1" width="3" height="10" rx="1" fill={orange ? "#FF640A" : "#121212"} />
-            <rect x="6" y="1" width="3" height="10" rx="1" fill={orange ? "#FF640A" : "#121212"} />
+            <rect x="1" y="1" width="3" height="10" rx="1" fill={icon} />
+            <rect x="6" y="1" width="3" height="10" rx="1" fill={icon} />
           </svg>
         ) : (
           <svg width="12" height="13" viewBox="0 0 12 13" aria-hidden="true">
-            <path d="M2 1.2v10.6L11 6.5z" fill={orange ? "#FF640A" : "#121212"} />
+            <path d="M2 1.2v10.6L11 6.5z" fill={icon} />
           </svg>
         )}
       </button>
-      <div className="flex h-6 items-center gap-[2px]" aria-hidden="true">
+      <div className={`flex h-6 items-center gap-[2px] ${dark ? "flex-grow" : ""}`} aria-hidden="true">
         {heights.map((h, i) => (
           <i
             key={i}
             className={`block w-[3px] rounded-full ${
-              orange ? (i < lit ? "bg-white" : "bg-white/55") : i < lit ? "bg-[#121212]" : "bg-[#BDBDBD]"
+              orange ? (i < lit ? "bg-white" : "bg-white/55") : i < lit ? "bg-[#121212]" : dark ? "bg-[#C9C9C9]" : "bg-[#BDBDBD]"
             }`}
             style={{ height: `${Math.round(h * 22)}px` }}
           />

@@ -475,6 +475,19 @@ O7 -> ""several files import one at a time, each its own import named by its fil
 O8 -> ""a choice over the upload limit is refused, and a refusal for the hour stops the batch""
 O9 -> ""the done imports sit at the bottom; judging starts from the opened one and comes back to the list""
 O10 -> ""reaching the bottom of the list reads its next step""","Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files in one Import, the list in steps and the corpus judged mixed, founder 2026-10-21."
+src/components/willab/coachpanel/coachPlan.test.tsx,Story,"As a coach, I want a speaker's plan in my queue when it needs me, so that I pick their level blind, or send my video for a level that hasn't moved, and their plan follows my answer.","O1  A plan that waits comes first in my queue, on its speaker's card (""New
+plan"", ""Asked about their level"", ""Three Takes without moving""), and
+as ""Their plan"" above their Takes; the Lounge bubble counts it.
+O2  ""Which level comes first?"" shows their voice message, their key line
+and the five levels, and nothing of the plan's level; my pick brings
+What happened with only what is known; ""Keep yours"" takes me back to
+my queue, read again.
+O3  A stuck level opens on its name, ""Three Takes without moving. Next in
+the row: your video."" and Record; ""Share with {p}"" sends my video as my
+word on their latest Take, keeping the words I sent there, and the
+plan leaves my queue.","O1 -> ""a waiting plan comes first, on its speaker's card and as Their plan on their page""
+O2 -> ""Which level comes first? is blind; the pick brings What happened; Keep yours reads the queue again""
+O3 -> ""a stuck level: its name, the line and Record; Share sends the video as the coach's word and answers the plan""","The coach's side of the plan, built as the founder's prototype draws it (backend N213, https://claude.ai/artifact/QznwCAgkBHAVAGDMKVUKvE); Never 2: the coach picks before seeing the machine's level."
 src/components/willab/coachpanel/v4BlindSheets.test.tsx,Story,"As a coach, I want the two V4 sheets to show only the signed words and nothing the machine chose, and to save one answer each, so that my picks stay blind.","O1  Never-2: the moment-pick sheet shows the signed wording and the
 moments' words, and nothing the machine chose (snippet id, slice,
 sureness).

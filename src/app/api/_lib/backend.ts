@@ -15,6 +15,7 @@ export {
   DEFAULT_FAILURES,
   LEGACY_FAILURES,
   failure,
+  relayAudio,
   relayLegacy,
   relayLenient,
   relayStrict,

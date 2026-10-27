@@ -330,7 +330,28 @@ const PROTOTYPE = {
   saved: "Saved",
 } as const;
 
-export const COACH_PANEL_COPY = { ...REUSED, ...SIGNED, ...NAMED, ...PROTOTYPE } as const;
+/** The coach's side of the plan, signed with its prototype (founder,
+ *  2026-10-27, "Build it, words OK"; backend N213,
+ *  https://claude.ai/artifact/QznwCAgkBHAVAGDMKVUKvE). The stuck level's
+ *  line is N173's. The levels' names come from the backend. */
+const PLAN = {
+  newPlan: "New plan",
+  askedAboutLevel: "Asked about their level",
+  threeTakes: "Three Takes without moving",
+  theirPlan: "Their plan",
+  newPlanBy: (deadline: string) => `New plan · deadline ${deadline}`,
+  stuckOn: (level: string) => `${level} · three Takes without moving`,
+  whichLevel: "Which level comes first?",
+  whyItMatters: "Why it matters",
+  theirKeyLine: "Their key line",
+  deadline: "Deadline",
+  stress: "Stress",
+  ready: "Ready",
+  keepYours: "Keep yours",
+  stuckLine: "Three Takes without moving. Next in the row: your video.",
+} as const;
+
+export const COACH_PANEL_COPY = { ...REUSED, ...SIGNED, ...NAMED, ...PROTOTYPE, ...PLAN } as const;
 
 /** Which keys came from where, for the test. */
 export const COACH_PANEL_COPY_SOURCES = {
@@ -338,4 +359,5 @@ export const COACH_PANEL_COPY_SOURCES = {
   signed: Object.keys(SIGNED),
   named: Object.keys(NAMED),
   prototype: Object.keys(PROTOTYPE),
+  plan: Object.keys(PLAN),
 } as const;

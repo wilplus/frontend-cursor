@@ -256,3 +256,24 @@ export const LEGACY_FAILURES: Failures = {
     },
   }),
 };
+
+/** A recording played back (the plan's voice answers, for the speaker and
+ *  for the coach): the audio passes through as it came; an error stays
+ *  JSON. */
+export const relayAudio: Relay = async (upstream) => {
+  const contentType = upstream.headers.get("Content-Type") || "";
+  if (upstream.ok && contentType && !contentType.includes("application/json")) {
+    const out = new NextResponse(await upstream.arrayBuffer(), { status: upstream.status });
+    out.headers.set("Content-Type", contentType);
+    out.headers.set("Cache-Control", "private, max-age=3600");
+    return out;
+  }
+  const text = await upstream.text();
+  let data: unknown = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = { code: "UPSTREAM_NON_JSON", error: `Unexpected backend response (HTTP ${upstream.status}).` };
+  }
+  return NextResponse.json(data, { status: upstream.ok ? 502 : upstream.status });
+};
