@@ -3,7 +3,7 @@
 STORY    As a speaker, I want to practise inside the walk's chat (record, hear an answer in words, hear an AI version of my voice, at most 3 tries), so that practice is quick, kind and free of numbers.
 OUTCOME
   O1  Stopping a try uploads it and asks for a check, and I am back in the walk at once.
-  O2  A better try gets praise in words for what improved, then the walk moves on.
+  O2  A better try gets praise in words for what improved, then my helper words for that moment, so what I improved can become my habit words (N220).
   O3  A "not yet" on the clearer words brings the AI version of my voice; a good try does not.
   O4  The AI clip comes in one short bubble: a one-word opener, one tip quoting my phrase and ending ", like this:", my AI voice, then "Your turn."; never a long explanation, never a number (N120).
   O5  At most 3 tries, all shown together in the chat with the steps before them; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.
@@ -12,7 +12,7 @@ OUTCOME
   O8  A voice correction with nothing to offer (no exercise, no AI clip coming) is skipped: no "Say this one like your confident moment." on its own, in the walk or the chat; it still reaches the coach's queue. The Take's most confident moment is not skipped: it says its own line and is said again (N109).
   O9  A praised moment is practised too: after its praise the short bubble with my AI voice and "Your turn.", up to three tries, a Good job ends it, then its helper words; with no AI clip the praise goes straight to its helper words (N122).
 PROVES   O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
-         O2 -> praise on try 1: the line for the reading that moved ...
+         O2 -> praise on try 1: the line for the reading that moved, then Next opens its helper words (N220)
          O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
          O4 -> the bubble is there at once: the typing dots alone ..., the AI clip comes in one short bubble: the opener, the tip quoting their phrase, the clip, then “Your turn.” (N120)
          O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing
@@ -350,7 +350,7 @@ describe("the practise screen", () => {
 });
 
 describe("the machine's answer", () => {
-  it("praise on try 1: the line for the reading that moved, then Next goes on with no helper words (lock 2026-10-12, 2.5)", async () => {
+  it("praise on try 1: the line for the reading that moved, then Next opens its helper words (N220)", async () => {
     draw();
     await accept();
     answers = [{ next: "praise", key: "cue:landed_ending" }];
@@ -358,7 +358,11 @@ describe("the machine's answer", () => {
     expect(screen()).toBe("walk-screen-improved");
     expect(PRACTISE_LINES.better.landed_ending.map((l) => `${COPY.titlePraise}${l}`)).toContain(message());
     expect(live()!.querySelector("[data-walk-player][data-walk-me]")).not.toBeNull();
+    // A correction that ends on a Good job: its helper words next, as after
+    // a praise (founder 2026-10-27, N220; until then the walk went on).
     forward();
+    expect(screen()).toBe("walk-screen-helpers");
+    click(live()!.querySelector("[data-testid='walk-skip']"));
     await act(async () => {}); // nobody to judge after practice: it moves on
     expect(ended).toBe(1);
   });

@@ -306,10 +306,15 @@ step; the loop never waits for a coach.
   on that paragraph is walked like any other, praise first (founder
   2026-10-21: the Exercise had opened the walk and the confident moment came
   later; the server already counted only this Take's words, 2026-10-13).
-- **C3 Choose your helper words**, after each praised moment, and after the
+- **C3 Choose your helper words**, after each praised moment, after the
   Clearer version of a moment whose voice reached the floor (C5; founder
   2026-10-22, N113: "After the rewording"; until then helper words came only
-  after a praise, so a Take whose strong voices were all reworded had none):
+  after a praise, so a Take whose strong voices were all reworded had none),
+  and after a correction whose practise ends on a Good job, right after it
+  (C7; founder 2026-10-27, N220: "if you improved, you can make it your
+  habit words"; until then a correction's Good job went on with none, so a
+  Take whose two moments were both under the floor had no helper words); a
+  moment gets them once. The step:
   a big bubble in the thread with large plain word buttons, no borders,
   chosen words orange;
   "N of 8 words" at the top, the count against the cap (eight since
@@ -389,8 +394,10 @@ step; the loop never waits for a coach.
   that changes each time and the clip with L5), and under it only "Practise" or "Practise again"
   with the red dot, no Next and no Skip, until a Good job or the third try
   (2026-10-18). **Better:** "Good job", "That sounded more assured than the
-  first.", Next; a Good job ends the practise. At most three tries, then
-  Next alone, with the signed move-on line when the third was not praise. A
+  first.", Next; a Good job ends the practise, and Next opens the moment's
+  helper words (C3, N220) when nothing else in the walk offers them. At
+  most three tries, then Next alone, with the signed move-on line when the
+  third was not praise, and no helper words. A
   late answer offers Practise again while a try is left. A try the server
   could not hear (too short, no speech, not the passage, nothing to
   compare) is answered "We couldn't hear that clearly. Try again." with
@@ -1164,6 +1171,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-10-27 · — (B9, B10) · fixed: the dock gives way to the Next that brings the standing step back only once none of that step is in view. Was: whenever the bar named a later part, which it does for a standing part shorter than the upper 40% of the thread or a thread that fits in view, so a walk opened on an earlier step (a bare correction, a clip alone) lost its own buttons the moment it opened, and its Next scrolled nowhere (founder 2026-10-27: "when I review the feedback and click next nothing happens") · FE (this PR)
+- 2026-10-27 · N220 · built: a correction whose practise ends on a Good job opens its helper words right after it, as a praise does; a moment gets them once, and a practise ending on the third try without a Good job gets none. Was: a correction's Good job went on with no helper words (lock 2026-10-12, §2.5), so a Take whose two moments were both under the floor had none (C3, C7) · BE #1428, FE (this PR)
 - 2026-10-27 · N119 (C8) · fixed: an answer on another speaker's moment moves on to the next, as C8 says. Was: the chat counted the answer at once, the step took the new count for a judging reopened from the Lounge, loaded its moments again and stood on the typing dots for good (founder 2026-10-27: "it gets stuck on judgment time") · FE (this PR)
 - 2026-10-27 · N209 · on a plan, the walk's second moment is where this week's level shows most, opening with "This week's level: {level}. Here's where it shows:" above the clip (signed, the-plan.md K) and practised with the level's own practice, on screen and in the chat; no clip shows the level, the two best; off a plan, nothing changes (H1) · BE #1406, FE #1024
 - 2026-10-26 · N207 · the WhatsApp ask's form names the booked call: "We will only use it to let you know your coach texted you, or that your call starts soon."; the booking form asks for no number, and a booked call's reminder goes to the number saved here; was "… your coach texted you" (E1) · BE #1391, #1395, FE (this PR)
