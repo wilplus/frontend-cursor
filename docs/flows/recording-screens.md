@@ -187,7 +187,7 @@ green); the app shows the speaker's own slides, unchanged.
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
 doing it fills its line in its PR and deletes the line when the work is merged (the change goes to §6).
 
-- **The plan's two touches on the set-up** · the topic arrives filled in from the plan's voice message (backend N141); "How do you feel?" shows before every practice between a plan's first and last, and the stress and readiness ratings take its place on those two (backend N151, N157) · the set-up's first question and the feelings check · built, on for ring 5 since 27 October 2026 (N203, N204, backend #1394): "Start your first recording" opens the set-up with the topic filled in and no feelings check; with an active plan, every later Take opens "How do you feel?" first, with a Skip, then the project's stored setup · rules: [`the-plan.md`](the-plan.md) §1 B7, D
+- **The plan's two touches on the set-up** · the topic arrives filled in from the plan's voice message (backend N141); "How do you feel?" shows before every practice between a plan's first and last, and the stress and readiness ratings take its place on those two (backend N151, N157) · the set-up's first question and the feelings check · built, on for ring 5 since 27 October 2026 (N203, N204, backend #1394): "Start your first recording" opens the set-up with the topic filled in and no feelings check; with an active plan, every later Take opens "How do you feel?" first, with a Skip (a new project's first Take shows it with a Skip too, N211), then the project's stored setup · rules: [`the-plan.md`](the-plan.md) §1 B7, D
 
 ## 3. Still open
 
@@ -225,6 +225,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-27 · N211 · "How do you feel?" has a Skip wherever it shows, a new project's first Take included (`FeelingsCheckIn.tsx`); skipping keeps no feeling. Was: a Skip only between a plan's first and last practice · BE #1408
 - 2026-10-26 · N151, N178, N203 · with an active plan, "How do you feel?" comes before every Take but the plan's first, with a Skip (`FeelingsCheckIn.tsx`, `useWillabFlow.ts`); the plan's first Take opens the set-up with the topic filled in. Was: once per new project, before Take 1, no Skip · BE #1386, FE #1018
 
 - 2026-10-26 · docs audit · the pointer to CLAUDE.md's "Design lock" section names its history copy; no rule changed · —

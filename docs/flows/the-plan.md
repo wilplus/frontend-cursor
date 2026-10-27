@@ -121,7 +121,9 @@ built and what is still to come.
    (Never 1; N149, N178).
 4. Every practice in between gets only "How do you feel?" (Nervous, Excited,
    Calm, Not sure), today's screen, with a Skip. Today it shows once per new
-   project, before Take 1 (N151, N178; the recording screens' page).
+   project, before Take 1, with a Skip too (N151, N178, N211; the recording
+   screens' page). It moves behind the plan's personal yes when that is
+   built (N211).
 
 ### E · The plan card
 
