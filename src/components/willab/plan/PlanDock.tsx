@@ -8,9 +8,9 @@ import { isoDay, PLAN_COPY } from "@/lib/willab/planCopy";
 import PlanCalendar, { MonthGrid } from "./PlanCalendar";
 
 /* The plan's footer, in place of "Type here" (rules: the-plan.md §1 B, D, F,
-   E5, I; prototype version 27): the deadline's chips, the voice answer's
-   recorder (no Skip), the 1 to 10 scale, the calls' calendar, then only
-   "Start your first recording". Each answer goes to the backend, which
+   E5, I; prototype version 27): the deadline's chips, Will's ask for the
+   plan's own yes (N211), the voice answer's recorder (no Skip), the 1 to 10
+   scale, the calls' calendar, then only "Start your first recording". Each answer goes to the backend, which
    writes Will's next words into the thread. */
 
 export type PlanActions = {
@@ -22,14 +22,20 @@ export type PlanActions = {
   startFirst: () => void;
   next: (choice: "keep_practising" | "new_event") => void;
   sameEvent: (yes: boolean) => void;
+  /** Will's ask for the plan's own yes: "Yes, ask me" or "Not now" (N211). */
+  consent: (yes: boolean) => void;
 };
 
-function Chip({ label, onClick, icon }: { label: string; onClick: () => void; icon?: boolean }) {
+function Chip({ label, onClick, icon, dark }: { label: string; onClick: () => void; icon?: boolean; dark?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-10 items-center gap-2 rounded-full border border-[#DCDCDC] bg-white px-4 text-[15px] font-medium text-[#121212] hover:border-[#9A9A9A]"
+      className={`inline-flex h-10 items-center gap-2 rounded-full border px-4 text-[15px] font-medium ${
+        dark
+          ? "border-[#121212] bg-[#121212] text-white"
+          : "border-[#DCDCDC] bg-white text-[#121212] hover:border-[#9A9A9A]"
+      }`}
     >
       {icon ? (
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="#121212" strokeWidth="1.4">
@@ -184,10 +190,20 @@ function SameEventChips({ actions }: { actions: PlanActions }) {
   );
 }
 
+function ConsentChips({ actions }: { actions: PlanActions }) {
+  return (
+    <div className="flex flex-wrap justify-end gap-2" data-plan-dock="consent">
+      <Chip label={PLAN_COPY.consentNo} onClick={() => actions.consent(false)} />
+      <Chip label={PLAN_COPY.consentYes} dark onClick={() => actions.consent(true)} />
+    </div>
+  );
+}
+
 /** Which footer a plan shows, or null for the message box. */
 export function dockFor(plan: Plan | null, booking: CallWhich | null): string | null {
   if (!plan || plan.waiting) return booking ? "book" : null;
   if (booking) return "book";
+  if (plan.step === "consent") return "consent";
   if (plan.step === "deadline") return "deadline";
   if (plan.step === "why" || plan.step === "followup" || plan.step === "how_it_went") return "voice";
   if (plan.step === "stress" || plan.step === "ready") return plan.step;
@@ -246,5 +262,6 @@ export default function PlanDock({
   if (kind === "ready") return <Scale key="ready" lo={PLAN_COPY.readyLo} hi={PLAN_COPY.readyHi} onPick={actions.rating} />;
   if (kind === "next") return <NextChips actions={actions} />;
   if (kind === "same_event") return <SameEventChips actions={actions} />;
+  if (kind === "consent") return <ConsentChips actions={actions} />;
   return <StartFirst onStart={actions.startFirst} />;
 }

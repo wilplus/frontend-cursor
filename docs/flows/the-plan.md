@@ -122,8 +122,34 @@ built and what is still to come.
 4. Every practice in between gets only "How do you feel?" (Nervous, Excited,
    Calm, Not sure), today's screen, with a Skip. Today it shows once per new
    project, before Take 1, with a Skip too (N151, N178, N211; the recording
-   screens' page). It moves behind the plan's personal yes when that is
-   built (N211).
+   screens' page). It moves behind the plan's personal yes (5) in a later
+   change; today it is asked as before (N211).
+5. **The plan's own yes.** The personal questions (the worry question, the
+   two ratings in 1, "How did it go?" at the plan's end (I2) and, in a later
+   change, the feelings check in 4) are asked only after the speaker says yes
+   to a question of its own, once. Will asks it after the speaker's voice
+   answer about the event, before any personal question: "A few of my
+   questions are personal: how stressed and how ready you feel, what worries
+   you, and how you feel before each Take. I only ask with your yes. Your
+   coach and I use your answers to shape your plan. You can turn this off in
+   Data & consent." with Read more, which opens Privacy section 4e in a
+   window, and in the footer "Not now" and "Yes, ask me"; nothing else is
+   taken while Will waits. "Yes, ask me" goes on with the worry question and
+   the ratings. "Not now" adds no line from Will: the worry question and the
+   ratings are not asked or kept, the plan is built from what it has and
+   goes on to the calls, and its end goes to "What's next?" without "How did
+   it go?". A plan made before the yes existed is asked at its next personal
+   moment (the last ratings, or its end). Data & consent has a card,
+   "Personal answers in your plan", between Help improve WillpowerLab and
+   WhatsApp, where the yes is turned on later or off: off asks first, then
+   deletes the personal answers (the answers and their recordings, their
+   bubbles in the Lounge, the plan's worry, Will's memory of them with his
+   note, the feelings before a Take), and only then keeps the withdrawal; a
+   deletion that fails leaves the yes on and says so. The record is the
+   backend's `plan_consent_events`: the sentence's hash and the policy
+   version, append-only. A record that cannot be read asks nothing personal.
+   Switched off (`PLAN_CONSENT_ENABLED`) until Privacy 3.9, which names it,
+   is published (N211).
 
 ### E · The plan card
 
@@ -328,6 +354,17 @@ Signed:
   what is it? Say it the way you'll say it." · "Who will be in the room on
   {date}, and how many?" · "How long will you speak, and will you have
   slides?" (N140).
+- The plan's own yes (D5, N211; "approved as drawn", 27 October 2026): Will's
+  ask, as in D5 · "Yes, ask me" · "Not now" · "Read more" · "Privacy Policy
+  {version}, section 4e" · the card: "Personal answers in your plan" · "Will
+  asks how stressed and how ready you feel, what worries you, and how you
+  feel before each Take. Your coach and Will use the answers to shape your
+  plan." · "Off. Turn it on and Will asks how stressed and how ready you
+  feel, what worries you, and how you feel before each Take." · "Turn off
+  personal answers?" · "We stop asking, and delete the personal answers you
+  have given. Your plan stays." · "Off. We deleted your personal answers."
+  The text of Privacy section 4e waits for the founder's signature with
+  Privacy 3.9.
 - The plan: "Thanks! Here's your plan." · "Your next
   level" · the five level names · "How you said it" · "Why this line:" and
   its sentence · "15 minutes, 3 times a week: {days}" · "15 minutes every
@@ -405,6 +442,10 @@ Waiting for the founder's OK:
   - Built on 27 October 2026 (N209): the level's moment in the walk (G7);
     a level moving on, and a stuck level noted for the coach's queue (G10)
     · BE #1406, FE #1024.
+  - Built on 27 October 2026 (N211), switched off (`PLAN_CONSENT_ENABLED`)
+    until Privacy 3.9 is published: D5, the plan's own yes: Will's ask with
+    Read more, the footer's two buttons, the card in Data & consent · BE
+    #1416, FE (this PR).
   - Still to come: the coach's side, drawn first for the founder's OK
     (N204), with the coach's recorded exercise for a stuck level (G10).
 
@@ -426,6 +467,10 @@ Waiting for the founder's OK:
   N177); the WhatsApp ask after each Take stays. After a practice day's walk,
   the two lines of G13 (N183), which the prototype doesn't draw. The calls
   are paid as the booking page is paid, in tokens once N198 is built.
+- **Where the plan's own yes is asked for a speaker without a plan** (D5,
+  N211): the feelings check is asked of them too, so it moves behind the yes
+  only once the founder says where the yes is asked. Until then it is asked as
+  before, and `PLAN_CONSENT_ENABLED` stays off.
 - **The coach's side** (the plan and its level in the coach panel, a stuck
   level in the queue) isn't drawn; the coach panel is locked, so it is drawn
   for the founder's OK before it is built (N203).
@@ -434,13 +479,18 @@ Waiting for the founder's OK:
 
 The plan's own code, guarded by this page (`scripts/flow-pages.txt`):
 
-- `src/components/willab/plan/`: the footer by step (`PlanDock.tsx`), the
+- `src/components/willab/plan/`: the footer by step (`PlanDock.tsx`, with
+  Will's ask for the plan's own yes), the
   calls' calendar (`PlanCalendar.tsx`), the card (`PlanCard.tsx`), the rows in
   the thread (`PlanRows.tsx`), the two sheets (`PlanSheet.tsx`), the voice
   player and the hook the Lounge calls (`usePlanLounge.tsx`).
 - `src/lib/willab/planCopy.ts`: the words the app draws itself.
 - `src/services/api/plan.ts` and `src/app/api/v2/plan/`: the calls to the
   backend's `/v2/plan` (backend `services/plan.py`, `services/plan_flow.py`).
+- The plan's own yes: `src/components/legal/PlanReadMore.tsx` (Read more),
+  `src/components/account/PlanConsentCard.tsx` (the card, guarded by the
+  consent screens' page), `src/services/api/planConsent.ts` (backend
+  `services/plan_consent.py`).
 
 It touches these places, each with its own page for what it owns:
 
@@ -481,6 +531,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-27 · N211 · built, switched off until Privacy 3.9: D5, the plan's own yes; the worry question, the two ratings and "How did it go?" wait for it; the card "Personal answers in your plan" in Data & consent turns it on and off, off deletes the personal answers. Was: asked of everyone · BE #1416, FE (this PR)
 
 - 2026-10-27 · N209 · built: G7, the walk's second moment is where this week's level shows most, under "This week's level: {level}. Here's where it shows:", practised with the level's own practice; G10, two Takes in a row that reach the level, or its time run out, and the next thing heard becomes the level; three Takes without moving noted for the coach's queue. §3's two calls from 26 October answered (N209 items 1 and 2). Was: the walk's two best moments for every speaker, and one level for the whole plan · BE #1406, FE #1024
 

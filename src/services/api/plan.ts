@@ -10,6 +10,8 @@ export type PlanStep =
   | "deadline"
   | "why"
   | "followup"
+  /** Will has asked for the plan's own yes and waits for it (N211). */
+  | "consent"
   | "stress"
   | "ready"
   | "kickoff"
@@ -109,6 +111,11 @@ async function send(path: string, init: { method?: "POST" | "PUT"; json?: unknow
 /** "Pick a date" (an ISO date) or "No date yet" (null). */
 export function answerDeadline(date: string | null): Promise<PlanState | null> {
   return send("/api/v2/plan/deadline", { json: { date, tz: browserZone() } });
+}
+
+/** Will's ask for the plan's own yes: "Yes, ask me" or "Not now" (N211). */
+export function answerConsent(yes: boolean): Promise<PlanState | null> {
+  return send("/api/v2/plan/consent/answer", { json: { yes } });
 }
 
 /** One voice answer: the message, a follow-up, or "How did it go?". */
