@@ -458,7 +458,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-27 · N204 · on for ring 5: the plan's migration merged, with its four tables and the ring row `plan` at ring 5, after the founder's outside review (Grok: OK to merge). Was: built, switched off · BE #1394, FE (this PR)
+- 2026-10-27 · N204 · on for ring 5: the plan's migration merged, with its four tables and the ring row `plan` at ring 5, after the founder's outside review (Grok: OK to merge). Was: built, switched off · BE #1394, FE #1021
 
 - 2026-10-26 · N140, N151, N178, N203 · built, switched off: the bar and the practices line on the walk's end card, "How do you feel?" with a Skip before every Take but the plan's first, "Is this for {date}?" on a new project with Yes and No · BE #1389, FE #1018
 
