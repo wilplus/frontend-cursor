@@ -33,8 +33,9 @@ Life Panel.
    [`docs/WILL-LEARNING-PLAN.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/WILL-LEARNING-PLAN.md) step 1), the Sunday note (L), life
    goals (M), and the principles in the Life Panel (`/panel/principles`)
    (N182).
-2. Ring 6: the founder only, through the rings panel's rows `voice_notebook`
-   and `life_goals`, until the founder widens them (N182).
+2. Ring 5 and up, through the rings panel's rows `voice_notebook` and
+   `life_goals`, each set to ring 5; nobody below ring 5. Ring 5 holds only
+   people who know it is a test (N212, which widened N182's ring 6; N208).
 3. Not the speaking coach. The Feedback walk, the plan, the coach panel and
    a Take's feedback and summary never read or show the principles, the
    Sunday note or life goals (N182).
@@ -132,7 +133,7 @@ The prototype is the design: <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo>
 
 ### M · Life goals (backend `services/life_goals.py`; decided 2026-10-26, N172)
 
-The prototype is the design: <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24> (§5, version 7). Founder only (ring 6, `life_goals`), in the Lounge and its lens; never on the recording screens, never shown to a coach. Private like the notebook. No number about the speaker (Never 1): horizons and dates are the speaker's own.
+The prototype is the design: <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24> (§5, version 7). Ring 5 and up (`life_goals`, N212), in the Lounge and its lens; never on the recording screens, never shown to a coach. Private like the notebook. No number about the speaker (Never 1): horizons and dates are the speaker's own.
 
 - **M1** When it is asked. Once, right after the first # note's "Noted."
   (voice or typed): two grey bubbles, "One more thing: your life goals." and
@@ -254,8 +255,8 @@ Nothing is in flight: L and M are built (2026-10-26).
 
 ## 3. Still open
 
-- Who gets it beyond the founder: the founder widens the `voice_notebook`
-  and `life_goals` rings (N182).
+- Who gets it beyond ring 5: the founder widens the `voice_notebook` and
+  `life_goals` rings further (N212).
 
 ## 4. Where it lives
 
@@ -285,6 +286,7 @@ Nothing is in flight: L and M are built (2026-10-26).
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-27 · N212 · the principles open to ring 5: the `voice_notebook` and `life_goals` rows at ring 5, set by the founder on the CEO panel's rings settings; was ring 6, the founder only (N182) · BE #1409, FE (this PR)
 - 2026-10-26 · N172 · built (M10, the last piece): THIS WEEK on the career ladder is this week's level from the plan (the plan's G5, backend #1386), a plain row with no ›, in the lens, on the Goals screen and in Will's prompt; nothing while no plan runs · BE #1390, FE (this PR)
 - 2026-10-26 · N158, N170 · built (L): the Sunday note as a lens; only the # notes of the last seven days; on Sunday from 6 pm by itself only when they show a pattern, and whenever asked in any words; "We spotted a pattern!" and the case with Not now | Investigate; the lens asks the bug, the principle held, the reflection and Will's new principle (Accept, Edit, Not now); the bubble's › reopens it where it stands. What stopped: the long case form, Old | New and its "Add principle" footer · BE #1382, FE (this PR)
 - 2026-10-26 · N197 · built (M15): the ladders on the Life Panel's Goals screen, above the three bets; a tapped step opens the lens over the panel on that step; History lists every version, dated; "＋ Add a goal"; nothing before the first goal (`LifeGoalsLadders.tsx`) · BE #1371, #1373, FE (this PR)
