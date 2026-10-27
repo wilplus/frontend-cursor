@@ -13,6 +13,7 @@ import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 import { claimOAuthRetry, isStateReplayError } from "@/lib/auth/oauthRetry";
 import { startOAuth } from "@/lib/auth/startOAuth";
 import { sameSitePath } from "@/lib/auth/sameSitePath";
+import WhatsAppAuth, { WHATSAPP_AUTH_COPY, WHATSAPP_SIGNIN, WhatsAppIcon } from "@/components/auth/WhatsAppAuth";
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -35,6 +36,8 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  // Sign in with WhatsApp (backend N214): only a number already on an account.
+  const [showWhatsApp, setShowWhatsApp] = useState(false);
   // Carry "where to go after" (e.g. the booking page) through to sign-up.
   const [signupHref, setSignupHref] = useState("/signup");
   useEffect(() => {
@@ -180,9 +183,27 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
     }
   };
 
+  if (showWhatsApp) {
+    return (
+      <Card className="min-w-0 p-4 sm:p-6">
+        <WhatsAppAuth mode="login" onBack={() => setShowWhatsApp(false)} onSuccess={onSuccess} />
+      </Card>
+    );
+  }
+
   return (
     <Card className="min-w-0 p-4 sm:p-6">
       <div className="mb-4 space-y-3">
+        {WHATSAPP_SIGNIN ? (
+          <Button
+            type="button"
+            className="w-full gap-2 bg-foreground font-medium text-background hover:bg-foreground/90"
+            onClick={() => setShowWhatsApp(true)}
+          >
+            <WhatsAppIcon className="h-5 w-5 shrink-0" />
+            <span>{WHATSAPP_AUTH_COPY.signIn}</span>
+          </Button>
+        ) : null}
         <LinkedInAuthButton mode="login" />
         <GoogleAuthButton mode="login" />
 
