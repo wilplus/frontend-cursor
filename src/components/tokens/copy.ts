@@ -131,8 +131,6 @@ export const TOKENS_COPY = {
     intensive:
       "About three months. Three calls, two written reviews, and enough practice for the new habits to stick.",
   } as Record<string, string>,
-  coachCall: "Call with your coach, 15 minutes",
-  coachLesson: "Lesson with your coach, 60 minutes",
   walletPlanCancelled: "No change made.",
 
   /* --------------------- the in-thread top-up card ----------------------- */
