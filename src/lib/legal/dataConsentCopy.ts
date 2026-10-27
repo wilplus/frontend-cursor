@@ -128,6 +128,13 @@ export const DATA_CONSENT_COPY = {
   accountTooShort: "Password must be at least 6 characters.",
   accountNoMatch: "Passwords do not match.",
   accountEmailPlaceholder: "you@example.com",
+  // WhatsApp as a way in, in the same card (founder 2026-10-27, backend N214
+  // item 5: "use these words"). Its number and code steps use the WhatsApp
+  // sign-up's words (WHATSAPP_AUTH_COPY).
+  accountWhatsApp: "WhatsApp",
+  accountWhatsAppOff: "Sign in with your WhatsApp number too.",
+  accountWhatsAppAdd: "Add",
+  accountWhatsAppOn: (phone: string) => `You can sign in with WhatsApp at ${phone}.`,
   shareTake: (take: number | null) => (take ? `Take ${take}` : "A take"),
   sharedWith: (where: string) => `shared with ${where}`,
   generalCommunity: "General community",

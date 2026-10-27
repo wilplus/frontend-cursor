@@ -17,10 +17,20 @@
 /*                                                                            */
 /*  The backend checks the password, sends the emails and logs every change;  */
 /*  this card asks and says what happened. Hidden when it cannot be read.     */
+/*                                                                            */
+/*  WhatsApp as a way in (founder 2026-10-27, backend N214 item 5): a third   */
+/*  row. Off: "Sign in with your WhatsApp number too." and Add, then the      */
+/*  number and the code (Supabase's phone change; the backend's hook sends    */
+/*  the code on WhatsApp). On: "You can sign in with WhatsApp at {number}."   */
+/*  A WhatsApp account has no email row until it has an email, and no         */
+/*  password row either, since its links go by email.                         */
 /* -------------------------------------------------------------------------- */
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
+import { WHATSAPP_AUTH_COPY, WHATSAPP_SIGNIN } from "@/components/auth/WhatsAppAuth";
+import { WHATSAPP_COPY } from "@/components/willab/WillabWhatsAppPrompt";
+import { normalizePhone } from "@/services/api/whatsapp";
 import {
   changeEmail,
   changePassword,
@@ -69,6 +79,21 @@ function forgetLanding(): void {
   window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
 }
 
+/** The number the account signs in with, as Supabase keeps it
+ *  ("48600100200"), in international form; null when it has none. */
+async function signInPhone(): Promise<string | null> {
+  try {
+    const { data } = await createClient().auth.getUser();
+    const phone = (data.user?.phone ?? "").replace(/^\+/, "");
+    return phone ? `+${phone}` : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Supabase asks for a pause between two codes to one number. */
+const RESEND_AFTER_MS = 60_000;
+
 /** The menu reads the email from the session; a fresh one carries the new. */
 async function refreshSession(): Promise<void> {
   try {
@@ -78,7 +103,13 @@ async function refreshSession(): Promise<void> {
   }
 }
 
-export default function AccountSignInCard({ load = fetchSignIn }: { load?: () => Promise<SignIn | null> }) {
+export default function AccountSignInCard({
+  load = fetchSignIn,
+  loadPhone = signInPhone,
+}: {
+  load?: () => Promise<SignIn | null>;
+  loadPhone?: () => Promise<string | null>;
+}) {
   const [account, setAccount] = useState<SignIn | null>(null);
   const [emailOpen, setEmailOpen] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -87,6 +118,15 @@ export default function AccountSignInCard({ load = fetchSignIn }: { load?: () =>
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordLine, setPasswordLine] = useState<PasswordLine>(null);
   const [busy, setBusy] = useState(false);
+  const [phone, setPhone] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void loadPhone().then((found) => alive && setPhone(found));
+    return () => {
+      alive = false;
+    };
+  }, [loadPhone]);
 
   useEffect(() => {
     let alive = true;
@@ -181,87 +221,235 @@ export default function AccountSignInCard({ load = fetchSignIn }: { load?: () =>
     >
       <h2 className="text-base font-semibold">{COPY.accountTitle}</h2>
       <ul className="mt-2">
-        <li className="flex flex-col gap-3 pb-3.5 pt-1">
-          <Row
-            label={COPY.accountEmail}
-            value={<span className="break-all text-[15px]">{account.email}</span>}
-            action={emailOpen ? null : (
-              <button type="button" className={SMALL} onClick={openEmail}>{COPY.accountChange}</button>
-            )}
-          />
-          {emailOpen ? (
-            <form className="flex flex-col gap-3.5 rounded-xl bg-muted p-4" onSubmit={submitEmail} noValidate>
-              <Field id="account-new-email" name="new_email" label={COPY.accountNewEmail} type="email"
-                autoComplete="email" placeholder={COPY.accountEmailPlaceholder} autoFocus />
-              {account.hasPassword ? (
-                <Field id="account-email-password" name="current_password" label={COPY.accountCurrentPassword}
-                  type="password" autoComplete="current-password" />
-              ) : null}
-              <Problem text={emailError} />
-              <div className="flex flex-wrap gap-3">
-                <button type="submit" className={PRIMARY} disabled={busy}>{COPY.accountSendLink}</button>
-                <button type="button" className={BUTTON} onClick={() => { setEmailOpen(false); setEmailError(null); }}>
-                  {COPY.cancel}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <EmailStatus line={emailLine} />
-          )}
-        </li>
-        <li className="flex flex-col gap-3 border-t border-border pt-3.5">
-          {account.hasPassword ? (
-            <Row
-              label={COPY.accountPassword}
-              value={<span className="text-[15px] tracking-[0.12em]" aria-hidden>••••••••</span>}
-              action={passwordOpen ? null : (
-                <button type="button" className={SMALL} onClick={openPassword}>{COPY.accountChange}</button>
+        {account.email ? (
+          <>
+            <li className="flex flex-col gap-3 pb-3.5 pt-1">
+              <Row
+                label={COPY.accountEmail}
+                value={<span className="break-all text-[15px]">{account.email}</span>}
+                action={emailOpen ? null : (
+                  <button type="button" className={SMALL} onClick={openEmail}>{COPY.accountChange}</button>
+                )}
+              />
+              {emailOpen ? (
+                <form className="flex flex-col gap-3.5 rounded-xl bg-muted p-4" onSubmit={submitEmail} noValidate>
+                  <Field id="account-new-email" name="new_email" label={COPY.accountNewEmail} type="email"
+                    autoComplete="email" placeholder={COPY.accountEmailPlaceholder} autoFocus />
+                  {account.hasPassword ? (
+                    <Field id="account-email-password" name="current_password" label={COPY.accountCurrentPassword}
+                      type="password" autoComplete="current-password" />
+                  ) : null}
+                  <Problem text={emailError} />
+                  <div className="flex flex-wrap gap-3">
+                    <button type="submit" className={PRIMARY} disabled={busy}>{COPY.accountSendLink}</button>
+                    <button type="button" className={BUTTON} onClick={() => { setEmailOpen(false); setEmailError(null); }}>
+                      {COPY.cancel}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <EmailStatus line={emailLine} />
               )}
-            />
-          ) : (
-            <Row
-              label={COPY.accountPassword}
-              value={<span className="text-sm leading-relaxed text-muted-foreground">
-                {COPY.accountProvider(account.provider ?? "Google")}
-              </span>}
-              action={<button type="button" className={SMALL} disabled={busy} onClick={() => void sendLink()}>
-                {COPY.accountSetPassword}
-              </button>}
-            />
-          )}
-          {passwordOpen ? (
-            <form className="flex flex-col gap-3.5 rounded-xl bg-muted p-4" onSubmit={submitPassword} noValidate>
-              <Field id="account-current-password" name="current_password" label={COPY.accountCurrentPassword}
-                type="password" autoComplete="current-password" autoFocus />
-              <Field id="account-new-password" name="new_password" label={COPY.accountNewPassword}
-                type="password" autoComplete="new-password" placeholder={COPY.accountAtLeast6} />
-              <Field id="account-confirm-password" name="confirm_password" label={COPY.accountConfirmPassword}
-                type="password" autoComplete="new-password" placeholder={COPY.accountConfirmPassword} />
-              <Problem text={passwordError} />
-              <div className="flex flex-wrap gap-3">
-                <button type="submit" className={PRIMARY} disabled={busy}>{COPY.accountUpdatePassword}</button>
-                <button type="button" className={BUTTON} onClick={() => { setPasswordOpen(false); setPasswordError(null); }}>
-                  {COPY.cancel}
-                </button>
-              </div>
-              <button
-                type="button"
-                className="self-start text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-                disabled={busy}
-                onClick={() => void sendLink()}
-              >
-                {COPY.accountForgot}
-              </button>
-            </form>
-          ) : (
-            <>
-              <Problem text={account.hasPassword ? null : passwordError} />
-              <PasswordStatus line={passwordLine} />
-            </>
-          )}
-        </li>
+            </li>
+            <li className="flex flex-col gap-3 border-t border-border pt-3.5">
+              {account.hasPassword ? (
+                <Row
+                  label={COPY.accountPassword}
+                  value={<span className="text-[15px] tracking-[0.12em]" aria-hidden>••••••••</span>}
+                  action={passwordOpen ? null : (
+                    <button type="button" className={SMALL} onClick={openPassword}>{COPY.accountChange}</button>
+                  )}
+                />
+              ) : (
+                <Row
+                  label={COPY.accountPassword}
+                  value={<span className="text-sm leading-relaxed text-muted-foreground">
+                    {COPY.accountProvider(account.provider ?? "Google")}
+                  </span>}
+                  action={<button type="button" className={SMALL} disabled={busy} onClick={() => void sendLink()}>
+                    {COPY.accountSetPassword}
+                  </button>}
+                />
+              )}
+              {passwordOpen ? (
+                <form className="flex flex-col gap-3.5 rounded-xl bg-muted p-4" onSubmit={submitPassword} noValidate>
+                  <Field id="account-current-password" name="current_password" label={COPY.accountCurrentPassword}
+                    type="password" autoComplete="current-password" autoFocus />
+                  <Field id="account-new-password" name="new_password" label={COPY.accountNewPassword}
+                    type="password" autoComplete="new-password" placeholder={COPY.accountAtLeast6} />
+                  <Field id="account-confirm-password" name="confirm_password" label={COPY.accountConfirmPassword}
+                    type="password" autoComplete="new-password" placeholder={COPY.accountConfirmPassword} />
+                  <Problem text={passwordError} />
+                  <div className="flex flex-wrap gap-3">
+                    <button type="submit" className={PRIMARY} disabled={busy}>{COPY.accountUpdatePassword}</button>
+                    <button type="button" className={BUTTON} onClick={() => { setPasswordOpen(false); setPasswordError(null); }}>
+                      {COPY.cancel}
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="self-start text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                    disabled={busy}
+                    onClick={() => void sendLink()}
+                  >
+                    {COPY.accountForgot}
+                  </button>
+                </form>
+              ) : (
+                <>
+                  <Problem text={account.hasPassword ? null : passwordError} />
+                  <PasswordStatus line={passwordLine} />
+                </>
+              )}
+            </li>
+          </>
+        ) : null}
+        {phone || WHATSAPP_SIGNIN ? (
+          <li className={`flex flex-col gap-3 ${account.email ? "border-t border-border pt-3.5" : "pt-1"}`}>
+            <WhatsAppRow phone={phone} onAdded={setPhone} />
+          </li>
+        ) : null}
       </ul>
+      {/* A link that failed, for an account with no email row yet. */}
+      {account.email ? null : <EmailStatus line={emailLine} />}
     </section>
+  );
+}
+
+/** WhatsApp as a way in: the number, then the code Supabase sends to it
+ *  through the backend's hook (on WhatsApp), then on. */
+function WhatsAppRow({ phone, onAdded }: { phone: string | null; onAdded: (phone: string) => void }) {
+  const [step, setStep] = useState<"closed" | "number" | "code">("closed");
+  const [adding, setAdding] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [canResend, setCanResend] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
+
+  if (phone) {
+    return (
+      <Row label={COPY.accountWhatsApp}
+        value={<span className="text-sm leading-relaxed text-muted-foreground">{COPY.accountWhatsAppOn(phone)}</span>}
+        action={null} />
+    );
+  }
+
+  const close = () => {
+    setStep("closed");
+    setError(null);
+  };
+
+  /** Ask Supabase to change the account's phone: it sends the code. */
+  const sendCode = async (to: string): Promise<boolean> => {
+    const { data, error: sendError } = await createClient().auth.updateUser({ phone: to });
+    if (sendError) {
+      setError(COPY.failed);
+      return false;
+    }
+    // A project that confirms phones without a code has changed it already.
+    if ((data.user?.phone ?? "").replace(/^\+/, "") === to.replace(/^\+/, "")) {
+      onAdded(to);
+      return false;
+    }
+    setCanResend(false);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCanResend(true), RESEND_AFTER_MS);
+    return true;
+  };
+
+  const submitNumber = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const to = normalizePhone(String(new FormData(event.currentTarget).get("whatsapp") ?? ""));
+    if (!to) return setError(WHATSAPP_COPY.invalid);
+    setBusy(true);
+    setError(null);
+    if (await sendCode(to)) {
+      setAdding(to);
+      setStep("code");
+    }
+    setBusy(false);
+  };
+
+  const submitCode = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const token = String(new FormData(event.currentTarget).get("code") ?? "").replace(/\D/g, "");
+    if (!token) return;
+    setBusy(true);
+    setError(null);
+    const { data, error: verifyError } = await createClient().auth.verifyOtp({
+      phone: adding, token, type: "phone_change",
+    });
+    setBusy(false);
+    if (verifyError || !data.user) return setError(WHATSAPP_AUTH_COPY.wrongCode);
+    onAdded(adding);
+  };
+
+  const resend = async () => {
+    if (!canResend || busy) return;
+    setBusy(true);
+    setError(null);
+    await sendCode(adding);
+    setBusy(false);
+  };
+
+  return (
+    <>
+      <Row label={COPY.accountWhatsApp}
+        value={<span className="text-sm leading-relaxed text-muted-foreground">{COPY.accountWhatsAppOff}</span>}
+        action={step === "closed" ? (
+          <button type="button" className={SMALL} onClick={() => { setStep("number"); setError(null); }}>
+            {COPY.accountWhatsAppAdd}
+          </button>
+        ) : null} />
+      {step === "number" ? (
+        <form className="flex flex-col gap-3.5 rounded-xl bg-muted p-4" onSubmit={submitNumber} noValidate>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="account-whatsapp" className="self-start text-sm font-medium">
+              {WHATSAPP_AUTH_COPY.numberLabel}
+            </label>
+            <Input id="account-whatsapp" name="whatsapp" type="tel" inputMode="tel" autoComplete="tel"
+              placeholder={WHATSAPP_COPY.placeholder} defaultValue={adding} autoFocus className="text-base sm:text-sm" />
+          </div>
+          <Problem text={error} />
+          <div className="flex flex-wrap gap-3">
+            <button type="submit" className={PRIMARY} disabled={busy}>{WHATSAPP_AUTH_COPY.sendCode}</button>
+            <button type="button" className={BUTTON} onClick={close}>{COPY.cancel}</button>
+          </div>
+        </form>
+      ) : null}
+      {step === "code" ? (
+        <form className="flex flex-col gap-3.5 rounded-xl bg-muted p-4" onSubmit={submitCode} noValidate>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="account-whatsapp-code" className="self-start text-sm font-medium">
+              {WHATSAPP_AUTH_COPY.codeTitle}
+            </label>
+            <span className="text-sm text-muted-foreground">{adding}</span>
+          </div>
+          <Input id="account-whatsapp-code" name="code" type="text" inputMode="numeric"
+            autoComplete="one-time-code" maxLength={6} placeholder="••••••" autoFocus
+            className="text-center text-lg tracking-[0.4em]" />
+          <Problem text={error} />
+          <div className="flex flex-wrap gap-3">
+            <button type="submit" className={PRIMARY} disabled={busy}>{WHATSAPP_AUTH_COPY.continue}</button>
+            <button type="button" className={BUTTON} onClick={close}>{COPY.cancel}</button>
+          </div>
+          <div className="flex flex-wrap justify-between gap-3 text-sm">
+            <button type="button" className="text-muted-foreground underline underline-offset-4 hover:text-foreground disabled:opacity-50"
+              disabled={!canResend || busy} onClick={() => void resend()}>
+              {WHATSAPP_AUTH_COPY.resend}
+            </button>
+            <button type="button" className="text-muted-foreground underline underline-offset-4 hover:text-foreground"
+              onClick={() => { setStep("number"); setError(null); }}>
+              {WHATSAPP_AUTH_COPY.otherNumber}
+            </button>
+          </div>
+        </form>
+      ) : null}
+    </>
   );
 }
 

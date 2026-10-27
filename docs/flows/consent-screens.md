@@ -248,6 +248,25 @@ Approved on the clickable prototype <https://claude.ai/artifact/3GtUo7eVdf9SAhZQ
   section 4e in a window, **Continue** to close), is the plan's rule D5:
   [`the-plan.md`](the-plan.md).
 
+### Amended 2026-10-27: WhatsApp as a way in (backend N214)
+
+The founder in the Claude Code chat, on the clickable prototype <https://claude.ai/artifact/Dcf2FCyDs5c4Pb7BJc7oZ7>:
+"Add it in Settings first", then, for the row, "use these words". Written in the present tense.
+
+- **The row.** The Email and password card has a third row, **WhatsApp**. Off: "Sign in with your WhatsApp number
+  too." and **Add**, which opens **Your WhatsApp number** with **Send code** / **Cancel**, then "Enter the code we
+  sent you on WhatsApp" with **Continue** / **Cancel**, **Resend code** (after a minute) and **Use a different
+  number**: the WhatsApp sign-up's words. A number without its country code gets the Lounge's line, a wrong code
+  "That code didn't work. Try again.", anything else the page's "Couldn’t save that. Try again." On: "You can sign
+  in with WhatsApp at {number}."
+- **When it shows.** Once WhatsApp sign-in is on (`NEXT_PUBLIC_WHATSAPP_SIGNIN`), and always for an account that
+  already signs in with WhatsApp.
+- **A WhatsApp account.** No email row until it has an email, and no password row either, since its links go by
+  email. The email comes from booking a call (the booking form's **Email**, "We'll send your calendar invite
+  here."): it becomes the account's when its owner opens the "Confirm your new email" link, and the card then has
+  its Email row, and a Password row that reads "You sign in with WhatsApp." with **Set a password**.
+- The number added here is a way in only: the WhatsApp card's number for messages stays its own.
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
@@ -299,6 +318,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-27 · N214 · the Email and password card's WhatsApp row: Add, the number and the code; on, "You can sign in with WhatsApp at {number}."; a WhatsApp account's card has no email or password row until it has an email · BE #1420, FE (this PR)
 - 2026-10-27 · N211 · the card "Personal answers in your plan" between Help improve WillpowerLab and WhatsApp: on and off, off asks first and deletes the personal answers; hidden until the backend's switch is on · BE #1416, FE (this PR)
 - 2026-10-26 · N207 · the WhatsApp card names the booked call: "We message {number} when your coach’s feedback is in and 10 minutes before a booked call." · BE #1391, #1395, FE (this PR)
 - 2026-10-26 · N196 · the page is called Settings: the ☰ menu's row, the title and the recording screen's line · BE, FE
