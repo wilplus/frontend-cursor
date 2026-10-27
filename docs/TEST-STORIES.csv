@@ -55,6 +55,11 @@ red    -> ""is RED and exits 1 when a step fails, printing that step's own log""
 no build -> ""is INCOMPLETE, never GREEN, when the build is skipped""
 node   -> ""stops before its first step, naming the Node it found""","If removed: The gate's GREEN could stop meaning ""every step passed""."
 scripts/storiesCsv.test.ts,Guard,"docs/TEST-STORIES.csv lists every frontend test file's story, and every test file has one.","C1  a new or edited test whose STORY/GUARD header is missing, or not copied into the CSV",C1 -> every test file has a story and the CSV is current,If removed: the founder reviews a stories file that silently stops matching the tests.
+scripts/vercelIgnoreBuild.test.ts,Guard,"Vercel's Ignored Build Step: the real scripts/vercel-ignore-build.sh, run in a throwaway git repo with VERCEL_GIT_PREVIOUS_SHA set as Vercel sets it (the last successful deployment's commit).","A change to the app skipped, so a fix never reaches the site; a
+Redeploy (same commit, new environment variables) skipped.","skip    -> ""skips a merge that changed only docs, Markdown or tests""
+build   -> ""builds a code change, even after docs-only merges""
+redeploy -> ""builds a Redeploy of the same commit""
+unsure  -> ""builds when there is nothing known to compare with""",If removed: A wrong skip looks like a green deploy that changed nothing.
 src/app/admin/libraryAndErrorsGate.test.ts,Story,"As the founder, I want the exercise library, speaking-errors and",,,
 src/app/api/_lib/backend.test.ts,Story,"As a speaker, I want every app-to-server call to carry my sign-in and fail with a plain message, so that I never see a broken screen or someone else's data.","O1  Signed in: the backend gets my token and its answer reaches me as is.
 O2  Signed out: 401 with the shared words, and no backend call at all.
