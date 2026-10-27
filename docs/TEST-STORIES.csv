@@ -231,6 +231,12 @@ src/components/auth/LoginForm.test.tsx,Story,"As a person signing in from a link
 behind an extra encoding or a backslash) is ignored: I land on /chat.
 O2  A redirectTo on our own site is still honoured, query and all.","O1 -> ""an off-site redirectTo (%s) lands on /chat""
 O2 -> ""a same-site redirectTo is still honoured""",Open redirect in the login form (2026-10-21). The coach's WhatsApp and email links rely on O2: they land on /login?redirectTo=/chat?lens=… (WIL-93).
+src/components/auth/WhatsAppAuth.test.tsx,Story,"As someone signing up or in with WhatsApp, I want to give my number, type the code WhatsApp brings and, when I am new, my name, so that I am in without an email or a password.","O1  Signing up: a number without its country code is refused before any
+code is sent; a wrong code says so; the right one asks a new account
+its name, keeps the number as the account's WhatsApp number, and lands.
+O2  Signing in never makes an account: a number no account signs in with
+says so and points to sign-up, and the number is not saved anywhere.","O1 -> ""signing up: number, code, name, and the number is kept""
+O2 -> ""signing in with an unknown number says so and makes nothing""","Founder 2026-10-27, backend N214."
 src/components/founder/GoldenJudging.test.tsx,Story,"As the founder, I want to judge golden pairs seeing the passage",,,
 src/components/legal/PublishedPolicyText.test.tsx,Story,"As a reader of the Privacy page, I want the stored policy or a plain ""could not load"" line, never an endless spinner or an old stand-in, so that I always know what I agreed to.","O1  The stored policy text is shown with its version number.
 O2  When no stored copy can be had, the ""could not load"" line is shown.","O1 -> ""shows the stored copy once it is published""
