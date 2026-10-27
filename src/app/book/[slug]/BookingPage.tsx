@@ -85,6 +85,12 @@ function PayButtons({ info, offer, link, sending, onPay }: {
   );
 }
 
+/** An account with no email (signed up with WhatsApp) gives one here
+ *  (backend N214 item 4); the backend makes it the account's once its owner
+ *  opens the link it sends. */
+const EMAIL_HINT = "We'll send your calendar invite here.";
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const ERRORS: Record<string, string> = {
   NOT_ENOUGH_TOKENS: "Not enough tokens.",
   SLOT_TAKEN: "That time was just taken. Pick another.",
@@ -195,7 +201,7 @@ export default function BookingPage({ info, ipZone, link }: { info: PageInfo; ip
   const [slots, setSlots] = useState<number[] | null>(null);
   const [selDay, setSelDay] = useState<string | null>(null);
   const [slot, setSlot] = useState<number | null>(null);
-  const [form, setForm] = useState({ name: "", note: "" });
+  const [form, setForm] = useState({ name: "", email: "", note: "" });
   // null = still asking; "signed-out" = no account session.
   const [offer, setOffer] = useState<Offer | "signed-out" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -231,6 +237,7 @@ export default function BookingPage({ info, ipZone, link }: { info: PageInfo; ip
   }, [info.slug, ipZone, link]);
 
   const signedIn = offer !== null && offer !== "signed-out" ? offer : null;
+  const askEmail = !!signedIn && !signedIn.preview && !signedIn.email;
   const signUpFor = (chosen: number | null) => {
     saveBookingReturn(info.slug, chosen, link);
     window.location.href = `/signup?redirectTo=${encodeURIComponent(bookingUrl({ slug: info.slug, slot: chosen, link }))}`;
@@ -279,6 +286,8 @@ export default function BookingPage({ info, ipZone, link }: { info: PageInfo; ip
       if (slot === null) return;
       const name = form.name.trim();
       if (!name) return setError(ERRORS.NAME_REQUIRED);
+      const email = form.email.trim();
+      if (askEmail && !EMAIL_SHAPE.test(email)) return setError(ERRORS.EMAIL_INVALID);
       setSending(true);
       setError(null);
       try {
@@ -289,6 +298,7 @@ export default function BookingPage({ info, ipZone, link }: { info: PageInfo; ip
             start: new Date(slot).toISOString(), name, note: form.note, timezone: tz,
             embedded: !!stripePromise && !skipPayment && !payWithTokens, skip_payment: skipPayment, link,
             pay_with_tokens: payWithTokens,
+            ...(askEmail ? { email } : {}),
           }),
         });
         const body = (await res.json().catch(() => ({}))) as { url?: string; client_secret?: string; code?: string };
@@ -311,7 +321,7 @@ export default function BookingPage({ info, ipZone, link }: { info: PageInfo; ip
       }
       setSending(false);
     },
-    [slot, form, tz, info.slug, link]
+    [slot, form, tz, info.slug, link, askEmail]
   );
 
   if (!month) return null;
@@ -356,6 +366,14 @@ export default function BookingPage({ info, ipZone, link }: { info: PageInfo; ip
                   Email
                   <span className="py-1 font-normal text-muted-foreground">{signedIn.email}</span>
                 </div>
+              )}
+              {askEmail && (
+                <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="bk-email">
+                  Email
+                  <input id="bk-email" type="email" inputMode="email" className={field} autoComplete="email"
+                    value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+                  <span className="font-normal text-muted-foreground">{EMAIL_HINT}</span>
+                </label>
               )}
               <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="bk-note">
                 <span>Anything {info.host_name.split(" ")[0]} should know? <span className="text-muted-foreground">(optional)</span></span>

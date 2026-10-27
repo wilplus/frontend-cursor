@@ -6,7 +6,8 @@ export const runtime = "nodejs";
 
 /* POST /api/v2/booking/<slug>/checkout — hold the time and open Stripe.
  * Needs a signed-in account (the backend takes the email and the person's
- * price from it). The body is rebuilt from the fields the page sends. The caller's IP is
+ * price from it; an account with no email sends the one it typed, backend
+ * N214). The body is rebuilt from the fields the page sends. The caller's IP is
  * forwarded so the backend's per-IP limit counts guests, not this server. */
 export async function POST(req: NextRequest, { params }: { params: { slug: string } }): Promise<NextResponse> {
   let body: Record<string, unknown> = {};
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
     return NextResponse.json({ code: "INVALID_INPUT", error: "Body must be JSON" }, { status: 400 });
   }
   const forwarded: Record<string, unknown> = {};
-  for (const key of ["start", "name", "timezone", "note", "link"]) {
+  for (const key of ["start", "name", "email", "timezone", "note", "link"]) {
     if (typeof body[key] === "string") forwarded[key] = body[key];
   }
   if (body.embedded === true) forwarded.embedded = true;

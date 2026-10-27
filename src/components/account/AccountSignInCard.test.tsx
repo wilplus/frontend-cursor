@@ -17,13 +17,22 @@ OUTCOME
       refreshes the session, so the menu shows the new address; a link that
       failed says the page's "Couldn’t save that. Try again."
   O5  When the account can't be read, there is no card.
+  O6  Adding WhatsApp as a way in: a number without its country code is
+      refused before any code goes; the code goes to the number, a wrong
+      code says so, and the right one makes the row say "You can sign in
+      with WhatsApp at {number}."
+  O7  A WhatsApp account with no email has no email row and no password
+      row: the card says where it signs in with WhatsApp.
 PROVES   O1 -> "sends the change and says the link went; a wrong password keeps the form"
          O2 -> "a Google account sets a password with a link"
          O3 -> "checks the new password twice, then updates; Forgot password? sends the link"
          O4 -> "back from the link it says the new email and refreshes the session"
          O5 -> "no card when the account can't be read"
+         O6 -> "adds WhatsApp as a way in with the code"
+         O7 -> "a WhatsApp account without email has only the WhatsApp row"
 WHY      WIL-95, founder 2026-10-26 (backend N190; rules in
-         docs/flows/consent-screens.md §1, "Amended 2026-10-26").
+         docs/flows/consent-screens.md §1, "Amended 2026-10-26"); the
+         WhatsApp row, founder 2026-10-27 (backend N214 item 5).
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -34,6 +43,8 @@ const api = vi.hoisted(() => ({
   changePassword: vi.fn(),
   sendPasswordLink: vi.fn(),
   refreshSession: vi.fn(),
+  updateUser: vi.fn(),
+  verifyOtp: vi.fn(),
 }));
 vi.mock("@/services/api/accountSignIn", () => ({
   fetchSignIn: vi.fn(),
@@ -42,11 +53,19 @@ vi.mock("@/services/api/accountSignIn", () => ({
   sendPasswordLink: api.sendPasswordLink,
 }));
 vi.mock("@/lib/supabase/client", () => ({
-  createClient: () => ({ auth: { refreshSession: api.refreshSession } }),
+  createClient: () => ({
+    auth: { refreshSession: api.refreshSession, updateUser: api.updateUser, verifyOtp: api.verifyOtp },
+  }),
+}));
+vi.mock("@/components/auth/WhatsAppAuth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/auth/WhatsAppAuth")>()),
+  WHATSAPP_SIGNIN: true,
 }));
 
 import AccountSignInCard from "./AccountSignInCard";
 import { DATA_CONSENT_COPY as COPY } from "@/lib/legal/dataConsentCopy";
+import { WHATSAPP_AUTH_COPY } from "@/components/auth/WhatsAppAuth";
+import { WHATSAPP_COPY } from "@/components/willab/WillabWhatsAppPrompt";
 import type { SignIn } from "@/services/api/accountSignIn";
 
 const ALEX: SignIn = { email: "alex@example.com", hasPassword: true, provider: null };
@@ -55,6 +74,8 @@ let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
+  // jsdom has no scrolling; the link's landing scrolls to the card.
+  Element.prototype.scrollIntoView = vi.fn();
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -85,8 +106,10 @@ const type = (label: string, value: string) => {
 };
 const said = () => container.textContent ?? "";
 
-async function show(account: SignIn | null) {
-  act(() => root.render(createElement(AccountSignInCard, { load: async () => account })));
+async function show(account: SignIn | null, phone: string | null = null) {
+  act(() => root.render(createElement(AccountSignInCard, {
+    load: async () => account, loadPhone: async () => phone,
+  })));
   await flush();
 }
 async function press(label: string) {
@@ -179,5 +202,40 @@ describe("Email and password", () => {
   it("no card when the account can't be read", async () => {
     await show(null);
     expect(container.innerHTML).toBe("");
+  });
+
+  it("adds WhatsApp as a way in with the code", async () => {
+    await show(ALEX);
+    expect(said()).toContain(COPY.accountWhatsAppOff);
+    await press(COPY.accountWhatsAppAdd);
+
+    type(WHATSAPP_AUTH_COPY.numberLabel, "600 100 200");
+    await press(WHATSAPP_AUTH_COPY.sendCode);
+    expect(said()).toContain(WHATSAPP_COPY.invalid);
+    expect(api.updateUser).not.toHaveBeenCalled();
+
+    type(WHATSAPP_AUTH_COPY.numberLabel, "+48 600 100 200");
+    api.updateUser.mockResolvedValueOnce({ data: { user: { phone: "" } }, error: null });
+    await press(WHATSAPP_AUTH_COPY.sendCode);
+    expect(api.updateUser).toHaveBeenCalledWith({ phone: "+48600100200" });
+
+    type(WHATSAPP_AUTH_COPY.codeTitle, "111111");
+    api.verifyOtp.mockResolvedValueOnce({ data: { user: null }, error: { message: "Token has expired or is invalid" } });
+    await press(WHATSAPP_AUTH_COPY.continue);
+    expect(said()).toContain(WHATSAPP_AUTH_COPY.wrongCode);
+
+    type(WHATSAPP_AUTH_COPY.codeTitle, "482916");
+    api.verifyOtp.mockResolvedValueOnce({ data: { user: { phone: "48600100200" } }, error: null });
+    await press(WHATSAPP_AUTH_COPY.continue);
+    expect(api.verifyOtp).toHaveBeenLastCalledWith({ phone: "+48600100200", token: "482916", type: "phone_change" });
+    expect(said()).toContain(COPY.accountWhatsAppOn("+48600100200"));
+    expect(button(COPY.accountWhatsAppAdd)).toBeUndefined();
+  });
+
+  it("a WhatsApp account without email has only the WhatsApp row", async () => {
+    await show({ email: "", hasPassword: false, provider: "WhatsApp" }, "+48600100200");
+    expect(said()).toContain(COPY.accountWhatsAppOn("+48600100200"));
+    expect(button(COPY.accountChange)).toBeUndefined();
+    expect(button(COPY.accountSetPassword)).toBeUndefined();
   });
 });
