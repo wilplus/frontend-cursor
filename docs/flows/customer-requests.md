@@ -223,13 +223,24 @@ it is built in.
    its retention, and counsel on whether naming a condition makes it a
    medical device in the US. Until then the eyes are advisory and seen only
    by the answerer (N240 item 5).
-8. **Retrieval**: embeddings per workspace in Supabase with pgvector, through
-   the authorization path (N224 item 4).
+8. **A frontier model first** (N250 item 1): a client's AI starts on a
+   frontier model (vision and language), with the client's catalogue and
+   documents as its retrieval (embeddings per workspace in Supabase with
+   pgvector, through the authorization path, N224 item 4) and the expert in
+   the loop. A fine-tune comes only when the golden evaluation shows it stops
+   improving; the pairs are collected from the first request.
 9. **Autonomy**: the founder opens the door per workspace after the
    evaluation; the client turns it on per request type; a health red flag
    always goes to a person (N224 item 3).
-10. **The client's IP**: the export, JSONL of the pairs with the labels, the
-    schema and the outcome, the documents and the golden set (N223 item 5).
+10. **The client's IP is its data** (N250 item 2): the export, JSONL of the
+    pairs with the labels, the schema and the outcome, the label list, the
+    red flags, the documents and the golden set (N223 item 5); model weights
+    only where a fine-tune was made.
+11. **One kit, configured per client** (N250 items 3 and 4): the catalogue,
+    the label list, the red flags, the channels, the connectors and the
+    brand; no code written for one client. Each client's data and models
+    are kept apart; learning across clients, anonymised, only where the
+    client's contract says yes.
 
 ### I · Admin
 
@@ -244,6 +255,10 @@ it is built in.
    about a person (N225 item 3).
 3. Free for testers, a flag on the workspace; later tokens per answered
    request (N223 item 12).
+4. **Before the first enterprise client** (N250 item 5): a template DPA and
+   DPIA, a one-page model card per client surface, an audit log of every AI
+   answer (the model version, the inputs, who approved it), a stated data
+   region, and an "AI-assisted" label where the EU AI Act asks for one.
 
 ### J · Not in this version
 
@@ -362,6 +377,18 @@ item 15, N225):
      as customers see them?
   10. Invita's WhatsApp sender: is it set up, and who submits Meta's message
       templates?
+  11. What would make this worth it in three months, and today's numbers
+      (bookings from the website, online orders a month)? (N250 item 6)
+  12. What does Invita already keep from past consultations (notes, photos,
+      before and after photos, forms), and how much?
+  13. Does Invita look at the scalp through a camera during treatments, and
+      keep the images?
+  14. Does Ariel use a form or her own way of grading a scalp?
+  15. What must an answer never say, and when must Ariel send someone to a
+      doctor?
+  16. Who owns the photos, the answers and the AI trained on them, and may
+      WillpowerLab learn from them, anonymised?
+  17. Which languages do customers write in?
 
 ## 4. Where it lives
 
@@ -428,6 +455,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N250 · H8, H10, H11, I4, §3: a frontier model first, the client's data as its asset, one kit per client, the enterprise pack; the call's questions 11 to 17 (what Invita already has). Was: a fine-tune at 200 pairs · BE #1466, FE (this PR)
 - 2026-10-28 · §3: the questions only Invita can answer gathered for the strategic call with Invita; ours kept apart · FE (this PR)
 - 2026-10-28 · N239, N240 · §3, §5: the Invita prototypes follow N239 and N240 (the spa opens its Fresha page, the Scalp Scrubber in Invita's Shopify checkout, what she sees on the picker); the open question on Invita's products online · BE #1453, FE (this PR)
 - 2026-10-28 · N239, N240 · D1, E6 to E10, H, I1, K, §3: what she sees as taps on the picker; booking in the client's booking system (Fresha) and products in its shop (Shopify); the client's WhatsApp sender; the words approved; three models from one Take on one platform. Was: booking and products paid in our chat into the client's Stripe, the words waiting for the founder, the observation read from the transcript only · BE #1452, FE (this PR)
