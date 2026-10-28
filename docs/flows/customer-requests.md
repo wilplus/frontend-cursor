@@ -95,9 +95,11 @@ it is built in.
 
 ### D · The answer is a Take
 
-1. **What she recommends first.** Answer opens a tap list in the lens, the
-   same kind as the helper words: the client's catalogue. Each pick is a
-   slide (N226 item 1).
+1. **What she sees, then what she recommends.** Answer opens a tap list in
+   the lens, the same kind as the helper words. On top, what she sees in the
+   photo: the condition chips and, for hair loss, the stage on its scale,
+   about two taps (N240 item 2). Under them, the client's catalogue. Each
+   pick is a slide (N226 item 1).
 2. **The slides**: the customer's request and photo first, then each pick, in
    the order picked. "Just the request" records over the request alone.
 3. **Her voice over the slides, camera off.** The locked recording screen as
@@ -142,28 +144,26 @@ it is built in.
    field sits in a grey footer card (the ZIP), a pick is tall options (the
    spa, the day). A product recommendation asks Not now | Buy · {price} (N234 item 3); an
    answer that recommends nothing asks nothing (N225 item 2, N231 item 1).
-6. **Booking, one question at a time, in the thread**: where (a ZIP or
-   postcode, or "Use my location"), asked only now and once; the client's
-   salons nearest first, with the days the answerer is there and each spa's
-   price; the day; then a summary (the treatment, the day and time, the spa,
-   its price) with Change | Pay {price}. Each answer lands as the customer's
-   bubble (N227, N231 item 3).
-7. **Paid in the chat** (N234): Pay opens one sheet over the chat: the line,
-   the total, Apple Pay first, Pay with card under it, and one line on who is
-   paid. Then the customer's bubble says Paid {price}, and the answerer's
-   says Booked and paid, with the address, directions, the receipt and Add to
-   calendar.
+6. **Booking in the client's own booking system** (N239 item 1): where (a
+   ZIP or postcode, or "Use my location"), asked only now and once; the
+   client's salons nearest first; then Book opens the booking system's own
+   page for that treatment at that salon. For Invita, Fresha: the day, the
+   time, the answerer's days and the payment are Fresha's. Whether Fresha
+   gives the booking back to us, as the request's outcome, is checked before
+   the build (N227, N231 item 3).
+7. **Products in the client's own shop** (N239 item 2): Buy puts the product
+   in the client's cart and opens its checkout. For Invita, Shopify: stock,
+   shipping, taxes and refunds stay Invita's, and the order comes back to us
+   as the outcome.
 8. **Skip is not the end**: the answerer offers what she uses in the
    treatment for home, as a card, with Not now | Buy · {price}; Buy opens the
-   same pay sheet with where to send it; then Paid, on its way, with the
-   receipt (N231 item 4, N234 item 3).
+   client's checkout as in 7 (N231 item 4, N239 item 2).
 9. **The message box whenever nothing is asked**: +, Type here, the mic, as
    in the Lounge. The customer can always write, add a photo or record a voice
    message to the answerer (N231 item 1).
-10. **The money goes straight to the client**: each client connects its own
-    Stripe account once in admin (Stripe Connect); WillpowerLab never holds
-    it, and the receipt is the client's. A payment through the chat is the
-    request's outcome (N234 item 4).
+10. **The money never passes through us**: the booking is paid in the
+    client's booking system and the product in its shop; the receipts are
+    theirs (N239 items 1 and 2).
 11. Every bubble keeps a shape WhatsApp can carry (text, voice, photo,
    buttons, a list), so moving a client to WhatsApp is a change of transport,
    not of design (N228).
@@ -192,34 +192,53 @@ it is built in.
 
 ### H · What the client's model learns
 
-1. **The pair**: the request, the answer schema, the final answer and its
-   transcript, and the **outcome**: bought, booked, or not yet (N224, N225
-   item 3).
-2. **The answer schema**: what was observed, which products, the routine,
-   when to come in, which signs mean a doctor. Filled by the answerer's picks
+1. **Three models from one Take** (N240 item 1): the eyes (the photo to
+   what is seen: dry scalp, dandruff, oily, irritated, receding hairline,
+   and the hair-loss stage on its fixed scale, Norwood 1 to 7 or Ludwig I to
+   III, read the way the confidence model reads its 1 to 5); the plan (what
+   is seen and the customer's words to the treatment and the product: her
+   picks); the words (the plan to the answer in her voice: her Ideal Text).
+   The reward is the outcome (booked, bought, not yet) and a follow-up photo
+   after three weeks.
+2. **The pair**: the request, the photo's labels, the answer schema, the
+   final answer and its transcript, and the outcome (N224, N225 item 3).
+3. **The labels**: her taps on the picker (D1). A second trichologist labels
+   a sample blind for the frozen test set; two humans settle a label, as the
+   label quorum does today (N240 item 2).
+4. **The answer schema**: what was observed, which products, the routine,
+   when to come in, which signs mean a doctor. Filled by her taps and picks
    before she speaks; the AI reads the rest from the transcript; the founder
    reads and corrects it in admin (N224 item 1, N226 item 2).
-3. **No AI visible in the first version.** When drafts come (from about a
-   hundred pairs), Never 2 holds for the answerer: she records first and sees
-   the draft after (N224 item 2).
-4. **Retrieval**: embeddings per workspace in Supabase with pgvector, through
+5. **No AI visible in the first version.** Drafts start in the background,
+   blind, from about a hundred requests; she sees them only after the golden
+   set passes, and always after she has answered (Never 2, N224 item 2, N240
+   item 4).
+6. **One platform** (N240 item 3): each client's models are learning
+   surfaces in the pipeline that exists (labels, quorum, the split by
+   customer, the sealed golden set, promotion by the founder, drift), each
+   client's data and weights apart. New: training on photos, a vision
+   training provider through the authorization path, the stage scored on its
+   scale.
+7. **Before any photo trains a model**: the customer's own yes to training,
+   its retention, and counsel on whether naming a condition makes it a
+   medical device in the US. Until then the eyes are advisory and seen only
+   by the answerer (N240 item 5).
+8. **Retrieval**: embeddings per workspace in Supabase with pgvector, through
    the authorization path (N224 item 4).
-5. **Fine-tune**: a surface per workspace in the existing pipeline, at 200
-   pairs, its golden set scored on the schema, never on token overlap alone
-   (N224 item 3).
-6. **Autonomy**: the founder opens the door per workspace after the
+9. **Autonomy**: the founder opens the door per workspace after the
    evaluation; the client turns it on per request type; a health red flag
    always goes to a person (N224 item 3).
-7. **The client's IP**: the export, JSONL of the pairs with the schema and the
-   outcome, the documents and the golden set (N223 item 5).
+10. **The client's IP**: the export, JSONL of the pairs with the labels, the
+    schema and the outcome, the documents and the golden set (N223 item 5).
 
 ### I · Admin
 
 1. The founder creates a workspace: the name and colour the customer sees,
    the answerer, the WhatsApp sender, the salons with the answerer's days and
    prices, the script tag to send to the client (N223 item 13). The client
-   connects its Stripe account there once, and gives its cancellation policy,
-   shipping and product prices (N234 items 4 and 5).
+   connects its booking system and its shop there once (for Invita, Fresha
+   and Shopify), and the WhatsApp sender is the client's own (N239 items 1,
+   2 and 4).
 2. The workspace page lists each request's outcome in words, the counts, the
    documents, the DPA's state, and Export pairs. Nothing on it is a score
    about a person (N225 item 3).
@@ -235,7 +254,9 @@ it is built in.
 
 ### K · Words on screen
 
-All new, all waiting for the founder's OK (Never 4). As the prototypes draw
+Approved by the founder as the prototypes draw them (N239 item 7, Never 4).
+The pay sheet's words go with N239: paying is now the client's booking
+system's and shop's. As the prototypes draw
 them:
 
 - The pill: "Ask our trichologist".
@@ -296,35 +317,35 @@ item 15, N225):
 
 ## 3. Still open
 
-- **The words in §1 K**, all of them.
-- **The DPA and the form's consent**, for counsel, before the first client.
+- **The DPA and the form's consent**, for counsel, before the first real
+  customer; what the client pays, before going live (N239 item 6).
 - **The locked screens it touches**, each needing its own page's line when
   built: the request as an ask in the Lounge (walk page E1); the picker in the
-  lens (walk page); the slides from the picks on the recording screen
-  (recording screens' page); the send ask on the Take's card, before the
-  walk (walk page D4, N236 item 2); a reply to the customer from the
-  message box, with a "To {customer}" chip over it (walk page E1).
-- **Where the prototypes are older than a decision**: the Mila prototype's
-  answer page is a page with cards, not the chat (N228, drawn on the Invita
-  prototype); its form asks for a WhatsApp number where Invita's asks for a
-  mobile number by text (E2 decides by country code).
+  lens, with what she sees on top (walk page); the slides from the picks on
+  the recording screen (recording screens' page); the send ask on the Take's
+  card, before the walk (walk page D4, N236 item 2); a reply to the customer
+  from the message box, with a "To {customer}" chip over it (walk page E1).
+- **Where the prototypes are older than a decision**: the customer's
+  prototype still books and pays in our chat (N234), where Book now opens
+  Fresha and Buy opens Shopify's checkout (N239); the answerer's picker has
+  no "what she sees" taps yet (N240 item 2). The Mila prototype's answer
+  page is a page with cards, not the chat (N228).
 - **The colours**: the widget is white and grey (the founder, 28 October); the
   answer chat is in the client's colours (the founder, the same day). Both as
   drawn, until the founder says otherwise.
-- **How a paid booking reaches each client's calendar** (the client's own
-  booking system, or a calendar we keep): open (N234 item 4).
-- **The cancellation policy, shipping and the product's price** are the
-  client's; each tester gives them (N234 item 5).
-- **Before the answerer's side is built** (N236 item 6; each is a question on
-  the answerer's prototype): how fast she must answer and what follows when
-  she does not; many requests at once (one ask at a time, or a list); the
-  photos (how many, kept how long, who at the client sees them); who keeps
-  the catalogue and its prices; the price by spa on the slide; the longest
-  answer and whether it uses her tokens; fixing a word before sending; a
-  check by the client before sending; the WhatsApp sender, Meta's template
-  approval and the US SMS fallback; one inbox for several answerers; Stripe
-  fees and who pays them; the answerer's account, photo and name; what the
-  client pays.
+- **Fresha and Shopify**: whether Fresha gives the booking back to us as the
+  outcome, and how; Shopify's cart link and its order coming back (N239).
+- **Before the answerer's side is built** (N236 item 6): how fast she must
+  answer and what follows when she does not; many requests at once (one ask
+  at a time, or a list); the photos (how many, kept how long, who at the
+  client sees them); who keeps the catalogue and its prices; the price by
+  spa on the slide; whether an answer uses her tokens; fixing a word before
+  sending; Meta's template approval for Invita's sender and the US SMS
+  fallback; one inbox for several answerers; the answerer's account, photo
+  and name.
+- **Before any photo trains a model** (N240 item 5): the customer's yes to
+  training and its retention, counsel on the US medical-device question, the
+  second trichologist who labels blind, and the vision training provider.
 
 ## 4. Where it lives
 
@@ -389,6 +410,8 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-28 · N239, N240 · D1, E6 to E10, H, I1, K, §3: what she sees as taps on the picker; booking in the client's booking system (Fresha) and products in its shop (Shopify); the client's WhatsApp sender; the words approved; three models from one Take on one platform. Was: booking and products paid in our chat into the client's Stripe, the words waiting for the founder, the observation read from the transcript only · BE #1452, FE (this PR)
 
 - 2026-10-28 · N236 · B6, C1, D5, D6, E2, K, §3, §5: the answerer answers in her own Lounge and is told on WhatsApp; the send ask comes once the Take is processed, before the walk; a Take 2 after sending changes nothing until she sends again; an optional first name on the form; the answerer's prototype kept. Was: the send ask after the pair, the link always opened the latest shared Take, no name on the form · BE #1448, FE (this PR)
 
