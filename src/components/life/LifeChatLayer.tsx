@@ -14,7 +14,7 @@ import { CARDS } from "@/lib/life/copy";
 /*      aphorism on a note about something painful is worse than silence.     */
 /*                                                                            */
 /*  The # tag picker that lived here is gone: typing "#" offers one option,   */
-/*  "# note", from the voice notebook (useVoiceNotebook, backend N252).       */
+/*  "# note", from the voice notebook (useVoiceNotebook, backend N253).       */
 /* -------------------------------------------------------------------------- */
 
 /** Rendered under a bot bubble when the turn carried a life card in its

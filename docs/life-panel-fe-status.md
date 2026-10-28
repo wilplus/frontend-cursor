@@ -70,7 +70,7 @@ src/components/life/SetupFlow.tsx        FE-3 setup, save-and-resume
 src/components/life/ProposalCards.tsx    FE-7 proposal / conflict / retire
 src/components/life/StrategyPanel.tsx    read, download, re-upload as an approved diff
 src/components/life/TimelineCanvas.tsx   FE-8 canvas
-src/components/life/LifeChatLayer.tsx    FE-5 response card (the # tag picker is gone: "#" offers only "# note", backend N252)
+src/components/life/LifeChatLayer.tsx    FE-5 response card (the # tag picker is gone: "#" offers only "# note", backend N253)
 
 src/app/panel/{layout,page,not-found}.tsx
 src/app/panel/{principles,principles/[id],wins,phrases,today,goals,timeline,distractions,strategy,setup,data}/page.tsx

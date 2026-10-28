@@ -5,7 +5,7 @@ OUTCOME
   O1  The moment I tap, my note shows the wave of my voice; the words follow it; leaving the app sends the note, it is not thrown away (N194, N199).
   O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).
   O3  While a speaker is onboarded there is no mic and the notebook's ask waits; once the first Take is in, both are there (N243).
-  O4  Typing "#" offers one option, "# note", and tapping it leaves "#" to write on: a typed "#" is one note, as the mic's (N252).
+  O4  Typing "#" offers one option, "# note", and tapping it leaves "#" to write on: a typed "#" is one note, as the mic's (N253).
 PROVES   O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
          O2 -> keeps a note that cannot go and sends it once when back online
          O3 -> waits while the speaker is onboarded, then the mic and the ask are there
@@ -177,7 +177,7 @@ describe("the principles wait while the speaker is onboarded (N243)", () => {
   });
 });
 
-describe('"#" is one note, the same as the mic (N252)', () => {
+describe('"#" is one note, the same as the mic (N253)', () => {
   it('offers only "# note" after "#", and leaves "#" to write on', async () => {
     let draft = "";
     const onPick = vi.fn(() => {

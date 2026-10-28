@@ -941,7 +941,7 @@ review) are expected steps.","O1 -> ""is the record → process → Ideal Text l
 src/components/willab/voiceNotebook.test.tsx,Story,"As the founder in a rush, I want to say a note and close the app, so that what I said is kept and I can see it was written as I meant it.","O1  The moment I tap, my note shows the wave of my voice; the words follow it; leaving the app sends the note, it is not thrown away (N194, N199).
 O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).
 O3  While a speaker is onboarded there is no mic and the notebook's ask waits; once the first Take is in, both are there (N243).
-O4  Typing ""#"" offers one option, ""# note"", and tapping it leaves ""#"" to write on: a typed ""#"" is one note, as the mic's (N252).","O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
+O4  Typing ""#"" offers one option, ""# note"", and tapping it leaves ""#"" to write on: a typed ""#"" is one note, as the mic's (N253).","O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
 O2 -> keeps a note that cannot go and sends it once when back online
 O3 -> waits while the speaker is onboarded, then the mic and the ask are there
 O4 -> offers only ""# note"" after ""#"", and leaves ""#"" to write on",
