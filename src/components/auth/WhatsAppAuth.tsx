@@ -20,11 +20,11 @@ import { sameSitePath } from "@/lib/auth/sameSitePath";
 /*  Authentication template; no Twilio), then, for a new account, the name.   */
 /*  Signing up saves the number as the account's WhatsApp number, so the      */
 /*  WhatsApp ask after Take 1 never comes. Signing in never makes a new       */
-/*  account (N214 item 5). Hidden until NEXT_PUBLIC_WHATSAPP_SIGNIN is on,    */
-/*  which waits for Supabase's phone sign-in and the hook.                    */
+/*  account (N214 item 5). On for everyone (founder 2026-10-28, "go", once    */
+/*  Meta approved login_code); NEXT_PUBLIC_WHATSAPP_SIGNIN=false hides it.    */
 /* -------------------------------------------------------------------------- */
 
-export const WHATSAPP_SIGNIN = process.env.NEXT_PUBLIC_WHATSAPP_SIGNIN === "true";
+export const WHATSAPP_SIGNIN = process.env.NEXT_PUBLIC_WHATSAPP_SIGNIN !== "false";
 
 /** The words, signed (backend N214). No em-dashes (house style). */
 export const WHATSAPP_AUTH_COPY = {
