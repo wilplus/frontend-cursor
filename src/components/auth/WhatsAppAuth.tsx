@@ -37,6 +37,8 @@ export const WHATSAPP_AUTH_COPY = {
   otherNumber: "Use a different number",
   wrongCode: "That code didn't work. Try again.",
   nameTitle: "What should we call you?",
+  // Under the name (backend N232).
+  nameWhy: "Will and your coach use it.",
   continue: "Continue",
   noAccount: "No account signs in with this number. Sign in another way, or ",
   noAccountLink: "sign up with WhatsApp",
@@ -70,17 +72,35 @@ export function WhatsAppIcon({ className }: { className?: string }) {
   );
 }
 
+/** The WhatsApp logo, solid: the bubble in the text colour with the handset
+ *  cut out in the button's orange (backend N232: white on the button). */
+export function WhatsAppGlyph({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden>
+      <path fill="currentColor" d="M12 1.6A10.4 10.4 0 0 0 3.05 17.3L1.6 22.4l5.25-1.38A10.4 10.4 0 1 0 12 1.6z" />
+      <path fill="hsl(var(--primary))" d="M8.6 6.7c-.25-.55-.5-.56-.74-.57h-.63c-.22 0-.57.08-.87.41-.3.33-1.14 1.11-1.14 2.71s1.17 3.15 1.33 3.36c.16.22 2.26 3.6 5.57 4.9 2.75 1.09 3.31.87 3.9.82.6-.05 1.93-.79 2.2-1.55.27-.76.27-1.41.19-1.55-.08-.13-.3-.22-.63-.38-.33-.16-1.93-.95-2.23-1.06-.3-.11-.52-.16-.74.17-.22.33-.85 1.06-1.04 1.28-.19.22-.38.25-.71.08-.33-.16-1.38-.51-2.63-1.62-.97-.87-1.63-1.94-1.82-2.27-.19-.33-.02-.5.14-.67.15-.15.33-.38.49-.57.16-.19.22-.33.33-.55.11-.22.05-.41-.03-.57-.08-.17-.72-1.78-1-2.42z" />
+    </svg>
+  );
+}
+
 export default function WhatsAppAuth({
   mode,
   onBack,
   onSuccess,
   legal,
+  first = false,
+  after,
 }: {
   mode: "signup" | "login";
-  onBack: () => void;
+  onBack?: () => void;
   onSuccess?: () => void;
   /** The terms line under the number (the sign-up page's). */
   legal?: React.ReactNode;
+  /** The page opens on the number (backend N232): no Back, the button says
+   *  "Sign up with WhatsApp" or "Sign in with WhatsApp". */
+  first?: boolean;
+  /** Under the number step only: the other ways in and the page's links. */
+  after?: React.ReactNode;
 }) {
   const supabase = createClient();
   const [step, setStep] = useState<Step>("number");
@@ -238,9 +258,12 @@ export default function WhatsAppAuth({
   if (step === "name") {
     return (
       <form onSubmit={submitName} className="space-y-4">
-        <label htmlFor="wa-name" className="block text-base font-semibold">
-          {WHATSAPP_AUTH_COPY.nameTitle}
-        </label>
+        <div>
+          <label htmlFor="wa-name" className="block text-base font-semibold">
+            {WHATSAPP_AUTH_COPY.nameTitle}
+          </label>
+          <p className="mt-1 text-sm text-muted-foreground">{WHATSAPP_AUTH_COPY.nameWhy}</p>
+        </div>
         <Input id="wa-name" type="text" autoComplete="name" placeholder="Your name" value={name}
           onChange={(e) => setName(e.target.value)} required disabled={busy} />
         <Button type="submit" className="w-full" disabled={busy || !name.trim()}>
@@ -288,12 +311,15 @@ export default function WhatsAppAuth({
 
   return (
     <form onSubmit={submitNumber} className="space-y-4">
-      <button type="button" onClick={onBack}
-        className="min-h-[44px] text-sm text-muted-foreground hover:underline">
-        ← Back
-      </button>
+      {first ? null : (
+        <button type="button" onClick={onBack}
+          className="min-h-[44px] text-sm text-muted-foreground hover:underline">
+          ← Back
+        </button>
+      )}
       <div>
-        <label id="wa-phone-label" htmlFor="wa-phone" className="mb-2 block text-sm font-medium">
+        <label id="wa-phone-label" htmlFor="wa-phone"
+          className={first ? "sr-only" : "mb-2 block text-sm font-medium"}>
           {WHATSAPP_AUTH_COPY.numberLabel}
         </label>
         {/* The country by its flag, Poland first (backend N230). */}
@@ -312,9 +338,16 @@ export default function WhatsAppAuth({
           </p>
         ) : null}
       </div>
-      <Button type="submit" className="w-full" disabled={busy || !number}>
-        {WHATSAPP_AUTH_COPY.sendCode}
+      <Button type="submit" className={first ? "h-12 w-full gap-2 rounded-xl text-[15px] font-semibold" : "w-full"}
+        disabled={busy || !number}>
+        {first ? (
+          <>
+            <WhatsAppGlyph className="h-5 w-5 shrink-0 text-white" />
+            <span>{mode === "signup" ? WHATSAPP_AUTH_COPY.signUp : WHATSAPP_AUTH_COPY.signIn}</span>
+          </>
+        ) : WHATSAPP_AUTH_COPY.sendCode}
       </Button>
+      {after}
       {legal}
     </form>
   );

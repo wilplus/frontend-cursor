@@ -14,9 +14,7 @@ export default function LoginPage() {
           <h1 className="flex justify-center">
             <Logo size="lg" />
           </h1>
-          <p className="mt-2 text-base text-muted-foreground sm:text-sm">
-            Your best talk, in your own words
-          </p>
+          {/* No line under the logo (founder 2026-10-28, backend N232). */}
         </div>
         <LoginForm />
       </div>

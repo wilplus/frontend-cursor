@@ -13,7 +13,8 @@ import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 import { claimOAuthRetry, isStateReplayError } from "@/lib/auth/oauthRetry";
 import { startOAuth } from "@/lib/auth/startOAuth";
 import { sameSitePath } from "@/lib/auth/sameSitePath";
-import WhatsAppAuth, { WHATSAPP_AUTH_COPY, WHATSAPP_SIGNIN, WhatsAppIcon } from "@/components/auth/WhatsAppAuth";
+import WhatsAppAuth, { WHATSAPP_SIGNIN } from "@/components/auth/WhatsAppAuth";
+import OtherWays from "@/components/auth/OtherWays";
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -36,8 +37,9 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  // Sign in with WhatsApp (backend N214): only a number already on an account.
-  const [showWhatsApp, setShowWhatsApp] = useState(false);
+  // With WhatsApp on, the page opens on the number and Email opens the
+  // email form (backend N232).
+  const [showEmail, setShowEmail] = useState(false);
   // Carry "where to go after" (e.g. the booking page) through to sign-up.
   const [signupHref, setSignupHref] = useState("/signup");
   useEffect(() => {
@@ -183,27 +185,43 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
     }
   };
 
-  if (showWhatsApp) {
+  const signUpLine = (
+    <p className="text-center text-base sm:text-sm">
+      Don&apos;t have an account?{" "}
+      <Link href={signupHref} className="text-orange-500 hover:underline">
+        Sign up
+      </Link>
+    </p>
+  );
+
+  // The page opens on the WhatsApp number (founder 2026-10-28, backend
+  // N232): the number and "Sign in with WhatsApp", then the other ways.
+  if (WHATSAPP_SIGNIN && !showEmail) {
     return (
-      <Card className="min-w-0 p-4 sm:p-6">
-        <WhatsAppAuth mode="login" onBack={() => setShowWhatsApp(false)} onSuccess={onSuccess} />
+      <Card className="min-w-0 p-6 sm:p-7">
+        <WhatsAppAuth mode="login" first onSuccess={onSuccess}
+          after={(
+            <>
+              <OtherWays mode="login" onEmail={() => setShowEmail(true)} />
+              {signUpLine}
+            </>
+          )} />
       </Card>
     );
   }
 
   return (
     <Card className="min-w-0 p-4 sm:p-6">
+      {WHATSAPP_SIGNIN ? (
+        <div className="mb-4 flex flex-col gap-1">
+          <button type="button" onClick={() => setShowEmail(false)}
+            className="min-h-[44px] self-start text-sm text-muted-foreground hover:underline">
+            ← Back
+          </button>
+          <h2 className="text-base font-semibold">Sign in with email</h2>
+        </div>
+      ) : (
       <div className="mb-4 space-y-3">
-        {WHATSAPP_SIGNIN ? (
-          <Button
-            type="button"
-            className="w-full gap-2 bg-foreground font-medium text-background hover:bg-foreground/90"
-            onClick={() => setShowWhatsApp(true)}
-          >
-            <WhatsAppIcon className="h-5 w-5 shrink-0" />
-            <span>{WHATSAPP_AUTH_COPY.signIn}</span>
-          </Button>
-        ) : null}
         <LinkedInAuthButton mode="login" />
         <GoogleAuthButton mode="login" />
 
@@ -216,6 +234,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
           </div>
         </div>
       </div>
+      )}
 
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
@@ -250,12 +269,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
       </form>
 
       <div className="mt-4 space-y-2 text-center text-base sm:text-sm">
-        <p>
-          Don&apos;t have an account?{" "}
-          <Link href={signupHref} className="text-orange-500 hover:underline">
-            Sign up
-          </Link>
-        </p>
+        {signUpLine}
         <p>
           <Link
             href="/reset-password"

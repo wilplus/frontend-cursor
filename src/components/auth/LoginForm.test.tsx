@@ -55,6 +55,10 @@ afterEach(() => {
 async function signInFrom(redirectTo: string) {
   window.history.replaceState({}, "", `/login?redirectTo=${encodeURIComponent(redirectTo)}`);
   act(() => root.render(createElement(LoginForm)));
+  // The page opens on the WhatsApp number (backend N232); Email opens the
+  // email and password form.
+  const email = [...container.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Email");
+  if (email) act(() => email.click());
   await act(async () => {
     container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     await vi.advanceTimersByTimeAsync(1000);

@@ -38,6 +38,12 @@ export const PHONE_FIELD_COPY = {
   country: (name: string, dial: string) => `Country: ${name}, +${dial}`,
 } as const;
 
+/** A number shaped like a real one, as the prototype shows it; other
+ *  countries show zeros of the right length. */
+const SAMPLES: Record<string, string> = {
+  PL: "600 100 200", US: "201 555 0123", GB: "7700 900123", DE: "1512 3456789",
+};
+
 /** The country and the number of an E.164 string, for a field that opens
  *  with a number already given. */
 function split(initial: string | null | undefined): { country: Country; text: string } {
@@ -111,7 +117,7 @@ export default function PhoneNumberField({
     window.requestAnimationFrame(() => input.current?.focus());
   };
 
-  const sample = grouped("0".repeat(country.min));
+  const sample = SAMPLES[country.iso] ?? grouped("0".repeat(country.min));
 
   return (
     <div>
