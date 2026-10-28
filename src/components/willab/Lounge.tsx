@@ -87,7 +87,7 @@ import {
 import { useRouter } from "next/navigation";
 import SymmetricPair from "./SymmetricPair";
 import { useAdminAsk } from "./useAdminAsk";
-import { afterTakeOrder, askShowing, askToOpen, heldFor, heldMessage, heldTake, waitingFor } from "./afterTake";
+import { afterTakeOrder, askShowing, askToOpen, heldFor, heldMessage, heldTake, recordedPast, waitingFor } from "./afterTake";
 import { postAfterTake } from "@/services/api/afterTake";
 import { setInstallable } from "@/lib/willab/installable";
 import { ConsentAskActions } from "./ConsentAsk";
@@ -1050,10 +1050,13 @@ export default function Lounge({
     onRecordNext: (arc) => openIdealText(arc, "share"),
     recordHeld: takeInFlight,
   });
+  // Once the next Take is recorded, an older "Record Take N" goes until
+  // that Take's walk reaches its summary (N244).
+  const recordedSince = useMemo(() => recordedPast(messages), [messages]);
   const nextTakeOf = (m: LoungeMessage): SummaryRecord | null => {
     // A practice day's one thing, newer than this message, holds the chat's
     // one record button (N167).
-    if (plan.oneHoldsRecord) return null;
+    if (plan.oneHoldsRecord || recordedSince.has(m.client_id)) return null;
     const meta = m.metadata ?? {};
     const arc = meta.arc_id;
     const take = meta.take_index;
