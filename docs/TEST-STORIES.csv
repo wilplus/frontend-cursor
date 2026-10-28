@@ -159,10 +159,10 @@ O4  Back from the email's link the card says ""Your email is now …"" and
 refreshes the session, so the menu shows the new address; a link that
 failed says the page's ""Couldn’t save that. Try again.""
 O5  When the account can't be read, there is no card.
-O6  Adding WhatsApp as a way in: a number without its country code is
-refused before any code goes; the code goes to the number, a wrong
-code says so, and the right one makes the row say ""You can sign in
-with WhatsApp at {number}.""
+O6  Adding WhatsApp as a way in: a number too short for its country sends
+no code; the code goes to the number, a wrong code says so, and the
+right one makes the row say ""You can sign in with WhatsApp at
+{number}."" and keeps the number for the messages too (backend N230).
 O7  A WhatsApp account with no email has no email row and no password
 row: the card says where it signs in with WhatsApp.","O1 -> ""sends the change and says the link went; a wrong password keeps the form""
 O2 -> ""a Google account sets a password with a link""
@@ -249,8 +249,8 @@ src/components/auth/LoginForm.test.tsx,Story,"As a person signing in from a link
 behind an extra encoding or a backslash) is ignored: I land on /chat.
 O2  A redirectTo on our own site is still honoured, query and all.","O1 -> ""an off-site redirectTo (%s) lands on /chat""
 O2 -> ""a same-site redirectTo is still honoured""",Open redirect in the login form (2026-10-21). The coach's WhatsApp and email links rely on O2: they land on /login?redirectTo=/chat?lens=… (WIL-93).
-src/components/auth/WhatsAppAuth.test.tsx,Story,"As someone signing up or in with WhatsApp, I want to give my number, type the code WhatsApp brings and, when I am new, my name, so that I am in without an email or a password.","O1  Signing up: a number without its country code is refused before any
-code is sent; a wrong code says so; the right one asks a new account
+src/components/auth/WhatsAppAuth.test.tsx,Story,"As someone signing up or in with WhatsApp, I want to give my number, type the code WhatsApp brings and, when I am new, my name, so that I am in without an email or a password.","O1  Signing up: Poland is chosen at the start and a number too short for
+it sends no code (backend N230); a wrong code says so; the right one asks a new account
 its name, keeps the number as the account's WhatsApp number, and lands.
 O2  Signing in never makes an account: a number no account signs in with
 says so and points to sign-up, and the number is not saved anywhere.","O1 -> ""signing up: number, code, name, and the number is kept""
@@ -264,6 +264,13 @@ O2  Before the first goal is set, nothing new shows.
 O3  While a plan runs, the career ladder shows THIS WEEK with the plan's level, as a plain row, never a step to change.","O1 -> shows my ladders with every version dated
 O2 -> shows nothing before my first goal
 O3 -> shows this week's level from my plan, read-only",
+src/components/phone/PhoneNumberField.test.tsx,Story,"As someone giving my WhatsApp number, I want to find my country by its flag, name or code, so that I don't have to remember the code.","O1  Poland is chosen at the start; the list opens with Poland, then the
+United States, then every country A to Z.
+O2  Searching ""uk"" finds the United Kingdom; picking it gives the number
+its +44.
+O3  A full number pasted with + picks its own country, and a leading 0 is
+dropped.","O1, O2 -> ""Poland first, then the US, then A to Z; search finds the UK""
+O3 -> ""a pasted number picks its country""","Founder 2026-10-28, backend N230."
 src/components/rings/RingAnnouncementSheet.test.tsx,Story,"As a speaker, I want a feature announcement I can dismiss with Not now, and its Yes off until a policy exists, so that nothing turns on or records consent without me.","O1  Not now records the decision, hides the sheet, records no consent.
 O2  Without a policy, Yes is a disabled button (no link to the data
 choices), the sheet says why, and pressing it records nothing.","O1 -> ""not now records the answer, hides the sheet and creates no consent""
@@ -911,12 +918,13 @@ O2 -> ""a paragraph whose helper words were deleted is back in the walk on its e
 O3 -> ""every moment answered: a bubble tapped in the Lounge opens the walk on its moment, never the text""
 O4 -> ""one moment still waiting: its bubble opens the whole walk, the waiting step live, nothing new in the chat""
 O5 -> ""every moment answered: the Feedback walk naming no step of the walk opens it on its newest step, never the text""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
-src/components/willab/whatsappOffer.test.tsx,Story,"As a speaker, I want to leave my WhatsApp number to hear when my coach's feedback is in, with wrong numbers refused, so that the message reaches me.","O1  A number without its country code is refused on screen and nothing is sent.
-O2  A valid number is saved in full international form and the offer closes.
+src/components/willab/whatsappOffer.test.tsx,Story,"As a speaker, I want to leave my WhatsApp number to hear when my coach's feedback is in, checked once with a code, so that the message reaches me and the number signs me in too.","O1  A number too short for its country sends no code.
+O2  A full number gets a code on WhatsApp; a wrong code says so; the right
+one saves it and the offer closes (backend N230).
 O3  Not now sends nothing and closes.
 O4  A number I typed in the chat without its country code is in the form,
-to fix, not to type again (founder 2026-10-20).","O1 -> refuses a number without its country code
-O2 -> saves a valid number in E.164 and closes
+to fix, not to type again (founder 2026-10-20).","O1 -> sends no code for a number too short
+O2 -> checks the number with a code, then saves it and closes
 O3 -> Not now sends nothing and closes
 O4 -> opens with the number typed in the chat",
 src/components/willab/willabHelpers.test.ts,Story,"As a speaker, I want my slide taps lined up with the recording's clock, so that each word lands on the right slide.","O1  When the recording started later than the tap clock, the correction is positive by exactly that gap.

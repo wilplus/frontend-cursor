@@ -22,6 +22,7 @@
 /*  row. Off: "Sign in with your WhatsApp number too." and Add, then the      */
 /*  number and the code (Supabase's phone change; the backend's hook sends    */
 /*  the code on WhatsApp). On: "You can sign in with WhatsApp at {number}."   */
+/*  The same number gets the messages too (backend N230).                     */
 /*  A WhatsApp account has no email row until it has an email, and no         */
 /*  password row either, since its links go by email.                         */
 /* -------------------------------------------------------------------------- */
@@ -29,8 +30,8 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { WHATSAPP_AUTH_COPY, WHATSAPP_SIGNIN } from "@/components/auth/WhatsAppAuth";
-import { WHATSAPP_COPY } from "@/components/willab/WillabWhatsAppPrompt";
-import { normalizePhone } from "@/services/api/whatsapp";
+import PhoneNumberField from "@/components/phone/PhoneNumberField";
+import { confirmNumberCode, sendNumberCode } from "@/services/api/whatsappNumber";
 import {
   changeEmail,
   changePassword,
@@ -317,9 +318,11 @@ export default function AccountSignInCard({
 }
 
 /** WhatsApp as a way in: the number, then the code Supabase sends to it
- *  through the backend's hook (on WhatsApp), then on. */
+ *  through the backend's hook (on WhatsApp), then on. The same number gets
+ *  the messages too (backend N230). */
 function WhatsAppRow({ phone, onAdded }: { phone: string | null; onAdded: (phone: string) => void }) {
   const [step, setStep] = useState<"closed" | "number" | "code">("closed");
+  const [number, setNumber] = useState<string | null>(null);
   const [adding, setAdding] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -343,15 +346,14 @@ function WhatsAppRow({ phone, onAdded }: { phone: string | null; onAdded: (phone
     setError(null);
   };
 
-  /** Ask Supabase to change the account's phone: it sends the code. */
+  /** True when the code went; a number the account already has is on. */
   const sendCode = async (to: string): Promise<boolean> => {
-    const { data, error: sendError } = await createClient().auth.updateUser({ phone: to });
-    if (sendError) {
+    const sent = await sendNumberCode(to);
+    if (sent === "failed") {
       setError(COPY.failed);
       return false;
     }
-    // A project that confirms phones without a code has changed it already.
-    if ((data.user?.phone ?? "").replace(/^\+/, "") === to.replace(/^\+/, "")) {
+    if (sent === "same") {
       onAdded(to);
       return false;
     }
@@ -363,12 +365,11 @@ function WhatsAppRow({ phone, onAdded }: { phone: string | null; onAdded: (phone
 
   const submitNumber = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const to = normalizePhone(String(new FormData(event.currentTarget).get("whatsapp") ?? ""));
-    if (!to) return setError(WHATSAPP_COPY.invalid);
+    if (!number || busy) return;
     setBusy(true);
     setError(null);
-    if (await sendCode(to)) {
-      setAdding(to);
+    if (await sendCode(number)) {
+      setAdding(number);
       setStep("code");
     }
     setBusy(false);
@@ -380,11 +381,9 @@ function WhatsAppRow({ phone, onAdded }: { phone: string | null; onAdded: (phone
     if (!token) return;
     setBusy(true);
     setError(null);
-    const { data, error: verifyError } = await createClient().auth.verifyOtp({
-      phone: adding, token, type: "phone_change",
-    });
+    const ok = await confirmNumberCode(adding, token);
     setBusy(false);
-    if (verifyError || !data.user) return setError(WHATSAPP_AUTH_COPY.wrongCode);
+    if (!ok) return setError(WHATSAPP_AUTH_COPY.wrongCode);
     onAdded(adding);
   };
 
@@ -408,15 +407,15 @@ function WhatsAppRow({ phone, onAdded }: { phone: string | null; onAdded: (phone
       {step === "number" ? (
         <form className="flex flex-col gap-3.5 rounded-xl bg-muted p-4" onSubmit={submitNumber} noValidate>
           <div className="flex flex-col gap-2">
-            <label htmlFor="account-whatsapp" className="self-start text-sm font-medium">
+            <label id="account-whatsapp-label" htmlFor="account-whatsapp" className="self-start text-sm font-medium">
               {WHATSAPP_AUTH_COPY.numberLabel}
             </label>
-            <Input id="account-whatsapp" name="whatsapp" type="tel" inputMode="tel" autoComplete="tel"
-              placeholder={WHATSAPP_COPY.placeholder} defaultValue={adding} autoFocus className="text-base sm:text-sm" />
+            <PhoneNumberField id="account-whatsapp" label="account-whatsapp-label" initial={adding || null}
+              onChange={setNumber} disabled={busy} autoFocus />
           </div>
           <Problem text={error} />
           <div className="flex flex-wrap gap-3">
-            <button type="submit" className={PRIMARY} disabled={busy}>{WHATSAPP_AUTH_COPY.sendCode}</button>
+            <button type="submit" className={PRIMARY} disabled={busy || !number}>{WHATSAPP_AUTH_COPY.sendCode}</button>
             <button type="button" className={BUTTON} onClick={close}>{COPY.cancel}</button>
           </div>
         </form>

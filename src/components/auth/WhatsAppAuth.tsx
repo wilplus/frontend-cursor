@@ -7,8 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { claimGuestProjects } from "@/services/api/projects";
-import { fetchWhatsAppPhone, normalizePhone, saveWhatsAppPhone } from "@/services/api/whatsapp";
-import { WHATSAPP_COPY } from "@/components/willab/WillabWhatsAppPrompt";
+import { fetchWhatsAppPhone, saveWhatsAppPhone } from "@/services/api/whatsapp";
+import PhoneNumberField from "@/components/phone/PhoneNumberField";
 import { sameSitePath } from "@/lib/auth/sameSitePath";
 
 /* -------------------------------------------------------------------------- */
@@ -84,11 +84,11 @@ export default function WhatsAppAuth({
 }) {
   const supabase = createClient();
   const [step, setStep] = useState<Step>("number");
-  const [raw, setRaw] = useState("");
+  const [number, setNumber] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
-  const [error, setError] = useState<"invalid" | "wrong" | "noAccount" | null>(null);
+  const [error, setError] = useState<"wrong" | "noAccount" | null>(null);
   const [busy, setBusy] = useState(false);
   const [canResend, setCanResend] = useState(false);
   const resendTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -119,11 +119,8 @@ export default function WhatsAppAuth({
 
   const submitNumber = async (e: React.FormEvent) => {
     e.preventDefault();
-    const to = normalizePhone(raw);
-    if (!to) {
-      setError("invalid");
-      return;
-    }
+    const to = number;
+    if (!to || busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -296,19 +293,15 @@ export default function WhatsAppAuth({
         ← Back
       </button>
       <div>
-        <label htmlFor="wa-phone" className="mb-2 block text-sm font-medium">
+        <label id="wa-phone-label" htmlFor="wa-phone" className="mb-2 block text-sm font-medium">
           {WHATSAPP_AUTH_COPY.numberLabel}
         </label>
-        <Input id="wa-phone" type="tel" inputMode="tel" autoComplete="tel"
-          placeholder={WHATSAPP_COPY.placeholder} value={raw} disabled={busy}
-          aria-invalid={error === "invalid" ? true : undefined}
-          onChange={(e) => {
-            setRaw(e.target.value);
+        {/* The country by its flag, Poland first (backend N230). */}
+        <PhoneNumberField id="wa-phone" label="wa-phone-label" initial={phone || null} disabled={busy}
+          onChange={(next) => {
+            setNumber(next);
             if (error) setError(null);
           }} />
-        {error === "invalid" ? (
-          <p role="alert" className="mt-2 text-sm text-destructive">{WHATSAPP_COPY.invalid}</p>
-        ) : null}
         {error === "noAccount" ? (
           <p role="alert" className="mt-2 text-sm text-destructive">
             {WHATSAPP_AUTH_COPY.noAccount}
@@ -319,7 +312,7 @@ export default function WhatsAppAuth({
           </p>
         ) : null}
       </div>
-      <Button type="submit" className="w-full" disabled={busy}>
+      <Button type="submit" className="w-full" disabled={busy || !number}>
         {WHATSAPP_AUTH_COPY.sendCode}
       </Button>
       {legal}
