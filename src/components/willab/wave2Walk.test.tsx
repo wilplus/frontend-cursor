@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 /*
- * STORY    As a speaker, I want my coach's unseen word reachable through
- *          "Review feedback" even when every moment is answered, and a
- *          paragraph whose helper words I deleted to rejoin the walk, so that
- *          I never miss my coach or a paragraph.
+ * STORY    As a speaker, I want every door of the chat (a bubble, "Review
+ *          feedback", the Feedback walk) to open my whole walk, everything I
+ *          went through, my coach's unseen word included, and a paragraph
+ *          whose helper words I deleted to rejoin the walk, so that I never
+ *          miss my coach, a part of my feedback or a paragraph.
  * OUTCOME
  *   O1  Every moment answered and an unseen coach word: Review feedback
  *       stays, opens Step 0 only on its tap, and goes once watched: only
@@ -30,10 +31,9 @@
  *       job opened (N220) opens the whole walk on them, the moment and its
  *       practise above, never the words alone (founder 2026-10-28: "it just
  *       opens helper words"; B10, C3).
- *   O7  A finished Take's walk opened again from its Feedback walk holds
- *       every step as it went, read only: the tempo step as the chat kept
- *       it, the other speakers' moments judged with the answers given, and
- *       the summary; nothing is posted or judged again (founder 2026-10-28,
+ *   O7  A finished Take's Feedback walk shows everything I went through,
+ *       read only, down to the summary: the tempo game and the speakers I
+ *       judged, with my answers. Nothing is sent again (founder 2026-10-28,
  *       N247: "the whole feedback walk with all the things that are there
  *       that we went through").
  * PROVES   O1 -> "every moment answered: Review feedback stays for the unseen word, ..."
@@ -42,7 +42,7 @@
  *          O4 -> "one moment still waiting: its bubble opens the whole walk, the waiting step live, nothing new in the chat"
  *          O5 -> "every moment answered: the Feedback walk naming no step of the walk opens it on its newest step, never the text"
  *          O6 -> "the Feedback walk standing on the helper words a Good job opened opens the whole walk, never the words alone"
- *          O7 -> "the Feedback walk opens the whole walk: the tempo step as the chat kept it, the moments judged with their answers, the summary; nothing is posted"
+ *          O7 -> "a finished Take's Feedback walk shows everything I went through: the tempo game, the speakers I judged, the summary; nothing is sent again"
  * WHY      Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the
  *          deck's own rule (buildBookmarks), not on the rendered deck.
  */
@@ -357,7 +357,7 @@ describe("B10: every door opens the whole Take's walk", () => {
 });
 
 describe("N247: a finished walk opened again holds every step as it went", () => {
-  it("the Feedback walk opens the whole walk: the tempo step as the chat kept it, the moments judged with their answers, the summary; nothing is posted", async () => {
+  it("a finished Take's Feedback walk shows everything I went through: the tempo game, the speakers I judged, the summary; nothing is sent again", async () => {
     const said = (id: string, step: string, role: string, body: string, extra: Record<string, unknown> = {}) => ({
       client_id: id, role, kind: "walk_step", body, client_created_at: `2026-10-28T10:00:0${id}Z`,
       metadata: { step, take_session_id: "take-2", arc_id: "arc-1", ...extra },
