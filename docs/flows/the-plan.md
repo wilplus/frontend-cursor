@@ -51,6 +51,11 @@ built and what is still to come.
 4. Before any Take but the first, the only thing shown is the feelings check,
    one tap, with a Skip (D4). Every other question on this page waits until
    after the Take (Never 3; N178).
+5. While a speaker is onboarded, the principles wait: from the first
+   question until a new speaker's first Take, and while the questions are
+   asked for a speaker who already has Takes (A2, A3). The plan says so
+   (`onboarding`), and nothing of the voice notebook, the Sunday note or life
+   goals shows meanwhile ([principles](principles.md) A6; N243).
 
 ### B · The questions, in the Lounge
 
@@ -247,9 +252,11 @@ built and what is still to come.
    The last practice and the next plan show the same bubble with N89's
    closing line. No "Start a new project" under it: the "+" next to "Type
    here" opens the projects, as today (N167, N169).
-7. The walk shows the Take's best moment and the moment where this week's
-   level shows most; when no moment shows it, the two best, as today (N134,
-   N209). The level's moment opens with "This week's level: {level}.
+7. The walk shows the Take's two best moments and the moment where this
+   week's level shows most: a third moment, or one of the two when the level
+   shows most there; when no moment shows it, the two best (N246 item 3, in
+   place of N134 and N209's best moment and the level's: "Two best +
+   level"). The level's moment opens with "This week's level: {level}.
    Here's where it shows:" above the speaker's clip, and is practised with
    the level's own practice, its row of the treatment picker: the AI
    version of the voice with its pace tip ("Let your key line land"), its
@@ -538,6 +545,9 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N246 · G7: the walk shows the two best moments and the level's moment as well, a third or one of the two; and the walk the speaker sees now reads the level (it never did: the serve path asked a store that cannot read a plan, so only the dark frame had the level's moment). Was: the best moment and the level's · BE #1459, BE (code PR), FE (this PR)
+- 2026-10-28 · N150 · fixed (B6): a question, opener or ack the AI left with a slot unfilled ("If {who they will speak to} remembers …", seen by the founder) is not kept, and Will says the plain template; a slot is never kept as a fact, and the plan card's "Why this line?" reads "them" for one stored before · BE #1461
+- 2026-10-28 · N243 · A5: the plan says when the speaker is onboarded (`onboarding`: the questions, then a new speaker's plan until the first Take; not a plan waiting for the next Take), and the principles wait meanwhile; the Lounge reads the plan again when a Take lands in the thread, so the first Take's footer gives way and the principles come back without the app being opened again; was: nothing held them back while the questions were asked · BE #1456, #1460, FE (this PR)
 - 2026-10-28 · N244 · today's one thing gives its "Record Take N" up once that Take is recorded; the Take's own closing message brings the next one after the walk's summary (G6). Was: the button came back the moment processing ended, beside the new Take's walk, until the closing message landed · BE (N244 log), FE (this PR)
 - 2026-10-28 · N242 · "I have a new event" is hidden while a Take is still processing, in Change your plan (H1) and at the plan's end (I2); it comes back when the Take has landed. Was: shown at any time, and a tap while the Take was processing left the speaker with nothing to do · BE #1455, FE
 - 2026-10-28 · N194 · no change to the plan: the voice answer in the plan's dock (`PlanDock.tsx`) reads the recorder's finished note as `{ audio, durationMs }`, the shape the shared recorder takes since the voice notebook's live words; it records and sends exactly as before (no wave, no live words, no outbox) · FE #1009

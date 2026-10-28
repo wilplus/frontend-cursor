@@ -40,6 +40,9 @@ export type PlanLounge = {
   holdsEmpty: boolean;
   /** A practice day's one thing holds the chat's one record button. */
   oneHoldsRecord: boolean;
+  /** The principles wait while the speaker is onboarded (backend N243): until
+   *  the plan is read, then while it says so. */
+  holdsPrinciples: boolean;
 };
 
 type Thread = { messages: LoungeMessage[]; loading: boolean; reload: () => Promise<void> | void };
@@ -47,6 +50,13 @@ type Thread = { messages: LoungeMessage[]; loading: boolean; reload: () => Promi
 function newestPlanRow(messages: LoungeMessage[]): string | null {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     if (typeof messages[i].metadata?.plan === "string") return messages[i].client_id;
+  }
+  return null;
+}
+
+function newestTakeRow(messages: LoungeMessage[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (typeof messages[i].metadata?.take_index === "number") return messages[i].client_id;
   }
   return null;
 }
@@ -101,6 +111,18 @@ export function usePlanLounge({
     seen.current = newest;
     if (!first && !busy) void getPlan().then(setState);
   }, [newest, state?.enabled, busy]);
+
+  // A Take that lands in the thread: read the plan again, so the first Take
+  // ends the onboarding, its footer gives way and the principles come back
+  // (N243), without waiting for the app to be opened again.
+  const newestTake = newestTakeRow(thread.messages);
+  const seenTake = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!state?.enabled || busy || newestTake === seenTake.current) return;
+    const first = seenTake.current === undefined;
+    seenTake.current = newestTake;
+    if (!first) void load();
+  }, [newestTake, state?.enabled, busy, load]);
 
   const run = useCallback(
     async (work: () => Promise<PlanState | null>) => {
@@ -211,5 +233,6 @@ export function usePlanLounge({
     composerDisplay: (base) => (kind ? "hidden" : base),
     holdsEmpty: signedIn && (state === null || plan !== null),
     oneHoldsRecord: newestOne !== null,
+    holdsPrinciples: signedIn && (state === null || plan?.onboarding === true),
   };
 }
