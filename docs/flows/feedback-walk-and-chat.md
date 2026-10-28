@@ -82,28 +82,53 @@ step; the loop never waits for a coach.
   the bar, no message box, no scrollbar (wheel, trackpad or finger). On a
   computer the lens is as wide as the Lounge's chat column (max-w-3xl); the
   Ideal Text's Record Take and Close sit in the same column (2026-10-20).
-- **B3** Lens off is the Lounge, the main view: 15px, 16px corners, 20px
-  avatar. A Take is its recording, one "Feedback walk" bubble and, once the
-  walk is done, the Take's Ideal Text card under it (founder 2026-10-26,
-  N192: "there should be just the ideal text after the take and the feedback
-  walk above it"; "make sure that all of these are in one bubble now in a
-  bubble with a date and a small arrow to open it"; then "go with A", over
-  the card alone with a black line on every paragraph the walk has something
-  on, and one card with a Feedback walk row, both drawn). Nothing else the
-  walk says is drawn in the chat: the hello, the coach's word (D5), the
-  praise, "Choose your helper words" and the speaker's words, the clearer
-  version and the choice, the AI voice's bubble, the tries and their
-  answers, other speakers and the answers, and the summary (D4) are in the
-  walk only. The Feedback walk is light grey on the left: "Feedback walk",
-  under it one small grey line with the Take's date at its end, in the
-  recording's format ("Oct 25, 2026"), and "🔒 Take N" at its start for an
-  older Take, and the › that opens it (B10). Opening a walk posts nothing in
-  the chat. Under the thread, the Lounge has no record
-  button, only the message box; "Record Take N" is in the thread, under the
-  closing message (D4). With a plan, under the plan card, in place of
-  "Type here", there is only "Start your first recording" (N161), and on a
-  practice day the chat has one record button, in the newest bubble (N167);
-  the plan is decided, not built ([`the-plan.md`](the-plan.md) E5, G6).
+- **B3** **The Lounge** (lens off) is the main view: 15px text, 16px corners,
+  20px avatar. After a Take the chat shows, in this order:
+  1. the speaker's recording, with who hears it as one line under its player
+     (G1);
+  2. **the pair:** the Take's "Feedback walk" bubble and, right under it, the
+     Take's Ideal Text card (D4);
+  3. the chain after the Take, ending with "Look, practice makes perfect…"
+     and "Record Take N" (D4).
+
+  **The Feedback walk bubble:** light grey, on the left. It reads "Feedback
+  walk"; under it one small grey line: "🔒 Take N" at its start for an older
+  Take, "Edited" once something in the walk changed (B13), and the Take's
+  date at its end, in the recording's format ("Oct 25, 2026"). Its › opens
+  the walk (B10).
+
+  **The pair:**
+  - Both are as wide as the card: 80% of the chat, at most 384px. The
+    Feedback walk has that width from the moment it lands.
+  - The card sits 3px under the Feedback walk, their left corners drawn in
+    where they meet. The Feedback walk has no tail: the card closes the pair.
+  - While the walk runs, the Feedback walk stands alone: the Take's "Your
+    ideal text is ready" card waits for the walk's end. A walk left before
+    its end (the next Take recorded) pairs with that card.
+  - The pair stays under its recording. Anything that lands while the walk
+    waits (the speaker writing to Will) stays under the pair, and the card
+    joins its Feedback walk there. Nothing moves.
+
+  **In the walk only:** everything else the walk says: the hello, the coach's
+  word (D5), the praise, "Choose your helper words" and the speaker's words,
+  the clearer version and the choice, the AI voice's bubble, the tries and
+  their answers, other speakers and the answers, and the summary (D4).
+  Opening a walk posts nothing in the chat.
+
+  **Record buttons:** under the thread the Lounge has only the message box;
+  "Record Take N" is in the thread, under the closing message (D4). With a
+  plan, under the plan card, in place of "Type here", there is only "Start
+  your first recording" (N161), and on a practice day the chat has one
+  record button, in the newest bubble (N167); the plan is decided, not built
+  ([`the-plan.md`](the-plan.md) E5, G6).
+
+  (Founder 2026-10-26, N192: "there should be just the ideal text after the
+  take and the feedback walk above it", "make sure that all of these are in
+  one bubble now in a bubble with a date and a small arrow to open it", then
+  "go with A"; N202: "always as two bubble pair", then "yes, go with both
+  recommendations". Drawn and not chosen: the card alone with a black line on
+  every paragraph the walk has something on, and one card with a Feedback
+  walk row.)
 - **B4** Bubbles: the speaker orange on the right; the app and the coach
   light grey on the left with a small avatar (the coach's grey-blue). No
   bold in any bubble, the Clearer version's new words included (2026-10-21).
@@ -135,41 +160,45 @@ step; the loop never waits for a coach.
 - **B9** Scrolled away from the step the walk stands on, the buttons read
   Next, which brings that step back; the recorder never gives way
   (2026-10-21: "away from", no longer only "back to an answered step").
-- **B10** From the Lounge, the Take's Feedback walk opens that Take's walk:
-  standing on its newest step, the rest above to scroll back to, as "Review
-  feedback" does; live on what waits while a step still waits; on the
-  coach's word while a changed one is not yet seen (C1, D5) (N192). The
-  Feedback walk of a Take whose walk still waits, or whose coach's word
-  changed and is not yet seen, has the orange outline: a full 2px stroke all
-  the way round, and no tail on that bubble, so nothing cuts it (founder
-  2026-10-26, N192: "make sure it is well visible and not cut the stroke is
-  there clearly"; the tail had covered the ring at its corner). "Continue
-  review" shows above the message box until every step is answered. Answered steps are read only; an older Take's walk
-  is read only and ends on that Take's Ideal Text. Every door opens the walk
-  the same way (one mechanism, founder 2026-10-20, N89): the whole Take's
-  walk, at the step the door names, live while that step waits (its own
-  buttons) and as given once answered (read only; the helper words still
-  editable on the latest Take, F3). A door that names no step of the walk
-  (a coach's word on a moment) opens on its moment's step. Opened on a step
-  already answered, the walk stands on
-  that step: it is brought to the top with its own buttons in the dock
-  (the helper words still editable, F3; any other answered step reads
-  Next), the whole Take's walk around it to scroll, before and after. Next
-  moves the walk on to the next part, and after the last onto the page;
-  ✕ goes back where the step was opened from (founder 2026-10-21: "the WALK
+- **B10** **Every door opens the walk the same way** (one mechanism, N89):
+  the whole Take's walk, standing on one step brought to the top, the parts
+  before and after it there to scroll. That step has its own buttons in the dock;
+  Next moves on to the next part, and after the last onto the page; ✕ goes
+  back where the walk was opened from (B11).
+  - **The Feedback walk** opens:
+    - on the coach's word, while a changed one is not yet seen (C1, D5);
+    - while the walk runs, live on the step it waits on;
+    - once the walk is done, on its newest step, the rest above to scroll
+      back to, as "Review feedback" does;
+    - never on the Ideal Text in the walk's place: it always names where to
+      open (fixed 2026-10-26, after a walk paused on its summary, or with no
+      part to stand on, had opened the text).
+  - **"Continue review"** shows above the message box until every step is
+    answered. It opens the live walk on what waits, through the same door as
+    the Feedback walk.
+  - **The orange outline:** the Feedback walk of a Take whose walk still
+    waits, or whose coach's word changed and is not yet seen, has a full 2px
+    orange stroke all the way round and no tail, so nothing cuts it (the tail
+    had covered the ring at its corner).
+  - **An answered step** is read only and stands with its own buttons: the
+    helper words still editable on the latest Take (F3); any other answered
+    step reads Next.
+  - **A door that names no step of the walk** (a coach's word on a moment)
+    opens on its moment's step. A finished walk asked for a step it does not
+    hold, or for its summary, stands on its newest step.
+  - **A Take not yet finished:** the same whole walk as it stands, what is
+    answered as given and what waits live, each moment under the number the
+    Take's walk gave it, so nothing is posted again as a new bubble.
+  - **An older Take's walk** is read only and ends on that Take's Ideal Text.
+
+  (Founder 2026-10-20, N89: "THE SAME MECHANISM"; 2026-10-21, N91: "the WALK
   opens up immediately on that part of the WALK, but you can scroll to
-  previous parts or scroll to the next ones"; "on a click you close the
-  walk and not go to the next element of it"; the prototype's "this step
-  is brought to the top", N91). "Review feedback" on a finished Take opens
-  the whole walk standing on its newest step, the rest above to scroll
-  back to. On a Take not yet finished a door opens the same whole walk as
-  it stands: what is answered as given, what still waits live, each moment
-  under the number the Take's walk gave it, so nothing is posted again as
-  a new bubble (founder 2026-10-21: "the
-  opening of the bubbles doesn't open the walk in a scrollable manner";
-  the AI clip's bubble had opened a lone Exercise and landed again at the
-  bottom of the chat). "Continue review" still opens the live walk on what
-  waits.
+  previous parts or scroll to the next ones", "on a click you close the walk
+  and not go to the next element of it"; 2026-10-21: "the opening of the
+  bubbles doesn't open the walk in a scrollable manner"; 2026-10-26, N192:
+  "make sure it is well visible and not cut the stroke is there clearly";
+  2026-10-26: "the feedback walk opens the ideal text instead of the feedback
+  walk!".)
 - **B11** ✕ turns the lens off and goes back where the step was opened
   from: the chat, or the Ideal Text page for a step opened from a paragraph.
   ✕ keeps a coach word's "new" ring.
@@ -178,16 +207,18 @@ step; the loop never waits for a coach.
   walk (B3; founder 2026-10-26, N192: "I know it overrides the rule that
   whatever happens in the walk is shown in the chart, but we need to do it to
   clean the conversational chat").
-- **B13** Edited. Anything in a Take's walk that changes after it was said
-  is an edit, not a new message (founder 2026-10-26, N192: "it should show
-  on the feedback walk as edited like on the whatsapp; but it should not go
-  at the bttom like a new message cause it is not!"): the speaker's helper
-  words (C3), the coach's changed word (D5) and the summary a coach's note
-  rewrites (D5). In the walk the bubble that changed shows its new words in
-  place and reads "Edited", small and grey, at its end; in the chat the
-  Take's Feedback walk reads "Edited" before its date, in its own place, as
-  WhatsApp writes "Edited 10:42". Nothing lands at the bottom and the chat
-  does not scroll.
+- **B13** **Edited.** Anything in a Take's walk that changes after it was
+  said is an edit, not a new message: the speaker's helper words (C3), the
+  coach's changed word (D5), and the summary a coach's note rewrites (D5).
+  - In the walk, the bubble that changed shows its new words in place and
+    reads "Edited", small and grey, at its end.
+  - In the chat, the Take's Feedback walk reads "Edited" before its date, in
+    its own place, as WhatsApp writes "Edited 10:42".
+  - Nothing lands at the bottom and the chat does not scroll.
+
+  (Founder 2026-10-26, N192: "it should show on the feedback walk as edited
+  like on the whatsapp; but it should not go at the bttom like a new message
+  cause it is not!")
 
 ### C · The walk, in order
 
@@ -275,10 +306,15 @@ step; the loop never waits for a coach.
   on that paragraph is walked like any other, praise first (founder
   2026-10-21: the Exercise had opened the walk and the confident moment came
   later; the server already counted only this Take's words, 2026-10-13).
-- **C3 Choose your helper words**, after each praised moment, and after the
+- **C3 Choose your helper words**, after each praised moment, after the
   Clearer version of a moment whose voice reached the floor (C5; founder
   2026-10-22, N113: "After the rewording"; until then helper words came only
-  after a praise, so a Take whose strong voices were all reworded had none):
+  after a praise, so a Take whose strong voices were all reworded had none),
+  and after a correction whose practise ends on a Good job, right after it
+  (C7; founder 2026-10-27, N220: "if you improved, you can make it your
+  habit words"; until then a correction's Good job went on with none, so a
+  Take whose two moments were both under the floor had no helper words); a
+  moment gets them once. The step:
   a big bubble in the thread with large plain word buttons, no borders,
   chosen words orange;
   "N of 8 words" at the top, the count against the cap (eight since
@@ -358,8 +394,10 @@ step; the loop never waits for a coach.
   that changes each time and the clip with L5), and under it only "Practise" or "Practise again"
   with the red dot, no Next and no Skip, until a Good job or the third try
   (2026-10-18). **Better:** "Good job", "That sounded more assured than the
-  first.", Next; a Good job ends the practise. At most three tries, then
-  Next alone, with the signed move-on line when the third was not praise. A
+  first.", Next; a Good job ends the practise, and Next opens the moment's
+  helper words (C3, N220) when nothing else in the walk offers them. At
+  most three tries, then Next alone, with the signed move-on line when the
+  third was not praise, and no helper words. A
   late answer offers Practise again while a try is left. A try the server
   could not hear (too short, no speech, not the passage, nothing to
   compare) is answered "We couldn't hear that clearly. Try again." with
@@ -415,50 +453,56 @@ step; the loop never waits for a coach.
 - **D3** It ends on what the Take showed, never with a question and, since
   N89 (2026-10-20), without the next step and without the record button:
   the chain (D4) brings them.
-- **D4** In the chat the review ends with the Take's small card (the first
-  slide, the project's name, a version tag such as "2.0", the coach's "new"
-  dot on the project's newest card) under its Feedback walk. The summary is
-  the walk's last step (C9) and is not drawn in the chat (founder
-  2026-10-26, N192, question 1: "In the walk only"). Then the chain, one action at a time, each after the one
-  before is answered (founder 2026-10-20, N89): every ask that waits (E1),
-  each opened by Will's lead-in line and followed by the ask's buttons; and
-  only then "Look, practice makes perfect. If you're ready, let's go with the
-  next take. 💪" with "Record Take N" under it (backend
-  `services/after_take.py`). On a practice day the chat has one record
-  button, in the newest bubble: the closing message keeps its words and
-  gives its button up to the practice day's bubble that comes after it
-  (N167; decided, not built, [`the-plan.md`](the-plan.md) G6). The closing
-  message is held back while the chain runs. The ask and its buttons are
-  adjacent: the card is moved above
-  the Take's whole batch, the admin's asks included (2026-10-20: the card had
-  landed between the data question and its buttons).
-- **D5** A coach update arrives under "Later · from your coach", outlined
-  in orange, at the bottom of the chat the moment the coach shares it, like
-  a new message, whether or not the review has ended (founder 2026-10-21;
-  until then a word shared during the review reached the chat only as the
-  walk's copy, among the Take's steps): one bubble per Take word, never
-  stacked (N80). A word that was there when the walk ran is the walk's own
-  (C1) and is not copied into the chat (founder 2026-10-26, N192, question
-  2). A word the coach changes is an edit (B13): its bubble, in the walk and
-  under "Later · from your coach", shows the new words and video in place and
-  reads "Edited", the Take's Feedback walk reads "Edited", and the bubble
-  that holds it (the "Later" bubble, or the Feedback walk when the word is
-  the walk's own) is outlined until opened; nothing moves to the bottom
-  (N192; until then it moved to the bottom with the latest words and video,
-  N80). It rewrites the summary in
-  place; "Updated with your coach's note · see / hide the earlier version"
-  shows the summary from before any coach note (or the first summary, when
-  it already heard the coach). A video-only change does not rewrite the
-  summary; the same words and video again change nothing. A removed or replaced
-  coach video no longer plays anywhere in the chat (the file stays
-  stored). Watching the word anywhere clears its "new" marks, and the walk
-  no longer writes the coach's words into the chat (N192); only "Continue" on the
-  coach's step marks it watched. Tapping the bubble opens the walk at the
-  coach's place (C1; N89, 2026-10-20: the word alone in its own lens with
-  "Close", N80, is history). During the review a
-  new or removed video with the same words makes the word new again (C1
-  again); a later change updates the bubble in place. A coach update during a
-  recording waits in the chat.
+- **D4** **How the review ends in the chat**, one action at a time, each
+  after the one before is answered (N89):
+  1. the Take's small card (its first slide, the project's name, a version
+     tag such as "2.0", the coach's "new" dot on the project's newest card
+     drawn), right under its Feedback walk, one pair (B3, N202);
+  2. every ask that waits (E1), each opened by Will's lead-in line and
+     followed by its buttons. The ask and its buttons are adjacent: the card
+     is moved above the Take's whole batch, the admin's asks included
+     (2026-10-20: the card had landed between the data question and its
+     buttons);
+  3. only then "Look, practice makes perfect. If you're ready, let's go with
+     the next take. 💪" with "Record Take N" under it (backend
+     `services/after_take.py`). The closing message is held back while the
+     chain runs. On a practice day the chat has one record button, in the
+     newest bubble: the closing message keeps its words and gives its button
+     up to the practice day's bubble that comes after it (N167; decided, not
+     built, [`the-plan.md`](the-plan.md) G6).
+
+  The summary is the walk's last step (C9) and is not drawn in the chat
+  (founder 2026-10-26, N192, question 1: "In the walk only").
+- **D5** **The coach's word.**
+  - **There when the walk ran:** it is the walk's own (C1) and is not copied
+    into the chat (N192, question 2).
+  - **Sent later:** it lands at the bottom of the chat under "Later · from
+    your coach", outlined in orange, like a new message, the moment the
+    coach shares it, whether or not the review has ended. One bubble per
+    Take word, never stacked (N80; founder 2026-10-21: before, a word shared
+    during the review reached the chat only as the walk's copy).
+  - **Changed by the coach:** an edit (B13). Its bubble, in the walk and
+    under "Later · from your coach", shows the new words and video in place
+    and reads "Edited"; the Take's Feedback walk reads "Edited"; the bubble
+    that holds the word (the "Later" bubble, or the Feedback walk when the
+    word is the walk's own) is outlined until opened. Nothing moves to the
+    bottom (N192; before, it moved to the bottom with the latest words and
+    video, N80).
+  - **The summary:** the word rewrites it in place; "Updated with your
+    coach's note · see / hide the earlier version" shows the summary from
+    before any coach note (or the first summary, when it already heard the
+    coach). A video-only change does not rewrite the summary; the same words
+    and video again change nothing.
+  - **Videos:** a removed or replaced coach video no longer plays anywhere in
+    the chat (the file stays stored). During the review a new or removed
+    video with the same words makes the word new again (C1 again); a later
+    change updates the bubble in place.
+  - **Seen:** watching the word anywhere clears its "new" marks; only
+    "Continue" on the coach's step marks it watched. The walk no longer
+    writes the coach's words into the chat (N192).
+  - **A tap** on the bubble opens the walk at the coach's place (C1; N89:
+    the word alone in its own lens with "Close", N80, is history).
+  - **During a recording** a coach update waits in the chat.
 
 ### E · The Take's one ask (backend `services/after_take.py`)
 
@@ -483,7 +527,10 @@ step; the loop never waits for a coach.
   skipped. These choices (the condition and place of "Did this help?", Take
   1's asks, which asks get a lead-in) were confirmed by the founder on
   2026-10-21. A distressed answer under "What would help?" gets the chat's
-  safety reply (backend #1199).
+  safety reply (backend #1199). The WhatsApp ask's form says, over the
+  number field: "We will only use it to let you know your coach texted
+  you, or that your call starts soon." The same number gets a booked call's
+  reminder; the booking form asks for none (backend N207, 2026-10-26).
 - **E2** Will asks only when something is off or missing, once per Take,
   the first that holds (`services/will_question.py`, N82): a breather when
   the practice did not land or the voice dipped two Takes running (never two
@@ -616,6 +663,12 @@ step; the loop never waits for a coach.
   highest   = of the two, the stronger voice (S); its bubble opens with
               the signed line (C2, N118)
   try       = Δ willfidence vs the original ≥ MARGIN (+0.05) → better
+  plan      = on a plan (the-plan.md G7, N134 item 2, N209): the best
+              moment, then the clip where this week's level shows most
+              (services/plan_walk.py), always practised with the level's
+              own practice, its line above the clip; no clip shows it →
+              the two best, as above; the level is the one the plan had
+              when the Take was recorded
   ```
 
   The unit is the sentence. FLOOR is 0.6 at launch, then calibrated so
@@ -970,7 +1023,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 - **N171, N189, N193** · messages: replies reach us and STOP removes the number (its words signed in N174), with no check message when a number is saved, since the app shows it back; coach-feedback messages wait from 21:00 to 8:00 in the time zone of the speaker's country of residence, and in the United States go only between 11:00 and 21:00 New York time (C1's doors) · C1 · decided, not built · BE #1326, #1360, #1367
 
-- **The plan** (backend N129 onward) · the diagnosis, the plan card, the practice days and the plan's end have their own page, [`the-plan.md`](the-plan.md); it meets this page in the Lounge, in the walk's level moment (C, N134 item 2), the bar on the end sheet (N140 item 11) and the pace practice in a pace week (the tempo step), and in the chat's day line before each day's first message (N169, the-plan.md G3) · decided, not built · its rules live there, not here (backend N160)
+- **The plan** (backend N129 onward) · the diagnosis, the plan card, the practice days and the plan's end have their own page, [`the-plan.md`](the-plan.md); it meets this page in the Lounge, in the walk's level moment (C, N134 item 2), the bar on the end sheet (N140 item 11) and the pace practice in a pace week (the tempo step), and in the chat's day line before each day's first message (N169, the-plan.md G3) · decided, not built · its rules live there, not here (backend N160). Built, on for ring 5 since 27 October 2026 (N203, N204, backend #1394): the plan in the Lounge, and the bar with "{n} of {total} practices done. Next: {day}." on the walk's end card (`WalkEnd.tsx`, `PlanProgress`); and since 27 October the level's moment in the walk (H1, N209: "This week's level: {level}. Here's where it shows:" above the clip, `LevelHere` in `FeedbackWalk.tsx`)
 
 - **WIL-76** · the stale processing step (urgent) · A1, A2 · confirmed in the app 2026-10-20 ("it doesn't open right after the processing"). Built: the marks are baked in the run right after ready (BE), the processing bubble waits for them and the page keeps asking for late marks to its ceiling and closes its slot when it stops (FE) · BE #1209, FE #896 · the founder checks the app
 - **WIL-89** · the lens as one chat: the opening order, the lenses, the interventions × chat awareness · B, C1, F · built and merged: FE #868, #882, #885, #886; BE #1170, #1190, #1194, #1196. Whether it works as drawn is the founder's check in the app ("success?") · to confirm
@@ -1088,7 +1141,8 @@ The design is the prototype; the newest wins where two disagree.
 
 - **Current:** the Feedback walk in the chat
   <https://claude.ai/artifact/Xb51mpaFDguFdBuL8Gjv18> (N192, 2026-10-26,
-  version 5, decided; version 3 drew the two ways not chosen); the lens,
+  version 5, decided; version 3 drew the two ways not chosen; version 6, the
+  pair, N202, with "As built" to compare); the lens,
   the Ideal Text and the Lounge
   <https://claude.ai/artifact/MpiAtrUz4DNBKm3EvhA6fm> (2026-10-20); the lens
   as one chat <https://claude.ai/artifact/P5fHFguyCgjhMGPsmH7UaD> (N81);
@@ -1116,9 +1170,18 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-26 · N192 · built: the Lounge draws a Take's walk as one "Feedback walk" bubble at its first step, with the walk's date and ›, "🔒 Take N" for an older Take and "Edited" once something in it changed; its card and the coach's "Later" bubble stay their own; the walk's other steps, the summary (kept where it carries "Record Take N", a Take before N89) and the sharing bubbles are not drawn; the sharing choice is a line on the recording; an outlined bubble is a 2px border with no tail; in the walk, "Edited" on helper words picked again, on the coach's changed word and on a summary a coach's note rewrote, with its earlier version; the walk shows the summary as the chat holds it, also when played again; Will reads the Feedback walk with the Take's summary in it; a coach's changed word keeps its bubble's place, marked edited (BE) · BE #1368, FE (this PR)
+- 2026-10-27 · — (B9, B10) · fixed: the dock gives way to the Next that brings the standing step back only once none of that step is in view. Was: whenever the bar named a later part, which it does for a standing part shorter than the upper 40% of the thread or a thread that fits in view, so a walk opened on an earlier step (a bare correction, a clip alone) lost its own buttons the moment it opened, and its Next scrolled nowhere (founder 2026-10-27: "when I review the feedback and click next nothing happens") · FE (this PR)
+- 2026-10-27 · N220 · built: a correction whose practise ends on a Good job opens its helper words right after it, as a praise does; a moment gets them once, and a practise ending on the third try without a Good job gets none. Was: a correction's Good job went on with no helper words (lock 2026-10-12, §2.5), so a Take whose two moments were both under the floor had none (C3, C7) · BE #1428, FE (this PR)
+- 2026-10-27 · N119 (C8) · fixed: an answer on another speaker's moment moves on to the next, as C8 says. Was: the chat counted the answer at once, the step took the new count for a judging reopened from the Lounge, loaded its moments again and stood on the typing dots for good (founder 2026-10-27: "it gets stuck on judgment time") · FE (this PR)
+- 2026-10-27 · N209 · on a plan, the walk's second moment is where this week's level shows most, opening with "This week's level: {level}. Here's where it shows:" above the clip (signed, the-plan.md K) and practised with the level's own practice, on screen and in the chat; no clip shows the level, the two best; off a plan, nothing changes (H1) · BE #1406, FE #1024
+- 2026-10-26 · N207 · the WhatsApp ask's form names the booked call: "We will only use it to let you know your coach texted you, or that your call starts soon."; the booking form asks for no number, and a booked call's reminder goes to the number saved here; was "… your coach texted you" (E1) · BE #1391, #1395, FE (this PR)
+- 2026-10-26 · N140 item 11, N203 · the walk's end card shows the plan's bar and "{n} of {total} practices done. Next: {day}." between its title and its next step, for a speaker with an active plan; nothing for anyone else · BE #1386, FE #1018
+- 2026-10-27 · — · B3, B10, B13, D4 and D5 rewritten to read easily: short headed bullets, the founder's words in one bracket at the end; no rule changed · FE (this PR)
+- 2026-10-26 · N192 (B10) · fixed: the Feedback walk and "Continue review" always name where the walk opens; a finished walk asked for a step it does not hold, or for its summary, stands on its newest step. Was: a walk paused on its summary, or with no part to stand on, opened the Ideal Text instead (founder 2026-10-26: "the feedback walk opens the ideal text instead of the feedback walk!") · FE #1015
+- 2026-10-26 · N202 · the Feedback walk and its Ideal Text card are one pair: the same width (80% of the chat, at most 384px), the card 3px under it with their left corners drawn in and no tail on the Feedback walk, together under the recording; while the walk runs, its "ready" card waits for the walk's end; the coach's "new" dot sits on the newest card drawn. Was: the Feedback walk as wide as its words (at least 190px), the card where the walk's end wrote it, and the "ready" card above the Feedback walk during the walk (B3, D4) · BE #1383, FE #1013
+- 2026-10-26 · N192 · built: the Lounge draws a Take's walk as one "Feedback walk" bubble at its first step, with the walk's date and ›, "🔒 Take N" for an older Take and "Edited" once something in it changed; its card and the coach's "Later" bubble stay their own; the walk's other steps, the summary (kept where it carries "Record Take N", a Take before N89) and the sharing bubbles are not drawn; the sharing choice is a line on the recording; an outlined bubble is a 2px border with no tail; in the walk, "Edited" on helper words picked again, on the coach's changed word and on a summary a coach's note rewrote, with its earlier version; the walk shows the summary as the chat holds it, also when played again; Will reads the Feedback walk with the Take's summary in it; a coach's changed word keeps its bubble's place, marked edited (BE) · BE #1368, FE #1006
 - 2026-10-26 · N171, N189 · built: one ask after each Take, the first that waits in E1's order, the others for a later Take; the WhatsApp ask can be Take 1's, the CEO panel's ask and the home screen from Take 2; was at most two a Take, and never WhatsApp after Take 1 (E1) · BE #1370, FE (this PR)
-- 2026-10-26 · N192 · the chat shows a Take as its recording, one "Feedback walk" bubble with its date and ›, and its Ideal Text card; an edit says "Edited" in place; the summary, the coach's word from the walk and the sharing question leave the chat (the choice is a line on the recording); the outline a full stroke; the card alone with black lines on the text, and one card with a Feedback walk row, were drawn and not chosen; was: the same steps as chat bubbles, a step that asks locks and shows its answer as the speaker's bubble (B3); a bubble with › opens its step, "✓ Practised" over Next (B10); the Lounge says the lens's words, the AI voice's short bubble (B12); helper words editable from the Lounge's helper-words bubble, a new pick a new bubble and the old one struck through (C3); the summary a plain bubble under the card (D4); the walk's copy of the coach's word in the chat, a changed word moved to the bottom (D5); "Record Take N", the question and the choice as three bubbles (G1) · BE #1364, FE (this PR)
+- 2026-10-26 · N192 · the chat shows a Take as its recording, one "Feedback walk" bubble with its date and ›, and its Ideal Text card; an edit says "Edited" in place; the summary, the coach's word from the walk and the sharing question leave the chat (the choice is a line on the recording); the outline a full stroke; the card alone with black lines on the text, and one card with a Feedback walk row, were drawn and not chosen; was: the same steps as chat bubbles, a step that asks locks and shows its answer as the speaker's bubble (B3); a bubble with › opens its step, "✓ Practised" over Next (B10); the Lounge says the lens's words, the AI voice's short bubble (B12); helper words editable from the Lounge's helper-words bubble, a new pick a new bubble and the old one struck through (C3); the summary a plain bubble under the card (D4); the walk's copy of the coach's word in the chat, a changed word moved to the bottom (D5); "Record Take N", the question and the choice as three bubbles (G1) · BE #1364, FE #1001
 - 2026-10-26 · N189 · one ask after each Take, the first that waits in E1's order, the others for a later Take; was at most two (N94) (E1) · BE #1360, FE (this PR)
 - 2026-10-26 · docs audit · the tempo step's block moves from §2 to §1 T, word for word, now that its build steps are done; §2 keeps one line for what is left; §3, §4 and §5 point to §1 T. Was: the whole feature in §2 · —
 - 2026-10-26 · N161, N167 · B3 and D4 name the plan's record buttons: under the plan card, in place of "Type here", only "Start your first recording" (N161); on a practice day one record button in the chat, in the newest bubble, the closing message keeping its words and giving its button up (N167); the plan decided, not built. Was: "The Lounge has no record button, only the message box" (B3); the closing message keeping "Record Take N" under it, with no newer bubble named (D4) · —

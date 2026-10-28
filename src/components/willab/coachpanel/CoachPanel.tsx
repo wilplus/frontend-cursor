@@ -21,6 +21,8 @@
 /*                   and the Take word: CoachAnswerFlow's reads and writes   */
 /*    blind lines    the error audit and the block pick, read when the queue  */
 /*                   opens; drawn only when the backend serves them           */
+/*    the plan       a speaker's plan waiting on the coach (backend N213):   */
+/*                   CoachPlanFlow's reads and writes                        */
 /*    all speakers   GET /v2/coach/speakers, read each time Your speakers    */
 /*                   opens (D-CP-12): pseudonyms, goals and counts, never a  */
 /*                   moment. The list draws at once from the queue already   */
@@ -50,6 +52,7 @@ import {
   type WillRow,
 } from "./CoachPanelScreens";
 import { useAnswerFlow } from "./CoachAnswerFlow";
+import { usePlanFlow } from "./CoachPlanFlow";
 import {
   BLANK_IMPORT, CorpusAnalyseScreen, CorpusHomeScreen, CorpusImportScreen, type ImportForm,
 } from "./CoachCorpusScreens";
@@ -58,7 +61,7 @@ import { WillBankScreen } from "./WillBankScreen";
 import { fetchWillBank, saveWillBank, type WillBank, type WillBankItem } from "@/services/api/willBank";
 import CoachCorpusJudge from "./CoachCorpusJudge";
 import {
-  isMomentScreen, momentOf, walkScreenOf, type MomentScreen, type PanelAction, type PanelScreen, type PanelState,
+  isMomentScreen, isPlanScreen, momentOf, walkScreenOf, type MomentScreen, type PanelAction, type PanelScreen, type PanelState,
 } from "@/lib/willab/coachPanel";
 import { readSlideFor, type AnswerValue, type QueueSpeaker, type ReadSlide } from "@/lib/willab/coachWalk";
 import type { WalkScreen } from "@/lib/willab/walkMotion";
@@ -531,6 +534,8 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
     },
   });
 
+  const plans = usePlanFlow({ state, dispatch, say, close, refresh });
+
   /** What happened's Next: the diagnosis first for an error, else the
    *  choice; a moment nothing reached the coach from is passed. */
   function afterReveal(read: MomentRead | null | undefined): void {
@@ -538,8 +543,10 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
     else dispatch({ type: "step", key: read.request.kind === "error" ? "diagnose" : "decide" });
   }
 
-  /** The founder's editor of Will's questions (N83), else the panel's own screens. */
+  /** The founder's editor of Will's questions (N83), the speaker's plan
+   *  (N213), else the panel's own screens. */
   function screenFor(s: StageScreen) {
+    if (isPlanScreen(s.panel)) return plans.renderPlan(s.panel, s.panel === screen);
     if (s.panel.key !== "willbank") return render(s);
     return (
       <WillBankScreen bank={will.bank} onClose={close} onBack={() => dispatch({ type: "back" })}
@@ -578,7 +585,8 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
       const speaker = liveSpeaker(speakers, panel.speaker);
       return (
         <SpeakerScreen speaker={speaker} loading={loading} onClose={close} onBack={() => dispatch({ type: "back" })}
-          onTake={(take) => dispatch({ type: "take", speaker, take })} />
+          onTake={(take) => dispatch({ type: "take", speaker, take })}
+          onPlan={() => dispatch({ type: "plan", speaker })} />
       );
     }
     if (panel.key === "lounge") return null;

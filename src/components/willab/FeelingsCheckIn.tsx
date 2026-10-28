@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { recordFeeling, type Feeling } from "./willabFeelings";
+import { feelingsAllowed } from "@/services/api/plan";
+import { clearFeeling, recordFeeling, type Feeling } from "./willabFeelings";
 
 /* -------------------------------------------------------------------------- */
 /*  FeelingsCheckIn — first-recording onboarding, step 0 (U10)                 */
@@ -40,6 +41,16 @@ const FEELINGS: { key: Feeling; label: string; reply: string }[] = [
 ];
 
 export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
+  // A speaker on a plan is asked only after the plan's own yes (backend
+  // N211, N217): without it the check is passed by at once and keeps nothing.
+  const [allowed] = useState(feelingsAllowed);
+  useEffect(() => {
+    if (allowed) return;
+    clearFeeling();
+    onReady();
+    // Once, on open: the flow goes on as a Skip does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // FE-3 — nothing is pre-selected; the user names how they feel fresh every
   // time (the old one-tap "same as before" shortcut was removed).
   const [picked, setPicked] = useState<Feeling | null>(null);
@@ -61,6 +72,7 @@ export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
     advanceRef.current = window.setTimeout(onReady, 1000);
   }
 
+  if (!allowed) return null;
   return (
     <div className="flex flex-1 flex-col">
       <div className="mt-2">
@@ -69,6 +81,11 @@ export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
         </h2>
         <p className="mt-1 text-[15px] text-muted-foreground">
           Before you step on stage
+        </p>
+        {/* What happens to the answer, said before the tap (founder
+            2026-10-27, Privacy 3.9 §4e, question 1 A; backend N217). */}
+        <p className="mt-1 text-[13px] text-muted-foreground">
+          Your coach sees your answer.
         </p>
       </div>
 
@@ -98,6 +115,19 @@ export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
         <div className="mt-5 rounded-2xl bg-primary/5 p-4">
           <p className="text-[15px] leading-relaxed text-foreground">{reply}</p>
         </div>
+      ) : null}
+      {/* A Skip wherever the check shows: how a speaker feels is theirs to
+          share, so it is never asked without a way past it (docs/flows/
+          the-plan.md D4; backend N211). Skipping stores nothing. */}
+      {!picked ? (
+        <button
+          type="button"
+          onClick={onReady}
+          data-feelings-skip
+          className="mt-5 self-center py-2 text-[15px] text-muted-foreground hover:text-foreground"
+        >
+          Skip
+        </button>
       ) : null}
     </div>
   );

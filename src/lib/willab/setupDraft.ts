@@ -146,6 +146,27 @@ export function beginSetupDraft(ownerId: string | null): void {
   write(ownerId, { ...store, active: newId() });
 }
 
+/** A fresh draft for the plan's first recording (docs/flows/the-plan.md
+ *  B7): the set-up's topic arrives filled in from what the speaker said in
+ *  the voice message, and they can change it. */
+export function beginSetupDraftWithTopic(ownerId: string | null, topic: string | null): void {
+  beginSetupDraft(ownerId);
+  const words = (topic ?? "").trim();
+  if (!words) return;
+  const id = read(ownerId).active;
+  if (!id) return;
+  saveSetupDraft(ownerId, id, {
+    step: 0,
+    topic: words,
+    audience: "",
+    desiredCallToAction: "",
+    lengthSec: null,
+    slides: [],
+    presentationRef: null,
+    strategicContext: "",
+  });
+}
+
 /** Resume a draft from the picker. */
 export function resumeSetupDraft(ownerId: string | null, id: string): void {
   const store = read(ownerId);

@@ -32,6 +32,16 @@ OUTCOME
       summary, and not otherwise (N192, B13).
   O11 The walk shows my summary as the chat holds it, with the version a
       coach's note replaced (N192, D4, D5).
+  O12 My Take's Ideal Text card is drawn right under its Feedback walk, one
+      pair, even when I wrote to Will while the walk waited (what I wrote
+      stays under the pair); while the walk runs its card waits for the
+      walk's end; a walk I left before its end pairs with its Take's
+      "ready" card (N202, B3, D4).
+  O13 My Feedback walk, and Continue review, always tell the page where to
+      open the walk: my coach's word while it waits, the step the review
+      waits on, once done the walk's newest part, else the Take itself, so
+      the Ideal Text never opens in the walk's place (B10, founder
+      2026-10-26).
 PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own message, with no score"
          O2 -> "posts judging other speakers as the prototype's chat does, never their recording"
          O3 -> "counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles"
@@ -43,12 +53,15 @@ PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own
          O9 -> "draws a Take's walk as one Feedback walk at its first step, its card and the coach's Later bubble their own"
          O10 -> "marks the Feedback walk Edited for a second pick, a changed coach word or a rewritten summary, and only then"
          O11 -> "gives the walk the summary as the chat holds it, with the version a coach's note replaced"
+         O12 -> "draws each Take's card right under its Feedback walk, after the walk's end, what was said in between under the pair"
+         O13 -> "opens the Feedback walk on the coach's word, on what waits, on its newest part, or on the Take alone, never with no door"
 WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12);
          founder 2026-10-19, N80 (when the coach changes their word).
 */
 import { describe, expect, it } from "vitest";
 import { CHUNK_SHEET_COPY as COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "@/components/willab/idealEditCopy";
-import { aiVoiceChat, answerBody, chatDrawsStep, chatWalks, coachNoteToChat, momentChat, othersAnswered, othersChat, shareChat, shareLines, shownStep, stableUuid, storedSummaryOf, walkStepDraft, wordsEditedIn } from "./walkThread";
+import { aiVoiceChat, answerBody, chatDrawsStep, chatWalks, coachNoteToChat, feedbackWalkDoor, inPairs, momentChat, othersAnswered, othersChat, shareChat, shareLines, shownStep, stableUuid, storedSummaryOf, walkPairs, walkStepDraft, wordsEditedIn } from "./walkThread";
+import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { WalkStep } from "./walkPlan";
 
 describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
@@ -227,5 +240,35 @@ describe("the walk in the chat (founder 2026-10-26, N192)", () => {
     const rewritten = { ...summary, metadata: { ...summary.metadata, coach_update: true, earlier: "Before the note." } };
     expect(storedSummaryOf([rewritten], "t2")).toEqual({ text: "Take 2, and it landed.", earlier: "Before the note." });
     expect(storedSummaryOf([rewritten], "t3")).toBeNull();
+  });
+
+  it("draws each Take's card right under its Feedback walk, after the walk's end, what was said in between under the pair", () => {
+    const ready = (id: string, version: unknown) => ({ ...step(id, { variant: "ready", version }), kind: "ideal_text" as const });
+    const said = { ...step("8", {}, "user", "Can I keep slide 3 shorter?"), kind: "text" as const };
+    const drawn = (thread: LoungeMessage[], live: string | null) =>
+      inPairs(thread, (m) => m.client_id, walkPairs(thread, chatWalks(thread), live)).map((m) => m.client_id);
+    // The walk waits and the speaker writes to Will: the Take's card waits for the walk's end.
+    expect(drawn([ready("0", 2), step("1", { step: "praise", moment: 0 }), said], "a1")).toEqual(["1", "8"]);
+    // The walk's end card lands under its Feedback walk; what was written stays under the pair.
+    expect(drawn([step("1", { step: "praise", moment: 0 }), said, step("9", { step: "end" })], null)).toEqual(["1", "9", "8"]);
+    // A walk left before its end (the next Take recorded) pairs with its Take's version bubble.
+    expect(drawn([ready("0", "2"), step("1", { step: "praise", moment: 0 }), said], null)).toEqual(["1", "0", "8"]);
+  });
+
+  it("opens the Feedback walk on the coach's word, on what waits, on its newest part, or on the Take alone, never with no door", () => {
+    const praise = step("2", { step: "praise", moment: 0, part_id: "p2" });
+    const summary = step("6", { step: "summary" });
+    const [walk] = chatWalks([step("1", { step: "hello" }), praise, summary]);
+    // Finished: the whole walk on its newest part.
+    expect(feedbackWalkDoor(walk, [], null)).toEqual({ step: "praise", moment: 0, take: "t2", part: "p2" });
+    // Paused on its summary: there, live; waiting with no step of the app's
+    // to stand on: the Take, which the page opens on what waits.
+    expect(feedbackWalkDoor(walk, [summary], "a1")).toMatchObject({ step: "summary", take: "t2" });
+    expect(feedbackWalkDoor(walk, [], "a1")).toEqual({ take: "t2" });
+    // The coach's word while it waits comes first (C1).
+    expect(feedbackWalkDoor(walk, [summary, step("3", { step: "coachnote" })], "a1")).toMatchObject({ step: "coachnote" });
+    // No part to stand on: the Take alone, never nothing.
+    const [bare] = chatWalks([step("1", { step: "hello" }), summary]);
+    expect(feedbackWalkDoor(bare, [], null)).toEqual({ take: "t2" });
   });
 });

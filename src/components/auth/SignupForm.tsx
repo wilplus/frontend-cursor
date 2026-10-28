@@ -12,6 +12,7 @@ import LinkedInAuthButton from "@/components/auth/LinkedInAuthButton";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 import { claimGuestProjects } from "@/services/api/projects";
 import { sameSitePath } from "@/lib/auth/sameSitePath";
+import WhatsAppAuth, { WHATSAPP_AUTH_COPY, WHATSAPP_SIGNIN, WhatsAppIcon } from "@/components/auth/WhatsAppAuth";
 
 interface SignupFormProps {
   onSuccess?: () => void;
@@ -23,6 +24,14 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
   const router = useRouter();
   const supabase = createClient();
   const [showEmailForm, setShowEmailForm] = useState(!!skipProviderPicker);
+  // Sign up with WhatsApp (backend N214); the login page's "sign up with
+  // WhatsApp" link opens it directly (?way=whatsapp).
+  const [showWhatsApp, setShowWhatsApp] = useState(false);
+  useEffect(() => {
+    if (WHATSAPP_SIGNIN && new URLSearchParams(window.location.search).get("way") === "whatsapp") {
+      setShowWhatsApp(true);
+    }
+  }, []);
   // Carry "where to go after" (e.g. the booking page) through to sign-in.
   const [loginHref, setLoginHref] = useState("/login");
   useEffect(() => {
@@ -187,6 +196,15 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
     }
   };
 
+  if (showWhatsApp && !showEmailForm) {
+    return (
+      <Card className="p-5 sm:p-6">
+        <WhatsAppAuth mode="signup" onBack={() => setShowWhatsApp(false)} onSuccess={onSuccess}
+          legal={<LegalConsent />} />
+      </Card>
+    );
+  }
+
   // Provider picker: LinkedIn vs email
   if (!showEmailForm) {
     return (
@@ -195,6 +213,16 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
             (my-5 above and below the rule) so the column reads as a single
             visual rhythm. */}
         <div className="flex flex-col">
+          {WHATSAPP_SIGNIN ? (
+            <Button
+              type="button"
+              className="mb-3 w-full gap-2 bg-foreground font-medium text-background hover:bg-foreground/90"
+              onClick={() => setShowWhatsApp(true)}
+            >
+              <WhatsAppIcon className="h-5 w-5 shrink-0" />
+              <span>{WHATSAPP_AUTH_COPY.signUp}</span>
+            </Button>
+          ) : null}
           <LinkedInAuthButton mode="signup" />
           <GoogleAuthButton mode="signup" className="mt-3" />
 

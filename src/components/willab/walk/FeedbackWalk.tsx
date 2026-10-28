@@ -11,6 +11,7 @@ import WalkStage from "./WalkStage";
 import WalkThread, { WalkEdited, WalkPart, WalkSpeakerBubble, WalkThreadMark, useMountedAsPast } from "./WalkThread";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage, { WalkNewWords } from "./WalkMessage";
+import { PLAN_COPY } from "@/lib/willab/planCopy";
 import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import WalkWordPicker from "./WalkWordPicker";
@@ -821,6 +822,18 @@ function Clip({ moment, words }: { moment: FeedbackWalkMoment; words?: ReactNode
   );
 }
 
+/** On a plan, the moment where this week's level shows most (G7, backend
+ *  N134 item 2, N209; the plan's prototype, "This week's level"): its line
+ *  above the speaker's clip. */
+function LevelHere({ moment }: { moment: FeedbackWalkMoment }) {
+  if (!moment.planLevel) return null;
+  return (
+    <WalkMessage>
+      <span data-walk-level>{PLAN_COPY.levelHere(moment.planLevel)}</span>
+    </WalkMessage>
+  );
+}
+
 /** The coach's word for the Take: "Your coach:", their video inside the
  *  bubble, then their words. */
 function CoachNote(ctx: ScreenCtx, step: WalkStep) {
@@ -1001,6 +1014,7 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
         )
       }
     >
+      <LevelHere moment={moment} />
       <Clip moment={moment} words={pieces(clearer.before)} />
       {/* The coach's own clearer version is their bubble, with their photo
           and video, and is not said twice (founder 2026-10-20). */}
@@ -1029,6 +1043,7 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
   // just above, and it has the AI clip or nothing, never Line A.
   return (
     <>
+      {moment.praised ? null : <LevelHere moment={moment} />}
       {moment.praised ? null : <Clip moment={moment} />}
       {aiExercise(ctx, step, moment) ?? (ctx.bare(step) || moment.praised ? null : (
         <WalkMessage coach={exercise?.byCoach === true} wide>

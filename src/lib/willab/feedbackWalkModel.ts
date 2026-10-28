@@ -65,6 +65,9 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
   /** The Take's highest moment (founder 2026-10-20): its bubble opens with
    *  "This was your most confident moment." */
   highest?: boolean;
+  /** On a plan, the moment where this week's level shows most (G7, backend
+   *  N209): the level's name, said above the moment's clip. */
+  planLevel?: string | null;
   /** The praise's own line without the cue sentences: what the first bubble
    *  says when the reason below explains the moment (founder 2026-10-18). */
   praiseLead?: readonly string[] | null;
@@ -162,6 +165,10 @@ export type FeedbackWalkMoment<R = unknown> = {
   praiseTitle?: string | null;
   /** The Take's highest moment, praised or corrected (founder 2026-10-20). */
   highest?: boolean;
+  /** The level's name when this is the moment where this week's level shows
+   *  most (G7, backend N209); its practise opens with "This week's level:
+   *  {level}. Here's where it shows:" above the clip. */
+  planLevel?: string | null;
   /** Praised (N122): its practise follows the praise, so it never shows
    *  its clip again, Line A or the confident moment's own line. */
   praised?: boolean;
@@ -311,6 +318,7 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     // wording note. Whichever row carries the level names the screen.
     praiseTitle: group.find((i) => i.praiseTitle)?.praiseTitle ?? null,
     highest: group.some((i) => i.highest === true),
+    planLevel: group.find((i) => i.planLevel)?.planLevel ?? null,
     praised: group.some((i) => isPraise(i) || i.green === true),
     praiseLead: praise?.praiseLead ?? praise?.praiseWords ?? [],
     praiseReason: group.find((i) => i.praiseReason)?.praiseReason ?? null,

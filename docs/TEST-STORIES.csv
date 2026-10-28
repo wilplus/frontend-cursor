@@ -55,6 +55,11 @@ red    -> ""is RED and exits 1 when a step fails, printing that step's own log""
 no build -> ""is INCOMPLETE, never GREEN, when the build is skipped""
 node   -> ""stops before its first step, naming the Node it found""","If removed: The gate's GREEN could stop meaning ""every step passed""."
 scripts/storiesCsv.test.ts,Guard,"docs/TEST-STORIES.csv lists every frontend test file's story, and every test file has one.","C1  a new or edited test whose STORY/GUARD header is missing, or not copied into the CSV",C1 -> every test file has a story and the CSV is current,If removed: the founder reviews a stories file that silently stops matching the tests.
+scripts/vercelIgnoreBuild.test.ts,Guard,"Vercel's Ignored Build Step: the real scripts/vercel-ignore-build.sh, run in a throwaway git repo with VERCEL_GIT_PREVIOUS_SHA set as Vercel sets it (the last successful deployment's commit).","A change to the app skipped, so a fix never reaches the site; a
+Redeploy (same commit, new environment variables) skipped.","skip    -> ""skips a merge that changed only docs, Markdown or tests""
+build   -> ""builds a code change, even after docs-only merges""
+redeploy -> ""builds a Redeploy of the same commit""
+unsure  -> ""builds when there is nothing known to compare with""",If removed: A wrong skip looks like a green deploy that changed nothing.
 src/app/admin/libraryAndErrorsGate.test.ts,Story,"As the founder, I want the exercise library, speaking-errors and",,,
 src/app/api/_lib/backend.test.ts,Story,"As a speaker, I want every app-to-server call to carry my sign-in and fail with a plain message, so that I never see a broken screen or someone else's data.","O1  Signed in: the backend gets my token and its answer reaches me as is.
 O2  Signed out: 401 with the shared words, and no backend call at all.
@@ -153,11 +158,19 @@ link went.
 O4  Back from the email's link the card says ""Your email is now …"" and
 refreshes the session, so the menu shows the new address; a link that
 failed says the page's ""Couldn’t save that. Try again.""
-O5  When the account can't be read, there is no card.","O1 -> ""sends the change and says the link went; a wrong password keeps the form""
+O5  When the account can't be read, there is no card.
+O6  Adding WhatsApp as a way in: a number without its country code is
+refused before any code goes; the code goes to the number, a wrong
+code says so, and the right one makes the row say ""You can sign in
+with WhatsApp at {number}.""
+O7  A WhatsApp account with no email has no email row and no password
+row: the card says where it signs in with WhatsApp.","O1 -> ""sends the change and says the link went; a wrong password keeps the form""
 O2 -> ""a Google account sets a password with a link""
 O3 -> ""checks the new password twice, then updates; Forgot password? sends the link""
 O4 -> ""back from the link it says the new email and refreshes the session""
-O5 -> ""no card when the account can't be read""","WIL-95, founder 2026-10-26 (backend N190; rules in docs/flows/consent-screens.md §1, ""Amended 2026-10-26"")."
+O5 -> ""no card when the account can't be read""
+O6 -> ""adds WhatsApp as a way in with the code""
+O7 -> ""a WhatsApp account without email has only the WhatsApp row""","WIL-95, founder 2026-10-26 (backend N190; rules in docs/flows/consent-screens.md §1, ""Amended 2026-10-26""); the WhatsApp row, founder 2026-10-27 (backend N214 item 5)."
 src/components/account/DataConsentChoices.test.tsx,Story,"As a speaker, I want turning off practice or withdrawing sensitive information to ask first and take effect only on confirm, so that I control my data (consent, on the record step of the loop).","O1  Turning practice off asks first; nothing is sent until I confirm, then
 the page says practice is off.
 O2  Turning practice back on needs no confirm and is sent at once.
@@ -193,6 +206,16 @@ and the page says consent is given.
 O3  A grant the backend does not confirm is not shown as given.","O1 -> ""sends nothing until the box is ticked""
 O2 -> ""records the consent only through the explicit action, with the exact status""
 O3 -> ""a grant the backend does not confirm is not shown as given""","Q7 (founder 2026-09-29), L3: only the checkbox here records a consent."
+src/components/account/PlanConsentCard.test.tsx,Story,"As a speaker, I want to turn the plan's personal questions on or off in Data & consent, and to be told only what was really deleted, so that I share how I feel only when I choose to.","O1  Nobody sees the card unless the backend says it applies to them (the
+switch, the ring) or it cannot be read.
+O2  Off, it says so and Turn on sends the yes; on, it says what Will asks.
+O3  Turning off asks first with the signed words, sends nothing until
+confirmed, and says ""We deleted your personal answers"" only once the
+backend has.
+O4  A turn-off the backend could not finish says so and leaves the yes on.","O1 -> ""hidden unless the backend offers it""
+O2 -> ""off by default, and Turn on sends the yes""
+O3 -> ""asks first, and says deleted only after it is""
+O4 -> ""a turn-off that fails leaves the yes on""","Founder 2026-10-27, the plan's own yes, approved as drawn (backend N211); the card is docs/flows/the-plan.md D."
 src/components/account/PolicyUpdateCard.test.tsx,Story,"As a speaker, I want a ""what's changed"" card only when a newer policy replaced mine, opening the normal acceptance screen, so that I can re-accept easily.","O1  Card shown when I accepted an earlier version; Accept opens the
 ordinary acceptance screen; accepting there hides the card.
 O2  No card when my receipt is current or I never agreed before.","O1 -> ""offers the update and opens the ordinary acceptance screen""
@@ -226,13 +249,21 @@ src/components/auth/LoginForm.test.tsx,Story,"As a person signing in from a link
 behind an extra encoding or a backslash) is ignored: I land on /chat.
 O2  A redirectTo on our own site is still honoured, query and all.","O1 -> ""an off-site redirectTo (%s) lands on /chat""
 O2 -> ""a same-site redirectTo is still honoured""",Open redirect in the login form (2026-10-21). The coach's WhatsApp and email links rely on O2: they land on /login?redirectTo=/chat?lens=… (WIL-93).
+src/components/auth/WhatsAppAuth.test.tsx,Story,"As someone signing up or in with WhatsApp, I want to give my number, type the code WhatsApp brings and, when I am new, my name, so that I am in without an email or a password.","O1  Signing up: a number without its country code is refused before any
+code is sent; a wrong code says so; the right one asks a new account
+its name, keeps the number as the account's WhatsApp number, and lands.
+O2  Signing in never makes an account: a number no account signs in with
+says so and points to sign-up, and the number is not saved anywhere.","O1 -> ""signing up: number, code, name, and the number is kept""
+O2 -> ""signing in with an unknown number says so and makes nothing""","Founder 2026-10-27, backend N214."
 src/components/founder/GoldenJudging.test.tsx,Story,"As the founder, I want to judge golden pairs seeing the passage",,,
 src/components/legal/PublishedPolicyText.test.tsx,Story,"As a reader of the Privacy page, I want the stored policy or a plain ""could not load"" line, never an endless spinner or an old stand-in, so that I always know what I agreed to.","O1  The stored policy text is shown with its version number.
 O2  When no stored copy can be had, the ""could not load"" line is shown.","O1 -> ""shows the stored copy once it is published""
 O2 -> ""shows the unavailable line once the record answers without a copy""","Founder 2026-09-25, F3 = A."
 src/components/life/lifeGoalsLadders.test.tsx,Story,"As the founder, I want my life goals ladders on top of the Life Panel's Goals screen, with every version dated, so that my goals and my three bets are in one place.","O1  With a set goal, ""Life goals"" shows its ladder, ""Set on {date}"" and History, which lists every version newest first with its date; a tapped step opens the lens on that step.
-O2  Before the first goal is set, nothing new shows.","O1 -> shows my ladders with every version dated
-O2 -> shows nothing before my first goal",
+O2  Before the first goal is set, nothing new shows.
+O3  While a plan runs, the career ladder shows THIS WEEK with the plan's level, as a plain row, never a step to change.","O1 -> shows my ladders with every version dated
+O2 -> shows nothing before my first goal
+O3 -> shows this week's level from my plan, read-only",
 src/components/rings/RingAnnouncementSheet.test.tsx,Story,"As a speaker, I want a feature announcement I can dismiss with Not now, and its Yes off until a policy exists, so that nothing turns on or records consent without me.","O1  Not now records the decision, hides the sheet, records no consent.
 O2  Without a policy, Yes is a disabled button (no link to the data
 choices), the sheet says why, and pressing it records nothing.","O1 -> ""not now records the answer, hides the sheet and creates no consent""
@@ -277,6 +308,17 @@ O5 -> ""never carries one clip's answer onto the next clip (L3)""",Never 1 (feed
 src/components/willab/FeedbackFailedNotice.test.tsx,Story,"As a speaker whose feedback could not be made, I want the app to try again once by itself and then tell me, with Try again, so that I am never left waiting for nothing.","O1  The app retries once by itself, then shows the signed-off sentence
 and a Try again button that retries; it never retries on its own
 again.","O1 -> ""says so, with Try again, when the retry failed too""",Contract 24h: the server sends no stand-in feedback.
+src/components/willab/FeelingsCheckIn.test.tsx,Story,"As a speaker, I want to be able to skip ""How do you feel?"", so that nobody is made to tell the app how they feel before they record.","O1  The check offers a Skip every time it shows, whether or not I have a
+plan.
+O2  Skipping goes on to the recording set-up and keeps no feeling.
+O3  Naming a feeling still keeps it and goes on.
+O4  Before the tap, the screen says the coach sees the answer.
+O5  On a plan without its own yes, the check is passed by at once and
+keeps nothing; with the yes, it is asked.","O1 -> ""offers a Skip with no plan""
+O2 -> ""Skip goes on and keeps no feeling""
+O3 -> ""naming a feeling keeps it and goes on""
+O4 -> ""says the coach sees the answer before the tap""
+O5 -> ""on a plan, only after its own yes""","Founder 2026-10-27, backend N211 (the plan's consent, question 3 A): a feeling is the speaker's own, and a check with no way past it is not asked freely. Privacy 3.9 §4e, signed with question 1 A (N217): answering is the yes for that one answer, so the screen says first who sees it; on a plan, the plan's own yes comes first."
 src/components/willab/Linkified.test.tsx,Story,"As a speaker reading Will's message, I want links in a message to be clickable, so that I can open the booking page.","O1  A web address on its own, or inside a sentence, becomes a link;
 plain text stays plain.","O1 -> ""makes a bubble that is only a URL a link"",
 ""makes a URL inside a sentence a link and leaves plain text alone""",Founder 2026-10-18: the booking link was not clickable.
@@ -462,6 +504,19 @@ O7 -> ""several files import one at a time, each its own import named by its fil
 O8 -> ""a choice over the upload limit is refused, and a refusal for the hour stops the batch""
 O9 -> ""the done imports sit at the bottom; judging starts from the opened one and comes back to the list""
 O10 -> ""reaching the bottom of the list reads its next step""","Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files in one Import, the list in steps and the corpus judged mixed, founder 2026-10-21."
+src/components/willab/coachpanel/coachPlan.test.tsx,Story,"As a coach, I want a speaker's plan in my queue when it needs me, so that I pick their level blind, or send my video for a level that hasn't moved, and their plan follows my answer.","O1  A plan that waits comes first in my queue, on its speaker's card (""New
+plan"", ""Asked about their level"", ""Three Takes without moving""), and
+as ""Their plan"" above their Takes; the Lounge bubble counts it.
+O2  ""Which level comes first?"" shows their voice message, their key line
+and the five levels, and nothing of the plan's level; my pick brings
+What happened with only what is known; ""Keep yours"" takes me back to
+my queue, read again.
+O3  A stuck level opens on its name, ""Three Takes without moving. Next in
+the row: your video."" and Record; ""Share with {p}"" sends my video as my
+word on their latest Take, keeping the words I sent there, and the
+plan leaves my queue.","O1 -> ""a waiting plan comes first, on its speaker's card and as Their plan on their page""
+O2 -> ""Which level comes first? is blind; the pick brings What happened; Keep yours reads the queue again""
+O3 -> ""a stuck level: its name, the line and Record; Share sends the video as the coach's word and answers the plan""","The coach's side of the plan, built as the founder's prototype draws it (backend N213, https://claude.ai/artifact/QznwCAgkBHAVAGDMKVUKvE); Never 2: the coach picks before seeing the machine's level."
 src/components/willab/coachpanel/v4BlindSheets.test.tsx,Story,"As a coach, I want the two V4 sheets to show only the signed words and nothing the machine chose, and to save one answer each, so that my picks stay blind.","O1  Never-2: the moment-pick sheet shows the signed wording and the
 moments' words, and nothing the machine chose (snippet id, slice,
 sureness).
@@ -656,6 +711,7 @@ error.
 O3  A cancelled render is not reported as a failed slide.","O1 -> ""a parent re-render with a new onError keeps the slide drawn""
 O2 -> ""a page change cancels the old render and redraws""
 O3 -> ""does not report a cancellation as a failed slide""","Founder 2026-09-19 ""the slides are gone"": an inline onError restarted the render on a busy canvas and latched the slide off. The fake below enforces pdf.js's one-render-per-canvas rule."
+src/components/willab/plan/plan.test.tsx,Story,"As a new speaker on the plan's ring, I want the Lounge to ask me",,,
 src/components/willab/practiceStep.test.tsx,Story,"As a speaker, I want my answer on a bookmark with no exercise to lead to the right lane, so that a No always leads somewhere and Audio unclear leads nowhere.","O1  No (a recognised problem, no exercise): the sheet says the coach is
 working on it, with my recording, and Next closes the sheet.
 O2  Audio unclear on the same bookmark: no coach sentence, the sheet closes.
@@ -719,6 +775,11 @@ window), so old helper words do not come back (Never 5).","O1 -> ""asks once for
 O2 -> ""a document change both see asks once""
 O3 -> ""a sheet closing or a save reads anew""",F4 (founder 2026-10-08): one recording-roots read per arc.
 src/components/willab/slideEditor.test.tsx,Story,"As a speaker, I want editing a slide to save only the paragraphs I changed, so that the others keep their locks and history.","O1  Save sends only the changed paragraph, with its new words.","O1 -> ""writes only the paragraphs whose words changed""",Never 5 (every old version stays in the history).
+src/components/willab/sundayLens.test.tsx,Story,"As the founder, I want to investigate the pattern Will spotted in my # notes one step at a time, so that I name the bug, the principle I had and my own reflection, and keep a new principle only if I say so.","O1  Investigate opens the lens on the case; the bug, the principle held, my reflection and Will's new principle come one at a time, each answer goes to the backend as that step, and the lens ends with Close.
+O2  Opened again, the lens replays the rows so far and asks only the step it waits on.
+O3  In the Lounge, the ""We spotted a pattern!"" bubble waits (orange outline) until Will's last line is in the thread, and Not now | Investigate is about the newest case.","O1 -> walks me through the case one step at a time
+O2 -> reopens where it stands
+O3 -> knows which case waits",
 src/components/willab/topUpCardGate.test.ts,Story,"As a speaker, I want no top-up offer while the Lab is on screen, so that payment never gets in the way of a Take.","O1  Never 3 (the loop is never blocked): the top-up card may not mount in
 any Lab or readout state, nor in project pick, nor while the thread loads.
 O2  In the Lounge, once the thread has loaded, it may mount.","O1 -> ""never mounts while the Lab owns the screen""
@@ -767,7 +828,8 @@ O4  If the summary cannot be read, the walk goes straight back to my page.
 O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.
 O6  A step's grey bubbles land one after another behind the typing dots, and its buttons come once they all have; each new bubble, and the typing dots before it, land at the bottom, right above the buttons, and the thread follows them until I scroll up by hand (N122).
 O7  The walk opens once with ""Hi {name}, good to see you back!"" (Take 1: ""Hi {name}, great to meet you!""; no name: the same without it), and the Lounge keeps the same words (N120).
-O8  Other speakers asks for my Take's moments and shows each one the server sends, up to three (""Now 3 moments from other speakers.""), however many tries I made; with none the step is left out (N119).","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
+O8  Other speakers asks for my Take's moments and shows each one the server sends, up to three (""Now 3 moments from other speakers.""), however many tries I made; with none the step is left out (N119). My answer on one moves me on to the next, though the chat counts it at once.
+O9  On a plan, the moment where this week's level shows most opens with ""This week's level: {level}. Here's where it shows:"" above my clip; no other moment does (G7, backend N209).","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
 O2 -> a green moment says why it landed,
 the Take's highest moment opens with “This was your most confident moment.”
 O3 -> reopened from the Lounge, the judging shows the moment already answered
@@ -776,7 +838,8 @@ O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the serve
 O6 -> a step's bubbles land behind the typing dots, then its buttons (founder 2026-10-20),
 new bubbles land at the bottom and the thread follows them until the speaker scrolls up by hand (N122)
 O7 -> the walk opens once with the hello and the speaker's first name (N120)
-O8 -> other speakers: the Take's three moments, whatever the tries (N119)","Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, ""add the name at the start""; N122, ""the 3 dots loading should be at the bottom""; N119, ""3 clips (high, middle, low willfidence) from 3 different speakers"")."
+O8 -> other speakers: the Take's three moments, whatever the tries (N119); an answer moves on to the next
+O9 -> on a plan, the level's moment says where this week's level shows, above the clip (G7, N209)","Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, ""add the name at the start""; N122, ""the 3 dots loading should be at the bottom""; N119, ""3 clips (high, middle, low willfidence) from 3 different speakers"")."
 src/components/willab/walk/walkCopy.test.ts,Guard,"Every word the walk can show comes from the signed copy, and no signed walk line carries a digit.","Never 4: a literal word typed into a walk/*.tsx primitive (JSX text,
 a string child, an accessible name, title, placeholder) that is not in
 WALK_COPY or CHUNK_SHEET_COPY. Never 1: a digit in a signed walk line
@@ -784,7 +847,7 @@ WALK_COPY or CHUNK_SHEET_COPY. Never 1: a digit in a signed walk line
 by the caller).","unsigned word -> ""every literal a primitive shows or reads out is signed""
 digit         -> ""no signed walk line carries a digit""",If removed: An unsigned word or a number can reach speakers in the Feedback walk.
 src/components/willab/walk/walkPractise.test.tsx,Story,"As a speaker, I want to practise inside the walk's chat (record, hear an answer in words, hear an AI version of my voice, at most 3 tries), so that practice is quick, kind and free of numbers.","O1  Stopping a try uploads it and asks for a check, and I am back in the walk at once.
-O2  A better try gets praise in words for what improved, then the walk moves on.
+O2  A better try gets praise in words for what improved, then my helper words for that moment, so what I improved can become my habit words (N220).
 O3  A ""not yet"" on the clearer words brings the AI version of my voice; a good try does not.
 O4  The AI clip comes in one short bubble: a one-word opener, one tip quoting my phrase and ending "", like this:"", my AI voice, then ""Your turn.""; never a long explanation, never a number (N120).
 O5  At most 3 tries, all shown together in the chat with the steps before them; no number, lane or score anywhere; a guest is asked to sign up and nothing is recorded.
@@ -792,7 +855,7 @@ O6  The Exercise reaches the coach's queue the moment it is on screen, and the L
 O7  A try not yet better gets the same short bubble, opened with ""Close."" and closed with ""Try again."", with only ""Practise again"" (N120).
 O8  A voice correction with nothing to offer (no exercise, no AI clip coming) is skipped: no ""Say this one like your confident moment."" on its own, in the walk or the chat; it still reaches the coach's queue. The Take's most confident moment is not skipped: it says its own line and is said again (N109).
 O9  A praised moment is practised too: after its praise the short bubble with my AI voice and ""Your turn."", up to three tries, a Good job ends it, then its helper words; with no AI clip the praise goes straight to its helper words (N122).","O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
-O2 -> praise on try 1: the line for the reading that moved ...
+O2 -> praise on try 1: the line for the reading that moved, then Next opens its helper words (N220)
 O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
 O4 -> the bubble is there at once: the typing dots alone ..., the AI clip comes in one short bubble: the opener, the tip quoting their phrase, the clip, then “Your turn.” (N120)
 O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing
@@ -841,10 +904,16 @@ opens the whole Take's walk, the answered praise above to scroll
 and the Exercise live with its own buttons, under the number the
 Take's walk gave it, so the chat gets no new bubble (founder
 2026-10-21: ""doesn't open the walk in a scrollable manner"", ""appears
-as a last message in the chat"").","O1 -> ""every moment answered: Review feedback stays for the unseen word, ...""
+as a last message in the chat"").
+O5  Every moment answered: the chat's Feedback walk naming a step the
+finished walk does not hold (its summary, or the Take alone) opens
+the whole walk on its newest step, never the Ideal Text in its place
+(founder 2026-10-26: ""the feedback walk opens the ideal text instead
+of the feedback walk!""; B10, N192).","O1 -> ""every moment answered: Review feedback stays for the unseen word, ...""
 O2 -> ""a paragraph whose helper words were deleted is back in the walk on its earlier answer""
 O3 -> ""every moment answered: a bubble tapped in the Lounge opens the walk on its moment, never the text""
-O4 -> ""one moment still waiting: its bubble opens the whole walk, the waiting step live, nothing new in the chat""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
+O4 -> ""one moment still waiting: its bubble opens the whole walk, the waiting step live, nothing new in the chat""
+O5 -> ""every moment answered: the Feedback walk naming no step of the walk opens it on its newest step, never the text""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
 src/components/willab/whatsappOffer.test.tsx,Story,"As a speaker, I want to leave my WhatsApp number to hear when my coach's feedback is in, with wrong numbers refused, so that the message reaches me.","O1  A number without its country code is refused on screen and nothing is sent.
 O2  A valid number is saved in full international form and the offer closes.
 O3  Not now sends nothing and closes.
@@ -903,6 +972,8 @@ O2  If the words have changed since, it is dropped and never sent.
 O3  If my account cannot take it yet, it is kept for later.","O1 -> is sent once after sign-in, for the words they saw
 O2 -> is never sent once the words in force changed
 O3 -> is kept for later when the account has not accepted the policy yet",
+src/lib/legal/policySection.test.ts,Story,"As a speaker reading Will's ask for the plan's own yes, I want Read more to open exactly Privacy section 4e, so that I read what I am saying yes to and nothing else.","O1  Section 4e is shown from its heading to the next numbered heading; a
+copy without it is shown whole rather than not at all.","O1 -> ""Read more opens section 4e and stops at the next heading""","Founder 2026-10-27, the plan's own yes (backend N211)."
 src/lib/legal/policyText.test.ts,Story,"As a speaker, I want the Terms page to show exactly the stored text I accept, so that my receipt matches what I read.","O1  With a policy in force, the page shows its stored text and version.
 O2  With no policy in force, the page shows the fallback.","O1 -> shows the stored terms when a policy is active
 O2 -> falls back when no policy is active",
@@ -1153,7 +1224,17 @@ O10 The Feedback walk says Edited when I pick helper words again, when
 my coach changes their word, or when a coach's note rewrites the
 summary, and not otherwise (N192, B13).
 O11 The walk shows my summary as the chat holds it, with the version a
-coach's note replaced (N192, D4, D5).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
+coach's note replaced (N192, D4, D5).
+O12 My Take's Ideal Text card is drawn right under its Feedback walk, one
+pair, even when I wrote to Will while the walk waited (what I wrote
+stays under the pair); while the walk runs its card waits for the
+walk's end; a walk I left before its end pairs with its Take's
+""ready"" card (N202, B3, D4).
+O13 My Feedback walk, and Continue review, always tell the page where to
+open the walk: my coach's word while it waits, the step the review
+waits on, once done the walk's newest part, else the Take itself, so
+the Ideal Text never opens in the walk's place (B10, founder
+2026-10-26).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
 O2 -> ""posts judging other speakers as the prototype's chat does, never their recording""
 O3 -> ""counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles""
 O4 -> ""stores the sharing question and says the choice as one line on the next recording, also for a question stored as three""
@@ -1163,7 +1244,9 @@ O7 -> ""names the confident moment for what follows, never with Line A""
 O8 -> ""stores the hello and the short AI bubble once, in the walk's own words""
 O9 -> ""draws a Take's walk as one Feedback walk at its first step, its card and the coach's Later bubble their own""
 O10 -> ""marks the Feedback walk Edited for a second pick, a changed coach word or a rewritten summary, and only then""
-O11 -> ""gives the walk the summary as the chat holds it, with the version a coach's note replaced""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word)."
+O11 -> ""gives the walk the summary as the chat holds it, with the version a coach's note replaced""
+O12 -> ""draws each Take's card right under its Feedback walk, after the walk's end, what was said in between under the pair""
+O13 -> ""opens the Feedback walk on the coach's word, on what waits, on its newest part, or on the Take alone, never with no door""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word)."
 src/services/api/accountDeletion.test.ts,Story,"As a speaker, I want ""delete my account"" to send one deletion request and show me how long I have to change my mind, and a refusal to change nothing, so that I can trust deletion and cancel it in time.","O1  Asking to delete sends one request with a one-time key and shows the
 pending deletion with its end date.
 O2  A refusal or no connection records nothing.
@@ -1362,13 +1445,11 @@ shared read: the wallet asks the server again and shows the new number.
 O3  An unreadable balance is not shared: the next wallet asks again.","O1 -> ""serves every wallet from one request""
 O2 -> ""a spend makes the wallet read the balance again""
 O3 -> ""does not share an unreadable balance: the next wallet asks again""","Founder 2026-10-16: one balance request per open, not one per wallet."
-src/services/api/tokens.test.ts,Story,"As a speaker, I want a failed balance check shown as ""unknown"" (not zero), ""out of tokens"" to keep its renewal date and leave recording on, and no price shown when the charge state is unknown, so that I'm never wrongly blocked or charged.","O1  A missing or broken answer means tokens are off, never on.
+src/services/api/tokens.test.ts,Story,"As a speaker, I want a failed balance check shown as ""unknown"" (not zero), and ""out of tokens"" to keep its renewal date and leave recording on, so that I'm never wrongly blocked.","O1  A missing or broken answer means tokens are off, never on.
 O2  A balance the server couldn't read is ""unknown"", not zero.
-O3  ""Out of tokens"" keeps the renewal date.
-O4  No price label is shown when it isn't known whether I was charged.","O1 -> ""treats a missing or malformed envelope as off, never as enabled""
+O3  ""Out of tokens"" keeps the renewal date.","O1 -> ""treats a missing or malformed envelope as off, never as enabled""
 O2 -> ""reads available:false as UNKNOWN, never as zero""
-O3 -> ""reports can_record:false as EXHAUSTED, keeping the renewal date""
-O4 -> ""shows nothing when the charge state is unknown, never assuming unpaid""",Never-rule 3: a bad balance read must never hide the record button.
+O3 -> ""reports can_record:false as EXHAUSTED, keeping the renewal date""",Never-rule 3: a bad balance read must never hide the record button.
 src/services/api/trainingConsent.refusals.test.ts,Story,"As a speaker, I want a training-consent change that fails to say why, so that my screen never shows a choice that did not save (consent).","O1  Offline: the save is refused with NETWORK.
 O2  A server refusal comes back with the server's own code (e.g. a stale
 copy of the sentence), never as a saved state.

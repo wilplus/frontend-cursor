@@ -59,7 +59,7 @@ import { PROCESSING_STAGES } from "./ProcessingWait";
 import type { IdealTextLaunchMode } from "./IdealTextOverlay";
 import { lensAddress } from "@/lib/willab/lensScreen";
 import { startOpenTrace } from "@/lib/willab/openTrace";
-import { chatDrawsStep, chatWalks, shareLines, type ChatWalk } from "@/lib/willab/walkThread";
+import { chatDrawsStep, chatWalks, doorOf, feedbackWalkDoor, inPairs, shareLines, walkPairs, type ChatWalk } from "@/lib/willab/walkThread";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import {
   clearExploreArc,
@@ -119,7 +119,6 @@ import {
 } from "./feedbackCheck";
 import { postFeedbackCheck, type FeedbackCheckChoice } from "@/services/api/feedbackCheck";
 import {
-  SundayActions,
   useVoiceNotebook,
   VoiceNoteBar,
   VoiceNoteBubble,
@@ -128,8 +127,10 @@ import {
   VoiceNoteThread,
   type VoiceNotebook,
 } from "./useVoiceNotebook";
+import SundayLens, { SundayHeadBubble } from "./SundayLens";
+import { sundayAskOf, sundayHeadOf, sundayWaiting } from "@/lib/willab/sundayNote";
 import { LifeGoalBubble, lensAskOf, lifeGoalOf, quarterAskOf, changeAskOf, useLifeGoals } from "./LoungeLifeGoals";
-import type { SundayChoice } from "@/services/api/voiceNotebook";
+import { answerSundayNote } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import WillQuestionBubble, { willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
@@ -145,6 +146,8 @@ import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
 import { useWaitScreen } from "./useWaitScreen";
 import { usePinThreadBottom } from "./usePinThreadBottom";
 import { clearerPieces, type ClearerPiece } from "@/lib/willab/clearerPieces";
+import { usePlanLounge } from "./plan/usePlanLounge";
+import { planRowFor, type PlanRowCtx } from "./plan/PlanRows";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { afterChatBoot } from "@/lib/chatBoot";
 
@@ -249,6 +252,7 @@ export default function Lounge({
   onStart,
   onStartNewProject,
   onStartInProject,
+  onStartPlanRecording,
   dispatch,
   initialBestPresentationArcId = null,
   initialIdealTextArcId = null,
@@ -266,6 +270,9 @@ export default function Lounge({
    *  project is already known, so the picker is skipped entirely and the Lab
    *  opens straight onto the prefilled setup. */
   onStartInProject?: () => void;
+  /** The plan's "Start your first recording" (the-plan.md E5): the set-up
+   *  with the topic filled in from the voice message, no feelings check. */
+  onStartPlanRecording?: (topic: string | null) => void;
   /** What happened; useWillabFlow's table decides the state. */
   dispatch: (event: WillabEvent) => void;
   /** C — when set (from /chat?arc=<arc_id>), open the BestPresentationOverlay
@@ -389,9 +396,6 @@ export default function Lounge({
   // The thread in the order it is drawn (founder 2026-10-20): what the
   // chat reads as "the newest" is what shows last.
   const drawn = useMemo(() => threadItems.map((item) => item.message), [threadItems]);
-  // Each project's latest Ideal Text bubble wears the unread-feedback dot
-  // (founder 2026-09-25, Q39 B).
-  const latestIdealIds = useMemo(() => latestIdealBubbleIds(threadItems), [threadItems]);
   // A Take's walk is one bubble, the Feedback walk, at its first step's place
   // (founder 2026-10-26, N192, B3): its other steps stay stored (B1) and are
   // drawn in the walk only. Who heard the Take is one line on its recording
@@ -400,17 +404,28 @@ export default function Lounge({
   const walkAt = useMemo(() => new Map(walks.map((walk) => [walk.at, walk])), [walks]);
   const shares = useMemo(() => shareLines(drawnOf(threadItems)), [threadItems]);
   const summaries = useMemo(() => summaryByTake(drawnOf(threadItems)), [threadItems]);
+  // "Continue review" (founder lock 2026-10-12, section 1): the newest walk
+  // step names its project and is not the review's end.
+  const reviewToContinue = useMemo(() => continueReviewArc(threadItems), [threadItems]);
   // One Ideal Text bubble per Take (founder 2026-10-14).
-  const shownItems = useMemo(() => {
+  const drawnItems = useMemo(() => {
     const hidden = versionBubblesWithReviewCard(threadItems);
     const closing = closingTakesOf(drawnOf(threadItems));
     return threadItems.filter(
       (item) => !hidden.has(item.message.client_id) && chatShows(item.message, walkAt, closing),
     );
   }, [threadItems, walkAt]);
-  // "Continue review" (founder lock 2026-10-12, section 1): the newest walk
-  // step names its project and is not the review's end.
-  const reviewToContinue = useMemo(() => continueReviewArc(threadItems), [threadItems]);
+  // Each Take's Ideal Text card right under its Feedback walk, one pair
+  // (founder 2026-10-26, N202); a walk that still runs has no card yet.
+  const pairs = useMemo(() => walkPairs(drawnOf(drawnItems), walks, reviewToContinue), [drawnItems, walks, reviewToContinue]);
+  const shownItems = useMemo(() => inPairs(drawnItems, (item) => item.message.client_id, pairs), [drawnItems, pairs]);
+  const pairedCards = useMemo(() => new Set(pairs.cardOf.values()), [pairs]);
+  // Each project's latest Ideal Text bubble wears the unread-feedback dot
+  // (founder 2026-09-25, Q39 B): of the cards drawn, not one held back.
+  const latestIdealIds = useMemo(
+    () => latestIdealBubbleIds(threadItems.filter((item) => !pairs.held.has(item.message.client_id))),
+    [threadItems, pairs],
+  );
   // The step it waits on wears the orange outline (same section).
   const waitingStep = useMemo(() => waitingStepId(threadItems, reviewToContinue), [threadItems, reviewToContinue]);
   // Each bubble's Take, and each project's newest: an older Take's steps are
@@ -1025,7 +1040,20 @@ export default function Lounge({
   // project's newest summary carries "Record Take N", which opens the text
   // the way its own button does (from Take 2 on, the sharing question
   // first). Held while a Take is still landing, as the "+" is.
+  // The plan in the Lounge (docs/flows/the-plan.md): its rows, its footer in
+  // place of the message box, its sheets. Off unless the ring row reaches.
+  const plan = usePlanLounge({
+    signedIn: thread.signedIn,
+    thread,
+    setThinking: setBotThinking,
+    onStartRecording: onStartPlanRecording,
+    onRecordNext: (arc) => openIdealText(arc, "share"),
+    recordHeld: takeInFlight,
+  });
   const nextTakeOf = (m: LoungeMessage): SummaryRecord | null => {
+    // A practice day's one thing, newer than this message, holds the chat's
+    // one record button (N167).
+    if (plan.oneHoldsRecord) return null;
     const meta = m.metadata ?? {};
     const arc = meta.arc_id;
     const take = meta.take_index;
@@ -1209,7 +1237,7 @@ export default function Lounge({
     if (type === "joke") return;
     const rank: Record<OfferType, number> = {
       joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0, feedback_check: 0,
-      voice_notebook: 0, sunday_note: 0, sunday_principle: 0, life_goals: 0, life_goals_quarter: 0, life_goals_change: 0,
+      voice_notebook: 0, sunday_note: 0, life_goals: 0, life_goals_quarter: 0, life_goals_change: 0,
     };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
@@ -1368,6 +1396,9 @@ export default function Lounge({
   // Life goals (Will learning plan, step 3, N172): the ask's Start, a
   // ladder's ›, or a reply that opens the lens.
   const lifeGoals = useLifeGoals({ signedIn: thread.signedIn, reload });
+  // The Sunday note's lens, opened on one note (N158 L3, L8).
+  const [sunday, setSunday] = useState<{ id: string; nonce: number } | null>(null);
+  const openSunday = useCallback((id: string) => setSunday({ id, nonce: Date.now() }), []);
 
   // A message still waiting while no ask is in front of the speaker would
   // never show (a typed turn the backend could not store, say): let it go,
@@ -1613,9 +1644,78 @@ export default function Lounge({
     }
   }
 
+  // One drawn item of the thread: a walk step (the review's end card), a
+  // summary, or any other bubble.
+  const drawItem = (item: ThreadItem, i: number) =>
+    item.message.kind === "walk_step" ? (
+      <WalkStepBubble
+        key={item.reactKey}
+        message={item.message}
+        card={reviewCardOf(item.message, threadItems)}
+        latest={latestIdealIds.has(item.message.client_id)}
+        newWords={olderNewWords.get(item.message.client_id)}
+        waiting={stepWaits(item.message)}
+        lockedTake={olderTake(item.message.metadata)}
+        onOpenOlder={setOlderReview}
+        onOpened={() => setSeenUpdates(keepSeenUpdate(item.message))}
+        onOpenIdealText={openIdealText}
+      />
+    ) : isSummaryLike(item.message.metadata) ? (
+      <SummaryBubble key={item.reactKey} message={item.message} record={recordFor(item.message, closingTakes, nextTakeOf)} />
+    ) : isOwnVoiceNote(item.message, notebook) ? (
+      <VoiceNoteBubble key={item.reactKey} body={item.message.body} clientId={item.message.client_id} notebook={notebook}>
+        <Linkified text={item.message.body} />
+      </VoiceNoteBubble>
+    ) : (
+      <Bubble
+        key={item.reactKey}
+        message={item.message}
+        shareLine={shares.get(item.message.client_id) ?? null}
+        onOpenBestPresentation={(arcId) =>
+          openIdealText(arcId)
+        }
+        onOpenTranscripts={() => setLibraryOpen(true)}
+        // A GUEST'S WAY BACK TO THE TEXT (founder live test
+        // 2026-10-05): the coach's feedback page needs an account, and
+        // a guest gets no "your text is ready" bubble, so a guest's
+        // recording bubble opens the Ideal Text it made.
+        onOpenFeedback={
+          thread.signedIn
+            ? setFeedbackTarget
+            : (target) => openIdealText(target.arcId)
+        }
+        onOpenIdealText={openIdealText}
+        planRows={plan.rows}
+        latestForArc={latestIdealIds.has(item.message.client_id)}
+        onRetryIdealText={retryIdealTextFromCard}
+        onOpenConfidencePractice={setConfidencePracticeId}
+        onChip={onChip}
+        activeOffer={activeOffer}
+        onOpenOffer={setActiveOffer}
+        willOpen={i === shownItems.length - 1}
+        onWillAnswer={answerWillQuestion}
+        onOpenLifeGoal={(goalId) => lifeGoals.openLens({ mode: "see", goalId })}
+        onOpenSunday={openSunday}
+        sundayWaiting={(id) => sundayWaiting(messages, id)}
+        animate={
+          i === shownItems.length - 1 &&
+          baselineRef.current !== null &&
+          !baselineRef.current.has(item.message.client_id)
+        }
+      />
+    );
+
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
       {lifeGoals.lens}
+      <SundayLens
+        noteId={sunday?.id ?? null}
+        nonce={sunday?.nonce ?? 0}
+        onClose={() => {
+          setSunday(null);
+          void reload();
+        }}
+      />
       {/* Founder 2026-07-30 — the status region above the thread is GONE, and
           with it the last top banner. U5 moved the sent confirmation into the
           thread and U6 did the same for insights ready; the parked card was
@@ -1648,73 +1748,39 @@ export default function Lounge({
         {thread.loading ? (
           <TypingDots label="Loading" />
         ) : threadItems.length === 0 ? (
-          <LoungeEmptyState onStart={onStartNewProject ?? onStart} />
+          <LoungeEmptyState onStart={onStartNewProject ?? onStart} hidden={plan.holdsEmpty} />
         ) : (
-          shownItems.map((item, i) => walkAt.has(item.message.client_id) ? (
-            <FeedbackWalkBubble
-              key={item.reactKey}
-              walk={walkAt.get(item.message.client_id) as ChatWalk}
-              older={olderTake(item.message.metadata)}
-              waits={walkWaits(walkAt.get(item.message.client_id) as ChatWalk)}
-              live={reviewToContinue}
-              onOpenOlder={setOlderReview}
-              onOpened={(seen) => seen.forEach((m) => setSeenUpdates(keepSeenUpdate(m)))}
-              onOpenIdealText={openIdealText}
-            />
-          ) : item.message.kind === "walk_step" ? (
-            <WalkStepBubble
-              key={item.reactKey}
-              message={item.message}
-              card={reviewCardOf(item.message, threadItems)}
-              latest={latestIdealIds.has(item.message.client_id)}
-              newWords={olderNewWords.get(item.message.client_id)}
-              waiting={stepWaits(item.message)}
-              lockedTake={olderTake(item.message.metadata)}
-              onOpenOlder={setOlderReview}
-              onOpened={() => setSeenUpdates(keepSeenUpdate(item.message))}
-              onOpenIdealText={openIdealText}
-            />
-          ) : isSummaryLike(item.message.metadata) ? (
-            <SummaryBubble key={item.reactKey} message={item.message} record={recordFor(item.message, closingTakes, nextTakeOf)} />
-          ) : isOwnVoiceNote(item.message, notebook) ? (
-            <VoiceNoteBubble key={item.reactKey} body={item.message.body} clientId={item.message.client_id} notebook={notebook}>
-              <Linkified text={item.message.body} />
-            </VoiceNoteBubble>
-          ) : (
-            <Bubble
-              key={item.reactKey}
-              message={item.message}
-              shareLine={shares.get(item.message.client_id) ?? null}
-              onOpenBestPresentation={(arcId) =>
-                openIdealText(arcId)
-              }
-              onOpenTranscripts={() => setLibraryOpen(true)}
-              // A GUEST'S WAY BACK TO THE TEXT (founder live test
-              // 2026-10-05): the coach's feedback page needs an account, and
-              // a guest gets no "your text is ready" bubble, so a guest's
-              // recording bubble opens the Ideal Text it made.
-              onOpenFeedback={
-                thread.signedIn
-                  ? setFeedbackTarget
-                  : (target) => openIdealText(target.arcId)
-              }
-              onOpenIdealText={openIdealText}
-              latestForArc={latestIdealIds.has(item.message.client_id)}
-              onRetryIdealText={retryIdealTextFromCard}
-              onOpenConfidencePractice={setConfidencePracticeId}
-              onChip={onChip}
-              activeOffer={activeOffer}
-              onOpenOffer={setActiveOffer}
-              willOpen={i === shownItems.length - 1}
-              onWillAnswer={answerWillQuestion}
-              onOpenLifeGoal={(goalId) => lifeGoals.openLens({ mode: "see", goalId })}
-              animate={
-                i === shownItems.length - 1 &&
-                baselineRef.current !== null &&
-                !baselineRef.current.has(item.message.client_id)
-              }
-            />
-          ))
+          shownItems.map((item, i) => {
+            const id = item.message.client_id;
+            // A Take's card is drawn under its Feedback walk, as one pair (N202).
+            if (pairedCards.has(id)) return null;
+            const walk = walkAt.get(id);
+            if (!walk) return drawItem(item, i);
+            const cardId = pairs.cardOf.get(id);
+            const next = shownItems[i + 1];
+            const card = cardId && next?.message.client_id === cardId ? next : null;
+            const bubble = (
+              <FeedbackWalkBubble
+                key={item.reactKey}
+                walk={walk}
+                older={olderTake(item.message.metadata)}
+                waits={walkWaits(walk)}
+                live={reviewToContinue}
+                paired={card !== null}
+                onOpenOlder={setOlderReview}
+                onOpened={(seen) => seen.forEach((m) => setSeenUpdates(keepSeenUpdate(m)))}
+                onOpenIdealText={openIdealText}
+              />
+            );
+            return card ? (
+              <div key={item.reactKey} data-walk-pair="" className="flex flex-col gap-[3px]">
+                {bubble}
+                {drawItem(card, i + 1)}
+              </div>
+            ) : (
+              bubble
+            );
+          })
         )}
 
         {/* While a Take processes (founder lock 2026-10-12, section 1): a
@@ -1811,7 +1877,12 @@ export default function Lounge({
             if (target) void answerFeedbackCheck(target, choice);
           }}
           onNotebook={notebook.answer}
-          onSunday={notebook.sunday}
+          onSundayNote={(choice) => {
+            const id = sundayAskOf(messages);
+            if (!id) return;
+            if (choice === "investigate") openSunday(id);
+            else void answerSundayNote(id, "dismiss").then(() => reload());
+          }}
           onLifeGoals={lifeGoals.answerAsk}
           onLifeGoalsQuarter={(choice) => lifeGoals.answerQuarter(quarterAskOf(messages), choice)}
           onLifeGoalsChange={(choice) => lifeGoals.answerChange(changeAskOf(messages), choice)}
@@ -1906,16 +1977,22 @@ export default function Lounge({
         <button
           type="button"
           data-testid="continue-review"
-          onClick={() => openIdealText(reviewToContinue, "review")}
+          // The same door as the waiting Feedback walk's (B10, N192).
+          onClick={() => {
+            const walk = walks.filter((w) => w.arcId === reviewToContinue).at(-1);
+            openIdealText(reviewToContinue, "review", walk ? feedbackWalkDoor(walk, walkWaits(walk), reviewToContinue) : null);
+          }}
           className="mb-2 flex h-[46px] w-full items-center justify-center rounded-full bg-foreground text-[15px] font-semibold text-background"
         >
           Continue review
         </button>
       ) : null}
+      {plan.dock}
+      {plan.sheets}
       <PolicyUpdateComposer>
       <VoiceNoteBar notebook={notebook} />
       <VoiceNoteFixBar notebook={notebook} />
-      <form onSubmit={handleSend} className={`${notebook.composerDisplay} items-end gap-1`}>
+      <form onSubmit={handleSend} className={`${plan.composerDisplay(notebook.composerDisplay)} items-end gap-1`}>
         {/* THE "+" (founder 2026-10-12, WhatsApp-like): it opens the
             projects, where "Start a new project" starts one. It replaced the
             Record button. Held while a Take is still landing, for the same
@@ -2146,7 +2223,7 @@ function OfferActions({
   bookHref,
   onFeedbackCheck,
   onNotebook,
-  onSunday,
+  onSundayNote,
   onLifeGoals,
   onLifeGoalsQuarter,
   onLifeGoalsChange,
@@ -2166,7 +2243,8 @@ function OfferActions({
   /** "Keep a voice notebook?" (Will learning plan, step 1). */
   onNotebook: (choice: "yes" | "not_now") => void;
   /** The Sunday note's Old | New, then Not now | Add principle (step 2). */
-  onSunday: (choice: SundayChoice) => void;
+  /** The Sunday note's case: Not now | Investigate (N158 L2). */
+  onSundayNote: (choice: "investigate" | "not_now") => void;
   /** "One more thing: your life goals." (step 3, N172 M1). */
   onLifeGoals: (choice: "start" | "not_now") => void;
   /** "{emoji} {step}. Did it move?" (N172 M13, N186). */
@@ -2176,8 +2254,21 @@ function OfferActions({
   onResolve: () => void;
 }) {
   const router = useRouter();
-  if (type === "sunday_note" || type === "sunday_principle") {
-    return <SundayActions type={type} onSunday={onSunday} onResolve={onResolve} />;
+  if (type === "sunday_note") {
+    return (
+      <SymmetricPair
+        closeLabel="Not now"
+        onClose={() => {
+          onSundayNote("not_now");
+          onResolve();
+        }}
+        actionLabel="Investigate"
+        onAction={() => {
+          onSundayNote("investigate");
+          onResolve();
+        }}
+      />
+    );
   }
   if (type === "life_goals_change") {
     return (
@@ -2351,14 +2442,26 @@ function askBubble(
     willOpen,
     onWillAnswer,
     onOpenLifeGoal,
+    onOpenSunday,
+    sundayWaiting,
+    planRows,
   }: {
     activeOffer?: OfferType | null;
     onOpenOffer?: (type: OfferType) => void;
     willOpen: boolean;
     onWillAnswer?: (target: WillQuestionTarget, choice: string) => Promise<void>;
     onOpenLifeGoal?: (goalId: string) => void;
+    onOpenSunday?: (noteId: string) => void;
+    sundayWaiting?: (noteId: string) => boolean;
+    planRows?: PlanRowCtx;
   },
 ) {
+  const planned = planRowFor(message, planRows);
+  if (planned) return <>{planned}</>;
+  const head = sundayHeadOf(message.metadata);
+  if (head) {
+    return <SundayHeadBubble body={message.body} waiting={sundayWaiting?.(head) ?? false} onOpen={() => onOpenSunday?.(head)} />;
+  }
   const goal = lifeGoalOf(message.metadata);
   if (goal) return <LifeGoalBubble goal={goal} onOpen={() => onOpenLifeGoal?.(goal.id)} />;
   const will = willQuestionOf(message.metadata);
@@ -2404,6 +2507,9 @@ function Bubble({
   willOpen = false,
   onWillAnswer,
   onOpenLifeGoal,
+  onOpenSunday,
+  sundayWaiting,
+  planRows,
   animate = false,
   latestForArc = false,
   shareLine = null,
@@ -2437,10 +2543,16 @@ function Bubble({
   onWillAnswer?: (target: WillQuestionTarget, choice: string) => Promise<void>;
   /** A set life goal's ladder: its › opens the lens on it (N172 M10). */
   onOpenLifeGoal?: (goalId: string) => void;
+  /** The Sunday note's "We spotted a pattern!": its › opens the lens again
+   *  where it stands, with the orange outline while it waits (N158 L8). */
+  onOpenSunday?: (noteId: string) => void;
+  sundayWaiting?: (noteId: string) => boolean;
+  /** The plan's rows (docs/flows/the-plan.md): drawn by their metadata. */
+  planRows?: PlanRowCtx;
   /** U3 — true only for a freshly-arrived last message → sequential reveal. */
   animate?: boolean;
 }) {
-  const ask = askBubble(message, { activeOffer, onOpenOffer, willOpen, onWillAnswer, onOpenLifeGoal });
+  const ask = askBubble(message, { activeOffer, onOpenOffer, willOpen, onWillAnswer, onOpenLifeGoal, onOpenSunday, sundayWaiting, planRows });
   if (ask) return ask;
   if (
     message.kind === "recording_summary" ||
@@ -2596,10 +2708,13 @@ function Bubble({
   );
 }
 
-function LoungeEmptyState({ onStart }: { onStart: () => void }) {
+function LoungeEmptyState({ onStart, hidden }: { onStart: () => void; hidden: boolean }) {
   // ONE BUTTON, CENTRED, NOTHING ELSE (founder 2026-10-12). With no project
   // yet there is nothing to choose between, so it goes straight to the new
   // project's onboarding; the "+" beside the message box opens the projects.
+  // With the plan (the-plan.md B1) its questions come first, so the button
+  // waits while the plan is read and stays away while it asks.
+  if (hidden) return null;
   return (
     <div className="flex flex-1 items-center justify-center px-6">
       <button
@@ -2849,12 +2964,16 @@ function recordFor(
  *  wears the orange outline, a full stroke with no tail (`data-outlined`).
  *  A tap opens the Take's whole walk: an older Take's read only; live on
  *  what waits while the review waits; on the coach's word while the walk's
- *  own copy of it is not yet seen (C1); else standing on its newest step. */
+ *  own copy of it is not yet seen (C1); else standing on its newest step.
+ *  It is as wide as the Take's Ideal Text card, which sits right under it
+ *  once the walk is done, one pair (founder 2026-10-26, N202): then it has
+ *  no tail, the card closes the pair (`data-paired`, globals.css). */
 function FeedbackWalkBubble({
   walk,
   older,
   waits,
   live,
+  paired,
   onOpenOlder,
   onOpened,
   onOpenIdealText,
@@ -2866,6 +2985,8 @@ function FeedbackWalkBubble({
   waits: LoungeMessage[];
   /** The project whose review waits ("Continue review"); null: none. */
   live: string | null;
+  /** The Take's Ideal Text card is drawn right under it (N202). */
+  paired: boolean;
   onOpenOlder: (older: { take: number; session: string }) => void;
   onOpened: (seen: LoungeMessage[]) => void;
   onOpenIdealText: (arcId: string, mode?: IdealTextLaunchMode, at?: WalkStepTarget | null) => void;
@@ -2880,25 +3001,20 @@ function FeedbackWalkBubble({
       return;
     }
     if (!walk.arcId) return;
-    const coachWaits = waits.find((m) => m.metadata?.step === "coachnote");
-    if (!coachWaits && live === walk.arcId) {
-      onOpenIdealText(walk.arcId, "review");
-      return;
-    }
-    const at = coachWaits ?? walk.newest;
-    onOpenIdealText(walk.arcId, "review", at ? doorOf(at.metadata ?? {}) : null);
+    onOpenIdealText(walk.arcId, "review", feedbackWalkDoor(walk, waits, live));
   };
   return (
-    <div data-row="app" className="mr-auto flex max-w-[88%] items-end gap-1.5">
+    <div data-row="app" className="mr-auto flex w-[80%] max-w-sm">
       <button
         type="button"
         data-bubble=""
         data-feedback-walk={walk.take}
         data-outlined={waiting ? "" : undefined}
+        data-paired={paired ? "" : undefined}
         {...(coach ? { [COACH_BUBBLE_ATTR]: String(wordTakeOf(coach) ?? "") } : {})}
         onClick={open}
         onPointerDown={() => warmIdealTextOpen(walk.arcId)}
-        className={`relative flex min-w-[190px] flex-col rounded-[16px] bg-muted text-left text-[15px] leading-[1.45] text-foreground ${waiting ? "border-2 border-primary py-[6px] pl-[10px] pr-[28px]" : "py-2 pl-3 pr-[30px]"}`}
+        className={`relative flex min-w-0 flex-1 flex-col rounded-[16px] bg-muted text-left text-[15px] leading-[1.45] text-foreground ${waiting ? "border-2 border-primary py-[6px] pl-[10px] pr-[28px]" : "py-2 pl-3 pr-[30px]"}`}
       >
         <span>{WALK_COPY.feedbackWalk}</span>
         <span className="mt-0.5 flex items-baseline gap-2.5 text-[11.5px] leading-[1.3] text-muted-foreground">
@@ -3090,25 +3206,6 @@ function stepTap(
     onOpened?.();
     onOpenIdealText?.(arc, "review", target);
   };
-}
-
-/** Where a step's door opens the walk: its step (a try's opens its
- *  exercise), its moment, its Take and its paragraph. Null: no step. */
-function doorOf(meta: Record<string, unknown>): WalkStepTarget | null {
-  const step = typeof meta.step === "string" ? meta.step : null;
-  if (!step) return null;
-  return {
-    step: exerciseStepOf(step),
-    moment: typeof meta.moment === "number" ? meta.moment : null,
-    take: typeof meta.take_session_id === "string" ? meta.take_session_id : null,
-    part: typeof meta.part_id === "string" ? meta.part_id : null,
-  };
-}
-
-/** A try ("Practise N") or the answer it got opens its exercise, the whole
- *  thread with every try (walk first, 2026-10-14). */
-function exerciseStepOf(step: string): string {
-  return step.startsWith("try:") || ["improved", "encourage", "thanks"].includes(step) ? "exVideo" : step;
 }
 
 /** The helper words' hint: "Tap the words", or "🔒 Take N" once a newer

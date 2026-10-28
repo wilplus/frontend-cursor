@@ -35,7 +35,9 @@ import WalkLoading from "../walk/WalkLoading";
 import WalkChoices, { type WalkChoice } from "../walk/WalkChoices";
 import DeckSlidePreview from "../DeckSlidePreview";
 import ProjectRowMenu from "../ProjectRowMenu";
-import { answerWord, type AnswerValue, type QueueSpeaker, type QueueTake, type ReadSlide } from "@/lib/willab/coachWalk";
+import {
+  answerWord, speakerWaits, type AnswerValue, type QueuePlan, type QueueSpeaker, type QueueTake, type ReadSlide,
+} from "@/lib/willab/coachWalk";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
 import type { MomentRead } from "@/services/api/coachWalk";
@@ -53,7 +55,7 @@ function GroupLabel({ children }: { children: ReactNode }) {
   );
 }
 
-function Group({ label, children, testId }: { label: string; children: ReactNode; testId?: string }) {
+export function Group({ label, children, testId }: { label: string; children: ReactNode; testId?: string }) {
   return (
     <section data-testid={testId} className="flex flex-col gap-2">
       <GroupLabel>{label}</GroupLabel>
@@ -79,10 +81,29 @@ export function PanelPlayer({ nav, momentId, clip, words }: {
 
 /* ── Your queue ──────────────────────────────────────────────────────── */
 
-/** One speaker as a choice: moments waiting, a Take still waiting for its
- *  text, or all answered. Pure. */
+/** What the speaker's plan waits for, on their queue card (backend N213). */
+export function planQueueLine(plan: QueuePlan): string {
+  if (plan.kind === "new") return COPY.newPlan;
+  if (plan.kind === "asked") return COPY.askedAboutLevel;
+  return COPY.threeTakes;
+}
+
+/** The same, on "Their plan" on the speaker's page: a new plan with its
+ *  deadline, a stuck level by its name. */
+export function planCardLine(plan: QueuePlan): string {
+  if (plan.kind === "new") return plan.deadlineShort ? COPY.newPlanBy(plan.deadlineShort) : COPY.newPlan;
+  if (plan.kind === "asked") return COPY.askedAboutLevel;
+  return plan.levelName ? COPY.stuckOn(plan.levelName) : COPY.threeTakes;
+}
+
+/** One speaker as a choice: their plan, moments waiting, a Take still
+ *  waiting for its text, or all answered. Pure. */
 export function speakerChoice(speaker: QueueSpeaker, index: number): WalkChoice {
   const value = `${index}`;
+  if (speaker.plan) {
+    const moments = speaker.waiting > 0 ? ` · ${COPY.momentsWaiting(speaker.waiting)}` : "";
+    return { value, label: speaker.pseudonym, subtitle: `${planQueueLine(speaker.plan)}${moments}`, dot: true };
+  }
   if (speaker.waiting > 0) {
     return { value, label: speaker.pseudonym, subtitle: COPY.momentsWaiting(speaker.waiting), dot: true };
   }
@@ -99,13 +120,15 @@ function latestSent(speaker: QueueSpeaker): number {
 
 /** The queue as the coach sees it (founder 2026-10-18): a speaker with
  *  nothing left to do drops out (they stay in Your speakers), and the speaker
- *  who sent most recently is at the top. Pure. */
+ *  who sent most recently is at the top; a speaker whose plan waits comes
+ *  first, in the order the plans wait (backend N213). Pure. */
 export function queueOrder(speakers: readonly QueueSpeaker[]): QueueSpeaker[] {
-  return speakers
-    .filter((s) => s.waiting > 0 || s.takes.some((t) => t.waitingForText))
+  const sent = speakers
+    .filter((s) => !s.plan && speakerWaits(s))
     .map((s, i) => ({ s, i, at: latestSent(s) }))
     .sort((a, b) => b.at - a.at || a.i - b.i)
     .map(({ s }) => s);
+  return [...speakers.filter((s) => s.plan), ...sent];
 }
 
 export type BlindRows = {
@@ -355,11 +378,21 @@ export function awaitingMoments(speaker: QueueSpeaker, queueLoading: boolean): b
   return queueLoading && speaker.takes.some((t) => t.waiting > 0 && t.moments.length === 0);
 }
 
-export function SpeakerScreen({ speaker, loading = false, onTake, onBack, onClose }: {
+/** "Their plan", above the Takes while the plan waits (backend N213). */
+function PlanCard({ plan, onPlan }: { plan: QueuePlan; onPlan: () => void }) {
+  return (
+    <WalkChoices label={COPY.theirPlan} onPick={onPlan}
+      choices={[{ value: plan.planId, label: COPY.theirPlan, subtitle: planCardLine(plan), dot: true }]} />
+  );
+}
+
+export function SpeakerScreen({ speaker, loading = false, onTake, onPlan, onBack, onClose }: {
   speaker: QueueSpeaker;
   /** The queue is still being read. */
   loading?: boolean;
   onTake: (take: QueueTake) => void;
+  /** Their plan opens (backend N213). */
+  onPlan?: () => void;
   onBack: () => void;
   onClose: () => void;
 }) {
@@ -386,6 +419,7 @@ export function SpeakerScreen({ speaker, loading = false, onTake, onBack, onClos
         <WalkLoading />
       ) : (
         <>
+          {speaker.plan && onPlan ? <PlanCard plan={speaker.plan} onPlan={onPlan} /> : null}
           {open.length > 0 ? <WalkChoices label={speaker.pseudonym} choices={open.map(choice)} onPick={pick} /> : null}
           {answered.length > 0 ? (
             <section data-testid="speaker-answered" className="flex flex-col gap-2">

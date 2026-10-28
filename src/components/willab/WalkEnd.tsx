@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
 import type { BehindNotice } from "./saveBehind";
+import PlanProgress from "./plan/PlanProgress";
 
 /* -------------------------------------------------------------------------- */
 /*  The walk's two closing signals (founder 2026-09-26, Ideal Text redesign   */
@@ -119,6 +120,9 @@ export function WalkEndCard({
           <h2 className="text-[20px] font-bold tracking-[-0.01em] text-foreground">
             {COPY.endCardTitle}
           </h2>
+          {/* The plan's bar and "{n} of {total} practices done. Next: {day}."
+              (the-plan.md E3, G5; approved for the end sheet, N140). */}
+          <PlanProgress />
           {nextStep}
           <button
             type="button"

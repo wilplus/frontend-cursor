@@ -25,7 +25,7 @@
 
 import { PRACTISE_LINES, type PractiseCueKey } from "@/components/willab/idealEditCopy";
 import type { SayLine } from "./walkLines";
-import { WALK_MAX_TRIES, afterTry, type WalkStep, type WalkStepKey } from "./walkPlan";
+import { WALK_MAX_TRIES, afterTry, goodJobHelpers, type WalkStep, type WalkStepKey } from "./walkPlan";
 
 /** O5: a read later than this is "not reached yet"; the walk offers Next or
  *  Practise again and never waits longer. */
@@ -180,7 +180,9 @@ export function withRead(
       if (s.key === "encourage") return { ...s, kind: read.key ?? "effort" };
       return s;
     });
-  return [...head, ...next, ...rest];
+  // A Good job on a correction opens its helper words next (N220).
+  const helpers = read.next === "praise" ? goodJobHelpers(plan, practise) : [];
+  return [...head, ...next, ...helpers, ...rest];
 }
 
 /** "Practise again" on the late screen at `at`: the try it names, recorded

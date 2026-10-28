@@ -79,12 +79,12 @@ export type LensOpen = {
   with?: string;
 };
 
-type Item = { id: number; who: "will" | "me"; node: ReactNode };
+export type Item = { id: number; who: "will" | "me"; node: ReactNode };
 
 /** The lens was closed: the script stops where it stands. */
-class Closed extends Error {}
+export class Closed extends Error {}
 
-type Ui = {
+export type Ui = {
   add: (who: Item["who"], node: ReactNode) => void;
   typing: (on: boolean) => void;
   dock: (node: ReactNode) => void;
@@ -93,7 +93,7 @@ type Ui = {
   fast: { current: boolean };
 };
 
-function script(ui: Ui) {
+export function script(ui: Ui) {
   const wait = (ms: number) =>
     new Promise<void>((resolve, reject) =>
       setTimeout(() => (ui.alive() ? resolve() : reject(new Closed())), ui.fast.current ? 0 : ms),
@@ -127,15 +127,15 @@ function script(ui: Ui) {
   return { say, me, ask, fast: ui.fast };
 }
 
-type Script = ReturnType<typeof script>;
+export type Script = ReturnType<typeof script>;
 
 /* ── The dock ──────────────────────────────────────────────────────────── */
 
-type Tap = { emoji?: string; label: string };
+export type Tap = { emoji?: string; label: string };
 
 /** The judgement's tall full-width answers (C8): the one tapped fills black,
  *  holds a moment, then lands as the speaker's bubble. */
-function TapsDock({ options, onPick }: { options: readonly Tap[]; onPick: (index: number) => void }) {
+export function TapsDock({ options, onPick }: { options: readonly Tap[]; onPick: (index: number) => void }) {
   const [held, setHeld] = useState<number | null>(null);
   return (
     <div className="flex flex-col gap-2.5 px-5 pb-[max(30px,env(safe-area-inset-bottom))] pt-2">
@@ -165,11 +165,11 @@ function TapsDock({ options, onPick }: { options: readonly Tap[]; onPick: (index
   );
 }
 
-function DockColumn({ children }: { children: ReactNode }) {
+export function DockColumn({ children }: { children: ReactNode }) {
   return <div className="flex flex-col gap-2 px-5 pb-[max(30px,env(safe-area-inset-bottom))] pt-2">{children}</div>;
 }
 
-const FIELD =
+export const FIELD =
   "w-full resize-none rounded-2xl border-[1.5px] border-border bg-background px-3.5 py-3 text-[17px] leading-[1.5] text-foreground placeholder:text-muted-foreground focus:border-foreground focus:outline-none";
 
 /** Said with the small mic, or typed; Skip leaves it. ``null`` is a skip. */
@@ -244,7 +244,7 @@ function WordsDock({ onAnswer }: { onAnswer: (text: string | null) => void }) {
 
 /** A field with the words, a black pill to keep them, and Back when there is
  *  somewhere to go back to. */
-function EditorDock({
+export function EditorDock({
   value,
   label,
   onKeep,
@@ -291,7 +291,7 @@ export function LadderCard({
   onPick,
   small = false,
 }: {
-  goal: Pick<LifeGoal, "space" | "ladder" | "changes" | "talk">;
+  goal: Pick<LifeGoal, "space" | "ladder" | "changes" | "talk" | "week">;
   onPick?: (rung: Rung) => void;
   small?: boolean;
 }) {
@@ -302,7 +302,7 @@ export function LadderCard({
         {space.emoji} {space.name}
       </b>
       {ladderRungs(goal).map((rung) =>
-        onPick ? (
+        onPick && rung.step !== "week" ? (
           <button
             key={`${rung.step}${rung.with ?? ""}`}
             type="button"
@@ -697,6 +697,7 @@ async function seeGoals(ctx: Ctx, open: LensOpen): Promise<void> {
       }
       return;
     }
+    if (pick.rung.step === "week") continue; // the plan's, never changed here
     const updated =
       pick.rung.step === "clash"
         ? await changeClash(ctx, pick.goal, pick.rung.with)
@@ -719,7 +720,7 @@ async function seeGoals(ctx: Ctx, open: LensOpen): Promise<void> {
  *  ladder as it is now. */
 async function changeTapped(ctx: Ctx, open: LensOpen): Promise<void> {
   const goal = ctx.state.goals.find((g) => g.id === open.goalId);
-  if (!goal || !open.step) return;
+  if (!goal || !open.step || open.step === "week") return;
   const updated =
     open.step === "clash" ? await changeClash(ctx, goal, open.with) : await changeOne(ctx, goal, open.step);
   if (updated) await ctx.s.say(COPY.changedOn(dayLabel(new Date().toISOString())), <LadderCard key="after" goal={updated} />);
@@ -808,16 +809,19 @@ async function quarterBack(ctx: Ctx, open: LensOpen): Promise<void> {
 
 /* ── The lens ──────────────────────────────────────────────────────────── */
 
-function LensFrame({
+export function LensFrame({
   items,
   typing,
   dock,
   onClose,
+  label = COPY.bar,
 }: {
   items: readonly Item[];
   typing: boolean;
   dock: ReactNode;
   onClose: () => void;
+  /** The bar's name: "Life goals", or "Sunday note" (L3). */
+  label?: string;
 }) {
   const body = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -828,16 +832,16 @@ function LensFrame({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={COPY.bar}
+      aria-label={label}
       data-life-goals-lens
       className="walk-ov flex h-full w-full flex-col bg-background pt-[env(safe-area-inset-top)] text-[17px] leading-[1.55] text-foreground"
     >
       <div className="walk-ovtop flex min-h-[44px] items-center justify-between px-2.5 pt-2">
-        <nav aria-label={COPY.bar} className="flex min-w-0 items-center gap-0.5 text-[13.5px] font-semibold">
+        <nav aria-label={label} className="flex min-w-0 items-center gap-0.5 text-[13.5px] font-semibold">
           <span className="flex h-9 w-9 items-center justify-center text-muted-foreground opacity-25" aria-hidden>
             <ChevronLeft className="h-5 w-5" />
           </span>
-          <span className="min-w-0 truncate">{COPY.bar}</span>
+          <span className="min-w-0 truncate">{label}</span>
           <span className="flex h-9 w-9 items-center justify-center text-muted-foreground opacity-25" aria-hidden>
             <ChevronRight className="h-5 w-5" />
           </span>

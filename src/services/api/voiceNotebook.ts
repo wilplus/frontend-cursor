@@ -100,10 +100,48 @@ export function fixVoiceNote(clientId: string, text: string): Promise<boolean> {
   return post("/api/v2/notebook/fix", { json: { client_id: clientId, text } });
 }
 
-/* The Sunday note (Will learning plan, step 2). */
-export type SundayStep = "pattern" | "principle";
-export type SundayChoice = "old" | "new" | "add" | "not_now";
+/* The Sunday note as a lens (Will learning plan, step 2; backend N158,
+   N170; rules docs/flows/principles.md §1 L). Every answer is a row of the
+   one Lounge thread; the lens and the Lounge show the same rows. */
+export type SundayStep = "bug" | "applied" | "reflection" | "principle" | "done" | "closed";
+export type SundayNote = {
+  id: string;
+  case: string;
+  /** The two held principles most likely to apply (L5). */
+  likely: { id: string; title: string }[];
+  new_principle: string | null;
+  /** The step the lens waits on. */
+  step: SundayStep;
+  rows: { role: "user" | "bot"; body: string; step: string }[];
+};
 
-export function answerSunday(noteId: string, step: SundayStep, choice: SundayChoice): Promise<boolean> {
-  return post(`/api/v2/notebook/sunday/${encodeURIComponent(noteId)}/${step}`, { json: { choice } });
+function sundayNoteOf(body: unknown): SundayNote | null {
+  const note = body as Partial<SundayNote> | null;
+  return note && typeof note.id === "string" && Array.isArray(note.rows) && typeof note.step === "string"
+    ? { likely: [], new_principle: null, case: "", ...note } as SundayNote
+    : null;
+}
+
+export async function getSundayNote(id: string): Promise<SundayNote | null> {
+  try {
+    const result = await bffFetch(`/api/v2/notebook/sunday/${encodeURIComponent(id)}`, { cache: "no-store" });
+    return result.kind === "response" && result.ok ? sundayNoteOf(result.body) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** One tap: "open", "bug", "applied", "reflection", "principle", or
+ *  "dismiss" (Not now under the case). The note as it stands after it. */
+export async function answerSundayNote(id: string, step: string, value?: unknown): Promise<SundayNote | null> {
+  try {
+    const result = await bffFetch(`/api/v2/notebook/sunday/${encodeURIComponent(id)}/answer`, {
+      method: "POST",
+      cache: "no-store",
+      json: { step, value: value ?? null },
+    });
+    return result.kind === "response" && result.ok ? sundayNoteOf(result.body) : null;
+  } catch {
+    return null;
+  }
 }

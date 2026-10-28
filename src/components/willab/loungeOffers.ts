@@ -30,7 +30,6 @@ export type OfferType =
   | "feedback_check"
   | "voice_notebook"
   | "sunday_note"
-  | "sunday_principle"
   | "life_goals"
   | "life_goals_quarter"
   | "life_goals_change";
@@ -45,7 +44,6 @@ const OFFER_TYPES: readonly OfferType[] = [
   "feedback_check",
   "voice_notebook",
   "sunday_note",
-  "sunday_principle",
   "life_goals",
   "life_goals_quarter",
   "life_goals_change",
@@ -77,11 +75,10 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
   // 2026-10-20): asked before the first note. Backend COPY["ask"] in
   // services/voice_notebook.py; this is only the fallback.
   voice_notebook: "Your notes are private. Only you and Will read them. Keep a voice notebook?",
-  // The Sunday note (Will learning plan, step 2): the founder's own case
-  // form; the backend writes the whole note (services/sunday_note.py), and
-  // these are only the fallbacks.
-  sunday_note: "CASE AT HAND",
-  sunday_principle: "NEW PRINCIPLE ⚜️",
+  // The Sunday note as a lens (Will learning plan, step 2; backend N158
+  // L2): the backend writes the case under "We spotted a pattern!" with Not
+  // now | Investigate (services/sunday_note.py); this is only the fallback.
+  sunday_note: "We spotted a pattern!",
   // Life goals (Will learning plan, step 3; backend N172 M1): asked after
   // the first # note, Not now | Start. Backend COPY["ask_more"] in
   // services/life_goals.py; this is only the fallback.

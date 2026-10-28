@@ -216,6 +216,57 @@ page's title and the recording screen's line, "yes change it to “Settings”".
 - The address stays `/account/data-consent`; the documents already accepted keep their words. Where this page says
   "Data & consent" above, it means this page.
 
+### Amended 2026-10-26: the WhatsApp card names the booked call (backend N207)
+
+The founder in the Claude Code chat, choosing "Change the words": the booking form asks for no WhatsApp number,
+and a booked call's reminder goes to the number saved on the account, so the card says so. Written in the present
+tense.
+
+- With a number saved, the WhatsApp card reads "We message {number} when your coach’s feedback is in and 10
+  minutes before a booked call." Remove, its confirm and the card without a number stay as they are.
+
+### Amended 2026-10-27: Personal answers in your plan (backend N211)
+
+Approved on the clickable prototype <https://claude.ai/artifact/3GtUo7eVdf9SAhZQCDsTR7>:
+"approved as drawn".
+
+- A card on Data & consent, **Personal answers in your plan**, between Help
+  improve WillpowerLab and WhatsApp (after AI version of your voice when that
+  card shows). On: "Will asks how stressed and how ready you feel, what
+  worries you, and how you feel before each Take. Your coach and Will use the
+  answers to shape your plan." and **Turn off**, which asks first, in the shape
+  of the training card's turn-off question: **Turn off personal answers?** /
+  "We stop asking, and delete the personal answers you have given. Your plan
+  stays." The outcome line, only once the answers are deleted: "Off. We
+  deleted your personal answers." Off: "Off. Turn it on and Will asks how
+  stressed and how ready you feel, what worries you, and how you feel before
+  each Take." and **Turn on**.
+- Hidden for anyone the backend answers `enabled: false` (the switch
+  `PLAN_CONSENT_ENABLED`, off until Privacy 3.9 is published, or the plan's
+  ring).
+- Will's own ask for the same yes, in the Lounge, with **Read more** (Privacy
+  section 4e in a window, **Continue** to close), is the plan's rule D5:
+  [`the-plan.md`](the-plan.md).
+
+### Amended 2026-10-27: WhatsApp as a way in (backend N214)
+
+The founder in the Claude Code chat, on the clickable prototype <https://claude.ai/artifact/Dcf2FCyDs5c4Pb7BJc7oZ7>:
+"Add it in Settings first", then, for the row, "use these words". Written in the present tense.
+
+- **The row.** The Email and password card has a third row, **WhatsApp**. Off: "Sign in with your WhatsApp number
+  too." and **Add**, which opens **Your WhatsApp number** with **Send code** / **Cancel**, then "Enter the code we
+  sent you on WhatsApp" with **Continue** / **Cancel**, **Resend code** (after a minute) and **Use a different
+  number**: the WhatsApp sign-up's words. A number without its country code gets the Lounge's line, a wrong code
+  "That code didn't work. Try again.", anything else the page's "Couldn’t save that. Try again." On: "You can sign
+  in with WhatsApp at {number}."
+- **When it shows.** Once WhatsApp sign-in is on (`NEXT_PUBLIC_WHATSAPP_SIGNIN`), and always for an account that
+  already signs in with WhatsApp.
+- **A WhatsApp account.** No email row until it has an email, and no password row either, since its links go by
+  email. The email comes from booking a call (the booking form's **Email**, "We'll send your calendar invite
+  here."): it becomes the account's when its owner opens the "Confirm your new email" link, and the card then has
+  its Email row, and a Password row that reads "You sign in with WhatsApp." with **Set a password**.
+- The number added here is a way in only: the WhatsApp card's number for messages stays its own.
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
@@ -267,6 +318,9 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-27 · N214 · the Email and password card's WhatsApp row: Add, the number and the code; on, "You can sign in with WhatsApp at {number}."; a WhatsApp account's card has no email or password row until it has an email · BE #1420, FE (this PR)
+- 2026-10-27 · N211 · the card "Personal answers in your plan" between Help improve WillpowerLab and WhatsApp: on and off, off asks first and deletes the personal answers; hidden until the backend's switch is on · BE #1416, FE (this PR)
+- 2026-10-26 · N207 · the WhatsApp card names the booked call: "We message {number} when your coach’s feedback is in and 10 minutes before a booked call." · BE #1391, #1395, FE (this PR)
 - 2026-10-26 · N196 · the page is called Settings: the ☰ menu's row, the title and the recording screen's line · BE, FE
 - 2026-10-26 · N190 · Email and password on Data & consent: change email with a link, change password, Forgot password? and Set a password, the security log; `/change-password` goes · BE, FE
 - 2026-10-26 · docs audit · the pointer to CLAUDE.md's "Design lock" section names its history copy; no rule changed · —
