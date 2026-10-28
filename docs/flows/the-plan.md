@@ -138,14 +138,14 @@ built and what is still to come.
    questions are personal: how stressed and how ready you feel, what worries
    you, and how you feel before each Take. I only ask with your yes. Your
    coach and I use your answers to shape your plan. You can turn this off in
-   Data & consent." with Read more, which opens Privacy section 4e in a
+   Settings." (N248) with Read more, which opens Privacy section 4e in a
    window, and in the footer "Not now" and "Yes, ask me"; nothing else is
    taken while Will waits. "Yes, ask me" goes on with the worry question and
    the ratings. "Not now" adds no line from Will: the worry question and the
    ratings are not asked or kept, the plan is built from what it has and
    goes on to the calls, and its end goes to "What's next?" without "How did
    it go?". A plan made before the yes existed is asked at its next personal
-   moment (the last ratings, or its end). Data & consent has a card,
+   moment (the last ratings, or its end). Settings has a card,
    "Personal answers in your plan", between Help improve WillpowerLab and
    WhatsApp, where the yes is turned on later or off: off asks first, then
    deletes the personal answers (the answers and their recordings, their
@@ -545,6 +545,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N248 · D5: Will's ask for the plan's own yes ends "You can turn this off in Settings.", the page's name since N196; an ask already in a thread keeps its words. Was: "… in Data & consent." · BE #1465, BE (code PR), FE (this PR)
 - 2026-10-28 · N246 · G7: the walk shows the two best moments and the level's moment as well, a third or one of the two; and the walk the speaker sees now reads the level (it never did: the serve path asked a store that cannot read a plan, so only the dark frame had the level's moment). Was: the best moment and the level's · BE #1459, BE (code PR), FE (this PR)
 - 2026-10-28 · N150 · fixed (B6): a question, opener or ack the AI left with a slot unfilled ("If {who they will speak to} remembers …", seen by the founder) is not kept, and Will says the plain template; a slot is never kept as a fact, and the plan card's "Why this line?" reads "them" for one stored before · BE #1461
 - 2026-10-28 · N243 · A5: the plan says when the speaker is onboarded (`onboarding`: the questions, then a new speaker's plan until the first Take; not a plan waiting for the next Take), and the principles wait meanwhile; the Lounge reads the plan again when a Take lands in the thread, so the first Take's footer gives way and the principles come back without the app being opened again; was: nothing held them back while the questions were asked · BE #1456, #1460, FE (this PR)
