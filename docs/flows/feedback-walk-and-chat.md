@@ -487,13 +487,17 @@ step; the loop never waits for a coach.
      up to the practice day's bubble that comes after it (N167; decided, not
      built, [`the-plan.md`](the-plan.md) G6).
 
-  From the moment the next Take is recorded until its walk reaches its
-  summary, the chat offers no Take: the last Take's closing message keeps its
-  words and gives "Record Take N" up, while the Take processes and while its
-  walk runs, and the new Take's own closing message brings it back (founder
-  2026-10-28, N244: "disable the new event while the processing is
-  happening, so that it is only possible once it's finished"). The "+" and
-  the Ideal Text page's own "Record Take N" are as before.
+  **Between two Takes** (N244, N251). From the moment the next Take is
+  recorded, in any project, until its walk reaches its summary, the chat
+  shows no "Record Take N". Every closing message above it keeps its words
+  and loses its button for good. The new Take's closing message, written
+  with the summary, brings the button back. So the chat has one record
+  button, the newest Take's; another project is reached through the "+".
+  The "+" and the Ideal Text page's own "Record Take N" are unchanged
+  (founder 2026-10-28: "disable the new event while the processing is
+  happening, so that it is only possible once it's finished"; then "One
+  record button in the chat, the newest Take's; other projects through the
+  '+'").
 
   The summary is the walk's last step (C9) and is not drawn in the chat
   (founder 2026-10-26, N192, question 1: "In the walk only").
@@ -1221,6 +1225,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N251 · a Take recorded in any project takes "Record Take N" from every closing message above it, and the button does not come back on them: the chat has one record button, the newest Take's, and other projects are reached through the "+" (D4). Was: N244 held only inside one project, so another project's button stayed beside the new walk, and each project's last closing message kept its own. D4 rewritten in short sentences · BE (N251 log), FE (this PR)
 - 2026-10-28 · — (B5, T) · fixed: the tempo game drawn from nothing (the walk opened again further on, or its leaving copy) shows the game as the chat kept it, and every kept try has the line the dot drew (its path in the try's message); a finished walk played again shows the stretch and the lines too. Was: it showed only its opening lines, down to "🤫 Find a quiet spot first.", and a walk played again showed "Try N" without its line (founder 2026-10-28: "the sniper as a graphic does not stay there … It feels like the practice is gone from the feedback walk") · FE (this PR)
 - 2026-10-28 · N245 · the tempo step (the Sniper) guides the tries: a try that lands (20 s or more from the first word, the ball four fifths in the green) gets "That landed. 🎯 Really better. Let's move on." and Next, on any try; one that came closer gets "Better. You let it breathe." and "You're close. 💪 Give it one more try."; otherwise its comment; up to three tries, then the closing line. Was: Practise again after every try, See how it went from the second, the close only after the third or on the speaker's choice (founder 2026-10-28: "If it was really better, you let me go to the next step") · BE (decisions log), FE (this PR)
 - 2026-10-28 · N247 · built: a finished walk opened again shows everything the speaker went through, read only, down to the summary: the tempo step and the other speakers they judged included. Was: it stopped at the newest moment, left the tempo step out and skipped the judging (B10, C8, T) · BE #1463, FE (this PR)

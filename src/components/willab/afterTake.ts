@@ -113,24 +113,10 @@ export function askShowing(drawn: readonly Meta[], formOpen: boolean): boolean {
   return typeof meta.offer === "string" || meta.feedback_check === "missing";
 }
 
-/** The bubbles whose "Record Take N" names a Take already recorded: a newer
- *  recording of their project is in the thread after them (messages oldest
- *  first). The closing message and a practice day's bubble give up their
- *  button then, so from the moment the next Take is recorded the chat offers
- *  no Take until that Take's walk reaches its summary and writes its own
- *  closing message (founder 2026-10-28, N244: "disable the new event while
- *  the processing is happening, so that it is only possible once it's
- *  finished"; it had come back the moment processing ended, beside the new
- *  Take's walk). */
-export function recordedPast(messages: readonly Pick<LoungeMessage, "client_id" | "kind" | "metadata">[]): ReadonlySet<string> {
-  const recorded = new Set<string>();
-  const past = new Set<string>();
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const { client_id: id, kind, metadata } = messages[i];
-    const arc = metadata?.arc_id;
-    if (typeof arc !== "string") continue;
-    if (kind === "recording_summary") recorded.add(arc);
-    else if (recorded.has(arc)) past.add(id);
-  }
-  return past;
+/** The bubbles above the chat's newest recording, in any project (messages
+ *  oldest first): none of them keeps "Record Take N", so the chat's one
+ *  record button is the newest Take's (N244, N251). */
+export function recordedPast(messages: readonly Pick<LoungeMessage, "client_id" | "kind">[]): ReadonlySet<string> {
+  const newest = messages.findLastIndex((m) => m.kind === "recording_summary");
+  return new Set(messages.slice(0, Math.max(newest, 0)).map((m) => m.client_id));
 }

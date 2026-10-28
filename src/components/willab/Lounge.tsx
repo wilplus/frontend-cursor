@@ -1050,8 +1050,7 @@ export default function Lounge({
     onRecordNext: (arc) => openIdealText(arc, "share"),
     recordHeld: takeInFlight,
   });
-  // Once the next Take is recorded, an older "Record Take N" goes until
-  // that Take's walk reaches its summary (N244).
+  // Only the newest Take keeps "Record Take N", whatever the project (N244, N251).
   const recordedSince = useMemo(() => recordedPast(messages), [messages]);
   const nextTakeOf = (m: LoungeMessage): SummaryRecord | null => {
     // A practice day's one thing, newer than this message, holds the chat's
