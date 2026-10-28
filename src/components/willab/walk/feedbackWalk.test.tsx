@@ -301,13 +301,12 @@ describe("FeedbackWalk", () => {
     draw({ seq: 1, at: over.model.plan.findIndex((s) => s.key === "tempo") }, over);
     const thread = () => live()!.querySelector("[data-walk-thread-body]")!.textContent ?? "";
     const dock = (sel: string) => live()!.querySelector<HTMLElement>(`[data-walk-dock] ${sel}`);
-    // Two tries, then See how it went: the closing line, then Next.
-    for (const go of ["[data-testid='walk-tempo-ready']", "[data-testid='walk-practise']"]) {
-      click(dock(go));
+    // Three tries, none landing: the closing line comes by itself, then Next.
+    for (const go of ["walk-tempo-ready", "walk-practise", "walk-practise"]) {
+      click(dock(`[data-testid='${go}']`));
       await act(async () => {});
       click(dock("[data-walk-recording-strip] button"));
     }
-    click(dock("[data-testid='walk-tempo-finish']"));
     expect(screen()).toBe("walk-screen-tempo");
     forward();
     await act(async () => {});
@@ -321,7 +320,7 @@ describe("FeedbackWalk", () => {
     await act(async () => {});
     expect(screen()).toBe("walk-screen-summary");
     // Everything the game and the judging showed is still above the summary.
-    for (const line of [TEMPO_COPY.room, TEMPO_COPY.tryLabel(1), TEMPO_COPY.tryLabel(2), TEMPO_COPY.comment.slow, TEMPO_COPY.close.slow]) {
+    for (const line of [TEMPO_COPY.room, TEMPO_COPY.tryLabel(1), TEMPO_COPY.tryLabel(3), TEMPO_COPY.comment.slow, TEMPO_COPY.close.slow]) {
       expect(thread()).toContain(line);
     }
     expect(thread()).toContain(WALK_COPY.othersMany(2));
