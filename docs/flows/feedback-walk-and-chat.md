@@ -168,8 +168,10 @@ step; the loop never waits for a coach.
   - **The Feedback walk** opens:
     - on the coach's word, while a changed one is not yet seen (C1, D5);
     - while the walk runs, live on the step it waits on;
-    - once the walk is done, on its newest step, the rest above to scroll
-      back to, as "Review feedback" does;
+    - once the walk is done, on its newest step, as "Review feedback" does.
+      Everything the speaker went through is there to scroll, read only, down
+      to the summary: the tempo step (T) and the other speakers they judged
+      (C8) included (N247);
     - never on the Ideal Text in the walk's place: it always names where to
       open (fixed 2026-10-26, after a walk paused on its summary, or with no
       part to stand on, had opened the text).
@@ -198,7 +200,10 @@ step; the loop never waits for a coach.
   bubbles doesn't open the walk in a scrollable manner"; 2026-10-26, N192:
   "make sure it is well visible and not cut the stroke is there clearly";
   2026-10-26: "the feedback walk opens the ideal text instead of the feedback
-  walk!".)
+  walk!"; 2026-10-28, N247: "It should open the whole feedback walk with all
+  the things that are there that we went through, the judgment time, the
+  sniper, whatever intervention was included in the feedback", then "Both,
+  read only".)
 - **B11** ✕ turns the lens off and goes back where the step was opened
   from: the chat, or the Ideal Text page for a step opened from a paragraph.
   ✕ keeps a coach word's "new" ring.
@@ -432,9 +437,11 @@ step; the loop never waits for a coach.
   An answer moves on by itself after 0.28 s and stays locked. Each lands
   with its name ("Other speakers · 2 of 3"); the bar reads "Other speakers ·
   1 of N" or "Invita · 1 of N". Who you judge follows who you share with
-  (G3). An old judging bubble in the chat opens "Other speakers" afresh with
-  new moments; no read-only replay, and no other speaker's recording is ever
-  stored in a speaker's thread (2026-10-13).
+  (G3). **Opened again** once the walk is done, it shows the moments the
+  speaker judged, each with their answer, and Next. Nothing is asked or sent
+  again; with none judged the step is left out (N247; was "no read-only
+  replay", 2026-10-13). No other speaker's recording is ever stored in a
+  speaker's thread: the moments are read again from the server.
 - **C9 The closing summary** (D), then "Next", which opens the Ideal Text.
 - **C10 No longer in the walk:** "Judgement time!", judging your own
   moments, self-judging a practice try (on hold, §3), "Not sure", and Will's
@@ -995,6 +1002,7 @@ while a dot on a scale follows their pace live.
 
 **Where and when** (N162, N178).
 - In the Feedback walk only. Never in the coach panel, the Lounge, or before the Take.
+- **Opened again** once the walk is done, it shows what the chat kept, read only: Will's opening lines, each "Try N" with its comment, the closing line or the Skip, then Next. No scale and no microphone. A Take that had no tempo step has none (N247).
 - It sits before the Ideal Text, so it always has a Skip, and the whole walk has a time limit (N178, which replaces N130's "never between a Take and the Ideal Text" for the walk's own practice steps). Open: the limit; the founder sets it (§3).
 - It shows when the diagnosis and the plan say so: in a pace or pause week, from Take 2 ([the plan](the-plan.md), item 5). A speaker without a plan gets it from Take 2 whenever the pace scale finds a stretch outside the green, once in that walk (N181).
 - It is the founder's "Sniper": the pace exercise of N129. The old Strength/Pace dartboard stays retired (N127, N181).
@@ -1039,7 +1047,7 @@ Once the walk goes on, the game stays in the thread as it was played (B5): each 
 
 **The code.**
 - The plan: `src/lib/willab/walkPlan.ts`, `WalkIntervention` and the `tempo` step key. A new intervention is a new kind there, its place in `buildWalkPlan` and its screen.
-- The step: `src/components/willab/walk/WalkTempo.tsx`; what a try means and the signed words (`TEMPO_COPY`): `src/lib/willab/tempoStep.ts`.
+- The step: `src/components/willab/walk/WalkTempo.tsx`; played again, `WalkTempoSaid.tsx`, from the chat's lines (`tempoSaidIn`, `src/lib/willab/walkThread.ts`); what a try means and the signed words (`TEMPO_COPY`): `src/lib/willab/tempoStep.ts`.
 - The meter: `src/lib/willab/pace/` (`paceSignal.ts`, `paceMic.ts`); the scale: `src/components/willab/pace/PaceScale.tsx`.
 - The stretch: backend `services/tempo_stretch.py` (route `GET /v2/explore/arc/<arc>/review/tempo/<take>`), asked once per Take by `useReviewTempo.ts` through `src/services/api/reviewTempo.ts`. The scale reads slow only on pauses of several seconds, so most stretches it picks are rushed.
 - What is kept: backend `POST /v2/explore/arc/<arc>/review/tempo/<take>` (`tempo_stretch.keep_tries`, a speaker-memory event of kind `take` with its `tempo` part, docs/SPEAKER-MEMORY.md), sent by `postTempoGame` in `src/services/api/reviewTempo.ts` when the game ends.
@@ -1204,6 +1212,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N247 · built: a finished walk opened again shows everything the speaker went through, read only, down to the summary: the tempo step and the other speakers they judged included. Was: it stopped at the newest moment, left the tempo step out and skipped the judging (B10, C8, T) · BE #1463, FE (this PR)
+- 2026-10-28 · — (B10, C3) · fixed: the Feedback walk whose newest part is helper words opens the whole walk standing on them, through the same door as every other step, once the Take's answers and tries are read. Was: it opened those helper words by themselves as soon as the page was up, before the tries were read, so words a Good job had opened (N220) were not in the walk yet and showed alone, under the hello, with nothing before or after (founder 2026-10-28: "When I click the feedback walk bubble, it just opens helper words") · FE (this PR)
 - 2026-10-28 · — (B5, C8, T) · fixed: a step the walk moves on from stays in the thread as it was drawn: the tempo game's tries, their comments and its closing line (a Skip with no try as the speaker's "Skip" bubble), and other speakers' moments with the answers given, all there to scroll back to from the summary; the walk never stands on an earlier part's helper words while the tempo step's recorder is in the dock (B9). Was: moving on drew the step again from nothing, so the tempo game kept only its opening lines, down to "🤫 Find a quiet spot first.", and other speakers' moments left the thread (founder 2026-10-28: "I click next and it's gone, and should be stayed, should be there, should be in the walk, so that there is a continuity") · FE (this PR)
 - 2026-10-28 · N246 · every Take shows two moments: a Take whose clips all sit in one block is cut between its two best when no 40-to-120 cut fits; a sentence holding the helper words its slide had when the Take was recorded gives its place to the next best; a moment the walk shows stays after helper words saved at the first of two on one slide; on a plan, the two best and the level's moment, the level now read on the walk the speaker sees too (C2, C3, H1). Was: a short Take showed one moment, the second of two on one slide left the walk once helper words were saved, and the served walk never read the level · BE #1459, BE (code PR), FE (this PR)
 - 2026-10-28 · N244 · the last Take's closing message gives "Record Take N" up once the next Take is recorded, and the chat offers no Take until that Take's walk reaches its summary and its own closing message lands (D4). Was: the button was held only while the Take processed, then came back, naming the Take just recorded, beside the new Take's walk (founder 2026-10-28: "I can see two bubbles interfering … one for the new take and one the summary of the take I just took") · BE (N244 log), FE (this PR)

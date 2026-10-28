@@ -197,6 +197,18 @@ export function othersChat(
   };
 }
 
+/** The tempo step as the chat kept it in `take`'s walk (N166 step 4): Will's
+ *  opening lines, each "Try N" and its comment, the closing line or the
+ *  Skip, in order. A walk played again shows them (N247). Pure. */
+export function tempoSaidIn(messages: readonly LoungeMessage[], take: string): WalkTempoLine[] {
+  return messages
+    .filter((m) => m.kind === "walk_step" && m.metadata?.take_session_id === take && String(m.metadata?.step ?? "").startsWith("tempo:") && m.body.trim())
+    .map((m) => ({ author: m.role === "user" ? "speaker" : "app", body: m.body.trim() }));
+}
+
+/** One line of the tempo step as the chat kept it. */
+export type WalkTempoLine = { author: "app" | "speaker"; body: string };
+
 /** How many of other speakers' moments the speaker judged in `take`'s walk:
  *  their "👍 Yes" bubbles in the chat (`answer:others`). The judging
  *  reopened from the Lounge shows that many, answered. Pure. */

@@ -47,8 +47,8 @@ export interface LensPage {
   reviewWaiting: boolean | null;
   /** The page already asked the deck to open the walk (live or replayed). */
   walkRequested: boolean;
-  /** The page opens a helper-words step by itself as soon as the deck is up. */
-  opensHelpers: boolean;
+  /** The page opens a step by itself once the deck is up (the coach's door). */
+  opensItself: boolean;
 }
 
 /** True when the lens has nothing to wait for: the page is past loading
@@ -61,7 +61,7 @@ export function lensIdle(page: LensPage): boolean {
     !page.feedbackPending &&
     page.reviewWaiting === false &&
     !page.walkRequested &&
-    !page.opensHelpers
+    !page.opensItself
   );
 }
 

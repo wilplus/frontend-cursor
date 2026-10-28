@@ -378,6 +378,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · — (feedback walk B10, C3) · fixed: the page no longer opens a Feedback walk's helper words by themselves when the deck is up; it asks for the whole walk standing on them, as for any step, so the walk shows around them. The page's own orange helper words open as before. Nothing on the Ideal Text page changes (founder 2026-10-28: "it just opens helper words") · FE (this PR)
 - 2026-10-26 · N192 · the shared copy file (`idealEditCopy.ts`) gains the chat's "Feedback walk" and "Edited", and the summary's "Updated with your coach's note · see / hide the earlier version" moves into it from the Lounge; nothing on the Ideal Text page changes · FE (this PR)
 - 2026-10-26 · N178 · helper words: up to eight in one pick, as the app does since 2026-10-15. Was: six (2026-10-12) · BE #1339
 

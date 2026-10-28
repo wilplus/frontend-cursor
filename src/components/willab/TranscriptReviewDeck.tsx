@@ -822,13 +822,11 @@ export default function TranscriptReviewDeck({
   useEffect(() => {
     onReviewWaiting?.(deckReady ? firstWaiting >= 0 || coachWordWaiting : null);
   }, [deckReady, firstWaiting, coachWordWaiting, onReviewWaiting]);
-  // A helper-words bubble opens its helper words as soon as the deck is
-  // up, without waiting on the answers (founder 2026-10-14); while the marks
-  // may still land it waits for them, unless the paragraph is already known
-  // to have a moment: opened before, a paragraph with a moment in this Take
-  // showed its words alone, as one screen outside the walk (founder
-  // 2026-10-20: "sometimes not part of the scroll but a separate single
-  // action"). Only a paragraph with no moment opens on its own words (F5).
+  // The Feedback walk standing on helper words opens through the one door
+  // below, like any step (B10, C3): opened here as soon as the deck was up,
+  // before the Take's tries were read, the words a Good job opens (N220)
+  // were not in the walk yet and showed alone (founder 2026-10-28: "it just
+  // opens helper words"). Only the page's own words open by themselves (F5).
   // The coach-only walk opens on the coach's first word (founder
   // 2026-10-14) once the feedback has settled: the walk keeps the steps it
   // opens with, and the coach's answers can land with the feedback. It
@@ -840,14 +838,6 @@ export default function TranscriptReviewDeck({
     coachOpenedRef.current = true;
     if (!feedbackWalk.review(null)) onCoachOnlyEmpty?.();
   }, [coachOnly, deckReady, feedbackPending, feedbackWalk, onCoachOnlyEmpty]);
-  const helpersOpenedRef = useRef<string | null>(null);
-  useEffect(() => {
-    const part = reviewAt?.step === "helpers" ? reviewAt.part : null;
-    if (!deckReady || !part || helpersOpenedRef.current === part) return;
-    if (feedbackPending && !feedbackWalk.hasMoment(part)) return;
-    helpersOpenedRef.current = part;
-    if (!feedbackWalk.openHelpers(part)) onLensReveal?.();
-  }, [deckReady, reviewAt, feedbackWalk, feedbackPending, onLensReveal]);
   const reviewSeenRef = useRef(reviewRequest);
   useEffect(() => {
     if (reviewRequest === reviewSeenRef.current) return;
