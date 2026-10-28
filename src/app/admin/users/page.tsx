@@ -10,7 +10,15 @@ import {
 } from "react";
 import AdminGate from "@/components/admin/AdminGate";
 import SignupCounts from "@/components/admin/SignupCounts";
-import { HiddenToast, markHidden, RowMenu, SelectionBar } from "./HideUsers";
+import {
+  cancelDeletion,
+  ConfirmDelete,
+  type DeleteResult,
+  deleteAccounts,
+  DeletedToast,
+  RowMenu,
+  SelectionBar,
+} from "./DeleteUsers";
 
 interface AdminUser {
   user_id: string;
@@ -32,7 +40,8 @@ interface UsersResponse {
 
 interface Toast {
   at: number;
-  ids: string[];
+  completesAfter: string | null;
+  undo: { userId: string; requestId: string }[];
 }
 
 const PAGE_SIZE = 50;
@@ -55,6 +64,14 @@ async function readJson(response: Response): Promise<UsersResponse> {
   }
 }
 
+function toastFor(done: DeleteResult[]): Toast {
+  const undo = done.flatMap(({ userId, deletion }) =>
+    deletion?.request_id && deletion.cancellable ? [{ userId, requestId: deletion.request_id }] : []
+  );
+  const completesAfter = done.find((d) => d.deletion?.completes_after)?.deletion?.completes_after ?? null;
+  return { at: Date.now(), completesAfter, undo };
+}
+
 export default function AdminUsersPage() {
   return (
     <AdminGate>
@@ -73,6 +90,7 @@ function UserDirectory() {
   const [error, setError] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [picked, setPicked] = useState<string[] | null>(null);
+  const [confirmIds, setConfirmIds] = useState<string[] | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
 
   const load = useCallback(
@@ -130,27 +148,32 @@ function UserDirectory() {
   const togglePick = (id: string) =>
     setPicked((current) => (current?.includes(id) ? current.filter((p) => p !== id) : [...(current ?? []), id]));
 
-  const hide = async (ids: string[]) => {
-    setMenuFor(null);
+  const confirmDelete = async () => {
+    if (!confirmIds) return;
     setBusy(true);
-    const { done, failed } = await markHidden(ids, true);
+    const { done, failed } = await deleteAccounts(confirmIds);
     setBusy(false);
+    setConfirmIds(null);
     setPicked(null);
-    const gone = new Set(done);
+    const gone = new Set(done.map((d) => d.userId));
     setUsers((current) => current.filter((user) => !gone.has(user.user_id)));
     setError(failed.length ? "Could not do that. Try again." : null);
-    if (done.length) setToast({ at: Date.now(), ids: done });
+    if (done.length) setToast(toastFor(done));
   };
 
   const undo = async () => {
-    const ids = toast?.ids ?? [];
+    const pending = toast?.undo ?? [];
     setToast(null);
-    const { failed } = await markHidden(ids, false);
-    if (failed.length) setError("Could not do that. Try again.");
+    const results = await Promise.all(pending.map((p) => cancelDeletion(p.userId, p.requestId)));
+    if (results.some((ok) => !ok)) setError("Could not do that. Try again.");
     void load(activeSearch, 0, false);
   };
 
   const closeToast = useCallback(() => setToast(null), []);
+  const emailOf = (id: string) => {
+    const user = users.find((u) => u.user_id === id);
+    return user?.email || user?.name || id;
+  };
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-10">
@@ -206,7 +229,7 @@ function UserDirectory() {
             busy={busy}
             onSelectAll={() => setPicked(selectable.map((user) => user.user_id))}
             onCancel={() => setPicked(null)}
-            onHide={() => void hide(picked)}
+            onDelete={() => setConfirmIds(picked)}
           />
         </div>
       ) : null}
@@ -231,7 +254,10 @@ function UserDirectory() {
                   setMenuFor(null);
                   setPicked([user.user_id]);
                 }}
-                onHide={() => void hide([user.user_id])}
+                onAskDelete={() => {
+                  setMenuFor(null);
+                  setConfirmIds([user.user_id]);
+                }}
                 onTogglePick={() => togglePick(user.user_id)}
               />
             ))}
@@ -260,8 +286,23 @@ function UserDirectory() {
         </div>
       ) : null}
 
+      {confirmIds ? (
+        <ConfirmDelete
+          emails={confirmIds.map(emailOf)}
+          busy={busy}
+          onCancel={() => setConfirmIds(null)}
+          onConfirm={() => void confirmDelete()}
+        />
+      ) : null}
+
       {toast ? (
-        <HiddenToast key={toast.at} onUndo={() => void undo()} onClose={closeToast} />
+        <DeletedToast
+          key={toast.at}
+          completesAfter={toast.completesAfter}
+          canUndo={toast.undo.length > 0}
+          onUndo={() => void undo()}
+          onClose={closeToast}
+        />
       ) : null}
     </main>
   );
@@ -273,7 +314,7 @@ function UserRow({
   picked,
   onToggleMenu,
   onStartSelect,
-  onHide,
+  onAskDelete,
   onTogglePick,
 }: {
   user: AdminUser;
@@ -282,18 +323,18 @@ function UserRow({
   picked: boolean | null;
   onToggleMenu: () => void;
   onStartSelect: () => void;
-  onHide: () => void;
+  onAskDelete: () => void;
   onTogglePick: () => void;
 }) {
   const label = user.name || user.email || "Unnamed account";
-  const canHide = !user.is_admin;
+  const canDelete = !user.is_admin;
 
   return (
     <article
       className={`grid grid-cols-[32px_minmax(0,1fr)] gap-4 p-4 first:rounded-t-2xl last:rounded-b-2xl sm:grid-cols-[32px_minmax(0,1.6fr)_minmax(0,1fr)_auto] sm:items-center ${picked ? "bg-foreground/[0.035]" : ""}`}
     >
       <div className="h-8 w-8">
-        {canHide && picked !== null ? (
+        {canDelete && picked !== null ? (
           <input
             type="checkbox"
             checked={picked}
@@ -301,8 +342,8 @@ function UserRow({
             aria-label={`Select ${label}`}
             className="m-[7px] h-[18px] w-[18px] cursor-pointer accent-foreground"
           />
-        ) : canHide ? (
-          <RowMenu label={label} open={menuOpen} onToggle={onToggleMenu} onSelect={onStartSelect} onHide={onHide} />
+        ) : canDelete ? (
+          <RowMenu label={label} open={menuOpen} onToggle={onToggleMenu} onSelect={onStartSelect} onDelete={onAskDelete} />
         ) : null}
       </div>
 

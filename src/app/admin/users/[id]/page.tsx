@@ -412,8 +412,6 @@ function DeleteSection({ id, email, deletion, reload }: {
     const body = res ? await res.json().catch(() => ({})) : {};
     setBusy(false);
     if (!res?.ok) return setNote(body.error || "Could not do that. Try again.");
-    // No data agreement yet: only the login existed, and it is gone now.
-    if (body.deletion?.kind === "login_only") return window.location.assign("/admin/users");
     setNote(null);
     void reload();
   };
