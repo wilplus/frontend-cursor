@@ -672,7 +672,7 @@ step; the loop never waits for a coach.
               when the words need help, else the voice Exercise (N108)
   highest   = of the two, the stronger voice (S); its bubble opens with
               the signed line (C2, N118)
-  try       = Δ willfidence vs the original ≥ MARGIN (+0.05) → better
+  try       = Δ voice score (S) vs the original ≥ MARGIN (+0.05) → better
   plan      = on a plan (the-plan.md G7, N134 item 2, N209): the best
               moment, then the clip where this week's level shows most
               (services/plan_walk.py), always practised with the level's
@@ -1031,7 +1031,7 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- **N171, N189, N193** · messages: replies reach us and STOP removes the number (its words signed in N174), with no check message when a number is saved, since the app shows it back; coach-feedback messages wait from 21:00 to 8:00 in the time zone of the speaker's country of residence, and in the United States go only between 11:00 and 21:00 New York time (C1's doors) · C1 · decided, not built · BE #1326, #1360, #1367
+- **N171, N189, N193** · messages: a reply other than STOP is forwarded to the founder by email (STOP is built, N237), with no check message when a number is saved, since the app shows it back; coach-feedback messages wait from 21:00 to 8:00 in the time zone of the speaker's country of residence, and in the United States go only between 11:00 and 21:00 New York time (C1's doors) · C1 · decided, not built · BE #1326, #1360, #1367
 
 - **The plan** (backend N129 onward) · the diagnosis, the plan card, the practice days and the plan's end have their own page, [`the-plan.md`](the-plan.md); it meets this page in the Lounge, in the walk's level moment (C, N134 item 2), the bar on the end sheet (N140 item 11) and the pace practice in a pace week (the tempo step), and in the chat's day line before each day's first message (N169, the-plan.md G3) · decided, not built · its rules live there, not here (backend N160). Built, on for ring 5 since 27 October 2026 (N203, N204, backend #1394): the plan in the Lounge, and the bar with "{n} of {total} practices done. Next: {day}." on the walk's end card (`WalkEnd.tsx`, `PlanProgress`); and since 27 October the level's moment in the walk (H1, N209: "This week's level: {level}. Here's where it shows:" above the clip, `LevelHere` in `FeedbackWalk.tsx`)
 
@@ -1180,6 +1180,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · — (H1) · wording: a try is better when its voice score (S) rises by the margin, +0.05, over the original clip, as built (`after_practice.GOOD_JOB_MARGIN`) and as N84 says ("on the voice alone"); was "Δ willfidence", which reads as voice × words. No rule changes (founder 2026-10-28: "fix the doc wording to say voice score") · FE (this PR)
+- 2026-10-28 · N237 · built: a WhatsApp reply that says STOP turns the messages off for every account at that number, as Remove does (the number it signs in with stays, N235), a booking that carries the number forgets it (N233), and WhatsApp answers "Done. We've stopped the WhatsApp messages and deleted your number." (signed, N174); any other reply is not read yet (N171 item 6). Off until its two keys are on Railway and the webhook is set in Meta · BE #1450, FE (this PR)
 - 2026-10-28 · — (C3, B10) · fixed: helper words are editable on any part of the thread: a tap on a picker the walk does not stand on stands the walk there, the tap counts, and its buttons bring the walk back to where it stood; never while the recorder is in the dock (B9). Was: only the part the walk stood on took a tap, so a walk opened on a later step (the Feedback walk on its newest step) showed "0 of 8 words" pickers that did nothing (founder 2026-10-28: "I click the helper words, they don't mark on orange, so I cannot choose the helper words") · FE (this PR)
 - 2026-10-28 · N235 · a full number typed in the chat under the WhatsApp ask waits for its code: Will says "Enter the code we sent you on WhatsApp" and the form opens on the code step; was saved at once (2026-10-20); a number another account has gets "That number already has an account." (E1) · BE #1446, FE (this PR)
 - 2026-10-28 · N230 · the WhatsApp ask's number field shows the country by its flag, Poland first; Save sends a code on WhatsApp and the number is kept, for the messages and for signing in, once the code is typed; was saved at once with no code (N184 item 1) (E1) · BE #1438, FE (this PR)

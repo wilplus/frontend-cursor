@@ -300,6 +300,8 @@ Written in the present tense.
   with email** with **← Back**, the email and password, and **Forgot password?**. A number with no account gets
   "No account signs in with this number. Sign in another way, or sign up with WhatsApp."
 - With WhatsApp sign-in switched off (`NEXT_PUBLIC_WHATSAPP_SIGNIN=false`), both pages are as before N232.
+- **What the number is for** (backend N238): the sign-up page says nothing of its own. The Terms of Service and
+  the Privacy Policy say that the number someone signs up or signs in with is also the number the messages go to.
 
 ## 2. In flight
 
@@ -352,6 +354,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N238 · the sign-up page gets no line of its own on what the WhatsApp number is for; the Terms and the Privacy Policy say it gets the messages too · BE #1449, FE (this PR)
 - 2026-10-28 · N235 · a number another account signs in with gets "That number already has an account." in this card's WhatsApp row · BE #1446, FE (this PR)
 - 2026-10-28 · N232 · the sign-up and sign-in pages open on the WhatsApp number with one orange button; Email, LinkedIn and Google as three small black-and-white buttons under "or"; no line under the logo; "Will and your coach use it." under the name · BE #1441, FE (this PR)
 - 2026-10-28 · N230 · the number field shows the country by its flag (Poland, then the United States, then A to Z, with search); the number added in this card's WhatsApp row gets the messages too · BE #1438, FE (this PR)

@@ -63,6 +63,7 @@ speaker's own voice, said a little better**, then the speaker tries again.
    - Otherwise → the AI clip takes the video's place: L2, the clip, L3.
 2. **The try** (the locked recorder). The machine checks it (willfidence
    Δ ≥ +0.05, as locked).
+   *Amended 2026-10-28 (founder, the Claude Code chat: "fix the doc wording to say voice score"): the check is on the voice score, Δ ≥ +0.05 over the original clip (`after_practice.GOOD_JOB_MARGIN`, N84), not willfidence; as built, no rule changes.*
 3. **Better** → the locked "Good job". No AI clip.
 4. **Not yet** → in place of the signed encouragement, one app bubble:
    - the first AI clip after a try: L4, the clip, L3;
@@ -346,6 +347,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · — · wording: the try is checked on its voice score (Δ ≥ +0.05, N84), not willfidence, as built and as the walk's page H1 says; no rule changes · FE (this PR)
 - 2026-10-26 · N188 · the limits: 3 clips a day and 20 a month for each speaker, and no new voice while the plan's voice slots are full; was 10 a day with no monthly limit · BE #1363
 - 2026-10-23 · N120, N122 · built: the clip in one short bubble (opener, tip by problem with the speaker's phrase, the clip, "Your turn." / "Try again."), the server naming the clip's `problem` and `phrase` as soon as it chooses them; a praised moment's practise gets its clip, started early by the bake like a corrected moment's · BE #1279
 - 2026-10-23 · N122 · a praised moment is practised with a clip too; was "Never with praise" and "Praise still never gets a clip" · decided, build in §2
