@@ -87,7 +87,7 @@ import {
 import { useRouter } from "next/navigation";
 import SymmetricPair from "./SymmetricPair";
 import { useAdminAsk } from "./useAdminAsk";
-import { afterTakeOrder, askShowing, askToOpen, heldFor, heldMessage, heldTake, waitingFor } from "./afterTake";
+import { afterTakeOrder, askShowing, askToOpen, heldFor, heldMessage, heldTake, recordedPast, waitingFor } from "./afterTake";
 import { postAfterTake } from "@/services/api/afterTake";
 import { setInstallable } from "@/lib/willab/installable";
 import { ConsentAskActions } from "./ConsentAsk";
@@ -1050,10 +1050,13 @@ export default function Lounge({
     onRecordNext: (arc) => openIdealText(arc, "share"),
     recordHeld: takeInFlight,
   });
+  // Once the next Take is recorded, an older "Record Take N" goes until
+  // that Take's walk reaches its summary (N244).
+  const recordedSince = useMemo(() => recordedPast(messages), [messages]);
   const nextTakeOf = (m: LoungeMessage): SummaryRecord | null => {
     // A practice day's one thing, newer than this message, holds the chat's
     // one record button (N167).
-    if (plan.oneHoldsRecord) return null;
+    if (plan.oneHoldsRecord || recordedSince.has(m.client_id)) return null;
     const meta = m.metadata ?? {};
     const arc = meta.arc_id;
     const take = meta.take_index;
@@ -1392,7 +1395,14 @@ export default function Lounge({
   }, [threadLoading, drawn, install.canOffer, waiting, letGo, openOffer]);
 
   // The founder's voice notebook (Will learning plan, step 1, 2026-10-20).
-  const notebook = useVoiceNotebook({ signedIn: thread.signedIn, threadLoading, drawn, openOffer, reload });
+  const notebook = useVoiceNotebook({
+    signedIn: thread.signedIn,
+    threadLoading,
+    held: plan.holdsPrinciples,
+    drawn,
+    openOffer,
+    reload,
+  });
   // Life goals (Will learning plan, step 3, N172): the ask's Start, a
   // ladder's ›, or a reply that opens the lens.
   const lifeGoals = useLifeGoals({ signedIn: thread.signedIn, reload });

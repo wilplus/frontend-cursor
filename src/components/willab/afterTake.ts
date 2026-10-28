@@ -112,3 +112,25 @@ export function askShowing(drawn: readonly Meta[], formOpen: boolean): boolean {
   const meta = drawn[drawn.length - 1]?.metadata ?? {};
   return typeof meta.offer === "string" || meta.feedback_check === "missing";
 }
+
+/** The bubbles whose "Record Take N" names a Take already recorded: a newer
+ *  recording of their project is in the thread after them (messages oldest
+ *  first). The closing message and a practice day's bubble give up their
+ *  button then, so from the moment the next Take is recorded the chat offers
+ *  no Take until that Take's walk reaches its summary and writes its own
+ *  closing message (founder 2026-10-28, N244: "disable the new event while
+ *  the processing is happening, so that it is only possible once it's
+ *  finished"; it had come back the moment processing ended, beside the new
+ *  Take's walk). */
+export function recordedPast(messages: readonly Pick<LoungeMessage, "client_id" | "kind" | "metadata">[]): ReadonlySet<string> {
+  const recorded = new Set<string>();
+  const past = new Set<string>();
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const { client_id: id, kind, metadata } = messages[i];
+    const arc = metadata?.arc_id;
+    if (typeof arc !== "string") continue;
+    if (kind === "recording_summary") recorded.add(arc);
+    else if (recorded.has(arc)) past.add(id);
+  }
+  return past;
+}

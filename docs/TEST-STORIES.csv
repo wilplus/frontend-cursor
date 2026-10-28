@@ -398,10 +398,15 @@ O3  A waiting message whose ask is no longer in front of me is let go.
 O4  The admin's ask, stamped only with the message it waits for, is still
 the Take's: the card stays above it and the ask above its buttons
 (founder 2026-10-20: the card landed between the question and its
-buttons).","O1 -> ""draws the card, the ask, and the message only once it is let go""
+buttons).
+O5  Once I record the next Take, the last Take's ""Record Take N"" goes, and
+no Take is offered until the new Take's walk reaches its summary
+(founder 2026-10-28, N244: it came back as processing ended, beside
+the new Take's walk).","O1 -> ""draws the card, the ask, and the message only once it is let go""
 O2 -> ""opens the Take's WhatsApp ask by itself""
 O3 -> ""knows when no ask is in front of the speaker""
-O4 -> ""keeps the card above the admin's ask, stamped with the message it waits for alone""","Founder 2026-10-20: ""You cannot have two actions at a time, like feedback and record"" (backend services/after_take.py)."
+O4 -> ""keeps the card above the admin's ask, stamped with the message it waits for alone""
+O5 -> ""offers no Take between the next recording and its closing message""","Founder 2026-10-20: ""You cannot have two actions at a time, like feedback and record"" (backend services/after_take.py)."
 src/components/willab/audioUploadValidation.test.ts,Story,"As a speaker uploading a recording instead of recording live, I want a too-large or video file refused before upload with a plain reason, so that I do not wait for a failure (record step of the loop).","O1  A file over the upload limit is refused with a ""too large"" reason.
 O2  A video file (by MIME type, or by extension when the type is missing)
 is refused with an ""audio only"" reason.
@@ -823,8 +828,10 @@ src/components/willab/useWillabFlow.test.ts,Story,"As a speaker, I want the app 
 from there the next Take, a pause, or ""sign up to send"" (and on to
 review) are expected steps.","O1 -> ""is the record → process → Ideal Text loop""",Never 3; audit Q-C4.
 src/components/willab/voiceNotebook.test.tsx,Story,"As the founder in a rush, I want to say a note and close the app, so that what I said is kept and I can see it was written as I meant it.","O1  The moment I tap, my note shows the wave of my voice; the words follow it; leaving the app sends the note, it is not thrown away (N194, N199).
-O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).","O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
-O2 -> keeps a note that cannot go and sends it once when back online",
+O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).
+O3  While a speaker is onboarded there is no mic and the notebook's ask waits; once the first Take is in, both are there (N243).","O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
+O2 -> keeps a note that cannot go and sends it once when back online
+O3 -> waits while the speaker is onboarded, then the mic and the ask are there",
 src/components/willab/walk/coachUpdateLens.test.tsx,Story,"As a speaker, I want my coach's changed word to wait for me in the chat under ""Later · from your coach"" and open the walk at my coach's place when I tap it, the same way every bubble opens its step, so that I watch exactly what my coach sent, where it belongs.","O1  The coach's bubble rings while the server says the word is new; a tap
 opens the Take's walk at the coach's step (Step 0 for a general word),
 not a screen of its own; nothing is marked watched by the tap.

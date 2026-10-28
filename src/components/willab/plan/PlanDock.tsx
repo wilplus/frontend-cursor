@@ -172,11 +172,13 @@ function StartFirst({ onStart }: { onStart: () => void }) {
   );
 }
 
-function NextChips({ actions }: { actions: PlanActions }) {
+/** "What's next?" (I2); "I have a new event" is not shown while a Take is
+ *  still processing (H1, backend N242). */
+function NextChips({ actions, newEventHeld }: { actions: PlanActions; newEventHeld: boolean }) {
   return (
     <div className="flex flex-wrap justify-end gap-2" data-plan-dock="next">
       <Chip label={PLAN_COPY.keepPractising} onClick={() => actions.next("keep_practising")} />
-      <Chip label={PLAN_COPY.newEvent} onClick={() => actions.next("new_event")} />
+      {newEventHeld ? null : <Chip label={PLAN_COPY.newEvent} onClick={() => actions.next("new_event")} />}
     </div>
   );
 }
@@ -220,6 +222,7 @@ export default function PlanDock({
   booking,
   onCloseBooking,
   actions,
+  newEventHeld = false,
 }: {
   plan: Plan;
   busy: boolean;
@@ -227,6 +230,8 @@ export default function PlanDock({
   booking: CallWhich | null;
   onCloseBooking: () => void;
   actions: PlanActions;
+  /** A Take is still processing: "I have a new event" is not shown (N242). */
+  newEventHeld?: boolean;
 }) {
   const kind = dockFor(plan, booking);
   if (!kind || (busy && kind !== "book" && kind !== "call")) return null;
@@ -260,7 +265,7 @@ export default function PlanDock({
   if (kind === "voice") return <VoiceAnswer key={`${plan.step}-${plan.id}`} actions={actions} />;
   if (kind === "stress") return <Scale key="stress" lo={PLAN_COPY.stressLo} hi={PLAN_COPY.stressHi} onPick={actions.rating} />;
   if (kind === "ready") return <Scale key="ready" lo={PLAN_COPY.readyLo} hi={PLAN_COPY.readyHi} onPick={actions.rating} />;
-  if (kind === "next") return <NextChips actions={actions} />;
+  if (kind === "next") return <NextChips actions={actions} newEventHeld={newEventHeld} />;
   if (kind === "same_event") return <SameEventChips actions={actions} />;
   if (kind === "consent") return <ConsentChips actions={actions} />;
   return <StartFirst onStart={actions.startFirst} />;
