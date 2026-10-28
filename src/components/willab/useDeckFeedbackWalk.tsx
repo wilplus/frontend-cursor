@@ -1028,18 +1028,17 @@ export function useDeckFeedbackWalk(args: {
     (target?: WalkStepTarget | null) => Boolean(target?.take && pageTake && target.take !== pageTake),
     [pageTake],
   );
-  // A helper-words bubble opens that paragraph's helper words, as a tap on
-  // the words in the text does (founder 2026-10-14).
-  const openHelpersRef = useRef<(partId: string) => boolean>(() => false);
   // ONE MECHANISM (founder 2026-10-20, N89: "the SAME WAY"): every door opens
   // the whole Take's walk at the step it names. Live while that step waits
   // (its own buttons); as given once answered (read only; the helper words
   // still editable on the latest Take). The paragraph's own narrowed walk,
   // which closed onto the Ideal Text once the paragraph was done, and the
-  // finished walk with no buttons are history.
+  // finished walk with no buttons are history. The Feedback walk standing on
+  // helper words is no exception (B10, C3): those words opened on their own,
+  // before the Take's tries were read, showed them alone (founder
+  // 2026-10-28: "it just opens helper words").
   const review = useCallback((target?: WalkStepTarget | null, from: "chat" | "page" = "chat"): boolean => {
     if (otherTake(target)) return true;
-    if (target?.step === "helpers" && target.part && openHelpersRef.current(target.part)) return true;
     setReplaying(null);
     const lens = from === "chat";
     // THE COACH'S DOOR (founder 2026-10-21, WIL-93: "ok do it"): the coach's
@@ -1082,7 +1081,6 @@ export function useDeckFeedbackWalk(args: {
 
   const replay = useCallback((target?: WalkStepTarget | null): boolean => {
     if (otherTake(target)) return true;
-    if (target?.step === "helpers" && target.part && openHelpersRef.current(target.part)) return true;
     if (!canReplay) return false;
     void ownAnswersOf(pageTake).then((answers) => {
       const again = buildReplay(answers);
@@ -1141,7 +1139,6 @@ export function useDeckFeedbackWalk(args: {
     },
     [model, replayReady, buildReplay, ownAnswers, openAt],
   );
-  openHelpersRef.current = openHelpers;
 
   const practisePart = useCallback(
     (partId: string, card: PractiseCard, moment: DocumentSuggestion | null): boolean => {
