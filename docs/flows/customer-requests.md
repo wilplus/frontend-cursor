@@ -123,28 +123,38 @@ it is built in.
    treatment; the treatment as a card.
 4. **The treatment is a card with its price**, tappable like the Ideal Text
    card: its name, its length and the client's real price (for Invita, the
-   Deep Scalp Treatment, 75 minutes, $138 to $148 by spa). Tapping it starts
-   the booking (N231 item 2).
+   Deep Scalp Treatment, 75 minutes, $138 to $148 by spa). Tapping it opens a
+   sheet over the chat: what it is, the answerer's one line on why, what is
+   included (from the client's own page), the length and the price by spa,
+   and one button, Book · from {price} (N231 item 2, N232 item 1).
 5. **One ask at a time, in the footer**, as the Lounge's: the answerer's
    question in the thread and its two equal buttons under it, Skip | Book. A
    field sits in a grey footer card (the ZIP), a pick is tall options (the
-   spa, the day). A product recommendation asks Not now | Add to cart; an
+   spa, the day). A product recommendation asks Not now | Buy · {price} (N232 item 3); an
    answer that recommends nothing asks nothing (N225 item 2, N231 item 1).
 6. **Booking, one question at a time, in the thread**: where (a ZIP or
    postcode, or "Use my location"), asked only now and once; the client's
    salons nearest first, with the days the answerer is there and each spa's
    price; the day; then a summary (the treatment, the day and time, the spa,
-   its price) with Change | Confirm. Each answer lands as the customer's
-   bubble. Then the answerer's last bubble: booked, the day, the salon, the
-   street, directions (N227, N231 item 3).
-7. **Skip is not the end**: the answerer offers what she uses in the
-   treatment for home, as a card, with Not now | Add to cart (N231 item 4).
-8. **The message box whenever nothing is asked**: +, Type here, the mic, as
+   its price) with Change | Pay {price}. Each answer lands as the customer's
+   bubble (N227, N231 item 3).
+7. **Paid in the chat** (N232): Pay opens one sheet over the chat: the line,
+   the total, Apple Pay first, Pay with card under it, and one line on who is
+   paid. Then the customer's bubble says Paid {price}, and the answerer's
+   says Booked and paid, with the address, directions, the receipt and Add to
+   calendar.
+8. **Skip is not the end**: the answerer offers what she uses in the
+   treatment for home, as a card, with Not now | Buy · {price}; Buy opens the
+   same pay sheet with where to send it; then Paid, on its way, with the
+   receipt (N231 item 4, N232 item 3).
+9. **The message box whenever nothing is asked**: +, Type here, the mic, as
    in the Lounge. The customer can always write, add a photo or record a voice
    message to the answerer (N231 item 1).
-9. The cart and the booking are the client's own pages, opened with the
-   request's code, so a purchase or a booking is the request's outcome.
-10. Every bubble keeps a shape WhatsApp can carry (text, voice, photo,
+10. **The money goes straight to the client**: each client connects its own
+    Stripe account once in admin (Stripe Connect); WillpowerLab never holds
+    it, and the receipt is the client's. A payment through the chat is the
+    request's outcome (N232 item 4).
+11. Every bubble keeps a shape WhatsApp can carry (text, voice, photo,
    buttons, a list), so moving a client to WhatsApp is a change of transport,
    not of design (N228).
 
@@ -167,6 +177,8 @@ it is built in.
    processing-authorization path (N227 item 4).
 3. Counsel reads the DPA and the form's consent before the first client goes
    live. The WhatsApp provider is named in the DPA as a sub-processor.
+4. Payments go through the client's own Stripe account; card details reach
+   Stripe only, never WillpowerLab or the client's page (N232 item 4).
 
 ### H · What the client's model learns
 
@@ -194,8 +206,10 @@ it is built in.
 ### I · Admin
 
 1. The founder creates a workspace: the name and colour the customer sees,
-   the answerer, the WhatsApp sender, the salons with the answerer's days, the
-   script tag to send to the client (N223 item 13).
+   the answerer, the WhatsApp sender, the salons with the answerer's days and
+   prices, the script tag to send to the client (N223 item 13). The client
+   connects its Stripe account there once, and gives its cancellation policy,
+   shipping and product prices (N232 items 4 and 5).
 2. The workspace page lists each request's outcome in words, the counts, the
    documents, the DPA's state, and Export pairs. Nothing on it is a score
    about a person (N225 item 3).
@@ -235,11 +249,14 @@ them:
   depending on the spa.", "Skip", "Book", "Where are you? So I book you at
   the {client} nearest to you.", "Your ZIP code", "Use my location",
   "Continue", "Nearest to {zip}. I'm at each on these days.", "Which day in
-  {salon}?", "Your booking", "Change", "Confirm", "Booked", "Directions",
+  {salon}?", "Your booking", "Change", "Pay {price}", "What's included",
+  "Book · from {price}", "Pay {client}", "Total", "Pay with card", "Paid to
+  {client} through Stripe.", "Paid {price}", "Booked and paid", "Receipt",
+  "Add to calendar", "Buy · {price}", "Send to", "Paid, on its way",
+  "Directions",
   "See you there. Write to me here if anything changes.", "No problem. If
   coming in isn't easy, you can start at home:", "What I use in the
-  treatment, for every second day at home.", "Not now", "Add to cart", "In
-  your cart", "Go to checkout", "Write to me here once you've tried it, or
+  treatment, for every second day at home.", "Not now", "Write to me here once you've tried it, or
   whenever you like.", "Of course. Write to me here whenever you like.",
   "Type here", "Sent to Ariel. She answers here, usually the same day."
 
@@ -275,8 +292,10 @@ item 15, N225):
 - **The colours**: the widget is white and grey (the founder, 28 October); the
   answer chat is in the client's colours (the founder, the same day). Both as
   drawn, until the founder says otherwise.
-- **Prices, the cart's URL shape and the booking page** are the client's; each
-  tester gives them.
+- **How a paid booking reaches each client's calendar** (the client's own
+  booking system, or a calendar we keep): open (N232 item 4).
+- **The cancellation policy, shipping and the product's price** are the
+  client's; each tester gives them (N232 item 5).
 
 ## 4. Where it lives
 
@@ -301,9 +320,11 @@ claude.ai link beside each is a convenience, never the only copy.
 
 The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/).
 
-- **The customer's side, on a phone** (2026-10-28, N227, N228, N231; the newest):
-  invitaheadspa.com with the widget, the popup, the form, the text message,
-  the answer as a chat, the booking in the thread. PDF
+- **The customer's side, on a phone** (2026-10-28, N227, N228, N231, N232; the
+  newest): invitaheadspa.com with the widget, the popup, the form, the text
+  message, the answer as a chat, the treatment card and its sheet, the
+  booking with its summary, paying in the chat, Skip and buying the product
+  at home, the message box (17 pages). PDF
   [`2-customer-side-on-a-phone.pdf`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/2-customer-side-on-a-phone.pdf) ·
   HTML [`customer/invita-flow.html`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/customer/invita-flow.html) · link
   <https://claude.ai/artifact/1u6UrevnTpo9jRZdfa9w83>.
@@ -331,5 +352,6 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N232 · E4 to E8, E10, G4, I1, §3, §5: the treatment card opens a sheet with one button, Book; the summary asks Pay; one pay sheet, Apple Pay first; the product bought the same way; the money straight to the client through Stripe Connect. Was: the booking and the cart opened the client's own pages · BE #1443, FE (this PR)
 - 2026-10-28 · N231 · E3 to E8 and F1: the Lounge's own parts in the customer's chat, the treatment card with its price, the booking's summary, Skip to the product at home, the message box whenever nothing is asked. Was: one action in the dock (Book or Skip), Skip ended the chat, no way to write back · BE #1440, FE (this PR)
 - 2026-10-28 · N229 · the page starts, from N223 to N228, with its prototypes kept in the backend repo as HTML and PDF; nothing built. The widget's overlay stayed on the page after "Not now" (the shadow root ignored `hidden`); fixed in the prototypes before they were kept · BE (the log, the master doc's line, the prototypes), FE (this PR)
