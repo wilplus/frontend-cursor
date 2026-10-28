@@ -282,8 +282,8 @@ too. Please implement it." Written in the present tense.
   **Send code** lights up only when the number is long enough for its country; too long: "That's too long for
   {country}. Check the country."
 - **One number.** Wherever a number is first given, a code on WhatsApp proves it once; then it gets the messages
-  and signs in with WhatsApp. A number another account already signs in with is refused, with "Couldn’t save that.
-  Try again." until its words are signed.
+  and signs in with WhatsApp. A number another account already signs in with is refused: "That number already has
+  an account." (backend N235).
 
 ### Amended 2026-10-28: the sign-up and sign-in pages open on the number (backend N232)
 
@@ -352,6 +352,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N235 · a number another account signs in with gets "That number already has an account." in this card's WhatsApp row · BE #1446, FE (this PR)
 - 2026-10-28 · N232 · the sign-up and sign-in pages open on the WhatsApp number with one orange button; Email, LinkedIn and Google as three small black-and-white buttons under "or"; no line under the logo; "Will and your coach use it." under the name · BE #1441, FE (this PR)
 - 2026-10-28 · N230 · the number field shows the country by its flag (Poland, then the United States, then A to Z, with search); the number added in this card's WhatsApp row gets the messages too · BE #1438, FE (this PR)
 - 2026-10-27 · N214 · the Email and password card's WhatsApp row: Add, the number and the code; on, "You can sign in with WhatsApp at {number}."; a WhatsApp account's card has no email or password row until it has an email · BE #1420, FE (this PR)

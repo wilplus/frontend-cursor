@@ -13,16 +13,21 @@ import { saveWhatsAppPhone } from "@/services/api/whatsapp";
 /* -------------------------------------------------------------------------- */
 
 /** sent: the code is on its way. same: the account already signs in with
- *  this number, so it needs no code. failed: no code went (another account
- *  has the number, a pause between codes, offline). */
-export type CodeSent = "sent" | "same" | "failed";
+ *  this number, so it needs no code. taken: another account signs in with
+ *  it (backend N235). failed: no code went (a pause between codes, offline). */
+export type CodeSent = "sent" | "same" | "taken" | "failed";
+
+/** Supabase's refusal of a phone another account has. */
+function isTaken(error: { code?: string; message?: string }): boolean {
+  return error.code === "phone_exists" || /already (been )?registered|already in use/i.test(error.message ?? "");
+}
 
 const bare = (phone: string) => phone.replace(/^\+/, "");
 
 export async function sendNumberCode(phone: string): Promise<CodeSent> {
   try {
     const { data, error } = await createClient().auth.updateUser({ phone });
-    if (error) return "failed";
+    if (error) return isTaken(error) ? "taken" : "failed";
     // Already this account's number (or a project that confirms phones
     // without a code): nothing to prove.
     if (bare(data.user?.phone ?? "") === bare(phone)) {
