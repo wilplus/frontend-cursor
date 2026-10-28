@@ -31,6 +31,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "rea
 import { Input } from "@/components/ui/input";
 import { WHATSAPP_AUTH_COPY, WHATSAPP_SIGNIN } from "@/components/auth/WhatsAppAuth";
 import PhoneNumberField from "@/components/phone/PhoneNumberField";
+import { WHATSAPP_COPY } from "@/components/willab/WillabWhatsAppPrompt";
 import { confirmNumberCode, sendNumberCode } from "@/services/api/whatsappNumber";
 import {
   changeEmail,
@@ -349,8 +350,8 @@ function WhatsAppRow({ phone, onAdded }: { phone: string | null; onAdded: (phone
   /** True when the code went; a number the account already has is on. */
   const sendCode = async (to: string): Promise<boolean> => {
     const sent = await sendNumberCode(to);
-    if (sent === "failed") {
-      setError(COPY.failed);
+    if (sent === "failed" || sent === "taken") {
+      setError(sent === "taken" ? WHATSAPP_COPY.taken : COPY.failed);
       return false;
     }
     if (sent === "same") {

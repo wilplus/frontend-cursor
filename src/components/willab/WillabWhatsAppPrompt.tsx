@@ -37,6 +37,8 @@ export const WHATSAPP_COPY = {
   saving: "Saving…",
   invalid: "Enter the number with its country code, for example +44 7700 900123.",
   failed: "Could not save the number. Try again.",
+  // A number another account signs in with (founder 2026-10-28, backend N235).
+  taken: "That number already has an account.",
   // After Save (founder 2026-10-15, approved in chat): the confirmation
   // bubble, with the saved number.
   saved: (phone: string) =>
@@ -59,6 +61,11 @@ export interface WhatsAppOffer {
    *  country code (founder 2026-10-20), so it is fixed, not typed twice. */
   draft: string | null;
   setDraft: (draft: string | null) => void;
+  /** A full number typed in the chat (backend N235): the form opens with it
+   *  and sends its code at once. */
+  sendNow: boolean;
+  checkNumber: (phone: string) => void;
+  sentNow: () => void;
 }
 
 export function useWhatsAppOffer(inputs: {
@@ -67,6 +74,12 @@ export function useWhatsAppOffer(inputs: {
   const [phone, setPhone] = useState<string | null | undefined>(undefined);
   const [dismissed, setDismissed] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
+  const [sendNow, setSendNow] = useState(false);
+  const checkNumber = useCallback((number: string) => {
+    setDraft(number);
+    setSendNow(true);
+  }, []);
+  const sentNow = useCallback(() => setSendNow(false), []);
 
   useEffect(() => {
     let live = true;
@@ -99,7 +112,7 @@ export function useWhatsAppOffer(inputs: {
     });
   }, []);
 
-  return { canOffer, phone: phone ?? null, softDismiss, markSaved, refresh, draft, setDraft };
+  return { canOffer, phone: phone ?? null, softDismiss, markSaved, refresh, draft, setDraft, sendNow, checkNumber, sentNow };
 }
 
 /** The footer while the WhatsApp offer is open: the number field in a grey
@@ -133,8 +146,8 @@ export function WhatsAppOfferActions({
 
   const send = async (phone: string) => {
     const sent = await sendNumberCode(phone);
-    if (sent === "failed") {
-      setError(WHATSAPP_COPY.failed);
+    if (sent === "failed" || sent === "taken") {
+      setError(sent === "taken" ? WHATSAPP_COPY.taken : WHATSAPP_COPY.failed);
       return;
     }
     if (sent === "same") {
@@ -146,6 +159,16 @@ export function WhatsAppOfferActions({
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setCanResend(true), RESEND_AFTER_MS);
   };
+
+  // A number typed in the chat: its code goes at once (backend N235).
+  const { sendNow, draft, sentNow } = offer;
+  useEffect(() => {
+    if (!sendNow || !draft?.startsWith("+")) return;
+    sentNow();
+    setSaving(true);
+    void send(draft).finally(() => setSaving(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const save = async () => {
     if (saving || !number) return;
