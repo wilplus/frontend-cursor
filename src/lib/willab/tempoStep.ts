@@ -4,10 +4,11 @@
 /*  https://claude.ai/artifact/VJd5MeFGgZy7e3Q8M1EQXV).                       */
 /*                                                                            */
 /*  The stretch of the Take the speaker rushed or dragged is played back;     */
-/*  they talk about it again while the scale follows them, up to three tries; */
-/*  each try gets one comment, and the step ends with one line. Pure: what a  */
-/*  try's path means, and which line closes the step. Words only, never a    */
-/*  number (Never 1).                                                         */
+/*  they talk about it again while the scale follows them. Will guides the    */
+/*  tries (N243): a try that lands ends the game; one that came closer gets   */
+/*  a push for one more; up to three tries, then one closing line. Pure: what */
+/*  a try's path means, what Will says to it, and which line closes the step. */
+/*  Words only, never a number (Never 1).                                     */
 /* -------------------------------------------------------------------------- */
 
 import { zoneLevel } from "./pace/paceSignal";
@@ -18,6 +19,18 @@ export const TEMPO_STEP_FEATURE = "tempo_step";
 
 /** Up to three tries (N166 item 3). */
 export const TEMPO_MAX_TRIES = 3;
+
+/** One point of a try's path every 200 ms (a minute is the backend's 300). */
+export const TEMPO_PATH_EVERY_MS = 200;
+
+/** A try lands, and the walk goes on (N243), when it runs at least 20 s
+ *  from the first word and the ball stays in the green four fifths of that
+ *  time. The stretch it practises spent at least a quarter of its time
+ *  outside the green (backend tempo_stretch.MIN_OUTSIDE), so a landed try is
+ *  always clearly better than the Take. Shorter tries cannot land: the ball
+ *  needs about 10 s of talk without a pause to leave the green. */
+const LAND_MIN_POINTS = 20_000 / TEMPO_PATH_EVERY_MS;
+const LAND_GREEN_SHARE = 0.8;
 
 /** The stretch the step practises: the one the scale reads furthest from
  *  the green (N166 item 1), what it was, and what it was about. */
@@ -36,22 +49,51 @@ export type TempoTry = "ok" | "rush" | "slow";
 export type TempoClose = "dynamic" | "rush" | "slow";
 
 /** What the step tells its host as it goes (N166 step 4): it opened, a try
- *  was read, or the game ended (each try's result and path, and how it
- *  ended; none when skipped before a try). The host writes the chat and
- *  keeps the game for Will. */
+ *  was read (and whether it landed, N243), or the game ended (each try's
+ *  result and path, how it ended, none when skipped before a try, and
+ *  whether a try landed). The host writes the chat and keeps the game for
+ *  Will. */
 export type TempoEvent =
   | { kind: "opened" }
-  | { kind: "try"; n: number; result: TempoTry }
-  | { kind: "ended"; tries: { result: TempoTry; path: number[] }[]; close: TempoClose | null };
+  | { kind: "try"; n: number; result: TempoTry; landed: boolean }
+  | { kind: "ended"; tries: { result: TempoTry; path: number[] }[]; close: TempoClose | null; landed: boolean };
+
+/** The try from the first word on: the quiet before it is not the pace. */
+function spoken(path: readonly number[]): readonly number[] {
+  const first = path.findIndex((v) => v > 0);
+  return first < 0 ? [] : path.slice(first);
+}
+
+const inGreen = (v: number) => zoneLevel(v * 2 - 1) < 0.5;
+const shareOf = (path: readonly number[], keep: (v: number) => boolean) =>
+  path.filter(keep).length / path.length;
 
 /** A try's path: the meter's activity, 0..1, sampled through the try.
  *  Mostly in the green: ok. Otherwise the side it spent longer on; too
  *  short to tell reads as slow. */
 export function readTry(path: readonly number[]): TempoTry {
-  if (path.length < 5) return "slow";
-  const share = (keep: (v: number) => boolean) => path.filter(keep).length / path.length;
-  if (share((v) => zoneLevel(v * 2 - 1) < 0.5) >= 0.5) return "ok";
-  return share((v) => v > 0.75) >= share((v) => v < 0.25) ? "rush" : "slow";
+  const said = spoken(path);
+  if (said.length < 5) return "slow";
+  if (shareOf(said, inGreen) >= 0.5) return "ok";
+  return shareOf(said, (v) => v > 0.75) >= shareOf(said, (v) => v < 0.25) ? "rush" : "slow";
+}
+
+/** Whether a try lands (N243): long enough to tell, and the ball in the
+ *  green four fifths of the time. Will then lets the speaker move on. */
+export function landed(path: readonly number[]): boolean {
+  const said = spoken(path);
+  return said.length >= LAND_MIN_POINTS && shareOf(said, inGreen) >= LAND_GREEN_SHARE;
+}
+
+/** What Will says after try `n` (N243): a landed try, and the walk goes on;
+ *  a try that came closer, its comment and a push for one more while a try
+ *  is left; otherwise the side it leaned to. The speaker never has to
+ *  decide whether to go again. */
+export function afterTry(result: TempoTry, isLanded: boolean, n: number): string[] {
+  if (isLanded) return [TEMPO_COPY.landed];
+  const lines: string[] = [TEMPO_COPY.comment[result]];
+  if (result === "ok" && n < TEMPO_MAX_TRIES) lines.push(TEMPO_COPY.push);
+  return lines;
 }
 
 /** The closing line: dynamic once a try was ok and the last one was not
@@ -75,9 +117,9 @@ export const TEMPO_STAND_IN: TempoStretch = {
   },
 };
 
-/** The step's words, signed by the founder 2026-10-26 (backend N179; the
- *  walk's page §1 K). A change to any of them needs the founder's OK
- *  (Never 4). */
+/** The step's words, signed by the founder 2026-10-26 (backend N179) and
+ *  2026-10-28 (`landed`, `push`, backend N243; the walk's page §1 K). A
+ *  change to any of them needs the founder's OK (Never 4). */
 export const TEMPO_COPY = {
   mark: "Tempo",
   game: {
@@ -90,7 +132,6 @@ export const TEMPO_COPY = {
   skip: "Skip",
   stop: "Stop",
   again: "Practise again",
-  finish: "See how it went",
   next: "Next",
   tryLabel: (n: number) => `Try ${n}`,
   scale: "The pace scale",
@@ -100,6 +141,8 @@ export const TEMPO_COPY = {
     rush: "Still rushed. Take a breath after each offer.",
     slow: "A bit slow. Keep the words moving between the pauses.",
   } satisfies Record<TempoTry, string>,
+  landed: "That landed. 🎯 Really better. Let's move on.",
+  push: "You're close. 💪 Give it one more try.",
   close: {
     dynamic: "Dynamic. You paused where it mattered. 🔥",
     rush: "Still rushed. Give each offer its own breath next Take.",
