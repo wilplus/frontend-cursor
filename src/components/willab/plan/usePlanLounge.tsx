@@ -145,7 +145,14 @@ export function usePlanLounge({
   const kind = dockFor(plan, booking);
   const dock = plan ? (
     <div className="mb-2" data-plan-dock-slot>
-      <PlanDock plan={plan} busy={busy} booking={booking} onCloseBooking={() => setBooking(null)} actions={actions} />
+      <PlanDock
+        plan={plan}
+        busy={busy}
+        booking={booking}
+        onCloseBooking={() => setBooking(null)}
+        actions={actions}
+        newEventHeld={recordHeld}
+      />
     </div>
   ) : null;
 
@@ -178,6 +185,7 @@ export function usePlanLounge({
             setSheet(null);
             void run(startNewEvent);
           }}
+          newEventHeld={recordHeld}
         />
       ) : null}
     </>
