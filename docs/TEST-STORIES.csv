@@ -910,7 +910,7 @@ full player.
 O2  A tapped paragraph's sheet draws its frame and saved helper words
 before its reads land, and never the paragraph text (D6).","O1 -> ""plays the moment in the compact row on Suggestion""
 O2 -> ""draws the frame with the helper words, and never the paragraph text (D6)""",Audit of 2026-09-29 against Ideal Text Final Screens. The one sheet height is layout and is not tested here.
-src/components/willab/wave2Walk.test.tsx,Story,"As a speaker, I want my coach's unseen word reachable through ""Review feedback"" even when every moment is answered, and a paragraph whose helper words I deleted to rejoin the walk, so that I never miss my coach or a paragraph.","O1  Every moment answered and an unseen coach word: Review feedback
+src/components/willab/wave2Walk.test.tsx,Story,"As a speaker, I want every door of the chat (a bubble, ""Review feedback"", the Feedback walk) to open my whole walk, everything I went through, my coach's unseen word included, and a paragraph whose helper words I deleted to rejoin the walk, so that I never miss my coach, a part of my feedback or a paragraph.","O1  Every moment answered and an unseen coach word: Review feedback
 stays, opens Step 0 only on its tap, and goes once watched: only
 Continue clears it, ✕ keeps it, and a changed word (a new video)
 brings it back (N80 D4, D7; backend N77).
@@ -934,12 +934,18 @@ of the feedback walk!""; B10, N192).
 O6  The Feedback walk standing on the helper words a correction's Good
 job opened (N220) opens the whole walk on them, the moment and its
 practise above, never the words alone (founder 2026-10-28: ""it just
-opens helper words""; B10, C3).","O1 -> ""every moment answered: Review feedback stays for the unseen word, ...""
+opens helper words""; B10, C3).
+O7  A finished Take's Feedback walk shows everything I went through,
+read only, down to the summary: the tempo game and the speakers I
+judged, with my answers. Nothing is sent again (founder 2026-10-28,
+N247: ""the whole feedback walk with all the things that are there
+that we went through"").","O1 -> ""every moment answered: Review feedback stays for the unseen word, ...""
 O2 -> ""a paragraph whose helper words were deleted is back in the walk on its earlier answer""
 O3 -> ""every moment answered: a bubble tapped in the Lounge opens the walk on its moment, never the text""
 O4 -> ""one moment still waiting: its bubble opens the whole walk, the waiting step live, nothing new in the chat""
 O5 -> ""every moment answered: the Feedback walk naming no step of the walk opens it on its newest step, never the text""
-O6 -> ""the Feedback walk standing on the helper words a Good job opened opens the whole walk, never the words alone""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
+O6 -> ""the Feedback walk standing on the helper words a Good job opened opens the whole walk, never the words alone""
+O7 -> ""a finished Take's Feedback walk shows everything I went through: the tempo game, the speakers I judged, the summary; nothing is sent again""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
 src/components/willab/whatsappOffer.test.tsx,Story,"As a speaker, I want to leave my WhatsApp number to hear when my coach's feedback is in, checked once with a code, so that the message reaches me and the number signs me in too.","O1  A number too short for its country sends no code.
 O2  A full number gets a code on WhatsApp; a wrong code says so; the right
 one saves it and the offer closes (backend N230).

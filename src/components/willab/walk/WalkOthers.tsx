@@ -42,6 +42,11 @@ import { othersBridge, othersChat } from "@/lib/willab/walkThread";
 /*  are the dock. First drawn as an earlier part, it asks and posts nothing. */
 /*  Once the walk moves on, the moments and the answers stay in the thread    */
 /*  (B5); with nobody to judge, the step leaves nothing there.                */
+/*                                                                            */
+/*  In a walk played again (founder 2026-10-28, N247): the moments judged in  */
+/*  this walk, each with its answer, all at once, and Next. It reads only     */
+/*  those answers, also drawn as an earlier or later part; the queue is      */
+/*  never asked and nothing is posted. None judged, it is passed by.          */
 /* -------------------------------------------------------------------------- */
 
 type Loaded = { clips: OtherClip[]; given: Record<string, ConfidenceRatingValue> };
@@ -50,20 +55,25 @@ type Loaded = { clips: OtherClip[]; given: Record<string, ConfidenceRatingValue>
  *  first (`judged` of them, at most three), else the Take's queue to judge,
  *  as many as the server sends, at most three. */
 async function load(judged: number, take: string | null): Promise<Loaded> {
-  if (judged > 0) {
-    const answers = (await fetchOtherAnswers()).slice(0, Math.min(3, judged)).reverse();
-    if (answers.length > 0) {
-      return { clips: answers, given: Object.fromEntries(answers.map((a) => [a.id, a.answer])) };
-    }
-  }
+  const answered = await loadGiven(judged);
+  if (answered.clips.length > 0) return answered;
   const list = await fetchOtherClips(take);
   return { clips: list.slice(0, 3), given: {} };
+}
+
+/** The answers already given in this walk, oldest first (`judged` of them,
+ *  at most three); none: nothing. */
+async function loadGiven(judged: number): Promise<Loaded> {
+  if (judged <= 0) return { clips: [], given: {} };
+  const answers = (await fetchOtherAnswers()).slice(0, Math.min(3, judged)).reverse();
+  return { clips: answers, given: Object.fromEntries(answers.map((a) => [a.id, a.answer])) };
 }
 
 export default function WalkOthers({
   testId,
   take = null,
   judged = 0,
+  replay = false,
   skip,
   onDone,
   onClose,
@@ -76,7 +86,9 @@ export default function WalkOthers({
   /** How many the speaker already judged in this walk (the chat's count):
    *  reopened, those are shown answered. */
   judged?: number;
-  /** A guest or a replay judges nobody. */
+  /** A walk played again: the answers given, read only (N247). */
+  replay?: boolean;
+  /** A guest, or a replay with nothing judged, judges nobody. */
   skip: boolean;
   onDone: () => void;
   onClose: () => void;
@@ -107,28 +119,30 @@ export default function WalkOthers({
   );
 
   useEffect(() => {
-    if (past) return;
+    if (past && !replay) return;
     if (skip) {
       setNone(true);
-      done.current();
+      if (!past) done.current();
       return;
     }
     let live = true;
-    void load(judgedAtOpen.current, take).then((loaded) => {
+    void (replay ? loadGiven(judgedAtOpen.current) : load(judgedAtOpen.current, take)).then((loaded) => {
       if (!live) return;
       if (loaded.clips.length === 0) {
         setNone(true);
-        done.current();
+        if (!past) done.current();
         return;
       }
       setGiven(loaded.given);
       setReopened(Object.keys(loaded.given).length > 0);
       setClips(loaded.clips);
+      // Played again, every moment judged is there at once.
+      if (replay) setAt(loaded.clips.length - 1);
     });
     return () => {
       live = false;
     };
-  }, [past, skip, take]);
+  }, [past, skip, take, replay]);
 
   const clip = clips?.[at];
   const answered = clip ? given[clip.id] ?? null : null;
@@ -153,7 +167,7 @@ export default function WalkOthers({
     timer.current = window.setTimeout(forward, holdMs);
   };
 
-  if (past || none) return null;
+  if ((past && !replay) || none) return null;
   const footer = !clip ? null : reopened && answered !== null ? (
     // Answered: the answer is the speaker's bubble above, Next alone under it
     // ("✓ Practised" is the one ✓ line, founder 2026-10-21).
