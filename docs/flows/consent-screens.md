@@ -285,6 +285,22 @@ too. Please implement it." Written in the present tense.
   and signs in with WhatsApp. A number another account already signs in with is refused, with "Couldn’t save that.
   Try again." until its words are signed.
 
+### Amended 2026-10-28: the sign-up and sign-in pages open on the number (backend N232)
+
+Approved on the clickable prototype <https://claude.ai/artifact/AsGCCSUvSDXQ8JiXzVGw8a>: "go, build both pages".
+Written in the present tense.
+
+- **Both pages:** the logo, with no line under it; the number field; one orange button, **Sign up with WhatsApp**
+  or **Sign in with WhatsApp**, with the WhatsApp logo in white. Under "or", three small buttons of one size,
+  **Email**, **LinkedIn** and **Google**, with their logos in black and white.
+- **Sign-up:** the code, then "What should we call you?" with "Will and your coach use it." under it; the terms
+  line under everything; "Already have an account? Sign in". **Email** opens **Sign up with email** (name, email,
+  password and the terms box, as before).
+- **Sign-in:** the code, then in, with no name step; "Don't have an account? Sign up". **Email** opens **Sign in
+  with email** with **← Back**, the email and password, and **Forgot password?**. A number with no account gets
+  "No account signs in with this number. Sign in another way, or sign up with WhatsApp."
+- With WhatsApp sign-in switched off (`NEXT_PUBLIC_WHATSAPP_SIGNIN=false`), both pages are as before N232.
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
@@ -336,6 +352,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N232 · the sign-up and sign-in pages open on the WhatsApp number with one orange button; Email, LinkedIn and Google as three small black-and-white buttons under "or"; no line under the logo; "Will and your coach use it." under the name · BE #1441, FE (this PR)
 - 2026-10-28 · N230 · the number field shows the country by its flag (Poland, then the United States, then A to Z, with search); the number added in this card's WhatsApp row gets the messages too · BE #1438, FE (this PR)
 - 2026-10-27 · N214 · the Email and password card's WhatsApp row: Add, the number and the code; on, "You can sign in with WhatsApp at {number}."; a WhatsApp account's card has no email or password row until it has an email · BE #1420, FE (this PR)
 - 2026-10-27 · N211 · the card "Personal answers in your plan" between Help improve WillpowerLab and WhatsApp: on and off, off asks first and deletes the personal answers; hidden until the backend's switch is on · BE #1416, FE (this PR)

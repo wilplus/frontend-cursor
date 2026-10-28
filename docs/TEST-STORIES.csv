@@ -253,8 +253,11 @@ src/components/auth/WhatsAppAuth.test.tsx,Story,"As someone signing up or in wit
 it sends no code (backend N230); a wrong code says so; the right one asks a new account
 its name, keeps the number as the account's WhatsApp number, and lands.
 O2  Signing in never makes an account: a number no account signs in with
-says so and points to sign-up, and the number is not saved anywhere.","O1 -> ""signing up: number, code, name, and the number is kept""
-O2 -> ""signing in with an unknown number says so and makes nothing""","Founder 2026-10-27, backend N214."
+says so and points to sign-up, and the number is not saved anywhere.
+O3  Signing in on the page that opens on the number: ""Sign in with
+WhatsApp"", the code, then straight in, with no name step (N232).","O1 -> ""signing up: number, code, name, and the number is kept""
+O2 -> ""signing in with an unknown number says so and makes nothing""
+O3 -> ""signing in from the first screen: the code, then in""","Founder 2026-10-27, backend N214; the first screen, 2026-10-28, N232."
 src/components/founder/GoldenJudging.test.tsx,Story,"As the founder, I want to judge golden pairs seeing the passage",,,
 src/components/legal/PublishedPolicyText.test.tsx,Story,"As a reader of the Privacy page, I want the stored policy or a plain ""could not load"" line, never an endless spinner or an old stand-in, so that I always know what I agreed to.","O1  The stored policy text is shown with its version number.
 O2  When no stored copy can be had, the ""could not load"" line is shown.","O1 -> ""shows the stored copy once it is published""
