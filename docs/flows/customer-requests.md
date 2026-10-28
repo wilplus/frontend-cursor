@@ -325,11 +325,12 @@ item 15, N225):
   the recording screen (recording screens' page); the send ask on the Take's
   card, before the walk (walk page D4, N236 item 2); a reply to the customer
   from the message box, with a "To {customer}" chip over it (walk page E1).
-- **Where the prototypes are older than a decision**: the customer's
-  prototype still books and pays in our chat (N234), where Book now opens
-  Fresha and Buy opens Shopify's checkout (N239); the answerer's picker has
-  no "what she sees" taps yet (N240 item 2). The Mila prototype's answer
-  page is a page with cards, not the chat (N228).
+- **Where the prototypes are older than a decision**: the Mila prototype's
+  answer page is a page with cards, not the chat (N228). The Invita
+  prototypes follow N239 and N240.
+- **Invita's products online**: its Shopify shop sells one care product, the
+  Scalp Scrubber ($20), which the prototypes use; whether the Milbon products
+  are sold online, or only at the spas, is Invita's answer.
 - **The colours**: the widget is white and grey (the founder, 28 October); the
   answer chat is in the client's colours (the founder, the same day). Both as
   drawn, until the founder says otherwise.
@@ -370,20 +371,21 @@ claude.ai link beside each is a convenience, never the only copy.
 
 The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/).
 
-- **The answerer's side, in her Lounge** (2026-10-28, N236; the newest for
+- **The answerer's side, in her Lounge** (2026-10-28, N236, N240; the newest for
   the answerer): Ariel at Invita, from the WhatsApp message to the request
-  as her ask, the photo, the picker of Invita's treatments, the recording
-  over the request and her picks, processing, the send ask before the walk,
-  the walk, the Ideal Text, the customer's reply and her typed answer, the
-  booking's outcome, and the questions still open (19 pages). PDF
+  as her ask, the photo, what she sees and the picker of Invita's treatments
+  and the Scalp Scrubber, the recording over the request and her picks,
+  processing, the send ask before the walk, the walk, the Ideal Text, the
+  customer's reply and her typed answer, the purchase and the booking as
+  outcomes, and the questions still open (19 pages). PDF
   [`6-answerer-side-in-her-lounge.pdf`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/6-answerer-side-in-her-lounge.pdf) ·
   HTML [`ariel/ariel-lounge.html`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/ariel/ariel-lounge.html) · link
   <https://claude.ai/artifact/CeeWQpvUrZT31aj8Lm3Fsa>.
-- **The customer's side, on a phone** (2026-10-28, N227, N228, N231, N234,
-  N236; the newest for the customer): invitaheadspa.com with the widget, the popup, the form, the text
-  message, the answer as a chat, the treatment card and its sheet, the
-  booking with its summary, paying in the chat, Skip and buying the product
-  at home, the message box (17 pages). PDF
+- **The customer's side, on a phone** (2026-10-28, N227, N228, N231, N236,
+  N239; the newest for the customer): invitaheadspa.com with the widget, the
+  popup, the form, the text message, the answer as a chat, the treatment card
+  and its sheet, the nearest spa opening its Fresha page, Skip and the Scalp
+  Scrubber in Invita's Shopify checkout, the message box (14 pages). PDF
   [`2-customer-side-on-a-phone.pdf`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/2-customer-side-on-a-phone.pdf) ·
   HTML [`customer/invita-flow.html`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/customer/invita-flow.html) · link
   <https://claude.ai/artifact/1u6UrevnTpo9jRZdfa9w83>.
@@ -411,6 +413,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N239, N240 · §3, §5: the Invita prototypes follow N239 and N240 (the spa opens its Fresha page, the Scalp Scrubber in Invita's Shopify checkout, what she sees on the picker); the open question on Invita's products online · BE #1453, FE (this PR)
 - 2026-10-28 · N239, N240 · D1, E6 to E10, H, I1, K, §3: what she sees as taps on the picker; booking in the client's booking system (Fresha) and products in its shop (Shopify); the client's WhatsApp sender; the words approved; three models from one Take on one platform. Was: booking and products paid in our chat into the client's Stripe, the words waiting for the founder, the observation read from the transcript only · BE #1452, FE (this PR)
 
 - 2026-10-28 · N236 · B6, C1, D5, D6, E2, K, §3, §5: the answerer answers in her own Lounge and is told on WhatsApp; the send ask comes once the Take is processed, before the walk; a Take 2 after sending changes nothing until she sends again; an optional first name on the form; the answerer's prototype kept. Was: the send ask after the pair, the link always opened the latest shared Take, no name on the form · BE #1448, FE (this PR)
