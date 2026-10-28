@@ -48,15 +48,17 @@ export type TempoTry = "ok" | "rush" | "slow";
 /** How the step closes. */
 export type TempoClose = "dynamic" | "rush" | "slow";
 
+/** A try as played: its reading, the dot's path, and whether it landed. */
+export type TempoPlayed = { result: TempoTry; path: number[]; landed: boolean };
+
 /** What the step tells its host as it goes (N166 step 4): it opened, a try
- *  was read (and whether it landed, N245), or the game ended (each try's
- *  result and path, how it ended, none when skipped before a try, and
- *  whether a try landed). The host writes the chat and keeps the game for
+ *  was read, or the game ended (every try, and how it ended; none when
+ *  skipped before a try). The host writes the chat and keeps the game for
  *  Will. */
 export type TempoEvent =
   | { kind: "opened" }
   | { kind: "try"; n: number; result: TempoTry; landed: boolean }
-  | { kind: "ended"; tries: { result: TempoTry; path: number[] }[]; close: TempoClose | null; landed: boolean };
+  | { kind: "ended"; tries: TempoPlayed[]; close: TempoClose | null };
 
 /** The try from the first word on: the quiet before it is not the pace. */
 function spoken(path: readonly number[]): readonly number[] {

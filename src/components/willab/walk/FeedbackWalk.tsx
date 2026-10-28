@@ -238,6 +238,10 @@ const OPENERS = new Set(["clearer", "exVideo", "encourage", "late"]);
 /** The steps whose dock is the recorder or a try being checked. */
 const RECORDER = new Set(["practise", "processing"]);
 
+/** The dock holds a recorder: a practise's, or the tempo step's own. */
+const recorderDocked = (thread: HTMLElement | null) =>
+  thread?.querySelector("[data-walk-dock] [data-walk-recording-strip]") != null;
+
 /** One part of the thread: a step reached, by its place in the plan. */
 type ThreadPart = { key: string; at: number };
 
@@ -317,6 +321,8 @@ export default function FeedbackWalk<R = unknown>({
   // stood it there: their buttons bring it back (C3, B10).
   const [resume, setResume] = useState<number | null>(null);
   const guestBlock = useGuestBlock();
+  // The live thread's root (WalkThread): its leaving copy, and its dock.
+  const frame = useRef<HTMLDivElement | null>(null);
 
   const requestRef = useRef(request);
   requestRef.current = request;
@@ -619,8 +625,9 @@ export default function FeedbackWalk<R = unknown>({
     },
     standOn: (s) => {
       const here = plan.indexOf(s);
-      // The recorder never gives way (B9): moving off it stops the mic.
-      if (here < 0 || here === at || s.readOnly || RECORDER.has(step.key)) return false;
+      // The recorder never gives way (B9): moving off it stops the mic. The
+      // tempo step's recorder is its own, so the dock is asked too.
+      if (here < 0 || here === at || s.readOnly || RECORDER.has(step.key) || recorderDocked(frame.current)) return false;
       // Back up the thread, their buttons bring the walk back to where it
       // stood; further down, the walk goes on from them.
       setResume((r) => {
@@ -710,7 +717,6 @@ export default function FeedbackWalk<R = unknown>({
     at,
     seq,
   };
-  const frame = useRef<HTMLDivElement | null>(null);
 
   return (
     <div data-feedback-walk data-walk-step={step.key}>
@@ -1345,7 +1351,14 @@ function answerSaid(ctx: ScreenCtx, step: WalkStep): string | null {
  *  WalkThread brings it to the top; the parts before and after it are there
  *  to scroll (founder 2026-10-21). The last part is the newest: first drawn
  *  as the step the walk stands on, its bubbles land one by one. A new
- *  opening (`seq`) draws the parts afresh. */
+ *  opening (`seq`) draws the parts afresh.
+ *
+ *  Every part sits in the same wrapper, the mark an attribute on it, so a
+ *  part the walk moves off stays as it was drawn (B5). Until 2026-10-28 only
+ *  the standing part had the wrapper, so moving on drew the part again from
+ *  nothing: the tempo game kept only its opening lines, down to "Find a quiet
+ *  spot first.", and other speakers' moments went from the thread (founder
+ *  2026-10-28: "I click next and it's gone"). */
 function renderThread<R>(
   ctx: ScreenCtx<R>,
   head: number,
@@ -1363,25 +1376,14 @@ function renderThread<R>(
     const mark = label && label !== last ? <WalkThreadMark label={label} /> : null;
     last = step.key === "others" ? null : (label ?? last);
     const said = answerSaid(ctx, step);
-    const body = (
-      <>
+    return (
+      <div key={`${seq ?? 0}:${part.key}`} data-walk-now={i === now ? "" : undefined} className="contents">
         {mark}
         <WalkPart now={i === now} fresh={i === parts.length - 1}>
           {renderScreen(ctx, step, backFromPractise)}
         </WalkPart>
         {said ? <WalkSpeakerBubble edited={wordsEdited(ctx, step)}>{said}</WalkSpeakerBubble> : null}
-      </>
-    );
-    return (
-      <Fragment key={`${seq ?? 0}:${part.key}`}>
-        {i === now ? (
-          <div data-walk-now className="contents">
-            {body}
-          </div>
-        ) : (
-          body
-        )}
-      </Fragment>
+      </div>
     );
   });
 }

@@ -11,15 +11,15 @@ import {
   landed,
   readTry,
   type TempoEvent,
+  type TempoPlayed,
   type TempoStretch,
-  type TempoTry,
 } from "@/lib/willab/tempoStep";
 import PaceScale from "../pace/PaceScale";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
 import WalkFooter from "./WalkFooter";
 import RecordingStrip from "./RecordingStrip";
-import { WalkSpeakerBubble, useMountedAsPast } from "./WalkThread";
+import { WalkSpeakerBubble, useMountedAsPast, useWalkPart } from "./WalkThread";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkTempo — the tempo step of the walk (backend N162, N166; the walk's    */
@@ -36,13 +36,16 @@ import { WalkSpeakerBubble, useMountedAsPast } from "./WalkThread";
 /*                                                                            */
 /*  Listen only: the scale reads the microphone in this tab, nothing is      */
 /*  recorded or sent. Every word is signed (TEMPO_COPY, backend N179).       */
+/*                                                                            */
+/*  Once the walk moves on, the game stays in the thread as it was played    */
+/*  (B5): the tries, their comments and the closing line, or the speaker's   */
+/*  Skip; the scale shows only while the walk stands on the step.            */
 /* -------------------------------------------------------------------------- */
 
 /** A try left running stops itself after a minute, as a practise's upload does. */
 const TRY_LIMIT_MS = 60_000;
 
-type Phase = "idle" | "starting" | "listening" | "blocked" | "commented" | "closed";
-type Played = { result: TempoTry; path: number[]; landed: boolean };
+type Phase = "idle" | "starting" | "listening" | "blocked" | "commented" | "closed" | "skipped";
 
 export default function WalkTempo({
   testId,
@@ -59,8 +62,9 @@ export default function WalkTempo({
   onEvent?: (event: TempoEvent) => void;
 }) {
   const past = useMountedAsPast();
+  const part = useWalkPart();
   const [phase, setPhase] = useState<Phase>("idle");
-  const [tries, setTries] = useState<Played[]>([]);
+  const [tries, setTries] = useState<TempoPlayed[]>([]);
   const [elapsed, setElapsed] = useState(0);
   const activity = useRef<number | null>(null);
   const mic = useRef<PaceMic | null>(null);
@@ -73,15 +77,10 @@ export default function WalkTempo({
     if (!past) tell.current?.({ kind: "opened" });
   }, [past]);
   // The game ends once: a landed try, the closing line, or a Skip.
-  const end = useCallback((played: Played[]) => {
+  const end = useCallback((played: TempoPlayed[]) => {
     if (ended.current) return;
     ended.current = true;
-    tell.current?.({
-      kind: "ended",
-      tries: played.map(({ result, path: p }) => ({ result, path: p })),
-      close: played.length ? closeOf(played.map((t) => t.result)) : null,
-      landed: played.some((t) => t.landed),
-    });
+    tell.current?.({ kind: "ended", tries: played, close: played.length ? closeOf(played.map((t) => t.result)) : null });
   }, []);
 
   const halt = useCallback(() => {
@@ -137,7 +136,10 @@ export default function WalkTempo({
     halt();
     end(tries);
     if (tries.length > 0) setPhase("closed");
-    else onDone();
+    else {
+      setPhase("skipped");
+      onDone();
+    }
   }, [halt, tries, end, onDone]);
 
   const nav: WalkNav = {
@@ -152,7 +154,8 @@ export default function WalkTempo({
 
   const live = phase === "listening" || phase === "starting";
   const aTryLanded = tries.some((t) => t.landed);
-  const scaleShown = !past && (phase === "idle" || phase === "blocked" || live);
+  const standing = part === null || part.now;
+  const scaleShown = standing && !past && (phase === "idle" || phase === "blocked" || live);
 
   return (
     <WalkOverlay
@@ -201,6 +204,7 @@ export default function WalkTempo({
           <span>{W.close[closeOf(tries.map((t) => t.result))]}</span>
         </WalkMessage>
       ) : null}
+      {phase === "skipped" ? <WalkSpeakerBubble>{W.skip}</WalkSpeakerBubble> : null}
     </WalkOverlay>
   );
 

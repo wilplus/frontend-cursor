@@ -15,7 +15,8 @@
 /*        in orange and Book on a call not booked; a plain row is left to    */
 /*        the Lounge.                                                         */
 /*    O4  The chat has one record button: a practice day's one thing holds   */
-/*        it until a newer Take's closing message takes it back (N167).      */
+/*        it until a newer Take's closing message takes it back (N167), and  */
+/*        gives it up once its Take is recorded (N244).                      */
 /*    O5  A new project's question takes Yes or No in the footer (H2), and   */
 /*        "How do you feel?" comes before a Take only once the plan's first  */
 /*        Take is recorded (D4).                                              */
@@ -25,6 +26,9 @@
 /*    O7  "I have a new event" is not shown while a Take is still          */
 /*        processing, in Change your plan or at the plan's end, and comes    */
 /*        back once the Take has landed (H1, I2, N242).                      */
+/*    O8  The principles wait until the plan is read and while it says the  */
+/*        speaker is onboarded; the first Take landing in the thread reads   */
+/*        the plan again and lets them back (N243).                          */
 /*  PROVES   O1 -> "each step has its own footer"                             */
 /*           O2 -> "a rating is sent once and never written back"             */
 /*           O3 -> "the plan's rows are drawn as the prototype draws them"    */
@@ -32,8 +36,10 @@
 /*           O5 -> "a new project's question, and the feelings before a Take" */
 /*           O6 -> "Will asks for the plan's own yes"                         */
 /*           O7 -> "a new event waits for the Take being processed"           */
+/*           O8 -> "the principles wait for the first Take"                   */
 /*  WHY      The plan, built one to one with the prototype (founder           */
-/*           2026-10-26, backend N203, N204); docs/flows/the-plan.md §1.     */
+/*           2026-10-26, backend N203, N204); the principles waiting for the */
+/*           onboarding, backend N243; docs/flows/the-plan.md §1.            */
 /* -------------------------------------------------------------------------- */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -44,10 +50,13 @@ import { feelingsDue, rememberPlan } from "@/services/api/plan";
 import PlanDock, { dockFor, type PlanActions } from "./PlanDock";
 import { newestOneOf, planRowFor, type PlanRowCtx } from "./PlanRows";
 import { ChangePlanSheet } from "./PlanSheet";
+import { usePlanLounge, type PlanLounge } from "./usePlanLounge";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const bffFetch = vi.hoisted(() => vi.fn(async (_url: string, _init: unknown) => ({ kind: "response", ok: true, body: { slots: [] } })));
+const bffFetch = vi.hoisted(() =>
+  vi.fn(async (_url: string, _init?: unknown): Promise<{ kind: string; ok: boolean; body: unknown }> => ({ kind: "response", ok: true, body: { slots: [] } })),
+);
 vi.mock("@/lib/api/bffFetch", () => ({ bffFetch }));
 
 let host: HTMLDivElement;
@@ -175,6 +184,8 @@ it("the newest bubble holds the one record button", () => {
   const one = row({ plan_one: true, arc_id: "arc-1", take_index: 1 }, "Today, one thing: say your key line a little slower than the rest. You've got this 💪");
   expect(newestOneOf([closing, one])).toBe(one.client_id);
   expect(newestOneOf([one, closing])).toBeNull();
+  const recorded = { ...row({ arc_id: "arc-1", take_index: 2 }), kind: "recording_summary" as const };
+  expect(newestOneOf([closing, one, recorded])).toBeNull();
 
   const c = { ...ctx({ ...PLAN, status: "active", step: "done", first_take_done: true }), newestOne: one.client_id };
   act(() => root.render(<>{planRowFor(one, c)}</>));
@@ -248,4 +259,40 @@ it("a new event waits for the Take being processed", () => {
   expect(labels()).toEqual(["Keep practising"]);
   act(() => root.render(dock(false)));
   expect(labels()).toEqual(["Keep practising", "I have a new event"]);
+});
+
+it("the principles wait for the first Take", async () => {
+  let onboarding = true;
+  bffFetch.mockImplementation(async (url: string) => ({
+    kind: "response",
+    ok: true,
+    body: url.startsWith("/api/v2/plan")
+      ? { enabled: true, wrote: false, plan: { ...PLAN, status: "active", step: "done", first_take_done: !onboarding, onboarding } }
+      : { slots: [] },
+  }));
+  let lounge: PlanLounge | null = null;
+  const reload = async () => {};
+  function Harness({ messages }: { messages: LoungeMessage[] }) {
+    lounge = usePlanLounge({
+      signedIn: true,
+      thread: { messages, loading: false, reload },
+      setThinking: () => {},
+      onRecordNext: () => {},
+      recordHeld: false,
+    });
+    return null;
+  }
+  const render = async (messages: LoungeMessage[]) => {
+    await act(async () => root.render(<Harness messages={messages} />));
+    await act(async () => {});
+  };
+
+  act(() => root.render(<Harness messages={[]} />));
+  expect(lounge!.holdsPrinciples).toBe(true); // the plan not read yet
+  await render([]);
+  expect(lounge!.holdsPrinciples).toBe(true); // the plan card, before the first Take
+
+  onboarding = false;
+  await render([{ client_id: "take-1", role: "bot", kind: "text", body: "", metadata: { arc_id: "arc-1", take_index: 1 }, client_created_at: "2026-10-28T10:00:00Z" }]);
+  expect(lounge!.holdsPrinciples).toBe(false);
 });

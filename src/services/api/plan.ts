@@ -55,6 +55,9 @@ export type Plan = {
   topic: string | null;
   /** A new event's plan, waiting for the next Take before its questions. */
   waiting: boolean;
+  /** The speaker is being onboarded: the questions, then a new speaker's plan
+   *  until the first Take. The principles wait meanwhile (backend N243). */
+  onboarding?: boolean;
   /** The plan's own yes (backend N211): "granted" while its switch is off. */
   consent?: "granted" | "declined" | "unanswered";
 };

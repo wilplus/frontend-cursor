@@ -837,7 +837,7 @@ export function useDeckFeedbackWalk(args: {
         say("tempo:comment", "app", afterTry(event.result, event.landed, event.n).join("\n"), event.n);
       } else {
         if (!event.close) say("tempo:skip", "speaker", TEMPO_COPY.skip);
-        else if (!event.landed) say("tempo:close", "app", TEMPO_COPY.close[event.close]);
+        else if (!event.tries.some((t) => t.landed)) say("tempo:close", "app", TEMPO_COPY.close[event.close]);
         const arcId = args.arcId ?? null;
         if (arcId && take) void postTempoGame(arcId, take, tempo.reading, event);
       }
