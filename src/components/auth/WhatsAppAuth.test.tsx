@@ -9,9 +9,12 @@ OUTCOME
       its name, keeps the number as the account's WhatsApp number, and lands.
   O2  Signing in never makes an account: a number no account signs in with
       says so and points to sign-up, and the number is not saved anywhere.
+  O3  Signing in on the page that opens on the number: "Sign in with
+      WhatsApp", the code, then straight in, with no name step (N232).
 PROVES   O1 -> "signing up: number, code, name, and the number is kept"
          O2 -> "signing in with an unknown number says so and makes nothing"
-WHY      Founder 2026-10-27, backend N214.
+         O3 -> "signing in from the first screen: the code, then in"
+WHY      Founder 2026-10-27, backend N214; the first screen, 2026-10-28, N232.
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -114,5 +117,23 @@ describe("WhatsApp sign-up and sign-in", () => {
     expect(container.querySelector('a[href="/signup?way=whatsapp"]')?.textContent).toBe(WHATSAPP_AUTH_COPY.noAccountLink);
     expect(container.querySelector("#wa-code")).toBeNull();
     expect(saved.save).not.toHaveBeenCalled();
+  });
+
+  it("signing in from the first screen: the code, then in", async () => {
+    const landed = vi.fn();
+    auth.signInWithOtp.mockResolvedValue({ error: null });
+    act(() => root.render(createElement(WhatsAppAuth, { mode: "login", first: true, onSuccess: landed })));
+    expect(container.textContent).toContain(WHATSAPP_AUTH_COPY.signIn);
+    expect(container.textContent).not.toContain("Back");
+
+    act(() => type("#wa-phone", "600 100 200"));
+    await submit();
+    expect(auth.signInWithOtp).toHaveBeenCalledWith({ phone: "+48600100200", options: { shouldCreateUser: false } });
+
+    auth.verifyOtp.mockResolvedValueOnce({ data: { session: { access_token: "t" }, user: { user_metadata: {} } }, error: null });
+    act(() => type("#wa-code", "482916"));
+    await submit();
+    expect(container.textContent).not.toContain(WHATSAPP_AUTH_COPY.nameTitle);
+    expect(landed).toHaveBeenCalledTimes(1);
   });
 });
