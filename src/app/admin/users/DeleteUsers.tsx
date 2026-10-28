@@ -5,7 +5,7 @@ import { ListChecks, MoreVertical, Trash2, X } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
 /*  Deleting people from the Users list (founder 2026-10-27, N219; 2026-10-28, */
-/*  N221). The same road as "Delete user" on a profile: the account stops now, */
+/*  N222). The same road as "Delete user" on a profile: the account stops now, */
 /*  the data is deleted after seven days, cancellable until then (Undo here,   */
 /*  "Cancel deletion" on the profile). A deleted person leaves the list.       */
 /* -------------------------------------------------------------------------- */
