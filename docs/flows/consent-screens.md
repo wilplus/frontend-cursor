@@ -265,7 +265,25 @@ The founder in the Claude Code chat, on the clickable prototype <https://claude.
   email. The email comes from booking a call (the booking form's **Email**, "We'll send your calendar invite
   here."): it becomes the account's when its owner opens the "Confirm your new email" link, and the card then has
   its Email row, and a Password row that reads "You sign in with WhatsApp." with **Set a password**.
-- The number added here is a way in only: the WhatsApp card's number for messages stays its own.
+- The number added here is also the number the messages go to (backend N230, 28 October 2026: one number,
+  checked once with the code, wherever it is first given).
+
+### Amended 2026-10-28: the number field (backend N230)
+
+Approved on the clickable prototype <https://claude.ai/artifact/W9JkYyK3pkwcurNd4itZwR>: "The design is great
+too. Please implement it." Written in the present tense.
+
+- **Everywhere a WhatsApp number is asked** (the WhatsApp sign-up and sign-in, this card's WhatsApp row, the
+  Lounge's ask): the flag and the code first, then the number. Poland is chosen at the start, for everyone.
+- **The list.** A tap on the flag opens it: Poland, then the United States, then every country A to Z, with
+  **Search country or code** at the top, which finds a country by its name ("pol"), its code ("+44" or "44") or a
+  short name ("uk", "usa"); **Cancel** closes it. Nothing found: "No country matches “{text}”."
+- **Typing.** A full number pasted with + picks its country; a leading 0 is dropped; spaces appear as you type.
+  **Send code** lights up only when the number is long enough for its country; too long: "That's too long for
+  {country}. Check the country."
+- **One number.** Wherever a number is first given, a code on WhatsApp proves it once; then it gets the messages
+  and signs in with WhatsApp. A number another account already signs in with is refused, with "Couldn’t save that.
+  Try again." until its words are signed.
 
 ## 2. In flight
 
@@ -318,6 +336,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N230 · the number field shows the country by its flag (Poland, then the United States, then A to Z, with search); the number added in this card's WhatsApp row gets the messages too · BE #1438, FE (this PR)
 - 2026-10-27 · N214 · the Email and password card's WhatsApp row: Add, the number and the code; on, "You can sign in with WhatsApp at {number}."; a WhatsApp account's card has no email or password row until it has an email · BE #1420, FE (this PR)
 - 2026-10-27 · N211 · the card "Personal answers in your plan" between Help improve WillpowerLab and WhatsApp: on and off, off asks first and deletes the personal answers; hidden until the backend's switch is on · BE #1416, FE (this PR)
 - 2026-10-26 · N207 · the WhatsApp card names the booked call: "We message {number} when your coach’s feedback is in and 10 minutes before a booked call." · BE #1391, #1395, FE (this PR)
