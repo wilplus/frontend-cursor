@@ -24,6 +24,7 @@ import TypingDots, { TypingGlyph } from "./TypingDots";
 /*  says it is on (ring 6). The mic sits right of the message box while it is */
 /*  empty; before the first note "Keep a voice notebook?" opens Yes | Not now */
 /*  while it is the newest message. Backend: services/voice_notebook.py.      */
+/*  While the speaker is onboarded (backend N243), the mic and the asks wait. */
 /*                                                                            */
 /*  Written as it is said (backend N194): the note grows in the thread while  */
 /*  it is said; on send it settles, then a tick under it and "Noted.". A note */
@@ -35,12 +36,15 @@ import TypingDots, { TypingGlyph } from "./TypingDots";
 export function useVoiceNotebook({
   signedIn,
   threadLoading,
+  held,
   drawn,
   openOffer,
   reload,
 }: {
   signedIn: boolean;
   threadLoading: boolean;
+  /** The speaker is being onboarded: no mic, no ask (backend N243). */
+  held: boolean;
   drawn: readonly Pick<LoungeMessage, "client_id" | "metadata">[];
   openOffer: (type: OfferType) => void;
   reload: () => Promise<unknown>;
@@ -56,16 +60,17 @@ export function useVoiceNotebook({
   }, [signedIn]);
 
   // "Keep a voice notebook?", and the Sunday note's two asks (step 2), open
-  // their pair while they are the newest message, once each.
+  // their pair while they are the newest message, once each; not while the
+  // speaker is onboarded (N243), and still newest after it, then.
   const askRef = useRef<string | null>(null);
   useEffect(() => {
-    if (threadLoading) return;
+    if (threadLoading || held) return;
     const last = drawn[drawn.length - 1];
     const offer = OWN_ASKS.find((type) => type === last?.metadata?.offer);
     if (!last || !offer || askRef.current === last.client_id) return;
     askRef.current = last.client_id;
     openOffer(offer);
-  }, [threadLoading, drawn, openOffer]);
+  }, [threadLoading, held, drawn, openOffer]);
 
   // The outbox: notes kept on the phone until the backend has them. Sent one
   // at a time, oldest first; a note that cannot go waits under its clock.
@@ -185,6 +190,7 @@ export function useVoiceNotebook({
 
   return {
     enabled: state?.enabled === true,
+    held,
     note,
     recording: note.phase === "recording",
     /** The message box's display: it gives way to the recording bar, and to
@@ -216,11 +222,11 @@ const SETTLE_MS = 700;
 
 const OWN_ASKS: readonly OfferType[] = ["voice_notebook", "sunday_note", "life_goals", "life_goals_quarter", "life_goals_change"];
 
-/** The mic, right of the message box: only where the notebook is on and the
- *  box is empty. A note on its way never holds it: the outbox sends notes
- *  one after another (N194). */
+/** The mic, right of the message box: only where the notebook is on, the
+ *  speaker is not being onboarded (N243) and the box is empty. A note on its
+ *  way never holds it: the outbox sends notes one after another (N194). */
 export function VoiceNoteMic({ notebook, draft }: { notebook: VoiceNotebook; draft: string }) {
-  if (!notebook.enabled || draft.trim()) return null;
+  if (!notebook.enabled || notebook.held || draft.trim()) return null;
   return (
     <button
       type="button"
