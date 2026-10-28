@@ -52,12 +52,10 @@ exist, or the user reaches consent and the write fails.
 ```
 src/lib/life/types.ts           types, the six-entry taxonomy, the three bets, gate helpers
 src/lib/life/mappers.ts         wire (snake_case) → view types, defensively
-src/lib/life/hashtags.ts        the # registry, first-token parsing, picker filtering
 src/lib/life/copy.ts            EVERY user-visible string — the sign-off surface
 src/lib/life/setupSteps.ts      the nine setup steps and the draft shape
 src/lib/life/timelineScale.ts   zoom tiers, ticks, time↔pixel maths
 src/lib/life/useLifeState.ts    one cached read of the gate, shared app-wide
-src/lib/life/useLifeTags.ts     the gate on the chat # layer
 src/lib/life/uploadKind.ts      which item kind the document dock is pointed at
 
 src/services/api/life.ts        the client, with the full assumed contract in its header
@@ -72,7 +70,7 @@ src/components/life/SetupFlow.tsx        FE-3 setup, save-and-resume
 src/components/life/ProposalCards.tsx    FE-7 proposal / conflict / retire
 src/components/life/StrategyPanel.tsx    read, download, re-upload as an approved diff
 src/components/life/TimelineCanvas.tsx   FE-8 canvas
-src/components/life/LifeChatLayer.tsx    FE-5 tag picker + response card
+src/components/life/LifeChatLayer.tsx    FE-5 response card (the # tag picker is gone: "#" offers only "# note", backend N251)
 
 src/app/panel/{layout,page,not-found}.tsx
 src/app/panel/{principles,principles/[id],wins,phrases,today,goals,timeline,distractions,strategy,setup,data}/page.tsx

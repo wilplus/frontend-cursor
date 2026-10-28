@@ -124,7 +124,9 @@ import {
   VoiceNoteBubble,
   VoiceNoteFixBar,
   VoiceNoteMic,
+  VoiceNotePicker,
   VoiceNoteThread,
+  NOTE_START,
   type VoiceNotebook,
 } from "./useVoiceNotebook";
 import SundayLens, { SundayHeadBubble } from "./SundayLens";
@@ -135,8 +137,6 @@ import { postWillQuestion } from "@/services/api/willQuestion";
 import WillQuestionBubble, { willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
-import { useLifeTags } from "@/lib/life/useLifeTags";
-import { applyPick } from "@/lib/life/hashtags";
 import {
   announceDiscoveriesFromPersistedMessages,
   productActionFromMetadata,
@@ -159,16 +159,12 @@ const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOver
 // Off the boot bundle, warmed after the thread paints (founder 2026-10-16: the
 // Feedback walk and Ideal Text code may load after the thread paints as long
 // as opening still feels instant): the Ideal Text page, the walk's frame for
-// an older Take, and the Life panel's # layer. `warmOverlays` below fetches
+// an older Take, and the Life panel's chat card. `warmOverlays` below fetches
 // their chunks once the thread is in, so a tap finds them ready.
 const IdealTextOverlay = dynamic(() => import("./IdealTextOverlay"), { ssr: false });
 const WalkOverlay = dynamic(() => import("./walk/WalkOverlay"), { ssr: false });
 const LifeChatCard = dynamic(
   () => import("@/components/life/LifeChatLayer").then((m) => m.LifeChatCard),
-  { ssr: false },
-);
-const LifeTagPicker = dynamic(
-  () => import("@/components/life/LifeChatLayer").then((m) => m.LifeTagPicker),
   { ssr: false },
 );
 function warmOverlays(): void {
@@ -325,7 +321,6 @@ export default function Lounge({
   // before the panel existed. Anonymous visitors make no request for it at all.
   // Sending is untouched either way: routing happens on the backend, and the
   // composer still posts the same /v2/chat/query.
-  const lifeTags = useLifeTags(thread.signedIn);
   useEffect(() => afterChatBoot(warmOverlays), []);
   const [botThinking, setBotThinking] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -1964,18 +1959,15 @@ export default function Lounge({
       {/* A5 — the send button lives INSIDE the input (right edge): grey when the
           field is empty, black once there's text. A4 — the input height (h-12)
           matches the record CTA. B3 — "Will" persona in the placeholder + aria. */}
-      {/* Typing "#" alone opens the tag list. Renders nothing when the layer is
-          off, and nothing when the draft is not a leading "#" token. */}
-      {lifeTags.enabled && (
-        <LifeTagPicker
-          draft={draftText}
-          entries={lifeTags.entries}
-          onPick={(tag) => {
-            setDraftText((current) => applyPick(current, tag));
-            composerRef.current?.focus();
-          }}
-        />
-      )}
+      {/* Typing "#" offers one option, "# note" (backend N251). */}
+      <VoiceNotePicker
+        notebook={notebook}
+        draft={draftText}
+        onPick={() => {
+          setDraftText(NOTE_START);
+          composerRef.current?.focus();
+        }}
+      />
 
       {/* FE-2 (founder 2026-07-27, revised) — the record control is its own
           bordered button NEXT TO the text input, not inside it. Two controls

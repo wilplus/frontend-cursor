@@ -240,6 +240,34 @@ export function VoiceNoteMic({ notebook, draft }: { notebook: VoiceNotebook; dra
   );
 }
 
+/** What the message box keeps when "# note" is tapped: "#", to write on. */
+export const NOTE_START = "# ";
+
+/** Typing "#" offers one option, "# note" (backend N251): a typed "#"
+ *  message is one note, the same as the mic's. Shown while the draft is a
+ *  leading "#" still being typed, alone or as the start of "note". */
+export function VoiceNotePicker({ notebook, draft, onPick }: { notebook: VoiceNotebook; draft: string; onPick: () => void }) {
+  const typed = /^\s*#(\p{L}*)$/u.exec(draft);
+  if (!notebook.enabled || notebook.held || !typed || !"note".startsWith(typed[1].toLowerCase())) return null;
+  return (
+    <div role="listbox" aria-label="Tags" className="mb-2 overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
+      <button
+        type="button"
+        role="option"
+        aria-selected={false}
+        // onMouseDown, not onClick: the box keeps focus, so the keyboard stays up.
+        onMouseDown={(e) => {
+          e.preventDefault();
+          onPick();
+        }}
+        className="block w-full px-4 py-2.5 text-left text-[15px] font-medium text-foreground hover:bg-muted"
+      >
+        # note
+      </button>
+    </div>
+  );
+}
+
 /** The note on its way (founder 2026-10-20, "exactly like WhatsApp"): trash
  *  on the left, the running time, send on the right. */
 export function VoiceNoteBar({ notebook }: { notebook: VoiceNotebook }) {
