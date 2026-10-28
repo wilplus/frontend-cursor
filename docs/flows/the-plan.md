@@ -261,9 +261,9 @@ built and what is still to come.
    said it") and "● Record Take N" inside. The chat has one record button, in
    the newest bubble: the previous Take's closing message keeps its words and
    gives its button up, and a line written after it moves the bubble below.
-   Once the Take is recorded the bubble gives its button up too, while the
-   Take processes and its walk runs; the Take's own closing message brings
-   "Record Take N" back after the walk's summary (N244).
+   Once a newer Take is recorded, in any project, the bubble loses its
+   button for good; the new Take's closing message brings "Record Take N"
+   back after its walk's summary (N244, N251).
    The last practice and the next plan show the same bubble with N89's
    closing line. No "Start a new project" under it: the "+" next to "Type
    here" opens the projects, as today (N167, N169).
@@ -568,6 +568,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N251 · today's one thing loses its "Record Take N" once a Take is recorded in any project, not only its own (G6). Was: a Take in another project left the button up beside the new walk (N244) · BE (N251 log), FE (this PR)
 - 2026-10-28 · N248 · the calls' calendar opens full screen over the chat: "Skip" at the top left, one "Book" at the bottom; the month swipes, a day picked folds it into its week with the times in four columns; "Edit" turns the same screen into the deadline's (F1, F2, F7, E2). No new words. Was: the calendar in the footer under the chat, "Skip" and "Book" side by side, the month by its arrows · BE #1462, FE (this PR)
 - 2026-10-28 · N246 · G7: the walk shows the two best moments and the level's moment as well, a third or one of the two; and the walk the speaker sees now reads the level (it never did: the serve path asked a store that cannot read a plan, so only the dark frame had the level's moment). Was: the best moment and the level's · BE #1459, BE (code PR), FE (this PR)
 - 2026-10-28 · N150 · fixed (B6): a question, opener or ack the AI left with a slot unfilled ("If {who they will speak to} remembers …", seen by the founder) is not kept, and Will says the plain template; a slot is never kept as a fact, and the plan card's "Why this line?" reads "them" for one stored before · BE #1461
