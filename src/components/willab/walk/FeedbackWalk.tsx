@@ -1252,26 +1252,39 @@ function Others(ctx: ScreenCtx, step: WalkStep) {
  *  scale. With no stretch it is passed by. Played again, it is what the
  *  chat kept of it, read only (N247). */
 function Tempo(ctx: ScreenCtx, step: WalkStep) {
-  if (step.replay && ctx.tempoSaid.length > 0) {
-    return (
+  const kept =
+    ctx.tempoSaid.length > 0 ? (
       <WalkTempoSaid
         testId={testId(step)}
+        stretch={ctx.tempo}
         lines={ctx.tempoSaid}
         onNext={() => ctx.forwardFrom(step)}
         onClose={ctx.close}
       />
-    );
-  }
+    ) : null;
+  if (step.replay && kept) return kept;
   if (!ctx.tempo || step.readOnly || step.replay) return <PassBy onPass={() => ctx.forwardFrom(step)} />;
   return (
-    <WalkTempo
-      testId={testId(step)}
-      stretch={ctx.tempo}
-      onDone={() => ctx.forwardFrom(step)}
-      onClose={ctx.close}
-      onEvent={ctx.onTempo}
-    />
+    <TempoOrKept kept={kept}>
+      <WalkTempo
+        testId={testId(step)}
+        stretch={ctx.tempo}
+        onDone={() => ctx.forwardFrom(step)}
+        onClose={ctx.close}
+        onEvent={ctx.onTempo}
+      />
+    </TempoOrKept>
   );
+}
+
+/** A game the walk already played, drawn from nothing (the walk opened
+ *  further on, or its leaving copy), has no tries of its own: it shows the
+ *  game as the chat kept it, so the practice stays in the walk (B5;
+ *  founder 2026-10-28: "It feels like the practice is gone from the
+ *  feedback walk"). The game the walk stands on is always the live one. */
+function TempoOrKept({ kept, children }: { kept: ReactNode; children: ReactNode }) {
+  const past = useMountedAsPast();
+  return <>{past && kept ? kept : children}</>;
 }
 
 /** A step with nothing to show moves the walk on once drawn. */
