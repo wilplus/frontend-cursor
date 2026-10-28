@@ -6,6 +6,7 @@ OUTCOME
   O2  A done exercise plays my past tries and records nothing new.
   O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.
 PROVES   O1 -> opens on the coach's note and plays the same screens answered; helper words stay editable, nothing else writes
+         O1 -> opened on a later step, a tap on an earlier part's helper words stands the walk there; their buttons save them and bring it back
          O2 -> opens on the coach's note and plays the same screens answered ...
          O3 -> an exercise opened from its bubble in the chat shows its AI clip and every try, a try tapped in the chat opens its exercise on the last answer
 */
@@ -218,6 +219,19 @@ describe("the finished walk, played again", () => {
     expect(live()!.querySelector("[data-walk-now]")!.textContent).toContain(WALK_COPY.practiseN(2));
     expect(parts()).toBe(all);
     expect(calls).toEqual([]);
+  });
+
+  it("opened on a later step, a tap on an earlier part's helper words stands the walk there; their buttons save them and bring it back (C3, B10)", () => {
+    draw({ at: (m) => walkStepAt(m, { step: "clearer", part: "p2" })!, head: (m) => walkLastStep(m)! });
+    expect(screen()).toBe("walk-screen-clearer");
+    // The founder's report, 2026-10-28: the earlier picker took no tap.
+    click(live()!.querySelectorAll("[data-walk-word-picker] button")[2]); // "our", next to the phrase
+    expect(screen()).toBe("walk-screen-helpers");
+    expect(picked()).toEqual(["our", "growth", "doubled."]);
+    expect(byTestId("walk-forward")!.textContent).toBe(WALK_COPY.editHelperWords);
+    click(byTestId("walk-forward"));
+    expect(calls).toEqual(["helpers"]);
+    expect(screen()).toBe("walk-screen-clearer");
   });
 
   it("scrolled away from the step the walk stands on, the dock reads Next, which brings that step back (B9)", () => {
