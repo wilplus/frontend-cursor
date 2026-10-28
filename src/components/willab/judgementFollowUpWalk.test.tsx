@@ -1,26 +1,26 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  STORY    As a speaker, I want the card and buttons after each of my five  */
-/*           answers to follow the founder's follow-up matrix, so that I get  */
-/*           the right next step (praise, exercise, rewrite, or nothing).     */
-/*  OUTCOME  For each answer and machine read, through the real paragraph     */
-/*           sheet: the right card, button, link, and whether helper words    */
-/*           follow (24f, founder 2026-09-29; locks B2, B5, D1, D7; 29b):     */
-/*    O1  read confident: praise on Yes, In-between, No, Not sure.            */
-/*    O2  read weak, problem fired: library video on No and Not sure, even    */
-/*        with a rewrite on the paragraph; the plain moment with the coach's  */
-/*        line when nothing in the library matched; nothing on Yes.          */
-/*    O3  read weak, nothing fired: the rewrite (accept, or Keep my words).   */
-/*    O4  Audio unclear: nothing.                                             */
-/*    O5  Helper words follow Yes and In-between only.                        */
-/*    O6  Not sure walks exactly as No.                                       */
-/*    O7  Never-1: nothing on the sheet is a number or score about me.        */
-/*  PROVES   O1-O7 -> each row of CASES, via expectWalk (card, footer,        */
-/*           the way on, and the no-number check on the drawn sheet).         */
-/*  NOT PINNED, on purpose: a weak moment where a problem fired, nothing in   */
-/*  the library matched, AND a rewrite rides the paragraph. That cell is open */
-/*  work (audit 2026-10-05, item 3).                                          */
-/* -------------------------------------------------------------------------- */
+/*
+ * STORY    As a speaker, I want the card and buttons after each of my five
+ *          answers to follow the founder's follow-up matrix, so that I get
+ *          the right next step (praise, exercise, rewrite, or nothing).
+ * OUTCOME  For each answer and machine read, through the real paragraph
+ *          sheet: the right card, button, link, and whether helper words
+ *          follow (24f, founder 2026-09-29; locks B2, B5, D1, D7; 29b):
+ *   O1  read confident: praise on Yes, In-between, No, Not sure.
+ *   O2  read weak, problem fired: library video on No and Not sure, even
+ *       with a rewrite on the paragraph; the plain moment with the coach's
+ *       line when nothing in the library matched; nothing on Yes.
+ *   O3  read weak, nothing fired: the rewrite (accept, or Keep my words).
+ *   O4  Audio unclear: nothing.
+ *   O5  Helper words follow Yes and In-between only.
+ *   O6  Not sure walks exactly as No.
+ *   O7  Never-1: nothing on the sheet is a number or score about me.
+ * PROVES   O1-O7 -> each row of CASES, via expectWalk (card, footer,
+ *          the way on, and the no-number check on the drawn sheet).
+ * NOT PINNED, on purpose: a weak moment where a problem fired, nothing in
+ * the library matched, AND a rewrite rides the paragraph. That cell is open
+ * work (audit 2026-10-05, item 3).
+ */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

@@ -1,19 +1,19 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  STORY    As the founder, I want to judge golden pairs seeing the passage  */
-/*           and the coach's final only, so that the golden set measures real */
-/*           answers.                                                         */
-/*  OUTCOME                                                                   */
-/*    O1  A pair shows the passage and the coach's final, no draft, and sends */
-/*        one of three answers.                                               */
-/*    O2  A clip surface keeps the coach's instrument, not the pair question. */
-/*    O3  A sealed set that erasure changed says so and lets me judge again;  */
-/*        an intact sealed set offers no more judging.                        */
-/*  PROVES   O1 -> "shows the passage and the coach's final, never a draft, ..."*/
-/*           O2 -> "a clip surface judges on the coach's instrument"          */
-/*           O3 -> "a sealed set erasure changed says so and opens judging again"*/
-/*  WHY      ML-10: the golden set replaces the engineering seeds.            */
-/* -------------------------------------------------------------------------- */
+/*
+ * STORY    As the founder, I want to judge golden pairs seeing the passage
+ *          and the coach's final only, so that the golden set measures real
+ *          answers.
+ * OUTCOME
+ *   O1  A pair shows the passage and the coach's final, no draft, and sends
+ *       one of three answers.
+ *   O2  A clip surface keeps the coach's instrument, not the pair question.
+ *   O3  A sealed set that erasure changed says so and lets me judge again;
+ *       an intact sealed set offers no more judging.
+ * PROVES   O1 -> "shows the passage and the coach's final, never a draft, ..."
+ *          O2 -> "a clip surface judges on the coach's instrument"
+ *          O3 -> "a sealed set erasure changed says so and opens judging again"
+ * WHY      ML-10: the golden set replaces the engineering seeds.
+ */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

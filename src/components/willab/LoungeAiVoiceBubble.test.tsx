@@ -1,21 +1,21 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  STORY    As a speaker in the Lounge, I want the AI version of my voice to */
-/*           appear with its bubble, not after another wait, so that the chat */
-/*           feels immediate.                                                 */
-/*  OUTCOME                                                                   */
-/*    O1  When the page already asked for the clip, the bubble's first render */
-/*        has the player on that clip, and no second request goes out. The   */
-/*        bubble is short in the chat: its first line, the voice and the ›    */
-/*        that opens its step; the "why" and the closing line are the walk's  */
-/*        (founder 2026-10-21).                                               */
-/*    O2  A clip still being made comes in when it lands; one that never      */
-/*        comes shows the step's plain words (founder 2026-10-20).            */
-/*  PROVES   O1 -> "draws the player with the bubble when the page already    */
-/*                  asked for the clip, short, with its ›"                     */
-/*           O2 -> "a clip still being made comes in when it lands, and one   */
-/*                  that never comes shows the plain words"                   */
-/* -------------------------------------------------------------------------- */
+/*
+ * STORY    As a speaker in the Lounge, I want the AI version of my voice to
+ *          appear with its bubble, not after another wait, so that the chat
+ *          feels immediate.
+ * OUTCOME
+ *   O1  When the page already asked for the clip, the bubble's first render
+ *       has the player on that clip, and no second request goes out. The
+ *       bubble is short in the chat: its first line, the voice and the ›
+ *       that opens its step; the "why" and the closing line are the walk's
+ *       (founder 2026-10-21).
+ *   O2  A clip still being made comes in when it lands; one that never
+ *       comes shows the step's plain words (founder 2026-10-20).
+ * PROVES   O1 -> "draws the player with the bubble when the page already
+ *                 asked for the clip, short, with its ›"
+ *          O2 -> "a clip still being made comes in when it lands, and one
+ *                 that never comes shows the plain words"
+ */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";

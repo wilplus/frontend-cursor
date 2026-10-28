@@ -1,42 +1,42 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  STORY    As a new speaker on the plan's ring, I want the Lounge to ask me */
-/*           my questions one at a time in the footer, and to show my plan   */
-/*           as it was drawn, so that I reach my first Take without a form.   */
-/*  OUTCOME                                                                   */
-/*    O1  Each step of the plan gets its own footer in place of the message  */
-/*        box: the deadline's two chips, "Record your answer" with no Skip,   */
-/*        the 1 to 10 scale, the calls' calendar, then only "Start your      */
-/*        first recording"; with no plan, the message box stays.             */
-/*    O2  A tap on the scale is sent once, and the number is never written   */
-/*        back into the chat (N178).                                          */
-/*    O3  The plan's rows are drawn by their metadata: the speaker's voice    */
-/*        answer as their own bubble, the card with its list, the deadline   */
-/*        in orange and Book on a call not booked; a plain row is left to    */
-/*        the Lounge.                                                         */
-/*    O4  The chat has one record button: a practice day's one thing holds   */
-/*        it until a newer Take's closing message takes it back (N167), and  */
-/*        gives it up once its Take is recorded (N244).                      */
-/*    O5  A new project's question takes Yes or No in the footer (H2), and   */
-/*        "How do you feel?" comes before a Take only once the plan's first  */
-/*        Take is recorded (D4).                                              */
-/*    O6  Will's ask for the plan's own yes is drawn as his bubble with Read   */
-/*        more, its footer is "Not now" and "Yes, ask me" and nothing else   */
-/*        is taken while he waits (N211).                                     */
-/*    O7  The principles wait until the plan is read and while it says the  */
-/*        speaker is onboarded; the first Take landing in the thread reads   */
-/*        the plan again and lets them back (N243).                          */
-/*  PROVES   O1 -> "each step has its own footer"                             */
-/*           O2 -> "a rating is sent once and never written back"             */
-/*           O3 -> "the plan's rows are drawn as the prototype draws them"    */
-/*           O4 -> "the newest bubble holds the one record button"            */
-/*           O5 -> "a new project's question, and the feelings before a Take" */
-/*           O6 -> "Will asks for the plan's own yes"                         */
-/*           O7 -> "the principles wait for the first Take"                   */
-/*  WHY      The plan, built one to one with the prototype (founder           */
-/*           2026-10-26, backend N203, N204); the principles waiting for the */
-/*           onboarding, backend N243; docs/flows/the-plan.md §1.            */
-/* -------------------------------------------------------------------------- */
+/*
+ * STORY    As a new speaker on the plan's ring, I want the Lounge to ask me
+ *          my questions one at a time in the footer, and to show my plan
+ *          as it was drawn, so that I reach my first Take without a form.
+ * OUTCOME
+ *   O1  Each step of the plan gets its own footer in place of the message
+ *       box: the deadline's two chips, "Record your answer" with no Skip,
+ *       the 1 to 10 scale, the calls' calendar, then only "Start your
+ *       first recording"; with no plan, the message box stays.
+ *   O2  A tap on the scale is sent once, and the number is never written
+ *       back into the chat (N178).
+ *   O3  The plan's rows are drawn by their metadata: the speaker's voice
+ *       answer as their own bubble, the card with its list, the deadline
+ *       in orange and Book on a call not booked; a plain row is left to
+ *       the Lounge.
+ *   O4  The chat has one record button: a practice day's one thing holds
+ *       it until a newer Take's closing message takes it back (N167), and
+ *       gives it up once its Take is recorded (N244).
+ *   O5  A new project's question takes Yes or No in the footer (H2), and
+ *       "How do you feel?" comes before a Take only once the plan's first
+ *       Take is recorded (D4).
+ *   O6  Will's ask for the plan's own yes is drawn as his bubble with Read
+ *       more, its footer is "Not now" and "Yes, ask me" and nothing else
+ *       is taken while he waits (N211).
+ *   O7  The principles wait until the plan is read and while it says the
+ *       speaker is onboarded; the first Take landing in the thread reads
+ *       the plan again and lets them back (N243).
+ * PROVES   O1 -> "each step has its own footer"
+ *          O2 -> "a rating is sent once and never written back"
+ *          O3 -> "the plan's rows are drawn as the prototype draws them"
+ *          O4 -> "the newest bubble holds the one record button"
+ *          O5 -> "a new project's question, and the feelings before a Take"
+ *          O6 -> "Will asks for the plan's own yes"
+ *          O7 -> "the principles wait for the first Take"
+ * WHY      The plan, built one to one with the prototype (founder
+ *          2026-10-26, backend N203, N204); the principles waiting for the
+ *          onboarding, backend N243; docs/flows/the-plan.md §1.
+ */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
