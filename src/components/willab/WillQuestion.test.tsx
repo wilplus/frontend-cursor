@@ -1,20 +1,20 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  STORY    As a speaker in the Lounge after a Take, I want Will's one       */
-/*           question to come with answers I can tap (or Skip), so that I     */
-/*           answer in a second and my next Take is never held up.            */
-/*  OUTCOME                                                                   */
-/*    O1  While it is the newest bubble, the question shows its answers and   */
-/*        Skip; a tap goes to the backend once, which writes it and the       */
-/*        reply; an older question shows no answers.                          */
-/*    O2  The message after the Take waits while Will's question (or its      */
-/*        follow-up) is the newest bubble.                                    */
-/*  PROVES   O1 -> "the newest question shows its answers and Skip, and a tap */
-/*                  goes to the backend once"                                 */
-/*           O2 -> "the message after the Take waits under Will's question"  */
-/*  WHY      Founder 2026-10-20 (N82): "only buttons" in the walk, Will's    */
-/*           questions in the Lounge, tap answers plus my own words.         */
-/* -------------------------------------------------------------------------- */
+/*
+ * STORY    As a speaker in the Lounge after a Take, I want Will's one
+ *          question to come with answers I can tap (or Skip), so that I
+ *          answer in a second and my next Take is never held up.
+ * OUTCOME
+ *   O1  While it is the newest bubble, the question shows its answers and
+ *       Skip; a tap goes to the backend once, which writes it and the
+ *       reply; an older question shows no answers.
+ *   O2  The message after the Take waits while Will's question (or its
+ *       follow-up) is the newest bubble.
+ * PROVES   O1 -> "the newest question shows its answers and Skip, and a tap
+ *                 goes to the backend once"
+ *          O2 -> "the message after the Take waits under Will's question"
+ * WHY      Founder 2026-10-20 (N82): "only buttons" in the walk, Will's
+ *          questions in the Lounge, tap answers plus my own words.
+ */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
