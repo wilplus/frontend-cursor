@@ -454,6 +454,19 @@ export function walkLastStep(model: FeedbackWalkModel<unknown>): number | null {
   return null;
 }
 
+/** How far a finished walk opened again is drawn: through its tail, the
+ *  judging of others and the summary, where `kept` says the chat holds
+ *  something of it, so the thread holds every step as it went (founder
+ *  2026-10-28, N247: "the whole feedback walk with all the things that are
+ *  there that we went through"). Null for a walk with no screen. */
+export function walkThreadEnd(model: FeedbackWalkModel<unknown>, kept: (step: WalkStep) => boolean): number | null {
+  for (let i = model.plan.length - 1; i >= 0; i -= 1) {
+    const step = model.plan[i];
+    if (step.overlay !== false && (!TAIL.has(step.key) || kept(step))) return i;
+  }
+  return null;
+}
+
 /** An exercise played again opens on its last try's answer, so the whole
  *  thread (the Exercise, every try and its answer) is on screen at once
  *  (founder 2026-10-14: "an exercise already done plays its tries"). Any
@@ -579,8 +592,8 @@ export function firstJudgement(plan: readonly WalkStep[], at: number): boolean {
 
 /** The screens of the replayed walk whose taps would write: drawn answered,
  *  and "Next" moves on (a clearer version's decision, an exercise and its
- *  tries, the judging of other speakers). Helper words stay editable
- *  (lock 2026-10-12, section 2.3). */
+ *  tries, the judging of other speakers, the tempo step as the chat kept
+ *  it, N247). Helper words stay editable (lock 2026-10-12, section 2.3). */
 const REPLAY_AS_GIVEN: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>([
   "clearer",
   "exVideo",
@@ -590,6 +603,7 @@ const REPLAY_AS_GIVEN: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>([
   "encourage",
   "thanks",
   "others",
+  "tempo",
 ]);
 
 /** THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A; walk
@@ -617,11 +631,13 @@ export function buildFeedbackReplay<R = unknown>(input: {
   helperWordsOf: (partId: string) => string | null;
   /** The tries a moment's practise already had; null: none. */
   triesOf?: (moment: FeedbackWalkMoment<R>) => ReplayTries | null;
+  /** The interventions the walk had, as the chat kept them (N247). */
+  interventions?: readonly WalkIntervention[];
 }): FeedbackWalkModel<R> {
   const items = input.items.map((i) =>
     i.judge != null && input.answerOf(i.judge) === null ? { ...i, judge: null } : i,
   );
-  const base = buildFeedbackWalk({ items, coachNote: input.coachNote, practiceOn: input.practiceOn, guest: false, coachOnly: input.coachOnly, coachWordOnly: input.coachWordOnly });
+  const base = buildFeedbackWalk({ items, coachNote: input.coachNote, practiceOn: input.practiceOn, guest: false, coachOnly: input.coachOnly, coachWordOnly: input.coachWordOnly, interventions: input.interventions });
   const tries: Record<number, ReplayTries> = {};
   const outcomes: Record<number, readonly TryOutcome[]> = {};
   for (const moment of base.moments) {

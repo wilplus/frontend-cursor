@@ -3,7 +3,7 @@
 import { reasonRuns, type PraiseReason, type WalkPraiseReasons } from "@/lib/willab/praiseReason";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { answerBody, helperWordsSaid } from "@/lib/willab/walkThread";
+import { answerBody, helperWordsSaid, type WalkTempoLine } from "@/lib/willab/walkThread";
 import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
@@ -20,6 +20,7 @@ import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
 import WalkSummary, { type WalkStoredSummary } from "./WalkSummary";
 import WalkTempo from "./WalkTempo";
+import WalkTempoSaid from "./WalkTempoSaid";
 import { TEMPO_COPY, type TempoEvent, type TempoStretch } from "@/lib/willab/tempoStep";
 import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
@@ -221,9 +222,14 @@ type Props<R> = {
   /** The tempo step's stretch, when the plan has a "tempo" step (backend
    *  N162, N166); absent: the step is passed by. */
   tempo?: TempoStretch | null;
+  /** The tempo step as the chat kept it: a walk played again shows it so
+   *  (N247). */
+  tempoSaid?: readonly WalkTempoLine[];
   /** What the tempo step did, for the chat and for Will (N166 step 4). */
   onTempo?: (event: TempoEvent) => void;
 };
+
+const NO_LINES: readonly WalkTempoLine[] = [];
 
 const NO_EDITS: ReadonlySet<string> = new Set();
 
@@ -301,6 +307,7 @@ export default function FeedbackWalk<R = unknown>({
   reasons = null,
   othersJudged = 0,
   tempo = null,
+  tempoSaid = NO_LINES,
   onTempo,
 }: Props<R>) {
   const liveModel = useRef(model);
@@ -697,6 +704,7 @@ export default function FeedbackWalk<R = unknown>({
     onOthers,
     othersJudged,
     tempo,
+    tempoSaid,
     onTempo,
   };
 
@@ -801,6 +809,7 @@ type ScreenCtx<R = unknown> = {
   reasons: WalkPraiseReasons | null;
   othersJudged: number;
   tempo: TempoStretch | null;
+  tempoSaid: readonly WalkTempoLine[];
   onTempo?: (event: TempoEvent) => void;
 };
 
@@ -1216,12 +1225,16 @@ function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
 /** Other speakers' moments: the Take's set, up to three, one per level and
  *  three speakers (founder 2026-10-23, N119; until then one per try). */
 function Others(ctx: ScreenCtx, step: WalkStep) {
+  // Played again, the moments judged in this walk with their answers
+  // (N247); none judged, the step is passed by.
+  const replay = Boolean(step.replay);
   return (
     <WalkOthers
       testId={testId(step)}
       take={ctx.takeId}
       judged={ctx.othersJudged}
-      skip={Boolean(step.readOnly || step.replay)}
+      replay={replay}
+      skip={Boolean(step.readOnly) || (replay && ctx.othersJudged === 0)}
       onDone={() => ctx.forwardFrom(step)}
       onClose={ctx.close}
       onChat={ctx.onOthers}
@@ -1230,8 +1243,20 @@ function Others(ctx: ScreenCtx, step: WalkStep) {
 }
 
 /** The tempo step (backend N162, N166): the stretch practised on the pace
- *  scale. With no stretch it is passed by. */
+ *  scale. With no stretch it is passed by. Played again, it is what the
+ *  chat kept of it, read only (N247). */
 function Tempo(ctx: ScreenCtx, step: WalkStep) {
+  if (step.replay && ctx.tempoSaid.length > 0) {
+    return (
+      <WalkTempoSaid
+        testId={testId(step)}
+        stretch={ctx.tempo}
+        lines={ctx.tempoSaid}
+        onNext={() => ctx.forwardFrom(step)}
+        onClose={ctx.close}
+      />
+    );
+  }
   if (!ctx.tempo || step.readOnly || step.replay) return <PassBy onPass={() => ctx.forwardFrom(step)} />;
   return (
     <WalkTempo
