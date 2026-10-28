@@ -7,11 +7,15 @@ OUTCOME
       one saves it and the offer closes (backend N230).
   O3  Not now sends nothing and closes.
   O4  A number I typed in the chat without its country code is in the form,
-      to fix, not to type again (founder 2026-10-20).
+      to fix, not to type again (founder 2026-10-20); a full one opens the
+      code step with its code already sent (backend N235).
+  O5  A number another account has is refused in words (backend N235).
 PROVES   O1 -> sends no code for a number too short
          O2 -> checks the number with a code, then saves it and closes
          O3 -> Not now sends nothing and closes
-         O4 -> opens with the number typed in the chat
+         O4 -> opens with the number typed in the chat,
+               a full number typed in the chat gets its code at once
+         O5 -> a number another account has is refused in words
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -28,7 +32,7 @@ let container: HTMLDivElement;
 let root: Root;
 const offer = {
   canOffer: true, phone: null, softDismiss: vi.fn(), markSaved: vi.fn(), refresh: vi.fn(),
-  draft: null as string | null, setDraft: vi.fn(),
+  draft: null as string | null, setDraft: vi.fn(), sendNow: false, checkNumber: vi.fn(), sentNow: vi.fn(),
 };
 const onResolve = vi.fn();
 
@@ -97,5 +101,23 @@ describe("WhatsApp offer", () => {
     expect(api.sendNumberCode).not.toHaveBeenCalled();
     expect(offer.softDismiss).toHaveBeenCalled();
     expect(onResolve).toHaveBeenCalled();
+  });
+
+  it("a full number typed in the chat gets its code at once", async () => {
+    await act(async () => {
+      root.render(createElement(WhatsAppOfferActions, { key: "chat", offer: { ...offer, draft: "+447700900123", sendNow: true }, onResolve }));
+      for (let i = 0; i < 5; i += 1) await Promise.resolve();
+    });
+    expect(api.sendNumberCode).toHaveBeenCalledWith("+447700900123");
+    expect(offer.sentNow).toHaveBeenCalled();
+    expect(container.textContent).toContain(WHATSAPP_AUTH_COPY.codeTitle);
+  });
+
+  it("a number another account has is refused in words", async () => {
+    api.sendNumberCode.mockResolvedValueOnce("taken");
+    type("+44 7700 900-123");
+    await press(WHATSAPP_COPY.save);
+    expect(container.textContent).toContain(WHATSAPP_COPY.taken);
+    expect(offer.markSaved).not.toHaveBeenCalled();
   });
 });

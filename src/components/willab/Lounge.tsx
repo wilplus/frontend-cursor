@@ -1498,6 +1498,10 @@ export default function Lounge({
       setActiveOffer((open) => (open === "whatsapp" ? null : open));
     }
     if (saved === "invalid") whatsapp.setDraft(typed);
+    // A full number: the form opens on its code, nothing saved until the
+    // code is typed (backend N235).
+    const number = resp.row_metadata?.phone;
+    if (saved === "check" && typeof number === "string") whatsapp.checkNumber(number);
     const lens = lensAskOf(resp.row_metadata);
     if (lens) lifeGoals.openLens(lens);
     if (resp.after_take) {

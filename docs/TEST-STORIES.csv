@@ -929,10 +929,14 @@ O2  A full number gets a code on WhatsApp; a wrong code says so; the right
 one saves it and the offer closes (backend N230).
 O3  Not now sends nothing and closes.
 O4  A number I typed in the chat without its country code is in the form,
-to fix, not to type again (founder 2026-10-20).","O1 -> sends no code for a number too short
+to fix, not to type again (founder 2026-10-20); a full one opens the
+code step with its code already sent (backend N235).
+O5  A number another account has is refused in words (backend N235).","O1 -> sends no code for a number too short
 O2 -> checks the number with a code, then saves it and closes
 O3 -> Not now sends nothing and closes
-O4 -> opens with the number typed in the chat",
+O4 -> opens with the number typed in the chat,
+a full number typed in the chat gets its code at once
+O5 -> a number another account has is refused in words",
 src/components/willab/willabHelpers.test.ts,Story,"As a speaker, I want my slide taps lined up with the recording's clock, so that each word lands on the right slide.","O1  When the recording started later than the tap clock, the correction is positive by exactly that gap.
 O2  When the recording never reported a start, no correction is sent.","O1 -> is positive when the recorder started after the tap clock's zero
 O2 -> sends nothing when the recorder never reported a start",The backend subtracts this from every tap; the wrong sign would double the drift.
