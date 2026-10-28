@@ -1,24 +1,24 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  STORY    As a speaker, I want Practise on a paragraph to open the same    */
-/*           practise screens as the Feedback walk, recording at once on the  */
-/*           right clip, so that practice feels the same everywhere.          */
-/*  OUTCOME                                                                   */
-/*    O1  A clearer version's card opens the walk's practise screen with its  */
-/*        words, the mic starts, and the practice opens on the moment's       */
-/*        snippet; ✕ stops the mic and ends nothing else.                     */
-/*    O2  The moment said again (the plain card) opens on the paragraph's     */
-/*        words, as the walk's moment step does.                              */
-/*    O3  A card with nothing to open a practice on (no snippet, no evidence) */
-/*        cannot open: no screen, no mic, no practice request.                */
-/*  PROVES   O1 -> "opens the walk's practise for the paragraph: recording at once, on the moment's snippet" */
-/*           O2 -> "the moment said again opens on the paragraph's words"             */
-/*           O3 -> "a card with nothing to open a practice on cannot open"    */
-/*  NOT PINNED: an exercise card's passage under its instruction (the walk's  */
-/*  own exercise step carries that).                                          */
-/*  WHY      Founder 2026-10-10: "the practise screens should be the same in  */
-/*           all cases and recording a practise too".                         */
-/* -------------------------------------------------------------------------- */
+/*
+ * STORY    As a speaker, I want Practise on a paragraph to open the same
+ *          practise screens as the Feedback walk, recording at once on the
+ *          right clip, so that practice feels the same everywhere.
+ * OUTCOME
+ *   O1  A clearer version's card opens the walk's practise screen with its
+ *       words, the mic starts, and the practice opens on the moment's
+ *       snippet; ✕ stops the mic and ends nothing else.
+ *   O2  The moment said again (the plain card) opens on the paragraph's
+ *       words, as the walk's moment step does.
+ *   O3  A card with nothing to open a practice on (no snippet, no evidence)
+ *       cannot open: no screen, no mic, no practice request.
+ * PROVES   O1 -> "opens the walk's practise for the paragraph: recording at once, on the moment's snippet"
+ *          O2 -> "the moment said again opens on the paragraph's words"
+ *          O3 -> "a card with nothing to open a practice on cannot open"
+ * NOT PINNED: an exercise card's passage under its instruction (the walk's
+ * own exercise step carries that).
+ * WHY      Founder 2026-10-10: "the practise screens should be the same in
+ *          all cases and recording a practise too".
+ */
 import { act, createElement, type MutableRefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
