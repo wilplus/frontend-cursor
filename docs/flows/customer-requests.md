@@ -328,25 +328,40 @@ item 15, N225):
 - **Where the prototypes are older than a decision**: the Mila prototype's
   answer page is a page with cards, not the chat (N228). The Invita
   prototypes follow N239 and N240.
-- **Invita's products online**: its Shopify shop sells one care product, the
-  Scalp Scrubber ($20), which the prototypes use; whether the Milbon products
-  are sold online, or only at the spas, is Invita's answer.
 - **The colours**: the widget is white and grey (the founder, 28 October); the
   answer chat is in the client's colours (the founder, the same day). Both as
   drawn, until the founder says otherwise.
-- **Fresha and Shopify**: whether Fresha gives the booking back to us as the
-  outcome, and how; Shopify's cart link and its order coming back (N239).
-- **Before the answerer's side is built** (N236 item 6): how fast she must
-  answer and what follows when she does not; many requests at once (one ask
-  at a time, or a list); the photos (how many, kept how long, who at the
-  client sees them); who keeps the catalogue and its prices; the price by
-  spa on the slide; whether an answer uses her tokens; fixing a word before
-  sending; Meta's template approval for Invita's sender and the US SMS
-  fallback; one inbox for several answerers; the answerer's account, photo
-  and name.
-- **Before any photo trains a model** (N240 item 5): the customer's yes to
-  training and its retention, counsel on the US medical-device question, the
-  second trichologist who labels blind, and the vision training provider.
+- **Ours, before the answerer's side is built** (N236 item 6): many requests
+  at once (one ask at a time, or a list); the price by spa on the slide;
+  whether an answer uses her tokens; fixing a word before sending; Shopify's
+  cart link and its order coming back as the outcome (N239); the US SMS
+  fallback's provider.
+- **Ours, before any photo trains a model** (N240 item 5): the customer's yes
+  to training and its retention, counsel on the US medical-device question,
+  the vision training provider.
+- **For the strategic call with Invita** (the founder, 28 October 2026: no
+  answers yet, asked on the call):
+  1. Are the Milbon products sold online, or only at the spas? Invita's
+     Shopify sells one care product, the Scalp Scrubber ($20), which the
+     prototypes use.
+  2. How many requests a month does Invita expect? It decides how soon the
+     photo model can learn.
+  3. Who is the second trichologist who labels a sample of photos blind, for
+     the test set?
+  4. Does Fresha give the booking back to us (an API, a webhook or an email),
+     so the chat and Ariel know it was booked? Without it the model learns
+     from purchases only.
+  5. How fast must Ariel answer (the widget promises "within a day"), and
+     who answers when she is away?
+  6. Who keeps the list of treatments, products and prices right: Invita, or
+     us from its site?
+  7. The photos: one or several, kept how long, and who at Invita may see
+     them?
+  8. One inbox for several trichologists, or Ariel's Lounge only?
+  9. Ariel's account: does Invita invite her, or do we; her photo and name
+     as customers see them?
+  10. Invita's WhatsApp sender: is it set up, and who submits Meta's message
+      templates?
 
 ## 4. Where it lives
 
@@ -413,6 +428,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · §3: the questions only Invita can answer gathered for the strategic call with Invita; ours kept apart · FE (this PR)
 - 2026-10-28 · N239, N240 · §3, §5: the Invita prototypes follow N239 and N240 (the spa opens its Fresha page, the Scalp Scrubber in Invita's Shopify checkout, what she sees on the picker); the open question on Invita's products online · BE #1453, FE (this PR)
 - 2026-10-28 · N239, N240 · D1, E6 to E10, H, I1, K, §3: what she sees as taps on the picker; booking in the client's booking system (Fresha) and products in its shop (Shopify); the client's WhatsApp sender; the words approved; three models from one Take on one platform. Was: booking and products paid in our chat into the client's Stripe, the words waiting for the founder, the observation read from the transcript only · BE #1452, FE (this PR)
 
