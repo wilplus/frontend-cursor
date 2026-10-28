@@ -413,7 +413,7 @@ The companions (N241), in order:
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-28 · N253 · B8: "#" in the message box offers only "# note", and every typed "#" message is one note, as the small mic's; what stopped: the Life Panel's tag list in the box and, for a notebook user, its tags routing from the chat (#mistake to a case, #observation to the strategy check, #win, #add, #edit) · BE #1471, BE (code PR), FE (this PR)
+- 2026-10-28 · N253 · B8: "#" in the message box offers only "# note", and every typed "#" message is one note, as the small mic's; what stopped: the Life Panel's tag list in the box and, for a notebook user, its tags routing from the chat (#mistake to a case, #observation to the strategy check, #win, #add, #edit) · BE #1471, #1472, FE (this PR)
 - 2026-10-28 · N243 · A6: the principles wait while a speaker is onboarded (from the plan's first question to a new speaker's first Take; while the plan's questions are asked for a speaker who already has Takes): the mic and the asks in the Lounge, the Sunday note's evening, the quarter's ask and the chat's answers as the notebook, the Sunday note or life goals; was: nothing held them back · BE #1456, #1460, FE (this PR)
 - 2026-10-28 · N241 · three companions beside the principles, decided from Linear's WIL-112, WIL-113 and WIL-114: strengths (N), what is in your control (O) and the sales framing (P); their tasks in §2 · BE #1454, FE (this PR)
 - 2026-10-27 · N212 · the principles open to ring 5: the `voice_notebook` and `life_goals` rows at ring 5, set by the founder on the CEO panel's rings settings; was ring 6, the founder only (N182) · BE #1409, FE (this PR)
