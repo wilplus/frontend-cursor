@@ -26,11 +26,16 @@
  *       the whole walk on its newest step, never the Ideal Text in its place
  *       (founder 2026-10-26: "the feedback walk opens the ideal text instead
  *       of the feedback walk!"; B10, N192).
+ *   O6  The Feedback walk standing on the helper words a correction's Good
+ *       job opened (N220) opens the whole walk on them, the moment and its
+ *       practise above, never the words alone (founder 2026-10-28: "it just
+ *       opens helper words"; B10, C3).
  * PROVES   O1 -> "every moment answered: Review feedback stays for the unseen word, ..."
  *          O2 -> "a paragraph whose helper words were deleted is back in the walk on its earlier answer"
  *          O3 -> "every moment answered: a bubble tapped in the Lounge opens the walk on its moment, never the text"
  *          O4 -> "one moment still waiting: its bubble opens the whole walk, the waiting step live, nothing new in the chat"
  *          O5 -> "every moment answered: the Feedback walk naming no step of the walk opens it on its newest step, never the text"
+ *          O6 -> "the Feedback walk standing on the helper words a Good job opened opens the whole walk, never the words alone"
  * WHY      Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the
  *          deck's own rule (buildBookmarks), not on the rendered deck.
  */
@@ -239,6 +244,50 @@ describe("B10: the Feedback walk opens the walk, never the text", () => {
       await act(async () => root.unmount());
       root = createRoot(container);
     }
+  });
+
+  it("the Feedback walk standing on the helper words a Good job opened opens the whole walk, never the words alone", async () => {
+    // Paragraph 2's correction, practised to a Good job (N220): its helper
+    // words are the walk's newest part, so the Feedback walk names them.
+    const corrected = {
+      ...answered, bookmarkTier: "weak", practicePrompt: true, snippetId: "snip-2", blockId: "block-2",
+      evidence: { kind: "snippet" },
+    } as unknown as DocumentSuggestion;
+    const said = (id: string, step: string, role: string) => ({
+      client_id: id, role, kind: "walk_step", body: step, client_created_at: `2026-10-28T10:00:0${id}Z`,
+      metadata: { step, take_session_id: "take-2", arc_id: "arc-1", attempt: 1, part_id: "p2", moment: 0 },
+    });
+    // The try and its Good job are in the Lounge's thread, which is still
+    // loading when the page opens.
+    const thread = {
+      messages: [said("1", "try:pr-1", "user"), said("2", "improved", "bot")],
+      loading: false,
+      append: vi.fn(async (draft: unknown) => draft),
+      reload: vi.fn(async () => undefined),
+    };
+    chat.thread = { ...thread, messages: [], loading: true };
+    const reveal = vi.fn();
+    const p = {
+      arcId: "arc-1", coachMessage: null, suggestions: [corrected], onLensReveal: reveal,
+      reviewAt: { step: "helpers", moment: 0, take: "take-2", part: "p2" },
+    };
+    await render({ ...p, reviewRequest: 0 });
+    await render({ ...p, reviewRequest: 1 });
+    chat.thread = thread;
+    await render({ ...p, reviewRequest: 1 });
+    for (let i = 0; i < 6; i += 1) {
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+    }
+    const live = document.querySelector("[data-feedback-walk] .walk-layer:not(.walk-ghost)");
+    expect(live).not.toBeNull();
+    // The thread opens on the moment and its practise, then the helper
+    // words the walk stands on: never those words alone above it.
+    const marks = [...live!.querySelectorAll("[data-walk-mark]")].map((m) => m.getAttribute("data-walk-mark"));
+    expect(marks).toEqual(["Slide 2", "Slide 2 · helper words"]);
+    expect(live!.querySelector("[data-walk-now] [data-testid='walk-screen-helpers']")).not.toBeNull();
+    expect(reveal).not.toHaveBeenCalled();
   });
 });
 

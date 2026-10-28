@@ -20,7 +20,7 @@ const ready = {
   feedbackPending: false,
   reviewWaiting: false,
   walkRequested: false,
-  opensHelpers: false,
+  opensItself: false,
 };
 
 describe("the lens screen", () => {
@@ -35,7 +35,7 @@ describe("the lens screen", () => {
     expect(lensIdle({ ...ready, feedbackPending: true })).toBe(false);
     expect(lensIdle({ ...ready, reviewWaiting: true })).toBe(false);
     expect(lensIdle({ ...ready, walkRequested: true })).toBe(false);
-    expect(lensIdle({ ...ready, opensHelpers: true })).toBe(false);
+    expect(lensIdle({ ...ready, opensItself: true })).toBe(false);
     // The deck not up yet: the page cannot say, so the text waits (founder
     // 2026-10-20: never the text before the walk after a Take).
     expect(lensIdle({ ...ready, reviewWaiting: null })).toBe(false);
