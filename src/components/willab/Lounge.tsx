@@ -1392,7 +1392,14 @@ export default function Lounge({
   }, [threadLoading, drawn, install.canOffer, waiting, letGo, openOffer]);
 
   // The founder's voice notebook (Will learning plan, step 1, 2026-10-20).
-  const notebook = useVoiceNotebook({ signedIn: thread.signedIn, threadLoading, drawn, openOffer, reload });
+  const notebook = useVoiceNotebook({
+    signedIn: thread.signedIn,
+    threadLoading,
+    held: plan.holdsPrinciples,
+    drawn,
+    openOffer,
+    reload,
+  });
   // Life goals (Will learning plan, step 3, N172): the ask's Start, a
   // ladder's ›, or a reply that opens the lens.
   const lifeGoals = useLifeGoals({ signedIn: thread.signedIn, reload });

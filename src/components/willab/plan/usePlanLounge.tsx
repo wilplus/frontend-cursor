@@ -40,6 +40,9 @@ export type PlanLounge = {
   holdsEmpty: boolean;
   /** A practice day's one thing holds the chat's one record button. */
   oneHoldsRecord: boolean;
+  /** The principles wait while the speaker is onboarded (backend N243): until
+   *  the plan is read, then while it says so. */
+  holdsPrinciples: boolean;
 };
 
 type Thread = { messages: LoungeMessage[]; loading: boolean; reload: () => Promise<void> | void };
@@ -203,5 +206,6 @@ export function usePlanLounge({
     composerDisplay: (base) => (kind ? "hidden" : base),
     holdsEmpty: signedIn && (state === null || plan !== null),
     oneHoldsRecord: newestOne !== null,
+    holdsPrinciples: signedIn && (state === null || plan?.onboarding === true),
   };
 }

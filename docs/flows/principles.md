@@ -52,6 +52,14 @@ Life Panel.
    before your next talk, we'll show you what you're doing it for." Then
    "Your notes are private. Only you and Will read them. Keep a voice
    notebook?" with Yes | Not now. Once only (N195; not built yet).
+6. Never in the way of the onboarding (N243). From the plan's first
+   question until a new speaker's first Take, and while the plan's questions
+   are asked for a speaker who already has Takes ([the plan](the-plan.md)
+   A2, A3, A5), nothing of it shows: no mic, no "Keep a voice notebook?", no
+   life goals ask, no Sunday note, no quarter's ask, and Will's chat does not
+   answer as the notebook, the Sunday note or life goals. Then it is as
+   above; an ask that was due comes the next time it may. Only where the plan
+   reaches; the backend's `plan_flow.onboarding` decides.
 
 ### B · The voice note: the wave first, the words follow (decided 2026-10-26, N194; amended the same day, N199)
 
@@ -395,6 +403,7 @@ The companions (N241), in order:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N243 · A6: the principles wait while a speaker is onboarded (from the plan's first question to a new speaker's first Take; while the plan's questions are asked for a speaker who already has Takes): the mic and the asks in the Lounge, the Sunday note's evening, the quarter's ask and the chat's answers as the notebook, the Sunday note or life goals; was: nothing held them back · BE #1456, BE (code PR), FE (this PR)
 - 2026-10-28 · N241 · three companions beside the principles, decided from Linear's WIL-112, WIL-113 and WIL-114: strengths (N), what is in your control (O) and the sales framing (P); their tasks in §2 · BE #1454, FE (this PR)
 - 2026-10-27 · N212 · the principles open to ring 5: the `voice_notebook` and `life_goals` rows at ring 5, set by the founder on the CEO panel's rings settings; was ring 6, the founder only (N182) · BE #1409, FE (this PR)
 - 2026-10-26 · N199 · B1–B3: the wave of the voice shows at once and the words follow it a phrase at a time, 2 to 4 seconds behind; after send the unwritten wave shimmers, then the hesitations fade and the kept note lands; was: the words appear as they are said, with a cursor · BE #1379, FE #1009
