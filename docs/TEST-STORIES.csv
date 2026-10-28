@@ -930,11 +930,16 @@ O5  Every moment answered: the chat's Feedback walk naming a step the
 finished walk does not hold (its summary, or the Take alone) opens
 the whole walk on its newest step, never the Ideal Text in its place
 (founder 2026-10-26: ""the feedback walk opens the ideal text instead
-of the feedback walk!""; B10, N192).","O1 -> ""every moment answered: Review feedback stays for the unseen word, ...""
+of the feedback walk!""; B10, N192).
+O6  The Feedback walk standing on the helper words a correction's Good
+job opened (N220) opens the whole walk on them, the moment and its
+practise above, never the words alone (founder 2026-10-28: ""it just
+opens helper words""; B10, C3).","O1 -> ""every moment answered: Review feedback stays for the unseen word, ...""
 O2 -> ""a paragraph whose helper words were deleted is back in the walk on its earlier answer""
 O3 -> ""every moment answered: a bubble tapped in the Lounge opens the walk on its moment, never the text""
 O4 -> ""one moment still waiting: its bubble opens the whole walk, the waiting step live, nothing new in the chat""
-O5 -> ""every moment answered: the Feedback walk naming no step of the walk opens it on its newest step, never the text""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
+O5 -> ""every moment answered: the Feedback walk naming no step of the walk opens it on its newest step, never the text""
+O6 -> ""the Feedback walk standing on the helper words a Good job opened opens the whole walk, never the words alone""","Wave 2 of Closing the Gap (founder 2026-10-05). O2 is checked at the deck's own rule (buildBookmarks), not on the rendered deck."
 src/components/willab/whatsappOffer.test.tsx,Story,"As a speaker, I want to leave my WhatsApp number to hear when my coach's feedback is in, checked once with a code, so that the message reaches me and the number signs me in too.","O1  A number too short for its country sends no code.
 O2  A full number gets a code on WhatsApp; a wrong code says so; the right
 one saves it and the offer closes (backend N230).
