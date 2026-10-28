@@ -52,12 +52,12 @@ export type TempoClose = "dynamic" | "rush" | "slow";
 export type TempoPlayed = { result: TempoTry; path: number[]; landed: boolean };
 
 /** What the step tells its host as it goes (N166 step 4): it opened, a try
- *  was read, or the game ended (every try, and how it ended; none when
- *  skipped before a try). The host writes the chat and keeps the game for
- *  Will. */
+ *  was played, or the game ended (every try, and how it ended; none when
+ *  skipped before a try). The host writes the chat, each try with its line,
+ *  and keeps the game for Will. */
 export type TempoEvent =
   | { kind: "opened" }
-  | { kind: "try"; n: number; result: TempoTry; landed: boolean }
+  | ({ kind: "try"; n: number } & TempoPlayed)
   | { kind: "ended"; tries: TempoPlayed[]; close: TempoClose | null };
 
 /** The try from the first word on: the quiet before it is not the pace. */
