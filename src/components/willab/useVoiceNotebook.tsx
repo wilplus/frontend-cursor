@@ -243,7 +243,7 @@ export function VoiceNoteMic({ notebook, draft }: { notebook: VoiceNotebook; dra
 /** What the message box keeps when "# note" is tapped: "#", to write on. */
 export const NOTE_START = "# ";
 
-/** Typing "#" offers one option, "# note" (backend N251): a typed "#"
+/** Typing "#" offers one option, "# note" (backend N252): a typed "#"
  *  message is one note, the same as the mic's. Shown while the draft is a
  *  leading "#" still being typed, alone or as the start of "note". */
 export function VoiceNotePicker({ notebook, draft, onPick }: { notebook: VoiceNotebook; draft: string; onPick: () => void }) {

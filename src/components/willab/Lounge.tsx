@@ -1959,7 +1959,7 @@ export default function Lounge({
       {/* A5 — the send button lives INSIDE the input (right edge): grey when the
           field is empty, black once there's text. A4 — the input height (h-12)
           matches the record CTA. B3 — "Will" persona in the placeholder + aria. */}
-      {/* Typing "#" offers one option, "# note" (backend N251). */}
+      {/* Typing "#" offers one option, "# note" (backend N252). */}
       <VoiceNotePicker
         notebook={notebook}
         draft={draftText}
