@@ -992,6 +992,8 @@ backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
 6. The try: the dot's path, then one comment: "Better. You let it breathe." / "Still rushed. Take a breath after each offer." / "A bit slow. Keep the words moving between the pauses."
 7. **Practise again**. After the second try, also **See how it went**. After the third, a one-line summary (for example "Dynamic. You paused where it mattered. 🔥"), then the walk goes on.
 
+Once the walk goes on, the game stays in the thread as it was played (B5): each try with its comment and the closing line, or the speaker's "Skip" as their own bubble; the scale shows only while the walk stands on the step (founder 2026-10-28).
+
 **Decided** (the founder, N166 and N179; each as the prototype draws it):
 
 | Question | Decision |
@@ -1180,6 +1182,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · — (B5, C8, T) · fixed: a step the walk moves on from stays in the thread as it was drawn: the tempo game's tries, their comments and its closing line (a Skip with no try as the speaker's "Skip" bubble), and other speakers' moments with the answers given, all there to scroll back to from the summary; the walk never stands on an earlier part's helper words while the tempo step's recorder is in the dock (B9). Was: moving on drew the step again from nothing, so the tempo game kept only its opening lines, down to "🤫 Find a quiet spot first.", and other speakers' moments left the thread (founder 2026-10-28: "I click next and it's gone, and should be stayed, should be there, should be in the walk, so that there is a continuity") · FE (this PR)
 - 2026-10-28 · — (H1) · wording: a try is better when its voice score (S) rises by the margin, +0.05, over the original clip, as built (`after_practice.GOOD_JOB_MARGIN`) and as N84 says ("on the voice alone"); was "Δ willfidence", which reads as voice × words. No rule changes (founder 2026-10-28: "fix the doc wording to say voice score") · FE (this PR)
 - 2026-10-28 · N237 · built: a WhatsApp reply that says STOP turns the messages off for every account at that number, as Remove does (the number it signs in with stays, N235), a booking that carries the number forgets it (N233), and WhatsApp answers "Done. We've stopped the WhatsApp messages and deleted your number." (signed, N174); any other reply is not read yet (N171 item 6). Off until its two keys are on Railway and the webhook is set in Meta · BE #1450, FE (this PR)
 - 2026-10-28 · — (C3, B10) · fixed: helper words are editable on any part of the thread: a tap on a picker the walk does not stand on stands the walk there, the tap counts, and its buttons bring the walk back to where it stood; never while the recorder is in the dock (B9). Was: only the part the walk stood on took a tap, so a walk opened on a later step (the Feedback walk on its newest step) showed "0 of 8 words" pickers that did nothing (founder 2026-10-28: "I click the helper words, they don't mark on orange, so I cannot choose the helper words") · FE (this PR)
