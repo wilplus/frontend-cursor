@@ -321,8 +321,8 @@ built and what is still to come.
    coach's: "Ask your coach", which reaches the coach's queue as "Asked about
    their level" ([the coach panel](coach-panel.md) K1, N213). "I have a new
    event" starts the questions again (N140). While a Take is still
-   processing, "I have a new event" is not shown; it comes back when the Take
-   has landed, as "Record Take N" does (N242).
+   processing, "I have a new event" is hidden until the Take has landed
+   (N242).
 2. A new project asks "Is this for 14 November?" (the plan's deadline),
    after its first Take, not before it (N178). Yes keeps the plan; no starts
    "When is your deadline?" and the questions for a new plan. New slides or a
@@ -337,7 +337,8 @@ built and what is still to come.
    event" (the questions again, a new plan) or "Keep practising" (a new
    two-month plan from their Takes, no questions, its first ratings after
    its first Take) (N149, N151, N157, N178). While a Take is still
-   processing, only "Keep practising" is shown (H1, N242).
+   processing, only "Keep practising" is shown, until the Take has landed
+   (H1, N242).
 3. On the deadline's morning, a short good-luck line in the chat and on the
    chosen channel; the morning after, "How did it go?" with the link outside
    the app, beside the message in the chat (2). Their words wait for the
