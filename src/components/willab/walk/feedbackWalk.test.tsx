@@ -11,6 +11,7 @@ OUTCOME
   O7  The walk opens once with "Hi {name}, good to see you back!" (Take 1: "Hi {name}, great to meet you!"; no name: the same without it), and the Lounge keeps the same words (N120).
   O8  Other speakers asks for my Take's moments and shows each one the server sends, up to three ("Now 3 moments from other speakers."), however many tries I made; with none the step is left out (N119). My answer on one moves me on to the next, though the chat counts it at once.
   O9  On a plan, the moment where this week's level shows most opens with "This week's level: {level}. Here's where it shows:" above my clip; no other moment does (G7, backend N209).
+  O10 What a step showed stays in the thread once I move on: the tempo game's tries, their comments and its closing line, then other speakers' moments with my answers, all still above the summary (B5).
 PROVES   O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
          O2 -> a green moment says why it landed,
                the Take's highest moment opens with “This was your most confident moment.”
@@ -20,9 +21,11 @@ PROVES   O1 -> walks coach's note → praise → helper words → the next prais
          O6 -> a step's bubbles land behind the typing dots, then its buttons (founder 2026-10-20),
                new bubbles land at the bottom and the thread follows them until the speaker scrolls up by hand (N122)
          O7 -> the walk opens once with the hello and the speaker's first name (N120)
-         O8 -> other speakers: the Take's three moments, whatever the tries (N119); an answer moves on to the next
+         O8 -> other speakers: the Take's three moments, whatever the tries (N119); an answer moves on to the next,
+               with nobody to judge, the step leaves nothing in the thread
          O9 -> on a plan, the level's moment says where this week's level shows, above the clip (G7, N209)
-WHY      Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, "add the name at the start"; N122, "the 3 dots loading should be at the bottom"; N119, "3 clips (high, middle, low willfidence) from 3 different speakers").
+         O10 -> the tempo game and other speakers stay in the thread as the walk moves on to the summary (B5)
+WHY      Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, "add the name at the start"; N122, "the 3 dots loading should be at the bottom"; N119, "3 clips (high, middle, low willfidence) from 3 different speakers"); founder 2026-10-28 ("I click next and it's gone ... should be in the walk, so that there is a continuity").
 */
 import { HELPER_WORDS_MAX } from "@/lib/willab/phraseTokens";
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
@@ -37,6 +40,11 @@ vi.mock("@/services/api/otherSpeakers", () => ({
   answerOtherClip: vi.fn(),
 }));
 import { fetchOtherAnswers, fetchOtherClips } from "@/services/api/otherSpeakers";
+/** The tempo step's microphone, open and silent: a try reads as slow. */
+vi.mock("@/lib/willab/pace/paceMic", () => ({
+  startPaceMic: vi.fn(async () => ({ meter: {}, voiceLike: () => 0, stop: () => undefined })),
+}));
+import { TEMPO_COPY, TEMPO_STAND_IN } from "@/lib/willab/tempoStep";
 /** The microphone, standing still: the recorder is reached, nothing records. */
 vi.mock("@/hooks/useDualCaptureMic", () => ({
   useDualCaptureMic: () => ({
@@ -278,6 +286,59 @@ describe("FeedbackWalk", () => {
     expect(live()!.querySelector("[data-walk-loading]")).toBeNull();
     expect(marks().pop()).toBe(`${WALK_COPY.othersTitle} · 2 ${COPY.pagerOf} 3`);
     expect(said()).toEqual([`👍 ${WALK_COPY.judgeYes}`]);
+  });
+
+  it("the tempo game and other speakers stay in the thread as the walk moves on to the summary (B5)", async () => {
+    const clip = (id: string) => ({ id, src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 4000, community: null });
+    vi.mocked(fetchOtherClips).mockResolvedValueOnce([clip("c1"), clip("c2")]);
+    const over = {
+      model: buildFeedbackWalk({ items: ITEMS, coachNote: true, practiceOn: true, guest: false, interventions: ["tempo"] }),
+      tempo: TEMPO_STAND_IN,
+      summary: async () => "You slowed it right down.",
+      takeId: "take-7",
+    } satisfies Over;
+    draw(null, over);
+    draw({ seq: 1, at: over.model.plan.findIndex((s) => s.key === "tempo") }, over);
+    const thread = () => live()!.querySelector("[data-walk-thread-body]")!.textContent ?? "";
+    const dock = (sel: string) => live()!.querySelector<HTMLElement>(`[data-walk-dock] ${sel}`);
+    // Three tries, none landing: the closing line comes by itself, then Next.
+    for (const go of ["walk-tempo-ready", "walk-practise", "walk-practise"]) {
+      click(dock(`[data-testid='${go}']`));
+      await act(async () => {});
+      click(dock("[data-walk-recording-strip] button"));
+    }
+    expect(screen()).toBe("walk-screen-tempo");
+    forward();
+    await act(async () => {});
+    expect(screen()).toBe("walk-screen-others");
+    for (let i = 0; i < 2; i += 1) {
+      click(live()!.querySelector("[data-walk-answer='yes']"));
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, WALK_ANSWER_HOLD_MS + 20));
+      });
+    }
+    await act(async () => {});
+    expect(screen()).toBe("walk-screen-summary");
+    // Everything the game and the judging showed is still above the summary.
+    for (const line of [TEMPO_COPY.room, TEMPO_COPY.tryLabel(1), TEMPO_COPY.tryLabel(3), TEMPO_COPY.comment.slow, TEMPO_COPY.close.slow]) {
+      expect(thread()).toContain(line);
+    }
+    expect(thread()).toContain(WALK_COPY.othersMany(2));
+    expect(marks()).toEqual(expect.arrayContaining([`${WALK_COPY.othersTitle} · 2 ${COPY.pagerOf} 2`]));
+    expect(said().filter((s) => s === `👍 ${WALK_COPY.judgeYes}`)).toHaveLength(2);
+    expect(thread()).toContain("You slowed it right down.");
+  });
+
+  it("with nobody to judge, the step leaves nothing in the thread", async () => {
+    vi.mocked(fetchOtherClips).mockResolvedValueOnce([]);
+    const over = { summary: async () => "You slowed it right down." };
+    const props = draw(null, over);
+    draw({ seq: 1, at: props.model.plan.findIndex((s) => s.key === "others") }, over);
+    await act(async () => {});
+    await act(async () => {});
+    expect(screen()).toBe("walk-screen-summary");
+    expect(live()!.querySelector("[data-walk-loading]")).toBeNull();
+    expect(live()!.textContent).not.toContain(WALK_COPY.othersTitle);
   });
 
   it("skips the summary when it cannot be read, straight onto the page", async () => {

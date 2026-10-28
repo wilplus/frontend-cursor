@@ -40,6 +40,8 @@ import { othersBridge, othersChat } from "@/lib/willab/walkThread";
 /*  the one before with its name ("Other speakers · 2 of 3"), the answer as   */
 /*  the speaker's own bubble ("👍 Yes"); the three cards and "Audio unclear"  */
 /*  are the dock. First drawn as an earlier part, it asks and posts nothing. */
+/*  Once the walk moves on, the moments and the answers stay in the thread    */
+/*  (B5); with nobody to judge, the step leaves nothing there.                */
 /* -------------------------------------------------------------------------- */
 
 type Loaded = { clips: OtherClip[]; given: Record<string, ConfidenceRatingValue> };
@@ -88,6 +90,9 @@ export default function WalkOthers({
   const [given, setGiven] = useState<Record<string, ConfidenceRatingValue>>({});
   // The answers came in with the clips: seen again, not given now.
   const [reopened, setReopened] = useState(false);
+  // Nobody to judge (a replay, or none sent): the walk went on, and the
+  // step leaves nothing in the thread, not its typing dots (B5).
+  const [none, setNone] = useState(false);
   const past = useMountedAsPast();
   const done = useRef(onDone);
   done.current = onDone;
@@ -104,6 +109,7 @@ export default function WalkOthers({
   useEffect(() => {
     if (past) return;
     if (skip) {
+      setNone(true);
       done.current();
       return;
     }
@@ -111,6 +117,7 @@ export default function WalkOthers({
     void load(judgedAtOpen.current, take).then((loaded) => {
       if (!live) return;
       if (loaded.clips.length === 0) {
+        setNone(true);
         done.current();
         return;
       }
@@ -146,7 +153,7 @@ export default function WalkOthers({
     timer.current = window.setTimeout(forward, holdMs);
   };
 
-  if (past) return null;
+  if (past || none) return null;
   const footer = !clip ? null : reopened && answered !== null ? (
     // Answered: the answer is the speaker's bubble above, Next alone under it
     // ("✓ Practised" is the one ✓ line, founder 2026-10-21).
