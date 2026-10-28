@@ -846,7 +846,8 @@ O5  No read, feedback type or score ever appears; the clearer version shows what
 O6  A step's grey bubbles land one after another behind the typing dots, and its buttons come once they all have; each new bubble, and the typing dots before it, land at the bottom, right above the buttons, and the thread follows them until I scroll up by hand (N122).
 O7  The walk opens once with ""Hi {name}, good to see you back!"" (Take 1: ""Hi {name}, great to meet you!""; no name: the same without it), and the Lounge keeps the same words (N120).
 O8  Other speakers asks for my Take's moments and shows each one the server sends, up to three (""Now 3 moments from other speakers.""), however many tries I made; with none the step is left out (N119). My answer on one moves me on to the next, though the chat counts it at once.
-O9  On a plan, the moment where this week's level shows most opens with ""This week's level: {level}. Here's where it shows:"" above my clip; no other moment does (G7, backend N209).","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
+O9  On a plan, the moment where this week's level shows most opens with ""This week's level: {level}. Here's where it shows:"" above my clip; no other moment does (G7, backend N209).
+O10 What a step showed stays in the thread once I move on: the tempo game's tries, their comments and its closing line, then other speakers' moments with my answers, all still above the summary (B5).","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
 O2 -> a green moment says why it landed,
 the Take's highest moment opens with “This was your most confident moment.”
 O3 -> reopened from the Lounge, the judging shows the moment already answered
@@ -855,8 +856,10 @@ O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the serve
 O6 -> a step's bubbles land behind the typing dots, then its buttons (founder 2026-10-20),
 new bubbles land at the bottom and the thread follows them until the speaker scrolls up by hand (N122)
 O7 -> the walk opens once with the hello and the speaker's first name (N120)
-O8 -> other speakers: the Take's three moments, whatever the tries (N119); an answer moves on to the next
-O9 -> on a plan, the level's moment says where this week's level shows, above the clip (G7, N209)","Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, ""add the name at the start""; N122, ""the 3 dots loading should be at the bottom""; N119, ""3 clips (high, middle, low willfidence) from 3 different speakers"")."
+O8 -> other speakers: the Take's three moments, whatever the tries (N119); an answer moves on to the next,
+with nobody to judge, the step leaves nothing in the thread
+O9 -> on a plan, the level's moment says where this week's level shows, above the clip (G7, N209)
+O10 -> the tempo game and other speakers stay in the thread as the walk moves on to the summary (B5)","Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, ""add the name at the start""; N122, ""the 3 dots loading should be at the bottom""; N119, ""3 clips (high, middle, low willfidence) from 3 different speakers""); founder 2026-10-28 (""I click next and it's gone ... should be in the walk, so that there is a continuity"")."
 src/components/willab/walk/walkCopy.test.ts,Guard,"Every word the walk can show comes from the signed copy, and no signed walk line carries a digit.","Never 4: a literal word typed into a walk/*.tsx primitive (JSX text,
 a string child, an accessible name, title, placeholder) that is not in
 WALK_COPY or CHUNK_SHEET_COPY. Never 1: a digit in a signed walk line
