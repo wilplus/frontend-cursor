@@ -672,7 +672,7 @@ step; the loop never waits for a coach.
               when the words need help, else the voice Exercise (N108)
   highest   = of the two, the stronger voice (S); its bubble opens with
               the signed line (C2, N118)
-  try       = Δ willfidence vs the original ≥ MARGIN (+0.05) → better
+  try       = Δ voice score (S) vs the original ≥ MARGIN (+0.05) → better
   plan      = on a plan (the-plan.md G7, N134 item 2, N209): the best
               moment, then the clip where this week's level shows most
               (services/plan_walk.py), always practised with the level's
@@ -1180,6 +1180,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · — (H1) · wording: a try is better when its voice score (S) rises by the margin, +0.05, over the original clip, as built (`after_practice.GOOD_JOB_MARGIN`) and as N84 says ("on the voice alone"); was "Δ willfidence", which reads as voice × words. No rule changes (founder 2026-10-28: "fix the doc wording to say voice score") · FE (this PR)
 - 2026-10-28 · N237 · built: a WhatsApp reply that says STOP turns the messages off for every account at that number, as Remove does (the number it signs in with stays, N235), a booking that carries the number forgets it (N233), and WhatsApp answers "Done. We've stopped the WhatsApp messages and deleted your number." (signed, N174); any other reply is not read yet (N171 item 6). Off until its two keys are on Railway and the webhook is set in Meta · BE #1450, FE (this PR)
 - 2026-10-28 · — (C3, B10) · fixed: helper words are editable on any part of the thread: a tap on a picker the walk does not stand on stands the walk there, the tap counts, and its buttons bring the walk back to where it stood; never while the recorder is in the dock (B9). Was: only the part the walk stood on took a tap, so a walk opened on a later step (the Feedback walk on its newest step) showed "0 of 8 words" pickers that did nothing (founder 2026-10-28: "I click the helper words, they don't mark on orange, so I cannot choose the helper words") · FE (this PR)
 - 2026-10-28 · N235 · a full number typed in the chat under the WhatsApp ask waits for its code: Will says "Enter the code we sent you on WhatsApp" and the form opens on the code step; was saved at once (2026-10-20); a number another account has gets "That number already has an account." (E1) · BE #1446, FE (this PR)
