@@ -32,7 +32,8 @@ Life Panel.
 1. One feature: the voice notebook's # notes (backend
    [`docs/WILL-LEARNING-PLAN.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/WILL-LEARNING-PLAN.md) step 1), the Sunday note (L), life
    goals (M), and the principles in the Life Panel (`/panel/principles`)
-   (N182).
+   (N182). Beside them, three companions: strengths (N), what is in your
+   control (O) and the sales framing (P) (N241).
 2. Ring 5 and up, through the rings panel's rows `voice_notebook` and
    `life_goals`, each set to ring 5; nobody below ring 5. Ring 5 holds only
    people who know it is a test (N212, which widened N182's ring 6; N208).
@@ -282,6 +283,59 @@ The prototype is the design: <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24>
   (in the lens and in the Lounge). The voice notebook stays for short #
   notes for Will; the long personal writing goes in the paper notebook.
 
+### N · Strengths (Linear WIL-112; decided 2026-10-28, N241)
+
+Ring 5 and up, through its own row on the rings page (N241 item 7). Private
+like the notebook; never on the recording screens, never shown to a coach.
+The words on screen wait for the prototype (§2 P0, Never 4).
+
+- **N1** Kept in the Life Panel beside the principles and life goals.
+- **N2** Will suggests a strength only when a positive trait shows in #
+  notes on two different days; the life goals answer "What fits your nature
+  and strengths?" (M4) counts as one note. Once, in the Lounge, quoting both
+  notes; the speaker accepts, edits or says Not now (propose, never commit,
+  as L7). Will never invents a strength.
+- **N3** A later # note that shows a kept strength at work: Will says so
+  once and keeps the note under that strength, so each strength gathers its
+  own examples from daily life.
+- **N4** Before a talk: in the Lounge, the day before a talk date (the
+  plan's deadline, or a date a # note names), Will brings back one kept
+  strength, quoting the note it came from. With no date, no reminder.
+- **N5** Will never says a strength did not show. Only the speaker archives
+  one, and it stays in the history.
+
+### O · What is in your control (Linear WIL-113; decided 2026-10-28, N241)
+
+How Will talks, not a screen; its own row on the rings page, at ring 5.
+
+- **O1** When a # note or a chat message worries about something out of the
+  speaker's hands (the hotel, the audience, the slot), Will goes by the
+  meaning, once per worry: it names what is out of their hands, names what
+  is theirs, and ends on one thing they control now.
+- **O2** Will's guide (constants and variables, the Stoic grounding, the
+  hotel example, the tips) is drafted for the founder as a Claude Doc,
+  <https://claude.ai/artifact/EL8NpV6kPKdcEb2rjYc9Fj>, and goes into Will's
+  instructions word for word once signed (§2 W1).
+- **O3** What a speaker leaves any chat with Will holding: one thing they
+  control.
+
+### P · The sales framing (Linear WIL-114; decided 2026-10-28, N241)
+
+How Will talks, with no charts (Never 1); its own row on the rings page, at
+ring 5. It points at the sale's process, never at the person.
+
+- **P1** Will knows someone sells from their own notes (calls, deals,
+  clients, a lost sale). No setup question.
+- **P2** On a sales note, Will asks which step it stalled at (the opening,
+  discovery, the offer, the follow-up) and names one change to that step,
+  never "you were…".
+- **P3** On Sunday, when the week's pattern is a sales one, the Sunday note
+  offers the sale's steps in place of the four bugs (L4), then the
+  reflection (L6) and a principle about the process (L7). L is locked
+  (N158): the change is drawn on the prototype first (§2 P0).
+- **P4** Done when it has been tried with salespeople on ring 5 and reads as
+  support, not judgement (§3).
+
 ---
 
 ## 2. In flight
@@ -290,12 +344,24 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-Nothing is in flight: L and M are built (2026-10-26).
+The companions (N241), in order:
+
+- P0 · the clickable prototype on the real Lounge and Life Panel screens: a strength suggested (N2), kept (N1), linked to a note (N3), brought back before a talk (N4), archived (N5); the sales steps in the Sunday note (P3); every new word for the founder to sign · N, P3, K · next · —
+- W1 · Will's guide to what is in your control, with the sales framing, as a Claude Doc for the founder to sign, <https://claude.ai/artifact/EL8NpV6kPKdcEb2rjYc9Fj> · O1, O2, P2 · drafted, waits on the founder's signature · —
+- R1 · the three rows on the rings page at ring 5, a migration with its outside review · A2, N, O, P · waits on P0 · —
+- N-be · backend: strengths kept in the Life Panel's store with their history; the two-day suggestion from # notes and the M4 answer; later notes linked; the before-a-talk reminder from the plan's deadline or a note's date · N1 to N5 · waits on P0 · —
+- N-fe · frontend: strengths in the Life Panel; the suggestion, the linked note and the reminder in the Lounge, as the prototype draws them · N1 to N5 · waits on P0 · —
+- O-be · Will's chat: the worry heard and sorted, ending on one thing in their control, from the signed guide · O1, O3 · waits on W1 · —
+- P-be · Will's chat on a sales note, and the Sunday note's sales steps (backend `services/sunday_note.py`, frontend `SundayLens.tsx`) · P1 to P3 · waits on W1 and P0 · —
 
 ## 3. Still open
 
 - Who gets it beyond ring 5: the founder widens the `voice_notebook` and
   `life_goals` rings further (N212).
+- The companions' words on screen, signed on the prototype (§2 P0).
+- The sales framing tried with salespeople on ring 5 (P4).
+- Linear: WIL-112, WIL-113 and WIL-114 get these lines as sub-issues once
+  the Linear connector is signed in.
 
 ## 4. Where it lives
 
@@ -329,6 +395,7 @@ Nothing is in flight: L and M are built (2026-10-26).
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N241 · three companions beside the principles, decided from Linear's WIL-112, WIL-113 and WIL-114: strengths (N), what is in your control (O) and the sales framing (P); their tasks in §2 · BE #1454, FE (this PR)
 - 2026-10-27 · N212 · the principles open to ring 5: the `voice_notebook` and `life_goals` rows at ring 5, set by the founder on the CEO panel's rings settings; was ring 6, the founder only (N182) · BE #1409, FE (this PR)
 - 2026-10-26 · N199 · B1–B3: the wave of the voice shows at once and the words follow it a phrase at a time, 2 to 4 seconds behind; after send the unwritten wave shimmers, then the hesitations fade and the kept note lands; was: the words appear as they are said, with a cursor · BE #1379, FE #1009
 - 2026-10-26 · N172 · built (M10, the last piece): THIS WEEK on the career ladder is this week's level from the plan (the plan's G5, backend #1386), a plain row with no ›, in the lens, on the Goals screen and in Will's prompt; nothing while no plan runs · BE #1390, FE (this PR)
