@@ -16,7 +16,8 @@
  *       the Lounge.
  *   O4  The chat has one record button: a practice day's one thing holds
  *       it until a newer Take's closing message takes it back (N167), and
- *       gives it up once its Take is recorded (N244).
+ *       gives it up once a newer Take is recorded, in any project (N244,
+ *       N251).
  *   O5  A new project's question takes Yes or No in the footer (H2), and
  *       "How do you feel?" comes before a Take only once the plan's first
  *       Take is recorded (D4).
@@ -179,7 +180,7 @@ it("the newest bubble holds the one record button", () => {
   const one = row({ plan_one: true, arc_id: "arc-1", take_index: 1 }, "Today, one thing: say your key line a little slower than the rest. You've got this 💪");
   expect(newestOneOf([closing, one])).toBe(one.client_id);
   expect(newestOneOf([one, closing])).toBeNull();
-  const recorded = { ...row({ arc_id: "arc-1", take_index: 2 }), kind: "recording_summary" as const };
+  const recorded = { ...row({ arc_id: "arc-2", take_index: 1 }), kind: "recording_summary" as const };
   expect(newestOneOf([closing, one, recorded])).toBeNull();
 
   const c = { ...ctx({ ...PLAN, status: "active", step: "done", first_take_done: true }), newestOne: one.client_id };

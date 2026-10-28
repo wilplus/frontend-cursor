@@ -432,14 +432,15 @@ O4  The admin's ask, stamped only with the message it waits for, is still
 the Take's: the card stays above it and the ask above its buttons
 (founder 2026-10-20: the card landed between the question and its
 buttons).
-O5  Once I record the next Take, the last Take's ""Record Take N"" goes, and
-no Take is offered until the new Take's walk reaches its summary
-(founder 2026-10-28, N244: it came back as processing ended, beside
-the new Take's walk).","O1 -> ""draws the card, the ask, and the message only once it is let go""
+O5  Once I record the next Take, in any project, every earlier ""Record
+Take N"" goes for good; the chat's one record button comes back under
+the new Take's closing message, after its walk's summary (founder
+2026-10-28, N244, N251: it came back as processing ended, beside the
+new Take's walk).","O1 -> ""draws the card, the ask, and the message only once it is let go""
 O2 -> ""opens the Take's WhatsApp ask by itself""
 O3 -> ""knows when no ask is in front of the speaker""
 O4 -> ""keeps the card above the admin's ask, stamped with the message it waits for alone""
-O5 -> ""offers no Take between the next recording and its closing message""","Founder 2026-10-20: ""You cannot have two actions at a time, like feedback and record"" (backend services/after_take.py)."
+O5 -> ""the last Take's Record button goes once the next Take is recorded""","Founder 2026-10-20: ""You cannot have two actions at a time, like feedback and record"" (backend services/after_take.py)."
 src/components/willab/audioUploadValidation.test.ts,Story,"As a speaker uploading a recording instead of recording live, I want a too-large or video file refused before upload with a plain reason, so that I do not wait for a failure (record step of the loop).","O1  A file over the upload limit is refused with a ""too large"" reason.
 O2  A video file (by MIME type, or by extension when the type is missing)
 is refused with an ""audio only"" reason.
@@ -819,7 +820,8 @@ in orange and Book on a call not booked; a plain row is left to
 the Lounge.
 O4  The chat has one record button: a practice day's one thing holds
 it until a newer Take's closing message takes it back (N167), and
-gives it up once its Take is recorded (N244).
+gives it up once a newer Take is recorded, in any project (N244,
+N251).
 O5  A new project's question takes Yes or No in the footer (H2), and
 ""How do you feel?"" comes before a Take only once the plan's first
 Take is recorded (D4).
@@ -960,7 +962,7 @@ O6  A step's grey bubbles land one after another behind the typing dots, and its
 O7  The walk opens once with ""Hi {name}, good to see you back!"" (Take 1: ""Hi {name}, great to meet you!""; no name: the same without it), and the Lounge keeps the same words (N120).
 O8  Other speakers asks for my Take's moments and shows each one the server sends, up to three (""Now 3 moments from other speakers.""), however many tries I made; with none the step is left out (N119). My answer on one moves me on to the next, though the chat counts it at once.
 O9  On a plan, the moment where this week's level shows most opens with ""This week's level: {level}. Here's where it shows:"" above my clip; no other moment does (G7, backend N209).
-O10 What a step showed stays in the thread once I move on: the tempo game's tries, their comments and its closing line, then other speakers' moments with my answers, all still above the summary (B5).","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
+O10 What a step showed stays in the thread once I move on: the tempo game's tries, their comments and its closing line, then other speakers' moments with my answers, all still above the summary; opened again further on, the tempo game is drawn as the chat kept it, each try with the dot's line, never cut off after ""Find a quiet spot first."" (B5).","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
 O2 -> a green moment says why it landed,
 the Take's highest moment opens with “This was your most confident moment.”
 O3 -> reopened from the Lounge, the judging shows the moment already answered
@@ -1049,8 +1051,8 @@ job opened (N220) opens the whole walk on them, the moment and its
 practise above, never the words alone (founder 2026-10-28: ""it just
 opens helper words""; B10, C3).
 O7  A finished Take's Feedback walk shows everything I went through,
-read only, down to the summary: the tempo game and the speakers I
-judged, with my answers. Nothing is sent again (founder 2026-10-28,
+read only, down to the summary: the tempo game, each try with the
+line the dot drew, and the speakers I judged, with my answers. Nothing is sent again (founder 2026-10-28,
 N247: ""the whole feedback walk with all the things that are there
 that we went through"").","O1 -> ""every moment answered: Review feedback stays for the unseen word, ...""
 O2 -> ""a paragraph whose helper words were deleted is back in the walk on its earlier answer""

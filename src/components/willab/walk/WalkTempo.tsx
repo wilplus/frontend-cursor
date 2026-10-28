@@ -119,7 +119,7 @@ export default function WalkTempo({
     const hit = landed(taken);
     const next = [...tries, { result, path: taken, landed: hit }];
     setTries(next);
-    tell.current?.({ kind: "try", n: next.length, result, landed: hit });
+    tell.current?.({ kind: "try", n: next.length, result, path: taken, landed: hit });
     if (hit || next.length >= TEMPO_MAX_TRIES) {
       setPhase("closed");
       end(next);
@@ -167,11 +167,7 @@ export default function WalkTempo({
       }}
       footer={past ? null : footerFor()}
     >
-      <WalkSpeakerBubble>
-        {stretch.said.before}{" "}
-        <mark className="rounded bg-white/25 px-0.5 text-inherit">{stretch.said.stretch}</mark>{" "}
-        {stretch.said.after}
-      </WalkSpeakerBubble>
+      <TempoStretchBubble stretch={stretch} />
       <WalkMessage>
         <span>{W.game[stretch.reading]}</span>
       </WalkMessage>
@@ -230,19 +226,37 @@ export default function WalkTempo({
   }
 }
 
-/** A try: the dot's path in the speaker's bubble, then Will's word on it. */
-function TryParts({ n, path, lines }: { n: number; path: readonly number[]; lines: readonly string[] }) {
+/** The speaker's sentence with the stretch they rushed or dragged marked. */
+export function TempoStretchBubble({ stretch }: { stretch: TempoStretch }) {
+  return (
+    <WalkSpeakerBubble>
+      {stretch.said.before}{" "}
+      <mark className="rounded bg-white/25 px-0.5 text-inherit">{stretch.said.stretch}</mark>{" "}
+      {stretch.said.after}
+    </WalkSpeakerBubble>
+  );
+}
+
+/** "Try N" in the speaker's bubble, with the line the dot drew. */
+export function TempoTryBubble({ label, path }: { label: string; path: readonly number[] }) {
   const points = path.length > 1 ? path : [0, 0];
   const line = points.map((v, i) => `${((i / (points.length - 1)) * 300).toFixed(1)},${(26 - v * 22).toFixed(1)}`).join(" ");
   return (
+    <WalkSpeakerBubble>
+      <span className="block">{label}</span>
+      <svg viewBox="0 0 300 30" preserveAspectRatio="none" className="mt-1 block h-8 w-56 max-w-full" aria-hidden>
+        <line x1="0" x2="300" y1="15" y2="15" stroke="rgba(255,255,255,.5)" strokeDasharray="3 5" />
+        <polyline points={line} fill="none" stroke="#fff" strokeWidth="2.2" strokeLinejoin="round" />
+      </svg>
+    </WalkSpeakerBubble>
+  );
+}
+
+/** A try: the dot's path in the speaker's bubble, then Will's word on it. */
+function TryParts({ n, path, lines }: { n: number; path: readonly number[]; lines: readonly string[] }) {
+  return (
     <>
-      <WalkSpeakerBubble>
-        <span className="block">{W.tryLabel(n)}</span>
-        <svg viewBox="0 0 300 30" preserveAspectRatio="none" className="mt-1 block h-8 w-56 max-w-full" aria-hidden>
-          <line x1="0" x2="300" y1="15" y2="15" stroke="rgba(255,255,255,.5)" strokeDasharray="3 5" />
-          <polyline points={line} fill="none" stroke="#fff" strokeWidth="2.2" strokeLinejoin="round" />
-        </svg>
-      </WalkSpeakerBubble>
+      <TempoTryBubble label={W.tryLabel(n)} path={path} />
       {lines.map((said) => (
         <WalkMessage key={said}>
           <span>{said}</span>
