@@ -171,7 +171,7 @@ built and what is still to come.
    coach", with its time once booked; "Your deadline: {date}", the date in
    orange (for example "Sat 14 Nov"); "Summary call with your coach", with
    its time once booked. The booked times are green. A call not booked yet
-   reads "Book", a link that opens the same calendar in the footer (F); then
+   reads "Book", a link that opens the same full-screen calendar (F); then
    "Booked: {when}." Then "Change your plan" (N157, N163, N164, N167).
 3. The progress bar shows on the card on a practice day and on the
    walk's end sheet, one part per Take. It fills with what the speaker did,
@@ -188,13 +188,25 @@ built and what is still to come.
 
 1. After the ratings, before the plan card, Will says "Before I show you
    your plan, pick a time for a 15-minute call with your coach. It's your
-   kickoff call." The footer, in place of "Type here", shows a calendar like
-   the deadline's, with the deadline marked, then a time, then "Book". The
-   kickoff comes before the deadline (N157, N161).
+   kickoff call." Then the calendar comes up full screen over the chat, in
+   place of "Type here". The kickoff comes before the deadline (N157, N161,
+   N248). On the screen, top to bottom:
+   - "Skip" on the left, "{n} of 2 booked" on the right.
+   - The call's name, large: "Kickoff call with your coach".
+   - The month, large. It swipes left and right; the arrows stay. Only the
+     days with an open time are dark; the deadline is ringed in orange.
+   - A day picked folds the month into its week, which swipes week to week,
+     and the day's times show under it in four even columns. A tap on the
+     month's name opens the whole month again.
+   - "Your deadline: {date}" with "Edit" (7).
+   - One button at the bottom, "Book", pale until a time is picked. After
+     it, a tick, the calendar slides away and Will's "Booked: {when}." is in
+     the chat.
 2. Then Will offers the summary call: "Would you also like to book your
    summary call? It's after your deadline, to look back and plan what's
-   next." The calendar again, with "Skip" or "Book now"; no yes-or-no
-   question first. The footer counts "1 of 2 booked" (N157, N161).
+   next." The calendar comes up again once he has asked, with "Skip" or
+   "Book now"; no yes-or-no question first. It counts "1 of 2 booked"
+   (N157, N161, N248).
 3. Either call can wait ("Skip"), so no coach stands in the way of the first
    Take (Never 3). A kickoff not booked is offered again after Take 1 (N157).
 4. Calls are paid as the booking page is paid today, and free with a link
@@ -203,16 +215,19 @@ built and what is still to come.
 5. The plan's calls are these two; there is no weekly call (N157).
 6. Then "You're all set. Here's your plan." and the card (E) (N161).
 7. Under the calendar, "Your deadline: {date}" (for example "Sat 14 Nov")
-   with a small "Edit" next to it. "Edit" turns the same calendar into the
-   deadline's: "Your deadline" above it, the deadline ringed in orange, any
-   day after today; with a call booked, the deadline stays after the kickoff
-   and before the summary call. "Back" returns to the call; "Save" keeps the
-   new date, and Will says "Done. Your plan now runs to {date}." (and "Your
-   deadline is close, so you practise every day." when it is two weeks away
-   or less), as "Change your plan" does. The plan follows, the calendar goes
-   back to the call, and a call picked but not booked that no longer fits is
-   cleared. It works before the plan and from a call's "Book" in the list
-   (N168).
+   with a small "Edit" next to it. "Edit" turns the same screen into the
+   deadline's (N168, N248):
+   - "Your deadline" as the title, the deadline ringed in orange, any day
+     after today; with a call booked, the deadline stays after the kickoff
+     and before the summary call.
+   - "Back", at the top left, returns to the call.
+   - "Save", at the bottom, keeps the new date. Will says "Done. Your plan
+     now runs to {date}." (and "Your deadline is close, so you practise
+     every day." when it is two weeks away or less), as "Change your plan"
+     does; it is in the chat behind the calendar, read when it closes.
+   - The plan follows, the calendar goes back to the call, and a call
+     picked but not booked that no longer fits is cleared.
+   It works before the plan and from a call's "Book" in the list.
 
 ### G · Practice days
 
@@ -467,6 +482,8 @@ Waiting for the founder's OK:
     draws it ([the coach panel](coach-panel.md) K): the plan in the coach's
     queue, the level picked blind (C5), "Ask your coach" (H1), the coach's
     video for a stuck level (G10) · BE #1415, FE.
+  - Built on 28 October 2026 (N248): the calls' calendar full screen, the
+    month and the week that swipe (F1, F2, F7) · BE #1462, FE (this PR).
 
 ## 3. Still open
 
@@ -476,7 +493,9 @@ Waiting for the founder's OK:
 - **As built, where the prototype doesn't say** (N203): after a rating tap the
   next question follows with nothing between, until the words in the first
   line above are signed; "Choose a date" on the summary call opens the plan's
-  own calendar in the footer, as "Book" does, rather than the booking page;
+  own full-screen calendar, as "Book" does, rather than the booking page;
+  behind the calendar the chat is dimmed, not drawn smaller as the
+  calendar's prototype (§5) draws it;
   the day line comes with the practice day's hello and the day after the
   deadline, not yet before every day's first message (G3).
 - **Where the prototype (version 27) is older than a decision** (N203): the
@@ -532,6 +551,9 @@ The design is the prototype; the newest wins where two disagree.
 - **The flow, welcome to Take 2 and the plan's end:**
   <https://claude.ai/artifact/ApK5fCkbc55aVN4iYQLdcn> (version 27,
   2026-10-26, N169), with three speakers to try Will's replies (N150).
+- **The calls' calendar, full screen:**
+  <https://claude.ai/artifact/Gfnp8Fg8G2uXcqbCSNycgf> (2026-10-28, N248);
+  it wins over version 27 for F.
 - **How the plan is built from the intake, and each case's walk:**
   <https://claude.ai/artifact/UfMSksquehX596LMgU3MgN> (2026-10-26).
 - **The decision pages:** the open points
@@ -546,6 +568,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N248 · the calls' calendar opens full screen over the chat: "Skip" at the top left, one "Book" at the bottom; the month swipes, a day picked folds it into its week with the times in four columns; "Edit" turns the same screen into the deadline's (F1, F2, F7, E2). No new words. Was: the calendar in the footer under the chat, "Skip" and "Book" side by side, the month by its arrows · BE #1462, FE (this PR)
 - 2026-10-28 · N246 · G7: the walk shows the two best moments and the level's moment as well, a third or one of the two; and the walk the speaker sees now reads the level (it never did: the serve path asked a store that cannot read a plan, so only the dark frame had the level's moment). Was: the best moment and the level's · BE #1459, BE (code PR), FE (this PR)
 - 2026-10-28 · N150 · fixed (B6): a question, opener or ack the AI left with a slot unfilled ("If {who they will speak to} remembers …", seen by the founder) is not kept, and Will says the plain template; a slot is never kept as a fact, and the plan card's "Why this line?" reads "them" for one stored before · BE #1461
 - 2026-10-28 · N243 · A5: the plan says when the speaker is onboarded (`onboarding`: the questions, then a new speaker's plan until the first Take; not a plan waiting for the next Take), and the principles wait meanwhile; the Lounge reads the plan again when a Take lands in the thread, so the first Take's footer gives way and the principles come back without the app being opened again; was: nothing held them back while the questions were asked · BE #1456, #1460, FE (this PR)

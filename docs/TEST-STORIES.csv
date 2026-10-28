@@ -726,6 +726,7 @@ error.
 O3  A cancelled render is not reported as a failed slide.","O1 -> ""a parent re-render with a new onError keeps the slide drawn""
 O2 -> ""a page change cancels the old render and redraws""
 O3 -> ""does not report a cancellation as a failed slide""","Founder 2026-09-19 ""the slides are gone"": an inline onError restarted the render on a busy canvas and latched the slide off. The fake below enforces pdf.js's one-render-per-canvas rule."
+src/components/willab/plan/PlanCalendar.test.tsx,Story,"As a speaker on a plan, I want to book my calls with my coach on",,,
 src/components/willab/plan/plan.test.tsx,Story,"As a new speaker on the plan's ring, I want the Lounge to ask me",,,
 src/components/willab/plan/planNewEvent.test.tsx,Story,"As a speaker with a plan, I want ""I have a new event"" out of my way while my Take is still processing, so that I never tap something that leaves me with nothing to do.","O1  While the Take is processing, Change your plan has no ""I have a new
 event"", and the plan's end shows only ""Keep practising"".
