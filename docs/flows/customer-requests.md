@@ -69,7 +69,8 @@ it is built in.
    for 30 days.
 5. One typeface, the system's; white and grey only. Quiet on a busy page.
 6. **The form** is the client's product finder: a photo first, a few words
-   optional, the mobile number, one consent tick. Send is live once there is
+   optional, the customer's first name optional (N236 item 4), the mobile
+   number, one consent tick. Send is live once there is
    a photo or words, a number and the tick. Then "Sent" and Done. Nothing
    stays on the client's site (N225 item 4).
 7. Sending creates the customer's guest identity and one request row in the
@@ -79,7 +80,11 @@ it is built in.
 
 1. The request is the Take's one ask, in the Lounge's footer slot that every
    ask uses: Will's lead-in bubble in the thread, the grey card with the
-   customer's words and photo, Not now | Answer (walk page E1, D4).
+   customer's words and photo, Not now | Answer (walk page E1, D4). The
+   lead-in names the customer by the first name they gave, or "A customer"
+   (N236 item 4). The answerer answers in her own Lounge, as any speaker
+   (N236 item 1), and is told of each request on WhatsApp: one message from
+   WillpowerLab's number with a link to her Lounge (N236 item 5).
 2. Nothing sits between a Take and its Ideal Text: a request waits until the
    chain of the last Take is done. Not now brings it back after the next Take
    (Never 3).
@@ -102,9 +107,14 @@ it is built in.
    like every Take: the transcript, the walk on how she said it, the Ideal
    Text one paragraph per slide (Never 5 holds: Take 2 replaces the text, the
    old one stays in the history).
-5. After the pair, the Take's one ask: "Send this answer to {customer}?",
-   Not yet | Send. A line in the thread when it went. The closing message
-   with Record Take N comes last, as after every Take.
+5. **Send first, the walk after** (N236 item 2): once the Take is
+   processed, its Ideal Text card lands in the thread marked new, and Will
+   asks at once "Send this answer to {customer} on WhatsApp?", Not yet |
+   Send, with a grey card listing what the customer gets (her voice, the
+   text, each pick with its price). A line in the thread when it went. The
+   walk waits on the card and opens from it, as after any Take.
+6. A Take 2 after sending does not change what the customer has: Will asks
+   again, and only a second Send replaces it (N236 item 3).
 
 ### E · Where the customer meets the answer
 
@@ -114,8 +124,8 @@ it is built in.
    link and verifying the number** (N228).
 2. The link comes by WhatsApp where that is the norm, by SMS where it is not:
    the number's country code decides; one line on the form switches; a failed
-   WhatsApp delivery falls back to SMS, never both. The link always opens the
-   latest shared Take.
+   WhatsApp delivery falls back to SMS, never both. The link opens the answer
+   that was sent; it changes only when the answerer sends again (N236 item 3).
 3. **The answer is a chat**, the Lounge's own parts in the client's colours
    (N228, N231): a top bar with the answerer's photo from her WillpowerLab
    profile and her name; then the thread: what the customer asked, as their
@@ -232,16 +242,23 @@ them:
 - The popup: "Not sure which treatment?", "Send a photo of your scalp. Our
   trichologist answers you within a day.", "Ask", "Not now".
 - The form: "Ask our trichologist", "Add a photo", "Your scalp or hair. Only
-  our trichologist sees it.", "A few words, optional", "Mobile number, for the
-  answer", the consent sentence (counsel writes the live one), "Send",
+  our trichologist sees it.", "A few words, optional", "Your first name,
+  optional", "Mobile number, for the answer", the consent sentence (counsel writes the live one), "Send",
   "Sent", "Our trichologist answers you by text within a day.", "Done".
+- The answerer's WhatsApp: "{customer}, a customer of {client}, asks for
+  your advice. Open your Lounge:" and the link.
 - The answerer's chat: "{customer}, a customer of {client}, asks for your
-  advice.", "Asked {time} · will get the answer on WhatsApp", "Answer", "What
-  do you recommend to {customer}? Tap it.", "Each pick is a slide. You record
-  over them, camera off.", "Record over {n} slides", "Just the request", "Send
-  this answer to {customer}?", "Not yet", "Send to {customer}", "Sent to
-  {customer} on WhatsApp · {time}", "{customer} replied to your answer.",
-  "Record instead".
+  advice.", "A customer of {client} asks for your advice.", "Gets your
+  answer on WhatsApp", "Answer", "What do you recommend?", "Each one you pick
+  is a slide while you talk. {customer} can book or buy it from your
+  answer.", "Treatments", "To use at home", "{n} picked", "Record over {n}
+  slides", "Just the request", "Camera off · your voice only", "The
+  question", "At home", "At {client}", "Send this answer to {customer} on
+  WhatsApp?", "She gets your voice, the text, and what you picked:", "Not
+  yet", "Send", "Sent on WhatsApp · {time}", "Fine. It waits here until you
+  send it.", "{customer} wrote back:", "Reply", "To {customer}", "Sent to
+  {customer}", "{customer} booked the {treatment} at {salon}, {day}, and
+  paid {price}.", "Record instead".
 - The message: "Your trichologist answered you. Listen here:" and the link.
 - The answer: "{name}", "Your trichologist at {client}", "You asked", "For
   the next three weeks", "For a dry, irritated scalp: buildup removal and
@@ -284,7 +301,9 @@ item 15, N225):
 - **The locked screens it touches**, each needing its own page's line when
   built: the request as an ask in the Lounge (walk page E1); the picker in the
   lens (walk page); the slides from the picks on the recording screen
-  (recording screens' page); the send ask after the pair (walk page D4).
+  (recording screens' page); the send ask on the Take's card, before the
+  walk (walk page D4, N236 item 2); a reply to the customer from the
+  message box, with a "To {customer}" chip over it (walk page E1).
 - **Where the prototypes are older than a decision**: the Mila prototype's
   answer page is a page with cards, not the chat (N228, drawn on the Invita
   prototype); its form asks for a WhatsApp number where Invita's asks for a
@@ -296,6 +315,16 @@ item 15, N225):
   booking system, or a calendar we keep): open (N234 item 4).
 - **The cancellation policy, shipping and the product's price** are the
   client's; each tester gives them (N234 item 5).
+- **Before the answerer's side is built** (N236 item 6; each is a question on
+  the answerer's prototype): how fast she must answer and what follows when
+  she does not; many requests at once (one ask at a time, or a list); the
+  photos (how many, kept how long, who at the client sees them); who keeps
+  the catalogue and its prices; the price by spa on the slide; the longest
+  answer and whether it uses her tokens; fixing a word before sending; a
+  check by the client before sending; the WhatsApp sender, Meta's template
+  approval and the US SMS fallback; one inbox for several answerers; Stripe
+  fees and who pays them; the answerer's account, photo and name; what the
+  client pays.
 
 ## 4. Where it lives
 
@@ -320,8 +349,17 @@ claude.ai link beside each is a convenience, never the only copy.
 
 The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/).
 
-- **The customer's side, on a phone** (2026-10-28, N227, N228, N231, N234; the
-  newest): invitaheadspa.com with the widget, the popup, the form, the text
+- **The answerer's side, in her Lounge** (2026-10-28, N236; the newest for
+  the answerer): Ariel at Invita, from the WhatsApp message to the request
+  as her ask, the photo, the picker of Invita's treatments, the recording
+  over the request and her picks, processing, the send ask before the walk,
+  the walk, the Ideal Text, the customer's reply and her typed answer, the
+  booking's outcome, and the questions still open (19 pages). PDF
+  [`6-answerer-side-in-her-lounge.pdf`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/6-answerer-side-in-her-lounge.pdf) ·
+  HTML [`ariel/ariel-lounge.html`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/ariel/ariel-lounge.html) · link
+  <https://claude.ai/artifact/CeeWQpvUrZT31aj8Lm3Fsa>.
+- **The customer's side, on a phone** (2026-10-28, N227, N228, N231, N234,
+  N236; the newest for the customer): invitaheadspa.com with the widget, the popup, the form, the text
   message, the answer as a chat, the treatment card and its sheet, the
   booking with its summary, paying in the chat, Skip and buying the product
   at home, the message box (17 pages). PDF
@@ -332,8 +370,8 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
   [`3-widget-on-a-desktop-page.pdf`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/3-widget-on-a-desktop-page.pdf) · HTML
   [`customer/invita-site.html`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/customer/invita-site.html) · link
   <https://claude.ai/artifact/EKj695hBzBansc1CzVZNdV>.
-- **The answerer's side and admin** (2026-10-27, N223 to N227; its customer
-  pages are older than N228): the request in the Lounge, the picker, the
+- **The answerer's side and admin** (2026-10-27, N223 to N227; older than
+  N228 and N236, kept for the admin page): the request in the Lounge, the picker, the
   recording, the lens, the Ideal Text, the send ask, the typed follow-up, the
   workspace page. PDF
   [`1-answerer-side-and-admin.pdf`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/1-answerer-side-and-admin.pdf) · HTML
@@ -351,6 +389,8 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-28 · N236 · B6, C1, D5, D6, E2, K, §3, §5: the answerer answers in her own Lounge and is told on WhatsApp; the send ask comes once the Take is processed, before the walk; a Take 2 after sending changes nothing until she sends again; an optional first name on the form; the answerer's prototype kept. Was: the send ask after the pair, the link always opened the latest shared Take, no name on the form · BE #1448, FE (this PR)
 
 - 2026-10-28 · N234 · E4 to E8, E10, G4, I1, §3, §5: the treatment card opens a sheet with one button, Book; the summary asks Pay; one pay sheet, Apple Pay first; the product bought the same way; the money straight to the client through Stripe Connect. Was: the booking and the cart opened the client's own pages · BE #1443, FE (this PR)
 - 2026-10-28 · N231 · E3 to E8 and F1: the Lounge's own parts in the customer's chat, the treatment card with its price, the booking's summary, Skip to the product at home, the message box whenever nothing is asked. Was: one action in the dock (Book or Skip), Skip ended the chat, no way to write back · BE #1440, FE (this PR)
