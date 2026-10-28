@@ -178,7 +178,7 @@ function WordsDock({ onAnswer }: { onAnswer: (text: string | null) => void }) {
   const [sending, setSending] = useState(false);
   const note = useVoiceNote({
     maxSeconds: 300,
-    onDone: async (audio) => {
+    onDone: async ({ audio }) => {
       setSending(true);
       const words = await transcribeAnswer(audio);
       setSending(false);

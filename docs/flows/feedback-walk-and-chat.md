@@ -530,7 +530,14 @@ step; the loop never waits for a coach.
   safety reply (backend #1199). The WhatsApp ask's form says, over the
   number field: "We will only use it to let you know your coach texted
   you, or that your call starts soon." The same number gets a booked call's
-  reminder; the booking form asks for none (backend N207, 2026-10-26).
+  reminder; the booking form asks for none (backend N207, 2026-10-26). The
+  field shows the country by its flag, Poland first (consent-screens.md,
+  "WhatsApp as a way in"); Save sends a code on WhatsApp, and the card then
+  asks "Enter the code we sent you on WhatsApp" with Not now | Continue,
+  Resend code and Use a different number. Once the code is typed, the
+  number gets the messages and signs in with WhatsApp too: one number,
+  checked once (backend N230, 2026-10-28). A number typed in the chat is
+  still saved there for the messages only, without the code.
 - **E2** Will asks only when something is off or missing, once per Take,
   the first that holds (`services/will_question.py`, N82): a breather when
   the practice did not land or the voice dipped two Takes running (never two
@@ -1170,6 +1177,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N230 · the WhatsApp ask's number field shows the country by its flag, Poland first; Save sends a code on WhatsApp and the number is kept, for the messages and for signing in, once the code is typed; was saved at once with no code (N184 item 1) (E1) · BE #1438, FE (this PR)
 - 2026-10-27 · — (B9, B10) · fixed: the dock gives way to the Next that brings the standing step back only once none of that step is in view. Was: whenever the bar named a later part, which it does for a standing part shorter than the upper 40% of the thread or a thread that fits in view, so a walk opened on an earlier step (a bare correction, a clip alone) lost its own buttons the moment it opened, and its Next scrolled nowhere (founder 2026-10-27: "when I review the feedback and click next nothing happens") · FE (this PR)
 - 2026-10-27 · N220 · built: a correction whose practise ends on a Good job opens its helper words right after it, as a praise does; a moment gets them once, and a practise ending on the third try without a Good job gets none. Was: a correction's Good job went on with no helper words (lock 2026-10-12, §2.5), so a Take whose two moments were both under the floor had none (C3, C7) · BE #1428, FE (this PR)
 - 2026-10-27 · N119 (C8) · fixed: an answer on another speaker's moment moves on to the next, as C8 says. Was: the chat counted the answer at once, the step took the new count for a judging reopened from the Lounge, loaded its moments again and stood on the typing dots for good (founder 2026-10-27: "it gets stuck on judgment time") · FE (this PR)

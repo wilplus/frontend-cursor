@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
-import {
-  fetchWhatsAppPhone,
-  normalizePhone,
-  saveWhatsAppPhone,
-} from "@/services/api/whatsapp";
+import { fetchWhatsAppPhone } from "@/services/api/whatsapp";
+import { confirmNumberCode, sendNumberCode } from "@/services/api/whatsappNumber";
+import PhoneNumberField from "@/components/phone/PhoneNumberField";
+import { WHATSAPP_AUTH_COPY } from "@/components/auth/WhatsAppAuth";
 import SymmetricPair from "./SymmetricPair";
+
+/** Supabase asks for a pause between two codes to one number. */
+const RESEND_AFTER_MS = 60_000;
 
 /* -------------------------------------------------------------------------- */
 /*  WillabWhatsAppPrompt — the second Lounge offer (founder 2026-10-12).       */
@@ -18,7 +20,9 @@ import SymmetricPair from "./SymmetricPair";
 /*  the speaker on WhatsApp. It is asked at the end of a Take, from Take 1    */
 /*  (backend N171), at most twice, as that Take's one ask (founder 2026-10-20; */
 /*  the backend writes it, services/after_take.py). The same number gets the  */
-/*  booking's reminder (backend N207); the booking form asks for none.        */
+/*  booking's reminder (backend N207); the booking form asks for none. Save   */
+/*  sends a code on WhatsApp; once it is typed the number gets the messages  */
+/*  and signs in with WhatsApp (backend N230).                               */
 /* -------------------------------------------------------------------------- */
 
 /** Footer and error copy (WhatsApp offer). No em-dashes (house style). */
@@ -99,8 +103,10 @@ export function useWhatsAppOffer(inputs: {
 }
 
 /** The footer while the WhatsApp offer is open: the number field in a grey
- *  card, then Not now | Save, as the install offer. `onResolve` returns the
- *  record button. */
+ *  card, then Not now | Save, as the install offer; after Save, the code
+ *  WhatsApp brings, then Not now | Continue (backend N230: the number is
+ *  checked once, then it gets the messages and signs in). `onResolve`
+ *  returns the record button. */
 export function WhatsAppOfferActions({
   offer,
   onResolve,
@@ -108,28 +114,131 @@ export function WhatsAppOfferActions({
   offer: WhatsAppOffer;
   onResolve: () => void;
 }) {
-  const [value, setValue] = useState(offer.draft ?? offer.phone ?? "");
+  const [number, setNumber] = useState<string | null>(null);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [canResend, setCanResend] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const save = async () => {
-    if (saving) return;
-    const phone = normalizePhone(value);
-    if (!phone) {
-      setError(WHATSAPP_COPY.invalid);
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    const ok = await saveWhatsAppPhone(phone);
-    setSaving(false);
-    if (!ok) {
-      setError(WHATSAPP_COPY.failed);
-      return;
-    }
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
+
+  const done = (phone: string) => {
     offer.markSaved(phone);
     onResolve();
   };
+
+  const send = async (phone: string) => {
+    const sent = await sendNumberCode(phone);
+    if (sent === "failed") {
+      setError(WHATSAPP_COPY.failed);
+      return;
+    }
+    if (sent === "same") {
+      done(phone);
+      return;
+    }
+    setSentTo(phone);
+    setCanResend(false);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCanResend(true), RESEND_AFTER_MS);
+  };
+
+  const save = async () => {
+    if (saving || !number) return;
+    setSaving(true);
+    setError(null);
+    await send(number);
+    setSaving(false);
+  };
+
+  const confirm = async () => {
+    const token = code.replace(/\D/g, "");
+    if (saving || !sentTo || !token) return;
+    setSaving(true);
+    setError(null);
+    const ok = await confirmNumberCode(sentTo, token);
+    setSaving(false);
+    if (!ok) {
+      setError(WHATSAPP_AUTH_COPY.wrongCode);
+      return;
+    }
+    done(sentTo);
+  };
+
+  const resend = async () => {
+    if (!sentTo || !canResend || saving) return;
+    setSaving(true);
+    setError(null);
+    await send(sentTo);
+    setSaving(false);
+  };
+
+  const notNow = () => {
+    offer.softDismiss();
+    onResolve();
+  };
+
+  const problem = error ? (
+    <p role="alert" className="mt-2 text-[13px] text-destructive">
+      {error}
+    </p>
+  ) : null;
+
+  if (sentTo) {
+    return (
+      <div className="flex flex-col gap-3">
+        <form
+          className="rounded-xl bg-muted p-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void confirm();
+          }}
+        >
+          <label htmlFor="whatsapp-offer-code" className="block text-[13px] font-medium text-foreground">
+            {WHATSAPP_AUTH_COPY.codeTitle}
+          </label>
+          <p className="mb-2 text-[13px] text-muted-foreground">{sentTo}</p>
+          <input
+            id="whatsapp-offer-code"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            placeholder="••••••"
+            value={code}
+            disabled={saving}
+            autoFocus
+            onChange={(e) => {
+              setCode(e.target.value);
+              if (error) setError(null);
+            }}
+            className="h-11 w-full rounded-lg border border-border bg-background px-3 text-center text-lg tracking-[0.4em] text-foreground focus:border-primary focus:outline-none"
+          />
+          {problem}
+          <div className="mt-2 flex justify-between text-[13px]">
+            <button type="button" onClick={() => void resend()} disabled={!canResend || saving}
+              className="min-h-[36px] text-muted-foreground hover:underline disabled:opacity-50 disabled:hover:no-underline">
+              {WHATSAPP_AUTH_COPY.resend}
+            </button>
+            <button type="button" onClick={() => { setSentTo(null); setCode(""); setError(null); }}
+              className="min-h-[36px] text-muted-foreground hover:underline">
+              {WHATSAPP_AUTH_COPY.otherNumber}
+            </button>
+          </div>
+        </form>
+        <SymmetricPair
+          closeLabel={WHATSAPP_COPY.notNow}
+          onClose={notNow}
+          actionLabel={WHATSAPP_AUTH_COPY.continue}
+          onAction={() => void confirm()}
+        />
+      </div>
+    );
+  }
 
   // Laid out like the install offer (founder 2026-10-12): the grey card on
   // top (here the number field), then the same Not now | Save pair below.
@@ -142,36 +251,24 @@ export function WhatsAppOfferActions({
           void save();
         }}
       >
-        <p className="mb-2 text-[13px] font-medium text-foreground">
+        <p id="whatsapp-offer-title" className="mb-2 text-[13px] font-medium text-foreground">
           {WHATSAPP_COPY.title}
         </p>
-        <input
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          aria-label={WHATSAPP_COPY.label}
-          aria-invalid={error ? true : undefined}
-          placeholder={WHATSAPP_COPY.placeholder}
-          value={value}
-          onChange={(e) => {
-            setValue(e.target.value);
+        <PhoneNumberField
+          id="whatsapp-offer-number"
+          label="whatsapp-offer-title"
+          initial={offer.draft ?? offer.phone}
+          disabled={saving}
+          onChange={(next) => {
+            setNumber(next);
             if (error) setError(null);
           }}
-          disabled={saving}
-          className="h-10 w-full rounded-lg border border-border bg-background px-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
         />
-        {error ? (
-          <p role="alert" className="mt-2 text-[13px] text-destructive">
-            {error}
-          </p>
-        ) : null}
+        {problem}
       </form>
       <SymmetricPair
         closeLabel={WHATSAPP_COPY.notNow}
-        onClose={() => {
-          offer.softDismiss();
-          onResolve();
-        }}
+        onClose={notNow}
         actionLabel={saving ? WHATSAPP_COPY.saving : WHATSAPP_COPY.save}
         onAction={() => void save()}
       />

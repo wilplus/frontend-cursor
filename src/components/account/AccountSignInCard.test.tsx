@@ -17,10 +17,10 @@ OUTCOME
       refreshes the session, so the menu shows the new address; a link that
       failed says the page's "Couldn’t save that. Try again."
   O5  When the account can't be read, there is no card.
-  O6  Adding WhatsApp as a way in: a number without its country code is
-      refused before any code goes; the code goes to the number, a wrong
-      code says so, and the right one makes the row say "You can sign in
-      with WhatsApp at {number}."
+  O6  Adding WhatsApp as a way in: a number too short for its country sends
+      no code; the code goes to the number, a wrong code says so, and the
+      right one makes the row say "You can sign in with WhatsApp at
+      {number}." and keeps the number for the messages too (backend N230).
   O7  A WhatsApp account with no email has no email row and no password
       row: the card says where it signs in with WhatsApp.
 PROVES   O1 -> "sends the change and says the link went; a wrong password keeps the form"
@@ -45,6 +45,7 @@ const api = vi.hoisted(() => ({
   refreshSession: vi.fn(),
   updateUser: vi.fn(),
   verifyOtp: vi.fn(),
+  saveWhatsAppPhone: vi.fn(),
 }));
 vi.mock("@/services/api/accountSignIn", () => ({
   fetchSignIn: vi.fn(),
@@ -57,6 +58,10 @@ vi.mock("@/lib/supabase/client", () => ({
     auth: { refreshSession: api.refreshSession, updateUser: api.updateUser, verifyOtp: api.verifyOtp },
   }),
 }));
+vi.mock("@/services/api/whatsapp", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/api/whatsapp")>()),
+  saveWhatsAppPhone: api.saveWhatsAppPhone,
+}));
 vi.mock("@/components/auth/WhatsAppAuth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/components/auth/WhatsAppAuth")>()),
   WHATSAPP_SIGNIN: true,
@@ -65,7 +70,6 @@ vi.mock("@/components/auth/WhatsAppAuth", async (importOriginal) => ({
 import AccountSignInCard from "./AccountSignInCard";
 import { DATA_CONSENT_COPY as COPY } from "@/lib/legal/dataConsentCopy";
 import { WHATSAPP_AUTH_COPY } from "@/components/auth/WhatsAppAuth";
-import { WHATSAPP_COPY } from "@/components/willab/WillabWhatsAppPrompt";
 import type { SignIn } from "@/services/api/accountSignIn";
 
 const ALEX: SignIn = { email: "alex@example.com", hasPassword: true, provider: null };
@@ -105,6 +109,12 @@ const type = (label: string, value: string) => {
   field!.value = value;
 };
 const said = () => container.textContent ?? "";
+/** A controlled field: set its value the way React hears it. */
+const typeInto = (selector: string, value: string) => act(() => {
+  const field = container.querySelector<HTMLInputElement>(selector)!;
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, value);
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+});
 
 async function show(account: SignIn | null, phone: string | null = null) {
   act(() => root.render(createElement(AccountSignInCard, {
@@ -209,12 +219,11 @@ describe("Email and password", () => {
     expect(said()).toContain(COPY.accountWhatsAppOff);
     await press(COPY.accountWhatsAppAdd);
 
-    type(WHATSAPP_AUTH_COPY.numberLabel, "600 100 200");
+    typeInto("#account-whatsapp", "600 100");
     await press(WHATSAPP_AUTH_COPY.sendCode);
-    expect(said()).toContain(WHATSAPP_COPY.invalid);
     expect(api.updateUser).not.toHaveBeenCalled();
 
-    type(WHATSAPP_AUTH_COPY.numberLabel, "+48 600 100 200");
+    typeInto("#account-whatsapp", "+48 600 100 200");
     api.updateUser.mockResolvedValueOnce({ data: { user: { phone: "" } }, error: null });
     await press(WHATSAPP_AUTH_COPY.sendCode);
     expect(api.updateUser).toHaveBeenCalledWith({ phone: "+48600100200" });
@@ -229,6 +238,7 @@ describe("Email and password", () => {
     await press(WHATSAPP_AUTH_COPY.continue);
     expect(api.verifyOtp).toHaveBeenLastCalledWith({ phone: "+48600100200", token: "482916", type: "phone_change" });
     expect(said()).toContain(COPY.accountWhatsAppOn("+48600100200"));
+    expect(api.saveWhatsAppPhone).toHaveBeenCalledWith("+48600100200");
     expect(button(COPY.accountWhatsAppAdd)).toBeUndefined();
   });
 

@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 /*
-STORY    As a speaker, I want to leave my WhatsApp number to hear when my coach's feedback is in, with wrong numbers refused, so that the message reaches me.
+STORY    As a speaker, I want to leave my WhatsApp number to hear when my coach's feedback is in, checked once with a code, so that the message reaches me and the number signs me in too.
 OUTCOME
-  O1  A number without its country code is refused on screen and nothing is sent.
-  O2  A valid number is saved in full international form and the offer closes.
+  O1  A number too short for its country sends no code.
+  O2  A full number gets a code on WhatsApp; a wrong code says so; the right
+      one saves it and the offer closes (backend N230).
   O3  Not now sends nothing and closes.
   O4  A number I typed in the chat without its country code is in the form,
       to fix, not to type again (founder 2026-10-20).
-PROVES   O1 -> refuses a number without its country code
-         O2 -> saves a valid number in E.164 and closes
+PROVES   O1 -> sends no code for a number too short
+         O2 -> checks the number with a code, then saves it and closes
          O3 -> Not now sends nothing and closes
          O4 -> opens with the number typed in the chat
 */
@@ -16,13 +17,12 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const api = vi.hoisted(() => ({ saveWhatsAppPhone: vi.fn() }));
-vi.mock("@/services/api/whatsapp", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/services/api/whatsapp")>();
-  return { ...actual, ...api };
-});
+const api = vi.hoisted(() => ({ sendNumberCode: vi.fn(), confirmNumberCode: vi.fn() }));
+vi.mock("@/services/api/whatsappNumber", () => api);
+vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({ auth: {} }) }));
 
 import { WhatsAppOfferActions, WHATSAPP_COPY } from "./WillabWhatsAppPrompt";
+import { WHATSAPP_AUTH_COPY } from "@/components/auth/WhatsAppAuth";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -37,7 +37,7 @@ beforeEach(() => {
   document.body.appendChild(container);
   root = createRoot(container);
   vi.clearAllMocks();
-  api.saveWhatsAppPhone.mockResolvedValue(true);
+  api.sendNumberCode.mockResolvedValue("sent");
   act(() => root.render(createElement(WhatsAppOfferActions, { offer, onResolve })));
 });
 
@@ -46,9 +46,9 @@ afterEach(() => {
   container.remove();
 });
 
-const type = (text: string) =>
+const type = (text: string, selector = "input") =>
   act(() => {
-    const input = container.querySelector("input")!;
+    const input = container.querySelector<HTMLInputElement>(selector)!;
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, text);
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
@@ -59,18 +59,29 @@ const press = (label: string) =>
   });
 
 describe("WhatsApp offer", () => {
-  it("refuses a number without its country code", async () => {
-    type("07700 900123");
+  it("sends no code for a number too short", async () => {
+    type("600 100");
     await press(WHATSAPP_COPY.save);
-    expect(container.textContent).toContain(WHATSAPP_COPY.invalid);
-    expect(api.saveWhatsAppPhone).not.toHaveBeenCalled();
+    expect(api.sendNumberCode).not.toHaveBeenCalled();
     expect(onResolve).not.toHaveBeenCalled();
   });
 
-  it("saves a valid number in E.164 and closes", async () => {
+  it("checks the number with a code, then saves it and closes", async () => {
     type("+44 7700 900-123");
     await press(WHATSAPP_COPY.save);
-    expect(api.saveWhatsAppPhone).toHaveBeenCalledWith("+447700900123");
+    expect(api.sendNumberCode).toHaveBeenCalledWith("+447700900123");
+    expect(container.textContent).toContain(WHATSAPP_AUTH_COPY.codeTitle);
+
+    api.confirmNumberCode.mockResolvedValueOnce(false);
+    type("111111", "#whatsapp-offer-code");
+    await press(WHATSAPP_AUTH_COPY.continue);
+    expect(container.textContent).toContain(WHATSAPP_AUTH_COPY.wrongCode);
+    expect(offer.markSaved).not.toHaveBeenCalled();
+
+    api.confirmNumberCode.mockResolvedValueOnce(true);
+    type("482916", "#whatsapp-offer-code");
+    await press(WHATSAPP_AUTH_COPY.continue);
+    expect(api.confirmNumberCode).toHaveBeenLastCalledWith("+447700900123", "482916");
     expect(offer.markSaved).toHaveBeenCalledWith("+447700900123");
     expect(onResolve).toHaveBeenCalled();
   });
@@ -78,12 +89,12 @@ describe("WhatsApp offer", () => {
   it("opens with the number typed in the chat", async () => {
     // The Lounge keys the form by the draft, so it opens again with it.
     act(() => root.render(createElement(WhatsAppOfferActions, { key: "draft", offer: { ...offer, draft: "07700 900461" }, onResolve })));
-    expect(container.querySelector("input")!.value).toBe("07700 900461");
+    expect(container.querySelector("input")!.value).toContain("770 090 0461");
   });
 
   it("Not now sends nothing and closes", async () => {
     await press(WHATSAPP_COPY.notNow);
-    expect(api.saveWhatsAppPhone).not.toHaveBeenCalled();
+    expect(api.sendNumberCode).not.toHaveBeenCalled();
     expect(offer.softDismiss).toHaveBeenCalled();
     expect(onResolve).toHaveBeenCalled();
   });

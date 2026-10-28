@@ -4,8 +4,8 @@ STORY    As someone signing up or in with WhatsApp, I want to give my number,
          type the code WhatsApp brings and, when I am new, my name, so that I
          am in without an email or a password.
 OUTCOME
-  O1  Signing up: a number without its country code is refused before any
-      code is sent; a wrong code says so; the right one asks a new account
+  O1  Signing up: Poland is chosen at the start and a number too short for
+      it sends no code (backend N230); a wrong code says so; the right one asks a new account
       its name, keeps the number as the account's WhatsApp number, and lands.
   O2  Signing in never makes an account: a number no account signs in with
       says so and points to sign-up, and the number is not saved anywhere.
@@ -34,7 +34,6 @@ vi.mock("@/services/api/whatsapp", async (importOriginal) => ({
 }));
 
 import WhatsAppAuth, { WHATSAPP_AUTH_COPY } from "./WhatsAppAuth";
-import { WHATSAPP_COPY } from "@/components/willab/WillabWhatsAppPrompt";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -77,12 +76,11 @@ describe("WhatsApp sign-up and sign-in", () => {
     auth.updateUser.mockResolvedValue({ error: null });
     act(() => root.render(createElement(WhatsAppAuth, { mode: "signup", onBack: vi.fn(), onSuccess: landed })));
 
-    act(() => type("#wa-phone", "600 100 200"));
+    act(() => type("#wa-phone", "600 100"));
     await submit();
-    expect(container.textContent).toContain(WHATSAPP_COPY.invalid);
     expect(auth.signInWithOtp).not.toHaveBeenCalled();
 
-    act(() => type("#wa-phone", "+48 600 100 200"));
+    act(() => type("#wa-phone", "600 100 200"));
     await submit();
     expect(auth.signInWithOtp).toHaveBeenCalledWith({ phone: "+48600100200", options: { shouldCreateUser: true } });
     expect(container.textContent).toContain(WHATSAPP_AUTH_COPY.codeTitle);
