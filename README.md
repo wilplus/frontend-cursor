@@ -23,6 +23,7 @@ The backend's `main` is the one source of truth (backend N95).
 - [The AI version of your voice in practice](docs/flows/ai-voice-practice.md)
 - [The plan: from the first questions to the deadline](docs/flows/the-plan.md) · Founder-Approved: the Claude Code chat, 26 October 2026, "Okay", to the plan having its own flow page (backend N160)
 - [The principles: the Sunday note and life goals](docs/flows/principles.md) · Founder-Approved: the Claude Code chat, 26 October 2026, "Own page, ring 6", to the principles having their own flow page (backend N182)
+- [Customer requests: a client's customer asks, the answerer replies with a Take](docs/flows/customer-requests.md) · Founder-Approved: the Claude Code chat, 28 October 2026, "Approve as drafted", to the page (backend N229)
 
 **How it works today (Reference)**
 
