@@ -532,6 +532,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N194 · no change to the plan: the voice answer in the plan's dock (`PlanDock.tsx`) reads the recorder's finished note as `{ audio, durationMs }`, the shape the shared recorder takes since the voice notebook's live words; it records and sends exactly as before (no wave, no live words, no outbox) · FE #1009
 - 2026-10-27 · N213 · built: the coach's side. A plan reaches the coach's queue as "New plan", "Asked about their level" or "Three Takes without moving"; the level is picked blind, then What happened; a stuck level is answered with the coach's video as their word on the latest Take (C5, G10, H1). The plan keeps the key line's recording again after the questions. Was: the stuck level noted for a queue not yet built · BE #1415, FE
 
 - 2026-10-27 · N215, N217 · built, switched off until Privacy 3.9: the feelings check (D4) behind the plan's own yes, and "Your coach sees your answer." on its screen; a speaker without a plan keeps it as today, with no ask and no card. Was: the feelings check outside the yes · FE (this PR), BE (with it)

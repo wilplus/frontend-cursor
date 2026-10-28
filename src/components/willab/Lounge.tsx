@@ -118,7 +118,15 @@ import {
   feedbackCheckTarget,
 } from "./feedbackCheck";
 import { postFeedbackCheck, type FeedbackCheckChoice } from "@/services/api/feedbackCheck";
-import { useVoiceNotebook, VoiceNoteBar, VoiceNoteMic } from "./useVoiceNotebook";
+import {
+  useVoiceNotebook,
+  VoiceNoteBar,
+  VoiceNoteBubble,
+  VoiceNoteFixBar,
+  VoiceNoteMic,
+  VoiceNoteThread,
+  type VoiceNotebook,
+} from "./useVoiceNotebook";
 import SundayLens, { SundayHeadBubble } from "./SundayLens";
 import { sundayAskOf, sundayHeadOf, sundayWaiting } from "@/lib/willab/sundayNote";
 import { LifeGoalBubble, lensAskOf, lifeGoalOf, quarterAskOf, changeAskOf, useLifeGoals } from "./LoungeLifeGoals";
@@ -1654,6 +1662,10 @@ export default function Lounge({
       />
     ) : isSummaryLike(item.message.metadata) ? (
       <SummaryBubble key={item.reactKey} message={item.message} record={recordFor(item.message, closingTakes, nextTakeOf)} />
+    ) : isOwnVoiceNote(item.message, notebook) ? (
+      <VoiceNoteBubble key={item.reactKey} body={item.message.body} clientId={item.message.client_id} notebook={notebook}>
+        <Linkified text={item.message.body} />
+      </VoiceNoteBubble>
     ) : (
       <Bubble
         key={item.reactKey}
@@ -1802,6 +1814,7 @@ export default function Lounge({
             its controls replace the record button below. */}
         <PolicyUpdateBubble />
 
+        <VoiceNoteThread notebook={notebook} />
         {botThinking && <TypingDots />}
       </div>
 
@@ -1978,6 +1991,7 @@ export default function Lounge({
       {plan.sheets}
       <PolicyUpdateComposer>
       <VoiceNoteBar notebook={notebook} />
+      <VoiceNoteFixBar notebook={notebook} />
       <form onSubmit={handleSend} className={`${plan.composerDisplay(notebook.composerDisplay)} items-end gap-1`}>
         {/* THE "+" (founder 2026-10-12, WhatsApp-like): it opens the
             projects, where "Start a new project" starts one. It replaced the
@@ -2471,6 +2485,11 @@ function askBubble(
       onOpen={() => onOpenOffer?.(offerType)}
     />
   );
+}
+
+/** One's own voice note opens its words to fix one (backend N194). */
+function isOwnVoiceNote(message: LoungeMessage, notebook: VoiceNotebook): boolean {
+  return message.role === "user" && notebook.enabled && typeof message.metadata?.voice_note === "string";
 }
 
 function Bubble({

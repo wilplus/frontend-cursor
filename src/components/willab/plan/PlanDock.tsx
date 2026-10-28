@@ -90,7 +90,7 @@ function DeadlineChips({ actions }: { actions: PlanActions }) {
 }
 
 function VoiceAnswer({ actions }: { actions: PlanActions }) {
-  const note = useVoiceNote({ maxSeconds: 300, onDone: actions.answer });
+  const note = useVoiceNote({ maxSeconds: 300, onDone: ({ audio, durationMs }) => actions.answer(audio, durationMs) });
   if (note.phase === "idle") {
     return (
       <button
