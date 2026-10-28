@@ -246,6 +246,9 @@ built and what is still to come.
    said it") and "● Record Take N" inside. The chat has one record button, in
    the newest bubble: the previous Take's closing message keeps its words and
    gives its button up, and a line written after it moves the bubble below.
+   Once the Take is recorded the bubble gives its button up too, while the
+   Take processes and its walk runs; the Take's own closing message brings
+   "Record Take N" back after the walk's summary (N244).
    The last practice and the next plan show the same bubble with N89's
    closing line. No "Start a new project" under it: the "+" next to "Type
    here" opens the projects, as today (N167, N169).
@@ -542,6 +545,7 @@ One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-10-28 · N150 · fixed (B6): a question, opener or ack the AI left with a slot unfilled ("If {who they will speak to} remembers …", seen by the founder) is not kept, and Will says the plain template; a slot is never kept as a fact, and the plan card's "Why this line?" reads "them" for one stored before · BE #1461
 - 2026-10-28 · N243 · A5: the plan says when the speaker is onboarded (`onboarding`: the questions, then a new speaker's plan until the first Take; not a plan waiting for the next Take), and the principles wait meanwhile; the Lounge reads the plan again when a Take lands in the thread, so the first Take's footer gives way and the principles come back without the app being opened again; was: nothing held them back while the questions were asked · BE #1456, #1460, FE (this PR)
+- 2026-10-28 · N244 · today's one thing gives its "Record Take N" up once that Take is recorded; the Take's own closing message brings the next one after the walk's summary (G6). Was: the button came back the moment processing ended, beside the new Take's walk, until the closing message landed · BE (N244 log), FE (this PR)
 - 2026-10-28 · N242 · "I have a new event" is hidden while a Take is still processing, in Change your plan (H1) and at the plan's end (I2); it comes back when the Take has landed. Was: shown at any time, and a tap while the Take was processing left the speaker with nothing to do · BE #1455, FE
 - 2026-10-28 · N194 · no change to the plan: the voice answer in the plan's dock (`PlanDock.tsx`) reads the recorder's finished note as `{ audio, durationMs }`, the shape the shared recorder takes since the voice notebook's live words; it records and sends exactly as before (no wave, no live words, no outbox) · FE #1009
 - 2026-10-27 · N213 · built: the coach's side. A plan reaches the coach's queue as "New plan", "Asked about their level" or "Three Takes without moving"; the level is picked blind, then What happened; a stuck level is answered with the coach's video as their word on the latest Take (C5, G10, H1). The plan keeps the key line's recording again after the questions. Was: the stuck level noted for a queue not yet built · BE #1415, FE
