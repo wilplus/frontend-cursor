@@ -398,10 +398,15 @@ O3  A waiting message whose ask is no longer in front of me is let go.
 O4  The admin's ask, stamped only with the message it waits for, is still
 the Take's: the card stays above it and the ask above its buttons
 (founder 2026-10-20: the card landed between the question and its
-buttons).","O1 -> ""draws the card, the ask, and the message only once it is let go""
+buttons).
+O5  Once I record the next Take, the last Take's ""Record Take N"" goes, and
+no Take is offered until the new Take's walk reaches its summary
+(founder 2026-10-28, N244: it came back as processing ended, beside
+the new Take's walk).","O1 -> ""draws the card, the ask, and the message only once it is let go""
 O2 -> ""opens the Take's WhatsApp ask by itself""
 O3 -> ""knows when no ask is in front of the speaker""
-O4 -> ""keeps the card above the admin's ask, stamped with the message it waits for alone""","Founder 2026-10-20: ""You cannot have two actions at a time, like feedback and record"" (backend services/after_take.py)."
+O4 -> ""keeps the card above the admin's ask, stamped with the message it waits for alone""
+O5 -> ""offers no Take between the next recording and its closing message""","Founder 2026-10-20: ""You cannot have two actions at a time, like feedback and record"" (backend services/after_take.py)."
 src/components/willab/audioUploadValidation.test.ts,Story,"As a speaker uploading a recording instead of recording live, I want a too-large or video file refused before upload with a plain reason, so that I do not wait for a failure (record step of the loop).","O1  A file over the upload limit is refused with a ""too large"" reason.
 O2  A video file (by MIME type, or by extension when the type is missing)
 is refused with an ""audio only"" reason.

@@ -471,6 +471,14 @@ step; the loop never waits for a coach.
      up to the practice day's bubble that comes after it (N167; decided, not
      built, [`the-plan.md`](the-plan.md) G6).
 
+  From the moment the next Take is recorded until its walk reaches its
+  summary, the chat offers no Take: the last Take's closing message keeps its
+  words and gives "Record Take N" up, while the Take processes and while its
+  walk runs, and the new Take's own closing message brings it back (founder
+  2026-10-28, N244: "disable the new event while the processing is
+  happening, so that it is only possible once it's finished"). The "+" and
+  the Ideal Text page's own "Record Take N" are as before.
+
   The summary is the walk's last step (C9) and is not drawn in the chat
   (founder 2026-10-26, N192, question 1: "In the walk only").
 - **D5** **The coach's word.**
@@ -1181,6 +1189,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-10-28 · — (B10, C3) · fixed: the Feedback walk whose newest part is helper words opens the whole walk standing on them, through the same door as every other step, once the Take's answers and tries are read. Was: it opened those helper words by themselves as soon as the page was up, before the tries were read, so words a Good job had opened (N220) were not in the walk yet and showed alone, under the hello, with nothing before or after (founder 2026-10-28: "When I click the feedback walk bubble, it just opens helper words") · FE (this PR)
+- 2026-10-28 · N244 · the last Take's closing message gives "Record Take N" up once the next Take is recorded, and the chat offers no Take until that Take's walk reaches its summary and its own closing message lands (D4). Was: the button was held only while the Take processed, then came back, naming the Take just recorded, beside the new Take's walk (founder 2026-10-28: "I can see two bubbles interfering … one for the new take and one the summary of the take I just took") · BE (N244 log), FE (this PR)
 - 2026-10-28 · — (H1) · wording: a try is better when its voice score (S) rises by the margin, +0.05, over the original clip, as built (`after_practice.GOOD_JOB_MARGIN`) and as N84 says ("on the voice alone"); was "Δ willfidence", which reads as voice × words. No rule changes (founder 2026-10-28: "fix the doc wording to say voice score") · FE (this PR)
 - 2026-10-28 · N237 · built: a WhatsApp reply that says STOP turns the messages off for every account at that number, as Remove does (the number it signs in with stays, N235), a booking that carries the number forgets it (N233), and WhatsApp answers "Done. We've stopped the WhatsApp messages and deleted your number." (signed, N174); any other reply is not read yet (N171 item 6). Off until its two keys are on Railway and the webhook is set in Meta · BE #1450, FE (this PR)
 - 2026-10-28 · — (C3, B10) · fixed: helper words are editable on any part of the thread: a tap on a picker the walk does not stand on stands the walk there, the tap counts, and its buttons bring the walk back to where it stood; never while the recorder is in the dock (B9). Was: only the part the walk stood on took a tap, so a walk opened on a later step (the Feedback walk on its newest step) showed "0 of 8 words" pickers that did nothing (founder 2026-10-28: "I click the helper words, they don't mark on orange, so I cannot choose the helper words") · FE (this PR)
