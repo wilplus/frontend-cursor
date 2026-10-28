@@ -313,8 +313,9 @@ How Will talks, not a screen; its own row on the rings page, at ring 5.
   meaning, once per worry: it names what is out of their hands, names what
   is theirs, and ends on one thing they control now.
 - **O2** Will's guide (constants and variables, the Stoic grounding, the
-  hotel example, the tips) is drafted for the founder as a Claude Doc and
-  goes into Will's instructions word for word once signed (§2 W1).
+  hotel example, the tips) is drafted for the founder as a Claude Doc,
+  <https://claude.ai/artifact/EL8NpV6kPKdcEb2rjYc9Fj>, and goes into Will's
+  instructions word for word once signed (§2 W1).
 - **O3** What a speaker leaves any chat with Will holding: one thing they
   control.
 
@@ -346,7 +347,7 @@ deletes the line when the work is merged (the change goes to §6).
 The companions (N241), in order:
 
 - P0 · the clickable prototype on the real Lounge and Life Panel screens: a strength suggested (N2), kept (N1), linked to a note (N3), brought back before a talk (N4), archived (N5); the sales steps in the Sunday note (P3); every new word for the founder to sign · N, P3, K · next · —
-- W1 · Will's guide to what is in your control, with the sales framing, as a Claude Doc for the founder to sign · O1, O2, P2 · drafting · —
+- W1 · Will's guide to what is in your control, with the sales framing, as a Claude Doc for the founder to sign, <https://claude.ai/artifact/EL8NpV6kPKdcEb2rjYc9Fj> · O1, O2, P2 · drafted, waits on the founder's signature · —
 - R1 · the three rows on the rings page at ring 5, a migration with its outside review · A2, N, O, P · waits on P0 · —
 - N-be · backend: strengths kept in the Life Panel's store with their history; the two-day suggestion from # notes and the M4 answer; later notes linked; the before-a-talk reminder from the plan's deadline or a note's date · N1 to N5 · waits on P0 · —
 - N-fe · frontend: strengths in the Life Panel; the suggestion, the linked note and the reminder in the Lounge, as the prototype draws them · N1 to N5 · waits on P0 · —
