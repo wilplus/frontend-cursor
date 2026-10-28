@@ -186,10 +186,13 @@ describe("FeedbackWalk", () => {
     expect(said()).toEqual([WALK_COPY.skip]);
     expect(screen()).toBe("walk-screen-praise");
     expect(bubble()).toEqual([COPY.titlePraise, COPY.praiseTentative]);
-    // The answered picker stays in the thread, read only: only the newest
-    // part is live.
+    // The answered picker stays in the thread, still editable (C3, B10): a
+    // tap stands the walk on it, and its buttons bring the walk back.
     click(words()[0]);
-    expect(words()[0].getAttribute("aria-pressed")).toBe("false");
+    expect(screen()).toBe("walk-screen-helpers");
+    expect(words()[0].getAttribute("aria-pressed")).toBe("true");
+    click(live()!.querySelector("[data-testid='walk-skip']"));
+    expect(screen()).toBe("walk-screen-praise");
     forward();
     forward(); // the helper words' pill is off until a word is picked
     expect(screen()).toBe("walk-screen-helpers");
