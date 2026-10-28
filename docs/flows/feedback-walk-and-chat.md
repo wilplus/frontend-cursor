@@ -840,7 +840,7 @@ October (backend N111).
   "A bit slow. Keep the words moving between the pauses."; a try that lands
   "That landed. 🎯 Really better. Let's move on."; under "Better. You let
   it breathe." while a try is left "You're close. 💪 Give it one more
-  try." (both signed 2026-10-28, N243); the close "Dynamic. You paused where it mattered. 🔥" · "Still rushed.
+  try." (both signed 2026-10-28, N245); the close "Dynamic. You paused where it mattered. 🔥" · "Still rushed.
   Give each offer its own breath next Take." · "Slow. Keep the words
   moving between the pauses."; a blocked microphone "The microphone is
   blocked. Allow it for this site in the browser's settings, then try
@@ -954,7 +954,7 @@ October (backend N111).
   Answered" and "Do you agree to share your next take with others?"
   (2026-10-21); and the AI clip's L3, L4, L5 and L14–L18 in the walk
   (2026-10-23, N120); the tempo step's "See how it went" (2026-10-28,
-  N243: Will decides when the game ends). The praise keeps its own lines (N122: the
+  N245: Will decides when the game ends). The praise keeps its own lines (N122: the
   one-sentence praise of N120 was dropped before it was built).
 
 ### L and M · The Sunday note and life goals
@@ -968,7 +968,7 @@ them.
 
 ### T · The tempo step (the pace step)
 
-Founder 2026-10-24 to 2026-10-28, backend N162, N166, N179, N181, N243. Built: the founder and whoever the rings panel's `tempo_step` row reaches see it (§2 says what is left). Everything about this feature is in this block; it moved here from §2 when its build steps were done (docs audit, 2026-10-26).
+Founder 2026-10-24 to 2026-10-28, backend N162, N166, N179, N181, N245. Built: the founder and whoever the rings panel's `tempo_step` row reaches see it (§2 says what is left). Everything about this feature is in this block; it moved here from §2 when its build steps were done (docs audit, 2026-10-26).
 
 **In one line.** After a Take where the speaker rushed or dragged, the walk
 plays that stretch back and asks them to talk about the same thing again
@@ -992,7 +992,7 @@ backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
 3. Will's bubble with the stretch's topic: "Tell me more about {topic}, and keep the ball in the green."
 4. Will's bubble: "🤫 Find a quiet spot first."
 5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar. Nothing else appears until Stop.
-6. The try: the dot's path, then Will's word on it; Will guides, the speaker never has to choose between another try and moving on (N243):
+6. The try: the dot's path, then Will's word on it; Will guides, the speaker never has to choose between another try and moving on (N245):
    - **It lands** (really better): "That landed. 🎯 Really better. Let's move on.", then **Next**; the game ends there, on any try.
    - **It came closer** (more than half in the green, not enough to land): "Better. You let it breathe." and, while a try is left, "You're close. 💪 Give it one more try.", then **Practise again**.
    - **Not yet**: "Still rushed. Take a breath after each offer." / "A bit slow. Keep the words moving between the pauses.", then **Practise again**.
@@ -1005,9 +1005,9 @@ backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
 | Every word above | Signed, listed in §1 K (N179) |
 | Which stretch | The one the scale reads furthest from the green |
 | Where in the walk | Right after the practise moment |
-| How many tries | Up to three; a try that lands ends the game (N243) |
-| When a try lands | It runs at least 20 s from the first word, and the ball is in the green four fifths of that time. The stretch spent at least a quarter of its time outside the green, so a landed try is always clearly better than the Take; a shorter try cannot land, as the ball needs about 10 s of talk without a pause to leave the green (N243) |
-| A try that came closer | The ball in the green more than half the time: Will's comment and a push for one more, while a try is left (N243) |
+| How many tries | Up to three; a try that lands ends the game (N245) |
+| When a try lands | It runs at least 20 s from the first word, and the ball is in the green four fifths of that time. The stretch spent at least a quarter of its time outside the green, so a landed try is always clearly better than the Take; a shorter try cannot land, as the ball needs about 10 s of talk without a pause to leave the green (N245) |
+| A try that came closer | The ball in the green more than half the time: Will's comment and a push for one more, while a try is left (N245) |
 | A noisy room | The quiet-spot line only; no listening check |
 
 **The build, in order** (N166 item 5):
@@ -1188,7 +1188,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-28 · N243 · the tempo step (the Sniper) guides the tries: a try that lands (20 s or more from the first word, the ball four fifths in the green) gets "That landed. 🎯 Really better. Let's move on." and Next, on any try; one that came closer gets "Better. You let it breathe." and "You're close. 💪 Give it one more try."; otherwise its comment; up to three tries, then the closing line. Was: Practise again after every try, See how it went from the second, the close only after the third or on the speaker's choice (founder 2026-10-28: "If it was really better, you let me go to the next step") · BE (decisions log), FE (this PR)
+- 2026-10-28 · N245 · the tempo step (the Sniper) guides the tries: a try that lands (20 s or more from the first word, the ball four fifths in the green) gets "That landed. 🎯 Really better. Let's move on." and Next, on any try; one that came closer gets "Better. You let it breathe." and "You're close. 💪 Give it one more try."; otherwise its comment; up to three tries, then the closing line. Was: Practise again after every try, See how it went from the second, the close only after the third or on the speaker's choice (founder 2026-10-28: "If it was really better, you let me go to the next step") · BE (decisions log), FE (this PR)
 - 2026-10-28 · — (H1) · wording: a try is better when its voice score (S) rises by the margin, +0.05, over the original clip, as built (`after_practice.GOOD_JOB_MARGIN`) and as N84 says ("on the voice alone"); was "Δ willfidence", which reads as voice × words. No rule changes (founder 2026-10-28: "fix the doc wording to say voice score") · FE (this PR)
 - 2026-10-28 · N237 · built: a WhatsApp reply that says STOP turns the messages off for every account at that number, as Remove does (the number it signs in with stays, N235), a booking that carries the number forgets it (N233), and WhatsApp answers "Done. We've stopped the WhatsApp messages and deleted your number." (signed, N174); any other reply is not read yet (N171 item 6). Off until its two keys are on Railway and the webhook is set in Meta · BE #1450, FE (this PR)
 - 2026-10-28 · — (C3, B10) · fixed: helper words are editable on any part of the thread: a tap on a picker the walk does not stand on stands the walk there, the tap counts, and its buttons bring the walk back to where it stood; never while the recorder is in the dock (B9). Was: only the part the walk stood on took a tap, so a walk opened on a later step (the Feedback walk on its newest step) showed "0 of 8 words" pickers that did nothing (founder 2026-10-28: "I click the helper words, they don't mark on orange, so I cannot choose the helper words") · FE (this PR)

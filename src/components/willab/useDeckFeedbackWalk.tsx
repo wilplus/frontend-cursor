@@ -822,7 +822,7 @@ export function useDeckFeedbackWalk(args: {
     void to.append(walkStepDraft({ ...entry, take: on, arcId, takeIndex })).catch(() => undefined);
   }, []);
   /* The tempo step in the chat and for Will (N166 step 4): its opening
-     lines, each try and Will's word on it (N243), the closing line unless a
+     lines, each try and Will's word on it (N245), the closing line unless a
      try landed, as Lounge messages like every other step; the game itself
      kept for Will's note. */
   const onTempo = useCallback(

@@ -5,7 +5,7 @@
 /*                                                                            */
 /*  The stretch of the Take the speaker rushed or dragged is played back;     */
 /*  they talk about it again while the scale follows them. Will guides the    */
-/*  tries (N243): a try that lands ends the game; one that came closer gets   */
+/*  tries (N245): a try that lands ends the game; one that came closer gets   */
 /*  a push for one more; up to three tries, then one closing line. Pure: what */
 /*  a try's path means, what Will says to it, and which line closes the step. */
 /*  Words only, never a number (Never 1).                                     */
@@ -23,7 +23,7 @@ export const TEMPO_MAX_TRIES = 3;
 /** One point of a try's path every 200 ms (a minute is the backend's 300). */
 export const TEMPO_PATH_EVERY_MS = 200;
 
-/** A try lands, and the walk goes on (N243), when it runs at least 20 s
+/** A try lands, and the walk goes on (N245), when it runs at least 20 s
  *  from the first word and the ball stays in the green four fifths of that
  *  time. The stretch it practises spent at least a quarter of its time
  *  outside the green (backend tempo_stretch.MIN_OUTSIDE), so a landed try is
@@ -49,7 +49,7 @@ export type TempoTry = "ok" | "rush" | "slow";
 export type TempoClose = "dynamic" | "rush" | "slow";
 
 /** What the step tells its host as it goes (N166 step 4): it opened, a try
- *  was read (and whether it landed, N243), or the game ended (each try's
+ *  was read (and whether it landed, N245), or the game ended (each try's
  *  result and path, how it ended, none when skipped before a try, and
  *  whether a try landed). The host writes the chat and keeps the game for
  *  Will. */
@@ -78,14 +78,14 @@ export function readTry(path: readonly number[]): TempoTry {
   return shareOf(said, (v) => v > 0.75) >= shareOf(said, (v) => v < 0.25) ? "rush" : "slow";
 }
 
-/** Whether a try lands (N243): long enough to tell, and the ball in the
+/** Whether a try lands (N245): long enough to tell, and the ball in the
  *  green four fifths of the time. Will then lets the speaker move on. */
 export function landed(path: readonly number[]): boolean {
   const said = spoken(path);
   return said.length >= LAND_MIN_POINTS && shareOf(said, inGreen) >= LAND_GREEN_SHARE;
 }
 
-/** What Will says after try `n` (N243): a landed try, and the walk goes on;
+/** What Will says after try `n` (N245): a landed try, and the walk goes on;
  *  a try that came closer, its comment and a push for one more while a try
  *  is left; otherwise the side it leaned to. The speaker never has to
  *  decide whether to go again. */
@@ -118,7 +118,7 @@ export const TEMPO_STAND_IN: TempoStretch = {
 };
 
 /** The step's words, signed by the founder 2026-10-26 (backend N179) and
- *  2026-10-28 (`landed`, `push`, backend N243; the walk's page §1 K). A
+ *  2026-10-28 (`landed`, `push`, backend N245; the walk's page §1 K). A
  *  change to any of them needs the founder's OK (Never 4). */
 export const TEMPO_COPY = {
   mark: "Tempo",

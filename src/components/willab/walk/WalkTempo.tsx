@@ -30,7 +30,7 @@ import { WalkSpeakerBubble, useMountedAsPast } from "./WalkThread";
 /*  spot); under them the scale, asleep, with I'm ready and Skip. I'm ready   */
 /*  wakes the scale and the recording bar; nothing else lands until Stop.    */
 /*  Each try: the dot's path as the speaker's bubble, then Will's word on it */
-/*  (N243). A try that lands ends the game with Next; one that came closer   */
+/*  (N245). A try that lands ends the game with Next; one that came closer   */
 /*  gets a push, and Practise again; Will decides, not the speaker. After    */
 /*  the third, the closing line comes by itself; Next goes on with the walk. */
 /*                                                                            */
