@@ -116,30 +116,44 @@ it is built in.
    the number's country code decides; one line on the form switches; a failed
    WhatsApp delivery falls back to SMS, never both. The link always opens the
    latest shared Take.
-3. **The answer is a chat**, the app's shape in the client's colours: a top
-   bar with the answerer's photo from her WillpowerLab profile and "{name}
-   answered you"; then the thread: what the customer asked, as their bubble;
-   the answerer's routine; her voice and her full answer; the recommendation
-   as a card (N228).
-4. **One thing to do, in the dock**, where the message box would be: Book
-   {the treatment}, or Skip. A product recommendation shows Add to cart
-   instead; an answer that recommends nothing shows no dock. Never two
-   actions (N225 item 2).
-5. **Booking, one question at a time, in the thread**: where (a ZIP or
+3. **The answer is a chat**, the Lounge's own parts in the client's colours
+   (N228, N231): a top bar with the answerer's photo from her WillpowerLab
+   profile and her name; then the thread: what the customer asked, as their
+   bubble; the answerer's routine; her voice and her full answer; why the
+   treatment; the treatment as a card.
+4. **The treatment is a card with its price**, tappable like the Ideal Text
+   card: its name, its length and the client's real price (for Invita, the
+   Deep Scalp Treatment, 75 minutes, $138 to $148 by spa). Tapping it starts
+   the booking (N231 item 2).
+5. **One ask at a time, in the footer**, as the Lounge's: the answerer's
+   question in the thread and its two equal buttons under it, Skip | Book. A
+   field sits in a grey footer card (the ZIP), a pick is tall options (the
+   spa, the day). A product recommendation asks Not now | Add to cart; an
+   answer that recommends nothing asks nothing (N225 item 2, N231 item 1).
+6. **Booking, one question at a time, in the thread**: where (a ZIP or
    postcode, or "Use my location"), asked only now and once; the client's
-   salons nearest first, with the days the answerer is there; the day. Each
-   answer lands as the customer's bubble. Then the answerer's last bubble:
-   booked, the day, the salon, the street, directions (N227).
-6. The cart and the booking are the client's own pages, opened with the
+   salons nearest first, with the days the answerer is there and each spa's
+   price; the day; then a summary (the treatment, the day and time, the spa,
+   its price) with Change | Confirm. Each answer lands as the customer's
+   bubble. Then the answerer's last bubble: booked, the day, the salon, the
+   street, directions (N227, N231 item 3).
+7. **Skip is not the end**: the answerer offers what she uses in the
+   treatment for home, as a card, with Not now | Add to cart (N231 item 4).
+8. **The message box whenever nothing is asked**: +, Type here, the mic, as
+   in the Lounge. The customer can always write, add a photo or record a voice
+   message to the answerer (N231 item 1).
+9. The cart and the booking are the client's own pages, opened with the
    request's code, so a purchase or a booking is the request's outcome.
-7. Every bubble keeps a shape WhatsApp can carry (text, voice, photo,
+10. Every bubble keeps a shape WhatsApp can carry (text, voice, photo,
    buttons, a list), so moving a client to WhatsApp is a change of transport,
    not of design (N228).
 
 ### F · Follow-ups
 
-1. A customer's reply lands in the answerer's chat like the request, as an
-   ask with the customer's words.
+1. What the customer writes in the message box, or a reply to the text
+   message, lands in the answerer's chat like the request, as an ask with the
+   customer's words. The answer comes back in the same thread, later; no
+   instant answer until a model answers alone (N225 item 5, N231 item 5).
 2. A follow-up may be typed in the card, no Take, sent the same way; the pair
    is still recorded. Record instead makes it Take 2 of the same project. The
    first answer to a request is always a Take (N226 item 4).
@@ -215,14 +229,19 @@ them:
   {customer} on WhatsApp · {time}", "{customer} replied to your answer.",
   "Record instead".
 - The message: "Your trichologist answered you. Listen here:" and the link.
-- The answer: "{name} answered you", "Your trichologist at {client}", "You
-  asked", "For the next three weeks", "What I recommend for a dry, irritated
-  scalp.", "Book the {treatment}", "Skip", "Where are you? So I book you at
-  the {client} nearest to you.", "ZIP code", "Use my location instead",
-  "Nearest to {zip}. I am at each on these days.", "Which day in {salon}?",
-  "Another spa", "Booked", "Directions", "See you there. Reply to the text if
-  anything changes.", "No problem. Reply to the text whenever you want to come
-  in.", "Done".
+- The answer: "{name}", "Your trichologist at {client}", "You asked", "For
+  the next three weeks", "For a dry, irritated scalp: buildup removal and
+  Milbon hydration.", "Would you like to book it? {length}, {price}
+  depending on the spa.", "Skip", "Book", "Where are you? So I book you at
+  the {client} nearest to you.", "Your ZIP code", "Use my location",
+  "Continue", "Nearest to {zip}. I'm at each on these days.", "Which day in
+  {salon}?", "Your booking", "Change", "Confirm", "Booked", "Directions",
+  "See you there. Write to me here if anything changes.", "No problem. If
+  coming in isn't easy, you can start at home:", "What I use in the
+  treatment, for every second day at home.", "Not now", "Add to cart", "In
+  your cart", "Go to checkout", "Write to me here once you've tried it, or
+  whenever you like.", "Of course. Write to me here whenever you like.",
+  "Type here", "Sent to Ariel. She answers here, usually the same day."
 
 ---
 
@@ -282,7 +301,7 @@ claude.ai link beside each is a convenience, never the only copy.
 
 The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/).
 
-- **The customer's side, on a phone** (2026-10-28, N227, N228; the newest):
+- **The customer's side, on a phone** (2026-10-28, N227, N228, N231; the newest):
   invitaheadspa.com with the widget, the popup, the form, the text message,
   the answer as a chat, the booking in the thread. PDF
   [`2-customer-side-on-a-phone.pdf`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/2-customer-side-on-a-phone.pdf) ·
@@ -312,4 +331,5 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N231 · E3 to E8 and F1: the Lounge's own parts in the customer's chat, the treatment card with its price, the booking's summary, Skip to the product at home, the message box whenever nothing is asked. Was: one action in the dock (Book or Skip), Skip ended the chat, no way to write back · BE #1440, FE (this PR)
 - 2026-10-28 · N229 · the page starts, from N223 to N228, with its prototypes kept in the backend repo as HTML and PDF; nothing built. The widget's overlay stayed on the page after "Not now" (the shadow root ignored `hidden`); fixed in the prototypes before they were kept · BE (the log, the master doc's line, the prototypes), FE (this PR)
