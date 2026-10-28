@@ -70,7 +70,7 @@ import { useUserEmail } from "./useUserEmail";
 import { useReviewTempo } from "./walk/useReviewTempo";
 import { useRingState } from "@/hooks/useRingState";
 import { postTempoGame } from "@/services/api/reviewTempo";
-import { TEMPO_COPY, TEMPO_STEP_FEATURE, type TempoEvent } from "@/lib/willab/tempoStep";
+import { TEMPO_COPY, TEMPO_STEP_FEATURE, afterTry, type TempoEvent } from "@/lib/willab/tempoStep";
 
 /* -------------------------------------------------------------------------- */
 /*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
@@ -823,8 +823,9 @@ export function useDeckFeedbackWalk(args: {
     void to.append(walkStepDraft({ ...entry, take: on, arcId, takeIndex })).catch(() => undefined);
   }, []);
   /* The tempo step in the chat and for Will (N166 step 4): its opening
-     lines, each try and its comment, the closing line, as Lounge messages
-     like every other step; the game itself kept for Will's note. */
+     lines, each try and Will's word on it (N245), the closing line unless a
+     try landed, as Lounge messages like every other step; the game itself
+     kept for Will's note. */
   const onTempo = useCallback(
     (event: TempoEvent) => {
       if (!tempo) return;
@@ -834,10 +835,10 @@ export function useDeckFeedbackWalk(args: {
         say("tempo:open", "app", [TEMPO_COPY.game[tempo.reading], TEMPO_COPY.task(tempo.topic), TEMPO_COPY.room].join("\n"));
       } else if (event.kind === "try") {
         say("tempo:try", "speaker", TEMPO_COPY.tryLabel(event.n), event.n);
-        say("tempo:comment", "app", TEMPO_COPY.comment[event.result], event.n);
+        say("tempo:comment", "app", afterTry(event.result, event.landed, event.n).join("\n"), event.n);
       } else {
-        if (event.close) say("tempo:close", "app", TEMPO_COPY.close[event.close]);
-        else say("tempo:skip", "speaker", TEMPO_COPY.skip);
+        if (!event.close) say("tempo:skip", "speaker", TEMPO_COPY.skip);
+        else if (!event.tries.some((t) => t.landed)) say("tempo:close", "app", TEMPO_COPY.close[event.close]);
         const arcId = args.arcId ?? null;
         if (arcId && take) void postTempoGame(arcId, take, tempo.reading, event);
       }
