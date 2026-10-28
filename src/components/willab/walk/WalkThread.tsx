@@ -14,7 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import OverlayCloseButton from "../OverlayCloseButton";
 import { CHUNK_DELAY_MS, TypingGlyph } from "../TypingDots";
 import WalkFooter from "./WalkFooter";
@@ -120,13 +120,29 @@ export function WalkThreadMark({ label }: { label: string }) {
 }
 
 /** The speaker's own answer: their orange bubble on the right. */
-export function WalkSpeakerBubble({ children }: { children: ReactNode }) {
+export function WalkSpeakerBubble({ children, edited = false }: { children: ReactNode; edited?: boolean }) {
   return (
     <div data-walk-said className="flex justify-end">
       <span className="max-w-[88%] rounded-[22px] bg-primary px-[17px] py-[13px] text-[18.5px] leading-[1.45] text-primary-foreground">
         {children}
+        {edited ? (
+          <span data-walk-edited className="ml-2.5 whitespace-nowrap text-[13px] text-primary-foreground/80">
+            {WALK_COPY.edited}
+          </span>
+        ) : null}
       </span>
     </div>
+  );
+}
+
+/** "Edited" at the end of a grey bubble whose words changed after they were
+ *  said, small and grey, as WhatsApp marks an edited message (founder
+ *  2026-10-26, N192, B13). */
+export function WalkEdited() {
+  return (
+    <span data-walk-edited className="self-end text-[13px] text-muted-foreground">
+      {WALK_COPY.edited}
+    </span>
   );
 }
 
@@ -367,12 +383,13 @@ function LiveThread({
     follow.current = on;
     setFollowing(on);
   }, []);
-  // The bar: the mark in view, how many there are, and the standing part's.
-  const [bar, setBar] = useState<{ label: string | null; at: number; of: number; now: number }>({
+  // The bar: the mark in view, how many there are, and whether the thread
+  // is scrolled away from the standing part.
+  const [bar, setBar] = useState<{ label: string | null; at: number; of: number; away: boolean }>({
     label: null,
     at: -1,
     of: 0,
-    now: -1,
+    away: false,
   });
   // What the dock holds: any buttons, and whether they are the recorder.
   const [docked, setDocked] = useState({ any: false, recording: false });
@@ -400,17 +417,24 @@ function LiveThread({
     const el = nowEl();
     return !el || el.nextElementSibling === null;
   };
-  /** The standing part's name among the marks: the last mark in or above
-   *  it; the last mark when none is marked standing. -1 with no marks. */
-  const nowMark = useCallback((): number => {
-    const all = marks();
-    const el = nowEl();
-    if (!el) return all.length - 1;
-    let k = -1;
-    all.forEach((m, i) => {
-      if (el.contains(m) || (el.compareDocumentPosition(m) & Node.DOCUMENT_POSITION_PRECEDING) !== 0) k = i;
-    });
-    return k;
+  /** Scrolled away from the standing part (B9): none of it, from its name
+   *  to its last bubble, is in view. False when the thread marks no
+   *  standing part, or before the part has a size. (Until 2026-10-27 the
+   *  thread read "away" as the bar's mark differing from the standing
+   *  part's; the bar names the last mark above the upper 40% of the thread,
+   *  or the last mark at the bottom, so a standing part shorter than that,
+   *  or a thread that fits in view, counted as scrolled away the moment it
+   *  opened, and the dock gave way to a Next that scrolled nowhere.) */
+  const awayFromNow = useCallback((): boolean => {
+    const el = body.current;
+    const part = nowEl();
+    const first = part?.firstElementChild as HTMLElement | null;
+    const last = part?.lastElementChild as HTMLElement | null;
+    if (!el || !first || !last) return false;
+    const top = topIn(el, first);
+    const bottom = topIn(el, last) + last.offsetHeight;
+    if (bottom <= top) return false;
+    return bottom <= el.scrollTop || top >= el.scrollTop + el.clientHeight;
   }, []);
   /** The mark of the part in view: the last one above the upper 40% of the
    *  thread; at the bottom, the last one. -1 with none. */
@@ -429,12 +453,12 @@ function LiveThread({
   const readBar = useCallback(() => {
     const all = marks();
     const k = inView();
-    const now = nowMark();
+    const away = awayFromNow();
     const label = k >= 0 ? (all[k].dataset.walkMark ?? null) : null;
     setBar((was) =>
-      was.label === label && was.at === k && was.of === all.length && was.now === now ? was : { label, at: k, of: all.length, now },
+      was.label === label && was.at === k && was.of === all.length && was.away === away ? was : { label, at: k, of: all.length, away },
     );
-  }, [inView, nowMark]);
+  }, [inView, awayFromNow]);
   /** Sizes the room under the thread so the standing step's name can reach
    *  the top, on a door into a step already answered (N91). A live walk
    *  has none: its newest bubbles sit right above the buttons (N122).
@@ -559,7 +583,7 @@ function LiveThread({
 
   // Scrolled away from the step with the buttons, the dock reads Next:
   // back to that step (founder 2026-10-20). The recorder stays where it is.
-  const back = !following && docked.any && !docked.recording && bar.at >= 0 && bar.now >= 0 && bar.at !== bar.now;
+  const back = !following && docked.any && !docked.recording && bar.away;
 
   const label = bar.label ?? undefined;
   return (

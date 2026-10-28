@@ -33,6 +33,7 @@ import {
   isOpen,
   type AnswerValue,
   type QueueMoment,
+  type QueuePlan,
   type QueueSpeaker,
   type QueueTake,
 } from "./coachWalk";
@@ -67,6 +68,16 @@ export type MomentScreen = {
 /** A word for this Take, and its video (flow step 13). */
 export type TakeScreen = { key: "takeword" | "takevideo"; speaker: QueueSpeaker; take: QueueTake };
 
+/** The speaker's plan (backend N213): "Which level comes first?", blind,
+ *  then What happened; a stuck level's video, then Ready for {p}. */
+export type PlanScreen = {
+  key: "planlevel" | "planreveal" | "planvideo" | "planshare";
+  speaker: QueueSpeaker;
+  plan: QueuePlan;
+};
+
+const PLAN_KEYS: ReadonlySet<string> = new Set<PlanScreen["key"]>(["planlevel", "planreveal", "planvideo", "planshare"]);
+
 export type PanelScreen =
   | { key: "lounge" }
   | { key: "queue" }
@@ -83,7 +94,8 @@ export type PanelScreen =
   /** Will's questions after a Take, the founder's only (N83). */
   | { key: "willbank" }
   | MomentScreen
-  | TakeScreen;
+  | TakeScreen
+  | PlanScreen;
 
 /** Where this visit has left a moment: answered ("done"), reopened by Change
  *  my answer ("open"), or passed with nothing to answer ("passed"). */
@@ -135,7 +147,13 @@ export type PanelAction =
   /** Change my answer: the moment opens again at its choice. */
   | { type: "changeAnswer"; to: "decide" | "diagnose" }
   /** A word for this Take: on to its video. */
-  | { type: "takeVideo" };
+  | { type: "takeVideo" }
+  /** The speaker's plan opens: a level to pick, or a stuck level's video. */
+  | { type: "plan"; speaker: QueueSpeaker }
+  /** The plan's next screen: What happened after the pick, Ready after the video. */
+  | { type: "planStep"; key: "planreveal" | "planshare" }
+  /** The plan answered ("Keep yours", "Share with {p}", "Audio unclear"): the queue. */
+  | { type: "planDone" };
 
 export const PANEL_START: PanelState = { screen: { key: "lounge" }, history: [], rated: {}, marks: {} };
 
@@ -172,6 +190,23 @@ export function isMomentScreen(screen: PanelScreen): screen is MomentScreen {
   return MOMENT_KEYS.has(screen.key);
 }
 
+export function isPlanScreen(screen: PanelScreen): screen is PlanScreen {
+  return PLAN_KEYS.has(screen.key);
+}
+
+/** The plan opens where it waits: the five levels, or a stuck level's video. */
+function openPlan(state: PanelState, speaker: QueueSpeaker): PanelState {
+  const plan = speaker.plan;
+  if (!plan) return state;
+  return push(state, { key: plan.kind === "stuck" ? "planvideo" : "planlevel", speaker, plan });
+}
+
+function planStep(state: PanelState, key: "planreveal" | "planshare"): PanelState {
+  const { screen } = state;
+  if (!isPlanScreen(screen)) return state;
+  return push(state, { ...screen, key });
+}
+
 /** The moment a screen is about, if any. */
 export function momentOf(screen: PanelScreen): QueueMoment | null {
   if (!isMomentScreen(screen)) return null;
@@ -184,6 +219,7 @@ function sameScreen(a: PanelScreen, b: PanelScreen): boolean {
   if (a.key === "corpusimport" && b.key === "corpusimport") return a.setupOf === b.setupOf;
   if (a.key === "corpus" && b.key === "corpus") return a.importId === b.importId;
   if ((a.key === "takeword" || a.key === "takevideo") && "take" in a && "take" in b) return a.take.sessionId === b.take.sessionId;
+  if (isPlanScreen(a) && isPlanScreen(b)) return a.plan.planId === b.plan.planId;
   const ma = momentOf(a);
   const mb = momentOf(b);
   return ma?.snippetId === mb?.snippetId;
@@ -351,6 +387,12 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
       return changeAnswer(state, action.to);
     case "takeVideo":
       return state.screen.key === "takeword" ? push(state, { ...state.screen, key: "takevideo" }) : state;
+    case "plan":
+      return openPlan(state, action.speaker);
+    case "planStep":
+      return planStep(state, action.key);
+    case "planDone":
+      return fresh(state, { key: "queue" }, "back");
     default:
       return state;
   }
@@ -365,6 +407,7 @@ export function walkScreenOf(screen: PanelScreen): WalkScreen {
   if (screen.key === "corpusimport") return { key: "corpusimport", kind: screen.setupOf ?? "new" };
   if (screen.key === "corpus") return { key: "corpus", kind: screen.importId };
   if (screen.key === "speaker") return { key: "speaker", kind: screen.speaker.pseudonym };
+  if (isPlanScreen(screen)) return { key: screen.key, kind: screen.plan.planId };
   if (!isMomentScreen(screen)) return { key: screen.key, kind: screen.take.sessionId };
   return { key: screen.key, moment: screen.index, kind: `${screen.take.sessionId}${screen.exerciseId ? `:${screen.exerciseId}` : ""}` };
 }

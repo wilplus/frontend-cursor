@@ -1,4 +1,4 @@
-import type { HorizonKey, LifeGoal, SpaceKey, StepKey } from "@/services/api/lifeGoals";
+import type { ClashOption, HorizonKey, LifeGoal, SpaceKey, StepKey } from "@/services/api/lifeGoals";
 
 /* -------------------------------------------------------------------------- */
 /*  Life goals — the lens's rules that are not drawing (backend N172; rules:   */
@@ -62,6 +62,28 @@ export const LIFE_GOALS_COPY = {
   stillFits: "Yes, it still fits",
   changeToo: "Change it too",
   changedOn: (date: string) => `Noted. Changed on ${date}.`,
+  // N185: the clash between two goals (M12).
+  whichWins: "When they clash, which wins?",
+  eachTime: "I decide each time",
+  clashNoted: "Noted. On both ladders:",
+  whenClash: (who: string) => `when they clash, ${who}.`,
+  wins: (label: string) => `${label.charAt(0).toLowerCase()}${label.slice(1)} wins`,
+  youDecide: "you decide each time",
+  // N172 M13, N186: the quarter comes back.
+  didItMove: "Did it move?",
+  outcomes: [
+    { key: "got_there", emoji: "🎯", label: "It got there" },
+    { key: "moved", emoji: "↗️", label: "It moved" },
+    { key: "stalled", emoji: "⏸️", label: "It stalled" },
+  ],
+  inTheWay: "What got in the way?",
+  notesToo: "Your notes said it too:",
+  moveForward: (by: string) => `What would move it forward by ${by}?`,
+  // N197: the ladders on the Life Panel's Goals screen (M15).
+  history: "History",
+  hideHistory: "Hide history",
+  setOn: (date: string) => `Set on ${date}`,
+  addGoal: "＋ Add a goal",
   noted: "Noted.",
   accept: "Accept",
   edit: "Edit",
@@ -83,7 +105,10 @@ export const LIFE_GOALS_COPY = {
     quarter: "THIS QUARTER",
     nextQuarter: "NEXT QUARTER",
     talk: "TALK GOAL",
+    week: "THIS WEEK",
+    clash: "WHEN THEY CLASH",
   },
+  fromPractice: "from your practice",
   by: (when: string) => `by ${when}`,
   changed: (date: string) => `changed ${date}`,
   earlier: "Earlier:",
@@ -163,6 +188,14 @@ export function quarterQuestion(by: string, weeks: string, target: string | null
     : `What must be true ${when}?`;
 }
 
+/** The last day of the quarter after the one ending on ``iso`` (M13):
+ *  "31 March" after "2026-12-31". */
+export function nextQuarterBy(iso: string): string {
+  const [year, month] = iso.slice(0, 10).split("-").map(Number);
+  const end = new Date(year, Math.floor((month - 1) / 3) * 3 + 6, 0);
+  return `${end.getDate()} ${MONTHS[end.getMonth()]}`;
+}
+
 /** "3 November" for a change's ISO date. */
 export function dayLabel(iso: string): string {
   const [year, month, day] = iso.slice(0, 10).split("-").map(Number);
@@ -170,7 +203,9 @@ export function dayLabel(iso: string): string {
 }
 
 export type Rung = {
-  step: "goal" | "want" | "give" | StepKey | "quarter" | "talk";
+  step: "goal" | "want" | "give" | StepKey | "quarter" | "talk" | "week" | "clash";
+  /** On a clash: the other goal's id. */
+  with?: string;
   label: string;
   /** The small grey words after the label: when, and when it changed. */
   note: string | null;
@@ -179,11 +214,11 @@ export type Rung = {
 };
 
 /** The ladder's rows, top to bottom (M10); a skipped step is left out. */
-export function ladderRungs(goal: Pick<LifeGoal, "ladder" | "changes" | "talk">): Rung[] {
+export function ladderRungs(goal: Pick<LifeGoal, "ladder" | "changes" | "talk" | "week">): Rung[] {
   const { ladder } = goal;
   const changes = goal.changes ?? {};
   const rungs: Rung[] = [];
-  const push = (step: Rung["step"], label: string, text: string | undefined, when?: string | null) => {
+  const push = (step: Exclude<Rung["step"], "week">, label: string, text: string | undefined, when?: string | null) => {
     if (!text) return;
     const change = changes[step];
     const note = [when ? LIFE_GOALS_COPY.by(when) : null, change ? LIFE_GOALS_COPY.changed(dayLabel(change.on)) : null]
@@ -198,5 +233,27 @@ export function ladderRungs(goal: Pick<LifeGoal, "ladder" | "changes" | "talk">)
   for (const step of ["y10", "y3", "y1"] as const) push(step, L[step], ladder.steps?.[step]?.text, ladder.steps?.[step]?.by);
   push("quarter", ladder.quarter?.next ? L.nextQuarter : L.quarter, ladder.quarter?.text, ladder.quarter?.by);
   push("talk", L.talk, goal.talk);
+  // This week's level comes from the plan's practice, read-only (M10; the
+  // plan's G5): never a row with ›.
+  if (goal.week) rungs.push({ step: "week", label: L.week, note: LIFE_GOALS_COPY.fromPractice, text: goal.week, earlier: null });
+  for (const clash of ladder.clashes ?? []) {
+    push("clash", L.clash, clash.text);
+    rungs[rungs.length - 1].with = clash.with;
+  }
   return rungs;
+}
+
+/** The answers to "When they clash, which wins?" for two goals, as the
+ *  backend names them: the space, or the first words when both share one. */
+export function clashOptions(goal: Pick<LifeGoal, "id" | "space" | "ladder">, other: Pick<LifeGoal, "id" | "space" | "ladder">): ClashOption[] {
+  const twin = goal.space === other.space;
+  const label = (g: typeof goal) => {
+    if (!twin) return SPACES[g.space].name;
+    const words = (g.ladder.goal ?? SPACES[g.space].name).split(/\s+/);
+    return words.slice(0, 4).join(" ") + (words.length > 4 ? "…" : "");
+  };
+  return [
+    ...[goal, other].map((g) => ({ wins: g.id, emoji: SPACES[g.space].emoji, label: label(g) })),
+    { wins: "each_time", emoji: "⚖️", label: LIFE_GOALS_COPY.eachTime },
+  ];
 }

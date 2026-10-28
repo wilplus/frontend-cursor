@@ -101,8 +101,9 @@ export interface ChatQueryResponse {
   take_card?: { arc_id: string; version?: number | null; topic?: string | null } | null;
   /** True only when the backend durably stored the signed-in bot turn. */
   persisted?: boolean;
-  /** What the backend stored on its reply row; `whatsapp: "saved"` when a
-   *  number typed under the WhatsApp ask was saved (founder 2026-10-20). */
+  /** What the backend stored on its reply row; `whatsapp: "check"` with the
+   *  `phone` when a full number was typed under the WhatsApp ask (backend
+   *  N235: its code comes next), "invalid" without its country code. */
   row_metadata?: Record<string, unknown> | null;
   /** The turn passed the Take's ask and the message after the Take is now
    *  under the reply (founder 2026-10-20, one action at a time): read the

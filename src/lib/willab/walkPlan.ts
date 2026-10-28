@@ -220,8 +220,9 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
 }
 
 /** The screens that follow one answer from the machine on a practise try.
- *  Praise: the praise after a try, then on (helper words come only after
- *  green moments; lock 2026-10-12, section 2.5). Again: encouragement,
+ *  Praise: the praise after a try, then on (a correction's helper words
+ *  follow it, laid in by goodJobHelpers, N220; until then they came only
+ *  after green moments, lock 2026-10-12, section 2.5). Again: encouragement,
  *  then the next try; after the last allowed try that is not praise, the
  *  signed thank-you (CM3b) and the walk moves on. */
 export function afterTry(practise: WalkStep, outcome: TryOutcome): WalkStep[] {
@@ -237,6 +238,16 @@ export function afterTry(practise: WalkStep, outcome: TryOutcome): WalkStep[] {
     { key: "encourage", ...base, attempt },
     { ...practise, attempt: attempt + 1 },
   ];
+}
+
+/** The helper words a Good job opens (founder 2026-10-27, N220: "if you
+ *  improved, you can make it your habit words"): a correction's practise
+ *  that ends on a Good job is followed by its moment's helper words, as a
+ *  praise is. A moment the plan already gives them (a praise, N113) keeps
+ *  its one step. `improved` is the Good job; `plan` the walk it lands in. */
+export function goodJobHelpers(plan: readonly WalkStep[], improved: WalkStep): WalkStep[] {
+  if (improved.moment == null || plan.some((s) => s.key === "helpers" && s.moment === improved.moment)) return [];
+  return [{ key: "helpers", moment: improved.moment, slide: improved.slide, ...(improved.readOnly ? { readOnly: true } : {}) }];
 }
 
 /** The plan with a sequence of machine answers laid in, moment by moment.
@@ -261,6 +272,7 @@ export function withOutcomes(
         continue;
       }
       out.push(...next.filter((s) => s.key !== "practise"));
+      if (answers[i] === "praise") out.push(...goodJobHelpers(plan, current));
       break;
     }
   }

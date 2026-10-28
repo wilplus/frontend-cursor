@@ -4,6 +4,7 @@
     "dub1"
   ],
   "fluid": true,
+  "ignoreCommand": "bash scripts/vercel-ignore-build.sh",
   "git": {
     "deploymentEnabled": {
       "*": false,

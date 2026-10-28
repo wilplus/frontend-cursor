@@ -6,6 +6,7 @@ import { prefetchChatBoot } from "@/services/api/bootPrefetch";
 import { markChatBootStarted } from "@/lib/chatBoot";
 import { hasParkedReadout } from "./willabParked";
 import { clearReviewPending } from "./sendStatus";
+import { feelingsDue } from "@/services/api/plan";
 
 /* -------------------------------------------------------------------------- */
 /*  useWillabFlow — the willab-beta state machine (§8)                         */
@@ -260,7 +261,10 @@ export function useWillabFlow(): UseWillabFlowReturn {
   /** Past the picker, a known project resumes its stored setup. */
   const startRecordingSetup = useCallback(() => {
     clearReviewPending();
-    setState("lab_prerecord");
+    // With a plan, every Take but its first gets "How do you feel?", with a
+    // Skip (docs/flows/the-plan.md D4); the check then goes on to the
+    // project's stored setup as before.
+    setState(feelingsDue() ? "lab_feelings" : "lab_prerecord");
   }, []);
   /** A brand-new project gets the existing emotion check exactly once, before
    *  Take 1. Subsequent takes use startRecordingSetup above and skip it. */

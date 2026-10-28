@@ -11,7 +11,9 @@ import {
   SPACE_ORDER,
   STEPS_BACK,
   horizonDate,
+  clashOptions,
   ladderRungs,
+  nextQuarterBy,
   quarterEnd,
   quarterQuestion,
   stepDate,
@@ -20,11 +22,18 @@ import {
   type Rung,
 } from "@/lib/willab/lifeGoals";
 import {
+  answerClash,
   answerLifeGoalsAsk,
+  answerNoteChange,
+  answerQuarterAsk,
   changeStep,
+  checkClash,
   draftGoal,
   finishGoal,
   getLifeGoals,
+  quarterDue,
+  quarterNotes,
+  reviewQuarter,
   redraftGoal,
   saveDraft,
   transcribeAnswer,
@@ -57,20 +66,25 @@ import { WalkLink, WalkPill } from "./walk/WalkFooter";
 /* -------------------------------------------------------------------------- */
 
 export type LensOpen = {
-  mode: "add" | "see";
+  /** "quarter": the quarter came back for ``goalId`` (M13). */
+  mode: "add" | "see" | "quarter";
   /** The ask said what they want ("I want to get healthier"). */
   said?: string;
   space?: SpaceKey;
   /** See one goal only (its ladder bubble's ›). */
   goalId?: string;
+  /** Change this step of ``goalId`` at once: a step tapped on the Life
+   *  Panel's ladder (M15, N197). ``with`` names the other goal of a clash. */
+  step?: Rung["step"];
+  with?: string;
 };
 
-type Item = { id: number; who: "will" | "me"; node: ReactNode };
+export type Item = { id: number; who: "will" | "me"; node: ReactNode };
 
 /** The lens was closed: the script stops where it stands. */
-class Closed extends Error {}
+export class Closed extends Error {}
 
-type Ui = {
+export type Ui = {
   add: (who: Item["who"], node: ReactNode) => void;
   typing: (on: boolean) => void;
   dock: (node: ReactNode) => void;
@@ -79,7 +93,7 @@ type Ui = {
   fast: { current: boolean };
 };
 
-function script(ui: Ui) {
+export function script(ui: Ui) {
   const wait = (ms: number) =>
     new Promise<void>((resolve, reject) =>
       setTimeout(() => (ui.alive() ? resolve() : reject(new Closed())), ui.fast.current ? 0 : ms),
@@ -113,15 +127,15 @@ function script(ui: Ui) {
   return { say, me, ask, fast: ui.fast };
 }
 
-type Script = ReturnType<typeof script>;
+export type Script = ReturnType<typeof script>;
 
 /* ── The dock ──────────────────────────────────────────────────────────── */
 
-type Tap = { emoji?: string; label: string };
+export type Tap = { emoji?: string; label: string };
 
 /** The judgement's tall full-width answers (C8): the one tapped fills black,
  *  holds a moment, then lands as the speaker's bubble. */
-function TapsDock({ options, onPick }: { options: readonly Tap[]; onPick: (index: number) => void }) {
+export function TapsDock({ options, onPick }: { options: readonly Tap[]; onPick: (index: number) => void }) {
   const [held, setHeld] = useState<number | null>(null);
   return (
     <div className="flex flex-col gap-2.5 px-5 pb-[max(30px,env(safe-area-inset-bottom))] pt-2">
@@ -151,11 +165,11 @@ function TapsDock({ options, onPick }: { options: readonly Tap[]; onPick: (index
   );
 }
 
-function DockColumn({ children }: { children: ReactNode }) {
+export function DockColumn({ children }: { children: ReactNode }) {
   return <div className="flex flex-col gap-2 px-5 pb-[max(30px,env(safe-area-inset-bottom))] pt-2">{children}</div>;
 }
 
-const FIELD =
+export const FIELD =
   "w-full resize-none rounded-2xl border-[1.5px] border-border bg-background px-3.5 py-3 text-[17px] leading-[1.5] text-foreground placeholder:text-muted-foreground focus:border-foreground focus:outline-none";
 
 /** Said with the small mic, or typed; Skip leaves it. ``null`` is a skip. */
@@ -164,7 +178,7 @@ function WordsDock({ onAnswer }: { onAnswer: (text: string | null) => void }) {
   const [sending, setSending] = useState(false);
   const note = useVoiceNote({
     maxSeconds: 300,
-    onDone: async (audio) => {
+    onDone: async ({ audio }) => {
       setSending(true);
       const words = await transcribeAnswer(audio);
       setSending(false);
@@ -230,7 +244,7 @@ function WordsDock({ onAnswer }: { onAnswer: (text: string | null) => void }) {
 
 /** A field with the words, a black pill to keep them, and Back when there is
  *  somewhere to go back to. */
-function EditorDock({
+export function EditorDock({
   value,
   label,
   onKeep,
@@ -277,7 +291,7 @@ export function LadderCard({
   onPick,
   small = false,
 }: {
-  goal: Pick<LifeGoal, "space" | "ladder" | "changes" | "talk">;
+  goal: Pick<LifeGoal, "space" | "ladder" | "changes" | "talk" | "week">;
   onPick?: (rung: Rung) => void;
   small?: boolean;
 }) {
@@ -288,9 +302,9 @@ export function LadderCard({
         {space.emoji} {space.name}
       </b>
       {ladderRungs(goal).map((rung) =>
-        onPick ? (
+        onPick && rung.step !== "week" ? (
           <button
-            key={rung.step}
+            key={`${rung.step}${rung.with ?? ""}`}
             type="button"
             onClick={() => onPick(rung)}
             className="relative block w-full border-t border-foreground/10 py-1.5 pr-7 text-left first-of-type:border-t-0"
@@ -299,7 +313,7 @@ export function LadderCard({
             <ChevronRight aria-hidden className="absolute right-0 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           </button>
         ) : (
-          <span key={rung.step} className="block py-0.5">
+          <span key={`${rung.step}${rung.with ?? ""}`} className="block py-0.5">
             <RungBody rung={rung} small={small} />
           </span>
         ),
@@ -445,7 +459,29 @@ async function addGoal(ctx: Ctx, open: LensOpen): Promise<void> {
   ladder.give = (await wordsAnswer(s)) ?? undefined;
   keep(sit, "give");
   await workBack(ctx, ladder, (key) => keep(sit, key));
+  await clash(sit);
   await setGoal(sit);
+}
+
+/** Before the ladder: a kept goal this one pulls against, and which wins
+ *  when they clash, once per pair (M12, N185). */
+async function clash(sit: Sitting): Promise<void> {
+  await sit.saving;
+  if (!sit.id) sit.id = (await saveDraft(null, sit.space, sit.ladder))?.id ?? null;
+  const found = sit.id && sit.ctx.state.goals.length ? await checkClash(sit.id) : null;
+  if (!sit.id || !found) return;
+  await sit.s.say(found.line, COPY.whichWins);
+  const option = found.options[await tapAnswer(sit.s, found.options)];
+  if (await answerClash(sit.id, found.with, option.wins)) await sayClashNoted(sit.s, option);
+}
+
+async function sayClashNoted(s: Script, option: { wins: string; label: string }): Promise<void> {
+  const who = option.wins === "each_time" ? COPY.youDecide : COPY.wins(option.label);
+  await s.say(
+    <span key="clash">
+      {COPY.clashNoted} <b>{COPY.whenClash(who)}</b>
+    </span>,
+  );
 }
 
 async function shownSpace(s: Script, space: SpaceKey): Promise<SpaceKey> {
@@ -610,7 +646,7 @@ const BELOW: Partial<Record<ChangeableStep, readonly ChangeableStep[]>> = {
   y1: ["quarter"],
 };
 
-const RUNG_NAME: Record<ChangeableStep, string> = {
+const RUNG_NAME: Record<ChangeableStep | "clash", string> = {
   goal: "Life goal",
   want: "A want, held knowingly",
   give: "Giving up",
@@ -619,6 +655,7 @@ const RUNG_NAME: Record<ChangeableStep, string> = {
   y1: "In a year",
   quarter: "This quarter",
   talk: "Talk goal",
+  clash: "When they clash",
 };
 
 function stepText(goal: LifeGoal, step: ChangeableStep): string | undefined {
@@ -630,10 +667,10 @@ async function seeGoals(ctx: Ctx, open: LensOpen): Promise<void> {
   const { s } = ctx;
   let goals = ctx.state.goals.filter((goal) => !open.goalId || goal.id === open.goalId);
   if (!goals.length) return;
-  type Pick = { goal: LifeGoal; step: ChangeableStep } | null;
+  type Pick = { goal: LifeGoal; rung: Rung } | null;
   const ladders = (pick: (value: Pick) => void) =>
     goals.map((goal) => (
-      <LadderCard key={`${goal.id}-${JSON.stringify(goal.changes)}`} goal={goal} onPick={(rung) => pick({ goal, step: rung.step as ChangeableStep })} />
+      <LadderCard key={`${goal.id}-${JSON.stringify(goal.changes)}-${JSON.stringify(goal.ladder.clashes)}`} goal={goal} onPick={(rung) => pick({ goal, rung })} />
     ));
   let resolvePick: ((value: Pick) => void) | null = null;
   const choose = (value: Pick) => resolvePick?.(value);
@@ -660,12 +697,48 @@ async function seeGoals(ctx: Ctx, open: LensOpen): Promise<void> {
       }
       return;
     }
-    const updated = await changeOne(ctx, pick.goal, pick.step);
+    if (pick.rung.step === "week") continue; // the plan's, never changed here
+    const updated =
+      pick.rung.step === "clash"
+        ? await changeClash(ctx, pick.goal, pick.rung.with)
+        : await changeOne(ctx, pick.goal, pick.rung.step);
     if (!updated) continue;
     changed = true;
-    goals = goals.map((goal) => (goal.id === updated.id ? updated : goal));
+    const other = updated.ladder.clashes?.find((c) => c.with === pick.rung.with);
+    goals = goals.map((goal) => {
+      if (goal.id === updated.id) return updated;
+      // The other ladder shows the same answer (N185).
+      if (pick.rung.step !== "clash" || goal.id !== pick.rung.with || !other) return goal;
+      const clashes = (goal.ladder.clashes ?? []).map((c) => (c.with === updated.id ? { ...c, wins: other.wins, text: other.text } : c));
+      return { ...goal, ladder: { ...goal.ladder, clashes } };
+    });
     await s.say(COPY.changedOn(dayLabel(new Date().toISOString())), ...ladders(choose));
   }
+}
+
+/** A step tapped on the Life Panel's ladder (M15): changed at once, then the
+ *  ladder as it is now. */
+async function changeTapped(ctx: Ctx, open: LensOpen): Promise<void> {
+  const goal = ctx.state.goals.find((g) => g.id === open.goalId);
+  if (!goal || !open.step || open.step === "week") return;
+  const updated =
+    open.step === "clash" ? await changeClash(ctx, goal, open.with) : await changeOne(ctx, goal, open.step);
+  if (updated) await ctx.s.say(COPY.changedOn(dayLabel(new Date().toISOString())), <LadderCard key="after" goal={updated} />);
+}
+
+/** A tapped WHEN THEY CLASH: asked again, the earlier answer kept (M12). */
+async function changeClash(ctx: Ctx, goal: LifeGoal, otherId: string | undefined): Promise<LifeGoal | null> {
+  const { s } = ctx;
+  const other = ctx.state.goals.find((g) => g.id === otherId);
+  if (!other) return null;
+  await s.me(RUNG_NAME.clash);
+  await s.say(COPY.whichWins);
+  const options = clashOptions(goal, other);
+  const option = options[await tapAnswer(s, options)];
+  const kept = await answerClash(goal.id, other.id, option.wins);
+  if (!kept) return null;
+  await ctx.refresh();
+  return kept.goal;
 }
 
 async function changeOne(ctx: Ctx, goal: LifeGoal, step: ChangeableStep): Promise<LifeGoal | null> {
@@ -700,18 +773,55 @@ async function changeOne(ctx: Ctx, goal: LifeGoal, step: ChangeableStep): Promis
   return updated;
 }
 
+/** The quarter came back (M13, N186): did it move, what got in the way,
+ *  their own notes when some match, the next quarter's step. Never a score. */
+async function quarterBack(ctx: Ctx, open: LensOpen): Promise<void> {
+  const { s } = ctx;
+  const goal = ctx.state.goals.find((g) => g.id === open.goalId);
+  const quarter = goal?.ladder.quarter;
+  if (!goal || !quarter) return;
+  await s.say(<LadderCard key="ladder" goal={goal} />, COPY.didItMove);
+  const outcome = COPY.outcomes[await tapAnswer(s, COPY.outcomes)].key;
+  let inTheWay: string | null = null;
+  if (outcome !== "got_there") {
+    await s.say(COPY.inTheWay);
+    inTheWay = await wordsAnswer(s);
+    const notes = inTheWay ? await quarterNotes(goal.id, inTheWay) : [];
+    if (notes.length) {
+      await s.say(
+        COPY.notesToo,
+        ...notes.map((note) => (
+          <span key={`${note.on}${note.text}`}>
+            “{note.text}” <span className="text-muted-foreground">· {note.on}</span>
+          </span>
+        )),
+      );
+    }
+  }
+  const ended = quarter.asked ?? quarter.on ?? new Date().toISOString().slice(0, 10);
+  await s.say(COPY.moveForward(nextQuarterBy(ended)));
+  const next = await wordsAnswer(s);
+  const updated = await reviewQuarter(goal.id, outcome, inTheWay, next);
+  if (updated) await s.say(<LadderCard key="after" goal={updated} />, COPY.noted);
+  await ctx.refresh();
+  await ctx.reload();
+}
+
 /* ── The lens ──────────────────────────────────────────────────────────── */
 
-function LensFrame({
+export function LensFrame({
   items,
   typing,
   dock,
   onClose,
+  label = COPY.bar,
 }: {
   items: readonly Item[];
   typing: boolean;
   dock: ReactNode;
   onClose: () => void;
+  /** The bar's name: "Life goals", or "Sunday note" (L3). */
+  label?: string;
 }) {
   const body = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -722,16 +832,16 @@ function LensFrame({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={COPY.bar}
+      aria-label={label}
       data-life-goals-lens
       className="walk-ov flex h-full w-full flex-col bg-background pt-[env(safe-area-inset-top)] text-[17px] leading-[1.55] text-foreground"
     >
       <div className="walk-ovtop flex min-h-[44px] items-center justify-between px-2.5 pt-2">
-        <nav aria-label={COPY.bar} className="flex min-w-0 items-center gap-0.5 text-[13.5px] font-semibold">
+        <nav aria-label={label} className="flex min-w-0 items-center gap-0.5 text-[13.5px] font-semibold">
           <span className="flex h-9 w-9 items-center justify-center text-muted-foreground opacity-25" aria-hidden>
             <ChevronLeft className="h-5 w-5" />
           </span>
-          <span className="min-w-0 truncate">{COPY.bar}</span>
+          <span className="min-w-0 truncate">{label}</span>
           <span className="flex h-9 w-9 items-center justify-center text-muted-foreground opacity-25" aria-hidden>
             <ChevronRight className="h-5 w-5" />
           </span>
@@ -805,7 +915,14 @@ function LifeGoalsLens({
     };
     const s = script(ui);
     const ctx: Ctx = { s, state, reload, refresh };
-    const flow = open.mode === "see" && state.goals.length ? seeGoals(ctx, open) : addGoal(ctx, open);
+    const flow =
+      open.mode === "quarter"
+        ? quarterBack(ctx, open)
+        : open.mode === "see" && open.step
+          ? changeTapped(ctx, open)
+          : open.mode === "see" && state.goals.length
+            ? seeGoals(ctx, open)
+          : addGoal(ctx, open);
     void flow
       .then(() => ui.dock(<DockColumn><WalkPill action={{ label: COPY.close, onClick: onClose }} /></DockColumn>))
       .catch((error: unknown) => {
@@ -832,9 +949,17 @@ function LifeGoalsLens({
 
 /* ── In the Lounge ─────────────────────────────────────────────────────── */
 
-/** Life goals for the Lounge: whether they are on, the ask's answer, and
- *  the lens. */
-export function useLifeGoals({ signedIn, reload }: { signedIn: boolean; reload: () => Promise<unknown> }) {
+/** Life goals for the Lounge (and the Life Panel's Goals screen, with
+ *  ``lounge: false``): whether they are on, the ask's answer, and the lens. */
+export function useLifeGoals({
+  signedIn,
+  reload,
+  lounge = true,
+}: {
+  signedIn: boolean;
+  reload: () => Promise<unknown>;
+  lounge?: boolean;
+}) {
   const [state, setState] = useState<LifeGoalsState | null>(null);
   const [open, setOpen] = useState<(LensOpen & { nonce: number }) | null>(null);
   const refresh = useCallback(async () => {
@@ -851,6 +976,27 @@ export function useLifeGoals({ signedIn, reload }: { signedIn: boolean; reload: 
     [refresh],
   );
 
+  // The Lounge opened: the quarter comes back when one is due (N186).
+  useEffect(() => {
+    if (!signedIn || !lounge) return;
+    void quarterDue().then((wrote) => (wrote ? reload() : undefined));
+    // Once per opening of the Lounge.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn]);
+
+  async function answerQuarter(goalId: string | null, choice: "start" | "not_now"): Promise<void> {
+    if (!goalId || !(await answerQuarterAsk(goalId, choice))) return;
+    await reload();
+    if (choice === "start") openLens({ mode: "quarter", goalId });
+  }
+
+  async function answerChange(goalId: string | null, choice: "change" | "not_now"): Promise<void> {
+    if (goalId && (await answerNoteChange(goalId, choice))) {
+      await reload();
+      await refresh();
+    }
+  }
+
   async function answerAsk(choice: "start" | "not_now"): Promise<void> {
     if (!(await answerLifeGoalsAsk(choice))) return;
     await reload();
@@ -859,15 +1005,47 @@ export function useLifeGoals({ signedIn, reload }: { signedIn: boolean; reload: 
 
   return {
     enabled: state?.enabled === true,
+    goals: state?.goals ?? [],
     openLens,
     answerAsk: (choice: "start" | "not_now") => void answerAsk(choice),
+    answerQuarter: (goalId: string | null, choice: "start" | "not_now") => void answerQuarter(goalId, choice),
+    answerChange: (goalId: string | null, choice: "change" | "not_now") => void answerChange(goalId, choice),
     lens: (
-      <LifeGoalsLens open={open} state={state} onClose={() => setOpen(null)} reload={reload} refresh={refresh} />
+      <LifeGoalsLens
+        open={open}
+        state={state}
+        onClose={() => {
+          setOpen(null);
+          void refresh();
+        }}
+        reload={reload}
+        refresh={refresh}
+      />
     ),
   };
 }
 
 export type LifeGoals = ReturnType<typeof useLifeGoals>;
+
+type Rows = readonly { metadata?: Record<string, unknown> | null }[];
+
+function newestAsk(messages: Rows, offer: string, key: string): string | null {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const meta = messages[i].metadata;
+    if (meta?.offer === offer && typeof meta[key] === "string") return meta[key] as string;
+  }
+  return null;
+}
+
+/** The goal whose quarter came back: the newest "Did it move?" row's. */
+export function quarterAskOf(messages: Rows): string | null {
+  return newestAsk(messages, "life_goals_quarter", "life_goal_quarter");
+}
+
+/** The goal a note would change: the newest "Change … this quarter" ask's (M14). */
+export function changeAskOf(messages: Rows): string | null {
+  return newestAsk(messages, "life_goals_change", "life_goal_change");
+}
 
 /** What a chat reply asks of the lens (M2): ``{"life_goals_open": "add" |
  *  "see", "said"?, "space"?}`` in its row metadata. Not an offer: the lens

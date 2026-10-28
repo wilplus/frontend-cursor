@@ -378,6 +378,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-26 · N192 · the shared copy file (`idealEditCopy.ts`) gains the chat's "Feedback walk" and "Edited", and the summary's "Updated with your coach's note · see / hide the earlier version" moves into it from the Lounge; nothing on the Ideal Text page changes · FE (this PR)
 - 2026-10-26 · N178 · helper words: up to eight in one pick, as the app does since 2026-10-15. Was: six (2026-10-12) · BE #1339
 
 - 2026-10-23 · N120 · the shared copy file (`idealEditCopy.ts`) gains the walk's hello and the AI clip's short bubble (`AI_CLIP_BANK`) and loses the walk's L2 to L5; nothing on the Ideal Text page changes · BE #1279

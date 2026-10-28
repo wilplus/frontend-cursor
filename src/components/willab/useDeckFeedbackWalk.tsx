@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, momentChat, othersAnswered, othersChat, praiseChat, shownStep, walkStepDraft, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, momentChat, othersAnswered, othersChat, praiseChat, shownStep, storedSummaryOf, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkIntervention, WalkStep } from "@/lib/willab/walkPlan";
 import type { WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
@@ -41,6 +41,7 @@ import {
 import type { DeckChunk } from "@/lib/willab/deckChunks";
 import type { PractiseCard } from "@/lib/willab/paragraphOverlay";
 import { clearerPieces } from "@/lib/willab/clearerPieces";
+import { PLAN_COPY, levelNameOf } from "@/lib/willab/planCopy";
 import { phraseSelection, quoteSpan } from "@/lib/willab/phraseTokens";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { PRAISE_LEAD, praiseLines } from "@/lib/willab/trackedChangeWhy";
@@ -214,6 +215,22 @@ function withLateReason<S extends { author: WalkAuthor; body: string } | null>(
 const REPLAY_WAIT_MS = 4000;
 
 const COACH_ANSWER_STEPS: ReadonlySet<string> = new Set(["coach", "praise", "clearer", "exVideo"]);
+/** The screens a level's moment opens its practise on (G7, N209). */
+const LEVEL_STEPS: ReadonlySet<string> = new Set(["clearer", "exVideo"]);
+
+/** The moment where this week's level shows most (G7, N209): the chat
+ *  posts the level's line above its clip, as on the screen, when the step
+ *  itself is said. */
+function postLevel(
+  post: (entry: Omit<WalkThreadEntry, "take" | "arcId">) => void,
+  step: WalkStep,
+  moment: FeedbackWalkMoment<DocumentSuggestion> | null,
+  said: boolean,
+  at: { moment: number | null; attempt: number | null; extra: Record<string, unknown> },
+): void {
+  if (!said || !moment?.planLevel || !LEVEL_STEPS.has(step.key)) return;
+  post({ key: `level:${step.key}`, ...at, author: "app", body: PLAN_COPY.levelHere(moment.planLevel) });
+}
 
 /** The machine's answers on a try, posted as the try is made. */
 const TRY_ANSWER_STEPS: ReadonlySet<string> = new Set(["improved", "encourage", "thanks"]);
@@ -234,6 +251,18 @@ function answeredRun<R>(
     head = j;
   }
   return head;
+}
+
+/** Where the walk as given stands, opened at `at`. A finished walk opened
+ *  from the chat (`lens`) stands on its newest step when it does not hold
+ *  the step asked for (the Take alone) or holds it in its tail (the summary,
+ *  which steps aside once given, so nothing stayed on screen and the page
+ *  showed the text: founder 2026-10-26, "the feedback walk opens the ideal
+ *  text instead of the feedback walk!"; B10). Pure. */
+function standAtOf<R>(done: FeedbackWalkModel<R> | null, at: number | null, finished: boolean, lens: boolean): number | null {
+  if (!done || !finished || !lens) return at;
+  const newest = walkLastStep(done) ?? walkStart(done);
+  return newest !== null && (at === null || at > newest) ? newest : at;
 }
 
 /** One served item as the walk reads it. Pure. */
@@ -274,6 +303,8 @@ function walkItemOf(
     praiseWords: praise ? praiseWordsOf(item) : null,
     praiseTitle: praise ? praiseTitleFor(item.levelKey, item.id) : null,
     highest: item.highestMoment === true,
+    // On a plan, the moment where this week's level shows most (G7, N209).
+    planLevel: levelNameOf(item.planLevel),
     praiseLead: praise ? praiseLeadOf(item) : null,
     praiseReason: praise ? item.praiseReason ?? null : null,
     clip: item.snippetAudioRef
@@ -870,6 +901,11 @@ export function useDeckFeedbackWalk(args: {
   // The judging of other speakers, reopened from the Lounge, shows the
   // moments already answered in this walk (founder 2026-10-18).
   const othersJudged = useMemo(() => (threadMessages && take ? othersAnswered(threadMessages, take) : 0), [threadMessages, take]);
+  // The chat draws a Take's walk as one bubble (N192): the walk shows the
+  // summary as the chat holds it, and says "Edited" on helper words picked
+  // again in this Take.
+  const storedSummary = useMemo(() => (threadMessages && take ? storedSummaryOf(threadMessages, take) : null), [threadMessages, take]);
+  const editedWords = useMemo(() => (threadMessages && take ? wordsEditedIn(threadMessages, take) : null), [threadMessages, take]);
   const [triedByPractice, setTriedByPractice] = useState<Readonly<Record<string, ReplayTries | null>>>({});
   const askedPractices = useRef(new Set<string>());
   useEffect(() => {
@@ -1019,15 +1055,17 @@ export function useDeckFeedbackWalk(args: {
     // either way, the parts before it there to scroll (founder 2026-10-21).
     const done = (target || coachDoor) && replayReady ? (finished ? buildReplay(ownAnswers) : buildWhole(ownAnswers)) : null;
     const doneAt = done ? (coachDoor ? walkStart(done) : walkStepAt(done, target)) : null;
-    if (done && doneAt !== null) {
+    // A door from the chat never shows the text in the walk's place.
+    const standAt = standAtOf(done, doneAt, finished, lens);
+    if (done && standAt !== null) {
       setReplaying(done);
       // The parts after it too, as far as the walk was walked: on a finished
       // Take its last step, else up to the next step that still waits. The
       // coach's door, while something waits, goes step by step from the
       // word, so its Continue still marks the word seen.
-      return openAt(doneAt, false, lens, undefined, finished ? walkLastStep(done) : coachDoor ? null : answeredRun(done, doneAt, waitsOn));
+      return openAt(standAt, false, lens, undefined, finished ? walkLastStep(done) : coachDoor ? null : answeredRun(done, standAt, waitsOn));
     }
-    if (target?.part && liveAt === null) return false;
+    if (target?.part && liveAt === null && !lens) return false;
     // Opening marks nothing: only Continue on the coach's word does (N80).
     // A finished walk with no such step still opens, at its start, never
     // the text in its place.
@@ -1332,6 +1370,7 @@ export function useDeckFeedbackWalk(args: {
       const chat = said ? momentChat(walkModel.plan, step, moment) : null;
       // The moment's paragraph: a tap in the chat finds the step by it.
       const part = { part_id: moment?.partId ?? null };
+      postLevel(post, step, moment, Boolean(said), { ...at, extra: { ...part } });
       if (chat?.clip) post({ key: `clip:${step.key}`, ...at, author: "speaker", body: "", extra: { ...chat.label, clip: chat.clip, ...part } });
       if (said) post({ key: step.key, ...at, ...said, extra: { ...(chat?.clip ? {} : chat?.label), ...said.extra, ...part } });
       // The coach's answer on the moment: their bubble in the chat too.
@@ -1400,6 +1439,8 @@ export function useDeckFeedbackWalk(args: {
           onSkipJudging={skipJudging}
           journal={journal}
           summary={summary}
+          storedSummary={storedSummary}
+          editedWords={editedWords ?? undefined}
           onEnd={onEnd}
           onForward={onForward}
           onClose={onClose}
@@ -1424,6 +1465,8 @@ export function useDeckFeedbackWalk(args: {
       args.takeIndex,
       take,
       summary,
+      storedSummary,
+      editedWords,
       saveHelperWords,
       acceptClearer,
       keepWords,

@@ -18,8 +18,10 @@ import DataConsentChoices from "@/components/account/DataConsentChoices";
 import PolicyUpdateCard from "@/components/account/PolicyUpdateCard";
 import TrainingConsentCard from "@/components/account/TrainingConsentCard";
 import AiVoiceCard from "@/components/account/AiVoiceCard";
+import PlanConsentCard from "@/components/account/PlanConsentCard";
 import WhatsAppCard from "@/components/account/WhatsAppCard";
 import ProjectsCard from "@/components/account/ProjectsCard";
+import AccountSignInCard from "@/components/account/AccountSignInCard";
 import DeleteAccountCard from "@/components/account/DeleteAccountCard";
 import SupportCard from "@/components/account/SupportCard";
 import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
@@ -53,8 +55,10 @@ export default function DataConsentPage() {
           <TrainingConsentCard onOffered={setTrainingOffered} />
         </div>
         <AiVoiceCard />
+        <PlanConsentCard />
         <WhatsAppCard />
         <ProjectsCard />
+        <AccountSignInCard />
         <SupportCard />
         <DeleteAccountCard />
         <p className="mt-8 text-sm text-muted-foreground">

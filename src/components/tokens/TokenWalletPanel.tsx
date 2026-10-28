@@ -125,6 +125,7 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
                 tiers={prices.tiers}
                 currentTier={ready?.tier ?? null}
                 promotion={promotion}
+                everythingInTokens={prices.coachMinute !== null}
               />
             </div>
           </section>

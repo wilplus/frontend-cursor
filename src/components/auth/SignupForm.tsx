@@ -12,6 +12,8 @@ import LinkedInAuthButton from "@/components/auth/LinkedInAuthButton";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 import { claimGuestProjects } from "@/services/api/projects";
 import { sameSitePath } from "@/lib/auth/sameSitePath";
+import WhatsAppAuth, { WHATSAPP_AUTH_COPY, WHATSAPP_SIGNIN, WhatsAppIcon } from "@/components/auth/WhatsAppAuth";
+import OtherWays from "@/components/auth/OtherWays";
 
 interface SignupFormProps {
   onSuccess?: () => void;
@@ -23,6 +25,9 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
   const router = useRouter();
   const supabase = createClient();
   const [showEmailForm, setShowEmailForm] = useState(!!skipProviderPicker);
+  // While WhatsApp sign-up is off, its button opens it from the picker
+  // (backend N214); while on, the page opens on the number (N232).
+  const [showWhatsApp, setShowWhatsApp] = useState(false);
   // Carry "where to go after" (e.g. the booking page) through to sign-in.
   const [loginHref, setLoginHref] = useState("/login");
   useEffect(() => {
@@ -187,6 +192,36 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
     }
   };
 
+  // The page opens on the WhatsApp number (founder 2026-10-28, backend
+  // N232): the number and "Sign up with WhatsApp", then the other ways.
+  if (WHATSAPP_SIGNIN && !showEmailForm) {
+    return (
+      <Card className="p-6 sm:p-7">
+        <WhatsAppAuth mode="signup" first onSuccess={onSuccess} legal={<LegalConsent />}
+          after={(
+            <>
+              <OtherWays mode="signup" onEmail={() => setShowEmailForm(true)} />
+              <p className="text-center text-sm">
+                Already have an account?{" "}
+                <Link href={loginHref} className="font-medium text-primary hover:underline">
+                  Sign in
+                </Link>
+              </p>
+            </>
+          )} />
+      </Card>
+    );
+  }
+
+  if (showWhatsApp && !showEmailForm) {
+    return (
+      <Card className="p-5 sm:p-6">
+        <WhatsAppAuth mode="signup" onBack={() => setShowWhatsApp(false)} onSuccess={onSuccess}
+          legal={<LegalConsent />} />
+      </Card>
+    );
+  }
+
   // Provider picker: LinkedIn vs email
   if (!showEmailForm) {
     return (
@@ -195,6 +230,16 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
             (my-5 above and below the rule) so the column reads as a single
             visual rhythm. */}
         <div className="flex flex-col">
+          {WHATSAPP_SIGNIN ? (
+            <Button
+              type="button"
+              className="mb-3 w-full gap-2 bg-foreground font-medium text-background hover:bg-foreground/90"
+              onClick={() => setShowWhatsApp(true)}
+            >
+              <WhatsAppIcon className="h-5 w-5 shrink-0" />
+              <span>{WHATSAPP_AUTH_COPY.signUp}</span>
+            </Button>
+          ) : null}
           <LinkedInAuthButton mode="signup" />
           <GoogleAuthButton mode="signup" className="mt-3" />
 
@@ -231,6 +276,9 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
 
   return (
     <Card className="p-5 sm:p-6">
+      {WHATSAPP_SIGNIN ? (
+        <h2 className="mb-4 text-base font-semibold">Sign up with email</h2>
+      ) : null}
       <form onSubmit={handleSignup} className="space-y-4">
         <div>
           <label className="mb-2 block text-sm font-medium">Name</label>

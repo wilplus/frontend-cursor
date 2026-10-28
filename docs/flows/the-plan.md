@@ -10,8 +10,13 @@ decisions log's entries N129 to N157, folded here into the rules as they
 stand; each later entry about the plan is folded in the same way. The entries
 keep their N-numbers and stay the record.
 
-**Nothing on this page is built yet.** The founder holds the build (N147,
-"not yet"); §2 says where it stands.
+**Built, on for ring 5.** The build started on 26 October 2026, one to one
+with the prototype (N203, which lifts N147's "not yet"). The questions, the
+calls, the plan card, the practice days in the chat, changing the plan and
+the plan's end are built; their migration, with the ring row `plan` at ring 5
+(N204), merged on 27 October 2026 (backend #1394). The level's moment in the
+walk and a level moving on followed the same day (N209). §2 says what is
+built and what is still to come.
 
 **How this page works**
 
@@ -100,7 +105,7 @@ keep their N-numbers and stay the record.
 4. "Um" and "uh" don't count for the filler-words level (N134).
 5. A coach can change the level, and a coach's change always wins. The coach
    hears blind and never sees the machine's guess first (Never 2; N129,
-   N134, N140).
+   N134, N140). The coach's side: [the coach panel](coach-panel.md) K (N213).
 
 ### D · Stress and readiness
 
@@ -116,7 +121,36 @@ keep their N-numbers and stay the record.
    (Never 1; N149, N178).
 4. Every practice in between gets only "How do you feel?" (Nervous, Excited,
    Calm, Not sure), today's screen, with a Skip. Today it shows once per new
-   project, before Take 1 (N151, N178; the recording screens' page).
+   project, before Take 1, with a Skip too (N151, N178, N211; the recording
+   screens' page). With a plan it is asked only after the plan's own yes (5);
+   without one it stays as today (N215), and answering is the yes for that one
+   answer. The screen says "Your coach sees your answer." (N211, N217).
+5. **The plan's own yes.** The personal questions (the worry question, the
+   two ratings in 1, "How did it go?" at the plan's end (I2) and the feelings
+   check in 4) are asked only after the speaker says yes
+   to a question of its own, once. Will asks it after the speaker's voice
+   answer about the event, before any personal question: "A few of my
+   questions are personal: how stressed and how ready you feel, what worries
+   you, and how you feel before each Take. I only ask with your yes. Your
+   coach and I use your answers to shape your plan. You can turn this off in
+   Data & consent." with Read more, which opens Privacy section 4e in a
+   window, and in the footer "Not now" and "Yes, ask me"; nothing else is
+   taken while Will waits. "Yes, ask me" goes on with the worry question and
+   the ratings. "Not now" adds no line from Will: the worry question and the
+   ratings are not asked or kept, the plan is built from what it has and
+   goes on to the calls, and its end goes to "What's next?" without "How did
+   it go?". A plan made before the yes existed is asked at its next personal
+   moment (the last ratings, or its end). Data & consent has a card,
+   "Personal answers in your plan", between Help improve WillpowerLab and
+   WhatsApp, where the yes is turned on later or off: off asks first, then
+   deletes the personal answers (the answers and their recordings, their
+   bubbles in the Lounge, the plan's worry, Will's memory of them with his
+   note, the feelings before a Take), and only then keeps the withdrawal; a
+   deletion that fails leaves the yes on and says so. The record is the
+   backend's `plan_consent_events`: the sentence's hash and the policy
+   version, append-only. A record that cannot be read asks nothing personal.
+   Switched off (`PLAN_CONSENT_ENABLED`) until Privacy 3.9, which names it,
+   is published (N211).
 
 ### E · The plan card
 
@@ -211,8 +245,18 @@ keep their N-numbers and stay the record.
    closing line. No "Start a new project" under it: the "+" next to "Type
    here" opens the projects, as today (N167, N169).
 7. The walk shows the Take's best moment and the moment where this week's
-   level shows most; when no moment shows it, the two best, as today (N134;
-   the walk's page).
+   level shows most; when no moment shows it, the two best, as today (N134,
+   N209). The level's moment opens with "This week's level: {level}.
+   Here's where it shows:" above the speaker's clip, and is practised with
+   the level's own practice, its row of the treatment picker: the AI
+   version of the voice with its pace tip ("Let your key line land"), its
+   pause tip ("Pauses that hold the room") or its stress tip ("A voice that
+   moves"); the Clearer version ("Say it once, and it lands"). "Make it
+   yours" keeps the walk as today. Where a level shows is read on each clip
+   against the speaker's own usual on that Take, the key line's clip first
+   when it shows it; never shown as a number. A walk reads the level the
+   plan had when its Take was recorded, so it reads the same on every
+   opening (the walk's page, H1).
 8. In a pace or pause week the speaker practises their pace, from Take 2
    (Take 1 has no Ideal Text yet). The pace practice is the tempo step of
    the Feedback walk and nowhere else: not the coach panel, not the Lounge,
@@ -221,9 +265,22 @@ keep their N-numbers and stay the record.
 9. A practise that slowed down gets its own lines, said in turn: "You gave it
    room, and it landed." · "Slower, and every word counted." · "That pace
    lets them keep up with you." (N140).
-10. A level moves on after two Takes in a row reach it, or when its time runs
-   out. After three Takes without moving, it switches to the next
-   intervention in its row, and the coach sees it in their queue (N134).
+10. A Take reaches its level when the check that picked the level no
+   longer fires on that Take, read on the whole Take (the key line no
+   longer faster than the rest; pauses no longer few and short; filler
+   words no longer many; the pitch no longer flat); never shown (N209). Two
+   Takes in a row that reach it, or its time running out (a week in a plan
+   of up to six weeks, two weeks in a longer one; a plan of two weeks or
+   less keeps one level), and the next level is the next thing heard:
+   strongest first, the next level whose check fires on the latest Take,
+   never one the plan already had; when none fires, "Make it yours", which
+   stays. The speaker just sees it: the next hello and the plan name the
+   new level, and nothing is said about their voice. A coach's level is
+   never moved by the machine (C5). After three Takes on a level without
+   moving, the next intervention in its row: the coach sees it in their
+   queue and answers with their video, which reaches the speaker as the
+   coach's word on their latest Take ([the coach panel](coach-panel.md)
+   K5); the walk keeps the level's own practice (N134, N209, N213).
 11. There is no practice-day reminder for now (N155). When it comes: it
    says the same words as its message in the chat, written at the same
    moment, and tapping it opens the chat at that day line. It goes at 9:00
@@ -251,8 +308,9 @@ keep their N-numbers and stay the record.
 
 1. "Change your plan" opens the plan: the deadline and the practice days are
    the speaker's to change, and the plan recalculates. The level is the
-   coach's: "Ask your coach". "I have a new event" starts the questions again
-   (N140).
+   coach's: "Ask your coach", which reaches the coach's queue as "Asked about
+   their level" ([the coach panel](coach-panel.md) K1, N213). "I have a new
+   event" starts the questions again (N140).
 2. A new project asks "Is this for 14 November?" (the plan's deadline),
    after its first Take, not before it (N178). Yes keeps the plan; no starts
    "When is your deadline?" and the questions for a new plan. New slides or a
@@ -299,6 +357,17 @@ Signed:
   what is it? Say it the way you'll say it." · "Who will be in the room on
   {date}, and how many?" · "How long will you speak, and will you have
   slides?" (N140).
+- The plan's own yes (D5, N211; "approved as drawn", 27 October 2026): Will's
+  ask, as in D5 · "Yes, ask me" · "Not now" · "Read more" · "Privacy Policy
+  {version}, section 4e" · the card: "Personal answers in your plan" · "Will
+  asks how stressed and how ready you feel, what worries you, and how you
+  feel before each Take. Your coach and Will use the answers to shape your
+  plan." · "Off. Turn it on and Will asks how stressed and how ready you
+  feel, what worries you, and how you feel before each Take." · "Turn off
+  personal answers?" · "We stop asking, and delete the personal answers you
+  have given. Your plan stays." · "Off. We deleted your personal answers."
+  The text of Privacy section 4e waits for the founder's signature with
+  Privacy 3.9.
 - The plan: "Thanks! Here's your plan." · "Your next
   level" · the five level names · "How you said it" · "Why this line:" and
   its sentence · "15 minutes, 3 times a week: {days}" · "15 minutes every
@@ -365,26 +434,73 @@ Waiting for the founder's OK:
 ## 2. In flight
 
 - **The plan** · all of §1 · decided from 24 October 2026 (N129 onward;
-  the latest are in §6), drawn on the prototype (§5) · not built: the founder holds the
-  build (N147) · the build plan: <https://claude.ai/artifact/5wuXkBNDctRcbxYs9V7R8A>
+  the latest are in §6), drawn on the prototype (§5) · the build plan:
+  <https://claude.ai/artifact/5wuXkBNDctRcbxYs9V7R8A>
+  - Built, on for ring 5 since 27 October 2026 (N203, N204, backend
+    #1394): A, B, C, D, E,
+    F, G3 to G6, G13, H, I1, I2, J, K; the bar and "{n} of {total}
+    practices done. Next: {day}." on the walk's end card (E3, G5; the walk
+    is locked, the change approved, N140); THIS WEEK on the life goals
+    ladder (N172 M10, BE #1390, FE #1017).
+  - Built on 27 October 2026 (N209): the level's moment in the walk (G7);
+    a level moving on, and a stuck level noted for the coach's queue (G10)
+    · BE #1406, FE #1024.
+  - Built on 27 October 2026 (N211), switched off (`PLAN_CONSENT_ENABLED`)
+    until Privacy 3.9 is published: D5, the plan's own yes: Will's ask with
+    Read more, the footer's two buttons, the card in Data & consent · BE
+    #1416, FE (this PR).
+  - Built on 27 October 2026 (N213): the coach's side, as its prototype
+    draws it ([the coach panel](coach-panel.md) K): the plan in the coach's
+    queue, the level picked blind (C5), "Ask your coach" (H1), the coach's
+    video for a stuck level (G10) · BE #1415, FE.
 
 ## 3. Still open
 
 - **How the chat answers a rating tap**, now that the number is not shown
   back (N178): the words wait for the founder (Never 4).
-- **Two calls from the "one moment" explanation** (26 October): judge
-  "better" on the level's own reading (recommended yes); a second level
-  moment per walk (recommended no).
 - **The words in §1 K** still waiting for the founder's OK.
+- **As built, where the prototype doesn't say** (N203): after a rating tap the
+  next question follows with nothing between, until the words in the first
+  line above are signed; "Choose a date" on the summary call opens the plan's
+  own calendar in the footer, as "Book" does, rather than the booking page;
+  the day line comes with the practice day's hello and the day after the
+  deadline, not yet before every day's first message (G3).
+- **Where the prototype (version 27) is older than a decision** (N203): the
+  build follows the decision, and the prototype is redrawn to match. The last
+  practice's two ratings come after its Take, not before it (N178). The
+  practice-day reminder's WhatsApp ask before Take 1 is left out (N155,
+  N177); the WhatsApp ask after each Take stays. After a practice day's walk,
+  the two lines of G13 (N183), which the prototype doesn't draw. The calls
+  are paid as the booking page is paid, in tokens once N198 is built.
 
 ## 4. Where it lives
 
-Nothing is built. When it is, it touches these places, each with its own
-page for what it owns:
+The plan's own code, guarded by this page (`scripts/flow-pages.txt`):
 
-- The Lounge (`src/components/willab/Lounge*`, `useWillabFlow.ts`): the
-  questions, the ratings, the plan card, the calls, the practice-day greeting
-  and the plan's end. The walk's page owns the Lounge's other rules.
+- `src/components/willab/plan/`: the footer by step (`PlanDock.tsx`, with
+  Will's ask for the plan's own yes), the
+  calls' calendar (`PlanCalendar.tsx`), the card (`PlanCard.tsx`), the rows in
+  the thread (`PlanRows.tsx`), the two sheets (`PlanSheet.tsx`), the voice
+  player and the hook the Lounge calls (`usePlanLounge.tsx`).
+- `src/lib/willab/planCopy.ts`: the words the app draws itself.
+- `src/services/api/plan.ts` and `src/app/api/v2/plan/`: the calls to the
+  backend's `/v2/plan` (backend `services/plan.py`, `services/plan_flow.py`).
+- The plan's own yes: `src/components/legal/PlanReadMore.tsx` (Read more),
+  `src/components/account/PlanConsentCard.tsx` (the card, guarded by the
+  consent screens' page), `src/services/api/planConsent.ts` (backend
+  `services/plan_consent.py`).
+- The coach's side is the coach panel's (its page, K): `CoachPlanFlow.tsx`,
+  `src/services/api/coachPlans.ts` (backend `services/plan_coach.py`).
+
+It touches these places, each with its own page for what it owns:
+
+- The Lounge (`Lounge.tsx`): one hook call, the plan's rows drawn from the ask
+  bubbles, its footer in place of the message box, and the empty Lounge's
+  button held while the plan asks. The walk's page owns the Lounge's other
+  rules.
+- `WillabSurface.tsx` and `src/lib/willab/setupDraft.ts`: "Start your first
+  recording" opens the set-up with the topic filled in, without the feelings
+  check (E5, B7).
 - The recording screens (`src/components/willab/RecordingSetup.tsx`,
   `FeelingsCheckIn.tsx`): the topic filled in, and the feelings check only
   between a plan's first and last practice. Their page owns the rest.
@@ -415,6 +531,23 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-28 · N194 · no change to the plan: the voice answer in the plan's dock (`PlanDock.tsx`) reads the recorder's finished note as `{ audio, durationMs }`, the shape the shared recorder takes since the voice notebook's live words; it records and sends exactly as before (no wave, no live words, no outbox) · FE #1009
+- 2026-10-27 · N213 · built: the coach's side. A plan reaches the coach's queue as "New plan", "Asked about their level" or "Three Takes without moving"; the level is picked blind, then What happened; a stuck level is answered with the coach's video as their word on the latest Take (C5, G10, H1). The plan keeps the key line's recording again after the questions. Was: the stuck level noted for a queue not yet built · BE #1415, FE
+
+- 2026-10-27 · N215, N217 · built, switched off until Privacy 3.9: the feelings check (D4) behind the plan's own yes, and "Your coach sees your answer." on its screen; a speaker without a plan keeps it as today, with no ask and no card. Was: the feelings check outside the yes · FE (this PR), BE (with it)
+
+- 2026-10-27 · N211 · built, switched off until Privacy 3.9: D5, the plan's own yes; the worry question, the two ratings and "How did it go?" wait for it; the card "Personal answers in your plan" in Data & consent turns it on and off, off deletes the personal answers. Was: asked of everyone · BE #1416, FE (this PR)
+
+- 2026-10-27 · N209 · built: G7, the walk's second moment is where this week's level shows most, under "This week's level: {level}. Here's where it shows:", practised with the level's own practice; G10, two Takes in a row that reach the level, or its time run out, and the next thing heard becomes the level; three Takes without moving noted for the coach's queue. §3's two calls from 26 October answered (N209 items 1 and 2). Was: the walk's two best moments for every speaker, and one level for the whole plan · BE #1406, FE #1024
+
+- 2026-10-27 · N204 · on for ring 5: the plan's migration merged, with its four tables and the ring row `plan` at ring 5, after the founder's outside review (Grok: OK to merge). Was: built, switched off · BE #1394, FE #1021
+
+- 2026-10-26 · N140, N151, N178, N203 · built, switched off: the bar and the practices line on the walk's end card, "How do you feel?" with a Skip before every Take but the plan's first, "Is this for {date}?" on a new project with Yes and No · BE #1389, FE #1018
+
+- 2026-10-26 · N203, N204 · built, switched off until the migration: the questions, the calls, the card, the practice days in the chat, changing the plan, the plan's end; §2 lists what is still to come, §3 what was built where the prototype doesn't say. Was: nothing built · BE #1386, FE #1016
+
+- 2026-10-26 · N203 · the build starts, one to one with the prototype; §2 and §3 say where the prototype is older than a decision. Was: the founder holds the build (N147) · BE #1384, FE #1014
 
 - 2026-10-26 · docs audit · the intro and §2 no longer stop at N157; §5 names the prototype's newest version, 27 (N169). Was: "N129 to N157", version 17 · —
 - 2026-10-26 · N180, N183 · G13: when a practice day's practice is done, "That's your 15 minutes for today." and "Now go and live it, away from the phone."; never on a clock, never on other days; built with the practice days · —

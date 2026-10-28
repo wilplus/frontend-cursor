@@ -6,6 +6,7 @@ OUTCOME
   O2  A done exercise plays my past tries and records nothing new.
   O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.
 PROVES   O1 -> opens on the coach's note and plays the same screens answered; helper words stay editable, nothing else writes
+         O1 -> opened on a later step, a tap on an earlier part's helper words stands the walk there; their buttons save them and bring it back
          O2 -> opens on the coach's note and plays the same screens answered ...
          O3 -> an exercise opened from its bubble in the chat shows its AI clip and every try, a try tapped in the chat opens its exercise on the last answer
 */
@@ -194,6 +195,11 @@ describe("the finished walk, played again", () => {
     expect(byTestId("walk-forward")!.textContent).toBe(WALK_COPY.editHelperWords);
     expect(byTestId("walk-skip")!.textContent).toBe(WALK_COPY.keepThese);
     expect(picked()).toEqual(["growth", "doubled."]);
+    // The step is in view, so its own buttons are the dock: not the Next
+    // that brings it back (B9), which had stood in for them whenever the
+    // thread's bar named a later part (fixed 2026-10-27).
+    expect(live()!.querySelector("[data-walk-dock]")!.hasAttribute("hidden")).toBe(false);
+    expect(byTestId("walk-to-newest")).toBeNull();
     // Every part is there to scroll: the coach's word and the praise above,
     // the clearer version as given and the exercise with its tries below.
     const all = parts();
@@ -213,6 +219,76 @@ describe("the finished walk, played again", () => {
     expect(live()!.querySelector("[data-walk-now]")!.textContent).toContain(WALK_COPY.practiseN(2));
     expect(parts()).toBe(all);
     expect(calls).toEqual([]);
+  });
+
+  it("opened on a later step, a tap on an earlier part's helper words stands the walk there; their buttons save them and bring it back (C3, B10)", () => {
+    draw({ at: (m) => walkStepAt(m, { step: "clearer", part: "p2" })!, head: (m) => walkLastStep(m)! });
+    expect(screen()).toBe("walk-screen-clearer");
+    // The founder's report, 2026-10-28: the earlier picker took no tap.
+    click(live()!.querySelectorAll("[data-walk-word-picker] button")[2]); // "our", next to the phrase
+    expect(screen()).toBe("walk-screen-helpers");
+    expect(picked()).toEqual(["our", "growth", "doubled."]);
+    expect(byTestId("walk-forward")!.textContent).toBe(WALK_COPY.editHelperWords);
+    click(byTestId("walk-forward"));
+    expect(calls).toEqual(["helpers"]);
+    expect(screen()).toBe("walk-screen-clearer");
+  });
+
+  it("scrolled away from the step the walk stands on, the dock reads Next, which brings that step back (B9)", () => {
+    // The thread holds more than it shows: 1000 tall, 400 in view. The
+    // standing part sits at 20..120 of the thread; everything else at 500.
+    const isBody = (el: Element) => el.hasAttribute("data-walk-thread-body");
+    const body = () => live()!.querySelector<HTMLElement>("[data-walk-thread-body]")!;
+    const tall = vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return isBody(this) ? 1000 : 0;
+    });
+    const seen = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return isBody(this) ? 400 : 0;
+    });
+    const high = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return isBody(this) ? 400 : 100;
+    });
+    const rect = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const scrolled = isBody(this) ? 0 : (this.closest("[data-walk-thread-body]") as HTMLElement | null)?.scrollTop ?? 0;
+      const top = isBody(this) ? 0 : this.closest("[data-walk-now]") ? 20 - scrolled : 500 - scrolled;
+      return { top, bottom: top + 100, left: 0, right: 0, width: 0, height: 100, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+    });
+    const tops: number[] = [];
+    const was = Element.prototype.scrollTo;
+    Element.prototype.scrollTo = function (this: Element, to?: ScrollToOptions | number) {
+      const top = typeof to === "object" ? (to.top ?? 0) : 0;
+      tops.push(top);
+      (this as HTMLElement).scrollTop = top;
+    } as typeof Element.prototype.scrollTo;
+    const scrolledTo = (top: number) => {
+      body().scrollTop = top;
+      act(() => body().dispatchEvent(new Event("scroll", { bubbles: true })));
+    };
+    try {
+      draw({ at: (m) => walkStepAt(m, { step: "helpers", part: "p1" })!, head: (m) => walkLastStep(m)! });
+      // Opened with its name at the top: its own buttons are the dock.
+      expect(screen()).toBe("walk-screen-helpers");
+      expect(live()!.querySelector("[data-walk-dock]")!.hasAttribute("hidden")).toBe(false);
+      expect(byTestId("walk-to-newest")).toBeNull();
+      // Scrolled past it: the dock reads Next.
+      scrolledTo(500);
+      expect(live()!.querySelector("[data-walk-dock]")!.hasAttribute("hidden")).toBe(true);
+      expect(byTestId("walk-to-newest")!.textContent).toBe(COPY.pagerNext);
+      // Next brings the step back, its name at the top, and its buttons return.
+      tops.length = 0;
+      click(byTestId("walk-to-newest"));
+      expect(tops.at(-1)).toBe(12);
+      scrolledTo(12);
+      expect(live()!.querySelector("[data-walk-dock]")!.hasAttribute("hidden")).toBe(false);
+      expect(byTestId("walk-to-newest")).toBeNull();
+      expect(byTestId("walk-forward")!.textContent).toBe(WALK_COPY.editHelperWords);
+    } finally {
+      Element.prototype.scrollTo = was;
+      rect.mockRestore();
+      high.mockRestore();
+      tall.mockRestore();
+      seen.mockRestore();
+    }
   });
 
   it("a new opening while the lens stays open keeps the thread above it: nothing disappears (founder 2026-10-20)", () => {

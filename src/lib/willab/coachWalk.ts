@@ -42,6 +42,16 @@ export interface QueueTake {
   callToAction?: string | null;
 }
 
+/** The speaker's plan, when it waits on a coach (backend N213): a new plan,
+ *  their ask about their level, or a level three Takes without moving. The
+ *  level's name rides only on a stuck level: a level to pick is blind. */
+export interface QueuePlan {
+  planId: string;
+  kind: "new" | "asked" | "stuck";
+  levelName: string | null;
+  deadlineShort: string | null;
+}
+
 export interface QueueSpeaker {
   pseudonym: string;
   /** The speaker's goal, as the queue carries it (coach panel lock, flow 3:
@@ -49,6 +59,8 @@ export interface QueueSpeaker {
   goal?: string | null;
   waiting: number;
   takes: QueueTake[];
+  /** Their plan, when it waits on a coach (N213); absent otherwise. */
+  plan?: QueuePlan | null;
 }
 
 const STATES = Object.keys(COACH_WALK_COPY.state) as MomentState[];
@@ -101,6 +113,22 @@ function mapTake(raw: unknown): QueueTake | null {
   };
 }
 
+const PLAN_KINDS: readonly string[] = ["new", "asked", "stuck"];
+
+function mapPlan(raw: unknown): QueuePlan | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.plan_id !== "string" || !r.plan_id || typeof r.kind !== "string" || !PLAN_KINDS.includes(r.kind)) {
+    return null;
+  }
+  return {
+    planId: r.plan_id,
+    kind: r.kind as QueuePlan["kind"],
+    levelName: r.kind === "stuck" && typeof r.level_name === "string" && r.level_name ? r.level_name : null,
+    deadlineShort: typeof r.deadline_short === "string" && r.deadline_short ? r.deadline_short : null,
+  };
+}
+
 /** GET /v2/coach/queue/moments → speakers, in the backend's order (oldest
  *  first). Anything malformed is dropped rather than drawn wrong. */
 export function mapMomentsQueue(raw: unknown): QueueSpeaker[] {
@@ -121,6 +149,7 @@ export function mapMomentsQueue(raw: unknown): QueueSpeaker[] {
           ? r.waiting
           : takes.reduce((n, t) => n + t.waiting, 0),
       takes,
+      plan: mapPlan(r.plan),
     });
   }
   return out;
@@ -130,11 +159,16 @@ export function countWaiting(moments: QueueMoment[]): number {
   return moments.filter((m) => m.state === "judge_it" || m.state === "answer_it").length;
 }
 
-/** The one number the Lounge bubble shows: how many speakers have a moment
- *  waiting on this coach, or a Take still waiting for its text. A count of
- *  people to see, never of quality. */
+/** Does the speaker wait on this coach: a moment, a Take still waiting for
+ *  its text, or their plan (N213)? */
+export function speakerWaits(s: QueueSpeaker): boolean {
+  return s.waiting > 0 || s.takes.some((t) => t.waitingForText) || !!s.plan;
+}
+
+/** The one number the Lounge bubble shows: how many speakers wait on this
+ *  coach. A count of people to see, never of quality. */
 export function speakersWaiting(queue: QueueSpeaker[]): number {
-  return queue.filter((s) => s.waiting > 0 || s.takes.some((t) => t.waitingForText)).length;
+  return queue.filter(speakerWaits).length;
 }
 
 export function stateWord(state: MomentState): string {

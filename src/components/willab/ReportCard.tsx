@@ -26,7 +26,6 @@ import {
   insightView,
   readoutView,
 } from "./loungeReports";
-import ArcActionPrice from "@/components/tokens/ArcActionPrice";
 import IdealTextCard from "./IdealTextCard";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 
@@ -45,7 +44,7 @@ import SnippetWavePlayer from "./SnippetWavePlayer";
 
 /** The small date line, from the message's FE-stamped timestamp. null when
  *  missing / unparseable. */
-function reportDateLabel(iso: string | undefined): string | null {
+export function reportDateLabel(iso: string | undefined): string | null {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
@@ -142,11 +141,6 @@ function renderFeedbackReportCard(
         <span className="font-semibold">
           Feedback{takeIndex != null ? ` · Take ${takeIndex}` : ""}
         </span>
-        {/* Price BEFORE opening — this bubble is the trigger, and the overlay
-            it opens is what gets charged. Shown only while this arc still
-            owes the `insights` charge; once paid it is free forever and the
-            price disappears rather than lingering as a wrong label. */}
-        {arcId ? <ArcActionPrice arcId={arcId} action="insights" /> : null}
       </p>
       {message.body ? (
         <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
@@ -479,6 +473,7 @@ function renderBestPresentationReportCard(
 function renderInsightOrRecordingSummaryReportCard(
   message: LoungeMessage,
   onOpenFeedback?: (target: FeedbackBubbleTarget) => void,
+  shareLine: string | null = null,
 ): React.ReactNode {
   const date = reportDateLabel(message.client_created_at);
   const rsArcId =
@@ -565,6 +560,9 @@ function renderInsightOrRecordingSummaryReportCard(
           <SnippetWavePlayer seed={message.client_id} src={takeSrc} size="compact" tone="me" label="Your Recording" />
         </span>
       ) : null}
+      {/* Who heard this Take, in the sharing choice's own words (G1, N192):
+          the question asked before it leaves no bubbles of its own. */}
+      {shareLine ? <span className="text-[12.5px] leading-snug text-primary-foreground/90">{shareLine}</span> : null}
     </div>
   );
 }
@@ -592,9 +590,12 @@ export default function ReportCard({
   onOpenIdealText,
   onRetryIdealText,
   latestForArc = false,
+  shareLine = null,
 }: {
   /** This bubble is its project's latest Ideal Text bubble (Q39 B). */
   latestForArc?: boolean;
+  /** A recording's line: who heard the Take (G1, N192). */
+  shareLine?: string | null;
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
   onOpenBestPresentation?: (arcId: string) => void;
@@ -631,7 +632,7 @@ export default function ReportCard({
   if (message.kind === "best_presentation_ready") {
     return renderBestPresentationReportCard(message, onOpenBestPresentation);
   }
-  return renderInsightOrRecordingSummaryReportCard(message, onOpenFeedback);
+  return renderInsightOrRecordingSummaryReportCard(message, onOpenFeedback, message.kind === "recording_summary" ? shareLine : null);
 }
 
 /* -------------------------------------------------------------------------- */

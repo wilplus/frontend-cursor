@@ -8,7 +8,9 @@
 /* -------------------------------------------------------------------------- */
 
 export const DATA_CONSENT_COPY = {
-  title: "Data & consent",
+  // "Settings" since founder 2026-10-26 (backend N196); the address stays
+  // /account/data-consent.
+  title: "Settings",
   intro:
     "Your recordings are used to run your own coaching. They are not used to train models.",
   // Approved by the founder 2026-09-28 (decision 21): the card shown only
@@ -38,7 +40,7 @@ export const DATA_CONSENT_COPY = {
   agreeAgain: "Agree again",
   erasureFinishing: "Your practice recordings are still being deleted.",
   recordScreenOff:
-    "Recording is off because you withdrew your consent. You can turn it back on in Data & consent.",
+    "Recording is off because you withdrew your consent. You can turn it back on in Settings.",
   privacyUnavailable:
     "The privacy policy couldn’t be loaded. Refresh the page to try again.",
   // Approved by the founder 2026-09-25 ("yes"), decision 2.
@@ -47,6 +49,18 @@ export const DATA_CONSENT_COPY = {
   // Signed by the founder 2026-09-26 (backend SPEC-DECISIONS-LOG N10). The
   // switch's own sentence is not here: the backend serves it, exactly as the
   // database holds and fingerprints it.
+  // The plan's own yes (founder 2026-10-27, "approved as drawn", backend
+  // N211): the card, its two lines, its turn-off question and its outcome
+  // line. Will's ask in the Lounge is services/plan.py COPY, not here.
+  planTitle: "Personal answers in your plan",
+  planOn:
+    "Will asks how stressed and how ready you feel, what worries you, and how you feel before each Take. Your coach and Will use the answers to shape your plan.",
+  planOff:
+    "Off. Turn it on and Will asks how stressed and how ready you feel, what worries you, and how you feel before each Take.",
+  planOffTitle: "Turn off personal answers?",
+  planOffBody:
+    "We stop asking, and delete the personal answers you have given. Your plan stays.",
+  planOffDone: "Off. We deleted your personal answers.",
   trainingTitle: "Help improve WillpowerLab",
   trainingOffTitle: "Turn off training?",
   trainingOffBody:
@@ -78,11 +92,49 @@ export const DATA_CONSENT_COPY = {
   // Fixes 2 and 3 (founder, prototype, 2026-10-15: "I approve the 7 fixes as
   // in the prototype"). Privacy 3.6 §4 and §4d promise both "at any time".
   whatsappTitle: "WhatsApp",
-  whatsappOn: (phone: string) => `We message ${phone} when your coach’s feedback is in.`,
+  // The booked call added with the booking's reminder (backend N207).
+  whatsappOn: (phone: string) => `We message ${phone} when your coach’s feedback is in and 10 minutes before a booked call.`,
   whatsappRemove: "Remove",
   whatsappConfirmTitle: "Remove your number?",
   whatsappConfirmBody: "We stop the WhatsApp messages and delete your number.",
   whatsappOff: "Off. Add your number in the Lounge to get a message when your coach’s feedback is in.",
+  // Email and password (founder 2026-10-26, backend N190: "approved, implement
+  // it", on the prototype backend docs/design/settings-email-password-2026-10-26.html).
+  accountTitle: "Email and password",
+  accountEmail: "Email",
+  accountPassword: "Password",
+  accountChange: "Change",
+  accountNewEmail: "New email",
+  accountCurrentPassword: "Current password",
+  accountSendLink: "Send link",
+  accountEmailSent: (to: string) => `We sent a link to ${to}. Your email changes when you open it.`,
+  accountEmailDone: (to: string) => `Your email is now ${to}.`,
+  accountEmailInvalid: "Enter an email address.",
+  accountEmailSame: "That is already your email.",
+  accountEmailTaken: "That email already has an account.",
+  accountWrongPassword: "That password isn’t right.",
+  accountPasswordDone: "Password updated.",
+  accountResetSent: (to: string) => `We sent a reset link to ${to}.`,
+  accountProvider: (provider: string) => `You sign in with ${provider}.`,
+  accountSetPassword: "Set a password",
+  accountSetSent: (to: string) => `We sent a link to ${to}. Open it to set a password.`,
+  // Live words the card reuses from the password forms (the /change-password
+  // page it replaces, and LoginForm), with the page's full stop.
+  accountNewPassword: "New password",
+  accountConfirmPassword: "Confirm new password",
+  accountAtLeast6: "At least 6 characters",
+  accountUpdatePassword: "Update password",
+  accountForgot: "Forgot password?",
+  accountTooShort: "Password must be at least 6 characters.",
+  accountNoMatch: "Passwords do not match.",
+  accountEmailPlaceholder: "you@example.com",
+  // WhatsApp as a way in, in the same card (founder 2026-10-27, backend N214
+  // item 5: "use these words"). Its number and code steps use the WhatsApp
+  // sign-up's words (WHATSAPP_AUTH_COPY).
+  accountWhatsApp: "WhatsApp",
+  accountWhatsAppOff: "Sign in with your WhatsApp number too.",
+  accountWhatsAppAdd: "Add",
+  accountWhatsAppOn: (phone: string) => `You can sign in with WhatsApp at ${phone}.`,
   shareTake: (take: number | null) => (take ? `Take ${take}` : "A take"),
   sharedWith: (where: string) => `shared with ${where}`,
   generalCommunity: "General community",

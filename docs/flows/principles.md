@@ -33,16 +33,65 @@ Life Panel.
    [`docs/WILL-LEARNING-PLAN.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/WILL-LEARNING-PLAN.md) step 1), the Sunday note (L), life
    goals (M), and the principles in the Life Panel (`/panel/principles`)
    (N182).
-2. Ring 6: the founder only, through the rings panel's rows `voice_notebook`
-   and `life_goals`, until the founder widens them (N182).
+2. Ring 5 and up, through the rings panel's rows `voice_notebook` and
+   `life_goals`, each set to ring 5; nobody below ring 5. Ring 5 holds only
+   people who know it is a test (N212, which widened N182's ring 6; N208).
 3. Not the speaking coach. The Feedback walk, the plan, the coach panel and
    a Take's feedback and summary never read or show the principles, the
    Sunday note or life goals (N182).
 4. Where it shows: the Sunday note and life goals in the Lounge and their
    lens; the principles in the Life Panel. Never on the recording screens,
    never shown to a coach. Private like the notebook (N158, N172, N182).
+5. How it begins. The first time the person taps the mic, before the
+   notebook's question, Will says why it exists in three grey bubbles: "The
+   jitters before a talk are often about more than the talk. Underneath is a
+   bigger question: where is my life going?" · "So we made a place for your
+   answer: your goals, in your own words." · "A goal you can recall is a
+   goal you can steer by. Keep yours here, and when the jitters come back
+   before your next talk, we'll show you what you're doing it for." Then
+   "Your notes are private. Only you and Will read them. Keep a voice
+   notebook?" with Yes | Not now. Once only (N195; not built yet).
+
+### B · The voice note: the wave first, the words follow (decided 2026-10-26, N194; amended the same day, N199)
+
+The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
+
+1. A tap on the mic records at once, and the person's own orange "# " note
+   appears at the bottom of the thread with a small wave of their voice,
+   drawn on the phone from the mic's level, so it shows at once that it
+   hears. The bar under the thread stays: delete, the running time, send
+   (founder 2026-10-20).
+2. The words follow the wave about 2 to 4 seconds behind the voice (the
+   path: Vercel, Railway, the processing-authorization permit, Whisper)
+   and replace the stretch of wave they cover, a phrase at a time. The
+   phrase still being heard is lighter until its whole piece has been heard
+   (N199).
+3. On send, the note stays where it is: the wave the words have not reached
+   shimmers while Will's typing dots show. When the backend has kept it,
+   the hesitations fade out with a line through them, and the kept note
+   takes its place: the backend's transcription of the whole recording,
+   cleaned as before, with a small tick under it, and "Noted." (N199).
+4. Only delete throws a note away. Leaving the app, or the Lounge, keeps
+   what was said and sends it. What is recorded is written to the phone
+   every few seconds, so the note survives the app being closed at any
+   moment. A note that cannot leave the phone waits there under a small
+   clock and goes the next time the app is open with a connection, once
+   (the app names each note, and the backend keeps a name once).
+5. A tap on one's own voice note opens its words in the message box, with
+   close on the left and send on the right, to fix a word. Send replaces the
+   note's words in the thread and in the notebook. Will does not answer
+   again.
+6. The live words are a preview: every second and a half, the last few
+   seconds go to the same transcription provider under the
+   processing-authorization path, and nothing of them is kept.
+7. Only the notebook's notes. The life goals lens's small mic records as
+   before.
 
 ### K · Words on screen (all signed)
+
+- **How it begins (A5, N195):** the three bubbles quoted in A5, word for
+  word; then the notebook's "Your notes are private. Only you and Will read
+  them. Keep a voice notebook?", "Yes", "Not now" and "Noted." (2026-10-20).
 
 - **The Sunday note (L; approved with the lock, 2026-10-26, N158):** "We
   spotted a pattern!"; "Not now"; "Investigate"; "Sunday note"; "What one of
@@ -60,12 +109,19 @@ Life Panel.
   your practice", "changed {date}", "Earlier:"; the field's "Say it or type
   it"; "Type instead". With N183 (M16): "📓 Use your notebook!"; "Keep the
   details in your own notebook, the paper one. Here we keep only the base.";
+  with N185 (M12): the label WHEN THEY CLASH, "{space} wins", "You decide
+  each time"; with N186 (M13): "The quarter ended on {date}."; with N197
+  (M15): "History", "Hide history", "Set on {date}", "＋ Add a goal";
   "That's the base. Now go and live it. Come back for a short recap.". With N170: "Nothing stands out in your notes from the last
   seven days yet."; "There are no # notes from the last seven days yet."
+- **The voice note (B; approved with the prototype, 2026-10-26, N194,
+  N199):** no new words on screen; "Noted." as before; the wave, the tick,
+  the clock. Read by screen readers only: "Fix this note", "Close", "Kept",
+  "Waiting to send".
 
 ### L · The Sunday note (backend `services/sunday_note.py`; locked 2026-10-26, N158)
 
-The prototype is the design: <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo> (§5). Not built yet.
+The prototype is the design: <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo> (§5). Built 2026-10-26: the lens is `SundayLens.tsx`, every question and answer a row of the one thread written by the backend (`/v2/notebook/sunday/<id>`, `/answer`).
 
 - **L1** On Sunday by itself, and whenever asked (N170). On Sunday from 6 pm
   in the speaker's time zone, once, Will brings L2 by itself when the last
@@ -116,7 +172,7 @@ The prototype is the design: <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo>
 
 ### M · Life goals (backend `services/life_goals.py`; decided 2026-10-26, N172)
 
-The prototype is the design: <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24> (§5, version 7). Founder only (ring 6, `life_goals`), in the Lounge and its lens; never on the recording screens, never shown to a coach. Private like the notebook. No number about the speaker (Never 1): horizons and dates are the speaker's own.
+The prototype is the design: <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24> (§5, version 7). Ring 5 and up (`life_goals`, N212), in the Lounge and its lens; never on the recording screens, never shown to a coach. Private like the notebook. No number about the speaker (Never 1): horizons and dates are the speaker's own.
 
 - **M1** When it is asked. Once, right after the first # note's "Noted."
   (voice or typed): two grey bubbles, "One more thing: your life goals." and
@@ -169,7 +225,8 @@ The prototype is the design: <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24>
   {date}, A WANT, HELD KNOWINGLY, GIVING UP, IN TEN YEARS, IN THREE YEARS,
   IN A YEAR (each · by {date}), THIS QUARTER or NEXT QUARTER · by {date};
   under the goal the talk serves (career unless the speaker moves it), TALK
-  GOAL and THIS WEEK · from your practice. A skipped step is left out. Then
+  GOAL and THIS WEEK · from your practice; then WHEN THEY CLASH, one row per
+  goal it clashes with (M12). A skipped step is left out. Then
   "Noted. Your {space} goal is set." and Close; the Lounge keeps the thread
   and the bubble opens the lens again (L8).
 - **M11** Changing a step: "#goals" or the › on a ladder bubble opens "Tap
@@ -182,13 +239,20 @@ The prototype is the design: <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24>
   "Noted. Changed on {date}." and the ladder with "· changed {date}" and
   "Earlier: …". Done; "All still right" leaves it. Every version is kept,
   dated.
-- **M12** A second goal whose give-up pulls against another goal: Will names
-  both in one bubble and asks once "When they clash, which wins?" ({space} ·
-  {space} · ⚖️ I decide each time); "Noted. On both ladders: when they
-  clash, …".
+- **M12** A second goal whose give-up pulls against another goal (N185):
+  before the new goal is set, Will checks once per pair, from their words
+  only, names both in one bubble and asks "When they clash, which wins?"
+  ({emoji} {space} · {emoji} {space} · ⚖️ I decide each time; when both
+  goals share a space, each is named by its first words); "Noted. On both
+  ladders: when they clash, {space} wins." (or "you decide each time.").
+  Both ladders get the step WHEN THEY CLASH: "{emoji} {space} wins" or "You
+  decide each time". It changes by tapping, like any step (M11), with the
+  same three answers; the earlier answer is kept with its date.
 - **M13** The quarter comes back on its last day, once per goal with a
   quarter step, in the Lounge: "The quarter ends today." and "{emoji} {step}.
-  Did it move?" with Not now | Start. The lens: the ladder, "Did it move?"
+  Did it move?" with Not now | Start. No clock (N186): they are waiting the
+  first time the Lounge opens that day; opened later, "The quarter ended on
+  {date}." in place of the first. The lens: the ladder, "Did it move?"
   (🎯 It got there · ↗️ It moved · ⏸️ It stalled), never a score; moved or
   stalled: "What got in the way?", then, only when some match, "Your notes
   said it too:" and their own # notes quoted with their dates; "What would
@@ -196,10 +260,20 @@ The prototype is the design: <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24>
 - **M14** A # note that sounds like a change: Will asks once in the Lounge,
   quoting it: "Change {emoji} this quarter to “…”?" and "Now: …. From your
   note: “…”", Not now | Change; Change: "Noted. {emoji} This quarter is now
-  “…”. “…” stays in its history." Never a change by itself.
+  “…”. “…” stays in its history." and the ladder. Never a change by itself.
+  The new words and the quote are found word for word in the note, else
+  nothing is asked; asked once per note; only the quarter step, "this
+  quarter only is fine" (N191;
+  prototype version 9, scene 5).
 - **M15** Kept in the Life Panel's store as its top layer, above the three
   bets; every version dated. Will reads the ladders and their dated changes
-  before it chats and before the Sunday note.
+  before it chats and before the Sunday note. On the Goals screen (N197,
+  prototype <https://claude.ai/artifact/BeKgTGi1KXvF5ruvMEiA33>): "Life
+  goals" above "Three bets, in order.", one ladder per set goal, each step a
+  row with › that opens the lens over the panel on that step; under each
+  ladder "Set on {date}" and History / Hide history, every version newest
+  first with its date and the quarter's answers in words; under the ladders
+  "＋ Add a goal". Before the first goal, nothing new.
 - **M16** The base, not the details (backend N180, N183). The first time the
   lens opens (no goal yet, no draft), before the space: "📓 Use your
   notebook!" and "Keep the details in your own notebook, the paper one. Here
@@ -216,19 +290,20 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- **N172** · life goals (M) · M · M1–M11 built in this PR and backend #1335 (merged); then M12 (the clash), M13 (the quarter comes back), M14 (a note that sounds like a change), the ladders in the Life Panel's own screens and this week's focus on the ladder (no source yet) · BE #1335, FE (this PR)
-- **N158, N170** · the Sunday note as a lens, on Sunday by itself when there is a pattern and whenever asked in any words, from the last seven days · L · locked 2026-10-26, not built; the backend half (only # notes, only when asked, no Old | New) is on backend branch `claude/gracious-faraday-x8tin9`, not merged · —
+Nothing is in flight: L and M are built (2026-10-26).
 
 ## 3. Still open
 
-- Who gets it beyond the founder: the founder widens the `voice_notebook`
-  and `life_goals` rings (N182).
+- Who gets it beyond ring 5: the founder widens the `voice_notebook` and
+  `life_goals` rings further (N212).
 
 ## 4. Where it lives
 
 - The voice notebook: backend `services/voice_notebook.py`,
   `routes/v2/voice_notebook.py`; frontend `src/components/willab/useVoiceNote*`,
-  `src/services/api/voiceNotebook.ts`, `src/app/api/v2/notebook/`.
+  `src/services/api/voiceNotebook.ts`, `src/app/api/v2/notebook/`; written
+  as it is said (B): `src/lib/willab/liveNoteWords.ts` and the phone's
+  outbox `src/lib/willab/voiceNoteOutbox.ts`.
 - The Sunday note: backend `services/sunday_note.py`; frontend
   `src/app/api/v2/notebook/sunday/`.
 - Life goals: backend `services/life_goals.py`, `routes/v2/life_goals.py`;
@@ -242,16 +317,28 @@ deletes the line when the work is merged (the change goes to §6).
 
 ## 5. Prototypes
 
+- The voice note <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (N194,
+  2026-10-26; version 4, the wave first and the words follow, N199).
 - The Sunday note as a lens <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo>
   (N158, 2026-10-26); asking for it
   <https://claude.ai/artifact/M5GWxvbNPRbkEjoL2ivZxB> (N170, 2026-10-26).
 - Life goals <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24> (N172,
-  version 7, 2026-10-26).
+  version 7, 2026-10-26; version 9 adds scene 5 as built for M14, N191).
 
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-27 · N212 · the principles open to ring 5: the `voice_notebook` and `life_goals` rows at ring 5, set by the founder on the CEO panel's rings settings; was ring 6, the founder only (N182) · BE #1409, FE (this PR)
+- 2026-10-26 · N199 · B1–B3: the wave of the voice shows at once and the words follow it a phrase at a time, 2 to 4 seconds behind; after send the unwritten wave shimmers, then the hesitations fade and the kept note lands; was: the words appear as they are said, with a cursor · BE #1379, FE #1009
+- 2026-10-26 · N172 · built (M10, the last piece): THIS WEEK on the career ladder is this week's level from the plan (the plan's G5, backend #1386), a plain row with no ›, in the lens, on the Goals screen and in Will's prompt; nothing while no plan runs · BE #1390, FE (this PR)
+- 2026-10-26 · N158, N170 · built (L): the Sunday note as a lens; only the # notes of the last seven days; on Sunday from 6 pm by itself only when they show a pattern, and whenever asked in any words; "We spotted a pattern!" and the case with Not now | Investigate; the lens asks the bug, the principle held, the reflection and Will's new principle (Accept, Edit, Not now); the bubble's › reopens it where it stands. What stopped: the long case form, Old | New and its "Add principle" footer · BE #1382, FE (this PR)
+- 2026-10-26 · N197 · built (M15): the ladders on the Life Panel's Goals screen, above the three bets; a tapped step opens the lens over the panel on that step; History lists every version, dated; "＋ Add a goal"; nothing before the first goal (`LifeGoalsLadders.tsx`) · BE #1371, #1373, FE (this PR)
+- 2026-10-26 · N194 · built (B): the voice note is written as it is said, settles on send with a tick and "Noted.", is kept when the app is left (the phone's outbox, sent once by its name), waits under a clock without a connection, and a tap on it fixes its words; the life goals mic is unchanged · BE (backend PR), FE (this PR)
+- 2026-10-26 · N195 · A5: the first tap on the mic, before the notebook's question, says why it exists in three bubbles (the jitters, a place for your goals, a goal you can steer by); was: the question alone · BE #1369, FE #1008
+- 2026-10-26 · N191 · built (M14): under a # note's "Noted.", a note that says a goal's quarter step should be different is asked about once, quoting it, the new words only from the note; Change writes it with the earlier words kept and shows the ladder, Not now changes nothing · BE #1359, #1361, FE (this PR)
+- 2026-10-26 · N186 · built (M13): no clock; the first time the Lounge opens on the quarter's last day (or later, "The quarter ended on {date}."), "Did it move?" with Not now | Start; the lens asks how it went in words, what got in the way, quotes their own notes only when some match, and sets the next quarter's step with the earlier one kept · BE #1354, #1356, FE (this PR)
+- 2026-10-26 · N185 · built (M12): before a new goal is set, Will checks once per pair whether it pulls against a kept goal, from their words only, and asks "When they clash, which wins?"; the answer is the step WHEN THEY CLASH on both ladders, changed by tapping with the earlier answer kept · BE #1351, #1353, FE (this PR)
 - 2026-10-26 · N180, N183 · built (M16): "📓 Use your notebook!" and the paper-notebook line the first time the lens opens; "That's the base. Now go and live it. Come back for a short recap." when a goal is set; the voice notebook stays for short # notes · BE (this change), FE (this PR)
 - 2026-10-26 · N182 · this page: the principles, the Sunday note and life goals are their own feature, ring 6, apart from the speaking coach; L and M moved here from the walk's page with their letters, words, in-flight lines and prototypes · BE #1344, FE #993
 - 2026-10-26 · N172 · built (M1–M11): the ask after a # note with Not now | Start; "#goals" or an ask in your own words opens the lens; one goal per sitting, the open questions said with the small mic or typed, Will's draft quoting only your words, goal or want, ambitious, give up, the horizon worked back to the quarter with the four-week rule, the ladder in the Lounge with its ›, a step changed with its earlier words kept; the lens is the walk's frame (`LoungeLifeGoals.tsx`); the pair shows above the message box, as the notebook's and the WhatsApp ask's do · BE #1335, FE (this PR)

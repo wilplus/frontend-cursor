@@ -18,6 +18,9 @@ import { readOfferType } from "./loungeOffers";
 export const SCREEN_TURNS = 40;
 
 export interface ScreenFacts {
+  /** A Take's Feedback walk (N192): the Take and its summary, which is
+   *  inside the walk and no longer a bubble of its own. Null: not one. */
+  walkOf?: (message: LoungeMessage) => { take: number | null; summary: string | null } | null;
   /** A review's end card: the talk's title and the Take, as the card shows. */
   cardOf: (message: LoungeMessage) => { title: string; take: number | null } | null;
   /** The card wears the orange stroke and dot: the coach's feedback waits. */
@@ -40,8 +43,16 @@ function versionOf(meta: Record<string, unknown>): string | null {
   return Number.isFinite(v) && v > 0 ? `version ${v}.0` : null;
 }
 
+function walkLine(walk: { take: number | null; summary: string | null }): string {
+  const name = walk.take ? `Take ${walk.take}` : "the Take";
+  const line = `[On screen: the Feedback walk of ${name}, one bubble holding its feedback; a tap opens the walk.]`;
+  return walk.summary ? `${line}\n[Inside it, the Take's summary:]\n${walk.summary}` : line;
+}
+
 function lineOf(message: LoungeMessage, facts: ScreenFacts): ChatHistoryEntry | null {
   const meta = message.metadata ?? {};
+  const walk = facts.walkOf?.(message);
+  if (walk) return { role: "assistant", content: walkLine(walk) };
   const role = message.role === "user" ? "user" : "assistant";
   const body = message.body.trim();
   if (readOfferType(meta)) return body ? { role: "assistant", content: body } : null;

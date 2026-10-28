@@ -37,6 +37,7 @@ import { LoungeThreadProvider } from "./LoungeThreadContext";
 import { afterChatBoot } from "@/lib/chatBoot";
 import {
   beginSetupDraft,
+  beginSetupDraftWithTopic,
   clearActiveSetupDraft,
   resumeSetupDraft,
 } from "@/lib/willab/setupDraft";
@@ -250,6 +251,14 @@ export default function WillabSurface({
         onStartInProject={() => {
           clearActiveSetupDraft(userId);
           flow.startRecordingSetup();
+        }}
+        onStartPlanRecording={(topic) => {
+          // The plan's first practice (docs/flows/the-plan.md E5, B7): a new
+          // project whose set-up arrives with the topic filled in; the two
+          // ratings took the place of "How do you feel?" (N151).
+          clearExploreArc(userId);
+          beginSetupDraftWithTopic(userId, topic);
+          flow.dispatch("setup_requested");
         }}
         dispatch={flow.dispatch}
         initialBestPresentationArcId={bestPresentationArcId}

@@ -8,16 +8,17 @@ import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
 import WalkStage from "./WalkStage";
-import WalkThread, { WalkPart, WalkSpeakerBubble, WalkThreadMark, useMountedAsPast } from "./WalkThread";
+import WalkThread, { WalkEdited, WalkPart, WalkSpeakerBubble, WalkThreadMark, useMountedAsPast } from "./WalkThread";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage, { WalkNewWords } from "./WalkMessage";
+import { PLAN_COPY } from "@/lib/willab/planCopy";
 import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import WalkWordPicker from "./WalkWordPicker";
 import { practiseThreadFooter, practiseThreadItem, type PractiseScreenCtx } from "./WalkPractiseScreens";
 import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
-import WalkSummary from "./WalkSummary";
+import WalkSummary, { type WalkStoredSummary } from "./WalkSummary";
 import WalkTempo from "./WalkTempo";
 import { TEMPO_COPY, type TempoEvent, type TempoStretch } from "@/lib/willab/tempoStep";
 import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
@@ -83,8 +84,8 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /*  never answer and never close. The pill alone moves the journey on, to the */
 /*  next step that waits, and the speaker's choice lands as their own bubble. */
 /*  A step reopened (the finished walk played again) shows its answer as a    */
-/*  "✓ …" line over a black Next. Helper words stay editable on the newest    */
-/*  part (lock, section 2.3).                                                 */
+/*  "✓ …" line over a black Next. Helper words stay editable on any part: a   */
+/*  tap stands the walk there (C3, B10).                                      */
 /*                                                                            */
 /*  Every word on these screens is a signed one (CHUNK_SHEET_COPY, WALK_COPY) */
 /*  or the caller's (the coach's note, the praise line the item carries);     */
@@ -110,6 +111,8 @@ export type FeedbackWalkCoachNote = {
   text: string | null;
   videoUrl: string | null;
   takeIndex: number | null;
+  /** Changed after it was first shared: "Edited" on it (N192, B13). */
+  edited?: boolean;
 };
 
 /** What a helper-words save carries: the paragraph, the span in the words
@@ -164,6 +167,12 @@ type Props<R> = {
   /** The closing summary's words (lock, section 3); null: the step is
    *  skipped. */
   summary?: (() => Promise<string | null>) | null;
+  /** The summary as the chat holds it, shown at once and in a walk played
+   *  again: it lives in the walk only (N192, D4). */
+  storedSummary?: WalkStoredSummary | null;
+  /** The paragraphs whose helper words were picked again in this Take:
+   *  their answer says "Edited" (N192, B13). */
+  editedWords?: ReadonlySet<string>;
   /** The walk ran out: the page underneath. */
   onEnd: () => void;
   /** Next on a step played again: true when the host moved the walk itself
@@ -216,6 +225,8 @@ type Props<R> = {
   onTempo?: (event: TempoEvent) => void;
 };
 
+const NO_EDITS: ReadonlySet<string> = new Set();
+
 /** The AI bubble a screen showed, for the chat. */
 export type WalkAiShown = AiVoiceLines & { practiceId: string };
 
@@ -223,6 +234,9 @@ const testId = (step: WalkStep) => `walk-screen-${step.key}`;
 
 /** The steps a practise is opened from; ✕ on the recorder goes back there. */
 const OPENERS = new Set(["clearer", "exVideo", "encourage", "late"]);
+
+/** The steps whose dock is the recorder or a try being checked. */
+const RECORDER = new Set(["practise", "processing"]);
 
 /** One part of the thread: a step reached, by its place in the plan. */
 type ThreadPart = { key: string; at: number };
@@ -273,6 +287,8 @@ export default function FeedbackWalk<R = unknown>({
   practise: practiseIO = null,
   readLimitMs,
   summary = null,
+  storedSummary = null,
+  editedWords = NO_EDITS,
   onEnd,
   onForward,
   onClose,
@@ -297,6 +313,9 @@ export default function FeedbackWalk<R = unknown>({
   const [picks, setPicks] = useState<Record<string, PhraseSelection | null>>({});
   // The answer given to each step in this opening, by the step's identity.
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // Where the walk stood before a tap on an earlier part's helper words
+  // stood it there: their buttons bring it back (C3, B10).
+  const [resume, setResume] = useState<number | null>(null);
   const guestBlock = useGuestBlock();
 
   const requestRef = useRef(request);
@@ -312,6 +331,7 @@ export default function FeedbackWalk<R = unknown>({
     setWalk(opened);
     setPicks(replayPicks(opened));
     setAnswers({});
+    setResume(null);
     setAt(asked.at);
     setReach(Math.max(asked.at, asked.head ?? asked.at));
     openedAt.current = asked.at;
@@ -347,9 +367,14 @@ export default function FeedbackWalk<R = unknown>({
     [go, onEnd],
   );
   const forward = useCallback(() => {
+    if (resume !== null) {
+      setResume(null);
+      land(plan, resume, undefined);
+      return;
+    }
     if (onForward?.()) return;
     land(plan, at + 1, "forward");
-  }, [at, plan, land, onForward]);
+  }, [at, plan, land, onForward, resume]);
   const atNow = useRef(at);
   atNow.current = at;
   /** Moves on from `step` only while the walk still stands on it: a screen
@@ -357,6 +382,9 @@ export default function FeedbackWalk<R = unknown>({
   const forwardFrom = (step: WalkStep) => {
     const here = plan.indexOf(step);
     if (here === atNow.current) land(plan, here + 1, "forward");
+    // Finished while the walk stood on earlier helper words: it goes on
+    // past it once back.
+    else if (here === resume) setResume(here + 1);
   };
   /** The practise lays a new plan in as the machine answers. */
   const relay = useCallback(
@@ -589,6 +617,19 @@ export default function FeedbackWalk<R = unknown>({
       if (blocked(s)) return;
       setPicks((p) => ({ ...p, [pickKey(s)]: next }));
     },
+    standOn: (s) => {
+      const here = plan.indexOf(s);
+      // The recorder never gives way (B9): moving off it stops the mic.
+      if (here < 0 || here === at || s.readOnly || RECORDER.has(step.key)) return false;
+      // Back up the thread, their buttons bring the walk back to where it
+      // stood; further down, the walk goes on from them.
+      setResume((r) => {
+        const back = r ?? at;
+        return here < back ? back : null;
+      });
+      go(here);
+      return true;
+    },
     save: (s, moment) => {
       if (blocked(s)) return;
       answer(s, "use");
@@ -649,6 +690,8 @@ export default function FeedbackWalk<R = unknown>({
     pastLoop,
     practise,
     summary,
+    storedSummary,
+    editedWords,
     nav: (s, moment) => stepNav(ctx, s, moment),
     say: walkLines.say,
     onOthers,
@@ -732,6 +775,10 @@ type ScreenCtx<R = unknown> = {
   answer: (step: WalkStep, value: string) => void;
   answered: (step: WalkStep) => string | null;
   pick: (step: WalkStep, next: PhraseSelection | null) => void;
+  /** A tap on the helper words of a part the walk does not stand on: the
+   *  walk stands there, their buttons in the dock. False where it may not
+   *  (a guest, the recorder in the dock). */
+  standOn: (step: WalkStep) => boolean;
   save: (step: WalkStep, moment: FeedbackWalkMoment) => void;
   accept(step: WalkStep, moment: FeedbackWalkMoment<R>): void;
   keep(step: WalkStep, moment: FeedbackWalkMoment<R>): void;
@@ -744,6 +791,8 @@ type ScreenCtx<R = unknown> = {
   pastLoop: () => void;
   practise: WalkPractise;
   summary: (() => Promise<string | null>) | null;
+  storedSummary: WalkStoredSummary | null;
+  editedWords: ReadonlySet<string>;
   nav: (step: WalkStep, moment: FeedbackWalkMoment<unknown>) => WalkNav;
   /** The signed line a screen says (D-FW-3). */
   say: SayLine;
@@ -805,6 +854,18 @@ function Clip({ moment, words }: { moment: FeedbackWalkMoment; words?: ReactNode
   );
 }
 
+/** On a plan, the moment where this week's level shows most (G7, backend
+ *  N134 item 2, N209; the plan's prototype, "This week's level"): its line
+ *  above the speaker's clip. */
+function LevelHere({ moment }: { moment: FeedbackWalkMoment }) {
+  if (!moment.planLevel) return null;
+  return (
+    <WalkMessage>
+      <span data-walk-level>{PLAN_COPY.levelHere(moment.planLevel)}</span>
+    </WalkMessage>
+  );
+}
+
 /** The coach's word for the Take: "Your coach:", their video inside the
  *  bubble, then their words. */
 function CoachNote(ctx: ScreenCtx, step: WalkStep) {
@@ -833,6 +894,7 @@ function CoachNote(ctx: ScreenCtx, step: WalkStep) {
         <span>{COPY.titleCoachLine}</span>
         {note?.videoUrl ? <CoachVideo src={note.videoUrl} className="my-2 w-full flex-none" /> : null}
         {note?.text ? <span>{note.text}</span> : null}
+        {note?.edited ? <WalkEdited /> : null}
       </WalkMessage>
     </WalkOverlay>
   );
@@ -896,7 +958,10 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
 }
 
 /** "Choose your helper words": the bubble, then the picker as a big bubble
- *  in the thread, live on the newest part only. */
+ *  in the thread. On a part the walk does not stand on, a tap stands the
+ *  walk there first, so the words are editable anywhere in the thread (C3,
+ *  B10; until 2026-10-28 only the part stood on took a tap, and a walk
+ *  opened on its newest step left every earlier picker dead). */
 function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   const picked = ctx.picks[pickKey(step)] ?? null;
   const live = ctx.at(step) === ctx.head;
@@ -937,7 +1002,7 @@ function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
         words={phraseTokens(words).map((token) => token.text)}
         selection={picked}
         onChange={(next) => {
-          if (live) ctx.pick(step, next);
+          if (live || ctx.standOn(step)) ctx.pick(step, next);
         }}
       />
     </WalkOverlay>
@@ -984,6 +1049,7 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
         )
       }
     >
+      <LevelHere moment={moment} />
       <Clip moment={moment} words={pieces(clearer.before)} />
       {/* The coach's own clearer version is their bubble, with their photo
           and video, and is not said twice (founder 2026-10-20). */}
@@ -1012,6 +1078,7 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
   // just above, and it has the AI clip or nothing, never Line A.
   return (
     <>
+      {moment.praised ? null : <LevelHere moment={moment} />}
       {moment.praised ? null : <Clip moment={moment} />}
       {aiExercise(ctx, step, moment) ?? (ctx.bare(step) || moment.praised ? null : (
         <WalkMessage coach={exercise?.byCoach === true} wide>
@@ -1195,6 +1262,7 @@ function Summary(ctx: ScreenCtx, step: WalkStep) {
       testId={testId(step)}
       takeIndex={ctx.takeIndex}
       fetchText={ctx.summary}
+      stored={ctx.storedSummary}
       onBack={noop}
       backDisabled
       onNext={() => ctx.forwardFrom(step)}
@@ -1239,6 +1307,14 @@ function partLabel(ctx: ScreenCtx, step: WalkStep): string | null {
   if (step.key === "tempo") return TEMPO_COPY.mark;
   const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];
   return moment ? (stepNav(ctx, step, moment).position ?? null) : null;
+}
+
+/** Helper words picked again in this Take: their answer, in place, says
+ *  "Edited" (N192, B13; no second bubble, no struck-through words). */
+function wordsEdited(ctx: ScreenCtx, step: WalkStep): boolean {
+  if (step.key !== "helpers" || step.moment == null) return false;
+  const moment = ctx.walk.moments[step.moment];
+  return moment ? ctx.editedWords.has(moment.partId) : false;
 }
 
 /** The speaker's choice on a step, as their own bubble under it: the same
@@ -1293,7 +1369,7 @@ function renderThread<R>(
         <WalkPart now={i === now} fresh={i === parts.length - 1}>
           {renderScreen(ctx, step, backFromPractise)}
         </WalkPart>
-        {said ? <WalkSpeakerBubble>{said}</WalkSpeakerBubble> : null}
+        {said ? <WalkSpeakerBubble edited={wordsEdited(ctx, step)}>{said}</WalkSpeakerBubble> : null}
       </>
     );
     return (

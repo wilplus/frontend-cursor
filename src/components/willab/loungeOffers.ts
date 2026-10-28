@@ -30,8 +30,9 @@ export type OfferType =
   | "feedback_check"
   | "voice_notebook"
   | "sunday_note"
-  | "sunday_principle"
-  | "life_goals";
+  | "life_goals"
+  | "life_goals_quarter"
+  | "life_goals_change";
 
 const OFFER_TYPES: readonly OfferType[] = [
   "install",
@@ -43,8 +44,9 @@ const OFFER_TYPES: readonly OfferType[] = [
   "feedback_check",
   "voice_notebook",
   "sunday_note",
-  "sunday_principle",
   "life_goals",
+  "life_goals_quarter",
+  "life_goals_change",
 ];
 
 /** The bubble prompt persisted as the message body. No em-dashes (house style). */
@@ -73,15 +75,21 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
   // 2026-10-20): asked before the first note. Backend COPY["ask"] in
   // services/voice_notebook.py; this is only the fallback.
   voice_notebook: "Your notes are private. Only you and Will read them. Keep a voice notebook?",
-  // The Sunday note (Will learning plan, step 2): the founder's own case
-  // form; the backend writes the whole note (services/sunday_note.py), and
-  // these are only the fallbacks.
-  sunday_note: "CASE AT HAND",
-  sunday_principle: "NEW PRINCIPLE ⚜️",
+  // The Sunday note as a lens (Will learning plan, step 2; backend N158
+  // L2): the backend writes the case under "We spotted a pattern!" with Not
+  // now | Investigate (services/sunday_note.py); this is only the fallback.
+  sunday_note: "We spotted a pattern!",
   // Life goals (Will learning plan, step 3; backend N172 M1): asked after
   // the first # note, Not now | Start. Backend COPY["ask_more"] in
   // services/life_goals.py; this is only the fallback.
   life_goals: "One goal today. Say or type your answers.",
+  // The quarter comes back (backend N172 M13, N186): Not now | Start. The
+  // backend writes "{emoji} {step}. Did it move?"; this is only the fallback.
+  life_goals_quarter: "Did it move?",
+  // A note that sounds like a change (backend N172 M14, N191): Not now |
+  // Change. The backend writes the ask quoting the note; this is only the
+  // fallback.
+  life_goals_change: "Change this quarter?",
   joke:
     "I'm just a simple system, but I noticed you weren't feeling great before this presentation. Want me to crack a joke?",
 };

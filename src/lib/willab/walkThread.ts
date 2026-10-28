@@ -11,7 +11,7 @@
 
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "@/components/willab/idealEditCopy";
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
-import type { FeedbackWalkMoment } from "./feedbackWalkModel";
+import type { FeedbackWalkMoment, WalkStepTarget } from "./feedbackWalkModel";
 import type { PraiseReason } from "./praiseReason";
 import { clearerOpening, topMomentLine, type WalkBankKey } from "./walkLines";
 import type { WalkStep } from "./walkPlan";
@@ -158,25 +158,6 @@ export function shareChat(
     say("bot", SHARE_QUESTION),
     say("user", choice),
   ];
-}
-
-/** A sharing question stored before 2026-10-19 as three bubbles in a row,
- *  drawn as the one bubble the chat now writes. Pure. */
-export function oneShareQuestion<T extends { message: LoungeMessage }>(items: readonly T[]): T[] {
-  const out: T[] = [];
-  for (const item of items) {
-    const prev = out[out.length - 1];
-    if (prev && isShareQuestion(prev.message) && isShareQuestion(item.message)) {
-      out[out.length - 1] = { ...prev, message: { ...prev.message, body: `${prev.message.body}\n\n${item.message.body}` } };
-    } else {
-      out.push(item);
-    }
-  }
-  return out;
-}
-
-function isShareQuestion(m: LoungeMessage): boolean {
-  return m.kind === "walk_step" && m.role === "bot" && m.metadata?.step === "share";
 }
 
 /** The bridge line before other speakers' moments (lock 2026-10-12,
@@ -379,4 +360,243 @@ export function shownStep(
     default:
       return null;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  THE WALK IN THE CHAT (founder 2026-10-26, N192: "there should be just the */
+/*  ideal text after the take and the feedback walk above it"). The steps    */
+/*  stay stored as above, one thread (B1); the chat draws a Take's steps as  */
+/*  one "Feedback walk" bubble with the walk's date, and its Ideal Text card */
+/*  under it. Pure.                                                          */
+/* -------------------------------------------------------------------------- */
+
+/** The walk steps the chat still draws itself (B3): the Take's Ideal Text
+ *  card (the review's end) and the coach's "Later · from your coach"
+ *  bubble, a new message (D5). Every other step is in the Feedback walk. */
+export function chatDrawsStep(m: LoungeMessage): boolean {
+  const meta = m.metadata ?? {};
+  return m.kind !== "walk_step" || meta.step === "end" || meta.coach_update === true;
+}
+
+/** One Take's walk, as the chat draws it. */
+export type ChatWalk = {
+  /** The Take (its session). */
+  take: string;
+  arcId: string | null;
+  takeIndex: number | null;
+  /** The step the bubble stands in for: the Take's first step in the chat. */
+  at: string;
+  /** When the walk ran: its first step's time. */
+  date: string;
+  /** The Take's newest step that opens a part of the walk (B10): the
+   *  bubble opens the whole walk standing on it. Null: none to stand on. */
+  newest: LoungeMessage | null;
+  /** The walk's own copy of the coach's word, held by this bubble (D5). */
+  coachCopies: LoungeMessage[];
+  /** Something in it changed after it was said (B13): helper words picked
+   *  again, the coach's word changed, the summary a coach's note rewrote. */
+  edited: boolean;
+};
+
+const takeOf = (m: LoungeMessage) => (typeof m.metadata?.take_session_id === "string" ? m.metadata.take_session_id : null);
+
+/** A step that stands for a part of the walk: the app's or the coach's
+ *  bubble on a moment, the coach's word, the helper words. Not Other
+ *  speakers (an old judging bubble opens new moments, C8). */
+function partStep(m: LoungeMessage): boolean {
+  const meta = m.metadata ?? {};
+  if (m.role !== "bot" || meta.coach_update === true) return false;
+  return typeof meta.moment === "number" || meta.step === "coachnote" || meta.step === "helpers";
+}
+
+/** The chat's Feedback walks, in the order the Takes' first steps come
+ *  (`messages` in the chat's order). A Take with no step but its card has
+ *  none: there is nothing to walk. */
+export function chatWalks(messages: readonly LoungeMessage[]): ChatWalk[] {
+  const walks = new Map<string, ChatWalk>();
+  const picks = new Map<string, Set<string>>();
+  const edited = new Set<string>();
+  for (const m of messages) {
+    const meta = m.metadata ?? {};
+    const take = takeOf(m);
+    if (!take) continue;
+    if (meta.summary === true && meta.coach_update === true && typeof meta.earlier === "string") edited.add(take);
+    if (m.kind !== "walk_step") continue;
+    if (meta.coach_update === true && meta.edited === true) edited.add(take);
+    if (typeof meta.words_of === "string") {
+      const key = `${take}|${meta.words_of}`;
+      const seen = picks.get(key) ?? new Set<string>();
+      seen.add(m.client_id);
+      picks.set(key, seen);
+      if (seen.size > 1) edited.add(take);
+    }
+    if (chatDrawsStep(m) || meta.step === "share") continue;
+    let walk = walks.get(take);
+    if (!walk) {
+      walk = {
+        take,
+        arcId: typeof meta.arc_id === "string" ? meta.arc_id : null,
+        takeIndex: typeof meta.take_index === "number" ? meta.take_index : null,
+        at: m.client_id,
+        date: m.client_created_at,
+        newest: null,
+        coachCopies: [],
+        edited: false,
+      };
+      walks.set(take, walk);
+    }
+    if (partStep(m)) walk.newest = m;
+    if (meta.step === "coachnote" && meta.author === "coach") walk.coachCopies.push(m);
+  }
+  return [...walks.values()].map((w) => ({ ...w, edited: edited.has(w.take) }));
+}
+
+/** A Take's version bubble ("Your ideal text is ready", or verified): the
+ *  project's card for that Take before its review's end card exists. */
+function versionOf(m: LoungeMessage, walk: ChatWalk): boolean {
+  const meta = m.metadata ?? {};
+  const version = typeof meta.version === "string" && meta.version.trim() ? Number(meta.version) : meta.version;
+  return (
+    m.kind === "ideal_text" &&
+    (meta.variant === "ready" || meta.variant === "verified") &&
+    walk.arcId !== null &&
+    meta.arc_id === walk.arcId &&
+    walk.takeIndex !== null &&
+    version === walk.takeIndex
+  );
+}
+
+/** THE PAIR (founder 2026-10-26, N202): each Take's Ideal Text card is drawn
+ *  right under its Feedback walk, the same width, as one pair, wherever the
+ *  card was written; what was said in between stays under the pair. The
+ *  card is the review's end; a walk left before its end (the next Take was
+ *  recorded) pairs with its Take's version bubble. While the walk still runs
+ *  (`live`: the project whose review waits, its newest walk) its card is held
+ *  back: the walk's end brings it (N202, question 1). Pure: the chat's drawn
+ *  messages in; out, the card under each walk (keyed by the walk's `at`) and
+ *  the cards not drawn (an earlier copy of a Take's card, or the live walk's). */
+export function walkPairs(
+  messages: readonly LoungeMessage[],
+  walks: readonly ChatWalk[],
+  live: string | null,
+): { cardOf: Map<string, string>; held: Set<string> } {
+  const cardOf = new Map<string, string>();
+  const held = new Set<string>();
+  const liveWalk = live ? [...walks].reverse().find((w) => w.arcId === live) ?? null : null;
+  for (const walk of walks) {
+    const ends = messages.filter((m) => m.kind === "walk_step" && m.metadata?.step === "end" && takeOf(m) === walk.take);
+    const cards = ends.length > 0 ? ends : messages.filter((m) => versionOf(m, walk));
+    if (cards.length === 0) continue;
+    if (walk === liveWalk && ends.length === 0) {
+      cards.forEach((m) => held.add(m.client_id));
+      continue;
+    }
+    cardOf.set(walk.at, cards[cards.length - 1].client_id);
+    cards.slice(0, -1).forEach((m) => held.add(m.client_id));
+  }
+  return { cardOf, held };
+}
+
+/** Where a step's door opens the walk: its step (a try's opens its
+ *  exercise), its moment, its Take and its paragraph. Null: no step. */
+export function doorOf(meta: Record<string, unknown>): WalkStepTarget | null {
+  const step = typeof meta.step === "string" ? meta.step : null;
+  if (!step) return null;
+  return {
+    step: exerciseStepOf(step),
+    moment: typeof meta.moment === "number" ? meta.moment : null,
+    take: typeof meta.take_session_id === "string" ? meta.take_session_id : null,
+    part: typeof meta.part_id === "string" ? meta.part_id : null,
+  };
+}
+
+/** A try ("Practise N") or the answer it got opens its exercise, the whole
+ *  thread with every try (walk first, 2026-10-14). */
+function exerciseStepOf(step: string): string {
+  return step.startsWith("try:") || ["improved", "encourage", "thanks"].includes(step) ? "exVideo" : step;
+}
+
+/** Where the chat's Feedback walk, and "Continue review" for it, open the
+ *  walk (B10, N192): on the coach's word while it waits (C1); while the
+ *  review waits, on the step it waits on; once done, on the walk's newest
+ *  part; else on the Take alone, which the page opens live on what waits,
+ *  or, once done, on its newest step. Always a door: asked with none, the
+ *  page opened only a walk it could see waiting, and a walk paused on its
+ *  summary or with no part to stand on showed the Ideal Text in its place
+ *  (founder 2026-10-26: "the feedback walk opens the ideal text instead of
+ *  the feedback walk!"). */
+export function feedbackWalkDoor(walk: ChatWalk, waits: readonly LoungeMessage[], live: string | null): WalkStepTarget {
+  const coach = waits.find((m) => m.metadata?.step === "coachnote");
+  const at = coach ?? (live !== null && live === walk.arcId ? waits[0] : walk.newest);
+  return (at ? doorOf(at.metadata ?? {}) : null) ?? { take: walk.take };
+}
+
+/** The chat in the order it is drawn (N202): each Take's card right after
+ *  its Feedback walk, the cards held back left out, the rest as written. */
+export function inPairs<T>(
+  items: readonly T[],
+  idOf: (item: T) => string,
+  pairs: { cardOf: ReadonlyMap<string, string>; held: ReadonlySet<string> },
+): T[] {
+  const byId = new Map(items.map((item) => [idOf(item), item]));
+  const moved = new Set(pairs.cardOf.values());
+  const out: T[] = [];
+  for (const item of items) {
+    const id = idOf(item);
+    if (moved.has(id) || pairs.held.has(id)) continue;
+    out.push(item);
+    const card = byId.get(pairs.cardOf.get(id) ?? "");
+    if (card) out.push(card);
+  }
+  return out;
+}
+
+/** Who heard each Take, as one line under its recording (G1, N192): the
+ *  sharing choice the speaker gave before it, in its own words ("Only my
+ *  community (Invita)"). Keyed by the recording's message. */
+export function shareLines(messages: readonly LoungeMessage[]): Map<string, string> {
+  const out = new Map<string, string>();
+  let asked = false;
+  let choice: { line: string; arc: unknown } | null = null;
+  for (const m of messages) {
+    const meta = m.metadata ?? {};
+    if (m.kind === "walk_step" && meta.step === "share") {
+      if (m.role === "bot") asked = true;
+      else if (asked && m.body.trim()) choice = { line: m.body.trim(), arc: meta.arc_id };
+      continue;
+    }
+    if (m.kind !== "recording_summary") continue;
+    const arc = meta.arc_id;
+    if (choice && (!choice.arc || !arc || choice.arc === arc)) out.set(m.client_id, choice.line);
+    asked = false;
+    choice = null;
+  }
+  return out;
+}
+
+/** The Take's summary as the chat holds it, for the walk to show (D4,
+ *  N192): its words, and the words before a coach's note rewrote them
+ *  (D5). Null: not written yet. */
+export function storedSummaryOf(
+  messages: readonly LoungeMessage[],
+  take: string,
+): { text: string; earlier: string | null } | null {
+  const m = messages.find((x) => x.metadata?.summary === true && x.metadata?.take_session_id === take && x.body.trim());
+  if (!m) return null;
+  const meta = m.metadata ?? {};
+  const earlier = meta.coach_update === true && typeof meta.earlier === "string" && meta.earlier.trim() ? meta.earlier : null;
+  return { text: m.body.trim(), earlier };
+}
+
+/** The paragraphs whose helper words were picked more than once in `take`'s
+ *  walk: each pick is the speaker's bubble with its paragraph (`words_of`),
+ *  so a second one is an edit (B13, N192). */
+export function wordsEditedIn(messages: readonly LoungeMessage[], take: string): Set<string> {
+  const picks = new Map<string, Set<string>>();
+  for (const m of messages) {
+    const part = m.metadata?.words_of;
+    if (m.kind !== "walk_step" || m.metadata?.take_session_id !== take || typeof part !== "string") continue;
+    picks.set(part, (picks.get(part) ?? new Set<string>()).add(m.client_id));
+  }
+  return new Set([...picks].filter(([, ids]) => ids.size > 1).map(([part]) => part));
 }
