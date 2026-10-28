@@ -22,7 +22,10 @@
 /*    O6  Will's ask for the plan's own yes is drawn as his bubble with Read   */
 /*        more, its footer is "Not now" and "Yes, ask me" and nothing else   */
 /*        is taken while he waits (N211).                                     */
-/*    O7  The principles wait until the plan is read and while it says the  */
+/*    O7  "I have a new event" is not shown while a Take is still          */
+/*        processing, in Change your plan or at the plan's end, and comes    */
+/*        back once the Take has landed (H1, I2, N242).                      */
+/*    O8  The principles wait until the plan is read and while it says the  */
 /*        speaker is onboarded; the first Take landing in the thread reads   */
 /*        the plan again and lets them back (N243).                          */
 /*  PROVES   O1 -> "each step has its own footer"                             */
@@ -31,7 +34,8 @@
 /*           O4 -> "the newest bubble holds the one record button"            */
 /*           O5 -> "a new project's question, and the feelings before a Take" */
 /*           O6 -> "Will asks for the plan's own yes"                         */
-/*           O7 -> "the principles wait for the first Take"                   */
+/*           O7 -> "a new event waits for the Take being processed"           */
+/*           O8 -> "the principles wait for the first Take"                   */
 /*  WHY      The plan, built one to one with the prototype (founder           */
 /*           2026-10-26, backend N203, N204); the principles waiting for the */
 /*           onboarding, backend N243; docs/flows/the-plan.md §1.            */
@@ -44,6 +48,7 @@ import type { Plan } from "@/services/api/plan";
 import { feelingsDue, rememberPlan } from "@/services/api/plan";
 import PlanDock, { dockFor, type PlanActions } from "./PlanDock";
 import { newestOneOf, planRowFor, type PlanRowCtx } from "./PlanRows";
+import { ChangePlanSheet } from "./PlanSheet";
 import { usePlanLounge, type PlanLounge } from "./usePlanLounge";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -221,6 +226,36 @@ it("Will asks for the plan's own yes", () => {
   act(() => root.render(<>{planRowFor(row({ plan_ask: "consent" }, ask), ctx(waiting))}</>));
   expect(host.querySelector("[data-bubble]")?.textContent).toContain(ask);
   expect([...host.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Read more"]);
+});
+
+it("a new event waits for the Take being processed", () => {
+  const labels = () => [...host.querySelectorAll("button")].map((b) => b.textContent ?? "");
+  const active: Plan = { ...PLAN, status: "active", step: "done", first_take_done: true };
+  const sheet = (held: boolean) => (
+    <ChangePlanSheet
+      plan={active}
+      onClose={() => {}}
+      onDeadline={() => {}}
+      onDays={() => {}}
+      onAskCoach={() => {}}
+      onNewEvent={() => {}}
+      newEventHeld={held}
+    />
+  );
+  act(() => root.render(sheet(true)));
+  expect(labels().some((l) => l.includes("Deadline"))).toBe(true);
+  expect(labels().some((l) => l.includes("I have a new event"))).toBe(false);
+  act(() => root.render(sheet(false)));
+  expect(labels().some((l) => l.includes("I have a new event"))).toBe(true);
+
+  const ending: Plan = { ...PLAN, status: "ending", step: "whats_next" };
+  const dock = (held: boolean) => (
+    <PlanDock plan={ending} busy={false} booking={null} onCloseBooking={() => {}} actions={actions()} newEventHeld={held} />
+  );
+  act(() => root.render(dock(true)));
+  expect(labels()).toEqual(["Keep practising"]);
+  act(() => root.render(dock(false)));
+  expect(labels()).toEqual(["Keep practising", "I have a new event"]);
 });
 
 it("the principles wait for the first Take", async () => {

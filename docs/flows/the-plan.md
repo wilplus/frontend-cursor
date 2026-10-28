@@ -315,7 +315,9 @@ built and what is still to come.
    the speaker's to change, and the plan recalculates. The level is the
    coach's: "Ask your coach", which reaches the coach's queue as "Asked about
    their level" ([the coach panel](coach-panel.md) K1, N213). "I have a new
-   event" starts the questions again (N140).
+   event" starts the questions again (N140). While a Take is still
+   processing, "I have a new event" is not shown; it comes back when the Take
+   has landed, as "Record Take N" does (N242).
 2. A new project asks "Is this for 14 November?" (the plan's deadline),
    after its first Take, not before it (N178). Yes keeps the plan; no starts
    "When is your deadline?" and the questions for a new plan. New slides or a
@@ -329,7 +331,8 @@ built and what is still to come.
    if it was booked, offered if not. Then "What's next?": "I have a new
    event" (the questions again, a new plan) or "Keep practising" (a new
    two-month plan from their Takes, no questions, its first ratings after
-   its first Take) (N149, N151, N157, N178).
+   its first Take) (N149, N151, N157, N178). While a Take is still
+   processing, only "Keep practising" is shown (H1, N242).
 3. On the deadline's morning, a short good-luck line in the chat and on the
    chosen channel; the morning after, "How did it go?" with the link outside
    the app, beside the message in the chat (2). Their words wait for the
@@ -539,6 +542,7 @@ One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-10-28 · N150 · fixed (B6): a question, opener or ack the AI left with a slot unfilled ("If {who they will speak to} remembers …", seen by the founder) is not kept, and Will says the plain template; a slot is never kept as a fact, and the plan card's "Why this line?" reads "them" for one stored before · BE #1461
 - 2026-10-28 · N243 · A5: the plan says when the speaker is onboarded (`onboarding`: the questions, then a new speaker's plan until the first Take; not a plan waiting for the next Take), and the principles wait meanwhile; the Lounge reads the plan again when a Take lands in the thread, so the first Take's footer gives way and the principles come back without the app being opened again; was: nothing held them back while the questions were asked · BE #1456, #1460, FE (this PR)
+- 2026-10-28 · N242 · "I have a new event" is hidden while a Take is still processing, in Change your plan (H1) and at the plan's end (I2); it comes back when the Take has landed. Was: shown at any time, and a tap while the Take was processing left the speaker with nothing to do · BE #1455, FE
 - 2026-10-28 · N194 · no change to the plan: the voice answer in the plan's dock (`PlanDock.tsx`) reads the recorder's finished note as `{ audio, durationMs }`, the shape the shared recorder takes since the voice notebook's live words; it records and sends exactly as before (no wave, no live words, no outbox) · FE #1009
 - 2026-10-27 · N213 · built: the coach's side. A plan reaches the coach's queue as "New plan", "Asked about their level" or "Three Takes without moving"; the level is picked blind, then What happened; a stuck level is answered with the coach's video as their word on the latest Take (C5, G10, H1). The plan keeps the key line's recording again after the questions. Was: the stuck level noted for a queue not yet built · BE #1415, FE
 
