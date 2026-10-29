@@ -75,8 +75,8 @@ export interface ProcessingWaitProps {
    *
    *  Omitted = "analysis", matching how an older marker deserializes. */
   readonly phase?: "analysis" | "document";
-  /** Epoch shared by every view of one job. It keeps the same tip cycle when
-   *  the presentation closes and reopens; omitting it starts a local cycle. */
+  /** Epoch shared by every view of one job: a new one starts the label's
+   *  "never goes backwards" memory afresh. */
   readonly cycleStartedAt?: number | null;
   /** When the CURRENT phase began, from the job marker. The document tail is
    *  measured from it against that phase's own deadline.
@@ -166,7 +166,6 @@ export default function ProcessingWait({
     <RecordingAnalysisPresentation
       label={PROCESSING_STAGES[current]}
       percent={shown.current}
-      cycleStartedAt={cycleStartedAt}
     />
   );
 }
