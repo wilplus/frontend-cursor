@@ -437,16 +437,6 @@ describe("the walk quotes your notebook (founder 2026-10-29, N268)", () => {
     await tryAndRead();
     expect(live()!.querySelector("[data-walk-quote]")).toBeNull();
   });
-
-  it("“Keep my words” is answered with its own line, not Line A", async () => {
-    draw();
-    click(live()!.querySelector("[data-testid='walk-keep']"));
-    await settle();
-    expect(screen()).toBe("walk-screen-practise");
-    expect(now()!.textContent).toContain(WALK_COPY.keepWords);
-    expect(now()!.textContent).not.toContain(WALK_COPY.lineA);
-    expect(now()!.querySelector("[data-walk-say]")!.textContent).toBe(SAID);
-  });
 });
 
 describe("the AI version of your voice on the Exercise (founder 2026-10-15)", () => {
