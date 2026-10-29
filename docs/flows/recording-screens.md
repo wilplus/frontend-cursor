@@ -210,6 +210,14 @@ green); the app shows the speaker's own slides, unchanged.
   once. Signed on the prototype
   <https://claude.ai/artifact/Ta5hMGw8EbA6ewUssUugMK>. Lives in
   `OneProjectQuestion.tsx` and `Lounge.tsx`.
+- **2026-10-29 · why the microphone (N273 item 4).** On Take 1, while the
+  browser asks for the microphone, one line in the same small grey sits
+  directly under **Getting your mic ready**: **WillpowerLab uses the
+  microphone to record your Takes.** (N269's sentence). No new screen and no
+  tap; the Take still starts by itself once the mic is allowed. Later Takes
+  keep their presentation line. Signed in the Claude Code chat, 29 October
+  2026, on the prototype <https://claude.ai/artifact/6AVcGS1ksx86KzvUPyKEes>.
+  Lives in `recordingCopy.ts` and `LabOverlay.tsx`.
 
 
 ## 2. In flight
@@ -217,7 +225,7 @@ green); the app shows the speaker's own slides, unchanged.
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
 doing it fills its line in its PR and deletes the line when the work is merged (the change goes to §6).
 
-- **The plan's two touches on the set-up** · the topic arrives filled in from the plan's voice message (backend N141); "How do you feel?" shows before every practice between a plan's first and last, and the stress and readiness ratings take its place on those two (backend N151, N157) · the set-up's first question and the feelings check · built, on for ring 5 since 27 October 2026 (N203, N204, backend #1394): "Start your first recording" opens the set-up with the topic filled in and no feelings check; with an active plan, every later Take opens "How do you feel?" first, with a Skip (a new project's first Take shows it with a Skip too, N211), only after the plan's own yes (N217), then the project's stored setup · rules: [`the-plan.md`](the-plan.md) §1 B7, D
+- **The plan's two touches on the set-up** · the topic arrives filled in from the plan's voice message (backend N141); "How do you feel?" shows before every practice between a plan's first and last, and the stress and readiness ratings take its place on those two (backend N151, N157) · the set-up's first question and the feelings check · built, on for ring 5 since 27 October 2026 (N203, N204, backend #1394): "Start your first recording" opens the set-up with the topic filled in and no feelings check; with an active plan, every later Take opens "How do you feel?" first, with a Skip (a new project's first Take shows it with a Skip too, N211), only after the plan's own yes (N217) and only for a signed-in speaker (N272), then the project's stored setup · rules: [`the-plan.md`](the-plan.md) §1 B7, D
 
 ## 3. Still open
 
@@ -252,11 +260,14 @@ Every prototype link in §1, in the order it first appears:
 - <https://claude.ai/artifact/JUwW4FfFzyUhgCpPrMAKjG>
 - <https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A>
 - <https://claude.ai/artifact/Ta5hMGw8EbA6ewUssUugMK>
+- <https://claude.ai/artifact/6AVcGS1ksx86KzvUPyKEes>
 
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N273 · on Take 1, "WillpowerLab uses the microphone to record your Takes." under "Getting your mic ready" while the browser asks (`recordingCopy.ts`, `LabOverlay.tsx`). Was: the browser's prompt with nothing saying why · FE (this PR), BE (N273 log)
+- 2026-10-29 · N272 · "How do you feel?" takes the set-up's look: its dots and ✕ (the check is the first of four when the set-up follows, then the topic is the second; the ✕ alone when the setup is restored), its heading with the mic, "Before you step on stage" under it, the four feelings two by two and Skip under Calm in the same pill, faded. The pick shows, then the set-up opens half a second later, with nothing said back. No "Your coach sees your answer." A guest is never asked (`FeelingsCheckIn.tsx`, `LabOverlay.tsx`, `RecordingSetup.tsx`, `wizard.tsx`). Prototype <https://claude.ai/artifact/CiCCZEE4rp7TfeVjfdnj1A>. No new words. Was: the overlay's ✕ above a 20px heading, four pills in a row, a reply line for a second, Skip as a text link, the coach line, and guests asked · BE #1501, FE (this PR)
 - 2026-10-29 · N260 · Will's "Create new project" in the chat asks "One project at a time" first, in place of the message box, and the question's sentence ends "you can bring it back from Settings." Was: the chat's button started a new project with the current one left open, and the sentence said "Data & consent" · FE (this PR), BE (N260 log)
 - 2026-10-29 · N254, N257 · built: the "+"'s "Start a new project", or another project than the one with the newest Take, asks "One project at a time" first and Continue archives the current one (`ProjectPicker.tsx`); the line under "Getting your mic ready" says "New slides" on the first Take after a deck change, then "Same presentation as Take {n}" (`presentationInPlay.ts`, `LabOverlay.tsx`). Was: any number of projects side by side, and always "Same presentation as Take 1" · FE (this PR), BE (with it)
 - 2026-10-27 · N217 · "How do you feel?" says "Your coach sees your answer." under "Before you step on stage" (signed with Privacy 3.9, question 1 A: answering is the yes for that one answer); on a plan it is asked only after the plan's own yes, and without it the check is passed by at once and keeps nothing, as a Skip (`FeelingsCheckIn.tsx`, `plan.ts`). The plan's yes is switched off (`PLAN_CONSENT_ENABLED`) until Privacy 3.9 is published, so today every plan reads as yes. Was: asked of every speaker with no word on who sees it · FE (this PR), BE (with it)

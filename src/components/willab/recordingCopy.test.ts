@@ -8,7 +8,7 @@ OUTCOME
   O2  Never 1 (no scores or numbers): no signed line carries a digit, a % or
       a score word.
 PROVES   O1, O2 -> "is exactly the signed words, with no digit or score word"
-WHY      Recording lock 2026-10-07 (N59, N70). recordingWhere's "Take N ·
+WHY      Recording lock 2026-10-07 (N59, N70); the microphone line, N273. recordingWhere's "Take N ·
          Slide n of m" is pinned in recordingStillFrame.test, not here.
 */
 import { describe, expect, it } from "vitest";
@@ -20,6 +20,7 @@ describe("RECORDING_COPY", () => {
       back: "Back",
       nextSlide: "Next slide",
       micReady: "Getting your mic ready",
+      micWhy: "WillpowerLab uses the microphone to record your Takes.",
     });
     for (const [key, value] of Object.entries(RECORDING_COPY)) {
       expect(value, key).not.toMatch(/\d|%|score|rank/i);

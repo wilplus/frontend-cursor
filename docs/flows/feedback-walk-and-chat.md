@@ -103,6 +103,15 @@ step; the loop never waits for a coach.
   3. the chain after the Take, ending with "Look, practice makes perfect…"
      and "Record Take N" (D4).
 
+  **Before the first Take** the empty Lounge opens with Will's hello, "Hi,
+  I'm Will. 👋 Record your first take, and I will help you with your
+  presentation." (N270), as a grey bubble; under it the one button, "Start
+  your first recording", and under that one small grey line, "About 2
+  minutes to record. Your feedback comes about a minute later." (founder
+  2026-10-29, N273 item 2, on the prototype
+  <https://claude.ai/artifact/H2CwSoSWXF7wttNEXsPMYb>). With the plan, its
+  questions come first and none of this shows (the-plan.md B1).
+
   **The Feedback walk bubble:** light grey, on the left. It reads "Feedback
   walk"; under it one small grey line: "🔒 Take N" at its start for an older
   Take, "Edited" once something in the walk changed (B13), and the Take's
@@ -1435,7 +1444,9 @@ backend `tests/test_speaker_memory.py`. Every test's story: `docs/TEST-STORIES.c
 
 The design is the prototype; the newest wins where two disagree.
 
-- **Current:** the Feedback walk in the chat
+- **Current:** Will's hello in the empty Lounge
+  <https://claude.ai/artifact/H2CwSoSWXF7wttNEXsPMYb> (N273, 2026-10-29); the
+  Feedback walk in the chat
   <https://claude.ai/artifact/Xb51mpaFDguFdBuL8Gjv18> (N192, 2026-10-26,
   version 5, decided; version 3 drew the two ways not chosen; version 6, the
   pair, N202, with "As built" to compare); the lens,
@@ -1469,6 +1480,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-10-29 · N273 · built (A4): a guest's "Done" wall carries the clip of the Take's most confident moment (the orange bubble) and "This was your most confident moment." (the grey bubble), between the line and the buttons, from the Ideal Text page and from the Lounge; read through the same owner-or-guest reads as the page, nothing new on the backend. The account stays before the walk, replacing N30's and N32 item 5's "a guest reads the whole Feedback". Was: "Done", the line and the two buttons only · BE (N273 log), FE (this PR)
+- 2026-10-29 · N273 · built (B3): the empty Lounge opens with Will's hello (N270's line) as a bubble, "Start your first recording" under it and "About 2 minutes to record. Your feedback comes about a minute later." under that. Was: the button alone, and Will's hello only after the visitor typed · BE (N273 log), FE (this PR)
 - 2026-10-29 · — (B5) · fixed: scrolling the walk by hand is smooth. The thread follows the newest bubble again only once a scroll by hand has come to rest at the bottom. Was: a drag up from the bottom turned following back on within its first pixels, so the thread pulled itself down under the finger, on every step (founder 2026-10-29: "I scroll through it and it stalls a little bit"). No rule changes · FE (this PR)
 - 2026-10-29 · N270 · built (B3, K): a guest who accepted chats with Will; every Lounge chat turn carries their guest identity, which holds the acceptance until sign-up. Before any acceptance nothing goes to the AI: a signed-out visitor with no project gets "Hi, I'm Will. 👋 Record your first take, and I will help you with your presentation." (signed) and "Start your first recording" under it. Was: both saw "I'm having trouble reaching the lab right now. Give it another try in a moment." (founder 2026-10-29: "will the chat is very stupid at the very beginning") · BE #1499 (the decision), FE (this PR)
 - 2026-10-29 · N268 · built (C5, K): after "Keep my words", "Your words it is. Now say them like you mean every one." in Line A's place there only; was Line A, "Say this one like your confident moment.", which stays everywhere else. After a Good job on a Clearer version's try, one bubble may quote the speaker's own kept words, with "Not here" the first time (the rules on [`principles.md`](principles.md) §1 R) · BE #1495 (the decision), BE (the code), FE (this PR)
