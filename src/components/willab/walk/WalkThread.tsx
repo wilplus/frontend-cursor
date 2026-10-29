@@ -388,6 +388,8 @@ function LiveThread({
   const room = useRef<HTMLDivElement | null>(null);
   // Following the newest step: from the start, and again after every tap.
   const follow = useRef(true);
+  // Where the thread stood at the last scroll, to tell up from down.
+  const lastTop = useRef(0);
   const [following, setFollowing] = useState(true);
   const setFollow = useCallback((on: boolean) => {
     follow.current = on;
@@ -637,7 +639,13 @@ function LiveThread({
         data-walk-thread-body
         onScroll={() => {
           const el = body.current;
-          if (el && atEnd(el) && !follow.current && standsLast()) setFollow(true);
+          if (!el) return;
+          // Back to following only on the way down: a scroll up starts
+          // within reach of the end too, and following again there pulled
+          // the thread back down under the speaker's finger (2026-10-29).
+          const down = el.scrollTop > lastTop.current;
+          lastTop.current = el.scrollTop;
+          if (down && atEnd(el) && !follow.current && standsLast()) setFollow(true);
           readBar();
         }}
         onWheel={(e) => {
