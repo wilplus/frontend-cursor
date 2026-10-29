@@ -1,62 +1,62 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Mic } from "lucide-react";
+import { StepHead, WizardCancel, WizardProgress } from "@/components/ui/wizard";
 import { feelingsAllowed } from "@/services/api/plan";
 import { clearFeeling, recordFeeling, type Feeling } from "./willabFeelings";
 
 /* -------------------------------------------------------------------------- */
-/*  FeelingsCheckIn — first-recording onboarding, step 0 (U10)                 */
+/*  FeelingsCheckIn — "How do you feel?" before a Take (U10)                   */
 /*                                                                            */
-/*  A one-time, warm check-in before the user's first official recording: name */
-/*  how you feel, get a reassuring line back, then step into the Lab. The act   */
-/*  of naming the state is the point — it takes the edge off the mic. The       */
-/*  choice is captured FE-local (willabFeelings) under the BE freeze; it drives  */
-/*  the reply now and wires to the coach later.                                 */
-/*                                                                            */
-/*  No judgement, no score — every feeling gets an encouraging, non-evaluative  */
-/*  reply. Chips match the Lab's existing preset-chip styling for continuity.   */
+/*  The set-up's first step in the set-up's own chrome (founder 2026-10-29,    */
+/*  backend N272): its dots and ✕, its heading with the mic, then the four     */
+/*  feelings and a faded Skip under Calm. Naming the state is the point — it   */
+/*  takes the edge off the mic. The pick is kept for the coach; nothing is     */
+/*  said back. Only a signed-in speaker is asked; a guest goes straight on.    */
 /* -------------------------------------------------------------------------- */
 
-const FEELINGS: { key: Feeling; label: string; reply: string }[] = [
-  {
-    key: "nervous",
-    label: "Nervous",
-    reply: "Nerves mean it matters. That's exactly the voice worth training.",
-  },
-  {
-    key: "excited",
-    label: "Excited",
-    reply: "Love that energy. Let's catch it on the record.",
-  },
-  {
-    key: "calm",
-    label: "Calm",
-    reply: "Great headspace. Let's put it to work.",
-  },
-  {
-    key: "unsure",
-    label: "Not sure",
-    reply: "That's fine. The recorder doesn't judge. Just talk; we'll find the signal.",
-  },
+const FEELINGS: { key: Feeling; label: string }[] = [
+  { key: "nervous", label: "Nervous" },
+  { key: "excited", label: "Excited" },
+  { key: "calm", label: "Calm" },
+  { key: "unsure", label: "Not sure" },
 ];
 
-export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
+/** The pick shows for a beat, then the set-up opens. Short enough to stay
+ *  inside the tap's activation window, which the mic start after it needs. */
+const ADVANCE_MS = 450;
+
+export default function FeelingsCheckIn({
+  ask,
+  setupSteps,
+  onReady,
+  onCancel,
+}: {
+  /** Signed in. A guest is never asked (backend N272). */
+  ask: boolean;
+  /** The set-up's steps that follow this one; 0 when the project's setup is
+   *  restored, and the bar then holds the ✕ alone. */
+  setupSteps: number;
+  /** `shown`: the screen was on screen (a feeling or Skip), so the set-up
+   *  counts it as its first step. */
+  onReady: (shown: boolean) => void;
+  onCancel: () => void;
+}) {
   // A speaker on a plan is asked only after the plan's own yes (backend
-  // N211, N217): without it the check is passed by at once and keeps nothing.
-  const [allowed] = useState(feelingsAllowed);
+  // N211, N217); a guest never (N272). Otherwise the check is passed by at
+  // once and keeps nothing.
+  const [allowed] = useState(() => ask && feelingsAllowed());
   useEffect(() => {
     if (allowed) return;
     clearFeeling();
-    onReady();
+    onReady(false);
     // Once, on open: the flow goes on as a Skip does.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // FE-3 — nothing is pre-selected; the user names how they feel fresh every
-  // time (the old one-tap "same as before" shortcut was removed).
+  // time.
   const [picked, setPicked] = useState<Feeling | null>(null);
-  const reply = FEELINGS.find((f) => f.key === picked)?.reply ?? null;
-  // ④ — no "I'm ready" button: naming the feeling shows the reassuring line,
-  // then auto-advances into setup after a beat. The first tap wins.
   const advanceRef = useRef<number | null>(null);
   useEffect(
     () => () => {
@@ -66,30 +66,23 @@ export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
   );
 
   function pick(feeling: Feeling) {
-    if (picked) return; // first tap wins; ignore taps while the reply shows
+    if (picked) return; // first tap wins
     setPicked(feeling);
-    recordFeeling(feeling); // FE-local under the freeze; wires to the coach later
-    advanceRef.current = window.setTimeout(onReady, 1000);
+    recordFeeling(feeling);
+    advanceRef.current = window.setTimeout(() => onReady(true), ADVANCE_MS);
   }
 
   if (!allowed) return null;
   return (
     <div className="flex flex-1 flex-col">
-      <div className="mt-2">
-        <h2 className="text-[20px] font-semibold text-foreground">
-          How do you feel?
-        </h2>
-        <p className="mt-1 text-[15px] text-muted-foreground">
-          Before you step on stage
-        </p>
-        {/* What happens to the answer, said before the tap (founder
-            2026-10-27, Privacy 3.9 §4e, question 1 A; backend N217). */}
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          Your coach sees your answer.
-        </p>
-      </div>
+      <WizardProgress
+        count={setupSteps > 0 ? setupSteps + 1 : 0}
+        current={0}
+        trailing={<WizardCancel onClick={onCancel} ariaLabel="Close" />}
+      />
+      <StepHead icon={Mic} question="How do you feel?" helper="Before you step on stage" />
 
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2.5">
         {FEELINGS.map((f) => {
           const active = picked === f.key;
           return (
@@ -99,36 +92,29 @@ export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
               onClick={() => pick(f.key)}
               disabled={picked !== null && !active}
               aria-pressed={active}
-              className={`rounded-full border px-4 py-2 text-[15px] transition-colors disabled:opacity-50 ${
+              className={`h-[52px] rounded-full border text-[16px] font-medium transition-colors disabled:opacity-40 ${
                 active
                   ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background text-foreground hover:border-primary/50"
+                  : "border-border bg-background text-foreground hover:border-foreground/40"
               }`}
             >
               {f.label}
             </button>
           );
         })}
-      </div>
-
-      {reply ? (
-        <div className="mt-5 rounded-2xl bg-primary/5 p-4">
-          <p className="text-[15px] leading-relaxed text-foreground">{reply}</p>
-        </div>
-      ) : null}
-      {/* A Skip wherever the check shows: how a speaker feels is theirs to
-          share, so it is never asked without a way past it (docs/flows/
-          the-plan.md D4; backend N211). Skipping stores nothing. */}
-      {!picked ? (
+        {/* Skip, under Calm: the feelings' own pill, faded, so it reads as the
+            way past them and not a fifth feeling (founder 2026-10-29). How a
+            speaker feels is theirs to share; skipping keeps nothing (N211). */}
         <button
           type="button"
-          onClick={onReady}
+          onClick={() => onReady(true)}
+          disabled={picked !== null}
           data-feelings-skip
-          className="mt-5 self-center py-2 text-[15px] text-muted-foreground hover:text-foreground"
+          className="h-[52px] rounded-full border border-border/50 bg-background/50 text-[16px] font-medium text-muted-foreground/80 transition-colors hover:text-muted-foreground disabled:opacity-40"
         >
           Skip
         </button>
-      ) : null}
+      </div>
     </div>
   );
 }

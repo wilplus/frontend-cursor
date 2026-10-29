@@ -333,17 +333,17 @@ O5 -> ""never carries one clip's answer onto the next clip (L3)""",Never 1 (feed
 src/components/willab/FeedbackFailedNotice.test.tsx,Story,"As a speaker whose feedback could not be made, I want the app to try again once by itself and then tell me, with Try again, so that I am never left waiting for nothing.","O1  The app retries once by itself, then shows the signed-off sentence
 and a Try again button that retries; it never retries on its own
 again.","O1 -> ""says so, with Try again, when the retry failed too""",Contract 24h: the server sends no stand-in feedback.
-src/components/willab/FeelingsCheckIn.test.tsx,Story,"As a speaker, I want to be able to skip ""How do you feel?"", so that nobody is made to tell the app how they feel before they record.","O1  The check offers a Skip every time it shows, whether or not I have a
-plan.
+src/components/willab/FeelingsCheckIn.test.tsx,Story,"As a speaker, I want to name how I feel before I record, or skip it, and as a guest not to be asked at all.","O1  Signed in, the check offers a Skip every time it shows.
 O2  Skipping goes on to the recording set-up and keeps no feeling.
-O3  Naming a feeling still keeps it and goes on.
-O4  Before the tap, the screen says the coach sees the answer.
+O3  Naming a feeling keeps it and goes on, with nothing said back.
+O4  A guest is never asked: the check is passed by at once and keeps
+nothing.
 O5  On a plan without its own yes, the check is passed by at once and
-keeps nothing; with the yes, it is asked.","O1 -> ""offers a Skip with no plan""
+keeps nothing; with the yes, it is asked.","O1 -> ""offers a Skip when signed in""
 O2 -> ""Skip goes on and keeps no feeling""
 O3 -> ""naming a feeling keeps it and goes on""
-O4 -> ""says the coach sees the answer before the tap""
-O5 -> ""on a plan, only after its own yes""","Founder 2026-10-27, backend N211 (the plan's consent, question 3 A): a feeling is the speaker's own, and a check with no way past it is not asked freely. Privacy 3.9 §4e, signed with question 1 A (N217): answering is the yes for that one answer, so the screen says first who sees it; on a plan, the plan's own yes comes first."
+O4 -> ""a guest is never asked""
+O5 -> ""on a plan, only after its own yes""","Founder 2026-10-27, backend N211: a feeling is the speaker's own, and a check with no way past it is not asked freely. Founder 2026-10-29, backend N272: the set-up's look, no reply, no coach line, and no check for a guest; on a plan, the plan's own yes comes first (N217)."
 src/components/willab/Linkified.test.tsx,Story,"As a speaker reading Will's message, I want links in a message to be clickable, so that I can open the booking page.","O1  A web address on its own, or inside a sentence, becomes a link;
 plain text stays plain.","O1 -> ""makes a bubble that is only a URL a link"",
 ""makes a URL inside a sentence a link and leaves plain text alone""",Founder 2026-10-18: the booking link was not clickable.
