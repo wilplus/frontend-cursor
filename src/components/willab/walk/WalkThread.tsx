@@ -16,7 +16,6 @@ import {
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import OverlayCloseButton from "../OverlayCloseButton";
 import { CHUNK_DELAY_MS, TypingGlyph } from "../TypingDots";
-import WalkFooter from "./WalkFooter";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkThread — the lens as one chat (founder 2026-10-20, WIL-89; prototype   */
@@ -45,8 +44,9 @@ import WalkFooter from "./WalkFooter";
 /*  before it, land right above the buttons, as in the Lounge, and the thread */
 /*  follows them down. After every tap in the dock the thread goes back to    */
 /*  the newest bubble, and it keeps following until the speaker scrolls up by */
-/*  hand. Scrolled back to an answered step, the dock reads Next, which       */
-/*  brings the newest step back; the recorder never gives way. (From 20 to   */
+/*  hand. Scrolled away, the dock keeps the step's own buttons (founder      */
+/*  2026-10-29: the Next that stood in for them flickered); a tap on one     */
+/*  brings that step back first. (From 20 to                                 */
 /*  23 October the newest step came to the top, its name at the top of the   */
 /*  thread, with a room under the thread to let it get there.) A door into a  */
 /*  step already answered still brings that step's name to the top (N91).    */
@@ -387,7 +387,7 @@ function LiveThread({
   const room = useRef<HTMLDivElement | null>(null);
   // Following the newest step: from the start, and again after every tap.
   const follow = useRef(true);
-  const [following, setFollowing] = useState(true);
+  const [, setFollowing] = useState(true);
   const setFollow = useCallback((on: boolean) => {
     follow.current = on;
     setFollowing(on);
@@ -400,8 +400,6 @@ function LiveThread({
     of: 0,
     away: false,
   });
-  // What the dock holds: any buttons, and whether they are the recorder.
-  const [docked, setDocked] = useState({ any: false, recording: false });
 
   // A new opening while the lens stays open: what the thread showed stays
   // above it. Read during render, while the page still holds it.
@@ -559,25 +557,6 @@ function LiveThread({
     return () => dock.removeEventListener("click", tapped, true);
   }, [dock, toCurrent, setFollow]);
 
-  // What the dock holds, for the Next that stands in for it.
-  useEffect(() => {
-    if (!dock) return;
-    const read = () => {
-      const any = dock.childElementCount > 0;
-      const recording = dock.querySelector("[data-walk-recording-strip]") !== null;
-      setDocked((was) => (was.any === any && was.recording === recording ? was : { any, recording }));
-    };
-    read();
-    const seen = typeof MutationObserver !== "undefined" ? new MutationObserver(read) : null;
-    seen?.observe(dock, { childList: true, subtree: true });
-    return () => seen?.disconnect();
-  }, [dock]);
-
-  // Scrolled away from the step with the buttons, the dock reads Next:
-  // back to that step (founder 2026-10-20). The recorder stays where it is.
-  // A scroll has neither (N259).
-  const back = buttons && !following && docked.any && !docked.recording && bar.away;
-
   const label = bar.label ?? undefined;
   return (
     <div
@@ -622,21 +601,7 @@ function LiveThread({
         </div>
         <div ref={room} data-walk-room aria-hidden="true" className="shrink-0" />
       </div>
-      <div ref={setDock} data-walk-dock hidden={back || !buttons} />
-      {back ? (
-        <div data-walk-dock-next>
-          <WalkFooter
-            pill={{
-              label: COPY.pagerNext,
-              onClick: () => {
-                setFollow(standsLast());
-                toCurrent(true);
-              },
-              testId: "walk-to-newest",
-            }}
-          />
-        </div>
-      ) : null}
+      <div ref={setDock} data-walk-dock hidden={!buttons} />
     </div>
   );
 }

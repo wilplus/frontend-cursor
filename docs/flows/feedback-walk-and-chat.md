@@ -158,10 +158,12 @@ step; the loop never waits for a coach.
 - **B8** The typing dots are the only wait, in the lens and the Lounge: a
   bubble being written, a try checked, other speakers' moments or the summary
   loading, the thread loading, the processing bubble. No breathing mark.
-- **B9** Scrolled away from the step the walk stands on, the buttons read
-  Next, which brings that step back; the recorder never gives way
-  (2026-10-21: "away from", no longer only "back to an answered step"). A
-  walk opened again once done has neither (B10, N259).
+- **B9** Scrolled away from the step the walk stands on, the buttons stay
+  as they are; a tap on one brings that step back first (founder
+  2026-10-29: "it behaves like it can't decide should it be this state
+  single or the two buttons state"; from 2026-10-21 the buttons read Next
+  there, and the swap flickered at the edge). A walk opened again once done
+  has no buttons (B10, N259).
 - **B10** **Every door opens the walk the same way** (one mechanism, N89):
   the whole Take's walk, standing on one step brought to the top, the parts
   before and after it there to scroll. That step has its own buttons in the dock;
@@ -1455,7 +1457,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-29 · — (B2, B6, B10) · the walk's bar is ✕ alone: the "‹ Slide 2 ›" / "‹ Tempo ›" arrows and name went; the thread scrolls by hand, and Next still brings back the step that waits. Was: ‹ › scrolled to the step before or after, and the name lagged behind the step in view (founder 2026-10-29: "it doesnt keep the right page and is confusing either fix it so the arrows work or delte it") · FE (this PR)
+- 2026-10-29 · — (B2, B6, B10) · the walk's bar is ✕ alone: the "‹ Slide 2 ›" / "‹ Tempo ›" arrows and name went; the thread scrolls by hand. Scrolled away, the dock keeps the step's own buttons, and a tap on one brings that step back (B9); was: a Next stood in for them, and the swap flickered at the edge (founder: "it can't decide should it be this state single or the two buttons state"). Was: ‹ › scrolled to the step before or after, and the name lagged behind the step in view (founder 2026-10-29: "it doesnt keep the right page and is confusing either fix it so the arrows work or delte it") · FE (this PR)
 - 2026-10-29 · N270 · built (B3, K): a guest who accepted chats with Will; every Lounge chat turn carries their guest identity, which holds the acceptance until sign-up. Before any acceptance nothing goes to the AI: a signed-out visitor with no project gets "Hi, I'm Will. 👋 Record your first take, and I will help you with your presentation." (signed) and "Start your first recording" under it. Was: both saw "I'm having trouble reaching the lab right now. Give it another try in a moment." (founder 2026-10-29: "will the chat is very stupid at the very beginning") · BE #1499 (the decision), FE (this PR)
 - 2026-10-29 · N268 · built (C5, K): after "Keep my words", "Your words it is. Now say them like you mean every one." in Line A's place there only; was Line A, "Say this one like your confident moment.", which stays everywhere else. After a Good job on a Clearer version's try, one bubble may quote the speaker's own kept words, with "Not here" the first time (the rules on [`principles.md`](principles.md) §1 R) · BE #1495 (the decision), BE (the code), FE (this PR)
 - 2026-10-29 · N265 · STOP's answer is "Done. We've stopped the WhatsApp messages."; was "… and deleted your number." (N174), not true for an account that signs in with WhatsApp. Built: any other WhatsApp reply is emailed to the founder with the number, the admin page of each account at it, and its words or what kind of message it was (N171 item 6); off until `WHATSAPP_FORWARD_REPLIES` is on, after the privacy version that names the replies · BE #1493, FE (this PR)

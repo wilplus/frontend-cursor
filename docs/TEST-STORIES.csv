@@ -1053,11 +1053,11 @@ src/components/willab/walk/walkReplay.test.tsx,Story,"As a speaker, I want a fin
 O2  A done exercise shows my past tries and records nothing new.
 O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.
 O4  A tap on my helper words brings their buttons; saving takes them away again, and so does Keep these, which leaves the words as saved (C3, N259).
-O5  A walk not yet done keeps its buttons: scrolled away from the step it stands on, they read Next, which brings that step back (B9).","O1 -> opened again, the whole walk is one scroll: every part answered, no buttons and no Next, nothing written
+O5  A walk not yet done keeps its buttons: scrolled away from the step it stands on, they stay as they are, and a tap on one brings that step back (B9).","O1 -> opened again, the whole walk is one scroll: every part answered, no buttons and no Next, nothing written
 O2 -> opened again, the whole walk is one scroll ...
 O3 -> an exercise opened from its bubble in the chat shows its AI clip and every try, a try tapped in the chat opens its exercise on the last answer
 O4 -> a tap on helper words brings their buttons; saving or keeping them takes the buttons away again
-O5 -> a walk not yet done: scrolled away from the step it stands on, the dock reads Next, which brings that step back",
+O5 -> a walk not yet done: scrolled away from the step it stands on, the dock keeps its buttons, and a tap brings that step back",
 src/components/willab/walk/walkSwipe.test.tsx,Story,"As a speaker on a phone, I want to swipe left for next and right for back, with scrolls and short drags doing nothing, so that I move through feedback naturally.","O1  A swipe left goes on, a swipe right goes back.
 O2  A scroll, a short drag or a swipe toward a turned-off arrow does nothing and never closes the walk.","O1 -> goes on to the left and back to the right
 O2 -> leaves a scroll, a short drag and an arrow that is off alone, and never closes",

@@ -6,12 +6,12 @@ OUTCOME
   O2  A done exercise shows my past tries and records nothing new.
   O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.
   O4  A tap on my helper words brings their buttons; saving takes them away again, and so does Keep these, which leaves the words as saved (C3, N259).
-  O5  A walk not yet done keeps its buttons: scrolled away from the step it stands on, they read Next, which brings that step back (B9).
+  O5  A walk not yet done keeps its buttons: scrolled away from the step it stands on, they stay as they are, and a tap on one brings that step back (B9).
 PROVES   O1 -> opened again, the whole walk is one scroll: every part answered, no buttons and no Next, nothing written
          O2 -> opened again, the whole walk is one scroll ...
          O3 -> an exercise opened from its bubble in the chat shows its AI clip and every try, a try tapped in the chat opens its exercise on the last answer
          O4 -> a tap on helper words brings their buttons; saving or keeping them takes the buttons away again
-         O5 -> a walk not yet done: scrolled away from the step it stands on, the dock reads Next, which brings that step back
+         O5 -> a walk not yet done: scrolled away from the step it stands on, the dock keeps its buttons, and a tap brings that step back
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -196,7 +196,7 @@ describe("the finished walk, played again", () => {
     expect(calls).toEqual(["helpers"]);
   });
 
-  it("a walk not yet done: scrolled away from the step it stands on, the dock reads Next, which brings that step back", () => {
+  it("a walk not yet done: scrolled away from the step it stands on, the dock keeps its buttons, and a tap brings that step back", () => {
     // The thread holds more than it shows: 1000 tall, 400 in view. The
     // standing part sits at 20..120 of the thread; everything else at 500.
     const isBody = (el: Element) => el.hasAttribute("data-walk-thread-body");
@@ -232,18 +232,16 @@ describe("the finished walk, played again", () => {
       expect(screen()).toBe("walk-screen-helpers");
       expect(live()!.querySelector("[data-walk-dock]")!.hasAttribute("hidden")).toBe(false);
       expect(byTestId("walk-to-newest")).toBeNull();
-      // Scrolled past it: the dock reads Next.
+      // Scrolled past it: the dock keeps the same buttons, never a Next in
+      // their place (founder 2026-10-29: the swap flickered).
       scrolledTo(500);
-      expect(live()!.querySelector("[data-walk-dock]")!.hasAttribute("hidden")).toBe(true);
-      expect(byTestId("walk-to-newest")!.textContent).toBe(COPY.pagerNext);
-      // Next brings the step back, its name at the top, and its buttons return.
-      tops.length = 0;
-      click(byTestId("walk-to-newest"));
-      expect(tops.at(-1)).toBe(12);
-      scrolledTo(12);
       expect(live()!.querySelector("[data-walk-dock]")!.hasAttribute("hidden")).toBe(false);
       expect(byTestId("walk-to-newest")).toBeNull();
       expect(byTestId("walk-forward")!.textContent).toBe(WALK_COPY.editHelperWords);
+      // A tap on them brings the step back, its name at the top.
+      tops.length = 0;
+      click(byTestId("walk-forward"));
+      expect(tops.at(0)).toBe(12);
     } finally {
       Element.prototype.scrollTo = was;
       rect.mockRestore();
