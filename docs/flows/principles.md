@@ -137,7 +137,8 @@ The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
   Start a message with # note, or tap the small mic, and it is kept as a note
   for you and Will. On Sunday, when your notes show a pattern, Will asks what
   you take from it and suggests a principle." in place of its two paragraphs
-  on the old tags.
+  on the old tags. The empty Principles page (N263): "No principles yet.",
+  without its sentence on #mistake.
 - **The companions and your why (N, P, Q; signed 2026-10-29, N258):** every
   word as drawn on the prototype, version 3
   (<https://claude.ai/artifact/1hfLf8mCif8pgC1X1Z6caJ>), with its marks: 💪 a
@@ -404,7 +405,7 @@ deletes the line when the work is merged (the change goes to §6).
 The companions (N241) and your why (N255), in order; the prototype and
 Will's guide are signed (N258):
 
-- R1 · the two rows the founder makes on the rings page ("new_feature_name", then ring 5): `in_control`, `sales_framing`; until a row exists its feature stays off. `strengths` and `your_why` came at ring 5 with BE #1485's migration · A2, O, P · ready · —
+- R1 · the rows `in_control` and `sales_framing` at ring 5, made by a migration (N264: "Set the rings yourself."); until a row exists its feature stays off. `strengths` and `your_why` came at ring 5 with BE #1485's migration · A2, O, P · built, waits for the outside review of its migration · BE #1491
 
 ## 3. Still open
 
@@ -461,6 +462,7 @@ Will's guide are signed (N258):
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N263 · the empty Principles page says "No principles yet."; what stopped: its sentence "The first one arrives when you send a case with #mistake." · BE #1490, FE (this PR)
 - 2026-10-29 · N241, N255 · built: N, strengths (the two-day suggestion from # notes and the life goals answer, the lens, "That's your 💪 … again.", the Life Panel's Strengths pill for the ring row, the strength the day before a talk), and Q, your why (the ask after the first goal, the sitting, the daily why with its › to change a line, the three lines on the Goals screen); the migration had its outside review ("Safe to merge"); on at ring 5 · BE #1485, FE #1081
 - 2026-10-29 · N241 · built: O, Will's answer to a worry, under a # note's "Noted.", on once the founder makes the `in_control` row; P, the sales framing: "Which step did it stall at?" with the four steps and one change, and a sales week's Sunday note asks "Which step was it?" in place of the bugs, on once the founder makes the `sales_framing` row · BE #1481, #1482, #1484, FE #1077, #1079
 - 2026-10-29 · N258 · the companions' prototype (version 3) and Will's guide are signed, with the choices as drawn (Strengths its own pill, 💪, the talk reminder on the first open the day before, 🚪 🔍 🎁 📨, 🔥 🔭 🤝 at the top of Goals); the Life Panel's first-run page says "# note" in place of the old tags · BE #1480, FE (this PR)
