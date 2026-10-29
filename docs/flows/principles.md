@@ -404,11 +404,7 @@ deletes the line when the work is merged (the change goes to §6).
 The companions (N241) and your why (N255), in order; the prototype and
 Will's guide are signed (N258):
 
-- R1 · the two rows the founder makes on the rings page ("new_feature_name", then ring 5): `in_control`, `sales_framing`; until a row exists its feature stays off. `strengths` and `your_why` come at ring 5 with BE #1485's migration · A2, O, P · ready · —
-- N-be · backend: strengths kept in the Life Panel's store with their history; the two-day suggestion from # notes and the M4 answer; later notes linked; the before-a-talk reminder from the plan's deadline or a note's date · N1 to N5 · built, waits for the outside review of its migration · BE #1485
-- N-fe · frontend: the Life Panel's Strengths pill (kept and archived, every note, Archive); "We spotted a strength!" with Not now | Look, the lens with the notes and Accept, Edit or Not now; "That's your 💪 … again." with its › to the pill · N1 to N5 · built, on once BE #1485 is merged · FE (this PR)
-- Q-be · backend: the three lines kept with their history (a migration with its outside review), the sitting's questions and drafts from the person's words, the daily why on the first open, Will reading all three · Q1 to Q6 · built, waits for the outside review of its migration · BE #1485
-- Q-fe · frontend: the ask with Not now | Start, the sitting in the lens, the daily bubble with its › to change the line, the lines on the Life Panel's Goals screen · Q2 to Q6 · built, on once BE #1485 is merged · FE (this PR)
+- R1 · the two rows the founder makes on the rings page ("new_feature_name", then ring 5): `in_control`, `sales_framing`; until a row exists its feature stays off. `strengths` and `your_why` came at ring 5 with BE #1485's migration · A2, O, P · ready · —
 
 ## 3. Still open
 
@@ -465,6 +461,7 @@ Will's guide are signed (N258):
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N241, N255 · built: N, strengths (the two-day suggestion from # notes and the life goals answer, the lens, "That's your 💪 … again.", the Life Panel's Strengths pill for the ring row, the strength the day before a talk), and Q, your why (the ask after the first goal, the sitting, the daily why with its › to change a line, the three lines on the Goals screen); the migration had its outside review ("Safe to merge"); on at ring 5 · BE #1485, FE #1081
 - 2026-10-29 · N241 · built: O, Will's answer to a worry, under a # note's "Noted.", on once the founder makes the `in_control` row; P, the sales framing: "Which step did it stall at?" with the four steps and one change, and a sales week's Sunday note asks "Which step was it?" in place of the bugs, on once the founder makes the `sales_framing` row · BE #1481, #1482, #1484, FE #1077, #1079
 - 2026-10-29 · N258 · the companions' prototype (version 3) and Will's guide are signed, with the choices as drawn (Strengths its own pill, 💪, the talk reminder on the first open the day before, 🚪 🔍 🎁 📨, 🔥 🔭 🤝 at the top of Goals); the Life Panel's first-run page says "# note" in place of the old tags · BE #1480, FE (this PR)
 - 2026-10-29 · N255 · Q: your why, every day: a short sitting for the why, the vision and how to treat others, in their own words; the why waits in the Lounge the first time it opens each day; its tasks in §2 · BE #1477, FE (this PR)
