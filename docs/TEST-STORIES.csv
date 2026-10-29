@@ -828,15 +828,15 @@ Take is recorded (D4).
 O6  Will's ask for the plan's own yes is drawn as his bubble with Read
 more, its footer is ""Not now"" and ""Yes, ask me"" and nothing else
 is taken while he waits (N211).
-O7  The principles wait until the plan is read and while it says the
-speaker is onboarded; the first Take landing in the thread reads
-the plan again and lets them back (N243).","O1 -> ""each step has its own footer""
+O7  Before my first Take nothing of the principles is in my way: no
+notebook mic, no ask; once my first Take lands, both are there,
+without opening the app again (N243).","O1 -> ""each step has its own footer""
 O2 -> ""a rating is sent once and never written back""
 O3 -> ""the plan's rows are drawn as the prototype draws them""
 O4 -> ""the newest bubble holds the one record button""
 O5 -> ""a new project's question, and the feelings before a Take""
 O6 -> ""Will asks for the plan's own yes""
-O7 -> ""the principles wait for the first Take""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; docs/flows/the-plan.md §1."
+O7 -> ""nothing of the principles before my first Take""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; docs/flows/the-plan.md §1."
 src/components/willab/plan/planNewEvent.test.tsx,Story,"As a speaker with a plan, I want ""I have a new event"" out of my way while my Take is still processing, so that I never tap something that leaves me with nothing to do.","O1  While the Take is processing, Change your plan has no ""I have a new
 event"", and the plan's end shows only ""Keep practising"".
 O2  Once the Take has landed, both show ""I have a new event"" again.","O1, O2 -> ""a new event waits for the Take being processed""","The founder, 2026-10-28 (backend N242); docs/flows/the-plan.md §1 H1 and I2."
@@ -942,10 +942,8 @@ from there the next Take, a pause, or ""sign up to send"" (and on to
 review) are expected steps.","O1 -> ""is the record → process → Ideal Text loop""",Never 3; audit Q-C4.
 src/components/willab/voiceNotebook.test.tsx,Story,"As the founder in a rush, I want to say a note and close the app, so that what I said is kept and I can see it was written as I meant it.","O1  The moment I tap, my note shows the wave of my voice; the words follow it; leaving the app sends the note, it is not thrown away (N194, N199).
 O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).
-O3  While a speaker is onboarded there is no mic and the notebook's ask waits; once the first Take is in, both are there (N243).
 O4  Typing ""#"" offers one option, ""# note"", and tapping it leaves ""#"" to write on: a typed ""#"" is one note, as the mic's (N253).","O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
 O2 -> keeps a note that cannot go and sends it once when back online
-O3 -> waits while the speaker is onboarded, then the mic and the ask are there
 O4 -> offers only ""# note"" after ""#"", and leaves ""#"" to write on",
 src/components/willab/walk/coachUpdateLens.test.tsx,Story,"As a speaker, I want my coach's changed word to wait for me in the chat under ""Later · from your coach"" and open the walk at my coach's place when I tap it, the same way every bubble opens its step, so that I watch exactly what my coach sent, where it belongs.","O1  The coach's bubble rings while the server says the word is new; a tap
 opens the Take's walk at the coach's step (Step 0 for a general word),

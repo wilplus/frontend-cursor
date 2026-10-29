@@ -52,14 +52,17 @@ Life Panel.
    before your next talk, we'll show you what you're doing it for." Then
    "Your notes are private. Only you and Will read them. Keep a voice
    notebook?" with Yes | Not now. Once only (N195; not built yet).
-6. Never in the way of the onboarding (N243). From the plan's first
-   question until a new speaker's first Take, and while the plan's questions
-   are asked for a speaker who already has Takes ([the plan](the-plan.md)
-   A2, A3, A5), nothing of it shows: no mic, no "Keep a voice notebook?", no
-   life goals ask, no Sunday note, no quarter's ask, and Will's chat does not
-   answer as the notebook, the Sunday note or life goals. Then it is as
-   above; an ask that was due comes the next time it may. Only where the plan
-   reaches; the backend's `plan_flow.onboarding` decides.
+6. Never in the way of the onboarding (N243). While a speaker is
+   onboarded, nothing of it shows: no mic, no "Keep a voice notebook?", no
+   life goals ask, no Sunday note, no quarter's ask. Will's chat does not
+   answer as the notebook, the Sunday note or life goals either.
+   - Onboarded means: a new speaker, from the plan's first question to their
+     first Take; a speaker who already has Takes, only while the plan's
+     questions are asked ([the plan](the-plan.md) A2, A3, A5).
+   - Afterwards it is as above. An ask that was due comes the next time it
+     may.
+   - Only where the plan reaches. The backend's `plan_flow.onboarding`
+     decides.
 
 ### B · The voice note: the wave first, the words follow (decided 2026-10-26, N194; amended the same day, N199)
 
