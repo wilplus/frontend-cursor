@@ -408,7 +408,7 @@ Will's guide are signed (N258):
 - N-be · backend: strengths kept in the Life Panel's store with their history; the two-day suggestion from # notes and the M4 answer; later notes linked; the before-a-talk reminder from the plan's deadline or a note's date · N1 to N5 · ready · —
 - N-fe · frontend: strengths in the Life Panel; the suggestion, the linked note and the reminder in the Lounge, as the prototype draws them · N1 to N5 · ready · —
 - O-be · Will's chat: the worry heard and sorted, ending on one thing in their control, from the signed guide; under a # note's "Noted.", typed or said; ring row `in_control` · O1, O3 · built, on once the founder makes the row · BE #1481
-- P-be · Will's chat on a sales note, and the Sunday note's sales steps (backend `services/sunday_note.py`, frontend `SundayLens.tsx`) · P1 to P3 · ready · —
+- P-be · the sales framing: under a sales note's "Noted.", "Which step did it stall at?" with the four steps in place of the message box, and one change to the step tapped (BE #1482, FE #1077); a sales week's Sunday note asks "Which step was it?" with the four steps or their own in place of the bugs (BE #1484, FE (this PR)) · P1 to P3 · built · BE #1482, #1484
 - Q-be · backend: the three lines kept with their history (a migration with its outside review), the sitting's questions and drafts from the person's words, the daily why on the first open, Will reading all three · Q1 to Q6 · ready · —
 - Q-fe · frontend: the sitting in the lens, the daily bubble with its ›, the lines on the Life Panel's Goals screen · Q2 to Q6 · ready · —
 
@@ -429,6 +429,11 @@ Will's guide are signed (N258):
   outbox `src/lib/willab/voiceNoteOutbox.ts`.
 - The Sunday note: backend `services/sunday_note.py`; frontend
   `src/app/api/v2/notebook/sunday/`.
+- What is in your control and the sales framing (O, P): backend
+  `services/in_control.py` (Will's signed guide, word for word, in `GUIDE`)
+  and `services/sales_framing.py`, after a note's "Noted."; frontend the
+  offer `sales_step` (`SalesSteps` in `useVoiceNotebook.tsx`) and
+  `src/app/api/v2/notebook/sales-step/`.
 - Life goals: backend `services/life_goals.py`, `routes/v2/life_goals.py`;
   frontend `src/components/willab/LoungeLifeGoals.tsx`,
   `src/lib/willab/lifeGoals.ts`, `src/services/api/lifeGoals.ts`,
