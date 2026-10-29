@@ -19,6 +19,9 @@ const config: CapacitorConfig = {
     // for the status bar; "always" keeps the page below the clock and battery,
     // as Safari does, without changing any web screen.
     contentInset: "always",
+    // The strips around the page (status bar, home bar) match its white
+    // background; Info.plist keeps the app in light mode, as the site is.
+    backgroundColor: "#ffffff",
   },
 };
 
