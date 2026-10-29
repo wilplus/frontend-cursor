@@ -63,6 +63,8 @@ import { LENS_IDLE_MS, LENS_WATCHDOG_MS, WALK_STEP_SELECTOR, lensAddress, lensId
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
 import IdealTextMenu, { FeedbackLoadingLine } from "./IdealTextMenu";
+import { useUpdateSlides } from "./UpdateSlides";
+import { useArchivedReturn } from "./OneProjectQuestion";
 import PresentMode from "./PresentMode";
 import ExportFormatDialog from "./ExportFormatDialog";
 import type { PresentationExportFormat } from "@/lib/willab/presentationDocument";
@@ -288,14 +290,15 @@ export default function IdealTextOverlay({
   }, [arcId, initialMode]);
   // The lens comes down as soon as the page knows there is nothing to walk
   // (founder 2026-10-14): the feedback settled and no step is opening.
-  const lensPage = lensPageOf(status, feedbackPending, reviewWaiting, reviewOpenedRef.current, reviewAt, coachOnly);
+  const lensPage = lensPageOf(status, feedbackPending, reviewWaiting, reviewOpenedRef.current, coachOnly);
   const lens = useLensScreen(arcId, initialMode, lensIdle(lensPage), lensStillLoading(lensPage));
   useEffect(() => {
     // The coach-feedback email and bubble open the review too: only helper
     // words and moment sentences open anything (lock 2026-10-12, section 4).
     if ((initialMode !== "review" && initialMode !== "feedback") || reviewOpenedRef.current) return;
-    // A helper-words bubble, or the coach's: the deck opens it itself.
-    if (reviewAt?.step === "helpers" || coachOnly) return;
+    // The coach's door: the deck opens it itself. The Feedback walk standing
+    // on helper words goes through the one door like any step (B10, C3).
+    if (coachOnly) return;
     // After a Take (no step asked for) the review is the live walk: wait
     // for its moments, which can land after the text, rather than settle
     // on the finished one. A step tapped in the chat goes through the one
@@ -839,6 +842,11 @@ export default function IdealTextOverlay({
   // SLIDES — the arc's deck, for the slide-per-paragraph reading view.
   // Resolved only under SD (the legacy lanes have no piece structure to
   // attach slides to), after the GET settles.
+  // Update slides under ⋯ (N257), and the one-project question before an
+  // archived project's next Take (N254).
+  const updateSlides = useUpdateSlides(arcId, sd);
+  const archivedReturn = useArchivedReturn(arcId, sd);
+
   const deckRef = useArcDeckRef(
     arcId,
     sd?.presentationRef ?? null,
@@ -893,6 +901,7 @@ export default function IdealTextOverlay({
         onNewTake={() => onReadAloud(sd.version)}
         onClose={onClose}
         shareFirst={!endCard && initialMode === "share"}
+        confirmFirst={archivedReturn.confirmFirst}
       />
     );
   }
@@ -934,6 +943,7 @@ export default function IdealTextOverlay({
               onPresent={() => setPresenting(true)}
               onExport={() => setExportChooserOpen(true)}
               onHistory={historyEntry(sd.version, openHistory)}
+              slides={updateSlides.item}
               onCopy={copyText}
               copied={copied}
             />
@@ -945,6 +955,8 @@ export default function IdealTextOverlay({
         </div>
       </div>
       <FeedbackLoadingLine active={shownStatus === "ready" && feedbackPending} />
+      {updateSlides.layer}
+      {archivedReturn.layer}
 
       {shownStatus === "ready" && sd && ideal ? (
         // THE TRANSCRIPT REVIEW DECK (founder 2026-08-11) — replaces the
@@ -1188,18 +1200,17 @@ export default function IdealTextOverlay({
   );
 }
 
-/** What the lens screen reads of the page. A helper-words bubble and the
- *  coach's door open their step by themselves, the coach's once the Take's
- *  answers are read (WIL-93): the lens waits for it, never the text. */
+/** What the lens screen reads of the page. The coach's door opens its
+ *  step by itself once the Take's answers are read (WIL-93): the lens waits
+ *  for it, never the text. */
 function lensPageOf(
   status: string,
   feedbackPending: boolean,
   reviewWaiting: boolean | null,
   walkRequested: boolean,
-  reviewAt: WalkStepTarget | null | undefined,
   coachOnly: boolean,
 ): LensPage {
-  return { status, feedbackPending, reviewWaiting, walkRequested, opensHelpers: reviewAt?.step === "helpers" || coachOnly };
+  return { status, feedbackPending, reviewWaiting, walkRequested, opensItself: coachOnly };
 }
 
 /** The History under ⋯ once there is more than one version to show. */

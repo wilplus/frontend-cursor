@@ -324,13 +324,66 @@ Done when:
 
 *Amended 2026-10-05 (founder, decisions log N48.3 Q12 A): the contract texts are brought in line with this lock and its later amendments: 24f (the stale two-greens and weakest-item text replaced by 24g's two bar colours; Practise below In-between, Next on Yes and In-between, 29b on rewrite cards) and 47 (V3 serves every Take). The design lock's L3 still says "the Take stack"; this lock wins.*
 
+### The words (the smoothing fence)
+
+The Ideal Text is the speaker's latest Take, word for word (Never 5). Only
+these change silently (the fence of 2026-07-20, backend
+`services/transcript_smoothing.py`); every other change is visible and
+approvable:
+
+- hesitations, from a closed list per language;
+- the same word twice in a row with nothing between ("the the");
+- capitals at the start of a sentence;
+- the closing marks: one at the end of each paragraph, and a full stop
+  between two pieces where the first ends with no closing mark, the next
+  begins with a capital, and the speaker paused at least 0.6 seconds there.
+  Never before "I", and never in German, where every noun has a capital
+  (N126).
+
+
+### The project's slides, and an archived project's next Take (2026-10-29, N254, N257)
+
+Signed by the founder in the Claude Code chat on 29 October 2026 ("you have
+my go"), on the prototype <https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A>.
+
+- **Add slides / Update slides (N257).** The ⋯ menu has one row under
+  History: **Add slides** when the project has no deck, **Update slides**
+  when it has one (the read's `has_deck`, else whether a deck PDF is
+  served). It opens a bottom sheet with the same title, **Upload the new
+  PDF. Your next Take uses it.**, a black **Upload PDF** and **Cancel**.
+  Upload PDF opens the file picker, PDF only, read by the same deck
+  parsing a new project uses; while it goes up the button keeps its label
+  and is held, with the voice mark (no signed busy word). Saved
+  (`PUT /v2/projects/<id>/deck`), the sheet closes and the toast says
+  **New slides ready for Take {n}.** The text does not change: the next
+  Take writes it fresh on the new slides, and every old version stays in
+  the history (Never 5). A failed upload says the menu's own line,
+  "Couldn't save that just now. Give it another go."
+- **The same in the chat (N257).** When Will answers a new deck with "You
+  can update the slides in this project. Your next Take uses them." and
+  the `update_slides` action, no chip shows: a grey card with **Update
+  slides** and the same sentence takes the message box's place, as the
+  WhatsApp ask does, with **Cancel** | **Upload PDF** under it; the chosen
+  PDF shows in the card while it goes up. Saved, Will says **New slides
+  ready for Take {n}.** in the thread and the message box comes back;
+  Cancel brings it back with nothing sent. "Create project from updated
+  deck" and "Keep current project" are gone.
+- **Record Take N on an archived project (N254).** When the project is
+  archived (the read's `project_archived`), **Record Take N** first asks
+  **One project at a time** · **"{current}" will be archived. Its Takes and
+  Ideal Text stay safe, and you can bring it back from Settings.** (N260) ·
+  **Cancel** | **Continue**, where {current} is the project with the newest
+  Take. Continue brings this project back, archives the current one, then
+  records as before; Cancel stays on the page. With no other project
+  current it brings this one back and records without asking. On a project
+  that is not archived nothing is asked (Never 3).
 
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
 doing it fills its line in its PR and deletes the line when the work is merged (the change goes to §6).
 
-- **N126 · a full stop between sentences, where the speaker paused** · the smoothing fence (backend `services/transcript_smoothing.py`) · founder 2026-10-23 (the recommendation taken: "For the 6 questions use your recommendations"). Found on the founder's Take 4: the Ideal Text ran sentences together where a piece ended without its full stop ("Startup is just a job It's a job…"). To build: where a piece ends with no closing mark, the next begins with a capital, and the recording has a clear pause at that seam, one full stop goes in silently; nothing else changes · decided, not built · the founder checks the app
+- (nothing in flight)
 
 ## 3. Still open
 
@@ -373,11 +426,16 @@ Every prototype link in §1, in the order it first appears:
 
 - <https://claude.ai/artifact/DQ41tdJqgC21SZGnqn9UYR>
 - <https://claude.ai/artifact/2Vz1UZVEA997UZpwivWWYh>
+- <https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A>
 
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N260 · the "One project at a time" sentence ends "you can bring it back from Settings." (the ☰ menu's Settings page, N196). Was: "Data & consent" · FE (this PR), BE (N260 log)
+- 2026-10-29 · N254, N257 · built: the ⋯ menu's "Add slides" / "Update slides" and its sheet (the new deck stays in the same project and the next Take uses it, "New slides ready for Take {n}."); the chat's grey card in place of the message box for Will's `update_slides`, replacing the "Create project from updated deck" and "Keep current project" chips; "Record Take N" on an archived project asks "One project at a time" first (§1, "The project's slides…"). Was: a changed deck meant a new project, and an archived project recorded without a word · FE (this PR), BE (with it)
+- 2026-10-28 · N126 · built: a full stop goes in silently between two pieces where the first ends with no closing mark, the next begins with a capital, and the speaker paused at least 0.6 seconds (never before "I", never in German); §1 gains "The words (the smoothing fence)". Was: sentences ran together at a seam ("Startup is just a job It's a job…") · BE, FE (this PR)
+- 2026-10-28 · — (feedback walk B10, C3) · fixed: the page no longer opens a Feedback walk's helper words by themselves when the deck is up; it asks for the whole walk standing on them, as for any step, so the walk shows around them. The page's own orange helper words open as before. Nothing on the Ideal Text page changes (founder 2026-10-28: "it just opens helper words") · FE (this PR)
 - 2026-10-26 · N192 · the shared copy file (`idealEditCopy.ts`) gains the chat's "Feedback walk" and "Edited", and the summary's "Updated with your coach's note · see / hide the earlier version" moves into it from the Lounge; nothing on the Ideal Text page changes · FE (this PR)
 - 2026-10-26 · N178 · helper words: up to eight in one pick, as the app does since 2026-10-15. Was: six (2026-10-12) · BE #1339
 

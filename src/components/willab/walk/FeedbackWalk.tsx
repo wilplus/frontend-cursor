@@ -3,7 +3,7 @@
 import { reasonRuns, type PraiseReason, type WalkPraiseReasons } from "@/lib/willab/praiseReason";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { answerBody, helperWordsSaid } from "@/lib/willab/walkThread";
+import { answerBody, helperWordsSaid, type WalkTempoLine } from "@/lib/willab/walkThread";
 import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
@@ -20,6 +20,7 @@ import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
 import WalkSummary, { type WalkStoredSummary } from "./WalkSummary";
 import WalkTempo from "./WalkTempo";
+import WalkTempoSaid from "./WalkTempoSaid";
 import { TEMPO_COPY, type TempoEvent, type TempoStretch } from "@/lib/willab/tempoStep";
 import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
@@ -83,9 +84,11 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /*  ‹ › scroll the thread to the step before or after (WalkThread); they      */
 /*  never answer and never close. The pill alone moves the journey on, to the */
 /*  next step that waits, and the speaker's choice lands as their own bubble. */
-/*  A step reopened (the finished walk played again) shows its answer as a    */
-/*  "✓ …" line over a black Next. Helper words stay editable on any part: a   */
-/*  tap stands the walk there (C3, B10).                                      */
+/*  A walk not yet done, opened on a step already answered, shows its answer */
+/*  as a "✓ …" line over a black Next. Helper words stay editable on any     */
+/*  part: a tap stands the walk there (C3, B10). A walk opened again once    */
+/*  done is a scroll (N259): no buttons, but the helper words' after a tap,  */
+/*  which go again once chosen.                                              */
 /*                                                                            */
 /*  Every word on these screens is a signed one (CHUNK_SHEET_COPY, WALK_COPY) */
 /*  or the caller's (the coach's note, the praise line the item carries);     */
@@ -221,9 +224,14 @@ type Props<R> = {
   /** The tempo step's stretch, when the plan has a "tempo" step (backend
    *  N162, N166); absent: the step is passed by. */
   tempo?: TempoStretch | null;
+  /** The tempo step as the chat kept it: a walk played again shows it so
+   *  (N247). */
+  tempoSaid?: readonly WalkTempoLine[];
   /** What the tempo step did, for the chat and for Will (N166 step 4). */
   onTempo?: (event: TempoEvent) => void;
 };
+
+const NO_LINES: readonly WalkTempoLine[] = [];
 
 const NO_EDITS: ReadonlySet<string> = new Set();
 
@@ -237,6 +245,10 @@ const OPENERS = new Set(["clearer", "exVideo", "encourage", "late"]);
 
 /** The steps whose dock is the recorder or a try being checked. */
 const RECORDER = new Set(["practise", "processing"]);
+
+/** The dock holds a recorder: a practise's, or the tempo step's own. */
+const recorderDocked = (thread: HTMLElement | null) =>
+  thread?.querySelector("[data-walk-dock] [data-walk-recording-strip]") != null;
 
 /** One part of the thread: a step reached, by its place in the plan. */
 type ThreadPart = { key: string; at: number };
@@ -301,6 +313,7 @@ export default function FeedbackWalk<R = unknown>({
   reasons = null,
   othersJudged = 0,
   tempo = null,
+  tempoSaid = NO_LINES,
   onTempo,
 }: Props<R>) {
   const liveModel = useRef(model);
@@ -316,7 +329,14 @@ export default function FeedbackWalk<R = unknown>({
   // Where the walk stood before a tap on an earlier part's helper words
   // stood it there: their buttons bring it back (C3, B10).
   const [resume, setResume] = useState<number | null>(null);
+  // A walk opened again once done is a scroll (N259): no buttons, but the
+  // helper words' while the speaker edits them (their pick's key), and the
+  // words as saved, which a Keep these puts back.
+  const [editing, setEditing] = useState<string | null>(null);
+  const [saved, setSaved] = useState<Record<string, PhraseSelection | null>>({});
   const guestBlock = useGuestBlock();
+  // The live thread's root (WalkThread): its leaving copy, and its dock.
+  const frame = useRef<HTMLDivElement | null>(null);
 
   const requestRef = useRef(request);
   requestRef.current = request;
@@ -330,6 +350,8 @@ export default function FeedbackWalk<R = unknown>({
     resetRef.current();
     setWalk(opened);
     setPicks(replayPicks(opened));
+    setSaved(replayPicks(opened));
+    setEditing(null);
     setAnswers({});
     setResume(null);
     setAt(asked.at);
@@ -339,6 +361,7 @@ export default function FeedbackWalk<R = unknown>({
 
   const plan = walk.plan;
   const step = plan[at] ?? plan[0];
+  const scroll = walk.scroll === true;
 
   // `how` is kept for the callers; the thread does not slide (2026-10-20).
   const go = useCallback((to: number, _how?: WalkDir) => setAt(to), []);
@@ -367,6 +390,13 @@ export default function FeedbackWalk<R = unknown>({
     [go, onEnd],
   );
   const forward = useCallback(() => {
+    // In a scroll the only buttons are an edit's: they go, the words not
+    // saved go back, and the walk stays where it is (N259).
+    if (scroll) {
+      if (editing !== null) setPicks((p) => ({ ...p, [editing]: saved[editing] ?? null }));
+      setEditing(null);
+      return;
+    }
     if (resume !== null) {
       setResume(null);
       land(plan, resume, undefined);
@@ -374,7 +404,7 @@ export default function FeedbackWalk<R = unknown>({
     }
     if (onForward?.()) return;
     land(plan, at + 1, "forward");
-  }, [at, plan, land, onForward, resume]);
+  }, [at, plan, land, onForward, resume, scroll, editing, saved]);
   const atNow = useRef(at);
   atNow.current = at;
   /** Moves on from `step` only while the walk still stands on it: a screen
@@ -615,12 +645,17 @@ export default function FeedbackWalk<R = unknown>({
     answered,
     pick: (s, next) => {
       if (blocked(s)) return;
-      setPicks((p) => ({ ...p, [pickKey(s)]: next }));
+      const key = pickKey(s);
+      // Another picker's words left unsaved go back as they were.
+      const left = scroll && editing !== null && editing !== key ? { [editing]: saved[editing] ?? null } : {};
+      setPicks((p) => ({ ...p, ...left, [key]: next }));
+      if (scroll) setEditing(key);
     },
     standOn: (s) => {
       const here = plan.indexOf(s);
-      // The recorder never gives way (B9): moving off it stops the mic.
-      if (here < 0 || here === at || s.readOnly || RECORDER.has(step.key)) return false;
+      // The recorder never gives way (B9): moving off it stops the mic. The
+      // tempo step's recorder is its own, so the dock is asked too.
+      if (here < 0 || here === at || s.readOnly || RECORDER.has(step.key) || recorderDocked(frame.current)) return false;
       // Back up the thread, their buttons bring the walk back to where it
       // stood; further down, the walk goes on from them.
       setResume((r) => {
@@ -637,6 +672,11 @@ export default function FeedbackWalk<R = unknown>({
       const span = selectionSpan(moment.paragraphText, phraseTokens(moment.paragraphText), picked);
       if (span) {
         onSaveHelperWords({ partId: moment.partId, span, paragraphText: moment.paragraphText });
+      }
+      if (scroll) {
+        setSaved((w) => ({ ...w, [pickKey(s)]: picked }));
+        setEditing(null);
+        return;
       }
       forward();
     },
@@ -697,6 +737,7 @@ export default function FeedbackWalk<R = unknown>({
     onOthers,
     othersJudged,
     tempo,
+    tempoSaid,
     onTempo,
   };
 
@@ -710,7 +751,6 @@ export default function FeedbackWalk<R = unknown>({
     at,
     seq,
   };
-  const frame = useRef<HTMLDivElement | null>(null);
 
   return (
     <div data-feedback-walk data-walk-step={step.key}>
@@ -719,7 +759,14 @@ export default function FeedbackWalk<R = unknown>({
       <WalkStage
         screen={stage}
         render={(s, ghost) => (
-          <WalkThread ghost={ghost} frame={frame} opening={s.seq} current={s.at} onClose={close}>
+          <WalkThread
+            ghost={ghost}
+            frame={frame}
+            opening={s.seq}
+            current={s.at}
+            buttons={!scroll || editing !== null}
+            onClose={close}
+          >
             {s.seq !== null && s.seq === helloSeq.current ? <WalkHello text={hello} /> : null}
             {renderThread(ctx, s.head, s.seq, backFromPractise, s.at)}
           </WalkThread>
@@ -801,6 +848,7 @@ type ScreenCtx<R = unknown> = {
   reasons: WalkPraiseReasons | null;
   othersJudged: number;
   tempo: TempoStretch | null;
+  tempoSaid: readonly WalkTempoLine[];
   onTempo?: (event: TempoEvent) => void;
 };
 
@@ -968,7 +1016,8 @@ function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   const words = moment.paragraphText;
   const given = ctx.answered(step) !== null || picked !== null && Boolean(ctx.walk.replay);
   const skip = () => {
-    ctx.answer(step, "skip");
+    // In a scroll, Skip only ends the edit (N259).
+    if (!ctx.walk.scroll) ctx.answer(step, "skip");
     ctx.forward();
   };
   return (
@@ -1216,12 +1265,16 @@ function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
 /** Other speakers' moments: the Take's set, up to three, one per level and
  *  three speakers (founder 2026-10-23, N119; until then one per try). */
 function Others(ctx: ScreenCtx, step: WalkStep) {
+  // Played again, the moments judged in this walk with their answers
+  // (N247); none judged, the step is passed by.
+  const replay = Boolean(step.replay);
   return (
     <WalkOthers
       testId={testId(step)}
       take={ctx.takeId}
       judged={ctx.othersJudged}
-      skip={Boolean(step.readOnly || step.replay)}
+      replay={replay}
+      skip={Boolean(step.readOnly) || (replay && ctx.othersJudged === 0)}
       onDone={() => ctx.forwardFrom(step)}
       onClose={ctx.close}
       onChat={ctx.onOthers}
@@ -1230,18 +1283,42 @@ function Others(ctx: ScreenCtx, step: WalkStep) {
 }
 
 /** The tempo step (backend N162, N166): the stretch practised on the pace
- *  scale. With no stretch it is passed by. */
+ *  scale. With no stretch it is passed by. Played again, it is what the
+ *  chat kept of it, read only (N247). */
 function Tempo(ctx: ScreenCtx, step: WalkStep) {
+  const kept =
+    ctx.tempoSaid.length > 0 ? (
+      <WalkTempoSaid
+        testId={testId(step)}
+        stretch={ctx.tempo}
+        lines={ctx.tempoSaid}
+        onNext={() => ctx.forwardFrom(step)}
+        onClose={ctx.close}
+      />
+    ) : null;
+  if (step.replay && kept) return kept;
   if (!ctx.tempo || step.readOnly || step.replay) return <PassBy onPass={() => ctx.forwardFrom(step)} />;
   return (
-    <WalkTempo
-      testId={testId(step)}
-      stretch={ctx.tempo}
-      onDone={() => ctx.forwardFrom(step)}
-      onClose={ctx.close}
-      onEvent={ctx.onTempo}
-    />
+    <TempoOrKept kept={kept}>
+      <WalkTempo
+        testId={testId(step)}
+        stretch={ctx.tempo}
+        onDone={() => ctx.forwardFrom(step)}
+        onClose={ctx.close}
+        onEvent={ctx.onTempo}
+      />
+    </TempoOrKept>
   );
+}
+
+/** A game the walk already played, drawn from nothing (the walk opened
+ *  further on, or its leaving copy), has no tries of its own: it shows the
+ *  game as the chat kept it, so the practice stays in the walk (B5;
+ *  founder 2026-10-28: "It feels like the practice is gone from the
+ *  feedback walk"). The game the walk stands on is always the live one. */
+function TempoOrKept({ kept, children }: { kept: ReactNode; children: ReactNode }) {
+  const past = useMountedAsPast();
+  return <>{past && kept ? kept : children}</>;
 }
 
 /** A step with nothing to show moves the walk on once drawn. */
@@ -1345,7 +1422,14 @@ function answerSaid(ctx: ScreenCtx, step: WalkStep): string | null {
  *  WalkThread brings it to the top; the parts before and after it are there
  *  to scroll (founder 2026-10-21). The last part is the newest: first drawn
  *  as the step the walk stands on, its bubbles land one by one. A new
- *  opening (`seq`) draws the parts afresh. */
+ *  opening (`seq`) draws the parts afresh.
+ *
+ *  Every part sits in the same wrapper, the mark an attribute on it, so a
+ *  part the walk moves off stays as it was drawn (B5). Until 2026-10-28 only
+ *  the standing part had the wrapper, so moving on drew the part again from
+ *  nothing: the tempo game kept only its opening lines, down to "Find a quiet
+ *  spot first.", and other speakers' moments went from the thread (founder
+ *  2026-10-28: "I click next and it's gone"). */
 function renderThread<R>(
   ctx: ScreenCtx<R>,
   head: number,
@@ -1363,25 +1447,14 @@ function renderThread<R>(
     const mark = label && label !== last ? <WalkThreadMark label={label} /> : null;
     last = step.key === "others" ? null : (label ?? last);
     const said = answerSaid(ctx, step);
-    const body = (
-      <>
+    return (
+      <div key={`${seq ?? 0}:${part.key}`} data-walk-now={i === now ? "" : undefined} className="contents">
         {mark}
         <WalkPart now={i === now} fresh={i === parts.length - 1}>
           {renderScreen(ctx, step, backFromPractise)}
         </WalkPart>
         {said ? <WalkSpeakerBubble edited={wordsEdited(ctx, step)}>{said}</WalkSpeakerBubble> : null}
-      </>
-    );
-    return (
-      <Fragment key={`${seq ?? 0}:${part.key}`}>
-        {i === now ? (
-          <div data-walk-now className="contents">
-            {body}
-          </div>
-        ) : (
-          body
-        )}
-      </Fragment>
+      </div>
     );
   });
 }

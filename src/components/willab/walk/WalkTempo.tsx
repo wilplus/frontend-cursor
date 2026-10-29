@@ -5,18 +5,21 @@ import { startPaceMic, type PaceMic } from "@/lib/willab/pace/paceMic";
 import {
   TEMPO_COPY as W,
   TEMPO_MAX_TRIES,
+  TEMPO_PATH_EVERY_MS,
+  afterTry,
   closeOf,
+  landed,
   readTry,
   type TempoEvent,
+  type TempoPlayed,
   type TempoStretch,
-  type TempoTry,
 } from "@/lib/willab/tempoStep";
 import PaceScale from "../pace/PaceScale";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
 import WalkFooter from "./WalkFooter";
 import RecordingStrip from "./RecordingStrip";
-import { WalkSpeakerBubble, useMountedAsPast } from "./WalkThread";
+import { WalkSpeakerBubble, useMountedAsPast, useWalkPart } from "./WalkThread";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkTempo — the tempo step of the walk (backend N162, N166; the walk's    */
@@ -26,20 +29,23 @@ import { WalkSpeakerBubble, useMountedAsPast } from "./WalkThread";
 /*  Will's bubbles (what the stretch was, the task with its topic, the quiet */
 /*  spot); under them the scale, asleep, with I'm ready and Skip. I'm ready   */
 /*  wakes the scale and the recording bar; nothing else lands until Stop.    */
-/*  Each try: the dot's path as the speaker's bubble, then one comment;       */
-/*  Practise again, and after the second try See how it went; after the      */
-/*  third, the closing line comes by itself; Next goes on with the walk.     */
+/*  Each try: the dot's path as the speaker's bubble, then Will's word on it */
+/*  (N245). A try that lands ends the game with Next; one that came closer   */
+/*  gets a push, and Practise again; Will decides, not the speaker. After    */
+/*  the third, the closing line comes by itself; Next goes on with the walk. */
 /*                                                                            */
 /*  Listen only: the scale reads the microphone in this tab, nothing is      */
 /*  recorded or sent. Every word is signed (TEMPO_COPY, backend N179).       */
+/*                                                                            */
+/*  Once the walk moves on, the game stays in the thread as it was played    */
+/*  (B5): the tries, their comments and the closing line, or the speaker's   */
+/*  Skip; the scale shows only while the walk stands on the step.            */
 /* -------------------------------------------------------------------------- */
 
-/** One point of a try's path every 200 ms. */
-const PATH_EVERY_MS = 200;
 /** A try left running stops itself after a minute, as a practise's upload does. */
 const TRY_LIMIT_MS = 60_000;
 
-type Phase = "idle" | "starting" | "listening" | "blocked" | "commented" | "closed";
+type Phase = "idle" | "starting" | "listening" | "blocked" | "commented" | "closed" | "skipped";
 
 export default function WalkTempo({
   testId,
@@ -56,8 +62,9 @@ export default function WalkTempo({
   onEvent?: (event: TempoEvent) => void;
 }) {
   const past = useMountedAsPast();
+  const part = useWalkPart();
   const [phase, setPhase] = useState<Phase>("idle");
-  const [tries, setTries] = useState<{ result: TempoTry; path: number[] }[]>([]);
+  const [tries, setTries] = useState<TempoPlayed[]>([]);
   const [elapsed, setElapsed] = useState(0);
   const activity = useRef<number | null>(null);
   const mic = useRef<PaceMic | null>(null);
@@ -69,8 +76,8 @@ export default function WalkTempo({
   useEffect(() => {
     if (!past) tell.current?.({ kind: "opened" });
   }, [past]);
-  // The game ends once: the closing line, or a Skip before any try.
-  const end = useCallback((played: { result: TempoTry; path: number[] }[]) => {
+  // The game ends once: a landed try, the closing line, or a Skip.
+  const end = useCallback((played: TempoPlayed[]) => {
     if (ended.current) return;
     ended.current = true;
     tell.current?.({ kind: "ended", tries: played, close: played.length ? closeOf(played.map((t) => t.result)) : null });
@@ -99,7 +106,7 @@ export default function WalkTempo({
     const started = performance.now();
     setElapsed(0);
     timers.current.push(
-      window.setInterval(() => path.current.push(activity.current ?? 0), PATH_EVERY_MS),
+      window.setInterval(() => path.current.push(activity.current ?? 0), TEMPO_PATH_EVERY_MS),
       window.setInterval(() => setElapsed(Math.floor((performance.now() - started) / 1000)), 250),
     );
     setPhase("listening");
@@ -109,10 +116,11 @@ export default function WalkTempo({
     halt();
     const taken = path.current.slice();
     const result = readTry(taken);
-    const next = [...tries, { result, path: taken }];
+    const hit = landed(taken);
+    const next = [...tries, { result, path: taken, landed: hit }];
     setTries(next);
-    tell.current?.({ kind: "try", n: next.length, result });
-    if (next.length >= TEMPO_MAX_TRIES) {
+    tell.current?.({ kind: "try", n: next.length, result, path: taken, landed: hit });
+    if (hit || next.length >= TEMPO_MAX_TRIES) {
       setPhase("closed");
       end(next);
     } else setPhase("commented");
@@ -128,7 +136,10 @@ export default function WalkTempo({
     halt();
     end(tries);
     if (tries.length > 0) setPhase("closed");
-    else onDone();
+    else {
+      setPhase("skipped");
+      onDone();
+    }
   }, [halt, tries, end, onDone]);
 
   const nav: WalkNav = {
@@ -142,7 +153,9 @@ export default function WalkTempo({
   };
 
   const live = phase === "listening" || phase === "starting";
-  const scaleShown = !past && (phase === "idle" || phase === "blocked" || live);
+  const aTryLanded = tries.some((t) => t.landed);
+  const standing = part === null || part.now;
+  const scaleShown = standing && !past && (phase === "idle" || phase === "blocked" || live);
 
   return (
     <WalkOverlay
@@ -154,11 +167,7 @@ export default function WalkTempo({
       }}
       footer={past ? null : footerFor()}
     >
-      <WalkSpeakerBubble>
-        {stretch.said.before}{" "}
-        <mark className="rounded bg-white/25 px-0.5 text-inherit">{stretch.said.stretch}</mark>{" "}
-        {stretch.said.after}
-      </WalkSpeakerBubble>
+      <TempoStretchBubble stretch={stretch} />
       <WalkMessage>
         <span>{W.game[stretch.reading]}</span>
       </WalkMessage>
@@ -169,7 +178,7 @@ export default function WalkTempo({
         <span>{W.room}</span>
       </WalkMessage>
       {tries.map((t, i) => (
-        <TryParts key={i} n={i + 1} path={t.path} result={t.result} />
+        <TryParts key={i} n={i + 1} path={t.path} lines={afterTry(t.result, t.landed, i + 1)} />
       ))}
       {scaleShown ? (
         <WalkMessage wide>
@@ -186,11 +195,12 @@ export default function WalkTempo({
           <span>{W.blocked}</span>
         </WalkMessage>
       ) : null}
-      {phase === "closed" ? (
+      {phase === "closed" && !aTryLanded ? (
         <WalkMessage>
           <span>{W.close[closeOf(tries.map((t) => t.result))]}</span>
         </WalkMessage>
       ) : null}
+      {phase === "skipped" ? <WalkSpeakerBubble>{W.skip}</WalkSpeakerBubble> : null}
     </WalkOverlay>
   );
 
@@ -204,18 +214,7 @@ export default function WalkTempo({
     }
     if (phase === "closed") return <WalkFooter pill={{ label: W.next, onClick: onDone, testId: "walk-forward" }} />;
     if (phase === "commented") {
-      const finish = tries.length >= 2 ? [{ label: W.finish, onClick: () => {
-                setPhase("closed");
-                end(tries);
-              }, testId: "walk-tempo-finish" }] : [];
-      return (
-        <WalkFooter
-          dot
-          outline
-          pill={{ label: W.again, onClick: () => void begin(), testId: "walk-practise" }}
-          links={finish}
-        />
-      );
+      return <WalkFooter dot outline pill={{ label: W.again, onClick: () => void begin(), testId: "walk-practise" }} />;
     }
     return (
       <WalkFooter
@@ -227,22 +226,42 @@ export default function WalkTempo({
   }
 }
 
-/** A try: the dot's path in the speaker's bubble, then its comment. */
-function TryParts({ n, path, result }: { n: number; path: readonly number[]; result: TempoTry }) {
+/** The speaker's sentence with the stretch they rushed or dragged marked. */
+export function TempoStretchBubble({ stretch }: { stretch: TempoStretch }) {
+  return (
+    <WalkSpeakerBubble>
+      {stretch.said.before}{" "}
+      <mark className="rounded bg-white/25 px-0.5 text-inherit">{stretch.said.stretch}</mark>{" "}
+      {stretch.said.after}
+    </WalkSpeakerBubble>
+  );
+}
+
+/** "Try N" in the speaker's bubble, with the line the dot drew. */
+export function TempoTryBubble({ label, path }: { label: string; path: readonly number[] }) {
   const points = path.length > 1 ? path : [0, 0];
   const line = points.map((v, i) => `${((i / (points.length - 1)) * 300).toFixed(1)},${(26 - v * 22).toFixed(1)}`).join(" ");
   return (
+    <WalkSpeakerBubble>
+      <span className="block">{label}</span>
+      <svg viewBox="0 0 300 30" preserveAspectRatio="none" className="mt-1 block h-8 w-56 max-w-full" aria-hidden>
+        <line x1="0" x2="300" y1="15" y2="15" stroke="rgba(255,255,255,.5)" strokeDasharray="3 5" />
+        <polyline points={line} fill="none" stroke="#fff" strokeWidth="2.2" strokeLinejoin="round" />
+      </svg>
+    </WalkSpeakerBubble>
+  );
+}
+
+/** A try: the dot's path in the speaker's bubble, then Will's word on it. */
+function TryParts({ n, path, lines }: { n: number; path: readonly number[]; lines: readonly string[] }) {
+  return (
     <>
-      <WalkSpeakerBubble>
-        <span className="block">{W.tryLabel(n)}</span>
-        <svg viewBox="0 0 300 30" preserveAspectRatio="none" className="mt-1 block h-8 w-56 max-w-full" aria-hidden>
-          <line x1="0" x2="300" y1="15" y2="15" stroke="rgba(255,255,255,.5)" strokeDasharray="3 5" />
-          <polyline points={line} fill="none" stroke="#fff" strokeWidth="2.2" strokeLinejoin="round" />
-        </svg>
-      </WalkSpeakerBubble>
-      <WalkMessage>
-        <span>{W.comment[result]}</span>
-      </WalkMessage>
+      <TempoTryBubble label={W.tryLabel(n)} path={path} />
+      {lines.map((said) => (
+        <WalkMessage key={said}>
+          <span>{said}</span>
+        </WalkMessage>
+      ))}
     </>
   );
 }

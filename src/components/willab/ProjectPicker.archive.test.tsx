@@ -1,19 +1,19 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  STORY    As a speaker, I want to archive a project from the picker, never */
-/*           delete it there, with pending deletions locked, so that I tidy   */
-/*           my list without risk.                                            */
-/*  OUTCOME                                                                   */
-/*    O1  Every project row's ⋯ offers Archive and never Delete.              */
-/*    O2  Archive runs at once (that project only) and the row leaves.        */
-/*    O3  A failed archive says so and keeps the row.                         */
-/*    O4  A project with an open deletion request is locked, with no menu.    */
-/*  PROVES   O1 -> "offers Archive and never Delete"                          */
-/*           O2 -> "archives at once and the row leaves the list"             */
-/*           O3 -> "a failed archive says so and keeps the row"               */
-/*           O4 -> "is locked and has no menu"                                */
-/*  WHY      Founder 2026-09-26 (N14): deleting moved to Data & consent.      */
-/* -------------------------------------------------------------------------- */
+/*
+ * STORY    As a speaker, I want to archive a project from the picker, never
+ *          delete it there, with pending deletions locked, so that I tidy
+ *          my list without risk.
+ * OUTCOME
+ *   O1  Every project row's ⋯ offers Archive and never Delete.
+ *   O2  Archive runs at once (that project only) and the row leaves.
+ *   O3  A failed archive says so and keeps the row.
+ *   O4  A project with an open deletion request is locked, with no menu.
+ * PROVES   O1 -> "offers Archive and never Delete"
+ *          O2 -> "archives at once and the row leaves the list"
+ *          O3 -> "a failed archive says so and keeps the row"
+ *          O4 -> "is locked and has no menu"
+ * WHY      Founder 2026-09-26 (N14): deleting moved to Data & consent.
+ */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

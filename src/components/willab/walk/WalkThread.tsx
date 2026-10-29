@@ -64,6 +64,10 @@ import WalkFooter from "./WalkFooter";
 /*  The stage's leaving copy (✕, the walk's end) is a still picture of the    */
 /*  thread as it was, at the same scroll: nothing in it fetches, posts or     */
 /*  moves.                                                                    */
+/*                                                                            */
+/*  A walk opened again once done is a scroll (founder 2026-10-29, N259: "on */
+/*  the reopened walk there is only a scroll there should be no buttons!"):  */
+/*  with `buttons` off there is no dock and no Next; the bar stays.          */
 /* -------------------------------------------------------------------------- */
 
 type Frame = {
@@ -332,6 +336,7 @@ export default function WalkThread({
   frame,
   opening = null,
   current = null,
+  buttons = true,
   onClose,
   children,
 }: {
@@ -345,6 +350,9 @@ export default function WalkThread({
   /** The step the walk stands on (its part is marked `data-walk-now`): each
    *  change brings that part to the top. */
   current?: number | null;
+  /** False: a scroll, with no dock and no Next (N259, a walk opened again
+   *  once done). */
+  buttons?: boolean;
   /** ✕ when the standing part names none. */
   onClose: () => void;
   children: ReactNode;
@@ -352,7 +360,7 @@ export default function WalkThread({
   return ghost ? (
     <Still frame={frame} />
   ) : (
-    <LiveThread frame={frame} opening={opening} current={current} onClose={onClose}>
+    <LiveThread frame={frame} opening={opening} current={current} buttons={buttons} onClose={onClose}>
       {children}
     </LiveThread>
   );
@@ -362,12 +370,14 @@ function LiveThread({
   frame,
   opening,
   current,
+  buttons,
   onClose,
   children,
 }: {
   frame: WalkThreadFrameRef;
   opening: number | null;
   current: number | null;
+  buttons: boolean;
   onClose: () => void;
   children: ReactNode;
 }) {
@@ -583,7 +593,8 @@ function LiveThread({
 
   // Scrolled away from the step with the buttons, the dock reads Next:
   // back to that step (founder 2026-10-20). The recorder stays where it is.
-  const back = !following && docked.any && !docked.recording && bar.away;
+  // A scroll has neither (N259).
+  const back = buttons && !following && docked.any && !docked.recording && bar.away;
 
   const label = bar.label ?? undefined;
   return (
@@ -650,7 +661,7 @@ function LiveThread({
         </div>
         <div ref={room} data-walk-room aria-hidden="true" className="shrink-0" />
       </div>
-      <div ref={setDock} data-walk-dock hidden={back} />
+      <div ref={setDock} data-walk-dock hidden={back || !buttons} />
       {back ? (
         <div data-walk-dock-next>
           <WalkFooter

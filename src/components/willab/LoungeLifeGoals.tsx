@@ -173,7 +173,7 @@ export const FIELD =
   "w-full resize-none rounded-2xl border-[1.5px] border-border bg-background px-3.5 py-3 text-[17px] leading-[1.5] text-foreground placeholder:text-muted-foreground focus:border-foreground focus:outline-none";
 
 /** Said with the small mic, or typed; Skip leaves it. ``null`` is a skip. */
-function WordsDock({ onAnswer }: { onAnswer: (text: string | null) => void }) {
+export function WordsDock({ onAnswer }: { onAnswer: (text: string | null) => void }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const note = useVoiceNote({

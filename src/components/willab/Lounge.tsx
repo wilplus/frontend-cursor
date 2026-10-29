@@ -86,8 +86,10 @@ import {
 } from "./WillabWhatsAppPrompt";
 import { useRouter } from "next/navigation";
 import SymmetricPair from "./SymmetricPair";
+import { offersUpdateSlides, SlidesAskComposer, SlidesAskSlot, useSlidesAsk } from "./UpdateSlides";
+import { NewProjectAskComposer, NewProjectAskSlot, useNewProjectAsk } from "./OneProjectQuestion";
 import { useAdminAsk } from "./useAdminAsk";
-import { afterTakeOrder, askShowing, askToOpen, heldFor, heldMessage, heldTake, waitingFor } from "./afterTake";
+import { afterTakeOrder, askShowing, askToOpen, heldFor, heldMessage, heldTake, recordedPast, waitingFor } from "./afterTake";
 import { postAfterTake } from "@/services/api/afterTake";
 import { setInstallable } from "@/lib/willab/installable";
 import { ConsentAskActions } from "./ConsentAsk";
@@ -124,19 +126,31 @@ import {
   VoiceNoteBubble,
   VoiceNoteFixBar,
   VoiceNoteMic,
+  VoiceNotePicker,
   VoiceNoteThread,
+  SalesSteps,
+  salesAskOf,
+  NOTE_START,
   type VoiceNotebook,
 } from "./useVoiceNotebook";
 import SundayLens, { SundayHeadBubble } from "./SundayLens";
 import { sundayAskOf, sundayHeadOf, sundayWaiting } from "@/lib/willab/sundayNote";
 import { LifeGoalBubble, lensAskOf, lifeGoalOf, quarterAskOf, changeAskOf, useLifeGoals } from "./LoungeLifeGoals";
-import { answerSundayNote } from "@/services/api/voiceNotebook";
+import { YourWhyBubble, useYourWhy, yourWhyLineOf, yourWhyOpenOf } from "./LoungeYourWhy";
+import type { WhyLine } from "@/services/api/yourWhy";
+import {
+  StrengthAgainBubble,
+  StrengthHeadBubble,
+  strengthAgainOf,
+  strengthAskOf,
+  strengthHeadOf,
+  useStrengths,
+} from "./LoungeStrengths";
+import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import WillQuestionBubble, { willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
-import { useLifeTags } from "@/lib/life/useLifeTags";
-import { applyPick } from "@/lib/life/hashtags";
 import {
   announceDiscoveriesFromPersistedMessages,
   productActionFromMetadata,
@@ -159,16 +173,12 @@ const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOver
 // Off the boot bundle, warmed after the thread paints (founder 2026-10-16: the
 // Feedback walk and Ideal Text code may load after the thread paints as long
 // as opening still feels instant): the Ideal Text page, the walk's frame for
-// an older Take, and the Life panel's # layer. `warmOverlays` below fetches
+// an older Take, and the Life panel's chat card. `warmOverlays` below fetches
 // their chunks once the thread is in, so a tap finds them ready.
 const IdealTextOverlay = dynamic(() => import("./IdealTextOverlay"), { ssr: false });
 const WalkOverlay = dynamic(() => import("./walk/WalkOverlay"), { ssr: false });
 const LifeChatCard = dynamic(
   () => import("@/components/life/LifeChatLayer").then((m) => m.LifeChatCard),
-  { ssr: false },
-);
-const LifeTagPicker = dynamic(
-  () => import("@/components/life/LifeChatLayer").then((m) => m.LifeTagPicker),
   { ssr: false },
 );
 function warmOverlays(): void {
@@ -325,7 +335,6 @@ export default function Lounge({
   // before the panel existed. Anonymous visitors make no request for it at all.
   // Sending is untouched either way: routing happens on the backend, and the
   // composer still posts the same /v2/chat/query.
-  const lifeTags = useLifeTags(thread.signedIn);
   useEffect(() => afterChatBoot(warmOverlays), []);
   const [botThinking, setBotThinking] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -466,13 +475,14 @@ export default function Lounge({
   // $25 pay note, was retired with the paywall — only $5 moments is paid now.)
   function onChip(action: ChipAction): void {
     const project = readExploreArc(userId);
-    if (
-      action === "create_new_project" ||
-      action === "create_project_from_updated_deck"
-    ) {
+    if (action === "create_new_project") {
       postAnswerBubble(CHIP_LABEL[action]);
-      clearExploreArc(userId);
-      (onStartNewProject ?? onStart)();
+      // One project at a time (N260): with a current project, the question
+      // takes the message box's place first.
+      newProjectAsk.begin(() => {
+        clearExploreArc(userId);
+        (onStartNewProject ?? onStart)();
+      });
       return;
     }
     if (action === "replace_pdf") {
@@ -489,10 +499,6 @@ export default function Lounge({
         postAnswerBubble(CHIP_LABEL[action]);
         openIdealText(project.arcId, "notebook");
       }
-      return;
-    }
-    if (action === "keep_current_project") {
-      postAnswerBubble(CHIP_LABEL[action]);
       return;
     }
     if (action === "feedback_skip") {
@@ -1050,10 +1056,12 @@ export default function Lounge({
     onRecordNext: (arc) => openIdealText(arc, "share"),
     recordHeld: takeInFlight,
   });
+  // Only the newest Take keeps "Record Take N", whatever the project (N244, N251).
+  const recordedSince = useMemo(() => recordedPast(messages), [messages]);
   const nextTakeOf = (m: LoungeMessage): SummaryRecord | null => {
     // A practice day's one thing, newer than this message, holds the chat's
     // one record button (N167).
-    if (plan.oneHoldsRecord) return null;
+    if (plan.oneHoldsRecord || recordedSince.has(m.client_id)) return null;
     const meta = m.metadata ?? {};
     const arc = meta.arc_id;
     const take = meta.take_index;
@@ -1238,6 +1246,7 @@ export default function Lounge({
     const rank: Record<OfferType, number> = {
       joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0, feedback_check: 0,
       voice_notebook: 0, sunday_note: 0, life_goals: 0, life_goals_quarter: 0, life_goals_change: 0,
+      sales_step: 0, your_why: 0, strengths: 0,
     };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
@@ -1374,6 +1383,8 @@ export default function Lounge({
   // The second offer (founder 2026-10-12): a WhatsApp number for "The feedback
   // from your coach is in!", asked at the end of a Take from Take 2.
   const whatsapp = useWhatsAppOffer({ append: thread.append });
+  const slidesAsk = useSlidesAsk();
+  const newProjectAsk = useNewProjectAsk();
 
   // A Take's WhatsApp or home-screen ask opens its form by itself, once
   // (founder 2026-10-20: the ask is the one thing to do). A home screen this
@@ -1392,10 +1403,20 @@ export default function Lounge({
   }, [threadLoading, drawn, install.canOffer, waiting, letGo, openOffer]);
 
   // The founder's voice notebook (Will learning plan, step 1, 2026-10-20).
-  const notebook = useVoiceNotebook({ signedIn: thread.signedIn, threadLoading, drawn, openOffer, reload });
+  const notebook = useVoiceNotebook({
+    signedIn: thread.signedIn,
+    threadLoading,
+    held: plan.holdsPrinciples,
+    drawn,
+    openOffer,
+    reload,
+  });
   // Life goals (Will learning plan, step 3, N172): the ask's Start, a
   // ladder's ›, or a reply that opens the lens.
   const lifeGoals = useLifeGoals({ signedIn: thread.signedIn, reload });
+  // Your why (N255) and strengths (N241): their asks, the day's rows, lenses.
+  const why = useYourWhy({ signedIn: thread.signedIn, reload });
+  const strengths = useStrengths({ signedIn: thread.signedIn, reload });
   // The Sunday note's lens, opened on one note (N158 L3, L8).
   const [sunday, setSunday] = useState<{ id: string; nonce: number } | null>(null);
   const openSunday = useCallback((id: string) => setSunday({ id, nonce: Date.now() }), []);
@@ -1502,8 +1523,12 @@ export default function Lounge({
     // code is typed (backend N235).
     const number = resp.row_metadata?.phone;
     if (saved === "check" && typeof number === "string") whatsapp.checkNumber(number);
+    // A new deck stays in this project (N257): Will's `update_slides` puts
+    // the upload card in place of the message box, never a chip.
+    if (offersUpdateSlides(resp.suggested_actions)) slidesAsk.open();
     const lens = lensAskOf(resp.row_metadata);
     if (lens) lifeGoals.openLens(lens);
+    if (yourWhyOpenOf(resp.row_metadata)) why.openLens({ mode: "sit" });
     if (resp.after_take) {
       setActiveOffer(null);
       void reload().catch(() => undefined);
@@ -1700,6 +1725,8 @@ export default function Lounge({
         onWillAnswer={answerWillQuestion}
         onOpenLifeGoal={(goalId) => lifeGoals.openLens({ mode: "see", goalId })}
         onOpenSunday={openSunday}
+        onOpenWhy={(line) => why.openLens({ mode: "change", line })}
+        onOpenStrength={strengths.openLens}
         sundayWaiting={(id) => sundayWaiting(messages, id)}
         animate={
           i === shownItems.length - 1 &&
@@ -1712,6 +1739,8 @@ export default function Lounge({
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
       {lifeGoals.lens}
+      {why.lens}
+      {strengths.lens}
       <SundayLens
         noteId={sunday?.id ?? null}
         nonce={sunday?.nonce ?? 0}
@@ -1865,6 +1894,8 @@ export default function Lounge({
           or re-opened by tapping its thread bubble) its action pair REPLACES the
           black record button; resolving it returns the record button (U2). The
           offer's prompt + outcome live in the thread as durable bubbles. */}
+      <NewProjectAskSlot ask={newProjectAsk}>
+      <SlidesAskSlot ask={slidesAsk} onReady={(line) => void thread.append({ role: "bot", kind: "text", body: line })}>
       <PolicyUpdateSlot>
       <TopUpSlot offer={topUp}>
       {activeOffer ? (
@@ -1890,6 +1921,9 @@ export default function Lounge({
           onLifeGoals={lifeGoals.answerAsk}
           onLifeGoalsQuarter={(choice) => lifeGoals.answerQuarter(quarterAskOf(messages), choice)}
           onLifeGoalsChange={(choice) => lifeGoals.answerChange(changeAskOf(messages), choice)}
+          onSalesStep={(step) => notebook.answerSales(salesAskOf(messages), step)}
+          onYourWhy={why.answerAsk}
+          onStrengths={(choice) => strengths.answerAsk(strengthAskOf(messages), choice)}
           onResolve={() => {
             // A Take's ask closed: its message comes under it (the question's
             // taps let it go on the backend, "No" keeps it waiting).
@@ -1948,24 +1982,23 @@ export default function Lounge({
       null}
       </TopUpSlot>
       </PolicyUpdateSlot>
+      </SlidesAskSlot>
+      </NewProjectAskSlot>
 
       {/* Wave-3 — no standing chip row above the composer; quick actions are
           single in-thread buttons (A-4 / B-1). Footer is just the CTA + input. */}
       {/* A5 — the send button lives INSIDE the input (right edge): grey when the
           field is empty, black once there's text. A4 — the input height (h-12)
           matches the record CTA. B3 — "Will" persona in the placeholder + aria. */}
-      {/* Typing "#" alone opens the tag list. Renders nothing when the layer is
-          off, and nothing when the draft is not a leading "#" token. */}
-      {lifeTags.enabled && (
-        <LifeTagPicker
-          draft={draftText}
-          entries={lifeTags.entries}
-          onPick={(tag) => {
-            setDraftText((current) => applyPick(current, tag));
-            composerRef.current?.focus();
-          }}
-        />
-      )}
+      {/* Typing "#" offers one option, "# note" (backend N253). */}
+      <VoiceNotePicker
+        notebook={notebook}
+        draft={draftText}
+        onPick={() => {
+          setDraftText(NOTE_START);
+          composerRef.current?.focus();
+        }}
+      />
 
       {/* FE-2 (founder 2026-07-27, revised) — the record control is its own
           bordered button NEXT TO the text input, not inside it. Two controls
@@ -1993,6 +2026,8 @@ export default function Lounge({
       ) : null}
       {plan.dock}
       {plan.sheets}
+      <NewProjectAskComposer ask={newProjectAsk}>
+      <SlidesAskComposer ask={slidesAsk}>
       <PolicyUpdateComposer>
       <VoiceNoteBar notebook={notebook} />
       <VoiceNoteFixBar notebook={notebook} />
@@ -2063,6 +2098,8 @@ export default function Lounge({
         <VoiceNoteMic notebook={notebook} draft={draftText} />
       </form>
       </PolicyUpdateComposer>
+      </SlidesAskComposer>
+      </NewProjectAskComposer>
 
       {/* Delivery layer — the 4 bubbles' destinations. */}
       {feedbackTarget && (
@@ -2231,6 +2268,9 @@ function OfferActions({
   onLifeGoals,
   onLifeGoalsQuarter,
   onLifeGoalsChange,
+  onSalesStep,
+  onYourWhy,
+  onStrengths,
   onResolve,
 }: {
   type: OfferType;
@@ -2255,9 +2295,41 @@ function OfferActions({
   onLifeGoalsQuarter: (choice: "start" | "not_now") => void;
   /** "Change {emoji} this quarter to “…”?" (N172 M14, N191). */
   onLifeGoalsChange: (choice: "change" | "not_now") => void;
+  /** "Which step did it stall at?" (backend N241 P2). */
+  onSalesStep: (step: SalesStep) => void;
+  /** "One more thing: your why." (backend N255 Q1). */
+  onYourWhy: (choice: "start" | "not_now") => void;
+  /** "We spotted a strength!" (backend N241 N2). */
+  onStrengths: (choice: "look" | "not_now") => void;
   onResolve: () => void;
 }) {
   const router = useRouter();
+  if (type === "your_why" || type === "strengths") {
+    const yes = type === "your_why" ? "start" : "look";
+    const pick = (choice: "yes" | "not_now") => {
+      if (type === "your_why") onYourWhy(choice === "yes" ? "start" : "not_now");
+      else onStrengths(choice === "yes" ? "look" : "not_now");
+      onResolve();
+    };
+    return (
+      <SymmetricPair
+        closeLabel="Not now"
+        onClose={() => pick("not_now")}
+        actionLabel={yes === "start" ? "Start" : "Look"}
+        onAction={() => pick("yes")}
+      />
+    );
+  }
+  if (type === "sales_step") {
+    return (
+      <SalesSteps
+        onPick={(step) => {
+          onSalesStep(step);
+          onResolve();
+        }}
+      />
+    );
+  }
   if (type === "sunday_note") {
     return (
       <SymmetricPair
@@ -2447,6 +2519,8 @@ function askBubble(
     onWillAnswer,
     onOpenLifeGoal,
     onOpenSunday,
+    onOpenWhy,
+    onOpenStrength,
     sundayWaiting,
     planRows,
   }: {
@@ -2456,6 +2530,8 @@ function askBubble(
     onWillAnswer?: (target: WillQuestionTarget, choice: string) => Promise<void>;
     onOpenLifeGoal?: (goalId: string) => void;
     onOpenSunday?: (noteId: string) => void;
+    onOpenWhy?: (line: WhyLine) => void;
+    onOpenStrength?: (strengthId: string) => void;
     sundayWaiting?: (noteId: string) => boolean;
     planRows?: PlanRowCtx;
   },
@@ -2468,6 +2544,12 @@ function askBubble(
   }
   const goal = lifeGoalOf(message.metadata);
   if (goal) return <LifeGoalBubble goal={goal} onOpen={() => onOpenLifeGoal?.(goal.id)} />;
+  const whyLine = yourWhyLineOf(message.metadata);
+  if (whyLine) return <YourWhyBubble body={message.body} onOpen={() => onOpenWhy?.(whyLine)} />;
+  const strengthHead = strengthHeadOf(message.metadata);
+  if (strengthHead) return <StrengthHeadBubble body={message.body} onOpen={() => onOpenStrength?.(strengthHead)} />;
+  const strengthAgain = strengthAgainOf(message.metadata);
+  if (strengthAgain) return <StrengthAgainBubble body={message.body} strengthId={strengthAgain} />;
   const will = willQuestionOf(message.metadata);
   if (will) {
     return (
@@ -2512,6 +2594,8 @@ function Bubble({
   onWillAnswer,
   onOpenLifeGoal,
   onOpenSunday,
+  onOpenWhy,
+  onOpenStrength,
   sundayWaiting,
   planRows,
   animate = false,
@@ -2550,13 +2634,19 @@ function Bubble({
   /** The Sunday note's "We spotted a pattern!": its › opens the lens again
    *  where it stands, with the orange outline while it waits (N158 L8). */
   onOpenSunday?: (noteId: string) => void;
+  /** The day's why: its › opens the line to change it (backend N255 Q6). */
+  onOpenWhy?: (line: WhyLine) => void;
+  /** "We spotted a strength!": its › opens the lens again (backend N241 N2). */
+  onOpenStrength?: (strengthId: string) => void;
   sundayWaiting?: (noteId: string) => boolean;
   /** The plan's rows (docs/flows/the-plan.md): drawn by their metadata. */
   planRows?: PlanRowCtx;
   /** U3 — true only for a freshly-arrived last message → sequential reveal. */
   animate?: boolean;
 }) {
-  const ask = askBubble(message, { activeOffer, onOpenOffer, willOpen, onWillAnswer, onOpenLifeGoal, onOpenSunday, sundayWaiting, planRows });
+  const ask = askBubble(message, {
+    activeOffer, onOpenOffer, willOpen, onWillAnswer, onOpenLifeGoal, onOpenSunday, onOpenWhy, onOpenStrength, sundayWaiting, planRows,
+  });
   if (ask) return ask;
   if (
     message.kind === "recording_summary" ||

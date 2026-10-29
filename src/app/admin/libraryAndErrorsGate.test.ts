@@ -1,18 +1,18 @@
-/* -------------------------------------------------------------------------- */
-/*  STORY    As the founder, I want the exercise library, speaking-errors and */
-/*           corpus admin pages to answer only me, and coaches' old addresses */
-/*           to land there, so that coaches keep only what they need.         */
-/*  OUTCOME                                                                   */
-/*    O1  A coach (any non-founder) gets Not Found on all three pages.        */
-/*    O2  The founder gets the page itself.                                   */
-/*    O3  Signed out, each page sends you to sign in and back to itself.      */
-/*    O4  /coach/exercises and /coach/errors redirect to the admin pages.     */
-/*  PROVES   O1 -> "is Not Found for anyone but the founder, a coach included"*/
-/*           O2 -> "renders the page for the founder"                         */
-/*           O3 -> "sends a signed-out visitor to sign in"                    */
-/*           O4 -> "the coach's old addresses redirect to the admin pages"    */
-/*  WHY      CP3 A (founder 2026-10-06, decisions log N56.3).                 */
-/* -------------------------------------------------------------------------- */
+/*
+ * STORY    As the founder, I want the exercise library, speaking-errors and
+ *          corpus admin pages to answer only me, and coaches' old addresses
+ *          to land there, so that coaches keep only what they need.
+ * OUTCOME
+ *   O1  A coach (any non-founder) gets Not Found on all three pages.
+ *   O2  The founder gets the page itself.
+ *   O3  Signed out, each page sends you to sign in and back to itself.
+ *   O4  /coach/exercises and /coach/errors redirect to the admin pages.
+ * PROVES   O1 -> "is Not Found for anyone but the founder, a coach included"
+ *          O2 -> "renders the page for the founder"
+ *          O3 -> "sends a signed-out visitor to sign in"
+ *          O4 -> "the coach's old addresses redirect to the admin pages"
+ * WHY      CP3 A (founder 2026-10-06, decisions log N56.3).
+ */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FOUNDER_EMAIL } from "@/lib/founder";

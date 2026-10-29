@@ -42,6 +42,7 @@ import {
   fetchTimeline,
   fetchWeek,
 } from "@/services/api/life";
+import { getStrengths } from "@/services/api/lifeStrengths";
 
 interface WarmableView {
   /** The `LIFE_VIEWS` key, so the menu can be held against this list. */
@@ -54,6 +55,7 @@ interface WarmableView {
 
 const WARMABLE: readonly WarmableView[] = [
   { view: "principles", href: "/panel/principles", cacheKey: "principles", load: fetchPrinciples },
+  { view: "strengths", href: "/panel/strengths", cacheKey: "strengths", load: getStrengths },
   { view: "wins", href: "/panel/wins", cacheKey: "items:win", load: () => fetchItems("win") },
   { view: "phrases", href: "/panel/phrases", cacheKey: "items:phrase", load: () => fetchItems("phrase") },
   { view: "today", href: "/panel/today", cacheKey: "day", load: fetchDay },

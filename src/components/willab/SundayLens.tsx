@@ -32,13 +32,14 @@ import { WalkLink, WalkPill } from "./walk/WalkFooter";
 /* -------------------------------------------------------------------------- */
 
 /** The bugs as the judgement's tall answers, then "Add a new bug" with a +
- *  on the right (L4). A tapped bug fills black and holds before it lands. */
-function BugDock({ onPick, onAdd }: { onPick: (key: string) => void; onAdd: () => void }) {
+ *  on the right (L4); for a sales week the sale's steps and "Add a new step"
+ *  (backend N241 P3). A tapped answer fills black and holds before it lands. */
+function BugDock({ sales, onPick, onAdd }: { sales: boolean; onPick: (key: string) => void; onAdd: () => void }) {
   const [held, setHeld] = useState<string | null>(null);
   const tall = "walk-press walk-fill flex min-h-[72px] items-center rounded-2xl border-[1.5px] px-[22px] text-left text-[21px]";
   return (
     <DockColumn>
-      {COPY.bugs.map((bug) => (
+      {(sales ? COPY.steps : COPY.bugs).map((bug) => (
         <button
           key={bug.key}
           type="button"
@@ -65,7 +66,7 @@ function BugDock({ onPick, onAdd }: { onPick: (key: string) => void; onAdd: () =
         onClick={onAdd}
         className={cn(tall, "justify-between border-border bg-background font-medium text-muted-foreground")}
       >
-        {COPY.addBug}
+        {sales ? COPY.addStep : COPY.addBug}
         <span aria-hidden className="flex h-[30px] w-[30px] items-center justify-center rounded-full border-[1.5px] border-border text-[20px] text-foreground">
           +
         </span>
@@ -86,16 +87,17 @@ function ReflectionDock({ onAnswer }: { onAnswer: (text: string) => void }) {
   );
 }
 
-/** A one-line field, Add and Back (the new bug's name, L4). */
-function NameDock({ onAdd, onBack }: { onAdd: (name: string) => void; onBack: () => void }) {
+/** A one-line field, Add and Back (the new bug's or step's name, L4). */
+function NameDock({ sales, onAdd, onBack }: { sales: boolean; onAdd: (name: string) => void; onBack: () => void }) {
   const [text, setText] = useState("");
+  const name = sales ? COPY.nameStep : COPY.nameBug;
   return (
     <DockColumn>
       <input
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={COPY.nameBug}
-        aria-label={COPY.nameBug}
+        placeholder={name}
+        aria-label={name}
         className={FIELD}
         autoFocus
       />
@@ -107,11 +109,11 @@ function NameDock({ onAdd, onBack }: { onAdd: (name: string) => void; onBack: ()
 
 type Answer = { value: unknown } | null;
 
-async function askBug(s: Script): Promise<Answer> {
+async function askBug(s: Script, sales: boolean): Promise<Answer> {
   for (;;) {
-    const picked = await s.ask<string | null>((done) => <BugDock onPick={done} onAdd={() => done(null)} />);
+    const picked = await s.ask<string | null>((done) => <BugDock sales={sales} onPick={done} onAdd={() => done(null)} />);
     if (picked) return { value: picked };
-    const name = await s.ask<string | null>((done) => <NameDock onAdd={done} onBack={() => done(null)} />);
+    const name = await s.ask<string | null>((done) => <NameDock sales={sales} onAdd={done} onBack={() => done(null)} />);
     if (name) return { value: name };
   }
 }
@@ -163,7 +165,7 @@ async function walk(s: Script, noteId: string, head: ReactNode[]): Promise<void>
   while (note && ["bug", "applied", "reflection", "principle"].includes(note.step)) {
     const answer =
       note.step === "bug"
-        ? await askBug(s)
+        ? await askBug(s, note.kind === "sales")
         : note.step === "applied"
           ? await askApplied(s, note)
           : note.step === "reflection"

@@ -112,3 +112,11 @@ export function askShowing(drawn: readonly Meta[], formOpen: boolean): boolean {
   const meta = drawn[drawn.length - 1]?.metadata ?? {};
   return typeof meta.offer === "string" || meta.feedback_check === "missing";
 }
+
+/** The bubbles above the chat's newest recording, in any project (messages
+ *  oldest first): none of them keeps "Record Take N", so the chat's one
+ *  record button is the newest Take's (N244, N251). */
+export function recordedPast(messages: readonly Pick<LoungeMessage, "client_id" | "kind">[]): ReadonlySet<string> {
+  const newest = messages.findLastIndex((m) => m.kind === "recording_summary");
+  return new Set(messages.slice(0, Math.max(newest, 0)).map((m) => m.client_id));
+}

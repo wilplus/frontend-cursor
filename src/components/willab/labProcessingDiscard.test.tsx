@@ -1,20 +1,20 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  STORY    As a speaker, I want to discard a bad Take while it is still     */
-/*           uploading, and not be offered that once the server has it, so    */
-/*           that a bad Take leaves no trace and I am never promised          */
-/*           something that cannot happen.                                    */
-/*  OUTCOME                                                                   */
-/*    O1  "Discard this take" shows while the upload is in flight.            */
-/*    O2  Once the server has answered (canDiscard false) it is gone, and the */
-/*        waiting screen is still there.                                      */
-/*    O3  Pressing it hands the discard to the host (which confirms, then     */
-/*        aborts the upload).                                                 */
-/*  PROVES   O1, O3 -> "shows the discard control while the upload is in flight, and pressing it discards" */
-/*           O2 -> "hides it once the server has the take"                    */
-/*  WHY      Founder 2026-09-16, dead-end 2 of 3: the abort is the one window */
-/*           in which a Take leaves no server trace.                          */
-/* -------------------------------------------------------------------------- */
+/*
+ * STORY    As a speaker, I want to discard a bad Take while it is still
+ *          uploading, and not be offered that once the server has it, so
+ *          that a bad Take leaves no trace and I am never promised
+ *          something that cannot happen.
+ * OUTCOME
+ *   O1  "Discard this take" shows while the upload is in flight.
+ *   O2  Once the server has answered (canDiscard false) it is gone, and the
+ *       waiting screen is still there.
+ *   O3  Pressing it hands the discard to the host (which confirms, then
+ *       aborts the upload).
+ * PROVES   O1, O3 -> "shows the discard control while the upload is in flight, and pressing it discards"
+ *          O2 -> "hides it once the server has the take"
+ * WHY      Founder 2026-09-16, dead-end 2 of 3: the abort is the one window
+ *          in which a Take leaves no server trace.
+ */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

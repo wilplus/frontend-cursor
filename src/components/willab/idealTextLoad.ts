@@ -68,6 +68,11 @@ export interface IdealTextSd {
   /** The arc's deck PDF (slide-per-paragraph read). Safe-ahead: null until
    *  the BE echoes presentation_ref; useArcDeckRef then falls back. */
   presentationRef: string | null;
+  /** The project has a deck of its own: "Update slides", else "Add slides"
+   *  (N257). */
+  hasDeck: boolean;
+  /** Archived (N14): its next Take first asks "One project at a time" (N254). */
+  projectArchived: boolean;
   /** Slide titles by index — the deck's title slot. */
   slideTitles: string[] | null;
   /** The document's stored part ids (SPEC §3.1, Step 0). null → none
@@ -105,6 +110,8 @@ export function sdFromResult(r: SingleIdealText): IdealTextSd {
     saved: r.saved,
     keyPoints: r.keyPoints,
     presentationRef: r.presentationRef,
+    hasDeck: r.hasDeck,
+    projectArchived: r.projectArchived,
     slideTitles: r.slideTitles,
     parts: r.parts,
     additions: r.additions,

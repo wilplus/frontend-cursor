@@ -1,14 +1,17 @@
 // @vitest-environment jsdom
 /*
-STORY    As a speaker, I want to replay a finished walk with my answers shown and nothing written or recorded again, so that I can look back safely.
+STORY    As a speaker, I want a finished walk opened again to be one scroll of everything I went through, with my answers and no buttons, nothing written or recorded again, so that I can look back safely.
 OUTCOME
-  O1  The same screens play with my answers; only a change to my helper words is saved.
-  O2  A done exercise plays my past tries and records nothing new.
+  O1  Opened again, the whole walk is one scroll with my answers in it, and no buttons and no Next under it; nothing is written (N259).
+  O2  A done exercise shows my past tries and records nothing new.
   O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.
-PROVES   O1 -> opens on the coach's note and plays the same screens answered; helper words stay editable, nothing else writes
-         O1 -> opened on a later step, a tap on an earlier part's helper words stands the walk there; their buttons save them and bring it back
-         O2 -> opens on the coach's note and plays the same screens answered ...
+  O4  A tap on my helper words brings their buttons; saving takes them away again, and so does Keep these, which leaves the words as saved (C3, N259).
+  O5  A walk not yet done keeps its buttons: scrolled away from the step it stands on, they read Next, which brings that step back (B9).
+PROVES   O1 -> opened again, the whole walk is one scroll: every part answered, no buttons and no Next, nothing written
+         O2 -> opened again, the whole walk is one scroll ...
          O3 -> an exercise opened from its bubble in the chat shows its AI clip and every try, a try tapped in the chat opens its exercise on the last answer
+         O4 -> a tap on helper words brings their buttons; saving or keeping them takes the buttons away again
+         O5 -> a walk not yet done: scrolled away from the step it stands on, the dock reads Next, which brings that step back
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -16,7 +19,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import FeedbackWalk from "./FeedbackWalk";
 import type { WalkJudgementSave } from "./useWalkJudging";
-import { buildFeedbackReplay, walkLastStep, walkStart, walkStepAt, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
+import { buildFeedbackReplay, walkAsItStands, walkLastStep, walkStart, walkStepAt, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 import type { WalkPractiseIO } from "@/services/api/walkPractise";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -93,9 +96,11 @@ function draw(
     at?: (model: ReturnType<typeof buildFeedbackReplay<string>>) => number;
     /** The furthest part drawn: the whole walk, opened on `at` (founder 2026-10-21). */
     head?: (model: ReturnType<typeof buildFeedbackReplay<string>>) => number;
+    /** The Take not done yet: the walk as it stands, with its buttons. */
+    notDone?: boolean;
   } = {},
 ) {
-  const model = buildFeedbackReplay<string>({
+  const done = buildFeedbackReplay<string>({
     items: ITEMS,
     coachNote: true,
     practiceOn: true,
@@ -107,6 +112,8 @@ function draw(
         ? { practiceId: opts.practiceId ?? null, outcomes: ["again", "praise"], audios: { 1: { url: "blob:try-1", durationMs: 4000 }, 2: { url: "blob:try-2", durationMs: 4200 } } }
         : null,
   });
+  // Every moment here answered, so the walk as it stands draws them all as given.
+  const model = opts.notDone ? walkAsItStands(done, done, () => false) : done;
   const props = {
     model,
     coachNote: { text: "Let the pause breathe.", videoUrl: "data:video/mp4;base64,", takeIndex: 2 },
@@ -140,101 +147,56 @@ const screen = () => now()?.dataset.testid ?? null;
 const click = (el: Element | null | undefined) => act(() => (el as HTMLElement).click());
 const byTestId = (id: string) => live()?.querySelector<HTMLElement>(`[data-testid='${id}']`) ?? null;
 const pressed = () => live()?.querySelector("[data-walk-answer][aria-pressed='true']")?.getAttribute("data-walk-answer") ?? null;
+/** The dock under the thread, and whether anything shows there. */
+const dock = () => live()!.querySelector<HTMLElement>("[data-walk-dock]")!;
+const noButtons = () => dock().hidden && live()!.querySelector("[data-walk-dock-next]") === null;
 const picked = () =>
   [...(live()?.querySelectorAll<HTMLButtonElement>("[data-walk-word-picker] button[aria-pressed='true']") ?? [])].map(
     (b) => b.textContent,
   );
 
 describe("the finished walk, played again", () => {
-  it("opens on the coach's note and plays the same screens answered; helper words stay editable, nothing else writes", () => {
-    draw();
-    expect(screen()).toBe("walk-screen-coachnote");
-    click(byTestId("walk-forward"));
-    expect(screen()).toBe("walk-screen-praise");
-    click(byTestId("walk-forward"));
-    expect(screen()).toBe("walk-screen-helpers");
+  it("opened again, the whole walk is one scroll: every part answered, no buttons and no Next, nothing written", () => {
+    draw({ head: (m) => walkLastStep(m)! });
+    // Every part as it went: the coach's word, the praise, the helper words
+    // as saved, the clearer version as given and the exercise with its tries.
+    expect(live()!.textContent).toContain("Let the pause breathe.");
     expect(picked()).toEqual(["growth", "doubled."]);
-    // The words saved are drawn chosen and still editable (lock 2026-10-12,
-    // section 2.3): "Keep these" moves on; a new pick hands the host the words.
-    expect(byTestId("walk-skip")!.textContent).toBe(WALK_COPY.keepThese);
-    // Words already given: the pill edits them (founder, signed 2026-10-21).
-    expect(byTestId("walk-forward")!.textContent).toBe(WALK_COPY.editHelperWords);
-    click(live()!.querySelectorAll("[data-walk-word-picker] button")[2]); // "our", next to the phrase
-    expect(picked()).toEqual(["our", "growth", "doubled."]);
-    click(byTestId("walk-forward"));
-    expect(calls).toEqual(["helpers"]);
-    // The clearer version answered and practised: "✓ Practised" over Next,
-    // the one ✓ line (founder 2026-10-21); no write and no recording.
-    expect(screen()).toBe("walk-screen-clearer");
-    expect(live()!.textContent).toContain(WALK_COPY.answeredPractised);
-    expect(byTestId("walk-keep")).toBeNull();
-    click(byTestId("walk-forward"));
-    expect(screen()).toBe("walk-screen-exVideo");
-    // The exercise already done shows its whole thread at once (founder
-    // 2026-10-16): each "Practise N" with its own voice and the answer it
-    // got, the recorder passed over, nothing recorded and nothing asked.
-    // Next alone under it: a walk played again never practises.
-    const voices = () => [...now()!.querySelectorAll("[data-walk-player][data-walk-me] audio")].map((a) => a.getAttribute("src"));
-    expect(voices()).toEqual([clip.src, "blob:try-1", "blob:try-2"]);
-    expect(now()!.textContent).toContain(WALK_COPY.practiseN(1));
-    expect(now()!.textContent).toContain(WALK_COPY.practiseN(2));
-    expect(byTestId("walk-stop")).toBeNull();
-    expect(byTestId("walk-practise")).toBeNull();
-    click(byTestId("walk-forward"));
-    expect(["walk-screen-practise", "walk-screen-encourage", "walk-screen-improved"]).not.toContain(screen());
-    expect(calls).toEqual(["helpers"]);
-  });
-
-  it("opened on a step already answered, the whole walk is in the thread: that step stands with its own buttons, Next moves on to the next part and nothing leaves (founder 2026-10-21)", () => {
-    draw({ at: (m) => walkStepAt(m, { step: "helpers", part: "p1" })!, head: (m) => walkLastStep(m)! });
-    const parts = () => live()!.querySelectorAll("[data-walk-part]").length;
-    // The helper words stand: their own buttons in the dock, the words as
-    // saved and still editable (F3).
-    expect(screen()).toBe("walk-screen-helpers");
-    expect(live()!.querySelector("[data-walk-now] [data-testid='walk-screen-helpers']")).not.toBeNull();
-    expect(byTestId("walk-forward")!.textContent).toBe(WALK_COPY.editHelperWords);
-    expect(byTestId("walk-skip")!.textContent).toBe(WALK_COPY.keepThese);
-    expect(picked()).toEqual(["growth", "doubled."]);
-    // The step is in view, so its own buttons are the dock: not the Next
-    // that brings it back (B9), which had stood in for them whenever the
-    // thread's bar named a later part (fixed 2026-10-27).
-    expect(live()!.querySelector("[data-walk-dock]")!.hasAttribute("hidden")).toBe(false);
-    expect(byTestId("walk-to-newest")).toBeNull();
-    // Every part is there to scroll: the coach's word and the praise above,
-    // the clearer version as given and the exercise with its tries below.
-    const all = parts();
-    expect(all).toBeGreaterThanOrEqual(5);
     expect(live()!.textContent).toContain("The new words.");
+    const voices = () => [...live()!.querySelectorAll("[data-walk-player][data-walk-me] audio")].map((a) => a.getAttribute("src"));
+    expect(voices()).toEqual(expect.arrayContaining([clip.src, "blob:try-1", "blob:try-2"]));
     expect(live()!.textContent).toContain(WALK_COPY.practiseN(2));
-    expect(calls).toEqual([]);
-    // Keep these: the walk moves on to the next part; nothing leaves the
-    // thread, and the clearer version now has the buttons.
-    click(byTestId("walk-skip"));
-    expect(screen()).toBe("walk-screen-clearer");
-    expect(parts()).toBe(all);
-    expect(byTestId("walk-forward")!.textContent).toBe(COPY.pagerNext);
-    click(byTestId("walk-forward"));
-    // The exercise, one part with every try: it stands on its last answer.
-    expect(screen()).toBe("walk-screen-improved");
-    expect(live()!.querySelector("[data-walk-now]")!.textContent).toContain(WALK_COPY.practiseN(2));
-    expect(parts()).toBe(all);
+    // A scroll (N259): nothing under the thread, nothing recorded or written.
+    expect(noButtons()).toBe(true);
+    expect(live()!.querySelector("[data-walk-recording-strip], [data-testid='walk-stop']")).toBeNull();
     expect(calls).toEqual([]);
   });
 
-  it("opened on a later step, a tap on an earlier part's helper words stands the walk there; their buttons save them and bring it back (C3, B10)", () => {
+  it("a tap on helper words brings their buttons; saving or keeping them takes the buttons away again", () => {
     draw({ at: (m) => walkStepAt(m, { step: "clearer", part: "p2" })!, head: (m) => walkLastStep(m)! });
-    expect(screen()).toBe("walk-screen-clearer");
-    // The founder's report, 2026-10-28: the earlier picker took no tap.
-    click(live()!.querySelectorAll("[data-walk-word-picker] button")[2]); // "our", next to the phrase
-    expect(screen()).toBe("walk-screen-helpers");
+    expect(noButtons()).toBe(true);
+    const word = () => live()!.querySelectorAll("[data-walk-word-picker] button")[2]; // "our", next to the phrase
+    // A tap: the words' own buttons, and only theirs (C3).
+    click(word());
     expect(picked()).toEqual(["our", "growth", "doubled."]);
+    expect(dock().hidden).toBe(false);
     expect(byTestId("walk-forward")!.textContent).toBe(WALK_COPY.editHelperWords);
+    expect(byTestId("walk-skip")!.textContent).toBe(WALK_COPY.keepThese);
+    // Saved: the host has the words, the buttons go, the scroll stays put.
     click(byTestId("walk-forward"));
     expect(calls).toEqual(["helpers"]);
-    expect(screen()).toBe("walk-screen-clearer");
+    expect(noButtons()).toBe(true);
+    expect(picked()).toEqual(["our", "growth", "doubled."]);
+    // Another tap, then Keep these: the words go back as saved, nothing written.
+    click(word());
+    expect(picked()).toEqual(["growth", "doubled."]);
+    click(byTestId("walk-skip"));
+    expect(picked()).toEqual(["our", "growth", "doubled."]);
+    expect(noButtons()).toBe(true);
+    expect(calls).toEqual(["helpers"]);
   });
 
-  it("scrolled away from the step the walk stands on, the dock reads Next, which brings that step back (B9)", () => {
+  it("a walk not yet done: scrolled away from the step it stands on, the dock reads Next, which brings that step back", () => {
     // The thread holds more than it shows: 1000 tall, 400 in view. The
     // standing part sits at 20..120 of the thread; everything else at 500.
     const isBody = (el: Element) => el.hasAttribute("data-walk-thread-body");
@@ -265,7 +227,7 @@ describe("the finished walk, played again", () => {
       act(() => body().dispatchEvent(new Event("scroll", { bubbles: true })));
     };
     try {
-      draw({ at: (m) => walkStepAt(m, { step: "helpers", part: "p1" })!, head: (m) => walkLastStep(m)! });
+      draw({ at: (m) => walkStepAt(m, { step: "helpers", part: "p1" })!, head: (m) => walkLastStep(m)!, notDone: true });
       // Opened with its name at the top: its own buttons are the dock.
       expect(screen()).toBe("walk-screen-helpers");
       expect(live()!.querySelector("[data-walk-dock]")!.hasAttribute("hidden")).toBe(false);

@@ -7,6 +7,7 @@ import { PLAN_COPY } from "@/lib/willab/planCopy";
 import PlanReadMore from "@/components/legal/PlanReadMore";
 import PlanCard, { PlanBar } from "./PlanCard";
 import { VoicePlayer } from "./VoicePlayer";
+import { recordedPast } from "@/components/willab/afterTake";
 
 /* The plan's rows in the Lounge thread (rules: the-plan.md §1 B, E, G, I;
    prototype version 27). The backend writes them as ordinary rows; their
@@ -170,11 +171,13 @@ export function planRowFor(message: LoungeMessage, ctx: PlanRowCtx | undefined):
 
 /** The newest "Today, one thing" row's client id, when it is newer than any
  *  closing message ("Record Take N", N89): the chat has one record button,
- *  in the newest bubble (N167). */
+ *  in the newest bubble (N167). None once a newer Take is recorded, in any
+ *  project (N244, N251). */
 export function newestOneOf(messages: LoungeMessage[]): string | null {
+  const recorded = recordedPast(messages);
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const meta = (messages[i].metadata ?? {}) as Meta;
-    if (meta.plan_one) return messages[i].client_id;
+    if (meta.plan_one) return recorded.has(messages[i].client_id) ? null : messages[i].client_id;
     if (meta.next_take === true) return null;
   }
   return null;

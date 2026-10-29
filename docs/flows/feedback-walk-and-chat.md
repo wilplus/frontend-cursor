@@ -159,17 +159,22 @@ step; the loop never waits for a coach.
   loading, the thread loading, the processing bubble. No breathing mark.
 - **B9** Scrolled away from the step the walk stands on, the buttons read
   Next, which brings that step back; the recorder never gives way
-  (2026-10-21: "away from", no longer only "back to an answered step").
+  (2026-10-21: "away from", no longer only "back to an answered step"). A
+  walk opened again once done has neither (B10, N259).
 - **B10** **Every door opens the walk the same way** (one mechanism, N89):
   the whole Take's walk, standing on one step brought to the top, the parts
   before and after it there to scroll. That step has its own buttons in the dock;
   Next moves on to the next part, and after the last onto the page; ✕ goes
-  back where the walk was opened from (B11).
+  back where the walk was opened from (B11). Once the walk is done, it opens
+  as a scroll: no buttons and no Next, on any step; the bar's ✕ and ‹ ›
+  stay, and clips still play (N259).
   - **The Feedback walk** opens:
     - on the coach's word, while a changed one is not yet seen (C1, D5);
     - while the walk runs, live on the step it waits on;
-    - once the walk is done, on its newest step, the rest above to scroll
-      back to, as "Review feedback" does;
+    - once the walk is done, on its newest step, as "Review feedback" does.
+      Everything the speaker went through is there to scroll, read only, down
+      to the summary: the tempo step (T) and the other speakers they judged
+      (C8) included (N247), with no buttons (N259);
     - never on the Ideal Text in the walk's place: it always names where to
       open (fixed 2026-10-26, after a walk paused on its summary, or with no
       part to stand on, had opened the text).
@@ -180,9 +185,12 @@ step; the loop never waits for a coach.
     waits, or whose coach's word changed and is not yet seen, has a full 2px
     orange stroke all the way round and no tail, so nothing cuts it (the tail
     had covered the ring at its corner).
-  - **An answered step** is read only and stands with its own buttons: the
-    helper words still editable on the latest Take (F3); any other answered
-    step reads Next.
+  - **An answered step** is read only. While the walk is not yet done, it
+    stands with its own buttons: the helper words still editable on the
+    latest Take (F3), any other answered step reading Next. Once it is done
+    there are none: a tap on helper words brings theirs ("Edit the helper
+    words", "Keep these"), and once chosen they go again; Keep these leaves
+    the words as saved (N259).
   - **A door that names no step of the walk** (a coach's word on a moment)
     opens on its moment's step. A finished walk asked for a step it does not
     hold, or for its summary, stands on its newest step.
@@ -197,8 +205,13 @@ step; the loop never waits for a coach.
   and not go to the next element of it"; 2026-10-21: "the opening of the
   bubbles doesn't open the walk in a scrollable manner"; 2026-10-26, N192:
   "make sure it is well visible and not cut the stroke is there clearly";
+  2026-10-29, N259: "on the reopened walk there is only a scroll there should
+  be no buttons!", then "Buttons only after a tap";
   2026-10-26: "the feedback walk opens the ideal text instead of the feedback
-  walk!".)
+  walk!"; 2026-10-28, N247: "It should open the whole feedback walk with all
+  the things that are there that we went through, the judgment time, the
+  sniper, whatever intervention was included in the feedback", then "Both,
+  read only".)
 - **B11** ✕ turns the lens off and goes back where the step was opened
   from: the chat, or the Ideal Text page for a step opened from a paragraph.
   ✕ keeps a coach word's "new" ring.
@@ -266,7 +279,10 @@ step; the loop never waits for a coach.
   pass through").
 - **C2 Praise.** The Take's two best moments are shown, however low,
   never two in one paragraph and both on one slide when that is where they
-  are (H1; founder, 2026-10-23, N118: "minimum 2; best two"), praise first
+  are (H1; founder, 2026-10-23, N118: "minimum 2; best two"; a short Take
+  too, and a sentence that already has its helper words gives its place to
+  the next best, 2026-10-28, N246: "go for the next confident moment"; on a
+  plan, this week's level as well, the-plan.md G7), praise first
   and then the corrections, each group in slide order, and the voice decides
   each: a moment whose voice reaches the floor is praised unless its words
   need help (then the Clearer version, C5), one whose voice is under it is
@@ -314,7 +330,10 @@ step; the loop never waits for a coach.
   (C7; founder 2026-10-27, N220: "if you improved, you can make it your
   habit words"; until then a correction's Good job went on with none, so a
   Take whose two moments were both under the floor had no helper words); a
-  moment gets them once. The step:
+  moment gets them once. When both moments sit on one slide, helper words
+  picked at the first never hide the second: it stays until it is walked
+  (founder 2026-10-28, N246, "Second stays"; until then it left the walk).
+  The step:
   a big bubble in the thread with large plain word buttons, no borders,
   chosen words orange;
   "N of 8 words" at the top, the count against the cap (eight since
@@ -324,7 +343,9 @@ step; the loop never waits for a coach.
   (founder, signed 2026-10-21). Helper words stay
   editable in the walk, opened from the Take's Feedback walk or from their
   orange words on the Ideal Text (F5), on the latest Take only (rule 5); an
-  older Take's words are locked ("🔒 Take N"). A change is an edit (B13): the
+  older Take's words are locked ("🔒 Take N"). In a walk opened again once
+  done, a tap on the words brings their buttons, and they go again once
+  chosen (N259). A change is an edit (B13): the
   speaker's words bubble shows the new words in place and reads "Edited", no
   second bubble and no struck-through old words (N192). They come from a
   moment that sounded confident. Opened while the marks may still land, the
@@ -404,7 +425,8 @@ step; the loop never waits for a coach.
   "Practise again" and "Next" (founder, signed 2026-10-21; until then it
   looked like a late answer with nothing said). The server still accepts
   tries after a praise; the app no longer offers them. Played again,
-  a finished walk shows the thread and Next only: nothing is recorded there.
+  a finished walk shows the thread alone, with no buttons (N259): nothing is
+  recorded there.
   Nothing else interrupts the practice.
 - **C8 Other speakers**, once, after the practice: three moments, one the
   machine reads high, one in the middle and one low, each from a different
@@ -423,10 +445,13 @@ step; the loop never waits for a coach.
   An answer moves on by itself after 0.28 s and stays locked. Each lands
   with its name ("Other speakers · 2 of 3"); the bar reads "Other speakers ·
   1 of N" or "Invita · 1 of N". Who you judge follows who you share with
-  (G3). An old judging bubble in the chat opens "Other speakers" afresh with
-  new moments; no read-only replay, and no other speaker's recording is ever
-  stored in a speaker's thread (2026-10-13).
-- **C9 The closing summary** (D), then "Next", which opens the Ideal Text.
+  (G3). **Opened again** once the walk is done, it shows the moments the
+  speaker judged, each with their answer, and no buttons (N259). Nothing is asked or sent
+  again; with none judged the step is left out (N247; was "no read-only
+  replay", 2026-10-13). No other speaker's recording is ever stored in a
+  speaker's thread: the moments are read again from the server.
+- **C9 The closing summary** (D), then "Next", which opens the Ideal Text;
+  no Next in a walk opened again once done (N259).
 - **C10 No longer in the walk:** "Judgement time!", judging your own
   moments, self-judging a practice try (on hold, §3), "Not sure", and Will's
   question (it is the Lounge's, E2).
@@ -470,6 +495,18 @@ step; the loop never waits for a coach.
      newest bubble: the closing message keeps its words and gives its button
      up to the practice day's bubble that comes after it (N167; decided, not
      built, [`the-plan.md`](the-plan.md) G6).
+
+  **Between two Takes** (N244, N251). From the moment the next Take is
+  recorded, in any project, until its walk reaches its summary, the chat
+  shows no "Record Take N". Every closing message above it keeps its words
+  and loses its button for good. The new Take's closing message, written
+  with the summary, brings the button back. So the chat has one record
+  button, the newest Take's; another project is reached through the "+".
+  The "+" and the Ideal Text page's own "Record Take N" are unchanged
+  (founder 2026-10-28: "disable the new event while the processing is
+  happening, so that it is only possible once it's finished"; then "One
+  record button in the chat, the newest Take's; other projects through the
+  '+'").
 
   The summary is the walk's last step (C9) and is not drawn in the chat
   (founder 2026-10-26, N192, question 1: "In the walk only").
@@ -658,6 +695,8 @@ step; the loop never waits for a coach.
   shown     = the two highest willfidence (S × W) of the Take, however
               low, at most one per ~75-word block, two on one slide
               allowed; clips with enough words rank before short ones;
+              a sentence that already has its slide's helper words (as
+              when the Take was recorded) comes last (N246);
               fewer than two only with fewer than two playable clips
               (N118, 2026-10-23)
   clip      = in each shown block, its highest willfidence clip that can
@@ -665,20 +704,22 @@ step; the loop never waits for a coach.
   blocks    = when the two best share a block, the boundary between them
               moves so each has its own (40 … 120 words, never across a
               slide, never cutting a clip); a one-block Take is split the
-              same way when each clip has 5 words or more (N118)
+              same way when each clip has 5 words or more (N118); when no
+              cut keeps 40 words a side and nothing else could be shown,
+              the block is split evenly between the two (N246)
   each      S ≥ FLOOR → praised, unless the words need help (H3) → the
               Clearer version, then its helper words (N113); S < FLOOR →
               corrected: the Clearer version
               when the words need help, else the voice Exercise (N108)
   highest   = of the two, the stronger voice (S); its bubble opens with
               the signed line (C2, N118)
-  try       = Δ willfidence vs the original ≥ MARGIN (+0.05) → better
-  plan      = on a plan (the-plan.md G7, N134 item 2, N209): the best
-              moment, then the clip where this week's level shows most
-              (services/plan_walk.py), always practised with the level's
-              own practice, its line above the clip; no clip shows it →
-              the two best, as above; the level is the one the plan had
-              when the Take was recorded
+  try       = Δ voice score (S) vs the original ≥ MARGIN (+0.05) → better
+  plan      = on a plan (the-plan.md G7, N246): the two best, and the
+              clip where this week's level shows most
+              (services/plan_walk.py): a third moment, or one of the two;
+              practised with the level's own practice, its line above the
+              clip; nothing shows it → just the two best; the level is the
+              one the plan had when the Take was recorded
   ```
 
   The unit is the sentence. FLOOR is 0.6 at launch, then calibrated so
@@ -686,7 +727,8 @@ step; the loop never waits for a coach.
   sent as "green"; the practise target goes out with no label; the level goes
   out as `level_key` ("W1".."W10"), never the number. A clip with no sound
   read is given the middle of the sound scale and the words order the clips;
-  processing logs why nothing was stamped (2026-10-17).
+  processing logs why nothing was stamped (2026-10-17). H4 works one clip
+  through, step by step, with three examples.
 - **H2** The AI clip's problem (pace, pause, stress, fillers) is measured
   against the speaker's own usual delivery; the clip is made once per
   exercise, at the end of the bake, checked before it is shown, and made
@@ -752,6 +794,211 @@ step; the loop never waits for a coach.
   without its comma is an opener only where a clause starts after it ("So
   we", "So where"). On the founder's Take 4 the rules write six Clearer
   versions: four for the "just"s and the "okay?", two for a "So," alone.
+- **H4** How one clip gets its willfidence, as built (WIL-102;
+  `services/moment_pick.py` `read`, with `services/willfidence.py`,
+  `services/voice_confidence.py` and `services/slide_alignment.py`). A clip
+  is one piece the Take was cut into, about a sentence, with its own
+  transcript and its own sound measurements. Every clip is read the same
+  way, in four steps. No step is ever shown to the speaker (Never 1, AC-9).
+
+  ```
+  1  S  the voice     7 cues against the speaker's usual → −1 … +1 → 0 … 1
+  2  W  the words     the mean of: fillers · hedges · slide fit      0 … 1
+  3  willfidence      S × W                                          0 … 1
+  4  it is used for   the pick (H1) · the praise's level · the coach's
+                      line (N104) · the founder's Takes table (N105)
+  ```
+
+  **Step 1 · S, the voice** (`voice-confidence-universal-v3`, stamped on
+  the clip when the Take is processed; the same for every speaker).
+  - Seven cues are measured on the clip: pitch range, loudness range,
+    pausing, mean pitch, speech rate, whether the pitch falls at the end,
+    and whether the loudness starts strong and eases off.
+  - Each cue is set against the speaker's own usual: how many of their
+    usual spreads (standard deviations) it sits above or below their usual
+    average (a z-score). Their usual is the clips of their recent Takes (up
+    to 5, at least 8 values per cue); with no history, this Take's own
+    clips once there are 6. With neither, the clip has no sound read.
+  - Each is turned toward "confident": a wider pitch and loudness range,
+    less pausing, a lower pitch, faster speech, a falling end and loudness
+    that eases off count up; their opposites count down.
+  - The cues are averaged with fixed weights: loudness range 0.20, pitch
+    range 0.18, pausing 0.18, mean pitch 0.13, speech rate 0.13, the
+    falling end 0.09, the easing loudness 0.09. A cue that could not be
+    measured leaves its weight out; fewer than 3 cues is no sound read.
+  - A neutral zone: 0.25 comes off the size of that average, so a clip
+    within 0.25 of the speaker's usual reads exactly 0. The rest goes
+    through tanh, which keeps it between −1 and +1.
+  - Stretched to 0 … 1: S = (read + 1) ÷ 2, so −1 → 0, 0 → 0.5, +1 → 1.
+
+  **Step 2 · W, the words**, read on the clip's own transcript with its
+  hesitations (the Ideal Text smooths "um" away; this read does not).
+  - **Fillers** = 1 − (fillers per 100 words) ÷ 10, never below 0. Only the
+    ten unambiguous fillers count: um, uh, uhm, erm, er, ah, hmm, mmm,
+    basically, literally. "So", "like", "right", "you know", "actually",
+    "well" and "just" never count.
+  - **Hedges**, on the same line: the 36 unambiguous hedges, among them "I
+    think", "I guess", "I believe", "sort of", "kind of", "maybe",
+    "perhaps", "probably", "possibly", "seems", "likely", "or something"
+    and "to be honest". "Might", "could", "would", "should", "quite",
+    "often" and "pretty" never count. A hedge counts wherever its words
+    stand: "I think about it" counts (H3's rewrite rule knows better; this
+    count does not).
+  - The line for both: none → 1, 3 per 100 words → 0.7, 5 → 0.5, 10 or more
+    → 0.
+  - **Slide fit**, from the point-by-point check run when the Take is
+    processed. The slide is split into its points (its title and each line
+    of its body; for the clips inside the processing budget a model writes
+    the points and checks each one against the clip). Each point is
+    covered (1), partly made (0.5) or not (0), and the clip takes its best
+    point, so one sentence is never marked down for not saying the whole
+    slide. Without the model, a point is covered when 6 in 10 of its words
+    longer than two letters are in the clip, and partly made from 1 in 4.
+    Under 4 words, or a slide with no text, gives no slide fit; 3 seconds
+    or more of silence on a slide gives 0.
+  - W is the mean of the signals present. One that could not be read is
+    left out; with none at all, W = 1, and the voice alone orders the clip.
+
+  **Step 3 · willfidence = S × W.** A clip with no sound read takes S = 0.5
+  so its words still order it (2026-10-17). It is under the floor by
+  construction, the coach sees no Willfidence line for it, and the Take's
+  column leaves it out.
+
+  **Step 4 · where the number goes.**
+  - The pick (H1): the Take's two highest, one per block; clips of 5 words
+    or more first, and a clip that already holds its slide's helper words
+    after the rest.
+  - The praise's opening line (C2): a praised moment's level, by the lower
+    bound of each: W10 0.95 · W9 0.88 · W8 0.80 · W7 0.70 · W6 0.65 · W5
+    0.60 · W4 0.50 · W3 0.40 · W2 0.30 · W1 below. It goes out as
+    `level_key`, never the number.
+  - The coach, after their own blind answer: "Willfidence", the clip's
+    S × W in whole percent (coach panel E1, N104).
+  - The founder's Takes table: the mean over the Take's clips that have a
+    sound read, in whole percent (N105).
+  - Not by it: whether a shown moment is praised or corrected (the voice, S,
+    decides, N108), whether a try is better (S alone, +0.05, H1), and the
+    "high, neutral, low" of judging (N101), which are the voice read's own
+    bands.
+
+  **Three clips on one slide.** The slide: "Why we release every week" /
+  "Smaller changes are easier to test." / "Customers get their fixes
+  sooner." / "One release train for every team." The cue values are made
+  up for the examples; every number after them is what the code gives,
+  with slide fit from the word-overlap check.
+
+  *Example 1 · a strong voice, clean words: 75%.* "Every week we ship
+  smaller changes, and those are easier to test. When something breaks, we
+  know exactly which change did it, and our customers get their fixes
+  sooner. I think that alone pays for the switch."
+
+  ```
+  voice   each cue's z, turned toward confident, × its weight
+          (all seven measured, so the weights add up to 1):
+            loudness range  +1.5 × 0.20 = 0.300
+            pitch range     +1.5 × 0.18 = 0.270
+            pausing         +1.0 × 0.18 = 0.180
+            speech rate     +0.9 × 0.13 = 0.117
+            falling end     +0.9 × 0.09 = 0.081
+            easing loudness +0.5 × 0.09 = 0.045
+            mean pitch      +0.2 × 0.13 = 0.026
+                                    sum   1.019
+          1.019 − 0.25 = 0.769 → tanh → +0.646
+          S = (0.646 + 1) ÷ 2 = 0.823
+  words   37 words
+          fillers  0 → 1.000
+          hedges   1 ("I think") = 2.7 per 100 → 0.730
+          slide    every word of "Smaller changes are easier to test." → 1.0
+          W = (1.000 + 0.730 + 1.0) ÷ 3 = 0.910
+  willfidence  0.823 × 0.910 = 0.749 → the coach sees 75%
+  ```
+
+  The voice reaches the floor (0.823 ≥ 0.6) and the words need no help,
+  so if shown it is praised, at level W7.
+
+  *Example 2 · a good voice, cluttered words: 30%.* "Um, so the idea is,
+  uh, we release more often, maybe every week, and I think our customers
+  would get their fixes sooner, which is basically the whole point of it."
+
+  ```
+  voice   the weighted cues sum to 0.554
+          0.554 − 0.25 = 0.304 → tanh → +0.295
+          S = (0.295 + 1) ÷ 2 = 0.648
+  words   31 words
+          fillers  3 (um, uh, basically) = 9.7 per 100 → 0.032
+          hedges   2 (maybe, I think) = 6.5 per 100 → 0.355
+                   ("so", "would" and "often" are not counted)
+          slide    4 of the 5 words of "Customers get their fixes
+                   sooner." → covered → 1.0
+          W = (0.032 + 0.355 + 1.0) ÷ 3 = 0.462
+  willfidence  0.648 × 0.462 = 0.299 → 30%
+  ```
+
+  The voice reaches the floor but the words need help (fillers, H3), so if
+  shown it is corrected with the Clearer version; when no rewrite passes
+  the gate, it is praised instead (N108).
+
+  *Example 3 · a weak voice, clean words, partly on the slide: 22%.*
+  "Every team ships on the same day, with the same checks, and nobody
+  waits for anybody else."
+
+  ```
+  voice   the weighted cues sum to −0.764
+          0.764 − 0.25 = 0.514 → tanh → −0.473
+          S = (−0.473 + 1) ÷ 2 = 0.264
+  words   17 words
+          fillers  0 → 1.0
+          hedges   0 → 1.0
+          slide    3 of the 6 words of "One release train for every
+                   team." → partly → 0.5
+          W = (1.0 + 1.0 + 0.5) ÷ 3 = 0.833
+  willfidence  0.264 × 0.833 = 0.220 → 22%
+  ```
+
+  Good words, a quiet voice. If shown, the voice is under the floor and
+  the words need no help, so it is corrected with the voice Exercise.
+
+  *The three as one Take*, each clip in its own block:
+
+  ```
+  rank  clip  S      W      S × W  shown  what it gets
+  1     1     0.823  0.910  0.749  yes    praised, W7; the most confident
+  2     2     0.648  0.462  0.299  yes    corrected, the Clearer version
+  3     3     0.264  0.833  0.220  no     —
+  the founder's Takes table: (0.749 + 0.299 + 0.220) ÷ 3 = 0.423 → 42%
+  ```
+
+  Clip 3 has the better words and clip 2 the better voice; S × W puts
+  clip 2 ahead. Had clip 3 no sound read, it would stand at 0.5 × 0.833 =
+  0.417, be shown in clip 2's place and be corrected (no sound read is
+  under the floor); the coach would see no line for it, and the Take's
+  column would be (0.749 + 0.299) ÷ 2 = 52%.
+
+  **The other reads under the same name** (backend SPEC §17; never shown
+  as a number):
+  - `willfidence-v1-machine`, the dark read of a moment: one block of the
+    Take's frame (about 75 words, one clip or more). S is the mean of its
+    clips' sound reads, then stretched; a moment with no sound read is
+    unrateable, with no 0.5 in its place. Fillers and hedges are counted on
+    the block's whole text, slide fit is its best clip's, and W has a
+    fourth signal, holding together (1 yes, 0.5 partly, 0 no, from the one
+    model call per Take). It adds the four boxes, which sum to 1:
+    willfident S·W, hollow S(1 − W), hidden (1 − S)W, lost (1 − S)(1 − W).
+    Clips 1 and 3 as one block, the call saying "partly": S = ((0.646 −
+    0.473) ÷ 2 + 1) ÷ 2 = 0.543; W = (fillers 1.0 + hedges 0.815, one in 54
+    words + slide fit 1.0 + holding together 0.5) ÷ 4 = 0.829; S·W = 0.450,
+    hollow 0.093, hidden 0.379, lost 0.078. A Take's (and a speaker's)
+    willfidence here is the mean S·W over its seeded random fifth of
+    moments (ceil(blocks ÷ 5)); over 30% of them unrateable reads "audio
+    problem", fewer than 10 rated "not enough data". A Take needs 46
+    blocks, about 3,450 words, to draw 10, so one Take alone nearly always
+    reads "not enough data"; the speaker's line gathers over their Takes.
+    It feeds the closing summary, in words (whether the voice and the
+    words rose since the last Take, and the moment with the strongest
+    voice; D), the dark V4 picker, the reached bar and the coaches' "Which
+    sounds surer" sheet.
+  - `willfidence-v1-machine-fast`, the read of a practise try: S, and W
+    from fillers and hedges only, so it is back within 5 seconds.
 
 ### I · Learning
 
@@ -834,12 +1081,15 @@ October (backend N111).
   "That part slowed down, with long pauses. 🐢 Let's try a little game."
   (slow), "Tell me more about {topic}, and keep the ball in the green."
   ({topic} the backend's few words, else "that part"), "🤫 Find a quiet spot
-  first."; the buttons "I'm ready", "Skip", "Stop", "Practise again", "See
-  how it went", "Next"; the speaker's bubble "Try 1" to "Try 3"; after a
-  try "Better. You let it breathe." · "Still rushed. Take a breath after
-  each offer." · "A bit slow. Keep the words moving between the pauses.";
-  the close "Dynamic. You paused where it mattered. 🔥" · "Still rushed.
-  Give each offer its own breath next Take." · "Slow. Keep the words
+  first."; the buttons "I'm ready", "Skip", "Stop", "Practise again",
+  "Next"; the speaker's bubble "Try 1" to "Try 3"; after a try "Better.
+  You let it breathe." · "Still rushed. Take a breath after each offer." ·
+  "A bit slow. Keep the words moving between the pauses."; a try that
+  lands "That landed. 🎯 Really better. Let's move on."; while a try is
+  left, under "Better. You let it breathe.", "You're close. 💪 Give it one
+  more try." (both signed 2026-10-28, N245); the close "Dynamic. You paused
+  where it mattered. 🔥" · "Still rushed. Give each offer its own breath
+  next Take." · "Slow. Keep the words
   moving between the pauses."; a blocked microphone "The microphone is
   blocked. Allow it for this site in the browser's settings, then try
   again." In code: `TEMPO_COPY`, `src/lib/willab/tempoStep.ts`.
@@ -951,8 +1201,9 @@ October (backend N111).
   accepted and practised it", "✓ You kept your words", "✓ Skipped", "✓
   Answered" and "Do you agree to share your next take with others?"
   (2026-10-21); and the AI clip's L3, L4, L5 and L14–L18 in the walk
-  (2026-10-23, N120). The praise keeps its own lines (N122: the
-  one-sentence praise of N120 was dropped before it was built).
+  (2026-10-23, N120); the tempo step's "See how it went" (2026-10-28,
+  N245: Will decides when the game ends). The praise keeps its own lines
+  (N122: the one-sentence praise of N120 was dropped before it was built).
 
 ### L and M · The Sunday note and life goals
 
@@ -965,7 +1216,7 @@ them.
 
 ### T · The tempo step (the pace step)
 
-Founder 2026-10-24 to 2026-10-26, backend N162, N166, N179, N181. Built: the founder and whoever the rings panel's `tempo_step` row reaches see it (§2 says what is left). Everything about this feature is in this block; it moved here from §2 when its build steps were done (docs audit, 2026-10-26).
+Founder 2026-10-24 to 2026-10-28, backend N162, N166, N179, N181, N245. Built: the founder and whoever the rings panel's `tempo_step` row reaches see it (§2 says what is left). Everything about this feature is in this block; it moved here from §2 when its build steps were done (docs audit, 2026-10-26).
 
 **In one line.** After a Take where the speaker rushed or dragged, the walk
 plays that stretch back and asks them to talk about the same thing again
@@ -973,6 +1224,7 @@ while a dot on a scale follows their pace live.
 
 **Where and when** (N162, N178).
 - In the Feedback walk only. Never in the coach panel, the Lounge, or before the Take.
+- **Opened again** once the walk is done, it shows what the chat kept, read only: the stretch, Will's opening lines, each "Try N" with the line the dot drew and Will's word on it, the closing line (none after a try that landed) or the Skip, and no Next (N259). No scale and no microphone. A Take that had no tempo step has none (N247). The same, without its Next, when the walk is opened again further on before it is done (B5).
 - It sits before the Ideal Text, so it always has a Skip, and the whole walk has a time limit (N178, which replaces N130's "never between a Take and the Ideal Text" for the walk's own practice steps). Open: the limit; the founder sets it (§3).
 - It shows when the diagnosis and the plan say so: in a pace or pause week, from Take 2 ([the plan](the-plan.md), item 5). A speaker without a plan gets it from Take 2 whenever the pace scale finds a stretch outside the green, once in that walk (N181).
 - It is the founder's "Sniper": the pace exercise of N129. The old Strength/Pace dartboard stays retired (N127, N181).
@@ -989,8 +1241,13 @@ backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
 3. Will's bubble with the stretch's topic: "Tell me more about {topic}, and keep the ball in the green."
 4. Will's bubble: "🤫 Find a quiet spot first."
 5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar. Nothing else appears until Stop.
-6. The try: the dot's path, then one comment: "Better. You let it breathe." / "Still rushed. Take a breath after each offer." / "A bit slow. Keep the words moving between the pauses."
-7. **Practise again**. After the second try, also **See how it went**. After the third, a one-line summary (for example "Dynamic. You paused where it mattered. 🔥"), then the walk goes on.
+6. The try: the dot's path, then Will's word on it; Will guides, the speaker never has to choose between another try and moving on (N245):
+   - **It lands** (really better): "That landed. 🎯 Really better. Let's move on.", then **Next**; the game ends there, on any try.
+   - **It came closer** (more than half in the green, not enough to land): "Better. You let it breathe." and, while a try is left, "You're close. 💪 Give it one more try.", then **Practise again**.
+   - **Not yet**: "Still rushed. Take a breath after each offer." / "A bit slow. Keep the words moving between the pauses.", then **Practise again**.
+7. After the third try without a landing, a one-line summary (for example "Dynamic. You paused where it mattered. 🔥"), then **Next** and the walk goes on. The Skip stays at the start and during each try (N178 item 3).
+
+Once the walk goes on, the game stays in the thread as it was played (B5): each try with the line the dot drew and Will's word on it, and the closing line (none after a try that landed), or the speaker's "Skip" as their own bubble; the scale shows only while the walk stands on the step (founder 2026-10-28). A walk opened again further on draws the game as the chat kept it, never only its opening lines (founder 2026-10-28: "It feels like the practice is gone from the feedback walk").
 
 **Decided** (the founder, N166 and N179; each as the prototype draws it):
 
@@ -999,7 +1256,9 @@ backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
 | Every word above | Signed, listed in §1 K (N179) |
 | Which stretch | The one the scale reads furthest from the green |
 | Where in the walk | Right after the practise moment |
-| How many tries | Up to three |
+| How many tries | Up to three; a try that lands ends the game (N245) |
+| When a try lands | 20 s or more from the first word, four fifths of it in the green (N245). The Take's stretch was at least a quarter outside the green, so a landed try is always clearly better. A shorter try can't land: the ball needs about 10 s of talk without a pause to leave the green |
+| When a try came closer | More than half of it in the green (N245) |
 | A noisy room | The quiet-spot line only; no listening check |
 
 **The build, in order** (N166 item 5):
@@ -1015,7 +1274,7 @@ backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
 
 **The code.**
 - The plan: `src/lib/willab/walkPlan.ts`, `WalkIntervention` and the `tempo` step key. A new intervention is a new kind there, its place in `buildWalkPlan` and its screen.
-- The step: `src/components/willab/walk/WalkTempo.tsx`; what a try means and the signed words (`TEMPO_COPY`): `src/lib/willab/tempoStep.ts`.
+- The step: `src/components/willab/walk/WalkTempo.tsx`; played again, or drawn from nothing in a walk opened further on (`TempoOrKept` in `FeedbackWalk.tsx`), `WalkTempoSaid.tsx`, from the chat's lines (`tempoSaidIn`, `src/lib/willab/walkThread.ts`; each try's message keeps the dot's path in its metadata); what a try means, when it lands and what Will says to it (`readTry`, `landed`, `afterTry`) and the signed words (`TEMPO_COPY`): `src/lib/willab/tempoStep.ts`. A landed try is kept for Will as a better try and the game as ended dynamic (the backend's words for the game are unchanged).
 - The meter: `src/lib/willab/pace/` (`paceSignal.ts`, `paceMic.ts`); the scale: `src/components/willab/pace/PaceScale.tsx`.
 - The stretch: backend `services/tempo_stretch.py` (route `GET /v2/explore/arc/<arc>/review/tempo/<take>`), asked once per Take by `useReviewTempo.ts` through `src/services/api/reviewTempo.ts`. The scale reads slow only on pauses of several seconds, so most stretches it picks are rushed.
 - What is kept: backend `POST /v2/explore/arc/<arc>/review/tempo/<take>` (`tempo_stretch.keep_tries`, a speaker-memory event of kind `take` with its `tempo` part, docs/SPEAKER-MEMORY.md), sent by `postTempoGame` in `src/services/api/reviewTempo.ts` when the game ends.
@@ -1087,6 +1346,14 @@ The four lines above were filled from main's history by the page's keeper on
   second replace those picked at the first. Nothing changed; the founder
   decides whether that stays.
 - **FLOOR** is 0.6 until the blind judges calibrate it (H1).
+- **H1's W and the build differ** (found 2026-10-29, writing H4): H1 says
+  W is the mean of "few fillers/hedges · fits the slide · holds together".
+  The clip read that picks the moments, gives the coach's line and fills
+  the Takes table has three signals, fillers, hedges and slide fit, with
+  fillers and hedges counted apart; that is also how the signed legal note
+  describes it (backend [document 02, v1.3](https://github.com/wilplus/backend-cursor/blob/main/legal/phase1-2026.1/02-power-score-classification-v1.3-NOTE-SIGNED-2026-10-27.md), N208).
+  Holding together is read only per moment, in the dark read (H4). Nothing
+  changed; the founder decides which is meant.
 - **willfidence-v2** waits for 200 settled clips (I3).
 
 ## 4. Where it lives
@@ -1180,6 +1447,17 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · — (H1, H4, §3) · written: how one clip gets its willfidence, step by step (the voice's seven cues, the fillers, hedges and slide fit, S × W and where it goes), with three worked examples, one Take, and the dark read of a moment (WIL-102); H1's "holds together" against the build goes to §3. No rule changes · FE (this PR)
+- 2026-10-29 · N259 · built: a finished walk opened again is a scroll, with no buttons and no Next under it on any step. A tap on helper words brings "Edit the helper words" and "Keep these", which go again once chosen; Keep these leaves the words as saved. A walk not yet done keeps its buttons. Was: the step it stood on had its buttons, and every other step a Next (B9, B10, C3, C7, C8, C9, T) · BE #1476, FE (this PR)
+- 2026-10-28 · N251 · a Take recorded in any project takes "Record Take N" from every closing message above it, and the button does not come back on them: the chat has one record button, the newest Take's, and other projects are reached through the "+" (D4). Was: N244 held only inside one project, so another project's button stayed beside the new walk, and each project's last closing message kept its own. D4 rewritten in short sentences · BE (N251 log), FE (this PR)
+- 2026-10-28 · — (B5, T) · fixed: the tempo game drawn from nothing (the walk opened again further on, or its leaving copy) shows the game as the chat kept it, and every kept try has the line the dot drew (its path in the try's message); a finished walk played again shows the stretch and the lines too. Was: it showed only its opening lines, down to "🤫 Find a quiet spot first.", and a walk played again showed "Try N" without its line (founder 2026-10-28: "the sniper as a graphic does not stay there … It feels like the practice is gone from the feedback walk") · FE (this PR)
+- 2026-10-28 · N245 · the tempo step (the Sniper) guides the tries: a try that lands (20 s or more from the first word, the ball four fifths in the green) gets "That landed. 🎯 Really better. Let's move on." and Next, on any try; one that came closer gets "Better. You let it breathe." and "You're close. 💪 Give it one more try."; otherwise its comment; up to three tries, then the closing line. Was: Practise again after every try, See how it went from the second, the close only after the third or on the speaker's choice (founder 2026-10-28: "If it was really better, you let me go to the next step") · BE (decisions log), FE (this PR)
+- 2026-10-28 · N247 · built: a finished walk opened again shows everything the speaker went through, read only, down to the summary: the tempo step and the other speakers they judged included. Was: it stopped at the newest moment, left the tempo step out and skipped the judging (B10, C8, T) · BE #1463, FE (this PR)
+- 2026-10-28 · — (B10, C3) · fixed: the Feedback walk whose newest part is helper words opens the whole walk standing on them, through the same door as every other step, once the Take's answers and tries are read. Was: it opened those helper words by themselves as soon as the page was up, before the tries were read, so words a Good job had opened (N220) were not in the walk yet and showed alone, under the hello, with nothing before or after (founder 2026-10-28: "When I click the feedback walk bubble, it just opens helper words") · FE (this PR)
+- 2026-10-28 · — (B5, C8, T) · fixed: when the walk moves on, the step it leaves stays as it was: the Sniper's tries, comments and closing line (or your "Skip"), and other speakers' moments with your answers. Was: the step was redrawn empty, so the Sniper stopped at "🤫 Find a quiet spot first." and other speakers disappeared (founder 2026-10-28: "I click next and it's gone") · FE #1060
+- 2026-10-28 · N246 · every Take shows two moments, a short one too; helper words picked at the first of two moments on one slide no longer hide the second; a sentence that already has its helper words gives way to the next best; on a plan, the two best and this week's level as well (C2, C3, H1). Was: a short Take showed one moment, and the second of two on one slide left the walk once helper words were picked · BE #1459, BE #1464, FE #1061
+- 2026-10-28 · N244 · the last Take's closing message gives "Record Take N" up once the next Take is recorded, and the chat offers no Take until that Take's walk reaches its summary and its own closing message lands (D4). Was: the button was held only while the Take processed, then came back, naming the Take just recorded, beside the new Take's walk (founder 2026-10-28: "I can see two bubbles interfering … one for the new take and one the summary of the take I just took") · BE (N244 log), FE (this PR)
+- 2026-10-28 · — (H1) · wording: a try is better when its voice score (S) rises by the margin, +0.05, over the original clip, as built (`after_practice.GOOD_JOB_MARGIN`) and as N84 says ("on the voice alone"); was "Δ willfidence", which reads as voice × words. No rule changes (founder 2026-10-28: "fix the doc wording to say voice score") · FE (this PR)
 - 2026-10-28 · N237 · built: a WhatsApp reply that says STOP turns the messages off for every account at that number, as Remove does (the number it signs in with stays, N235), a booking that carries the number forgets it (N233), and WhatsApp answers "Done. We've stopped the WhatsApp messages and deleted your number." (signed, N174); any other reply is not read yet (N171 item 6). Off until its two keys are on Railway and the webhook is set in Meta · BE #1450, FE (this PR)
 - 2026-10-28 · — (C3, B10) · fixed: helper words are editable on any part of the thread: a tap on a picker the walk does not stand on stands the walk there, the tap counts, and its buttons bring the walk back to where it stood; never while the recorder is in the dock (B9). Was: only the part the walk stood on took a tap, so a walk opened on a later step (the Feedback walk on its newest step) showed "0 of 8 words" pickers that did nothing (founder 2026-10-28: "I click the helper words, they don't mark on orange, so I cannot choose the helper words") · FE (this PR)
 - 2026-10-28 · N235 · a full number typed in the chat under the WhatsApp ask waits for its code: Will says "Enter the code we sent you on WhatsApp" and the form opens on the code step; was saved at once (2026-10-20); a number another account has gets "That number already has an account." (E1) · BE #1446, FE (this PR)

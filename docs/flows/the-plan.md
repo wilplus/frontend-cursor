@@ -40,8 +40,12 @@ built and what is still to come.
 ### A · Who gets it
 
 1. Every new speaker is diagnosed and gets a plan. The questions come once,
-   after consent and before the first Take, and can't be skipped; only the
-   date can (N136, N146).
+   after consent and before the first Take, and never stop the speaker from
+   recording it: while a voice question is asked, "Start your first
+   recording" sits under "Record your answer" and opens the first Take at
+   once. What isn't answered yet comes back after that Take's walk, where
+   Will left off, and the plan counts that Take as its first practice
+   (N136, N146, N262).
 2. A speaker who already has Takes is asked only "When is your deadline?",
    after their next Take, never before it. Their plan is built from the Takes
    they have (N147, N178).
@@ -51,6 +55,11 @@ built and what is still to come.
 4. Before any Take but the first, the only thing shown is the feelings check,
    one tap, with a Skip (D4). Every other question on this page waits until
    after the Take (Never 3; N178).
+5. While a speaker is onboarded, the principles wait: from the first
+   question until a new speaker's first Take, and while the questions are
+   asked for a speaker who already has Takes (A2, A3). The plan says so
+   (`onboarding`), and nothing of the voice notebook, the Sunday note or life
+   goals shows meanwhile ([principles](principles.md) A6; N243).
 
 ### B · The questions, in the Lounge
 
@@ -62,9 +71,10 @@ built and what is still to come.
 3. "I assume you came here to practise for some important event in your
    life. Please tell me, why does it matter and what is it about?" One voice
    message, recorded with the walk practise's recorder: the strip and the red
-   Stop, no Skip. It lands as the speaker's orange voice bubble, and it goes
-   through the processing authorization like every recording (N135, N136,
-   N137).
+   Stop, no Skip; before the first Take, "Start your first recording" under
+   "Record your answer" (A1). It lands as the speaker's orange voice bubble,
+   which plays back, and it goes through the processing authorization like
+   every recording (N135, N136, N137, N262).
 4. Will's reply names the speaker's event, date and reason in their own
    words, then says "I can already hear your main vocal cues and verbal
    habits." and "Let me draft your plan. A few more questions first."
@@ -84,6 +94,20 @@ built and what is still to come.
    gives the plain template (N145, N150).
 7. The set-up's first question, "What is the topic?", arrives filled in from
    the voice message; the speaker can change it (N141).
+8. **Nothing heard.** A voice answer is checked for speech before it is
+   transcribed, as a Take is. One with no speech in it, or that gives no
+   words, is not kept and not sent to a provider: Will says "Sorry, I
+   didn't quite catch that. Could you say it again?" and the same question
+   stays (N262).
+9. **A correction.** When an answer puts Will right ("No, that's not what
+   I meant …") instead of answering his question, Will agrees, "Got it,
+   thank you for putting me right.", says back in one sentence what he now
+   has, in their words and under B6's rules, and asks the same question
+   again. The correction takes the old answer's place in the plan (the key
+   line and its recording too); the old answer stays in the history, and
+   the coach still hears the voice message itself (C5). The AI
+   that writes Will's turn tells a correction from an answer; when it
+   fails, the answer counts as an answer (N262).
 
 ### C · The diagnosis
 
@@ -133,14 +157,14 @@ built and what is still to come.
    questions are personal: how stressed and how ready you feel, what worries
    you, and how you feel before each Take. I only ask with your yes. Your
    coach and I use your answers to shape your plan. You can turn this off in
-   Data & consent." with Read more, which opens Privacy section 4e in a
+   Settings." (N249) with Read more, which opens Privacy section 4e in a
    window, and in the footer "Not now" and "Yes, ask me"; nothing else is
    taken while Will waits. "Yes, ask me" goes on with the worry question and
    the ratings. "Not now" adds no line from Will: the worry question and the
    ratings are not asked or kept, the plan is built from what it has and
    goes on to the calls, and its end goes to "What's next?" without "How did
    it go?". A plan made before the yes existed is asked at its next personal
-   moment (the last ratings, or its end). Data & consent has a card,
+   moment (the last ratings, or its end). Settings has a card,
    "Personal answers in your plan", between Help improve WillpowerLab and
    WhatsApp, where the yes is turned on later or off: off asks first, then
    deletes the personal answers (the answers and their recordings, their
@@ -166,7 +190,7 @@ built and what is still to come.
    coach", with its time once booked; "Your deadline: {date}", the date in
    orange (for example "Sat 14 Nov"); "Summary call with your coach", with
    its time once booked. The booked times are green. A call not booked yet
-   reads "Book", a link that opens the same calendar in the footer (F); then
+   reads "Book", a link that opens the same full-screen calendar (F); then
    "Booked: {when}." Then "Change your plan" (N157, N163, N164, N167).
 3. The progress bar shows on the card on a practice day and on the
    walk's end sheet, one part per Take. It fills with what the speaker did,
@@ -183,13 +207,25 @@ built and what is still to come.
 
 1. After the ratings, before the plan card, Will says "Before I show you
    your plan, pick a time for a 15-minute call with your coach. It's your
-   kickoff call." The footer, in place of "Type here", shows a calendar like
-   the deadline's, with the deadline marked, then a time, then "Book". The
-   kickoff comes before the deadline (N157, N161).
+   kickoff call." Then the calendar comes up full screen over the chat, in
+   place of "Type here". The kickoff comes before the deadline (N157, N161,
+   N248). On the screen, top to bottom:
+   - "Skip" on the left, "{n} of 2 booked" on the right.
+   - The call's name, large: "Kickoff call with your coach".
+   - The month, large. It swipes left and right; the arrows stay. Only the
+     days with an open time are dark; the deadline is ringed in orange.
+   - A day picked folds the month into its week, which swipes week to week,
+     and the day's times show under it in four even columns. A tap on the
+     month's name opens the whole month again.
+   - "Your deadline: {date}" with "Edit" (7).
+   - One button at the bottom, "Book", pale until a time is picked. After
+     it, a tick, the calendar slides away and Will's "Booked: {when}." is in
+     the chat.
 2. Then Will offers the summary call: "Would you also like to book your
    summary call? It's after your deadline, to look back and plan what's
-   next." The calendar again, with "Skip" or "Book now"; no yes-or-no
-   question first. The footer counts "1 of 2 booked" (N157, N161).
+   next." The calendar comes up again once he has asked, with "Skip" or
+   "Book now"; no yes-or-no question first. It counts "1 of 2 booked"
+   (N157, N161, N248).
 3. Either call can wait ("Skip"), so no coach stands in the way of the first
    Take (Never 3). A kickoff not booked is offered again after Take 1 (N157).
 4. Calls are paid as the booking page is paid today, and free with a link
@@ -198,16 +234,19 @@ built and what is still to come.
 5. The plan's calls are these two; there is no weekly call (N157).
 6. Then "You're all set. Here's your plan." and the card (E) (N161).
 7. Under the calendar, "Your deadline: {date}" (for example "Sat 14 Nov")
-   with a small "Edit" next to it. "Edit" turns the same calendar into the
-   deadline's: "Your deadline" above it, the deadline ringed in orange, any
-   day after today; with a call booked, the deadline stays after the kickoff
-   and before the summary call. "Back" returns to the call; "Save" keeps the
-   new date, and Will says "Done. Your plan now runs to {date}." (and "Your
-   deadline is close, so you practise every day." when it is two weeks away
-   or less), as "Change your plan" does. The plan follows, the calendar goes
-   back to the call, and a call picked but not booked that no longer fits is
-   cleared. It works before the plan and from a call's "Book" in the list
-   (N168).
+   with a small "Edit" next to it. "Edit" turns the same screen into the
+   deadline's (N168, N248):
+   - "Your deadline" as the title, the deadline ringed in orange, any day
+     after today; with a call booked, the deadline stays after the kickoff
+     and before the summary call.
+   - "Back", at the top left, returns to the call.
+   - "Save", at the bottom, keeps the new date. Will says "Done. Your plan
+     now runs to {date}." (and "Your deadline is close, so you practise
+     every day." when it is two weeks away or less), as "Change your plan"
+     does; it is in the chat behind the calendar, read when it closes.
+   - The plan follows, the calendar goes back to the call, and a call
+     picked but not booked that no longer fits is cleared.
+   It works before the plan and from a call's "Book" in the list.
 
 ### G · Practice days
 
@@ -241,12 +280,17 @@ built and what is still to come.
    said it") and "● Record Take N" inside. The chat has one record button, in
    the newest bubble: the previous Take's closing message keeps its words and
    gives its button up, and a line written after it moves the bubble below.
+   Once a newer Take is recorded, in any project, the bubble loses its
+   button for good; the new Take's closing message brings "Record Take N"
+   back after its walk's summary (N244, N251).
    The last practice and the next plan show the same bubble with N89's
    closing line. No "Start a new project" under it: the "+" next to "Type
    here" opens the projects, as today (N167, N169).
-7. The walk shows the Take's best moment and the moment where this week's
-   level shows most; when no moment shows it, the two best, as today (N134,
-   N209). The level's moment opens with "This week's level: {level}.
+7. The walk shows the Take's two best moments and this week's level as
+   well: as a third moment, or on one of the two when the level shows there;
+   when nothing shows the level, just the two best (N246, "Two best +
+   level"; was the best moment and the level's, N134, N209). The level's
+   moment opens with "This week's level: {level}.
    Here's where it shows:" above the speaker's clip, and is practised with
    the level's own practice, its row of the treatment picker: the AI
    version of the voice with its pace tip ("Let your key line land"), its
@@ -310,7 +354,9 @@ built and what is still to come.
    the speaker's to change, and the plan recalculates. The level is the
    coach's: "Ask your coach", which reaches the coach's queue as "Asked about
    their level" ([the coach panel](coach-panel.md) K1, N213). "I have a new
-   event" starts the questions again (N140).
+   event" starts the questions again (N140). While a Take is still
+   processing, "I have a new event" is hidden until the Take has landed
+   (N242).
 2. A new project asks "Is this for 14 November?" (the plan's deadline),
    after its first Take, not before it (N178). Yes keeps the plan; no starts
    "When is your deadline?" and the questions for a new plan. New slides or a
@@ -324,7 +370,9 @@ built and what is still to come.
    if it was booked, offered if not. Then "What's next?": "I have a new
    event" (the questions again, a new plan) or "Keep practising" (a new
    two-month plan from their Takes, no questions, its first ratings after
-   its first Take) (N149, N151, N157, N178).
+   its first Take) (N149, N151, N157, N178). While a Take is still
+   processing, only "Keep practising" is shown, until the Take has landed
+   (H1, N242).
 3. On the deadline's morning, a short good-luck line in the chat and on the
    chosen channel; the morning after, "How did it go?" with the link outside
    the app, beside the message in the chat (2). Their words wait for the
@@ -353,6 +401,10 @@ Signed:
   · "Let me draft your plan. A few more questions first." · when the AI
   fails, "Thank you. Now I can hear you talking about your goal and why it
   matters." (N140, N150).
+- Nothing heard and a correction (B8, B9, N262): "Sorry, I didn't quite
+  catch that. Could you say it again?" · "Got it, thank you for putting me
+  right." · and "Start your first recording" under "Record your answer"
+  (A1; signed with E5, N161).
 - The follow-up templates: "If {the board} remembers one sentence from you,
   what is it? Say it the way you'll say it." · "Who will be in the room on
   {date}, and how many?" · "How long will you speak, and will you have
@@ -453,6 +505,11 @@ Waiting for the founder's OK:
     draws it ([the coach panel](coach-panel.md) K): the plan in the coach's
     queue, the level picked blind (C5), "Ask your coach" (H1), the coach's
     video for a stuck level (G10) · BE #1415, FE.
+  - Built on 28 October 2026 (N248): the calls' calendar full screen, the
+    month and the week that swipe (F1, F2, F7) · BE #1462, FE (this PR).
+  - Built on 29 October 2026 (N262): record first, the questions back after
+    that Take's walk (A1); nothing heard (B8); a correction (B9); the voice
+    answers play in Safari · BE #1489, FE (this PR).
 
 ## 3. Still open
 
@@ -462,7 +519,9 @@ Waiting for the founder's OK:
 - **As built, where the prototype doesn't say** (N203): after a rating tap the
   next question follows with nothing between, until the words in the first
   line above are signed; "Choose a date" on the summary call opens the plan's
-  own calendar in the footer, as "Book" does, rather than the booking page;
+  own full-screen calendar, as "Book" does, rather than the booking page;
+  behind the calendar the chat is dimmed, not drawn smaller as the
+  calendar's prototype (§5) draws it;
   the day line comes with the practice day's hello and the day after the
   deadline, not yet before every day's first message (G3).
 - **Where the prototype (version 27) is older than a decision** (N203): the
@@ -518,6 +577,9 @@ The design is the prototype; the newest wins where two disagree.
 - **The flow, welcome to Take 2 and the plan's end:**
   <https://claude.ai/artifact/ApK5fCkbc55aVN4iYQLdcn> (version 27,
   2026-10-26, N169), with three speakers to try Will's replies (N150).
+- **The calls' calendar, full screen:**
+  <https://claude.ai/artifact/Gfnp8Fg8G2uXcqbCSNycgf> (2026-10-28, N248);
+  it wins over version 27 for F.
 - **How the plan is built from the intake, and each case's walk:**
   <https://claude.ai/artifact/UfMSksquehX596LMgU3MgN> (2026-10-26).
 - **The decision pages:** the open points
@@ -532,6 +594,16 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N262 · A1, B3, B8, B9, K: "Start your first recording" under "Record your answer" while a new speaker's voice questions are asked, and what isn't answered comes back after that Take's walk, where Will left off; a voice answer with no speech, or no words, is not kept and Will says "Sorry, I didn't quite catch that. Could you say it again?"; an answer that puts Will right is taken as a correction ("Got it, thank you for putting me right." and what he now has), and the question is asked again; the voice answers answer Safari's byte-range requests, so they play there (the BFF's `relayAudio`, for the coach's player too). Was: the questions couldn't be skipped (N136, N146); silence came back from the transcriber as words and was kept; a correction was kept as the answer to the question; Safari played nothing · BE #1488, #1489, FE (this PR)
+
+- 2026-10-28 · N251 · today's one thing loses its "Record Take N" once a Take is recorded in any project, not only its own (G6). Was: a Take in another project left the button up beside the new walk (N244) · BE (N251 log), FE (this PR)
+- 2026-10-28 · N248 · the calls' calendar opens full screen over the chat: "Skip" at the top left, one "Book" at the bottom; the month swipes, a day picked folds it into its week with the times in four columns; "Edit" turns the same screen into the deadline's (F1, F2, F7, E2). No new words. Was: the calendar in the footer under the chat, "Skip" and "Book" side by side, the month by its arrows · BE #1462, FE (this PR)
+- 2026-10-28 · N249 · D5: Will's ask for the plan's own yes ends "You can turn this off in Settings.", the page's name since N196; an ask already in a thread keeps its words. Was: "… in Data & consent." · BE #1465, #1467, FE (this PR)
+- 2026-10-28 · N246 · G7: the two best moments and this week's level as well, a third moment or one of the two; and the walk the speaker sees now has the level (until now only a hidden copy on the server did). Was: the best moment and the level's · BE #1459, BE #1464, FE #1061
+- 2026-10-28 · N150 · fixed (B6): a question, opener or ack the AI left with a slot unfilled ("If {who they will speak to} remembers …", seen by the founder) is not kept, and Will says the plain template; a slot is never kept as a fact, and the plan card's "Why this line?" reads "them" for one stored before · BE #1461
+- 2026-10-28 · N243 · A5: the plan says when the speaker is onboarded (`onboarding`: the questions, then a new speaker's plan until the first Take; not a plan waiting for the next Take), and the principles wait meanwhile; the Lounge reads the plan again when a Take lands in the thread, so the first Take's footer gives way and the principles come back without the app being opened again; was: nothing held them back while the questions were asked · BE #1456, #1460, FE (this PR)
+- 2026-10-28 · N244 · today's one thing gives its "Record Take N" up once that Take is recorded; the Take's own closing message brings the next one after the walk's summary (G6). Was: the button came back the moment processing ended, beside the new Take's walk, until the closing message landed · BE (N244 log), FE (this PR)
+- 2026-10-28 · N242 · "I have a new event" is hidden while a Take is still processing, in Change your plan (H1) and at the plan's end (I2); it comes back when the Take has landed. Was: shown at any time, and a tap while the Take was processing left the speaker with nothing to do · BE #1455, FE
 - 2026-10-28 · N194 · no change to the plan: the voice answer in the plan's dock (`PlanDock.tsx`) reads the recorder's finished note as `{ audio, durationMs }`, the shape the shared recorder takes since the voice notebook's live words; it records and sends exactly as before (no wave, no live words, no outbox) · FE #1009
 - 2026-10-27 · N213 · built: the coach's side. A plan reaches the coach's queue as "New plan", "Asked about their level" or "Three Takes without moving"; the level is picked blind, then What happened; a stuck level is answered with the coach's video as their word on the latest Take (C5, G10, H1). The plan keeps the key line's recording again after the questions. Was: the stuck level noted for a queue not yet built · BE #1415, FE
 

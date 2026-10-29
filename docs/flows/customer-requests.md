@@ -78,26 +78,41 @@ it is built in.
 
 ### C · The request in the answerer's chat
 
-1. The request is the Take's one ask, in the Lounge's footer slot that every
-   ask uses: Will's lead-in bubble in the thread, the grey card with the
-   customer's words and photo, Not now | Answer (walk page E1, D4). The
-   lead-in names the customer by the first name they gave, or "A customer"
-   (N236 item 4). The answerer answers in her own Lounge, as any speaker
-   (N236 item 1), and is told of each request on WhatsApp: one message from
-   WillpowerLab's number with a link to her Lounge (N236 item 5).
-2. Nothing sits between a Take and its Ideal Text: a request waits until the
+1. **A list of chats** (N256): an answerer with customer requests opens her
+   Lounge on a list, as WhatsApp does: Will pinned on top, then one chat per
+   customer, with the customer's photo as the avatar, the first name and the
+   question, the last message, the unread count and a status (Waiting for
+   you, Sent, Booked). Waiting for you comes first; filters All, Waiting,
+   Sent, Done. A speaker without customer requests never sees the list: the
+   Lounge opens as today (Never 3). She is told of each request on WhatsApp:
+   one message from WillpowerLab's number with a link to her chats (N236
+   item 5).
+2. **The customer's chat**: the request is the customer's bubble, with the
+   photo, the words and the last digits of the number; the ask sits in the
+   Lounge's footer slot, the grey card "{customer} asks for your advice."
+   and Not now | Answer (walk page E1, D4). The customer is named by the
+   first name they gave, or "A customer" (N236 item 4). Will's asks sit in
+   the footer and what happened is a line in the middle; no Will bubble in a
+   customer's chat.
+3. **Will's chat** is the Lounge as it is today: her own Takes, each
+   answer's Feedback walk, helper words and practice (N256 item 3).
+4. **No group chat.** A team comes later as a shared queue: Assign to {name}
+   on a customer's chat and a Team filter (N256 item 4).
+5. Nothing sits between a Take and its Ideal Text: a request waits until the
    chain of the last Take is done. Not now brings it back after the next Take
    (Never 3).
-3. One project per request, named by the customer's ask (N223 item 3).
-4. A request unanswered for 24 hours sends one email to the founder and one
+6. One project per request, named by the customer's ask (N223 item 3).
+7. A request unanswered for 24 hours sends one email to the founder and one
    to the client, the same pattern as `coach_moments_queue.reach_alarm`
    (N223 item 10).
 
 ### D · The answer is a Take
 
-1. **What she recommends first.** Answer opens a tap list in the lens, the
-   same kind as the helper words: the client's catalogue. Each pick is a
-   slide (N226 item 1).
+1. **What she sees, then what she recommends.** Answer opens a tap list in
+   the lens, the same kind as the helper words. On top, what she sees in the
+   photo: the condition chips and, for hair loss, the stage on its scale,
+   about two taps (N240 item 2). Under them, the client's catalogue. Each
+   pick is a slide (N226 item 1).
 2. **The slides**: the customer's request and photo first, then each pick, in
    the order picked. "Just the request" records over the request alone.
 3. **Her voice over the slides, camera off.** The locked recording screen as
@@ -107,12 +122,15 @@ it is built in.
    like every Take: the transcript, the walk on how she said it, the Ideal
    Text one paragraph per slide (Never 5 holds: Take 2 replaces the text, the
    old one stays in the history).
-5. **Send first, the walk after** (N236 item 2): once the Take is
-   processed, its Ideal Text card lands in the thread marked new, and Will
-   asks at once "Send this answer to {customer} on WhatsApp?", Not yet |
-   Send, with a grey card listing what the customer gets (her voice, the
-   text, each pick with its price). A line in the thread when it went. The
-   walk waits on the card and opens from it, as after any Take.
+5. **Send first, the walk after** (N236 item 2, N256 item 2): once the Take
+   is processed, her answer lands in the customer's chat as her bubble with
+   her voice and the Ideal Text card, and the footer asks at once "Send this
+   answer to {customer} on WhatsApp?", Not yet | Send, with a grey card
+   listing what the customer gets (her voice, the text, each pick with its
+   price). A line in the middle when it went. A Take recorded in a
+   customer's chat belongs to that customer, so no answer can reach the
+   wrong person. Will's chat then says "Your answer to {customer} is sent.
+   Your feedback is ready.", and the card there, marked new, opens the walk.
 6. A Take 2 after sending does not change what the customer has: Will asks
    again, and only a second Send replaces it (N236 item 3).
 
@@ -142,28 +160,26 @@ it is built in.
    field sits in a grey footer card (the ZIP), a pick is tall options (the
    spa, the day). A product recommendation asks Not now | Buy · {price} (N234 item 3); an
    answer that recommends nothing asks nothing (N225 item 2, N231 item 1).
-6. **Booking, one question at a time, in the thread**: where (a ZIP or
-   postcode, or "Use my location"), asked only now and once; the client's
-   salons nearest first, with the days the answerer is there and each spa's
-   price; the day; then a summary (the treatment, the day and time, the spa,
-   its price) with Change | Pay {price}. Each answer lands as the customer's
-   bubble (N227, N231 item 3).
-7. **Paid in the chat** (N234): Pay opens one sheet over the chat: the line,
-   the total, Apple Pay first, Pay with card under it, and one line on who is
-   paid. Then the customer's bubble says Paid {price}, and the answerer's
-   says Booked and paid, with the address, directions, the receipt and Add to
-   calendar.
+6. **Booking in the client's own booking system** (N239 item 1): where (a
+   ZIP or postcode, or "Use my location"), asked only now and once; the
+   client's salons nearest first; then Book opens the booking system's own
+   page for that treatment at that salon. For Invita, Fresha: the day, the
+   time, the answerer's days and the payment are Fresha's. Whether Fresha
+   gives the booking back to us, as the request's outcome, is checked before
+   the build (N227, N231 item 3).
+7. **Products in the client's own shop** (N239 item 2): Buy puts the product
+   in the client's cart and opens its checkout. For Invita, Shopify: stock,
+   shipping, taxes and refunds stay Invita's, and the order comes back to us
+   as the outcome.
 8. **Skip is not the end**: the answerer offers what she uses in the
    treatment for home, as a card, with Not now | Buy · {price}; Buy opens the
-   same pay sheet with where to send it; then Paid, on its way, with the
-   receipt (N231 item 4, N234 item 3).
+   client's checkout as in 7 (N231 item 4, N239 item 2).
 9. **The message box whenever nothing is asked**: +, Type here, the mic, as
    in the Lounge. The customer can always write, add a photo or record a voice
    message to the answerer (N231 item 1).
-10. **The money goes straight to the client**: each client connects its own
-    Stripe account once in admin (Stripe Connect); WillpowerLab never holds
-    it, and the receipt is the client's. A payment through the chat is the
-    request's outcome (N234 item 4).
+10. **The money never passes through us**: the booking is paid in the
+    client's booking system and the product in its shop; the receipts are
+    theirs (N239 items 1 and 2).
 11. Every bubble keeps a shape WhatsApp can carry (text, voice, photo,
    buttons, a list), so moving a client to WhatsApp is a change of transport,
    not of design (N228).
@@ -171,11 +187,11 @@ it is built in.
 ### F · Follow-ups
 
 1. What the customer writes in the message box, or a reply to the text
-   message, lands in the answerer's chat like the request, as an ask with the
-   customer's words. The answer comes back in the same thread, later; no
+   message, lands in that customer's chat as their bubble, and the chat goes
+   back to Waiting for you. The answer comes back in the same chat, later; no
    instant answer until a model answers alone (N225 item 5, N231 item 5).
-2. A follow-up may be typed in the card, no Take, sent the same way; the pair
-   is still recorded. Record instead makes it Take 2 of the same project. The
+2. A follow-up may be typed in the customer's chat's message box, no Take;
+   it goes to that customer only (N256 item 2). The pair is still recorded. Record instead makes it Take 2 of the same project. The
    first answer to a request is always a Take (N226 item 4).
 
 ### G · Data
@@ -192,39 +208,73 @@ it is built in.
 
 ### H · What the client's model learns
 
-1. **The pair**: the request, the answer schema, the final answer and its
-   transcript, and the **outcome**: bought, booked, or not yet (N224, N225
-   item 3).
-2. **The answer schema**: what was observed, which products, the routine,
-   when to come in, which signs mean a doctor. Filled by the answerer's picks
+1. **Three models from one Take** (N240 item 1): the eyes (the photo to
+   what is seen: dry scalp, dandruff, oily, irritated, receding hairline,
+   and the hair-loss stage on its fixed scale, Norwood 1 to 7 or Ludwig I to
+   III, read the way the confidence model reads its 1 to 5); the plan (what
+   is seen and the customer's words to the treatment and the product: her
+   picks); the words (the plan to the answer in her voice: her Ideal Text).
+   The reward is the outcome (booked, bought, not yet) and a follow-up photo
+   after three weeks.
+2. **The pair**: the request, the photo's labels, the answer schema, the
+   final answer and its transcript, and the outcome (N224, N225 item 3).
+3. **The labels**: her taps on the picker (D1). A second trichologist labels
+   a sample blind for the frozen test set; two humans settle a label, as the
+   label quorum does today (N240 item 2).
+4. **The answer schema**: what was observed, which products, the routine,
+   when to come in, which signs mean a doctor. Filled by her taps and picks
    before she speaks; the AI reads the rest from the transcript; the founder
    reads and corrects it in admin (N224 item 1, N226 item 2).
-3. **No AI visible in the first version.** When drafts come (from about a
-   hundred pairs), Never 2 holds for the answerer: she records first and sees
-   the draft after (N224 item 2).
-4. **Retrieval**: embeddings per workspace in Supabase with pgvector, through
-   the authorization path (N224 item 4).
-5. **Fine-tune**: a surface per workspace in the existing pipeline, at 200
-   pairs, its golden set scored on the schema, never on token overlap alone
-   (N224 item 3).
-6. **Autonomy**: the founder opens the door per workspace after the
+5. **No AI visible in the first version.** Drafts start in the background,
+   blind, from about a hundred requests; she sees them only after the golden
+   set passes, and always after she has answered (Never 2, N224 item 2, N240
+   item 4).
+6. **One platform** (N240 item 3): each client's models are learning
+   surfaces in the pipeline that exists (labels, quorum, the split by
+   customer, the sealed golden set, promotion by the founder, drift), each
+   client's data and weights apart. New: training on photos, a vision
+   training provider through the authorization path, the stage scored on its
+   scale.
+7. **Before any photo trains a model**: the customer's own yes to training,
+   its retention, and counsel on whether naming a condition makes it a
+   medical device in the US. Until then the eyes are advisory and seen only
+   by the answerer (N240 item 5).
+8. **A frontier model first** (N250 item 1): a client's AI starts on a
+   frontier model (vision and language), with the client's catalogue and
+   documents as its retrieval (embeddings per workspace in Supabase with
+   pgvector, through the authorization path, N224 item 4) and the expert in
+   the loop. A fine-tune comes only when the golden evaluation shows it stops
+   improving; the pairs are collected from the first request.
+9. **Autonomy**: the founder opens the door per workspace after the
    evaluation; the client turns it on per request type; a health red flag
    always goes to a person (N224 item 3).
-7. **The client's IP**: the export, JSONL of the pairs with the schema and the
-   outcome, the documents and the golden set (N223 item 5).
+10. **The client's IP is its data** (N250 item 2): the export, JSONL of the
+    pairs with the labels, the schema and the outcome, the label list, the
+    red flags, the documents and the golden set (N223 item 5); model weights
+    only where a fine-tune was made.
+11. **One kit, configured per client** (N250 items 3 and 4): the catalogue,
+    the label list, the red flags, the channels, the connectors and the
+    brand; no code written for one client. Each client's data and models
+    are kept apart; learning across clients, anonymised, only where the
+    client's contract says yes.
 
 ### I · Admin
 
 1. The founder creates a workspace: the name and colour the customer sees,
    the answerer, the WhatsApp sender, the salons with the answerer's days and
    prices, the script tag to send to the client (N223 item 13). The client
-   connects its Stripe account there once, and gives its cancellation policy,
-   shipping and product prices (N234 items 4 and 5).
+   connects its booking system and its shop there once (for Invita, Fresha
+   and Shopify), and the WhatsApp sender is the client's own (N239 items 1,
+   2 and 4).
 2. The workspace page lists each request's outcome in words, the counts, the
    documents, the DPA's state, and Export pairs. Nothing on it is a score
    about a person (N225 item 3).
 3. Free for testers, a flag on the workspace; later tokens per answered
    request (N223 item 12).
+4. **Before the first enterprise client** (N250 item 5): a template DPA and
+   DPIA, a one-page model card per client surface, an audit log of every AI
+   answer (the model version, the inputs, who approved it), a stated data
+   region, and an "AI-assisted" label where the EU AI Act asks for one.
 
 ### J · Not in this version
 
@@ -235,7 +285,9 @@ it is built in.
 
 ### K · Words on screen
 
-All new, all waiting for the founder's OK (Never 4). As the prototypes draw
+Approved by the founder as the prototypes draw them (N239 item 7, Never 4).
+The pay sheet's words go with N239: paying is now the client's booking
+system's and shop's. As the prototypes draw
 them:
 
 - The pill: "Ask our trichologist".
@@ -247,6 +299,13 @@ them:
   "Sent", "Our trichologist answers you by text within a day.", "Done".
 - The answerer's WhatsApp: "{customer}, a customer of {client}, asks for
   your advice. Open your Lounge:" and the link.
+- The answerer's chats (N256, waiting for the founder's OK): "Chats", "All",
+  "Waiting", "Sent", "Done", "Waiting for you", "Booked", "pinned", "Your
+  Takes and feedback", "{customer} asks for your advice.", "Your answer",
+  "Your answer to {customer} is sent. Your feedback is ready.", "Not now: it
+  waits here, first in your chats.", "Sent. Your feedback waits in Will's
+  chat.", "{customer} bought the {product}.", "{customer} booked the
+  {treatment} at {salon}, {day}."
 - The answerer's chat: "{customer}, a customer of {client}, asks for your
   advice.", "A customer of {client} asks for your advice.", "Gets your
   answer on WhatsApp", "Answer", "What do you recommend?", "Each one you pick
@@ -296,35 +355,63 @@ item 15, N225):
 
 ## 3. Still open
 
-- **The words in §1 K**, all of them.
-- **The DPA and the form's consent**, for counsel, before the first client.
+- **The DPA and the form's consent**, for counsel, before the first real
+  customer; what the client pays, before going live (N239 item 6).
 - **The locked screens it touches**, each needing its own page's line when
   built: the request as an ask in the Lounge (walk page E1); the picker in the
-  lens (walk page); the slides from the picks on the recording screen
-  (recording screens' page); the send ask on the Take's card, before the
-  walk (walk page D4, N236 item 2); a reply to the customer from the
-  message box, with a "To {customer}" chip over it (walk page E1).
+  lens, with what she sees on top (walk page); the slides from the picks on
+  the recording screen (recording screens' page); the send ask on the Take's
+  card, before the walk (walk page D4, N236 item 2); the Lounge as a list of
+  chats, one chat per customer and Will's chat (walk page E1, N256).
 - **Where the prototypes are older than a decision**: the Mila prototype's
-  answer page is a page with cards, not the chat (N228, drawn on the Invita
-  prototype); its form asks for a WhatsApp number where Invita's asks for a
-  mobile number by text (E2 decides by country code).
+  answer page is a page with cards, not the chat (N228). The Invita
+  prototypes follow N239 and N240.
 - **The colours**: the widget is white and grey (the founder, 28 October); the
   answer chat is in the client's colours (the founder, the same day). Both as
   drawn, until the founder says otherwise.
-- **How a paid booking reaches each client's calendar** (the client's own
-  booking system, or a calendar we keep): open (N234 item 4).
-- **The cancellation policy, shipping and the product's price** are the
-  client's; each tester gives them (N234 item 5).
-- **Before the answerer's side is built** (N236 item 6; each is a question on
-  the answerer's prototype): how fast she must answer and what follows when
-  she does not; many requests at once (one ask at a time, or a list); the
-  photos (how many, kept how long, who at the client sees them); who keeps
-  the catalogue and its prices; the price by spa on the slide; the longest
-  answer and whether it uses her tokens; fixing a word before sending; a
-  check by the client before sending; the WhatsApp sender, Meta's template
-  approval and the US SMS fallback; one inbox for several answerers; Stripe
-  fees and who pays them; the answerer's account, photo and name; what the
-  client pays.
+- **Ours, before the answerer's side is built** (N236 item 6): many requests
+  at once (one ask at a time, or a list); the price by spa on the slide;
+  whether an answer uses her tokens; fixing a word before sending; Shopify's
+  cart link and its order coming back as the outcome (N239); the US SMS
+  fallback's provider.
+- **Ours, before any photo trains a model** (N240 item 5): the customer's yes
+  to training and its retention, counsel on the US medical-device question,
+  the vision training provider.
+- **For the strategic call with Invita** (the founder, 28 October 2026: no
+  answers yet, asked on the call):
+  1. Are the Milbon products sold online, or only at the spas? Invita's
+     Shopify sells one care product, the Scalp Scrubber ($20), which the
+     prototypes use.
+  2. How many requests a month does Invita expect? It decides how soon the
+     photo model can learn.
+  3. Who is the second trichologist who labels a sample of photos blind, for
+     the test set?
+  4. Does Fresha give the booking back to us (an API, a webhook or an email),
+     so the chat and Ariel know it was booked? Without it the model learns
+     from purchases only.
+  5. How fast must Ariel answer (the widget promises "within a day"), and
+     who answers when she is away?
+  6. Who keeps the list of treatments, products and prices right: Invita, or
+     us from its site?
+  7. The photos: one or several, kept how long, and who at Invita may see
+     them?
+  8. One inbox for several trichologists, or Ariel's Lounge only?
+  9. Ariel's account: does Invita invite her, or do we; her photo and name
+     as customers see them?
+  10. Invita's WhatsApp sender: is it set up, and who submits Meta's message
+      templates?
+  11. What would make this worth it in three months, and today's numbers
+      (bookings from the website, online orders a month)? (N250 item 6)
+  12. What does Invita already keep from past consultations (notes, photos,
+      before and after photos, forms), and how much?
+  13. Does Invita look at the scalp through a camera during treatments, and
+      keep the images?
+  14. Does Ariel use a form or her own way of grading a scalp?
+  15. What must an answer never say, and when must Ariel send someone to a
+      doctor?
+  16. Who owns the photos, the answers and the AI trained on them, and may
+      WillpowerLab learn from them, anonymised?
+  17. Which languages do customers write in?
 
 ## 4. Where it lives
 
@@ -349,20 +436,22 @@ claude.ai link beside each is a convenience, never the only copy.
 
 The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/).
 
-- **The answerer's side, in her Lounge** (2026-10-28, N236; the newest for
-  the answerer): Ariel at Invita, from the WhatsApp message to the request
-  as her ask, the photo, the picker of Invita's treatments, the recording
-  over the request and her picks, processing, the send ask before the walk,
-  the walk, the Ideal Text, the customer's reply and her typed answer, the
-  booking's outcome, and the questions still open (19 pages). PDF
+- **The answerer's side, in her Lounge** (2026-10-29, N236, N240, N256; the
+  newest for the answerer): Ariel at Invita, from the WhatsApp message to her
+  list of chats, Sarah's chat with the request, the photo, what she sees and
+  the picker of Invita's treatments and the Scalp Scrubber, the recording
+  over the request and her picks, processing, her answer and the send ask
+  in Sarah's chat, Will's chat with the feedback waiting, the walk, the
+  Ideal Text, Sarah's reply and her typed answer, the purchase and the
+  booking, the list as it changes, and the questions still open (23 pages). PDF
   [`6-answerer-side-in-her-lounge.pdf`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/6-answerer-side-in-her-lounge.pdf) ·
   HTML [`ariel/ariel-lounge.html`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/ariel/ariel-lounge.html) · link
   <https://claude.ai/artifact/CeeWQpvUrZT31aj8Lm3Fsa>.
-- **The customer's side, on a phone** (2026-10-28, N227, N228, N231, N234,
-  N236; the newest for the customer): invitaheadspa.com with the widget, the popup, the form, the text
-  message, the answer as a chat, the treatment card and its sheet, the
-  booking with its summary, paying in the chat, Skip and buying the product
-  at home, the message box (17 pages). PDF
+- **The customer's side, on a phone** (2026-10-28, N227, N228, N231, N236,
+  N239; the newest for the customer): invitaheadspa.com with the widget, the
+  popup, the form, the text message, the answer as a chat, the treatment card
+  and its sheet, the nearest spa opening its Fresha page, Skip and the Scalp
+  Scrubber in Invita's Shopify checkout, the message box (14 pages). PDF
   [`2-customer-side-on-a-phone.pdf`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/2-customer-side-on-a-phone.pdf) ·
   HTML [`customer/invita-flow.html`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/customer/invita-flow.html) · link
   <https://claude.ai/artifact/1u6UrevnTpo9jRZdfa9w83>.
@@ -389,6 +478,12 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-29 · N256 · C1 to C4, D5, F1, F2, K, §3, §5: the answerer's Lounge becomes a list of chats, Will pinned, one chat per customer; her answer, the send ask, the customer's replies and the outcomes in the customer's chat; the walk in Will's chat; no group chat. Was: every customer in one thread, a "To {customer}" chip for replies · BE #1479, FE (this PR)
+- 2026-10-28 · N250 · H8, H10, H11, I4, §3: a frontier model first, the client's data as its asset, one kit per client, the enterprise pack; the call's questions 11 to 17 (what Invita already has). Was: a fine-tune at 200 pairs · BE #1466, FE (this PR)
+- 2026-10-28 · §3: the questions only Invita can answer gathered for the strategic call with Invita; ours kept apart · FE (this PR)
+- 2026-10-28 · N239, N240 · §3, §5: the Invita prototypes follow N239 and N240 (the spa opens its Fresha page, the Scalp Scrubber in Invita's Shopify checkout, what she sees on the picker); the open question on Invita's products online · BE #1453, FE (this PR)
+- 2026-10-28 · N239, N240 · D1, E6 to E10, H, I1, K, §3: what she sees as taps on the picker; booking in the client's booking system (Fresha) and products in its shop (Shopify); the client's WhatsApp sender; the words approved; three models from one Take on one platform. Was: booking and products paid in our chat into the client's Stripe, the words waiting for the founder, the observation read from the transcript only · BE #1452, FE (this PR)
 
 - 2026-10-28 · N236 · B6, C1, D5, D6, E2, K, §3, §5: the answerer answers in her own Lounge and is told on WhatsApp; the send ask comes once the Take is processed, before the walk; a Take 2 after sending changes nothing until she sends again; an optional first name on the form; the answerer's prototype kept. Was: the send ask after the pair, the link always opened the latest shared Take, no name on the form · BE #1448, FE (this PR)
 

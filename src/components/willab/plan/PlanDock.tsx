@@ -9,8 +9,10 @@ import PlanCalendar, { MonthGrid } from "./PlanCalendar";
 
 /* The plan's footer, in place of "Type here" (rules: the-plan.md §1 B, D, F,
    E5, I; prototype version 27): the deadline's chips, Will's ask for the
-   plan's own yes (N211), the voice answer's recorder (no Skip), the 1 to 10
-   scale, the calls' calendar, then only "Start your first recording". Each answer goes to the backend, which
+   plan's own yes (N211), the voice answer's recorder (no Skip; before a new
+   speaker's first Take, "Start your first recording" under it, N262), the
+   1 to 10 scale, the calls' calendar (full screen over the chat, N248), then
+   only "Start your first recording". Each answer goes to the backend, which
    writes Will's next words into the thread. */
 
 export type PlanActions = {
@@ -89,19 +91,25 @@ function DeadlineChips({ actions }: { actions: PlanActions }) {
   );
 }
 
-function VoiceAnswer({ actions }: { actions: PlanActions }) {
+/** "Record your answer"; before a new speaker's first Take, "Start your
+ *  first recording" under it: the questions never stand between them and
+ *  that Take, and what isn't answered comes back after its walk (N262). */
+function VoiceAnswer({ actions, recordNow }: { actions: PlanActions; recordNow: boolean }) {
   const note = useVoiceNote({ maxSeconds: 300, onDone: ({ audio, durationMs }) => actions.answer(audio, durationMs) });
   if (note.phase === "idle") {
     return (
-      <button
-        type="button"
-        onClick={() => void note.start()}
-        data-plan-dock="record"
-        className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full border border-[#DCDCDC] bg-white text-[15.5px] font-medium text-[#121212]"
-      >
-        <span className="h-[9px] w-[9px] rounded-full bg-[#EF4444]" aria-hidden />
-        {PLAN_COPY.recordAnswer}
-      </button>
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={() => void note.start()}
+          data-plan-dock="record"
+          className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full border border-[#DCDCDC] bg-white text-[15.5px] font-medium text-[#121212]"
+        >
+          <span className="h-[9px] w-[9px] rounded-full bg-[#EF4444]" aria-hidden />
+          {PLAN_COPY.recordAnswer}
+        </button>
+        {recordNow ? <StartFirst onStart={actions.startFirst} /> : null}
+      </div>
     );
   }
   return (
@@ -172,11 +180,13 @@ function StartFirst({ onStart }: { onStart: () => void }) {
   );
 }
 
-function NextChips({ actions }: { actions: PlanActions }) {
+/** "What's next?" (I2); "I have a new event" is not shown while a Take is
+ *  still processing (H1, backend N242). */
+function NextChips({ actions, newEventHeld }: { actions: PlanActions; newEventHeld: boolean }) {
   return (
     <div className="flex flex-wrap justify-end gap-2" data-plan-dock="next">
       <Chip label={PLAN_COPY.keepPractising} onClick={() => actions.next("keep_practising")} />
-      <Chip label={PLAN_COPY.newEvent} onClick={() => actions.next("new_event")} />
+      {newEventHeld ? null : <Chip label={PLAN_COPY.newEvent} onClick={() => actions.next("new_event")} />}
     </div>
   );
 }
@@ -220,6 +230,7 @@ export default function PlanDock({
   booking,
   onCloseBooking,
   actions,
+  newEventHeld = false,
 }: {
   plan: Plan;
   busy: boolean;
@@ -227,40 +238,49 @@ export default function PlanDock({
   booking: CallWhich | null;
   onCloseBooking: () => void;
   actions: PlanActions;
+  /** A Take is still processing: "I have a new event" is not shown (N242). */
+  newEventHeld?: boolean;
 }) {
   const kind = dockFor(plan, booking);
-  if (!kind || (busy && kind !== "book" && kind !== "call")) return null;
-  if (kind === "book" && booking) {
-    return (
+  // The calls' calendar is full screen over the chat (N248), so it stays
+  // mounted while it slides away, and the footer under it stays empty.
+  const which: CallWhich | null =
+    kind === "book" ? booking : kind === "call" ? (plan.step === "kickoff" ? "kickoff" : "summary") : null;
+  return (
+    <>
       <PlanCalendar
-        plan={plan}
-        which={booking}
-        busy={busy}
-        onBook={(start) => actions.book(booking, start)}
-        onSkip={onCloseBooking}
-        onSaveDeadline={actions.saveDeadline}
-      />
-    );
-  }
-  if (kind === "call") {
-    const which: CallWhich = plan.step === "kickoff" ? "kickoff" : "summary";
-    return (
-      <PlanCalendar
-        key={which}
         plan={plan}
         which={which}
         busy={busy}
-        onBook={(start) => actions.book(which, start)}
-        onSkip={() => actions.book(which, null)}
+        soon={kind === "book"}
+        onBook={(call, start) => actions.book(call, start)}
+        onSkip={(call) => (kind === "book" ? onCloseBooking() : actions.book(call, null))}
         onSaveDeadline={actions.saveDeadline}
       />
-    );
-  }
+      <DockFooter kind={kind} plan={plan} busy={busy} actions={actions} newEventHeld={newEventHeld} />
+    </>
+  );
+}
+
+function DockFooter({
+  kind,
+  plan,
+  busy,
+  actions,
+  newEventHeld,
+}: {
+  kind: string | null;
+  plan: Plan;
+  busy: boolean;
+  actions: PlanActions;
+  newEventHeld: boolean;
+}) {
+  if (!kind || kind === "book" || kind === "call" || busy) return null;
   if (kind === "deadline") return <DeadlineChips actions={actions} />;
-  if (kind === "voice") return <VoiceAnswer key={`${plan.step}-${plan.id}`} actions={actions} />;
+  if (kind === "voice") return <VoiceAnswer key={`${plan.step}-${plan.id}`} actions={actions} recordNow={plan.record_now === true} />;
   if (kind === "stress") return <Scale key="stress" lo={PLAN_COPY.stressLo} hi={PLAN_COPY.stressHi} onPick={actions.rating} />;
   if (kind === "ready") return <Scale key="ready" lo={PLAN_COPY.readyLo} hi={PLAN_COPY.readyHi} onPick={actions.rating} />;
-  if (kind === "next") return <NextChips actions={actions} />;
+  if (kind === "next") return <NextChips actions={actions} newEventHeld={newEventHeld} />;
   if (kind === "same_event") return <SameEventChips actions={actions} />;
   if (kind === "consent") return <ConsentChips actions={actions} />;
   return <StartFirst onStart={actions.startFirst} />;

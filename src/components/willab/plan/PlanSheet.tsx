@@ -9,7 +9,8 @@ import { MonthGrid } from "./PlanCalendar";
 /* The plan's two sheets (rules: the-plan.md §1 G5, H; prototype version 27,
    openPlanView and openPlanSheet): "See your plan" opens the plan, and
    "Change your plan" opens the deadline, the practice days, the level (the
-   coach's) and "I have a new event". */
+   coach's) and "I have a new event", hidden while a Take is still processing
+   (H1, backend N242). */
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
@@ -128,6 +129,7 @@ export function ChangePlanSheet({
   onDays,
   onAskCoach,
   onNewEvent,
+  newEventHeld,
 }: {
   plan: Plan;
   onClose: () => void;
@@ -135,6 +137,8 @@ export function ChangePlanSheet({
   onDays: (days: number[]) => void;
   onAskCoach: () => void;
   onNewEvent: () => void;
+  /** A Take is still processing: "I have a new event" is not shown (N242). */
+  newEventHeld: boolean;
 }) {
   const [view, setView] = useState<"main" | "deadline" | "days" | "level">("main");
   const deadline = fromIsoDay(plan.deadline);
@@ -170,7 +174,7 @@ export function ChangePlanSheet({
         onClick={() => setView("days")}
       />
       <Row label={PLAN_COPY.yourLevel} value={plan.level_name ?? ""} onClick={() => setView("level")} />
-      <Row label={PLAN_COPY.newEvent} value="" onClick={onNewEvent} />
+      {newEventHeld ? null : <Row label={PLAN_COPY.newEvent} value="" onClick={onNewEvent} />}
     </Sheet>
   );
 }

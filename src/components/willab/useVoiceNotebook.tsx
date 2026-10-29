@@ -6,11 +6,13 @@ import type { LoungeMessage } from "@/services/api/loungeMessages";
 import SymmetricPair from "./SymmetricPair";
 import {
   answerNotebook,
+  answerSalesStep,
   askNotebook,
   fixVoiceNote,
   getNotebookState,
   sendVoiceNote,
   type NotebookState,
+  type SalesStep,
 } from "@/services/api/voiceNotebook";
 import type { OfferType } from "./loungeOffers";
 import { clock, useVoiceNote } from "./useVoiceNote";
@@ -24,6 +26,7 @@ import TypingDots, { TypingGlyph } from "./TypingDots";
 /*  says it is on (ring 6). The mic sits right of the message box while it is */
 /*  empty; before the first note "Keep a voice notebook?" opens Yes | Not now */
 /*  while it is the newest message. Backend: services/voice_notebook.py.      */
+/*  While the speaker is onboarded (backend N243), the mic and the asks wait. */
 /*                                                                            */
 /*  Written as it is said (backend N194): the note grows in the thread while  */
 /*  it is said; on send it settles, then a tick under it and "Noted.". A note */
@@ -35,12 +38,15 @@ import TypingDots, { TypingGlyph } from "./TypingDots";
 export function useVoiceNotebook({
   signedIn,
   threadLoading,
+  held,
   drawn,
   openOffer,
   reload,
 }: {
   signedIn: boolean;
   threadLoading: boolean;
+  /** The speaker is being onboarded: no mic, no ask (backend N243). */
+  held: boolean;
   drawn: readonly Pick<LoungeMessage, "client_id" | "metadata">[];
   openOffer: (type: OfferType) => void;
   reload: () => Promise<unknown>;
@@ -56,16 +62,17 @@ export function useVoiceNotebook({
   }, [signedIn]);
 
   // "Keep a voice notebook?", and the Sunday note's two asks (step 2), open
-  // their pair while they are the newest message, once each.
+  // their pair while they are the newest message, once each; not while the
+  // speaker is onboarded (N243), and still newest after it, then.
   const askRef = useRef<string | null>(null);
   useEffect(() => {
-    if (threadLoading) return;
+    if (threadLoading || held) return;
     const last = drawn[drawn.length - 1];
     const offer = OWN_ASKS.find((type) => type === last?.metadata?.offer);
     if (!last || !offer || askRef.current === last.client_id) return;
     askRef.current = last.client_id;
     openOffer(offer);
-  }, [threadLoading, drawn, openOffer]);
+  }, [threadLoading, held, drawn, openOffer]);
 
   // The outbox: notes kept on the phone until the backend has them. Sent one
   // at a time, oldest first; a note that cannot go waits under its clock.
@@ -183,8 +190,13 @@ export function useVoiceNotebook({
     await reload();
   }
 
+  async function answerSales(noteId: string | null, step: SalesStep): Promise<void> {
+    if (noteId && (await answerSalesStep(noteId, step))) await reload();
+  }
+
   return {
     enabled: state?.enabled === true,
+    held,
     note,
     recording: note.phase === "recording",
     /** The message box's display: it gives way to the recording bar, and to
@@ -206,6 +218,8 @@ export function useVoiceNotebook({
     saveFix: () => void saveFix(),
     tapMic: () => void tapMic(),
     answer: (choice: "yes" | "not_now") => void answer(choice),
+    /** A tap on one of the sale's four steps (backend N241 P2). */
+    answerSales: (noteId: string | null, step: SalesStep) => void answerSales(noteId, step),
   };
 }
 
@@ -214,13 +228,52 @@ export type VoiceNotebook = ReturnType<typeof useVoiceNotebook>;
 /** How long the hesitations take to fade once a note is kept. */
 const SETTLE_MS = 700;
 
-const OWN_ASKS: readonly OfferType[] = ["voice_notebook", "sunday_note", "life_goals", "life_goals_quarter", "life_goals_change"];
+const OWN_ASKS: readonly OfferType[] = [
+  "voice_notebook", "sunday_note", "life_goals", "life_goals_quarter", "life_goals_change", "sales_step",
+  "your_why", "strengths",
+];
 
-/** The mic, right of the message box: only where the notebook is on and the
- *  box is empty. A note on its way never holds it: the outbox sends notes
- *  one after another (N194). */
+/** The sale's four steps, in order, as signed (backend N258). */
+export const SALES_STEPS: readonly { step: SalesStep; label: string }[] = [
+  { step: "opening", label: "The opening" },
+  { step: "discovery", label: "Discovery" },
+  { step: "offer", label: "The offer" },
+  { step: "follow_up", label: "The follow-up" },
+];
+
+/** The note whose "Which step did it stall at?" is newest in the thread. */
+export function salesAskOf(messages: readonly Pick<LoungeMessage, "metadata">[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const meta = messages[i].metadata;
+    if (meta?.offer === "sales_step" && typeof meta.sales_note === "string") return meta.sales_note;
+  }
+  return null;
+}
+
+/** The four steps in place of the message box, two by two, as the
+ *  prototype draws them (backend N241 P2, N258). */
+export function SalesSteps({ onPick }: { onPick: (step: SalesStep) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-2" data-testid="sales-steps">
+      {SALES_STEPS.map(({ step, label }) => (
+        <button
+          key={step}
+          type="button"
+          onClick={() => onPick(step)}
+          className="flex h-11 items-center justify-center rounded-full border border-border text-[15px] text-foreground transition-colors hover:border-primary/50"
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** The mic, right of the message box: only where the notebook is on, the
+ *  speaker is not being onboarded (N243) and the box is empty. A note on its
+ *  way never holds it: the outbox sends notes one after another (N194). */
 export function VoiceNoteMic({ notebook, draft }: { notebook: VoiceNotebook; draft: string }) {
-  if (!notebook.enabled || draft.trim()) return null;
+  if (!notebook.enabled || notebook.held || draft.trim()) return null;
   return (
     <button
       type="button"
@@ -231,6 +284,34 @@ export function VoiceNoteMic({ notebook, draft }: { notebook: VoiceNotebook; dra
     >
       <Mic className="h-5 w-5" aria-hidden />
     </button>
+  );
+}
+
+/** What the message box keeps when "# note" is tapped: "#", to write on. */
+export const NOTE_START = "# ";
+
+/** Typing "#" offers one option, "# note" (backend N253): a typed "#"
+ *  message is one note, the same as the mic's. Shown while the draft is a
+ *  leading "#" still being typed, alone or as the start of "note". */
+export function VoiceNotePicker({ notebook, draft, onPick }: { notebook: VoiceNotebook; draft: string; onPick: () => void }) {
+  const typed = /^\s*#(\p{L}*)$/u.exec(draft);
+  if (!notebook.enabled || notebook.held || !typed || !"note".startsWith(typed[1].toLowerCase())) return null;
+  return (
+    <div role="listbox" aria-label="Tags" className="mb-2 overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
+      <button
+        type="button"
+        role="option"
+        aria-selected={false}
+        // onMouseDown, not onClick: the box keeps focus, so the keyboard stays up.
+        onMouseDown={(e) => {
+          e.preventDefault();
+          onPick();
+        }}
+        className="block w-full px-4 py-2.5 text-left text-[15px] font-medium text-foreground hover:bg-muted"
+      >
+        # note
+      </button>
+    </div>
   );
 }
 
