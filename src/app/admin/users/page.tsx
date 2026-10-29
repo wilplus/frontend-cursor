@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import AdminGate from "@/components/admin/AdminGate";
-import SignupCounts from "@/components/admin/SignupCounts";
+import FirstVisitCounts from "@/components/admin/FirstVisitCounts";
 import {
   cancelDeletion,
   ConfirmDelete,
@@ -184,7 +184,7 @@ function UserDirectory() {
         </p>
       </div>
 
-      <SignupCounts />
+      <FirstVisitCounts />
 
       <form onSubmit={submitSearch} className="mt-6 flex gap-2">
         <label htmlFor="admin-user-search" className="sr-only">

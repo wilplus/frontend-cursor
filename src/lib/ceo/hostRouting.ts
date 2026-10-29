@@ -21,8 +21,8 @@ const CEO_SURFACE_PATHS = [
 const CEO_API_PATHS = [
   "/api/v2/admin/ceo",
   "/api/v2/admin/users",
-  // The sign-up counts at the top of Users (N207 item 6).
-  "/api/v2/admin/signup-counts",
+  // The first-visit path at the top of Users, sign-up included (N271, N207 item 6).
+  "/api/v2/admin/first-visit-counts",
   "/api/v2/admin/tokens",
   "/api/v2/admin/project-deletions",
   "/api/v2/admin/rings",
