@@ -112,7 +112,9 @@ built and what is still to come.
    line and its recording too); the old answer stays in the history, and
    the coach still hears the voice message itself (C5). The AI
    that writes Will's turn tells a correction from an answer; when it
-   fails, the answer counts as an answer (N262).
+   fails, or is not sure, the answer counts as an answer (N262). One
+   correction per question: once Will was put right on it, the next answer
+   to it is an answer (N273).
 
 ### C · The diagnosis
 
@@ -518,7 +520,7 @@ Waiting for the founder's OK:
     answers play in Safari · BE #1489, FE (this PR).
   - Built on 29 October 2026 (N273): the words under each voice answer,
     the dots while it is heard (B3); the transcriber's stock lines count as
-    nothing heard (B8) · BE, FE (this PR).
+    nothing heard (B8); one correction per question (B9) · BE, FE (this PR).
 
 ## 3. Still open
 
@@ -603,7 +605,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-29 · N273 · B3, B8: a voice answer's bubble shows at once with the typing dots under the voice, then the words Will heard, and every voice answer keeps its words under it; a transcript that is only the transcriber's stock lines for no words ("Thanks for watching", "Thank you", the Amara.org line) is nothing heard, and Will asks again; the AI takes a correction only when it is sure. No new words. Was: the bubble came only with Will's reply and showed no words, so a speaker couldn't see what was heard; "Thanks for watching" from a clip with no words was taken as a correction ("You thanked me for watching."), and the same question came round again · BE, FE (this PR)
+- 2026-10-29 · N273 · B3, B8, B9: a voice answer's bubble shows at once with the typing dots under the voice, then the words Will heard, and every voice answer keeps its words under it; a transcript that is only the transcriber's stock lines for no words ("Thanks for watching", "Thank you", the Amara.org line) is nothing heard, and Will asks again; the AI takes a correction only when it is sure, and once per question: the next answer to it is an answer. No new words. Was: the bubble came only with Will's reply and showed no words, so a speaker couldn't see what was heard; "Thanks for watching" from a clip with no words was taken as a correction ("You thanked me for watching."), and then every answer after it, a 14-second one too, was read as another correction, so the same question came round with each · BE, FE (this PR)
 - 2026-10-29 · N272 · D4: "How do you feel?" is asked only of a signed-in speaker, in the set-up's look; the pick is not answered and the screen has no line about the coach; Skip stays. Was: asked of guests too, with a reply line and "Your coach sees your answer." · BE #1501, FE (this PR)
 - 2026-10-29 · N262 · A1, B3, B8, B9, K: "Start your first recording" under "Record your answer" while a new speaker's voice questions are asked, and what isn't answered comes back after that Take's walk, where Will left off; a voice answer with no speech, or no words, is not kept and Will says "Sorry, I didn't quite catch that. Could you say it again?"; an answer that puts Will right is taken as a correction ("Got it, thank you for putting me right." and what he now has), and the question is asked again; the voice answers answer Safari's byte-range requests, so they play there (the BFF's `relayAudio`, for the coach's player too). Was: the questions couldn't be skipped (N136, N146); silence came back from the transcriber as words and was kept; a correction was kept as the answer to the question; Safari played nothing · BE #1488, #1489, FE (this PR)
 
