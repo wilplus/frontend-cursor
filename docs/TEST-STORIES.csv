@@ -730,6 +730,11 @@ after the first read and two retries.
 O3  Take 1 has no helper words, does not read them, and starts at once.","O1 -> ""a good read shows the words on the first frame""
 O2 -> ""still starts within 1.5 s when the read fails every time""
 O3 -> ""Take 1 starts at once, without a read""","Build plan D-RC-4: the words used to land a moment after the first slide. The host is LabOverlay's wiring in miniature (real hook, real auto-start, real recording phase)."
+src/components/willab/loungeGuestHello.test.ts,Story,"As a visitor who has not signed in or recorded yet, I want Will to answer my first message with a hello and a way to record, so that the chat does not look broken and I know what to do next.","O1  A refused chat turn (no processing agreement yet) for a signed-out
+visitor with no project gets Will's hello and ""Start your first
+recording"" under it, never the lab error.
+O2  A signed-in speaker, or a real failure, still gets the lab error.","O1 -> ""greets a signed-out visitor and points to the first recording""
+O2 -> ""keeps the lab error for everyone else""","Founder 2026-10-29: ""answer something intelligible, but then push the user to actually record the first recording""."
 src/components/willab/loungeLifeGoals.test.tsx,Story,"As the founder, I want to set one life goal in the lens by answering one question at a time, so that the goal comes from my words and lands as a ladder in my chat.","O1  Start opens the lens with the paper-notebook line; the space, three open questions, Will's draft with my words, goal or want, ambitious, give up, the horizon and the quarter come one at a time, and the goal is set with its ladder and the line that sends me out to live it.
 O2  With every open question skipped, Will drafts nothing and says so.
 O3  A new goal that pulls against a kept one is asked ""When they clash, which wins?"" before it is set, and the answer is noted for both ladders (N185).

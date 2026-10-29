@@ -15,7 +15,8 @@ export type ChipAction =
   | "create_new_project"
   | "replace_pdf"
   | "edit_current_slide"
-  | "feedback_skip";
+  | "feedback_skip"
+  | "start_first_recording";
 
 export const CHIP_LABEL: Record<ChipAction, string> = {
   trainings: "Your presentations",
@@ -25,11 +26,16 @@ export const CHIP_LABEL: Record<ChipAction, string> = {
   edit_current_slide: "Edit the text",
   // Under "What was missing?" (WIL-74, founder 2026-10-19).
   feedback_skip: "Skip",
+  // Under Will's hello to a signed-out visitor before their first Take
+  // (founder 2026-10-29); the empty Lounge's own button, same words.
+  start_first_recording: "Start your first recording",
 };
 
 // `record_again` is intentionally NOT a chip: the bot points at the permanent
 // "Start official recording" button in words instead of rendering an in-app
-// record CTA (#119 / reversal of #4). `strong_sides` was removed in R4-13
+// record CTA (#119 / reversal of #4). `start_first_recording` is the one
+// exception: a signed-out visitor who writes before their first Take has no
+// record button left once the empty Lounge's goes (founder 2026-10-29). `strong_sides` was removed in R4-13
 // (the strong-sides surface is gone; the trainings tab is the destination).
 // `arc_checkout` was removed with the $25/arc paywall (only $5 moments is paid).
 // `create_project_from_updated_deck` and `keep_current_project` were removed
@@ -44,6 +50,7 @@ const VALID_ACTIONS: readonly ChipAction[] = [
   "replace_pdf",
   "edit_current_slide",
   "feedback_skip",
+  "start_first_recording",
 ];
 
 /**
