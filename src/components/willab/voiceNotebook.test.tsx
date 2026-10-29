@@ -5,9 +5,11 @@ OUTCOME
   O1  The moment I tap, my note shows the wave of my voice; the words follow it; leaving the app sends the note, it is not thrown away (N194, N199).
   O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).
   O4  Typing "#" offers one option, "# note", and tapping it leaves "#" to write on: a typed "#" is one note, as the mic's (N253).
+  O5  Under "Which step did it stall at?" the sale's four steps take the message box's place, and a tap answers for that note with that step (N241 P2).
 PROVES   O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
          O2 -> keeps a note that cannot go and sends it once when back online
          O4 -> offers only "# note" after "#", and leaves "#" to write on
+         O5 -> opens the four steps under the sales question and answers with the one tapped
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -21,10 +23,19 @@ const api = vi.hoisted(() => ({
   sendVoiceNote: vi.fn(),
   hearPiece: vi.fn(),
   fixVoiceNote: vi.fn(),
+  answerSalesStep: vi.fn(),
 }));
 vi.mock("@/services/api/voiceNotebook", () => api);
 
-import { NOTE_START, useVoiceNotebook, VoiceNotePicker, VoiceNoteThread, type VoiceNotebook } from "./useVoiceNotebook";
+import {
+  NOTE_START,
+  SalesSteps,
+  salesAskOf,
+  useVoiceNotebook,
+  VoiceNotePicker,
+  VoiceNoteThread,
+  type VoiceNotebook,
+} from "./useVoiceNotebook";
 
 /** A mic and recorders that only do what the test tells them. */
 class FakeRecorder {
@@ -184,5 +195,29 @@ describe('"#" is one note, the same as the mic (N253)', () => {
     });
     expect(onPick).toHaveBeenCalledTimes(1);
     expect(await type(draft)).toEqual([]); // "# ": the box is ready to write on
+  });
+});
+
+describe("the sales question (N241 P2)", () => {
+  it("opens the four steps under the sales question and answers with the one tapped", async () => {
+    const ask = { client_id: "ask-s", metadata: { offer: "sales_step", sales_note: "n7" } };
+    let nb: VoiceNotebook | null = null;
+    function Box() {
+      nb = useVoiceNotebook({ signedIn: true, threadLoading: false, held: false, drawn: [ask], openOffer, reload });
+      return createElement(SalesSteps, { onPick: (step) => nb?.answerSales(salesAskOf([ask]), step) });
+    }
+    api.answerSalesStep.mockResolvedValue(true);
+    await act(async () => root.render(createElement(Box)));
+    await settle();
+    expect(openOffer).toHaveBeenCalledWith("sales_step");
+
+    const steps = [...container.querySelectorAll('[data-testid="sales-steps"] button')];
+    expect(steps.map((b) => b.textContent)).toEqual(["The opening", "Discovery", "The offer", "The follow-up"]);
+    await act(async () => {
+      (steps[2] as HTMLButtonElement).click();
+    });
+    await settle();
+    expect(api.answerSalesStep).toHaveBeenCalledWith("n7", "offer");
+    expect(reload).toHaveBeenCalled();
   });
 });
