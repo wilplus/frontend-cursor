@@ -1484,7 +1484,11 @@ export default function LabOverlay({
             // Which presentation a later Take is said against (founder
             // 2026-10-16): the one the Take will record with, else the
             // project's restored setup while the mic is still being asked for.
-            note={laterTakePresentation(arcTakeIndex, context, preloadDeck, deckNews)}
+            // On Take 1, why the browser is asking for the mic (N273 item 4).
+            note={
+              laterTakePresentation(arcTakeIndex, context, preloadDeck, deckNews) ??
+              (arcTakeIndex <= 1 ? RECORDING_COPY.micWhy : null)
+            }
           />
         ) : null}
         {state === "lab_feelings" && (
