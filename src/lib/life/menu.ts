@@ -78,6 +78,13 @@ export const LIFE_VIEWS: readonly LifeViewSpec[] = [
     href: "/panel/principles",
     needsSetup: false,
   },
+  // Strengths (backend N241 N1, signed N258): right after Principles.
+  {
+    key: "strengths",
+    label: viewTitle("strengths", "Strengths"),
+    href: "/panel/strengths",
+    needsSetup: true,
+  },
   {
     key: "wins",
     label: viewTitle("wins", "Wins"),

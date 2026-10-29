@@ -163,6 +163,8 @@ export const VIEWS = {
     title: "Principles",
     lede: "What you took away, in your own words.",
   },
+  /** Strengths (backend N241 N1, signed N258): its own pill after Principles. */
+  strengths: { title: "Strengths", lede: "What you're good at, in your own notes." },
   wins: { title: "Wins", lede: "Kept, so they are there when you need them." },
   phrases: {
     title: "Phrases",
