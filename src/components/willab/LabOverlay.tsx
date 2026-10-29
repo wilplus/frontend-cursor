@@ -1450,7 +1450,7 @@ export default function LabOverlay({
           ideal text was headed by a gap with a ✕ floating in it. A slot with
           nothing in it is not neutral — it is the dead space the founder
           circled on both screens. */}
-      {state === "lab_session_context" || state === "lab_feelings" || state === "readout" ? null : (
+      {drawsOwnTopBar(state) ? null : (
         <header className="flex h-12 shrink-0 items-center justify-between px-4">
           {/* The recording screen says where you are: "Take N · Slide n of
               m" on the left, in place of the old "Recording" label (founder
@@ -1502,11 +1502,7 @@ export default function LabOverlay({
           <LabEntryGate entry={entry}>
               <FeelingsCheckIn
                 ask={signedIn}
-                setupSteps={
-                  restoredSetupFor(preloadDeck, stagedUploadRef.current !== null)
-                    ? 0
-                    : setupSteps(stagedUploadRef.current !== null).length
-                }
+                setupSteps={stepsAfterCheckIn(preloadDeck, stagedUploadRef.current !== null)}
                 onCancel={handleClose}
                 onReady={startAfterCheckIn}
               />
@@ -2003,6 +1999,19 @@ export function ContinuedTakeAutoStart({
     onStartRef.current();
   }, [ready, rootsSettled, capped]);
   return null;
+}
+
+/** The screens that draw their own top bar, so the overlay's header (and
+ *  its ✕) is not drawn over them: the set-up and "How do you feel?" draw
+ *  the set-up's dots and ✕ (backend N271), the readout its own. */
+function drawsOwnTopBar(state: WillabState): boolean {
+  return state === "lab_session_context" || state === "lab_feelings" || state === "readout";
+}
+
+/** The set-up's steps that follow "How do you feel?": none when the
+ *  project's setup is restored, else the setup's own count. */
+function stepsAfterCheckIn(preloadDeck: ExploreArcDeck | null, staged: boolean): number {
+  return restoredSetupFor(preloadDeck, staged) ? 0 : setupSteps(staged).length;
 }
 
 /** On the way into recording: the read of a later Take's helper words runs
