@@ -9,8 +9,10 @@ import PlanCalendar, { MonthGrid } from "./PlanCalendar";
 
 /* The plan's footer, in place of "Type here" (rules: the-plan.md §1 B, D, F,
    E5, I; prototype version 27): the deadline's chips, Will's ask for the
-   plan's own yes (N211), the voice answer's recorder (no Skip), the 1 to 10
-   scale, the calls' calendar (full screen over the chat, N248), then only "Start your first recording". Each answer goes to the backend, which
+   plan's own yes (N211), the voice answer's recorder (no Skip; before a new
+   speaker's first Take, "Start your first recording" under it, N262), the
+   1 to 10 scale, the calls' calendar (full screen over the chat, N248), then
+   only "Start your first recording". Each answer goes to the backend, which
    writes Will's next words into the thread. */
 
 export type PlanActions = {
@@ -89,19 +91,25 @@ function DeadlineChips({ actions }: { actions: PlanActions }) {
   );
 }
 
-function VoiceAnswer({ actions }: { actions: PlanActions }) {
+/** "Record your answer"; before a new speaker's first Take, "Start your
+ *  first recording" under it: the questions never stand between them and
+ *  that Take, and what isn't answered comes back after its walk (N262). */
+function VoiceAnswer({ actions, recordNow }: { actions: PlanActions; recordNow: boolean }) {
   const note = useVoiceNote({ maxSeconds: 300, onDone: ({ audio, durationMs }) => actions.answer(audio, durationMs) });
   if (note.phase === "idle") {
     return (
-      <button
-        type="button"
-        onClick={() => void note.start()}
-        data-plan-dock="record"
-        className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full border border-[#DCDCDC] bg-white text-[15.5px] font-medium text-[#121212]"
-      >
-        <span className="h-[9px] w-[9px] rounded-full bg-[#EF4444]" aria-hidden />
-        {PLAN_COPY.recordAnswer}
-      </button>
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={() => void note.start()}
+          data-plan-dock="record"
+          className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full border border-[#DCDCDC] bg-white text-[15.5px] font-medium text-[#121212]"
+        >
+          <span className="h-[9px] w-[9px] rounded-full bg-[#EF4444]" aria-hidden />
+          {PLAN_COPY.recordAnswer}
+        </button>
+        {recordNow ? <StartFirst onStart={actions.startFirst} /> : null}
+      </div>
     );
   }
   return (
@@ -269,7 +277,7 @@ function DockFooter({
 }) {
   if (!kind || kind === "book" || kind === "call" || busy) return null;
   if (kind === "deadline") return <DeadlineChips actions={actions} />;
-  if (kind === "voice") return <VoiceAnswer key={`${plan.step}-${plan.id}`} actions={actions} />;
+  if (kind === "voice") return <VoiceAnswer key={`${plan.step}-${plan.id}`} actions={actions} recordNow={plan.record_now === true} />;
   if (kind === "stress") return <Scale key="stress" lo={PLAN_COPY.stressLo} hi={PLAN_COPY.stressHi} onPick={actions.rating} />;
   if (kind === "ready") return <Scale key="ready" lo={PLAN_COPY.readyLo} hi={PLAN_COPY.readyHi} onPick={actions.rating} />;
   if (kind === "next") return <NextChips actions={actions} newEventHeld={newEventHeld} />;

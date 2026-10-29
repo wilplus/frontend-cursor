@@ -6,4 +6,4 @@ export const runtime = "nodejs";
 
 /** The speaker's voice message or key line, played to the coach (backend
  *  N213); no other answer of the plan. */
-export const GET = proxyRoute("GET", "/v2/coach/plans/:planId/answers/:answerId/audio", { relay: relayAudio });
+export const GET = proxyRoute("GET", "/v2/coach/plans/:planId/answers/:answerId/audio", { relay: relayAudio, range: true });

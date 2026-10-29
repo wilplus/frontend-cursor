@@ -27,6 +27,9 @@
  *   O7  Before my first Take nothing of the principles is in my way: no
  *       notebook mic, no ask; once my first Take lands, both are there,
  *       without opening the app again (N243).
+ *   O8  The questions never stand between me and my first Take: under
+ *       "Record your answer", "Start your first recording" opens it, and
+ *       is gone once I have a Take (N262).
  * PROVES   O1 -> "each step has its own footer"
  *          O2 -> "a rating is sent once and never written back"
  *          O3 -> "the plan's rows are drawn as the prototype draws them"
@@ -34,9 +37,11 @@
  *          O5 -> "a new project's question, and the feelings before a Take"
  *          O6 -> "Will asks for the plan's own yes"
  *          O7 -> "nothing of the principles before my first Take"
+ *          O8 -> "my first Take is never behind the questions"
  * WHY      The plan, built one to one with the prototype (founder
  *          2026-10-26, backend N203, N204); the principles waiting for the
- *          onboarding, backend N243; docs/flows/the-plan.md §1.
+ *          onboarding, backend N243; record first, backend N262;
+ *          docs/flows/the-plan.md §1.
  */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -135,6 +140,24 @@ it("each step has its own footer", () => {
   act(() => root.render(<PlanDock plan={{ ...PLAN, status: "active", step: "done" }} busy={false} booking={null} onCloseBooking={() => {}} actions={a} />));
   act(() => (host.querySelector("[data-plan-dock='start']") as HTMLButtonElement).click());
   expect(a.startFirst).toHaveBeenCalledTimes(1);
+});
+
+it("my first Take is never behind the questions", () => {
+  const a = actions();
+  const asking = { ...PLAN, step: "followup" as const, record_now: true };
+  act(() => root.render(<PlanDock plan={asking} busy={false} booking={null} onCloseBooking={() => {}} actions={a} />));
+  expect([...host.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
+    "Record your answer",
+    "Start your first recording",
+  ]);
+  act(() => (host.querySelector("[data-plan-dock='start']") as HTMLButtonElement).click());
+  expect(a.startFirst).toHaveBeenCalledTimes(1);
+
+  // A Take recorded first: its walk comes before the questions do (N262).
+  expect(dockFor({ ...asking, record_now: false, waiting: true }, null)).toBeNull();
+  act(() => root.render(<PlanDock plan={{ ...asking, record_now: false }} busy={false} booking={null} onCloseBooking={() => {}} actions={a} />));
+  expect(host.textContent).toContain("Record your answer");
+  expect(host.textContent).not.toContain("Start your first recording");
 });
 
 it("a rating is sent once and never written back", () => {

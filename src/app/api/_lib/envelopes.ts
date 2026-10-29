@@ -258,14 +258,18 @@ export const LEGACY_FAILURES: Failures = {
 };
 
 /** A recording played back (the plan's voice answers, for the speaker and
- *  for the coach): the audio passes through as it came; an error stays
- *  JSON. */
+ *  for the coach): the audio passes through as it came, a byte range as a
+ *  byte range (206 with its Content-Range: Safari plays nothing without
+ *  one, backend N262); an error stays JSON. */
 export const relayAudio: Relay = async (upstream) => {
   const contentType = upstream.headers.get("Content-Type") || "";
   if (upstream.ok && contentType && !contentType.includes("application/json")) {
     const out = new NextResponse(await upstream.arrayBuffer(), { status: upstream.status });
     out.headers.set("Content-Type", contentType);
     out.headers.set("Cache-Control", "private, max-age=3600");
+    out.headers.set("Accept-Ranges", "bytes");
+    const range = upstream.headers.get("Content-Range");
+    if (range) out.headers.set("Content-Range", range);
     return out;
   }
   const text = await upstream.text();
