@@ -75,6 +75,7 @@ import { readParked } from "./willabParked";
 import { COACH_BUBBLE_ATTR, useCoachBubbleFocus } from "./useCoachBubbleFocus";
 import { guestNeedsAccount } from "./GuestSignUpDialog";
 import ReadySignUpScreen from "./ReadySignUpScreen";
+import { useWallMoment } from "./wallMoment";
 import { isLabOverlay, type WillabEvent, type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
 import { TopUpBubble, TopUpSlot, useTopUpOffer } from "./LoungeTopUpCard";
@@ -266,18 +267,22 @@ function guestAsksFirst(signedIn: boolean, takeInFlight: boolean): boolean {
 /** The Ideal Text, or -- for a guest, once the Take is processed -- the ask
  *  in its place (ReadySignUpScreen). */
 function IdealTextForReader({
+  arcId,
   askFirst,
   onSignUp,
   onNotNow,
   children,
 }: {
+  arcId: string;
   askFirst: boolean;
   onSignUp: () => void;
   onNotNow: () => void;
   children: React.ReactNode;
 }) {
+  // The wall's one moment (backend N273 item 5): the Take's most confident.
+  const moment = useWallMoment(arcId, askFirst);
   return askFirst ? (
-    <ReadySignUpScreen onSignUp={onSignUp} onNotNow={onNotNow} />
+    <ReadySignUpScreen onSignUp={onSignUp} onNotNow={onNotNow} moment={moment} />
   ) : (
     <>{children}</>
   );
@@ -2146,6 +2151,7 @@ export default function Lounge({
           screen, never the text. The wait in flight still shows as a wait. */}
       {idealTextArcId && (
         <IdealTextForReader
+          arcId={idealTextArcId}
           askFirst={guestAsksFirst(thread.signedIn, takeInFlight)}
           onSignUp={() => signUpForIdealText(idealTextArcId)}
           onNotNow={() => setIdealTextArcId(null)}
