@@ -84,9 +84,11 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /*  ‹ › scroll the thread to the step before or after (WalkThread); they      */
 /*  never answer and never close. The pill alone moves the journey on, to the */
 /*  next step that waits, and the speaker's choice lands as their own bubble. */
-/*  A step reopened (the finished walk played again) shows its answer as a    */
-/*  "✓ …" line over a black Next. Helper words stay editable on any part: a   */
-/*  tap stands the walk there (C3, B10).                                      */
+/*  A walk not yet done, opened on a step already answered, shows its answer */
+/*  as a "✓ …" line over a black Next. Helper words stay editable on any     */
+/*  part: a tap stands the walk there (C3, B10). A walk opened again once    */
+/*  done is a scroll (N255): no buttons, but the helper words' after a tap,  */
+/*  which go again once chosen.                                              */
 /*                                                                            */
 /*  Every word on these screens is a signed one (CHUNK_SHEET_COPY, WALK_COPY) */
 /*  or the caller's (the coach's note, the praise line the item carries);     */
@@ -327,6 +329,11 @@ export default function FeedbackWalk<R = unknown>({
   // Where the walk stood before a tap on an earlier part's helper words
   // stood it there: their buttons bring it back (C3, B10).
   const [resume, setResume] = useState<number | null>(null);
+  // A walk opened again once done is a scroll (N255): no buttons, but the
+  // helper words' while the speaker edits them (their pick's key), and the
+  // words as saved, which a Keep these puts back.
+  const [editing, setEditing] = useState<string | null>(null);
+  const [saved, setSaved] = useState<Record<string, PhraseSelection | null>>({});
   const guestBlock = useGuestBlock();
   // The live thread's root (WalkThread): its leaving copy, and its dock.
   const frame = useRef<HTMLDivElement | null>(null);
@@ -343,6 +350,8 @@ export default function FeedbackWalk<R = unknown>({
     resetRef.current();
     setWalk(opened);
     setPicks(replayPicks(opened));
+    setSaved(replayPicks(opened));
+    setEditing(null);
     setAnswers({});
     setResume(null);
     setAt(asked.at);
@@ -352,6 +361,7 @@ export default function FeedbackWalk<R = unknown>({
 
   const plan = walk.plan;
   const step = plan[at] ?? plan[0];
+  const scroll = walk.scroll === true;
 
   // `how` is kept for the callers; the thread does not slide (2026-10-20).
   const go = useCallback((to: number, _how?: WalkDir) => setAt(to), []);
@@ -380,6 +390,13 @@ export default function FeedbackWalk<R = unknown>({
     [go, onEnd],
   );
   const forward = useCallback(() => {
+    // In a scroll the only buttons are an edit's: they go, the words not
+    // saved go back, and the walk stays where it is (N255).
+    if (scroll) {
+      if (editing !== null) setPicks((p) => ({ ...p, [editing]: saved[editing] ?? null }));
+      setEditing(null);
+      return;
+    }
     if (resume !== null) {
       setResume(null);
       land(plan, resume, undefined);
@@ -387,7 +404,7 @@ export default function FeedbackWalk<R = unknown>({
     }
     if (onForward?.()) return;
     land(plan, at + 1, "forward");
-  }, [at, plan, land, onForward, resume]);
+  }, [at, plan, land, onForward, resume, scroll, editing, saved]);
   const atNow = useRef(at);
   atNow.current = at;
   /** Moves on from `step` only while the walk still stands on it: a screen
@@ -628,7 +645,11 @@ export default function FeedbackWalk<R = unknown>({
     answered,
     pick: (s, next) => {
       if (blocked(s)) return;
-      setPicks((p) => ({ ...p, [pickKey(s)]: next }));
+      const key = pickKey(s);
+      // Another picker's words left unsaved go back as they were.
+      const left = scroll && editing !== null && editing !== key ? { [editing]: saved[editing] ?? null } : {};
+      setPicks((p) => ({ ...p, ...left, [key]: next }));
+      if (scroll) setEditing(key);
     },
     standOn: (s) => {
       const here = plan.indexOf(s);
@@ -651,6 +672,11 @@ export default function FeedbackWalk<R = unknown>({
       const span = selectionSpan(moment.paragraphText, phraseTokens(moment.paragraphText), picked);
       if (span) {
         onSaveHelperWords({ partId: moment.partId, span, paragraphText: moment.paragraphText });
+      }
+      if (scroll) {
+        setSaved((w) => ({ ...w, [pickKey(s)]: picked }));
+        setEditing(null);
+        return;
       }
       forward();
     },
@@ -733,7 +759,14 @@ export default function FeedbackWalk<R = unknown>({
       <WalkStage
         screen={stage}
         render={(s, ghost) => (
-          <WalkThread ghost={ghost} frame={frame} opening={s.seq} current={s.at} onClose={close}>
+          <WalkThread
+            ghost={ghost}
+            frame={frame}
+            opening={s.seq}
+            current={s.at}
+            buttons={!scroll || editing !== null}
+            onClose={close}
+          >
             {s.seq !== null && s.seq === helloSeq.current ? <WalkHello text={hello} /> : null}
             {renderThread(ctx, s.head, s.seq, backFromPractise, s.at)}
           </WalkThread>
@@ -983,7 +1016,8 @@ function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   const words = moment.paragraphText;
   const given = ctx.answered(step) !== null || picked !== null && Boolean(ctx.walk.replay);
   const skip = () => {
-    ctx.answer(step, "skip");
+    // In a scroll, Skip only ends the edit (N255).
+    if (!ctx.walk.scroll) ctx.answer(step, "skip");
     ctx.forward();
   };
   return (

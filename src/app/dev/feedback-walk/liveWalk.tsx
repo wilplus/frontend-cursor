@@ -16,6 +16,7 @@ import { CHUNK_SHEET_COPY as COPY } from "@/components/willab/idealEditCopy";
 import {
   buildFeedbackReplay,
   buildFeedbackWalk,
+  walkLastStep,
   walkStart,
   type FeedbackWalkItem,
 } from "@/lib/willab/feedbackWalkModel";
@@ -240,7 +241,9 @@ export default function LiveWalk({
     if (at === null) return;
     setReplaying(true);
     setEnd(false);
-    setRequest((r) => ({ seq: (r?.seq ?? 0) + 1, at }));
+    // A scroll of the whole walk, as the product opens it (N255).
+    const head = walkLastStep(replayModel) ?? at;
+    setRequest((r) => ({ seq: (r?.seq ?? 0) + 1, at, head }));
   }, [replayModel]);
   const pageAnswers = useMemo(() => {
     const out: Record<number, ConfidenceRatingValue> = {};
