@@ -39,7 +39,9 @@ Life Panel.
    people who know it is a test (N212, which widened N182's ring 6; N208).
 3. Not the speaking coach. The Feedback walk, the plan, the coach panel and
    a Take's feedback and summary never read or show the principles, the
-   Sunday note or life goals (N182).
+   Sunday note or life goals (N182). One place only: after a Good job on a
+   Clearer version, the walk may quote the speaker's own kept words (R,
+   N268); the coach never sees it.
 4. Where it shows: the Sunday note and life goals in the Lounge and their
    lens; the principles in the Life Panel. Never on the recording screens,
    never shown to a coach. Private like the notebook (N158, N172, N182).
@@ -144,6 +146,16 @@ The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
   (<https://claude.ai/artifact/1hfLf8mCif8pgC1X1Z6caJ>), with its marks: 💪 a
   strength; 🚪 🔍 🎁 📨 the sales steps; 🔥 🔭 🤝 your why, vision and how you
   treat people.
+- **The walk quotes your notebook (R; signed 2026-10-29, N268):** "That's
+  your 💪 {strength} again." (N258); "That's the voice of your 🔭 vision.";
+  "You talked about the part that's yours. That's where your effort goes.";
+  "From your notebook. Only you and Will see this."; "Not here"; "Noted. Your
+  notebook stays out of the walk."; on the Life Panel's Your data page, "Your
+  notebook in the Feedback walk", "After a good try, Will may quote one of
+  your notes. Only you and Will see it.", and under its switch "Off since you
+  tapped "Not here". Your walks stay as they are today. Turn it on to see
+  Will's quotes again after a good try." or "On. Will may quote one note
+  after a good try, at most once per Take."
 - **The voice note (B; approved with the prototype, 2026-10-26, N194,
   N199):** no new words on screen; "Noted." as before; the wave, the tick,
   the clock. Read by screen readers only: "Fix this note", "Close", "Kept",
@@ -394,6 +406,35 @@ of the Life Panel's Goals screen, above Life goals.
   the › on the daily bubble, "Now: …", a field, Keep the change; dated, the
   earlier words kept in its history.
 
+### R · The walk quotes your notebook (decided 2026-10-29, N268)
+
+The prototype: <https://claude.ai/artifact/Jt2XrfdifpU2A41rbZed8D> (version
+2, placement B). Ring 5 and up, through its own row `walk_quotes` (set at
+ring 5 by its migration), and only with the notebook kept. Private like the
+notebook; never shown to a coach, never in the coach's queue or the coach
+panel; never on the Ideal Text.
+
+- **R1** Where. In the Feedback walk, on a corrected moment's Clearer
+  version, after a try that is a Good job: one bubble under the praise line.
+  Never before the rewrite, never between the offer and its question (the
+  walk's C5). The rewrite rules do not change.
+- **R2** What. The signed line and the speaker's own words, word for word,
+  with their date: a kept 💪 strength and a note it gathered (N), "That's
+  your 💪 {strength} again."; the 🔭 vision (Q1), "That's the voice of your
+  🔭 vision."; or a # note naming what is theirs (O), "You talked about the
+  part that's yours. That's where your effort goes."
+- **R3** When. Only when the sentence doubted the speaker, played the idea
+  down or leaned on something out of their hands, and the words answer it.
+  Will picks which, or none; it never writes them. At most one per Take.
+- **R4** Never in the way. It is asked while the speaker practises and
+  shown only when it is ready; the walk never waits for it.
+- **R5** Not here. The first quote ever shown carries "From your notebook.
+  Only you and Will see this." and "Not here". Not here lands as the
+  speaker's bubble, then "Noted. Your notebook stays out of the walk.", and
+  keeps the notebook out of every later walk until the speaker turns it back
+  on in the Life Panel's Your data page.
+- **R6** A walk played again shows the quote it showed, read only.
+
 ---
 
 ## 2. In flight
@@ -433,6 +474,12 @@ Nothing in flight.
   `src/services/api/lifeStrengths.ts`, `src/app/api/v2/your-why/`,
   `src/app/api/v2/strengths/`, and the Life Panel's
   `src/app/panel/strengths/`.
+- The walk quotes your notebook (R): backend `services/walk_quote.py`,
+  `routes/v2/walk_quote.py`; frontend
+  `src/components/willab/walk/useWalkQuote.ts` (drawn in
+  `WalkPractiseScreens.tsx`), `src/services/api/walkQuote.ts`,
+  `src/app/api/v2/walk-quote/`, and the Life Panel's switch
+  `src/components/life/WalkQuoteSetting.tsx` on `src/app/panel/data/`.
 - Life goals: backend `services/life_goals.py`, `routes/v2/life_goals.py`;
   frontend `src/components/willab/LoungeLifeGoals.tsx`,
   `src/lib/willab/lifeGoals.ts`, `src/services/api/lifeGoals.ts`,
@@ -444,6 +491,8 @@ Nothing in flight.
 
 ## 5. Prototypes
 
+- The walk quotes your notebook <https://claude.ai/artifact/Jt2XrfdifpU2A41rbZed8D>
+  (N268, version 2, placement B, 2026-10-29).
 - The companions, drawn for signing: strengths, what is in your control, the
   sales framing and your why <https://claude.ai/artifact/1hfLf8mCif8pgC1X1Z6caJ>
   (N241, N255; version 3, 2026-10-29). Signed 2026-10-29 (N258).
@@ -459,6 +508,7 @@ Nothing in flight.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N268 · R, built: after a Good job on a Clearer version, the walk may quote the speaker's own kept words (a strength, the vision, a # note naming what is theirs), at most one per Take, with "Not here" the first time, a setting turned back on in the Life Panel's Your data page; A3 makes room for it; ring row `walk_quotes` at ring 5 by its migration · BE #1495 (the decision), BE (the code), FE (this PR)
 - 2026-10-29 · N264 · the rows `in_control` and `sales_framing` set at ring 5 by migration 0499 (its outside review: "Safe to merge"), in place of the founder making them on the rings page: Will's answer to a worry (O) and the sales steps (P) are on at ring 5 · BE #1490, #1491, FE (this PR)
 - 2026-10-29 · N263 · the empty Principles page says "No principles yet."; what stopped: its sentence "The first one arrives when you send a case with #mistake." · BE #1490, FE (this PR)
 - 2026-10-29 · N241, N255 · built: N, strengths (the two-day suggestion from # notes and the life goals answer, the lens, "That's your 💪 … again.", the Life Panel's Strengths pill for the ring row, the strength the day before a talk), and Q, your why (the ask after the first goal, the sitting, the daily why with its › to change a line, the three lines on the Goals screen); the migration had its outside review ("Safe to merge"); on at ring 5 · BE #1485, FE #1081

@@ -375,7 +375,8 @@ step; the loop never waits for a coach.
   "Do you accept and want to practise it?", with no "Clearer version" title
   over them (2026-10-21);
   "Accept and practise" / "Keep my words" (which practises their own
-  sentence with Line A). At most one rewrite per corrected moment. An accepted version
+  sentence with "Your words it is. Now say them like you mean every one.",
+  in Line A's place there only, N268). At most one rewrite per corrected moment. An accepted version
   never changes the Ideal Text (rule 5): it gets there when it is said in the
   next Take. After a try only the voice is checked, on the same lanes as the
   Exercise: better is the Good job and no clip; not yet brings the AI clip of
@@ -383,7 +384,11 @@ step; the loop never waits for a coach.
   bubble, closed by "Try again." (N120; until then L4, L3, then L5). A try with no sound read is a Good job. An answered Clearer version
   stays read only, in the walk and from the Lounge. When the moment's voice
   reached the floor, its helper words (C3) follow the Clearer version and
-  its practise, after a Skip too (N113).
+  its practise, after a Skip too (N113). After a Good job on a Clearer
+  version's try, Will may add one bubble under the praise line that quotes
+  the speaker's own kept words: a strength, their vision or a # note naming
+  what is theirs, at most one per Take, ring 5 only, never shown to a coach
+  ([`principles.md`](principles.md) §1 R, N268).
 - **C6 The voice Exercise** opens with one short bubble (founder
   2026-10-23, N120): a one-word opener ("Nice." / "Close." / "Good."), one
   tip for the problem the clip fixes, ending ", like this:" (K), the AI
@@ -1111,7 +1116,9 @@ October (backend N111).
   account.", "Log in with that account" (signed 2026-10-21, WIL-93).
 - **The Clearer version:** "Here is a slightly more polished option:", "Do
   you accept and want to practise it?", "Accept and practise", "Keep my
-  words"; for undermining words B10's "Say what you mean. Don't dance around
+  words"; after "Keep my words", "Your words it is. Now say them like you
+  mean every one." (signed 2026-10-29, N268); the quote's words after a Good
+  job are on [`principles.md`](principles.md) §1 K; for undermining words B10's "Say what you mean. Don't dance around
   it, just say it straight." and B13's "Try saying it like this:" (signed
   lines in a new place, N85).
 - **Hello (N120, signed 2026-10-23):** "Hi {name}, good to see you
@@ -1447,6 +1454,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N268 · built (C5, K): after "Keep my words", "Your words it is. Now say them like you mean every one." in Line A's place there only; was Line A, "Say this one like your confident moment.", which stays everywhere else. After a Good job on a Clearer version's try, one bubble may quote the speaker's own kept words, with "Not here" the first time (the rules on [`principles.md`](principles.md) §1 R) · BE #1495 (the decision), BE (the code), FE (this PR)
 - 2026-10-29 · N265 · STOP's answer is "Done. We've stopped the WhatsApp messages."; was "… and deleted your number." (N174), not true for an account that signs in with WhatsApp. Built: any other WhatsApp reply is emailed to the founder with the number, the admin page of each account at it, and its words or what kind of message it was (N171 item 6); off until `WHATSAPP_FORWARD_REPLIES` is on, after the privacy version that names the replies · BE #1493, FE (this PR)
 - 2026-10-29 · — (H1, H4, §3) · written: how one clip gets its willfidence, step by step (the voice's seven cues, the fillers, hedges and slide fit, S × W and where it goes), with three worked examples, one Take, and the dark read of a moment (WIL-102); H1's "holds together" against the build goes to §3. No rule changes · FE (this PR)
 - 2026-10-29 · N259 · built: a finished walk opened again is a scroll, with no buttons and no Next under it on any step. A tap on helper words brings "Edit the helper words" and "Keep these", which go again once chosen; Keep these leaves the words as saved. A walk not yet done keeps its buttons. Was: the step it stood on had its buttons, and every other step a Next (B9, B10, C3, C7, C8, C9, T) · BE #1476, FE (this PR)

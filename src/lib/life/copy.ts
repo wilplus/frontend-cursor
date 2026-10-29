@@ -101,6 +101,15 @@ export const DELETE = {
   workingLabel: "Erasing",
 } as const;
 
+/* The walk quotes your notebook (backend N268, signed 2026-10-29): the
+   switch "Not here" turns off, on this page. */
+export const WALK_QUOTES = {
+  title: "Your notebook in the Feedback walk",
+  body: "After a good try, Will may quote one of your notes. Only you and Will see it.",
+  offHint: "Off since you tapped \u201cNot here\u201d. Your walks stay as they are today. Turn it on to see Will\u2019s quotes again after a good try.",
+  onHint: "On. Will may quote one note after a good try, at most once per Take.",
+} as const;
+
 export const EXPORT = {
   title: "Download your data",
   body: "Everything you have written here, as one file. Yours to keep.",

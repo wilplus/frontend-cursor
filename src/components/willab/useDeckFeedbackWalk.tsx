@@ -70,6 +70,8 @@ import { useUserEmail } from "./useUserEmail";
 import { useReviewTempo } from "./walk/useReviewTempo";
 import { useRingState } from "@/hooks/useRingState";
 import { postTempoGame } from "@/services/api/reviewTempo";
+import { askWalkQuote, replayWalkQuote, setWalkQuote, walkQuoteShown } from "@/services/api/walkQuote";
+import type { WalkQuoteIO } from "./walk/useWalkQuote";
 import { TEMPO_COPY, TEMPO_STEP_FEATURE, afterTry, type TempoEvent } from "@/lib/willab/tempoStep";
 
 /* -------------------------------------------------------------------------- */
@@ -789,6 +791,20 @@ export function useDeckFeedbackWalk(args: {
   );
   const take = useMemo(() => reviewedTake(items, pageTake), [items, pageTake]);
   const tempo = useReviewTempo(tempoOn && !coachOnly ? (args.arcId ?? null) : null, take);
+  /* THE WALK QUOTES YOUR NOTEBOOK (backend N268): the speaker's own walk
+     only, never a coach's view of it. */
+  const quotes = useMemo<WalkQuoteIO | null>(
+    () =>
+      take && !coachOnly
+        ? {
+            ask: (said) => askWalkQuote(take, said),
+            shown: () => void walkQuoteShown(take),
+            notHere: () => void setWalkQuote(false),
+            replay: () => replayWalkQuote(take),
+          }
+        : null,
+    [take, coachOnly],
+  );
   const interventions = useMemo<readonly WalkIntervention[]>(() => (tempo ? ["tempo"] : []), [tempo]);
   /* WHY THE GREEN MOMENT LANDED (founder 2026-10-18): a green clip that
      reached the page before its reason was written is asked for here, and
@@ -1468,6 +1484,7 @@ export function useDeckFeedbackWalk(args: {
           tempo={tempo}
           tempoSaid={tempoSaid}
           onTempo={onTempo}
+          quotes={quotes}
         />
     ),
     [
@@ -1501,6 +1518,7 @@ export function useDeckFeedbackWalk(args: {
       tempo,
       tempoSaid,
       onTempo,
+      quotes,
     ],
   );
 

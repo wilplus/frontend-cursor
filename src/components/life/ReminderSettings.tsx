@@ -258,7 +258,7 @@ function SlotRow({
 /** A small switch in the panel's neutral palette — foreground when on, muted
  *  when off. Orange stays reserved for live-action signals, and a settings
  *  toggle is not one. */
-function SlotSwitch({
+export function SlotSwitch({
   label,
   checked,
   busy,

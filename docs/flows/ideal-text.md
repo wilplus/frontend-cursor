@@ -432,6 +432,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N268 · the walk's copy (`idealEditCopy.ts`) gains the signed line after "Keep my words" and the walk quote's lines; nothing on the Ideal Text changes ([`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C5, [`principles.md`](principles.md) §1 R) · FE (this PR)
 - 2026-10-29 · N260 · the "One project at a time" sentence ends "you can bring it back from Settings." (the ☰ menu's Settings page, N196). Was: "Data & consent" · FE (this PR), BE (N260 log)
 - 2026-10-29 · N254, N257 · built: the ⋯ menu's "Add slides" / "Update slides" and its sheet (the new deck stays in the same project and the next Take uses it, "New slides ready for Take {n}."); the chat's grey card in place of the message box for Will's `update_slides`, replacing the "Create project from updated deck" and "Keep current project" chips; "Record Take N" on an archived project asks "One project at a time" first (§1, "The project's slides…"). Was: a changed deck meant a new project, and an archived project recorded without a word · FE (this PR), BE (with it)
 - 2026-10-28 · N126 · built: a full stop goes in silently between two pieces where the first ends with no closing mark, the next begins with a capital, and the speaker paused at least 0.6 seconds (never before "I", never in German); §1 gains "The words (the smoothing fence)". Was: sentences ran together at a seam ("Startup is just a job It's a job…") · BE, FE (this PR)
