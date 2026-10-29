@@ -78,8 +78,8 @@ step; the loop never waits for a coach.
   step is still stored, so Will, the summary and the coach's queue read the
   same rows.
 - **B2** Lens on is the walk: the same messages as one chat that grows by
-  taps, full screen, 18.5px text, 22px corners, 22px avatar, ‹ › and ✕ in
-  the bar, no message box, no scrollbar (wheel, trackpad or finger). On a
+  taps, full screen, 18.5px text, 22px corners, 22px avatar, ✕ alone in
+  the bar (its ‹ › went, founder 2026-10-29), no message box, no scrollbar (wheel, trackpad or finger). On a
   computer the lens is as wide as the Lounge's chat column (max-w-3xl); the
   Ideal Text's Record Take and Close sit in the same column (2026-10-20).
 - **B3** **The Lounge** (lens off) is the main view: 15px text, 16px corners,
@@ -145,8 +145,9 @@ step; the loop never waits for a coach.
   opened on a step already answered, the walk stands on that step and the
   whole Take's walk is in the thread around it (2026-10-21, B10).
 - **B6** Each step opens with its name as a small line ("Slide 2", "Slide 2
-  · helper words", "Take 2", "Your coach"). The bar shows the step in view;
-  ‹ › scroll to the step before or after, within this opening of the walk.
+  · helper words", "Take 2", "Your coach"). The thread scrolls by hand; the
+  bar has no ‹ › (founder 2026-10-29: "it doesnt keep the right page and is
+  confusing … delete it").
 - **B7** The step's buttons are a dock under the thread. A choice lands as
   the speaker's orange bubble, in the words the Lounge stores (helper words
   without the sentence's punctuation at either end, "growth doubled" not
@@ -157,17 +158,19 @@ step; the loop never waits for a coach.
 - **B8** The typing dots are the only wait, in the lens and the Lounge: a
   bubble being written, a try checked, other speakers' moments or the summary
   loading, the thread loading, the processing bubble. No breathing mark.
-- **B9** Scrolled away from the step the walk stands on, the buttons read
-  Next, which brings that step back; the recorder never gives way
-  (2026-10-21: "away from", no longer only "back to an answered step"). A
-  walk opened again once done has neither (B10, N259).
+- **B9** Scrolled away from the step the walk stands on, the buttons stay
+  as they are; a tap on one brings that step back first (founder
+  2026-10-29: "it behaves like it can't decide should it be this state
+  single or the two buttons state"; from 2026-10-21 the buttons read Next
+  there, and the swap flickered at the edge). A walk opened again once done
+  has no buttons (B10, N259).
 - **B10** **Every door opens the walk the same way** (one mechanism, N89):
   the whole Take's walk, standing on one step brought to the top, the parts
   before and after it there to scroll. That step has its own buttons in the dock;
   Next moves on to the next part, and after the last onto the page; ✕ goes
   back where the walk was opened from (B11). Once the walk is done, it opens
-  as a scroll: no buttons and no Next, on any step; the bar's ✕ and ‹ ›
-  stay, and clips still play (N259).
+  as a scroll: no buttons and no Next, on any step; the bar's ✕
+  stays, and clips still play (N259).
   - **The Feedback walk** opens:
     - on the coach's word, while a changed one is not yet seen (C1, D5);
     - while the walk runs, live on the step it waits on;
@@ -1454,6 +1457,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · — (B2, B6, B10) · the walk's bar is ✕ alone: the "‹ Slide 2 ›" / "‹ Tempo ›" arrows and name went; the thread scrolls by hand. Scrolled away, the dock keeps the step's own buttons, and a tap on one brings that step back (B9); was: a Next stood in for them, and the swap flickered at the edge (founder: "it can't decide should it be this state single or the two buttons state"). Was: ‹ › scrolled to the step before or after, and the name lagged behind the step in view (founder 2026-10-29: "it doesnt keep the right page and is confusing either fix it so the arrows work or delte it") · FE (this PR)
 - 2026-10-29 · — (B5) · fixed: scrolling the walk by hand is smooth. The thread follows the newest bubble again only once a scroll by hand has come to rest at the bottom. Was: a drag up from the bottom turned following back on within its first pixels, so the thread pulled itself down under the finger, on every step (founder 2026-10-29: "I scroll through it and it stalls a little bit"). No rule changes · FE (this PR)
 - 2026-10-29 · N270 · built (B3, K): a guest who accepted chats with Will; every Lounge chat turn carries their guest identity, which holds the acceptance until sign-up. Before any acceptance nothing goes to the AI: a signed-out visitor with no project gets "Hi, I'm Will. 👋 Record your first take, and I will help you with your presentation." (signed) and "Start your first recording" under it. Was: both saw "I'm having trouble reaching the lab right now. Give it another try in a moment." (founder 2026-10-29: "will the chat is very stupid at the very beginning") · BE #1499 (the decision), FE (this PR)
 - 2026-10-29 · N268 · built (C5, K): after "Keep my words", "Your words it is. Now say them like you mean every one." in Line A's place there only; was Line A, "Say this one like your confident moment.", which stays everywhere else. After a Good job on a Clearer version's try, one bubble may quote the speaker's own kept words, with "Not here" the first time (the rules on [`principles.md`](principles.md) §1 R) · BE #1495 (the decision), BE (the code), FE (this PR)

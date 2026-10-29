@@ -14,11 +14,9 @@ import {
   type MutableRefObject,
   type ReactNode,
 } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import OverlayCloseButton from "../OverlayCloseButton";
 import { CHUNK_DELAY_MS, TypingGlyph } from "../TypingDots";
-import WalkFooter from "./WalkFooter";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkThread — the lens as one chat (founder 2026-10-20, WIL-89; prototype   */
@@ -39,16 +37,17 @@ import WalkFooter from "./WalkFooter";
 /*                                                                            */
 /*  Each step opens with its name as a small line (a mark): "Slide 2",        */
 /*  "Slide 2 · helper words", "Other speakers · 1 of 2", "Take 2". The bar    */
-/*  shows the mark of the part in view; ‹ › scroll to the mark before or      */
-/*  after.                                                                    */
+/*  holds ✕ alone (founder 2026-10-29: the ‹ › there went; the thread        */
+/*  scrolls by hand).                                                         */
 /*                                                                            */
 /*  New bubbles land at the bottom (founder 2026-10-23, N122: "the 3 dots     */
 /*  loading should be at the bottom"): each new bubble, and the typing dots   */
 /*  before it, land right above the buttons, as in the Lounge, and the thread */
 /*  follows them down. After every tap in the dock the thread goes back to    */
 /*  the newest bubble, and it keeps following until the speaker scrolls up by */
-/*  hand. Scrolled back to an answered step, the dock reads Next, which       */
-/*  brings the newest step back; the recorder never gives way. (From 20 to   */
+/*  hand. Scrolled away, the dock keeps the step's own buttons (founder      */
+/*  2026-10-29: the Next that stood in for them flickered); a tap on one     */
+/*  brings that step back first. (From 20 to                                 */
 /*  23 October the newest step came to the top, its name at the top of the   */
 /*  thread, with a room under the thread to let it get there.) A door into a  */
 /*  step already answered still brings that step's name to the top (N91).    */
@@ -392,7 +391,7 @@ function LiveThread({
   const room = useRef<HTMLDivElement | null>(null);
   // Following the newest step: from the start, and again after every tap.
   const follow = useRef(true);
-  const [following, setFollowing] = useState(true);
+  const [, setFollowing] = useState(true);
   const setFollow = useCallback((on: boolean) => {
     follow.current = on;
     setFollowing(on);
@@ -417,8 +416,6 @@ function LiveThread({
     of: 0,
     away: false,
   });
-  // What the dock holds: any buttons, and whether they are the recorder.
-  const [docked, setDocked] = useState({ any: false, recording: false });
 
   // A new opening while the lens stays open: what the thread showed stays
   // above it. Read during render, while the page still holds it.
@@ -585,42 +582,6 @@ function LiveThread({
     return () => dock.removeEventListener("click", tapped, true);
   }, [dock, toCurrent, setFollow]);
 
-  // What the dock holds, for the Next that stands in for it.
-  useEffect(() => {
-    if (!dock) return;
-    const read = () => {
-      const any = dock.childElementCount > 0;
-      const recording = dock.querySelector("[data-walk-recording-strip]") !== null;
-      setDocked((was) => (was.any === any && was.recording === recording ? was : { any, recording }));
-    };
-    read();
-    const seen = typeof MutationObserver !== "undefined" ? new MutationObserver(read) : null;
-    seen?.observe(dock, { childList: true, subtree: true });
-    return () => seen?.disconnect();
-  }, [dock]);
-
-  /** ‹ ›: the mark before or after the one in view. */
-  const jump = (by: -1 | 1) => {
-    const el = body.current;
-    const all = marks();
-    if (!el || all.length === 0) return;
-    const k = Math.max(0, Math.min(all.length - 1, inView() + by));
-    if (by > 0 && k >= all.length - 1 && standsLast()) {
-      setFollow(true);
-      toCurrent(true);
-      return;
-    }
-    setFollow(false);
-    const top = Math.max(0, topIn(el, all[k]) - MARK_GAP_PX);
-    if (typeof el.scrollTo === "function") el.scrollTo({ top, behavior: reduced() ? "auto" : "smooth" });
-    else el.scrollTop = top;
-  };
-
-  // Scrolled away from the step with the buttons, the dock reads Next:
-  // back to that step (founder 2026-10-20). The recorder stays where it is.
-  // A scroll has neither (N259).
-  const back = buttons && !following && docked.any && !docked.recording && bar.away;
-
   // One value while the dock stays: the thread's bubbles are not drawn
   // again each time the bar changes as it scrolls.
   const frameValue = useMemo(() => ({ dock, close, ghost: false }), [dock]);
@@ -635,28 +596,7 @@ function LiveThread({
       data-walk-thread
       className="walk-ov flex h-full w-full flex-col bg-background pt-[env(safe-area-inset-top)] text-[17px] leading-[1.55] text-foreground"
     >
-      <div className="walk-ovtop flex min-h-[44px] items-center justify-between px-2.5 pt-2">
-        <nav data-walk-nav aria-label={label} className="flex min-w-0 items-center gap-0.5 text-[13.5px] font-semibold">
-          <button
-            type="button"
-            onClick={() => jump(-1)}
-            disabled={bar.at <= 0}
-            aria-label={COPY.pagerBack}
-            className="walk-press-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground disabled:cursor-default disabled:opacity-25"
-          >
-            <ChevronLeft className="h-5 w-5" aria-hidden />
-          </button>
-          <span className="min-w-0 truncate">{label}</span>
-          <button
-            type="button"
-            onClick={() => jump(1)}
-            disabled={bar.at < 0 || bar.at >= bar.of - 1}
-            aria-label={COPY.pagerNext}
-            className="walk-press-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground disabled:cursor-default disabled:opacity-25"
-          >
-            <ChevronRight className="h-5 w-5" aria-hidden />
-          </button>
-        </nav>
+      <div className="walk-ovtop flex min-h-[44px] items-center justify-end px-2.5 pt-2">
         <OverlayCloseButton onClick={() => (close.current ?? onClose)()} className="walk-press-sm mr-2.5" />
       </div>
       {/* No scrollbar (founder 2026-10-20): the thread scrolls by wheel,
@@ -700,21 +640,7 @@ function LiveThread({
         </div>
         <div ref={room} data-walk-room aria-hidden="true" className="shrink-0" />
       </div>
-      <div ref={setDock} data-walk-dock hidden={back || !buttons} />
-      {back ? (
-        <div data-walk-dock-next>
-          <WalkFooter
-            pill={{
-              label: COPY.pagerNext,
-              onClick: () => {
-                setFollow(standsLast());
-                toCurrent(true);
-              },
-              testId: "walk-to-newest",
-            }}
-          />
-        </div>
-      ) : null}
+      <div ref={setDock} data-walk-dock hidden={!buttons} />
     </div>
   );
 }

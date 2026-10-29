@@ -601,37 +601,33 @@ O2  Coming back to the Lounge shows the remembered count right away.
 O3  ""Nobody is waiting"" shows only when the queue was read empty.","O1 -> ""shows no label until the queue is read, then the count""
 O2 -> ""re-entering the Lounge shows the remembered count right away""
 O3 -> ""says nobody is waiting only once the queue was read empty""",Founder 2026-10-18.
-src/components/willab/deckFeedbackWalk.test.tsx,Story,"As a speaker reviewing feedback, I want the walk to open on my first praise, move through its chat with ‹ ›, save helper words through the deck, and ask a guest to sign up, so that feedback flows into my next Take.","O1  Review feedback opens the walk on the first praise.
-O2  The arrows move through the walk's chat, step by step, without
-answering anything or closing it.
-O3  A tap on a paragraph, with or without its black line, opens the same walk at what it asks (its
+src/components/willab/deckFeedbackWalk.test.tsx,Story,"As a speaker reviewing feedback, I want the walk to open on my first praise, scroll through its chat, save helper words through the deck, and ask a guest to sign up, so that feedback flows into my next Take.","O1  Review feedback opens the walk on the first praise.
+O2  A tap on a paragraph, with or without its black line, opens the same walk at what it asks (its
 praise just above it in the chat) and, once answered, lands back on
 the Ideal Text. Tapped again with nothing left, the text or its
 orange words, it opens the whole walk to scroll through, at the
 helper words it answered, with no buttons.
-O4  Helper words picked in the walk are saved through the deck's own
+O3  Helper words picked in the walk are saved through the deck's own
 save (the words, then the lock) and show orange in the text at once.
-O5  Never-5: Accept and practise saves the answer through the accept lane,
+O4  Never-5: Accept and practise saves the answer through the accept lane,
 and the deck still shows the speaker's own words, not the clearer ones.
-O6  A guest's pick asks to sign up, is not taken, and nothing is written.
-O7  A moment the walk went past (its helper words skipped, its practise
+O5  A guest's pick asks to sign up, is not taken, and nothing is written.
+O6  A moment the walk went past (its helper words skipped, its practise
 skipped) loses its black line at once and is told to the server; its
 paragraph then opens the walk as given, never its practise again.
-O8  A moment whose voice sounded confident and whose words are reworded
+O7  A moment whose voice sounded confident and whose words are reworded
 offers its helper words after the rewording; one whose voice did not,
 only the rewording (N113).","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
-O2 -> ""‹ › move through the walk's chat, never answering and never
-closing it (founder 2026-10-20)""
-O3 -> ""a paragraph with or without the line opens the same walk at
+O2 -> ""a paragraph with or without the line opens the same walk at
 what it asks, its buttons as the step stands (founder
 2026-10-20, N89)""
-O4 -> ""helper words picked in the walk go through the deck's own
+O3 -> ""helper words picked in the walk go through the deck's own
 save: the words and the lock""
-O5 -> ""Accept and practise writes through the accept lane and leaves the speaker's words on the page""
-O6 -> ""a guest's pick asks to sign up and writes nothing""
-O7 -> ""a moment walked through loses its black line and opens as
+O4 -> ""Accept and practise writes through the accept lane and leaves the speaker's words on the page""
+O5 -> ""a guest's pick asks to sign up and writes nothing""
+O6 -> ""a moment walked through loses its black line and opens as
 given, never its practise again (founder 2026-10-21)""
-O8 -> ""a confident voice whose words are reworded gets its helper
+O7 -> ""a confident voice whose words are reworded gets its helper
 words after the rewording (founder 2026-10-22, N113)""","Feedback walk lock 2026-10-06/2026-10-12; founder 2026-10-21 (""the black lines on the ideal text are still there even though I walked through them""); 2026-10-22 (N113, ""After the rewording""). The paragraph sheet's accept lane is in acceptRewrite.test.tsx."
 src/components/willab/exerciseRenderedAck.test.tsx,Story,"As the founder, I want an exercise counted as shown only once the speaker actually saw it, once per view, silently, so that exercise data is honest.","O1  Nothing goes out on data load; the ack goes out once the card is
 about half visible.
@@ -1057,11 +1053,11 @@ src/components/willab/walk/walkReplay.test.tsx,Story,"As a speaker, I want a fin
 O2  A done exercise shows my past tries and records nothing new.
 O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.
 O4  A tap on my helper words brings their buttons; saving takes them away again, and so does Keep these, which leaves the words as saved (C3, N259).
-O5  A walk not yet done keeps its buttons: scrolled away from the step it stands on, they read Next, which brings that step back (B9).","O1 -> opened again, the whole walk is one scroll: every part answered, no buttons and no Next, nothing written
+O5  A walk not yet done keeps its buttons: scrolled away from the step it stands on, they stay as they are, and a tap on one brings that step back (B9).","O1 -> opened again, the whole walk is one scroll: every part answered, no buttons and no Next, nothing written
 O2 -> opened again, the whole walk is one scroll ...
 O3 -> an exercise opened from its bubble in the chat shows its AI clip and every try, a try tapped in the chat opens its exercise on the last answer
 O4 -> a tap on helper words brings their buttons; saving or keeping them takes the buttons away again
-O5 -> a walk not yet done: scrolled away from the step it stands on, the dock reads Next, which brings that step back",
+O5 -> a walk not yet done: scrolled away from the step it stands on, the dock keeps its buttons, and a tap brings that step back",
 src/components/willab/walk/walkSwipe.test.tsx,Story,"As a speaker on a phone, I want to swipe left for next and right for back, with scrolls and short drags doing nothing, so that I move through feedback naturally.","O1  A swipe left goes on, a swipe right goes back.
 O2  A scroll, a short drag or a swipe toward a turned-off arrow does nothing and never closes the walk.","O1 -> goes on to the left and back to the right
 O2 -> leaves a scroll, a short drag and an arrow that is off alone, and never closes",
