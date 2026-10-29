@@ -2,10 +2,10 @@
 /*
 STORY    As a speaker, I want a finished walk opened again to be one scroll of everything I went through, with my answers and no buttons, nothing written or recorded again, so that I can look back safely.
 OUTCOME
-  O1  Opened again, the whole walk is one scroll with my answers in it, and no buttons and no Next under it; nothing is written (N258).
+  O1  Opened again, the whole walk is one scroll with my answers in it, and no buttons and no Next under it; nothing is written (N259).
   O2  A done exercise shows my past tries and records nothing new.
   O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.
-  O4  A tap on my helper words brings their buttons; saving takes them away again, and so does Keep these, which leaves the words as saved (C3, N258).
+  O4  A tap on my helper words brings their buttons; saving takes them away again, and so does Keep these, which leaves the words as saved (C3, N259).
   O5  A walk not yet done keeps its buttons: scrolled away from the step it stands on, they read Next, which brings that step back (B9).
 PROVES   O1 -> opened again, the whole walk is one scroll: every part answered, no buttons and no Next, nothing written
          O2 -> opened again, the whole walk is one scroll ...
@@ -166,7 +166,7 @@ describe("the finished walk, played again", () => {
     const voices = () => [...live()!.querySelectorAll("[data-walk-player][data-walk-me] audio")].map((a) => a.getAttribute("src"));
     expect(voices()).toEqual(expect.arrayContaining([clip.src, "blob:try-1", "blob:try-2"]));
     expect(live()!.textContent).toContain(WALK_COPY.practiseN(2));
-    // A scroll (N258): nothing under the thread, nothing recorded or written.
+    // A scroll (N259): nothing under the thread, nothing recorded or written.
     expect(noButtons()).toBe(true);
     expect(live()!.querySelector("[data-walk-recording-strip], [data-testid='walk-stop']")).toBeNull();
     expect(calls).toEqual([]);

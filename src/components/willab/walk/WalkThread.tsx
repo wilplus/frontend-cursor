@@ -65,7 +65,7 @@ import WalkFooter from "./WalkFooter";
 /*  thread as it was, at the same scroll: nothing in it fetches, posts or     */
 /*  moves.                                                                    */
 /*                                                                            */
-/*  A walk opened again once done is a scroll (founder 2026-10-29, N258: "on */
+/*  A walk opened again once done is a scroll (founder 2026-10-29, N259: "on */
 /*  the reopened walk there is only a scroll there should be no buttons!"):  */
 /*  with `buttons` off there is no dock and no Next; the bar stays.          */
 /* -------------------------------------------------------------------------- */
@@ -350,7 +350,7 @@ export default function WalkThread({
   /** The step the walk stands on (its part is marked `data-walk-now`): each
    *  change brings that part to the top. */
   current?: number | null;
-  /** False: a scroll, with no dock and no Next (N258, a walk opened again
+  /** False: a scroll, with no dock and no Next (N259, a walk opened again
    *  once done). */
   buttons?: boolean;
   /** ✕ when the standing part names none. */
@@ -593,7 +593,7 @@ function LiveThread({
 
   // Scrolled away from the step with the buttons, the dock reads Next:
   // back to that step (founder 2026-10-20). The recorder stays where it is.
-  // A scroll has neither (N258).
+  // A scroll has neither (N259).
   const back = buttons && !following && docked.any && !docked.recording && bar.away;
 
   const label = bar.label ?? undefined;

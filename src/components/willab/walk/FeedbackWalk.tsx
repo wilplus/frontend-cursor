@@ -87,7 +87,7 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /*  A walk not yet done, opened on a step already answered, shows its answer */
 /*  as a "✓ …" line over a black Next. Helper words stay editable on any     */
 /*  part: a tap stands the walk there (C3, B10). A walk opened again once    */
-/*  done is a scroll (N258): no buttons, but the helper words' after a tap,  */
+/*  done is a scroll (N259): no buttons, but the helper words' after a tap,  */
 /*  which go again once chosen.                                              */
 /*                                                                            */
 /*  Every word on these screens is a signed one (CHUNK_SHEET_COPY, WALK_COPY) */
@@ -329,7 +329,7 @@ export default function FeedbackWalk<R = unknown>({
   // Where the walk stood before a tap on an earlier part's helper words
   // stood it there: their buttons bring it back (C3, B10).
   const [resume, setResume] = useState<number | null>(null);
-  // A walk opened again once done is a scroll (N258): no buttons, but the
+  // A walk opened again once done is a scroll (N259): no buttons, but the
   // helper words' while the speaker edits them (their pick's key), and the
   // words as saved, which a Keep these puts back.
   const [editing, setEditing] = useState<string | null>(null);
@@ -391,7 +391,7 @@ export default function FeedbackWalk<R = unknown>({
   );
   const forward = useCallback(() => {
     // In a scroll the only buttons are an edit's: they go, the words not
-    // saved go back, and the walk stays where it is (N258).
+    // saved go back, and the walk stays where it is (N259).
     if (scroll) {
       if (editing !== null) setPicks((p) => ({ ...p, [editing]: saved[editing] ?? null }));
       setEditing(null);
@@ -1016,7 +1016,7 @@ function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   const words = moment.paragraphText;
   const given = ctx.answered(step) !== null || picked !== null && Boolean(ctx.walk.replay);
   const skip = () => {
-    // In a scroll, Skip only ends the edit (N258).
+    // In a scroll, Skip only ends the edit (N259).
     if (!ctx.walk.scroll) ctx.answer(step, "skip");
     ctx.forward();
   };
