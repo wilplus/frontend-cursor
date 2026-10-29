@@ -60,7 +60,13 @@ Redeploy (same commit, new environment variables) skipped.","skip    -> ""skips 
 build   -> ""builds a code change, even after docs-only merges""
 redeploy -> ""builds a Redeploy of the same commit""
 unsure  -> ""builds when there is nothing known to compare with""",If removed: A wrong skip looks like a green deploy that changed nothing.
-src/app/admin/libraryAndErrorsGate.test.ts,Story,"As the founder, I want the exercise library, speaking-errors and",,,
+src/app/admin/libraryAndErrorsGate.test.ts,Story,"As the founder, I want the exercise library, speaking-errors and corpus admin pages to answer only me, and coaches' old addresses to land there, so that coaches keep only what they need.","O1  A coach (any non-founder) gets Not Found on all three pages.
+O2  The founder gets the page itself.
+O3  Signed out, each page sends you to sign in and back to itself.
+O4  /coach/exercises and /coach/errors redirect to the admin pages.","O1 -> ""is Not Found for anyone but the founder, a coach included""
+O2 -> ""renders the page for the founder""
+O3 -> ""sends a signed-out visitor to sign in""
+O4 -> ""the coach's old addresses redirect to the admin pages""","CP3 A (founder 2026-10-06, decisions log N56.3)."
 src/app/api/_lib/backend.test.ts,Story,"As a speaker, I want every app-to-server call to carry my sign-in and fail with a plain message, so that I never see a broken screen or someone else's data.","O1  Signed in: the backend gets my token and its answer reaches me as is.
 O2  Signed out: 401 with the shared words, and no backend call at all.
 O3  The backend unreachable: 502 with the generic words.
@@ -258,7 +264,13 @@ O3  Signing in on the page that opens on the number: ""Sign in with
 WhatsApp"", the code, then straight in, with no name step (N232).","O1 -> ""signing up: number, code, name, and the number is kept""
 O2 -> ""signing in with an unknown number says so and makes nothing""
 O3 -> ""signing in from the first screen: the code, then in""","Founder 2026-10-27, backend N214; the first screen, 2026-10-28, N232."
-src/components/founder/GoldenJudging.test.tsx,Story,"As the founder, I want to judge golden pairs seeing the passage",,,
+src/components/founder/GoldenJudging.test.tsx,Story,"As the founder, I want to judge golden pairs seeing the passage and the coach's final only, so that the golden set measures real answers.","O1  A pair shows the passage and the coach's final, no draft, and sends
+one of three answers.
+O2  A clip surface keeps the coach's instrument, not the pair question.
+O3  A sealed set that erasure changed says so and lets me judge again;
+an intact sealed set offers no more judging.","O1 -> ""shows the passage and the coach's final, never a draft, ...""
+O2 -> ""a clip surface judges on the coach's instrument""
+O3 -> ""a sealed set erasure changed says so and opens judging again""",ML-10: the golden set replaces the engineering seeds.
 src/components/legal/PublishedPolicyText.test.tsx,Story,"As a reader of the Privacy page, I want the stored policy or a plain ""could not load"" line, never an endless spinner or an old stand-in, so that I always know what I agreed to.","O1  The stored policy text is shown with its version number.
 O2  When no stored copy can be had, the ""could not load"" line is shown.","O1 -> ""shows the stored copy once it is published""
 O2 -> ""shows the unavailable line once the record answers without a copy""","Founder 2026-09-25, F3 = A."
@@ -332,7 +344,16 @@ O5 -> ""on a plan, only after its own yes""","Founder 2026-10-27, backend N211 (
 src/components/willab/Linkified.test.tsx,Story,"As a speaker reading Will's message, I want links in a message to be clickable, so that I can open the booking page.","O1  A web address on its own, or inside a sentence, becomes a link;
 plain text stays plain.","O1 -> ""makes a bubble that is only a URL a link"",
 ""makes a URL inside a sentence a link and leaves plain text alone""",Founder 2026-10-18: the booking link was not clickable.
-src/components/willab/LoungeAiVoiceBubble.test.tsx,Story,"As a speaker in the Lounge, I want the AI version of my voice to",,,
+src/components/willab/LoungeAiVoiceBubble.test.tsx,Story,"As a speaker in the Lounge, I want the AI version of my voice to appear with its bubble, not after another wait, so that the chat feels immediate.","O1  When the page already asked for the clip, the bubble's first render
+has the player on that clip, and no second request goes out. The
+bubble is short in the chat: its first line, the voice and the ›
+that opens its step; the ""why"" and the closing line are the walk's
+(founder 2026-10-21).
+O2  A clip still being made comes in when it lands; one that never
+comes shows the step's plain words (founder 2026-10-20).","O1 -> ""draws the player with the bubble when the page already
+asked for the clip, short, with its ›""
+O2 -> ""a clip still being made comes in when it lands, and one
+that never comes shows the plain words""",
 src/components/willab/NextTakeShareScreen.test.tsx,Story,"As a speaker before my next Take, I want nothing ticked for me and Continue to wait until I choose, with ""Only me"" counting as a choice, so that any sharing is my own decision.","O1  Nothing starts ticked, Continue is off, and choosing ""Only me"" turns
 it on.","O1 -> ""starts with nothing ticked; Continue waits for a choice, Only me counts""",Founder 2026-10-15 (Privacy 3.6 section 4d).
 src/components/willab/OtherAccountLink.test.tsx,Story,"As a speaker who opens my coach's WhatsApp or email link while signed in to my other account, I want to be told so and taken to log in with the right one, so that I reach my coach's feedback instead of a wait that never ends.","O1  The server's ""arc not found"" (the project is not in this account)
@@ -377,7 +398,13 @@ consent screens instead of choosing for me.","O1 -> ""opens the app with the pro
 O2 -> ""a Take refused for an out-of-date acceptance shows the prompt, then processes""
 O3 -> ""Close the app keeps the ask, with one Accept the update that still accepts""
 O4 -> ""opens the full consent screens when the last country is no longer allowed""",Founder 2026-10-15.
-src/components/willab/ProjectPicker.archive.test.tsx,Story,"As a speaker, I want to archive a project from the picker, never",,,
+src/components/willab/ProjectPicker.archive.test.tsx,Story,"As a speaker, I want to archive a project from the picker, never delete it there, with pending deletions locked, so that I tidy my list without risk.","O1  Every project row's ⋯ offers Archive and never Delete.
+O2  Archive runs at once (that project only) and the row leaves.
+O3  A failed archive says so and keeps the row.
+O4  A project with an open deletion request is locked, with no menu.","O1 -> ""offers Archive and never Delete""
+O2 -> ""archives at once and the row leaves the list""
+O3 -> ""a failed archive says so and keeps the row""
+O4 -> ""is locked and has no menu""",Founder 2026-09-26 (N14): deleting moved to Data & consent.
 src/components/willab/TranscriptReviewDeck.test.tsx,Story,"As a speaker, I want my own words shown per slide, each paragraph its own block, and no scores, so that the Ideal Text is mine and judged in words.","O1  Every slide's words are shown unchanged, one paragraph block per
 slide, holding exactly that slide's words.
 O2  Never-1: a paragraph with feedback waiting paints no number or badge
@@ -385,7 +412,13 @@ beside the words (its block holds the speaker's words and nothing else).
 O3  Never-1: nothing on the deck reads as a score, ratio, percentage or
 verdict, while the speaker's words are on screen.","O1, O2 -> ""shows the speaker's own words, one block per slide, unchanged""
 O3     -> ""renders no score, ratio, percentage or verdict, even with a tentative pending item""","Never-1. The per-paragraph lock button is gone from the page (lock 2026-10-12, section 4): a paragraph is the tap target and the lock lives in its sheet, so no lock-control count is pinned here."
-src/components/willab/WillQuestion.test.tsx,Story,"As a speaker in the Lounge after a Take, I want Will's one",,,
+src/components/willab/WillQuestion.test.tsx,Story,"As a speaker in the Lounge after a Take, I want Will's one question to come with answers I can tap (or Skip), so that I answer in a second and my next Take is never held up.","O1  While it is the newest bubble, the question shows its answers and
+Skip; a tap goes to the backend once, which writes it and the
+reply; an older question shows no answers.
+O2  The message after the Take waits while Will's question (or its
+follow-up) is the newest bubble.","O1 -> ""the newest question shows its answers and Skip, and a tap
+goes to the backend once""
+O2 -> ""the message after the Take waits under Will's question""","Founder 2026-10-20 (N82): ""only buttons"" in the walk, Will's questions in the Lounge, tap answers plus my own words."
 src/components/willab/acceptRewrite.test.tsx,Story,"As a speaker accepting a clearer version in the paragraph sheet, I want my answer saved and my text unchanged until I say it in my next Take, so that the Ideal Text is only what I said.","O1  The answer is saved once, as apply_suggestion.
 O2  Never-5: the host's real accept lane (postTrackedDecision) sends no
 decision, suggestion-feedback or other request that could change a
@@ -399,14 +432,15 @@ O4  The admin's ask, stamped only with the message it waits for, is still
 the Take's: the card stays above it and the ask above its buttons
 (founder 2026-10-20: the card landed between the question and its
 buttons).
-O5  Once I record the next Take, the last Take's ""Record Take N"" goes, and
-no Take is offered until the new Take's walk reaches its summary
-(founder 2026-10-28, N244: it came back as processing ended, beside
-the new Take's walk).","O1 -> ""draws the card, the ask, and the message only once it is let go""
+O5  Once I record the next Take, in any project, every earlier ""Record
+Take N"" goes for good; the chat's one record button comes back under
+the new Take's closing message, after its walk's summary (founder
+2026-10-28, N244, N251: it came back as processing ended, beside the
+new Take's walk).","O1 -> ""draws the card, the ask, and the message only once it is let go""
 O2 -> ""opens the Take's WhatsApp ask by itself""
 O3 -> ""knows when no ask is in front of the speaker""
 O4 -> ""keeps the card above the admin's ask, stamped with the message it waits for alone""
-O5 -> ""offers no Take between the next recording and its closing message""","Founder 2026-10-20: ""You cannot have two actions at a time, like feedback and record"" (backend services/after_take.py)."
+O5 -> ""the last Take's Record button goes once the next Take is recorded""","Founder 2026-10-20: ""You cannot have two actions at a time, like feedback and record"" (backend services/after_take.py)."
 src/components/willab/audioUploadValidation.test.ts,Story,"As a speaker uploading a recording instead of recording live, I want a too-large or video file refused before upload with a plain reason, so that I do not wait for a failure (record step of the loop).","O1  A file over the upload limit is refused with a ""too large"" reason.
 O2  A video file (by MIME type, or by extension when the type is missing)
 is refused with an ""audio only"" reason.
@@ -651,9 +685,40 @@ O3  When the page stops asking for late marks, it says so: the reserved
 slot closes, so the lens never waits on it for good (WIL-76).","O1 -> ""applies the coach message before the slow lane answers""
 O2 -> ""keeps what was shown while the core alone has landed""
 O3 -> ""closes the slot when the asks stop with the marks still pending""",Founder 2026-10-08 (waiting-time fixes).
-src/components/willab/instantParagraphSheet.test.tsx,Story,"As a speaker, I want a paragraph sheet to open complete and my",,,
-src/components/willab/judgementFollowUpWalk.test.tsx,Story,"As a speaker, I want the card and buttons after each of my five",,,
-src/components/willab/labProcessingDiscard.test.tsx,Story,"As a speaker, I want to discard a bad Take while it is still",,,
+src/components/willab/instantParagraphSheet.test.tsx,Story,"As a speaker, I want a paragraph sheet to open complete and my chosen helper words to show at once, so that I never see a half-drawn sheet or wait for my own choice.","O1  Not read ahead, the sheet's data is nothing until both reads land,
+then everything at once.
+O2  A read that never lands holds the sheet for OPEN_WAIT_MS at most,
+then it opens on what it has.
+O3  Chosen helper words show the moment they are chosen.
+O4  A failed save takes them back to the words shown before.
+O5  The server's words replace them only from a read that started
+after the save, never from one before it.","O1 -> ""draws nothing until both reads land, then everything at once""
+O2 -> ""opens on what it has once the bounded wait passes""
+O3 -> ""stands in the chosen words the moment they are chosen""
+O4 -> ""a failed save takes the chosen words back""
+O5 -> ""the server's words take over only from a read after the save""","Founder 2026-09-28, ""1A 2A"": two delays made instant."
+src/components/willab/judgementFollowUpWalk.test.tsx,Story,"As a speaker, I want the card and buttons after each of my five answers to follow the founder's follow-up matrix, so that I get the right next step (praise, exercise, rewrite, or nothing).","For each answer and machine read, through the real paragraph
+sheet: the right card, button, link, and whether helper words
+follow (24f, founder 2026-09-29; locks B2, B5, D1, D7; 29b):
+O1  read confident: praise on Yes, In-between, No, Not sure.
+O2  read weak, problem fired: library video on No and Not sure, even
+with a rewrite on the paragraph; the plain moment with the coach's
+line when nothing in the library matched; nothing on Yes.
+O3  read weak, nothing fired: the rewrite (accept, or Keep my words).
+O4  Audio unclear: nothing.
+O5  Helper words follow Yes and In-between only.
+O6  Not sure walks exactly as No.
+O7  Never-1: nothing on the sheet is a number or score about me.","O1-O7 -> each row of CASES, via expectWalk (card, footer,
+the way on, and the no-number check on the drawn sheet).
+NOT PINNED, on purpose: a weak moment where a problem fired, nothing in
+the library matched, AND a rewrite rides the paragraph. That cell is open
+work (audit 2026-10-05, item 3).",
+src/components/willab/labProcessingDiscard.test.tsx,Story,"As a speaker, I want to discard a bad Take while it is still uploading, and not be offered that once the server has it, so that a bad Take leaves no trace and I am never promised something that cannot happen.","O1  ""Discard this take"" shows while the upload is in flight.
+O2  Once the server has answered (canDiscard false) it is gone, and the
+waiting screen is still there.
+O3  Pressing it hands the discard to the host (which confirms, then
+aborts the upload).","O1, O3 -> ""shows the discard control while the upload is in flight, and pressing it discards""
+O2 -> ""hides it once the server has the take""","Founder 2026-09-16, dead-end 2 of 3: the abort is the one window in which a Take leaves no server trace."
 src/components/willab/labRootsBeforeTake.test.tsx,Story,"As a speaker, I want Take 2 to start with its helper words already on the first slide, but never wait more than 1.5 s for them, so that recording is never blocked.","O1  A good read: the Take starts as soon as the words are read, and the
 very first frame of the recording screen already shows them.
 O2  Never 3 (record -> process -> Ideal Text -> next Take is never broken):
@@ -696,7 +761,17 @@ src/components/willab/noStarsOnUserSurfaces.test.ts,Guard,No component in src/co
 `Star` import in any .tsx, user lane or coach lane. A source scan on
 purpose: the star rating once lived in six separate renderers, and a
 render test only covers the surface it mounts.","star drawn -> ""NO component draws a star icon""",If removed: A star rating (a verdict) can quietly come back on any screen.
-src/components/willab/paragraphPractise.test.tsx,Story,"As a speaker, I want Practise on a paragraph to open the same",,,
+src/components/willab/paragraphPractise.test.tsx,Story,"As a speaker, I want Practise on a paragraph to open the same practise screens as the Feedback walk, recording at once on the right clip, so that practice feels the same everywhere.","O1  A clearer version's card opens the walk's practise screen with its
+words, the mic starts, and the practice opens on the moment's
+snippet; ✕ stops the mic and ends nothing else.
+O2  The moment said again (the plain card) opens on the paragraph's
+words, as the walk's moment step does.
+O3  A card with nothing to open a practice on (no snippet, no evidence)
+cannot open: no screen, no mic, no practice request.","O1 -> ""opens the walk's practise for the paragraph: recording at once, on the moment's snippet""
+O2 -> ""the moment said again opens on the paragraph's words""
+O3 -> ""a card with nothing to open a practice on cannot open""
+NOT PINNED: an exercise card's passage under its instruction (the walk's
+own exercise step carries that).","Founder 2026-10-10: ""the practise screens should be the same in all cases and recording a practise too""."
 src/components/willab/paragraphSheet.test.tsx,Story,"As a speaker, I want a paragraph's sheet to show my helper words and history (never the paragraph text, never a score), and Practise to open the walk's practise, so that the sheet helps me without repeating the page.","O1  Saved state: the helper words and a History of earlier Takes only
 (Take 1, not the current Take 2); no practise card; Next closes.
 O2  Never 1 (no scores shown to speakers): the sheet shows no paragraph
@@ -726,8 +801,42 @@ error.
 O3  A cancelled render is not reported as a failed slide.","O1 -> ""a parent re-render with a new onError keeps the slide drawn""
 O2 -> ""a page change cancels the old render and redraws""
 O3 -> ""does not report a cancellation as a failed slide""","Founder 2026-09-19 ""the slides are gone"": an inline onError restarted the render on a busy canvas and latched the slide off. The fake below enforces pdf.js's one-render-per-canvas rule."
-src/components/willab/plan/PlanCalendar.test.tsx,Story,"As a speaker on a plan, I want to book my calls with my coach on",,,
-src/components/willab/plan/plan.test.tsx,Story,"As a new speaker on the plan's ring, I want the Lounge to ask me",,,
+src/components/willab/plan/PlanCalendar.test.tsx,Story,"As a speaker on a plan, I want to book my calls with my coach on a big calendar I can swipe through, so that booking takes a few taps and never stands between me and my first Take.","O1  Once Will asks for a call, its calendar comes up full screen: the
+call's name, ""0 of 2 booked"" and the deadline; only a day with an
+open time can be picked, and Book waits for a time.
+O2  A day, then a time, then Book sends exactly that time.
+O3  Edit moves the deadline from the same screen (N168).
+O4  Skip passes the call on without booking it.","O1, O2, O3 -> ""a day, a time, then Book""
+O4 -> ""Skip passes the call on""","The calls' calendar, full screen (founder 2026-10-28, backend N248); docs/flows/the-plan.md §1 F."
+src/components/willab/plan/plan.test.tsx,Story,"As a new speaker on the plan's ring, I want the Lounge to ask me my questions one at a time in the footer, and to show my plan as it was drawn, so that I reach my first Take without a form.","O1  Each step of the plan gets its own footer in place of the message
+box: the deadline's two chips, ""Record your answer"" with no Skip,
+the 1 to 10 scale, the calls' calendar, then only ""Start your
+first recording""; with no plan, the message box stays.
+O2  A tap on the scale is sent once, and the number is never written
+back into the chat (N178).
+O3  The plan's rows are drawn by their metadata: the speaker's voice
+answer as their own bubble, the card with its list, the deadline
+in orange and Book on a call not booked; a plain row is left to
+the Lounge.
+O4  The chat has one record button: a practice day's one thing holds
+it until a newer Take's closing message takes it back (N167), and
+gives it up once a newer Take is recorded, in any project (N244,
+N251).
+O5  A new project's question takes Yes or No in the footer (H2), and
+""How do you feel?"" comes before a Take only once the plan's first
+Take is recorded (D4).
+O6  Will's ask for the plan's own yes is drawn as his bubble with Read
+more, its footer is ""Not now"" and ""Yes, ask me"" and nothing else
+is taken while he waits (N211).
+O7  Before my first Take nothing of the principles is in my way: no
+notebook mic, no ask; once my first Take lands, both are there,
+without opening the app again (N243).","O1 -> ""each step has its own footer""
+O2 -> ""a rating is sent once and never written back""
+O3 -> ""the plan's rows are drawn as the prototype draws them""
+O4 -> ""the newest bubble holds the one record button""
+O5 -> ""a new project's question, and the feelings before a Take""
+O6 -> ""Will asks for the plan's own yes""
+O7 -> ""nothing of the principles before my first Take""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; docs/flows/the-plan.md §1."
 src/components/willab/plan/planNewEvent.test.tsx,Story,"As a speaker with a plan, I want ""I have a new event"" out of my way while my Take is still processing, so that I never tap something that leaves me with nothing to do.","O1  While the Take is processing, Change your plan has no ""I have a new
 event"", and the plan's end shows only ""Keep practising"".
 O2  Once the Take has landed, both show ""I have a new event"" again.","O1, O2 -> ""a new event waits for the Take being processed""","The founder, 2026-10-28 (backend N242); docs/flows/the-plan.md §1 H1 and I2."
@@ -833,9 +942,9 @@ from there the next Take, a pause, or ""sign up to send"" (and on to
 review) are expected steps.","O1 -> ""is the record → process → Ideal Text loop""",Never 3; audit Q-C4.
 src/components/willab/voiceNotebook.test.tsx,Story,"As the founder in a rush, I want to say a note and close the app, so that what I said is kept and I can see it was written as I meant it.","O1  The moment I tap, my note shows the wave of my voice; the words follow it; leaving the app sends the note, it is not thrown away (N194, N199).
 O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).
-O3  While a speaker is onboarded there is no mic and the notebook's ask waits; once the first Take is in, both are there (N243).","O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
+O4  Typing ""#"" offers one option, ""# note"", and tapping it leaves ""#"" to write on: a typed ""#"" is one note, as the mic's (N253).","O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
 O2 -> keeps a note that cannot go and sends it once when back online
-O3 -> waits while the speaker is onboarded, then the mic and the ask are there",
+O4 -> offers only ""# note"" after ""#"", and leaves ""#"" to write on",
 src/components/willab/walk/coachUpdateLens.test.tsx,Story,"As a speaker, I want my coach's changed word to wait for me in the chat under ""Later · from your coach"" and open the walk at my coach's place when I tap it, the same way every bubble opens its step, so that I watch exactly what my coach sent, where it belongs.","O1  The coach's bubble rings while the server says the word is new; a tap
 opens the Take's walk at the coach's step (Step 0 for a general word),
 not a screen of its own; nothing is marked watched by the tap.
@@ -851,7 +960,7 @@ O6  A step's grey bubbles land one after another behind the typing dots, and its
 O7  The walk opens once with ""Hi {name}, good to see you back!"" (Take 1: ""Hi {name}, great to meet you!""; no name: the same without it), and the Lounge keeps the same words (N120).
 O8  Other speakers asks for my Take's moments and shows each one the server sends, up to three (""Now 3 moments from other speakers.""), however many tries I made; with none the step is left out (N119). My answer on one moves me on to the next, though the chat counts it at once.
 O9  On a plan, the moment where this week's level shows most opens with ""This week's level: {level}. Here's where it shows:"" above my clip; no other moment does (G7, backend N209).
-O10 What a step showed stays in the thread once I move on: the tempo game's tries, their comments and its closing line, then other speakers' moments with my answers, all still above the summary (B5).","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
+O10 What a step showed stays in the thread once I move on: the tempo game's tries, their comments and its closing line, then other speakers' moments with my answers, all still above the summary; opened again further on, the tempo game is drawn as the chat kept it, each try with the dot's line, never cut off after ""Find a quiet spot first."" (B5).","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
 O2 -> a green moment says why it landed,
 the Take's highest moment opens with “This was your most confident moment.”
 O3 -> reopened from the Lounge, the judging shows the moment already answered
@@ -940,8 +1049,8 @@ job opened (N220) opens the whole walk on them, the moment and its
 practise above, never the words alone (founder 2026-10-28: ""it just
 opens helper words""; B10, C3).
 O7  A finished Take's Feedback walk shows everything I went through,
-read only, down to the summary: the tempo game and the speakers I
-judged, with my answers. Nothing is sent again (founder 2026-10-28,
+read only, down to the summary: the tempo game, each try with the
+line the dot drew, and the speakers I judged, with my answers. Nothing is sent again (founder 2026-10-28,
 N247: ""the whole feedback walk with all the things that are there
 that we went through"").","O1 -> ""every moment answered: Review feedback stays for the unseen word, ...""
 O2 -> ""a paragraph whose helper words were deleted is back in the walk on its earlier answer""
@@ -1207,15 +1316,19 @@ O2  Take 1 marked as unconfirmed reads back as that state.","O1 -> never exposes
 O2 -> preserves the distinct Take 1 Ideal Text terminal state",
 src/lib/willab/richMarkers.test.ts,Story,"As a speaker, I want broken formatting marks never shown as raw symbols, so that my text reads clean.","O1  Whatever the broken input, no formatting symbol reaches the screen.","O1 -> no grammar character survives, whatever the malformation",
 src/lib/willab/setupDraft.test.ts,Story,"As a speaker on a shared device, I want my unfinished talk setups visible only to me, so that nobody sees my plans.","O1  Another account, or someone signed out, sees none of my drafts.","O1 -> is scoped per account, so a switch never shows another person's draft",
-src/lib/willab/tempoStep.test.ts,Story,"As a speaker in a pace week, I want the walk to give me a tempo game right after my practise moment, read each try from where the ball stayed, and close with one line in words, so that I feel my pace change without a score.","O1  The tempo step sits right after the practise moments and before other speakers; without it the walk is unchanged (N166).
+src/lib/willab/tempoStep.test.ts,Story,"As a speaker in a pace week, I want the walk to give me a tempo game right after my practise moment, read each try from where the ball stayed, let me move on once a try really lands and push me for one more when it only came closer, so that I feel my pace change without a score and never have to decide whether to go again.","O1  The tempo step sits right after the practise moments and before other speakers; without it the walk is unchanged (N166).
 O2  It never appears in the coach-only walk or for a guest (N162).
 O3  A try that stays mostly in the green reads as better; otherwise the side the ball leaned to.
 O4  The step closes ""dynamic"" once a try was better and the last was not rushed; otherwise the side the tries leaned to.
-O5  The step runs on the backend's stretch only when its answer is whole; anything else means no tempo step.","O1 -> ""comes right after the practise moments, before other speakers"", ""leaves the walk unchanged when the Take has no intervention""
+O5  The step runs on the backend's stretch only when its answer is whole; anything else means no tempo step.
+O6  A try lands only when it runs 20 s from the first word with the ball four fifths in the green; then Will says so and the game ends (N245).
+O7  A try that came closer gets a push for one more while a try is left; otherwise its comment alone (N245).","O1 -> ""comes right after the practise moments, before other speakers"", ""leaves the walk unchanged when the Take has no intervention""
 O2 -> ""is never in the coach-only walk or a guest's""
 O3 -> ""reads a try from where the ball stayed""
 O4 -> ""closes on one line from the tries""
-O5 -> ""takes the backend's stretch only when it is whole""","Founder 2026-10-26 (backend N162: ""in the feedback walk only""; N166: ""go with the defaults""); Never-rule 1."
+O5 -> ""takes the backend's stretch only when it is whole""
+O6 -> ""lands a try only when it is long and green""
+O7 -> ""pushes for one more only when a try came closer and one is left""","Founder 2026-10-26 (backend N162: ""in the feedback walk only""; N166: ""go with the defaults""); founder 2026-10-28 (backend N245: ""If it was really better, you let me go to the next step""); Never-rule 1."
 src/lib/willab/trackedChanges.test.ts,Story,"As a speaker, I want a suggestion whose words have moved to be dropped rather than painted on the wrong words, so that strike-throughs always mark what I said.","O1  A suggestion whose span still holds its quote is kept.
 O2  A stale span is dropped, never re-anchored by searching for the quote.","O1 -> ""KEEPS a span whose words are still there""
 O2 -> ""DROPS a stale span rather than re-anchoring by search (FE-5)""",FE-5: re-finding a moved quote struck the wrong words.

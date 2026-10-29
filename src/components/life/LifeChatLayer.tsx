@@ -1,77 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { filterPicker, pickerQuery } from "@/lib/life/hashtags";
 import { mapChatCard } from "@/lib/life/mappers";
 import { CARDS } from "@/lib/life/copy";
 
 /* -------------------------------------------------------------------------- */
-/*  FE-5 — the chat # layer                                                    */
+/*  FE-5 — the chat's Life Panel card                                        */
 /*                                                                            */
-/*  Everything else about the chat stays exactly as it is. This adds two       */
-/*  things, both of which render NOTHING when they have nothing to say:        */
+/*    LifeChatCard — the answer card for a Life Panel turn. It carries at most */
+/*      ONE wall phrase, the user's own words returned at the moment they      */
+/*      apply. If the backend attached none, because nothing cleared its       */
+/*      relevance floor, we render none. NEVER a placeholder: a mismatched     */
+/*      aphorism on a note about something painful is worse than silence.     */
 /*                                                                            */
-/*    LifeTagPicker — opens on a leading "#". Four aliases per route are easy  */
-/*      to build and impossible to memorise, so the picker is what makes       */
-/*      discovery work and keeps the guide page off the critical path.         */
-/*      `#sin` routes but is not listed: right for the founder, wrong as a     */
-/*      public category in a speaking product.                                 */
-/*                                                                            */
-/*    LifeChatCard — the answer card for a # turn. It carries at most ONE wall */
-/*      phrase, the user's own words returned at the moment they apply. If the */
-/*      backend attached none, because nothing cleared its relevance floor, we */
-/*      render none. NEVER a placeholder: a mismatched aphorism on a note      */
-/*      about something painful is worse than silence.                         */
+/*  The # tag picker that lived here is gone: typing "#" offers one option,   */
+/*  "# note", from the voice notebook (useVoiceNotebook, backend N253).       */
 /* -------------------------------------------------------------------------- */
-
-export function LifeTagPicker({
-  draft,
-  entries,
-  onPick,
-}: {
-  draft: string;
-  entries: Array<{ tag: string; label: string }>;
-  onPick: (tag: string) => void;
-}) {
-  const query = pickerQuery(draft);
-  if (query === null) return null;
-  const matches = filterPicker(entries, query);
-  if (matches.length === 0) return null;
-
-  return (
-    <ul
-      role="listbox"
-      aria-label="Tags"
-      className="mb-2 overflow-hidden rounded-2xl border border-border bg-background shadow-sm"
-    >
-      {matches.map((entry) => (
-        <li key={entry.tag}>
-          <button
-            type="button"
-            role="option"
-            aria-selected={false}
-            // onMouseDown, not onClick: the composer keeps focus, so picking a
-            // tag does not close the keyboard on a phone mid-sentence.
-            onMouseDown={(e) => {
-              e.preventDefault();
-              onPick(entry.tag);
-            }}
-            className="block w-full px-4 py-2.5 text-left hover:bg-muted"
-          >
-            <span className="text-[15px] font-medium text-foreground">
-              #{entry.tag}
-            </span>
-            {entry.label ? (
-              <span className="ml-2 text-[13px] text-muted-foreground">
-                {entry.label}
-              </span>
-            ) : null}
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 /** Rendered under a bot bubble when the turn carried a life card in its
  *  metadata. `raw` is `message.metadata?.life_card`; anything else returns

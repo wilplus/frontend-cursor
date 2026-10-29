@@ -4,10 +4,10 @@ STORY    As the founder in a rush, I want to say a note and close the app, so th
 OUTCOME
   O1  The moment I tap, my note shows the wave of my voice; the words follow it; leaving the app sends the note, it is not thrown away (N194, N199).
   O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).
-  O3  While a speaker is onboarded there is no mic and the notebook's ask waits; once the first Take is in, both are there (N243).
+  O4  Typing "#" offers one option, "# note", and tapping it leaves "#" to write on: a typed "#" is one note, as the mic's (N253).
 PROVES   O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
          O2 -> keeps a note that cannot go and sends it once when back online
-         O3 -> waits while the speaker is onboarded, then the mic and the ask are there
+         O4 -> offers only "# note" after "#", and leaves "#" to write on
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -24,7 +24,7 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("@/services/api/voiceNotebook", () => api);
 
-import { useVoiceNotebook, VoiceNoteMic, VoiceNoteThread, type VoiceNotebook } from "./useVoiceNotebook";
+import { NOTE_START, useVoiceNotebook, VoiceNotePicker, VoiceNoteThread, type VoiceNotebook } from "./useVoiceNotebook";
 
 /** A mic and recorders that only do what the test tells them. */
 class FakeRecorder {
@@ -54,12 +54,10 @@ let root: Root;
 let notebook: VoiceNotebook;
 const reload = vi.fn(async () => undefined);
 const openOffer = vi.fn();
-let held = false;
-let drawn: { client_id: string; metadata: Record<string, unknown> | null }[] = [];
 
 function Harness() {
-  notebook = useVoiceNotebook({ signedIn: true, threadLoading: false, held, drawn, openOffer, reload });
-  return createElement("div", null, createElement(VoiceNoteThread, { notebook }), createElement(VoiceNoteMic, { notebook, draft: "" }));
+  notebook = useVoiceNotebook({ signedIn: true, threadLoading: false, held: false, drawn: [], openOffer, reload });
+  return createElement(VoiceNoteThread, { notebook });
 }
 
 async function settle(ms = 0) {
@@ -76,8 +74,6 @@ function setVisibility(state: "hidden" | "visible") {
 beforeEach(async () => {
   vi.useFakeTimers();
   vi.clearAllMocks();
-  held = false;
-  drawn = [];
   FakeRecorder.all = [];
   vi.stubGlobal("MediaRecorder", FakeRecorder);
   Object.defineProperty(navigator, "mediaDevices", {
@@ -159,18 +155,34 @@ describe("the voice note, written as it is said", () => {
   });
 });
 
-describe("the principles wait while the speaker is onboarded (N243)", () => {
-  it("waits while the speaker is onboarded, then the mic and the ask are there", async () => {
-    const mic = () => container.querySelector('[data-testid="voice-note-mic"]');
-    held = true;
-    drawn = [{ client_id: "ask-1", metadata: { offer: "voice_notebook" } }];
-    await act(async () => root.render(createElement(Harness)));
-    expect(mic()).toBeNull();
-    expect(openOffer).not.toHaveBeenCalled();
+describe('"#" is one note, the same as the mic (N253)', () => {
+  it('offers only "# note" after "#", and leaves "#" to write on', async () => {
+    let draft = "";
+    const onPick = vi.fn(() => {
+      draft = NOTE_START;
+    });
+    function Box() {
+      const nb = useVoiceNotebook({ signedIn: true, threadLoading: false, held: false, drawn: [], openOffer, reload });
+      return createElement(VoiceNotePicker, { notebook: nb, draft, onPick });
+    }
+    const type = async (text: string) => {
+      draft = text;
+      await act(async () => root.render(createElement(Box)));
+      await settle();
+      return [...container.querySelectorAll('[role="option"]')].map((o) => o.textContent);
+    };
 
-    held = false; // the first Take is in
-    await act(async () => root.render(createElement(Harness)));
-    expect(mic()).not.toBeNull();
-    expect(openOffer).toHaveBeenCalledWith("voice_notebook");
+    expect(await type("#")).toEqual(["# note"]);
+    expect(await type("#no")).toEqual(["# note"]);
+    expect(await type("#mistake")).toEqual([]);
+    expect(await type("I rush the close")).toEqual([]);
+
+    await type("#");
+    const option = container.querySelector('[role="option"]')!;
+    await act(async () => {
+      option.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    });
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(await type(draft)).toEqual([]); // "# ": the box is ready to write on
   });
 });

@@ -52,14 +52,17 @@ Life Panel.
    before your next talk, we'll show you what you're doing it for." Then
    "Your notes are private. Only you and Will read them. Keep a voice
    notebook?" with Yes | Not now. Once only (N195; not built yet).
-6. Never in the way of the onboarding (N243). From the plan's first
-   question until a new speaker's first Take, and while the plan's questions
-   are asked for a speaker who already has Takes ([the plan](the-plan.md)
-   A2, A3, A5), nothing of it shows: no mic, no "Keep a voice notebook?", no
-   life goals ask, no Sunday note, no quarter's ask, and Will's chat does not
-   answer as the notebook, the Sunday note or life goals. Then it is as
-   above; an ask that was due comes the next time it may. Only where the plan
-   reaches; the backend's `plan_flow.onboarding` decides.
+6. Never in the way of the onboarding (N243). While a speaker is
+   onboarded, nothing of it shows: no mic, no "Keep a voice notebook?", no
+   life goals ask, no Sunday note, no quarter's ask. Will's chat does not
+   answer as the notebook, the Sunday note or life goals either.
+   - Onboarded means: a new speaker, from the plan's first question to their
+     first Take; a speaker who already has Takes, only while the plan's
+     questions are asked ([the plan](the-plan.md) A2, A3, A5).
+   - Afterwards it is as above. An ask that was due comes the next time it
+     may.
+   - Only where the plan reaches. The backend's `plan_flow.onboarding`
+     decides.
 
 ### B · The voice note: the wave first, the words follow (decided 2026-10-26, N194; amended the same day, N199)
 
@@ -95,6 +98,12 @@ The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
    processing-authorization path, and nothing of them is kept.
 7. Only the notebook's notes. The life goals lens's small mic records as
    before.
+8. "#" is one note (N253). Typing "#" in the message box offers one option,
+   "# note"; tapped, the box keeps "# " to write on. Every typed message that
+   starts with "#" is one note, kept and answered "Noted.", the same as a note
+   said with the small mic; a leading "#note" is read as "#". The Life
+   Panel's old tags (#mistake, #observation, #win, #add, #edit) are gone from
+   the box and, for a notebook user, are notes too.
 
 ### K · Words on screen (all signed)
 
@@ -123,6 +132,7 @@ The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
   (M15): "History", "Hide history", "Set on {date}", "＋ Add a goal";
   "That's the base. Now go and live it. Come back for a short recap.". With N170: "Nothing stands out in your notes from the last
   seven days yet."; "There are no # notes from the last seven days yet."
+- **"#" is one note (B8, N253):** "# note", the founder's words.
 - **The voice note (B; approved with the prototype, 2026-10-26, N194,
   N199):** no new words on screen; "Noted." as before; the wave, the tick,
   the clock. Read by screen readers only: "Fix this note", "Close", "Kept",
@@ -366,6 +376,9 @@ The companions (N241), in order:
 
 - Who gets it beyond ring 5: the founder widens the `voice_notebook` and
   `life_goals` rings further (N212).
+- The Life Panel's first-run guide (`GUIDE` in `src/lib/life/copy.ts`) still
+  teaches #mistake, #observation, #win and #add; its new words wait for the
+  founder (N253).
 - The companions' words on screen, signed on the prototype (§2 P0).
 - The sales framing tried with salespeople on ring 5 (P4).
 - Linear: WIL-112, WIL-113 and WIL-114 get these lines as sub-issues once
@@ -403,6 +416,7 @@ The companions (N241), in order:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N253 · B8: "#" in the message box offers only "# note", and every typed "#" message is one note, as the small mic's; what stopped: the Life Panel's tag list in the box and, for a notebook user, its tags routing from the chat (#mistake to a case, #observation to the strategy check, #win, #add, #edit) · BE #1471, #1472, FE (this PR)
 - 2026-10-28 · N243 · A6: the principles wait while a speaker is onboarded (from the plan's first question to a new speaker's first Take; while the plan's questions are asked for a speaker who already has Takes): the mic and the asks in the Lounge, the Sunday note's evening, the quarter's ask and the chat's answers as the notebook, the Sunday note or life goals; was: nothing held them back · BE #1456, #1460, FE (this PR)
 - 2026-10-28 · N241 · three companions beside the principles, decided from Linear's WIL-112, WIL-113 and WIL-114: strengths (N), what is in your control (O) and the sales framing (P); their tasks in §2 · BE #1454, FE (this PR)
 - 2026-10-27 · N212 · the principles open to ring 5: the `voice_notebook` and `life_goals` rows at ring 5, set by the founder on the CEO panel's rings settings; was ring 6, the founder only (N182) · BE #1409, FE (this PR)

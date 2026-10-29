@@ -1,24 +1,24 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  STORY    As a speaker, I want a paragraph sheet to open complete and my   */
-/*           chosen helper words to show at once, so that I never see a       */
-/*           half-drawn sheet or wait for my own choice.                      */
-/*  OUTCOME                                                                   */
-/*    O1  Not read ahead, the sheet's data is nothing until both reads land,  */
-/*        then everything at once.                                            */
-/*    O2  A read that never lands holds the sheet for OPEN_WAIT_MS at most,   */
-/*        then it opens on what it has.                                       */
-/*    O3  Chosen helper words show the moment they are chosen.                */
-/*    O4  A failed save takes them back to the words shown before.           */
-/*    O5  The server's words replace them only from a read that started      */
-/*        after the save, never from one before it.                          */
-/*  PROVES   O1 -> "draws nothing until both reads land, then everything at once" */
-/*           O2 -> "opens on what it has once the bounded wait passes"       */
-/*           O3 -> "stands in the chosen words the moment they are chosen"   */
-/*           O4 -> "a failed save takes the chosen words back"               */
-/*           O5 -> "the server's words take over only from a read after the save" */
-/*  WHY      Founder 2026-09-28, "1A 2A": two delays made instant.            */
-/* -------------------------------------------------------------------------- */
+/*
+ * STORY    As a speaker, I want a paragraph sheet to open complete and my
+ *          chosen helper words to show at once, so that I never see a
+ *          half-drawn sheet or wait for my own choice.
+ * OUTCOME
+ *   O1  Not read ahead, the sheet's data is nothing until both reads land,
+ *       then everything at once.
+ *   O2  A read that never lands holds the sheet for OPEN_WAIT_MS at most,
+ *       then it opens on what it has.
+ *   O3  Chosen helper words show the moment they are chosen.
+ *   O4  A failed save takes them back to the words shown before.
+ *   O5  The server's words replace them only from a read that started
+ *       after the save, never from one before it.
+ * PROVES   O1 -> "draws nothing until both reads land, then everything at once"
+ *          O2 -> "opens on what it has once the bounded wait passes"
+ *          O3 -> "stands in the chosen words the moment they are chosen"
+ *          O4 -> "a failed save takes the chosen words back"
+ *          O5 -> "the server's words take over only from a read after the save"
+ * WHY      Founder 2026-09-28, "1A 2A": two delays made instant.
+ */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

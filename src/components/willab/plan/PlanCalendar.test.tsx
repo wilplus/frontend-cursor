@@ -1,20 +1,20 @@
 // @vitest-environment jsdom
-/* -------------------------------------------------------------------------- */
-/*  STORY    As a speaker on a plan, I want to book my calls with my coach on */
-/*           a big calendar I can swipe through, so that booking takes a few  */
-/*           taps and never stands between me and my first Take.              */
-/*  OUTCOME                                                                   */
-/*    O1  Once Will asks for a call, its calendar comes up full screen: the  */
-/*        call's name, "0 of 2 booked" and the deadline; only a day with an  */
-/*        open time can be picked, and Book waits for a time.                */
-/*    O2  A day, then a time, then Book sends exactly that time.            */
-/*    O3  Edit moves the deadline from the same screen (N168).              */
-/*    O4  Skip passes the call on without booking it.                       */
-/*  PROVES   O1, O2, O3 -> "a day, a time, then Book"                         */
-/*           O4 -> "Skip passes the call on"                                  */
-/*  WHY      The calls' calendar, full screen (founder 2026-10-28, backend   */
-/*           N248); docs/flows/the-plan.md §1 F.                              */
-/* -------------------------------------------------------------------------- */
+/*
+ * STORY    As a speaker on a plan, I want to book my calls with my coach on
+ *          a big calendar I can swipe through, so that booking takes a few
+ *          taps and never stands between me and my first Take.
+ * OUTCOME
+ *   O1  Once Will asks for a call, its calendar comes up full screen: the
+ *       call's name, "0 of 2 booked" and the deadline; only a day with an
+ *       open time can be picked, and Book waits for a time.
+ *   O2  A day, then a time, then Book sends exactly that time.
+ *   O3  Edit moves the deadline from the same screen (N168).
+ *   O4  Skip passes the call on without booking it.
+ * PROVES   O1, O2, O3 -> "a day, a time, then Book"
+ *          O4 -> "Skip passes the call on"
+ * WHY      The calls' calendar, full screen (founder 2026-10-28, backend
+ *          N248); docs/flows/the-plan.md §1 F.
+ */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";

@@ -138,14 +138,14 @@ built and what is still to come.
    questions are personal: how stressed and how ready you feel, what worries
    you, and how you feel before each Take. I only ask with your yes. Your
    coach and I use your answers to shape your plan. You can turn this off in
-   Data & consent." with Read more, which opens Privacy section 4e in a
+   Settings." (N249) with Read more, which opens Privacy section 4e in a
    window, and in the footer "Not now" and "Yes, ask me"; nothing else is
    taken while Will waits. "Yes, ask me" goes on with the worry question and
    the ratings. "Not now" adds no line from Will: the worry question and the
    ratings are not asked or kept, the plan is built from what it has and
    goes on to the calls, and its end goes to "What's next?" without "How did
    it go?". A plan made before the yes existed is asked at its next personal
-   moment (the last ratings, or its end). Data & consent has a card,
+   moment (the last ratings, or its end). Settings has a card,
    "Personal answers in your plan", between Help improve WillpowerLab and
    WhatsApp, where the yes is turned on later or off: off asks first, then
    deletes the personal answers (the answers and their recordings, their
@@ -261,17 +261,17 @@ built and what is still to come.
    said it") and "● Record Take N" inside. The chat has one record button, in
    the newest bubble: the previous Take's closing message keeps its words and
    gives its button up, and a line written after it moves the bubble below.
-   Once the Take is recorded the bubble gives its button up too, while the
-   Take processes and its walk runs; the Take's own closing message brings
-   "Record Take N" back after the walk's summary (N244).
+   Once a newer Take is recorded, in any project, the bubble loses its
+   button for good; the new Take's closing message brings "Record Take N"
+   back after its walk's summary (N244, N251).
    The last practice and the next plan show the same bubble with N89's
    closing line. No "Start a new project" under it: the "+" next to "Type
    here" opens the projects, as today (N167, N169).
-7. The walk shows the Take's two best moments and the moment where this
-   week's level shows most: a third moment, or one of the two when the level
-   shows most there; when no moment shows it, the two best (N246 item 3, in
-   place of N134 and N209's best moment and the level's: "Two best +
-   level"). The level's moment opens with "This week's level: {level}.
+7. The walk shows the Take's two best moments and this week's level as
+   well: as a third moment, or on one of the two when the level shows there;
+   when nothing shows the level, just the two best (N246, "Two best +
+   level"; was the best moment and the level's, N134, N209). The level's
+   moment opens with "This week's level: {level}.
    Here's where it shows:" above the speaker's clip, and is practised with
    the level's own practice, its row of the treatment picker: the AI
    version of the voice with its pace tip ("Let your key line land"), its
@@ -568,8 +568,10 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N251 · today's one thing loses its "Record Take N" once a Take is recorded in any project, not only its own (G6). Was: a Take in another project left the button up beside the new walk (N244) · BE (N251 log), FE (this PR)
 - 2026-10-28 · N248 · the calls' calendar opens full screen over the chat: "Skip" at the top left, one "Book" at the bottom; the month swipes, a day picked folds it into its week with the times in four columns; "Edit" turns the same screen into the deadline's (F1, F2, F7, E2). No new words. Was: the calendar in the footer under the chat, "Skip" and "Book" side by side, the month by its arrows · BE #1462, FE (this PR)
-- 2026-10-28 · N246 · G7: the walk shows the two best moments and the level's moment as well, a third or one of the two; and the walk the speaker sees now reads the level (it never did: the serve path asked a store that cannot read a plan, so only the dark frame had the level's moment). Was: the best moment and the level's · BE #1459, BE (code PR), FE (this PR)
+- 2026-10-28 · N249 · D5: Will's ask for the plan's own yes ends "You can turn this off in Settings.", the page's name since N196; an ask already in a thread keeps its words. Was: "… in Data & consent." · BE #1465, #1467, FE (this PR)
+- 2026-10-28 · N246 · G7: the two best moments and this week's level as well, a third moment or one of the two; and the walk the speaker sees now has the level (until now only a hidden copy on the server did). Was: the best moment and the level's · BE #1459, BE #1464, FE #1061
 - 2026-10-28 · N150 · fixed (B6): a question, opener or ack the AI left with a slot unfilled ("If {who they will speak to} remembers …", seen by the founder) is not kept, and Will says the plain template; a slot is never kept as a fact, and the plan card's "Why this line?" reads "them" for one stored before · BE #1461
 - 2026-10-28 · N243 · A5: the plan says when the speaker is onboarded (`onboarding`: the questions, then a new speaker's plan until the first Take; not a plan waiting for the next Take), and the principles wait meanwhile; the Lounge reads the plan again when a Take lands in the thread, so the first Take's footer gives way and the principles come back without the app being opened again; was: nothing held them back while the questions were asked · BE #1456, #1460, FE (this PR)
 - 2026-10-28 · N244 · today's one thing gives its "Record Take N" up once that Take is recorded; the Take's own closing message brings the next one after the walk's summary (G6). Was: the button came back the moment processing ended, beside the new Take's walk, until the closing message landed · BE (N244 log), FE (this PR)

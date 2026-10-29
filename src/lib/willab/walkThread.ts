@@ -198,16 +198,21 @@ export function othersChat(
 }
 
 /** The tempo step as the chat kept it in `take`'s walk (N166 step 4): Will's
- *  opening lines, each "Try N" and its comment, the closing line or the
- *  Skip, in order. A walk played again shows them (N247). Pure. */
+ *  opening lines, each "Try N" with the dot's line and its comment, the
+ *  closing line or the Skip, in order. A walk opened again shows them (B5,
+ *  N247). Pure. */
 export function tempoSaidIn(messages: readonly LoungeMessage[], take: string): WalkTempoLine[] {
   return messages
     .filter((m) => m.kind === "walk_step" && m.metadata?.take_session_id === take && String(m.metadata?.step ?? "").startsWith("tempo:") && m.body.trim())
-    .map((m) => ({ author: m.role === "user" ? "speaker" : "app", body: m.body.trim() }));
+    .map((m) => {
+      const path = m.metadata?.path;
+      const line: WalkTempoLine = { author: m.role === "user" ? "speaker" : "app", body: m.body.trim() };
+      return Array.isArray(path) && path.every((v) => typeof v === "number" && v >= 0 && v <= 1) ? { ...line, path } : line;
+    });
 }
 
-/** One line of the tempo step as the chat kept it. */
-export type WalkTempoLine = { author: "app" | "speaker"; body: string };
+/** One line of the tempo step as the chat kept it; a try has the dot's line. */
+export type WalkTempoLine = { author: "app" | "speaker"; body: string; path?: readonly number[] };
 
 /** How many of other speakers' moments the speaker judged in `take`'s walk:
  *  their "👍 Yes" bubbles in the chat (`answer:others`). The judging

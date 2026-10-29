@@ -32,8 +32,8 @@
  *       practise above, never the words alone (founder 2026-10-28: "it just
  *       opens helper words"; B10, C3).
  *   O7  A finished Take's Feedback walk shows everything I went through,
- *       read only, down to the summary: the tempo game and the speakers I
- *       judged, with my answers. Nothing is sent again (founder 2026-10-28,
+ *       read only, down to the summary: the tempo game, each try with the
+ *       line the dot drew, and the speakers I judged, with my answers. Nothing is sent again (founder 2026-10-28,
  *       N247: "the whole feedback walk with all the things that are there
  *       that we went through").
  * PROVES   O1 -> "every moment answered: Review feedback stays for the unseen word, ..."
@@ -367,7 +367,7 @@ describe("N247: a finished walk opened again holds every step as it went", () =>
     chat.thread = {
       messages: [
         said("1", "tempo:open", "bot", opening),
-        said("2", "tempo:try", "user", TEMPO_COPY.tryLabel(1), { attempt: 1 }),
+        said("2", "tempo:try", "user", TEMPO_COPY.tryLabel(1), { attempt: 1, path: [0.5, 0.6, 0.55] }),
         said("3", "tempo:comment", "bot", TEMPO_COPY.comment.ok, { attempt: 1 }),
         said("4", "tempo:close", "bot", TEMPO_COPY.close.dynamic),
         said("5", "answer:others", "user", "👍 Yes", { attempt: 1 }),
@@ -404,6 +404,8 @@ describe("N247: a finished walk opened again holds every step as it went", () =>
     for (const line of [TEMPO_COPY.game.rushed, TEMPO_COPY.room, TEMPO_COPY.tryLabel(1), TEMPO_COPY.comment.ok, TEMPO_COPY.close.dynamic]) {
       expect(text).toContain(line);
     }
+    // The try keeps the line the dot drew.
+    expect(live!.querySelector("[data-walk-thread-body] polyline")?.getAttribute("points")?.split(" ")).toHaveLength(3);
     // Other speakers: the moment judged, with the answer given.
     expect(text).toContain(COPY.confidenceQuestion);
     expect(text).toContain("👍 Yes");

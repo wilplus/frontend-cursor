@@ -11,7 +11,7 @@ OUTCOME
   O7  The walk opens once with "Hi {name}, good to see you back!" (Take 1: "Hi {name}, great to meet you!"; no name: the same without it), and the Lounge keeps the same words (N120).
   O8  Other speakers asks for my Take's moments and shows each one the server sends, up to three ("Now 3 moments from other speakers."), however many tries I made; with none the step is left out (N119). My answer on one moves me on to the next, though the chat counts it at once.
   O9  On a plan, the moment where this week's level shows most opens with "This week's level: {level}. Here's where it shows:" above my clip; no other moment does (G7, backend N209).
-  O10 What a step showed stays in the thread once I move on: the tempo game's tries, their comments and its closing line, then other speakers' moments with my answers, all still above the summary (B5).
+  O10 What a step showed stays in the thread once I move on: the tempo game's tries, their comments and its closing line, then other speakers' moments with my answers, all still above the summary; opened again further on, the tempo game is drawn as the chat kept it, each try with the dot's line, never cut off after "Find a quiet spot first." (B5).
 PROVES   O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
          O2 -> a green moment says why it landed,
                the Take's highest moment opens with “This was your most confident moment.”
@@ -327,6 +327,19 @@ describe("FeedbackWalk", () => {
     expect(marks()).toEqual(expect.arrayContaining([`${WALK_COPY.othersTitle} · 2 ${COPY.pagerOf} 2`]));
     expect(said().filter((s) => s === `👍 ${WALK_COPY.judgeYes}`)).toHaveLength(2);
     expect(thread()).toContain("You slowed it right down.");
+    // Opened again further on, the game is drawn as the chat kept it.
+    const kept = [
+      { author: "app", body: TEMPO_COPY.room },
+      { author: "speaker", body: TEMPO_COPY.tryLabel(1), path: [0.5, 0.9, 0.95] },
+      { author: "app", body: TEMPO_COPY.comment.rush },
+      { author: "app", body: TEMPO_COPY.close.rush },
+    ] as const;
+    draw({ seq: 2, at: over.model.plan.findIndex((s) => s.key === "summary") }, { ...over, tempoSaid: kept });
+    await act(async () => {});
+    expect(thread()).toContain(TEMPO_COPY.close.rush);
+    // Its try keeps the line the dot drew, from the chat.
+    const drawn = Array.from(live()!.querySelectorAll("[data-walk-thread-body] polyline")).at(-1);
+    expect(drawn?.getAttribute("points")?.split(" ")).toHaveLength(kept[1].path.length);
   });
 
   it("with nobody to judge, the step leaves nothing in the thread", async () => {

@@ -271,12 +271,10 @@ step; the loop never waits for a coach.
   pass through").
 - **C2 Praise.** The Take's two best moments are shown, however low,
   never two in one paragraph and both on one slide when that is where they
-  are (H1; founder, 2026-10-23, N118: "minimum 2; best two"; a Take whose
-  clips all sit in one block is cut so it shows two, and a sentence that
-  holds the helper words its slide had when the Take was recorded gives its
-  place to the next best, 2026-10-28, N246: "go for the next confident
-  moment"; on a plan the level's moment comes as well, the-plan.md G7),
-  praise first
+  are (H1; founder, 2026-10-23, N118: "minimum 2; best two"; a short Take
+  too, and a sentence that already has its helper words gives its place to
+  the next best, 2026-10-28, N246: "go for the next confident moment"; on a
+  plan, this week's level as well, the-plan.md G7), praise first
   and then the corrections, each group in slide order, and the voice decides
   each: a moment whose voice reaches the floor is praised unless its words
   need help (then the Clearer version, C5), one whose voice is under it is
@@ -324,11 +322,10 @@ step; the loop never waits for a coach.
   (C7; founder 2026-10-27, N220: "if you improved, you can make it your
   habit words"; until then a correction's Good job went on with none, so a
   Take whose two moments were both under the floor had no helper words); a
-  moment gets them once. Words saved at the first of two moments on one
-  slide never take the second away: a moment the walk shows stays until it
-  is answered (founder 2026-10-28, N246 item 5, "Second stays"; until then
-  the saved paragraph was done, lock 2026-09-30 D8, and the second left the
-  walk). The step:
+  moment gets them once. When both moments sit on one slide, helper words
+  picked at the first never hide the second: it stays until it is walked
+  (founder 2026-10-28, N246, "Second stays"; until then it left the walk).
+  The step:
   a big bubble in the thread with large plain word buttons, no borders,
   chosen words orange;
   "N of 8 words" at the top, the count against the cap (eight since
@@ -487,13 +484,17 @@ step; the loop never waits for a coach.
      up to the practice day's bubble that comes after it (N167; decided, not
      built, [`the-plan.md`](the-plan.md) G6).
 
-  From the moment the next Take is recorded until its walk reaches its
-  summary, the chat offers no Take: the last Take's closing message keeps its
-  words and gives "Record Take N" up, while the Take processes and while its
-  walk runs, and the new Take's own closing message brings it back (founder
-  2026-10-28, N244: "disable the new event while the processing is
-  happening, so that it is only possible once it's finished"). The "+" and
-  the Ideal Text page's own "Record Take N" are as before.
+  **Between two Takes** (N244, N251). From the moment the next Take is
+  recorded, in any project, until its walk reaches its summary, the chat
+  shows no "Record Take N". Every closing message above it keeps its words
+  and loses its button for good. The new Take's closing message, written
+  with the summary, brings the button back. So the chat has one record
+  button, the newest Take's; another project is reached through the "+".
+  The "+" and the Ideal Text page's own "Record Take N" are unchanged
+  (founder 2026-10-28: "disable the new event while the processing is
+  happening, so that it is only possible once it's finished"; then "One
+  record button in the chat, the newest Take's; other projects through the
+  '+'").
 
   The summary is the walk's last step (C9) and is not drawn in the chat
   (founder 2026-10-26, N192, question 1: "In the walk only").
@@ -682,8 +683,8 @@ step; the loop never waits for a coach.
   shown     = the two highest willfidence (S × W) of the Take, however
               low, at most one per ~75-word block, two on one slide
               allowed; clips with enough words rank before short ones;
-              then a clip that holds the helper words its slide had when
-              the Take was recorded ranks after the rest (N246);
+              a sentence that already has its slide's helper words (as
+              when the Take was recorded) comes last (N246);
               fewer than two only with fewer than two playable clips
               (N118, 2026-10-23)
   clip      = in each shown block, its highest willfidence clip that can
@@ -691,9 +692,9 @@ step; the loop never waits for a coach.
   blocks    = when the two best share a block, the boundary between them
               moves so each has its own (40 … 120 words, never across a
               slide, never cutting a clip); a one-block Take is split the
-              same way when each clip has 5 words or more (N118); with no
-              such cut and no other block to show, the block is cut
-              between the two at its most even boundary (N246)
+              same way when each clip has 5 words or more (N118); when no
+              cut keeps 40 words a side and nothing else could be shown,
+              the block is split evenly between the two (N246)
   each      S ≥ FLOOR → praised, unless the words need help (H3) → the
               Clearer version, then its helper words (N113); S < FLOOR →
               corrected: the Clearer version
@@ -701,13 +702,12 @@ step; the loop never waits for a coach.
   highest   = of the two, the stronger voice (S); its bubble opens with
               the signed line (C2, N118)
   try       = Δ voice score (S) vs the original ≥ MARGIN (+0.05) → better
-  plan      = on a plan (the-plan.md G7, N246 item 3): the two best, as
-              above, and the clip where this week's level shows most
-              (services/plan_walk.py), read on the two and on other
-              blocks' clips: a third moment, or one of the two; always
+  plan      = on a plan (the-plan.md G7, N246): the two best, and the
+              clip where this week's level shows most
+              (services/plan_walk.py): a third moment, or one of the two;
               practised with the level's own practice, its line above the
-              clip; no clip shows it → the two best; the level is the one
-              the plan had when the Take was recorded
+              clip; nothing shows it → just the two best; the level is the
+              one the plan had when the Take was recorded
   ```
 
   The unit is the sentence. FLOOR is 0.6 at launch, then calibrated so
@@ -863,12 +863,15 @@ October (backend N111).
   "That part slowed down, with long pauses. 🐢 Let's try a little game."
   (slow), "Tell me more about {topic}, and keep the ball in the green."
   ({topic} the backend's few words, else "that part"), "🤫 Find a quiet spot
-  first."; the buttons "I'm ready", "Skip", "Stop", "Practise again", "See
-  how it went", "Next"; the speaker's bubble "Try 1" to "Try 3"; after a
-  try "Better. You let it breathe." · "Still rushed. Take a breath after
-  each offer." · "A bit slow. Keep the words moving between the pauses.";
-  the close "Dynamic. You paused where it mattered. 🔥" · "Still rushed.
-  Give each offer its own breath next Take." · "Slow. Keep the words
+  first."; the buttons "I'm ready", "Skip", "Stop", "Practise again",
+  "Next"; the speaker's bubble "Try 1" to "Try 3"; after a try "Better.
+  You let it breathe." · "Still rushed. Take a breath after each offer." ·
+  "A bit slow. Keep the words moving between the pauses."; a try that
+  lands "That landed. 🎯 Really better. Let's move on."; while a try is
+  left, under "Better. You let it breathe.", "You're close. 💪 Give it one
+  more try." (both signed 2026-10-28, N245); the close "Dynamic. You paused
+  where it mattered. 🔥" · "Still rushed. Give each offer its own breath
+  next Take." · "Slow. Keep the words
   moving between the pauses."; a blocked microphone "The microphone is
   blocked. Allow it for this site in the browser's settings, then try
   again." In code: `TEMPO_COPY`, `src/lib/willab/tempoStep.ts`.
@@ -980,8 +983,9 @@ October (backend N111).
   accepted and practised it", "✓ You kept your words", "✓ Skipped", "✓
   Answered" and "Do you agree to share your next take with others?"
   (2026-10-21); and the AI clip's L3, L4, L5 and L14–L18 in the walk
-  (2026-10-23, N120). The praise keeps its own lines (N122: the
-  one-sentence praise of N120 was dropped before it was built).
+  (2026-10-23, N120); the tempo step's "See how it went" (2026-10-28,
+  N245: Will decides when the game ends). The praise keeps its own lines
+  (N122: the one-sentence praise of N120 was dropped before it was built).
 
 ### L and M · The Sunday note and life goals
 
@@ -994,7 +998,7 @@ them.
 
 ### T · The tempo step (the pace step)
 
-Founder 2026-10-24 to 2026-10-26, backend N162, N166, N179, N181. Built: the founder and whoever the rings panel's `tempo_step` row reaches see it (§2 says what is left). Everything about this feature is in this block; it moved here from §2 when its build steps were done (docs audit, 2026-10-26).
+Founder 2026-10-24 to 2026-10-28, backend N162, N166, N179, N181, N245. Built: the founder and whoever the rings panel's `tempo_step` row reaches see it (§2 says what is left). Everything about this feature is in this block; it moved here from §2 when its build steps were done (docs audit, 2026-10-26).
 
 **In one line.** After a Take where the speaker rushed or dragged, the walk
 plays that stretch back and asks them to talk about the same thing again
@@ -1002,7 +1006,7 @@ while a dot on a scale follows their pace live.
 
 **Where and when** (N162, N178).
 - In the Feedback walk only. Never in the coach panel, the Lounge, or before the Take.
-- **Opened again** once the walk is done, it shows what the chat kept, read only: Will's opening lines, each "Try N" with its comment, the closing line or the Skip, then Next. No scale and no microphone. A Take that had no tempo step has none (N247).
+- **Opened again** once the walk is done, it shows what the chat kept, read only: the stretch, Will's opening lines, each "Try N" with the line the dot drew and Will's word on it, the closing line (none after a try that landed) or the Skip, then Next. No scale and no microphone. A Take that had no tempo step has none (N247). The same, without its Next, when the walk is opened again further on before it is done (B5).
 - It sits before the Ideal Text, so it always has a Skip, and the whole walk has a time limit (N178, which replaces N130's "never between a Take and the Ideal Text" for the walk's own practice steps). Open: the limit; the founder sets it (§3).
 - It shows when the diagnosis and the plan say so: in a pace or pause week, from Take 2 ([the plan](the-plan.md), item 5). A speaker without a plan gets it from Take 2 whenever the pace scale finds a stretch outside the green, once in that walk (N181).
 - It is the founder's "Sniper": the pace exercise of N129. The old Strength/Pace dartboard stays retired (N127, N181).
@@ -1019,10 +1023,13 @@ backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
 3. Will's bubble with the stretch's topic: "Tell me more about {topic}, and keep the ball in the green."
 4. Will's bubble: "🤫 Find a quiet spot first."
 5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar. Nothing else appears until Stop.
-6. The try: the dot's path, then one comment: "Better. You let it breathe." / "Still rushed. Take a breath after each offer." / "A bit slow. Keep the words moving between the pauses."
-7. **Practise again**. After the second try, also **See how it went**. After the third, a one-line summary (for example "Dynamic. You paused where it mattered. 🔥"), then the walk goes on.
+6. The try: the dot's path, then Will's word on it; Will guides, the speaker never has to choose between another try and moving on (N245):
+   - **It lands** (really better): "That landed. 🎯 Really better. Let's move on.", then **Next**; the game ends there, on any try.
+   - **It came closer** (more than half in the green, not enough to land): "Better. You let it breathe." and, while a try is left, "You're close. 💪 Give it one more try.", then **Practise again**.
+   - **Not yet**: "Still rushed. Take a breath after each offer." / "A bit slow. Keep the words moving between the pauses.", then **Practise again**.
+7. After the third try without a landing, a one-line summary (for example "Dynamic. You paused where it mattered. 🔥"), then **Next** and the walk goes on. The Skip stays at the start and during each try (N178 item 3).
 
-Once the walk goes on, the game stays in the thread as it was played (B5): each try with its comment and the closing line, or the speaker's "Skip" as their own bubble; the scale shows only while the walk stands on the step (founder 2026-10-28).
+Once the walk goes on, the game stays in the thread as it was played (B5): each try with the line the dot drew and Will's word on it, and the closing line (none after a try that landed), or the speaker's "Skip" as their own bubble; the scale shows only while the walk stands on the step (founder 2026-10-28). A walk opened again further on draws the game as the chat kept it, never only its opening lines (founder 2026-10-28: "It feels like the practice is gone from the feedback walk").
 
 **Decided** (the founder, N166 and N179; each as the prototype draws it):
 
@@ -1031,7 +1038,9 @@ Once the walk goes on, the game stays in the thread as it was played (B5): each 
 | Every word above | Signed, listed in §1 K (N179) |
 | Which stretch | The one the scale reads furthest from the green |
 | Where in the walk | Right after the practise moment |
-| How many tries | Up to three |
+| How many tries | Up to three; a try that lands ends the game (N245) |
+| When a try lands | 20 s or more from the first word, four fifths of it in the green (N245). The Take's stretch was at least a quarter outside the green, so a landed try is always clearly better. A shorter try can't land: the ball needs about 10 s of talk without a pause to leave the green |
+| When a try came closer | More than half of it in the green (N245) |
 | A noisy room | The quiet-spot line only; no listening check |
 
 **The build, in order** (N166 item 5):
@@ -1047,7 +1056,7 @@ Once the walk goes on, the game stays in the thread as it was played (B5): each 
 
 **The code.**
 - The plan: `src/lib/willab/walkPlan.ts`, `WalkIntervention` and the `tempo` step key. A new intervention is a new kind there, its place in `buildWalkPlan` and its screen.
-- The step: `src/components/willab/walk/WalkTempo.tsx`; played again, `WalkTempoSaid.tsx`, from the chat's lines (`tempoSaidIn`, `src/lib/willab/walkThread.ts`); what a try means and the signed words (`TEMPO_COPY`): `src/lib/willab/tempoStep.ts`.
+- The step: `src/components/willab/walk/WalkTempo.tsx`; played again, or drawn from nothing in a walk opened further on (`TempoOrKept` in `FeedbackWalk.tsx`), `WalkTempoSaid.tsx`, from the chat's lines (`tempoSaidIn`, `src/lib/willab/walkThread.ts`; each try's message keeps the dot's path in its metadata); what a try means, when it lands and what Will says to it (`readTry`, `landed`, `afterTry`) and the signed words (`TEMPO_COPY`): `src/lib/willab/tempoStep.ts`. A landed try is kept for Will as a better try and the game as ended dynamic (the backend's words for the game are unchanged).
 - The meter: `src/lib/willab/pace/` (`paceSignal.ts`, `paceMic.ts`); the scale: `src/components/willab/pace/PaceScale.tsx`.
 - The stretch: backend `services/tempo_stretch.py` (route `GET /v2/explore/arc/<arc>/review/tempo/<take>`), asked once per Take by `useReviewTempo.ts` through `src/services/api/reviewTempo.ts`. The scale reads slow only on pauses of several seconds, so most stretches it picks are rushed.
 - What is kept: backend `POST /v2/explore/arc/<arc>/review/tempo/<take>` (`tempo_stretch.keep_tries`, a speaker-memory event of kind `take` with its `tempo` part, docs/SPEAKER-MEMORY.md), sent by `postTempoGame` in `src/services/api/reviewTempo.ts` when the game ends.
@@ -1212,10 +1221,13 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N251 · a Take recorded in any project takes "Record Take N" from every closing message above it, and the button does not come back on them: the chat has one record button, the newest Take's, and other projects are reached through the "+" (D4). Was: N244 held only inside one project, so another project's button stayed beside the new walk, and each project's last closing message kept its own. D4 rewritten in short sentences · BE (N251 log), FE (this PR)
+- 2026-10-28 · — (B5, T) · fixed: the tempo game drawn from nothing (the walk opened again further on, or its leaving copy) shows the game as the chat kept it, and every kept try has the line the dot drew (its path in the try's message); a finished walk played again shows the stretch and the lines too. Was: it showed only its opening lines, down to "🤫 Find a quiet spot first.", and a walk played again showed "Try N" without its line (founder 2026-10-28: "the sniper as a graphic does not stay there … It feels like the practice is gone from the feedback walk") · FE (this PR)
+- 2026-10-28 · N245 · the tempo step (the Sniper) guides the tries: a try that lands (20 s or more from the first word, the ball four fifths in the green) gets "That landed. 🎯 Really better. Let's move on." and Next, on any try; one that came closer gets "Better. You let it breathe." and "You're close. 💪 Give it one more try."; otherwise its comment; up to three tries, then the closing line. Was: Practise again after every try, See how it went from the second, the close only after the third or on the speaker's choice (founder 2026-10-28: "If it was really better, you let me go to the next step") · BE (decisions log), FE (this PR)
 - 2026-10-28 · N247 · built: a finished walk opened again shows everything the speaker went through, read only, down to the summary: the tempo step and the other speakers they judged included. Was: it stopped at the newest moment, left the tempo step out and skipped the judging (B10, C8, T) · BE #1463, FE (this PR)
 - 2026-10-28 · — (B10, C3) · fixed: the Feedback walk whose newest part is helper words opens the whole walk standing on them, through the same door as every other step, once the Take's answers and tries are read. Was: it opened those helper words by themselves as soon as the page was up, before the tries were read, so words a Good job had opened (N220) were not in the walk yet and showed alone, under the hello, with nothing before or after (founder 2026-10-28: "When I click the feedback walk bubble, it just opens helper words") · FE (this PR)
-- 2026-10-28 · — (B5, C8, T) · fixed: a step the walk moves on from stays in the thread as it was drawn: the tempo game's tries, their comments and its closing line (a Skip with no try as the speaker's "Skip" bubble), and other speakers' moments with the answers given, all there to scroll back to from the summary; the walk never stands on an earlier part's helper words while the tempo step's recorder is in the dock (B9). Was: moving on drew the step again from nothing, so the tempo game kept only its opening lines, down to "🤫 Find a quiet spot first.", and other speakers' moments left the thread (founder 2026-10-28: "I click next and it's gone, and should be stayed, should be there, should be in the walk, so that there is a continuity") · FE (this PR)
-- 2026-10-28 · N246 · every Take shows two moments: a Take whose clips all sit in one block is cut between its two best when no 40-to-120 cut fits; a sentence holding the helper words its slide had when the Take was recorded gives its place to the next best; a moment the walk shows stays after helper words saved at the first of two on one slide; on a plan, the two best and the level's moment, the level now read on the walk the speaker sees too (C2, C3, H1). Was: a short Take showed one moment, the second of two on one slide left the walk once helper words were saved, and the served walk never read the level · BE #1459, BE (code PR), FE (this PR)
+- 2026-10-28 · — (B5, C8, T) · fixed: when the walk moves on, the step it leaves stays as it was: the Sniper's tries, comments and closing line (or your "Skip"), and other speakers' moments with your answers. Was: the step was redrawn empty, so the Sniper stopped at "🤫 Find a quiet spot first." and other speakers disappeared (founder 2026-10-28: "I click next and it's gone") · FE #1060
+- 2026-10-28 · N246 · every Take shows two moments, a short one too; helper words picked at the first of two moments on one slide no longer hide the second; a sentence that already has its helper words gives way to the next best; on a plan, the two best and this week's level as well (C2, C3, H1). Was: a short Take showed one moment, and the second of two on one slide left the walk once helper words were picked · BE #1459, BE #1464, FE #1061
 - 2026-10-28 · N244 · the last Take's closing message gives "Record Take N" up once the next Take is recorded, and the chat offers no Take until that Take's walk reaches its summary and its own closing message lands (D4). Was: the button was held only while the Take processed, then came back, naming the Take just recorded, beside the new Take's walk (founder 2026-10-28: "I can see two bubbles interfering … one for the new take and one the summary of the take I just took") · BE (N244 log), FE (this PR)
 - 2026-10-28 · — (H1) · wording: a try is better when its voice score (S) rises by the margin, +0.05, over the original clip, as built (`after_practice.GOOD_JOB_MARGIN`) and as N84 says ("on the voice alone"); was "Δ willfidence", which reads as voice × words. No rule changes (founder 2026-10-28: "fix the doc wording to say voice score") · FE (this PR)
 - 2026-10-28 · N237 · built: a WhatsApp reply that says STOP turns the messages off for every account at that number, as Remove does (the number it signs in with stays, N235), a booking that carries the number forgets it (N233), and WhatsApp answers "Done. We've stopped the WhatsApp messages and deleted your number." (signed, N174); any other reply is not read yet (N171 item 6). Off until its two keys are on Railway and the webhook is set in Meta · BE #1450, FE (this PR)
