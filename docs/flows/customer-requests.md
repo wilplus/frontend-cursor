@@ -78,18 +78,31 @@ it is built in.
 
 ### C · The request in the answerer's chat
 
-1. The request is the Take's one ask, in the Lounge's footer slot that every
-   ask uses: Will's lead-in bubble in the thread, the grey card with the
-   customer's words and photo, Not now | Answer (walk page E1, D4). The
-   lead-in names the customer by the first name they gave, or "A customer"
-   (N236 item 4). The answerer answers in her own Lounge, as any speaker
-   (N236 item 1), and is told of each request on WhatsApp: one message from
-   WillpowerLab's number with a link to her Lounge (N236 item 5).
-2. Nothing sits between a Take and its Ideal Text: a request waits until the
+1. **A list of chats** (N256): an answerer with customer requests opens her
+   Lounge on a list, as WhatsApp does: Will pinned on top, then one chat per
+   customer, with the customer's photo as the avatar, the first name and the
+   question, the last message, the unread count and a status (Waiting for
+   you, Sent, Booked). Waiting for you comes first; filters All, Waiting,
+   Sent, Done. A speaker without customer requests never sees the list: the
+   Lounge opens as today (Never 3). She is told of each request on WhatsApp:
+   one message from WillpowerLab's number with a link to her chats (N236
+   item 5).
+2. **The customer's chat**: the request is the customer's bubble, with the
+   photo, the words and the last digits of the number; the ask sits in the
+   Lounge's footer slot, the grey card "{customer} asks for your advice."
+   and Not now | Answer (walk page E1, D4). The customer is named by the
+   first name they gave, or "A customer" (N236 item 4). Will's asks sit in
+   the footer and what happened is a line in the middle; no Will bubble in a
+   customer's chat.
+3. **Will's chat** is the Lounge as it is today: her own Takes, each
+   answer's Feedback walk, helper words and practice (N256 item 3).
+4. **No group chat.** A team comes later as a shared queue: Assign to {name}
+   on a customer's chat and a Team filter (N256 item 4).
+5. Nothing sits between a Take and its Ideal Text: a request waits until the
    chain of the last Take is done. Not now brings it back after the next Take
    (Never 3).
-3. One project per request, named by the customer's ask (N223 item 3).
-4. A request unanswered for 24 hours sends one email to the founder and one
+6. One project per request, named by the customer's ask (N223 item 3).
+7. A request unanswered for 24 hours sends one email to the founder and one
    to the client, the same pattern as `coach_moments_queue.reach_alarm`
    (N223 item 10).
 
@@ -109,12 +122,15 @@ it is built in.
    like every Take: the transcript, the walk on how she said it, the Ideal
    Text one paragraph per slide (Never 5 holds: Take 2 replaces the text, the
    old one stays in the history).
-5. **Send first, the walk after** (N236 item 2): once the Take is
-   processed, its Ideal Text card lands in the thread marked new, and Will
-   asks at once "Send this answer to {customer} on WhatsApp?", Not yet |
-   Send, with a grey card listing what the customer gets (her voice, the
-   text, each pick with its price). A line in the thread when it went. The
-   walk waits on the card and opens from it, as after any Take.
+5. **Send first, the walk after** (N236 item 2, N256 item 2): once the Take
+   is processed, her answer lands in the customer's chat as her bubble with
+   her voice and the Ideal Text card, and the footer asks at once "Send this
+   answer to {customer} on WhatsApp?", Not yet | Send, with a grey card
+   listing what the customer gets (her voice, the text, each pick with its
+   price). A line in the middle when it went. A Take recorded in a
+   customer's chat belongs to that customer, so no answer can reach the
+   wrong person. Will's chat then says "Your answer to {customer} is sent.
+   Your feedback is ready.", and the card there, marked new, opens the walk.
 6. A Take 2 after sending does not change what the customer has: Will asks
    again, and only a second Send replaces it (N236 item 3).
 
@@ -171,11 +187,11 @@ it is built in.
 ### F · Follow-ups
 
 1. What the customer writes in the message box, or a reply to the text
-   message, lands in the answerer's chat like the request, as an ask with the
-   customer's words. The answer comes back in the same thread, later; no
+   message, lands in that customer's chat as their bubble, and the chat goes
+   back to Waiting for you. The answer comes back in the same chat, later; no
    instant answer until a model answers alone (N225 item 5, N231 item 5).
-2. A follow-up may be typed in the card, no Take, sent the same way; the pair
-   is still recorded. Record instead makes it Take 2 of the same project. The
+2. A follow-up may be typed in the customer's chat's message box, no Take;
+   it goes to that customer only (N256 item 2). The pair is still recorded. Record instead makes it Take 2 of the same project. The
    first answer to a request is always a Take (N226 item 4).
 
 ### G · Data
@@ -283,6 +299,13 @@ them:
   "Sent", "Our trichologist answers you by text within a day.", "Done".
 - The answerer's WhatsApp: "{customer}, a customer of {client}, asks for
   your advice. Open your Lounge:" and the link.
+- The answerer's chats (N256, waiting for the founder's OK): "Chats", "All",
+  "Waiting", "Sent", "Done", "Waiting for you", "Booked", "pinned", "Your
+  Takes and feedback", "{customer} asks for your advice.", "Your answer",
+  "Your answer to {customer} is sent. Your feedback is ready.", "Not now: it
+  waits here, first in your chats.", "Sent. Your feedback waits in Will's
+  chat.", "{customer} bought the {product}.", "{customer} booked the
+  {treatment} at {salon}, {day}."
 - The answerer's chat: "{customer}, a customer of {client}, asks for your
   advice.", "A customer of {client} asks for your advice.", "Gets your
   answer on WhatsApp", "Answer", "What do you recommend?", "Each one you pick
@@ -338,8 +361,8 @@ item 15, N225):
   built: the request as an ask in the Lounge (walk page E1); the picker in the
   lens, with what she sees on top (walk page); the slides from the picks on
   the recording screen (recording screens' page); the send ask on the Take's
-  card, before the walk (walk page D4, N236 item 2); a reply to the customer
-  from the message box, with a "To {customer}" chip over it (walk page E1).
+  card, before the walk (walk page D4, N236 item 2); the Lounge as a list of
+  chats, one chat per customer and Will's chat (walk page E1, N256).
 - **Where the prototypes are older than a decision**: the Mila prototype's
   answer page is a page with cards, not the chat (N228). The Invita
   prototypes follow N239 and N240.
@@ -413,13 +436,14 @@ claude.ai link beside each is a convenience, never the only copy.
 
 The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/).
 
-- **The answerer's side, in her Lounge** (2026-10-28, N236, N240; the newest for
-  the answerer): Ariel at Invita, from the WhatsApp message to the request
-  as her ask, the photo, what she sees and the picker of Invita's treatments
-  and the Scalp Scrubber, the recording over the request and her picks,
-  processing, the send ask before the walk, the walk, the Ideal Text, the
-  customer's reply and her typed answer, the purchase and the booking as
-  outcomes, and the questions still open (19 pages). PDF
+- **The answerer's side, in her Lounge** (2026-10-29, N236, N240, N256; the
+  newest for the answerer): Ariel at Invita, from the WhatsApp message to her
+  list of chats, Sarah's chat with the request, the photo, what she sees and
+  the picker of Invita's treatments and the Scalp Scrubber, the recording
+  over the request and her picks, processing, her answer and the send ask
+  in Sarah's chat, Will's chat with the feedback waiting, the walk, the
+  Ideal Text, Sarah's reply and her typed answer, the purchase and the
+  booking, the list as it changes, and the questions still open (23 pages). PDF
   [`6-answerer-side-in-her-lounge.pdf`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/6-answerer-side-in-her-lounge.pdf) ·
   HTML [`ariel/ariel-lounge.html`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/ariel/ariel-lounge.html) · link
   <https://claude.ai/artifact/CeeWQpvUrZT31aj8Lm3Fsa>.
@@ -455,6 +479,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N256 · C1 to C4, D5, F1, F2, K, §3, §5: the answerer's Lounge becomes a list of chats, Will pinned, one chat per customer; her answer, the send ask, the customer's replies and the outcomes in the customer's chat; the walk in Will's chat; no group chat. Was: every customer in one thread, a "To {customer}" chip for replies · BE #1479, FE (this PR)
 - 2026-10-28 · N250 · H8, H10, H11, I4, §3: a frontier model first, the client's data as its asset, one kit per client, the enterprise pack; the call's questions 11 to 17 (what Invita already has). Was: a fine-tune at 200 pairs · BE #1466, FE (this PR)
 - 2026-10-28 · §3: the questions only Invita can answer gathered for the strategic call with Invita; ours kept apart · FE (this PR)
 - 2026-10-28 · N239, N240 · §3, §5: the Invita prototypes follow N239 and N240 (the spa opens its Fresha page, the Scalp Scrubber in Invita's Shopify checkout, what she sees on the picker); the open question on Invita's products online · BE #1453, FE (this PR)
