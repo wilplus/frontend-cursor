@@ -8,6 +8,7 @@ import PlanReadMore from "@/components/legal/PlanReadMore";
 import PlanCard, { PlanBar } from "./PlanCard";
 import { VoicePlayer } from "./VoicePlayer";
 import { recordedPast } from "@/components/willab/afterTake";
+import { TypingGlyph } from "@/components/willab/TypingDots";
 
 /* The plan's rows in the Lounge thread (rules: the-plan.md §1 B, E, G, I;
    prototype version 27). The backend writes them as ordinary rows; their
@@ -39,12 +40,32 @@ function WillBubble({ children }: { children: ReactNode }) {
   );
 }
 
-function VoiceBubble({ meta }: { meta: Meta }) {
+/** The speaker's voice answer, and under it the words Will heard, as a
+ *  phone's voice message writes them out (N273): they see what was taken. */
+function VoiceBubble({ message }: { message: LoungeMessage }) {
+  const meta = (message.metadata ?? {}) as Meta;
   const id = String(meta.plan_voice);
   const ms = typeof meta.duration_ms === "number" ? meta.duration_ms : null;
+  const words = (message.body ?? "").trim();
   return (
-    <div data-row="me" className="ml-auto rounded-2xl bg-[#FF640A] py-2 pl-2 pr-3" data-plan-voice>
+    <div data-row="me" className="ml-auto max-w-[85%] rounded-2xl bg-[#FF640A] py-2 pl-2 pr-3" data-plan-voice>
       <VoicePlayer src={answerAudioUrl(id)} tone="orange" durationMs={ms} />
+      {words ? (
+        <div data-plan-voice-words className="mt-1.5 whitespace-pre-wrap pl-1 text-[15px] leading-[1.4] text-white">
+          {words}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** The answer just sent, while it is heard: its bubble at once, playing
+ *  from the phone, and the dots where its words will be (N273). */
+export function PendingVoice({ src, durationMs }: { src: string; durationMs: number }) {
+  return (
+    <div data-row="me" className="ml-auto max-w-[85%] rounded-2xl bg-[#FF640A] py-2 pl-2 pr-3" data-plan-voice-pending>
+      <VoicePlayer src={src} tone="orange" durationMs={durationMs} />
+      <TypingGlyph className="mb-1 mt-2.5 pl-1.5 [&>span]:bg-white/80" />
     </div>
   );
 }
@@ -150,7 +171,7 @@ function Card({ message, ctx }: { message: LoungeMessage; ctx: PlanRowCtx }) {
 export function planRowFor(message: LoungeMessage, ctx: PlanRowCtx | undefined): ReactNode | null {
   const meta = (message.metadata ?? {}) as Meta;
   if (!ctx || typeof meta.plan !== "string") return null;
-  if (meta.plan_voice) return <VoiceBubble meta={meta} />;
+  if (meta.plan_voice) return <VoiceBubble message={message} />;
   if (meta.plan_card) return <Card message={message} ctx={ctx} />;
   if (meta.plan_hello) return <Hello message={message} ctx={ctx} />;
   if (meta.plan_one) return <OneThing message={message} ctx={ctx} />;
