@@ -267,11 +267,11 @@ built and what is still to come.
    The last practice and the next plan show the same bubble with N89's
    closing line. No "Start a new project" under it: the "+" next to "Type
    here" opens the projects, as today (N167, N169).
-7. The walk shows the Take's two best moments and the moment where this
-   week's level shows most: a third moment, or one of the two when the level
-   shows most there; when no moment shows it, the two best (N246 item 3, in
-   place of N134 and N209's best moment and the level's: "Two best +
-   level"). The level's moment opens with "This week's level: {level}.
+7. The walk shows the Take's two best moments and this week's level as
+   well: as a third moment, or on one of the two when the level shows there;
+   when nothing shows the level, just the two best (N246, "Two best +
+   level"; was the best moment and the level's, N134, N209). The level's
+   moment opens with "This week's level: {level}.
    Here's where it shows:" above the speaker's clip, and is practised with
    the level's own practice, its row of the treatment picker: the AI
    version of the voice with its pace tip ("Let your key line land"), its
@@ -570,7 +570,7 @@ One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-10-28 · N251 · today's one thing loses its "Record Take N" once a Take is recorded in any project, not only its own (G6). Was: a Take in another project left the button up beside the new walk (N244) · BE (N251 log), FE (this PR)
 - 2026-10-28 · N248 · the calls' calendar opens full screen over the chat: "Skip" at the top left, one "Book" at the bottom; the month swipes, a day picked folds it into its week with the times in four columns; "Edit" turns the same screen into the deadline's (F1, F2, F7, E2). No new words. Was: the calendar in the footer under the chat, "Skip" and "Book" side by side, the month by its arrows · BE #1462, FE (this PR)
-- 2026-10-28 · N246 · G7: the walk shows the two best moments and the level's moment as well, a third or one of the two; and the walk the speaker sees now reads the level (it never did: the serve path asked a store that cannot read a plan, so only the dark frame had the level's moment). Was: the best moment and the level's · BE #1459, BE (code PR), FE (this PR)
+- 2026-10-28 · N246 · G7: the two best moments and this week's level as well, a third moment or one of the two; and the walk the speaker sees now has the level (until now only a hidden copy on the server did). Was: the best moment and the level's · BE #1459, BE #1464, FE #1061
 - 2026-10-28 · N150 · fixed (B6): a question, opener or ack the AI left with a slot unfilled ("If {who they will speak to} remembers …", seen by the founder) is not kept, and Will says the plain template; a slot is never kept as a fact, and the plan card's "Why this line?" reads "them" for one stored before · BE #1461
 - 2026-10-28 · N243 · A5: the plan says when the speaker is onboarded (`onboarding`: the questions, then a new speaker's plan until the first Take; not a plan waiting for the next Take), and the principles wait meanwhile; the Lounge reads the plan again when a Take lands in the thread, so the first Take's footer gives way and the principles come back without the app being opened again; was: nothing held them back while the questions were asked · BE #1456, #1460, FE (this PR)
 - 2026-10-28 · N244 · today's one thing gives its "Record Take N" up once that Take is recorded; the Take's own closing message brings the next one after the walk's summary (G6). Was: the button came back the moment processing ended, beside the new Take's walk, until the closing message landed · BE (N244 log), FE (this PR)
