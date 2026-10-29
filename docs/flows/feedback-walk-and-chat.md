@@ -279,12 +279,10 @@ step; the loop never waits for a coach.
   pass through").
 - **C2 Praise.** The Take's two best moments are shown, however low,
   never two in one paragraph and both on one slide when that is where they
-  are (H1; founder, 2026-10-23, N118: "minimum 2; best two"; a Take whose
-  clips all sit in one block is cut so it shows two, and a sentence that
-  holds the helper words its slide had when the Take was recorded gives its
-  place to the next best, 2026-10-28, N246: "go for the next confident
-  moment"; on a plan the level's moment comes as well, the-plan.md G7),
-  praise first
+  are (H1; founder, 2026-10-23, N118: "minimum 2; best two"; a short Take
+  too, and a sentence that already has its helper words gives its place to
+  the next best, 2026-10-28, N246: "go for the next confident moment"; on a
+  plan, this week's level as well, the-plan.md G7), praise first
   and then the corrections, each group in slide order, and the voice decides
   each: a moment whose voice reaches the floor is praised unless its words
   need help (then the Clearer version, C5), one whose voice is under it is
@@ -332,11 +330,10 @@ step; the loop never waits for a coach.
   (C7; founder 2026-10-27, N220: "if you improved, you can make it your
   habit words"; until then a correction's Good job went on with none, so a
   Take whose two moments were both under the floor had no helper words); a
-  moment gets them once. Words saved at the first of two moments on one
-  slide never take the second away: a moment the walk shows stays until it
-  is answered (founder 2026-10-28, N246 item 5, "Second stays"; until then
-  the saved paragraph was done, lock 2026-09-30 D8, and the second left the
-  walk). The step:
+  moment gets them once. When both moments sit on one slide, helper words
+  picked at the first never hide the second: it stays until it is walked
+  (founder 2026-10-28, N246, "Second stays"; until then it left the walk).
+  The step:
   a big bubble in the thread with large plain word buttons, no borders,
   chosen words orange;
   "N of 8 words" at the top, the count against the cap (eight since
@@ -698,8 +695,8 @@ step; the loop never waits for a coach.
   shown     = the two highest willfidence (S × W) of the Take, however
               low, at most one per ~75-word block, two on one slide
               allowed; clips with enough words rank before short ones;
-              then a clip that holds the helper words its slide had when
-              the Take was recorded ranks after the rest (N246);
+              a sentence that already has its slide's helper words (as
+              when the Take was recorded) comes last (N246);
               fewer than two only with fewer than two playable clips
               (N118, 2026-10-23)
   clip      = in each shown block, its highest willfidence clip that can
@@ -707,9 +704,9 @@ step; the loop never waits for a coach.
   blocks    = when the two best share a block, the boundary between them
               moves so each has its own (40 … 120 words, never across a
               slide, never cutting a clip); a one-block Take is split the
-              same way when each clip has 5 words or more (N118); with no
-              such cut and no other block to show, the block is cut
-              between the two at its most even boundary (N246)
+              same way when each clip has 5 words or more (N118); when no
+              cut keeps 40 words a side and nothing else could be shown,
+              the block is split evenly between the two (N246)
   each      S ≥ FLOOR → praised, unless the words need help (H3) → the
               Clearer version, then its helper words (N113); S < FLOOR →
               corrected: the Clearer version
@@ -717,13 +714,12 @@ step; the loop never waits for a coach.
   highest   = of the two, the stronger voice (S); its bubble opens with
               the signed line (C2, N118)
   try       = Δ voice score (S) vs the original ≥ MARGIN (+0.05) → better
-  plan      = on a plan (the-plan.md G7, N246 item 3): the two best, as
-              above, and the clip where this week's level shows most
-              (services/plan_walk.py), read on the two and on other
-              blocks' clips: a third moment, or one of the two; always
+  plan      = on a plan (the-plan.md G7, N246): the two best, and the
+              clip where this week's level shows most
+              (services/plan_walk.py): a third moment, or one of the two;
               practised with the level's own practice, its line above the
-              clip; no clip shows it → the two best; the level is the one
-              the plan had when the Take was recorded
+              clip; nothing shows it → just the two best; the level is the
+              one the plan had when the Take was recorded
   ```
 
   The unit is the sentence. FLOOR is 0.6 at launch, then calibrated so
@@ -1244,7 +1240,7 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-10-28 · N247 · built: a finished walk opened again shows everything the speaker went through, read only, down to the summary: the tempo step and the other speakers they judged included. Was: it stopped at the newest moment, left the tempo step out and skipped the judging (B10, C8, T) · BE #1463, FE (this PR)
 - 2026-10-28 · — (B10, C3) · fixed: the Feedback walk whose newest part is helper words opens the whole walk standing on them, through the same door as every other step, once the Take's answers and tries are read. Was: it opened those helper words by themselves as soon as the page was up, before the tries were read, so words a Good job had opened (N220) were not in the walk yet and showed alone, under the hello, with nothing before or after (founder 2026-10-28: "When I click the feedback walk bubble, it just opens helper words") · FE (this PR)
 - 2026-10-28 · — (B5, C8, T) · fixed: when the walk moves on, the step it leaves stays as it was: the Sniper's tries, comments and closing line (or your "Skip"), and other speakers' moments with your answers. Was: the step was redrawn empty, so the Sniper stopped at "🤫 Find a quiet spot first." and other speakers disappeared (founder 2026-10-28: "I click next and it's gone") · FE #1060
-- 2026-10-28 · N246 · every Take shows two moments: a Take whose clips all sit in one block is cut between its two best when no 40-to-120 cut fits; a sentence holding the helper words its slide had when the Take was recorded gives its place to the next best; a moment the walk shows stays after helper words saved at the first of two on one slide; on a plan, the two best and the level's moment, the level now read on the walk the speaker sees too (C2, C3, H1). Was: a short Take showed one moment, the second of two on one slide left the walk once helper words were saved, and the served walk never read the level · BE #1459, BE (code PR), FE (this PR)
+- 2026-10-28 · N246 · every Take shows two moments, a short one too; helper words picked at the first of two moments on one slide no longer hide the second; a sentence that already has its helper words gives way to the next best; on a plan, the two best and this week's level as well (C2, C3, H1). Was: a short Take showed one moment, and the second of two on one slide left the walk once helper words were picked · BE #1459, BE #1464, FE #1061
 - 2026-10-28 · N244 · the last Take's closing message gives "Record Take N" up once the next Take is recorded, and the chat offers no Take until that Take's walk reaches its summary and its own closing message lands (D4). Was: the button was held only while the Take processed, then came back, naming the Take just recorded, beside the new Take's walk (founder 2026-10-28: "I can see two bubbles interfering … one for the new take and one the summary of the take I just took") · BE (N244 log), FE (this PR)
 - 2026-10-28 · — (H1) · wording: a try is better when its voice score (S) rises by the margin, +0.05, over the original clip, as built (`after_practice.GOOD_JOB_MARGIN`) and as N84 says ("on the voice alone"); was "Δ willfidence", which reads as voice × words. No rule changes (founder 2026-10-28: "fix the doc wording to say voice score") · FE (this PR)
 - 2026-10-28 · N237 · built: a WhatsApp reply that says STOP turns the messages off for every account at that number, as Remove does (the number it signs in with stays, N235), a booking that carries the number forgets it (N233), and WhatsApp answers "Done. We've stopped the WhatsApp messages and deleted your number." (signed, N174); any other reply is not read yet (N171 item 6). Off until its two keys are on Railway and the webhook is set in Meta · BE #1450, FE (this PR)

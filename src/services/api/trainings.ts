@@ -38,6 +38,9 @@ export interface TrainingArc {
   /** Archived by its owner (N14): hidden from the project list, listed in
    *  Data & consent. Only sent when archived projects were asked for. */
   archived: boolean;
+  /** When the project's newest Take was made (ISO); null = none or not
+   *  sent. The project with the newest Take is the current one (N254). */
+  lastTakeAt?: string | null;
 }
 
 function mapTake(raw: unknown): TrainingTake | null {
@@ -90,6 +93,8 @@ function mapArc(raw: unknown): TrainingArc | null {
           : null,
     deletion: mapProjectDeletion(r.deletion),
     archived: r.archived === true,
+    lastTakeAt:
+      typeof r.last_take_at === "string" && r.last_take_at ? r.last_take_at : null,
   };
 }
 

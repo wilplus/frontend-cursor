@@ -18,6 +18,12 @@ export interface ArcSetup {
   targetLengthSeconds: number | null;
   slides: PresentationSlide[];
   presentationRef: string | null;
+  /** The project's deck changed since its last Take (backend N257): the
+   *  next Take is the first on the new slides. */
+  deckChanged?: boolean;
+  /** The Take the deck in play was first used on; null = not sent (read as
+   *  Take 1, today's line). */
+  deckSinceTake?: number | null;
 }
 
 /** Fetch the arc's setup. null on any non-200 (not owner / no takes / error)
@@ -59,6 +65,13 @@ export async function fetchArcSetup(arcId: string): Promise<ArcSetup | null> {
     presentationRef:
       typeof body.presentation_ref === "string" && body.presentation_ref
         ? body.presentation_ref
+        : null,
+    deckChanged: body.deck_changed === true,
+    deckSinceTake:
+      typeof body.deck_since_take === "number" &&
+      Number.isInteger(body.deck_since_take) &&
+      body.deck_since_take >= 1
+        ? body.deck_since_take
         : null,
   };
 }
