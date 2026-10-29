@@ -15,7 +15,10 @@ const config: CapacitorConfig = {
     cleartext: false,
   },
   ios: {
-    contentInset: "never",
+    // The site does not set `viewport-fit=cover`, so its screens do not pad
+    // for the status bar; "always" keeps the page below the clock and battery,
+    // as Safari does, without changing any web screen.
+    contentInset: "always",
   },
 };
 
