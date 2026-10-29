@@ -89,9 +89,11 @@ for the screens below.
      what i want").
 4. **Close:** **Discard this take?** / "This recording has not been saved."
    / **Keep recording** / **Discard take**, as today.
-5. **Finish take:** the processing wait (voice mark, stage label and its
-   percent, **While you wait** tips). The bar shows 1% from the first
-   second. The wait stays on screen when the Lounge takes the Take over, and
+5. **Finish take:** the processing wait, one narrow centred column (the
+   breathing mark, the stage label and its percent, a rounded bar, and under
+   it **Usually about a minute.**; nothing to read or scroll, N271, N273;
+   prototype <https://claude.ai/artifact/S66ZsrqTQZ4se74caoCj2J>).
+   The bar shows 1% from the first second. The wait stays on screen when the Lounge takes the Take over, and
    lifts only when the walk's first step is on screen; then the walk, and
    the Ideal Text page after it (founder 2026-10-21, N110; the walk's page,
    [A1 and A2](feedback-walk-and-chat.md)).
@@ -236,7 +238,7 @@ Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 - `src/lib/willab/recordingGesture.ts`
 - `src/components/willab/DiscardTakeDialog.tsx` — "Discard this take?" (step 4) (guarded since N111).
 - `src/components/willab/RecordingAnalysisPresentation.tsx` — the wait while a Take is processed (step 5) (guarded since N111).
-- `src/components/willab/ProcessingWait.tsx` — "While you wait" (step 5) (guarded since N111).
+- `src/components/willab/ProcessingWait.tsx` — the wait's stage and percent (step 5) (guarded since N111).
 - `src/components/willab/SlideStage.tsx` — the slide on the recording screen (guarded since N111).
 - `src/components/willab/labFade.tsx` — the fade between the screens (guarded since N111).
 
@@ -252,11 +254,13 @@ Every prototype link in §1, in the order it first appears:
 - <https://claude.ai/artifact/JUwW4FfFzyUhgCpPrMAKjG>
 - <https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A>
 - <https://claude.ai/artifact/Ta5hMGw8EbA6ewUssUugMK>
+- <https://claude.ai/artifact/S66ZsrqTQZ4se74caoCj2J>
 
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N271, N273 · the calm wait: "While you wait" and its slider of advice go; one narrow column with the breathing mark a little larger, the stage and its percent, a rounded bar and "Usually about a minute." under it (`RecordingAnalysisPresentation.tsx`; the tips' modules are deleted). Prototype <https://claude.ai/artifact/S66ZsrqTQZ4se74caoCj2J>. Was: the stage line, a 3px bar and "While you wait" with a scrollable deck of advice · FE (this PR), BE (N271, N273 log)
 - 2026-10-29 · N260 · Will's "Create new project" in the chat asks "One project at a time" first, in place of the message box, and the question's sentence ends "you can bring it back from Settings." Was: the chat's button started a new project with the current one left open, and the sentence said "Data & consent" · FE (this PR), BE (N260 log)
 - 2026-10-29 · N254, N257 · built: the "+"'s "Start a new project", or another project than the one with the newest Take, asks "One project at a time" first and Continue archives the current one (`ProjectPicker.tsx`); the line under "Getting your mic ready" says "New slides" on the first Take after a deck change, then "Same presentation as Take {n}" (`presentationInPlay.ts`, `LabOverlay.tsx`). Was: any number of projects side by side, and always "Same presentation as Take 1" · FE (this PR), BE (with it)
 - 2026-10-27 · N217 · "How do you feel?" says "Your coach sees your answer." under "Before you step on stage" (signed with Privacy 3.9, question 1 A: answering is the yes for that one answer); on a plan it is asked only after the plan's own yes, and without it the check is passed by at once and keeps nothing, as a Skip (`FeelingsCheckIn.tsx`, `plan.ts`). The plan's yes is switched off (`PLAN_CONSENT_ENABLED`) until Privacy 3.9 is published, so today every plan reads as yes. Was: asked of every speaker with no word on who sees it · FE (this PR), BE (with it)
