@@ -126,13 +126,15 @@ import {
   VoiceNoteMic,
   VoiceNotePicker,
   VoiceNoteThread,
+  SalesSteps,
+  salesAskOf,
   NOTE_START,
   type VoiceNotebook,
 } from "./useVoiceNotebook";
 import SundayLens, { SundayHeadBubble } from "./SundayLens";
 import { sundayAskOf, sundayHeadOf, sundayWaiting } from "@/lib/willab/sundayNote";
 import { LifeGoalBubble, lensAskOf, lifeGoalOf, quarterAskOf, changeAskOf, useLifeGoals } from "./LoungeLifeGoals";
-import { answerSundayNote } from "@/services/api/voiceNotebook";
+import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import WillQuestionBubble, { willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
@@ -1235,6 +1237,7 @@ export default function Lounge({
     const rank: Record<OfferType, number> = {
       joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0, feedback_check: 0,
       voice_notebook: 0, sunday_note: 0, life_goals: 0, life_goals_quarter: 0, life_goals_change: 0,
+      sales_step: 0,
     };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
@@ -1894,6 +1897,7 @@ export default function Lounge({
           onLifeGoals={lifeGoals.answerAsk}
           onLifeGoalsQuarter={(choice) => lifeGoals.answerQuarter(quarterAskOf(messages), choice)}
           onLifeGoalsChange={(choice) => lifeGoals.answerChange(changeAskOf(messages), choice)}
+          onSalesStep={(step) => notebook.answerSales(salesAskOf(messages), step)}
           onResolve={() => {
             // A Take's ask closed: its message comes under it (the question's
             // taps let it go on the backend, "No" keeps it waiting).
@@ -2232,6 +2236,7 @@ function OfferActions({
   onLifeGoals,
   onLifeGoalsQuarter,
   onLifeGoalsChange,
+  onSalesStep,
   onResolve,
 }: {
   type: OfferType;
@@ -2256,9 +2261,21 @@ function OfferActions({
   onLifeGoalsQuarter: (choice: "start" | "not_now") => void;
   /** "Change {emoji} this quarter to “…”?" (N172 M14, N191). */
   onLifeGoalsChange: (choice: "change" | "not_now") => void;
+  /** "Which step did it stall at?" (backend N241 P2). */
+  onSalesStep: (step: SalesStep) => void;
   onResolve: () => void;
 }) {
   const router = useRouter();
+  if (type === "sales_step") {
+    return (
+      <SalesSteps
+        onPick={(step) => {
+          onSalesStep(step);
+          onResolve();
+        }}
+      />
+    );
+  }
   if (type === "sunday_note") {
     return (
       <SymmetricPair

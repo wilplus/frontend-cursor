@@ -6,11 +6,13 @@ import type { LoungeMessage } from "@/services/api/loungeMessages";
 import SymmetricPair from "./SymmetricPair";
 import {
   answerNotebook,
+  answerSalesStep,
   askNotebook,
   fixVoiceNote,
   getNotebookState,
   sendVoiceNote,
   type NotebookState,
+  type SalesStep,
 } from "@/services/api/voiceNotebook";
 import type { OfferType } from "./loungeOffers";
 import { clock, useVoiceNote } from "./useVoiceNote";
@@ -188,6 +190,10 @@ export function useVoiceNotebook({
     await reload();
   }
 
+  async function answerSales(noteId: string | null, step: SalesStep): Promise<void> {
+    if (noteId && (await answerSalesStep(noteId, step))) await reload();
+  }
+
   return {
     enabled: state?.enabled === true,
     held,
@@ -212,6 +218,8 @@ export function useVoiceNotebook({
     saveFix: () => void saveFix(),
     tapMic: () => void tapMic(),
     answer: (choice: "yes" | "not_now") => void answer(choice),
+    /** A tap on one of the sale's four steps (backend N241 P2). */
+    answerSales: (noteId: string | null, step: SalesStep) => void answerSales(noteId, step),
   };
 }
 
@@ -220,7 +228,45 @@ export type VoiceNotebook = ReturnType<typeof useVoiceNotebook>;
 /** How long the hesitations take to fade once a note is kept. */
 const SETTLE_MS = 700;
 
-const OWN_ASKS: readonly OfferType[] = ["voice_notebook", "sunday_note", "life_goals", "life_goals_quarter", "life_goals_change"];
+const OWN_ASKS: readonly OfferType[] = [
+  "voice_notebook", "sunday_note", "life_goals", "life_goals_quarter", "life_goals_change", "sales_step",
+];
+
+/** The sale's four steps, in order, as signed (backend N258). */
+export const SALES_STEPS: readonly { step: SalesStep; label: string }[] = [
+  { step: "opening", label: "The opening" },
+  { step: "discovery", label: "Discovery" },
+  { step: "offer", label: "The offer" },
+  { step: "follow_up", label: "The follow-up" },
+];
+
+/** The note whose "Which step did it stall at?" is newest in the thread. */
+export function salesAskOf(messages: readonly Pick<LoungeMessage, "metadata">[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const meta = messages[i].metadata;
+    if (meta?.offer === "sales_step" && typeof meta.sales_note === "string") return meta.sales_note;
+  }
+  return null;
+}
+
+/** The four steps in place of the message box, two by two, as the
+ *  prototype draws them (backend N241 P2, N258). */
+export function SalesSteps({ onPick }: { onPick: (step: SalesStep) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-2" data-testid="sales-steps">
+      {SALES_STEPS.map(({ step, label }) => (
+        <button
+          key={step}
+          type="button"
+          onClick={() => onPick(step)}
+          className="flex h-11 items-center justify-center rounded-full border border-border text-[15px] text-foreground transition-colors hover:border-primary/50"
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /** The mic, right of the message box: only where the notebook is on, the
  *  speaker is not being onboarded (N243) and the box is empty. A note on its

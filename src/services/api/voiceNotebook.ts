@@ -49,6 +49,13 @@ export function answerNotebook(choice: "yes" | "not_now"): Promise<boolean> {
   return post("/api/v2/notebook/consent", { json: { choice } });
 }
 
+/** The sale's step under "Which step did it stall at?" (backend N241 P2). */
+export type SalesStep = "opening" | "discovery" | "offer" | "follow_up";
+
+export function answerSalesStep(note: string, step: SalesStep): Promise<boolean> {
+  return post("/api/v2/notebook/sales-step", { json: { note, step } });
+}
+
 function audioName(audio: Blob, stem: string): string {
   const ext = audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm";
   return `${stem}.${ext}`;
