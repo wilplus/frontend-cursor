@@ -405,7 +405,7 @@ deletes the line when the work is merged (the change goes to §6).
 The companions (N241) and your why (N255), in order; the prototype and
 Will's guide are signed (N258):
 
-- R1 · the two rows the founder makes on the rings page ("new_feature_name", then ring 5): `in_control`, `sales_framing`; until a row exists its feature stays off. `strengths` and `your_why` came at ring 5 with BE #1485's migration · A2, O, P · ready · —
+- R1 · the rows `in_control` and `sales_framing` at ring 5, made by a migration (N264: "Set the rings yourself."); until a row exists its feature stays off. `strengths` and `your_why` came at ring 5 with BE #1485's migration · A2, O, P · built, waits for the outside review of its migration · BE #1491
 
 ## 3. Still open
 
