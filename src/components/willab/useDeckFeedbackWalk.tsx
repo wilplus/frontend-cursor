@@ -1133,8 +1133,10 @@ export function useDeckFeedbackWalk(args: {
       const at = now ? walkHelpersForPart(now, partId) : null;
       if (now && at !== null) {
         // The words as given, the rest of the walk there to scroll (founder
-        // 2026-10-21: "not scrollable to the next step of the walk").
-        setReplaying(now);
+        // 2026-10-21: "not scrollable to the next step of the walk"). A scroll
+        // once the Take is done (N259); while a moment still waits, its
+        // buttons, so Next goes on to what waits.
+        setReplaying(finished ? now : { ...now, scroll: false });
         return openAt(at, false, false, undefined, threadEnd(now));
       }
       // No step for it in this Take's walk: the helper words on their own.
@@ -1150,7 +1152,7 @@ export function useDeckFeedbackWalk(args: {
       );
       return openAt(1, true);
     },
-    [model, replayReady, buildReplay, ownAnswers, openAt, threadEnd],
+    [model, replayReady, buildReplay, ownAnswers, openAt, threadEnd, finished],
   );
 
   const practisePart = useCallback(
