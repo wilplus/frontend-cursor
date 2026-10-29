@@ -111,7 +111,9 @@ export const EXPORT = {
 /** SIGN-OFF — the empty state on every view. None of these says you are behind,
  *  none counts what is missing, and none asks you to come back (N3). */
 export const EMPTY = {
-  principles: "No principles yet. The first one arrives when you send a case with #mistake.",
+  // Founder 2026-10-29 (backend N263): "#mistake" no longer sends a case
+  // (N253), so the sentence about it went.
+  principles: "No principles yet.",
   wins: "No wins kept yet. #win in the chat puts one here.",
   phrases: "The wall is empty. #add followed by a line puts it here, and it can come back to you later.",
   today: "No card for today yet. It is written at five in the morning and waits here.",
