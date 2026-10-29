@@ -910,7 +910,7 @@ that it is done once it has landed.","O1 -> ""holds taps while the enrichment re
 src/components/willab/recordingCopy.test.ts,Story,"As the founder, I want the recording screens' words fixed to the signed set with no digits or score words, so that nothing unapproved or numeric reaches the speaker.","O1  Never 4 (no new words without the founder's OK): RECORDING_COPY holds
 exactly the signed keys, typed exactly as signed.
 O2  Never 1 (no scores or numbers): no signed line carries a digit, a % or
-a score word.","O1, O2 -> ""is exactly the signed words, with no digit or score word""","Recording lock 2026-10-07 (N59, N70). recordingWhere's ""Take N · Slide n of m"" is pinned in recordingStillFrame.test, not here."
+a score word.","O1, O2 -> ""is exactly the signed words, with no digit or score word""","Recording lock 2026-10-07 (N59, N70); the microphone line, N273. recordingWhere's ""Take N · Slide n of m"" is pinned in recordingStillFrame.test, not here."
 src/components/willab/recordingNoPullRefresh.test.tsx,Story,"As a speaker, I want pulling down on the recording screens never to reload the page, so that I never lose a Take.","O1  A pull down on the slide while recording is cancelled.
 O2  From ""getting your mic ready"" through the recording, the page is set
 not to pull-refresh.
