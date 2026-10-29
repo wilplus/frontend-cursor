@@ -104,7 +104,8 @@ built and what is still to come.
    thank you for putting me right.", says back in one sentence what he now
    has, in their words and under B6's rules, and asks the same question
    again. The correction takes the old answer's place in the plan (the key
-   line and its recording too); the old answer stays in the history. The AI
+   line and its recording too); the old answer stays in the history, and
+   the coach still hears the voice message itself (C5). The AI
    that writes Will's turn tells a correction from an answer; when it
    fails, the answer counts as an answer (N262).
 
