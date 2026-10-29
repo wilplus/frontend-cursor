@@ -36,6 +36,7 @@ export default function IdealTextActions({
   endCard = false,
   onClose = null,
   shareFirst = false,
+  confirmFirst = null,
 }: {
   /** The project, for the sharing question's chat bubbles. */
   arcId?: string | null;
@@ -62,6 +63,10 @@ export default function IdealTextActions({
   /** Opened from the sharing bubble in the Lounge: the sharing step shows
    *  at once, and its ✕ goes back to the chat. */
   shareFirst?: boolean;
+  /** An archived project asks "One project at a time" before its next
+   *  Take (founder 2026-10-29, backend N254); `go` runs on Continue. null =
+   *  the current project, which never asks (Never 3). */
+  confirmFirst?: ((go: () => void) => void) | null;
 }) {
   /* JOURNEY DECISIONS J1 AND J4 (founder 2026-09-29; F1 Repair Plan Phase 7).
    * J1: after a Take the speaker lands on the text and taps "Review
@@ -82,9 +87,10 @@ export default function IdealTextActions({
      lock 2026-10-12, moment and feedback chat, section 5). */
   const asksShare = typeof takeCount === "number" && takeCount >= 1;
   const [asking, setAsking] = useState(shareFirst && asksShare);
+  const start = asksShare ? () => setAsking(true) : onNewTake;
   const record = {
     label: nextRecordingLabel,
-    onClick: asksShare ? () => setAsking(true) : onNewTake,
+    onClick: confirmFirst ? () => confirmFirst(start) : start,
     disabled: canRecordTake === false,
   };
 

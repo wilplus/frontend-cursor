@@ -76,7 +76,7 @@ import {
 import { type PresentationSlide } from "./presentation";
 import { deckForRecording } from "@/lib/willab/defaultDeck";
 import { restoredSetupFor } from "./restoredSetup";
-import { laterTakePresentation } from "./presentationInPlay";
+import { deckNewsOf, laterTakePresentation, type DeckNews } from "./presentationInPlay";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import { LAB_FADE_IN_CLASS, useRecordingEntryFade } from "./labFade";
 import { usePolicyUpdate } from "./PolicyUpdate";
@@ -320,6 +320,9 @@ export default function LabOverlay({
   // (initArc.deck) and is backfilled from the server below when the cache lost
   // it, so take 2+ restores its slides instead of dead-ending / going deckless.
   const [preloadDeck, setPreloadDeck] = useState<ExploreArcDeck | null>(null);
+  // What the project's setup read says about its deck (N257): new slides
+  // since the last Take, or the Take the deck in play was first used on.
+  const [deckNews, setDeckNews] = useState<DeckNews>(null);
   /* THE PROJECT'S SETUP IS STILL ON ITS WAY (founder 2026-09-28: "it asks me
      to go through this again with prefilled correctly — I want to just skip
      it and record right away"). The arc setup below is fetched after the
@@ -389,7 +392,10 @@ export default function LabOverlay({
     void fetchArcSetup(aid)
       .then((setup) => {
         if (!active || !setup) return;
+        // The setup read's deck is the newest (N257): it replaces the
+        // device's cached one, so the Take uploads with the new slides.
         setPreloadDeck(deckOf(setup));
+        setDeckNews(deckNewsOf(setup));
       })
       .finally(() => {
         if (active) setSetupArriving(false);
@@ -1478,7 +1484,7 @@ export default function LabOverlay({
             // Which presentation a later Take is said against (founder
             // 2026-10-16): the one the Take will record with, else the
             // project's restored setup while the mic is still being asked for.
-            note={laterTakePresentation(arcTakeIndex, context, preloadDeck)}
+            note={laterTakePresentation(arcTakeIndex, context, preloadDeck, deckNews)}
           />
         ) : null}
         {state === "lab_feelings" && (

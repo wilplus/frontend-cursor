@@ -86,6 +86,7 @@ import {
 } from "./WillabWhatsAppPrompt";
 import { useRouter } from "next/navigation";
 import SymmetricPair from "./SymmetricPair";
+import { offersUpdateSlides, SlidesAskComposer, SlidesAskSlot, useSlidesAsk } from "./UpdateSlides";
 import { useAdminAsk } from "./useAdminAsk";
 import { afterTakeOrder, askShowing, askToOpen, heldFor, heldMessage, heldTake, recordedPast, waitingFor } from "./afterTake";
 import { postAfterTake } from "@/services/api/afterTake";
@@ -461,10 +462,7 @@ export default function Lounge({
   // $25 pay note, was retired with the paywall — only $5 moments is paid now.)
   function onChip(action: ChipAction): void {
     const project = readExploreArc(userId);
-    if (
-      action === "create_new_project" ||
-      action === "create_project_from_updated_deck"
-    ) {
+    if (action === "create_new_project") {
       postAnswerBubble(CHIP_LABEL[action]);
       clearExploreArc(userId);
       (onStartNewProject ?? onStart)();
@@ -484,10 +482,6 @@ export default function Lounge({
         postAnswerBubble(CHIP_LABEL[action]);
         openIdealText(project.arcId, "notebook");
       }
-      return;
-    }
-    if (action === "keep_current_project") {
-      postAnswerBubble(CHIP_LABEL[action]);
       return;
     }
     if (action === "feedback_skip") {
@@ -1371,6 +1365,7 @@ export default function Lounge({
   // The second offer (founder 2026-10-12): a WhatsApp number for "The feedback
   // from your coach is in!", asked at the end of a Take from Take 2.
   const whatsapp = useWhatsAppOffer({ append: thread.append });
+  const slidesAsk = useSlidesAsk();
 
   // A Take's WhatsApp or home-screen ask opens its form by itself, once
   // (founder 2026-10-20: the ask is the one thing to do). A home screen this
@@ -1506,6 +1501,9 @@ export default function Lounge({
     // code is typed (backend N235).
     const number = resp.row_metadata?.phone;
     if (saved === "check" && typeof number === "string") whatsapp.checkNumber(number);
+    // A new deck stays in this project (N257): Will's `update_slides` puts
+    // the upload card in place of the message box, never a chip.
+    if (offersUpdateSlides(resp.suggested_actions)) slidesAsk.open();
     const lens = lensAskOf(resp.row_metadata);
     if (lens) lifeGoals.openLens(lens);
     if (resp.after_take) {
@@ -1869,6 +1867,7 @@ export default function Lounge({
           or re-opened by tapping its thread bubble) its action pair REPLACES the
           black record button; resolving it returns the record button (U2). The
           offer's prompt + outcome live in the thread as durable bubbles. */}
+      <SlidesAskSlot ask={slidesAsk} onReady={(line) => void thread.append({ role: "bot", kind: "text", body: line })}>
       <PolicyUpdateSlot>
       <TopUpSlot offer={topUp}>
       {activeOffer ? (
@@ -1952,6 +1951,7 @@ export default function Lounge({
       null}
       </TopUpSlot>
       </PolicyUpdateSlot>
+      </SlidesAskSlot>
 
       {/* Wave-3 — no standing chip row above the composer; quick actions are
           single in-thread buttons (A-4 / B-1). Footer is just the CTA + input. */}
@@ -1994,6 +1994,7 @@ export default function Lounge({
       ) : null}
       {plan.dock}
       {plan.sheets}
+      <SlidesAskComposer ask={slidesAsk}>
       <PolicyUpdateComposer>
       <VoiceNoteBar notebook={notebook} />
       <VoiceNoteFixBar notebook={notebook} />
@@ -2064,6 +2065,7 @@ export default function Lounge({
         <VoiceNoteMic notebook={notebook} draft={draftText} />
       </form>
       </PolicyUpdateComposer>
+      </SlidesAskComposer>
 
       {/* Delivery layer — the 4 bubbles' destinations. */}
       {feedbackTarget && (

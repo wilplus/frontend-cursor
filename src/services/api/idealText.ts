@@ -1262,6 +1262,13 @@ export type IdealTextResult =
        *  best-presentation ref, and a deckless arc renders exactly today's
        *  view. */
       presentationRef: string | null;
+      /** The project has a deck of its own (backend N257): the ⋯ menu says
+       *  "Update slides", else "Add slides". Defaults to whether a
+       *  `presentation_ref` is served. */
+      hasDeck: boolean;
+      /** The project is archived (N14, N254): "Record Take N" first asks
+       *  the one-project question. Absent = false. */
+      projectArchived: boolean;
       /** SLIDE TITLES by slide index (founder 2026-08-11: "yeah put only the
        *  title") — what the AUDIENCE saw, the one piece of deck context the
        *  reader is allowed. Titles only: the slide BODY is what the speaker
@@ -1322,6 +1329,19 @@ export type IdealTextResult =
 async function notFoundResult(res: Response): Promise<IdealTextResult> {
   const body = (await res.json().catch(() => null)) as { code?: unknown } | null;
   return body?.code === "NOT_FOUND" ? { kind: "notYours" } : { kind: "pending" };
+}
+
+/** The project's deck and archive flags (backend N254, N257), read
+ *  defensively: `has_deck` falls back to whether a deck PDF is served, and
+ *  an absent `project_archived` is false. */
+function deckFlags(body: Record<string, unknown>): { hasDeck: boolean; projectArchived: boolean } {
+  return {
+    hasDeck:
+      typeof body.has_deck === "boolean"
+        ? body.has_deck
+        : typeof body.presentation_ref === "string" && body.presentation_ref.length > 0,
+    projectArchived: body.project_archived === true,
+  };
 }
 
 function str(v: unknown): string {
@@ -1637,6 +1657,7 @@ function mapSingleIdealTextFetchResult(
       body.presentation_ref.length > 0
         ? body.presentation_ref
         : null,
+    ...deckFlags(body),
     slideTitles: Array.isArray(body.slide_titles)
       ? body.slide_titles.map((s) => (typeof s === "string" ? s : ""))
       : null,
@@ -1828,6 +1849,7 @@ function mapIdealTextCorePayload(
     // against, and the branch above switches those to the edit's.
     additions: [],
     presentationRef: str(body.presentation_ref) || null,
+    ...deckFlags(body),
     slideTitles: Array.isArray(body.slide_titles)
       ? body.slide_titles.map((value) =>
           typeof value === "string" ? value : "",

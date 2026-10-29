@@ -63,6 +63,8 @@ import { LENS_IDLE_MS, LENS_WATCHDOG_MS, WALK_STEP_SELECTOR, lensAddress, lensId
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
 import IdealTextMenu, { FeedbackLoadingLine } from "./IdealTextMenu";
+import { useUpdateSlides } from "./UpdateSlides";
+import { useArchivedReturn } from "./OneProjectQuestion";
 import PresentMode from "./PresentMode";
 import ExportFormatDialog from "./ExportFormatDialog";
 import type { PresentationExportFormat } from "@/lib/willab/presentationDocument";
@@ -840,6 +842,11 @@ export default function IdealTextOverlay({
   // SLIDES — the arc's deck, for the slide-per-paragraph reading view.
   // Resolved only under SD (the legacy lanes have no piece structure to
   // attach slides to), after the GET settles.
+  // Update slides under ⋯ (N257), and the one-project question before an
+  // archived project's next Take (N254).
+  const updateSlides = useUpdateSlides(arcId, sd);
+  const archivedReturn = useArchivedReturn(arcId, sd);
+
   const deckRef = useArcDeckRef(
     arcId,
     sd?.presentationRef ?? null,
@@ -894,6 +901,7 @@ export default function IdealTextOverlay({
         onNewTake={() => onReadAloud(sd.version)}
         onClose={onClose}
         shareFirst={!endCard && initialMode === "share"}
+        confirmFirst={archivedReturn.confirmFirst}
       />
     );
   }
@@ -935,6 +943,7 @@ export default function IdealTextOverlay({
               onPresent={() => setPresenting(true)}
               onExport={() => setExportChooserOpen(true)}
               onHistory={historyEntry(sd.version, openHistory)}
+              slides={updateSlides.item}
               onCopy={copyText}
               copied={copied}
             />
@@ -946,6 +955,8 @@ export default function IdealTextOverlay({
         </div>
       </div>
       <FeedbackLoadingLine active={shownStatus === "ready" && feedbackPending} />
+      {updateSlides.layer}
+      {archivedReturn.layer}
 
       {shownStatus === "ready" && sd && ideal ? (
         // THE TRANSCRIPT REVIEW DECK (founder 2026-08-11) — replaces the
