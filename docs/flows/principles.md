@@ -402,10 +402,7 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-The companions (N241) and your why (N255), in order; the prototype and
-Will's guide are signed (N258):
-
-- R1 · the rows `in_control` and `sales_framing` at ring 5, made by a migration (N264: "Set the rings yourself."); until a row exists its feature stays off. `strengths` and `your_why` came at ring 5 with BE #1485's migration · A2, O, P · built, waits for the outside review of its migration · BE #1491
+Nothing in flight.
 
 ## 3. Still open
 
@@ -462,6 +459,7 @@ Will's guide are signed (N258):
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N264 · the rows `in_control` and `sales_framing` set at ring 5 by migration 0499 (its outside review: "Safe to merge"), in place of the founder making them on the rings page: Will's answer to a worry (O) and the sales steps (P) are on at ring 5 · BE #1490, #1491, FE (this PR)
 - 2026-10-29 · N263 · the empty Principles page says "No principles yet."; what stopped: its sentence "The first one arrives when you send a case with #mistake." · BE #1490, FE (this PR)
 - 2026-10-29 · N241, N255 · built: N, strengths (the two-day suggestion from # notes and the life goals answer, the lens, "That's your 💪 … again.", the Life Panel's Strengths pill for the ring row, the strength the day before a talk), and Q, your why (the ask after the first goal, the sitting, the daily why with its › to change a line, the three lines on the Goals screen); the migration had its outside review ("Safe to merge"); on at ring 5 · BE #1485, FE #1081
 - 2026-10-29 · N241 · built: O, Will's answer to a worry, under a # note's "Noted.", on once the founder makes the `in_control` row; P, the sales framing: "Which step did it stall at?" with the four steps and one change, and a sales week's Sunday note asks "Which step was it?" in place of the bugs, on once the founder makes the `sales_framing` row · BE #1481, #1482, #1484, FE #1077, #1079
