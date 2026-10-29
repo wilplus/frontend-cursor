@@ -5,6 +5,7 @@ import {
   Check,
   Copy,
   Download,
+  FileUp,
   History,
   MoreHorizontal,
   Presentation,
@@ -26,6 +27,10 @@ import { useSaveIdealText } from "./useSaveIdealText";
 /*  the bottom holds exactly one next step.                                   */
 /*                                                                            */
 /*  Every label is copy the product already shipped. AC-9: nothing numeric.   */
+/*                                                                            */
+/*  2026-10-29 (founder, backend N257): one row under History, "Add slides"   */
+/*  for a project with no deck, "Update slides" for one with a deck. It       */
+/*  opens the upload sheet (UpdateSlides.tsx); nothing else moves.            */
 /* -------------------------------------------------------------------------- */
 
 const ITEM =
@@ -39,6 +44,7 @@ export default function IdealTextMenu({
   onPresent = null,
   onExport = null,
   onHistory = null,
+  slides = null,
   onCopy,
   copied,
 }: {
@@ -54,6 +60,8 @@ export default function IdealTextMenu({
   onExport?: (() => void) | null;
   /** null = no revisions yet — the item is withheld (§4.3). */
   onHistory?: (() => void) | null;
+  /** "Add slides" / "Update slides" (N257); null = withheld. */
+  slides?: { label: string; onOpen: () => void } | null;
   onCopy: () => void;
   copied: boolean;
 }) {
@@ -116,6 +124,12 @@ export default function IdealTextMenu({
               <button type="button" role="menuitem" onClick={run(onHistory)} className={ITEM}>
                 <History className="h-4 w-4 text-muted-foreground" aria-hidden />
                 {BLOCK_VARIANT_COPY.timelineEntry}
+              </button>
+            ) : null}
+            {slides ? (
+              <button type="button" role="menuitem" onClick={run(slides.onOpen)} className={ITEM}>
+                <FileUp className="h-4 w-4 text-muted-foreground" aria-hidden />
+                {slides.label}
               </button>
             ) : null}
             <button

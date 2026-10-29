@@ -761,6 +761,17 @@ src/components/willab/noStarsOnUserSurfaces.test.ts,Guard,No component in src/co
 `Star` import in any .tsx, user lane or coach lane. A source scan on
 purpose: the star rating once lived in six separate renderers, and a
 render test only covers the surface it mounts.","star drawn -> ""NO component draws a star icon""",If removed: A star rating (a verdict) can quietly come back on any screen.
+src/components/willab/oneProject.test.tsx,Story,"As a speaker, I want to work on one project at a time and be asked before I leave the current one, so that starting or going back to a project never mixes two presentations, and nothing is lost.","O1  ""Start a new project"" asks ""One project at a time"", naming the project
+with my newest Take; Continue archives that one, then starts the new
+project; Cancel leaves me on the list with nothing archived.
+O2  Picking another project asks the same; Continue archives the current
+one and opens the one I picked. Picking the current one asks nothing,
+and with no Take yet nothing is asked.
+O3  ""Record Take N"" on an archived project asks first; Continue brings it
+back, archives the current one, then records. On the current project
+it records at once, asking nothing (Never 3).","O1 -> ""Start a new project asks, and Continue archives the current one first""
+O2 -> ""another project asks; the current one and a first project do not""
+O3 -> ""Record Take N on an archived project asks; on the current one it never does""","Founder 2026-10-29, backend N254 (items 1, 2, 4, 5)."
 src/components/willab/paragraphPractise.test.tsx,Story,"As a speaker, I want Practise on a paragraph to open the same practise screens as the Feedback walk, recording at once on the right clip, so that practice feels the same everywhere.","O1  A clearer version's card opens the walk's practise screen with its
 words, the mic starts, and the practice opens on the moment's
 snippet; ✕ stops the mic and ends nothing else.
@@ -858,8 +869,11 @@ a PDF over the size limit is refused with a message naming 20 MB.","O1 -> ""reje
 src/components/willab/presentationInPlay.test.ts,Story,"As a speaker starting a later Take, I want to be told whether I am speaking to my own slides or the stand-in deck, so that I know what this Take goes with.","O1  It names my own file, the stand-in deck, or nothing while the setup
 is not known yet.
 O2  It is shown only before Take 2 and later, from that Take's own setup
-first, then the project's.","O1 -> ""names the speaker's own file, the stand-in deck, or nothing until the setup is known""
-O2 -> ""is shown before a later Take only, from the Take's own setup first""",Founder 2026-10-16.
+first, then the project's.
+O3  On the first Take after I changed the slides it says ""New slides"";
+after that it names the Take the slides were first used on.","O1 -> ""names the speaker's own file, the stand-in deck, or nothing until the setup is known""
+O2 -> ""is shown before a later Take only, from the Take's own setup first""
+O3 -> ""says New slides on the first Take with them, then the Take they started on""",Founder 2026-10-16; backend N257 (2026-10-29).
 src/components/willab/readout.sayItStronger.test.ts,Story,"As a speaker, I want ""why"" and reason lines that the server removed to be left out, not shown blank, so that I never see empty or forbidden text.","O1  An empty ""why"" or reason becomes nothing to show.","O1 -> ""nulls why + reason when the BE output-guard stripped them (AC-9)""",Never 1; AC-9 (the backend guard strips score-like lines).
 src/components/willab/readout.test.ts,Story,"As a speaker, I want my transcript split by slide in slide order, silent slides included, so that each paragraph lines up with its slide.","O1  Slides and their transcripts come out in slide order; a slide with
 nothing said is kept, with its place in the recording.","O1 -> ""maps deck slides + complete per-slide transcripts (sorted, '' valid)""",
@@ -919,6 +933,17 @@ O2  A version the thread holds twice keeps only the later copy.
 O3  Different versions with no review card all stay.","O1 -> ""hides the bubble of a Take that already has its review card""
 O2 -> ""hides the earlier copy of a version the thread holds twice""
 O3 -> ""keeps each version's own bubble""","Founder 2026-10-14 (walk first) and 2026-10-18 (""I can see two bubbles"")."
+src/components/willab/updateSlides.test.tsx,Story,"As a speaker, I want to add or change my project's slides from the Ideal Text page or the chat, and stay in the same project, so that my next Take uses the new deck without starting over.","O1  The Ideal Text ⋯ menu says ""Add slides"" when my project has no deck and
+""Update slides"" when it has one.
+O2  Choosing a PDF there reads it, saves it as this project's deck
+(slides and the served PDF), says ""New slides ready for Take 5."" and
+leaves this device's copy of the deck on the new slides.
+O3  In the chat, Will's update_slides is never a button: a grey card with
+""Update slides"" takes the message box's place; the upload ends with
+Will's line ""New slides ready for Take 5."" and the message box comes
+back. Cancel brings the message box back with nothing sent.","O1 -> ""the ⋯ item says Add slides without a deck and Update slides with one""
+O2 -> ""a chosen PDF becomes the project's deck and the next Take's""
+O3 -> ""the chat's card stands in for the message box until the upload or Cancel""","Founder 2026-10-29, backend N257; prototype https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A."
 src/components/willab/useAdminAsk.test.tsx,Story,"As a speaker, I want a question the founder sent me from the CEO panel to come at the end of a Take, as that Take's one ask, and only once per Take, so that it never competes with recording again.","O1  It shows when a Take's message waits for it, and not before.
 O2  After a reload it is not posted again: its form opens again.
 O3  With no ask left to show, the Take's message comes at once.","O1 -> ""shows at the end of a Take whose message waits for it""
@@ -1433,7 +1458,7 @@ O2 -> ""withholds Practise when sensitive information is withdrawn (B6-3)""
 O3 -> ""withholds Practise when Personalised practice is off""
 O4 -> ""leaves the server to decide when there is no agreement yet""
 O4 -> ""leaves the server to decide when the read fails""","B6-3: a practice attempt is new recording, and withdrawing sensitive information stops new recording."
-src/services/api/glueContracts.test.ts,Guard,"Each of 59 service clients still sends exactly the request and gives back exactly the answer it did before the shared-fetch refactor, signed in and signed out (golden file glueContracts.golden.json).","A change to a URL, method, header, body, credentials, cache setting
+src/services/api/glueContracts.test.ts,Guard,"Each of 60 service clients still sends exactly the request and gives back exactly the answer it did before the shared-fetch refactor, signed in and signed out (golden file glueContracts.golden.json).","A change to a URL, method, header, body, credentials, cache setting
 or returned value that a speaker, coach or the backend would notice.","one test per client case, titled by its name, e.g. ""checkPracticeAttempt"",
 ""shareTake refused"", ""setPartLock undecided"", ""uploadCoachVideo""",If removed: A wire-contract change in any of these clients could ship unnoticed; keep it only while it is the single wire-contract home.
 src/services/api/idealText.changes.test.ts,Story,"As a speaker, I want a new Take's suggested upgrade shown as an offer and never applied to my text without my yes, so that my Ideal Text is only what I said or chose.","O1  An upgrade offered by a new Take arrives as a pending offer, not as an

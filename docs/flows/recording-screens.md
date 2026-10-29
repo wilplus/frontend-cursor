@@ -180,6 +180,25 @@ green); the app shows the speaker's own slides, unchanged.
   cannot lock itself on a long slide and cut the mic off; it asks again when
   the page is back in view and lets go when the Take ends. Nothing on screen
   changes. Lives in `src/hooks/useDualCaptureMic.ts`.
+- **2026-10-29 · new slides inside the project (N257).** A project's deck
+  can be added or changed inside the project (the Ideal Text page's ⋯, or
+  the chat). The line under **Getting your mic ready** says **New slides**
+  on the first Take after the change (the setup read's `deck_changed`),
+  and from the next Take **Same presentation as Take {n}**, {n} the Take
+  the deck was first used on (`deck_since_take`; Take 1 when not sent).
+  The stand-in line is unchanged. The Take records with the setup read's
+  newest deck. Signed in the Claude Code chat, 29 October 2026, on the
+  prototype <https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A>.
+- **2026-10-29 · one project at a time (N254).** The "+" opens the
+  projects. **Start a new project**, or a project that is not the current
+  one (the one with the newest Take), first asks **One project at a time**
+  · **"{current}" will be archived. Its Takes and Ideal Text stay safe, and
+  you can bring it back from Data & consent.** · **Cancel** | **Continue**.
+  Continue archives the current project, then goes on as before; Cancel
+  stays on the list. Picking the current project, a draft, or an account
+  with no Take yet asks nothing. A failed archive says "Couldn't archive.
+  Try again." and nothing goes on. Lives in `ProjectPicker.tsx` and
+  `OneProjectQuestion.tsx`.
 
 
 ## 2. In flight
@@ -220,11 +239,13 @@ Every prototype link in §1, in the order it first appears:
 - <https://claude.ai/artifact/9CFAAP2Ue7pvRdLvdesn9h>
 - <https://claude.ai/artifact/LU1XgQyqY2nPSvDAmsRJFo>
 - <https://claude.ai/artifact/JUwW4FfFzyUhgCpPrMAKjG>
+- <https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A>
 
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N254, N257 · built: the "+"'s "Start a new project", or another project than the one with the newest Take, asks "One project at a time" first and Continue archives the current one (`ProjectPicker.tsx`); the line under "Getting your mic ready" says "New slides" on the first Take after a deck change, then "Same presentation as Take {n}" (`presentationInPlay.ts`, `LabOverlay.tsx`). Was: any number of projects side by side, and always "Same presentation as Take 1" · FE (this PR), BE (with it)
 - 2026-10-27 · N217 · "How do you feel?" says "Your coach sees your answer." under "Before you step on stage" (signed with Privacy 3.9, question 1 A: answering is the yes for that one answer); on a plan it is asked only after the plan's own yes, and without it the check is passed by at once and keeps nothing, as a Skip (`FeelingsCheckIn.tsx`, `plan.ts`). The plan's yes is switched off (`PLAN_CONSENT_ENABLED`) until Privacy 3.9 is published, so today every plan reads as yes. Was: asked of every speaker with no word on who sees it · FE (this PR), BE (with it)
 - 2026-10-27 · N211 · "How do you feel?" has a Skip wherever it shows, a new project's first Take included (`FeelingsCheckIn.tsx`); skipping keeps no feeling. Was: a Skip only between a plan's first and last practice · BE #1408
 - 2026-10-26 · N151, N178, N203 · with an active plan, "How do you feel?" comes before every Take but the plan's first, with a Skip (`FeelingsCheckIn.tsx`, `useWillabFlow.ts`); the plan's first Take opens the set-up with the topic filled in. Was: once per new project, before Take 1, no Skip · BE #1386, FE #1018

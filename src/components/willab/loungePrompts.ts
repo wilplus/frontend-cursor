@@ -14,8 +14,6 @@ export type ChipAction =
   | "audit"
   | "create_new_project"
   | "replace_pdf"
-  | "create_project_from_updated_deck"
-  | "keep_current_project"
   | "edit_current_slide"
   | "feedback_skip";
 
@@ -24,8 +22,6 @@ export const CHIP_LABEL: Record<ChipAction, string> = {
   audit: "Open audit",
   create_new_project: "Create new project",
   replace_pdf: "Replace PDF",
-  create_project_from_updated_deck: "Create project from updated deck",
-  keep_current_project: "Keep current project",
   edit_current_slide: "Edit the text",
   // Under "What was missing?" (WIL-74, founder 2026-10-19).
   feedback_skip: "Skip",
@@ -36,13 +32,16 @@ export const CHIP_LABEL: Record<ChipAction, string> = {
 // record CTA (#119 / reversal of #4). `strong_sides` was removed in R4-13
 // (the strong-sides surface is gone; the trainings tab is the destination).
 // `arc_checkout` was removed with the $25/arc paywall (only $5 moments is paid).
+// `create_project_from_updated_deck` and `keep_current_project` were removed
+// with N257 (founder 2026-10-29): a new deck stays in the same project, and
+// Will's `update_slides` is never a chip; the upload card takes the message
+// box's place (UpdateSlides.tsx). An old row that still carries them shows
+// no button.
 const VALID_ACTIONS: readonly ChipAction[] = [
   "trainings",
   "audit",
   "create_new_project",
   "replace_pdf",
-  "create_project_from_updated_deck",
-  "keep_current_project",
   "edit_current_slide",
   "feedback_skip",
 ];

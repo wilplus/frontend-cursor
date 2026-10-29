@@ -1,5 +1,5 @@
 /*
-GUARD    Each of 59 service clients still sends exactly the request and gives
+GUARD    Each of 60 service clients still sends exactly the request and gives
          back exactly the answer it did before the shared-fetch refactor,
          signed in and signed out (golden file glueContracts.golden.json).
 CATCHES  A change to a URL, method, header, body, credentials, cache setting
@@ -35,6 +35,7 @@ import { fetchSessionReadout } from "./sessionReadout";
 import { fetchTrainings } from "./trainings";
 import { saveIdealText } from "./saveIdealText";
 import { archiveProject } from "./projectArchive";
+import { updateProjectDeck } from "./projectDeck";
 import { fetchContextDocument, uploadContextDocument } from "./contextDocument";
 import { decideBlock } from "./documentDecide";
 import { fetchLineBankNext, recordLineShown } from "./lineBank";
@@ -84,6 +85,7 @@ const CASES: Case[] = [
   ["fetchTrainings", () => fetchTrainings({ includeArchived: true }), { status: 200, json: { trainings: [{ arc_id: "a1", topic: "T" }] } }],
   ["saveIdealText nothing", () => saveIdealText("a1"), { status: 409, json: { code: "NOTHING_TO_SAVE" } }],
   ["archiveProject", () => archiveProject("p1"), { status: 200, json: {} }],
+  ["updateProjectDeck", () => updateProjectDeck("p1", { slides: [{ title: "s", body: "b" }], presentationRef: "https://x.test/d.pdf" }), { status: 200, json: { project_id: "p1", next_take: 5 } }],
   ["fetchContextDocument", () => fetchContextDocument("a1"), { status: 200, json: { has_document: true, pages: 2 } }],
   ["uploadContextDocument too large", () => uploadContextDocument("a1", new File(["x"], "a.pdf")), { status: 413, json: {} }],
   ["decideBlock stale", () => decideBlock("a1", 3, "accept", "t1"), { status: 409, json: {} }],
