@@ -117,6 +117,9 @@ export type SundayNote = {
   /** The two held principles most likely to apply (L5). */
   likely: { id: string; title: string }[];
   new_principle: string | null;
+  /** "sales" for a sales week: the sale's steps in place of the bugs
+   *  (backend N241 P3). */
+  kind?: "sales" | "self";
   /** The step the lens waits on. */
   step: SundayStep;
   rows: { role: "user" | "bot"; body: string; step: string }[];

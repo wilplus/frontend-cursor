@@ -919,9 +919,11 @@ O3 -> ""a sheet closing or a save reads anew""",F4 (founder 2026-10-08): one rec
 src/components/willab/slideEditor.test.tsx,Story,"As a speaker, I want editing a slide to save only the paragraphs I changed, so that the others keep their locks and history.","O1  Save sends only the changed paragraph, with its new words.","O1 -> ""writes only the paragraphs whose words changed""",Never 5 (every old version stays in the history).
 src/components/willab/sundayLens.test.tsx,Story,"As the founder, I want to investigate the pattern Will spotted in my # notes one step at a time, so that I name the bug, the principle I had and my own reflection, and keep a new principle only if I say so.","O1  Investigate opens the lens on the case; the bug, the principle held, my reflection and Will's new principle come one at a time, each answer goes to the backend as that step, and the lens ends with Close.
 O2  Opened again, the lens replays the rows so far and asks only the step it waits on.
-O3  In the Lounge, the ""We spotted a pattern!"" bubble waits (orange outline) until Will's last line is in the thread, and Not now | Investigate is about the newest case.","O1 -> walks me through the case one step at a time
+O3  In the Lounge, the ""We spotted a pattern!"" bubble waits (orange outline) until Will's last line is in the thread, and Not now | Investigate is about the newest case.
+O4  A sales week offers the sale's four steps and ""Add a new step"" in place of the bugs, and a tapped step goes to the backend as the answer (backend N241 P3).","O1 -> walks me through the case one step at a time
 O2 -> reopens where it stands
-O3 -> knows which case waits",
+O3 -> knows which case waits
+O4 -> offers the sale's steps for a sales week",
 src/components/willab/topUpCardGate.test.ts,Story,"As a speaker, I want no top-up offer while the Lab is on screen, so that payment never gets in the way of a Take.","O1  Never 3 (the loop is never blocked): the top-up card may not mount in
 any Lab or readout state, nor in project pick, nor while the thread loads.
 O2  In the Lounge, once the thread has loaded, it may mount.","O1 -> ""never mounts while the Lab owns the screen""
