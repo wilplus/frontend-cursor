@@ -40,8 +40,12 @@ built and what is still to come.
 ### A · Who gets it
 
 1. Every new speaker is diagnosed and gets a plan. The questions come once,
-   after consent and before the first Take, and can't be skipped; only the
-   date can (N136, N146).
+   after consent and before the first Take, and never stop the speaker from
+   recording it: while a voice question is asked, "Start your first
+   recording" sits under "Record your answer" and opens the first Take at
+   once. What isn't answered yet comes back after that Take's walk, where
+   Will left off, and the plan counts that Take as its first practice
+   (N136, N146, N262).
 2. A speaker who already has Takes is asked only "When is your deadline?",
    after their next Take, never before it. Their plan is built from the Takes
    they have (N147, N178).
@@ -67,9 +71,10 @@ built and what is still to come.
 3. "I assume you came here to practise for some important event in your
    life. Please tell me, why does it matter and what is it about?" One voice
    message, recorded with the walk practise's recorder: the strip and the red
-   Stop, no Skip. It lands as the speaker's orange voice bubble, and it goes
-   through the processing authorization like every recording (N135, N136,
-   N137).
+   Stop, no Skip; before the first Take, "Start your first recording" under
+   "Record your answer" (A1). It lands as the speaker's orange voice bubble,
+   which plays back, and it goes through the processing authorization like
+   every recording (N135, N136, N137, N262).
 4. Will's reply names the speaker's event, date and reason in their own
    words, then says "I can already hear your main vocal cues and verbal
    habits." and "Let me draft your plan. A few more questions first."
@@ -89,6 +94,20 @@ built and what is still to come.
    gives the plain template (N145, N150).
 7. The set-up's first question, "What is the topic?", arrives filled in from
    the voice message; the speaker can change it (N141).
+8. **Nothing heard.** A voice answer is checked for speech before it is
+   transcribed, as a Take is. One with no speech in it, or that gives no
+   words, is not kept and not sent to a provider: Will says "Sorry, I
+   didn't quite catch that. Could you say it again?" and the same question
+   stays (N262).
+9. **A correction.** When an answer puts Will right ("No, that's not what
+   I meant …") instead of answering his question, Will agrees, "Got it,
+   thank you for putting me right.", says back in one sentence what he now
+   has, in their words and under B6's rules, and asks the same question
+   again. The correction takes the old answer's place in the plan (the key
+   line and its recording too); the old answer stays in the history, and
+   the coach still hears the voice message itself (C5). The AI
+   that writes Will's turn tells a correction from an answer; when it
+   fails, the answer counts as an answer (N262).
 
 ### C · The diagnosis
 
@@ -382,6 +401,10 @@ Signed:
   · "Let me draft your plan. A few more questions first." · when the AI
   fails, "Thank you. Now I can hear you talking about your goal and why it
   matters." (N140, N150).
+- Nothing heard and a correction (B8, B9, N262): "Sorry, I didn't quite
+  catch that. Could you say it again?" · "Got it, thank you for putting me
+  right." · and "Start your first recording" under "Record your answer"
+  (A1; signed with E5, N161).
 - The follow-up templates: "If {the board} remembers one sentence from you,
   what is it? Say it the way you'll say it." · "Who will be in the room on
   {date}, and how many?" · "How long will you speak, and will you have
@@ -484,6 +507,9 @@ Waiting for the founder's OK:
     video for a stuck level (G10) · BE #1415, FE.
   - Built on 28 October 2026 (N248): the calls' calendar full screen, the
     month and the week that swipe (F1, F2, F7) · BE #1462, FE (this PR).
+  - Built on 29 October 2026 (N262): record first, the questions back after
+    that Take's walk (A1); nothing heard (B8); a correction (B9); the voice
+    answers play in Safari · BE #1489, FE (this PR).
 
 ## 3. Still open
 
@@ -567,6 +593,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-10-29 · N262 · A1, B3, B8, B9, K: "Start your first recording" under "Record your answer" while a new speaker's voice questions are asked, and what isn't answered comes back after that Take's walk, where Will left off; a voice answer with no speech, or no words, is not kept and Will says "Sorry, I didn't quite catch that. Could you say it again?"; an answer that puts Will right is taken as a correction ("Got it, thank you for putting me right." and what he now has), and the question is asked again; the voice answers answer Safari's byte-range requests, so they play there (the BFF's `relayAudio`, for the coach's player too). Was: the questions couldn't be skipped (N136, N146); silence came back from the transcriber as words and was kept; a correction was kept as the answer to the question; Safari played nothing · BE #1488, #1489, FE (this PR)
 
 - 2026-10-28 · N251 · today's one thing loses its "Record Take N" once a Take is recorded in any project, not only its own (G6). Was: a Take in another project left the button up beside the new walk (N244) · BE (N251 log), FE (this PR)
 - 2026-10-28 · N248 · the calls' calendar opens full screen over the chat: "Skip" at the top left, one "Book" at the bottom; the month swipes, a day picked folds it into its week with the times in four columns; "Edit" turns the same screen into the deadline's (F1, F2, F7, E2). No new words. Was: the calendar in the footer under the chat, "Skip" and "Book" side by side, the month by its arrows · BE #1462, FE (this PR)

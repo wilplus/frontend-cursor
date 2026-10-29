@@ -109,6 +109,9 @@ src/app/api/v2/lab/presentation/extract/route.test.ts,Story,"As a guest speaker,
 owner token (X-Willab-Guest-Owner) passed on.","O1 -> ""forwards a guest's owner token""",
 src/app/api/v2/learning-exposures/ack/route.test.ts,Story,"As the founder, I want every ""the speaker saw this"" receipt the app sends to reach the backend unchanged, so that the records of what each speaker was shown are complete.","O1  The receipt is POSTed to the backend's receipt route exactly as sent,
 and the speaker must be signed in.","O1 -> ""forwards the acknowledgement verbatim to the backend ack route""",Audit 2026-09-22 (G-1): before this route every receipt was lost.
+src/app/api/v2/plan/answers/[answerId]/audio/route.test.ts,Story,"As a speaker on Safari, I want my own voice answers to play when I tap them, so that I can hear what I told Will.","O1  The player's byte-range request reaches the backend, and the part it
+answers comes back as a part: 206 with its Content-Range, which
+Safari needs before it plays anything.","O1 -> ""relays a byte range as a byte range""",The founder's voice bubbles didn't play in Safari on a Mac (backend N262 item 4); docs/flows/the-plan.md §6.
 src/app/api/v2/processing-authorization/[[...path]]/route.test.ts,Story,"As a speaker, I want to be able to cancel my own account deletion, and nobody to reach the erase-my-data route through the app, so that deletion is safe both ways.","O1  Cancelling one's own deletion (POST with a valid deletion id) reaches
 the backend and is never cached.
 O2  The cancel is refused (404, nothing sent) as a GET, with a bad id, or
@@ -854,13 +857,17 @@ more, its footer is ""Not now"" and ""Yes, ask me"" and nothing else
 is taken while he waits (N211).
 O7  Before my first Take nothing of the principles is in my way: no
 notebook mic, no ask; once my first Take lands, both are there,
-without opening the app again (N243).","O1 -> ""each step has its own footer""
+without opening the app again (N243).
+O8  The questions never stand between me and my first Take: under
+""Record your answer"", ""Start your first recording"" opens it, and
+is gone once I have a Take (N262).","O1 -> ""each step has its own footer""
 O2 -> ""a rating is sent once and never written back""
 O3 -> ""the plan's rows are drawn as the prototype draws them""
 O4 -> ""the newest bubble holds the one record button""
 O5 -> ""a new project's question, and the feelings before a Take""
 O6 -> ""Will asks for the plan's own yes""
-O7 -> ""nothing of the principles before my first Take""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; docs/flows/the-plan.md §1."
+O7 -> ""nothing of the principles before my first Take""
+O8 -> ""my first Take is never behind the questions""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; record first, backend N262; docs/flows/the-plan.md §1."
 src/components/willab/plan/planNewEvent.test.tsx,Story,"As a speaker with a plan, I want ""I have a new event"" out of my way while my Take is still processing, so that I never tap something that leaves me with nothing to do.","O1  While the Take is processing, Change your plan has no ""I have a new
 event"", and the plan's end shows only ""Keep practising"".
 O2  Once the Take has landed, both show ""I have a new event"" again.","O1, O2 -> ""a new event waits for the Take being processed""","The founder, 2026-10-28 (backend N242); docs/flows/the-plan.md §1 H1 and I2."
