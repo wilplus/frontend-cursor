@@ -1493,7 +1493,11 @@ export default function LabOverlay({
             // Which presentation a later Take is said against (founder
             // 2026-10-16): the one the Take will record with, else the
             // project's restored setup while the mic is still being asked for.
-            note={laterTakePresentation(arcTakeIndex, context, preloadDeck, deckNews)}
+            // On Take 1, why the browser is asking for the mic (N273 item 4).
+            note={micWaitNote(
+              arcTakeIndex,
+              laterTakePresentation(arcTakeIndex, context, preloadDeck, deckNews),
+            )}
           />
         ) : null}
         {/* Asked only of a signed-in speaker (backend N272): it waits until
@@ -2022,6 +2026,12 @@ function enteringRecording(state: WillabState): boolean {
     state === "lab_prerecord" ||
     state === "lab_recording"
   );
+}
+
+/** The small grey line under "Getting your mic ready": a later Take's
+ *  presentation, and on Take 1 why the browser asks for the mic (N273 item 4). */
+function micWaitNote(take: number, presentation: string | null): string | null {
+  return presentation ?? (take <= 1 ? RECORDING_COPY.micWhy : null);
 }
 
 /** "Getting your mic ready": before a later Take and while the mic is still
