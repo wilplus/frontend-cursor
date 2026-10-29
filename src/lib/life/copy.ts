@@ -26,8 +26,9 @@ export const GUIDE = {
   title: "Principles",
   paragraphs: [
     "A principle is a short rule you write for yourself after something goes wrong, so the same thing costs you less next time. You write it once, in your own words, and it stays.",
-    "The way in is the chat you already use. Start a message with a hashtag and it goes here instead of to Will. Type #mistake and paste what happened, along with what you make of it, and it becomes a case: the situation, what kind of error it was, which of your existing principles bore on it, your own reflection, and the one line you take away.",
-    "Other tags do other jobs. #observation checks something you noticed against the strategy you wrote. #win keeps a win. #add puts a line on your phrase wall, so your own words can come back to you later, at the moment they apply.",
+    // Founder 2026-10-29 (backend N258): one line on "# note" replaces the
+    // two paragraphs on the old tags (#mistake, #observation, #win, #add).
+    "The way in is the chat you already use. Start a message with # note, or tap the small mic, and it is kept as a note for you and Will. On Sunday, when your notes show a pattern, Will asks what you take from it and suggests a principle.",
     "The point is not to log your days. It is to catch the ideas, concerns and conclusions you pick up in meetings and from watching other people, and to build wisdom in how you communicate and in general.",
     "Nothing here pings you. There is no streak, no score, and nothing that counts the days you did not write. When you open it, it is waiting.",
   ],
