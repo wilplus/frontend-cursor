@@ -17,10 +17,11 @@ export const UPDATE_SLIDES_COPY = {
   ready: (take: number) => `New slides ready for Take ${take}.`,
 } as const;
 
+/** "Settings" in place of "Data & consent" since N260 (founder 2026-10-29). */
 export const ONE_PROJECT_COPY = {
   title: "One project at a time",
   body: (current: string) =>
-    `“${current}” will be archived. Its Takes and Ideal Text stay safe, and you can bring it back from Data & consent.`,
+    `“${current}” will be archived. Its Takes and Ideal Text stay safe, and you can bring it back from Settings.`,
   continue: "Continue",
   cancel: "Cancel",
 } as const;

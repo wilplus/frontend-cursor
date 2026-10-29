@@ -5,7 +5,7 @@ import type { TrainingArc } from "@/services/api/trainings";
 /*                                                                            */
 /*  The current project is the one with the newest Take. Starting a new       */
 /*  project, or going to another one, first asks; Continue archives the       */
-/*  current one (N14: nothing is deleted, Data & consent brings it back).     */
+/*  current one (N14: nothing is deleted, Settings brings it back, N260).       */
 /*  The next Take of the current project never asks (Never 3).               */
 /* -------------------------------------------------------------------------- */
 
