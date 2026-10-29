@@ -16,6 +16,7 @@ import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import WalkWordPicker from "./WalkWordPicker";
 import { practiseThreadFooter, practiseThreadItem, type PractiseScreenCtx } from "./WalkPractiseScreens";
+import { useWalkQuote, type WalkQuoteIO, type WalkQuotes } from "./useWalkQuote";
 import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
 import WalkSummary, { type WalkStoredSummary } from "./WalkSummary";
@@ -229,6 +230,9 @@ type Props<R> = {
   tempoSaid?: readonly WalkTempoLine[];
   /** What the tempo step did, for the chat and for Will (N166 step 4). */
   onTempo?: (event: TempoEvent) => void;
+  /** The Take's one quote from the speaker's notebook, under a Clearer
+   *  version's Good job (backend N268). Absent: none. */
+  quotes?: WalkQuoteIO | null;
 };
 
 const NO_LINES: readonly WalkTempoLine[] = [];
@@ -315,6 +319,7 @@ export default function FeedbackWalk<R = unknown>({
   tempo = null,
   tempoSaid = NO_LINES,
   onTempo,
+  quotes: quotesIO = null,
 }: Props<R>) {
   const liveModel = useRef(model);
   liveModel.current = model;
@@ -439,6 +444,7 @@ export default function FeedbackWalk<R = unknown>({
   );
 
   const replayTries = walk.replay?.tries;
+  const quotes = useWalkQuote<R>({ io: quotesIO, plan, at, moments: walk.moments });
   const practise = useWalkPractise<R>({
     io: practiseIO,
     plan,
@@ -729,6 +735,7 @@ export default function FeedbackWalk<R = unknown>({
     },
     pastLoop,
     practise,
+    quotes,
     summary,
     storedSummary,
     editedWords,
@@ -837,6 +844,7 @@ type ScreenCtx<R = unknown> = {
   skipExercise: (step: WalkStep) => void;
   pastLoop: () => void;
   practise: WalkPractise;
+  quotes: WalkQuotes;
   summary: (() => Promise<string | null>) | null;
   storedSummary: WalkStoredSummary | null;
   editedWords: ReadonlySet<string>;
@@ -1370,6 +1378,7 @@ function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep, backFromPractise: ()
     answer: ctx.answer,
     say: ctx.say,
     replayTries: ctx.walk.replay?.tries,
+    quotes: ctx.quotes,
     ...ctx.practise,
   };
   return threadStart(ctx.walk.plan, ctx.at(step)) >= 0 ? Thread(ctx, step, moment, practiseCtx) : null;

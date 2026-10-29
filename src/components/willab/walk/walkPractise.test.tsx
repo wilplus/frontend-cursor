@@ -30,6 +30,7 @@ import FeedbackWalk from "./FeedbackWalk";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 import { walkPractiseIO } from "@/services/api/walkPractise";
 import type { ConfidentVoicePracticeOffer } from "@/services/api/idealText";
+import type { WalkQuoteIO } from "./useWalkQuote";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -245,6 +246,7 @@ function draw(
     at?: number;
     onShown?: (...args: unknown[]) => void;
     onReached?: (...args: unknown[]) => void;
+    quotes?: WalkQuoteIO | null;
   } = {},
 ) {
   const model = buildFeedbackWalk({ items: over.items ?? ITEMS, coachNote: false, practiceOn: over.practiceOn ?? true, guest: false });
@@ -264,6 +266,7 @@ function draw(
     practise: io,
     onShown: over.onShown,
     onReached: over.onReached,
+    quotes: over.quotes,
     onSaveHelperWords: () => undefined,
     onEnd: () => {
       ended += 1;
@@ -392,6 +395,57 @@ describe("words first, then voice (founder 2026-10-18)", () => {
     await settle(160);
     expect(screen()).toBe("walk-screen-improved");
     expect(live()!.querySelector("[data-walk-ai-voice]")).toBeNull();
+  });
+});
+
+describe("the walk quotes your notebook (founder 2026-10-29, N268)", () => {
+  const QUOTE = {
+    kind: "strength" as const,
+    line: "That's your 💪 clear with numbers again.",
+    quote: "Walked the board through the budget. Nobody had a question left.",
+    said_on: "2026-10-14",
+    said: SAID,
+    first: true,
+  };
+  const quotesIO = () => ({ ask: vi.fn(async () => QUOTE), shown: vi.fn(), notHere: vi.fn() });
+
+  it("after a Good job, Will quotes the speaker's own words, and Not here takes it away", async () => {
+    const io = quotesIO();
+    draw({ quotes: io });
+    await accept();
+    expect(io.ask).toHaveBeenCalledWith(SAID);
+    answers = [{ next: "praise", key: "cue:landed_ending" }];
+    await tryAndRead();
+    expect(screen()).toBe("walk-screen-improved");
+    expect(now()!.querySelector("[data-walk-quote-line]")!.textContent).toBe(QUOTE.line);
+    expect(now()!.querySelector("[data-walk-quote]")!.textContent).toBe(`\u201c${QUOTE.quote}\u201d`);
+    expect(now()!.textContent).toContain("14 October");
+    expect(io.shown).toHaveBeenCalledTimes(1);
+    expect(now()!.querySelector("[data-walk-quote-first]")!.textContent).toContain(WALK_COPY.quoteFirst);
+    click(now()!.querySelector("[data-testid='walk-quote-not-here']"));
+    expect(io.notHere).toHaveBeenCalledTimes(1);
+    expect(now()!.querySelector("[data-walk-quote]")).toBeNull();
+    expect(now()!.querySelector("[data-walk-said]")!.textContent).toBe(WALK_COPY.quoteNotHere);
+    expect(message()).toBe(WALK_COPY.quoteNotHereNoted);
+  });
+
+  it("a try that is not yet better shows no quote", async () => {
+    const io = quotesIO();
+    draw({ quotes: io });
+    await accept();
+    answers = [{ next: "again", key: "effort" }];
+    await tryAndRead();
+    expect(live()!.querySelector("[data-walk-quote]")).toBeNull();
+  });
+
+  it("“Keep my words” is answered with its own line, not Line A", async () => {
+    draw();
+    click(live()!.querySelector("[data-testid='walk-keep']"));
+    await settle();
+    expect(screen()).toBe("walk-screen-practise");
+    expect(now()!.textContent).toContain(WALK_COPY.keepWords);
+    expect(now()!.textContent).not.toContain(WALK_COPY.lineA);
+    expect(now()!.querySelector("[data-walk-say]")!.textContent).toBe(SAID);
   });
 });
 

@@ -7,6 +7,7 @@ import { deleteLifeData, exportLifeData } from "@/services/api/life";
 import { invalidateLifeState } from "@/lib/life/useLifeState";
 import { PanelCard } from "@/components/life/primitives";
 import ReminderSettings from "@/components/life/ReminderSettings";
+import WalkQuoteSetting from "@/components/life/WalkQuoteSetting";
 
 /* -------------------------------------------------------------------------- */
 /*  FE-10 — export and delete                                                  */
@@ -32,6 +33,8 @@ export default function DataPage() {
             two clicks from anywhere — so the one switch that can make the
             product speak first sits next to the switches that get you out. */}
         <ReminderSettings />
+        {/* "Not here" in the Feedback walk is turned back on here (N268). */}
+        <WalkQuoteSetting />
         <ExportCard />
         <DeleteCard />
       </div>
