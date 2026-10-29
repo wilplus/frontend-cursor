@@ -20,6 +20,16 @@ export const SUNDAY_COPY = {
   ],
   addBug: "Add a new bug",
   nameBug: "Name the new bug",
+  /** A sales week (backend N241 P3, signed N258): the sale's steps in
+   *  place of the bugs. */
+  steps: [
+    { key: "opening", emoji: "🚪", label: "The opening" },
+    { key: "discovery", emoji: "🔍", label: "Discovery" },
+    { key: "offer", emoji: "🎁", label: "The offer" },
+    { key: "follow_up", emoji: "📨", label: "The follow-up" },
+  ],
+  addStep: "Add a new step",
+  nameStep: "Name the new step",
   add: "Add",
   back: "Back",
   noneYet: "None yet",
