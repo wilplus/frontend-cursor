@@ -70,4 +70,12 @@ export const FLOW_COPY = {
    *  take count now, so a take started mid-assembly races the version being
    *  written. */
   recordHeld: "One moment — finishing your last take.",
+
+  /** Will's answer to a signed-out visitor who writes before their first
+   *  Take (founder 2026-10-29: "answer something intelligible, but then push
+   *  the user to actually record the first recording"). Their words cannot
+   *  go to the AI before the processing agreement, so it is one fixed line,
+   *  with "Start your first recording" under it. */
+  firstTakeHello:
+    "Hi, I'm Will. 👋 Record your first take, and I will help you with your presentation.",
 } as const;

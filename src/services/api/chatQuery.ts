@@ -21,6 +21,8 @@
  * value silently.
  */
 
+import { guestOwnerHeaders } from "./projects";
+
 export interface ChatHistoryEntry {
   role: "user" | "assistant";
   content: string;
@@ -183,13 +185,16 @@ export async function postChatQuery(
     res = await fetch(ENDPOINT, {
       method: "POST",
       body: form,
+      headers: guestOwnerHeaders(),
       credentials: "include",
     });
   } else {
     // No audio → existing JSON path, unchanged from today.
     res = await fetch(ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // A guest's acceptance lives on their guest identity until they sign
+      // up (projects.ts); without it the processing gate refuses the turn.
+      headers: { "Content-Type": "application/json", ...guestOwnerHeaders() },
       body: JSON.stringify({
         question: args.question,
         history: args.history,

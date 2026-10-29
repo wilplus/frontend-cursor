@@ -62,6 +62,8 @@ export async function POST(req: NextRequest) {
     // unsigned-home surface). Backend's `@optional_auth` accepts both:
     // present-and-valid → personalized; absent → anonymous 200. The token
     // is attached ONLY when a real one is available (requireAuth: false).
+    // Signed out, the guest owner token goes up instead: it carries the
+    // guest's acceptance, which the processing gate asks for.
     const contentType = req.headers.get("content-type") ?? "";
 
     // Hard 25s upstream-fetch budget — see route docstring re:
@@ -87,6 +89,7 @@ export async function POST(req: NextRequest) {
           body: out,
           signal: controller.signal,
           requireAuth: false,
+        guestOwnerFrom: req,
           failures: FAILURES,
           relay: RELAY,
         });
@@ -99,6 +102,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify(body ?? {}),
         signal: controller.signal,
         requireAuth: false,
+        guestOwnerFrom: req,
         failures: FAILURES,
         relay: RELAY,
       });

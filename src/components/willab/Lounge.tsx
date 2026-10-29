@@ -9,7 +9,11 @@ import dynamic from "next/dynamic";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "./LoungeAiVoiceBubble";
 import { CHUNK_SHEET_COPY, WALK_COPY } from "./idealEditCopy";
-import { postChatQuery, type ChatQueryResponse } from "@/services/api/chatQuery";
+import {
+  ChatQueryRequestError,
+  postChatQuery,
+  type ChatQueryResponse,
+} from "@/services/api/chatQuery";
 import { warmIdealTextOpen } from "@/services/api/idealText";
 import { newestStamp, refreshNewCoachFeedback, stampLoungeMessage, type LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
@@ -228,6 +232,28 @@ function failedNoteSession(
  *  is never held behind it. */
 function blocksText(takeInFlight: boolean, inFlightArcId: string | null, openArcId: string): boolean {
   return takeInFlight && inFlightArcId === openArcId;
+}
+
+/** Will's bubble when a chat turn fails. A signed-out visitor before their
+ *  first Take is refused by the processing gate (no agreement yet, so their
+ *  words may not reach the AI): Will says hello and points to the first
+ *  recording (founder 2026-10-29). Anything else is a real failure. */
+export function chatFailureReply(err: unknown, signedIn: boolean, hasProject: boolean) {
+  const refused =
+    err instanceof ChatQueryRequestError && (err.status === 401 || err.status === 403);
+  if (refused && !signedIn && !hasProject) {
+    return {
+      role: "bot" as const,
+      kind: "text" as const,
+      body: FLOW_COPY.firstTakeHello,
+      metadata: { suggested_action: "start_first_recording" },
+    };
+  }
+  return {
+    role: "bot" as const,
+    kind: "text" as const,
+    body: "I'm having trouble reaching the lab right now. Give it another try in a moment.",
+  };
 }
 
 /** SIGN UP BEFORE THE TEXT (founder 2026-10-16): a signed-out reader whose
@@ -470,7 +496,8 @@ export default function Lounge({
 
   // C8 — every quick-action CTA lands in ONE place: the Trainings library
   // (trainings / audit). audit previously routed to /audits; it now opens the
-  // Trainings library like the rest so the chips don't scatter. No record chip:
+  // Trainings library like the rest so the chips don't scatter. No record chip
+  // (but a signed-out visitor's first one, start_first_recording):
   // the bot points at the permanent record button in words. (arc_checkout, the
   // $25 pay note, was retired with the paywall — only $5 moments is paid now.)
   function onChip(action: ChipAction): void {
@@ -499,6 +526,13 @@ export default function Lounge({
         postAnswerBubble(CHIP_LABEL[action]);
         openIdealText(project.arcId, "notebook");
       }
+      return;
+    }
+    if (action === "start_first_recording") {
+      // Same door as the empty Lounge's button; once a project exists, the
+      // projects, as the "+" opens them.
+      if (project) onStart();
+      else (onStartNewProject ?? onStart)();
       return;
     }
     if (action === "feedback_skip") {
@@ -1658,12 +1692,8 @@ export default function Lounge({
         } else {
           await thread.append(botDraft);
         }
-      } catch {
-        await thread.append({
-          role: "bot",
-          kind: "text",
-          body: "I'm having trouble reaching the lab right now. Give it another try in a moment.",
-        });
+      } catch (err) {
+        await thread.append(chatFailureReply(err, thread.signedIn, readExploreArc(userId) !== null));
       } finally {
         setBotThinking(false);
       }
