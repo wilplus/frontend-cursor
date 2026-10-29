@@ -727,7 +727,8 @@ step; the loop never waits for a coach.
   sent as "green"; the practise target goes out with no label; the level goes
   out as `level_key` ("W1".."W10"), never the number. A clip with no sound
   read is given the middle of the sound scale and the words order the clips;
-  processing logs why nothing was stamped (2026-10-17).
+  processing logs why nothing was stamped (2026-10-17). H4 works one clip
+  through, step by step, with three examples.
 - **H2** The AI clip's problem (pace, pause, stress, fillers) is measured
   against the speaker's own usual delivery; the clip is made once per
   exercise, at the end of the bake, checked before it is shown, and made
@@ -793,6 +794,211 @@ step; the loop never waits for a coach.
   without its comma is an opener only where a clause starts after it ("So
   we", "So where"). On the founder's Take 4 the rules write six Clearer
   versions: four for the "just"s and the "okay?", two for a "So," alone.
+- **H4** How one clip gets its willfidence, as built (WIL-102;
+  `services/moment_pick.py` `read`, with `services/willfidence.py`,
+  `services/voice_confidence.py` and `services/slide_alignment.py`). A clip
+  is one piece the Take was cut into, about a sentence, with its own
+  transcript and its own sound measurements. Every clip is read the same
+  way, in four steps. No step is ever shown to the speaker (Never 1, AC-9).
+
+  ```
+  1  S  the voice     7 cues against the speaker's usual → −1 … +1 → 0 … 1
+  2  W  the words     the mean of: fillers · hedges · slide fit      0 … 1
+  3  willfidence      S × W                                          0 … 1
+  4  it is used for   the pick (H1) · the praise's level · the coach's
+                      line (N104) · the founder's Takes table (N105)
+  ```
+
+  **Step 1 · S, the voice** (`voice-confidence-universal-v3`, stamped on
+  the clip when the Take is processed; the same for every speaker).
+  - Seven cues are measured on the clip: pitch range, loudness range,
+    pausing, mean pitch, speech rate, whether the pitch falls at the end,
+    and whether the loudness starts strong and eases off.
+  - Each cue is set against the speaker's own usual: how many of their
+    usual spreads (standard deviations) it sits above or below their usual
+    average (a z-score). Their usual is the clips of their recent Takes (up
+    to 5, at least 8 values per cue); with no history, this Take's own
+    clips once there are 6. With neither, the clip has no sound read.
+  - Each is turned toward "confident": a wider pitch and loudness range,
+    less pausing, a lower pitch, faster speech, a falling end and loudness
+    that eases off count up; their opposites count down.
+  - The cues are averaged with fixed weights: loudness range 0.20, pitch
+    range 0.18, pausing 0.18, mean pitch 0.13, speech rate 0.13, the
+    falling end 0.09, the easing loudness 0.09. A cue that could not be
+    measured leaves its weight out; fewer than 3 cues is no sound read.
+  - A neutral zone: 0.25 comes off the size of that average, so a clip
+    within 0.25 of the speaker's usual reads exactly 0. The rest goes
+    through tanh, which keeps it between −1 and +1.
+  - Stretched to 0 … 1: S = (read + 1) ÷ 2, so −1 → 0, 0 → 0.5, +1 → 1.
+
+  **Step 2 · W, the words**, read on the clip's own transcript with its
+  hesitations (the Ideal Text smooths "um" away; this read does not).
+  - **Fillers** = 1 − (fillers per 100 words) ÷ 10, never below 0. Only the
+    ten unambiguous fillers count: um, uh, uhm, erm, er, ah, hmm, mmm,
+    basically, literally. "So", "like", "right", "you know", "actually",
+    "well" and "just" never count.
+  - **Hedges**, on the same line: the 36 unambiguous hedges, among them "I
+    think", "I guess", "I believe", "sort of", "kind of", "maybe",
+    "perhaps", "probably", "possibly", "seems", "likely", "or something"
+    and "to be honest". "Might", "could", "would", "should", "quite",
+    "often" and "pretty" never count. A hedge counts wherever its words
+    stand: "I think about it" counts (H3's rewrite rule knows better; this
+    count does not).
+  - The line for both: none → 1, 3 per 100 words → 0.7, 5 → 0.5, 10 or more
+    → 0.
+  - **Slide fit**, from the point-by-point check run when the Take is
+    processed. The slide is split into its points (its title and each line
+    of its body; for the clips inside the processing budget a model writes
+    the points and checks each one against the clip). Each point is
+    covered (1), partly made (0.5) or not (0), and the clip takes its best
+    point, so one sentence is never marked down for not saying the whole
+    slide. Without the model, a point is covered when 6 in 10 of its words
+    longer than two letters are in the clip, and partly made from 1 in 4.
+    Under 4 words, or a slide with no text, gives no slide fit; 3 seconds
+    or more of silence on a slide gives 0.
+  - W is the mean of the signals present. One that could not be read is
+    left out; with none at all, W = 1, and the voice alone orders the clip.
+
+  **Step 3 · willfidence = S × W.** A clip with no sound read takes S = 0.5
+  so its words still order it (2026-10-17). It is under the floor by
+  construction, the coach sees no Willfidence line for it, and the Take's
+  column leaves it out.
+
+  **Step 4 · where the number goes.**
+  - The pick (H1): the Take's two highest, one per block; clips of 5 words
+    or more first, and a clip that already holds its slide's helper words
+    after the rest.
+  - The praise's opening line (C2): a praised moment's level, by the lower
+    bound of each: W10 0.95 · W9 0.88 · W8 0.80 · W7 0.70 · W6 0.65 · W5
+    0.60 · W4 0.50 · W3 0.40 · W2 0.30 · W1 below. It goes out as
+    `level_key`, never the number.
+  - The coach, after their own blind answer: "Willfidence", the clip's
+    S × W in whole percent (coach panel E1, N104).
+  - The founder's Takes table: the mean over the Take's clips that have a
+    sound read, in whole percent (N105).
+  - Not by it: whether a shown moment is praised or corrected (the voice, S,
+    decides, N108), whether a try is better (S alone, +0.05, H1), and the
+    "high, neutral, low" of judging (N101), which are the voice read's own
+    bands.
+
+  **Three clips on one slide.** The slide: "Why we release every week" /
+  "Smaller changes are easier to test." / "Customers get their fixes
+  sooner." / "One release train for every team." The cue values are made
+  up for the examples; every number after them is what the code gives,
+  with slide fit from the word-overlap check.
+
+  *Example 1 · a strong voice, clean words: 75%.* "Every week we ship
+  smaller changes, and those are easier to test. When something breaks, we
+  know exactly which change did it, and our customers get their fixes
+  sooner. I think that alone pays for the switch."
+
+  ```
+  voice   each cue's z, turned toward confident, × its weight
+          (all seven measured, so the weights add up to 1):
+            loudness range  +1.5 × 0.20 = 0.300
+            pitch range     +1.5 × 0.18 = 0.270
+            pausing         +1.0 × 0.18 = 0.180
+            speech rate     +0.9 × 0.13 = 0.117
+            falling end     +0.9 × 0.09 = 0.081
+            easing loudness +0.5 × 0.09 = 0.045
+            mean pitch      +0.2 × 0.13 = 0.026
+                                    sum   1.019
+          1.019 − 0.25 = 0.769 → tanh → +0.646
+          S = (0.646 + 1) ÷ 2 = 0.823
+  words   37 words
+          fillers  0 → 1.000
+          hedges   1 ("I think") = 2.7 per 100 → 0.730
+          slide    every word of "Smaller changes are easier to test." → 1.0
+          W = (1.000 + 0.730 + 1.0) ÷ 3 = 0.910
+  willfidence  0.823 × 0.910 = 0.749 → the coach sees 75%
+  ```
+
+  The voice reaches the floor (0.823 ≥ 0.6) and the words need no help,
+  so if shown it is praised, at level W7.
+
+  *Example 2 · a good voice, cluttered words: 30%.* "Um, so the idea is,
+  uh, we release more often, maybe every week, and I think our customers
+  would get their fixes sooner, which is basically the whole point of it."
+
+  ```
+  voice   the weighted cues sum to 0.554
+          0.554 − 0.25 = 0.304 → tanh → +0.295
+          S = (0.295 + 1) ÷ 2 = 0.648
+  words   31 words
+          fillers  3 (um, uh, basically) = 9.7 per 100 → 0.032
+          hedges   2 (maybe, I think) = 6.5 per 100 → 0.355
+                   ("so", "would" and "often" are not counted)
+          slide    4 of the 5 words of "Customers get their fixes
+                   sooner." → covered → 1.0
+          W = (0.032 + 0.355 + 1.0) ÷ 3 = 0.462
+  willfidence  0.648 × 0.462 = 0.299 → 30%
+  ```
+
+  The voice reaches the floor but the words need help (fillers, H3), so if
+  shown it is corrected with the Clearer version; when no rewrite passes
+  the gate, it is praised instead (N108).
+
+  *Example 3 · a weak voice, clean words, partly on the slide: 22%.*
+  "Every team ships on the same day, with the same checks, and nobody
+  waits for anybody else."
+
+  ```
+  voice   the weighted cues sum to −0.764
+          0.764 − 0.25 = 0.514 → tanh → −0.473
+          S = (−0.473 + 1) ÷ 2 = 0.264
+  words   17 words
+          fillers  0 → 1.0
+          hedges   0 → 1.0
+          slide    3 of the 6 words of "One release train for every
+                   team." → partly → 0.5
+          W = (1.0 + 1.0 + 0.5) ÷ 3 = 0.833
+  willfidence  0.264 × 0.833 = 0.220 → 22%
+  ```
+
+  Good words, a quiet voice. If shown, the voice is under the floor and
+  the words need no help, so it is corrected with the voice Exercise.
+
+  *The three as one Take*, each clip in its own block:
+
+  ```
+  rank  clip  S      W      S × W  shown  what it gets
+  1     1     0.823  0.910  0.749  yes    praised, W7; the most confident
+  2     2     0.648  0.462  0.299  yes    corrected, the Clearer version
+  3     3     0.264  0.833  0.220  no     —
+  the founder's Takes table: (0.749 + 0.299 + 0.220) ÷ 3 = 0.423 → 42%
+  ```
+
+  Clip 3 has the better words and clip 2 the better voice; S × W puts
+  clip 2 ahead. Had clip 3 no sound read, it would stand at 0.5 × 0.833 =
+  0.417, be shown in clip 2's place and be corrected (no sound read is
+  under the floor); the coach would see no line for it, and the Take's
+  column would be (0.749 + 0.299) ÷ 2 = 52%.
+
+  **The other reads under the same name** (backend SPEC §17; never shown
+  as a number):
+  - `willfidence-v1-machine`, the dark read of a moment: one block of the
+    Take's frame (about 75 words, one clip or more). S is the mean of its
+    clips' sound reads, then stretched; a moment with no sound read is
+    unrateable, with no 0.5 in its place. Fillers and hedges are counted on
+    the block's whole text, slide fit is its best clip's, and W has a
+    fourth signal, holding together (1 yes, 0.5 partly, 0 no, from the one
+    model call per Take). It adds the four boxes, which sum to 1:
+    willfident S·W, hollow S(1 − W), hidden (1 − S)W, lost (1 − S)(1 − W).
+    Clips 1 and 3 as one block, the call saying "partly": S = ((0.646 −
+    0.473) ÷ 2 + 1) ÷ 2 = 0.543; W = (fillers 1.0 + hedges 0.815, one in 54
+    words + slide fit 1.0 + holding together 0.5) ÷ 4 = 0.829; S·W = 0.450,
+    hollow 0.093, hidden 0.379, lost 0.078. A Take's (and a speaker's)
+    willfidence here is the mean S·W over its seeded random fifth of
+    moments (ceil(blocks ÷ 5)); over 30% of them unrateable reads "audio
+    problem", fewer than 10 rated "not enough data". A Take needs 46
+    blocks, about 3,450 words, to draw 10, so one Take alone nearly always
+    reads "not enough data"; the speaker's line gathers over their Takes.
+    It feeds the closing summary, in words (whether the voice and the
+    words rose since the last Take, and the moment with the strongest
+    voice; D), the dark V4 picker, the reached bar and the coaches' "Which
+    sounds surer" sheet.
+  - `willfidence-v1-machine-fast`, the read of a practise try: S, and W
+    from fillers and hedges only, so it is back within 5 seconds.
 
 ### I · Learning
 
@@ -1140,6 +1346,14 @@ The four lines above were filled from main's history by the page's keeper on
   second replace those picked at the first. Nothing changed; the founder
   decides whether that stays.
 - **FLOOR** is 0.6 until the blind judges calibrate it (H1).
+- **H1's W and the build differ** (found 2026-10-29, writing H4): H1 says
+  W is the mean of "few fillers/hedges · fits the slide · holds together".
+  The clip read that picks the moments, gives the coach's line and fills
+  the Takes table has three signals, fillers, hedges and slide fit, with
+  fillers and hedges counted apart; that is also how the signed legal note
+  describes it (backend [document 02, v1.3](https://github.com/wilplus/backend-cursor/blob/main/legal/phase1-2026.1/02-power-score-classification-v1.3-NOTE-SIGNED-2026-10-27.md), N208).
+  Holding together is read only per moment, in the dark read (H4). Nothing
+  changed; the founder decides which is meant.
 - **willfidence-v2** waits for 200 settled clips (I3).
 
 ## 4. Where it lives
@@ -1233,6 +1447,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · — (H1, H4, §3) · written: how one clip gets its willfidence, step by step (the voice's seven cues, the fillers, hedges and slide fit, S × W and where it goes), with three worked examples, one Take, and the dark read of a moment (WIL-102); H1's "holds together" against the build goes to §3. No rule changes · FE (this PR)
 - 2026-10-29 · N259 · built: a finished walk opened again is a scroll, with no buttons and no Next under it on any step. A tap on helper words brings "Edit the helper words" and "Keep these", which go again once chosen; Keep these leaves the words as saved. A walk not yet done keeps its buttons. Was: the step it stood on had its buttons, and every other step a Next (B9, B10, C3, C7, C8, C9, T) · BE #1476, FE (this PR)
 - 2026-10-28 · N251 · a Take recorded in any project takes "Record Take N" from every closing message above it, and the button does not come back on them: the chat has one record button, the newest Take's, and other projects are reached through the "+" (D4). Was: N244 held only inside one project, so another project's button stayed beside the new walk, and each project's last closing message kept its own. D4 rewritten in short sentences · BE (N251 log), FE (this PR)
 - 2026-10-28 · — (B5, T) · fixed: the tempo game drawn from nothing (the walk opened again further on, or its leaving copy) shows the game as the chat kept it, and every kept try has the line the dot drew (its path in the try's message); a finished walk played again shows the stretch and the lines too. Was: it showed only its opening lines, down to "🤫 Find a quiet spot first.", and a walk played again showed "Try N" without its line (founder 2026-10-28: "the sniper as a graphic does not stay there … It feels like the practice is gone from the feedback walk") · FE (this PR)
