@@ -33,7 +33,9 @@ export type OfferType =
   | "life_goals"
   | "life_goals_quarter"
   | "life_goals_change"
-  | "sales_step";
+  | "sales_step"
+  | "your_why"
+  | "strengths";
 
 const OFFER_TYPES: readonly OfferType[] = [
   "install",
@@ -49,6 +51,8 @@ const OFFER_TYPES: readonly OfferType[] = [
   "life_goals_quarter",
   "life_goals_change",
   "sales_step",
+  "your_why",
+  "strengths",
 ];
 
 /** The bubble prompt persisted as the message body. No em-dashes (house style). */
@@ -93,6 +97,12 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
   // fallback.
   life_goals_change: "Change this quarter?",
   sales_step: "Which step did it stall at?",
+  // Your why (backend N255 Q1, signed N258): Not now | Start after the first
+  // goal. Backend COPY["ask_more"] in services/your_why.py; the fallback.
+  your_why: "Three short questions. Say or type your answers.",
+  // Strengths (backend N241 N2, signed N258): Not now | Look. Backend
+  // COPY["head"] in services/strengths.py; this is only the fallback.
+  strengths: "We spotted a strength!",
   joke:
     "I'm just a simple system, but I noticed you weren't feeling great before this presentation. Want me to crack a joke?",
 };

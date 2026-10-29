@@ -135,6 +135,16 @@ import {
 import SundayLens, { SundayHeadBubble } from "./SundayLens";
 import { sundayAskOf, sundayHeadOf, sundayWaiting } from "@/lib/willab/sundayNote";
 import { LifeGoalBubble, lensAskOf, lifeGoalOf, quarterAskOf, changeAskOf, useLifeGoals } from "./LoungeLifeGoals";
+import { YourWhyBubble, useYourWhy, yourWhyLineOf, yourWhyOpenOf } from "./LoungeYourWhy";
+import type { WhyLine } from "@/services/api/yourWhy";
+import {
+  StrengthAgainBubble,
+  StrengthHeadBubble,
+  strengthAgainOf,
+  strengthAskOf,
+  strengthHeadOf,
+  useStrengths,
+} from "./LoungeStrengths";
 import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import WillQuestionBubble, { willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
@@ -1231,7 +1241,7 @@ export default function Lounge({
     const rank: Record<OfferType, number> = {
       joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0, feedback_check: 0,
       voice_notebook: 0, sunday_note: 0, life_goals: 0, life_goals_quarter: 0, life_goals_change: 0,
-      sales_step: 0,
+      sales_step: 0, your_why: 0, strengths: 0,
     };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
@@ -1398,6 +1408,9 @@ export default function Lounge({
   // Life goals (Will learning plan, step 3, N172): the ask's Start, a
   // ladder's ›, or a reply that opens the lens.
   const lifeGoals = useLifeGoals({ signedIn: thread.signedIn, reload });
+  // Your why (N255) and strengths (N241): their asks, the day's rows, lenses.
+  const why = useYourWhy({ signedIn: thread.signedIn, reload });
+  const strengths = useStrengths({ signedIn: thread.signedIn, reload });
   // The Sunday note's lens, opened on one note (N158 L3, L8).
   const [sunday, setSunday] = useState<{ id: string; nonce: number } | null>(null);
   const openSunday = useCallback((id: string) => setSunday({ id, nonce: Date.now() }), []);
@@ -1509,6 +1522,7 @@ export default function Lounge({
     if (offersUpdateSlides(resp.suggested_actions)) slidesAsk.open();
     const lens = lensAskOf(resp.row_metadata);
     if (lens) lifeGoals.openLens(lens);
+    if (yourWhyOpenOf(resp.row_metadata)) why.openLens({ mode: "sit" });
     if (resp.after_take) {
       setActiveOffer(null);
       void reload().catch(() => undefined);
@@ -1705,6 +1719,8 @@ export default function Lounge({
         onWillAnswer={answerWillQuestion}
         onOpenLifeGoal={(goalId) => lifeGoals.openLens({ mode: "see", goalId })}
         onOpenSunday={openSunday}
+        onOpenWhy={(line) => why.openLens({ mode: "change", line })}
+        onOpenStrength={strengths.openLens}
         sundayWaiting={(id) => sundayWaiting(messages, id)}
         animate={
           i === shownItems.length - 1 &&
@@ -1717,6 +1733,8 @@ export default function Lounge({
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
       {lifeGoals.lens}
+      {why.lens}
+      {strengths.lens}
       <SundayLens
         noteId={sunday?.id ?? null}
         nonce={sunday?.nonce ?? 0}
@@ -1897,6 +1915,8 @@ export default function Lounge({
           onLifeGoalsQuarter={(choice) => lifeGoals.answerQuarter(quarterAskOf(messages), choice)}
           onLifeGoalsChange={(choice) => lifeGoals.answerChange(changeAskOf(messages), choice)}
           onSalesStep={(step) => notebook.answerSales(salesAskOf(messages), step)}
+          onYourWhy={why.answerAsk}
+          onStrengths={(choice) => strengths.answerAsk(strengthAskOf(messages), choice)}
           onResolve={() => {
             // A Take's ask closed: its message comes under it (the question's
             // taps let it go on the backend, "No" keeps it waiting).
@@ -2239,6 +2259,8 @@ function OfferActions({
   onLifeGoalsQuarter,
   onLifeGoalsChange,
   onSalesStep,
+  onYourWhy,
+  onStrengths,
   onResolve,
 }: {
   type: OfferType;
@@ -2265,9 +2287,29 @@ function OfferActions({
   onLifeGoalsChange: (choice: "change" | "not_now") => void;
   /** "Which step did it stall at?" (backend N241 P2). */
   onSalesStep: (step: SalesStep) => void;
+  /** "One more thing: your why." (backend N255 Q1). */
+  onYourWhy: (choice: "start" | "not_now") => void;
+  /** "We spotted a strength!" (backend N241 N2). */
+  onStrengths: (choice: "look" | "not_now") => void;
   onResolve: () => void;
 }) {
   const router = useRouter();
+  if (type === "your_why" || type === "strengths") {
+    const yes = type === "your_why" ? "start" : "look";
+    const pick = (choice: "yes" | "not_now") => {
+      if (type === "your_why") onYourWhy(choice === "yes" ? "start" : "not_now");
+      else onStrengths(choice === "yes" ? "look" : "not_now");
+      onResolve();
+    };
+    return (
+      <SymmetricPair
+        closeLabel="Not now"
+        onClose={() => pick("not_now")}
+        actionLabel={yes === "start" ? "Start" : "Look"}
+        onAction={() => pick("yes")}
+      />
+    );
+  }
   if (type === "sales_step") {
     return (
       <SalesSteps
@@ -2467,6 +2509,8 @@ function askBubble(
     onWillAnswer,
     onOpenLifeGoal,
     onOpenSunday,
+    onOpenWhy,
+    onOpenStrength,
     sundayWaiting,
     planRows,
   }: {
@@ -2476,6 +2520,8 @@ function askBubble(
     onWillAnswer?: (target: WillQuestionTarget, choice: string) => Promise<void>;
     onOpenLifeGoal?: (goalId: string) => void;
     onOpenSunday?: (noteId: string) => void;
+    onOpenWhy?: (line: WhyLine) => void;
+    onOpenStrength?: (strengthId: string) => void;
     sundayWaiting?: (noteId: string) => boolean;
     planRows?: PlanRowCtx;
   },
@@ -2488,6 +2534,12 @@ function askBubble(
   }
   const goal = lifeGoalOf(message.metadata);
   if (goal) return <LifeGoalBubble goal={goal} onOpen={() => onOpenLifeGoal?.(goal.id)} />;
+  const whyLine = yourWhyLineOf(message.metadata);
+  if (whyLine) return <YourWhyBubble body={message.body} onOpen={() => onOpenWhy?.(whyLine)} />;
+  const strengthHead = strengthHeadOf(message.metadata);
+  if (strengthHead) return <StrengthHeadBubble body={message.body} onOpen={() => onOpenStrength?.(strengthHead)} />;
+  const strengthAgain = strengthAgainOf(message.metadata);
+  if (strengthAgain) return <StrengthAgainBubble body={message.body} strengthId={strengthAgain} />;
   const will = willQuestionOf(message.metadata);
   if (will) {
     return (
@@ -2532,6 +2584,8 @@ function Bubble({
   onWillAnswer,
   onOpenLifeGoal,
   onOpenSunday,
+  onOpenWhy,
+  onOpenStrength,
   sundayWaiting,
   planRows,
   animate = false,
@@ -2570,13 +2624,19 @@ function Bubble({
   /** The Sunday note's "We spotted a pattern!": its › opens the lens again
    *  where it stands, with the orange outline while it waits (N158 L8). */
   onOpenSunday?: (noteId: string) => void;
+  /** The day's why: its › opens the line to change it (backend N255 Q6). */
+  onOpenWhy?: (line: WhyLine) => void;
+  /** "We spotted a strength!": its › opens the lens again (backend N241 N2). */
+  onOpenStrength?: (strengthId: string) => void;
   sundayWaiting?: (noteId: string) => boolean;
   /** The plan's rows (docs/flows/the-plan.md): drawn by their metadata. */
   planRows?: PlanRowCtx;
   /** U3 — true only for a freshly-arrived last message → sequential reveal. */
   animate?: boolean;
 }) {
-  const ask = askBubble(message, { activeOffer, onOpenOffer, willOpen, onWillAnswer, onOpenLifeGoal, onOpenSunday, sundayWaiting, planRows });
+  const ask = askBubble(message, {
+    activeOffer, onOpenOffer, willOpen, onWillAnswer, onOpenLifeGoal, onOpenSunday, onOpenWhy, onOpenStrength, sundayWaiting, planRows,
+  });
   if (ask) return ask;
   if (
     message.kind === "recording_summary" ||

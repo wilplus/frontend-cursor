@@ -757,6 +757,14 @@ this device's clock is behind the server's.
 O3  The newest ask on screen is known, so it is not asked a second time.","O1 -> ""tells Will the screen in its order, cards in words""
 O2 -> ""stamps a new bubble under the newest one on screen""
 O3 -> ""knows the ask that shows last""","Founder 2026-10-20: ""the conversational chat should be aware of the order of bubbles it displays"" (a number typed under the WhatsApp ask got a generic reply and the ask again; a card jumped under ""Skip"")."
+src/components/willab/loungeStrengths.test.tsx,Story,"As a speaker, I want Will to show me a strength my notes keep showing, and keep it only in words I accept, so that I go on stage remembering what I am good at.","O1  Look opens the lens: the notes it came from with their days, ""Will suggests a strength:"", then Accept, Edit or Not now; Accept or my own words keep it (""Noted. Added to your strengths."") (backend N241 N2).
+O2  Not now on the ask keeps nothing and opens nothing (N2).
+O3  ""That's your 💪 … again."" takes me to that strength on the Life Panel (N3).","O1 -> Look shows the notes, and I keep the strength in my words
+O2 -> Not now keeps nothing
+O3 -> the strength again links to the Life Panel",
+src/components/willab/loungeYourWhy.test.tsx,Story,"As a speaker, I want to write my why, my vision and how I want to treat people once in my own words, and see one of them each day, so that I remember why I do this.","O1  Start opens the lens; three questions come one at a time, each with Skip; Will drafts each line only from my words and quotes them; Accept or my own words keep it, and ""Noted. Your why is set."" (backend N255 Q1, Q2).
+O2  The day's why's › opens that line as it is now; my change is kept, dated (Q6).","O1 -> sets my why from my answers, one question at a time
+O2 -> the day's why opens its line to change it",
 src/components/willab/noStarsOnUserSurfaces.test.ts,Guard,No component in src/components or src/app draws a star icon.,"Never 1 (no verdicts shown to speakers): a `<Star` element or a lucide
 `Star` import in any .tsx, user lane or coach lane. A source scan on
 purpose: the star rating once lived in six separate renderers, and a

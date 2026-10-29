@@ -230,6 +230,7 @@ const SETTLE_MS = 700;
 
 const OWN_ASKS: readonly OfferType[] = [
   "voice_notebook", "sunday_note", "life_goals", "life_goals_quarter", "life_goals_change", "sales_step",
+  "your_why", "strengths",
 ];
 
 /** The sale's four steps, in order, as signed (backend N258). */
