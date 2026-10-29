@@ -1,6 +1,6 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
+import { X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* -------------------------------------------------------------------------- */
@@ -120,6 +120,28 @@ export function WizardProgress({
       </div>
       <div className="flex w-16 justify-end">{trailing}</div>
     </div>
+  );
+}
+
+/** The flow's ✕, for WizardProgress's trailing slot: a real 44px target that
+ *  leaves at once (FE-6). The feelings check and the recording setup both
+ *  draw it, so the ✕ sits in one place on every step of the flow. */
+export function WizardCancel({
+  onClick,
+  ariaLabel = "Cancel setup",
+}: {
+  onClick: () => void;
+  ariaLabel?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className="-mr-2.5 flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+    >
+      <X className="h-5 w-5" aria-hidden />
+    </button>
   );
 }
 
