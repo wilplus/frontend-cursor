@@ -205,7 +205,7 @@ export type FeedbackWalkModel<R = unknown> = {
    *  as given, what still waits live, so Next walks on through it. */
   asItStands?: boolean;
   /** A walk opened again once it is done: a scroll, with no buttons but the
-   *  helper words' while they are edited (N255). */
+   *  helper words' while they are edited (N258). */
   scroll?: boolean;
 };
 
@@ -619,7 +619,7 @@ const REPLAY_AS_GIVEN: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>([
  *  changed; nothing else writes, and no practise is recorded: a try played
  *  again is only listened to (`replay`), and a practise never tried is not
  *  planned. A moment the speaker never answered has no judgement here.
- *  It is a scroll (N255): no buttons, but the helper words' once tapped.
+ *  It is a scroll (N258): no buttons, but the helper words' once tapped.
  *  Pure. */
 export function buildFeedbackReplay<R = unknown>(input: {
   items: readonly FeedbackWalkItem<R>[];

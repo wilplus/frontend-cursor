@@ -1134,7 +1134,7 @@ export function useDeckFeedbackWalk(args: {
       if (now && at !== null) {
         // The words as given, the rest of the walk there to scroll (founder
         // 2026-10-21: "not scrollable to the next step of the walk"). A scroll
-        // once the Take is done (N255); while a moment still waits, its
+        // once the Take is done (N258); while a moment still waits, its
         // buttons, so Next goes on to what waits.
         setReplaying(finished ? now : { ...now, scroll: false });
         return openAt(at, false, false, undefined, threadEnd(now));

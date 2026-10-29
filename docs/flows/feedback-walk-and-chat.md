@@ -160,21 +160,21 @@ step; the loop never waits for a coach.
 - **B9** Scrolled away from the step the walk stands on, the buttons read
   Next, which brings that step back; the recorder never gives way
   (2026-10-21: "away from", no longer only "back to an answered step"). A
-  walk opened again once done has neither (B10, N255).
+  walk opened again once done has neither (B10, N258).
 - **B10** **Every door opens the walk the same way** (one mechanism, N89):
   the whole Take's walk, standing on one step brought to the top, the parts
   before and after it there to scroll. That step has its own buttons in the dock;
   Next moves on to the next part, and after the last onto the page; ✕ goes
   back where the walk was opened from (B11). Once the walk is done, it opens
   as a scroll: no buttons and no Next, on any step; the bar's ✕ and ‹ ›
-  stay, and clips still play (N255).
+  stay, and clips still play (N258).
   - **The Feedback walk** opens:
     - on the coach's word, while a changed one is not yet seen (C1, D5);
     - while the walk runs, live on the step it waits on;
     - once the walk is done, on its newest step, as "Review feedback" does.
       Everything the speaker went through is there to scroll, read only, down
       to the summary: the tempo step (T) and the other speakers they judged
-      (C8) included (N247), with no buttons (N255);
+      (C8) included (N247), with no buttons (N258);
     - never on the Ideal Text in the walk's place: it always names where to
       open (fixed 2026-10-26, after a walk paused on its summary, or with no
       part to stand on, had opened the text).
@@ -190,7 +190,7 @@ step; the loop never waits for a coach.
     latest Take (F3), any other answered step reading Next. Once it is done
     there are none: a tap on helper words brings theirs ("Edit the helper
     words", "Keep these"), and once chosen they go again; Keep these leaves
-    the words as saved (N255).
+    the words as saved (N258).
   - **A door that names no step of the walk** (a coach's word on a moment)
     opens on its moment's step. A finished walk asked for a step it does not
     hold, or for its summary, stands on its newest step.
@@ -205,7 +205,7 @@ step; the loop never waits for a coach.
   and not go to the next element of it"; 2026-10-21: "the opening of the
   bubbles doesn't open the walk in a scrollable manner"; 2026-10-26, N192:
   "make sure it is well visible and not cut the stroke is there clearly";
-  2026-10-29, N255: "on the reopened walk there is only a scroll there should
+  2026-10-29, N258: "on the reopened walk there is only a scroll there should
   be no buttons!", then "Buttons only after a tap";
   2026-10-26: "the feedback walk opens the ideal text instead of the feedback
   walk!"; 2026-10-28, N247: "It should open the whole feedback walk with all
@@ -348,7 +348,7 @@ step; the loop never waits for a coach.
   orange words on the Ideal Text (F5), on the latest Take only (rule 5); an
   older Take's words are locked ("🔒 Take N"). In a walk opened again once
   done, a tap on the words brings their buttons, and they go again once
-  chosen (N255). A change is an edit (B13): the
+  chosen (N258). A change is an edit (B13): the
   speaker's words bubble shows the new words in place and reads "Edited", no
   second bubble and no struck-through old words (N192). They come from a
   moment that sounded confident. Opened while the marks may still land, the
@@ -428,7 +428,7 @@ step; the loop never waits for a coach.
   "Practise again" and "Next" (founder, signed 2026-10-21; until then it
   looked like a late answer with nothing said). The server still accepts
   tries after a praise; the app no longer offers them. Played again,
-  a finished walk shows the thread alone, with no buttons (N255): nothing is
+  a finished walk shows the thread alone, with no buttons (N258): nothing is
   recorded there.
   Nothing else interrupts the practice.
 - **C8 Other speakers**, once, after the practice: three moments, one the
@@ -449,12 +449,12 @@ step; the loop never waits for a coach.
   with its name ("Other speakers · 2 of 3"); the bar reads "Other speakers ·
   1 of N" or "Invita · 1 of N". Who you judge follows who you share with
   (G3). **Opened again** once the walk is done, it shows the moments the
-  speaker judged, each with their answer, and no buttons (N255). Nothing is asked or sent
+  speaker judged, each with their answer, and no buttons (N258). Nothing is asked or sent
   again; with none judged the step is left out (N247; was "no read-only
   replay", 2026-10-13). No other speaker's recording is ever stored in a
   speaker's thread: the moments are read again from the server.
 - **C9 The closing summary** (D), then "Next", which opens the Ideal Text;
-  no Next in a walk opened again once done (N255).
+  no Next in a walk opened again once done (N258).
 - **C10 No longer in the walk:** "Judgement time!", judging your own
   moments, self-judging a practice try (on hold, §3), "Not sure", and Will's
   question (it is the Lounge's, E2).
@@ -1022,7 +1022,7 @@ while a dot on a scale follows their pace live.
 
 **Where and when** (N162, N178).
 - In the Feedback walk only. Never in the coach panel, the Lounge, or before the Take.
-- **Opened again** once the walk is done, it shows what the chat kept, read only: the stretch, Will's opening lines, each "Try N" with the line the dot drew and Will's word on it, the closing line (none after a try that landed) or the Skip, and no Next (N255). No scale and no microphone. A Take that had no tempo step has none (N247). The same, without its Next, when the walk is opened again further on before it is done (B5).
+- **Opened again** once the walk is done, it shows what the chat kept, read only: the stretch, Will's opening lines, each "Try N" with the line the dot drew and Will's word on it, the closing line (none after a try that landed) or the Skip, and no Next (N258). No scale and no microphone. A Take that had no tempo step has none (N247). The same, without its Next, when the walk is opened again further on before it is done (B5).
 - It sits before the Ideal Text, so it always has a Skip, and the whole walk has a time limit (N178, which replaces N130's "never between a Take and the Ideal Text" for the walk's own practice steps). Open: the limit; the founder sets it (§3).
 - It shows when the diagnosis and the plan say so: in a pace or pause week, from Take 2 ([the plan](the-plan.md), item 5). A speaker without a plan gets it from Take 2 whenever the pace scale finds a stretch outside the green, once in that walk (N181).
 - It is the founder's "Sniper": the pace exercise of N129. The old Strength/Pace dartboard stays retired (N127, N181).
@@ -1237,7 +1237,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-29 · N255 · built: a finished walk opened again is a scroll, with no buttons and no Next under it on any step. A tap on helper words brings "Edit the helper words" and "Keep these", which go again once chosen; Keep these leaves the words as saved. A walk not yet done keeps its buttons. Was: the step it stood on had its buttons, and every other step a Next (B9, B10, C3, C7, C8, C9, T) · BE #1476, FE (this PR)
+- 2026-10-29 · N258 · built: a finished walk opened again is a scroll, with no buttons and no Next under it on any step. A tap on helper words brings "Edit the helper words" and "Keep these", which go again once chosen; Keep these leaves the words as saved. A walk not yet done keeps its buttons. Was: the step it stood on had its buttons, and every other step a Next (B9, B10, C3, C7, C8, C9, T) · BE #1476, FE (this PR)
 - 2026-10-28 · N251 · a Take recorded in any project takes "Record Take N" from every closing message above it, and the button does not come back on them: the chat has one record button, the newest Take's, and other projects are reached through the "+" (D4). Was: N244 held only inside one project, so another project's button stayed beside the new walk, and each project's last closing message kept its own. D4 rewritten in short sentences · BE (N251 log), FE (this PR)
 - 2026-10-28 · — (B5, T) · fixed: the tempo game drawn from nothing (the walk opened again further on, or its leaving copy) shows the game as the chat kept it, and every kept try has the line the dot drew (its path in the try's message); a finished walk played again shows the stretch and the lines too. Was: it showed only its opening lines, down to "🤫 Find a quiet spot first.", and a walk played again showed "Try N" without its line (founder 2026-10-28: "the sniper as a graphic does not stay there … It feels like the practice is gone from the feedback walk") · FE (this PR)
 - 2026-10-28 · N245 · the tempo step (the Sniper) guides the tries: a try that lands (20 s or more from the first word, the ball four fifths in the green) gets "That landed. 🎯 Really better. Let's move on." and Next, on any try; one that came closer gets "Better. You let it breathe." and "You're close. 💪 Give it one more try."; otherwise its comment; up to three tries, then the closing line. Was: Practise again after every try, See how it went from the second, the close only after the third or on the speaker's choice (founder 2026-10-28: "If it was really better, you let me go to the next step") · BE (decisions log), FE (this PR)

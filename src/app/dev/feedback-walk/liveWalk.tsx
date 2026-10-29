@@ -241,7 +241,7 @@ export default function LiveWalk({
     if (at === null) return;
     setReplaying(true);
     setEnd(false);
-    // A scroll of the whole walk, as the product opens it (N255).
+    // A scroll of the whole walk, as the product opens it (N258).
     const head = walkLastStep(replayModel) ?? at;
     setRequest((r) => ({ seq: (r?.seq ?? 0) + 1, at, head }));
   }, [replayModel]);
