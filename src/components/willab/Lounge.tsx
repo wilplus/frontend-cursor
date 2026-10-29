@@ -87,6 +87,7 @@ import {
 import { useRouter } from "next/navigation";
 import SymmetricPair from "./SymmetricPair";
 import { offersUpdateSlides, SlidesAskComposer, SlidesAskSlot, useSlidesAsk } from "./UpdateSlides";
+import { NewProjectAskComposer, NewProjectAskSlot, useNewProjectAsk } from "./OneProjectQuestion";
 import { useAdminAsk } from "./useAdminAsk";
 import { afterTakeOrder, askShowing, askToOpen, heldFor, heldMessage, heldTake, recordedPast, waitingFor } from "./afterTake";
 import { postAfterTake } from "@/services/api/afterTake";
@@ -476,8 +477,12 @@ export default function Lounge({
     const project = readExploreArc(userId);
     if (action === "create_new_project") {
       postAnswerBubble(CHIP_LABEL[action]);
-      clearExploreArc(userId);
-      (onStartNewProject ?? onStart)();
+      // One project at a time (N260): with a current project, the question
+      // takes the message box's place first.
+      newProjectAsk.begin(() => {
+        clearExploreArc(userId);
+        (onStartNewProject ?? onStart)();
+      });
       return;
     }
     if (action === "replace_pdf") {
@@ -1379,6 +1384,7 @@ export default function Lounge({
   // from your coach is in!", asked at the end of a Take from Take 2.
   const whatsapp = useWhatsAppOffer({ append: thread.append });
   const slidesAsk = useSlidesAsk();
+  const newProjectAsk = useNewProjectAsk();
 
   // A Take's WhatsApp or home-screen ask opens its form by itself, once
   // (founder 2026-10-20: the ask is the one thing to do). A home screen this
@@ -1888,6 +1894,7 @@ export default function Lounge({
           or re-opened by tapping its thread bubble) its action pair REPLACES the
           black record button; resolving it returns the record button (U2). The
           offer's prompt + outcome live in the thread as durable bubbles. */}
+      <NewProjectAskSlot ask={newProjectAsk}>
       <SlidesAskSlot ask={slidesAsk} onReady={(line) => void thread.append({ role: "bot", kind: "text", body: line })}>
       <PolicyUpdateSlot>
       <TopUpSlot offer={topUp}>
@@ -1976,6 +1983,7 @@ export default function Lounge({
       </TopUpSlot>
       </PolicyUpdateSlot>
       </SlidesAskSlot>
+      </NewProjectAskSlot>
 
       {/* Wave-3 — no standing chip row above the composer; quick actions are
           single in-thread buttons (A-4 / B-1). Footer is just the CTA + input. */}
@@ -2018,6 +2026,7 @@ export default function Lounge({
       ) : null}
       {plan.dock}
       {plan.sheets}
+      <NewProjectAskComposer ask={newProjectAsk}>
       <SlidesAskComposer ask={slidesAsk}>
       <PolicyUpdateComposer>
       <VoiceNoteBar notebook={notebook} />
@@ -2090,6 +2099,7 @@ export default function Lounge({
       </form>
       </PolicyUpdateComposer>
       </SlidesAskComposer>
+      </NewProjectAskComposer>
 
       {/* Delivery layer — the 4 bubbles' destinations. */}
       {feedbackTarget && (

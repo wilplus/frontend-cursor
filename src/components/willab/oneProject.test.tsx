@@ -13,10 +13,15 @@ OUTCOME
   O3  "Record Take N" on an archived project asks first; Continue brings it
       back, archives the current one, then records. On the current project
       it records at once, asking nothing (Never 3).
+  O4  Will's "Create new project" in the chat asks the same, in place of the
+      message box; Continue archives the current one, then starts the new
+      project; Cancel brings the message box back; with no Take yet it
+      starts at once (N260).
 PROVES   O1 -> "Start a new project asks, and Continue archives the current one first"
          O2 -> "another project asks; the current one and a first project do not"
          O3 -> "Record Take N on an archived project asks; on the current one it never does"
-WHY      Founder 2026-10-29, backend N254 (items 1, 2, 4, 5).
+         O4 -> "Will's Create new project asks in place of the message box"
+WHY      Founder 2026-10-29, backend N254 (items 1, 2, 4, 5) and N260.
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -40,7 +45,7 @@ vi.mock("./NextTakeShareScreen", () => ({ default: () => null }));
 
 import ProjectPicker from "./ProjectPicker";
 import IdealTextActions from "./IdealTextActions";
-import { useArchivedReturn } from "./OneProjectQuestion";
+import { NewProjectAskComposer, NewProjectAskSlot, useArchivedReturn, useNewProjectAsk } from "./OneProjectQuestion";
 import type { TrainingArc } from "@/services/api/trainings";
 
 function arc(arcId: string, topic: string, lastTakeAt: string | null): TrainingArc {
@@ -88,7 +93,7 @@ const button = (label: string) =>
     (b) => b.textContent?.trim() === label,
   );
 const QUESTION = "One project at a time";
-const BODY = "“Board pitch” will be archived. Its Takes and Ideal Text stay safe, and you can bring it back from Data & consent.";
+const BODY = "“Board pitch” will be archived. Its Takes and Ideal Text stay safe, and you can bring it back from Settings.";
 
 async function picker(arcs: TrainingArc[]) {
   api.fetchTrainings.mockResolvedValue(arcs);
@@ -180,5 +185,53 @@ describe("Record Take N on the Ideal Text page", () => {
     expect(api.unarchiveProject).toHaveBeenCalledWith("arc-team");
     expect(api.archiveProject).toHaveBeenCalledWith("arc-board");
     expect(onNewTake).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("Will's Create new project (N260)", () => {
+  function Chat({ start, go }: { start: () => void; go: (begin: () => void) => void }) {
+    const ask = useNewProjectAsk();
+    go(() => ask.begin(start));
+    return createElement(
+      "div",
+      null,
+      createElement(NewProjectAskSlot, { ask }),
+      createElement(NewProjectAskComposer, { ask }, createElement("textarea", { "aria-label": "Type here" })),
+    );
+  }
+  const draw = (start: () => void) => {
+    let begin = () => {};
+    act(() => root.render(createElement(Chat, { start, go: (b) => (begin = b) })));
+    return () => begin();
+  };
+  const messageBox = () => container.querySelector("textarea");
+
+  it("Will's Create new project asks in place of the message box", async () => {
+    api.fetchTrainings.mockResolvedValue([BOARD, TEAM]);
+    const start = vi.fn();
+    const tap = draw(start);
+    act(() => tap());
+    await flush();
+    expect(container.textContent).toContain(QUESTION);
+    expect(container.textContent).toContain(BODY);
+    expect(messageBox()).toBeNull();
+    act(() => button("Cancel")!.click());
+    expect(messageBox()).not.toBeNull();
+    expect(api.archiveProject).not.toHaveBeenCalled();
+    expect(start).not.toHaveBeenCalled();
+
+    act(() => tap());
+    await flush();
+    act(() => button("Continue")!.click());
+    await flush();
+    expect(api.archiveProject).toHaveBeenCalledWith("arc-board");
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(messageBox()).not.toBeNull();
+
+    api.fetchTrainings.mockResolvedValue([arc("arc-new", "New talk", null)]);
+    act(() => tap());
+    await flush();
+    expect(start).toHaveBeenCalledTimes(2);
+    expect(container.textContent).not.toContain(QUESTION);
   });
 });

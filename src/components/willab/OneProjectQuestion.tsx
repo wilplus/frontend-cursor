@@ -6,13 +6,14 @@ import { ONE_PROJECT_COPY } from "@/lib/willab/deckUpdateCopy";
 import { PROJECT_ARCHIVE_COPY } from "@/lib/willab/projectArchiveCopy";
 import { currentProjectOf } from "@/lib/willab/oneProject";
 import { archiveProject, unarchiveProject } from "@/services/api/projectArchive";
-import { fetchTrainings } from "@/services/api/trainings";
+import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 
 /* -------------------------------------------------------------------------- */
 /*  "One project at a time" (founder 2026-10-29, backend N254).               */
 /*                                                                            */
 /*  The question asked before the speaker leaves the current project (the    */
-/*  one with the newest Take): starting a new project from the "+", picking  */
+/*  one with the newest Take): starting a new project from the "+" or from   */
+/*  Will's "Create new project" in the chat (N260), picking                  */
 /*  another project there, or "Record Take N" on an archived project's Ideal */
 /*  Text. Continue archives the current project and goes on; Cancel stays.   */
 /*  The words are the signed ones; a failed archive says so with the words   */
@@ -152,4 +153,76 @@ export function useArchivedReturn(
     });
   };
   return { confirmFirst, layer: question.sheet };
+}
+
+/** Will's "Create new project" in the chat (N260): with a current project,
+ *  the question takes the message box's place, as the WhatsApp ask and the
+ *  slides upload do; Continue archives it and starts the new project.
+ *  With none, the new project starts at once, as before. */
+export type NewProjectAsk = { current: TrainingArc | null; begin: (start: () => void) => void; close: () => void };
+
+export function useNewProjectAsk(): NewProjectAsk & { start: (() => void) | null } {
+  const [asked, setAsked] = useState<{ current: TrainingArc; start: () => void } | null>(null);
+  const reading = useRef(false);
+  const begin = (start: () => void) => {
+    if (reading.current) return;
+    reading.current = true;
+    void fetchTrainings().then((list) => {
+      reading.current = false;
+      const current = currentProjectOf(list ?? []);
+      if (current) setAsked({ current, start });
+      else start();
+    });
+  };
+  return { current: asked?.current ?? null, start: asked?.start ?? null, begin, close: () => setAsked(null) };
+}
+
+/** The question's card in place of the message box, then Cancel | Continue. */
+export function NewProjectAskSlot({ ask, children }: { ask: ReturnType<typeof useNewProjectAsk>; children?: ReactNode }) {
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const { current, start } = ask;
+  if (!current || !start) return <>{children}</>;
+  return (
+    <div className="flex flex-col gap-3" data-testid="new-project-ask">
+      <div className="flex flex-col gap-2 rounded-xl bg-muted p-3">
+        <p className="text-[13px] font-medium text-foreground">{ONE_PROJECT_COPY.title}</p>
+        <p className="text-[13px] text-foreground">{ONE_PROJECT_COPY.body(current.topic)}</p>
+        {failed ? (
+          <p role="alert" className="text-[13px] text-destructive">
+            {PROJECT_ARCHIVE_COPY.archiveFailed}
+          </p>
+        ) : null}
+      </div>
+      <SymmetricPair
+        closeLabel={ONE_PROJECT_COPY.cancel}
+        onClose={() => {
+          if (busy) return;
+          setFailed(false);
+          ask.close();
+        }}
+        actionLabel={ONE_PROJECT_COPY.continue}
+        onAction={() => {
+          if (busy) return;
+          setBusy(true);
+          setFailed(false);
+          void archiveProject(current.arcId).then((ok) => {
+            setBusy(false);
+            if (!ok) {
+              setFailed(true);
+              return;
+            }
+            ask.close();
+            start();
+          });
+        }}
+      />
+    </div>
+  );
+}
+
+/** The message box, gone while the question stands in its place. */
+export function NewProjectAskComposer({ ask, children }: { ask: NewProjectAsk; children?: ReactNode }) {
+  if (ask.current) return null;
+  return <>{children}</>;
 }

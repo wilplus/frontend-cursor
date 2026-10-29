@@ -193,12 +193,23 @@ green); the app shows the speaker's own slides, unchanged.
   projects. **Start a new project**, or a project that is not the current
   one (the one with the newest Take), first asks **One project at a time**
   · **"{current}" will be archived. Its Takes and Ideal Text stay safe, and
-  you can bring it back from Data & consent.** · **Cancel** | **Continue**.
+  you can bring it back from Settings.** · **Cancel** | **Continue**
+  ("Settings" in place of "Data & consent", N260).
   Continue archives the current project, then goes on as before; Cancel
   stays on the list. Picking the current project, a draft, or an account
   with no Take yet asks nothing. A failed archive says "Couldn't archive.
   Try again." and nothing goes on. Lives in `ProjectPicker.tsx` and
   `OneProjectQuestion.tsx`.
+- **2026-10-29 · the same question in the chat (N260).** Will's **Create
+  new project** button asks it too, when there is a current project: the
+  grey card with the title and the sentence takes the message box's place,
+  as the WhatsApp ask and the slides upload do, then **Cancel** |
+  **Continue**. Continue archives the current project and opens the new
+  project's setup as before; Cancel brings the message box back and leaves
+  the button under Will's reply. With no current project it starts at
+  once. Signed on the prototype
+  <https://claude.ai/artifact/Ta5hMGw8EbA6ewUssUugMK>. Lives in
+  `OneProjectQuestion.tsx` and `Lounge.tsx`.
 
 
 ## 2. In flight
@@ -240,11 +251,13 @@ Every prototype link in §1, in the order it first appears:
 - <https://claude.ai/artifact/LU1XgQyqY2nPSvDAmsRJFo>
 - <https://claude.ai/artifact/JUwW4FfFzyUhgCpPrMAKjG>
 - <https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A>
+- <https://claude.ai/artifact/Ta5hMGw8EbA6ewUssUugMK>
 
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N260 · Will's "Create new project" in the chat asks "One project at a time" first, in place of the message box, and the question's sentence ends "you can bring it back from Settings." Was: the chat's button started a new project with the current one left open, and the sentence said "Data & consent" · FE (this PR), BE (N260 log)
 - 2026-10-29 · N254, N257 · built: the "+"'s "Start a new project", or another project than the one with the newest Take, asks "One project at a time" first and Continue archives the current one (`ProjectPicker.tsx`); the line under "Getting your mic ready" says "New slides" on the first Take after a deck change, then "Same presentation as Take {n}" (`presentationInPlay.ts`, `LabOverlay.tsx`). Was: any number of projects side by side, and always "Same presentation as Take 1" · FE (this PR), BE (with it)
 - 2026-10-27 · N217 · "How do you feel?" says "Your coach sees your answer." under "Before you step on stage" (signed with Privacy 3.9, question 1 A: answering is the yes for that one answer); on a plan it is asked only after the plan's own yes, and without it the check is passed by at once and keeps nothing, as a Skip (`FeelingsCheckIn.tsx`, `plan.ts`). The plan's yes is switched off (`PLAN_CONSENT_ENABLED`) until Privacy 3.9 is published, so today every plan reads as yes. Was: asked of every speaker with no word on who sees it · FE (this PR), BE (with it)
 - 2026-10-27 · N211 · "How do you feel?" has a Skip wherever it shows, a new project's first Take included (`FeelingsCheckIn.tsx`); skipping keeps no feeling. Was: a Skip only between a plan's first and last practice · BE #1408

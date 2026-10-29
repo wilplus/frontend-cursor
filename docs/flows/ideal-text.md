@@ -371,7 +371,7 @@ my go"), on the prototype <https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A>.
 - **Record Take N on an archived project (N254).** When the project is
   archived (the read's `project_archived`), **Record Take N** first asks
   **One project at a time** · **"{current}" will be archived. Its Takes and
-  Ideal Text stay safe, and you can bring it back from Data & consent.** ·
+  Ideal Text stay safe, and you can bring it back from Settings.** (N260) ·
   **Cancel** | **Continue**, where {current} is the project with the newest
   Take. Continue brings this project back, archives the current one, then
   records as before; Cancel stays on the page. With no other project
@@ -432,6 +432,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N260 · the "One project at a time" sentence ends "you can bring it back from Settings." (the ☰ menu's Settings page, N196). Was: "Data & consent" · FE (this PR), BE (N260 log)
 - 2026-10-29 · N254, N257 · built: the ⋯ menu's "Add slides" / "Update slides" and its sheet (the new deck stays in the same project and the next Take uses it, "New slides ready for Take {n}."); the chat's grey card in place of the message box for Will's `update_slides`, replacing the "Create project from updated deck" and "Keep current project" chips; "Record Take N" on an archived project asks "One project at a time" first (§1, "The project's slides…"). Was: a changed deck meant a new project, and an archived project recorded without a word · FE (this PR), BE (with it)
 - 2026-10-28 · N126 · built: a full stop goes in silently between two pieces where the first ends with no closing mark, the next begins with a capital, and the speaker paused at least 0.6 seconds (never before "I", never in German); §1 gains "The words (the smoothing fence)". Was: sentences ran together at a seam ("Startup is just a job It's a job…") · BE, FE (this PR)
 - 2026-10-28 · — (feedback walk B10, C3) · fixed: the page no longer opens a Feedback walk's helper words by themselves when the deck is up; it asks for the whole walk standing on them, as for any step, so the walk shows around them. The page's own orange helper words open as before. Nothing on the Ideal Text page changes (founder 2026-10-28: "it just opens helper words") · FE (this PR)

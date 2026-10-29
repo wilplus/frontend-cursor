@@ -777,9 +777,14 @@ one and opens the one I picked. Picking the current one asks nothing,
 and with no Take yet nothing is asked.
 O3  ""Record Take N"" on an archived project asks first; Continue brings it
 back, archives the current one, then records. On the current project
-it records at once, asking nothing (Never 3).","O1 -> ""Start a new project asks, and Continue archives the current one first""
+it records at once, asking nothing (Never 3).
+O4  Will's ""Create new project"" in the chat asks the same, in place of the
+message box; Continue archives the current one, then starts the new
+project; Cancel brings the message box back; with no Take yet it
+starts at once (N260).","O1 -> ""Start a new project asks, and Continue archives the current one first""
 O2 -> ""another project asks; the current one and a first project do not""
-O3 -> ""Record Take N on an archived project asks; on the current one it never does""","Founder 2026-10-29, backend N254 (items 1, 2, 4, 5)."
+O3 -> ""Record Take N on an archived project asks; on the current one it never does""
+O4 -> ""Will's Create new project asks in place of the message box""","Founder 2026-10-29, backend N254 (items 1, 2, 4, 5) and N260."
 src/components/willab/paragraphPractise.test.tsx,Story,"As a speaker, I want Practise on a paragraph to open the same practise screens as the Feedback walk, recording at once on the right clip, so that practice feels the same everywhere.","O1  A clearer version's card opens the walk's practise screen with its
 words, the mic starts, and the practice opens on the moment's
 snippet; ✕ stops the mic and ends nothing else.
