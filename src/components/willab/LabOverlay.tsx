@@ -50,7 +50,7 @@ import DiscardTakeDialog from "./DiscardTakeDialog";
 import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
 import { type WillabEvent, type WillabState } from "./useWillabFlow";
 import { useBackDismiss } from "./useBackDismiss";
-import RecordingSetup from "./RecordingSetup";
+import RecordingSetup, { setupSteps } from "./RecordingSetup";
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
 import { LabEntryGate, useLabEntry } from "./LabEntryGate";
 import FinishTakeButton from "./FinishTakeButton";
@@ -189,6 +189,13 @@ export default function LabOverlay({
   const mic = useDualCaptureMic({ transcript: false });
   const { cancel: cancelMic } = mic;
   const signedIn = useSignedIn();
+  // How many steps came before the set-up in its dots: 1 right after "How do
+  // you feel?" was on screen (backend N271), else 0. Any other way into the
+  // set-up starts it at its own first step.
+  const [setupLead, setSetupLead] = useState(0);
+  useEffect(() => {
+    if (state !== "lab_feelings" && state !== "lab_session_context") setSetupLead(0);
+  }, [state]);
   const userId = useUserId();
   const [context, setContext] = useState<LabSessionContext | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
@@ -1174,16 +1181,18 @@ export default function LabOverlay({
    *  check is not repeated after Take 1.
    *
    *  ON THE USER GESTURE. getUserMedia wants one, and the check-in advances on
-   *  a ~1s timer after the feeling is tapped — inside the browser's transient
+   *  a half-second timer after the feeling is tapped — inside the browser's transient
    *  activation window, so the tap still counts. If a browser refuses anyway,
    *  RecordingPhase's mic-error branch says so and its "Try again" is a direct
    *  tap. Silence is the one outcome that cannot happen. */
-  function startAfterCheckIn() {
+  function startAfterCheckIn(shown: boolean) {
     const restored = restoredSetupFor(
       preloadDeck,
       stagedUploadRef.current !== null,
     );
     if (!restored) {
+      // The check was the set-up's first step: the topic is then its second.
+      setSetupLead(shown ? 1 : 0);
       dispatch("setup_needed");
       return;
     }
@@ -1441,7 +1450,7 @@ export default function LabOverlay({
           ideal text was headed by a gap with a ✕ floating in it. A slot with
           nothing in it is not neutral — it is the dead space the founder
           circled on both screens. */}
-      {state === "lab_session_context" || state === "readout" ? null : (
+      {state === "lab_session_context" || state === "lab_feelings" || state === "readout" ? null : (
         <header className="flex h-12 shrink-0 items-center justify-between px-4">
           {/* The recording screen says where you are: "Take N · Slide n of
               m" on the left, in place of the old "Recording" label (founder
@@ -1487,9 +1496,20 @@ export default function LabOverlay({
             note={laterTakePresentation(arcTakeIndex, context, preloadDeck, deckNews)}
           />
         ) : null}
-        {state === "lab_feelings" && (
+        {/* Asked only of a signed-in speaker (backend N271): it waits until
+            the sign-in is known, so a guest is never shown it by mistake. */}
+        {state === "lab_feelings" && signedIn !== null && (
           <LabEntryGate entry={entry}>
-              <FeelingsCheckIn onReady={startAfterCheckIn} />
+              <FeelingsCheckIn
+                ask={signedIn}
+                setupSteps={
+                  restoredSetupFor(preloadDeck, stagedUploadRef.current !== null)
+                    ? 0
+                    : setupSteps(stagedUploadRef.current !== null).length
+                }
+                onCancel={handleClose}
+                onReady={startAfterCheckIn}
+              />
           </LabEntryGate>
         )}
 
@@ -1526,6 +1546,7 @@ export default function LabOverlay({
                 // Setup drafts — RecordingSetup itself refuses to draft a staged
                 // upload or a take pre-filled from an existing project's deck.
                 draftOwnerId={userId}
+                leadSteps={setupLead}
                 // FE-6 — the same exit the header ✕ performs, now owned by the
                 // wizard so it can confirm before throwing away a part-filled form.
                 onCancel={handleClose}

@@ -144,11 +144,12 @@ built and what is still to come.
 3. The founder and the coach see the number; Will speaks of it only in words
    (Never 1; N149, N178).
 4. Every practice in between gets only "How do you feel?" (Nervous, Excited,
-   Calm, Not sure), today's screen, with a Skip. Today it shows once per new
-   project, before Take 1, with a Skip too (N151, N178, N211; the recording
-   screens' page). With a plan it is asked only after the plan's own yes (5);
-   without one it stays as today (N215), and answering is the yes for that one
-   answer. The screen says "Your coach sees your answer." (N211, N217).
+   Calm, Not sure), with a Skip. Today it shows once per new project, before
+   Take 1, with a Skip too (N151, N178, N211; the recording screens' page).
+   With a plan it is asked only after the plan's own yes (5); without one it
+   stays as today (N215), and answering is the yes for that one answer. It
+   is asked only of a signed-in speaker, in the set-up's look, with nothing
+   said back and no line about the coach (N271).
 5. **The plan's own yes.** The personal questions (the worry question, the
    two ratings in 1, "How did it go?" at the plan's end (I2) and the feelings
    check in 4) are asked only after the speaker says yes
@@ -594,6 +595,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N271 · D4: "How do you feel?" is asked only of a signed-in speaker, in the set-up's look; the pick is not answered and the screen has no line about the coach; Skip stays. Was: asked of guests too, with a reply line and "Your coach sees your answer." · BE #1501, FE (this PR)
 - 2026-10-29 · N262 · A1, B3, B8, B9, K: "Start your first recording" under "Record your answer" while a new speaker's voice questions are asked, and what isn't answered comes back after that Take's walk, where Will left off; a voice answer with no speech, or no words, is not kept and Will says "Sorry, I didn't quite catch that. Could you say it again?"; an answer that puts Will right is taken as a correction ("Got it, thank you for putting me right." and what he now has), and the question is asked again; the voice answers answer Safari's byte-range requests, so they play there (the BFF's `relayAudio`, for the coach's player too). Was: the questions couldn't be skipped (N136, N146); silence came back from the transcriber as words and was kept; a correction was kept as the answer to the question; Safari played nothing · BE #1488, #1489, FE (this PR)
 
 - 2026-10-28 · N251 · today's one thing loses its "Record Take N" once a Take is recorded in any project, not only its own (G6). Was: a Take in another project left the button up beside the new walk (N244) · BE (N251 log), FE (this PR)

@@ -1,25 +1,24 @@
 // @vitest-environment jsdom
 /*
-STORY    As a speaker, I want to be able to skip "How do you feel?", so that
-         nobody is made to tell the app how they feel before they record.
+STORY    As a speaker, I want to name how I feel before I record, or skip it,
+         and as a guest not to be asked at all.
 OUTCOME
-  O1  The check offers a Skip every time it shows, whether or not I have a
-      plan.
+  O1  Signed in, the check offers a Skip every time it shows.
   O2  Skipping goes on to the recording set-up and keeps no feeling.
-  O3  Naming a feeling still keeps it and goes on.
-  O4  Before the tap, the screen says the coach sees the answer.
+  O3  Naming a feeling keeps it and goes on, with nothing said back.
+  O4  A guest is never asked: the check is passed by at once and keeps
+      nothing.
   O5  On a plan without its own yes, the check is passed by at once and
       keeps nothing; with the yes, it is asked.
-PROVES   O1 -> "offers a Skip with no plan"
+PROVES   O1 -> "offers a Skip when signed in"
          O2 -> "Skip goes on and keeps no feeling"
          O3 -> "naming a feeling keeps it and goes on"
-         O4 -> "says the coach sees the answer before the tap"
+         O4 -> "a guest is never asked"
          O5 -> "on a plan, only after its own yes"
-WHY      Founder 2026-10-27, backend N211 (the plan's consent, question 3 A):
-         a feeling is the speaker's own, and a check with no way past it is
-         not asked freely. Privacy 3.9 §4e, signed with question 1 A (N217):
-         answering is the yes for that one answer, so the screen says first
-         who sees it; on a plan, the plan's own yes comes first.
+WHY      Founder 2026-10-27, backend N211: a feeling is the speaker's own, and
+         a check with no way past it is not asked freely. Founder 2026-10-29,
+         backend N271: the set-up's look, no reply, no coach line, and no
+         check for a guest; on a plan, the plan's own yes comes first (N217).
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -42,7 +41,7 @@ describe("How do you feel?", () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
-    act(() => root.render(createElement(FeelingsCheckIn, { onReady })));
+    act(() => root.render(createElement(FeelingsCheckIn, { ask: true, setupSteps: 3, onReady, onCancel: vi.fn() })));
   });
   afterEach(() => {
     act(() => root.unmount());
@@ -53,26 +52,33 @@ describe("How do you feel?", () => {
   const button = (label: string) =>
     [...host.querySelectorAll("button")].find((b) => b.textContent?.trim() === label);
 
-  it("offers a Skip with no plan", () => {
+  it("offers a Skip when signed in", () => {
     expect(button("Skip")).toBeDefined();
   });
 
   it("Skip goes on and keeps no feeling", () => {
     act(() => button("Skip")?.click());
-    expect(onReady).toHaveBeenCalledTimes(1);
+    expect(onReady).toHaveBeenCalledWith(true);
     expect(getLastFeeling()).toBeNull();
   });
 
   it("naming a feeling keeps it and goes on", () => {
     act(() => button("Calm")?.click());
     expect(getLastFeeling()).toBe("calm");
-    expect(button("Skip")).toBeUndefined();
+    expect(button("Skip")?.disabled).toBe(true);
     act(() => vi.advanceTimersByTime(1000));
     expect(onReady).toHaveBeenCalledTimes(1);
+    expect(host.textContent).not.toContain("Nerves mean it matters");
   });
 
-  it("says the coach sees the answer before the tap", () => {
-    expect(host.textContent).toContain("Your coach sees your answer.");
+  it("a guest is never asked", () => {
+    act(() => root.unmount());
+    onReady.mockReset();
+    recordFeeling("calm"); // a stale one from an earlier Take
+    root = createRoot(host);
+    act(() => root.render(createElement(FeelingsCheckIn, { ask: false, setupSteps: 3, onReady, onCancel: vi.fn() })));
+    expect(button("Skip")).toBeUndefined();
+    expect(onReady).toHaveBeenCalledWith(false);
     expect(getLastFeeling()).toBeNull();
   });
 
@@ -84,7 +90,7 @@ describe("How do you feel?", () => {
       recordFeeling("calm"); // a stale one from an earlier Take
       rememberPlan({ ...plan, consent });
       root = createRoot(host);
-      act(() => root.render(createElement(FeelingsCheckIn, { onReady })));
+      act(() => root.render(createElement(FeelingsCheckIn, { ask: true, setupSteps: 0, onReady, onCancel: vi.fn() })));
       expect(button("Skip") !== undefined).toBe(asked);
       expect(onReady).toHaveBeenCalledTimes(asked ? 0 : 1);
       if (!asked) expect(getLastFeeling()).toBeNull();
