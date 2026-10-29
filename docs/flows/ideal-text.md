@@ -324,13 +324,29 @@ Done when:
 
 *Amended 2026-10-05 (founder, decisions log N48.3 Q12 A): the contract texts are brought in line with this lock and its later amendments: 24f (the stale two-greens and weakest-item text replaced by 24g's two bar colours; Practise below In-between, Next on Yes and In-between, 29b on rewrite cards) and 47 (V3 serves every Take). The design lock's L3 still says "the Take stack"; this lock wins.*
 
+### The words (the smoothing fence)
+
+The Ideal Text is the speaker's latest Take, word for word (Never 5). Only
+these change silently (the fence of 2026-07-20, backend
+`services/transcript_smoothing.py`); every other change is visible and
+approvable:
+
+- hesitations, from a closed list per language;
+- the same word twice in a row with nothing between ("the the");
+- capitals at the start of a sentence;
+- the closing marks: one at the end of each paragraph, and a full stop
+  between two pieces where the first ends with no closing mark, the next
+  begins with a capital, and the speaker paused at least 0.6 seconds there.
+  Never before "I", and never in German, where every noun has a capital
+  (N126).
+
 
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
 doing it fills its line in its PR and deletes the line when the work is merged (the change goes to §6).
 
-- **N126 · a full stop between sentences, where the speaker paused** · the smoothing fence (backend `services/transcript_smoothing.py`) · founder 2026-10-23 (the recommendation taken: "For the 6 questions use your recommendations"). Found on the founder's Take 4: the Ideal Text ran sentences together where a piece ended without its full stop ("Startup is just a job It's a job…"). To build: where a piece ends with no closing mark, the next begins with a capital, and the recording has a clear pause at that seam, one full stop goes in silently; nothing else changes · decided, not built · the founder checks the app
+- (nothing in flight)
 
 ## 3. Still open
 
@@ -378,6 +394,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-28 · N126 · built: a full stop goes in silently between two pieces where the first ends with no closing mark, the next begins with a capital, and the speaker paused at least 0.6 seconds (never before "I", never in German); §1 gains "The words (the smoothing fence)". Was: sentences ran together at a seam ("Startup is just a job It's a job…") · BE, FE (this PR)
 - 2026-10-28 · — (feedback walk B10, C3) · fixed: the page no longer opens a Feedback walk's helper words by themselves when the deck is up; it asks for the whole walk standing on them, as for any step, so the walk shows around them. The page's own orange helper words open as before. Nothing on the Ideal Text page changes (founder 2026-10-28: "it just opens helper words") · FE (this PR)
 - 2026-10-26 · N192 · the shared copy file (`idealEditCopy.ts`) gains the chat's "Feedback walk" and "Edited", and the summary's "Updated with your coach's note · see / hide the earlier version" moves into it from the Lounge; nothing on the Ideal Text page changes · FE (this PR)
 - 2026-10-26 · N178 · helper words: up to eight in one pick, as the app does since 2026-10-15. Was: six (2026-10-12) · BE #1339

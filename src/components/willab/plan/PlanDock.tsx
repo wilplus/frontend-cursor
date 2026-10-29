@@ -10,7 +10,7 @@ import PlanCalendar, { MonthGrid } from "./PlanCalendar";
 /* The plan's footer, in place of "Type here" (rules: the-plan.md §1 B, D, F,
    E5, I; prototype version 27): the deadline's chips, Will's ask for the
    plan's own yes (N211), the voice answer's recorder (no Skip), the 1 to 10
-   scale, the calls' calendar, then only "Start your first recording". Each answer goes to the backend, which
+   scale, the calls' calendar (full screen over the chat, N248), then only "Start your first recording". Each answer goes to the backend, which
    writes Will's next words into the thread. */
 
 export type PlanActions = {
@@ -234,33 +234,40 @@ export default function PlanDock({
   newEventHeld?: boolean;
 }) {
   const kind = dockFor(plan, booking);
-  if (!kind || (busy && kind !== "book" && kind !== "call")) return null;
-  if (kind === "book" && booking) {
-    return (
+  // The calls' calendar is full screen over the chat (N248), so it stays
+  // mounted while it slides away, and the footer under it stays empty.
+  const which: CallWhich | null =
+    kind === "book" ? booking : kind === "call" ? (plan.step === "kickoff" ? "kickoff" : "summary") : null;
+  return (
+    <>
       <PlanCalendar
-        plan={plan}
-        which={booking}
-        busy={busy}
-        onBook={(start) => actions.book(booking, start)}
-        onSkip={onCloseBooking}
-        onSaveDeadline={actions.saveDeadline}
-      />
-    );
-  }
-  if (kind === "call") {
-    const which: CallWhich = plan.step === "kickoff" ? "kickoff" : "summary";
-    return (
-      <PlanCalendar
-        key={which}
         plan={plan}
         which={which}
         busy={busy}
-        onBook={(start) => actions.book(which, start)}
-        onSkip={() => actions.book(which, null)}
+        soon={kind === "book"}
+        onBook={(call, start) => actions.book(call, start)}
+        onSkip={(call) => (kind === "book" ? onCloseBooking() : actions.book(call, null))}
         onSaveDeadline={actions.saveDeadline}
       />
-    );
-  }
+      <DockFooter kind={kind} plan={plan} busy={busy} actions={actions} newEventHeld={newEventHeld} />
+    </>
+  );
+}
+
+function DockFooter({
+  kind,
+  plan,
+  busy,
+  actions,
+  newEventHeld,
+}: {
+  kind: string | null;
+  plan: Plan;
+  busy: boolean;
+  actions: PlanActions;
+  newEventHeld: boolean;
+}) {
+  if (!kind || kind === "book" || kind === "call" || busy) return null;
   if (kind === "deadline") return <DeadlineChips actions={actions} />;
   if (kind === "voice") return <VoiceAnswer key={`${plan.step}-${plan.id}`} actions={actions} />;
   if (kind === "stress") return <Scale key="stress" lo={PLAN_COPY.stressLo} hi={PLAN_COPY.stressHi} onPick={actions.rating} />;

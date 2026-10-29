@@ -4,8 +4,10 @@ STORY    As the founder in a rush, I want to say a note and close the app, so th
 OUTCOME
   O1  The moment I tap, my note shows the wave of my voice; the words follow it; leaving the app sends the note, it is not thrown away (N194, N199).
   O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).
+  O4  Typing "#" offers one option, "# note", and tapping it leaves "#" to write on: a typed "#" is one note, as the mic's (N253).
 PROVES   O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
          O2 -> keeps a note that cannot go and sends it once when back online
+         O4 -> offers only "# note" after "#", and leaves "#" to write on
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -22,7 +24,7 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("@/services/api/voiceNotebook", () => api);
 
-import { useVoiceNotebook, VoiceNoteThread, type VoiceNotebook } from "./useVoiceNotebook";
+import { NOTE_START, useVoiceNotebook, VoiceNotePicker, VoiceNoteThread, type VoiceNotebook } from "./useVoiceNotebook";
 
 /** A mic and recorders that only do what the test tells them. */
 class FakeRecorder {
@@ -51,9 +53,10 @@ let container: HTMLDivElement;
 let root: Root;
 let notebook: VoiceNotebook;
 const reload = vi.fn(async () => undefined);
+const openOffer = vi.fn();
 
 function Harness() {
-  notebook = useVoiceNotebook({ signedIn: true, threadLoading: false, held: false, drawn: [], openOffer: vi.fn(), reload });
+  notebook = useVoiceNotebook({ signedIn: true, threadLoading: false, held: false, drawn: [], openOffer, reload });
   return createElement(VoiceNoteThread, { notebook });
 }
 
@@ -149,5 +152,37 @@ describe("the voice note, written as it is said", () => {
     expect(api.sendVoiceNote.mock.calls[1]![2]).toBe(api.sendVoiceNote.mock.calls[0]![2]);
     expect(container.querySelector('[aria-label="Waiting to send"]')).toBeNull();
     expect(reload).toHaveBeenCalled();
+  });
+});
+
+describe('"#" is one note, the same as the mic (N253)', () => {
+  it('offers only "# note" after "#", and leaves "#" to write on', async () => {
+    let draft = "";
+    const onPick = vi.fn(() => {
+      draft = NOTE_START;
+    });
+    function Box() {
+      const nb = useVoiceNotebook({ signedIn: true, threadLoading: false, held: false, drawn: [], openOffer, reload });
+      return createElement(VoiceNotePicker, { notebook: nb, draft, onPick });
+    }
+    const type = async (text: string) => {
+      draft = text;
+      await act(async () => root.render(createElement(Box)));
+      await settle();
+      return [...container.querySelectorAll('[role="option"]')].map((o) => o.textContent);
+    };
+
+    expect(await type("#")).toEqual(["# note"]);
+    expect(await type("#no")).toEqual(["# note"]);
+    expect(await type("#mistake")).toEqual([]);
+    expect(await type("I rush the close")).toEqual([]);
+
+    await type("#");
+    const option = container.querySelector('[role="option"]')!;
+    await act(async () => {
+      option.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    });
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(await type(draft)).toEqual([]); // "# ": the box is ready to write on
   });
 });

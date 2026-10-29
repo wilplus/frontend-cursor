@@ -10,15 +10,16 @@ OUTCOME
       the Take's: the card stays above it and the ask above its buttons
       (founder 2026-10-20: the card landed between the question and its
       buttons).
-  O5  Once I record the next Take, the last Take's "Record Take N" goes, and
-      no Take is offered until the new Take's walk reaches its summary
-      (founder 2026-10-28, N244: it came back as processing ended, beside
-      the new Take's walk).
+  O5  Once I record the next Take, in any project, every earlier "Record
+      Take N" goes for good; the chat's one record button comes back under
+      the new Take's closing message, after its walk's summary (founder
+      2026-10-28, N244, N251: it came back as processing ended, beside the
+      new Take's walk).
 PROVES   O1 -> "draws the card, the ask, and the message only once it is let go"
          O2 -> "opens the Take's WhatsApp ask by itself"
          O3 -> "knows when no ask is in front of the speaker"
          O4 -> "keeps the card above the admin's ask, stamped with the message it waits for alone"
-         O5 -> "offers no Take between the next recording and its closing message"
+         O5 -> "the last Take's Record button goes once the next Take is recorded"
 WHY      Founder 2026-10-20: "You cannot have two actions at a time, like
          feedback and record" (backend services/after_take.py).
 */
@@ -71,16 +72,16 @@ describe("after a Take", () => {
     expect(askToOpen([...drawn, row("reply", 4, "text", {})])).toBeNull();
   });
 
-  it("offers no Take between the next recording and its closing message", () => {
+  it("the last Take's Record button goes once the next Take is recorded", () => {
     const closing = row("closing", 1, "text", { next_take: true, take_index: 2, ...take });
-    const recording = row("rec3", 2, "recording_summary", { arc_id: "a", take_index: 3, session_id: "t3" });
-    const other = row("other", 3, "recording_summary", { arc_id: "b", take_index: 1, session_id: "u1" });
-    expect(recordedPast([closing])).toEqual(new Set());
-    expect(recordedPast([closing, other])).toEqual(new Set());
-    expect(recordedPast([closing, recording])).toEqual(new Set(["closing"]));
-    // Take 3's own closing message, written with its summary, keeps its button.
-    const next = row("closing3", 4, "text", { next_take: true, take_index: 3, take_session_id: "t3", arc_id: "a" });
-    expect(recordedPast([closing, recording, next])).toEqual(new Set(["closing"]));
+    expect(recordedPast([closing]).has("closing")).toBe(false);
+    // A Take recorded in another project takes it too, for good (N251).
+    const other = row("rec-b", 2, "recording_summary", { arc_id: "b", take_index: 1, session_id: "u1" });
+    const next = row("closing-b", 3, "text", { next_take: true, take_index: 1, take_session_id: "u1", arc_id: "b" });
+    expect(recordedPast([closing, other]).has("closing")).toBe(true);
+    expect(recordedPast([closing, other, next]).has("closing")).toBe(true);
+    // The new Take's own closing message, written with its summary, keeps its button.
+    expect(recordedPast([closing, other, next]).has("closing-b")).toBe(false);
   });
 
   it("knows when no ask is in front of the speaker", () => {

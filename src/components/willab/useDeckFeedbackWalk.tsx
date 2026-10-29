@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, momentChat, othersAnswered, othersChat, praiseChat, shownStep, storedSummaryOf, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, momentChat, othersAnswered, othersChat, praiseChat, shownStep, storedSummaryOf, tempoSaidIn, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkIntervention, WalkStep } from "@/lib/willab/walkPlan";
 import type { WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
@@ -32,6 +32,7 @@ import {
   walkAsItStands,
   walkLastStep,
   walkStepAt,
+  walkThreadEnd,
   type WalkMomentEnd,
   type WalkStepTarget,
   type FeedbackWalkItem,
@@ -69,7 +70,7 @@ import { useUserEmail } from "./useUserEmail";
 import { useReviewTempo } from "./walk/useReviewTempo";
 import { useRingState } from "@/hooks/useRingState";
 import { postTempoGame } from "@/services/api/reviewTempo";
-import { TEMPO_COPY, TEMPO_STEP_FEATURE, type TempoEvent } from "@/lib/willab/tempoStep";
+import { TEMPO_COPY, TEMPO_STEP_FEATURE, afterTry, type TempoEvent } from "@/lib/willab/tempoStep";
 
 /* -------------------------------------------------------------------------- */
 /*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
@@ -822,21 +823,23 @@ export function useDeckFeedbackWalk(args: {
     void to.append(walkStepDraft({ ...entry, take: on, arcId, takeIndex })).catch(() => undefined);
   }, []);
   /* The tempo step in the chat and for Will (N166 step 4): its opening
-     lines, each try and its comment, the closing line, as Lounge messages
-     like every other step; the game itself kept for Will's note. */
+     lines, each try with the dot's line and Will's word on it (N245), the
+     closing line unless a try landed, as Lounge messages like every other
+     step, so the walk opened again draws the game as it went (B5, N247);
+     the game itself kept for Will's note. */
   const onTempo = useCallback(
     (event: TempoEvent) => {
       if (!tempo) return;
-      const say = (key: string, author: "app" | "speaker", body: string, attempt: number | null = null) =>
-        post({ key, moment: null, attempt, author, body });
+      const say = (key: string, author: "app" | "speaker", body: string, attempt: number | null = null, extra?: Record<string, unknown>) =>
+        post({ key, moment: null, attempt, author, body, extra });
       if (event.kind === "opened") {
         say("tempo:open", "app", [TEMPO_COPY.game[tempo.reading], TEMPO_COPY.task(tempo.topic), TEMPO_COPY.room].join("\n"));
       } else if (event.kind === "try") {
-        say("tempo:try", "speaker", TEMPO_COPY.tryLabel(event.n), event.n);
-        say("tempo:comment", "app", TEMPO_COPY.comment[event.result], event.n);
+        say("tempo:try", "speaker", TEMPO_COPY.tryLabel(event.n), event.n, { path: event.path.slice(0, 300).map((v) => Math.round(v * 1000) / 1000) });
+        say("tempo:comment", "app", afterTry(event.result, event.landed, event.n).join("\n"), event.n);
       } else {
-        if (event.close) say("tempo:close", "app", TEMPO_COPY.close[event.close]);
-        else say("tempo:skip", "speaker", TEMPO_COPY.skip);
+        if (!event.close) say("tempo:skip", "speaker", TEMPO_COPY.skip);
+        else if (!event.tries.some((t) => t.landed)) say("tempo:close", "app", TEMPO_COPY.close[event.close]);
         const arcId = args.arcId ?? null;
         if (arcId && take) void postTempoGame(arcId, take, tempo.reading, event);
       }
@@ -906,6 +909,17 @@ export function useDeckFeedbackWalk(args: {
   // again in this Take.
   const storedSummary = useMemo(() => (threadMessages && take ? storedSummaryOf(threadMessages, take) : null), [threadMessages, take]);
   const editedWords = useMemo(() => (threadMessages && take ? wordsEditedIn(threadMessages, take) : null), [threadMessages, take]);
+  // A walk played again holds every step as it went (N247): the tempo step
+  // as the chat kept it, when this Take had one.
+  const tempoSaid = useMemo(() => (threadMessages && take ? tempoSaidIn(threadMessages, take) : []), [threadMessages, take]);
+  const replayInterventions = useMemo<readonly WalkIntervention[]>(() => (tempoSaid.length > 0 ? ["tempo"] : []), [tempoSaid]);
+  // How far a finished walk is drawn: through the judging and the summary
+  // where the chat holds them (N247).
+  const threadEnd = useCallback(
+    (done: FeedbackWalkModel<DocumentSuggestion>) =>
+      walkThreadEnd(done, (s) => (s.key === "summary" ? storedSummary !== null : othersJudged > 0)),
+    [storedSummary, othersJudged],
+  );
   const [triedByPractice, setTriedByPractice] = useState<Readonly<Record<string, ReplayTries | null>>>({});
   const askedPractices = useRef(new Set<string>());
   useEffect(() => {
@@ -952,8 +966,9 @@ export function useDeckFeedbackWalk(args: {
           const practiceId = momentPracticeId(moment);
           return practiceId ? (triedByPractice[practiceId] ?? null) : null;
         },
+        interventions: replayInterventions,
       }),
-    [replayItems, replayReady, coachMessage, practiceOn, helperWordsOf, triedByPart, triedByPractice, args.coachOnly, args.coachWordOnly],
+    [replayItems, replayReady, coachMessage, practiceOn, helperWordsOf, triedByPart, triedByPractice, args.coachOnly, args.coachWordOnly, replayInterventions],
   );
   /* THE WHOLE TAKE'S WALK AS IT STANDS (founder 2026-10-21, B10: every door
      opens the whole walk, "live while that step waits"): what is answered as
@@ -1062,7 +1077,7 @@ export function useDeckFeedbackWalk(args: {
       // Take its last step, else up to the next step that still waits. The
       // coach's door, while something waits, goes step by step from the
       // word, so its Continue still marks the word seen.
-      return openAt(standAt, false, lens, undefined, finished ? walkLastStep(done) : coachDoor ? null : answeredRun(done, standAt, waitsOn));
+      return openAt(standAt, false, lens, undefined, finished ? threadEnd(done) : coachDoor ? null : answeredRun(done, standAt, waitsOn));
     }
     if (target?.part && liveAt === null && !lens) return false;
     // Opening marks nothing: only Continue on the coach's word does (N80).
@@ -1070,11 +1085,11 @@ export function useDeckFeedbackWalk(args: {
     // the text in its place.
     if (done && walkStart(done) !== null && liveAt === null && walkStart(model) === null) {
       setReplaying(done);
-      return openAt(walkStart(done), false, lens, undefined, walkLastStep(done));
+      return openAt(walkStart(done), false, lens, undefined, threadEnd(done));
     }
     setReplaying(model);
     return openAt(liveAt ?? walkStart(model), false, lens);
-  }, [model, finished, coachOnly, openAt, otherTake, replayReady, buildReplay, buildWhole, waitsOn, ownAnswers]);
+  }, [model, finished, coachOnly, openAt, otherTake, replayReady, buildReplay, buildWhole, waitsOn, ownAnswers, threadEnd]);
 
   const openPart = useCallback((partId: string): boolean => review({ part: partId }, "page"), [review]);
 
@@ -1085,16 +1100,15 @@ export function useDeckFeedbackWalk(args: {
       const again = buildReplay(answers);
       // The whole review in the thread: on the step asked for, else on its
       // newest step with the rest above to scroll back to (the prototype's
-      // "Review feedback" on a finished Take).
-      const last = walkLastStep(again);
-      const at = walkStepAt(again, target) ?? last ?? walkStart(again);
+      // "Review feedback" on a finished Take), drawn through its summary (N247).
+      const at = walkStepAt(again, target) ?? walkLastStep(again) ?? walkStart(again);
       if (at === null) return;
       setOwnAnswers(answers);
       setReplaying(again);
-      openAt(at, false, true, undefined, last);
+      openAt(at, false, true, undefined, threadEnd(again));
     });
     return true;
-  }, [canReplay, pageTake, buildReplay, openAt, otherTake]);
+  }, [canReplay, pageTake, buildReplay, openAt, otherTake, threadEnd]);
 
   // The paragraph has a moment of this Take to open, waiting or answered;
   // only one still waiting wears the black line (founder 2026-10-20).
@@ -1121,7 +1135,7 @@ export function useDeckFeedbackWalk(args: {
         // The words as given, the rest of the walk there to scroll (founder
         // 2026-10-21: "not scrollable to the next step of the walk").
         setReplaying(now);
-        return openAt(at, false, false, undefined, walkLastStep(now));
+        return openAt(at, false, false, undefined, threadEnd(now));
       }
       // No step for it in this Take's walk: the helper words on their own.
       const chunk = live.current.chunks.find((c) => c.part.id === partId);
@@ -1136,7 +1150,7 @@ export function useDeckFeedbackWalk(args: {
       );
       return openAt(1, true);
     },
-    [model, replayReady, buildReplay, ownAnswers, openAt],
+    [model, replayReady, buildReplay, ownAnswers, openAt, threadEnd],
   );
 
   const practisePart = useCallback(
@@ -1450,6 +1464,7 @@ export function useDeckFeedbackWalk(args: {
           reasons={greenReasons}
           othersJudged={othersJudged}
           tempo={tempo}
+          tempoSaid={tempoSaid}
           onTempo={onTempo}
         />
     ),
@@ -1482,6 +1497,7 @@ export function useDeckFeedbackWalk(args: {
       greenReasons,
       othersJudged,
       tempo,
+      tempoSaid,
       onTempo,
     ],
   );
