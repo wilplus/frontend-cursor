@@ -77,5 +77,5 @@ export const FLOW_COPY = {
    *  go to the AI before the processing agreement, so it is one fixed line,
    *  with "Start your first recording" under it. */
   firstTakeHello:
-    "Hi, I'm Will. 👋 Record your first take, and I'll give you the ideal text of your talk and show you which moments landed best.",
+    "Hi, I'm Will. 👋 Record your first take, and I will help you with your presentation.",
 } as const;
