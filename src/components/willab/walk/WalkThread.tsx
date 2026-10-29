@@ -8,6 +8,7 @@ import {
   useContext,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type MutableRefObject,
@@ -313,6 +314,9 @@ export function WalkLanding({
 const AT_END_PX = 24;
 /** Room above a step's name brought to the top. */
 const MARK_GAP_PX = 8;
+/** A scroll by hand has come to rest after this long with no scroll and no
+ *  finger on the screen. */
+const AT_REST_MS = 120;
 
 /** Where `node` sits in the scrolling `el`, in its scroll coordinates. */
 const topIn = (el: HTMLElement, node: HTMLElement) =>
@@ -393,6 +397,18 @@ function LiveThread({
     follow.current = on;
     setFollowing(on);
   }, []);
+  // A finger on the thread, and the wait for a scroll by hand to come to
+  // rest. Following comes back only once it has, at the bottom: turned
+  // back on mid-drag or mid-flick, it pulled the thread down under the
+  // finger (founder 2026-10-29: "it stalls a little bit").
+  const held = useRef(false);
+  const resting = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (resting.current !== null) window.clearTimeout(resting.current);
+    },
+    [],
+  );
   // The bar: the mark in view, how many there are, and whether the thread
   // is scrolled away from the standing part.
   const [bar, setBar] = useState<{ label: string | null; at: number; of: number; away: boolean }>({
@@ -427,6 +443,15 @@ function LiveThread({
     const el = nowEl();
     return !el || el.nextElementSibling === null;
   };
+  /** Once a scroll by hand rests at the bottom, the thread follows again. */
+  const toRest = useCallback(() => {
+    if (resting.current !== null) window.clearTimeout(resting.current);
+    resting.current = window.setTimeout(() => {
+      resting.current = null;
+      const el = body.current;
+      if (el && !held.current && !follow.current && atEnd(el) && standsLast()) setFollow(true);
+    }, AT_REST_MS);
+  }, [setFollow]);
   /** Scrolled away from the standing part (B9): none of it, from its name
    *  to its last bubble, is in view. False when the thread marks no
    *  standing part, or before the part has a size. (Until 2026-10-27 the
@@ -596,6 +621,10 @@ function LiveThread({
   // A scroll has neither (N259).
   const back = buttons && !following && docked.any && !docked.recording && bar.away;
 
+  // One value while the dock stays: the thread's bubbles are not drawn
+  // again each time the bar changes as it scrolls.
+  const frameValue = useMemo(() => ({ dock, close, ghost: false }), [dock]);
+
   const label = bar.label ?? undefined;
   return (
     <div
@@ -636,15 +665,25 @@ function LiveThread({
         ref={body}
         data-walk-thread-body
         onScroll={() => {
-          const el = body.current;
-          if (el && atEnd(el) && !follow.current && standsLast()) setFollow(true);
+          if (!follow.current) toRest();
           readBar();
         }}
         onWheel={(e) => {
-          if (e.deltaY < 0 || !standsLast()) setFollow(false);
+          if (follow.current && (e.deltaY < 0 || !standsLast())) setFollow(false);
+        }}
+        onTouchStart={() => {
+          held.current = true;
         }}
         onTouchMove={() => {
-          setFollow(false);
+          if (follow.current) setFollow(false);
+        }}
+        onTouchEnd={() => {
+          held.current = false;
+          if (!follow.current) toRest();
+        }}
+        onTouchCancel={() => {
+          held.current = false;
+          if (!follow.current) toRest();
         }}
         className="scrollbar-none relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5 py-3.5"
       >
@@ -657,7 +696,7 @@ function LiveThread({
               dangerouslySetInnerHTML={{ __html: kept.html }}
             />
           ) : null}
-          <FrameContext.Provider value={{ dock, close, ghost: false }}>{children}</FrameContext.Provider>
+          <FrameContext.Provider value={frameValue}>{children}</FrameContext.Provider>
         </div>
         <div ref={room} data-walk-room aria-hidden="true" className="shrink-0" />
       </div>
