@@ -23,6 +23,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@capacitor/app": "8.1.2",
+    "@capacitor/browser": "8.0.5",
     "@capacitor/core": "8.6.0",
     "@capacitor/ios": "8.6.0",
     "@radix-ui/react-slot": "^1.2.4",
