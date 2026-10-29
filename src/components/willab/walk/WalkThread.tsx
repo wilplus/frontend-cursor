@@ -13,7 +13,6 @@ import {
   type MutableRefObject,
   type ReactNode,
 } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import OverlayCloseButton from "../OverlayCloseButton";
 import { CHUNK_DELAY_MS, TypingGlyph } from "../TypingDots";
@@ -38,8 +37,8 @@ import WalkFooter from "./WalkFooter";
 /*                                                                            */
 /*  Each step opens with its name as a small line (a mark): "Slide 2",        */
 /*  "Slide 2 · helper words", "Other speakers · 1 of 2", "Take 2". The bar    */
-/*  shows the mark of the part in view; ‹ › scroll to the mark before or      */
-/*  after.                                                                    */
+/*  holds ✕ alone (founder 2026-10-29: the ‹ › there went; the thread        */
+/*  scrolls by hand).                                                         */
 /*                                                                            */
 /*  New bubbles land at the bottom (founder 2026-10-23, N122: "the 3 dots     */
 /*  loading should be at the bottom"): each new bubble, and the typing dots   */
@@ -574,23 +573,6 @@ function LiveThread({
     return () => seen?.disconnect();
   }, [dock]);
 
-  /** ‹ ›: the mark before or after the one in view. */
-  const jump = (by: -1 | 1) => {
-    const el = body.current;
-    const all = marks();
-    if (!el || all.length === 0) return;
-    const k = Math.max(0, Math.min(all.length - 1, inView() + by));
-    if (by > 0 && k >= all.length - 1 && standsLast()) {
-      setFollow(true);
-      toCurrent(true);
-      return;
-    }
-    setFollow(false);
-    const top = Math.max(0, topIn(el, all[k]) - MARK_GAP_PX);
-    if (typeof el.scrollTo === "function") el.scrollTo({ top, behavior: reduced() ? "auto" : "smooth" });
-    else el.scrollTop = top;
-  };
-
   // Scrolled away from the step with the buttons, the dock reads Next:
   // back to that step (founder 2026-10-20). The recorder stays where it is.
   // A scroll has neither (N259).
@@ -606,28 +588,7 @@ function LiveThread({
       data-walk-thread
       className="walk-ov flex h-full w-full flex-col bg-background pt-[env(safe-area-inset-top)] text-[17px] leading-[1.55] text-foreground"
     >
-      <div className="walk-ovtop flex min-h-[44px] items-center justify-between px-2.5 pt-2">
-        <nav data-walk-nav aria-label={label} className="flex min-w-0 items-center gap-0.5 text-[13.5px] font-semibold">
-          <button
-            type="button"
-            onClick={() => jump(-1)}
-            disabled={bar.at <= 0}
-            aria-label={COPY.pagerBack}
-            className="walk-press-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground disabled:cursor-default disabled:opacity-25"
-          >
-            <ChevronLeft className="h-5 w-5" aria-hidden />
-          </button>
-          <span className="min-w-0 truncate">{label}</span>
-          <button
-            type="button"
-            onClick={() => jump(1)}
-            disabled={bar.at < 0 || bar.at >= bar.of - 1}
-            aria-label={COPY.pagerNext}
-            className="walk-press-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground disabled:cursor-default disabled:opacity-25"
-          >
-            <ChevronRight className="h-5 w-5" aria-hidden />
-          </button>
-        </nav>
+      <div className="walk-ovtop flex min-h-[44px] items-center justify-end px-2.5 pt-2">
         <OverlayCloseButton onClick={() => (close.current ?? onClose)()} className="walk-press-sm mr-2.5" />
       </div>
       {/* No scrollbar (founder 2026-10-20): the thread scrolls by wheel,

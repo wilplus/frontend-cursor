@@ -123,9 +123,7 @@ const words = () => [...(live()?.querySelectorAll<HTMLButtonElement>("[data-walk
 describe("FeedbackWalk", () => {
 
   const bubble = () => [...now()!.querySelectorAll("[data-walk-message] > div > span")].map((n) => n.textContent);
-  const nav = () => live()!.querySelector("[data-walk-nav]")!;
-  const nextArrow = () => nav().querySelector<HTMLButtonElement>(`button[aria-label='${COPY.pagerNext}']`)!;
-  const backArrow = () => nav().querySelector<HTMLButtonElement>(`button[aria-label='${COPY.pagerBack}']`)!;
+  const nav = () => live()!.querySelector("[data-walk-thread]")!;
 
   it("a green moment says why it landed: the praise line alone, then the reason in its own bubble (founder 2026-10-18)", () => {
     const reason = {
@@ -180,10 +178,8 @@ describe("FeedbackWalk", () => {
     expect(now()!.querySelector("[data-walk-player][data-walk-me]")).not.toBeNull();
     expect(bubble()).toEqual([COPY.titlePraise, ITEMS[0].praiseWords![0]]);
     expect(nav().getAttribute("aria-label")).toBe("Slide 2");
-    // ‹ scrolls back up the thread; › is off at the newest step. The pill
-    // alone moves the walk on.
-    expect(backArrow().disabled).toBe(false);
-    expect(nextArrow().disabled).toBe(true);
+    // The bar holds ✕ alone: no ‹ › (founder 2026-10-29).
+    expect(live()!.querySelector(`button[aria-label='${COPY.pagerBack}']`)).toBeNull();
     forward();
     expect(screen()).toBe("walk-screen-helpers");
     expect(nav().getAttribute("aria-label")).toBe(`Slide 2 · ${WALK_COPY.navHelperWords}`);
@@ -507,7 +503,7 @@ describe("the clearer version (D-FW-15)", () => {
   it("draws the served words: what goes crossed out, what arrives in orange, around the signed lines", () => {
     drawClearer(true, FIRST);
     expect(screen()).toBe("walk-screen-clearer");
-    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Slide 2");
+    expect(live()!.querySelector("[data-walk-thread]")!.getAttribute("aria-label")).toBe("Slide 2");
     // The speaker's clip is the orange bubble, their words above the voice.
     const player = now()!.querySelector("[data-walk-player][data-walk-me]")!;
     expect([...player.querySelectorAll("s")].map((n) => n.textContent)).toEqual([

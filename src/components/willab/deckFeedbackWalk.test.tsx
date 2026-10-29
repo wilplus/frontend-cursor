@@ -1,42 +1,38 @@
 // @vitest-environment jsdom
 /*
 STORY    As a speaker reviewing feedback, I want the walk to open on my
-         first praise, move through its chat with ‹ ›, save
+         first praise, scroll through its chat, save
          helper words through the deck, and ask a guest to sign up, so that
          feedback flows into my next Take.
 OUTCOME
   O1  Review feedback opens the walk on the first praise.
-  O2  The arrows move through the walk's chat, step by step, without
-      answering anything or closing it.
-  O3  A tap on a paragraph, with or without its black line, opens the same walk at what it asks (its
+  O2  A tap on a paragraph, with or without its black line, opens the same walk at what it asks (its
       praise just above it in the chat) and, once answered, lands back on
       the Ideal Text. Tapped again with nothing left, the text or its
       orange words, it opens the whole walk to scroll through, at the
       helper words it answered, with no buttons.
-  O4  Helper words picked in the walk are saved through the deck's own
+  O3  Helper words picked in the walk are saved through the deck's own
       save (the words, then the lock) and show orange in the text at once.
-  O5  Never-5: Accept and practise saves the answer through the accept lane,
+  O4  Never-5: Accept and practise saves the answer through the accept lane,
       and the deck still shows the speaker's own words, not the clearer ones.
-  O6  A guest's pick asks to sign up, is not taken, and nothing is written.
-  O7  A moment the walk went past (its helper words skipped, its practise
+  O5  A guest's pick asks to sign up, is not taken, and nothing is written.
+  O6  A moment the walk went past (its helper words skipped, its practise
       skipped) loses its black line at once and is told to the server; its
       paragraph then opens the walk as given, never its practise again.
-  O8  A moment whose voice sounded confident and whose words are reworded
+  O7  A moment whose voice sounded confident and whose words are reworded
       offers its helper words after the rewording; one whose voice did not,
       only the rewording (N113).
 PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's sheet"
-         O2 -> "‹ › move through the walk's chat, never answering and never
-                closing it (founder 2026-10-20)"
-         O3 -> "a paragraph with or without the line opens the same walk at
+         O2 -> "a paragraph with or without the line opens the same walk at
                 what it asks, its buttons as the step stands (founder
                 2026-10-20, N89)"
-         O4 -> "helper words picked in the walk go through the deck's own
+         O3 -> "helper words picked in the walk go through the deck's own
                 save: the words and the lock"
-         O5 -> "Accept and practise writes through the accept lane and leaves the speaker's words on the page"
-         O6 -> "a guest's pick asks to sign up and writes nothing"
-         O7 -> "a moment walked through loses its black line and opens as
+         O4 -> "Accept and practise writes through the accept lane and leaves the speaker's words on the page"
+         O5 -> "a guest's pick asks to sign up and writes nothing"
+         O6 -> "a moment walked through loses its black line and opens as
                 given, never its practise again (founder 2026-10-21)"
-         O8 -> "a confident voice whose words are reworded gets its helper
+         O7 -> "a confident voice whose words are reworded gets its helper
                 words after the rewording (founder 2026-10-22, N113)"
 WHY      Feedback walk lock 2026-10-06/2026-10-12; founder 2026-10-21 ("the
          black lines on the ideal text are still there even though I walked
@@ -205,49 +201,7 @@ describe("the walk on the deck", () => {
     expect(live()!.querySelector("[data-walk-part] [data-walk-message]")!.textContent).toBe(
       [COPY.titlePraise, [PRAISE_LEAD, PRAISE_CUE_COPY.landed_ending].join(" ")].join(""),
     );
-    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Slide 2");
-  });
-
-  it("‹ › move through the walk's chat, never answering and never closing it (founder 2026-10-20)", async () => {
-    // Slide 1's clearer version is answered already; slide 2's praise and
-    // slide 3's clearer version wait. Walk order: praise, helper words,
-    // then the practising, slide by slide.
-    const slide1 = SLIDES[0].indexOf("the pilot");
-    const slide3 = SLIDES[0].length + 2 + SLIDES[1].length + 2 + SLIDES[2].indexOf("one more quarter");
-    const done = {
-      ...rewrite, id: "s-rw1", start: slide1, end: slide1 + "the pilot".length, quote: "the pilot",
-      proposedText: "our pilot", status: "approved", blockId: "block-1", snippetId: "snip-0",
-    } as unknown as DocumentSuggestion;
-    const open = {
-      ...rewrite, id: "s-rw3", start: slide3, end: slide3 + "one more quarter".length, quote: "one more quarter",
-      proposedText: "a fourth quarter", blockId: "block-3", snippetId: "snip-3",
-    } as unknown as DocumentSuggestion;
-    // Its moment: the paragraph waits only with a Confident Voice item on it.
-    const moment3 = { ...judgement, id: "s-cv3", start: slide3, end: open.end, quote: open.quote, blockId: "block-3", snippetId: "snip-3" } as unknown as DocumentSuggestion;
-    const p = props({ suggestions: [judgement, praise, done, open, moment3] });
-    await render(p);
-    await render({ ...p, reviewRequest: 1 });
-    const bar = () => live()!.querySelector("[data-walk-nav]")!;
-    const arrow = (label: string) => bar().querySelector<HTMLButtonElement>(`button[aria-label='${label}']`)!;
-    const next = () => click(arrow(COPY.pagerNext));
-    const back = () => click(arrow(COPY.pagerBack));
-    expect(screen()).toBe("walk-screen-praise");
-    expect(bar().getAttribute("aria-label")).toBe("Slide 2");
-    // The newest step is the last in the chat: › is off, and so is ‹ on the
-    // first step.
-    expect(arrow(COPY.pagerBack).disabled).toBe(true);
-    expect(arrow(COPY.pagerNext).disabled).toBe(true);
-    await click(live()!.querySelector("[data-testid='walk-forward']"));
-    expect(screen()).toBe("walk-screen-helpers");
-    expect(bar().getAttribute("aria-label")).toBe(`Slide 2 · ${WALK_COPY.navHelperWords}`);
-    // ‹ goes up the chat; it answers nothing and closes nothing.
-    expect(arrow(COPY.pagerBack).disabled).toBe(false);
-    await back();
-    await next();
-    expect(screen()).toBe("walk-screen-helpers");
-    expect(live()).not.toBeNull();
-    expect(p.onAccept).not.toHaveBeenCalled();
-    expect(p.onKeepMine).not.toHaveBeenCalled();
+    expect(live()!.querySelector("[data-walk-thread]")!.getAttribute("aria-label")).toBe("Slide 2");
   });
 
   it("a paragraph with or without the line opens the same walk at what it asks, its buttons as the step stands (founder 2026-10-20, N89)", async () => {
