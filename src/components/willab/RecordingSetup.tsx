@@ -92,7 +92,7 @@ export default function RecordingSetup({
    *  no active draft writes nothing. */
   draftOwnerId?: string | null;
   /** Steps drawn before this form in the same dots: 1 when "How do you
-   *  feel?" was asked just before (backend N271), so the topic is the
+   *  feel?" was asked just before (backend N272), so the topic is the
    *  second of four. Back never leaves this form. */
   leadSteps?: number;
   onSubmit: (ctx: LabSessionContext, explore: boolean) => void;

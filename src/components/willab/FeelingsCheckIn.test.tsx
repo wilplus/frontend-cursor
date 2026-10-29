@@ -17,7 +17,7 @@ PROVES   O1 -> "offers a Skip when signed in"
          O5 -> "on a plan, only after its own yes"
 WHY      Founder 2026-10-27, backend N211: a feeling is the speaker's own, and
          a check with no way past it is not asked freely. Founder 2026-10-29,
-         backend N271: the set-up's look, no reply, no coach line, and no
+         backend N272: the set-up's look, no reply, no coach line, and no
          check for a guest; on a plan, the plan's own yes comes first (N217).
 */
 import { act, createElement } from "react";

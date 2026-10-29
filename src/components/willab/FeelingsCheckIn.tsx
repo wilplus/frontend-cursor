@@ -10,7 +10,7 @@ import { clearFeeling, recordFeeling, type Feeling } from "./willabFeelings";
 /*  FeelingsCheckIn — "How do you feel?" before a Take (U10)                   */
 /*                                                                            */
 /*  The set-up's first step in the set-up's own chrome (founder 2026-10-29,    */
-/*  backend N271): its dots and ✕, its heading with the mic, then the four     */
+/*  backend N272): its dots and ✕, its heading with the mic, then the four     */
 /*  feelings and a faded Skip under Calm. Naming the state is the point — it   */
 /*  takes the edge off the mic. The pick is kept for the coach; nothing is     */
 /*  said back. Only a signed-in speaker is asked; a guest goes straight on.    */
@@ -33,7 +33,7 @@ export default function FeelingsCheckIn({
   onReady,
   onCancel,
 }: {
-  /** Signed in. A guest is never asked (backend N271). */
+  /** Signed in. A guest is never asked (backend N272). */
   ask: boolean;
   /** The set-up's steps that follow this one; 0 when the project's setup is
    *  restored, and the bar then holds the ✕ alone. */
@@ -44,7 +44,7 @@ export default function FeelingsCheckIn({
   onCancel: () => void;
 }) {
   // A speaker on a plan is asked only after the plan's own yes (backend
-  // N211, N217); a guest never (N271). Otherwise the check is passed by at
+  // N211, N217); a guest never (N272). Otherwise the check is passed by at
   // once and keeps nothing.
   const [allowed] = useState(() => ask && feelingsAllowed());
   useEffect(() => {

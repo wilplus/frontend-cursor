@@ -190,7 +190,7 @@ export default function LabOverlay({
   const { cancel: cancelMic } = mic;
   const signedIn = useSignedIn();
   // How many steps came before the set-up in its dots: 1 right after "How do
-  // you feel?" was on screen (backend N271), else 0. Any other way into the
+  // you feel?" was on screen (backend N272), else 0. Any other way into the
   // set-up starts it at its own first step.
   const [setupLead, setSetupLead] = useState(0);
   useEffect(() => {
@@ -1496,7 +1496,7 @@ export default function LabOverlay({
             note={laterTakePresentation(arcTakeIndex, context, preloadDeck, deckNews)}
           />
         ) : null}
-        {/* Asked only of a signed-in speaker (backend N271): it waits until
+        {/* Asked only of a signed-in speaker (backend N272): it waits until
             the sign-in is known, so a guest is never shown it by mistake. */}
         {state === "lab_feelings" && signedIn !== null && (
           <LabEntryGate entry={entry}>
@@ -2003,7 +2003,7 @@ export function ContinuedTakeAutoStart({
 
 /** The screens that draw their own top bar, so the overlay's header (and
  *  its ✕) is not drawn over them: the set-up and "How do you feel?" draw
- *  the set-up's dots and ✕ (backend N271), the readout its own. */
+ *  the set-up's dots and ✕ (backend N272), the readout its own. */
 function drawsOwnTopBar(state: WillabState): boolean {
   return state === "lab_session_context" || state === "lab_feelings" || state === "readout";
 }
