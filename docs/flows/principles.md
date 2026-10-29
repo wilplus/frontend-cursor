@@ -407,7 +407,7 @@ Will's guide are signed (N258):
 - R1 · the four rows, made by the founder on the rings page ("new_feature_name", then ring 5): `strengths`, `in_control`, `sales_framing`, `your_why`; until a row exists its feature stays off · A2, N, O, P, Q · ready · —
 - N-be · backend: strengths kept in the Life Panel's store with their history; the two-day suggestion from # notes and the M4 answer; later notes linked; the before-a-talk reminder from the plan's deadline or a note's date · N1 to N5 · ready · —
 - N-fe · frontend: strengths in the Life Panel; the suggestion, the linked note and the reminder in the Lounge, as the prototype draws them · N1 to N5 · ready · —
-- O-be · Will's chat: the worry heard and sorted, ending on one thing in their control, from the signed guide · O1, O3 · ready · —
+- O-be · Will's chat: the worry heard and sorted, ending on one thing in their control, from the signed guide; under a # note's "Noted.", typed or said; ring row `in_control` · O1, O3 · built, on once the founder makes the row · BE #1481
 - P-be · Will's chat on a sales note, and the Sunday note's sales steps (backend `services/sunday_note.py`, frontend `SundayLens.tsx`) · P1 to P3 · ready · —
 - Q-be · backend: the three lines kept with their history (a migration with its outside review), the sitting's questions and drafts from the person's words, the daily why on the first open, Will reading all three · Q1 to Q6 · ready · —
 - Q-fe · frontend: the sitting in the lens, the daily bubble with its ›, the lines on the Life Panel's Goals screen · Q2 to Q6 · ready · —
