@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FileText, Mic, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { StepHead, WizardChip, WizardProgress } from "@/components/ui/wizard";
+import { StepHead, WizardCancel, WizardChip, WizardProgress } from "@/components/ui/wizard";
 import PresentationInput from "./PresentationInput";
 import ContextDocumentInput from "./ContextDocumentInput";
 import { type LabSessionContext } from "./LabOverlay";
@@ -60,11 +60,21 @@ type StepKey =
   | "slides"
   | "context";
 
+/** The setup's visible steps. A staged footer upload has no slide step.
+ *  The feelings check reads it too, to count itself in the same dots. */
+export function setupSteps(hideDeck: boolean): StepKey[] {
+  // "audience", "call_to_action" and "context" are hidden, not deleted
+  // (founder 2026-10-12): their state, draft fields and submit wiring stay, so
+  // a continued take still carries the project's audience from preloadDeck.
+  return hideDeck ? ["topic", "length"] : ["topic", "length", "slides"];
+}
+
 export default function RecordingSetup({
   contextArcId,
   preloadDeck,
   hideDeck = false,
   draftOwnerId,
+  leadSteps = 0,
   onSubmit,
   onCancel,
 }: {
@@ -81,18 +91,17 @@ export default function RecordingSetup({
    *  and only the new-project entries set an active draft, so an owner with
    *  no active draft writes nothing. */
   draftOwnerId?: string | null;
+  /** Steps drawn before this form in the same dots: 1 when "How do you
+   *  feel?" was asked just before (backend N272), so the topic is the
+   *  second of four. Back never leaves this form. */
+  leadSteps?: number;
   onSubmit: (ctx: LabSessionContext, explore: boolean) => void;
   /** FE-6 — leave the setup flow. Present → the ✕ is drawn on the step
    *  indicator row, on EVERY step. Absent → no ✕ (the host has its own way
    *  out and a second one would just be two crosses on one screen). */
   onCancel?: () => void;
 }) {
-  // "audience", "call_to_action" and "context" are hidden, not deleted
-  // (founder 2026-10-12): their state, draft fields and submit wiring stay, so
-  // a continued take still carries the project's audience from preloadDeck.
-  const steps: StepKey[] = hideDeck
-    ? ["topic", "length"]
-    : ["topic", "length", "slides"];
+  const steps = setupSteps(hideDeck);
   // Read once, at mount: the draft being resumed (or the fresh slot "Start a
   // new project" opened). Later renders never re-read it — this form owns it.
   const [active] = useState(() =>
@@ -307,9 +316,9 @@ export default function RecordingSetup({
           Life Panel's setup mounts the same components, so the product's two
           onboarding flows cannot drift apart again. */}
       <WizardProgress
-        count={steps.length}
-        current={step}
-        onBack={goBack}
+        count={leadSteps + steps.length}
+        current={leadSteps + step}
+        onBack={step > 0 ? goBack : undefined}
         trailing={
           // FE-6 — the "cross" on the "progress bar" is a CANCEL button on the
           // step indicator, not a position marker and not a playhead. It sits
@@ -318,16 +327,7 @@ export default function RecordingSetup({
           // A real 44px target, and the slot mirrors Back's width so it can
           // never overlap the dots. It leaves IMMEDIATELY — the
           // confirm-before-discard was deleted with its copy.
-          onCancel ? (
-            <button
-              type="button"
-              onClick={onCancel}
-              aria-label="Cancel setup"
-              className="-mr-2.5 flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
-            >
-              <X className="h-5 w-5" aria-hidden />
-            </button>
-          ) : null
+          onCancel ? <WizardCancel onClick={onCancel} /> : null
         }
       />
 

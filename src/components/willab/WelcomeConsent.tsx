@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import WelcomeExample from "./WelcomeExample";
 
 /* -------------------------------------------------------------------------- */
 /*  WelcomeConsent — first-run screen (§12), rebuilt to the Welcome spec        */
@@ -15,6 +16,12 @@ import { useState } from "react";
 /*  provided there and is intentionally left untouched. The Privacy/Terms       */
 /*  links at the foot are likewise left as-is per the request.                 */
 /* -------------------------------------------------------------------------- */
+
+/** Under the name (founder 2026-10-29, N273 item 1): what you get, in the
+ *  page's own description. Replaces "Public speaking excellence tool." */
+export const WELCOME_PROMISE =
+  "Record your talk. You get the ideal text of your presentation and see which moments landed best.";
+export const SEE_AN_EXAMPLE = "See an example";
 
 export default function WelcomeConsent({
   onAccept,
@@ -33,6 +40,9 @@ export default function WelcomeConsent({
     setLeaving(true);
     setTimeout(onAccept, 220);
   };
+  // "See an example" (founder 2026-10-29, N273 item 1): the welcome's own
+  // place shows one example; its "Try it with your talk" enters as Enter does.
+  const [example, setExample] = useState(false);
 
   /* ITS OWN SCROLLER, FROM ITS TRUE TOP (consent lock 2026-10-07: "every
      step scrolls from its true top to its last button on any phone"). The
@@ -42,6 +52,18 @@ export default function WelcomeConsent({
      centres the column while it fits and collapses once it is taller, leaving
      an ordinary scroll from the top; py-6 keeps the breathing rings clear of
      the edge. 24px sides, as the prototype's `.wel`. */
+  if (example) {
+    return (
+      <div
+        className={`flex min-h-0 flex-1 flex-col transition-opacity duration-200 ${
+          leaving ? "opacity-0" : "opacity-100"
+        }`}
+      >
+        <WelcomeExample onTry={enter} onClose={() => setExample(false)} />
+      </div>
+    );
+  }
+
   return (
     <div
       className={`flex min-h-0 flex-1 flex-col overflow-y-auto transition-opacity duration-200 ${
@@ -99,12 +121,15 @@ export default function WelcomeConsent({
             promises a state the product cannot deliver. Founder-signed.
 
             Founder 2026-09-30: now "Public speaking excellence tool", which names
-            what the tool is for, still without promising an outcome. */}
+            what the tool is for, still without promising an outcome.
+
+            Founder 2026-10-29 (N273 item 1): now the page's own description,
+            which names the deliverable, and "See an example" shows it. */}
         <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tight text-foreground sm:text-[48px]">
           WillpowerLab
         </h1>
         <p className="mt-3.5 max-w-[36ch] text-[15px] leading-relaxed text-muted-foreground">
-          Public speaking excellence tool.
+          {WELCOME_PROMISE}
         </p>
 
         {/* THE CTA NO LONGER CLAIMS ACCEPTANCE. It read "Accept & enter the lab"
@@ -124,6 +149,22 @@ export default function WelcomeConsent({
               aria-hidden="true"
               className="inline-block h-1.5 w-1.5 rounded-full bg-primary transition-transform group-hover:translate-x-0.5"
             />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setExample(true)}
+            className="mt-1 inline-flex h-11 items-center gap-2 px-2 text-[14px] text-foreground transition-colors hover:text-foreground/80"
+          >
+            <span
+              aria-hidden="true"
+              className="flex h-5 w-5 items-center justify-center rounded-full bg-primary"
+            >
+              <svg width="8" height="9" viewBox="0 0 12 13" aria-hidden="true">
+                <path d="M2 1.2v10.6L11 6.5z" fill="#fff" />
+              </svg>
+            </span>
+            {SEE_AN_EXAMPLE}
           </button>
 
           {onReadJournal ? (

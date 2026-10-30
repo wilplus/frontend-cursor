@@ -75,6 +75,7 @@ import { readParked } from "./willabParked";
 import { COACH_BUBBLE_ATTR, useCoachBubbleFocus } from "./useCoachBubbleFocus";
 import { guestNeedsAccount } from "./GuestSignUpDialog";
 import ReadySignUpScreen from "./ReadySignUpScreen";
+import { useWallMoment } from "./wallMoment";
 import { isLabOverlay, type WillabEvent, type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
 import { TopUpBubble, TopUpSlot, useTopUpOffer } from "./LoungeTopUpCard";
@@ -266,18 +267,22 @@ function guestAsksFirst(signedIn: boolean, takeInFlight: boolean): boolean {
 /** The Ideal Text, or -- for a guest, once the Take is processed -- the ask
  *  in its place (ReadySignUpScreen). */
 function IdealTextForReader({
+  arcId,
   askFirst,
   onSignUp,
   onNotNow,
   children,
 }: {
+  arcId: string;
   askFirst: boolean;
   onSignUp: () => void;
   onNotNow: () => void;
   children: React.ReactNode;
 }) {
+  // The wall's one moment (backend N273 item 5): the Take's most confident.
+  const moment = useWallMoment(arcId, askFirst);
   return askFirst ? (
-    <ReadySignUpScreen onSignUp={onSignUp} onNotNow={onNotNow} />
+    <ReadySignUpScreen onSignUp={onSignUp} onNotNow={onNotNow} moment={moment} />
   ) : (
     <>{children}</>
   );
@@ -2146,6 +2151,7 @@ export default function Lounge({
           screen, never the text. The wait in flight still shows as a wait. */}
       {idealTextArcId && (
         <IdealTextForReader
+          arcId={idealTextArcId}
           askFirst={guestAsksFirst(thread.signedIn, takeInFlight)}
           onSignUp={() => signUpForIdealText(idealTextArcId)}
           onNotNow={() => setIdealTextArcId(null)}
@@ -2832,23 +2838,40 @@ function Bubble({
   );
 }
 
+/** Under "Start your first recording" in the empty Lounge (N273 item 2,
+ *  signed on its prototype). How long the first Take takes, not a number
+ *  about the speaker, so it lives outside FLOW_COPY's no-digits rule, as the
+ *  wait's percent does (Never 1, founder 2026-10-19). */
+const FIRST_TAKE_TIME = "About 2 minutes to record. Your feedback comes about a minute later.";
+
 function LoungeEmptyState({ onStart, hidden }: { onStart: () => void; hidden: boolean }) {
-  // ONE BUTTON, CENTRED, NOTHING ELSE (founder 2026-10-12). With no project
-  // yet there is nothing to choose between, so it goes straight to the new
-  // project's onboarding; the "+" beside the message box opens the projects.
-  // With the plan (the-plan.md B1) its questions come first, so the button
-  // waits while the plan is read and stays away while it asks.
+  // WILL SAYS HELLO FIRST (founder 2026-10-29, N273 item 2, on its
+  // prototype). The empty Lounge opens with N270's signed hello, the one
+  // button under it, and one quiet line on how long the first Take takes.
+  // Until then Will said it only after the visitor typed. With no project yet
+  // there is nothing to choose between, so the button goes straight to the
+  // new project's onboarding; the "+" beside the message box opens the
+  // projects. With the plan (the-plan.md B1) its questions come first, so all
+  // of it waits while the plan is read and stays away while it asks.
   if (hidden) return null;
   return (
-    <div className="flex flex-1 items-center justify-center px-6">
-      <button
-        type="button"
-        onClick={onStart}
-        className="flex h-12 items-center justify-center gap-2.5 whitespace-nowrap rounded-full bg-foreground px-6 text-[15px] font-medium text-background transition-colors hover:bg-foreground/90 active:scale-[0.99]"
-      >
-        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" aria-hidden />
-        Start your first recording
-      </button>
+    <div className="flex flex-1 flex-col justify-end gap-3.5">
+      <div className="mr-auto max-w-[88%] whitespace-pre-wrap break-words rounded-[16px] bg-muted px-3 py-2 text-left text-[15px] leading-[1.45] text-foreground">
+        {FLOW_COPY.firstTakeHello}
+      </div>
+      <div className="mt-1.5 flex justify-center">
+        <button
+          type="button"
+          onClick={onStart}
+          className="flex h-12 items-center justify-center gap-2.5 whitespace-nowrap rounded-full bg-foreground px-6 text-[15px] font-medium text-background transition-colors hover:bg-foreground/90 active:scale-[0.99]"
+        >
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" aria-hidden />
+          Start your first recording
+        </button>
+      </div>
+      <p className="mx-auto max-w-[18rem] text-center text-[13px] leading-normal text-muted-foreground">
+        {FIRST_TAKE_TIME}
+      </p>
     </div>
   );
 }
