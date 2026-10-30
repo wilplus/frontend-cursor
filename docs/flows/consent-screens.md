@@ -303,15 +303,15 @@ Written in the present tense.
 - **What the number is for** (backend N238): the sign-up page says nothing of its own. The Terms of Service and
   the Privacy Policy say that the number someone signs up or signs in with is also the number the messages go to.
 
-### Amended 2026-10-29, again 2026-10-30: the welcome and its example (backend N273, N277)
+### Amended 2026-10-29, again 2026-10-30: the welcome and its example (backend N273, N277, N279)
 
 Approved on the clickable prototype <https://claude.ai/artifact/MVyWmdoWUqisttfkW8qb8D>: "OK", then
-"go and build it" (N277, which replaces N273's line and example; N273's prototype
+"go and build it" (N277); version 16, "You have my okay" (N279). (N277 which replaces N273's line and example; N273's prototype
 <https://claude.ai/artifact/VqrCoZ3ddRkkiSayMfnTJp> is history).
 
 - **Under the name**, two paragraphs, each broken in two: "Great presentations aren’t about slides. /
   They’re about a dream and the guts to deliver it." and "You bring the dream. / We’ll help you sound
-  brave until you are 😏". On the landing and the in-app welcome, which are one composition. The
+  brave until you are." On the landing and the in-app welcome, which are one composition. The
   2026-07-17 honest-positioning rule does not bind this line (N277).
 - **Enter the lab**, then **See an example** with a small orange play mark. "Read blog posts" is gone:
   the posts sit right under the welcome.
@@ -320,9 +320,12 @@ Approved on the clickable prototype <https://claude.ai/artifact/MVyWmdoWUqisttfk
   draws it: his clip (`public/examples/founder-take-said.mp3`) and its words, "“All around actors, their
   costumes, all that was really great.”"; the walk's "That was good. But what if you said it more like
   this?" with **AI version of your voice** and its clip (`public/examples/founder-take-ai.mp3`); the tempo
-  step's "That part went fast. 🏃 Let's try a little game." and "Tell me more about the actors, and keep the
-  ball in the green."; and the Sniper (the pace scale), moving on a set pace, since the page has no
-  microphone. **Try it with your talk** does what Enter the lab does. Nothing is agreed, recorded or sent.
+  step's slow line, "That part slowed down, with long pauses. 🐢 Let's try a little game.", and "Tell me more
+  about the actors, and keep the ball in the green."; and the Sniper (the pace scale), on a set pace that leans
+  slow and then settles in the green, since the page has no microphone. **Try it with your talk** does what Enter the lab does. Nothing is agreed, recorded or sent.
+- **The clips come first** (N279). On open only the founder's play button moves: a ring breathes out of it
+  and its waveform ripples once. Playing it moves the ring to the AI clip's button. The Sniper rests, faded,
+  until the AI clip ends, then wakes and plays; a tap on it wakes it too.
 - Nothing after the welcome changes.
 
 ## 2. In flight
@@ -379,6 +382,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-30 · N279 · the example: the walk's slow tempo line and a slow set pace; "…until you are." without the 😏; on open only the founder's play button calls, then the AI clip's, and the Sniper rests until the AI clip ends (`WelcomeExample.tsx`, `WelcomeConsent.tsx`, `globals.css`). Was: the fast line, the 😏, and the Sniper moving on open · BE #1511, FE (this PR)
 - 2026-10-30 · N277 · the welcome: two paragraphs under the name; "Read blog posts" goes; "See an example" opens over the whole page with the founder's own clip and words, the AI version of his voice, the tempo lines and the Sniper on a set pace (`WelcomeConsent.tsx`, `WelcomeExample.tsx`, `public/examples/`). Was: N273's description and a written example with its Ideal Text and feedback · BE #1509, FE (this PR)
 - 2026-10-29 · N273 · the welcome says what you get: the page's description under the name, and "See an example" opening one example with "Try it with your talk" (`WelcomeConsent.tsx`, `WelcomeExample.tsx`). Was: "Public speaking excellence tool." and nothing to show · BE (N273 log), FE (this PR)
 - 2026-10-28 · N238 · the sign-up page gets no line of its own on what the WhatsApp number is for; the Terms and the Privacy Policy say it gets the messages too · BE #1449, FE (this PR)

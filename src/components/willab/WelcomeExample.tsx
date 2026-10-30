@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import WalkPlayer from "./walk/WalkPlayer";
 import WalkMessage from "./walk/WalkMessage";
 import PaceScale from "./pace/PaceScale";
@@ -16,8 +16,13 @@ import { TEMPO_COPY } from "@/lib/willab/tempoStep";
 /*  sent; "Try it with your talk" does what Enter the lab does.               */
 /*                                                                            */
 /*  THE SNIPER PLAYS A SET PACE. The page has no microphone, so the dot moves */
-/*  as a rushed speaker's does: right into the orange, back in a breath, then */
-/*  even in the green, and again.                                             */
+/*  as a slow speaker's does: left into the orange, with long pauses, then    */
+/*  even in the green, and again (N279 item 1).                               */
+/*                                                                            */
+/*  THE CLIPS COME FIRST (N279 item 3). On open only the founder's play       */
+/*  button moves: a ring breathes out of it and its waveform ripples once.    */
+/*  Playing it moves the ring to the AI clip. The Sniper rests, dimmed, until */
+/*  the AI clip ends; a tap wakes it too.                                     */
 /* -------------------------------------------------------------------------- */
 
 export const WELCOME_EXAMPLE_COPY = {
@@ -34,12 +39,15 @@ export const WELCOME_EXAMPLE_COPY = {
 const SAID_SRC = "/examples/founder-take-said.mp3";
 const AI_SRC = "/examples/founder-take-ai.mp3";
 
-/** [seconds, the meter's activity 0..1, or null for silence]: a rushed start,
- *  a breath, then an even pace in the green; it loops. */
+/** [seconds, the meter's activity 0..1, or null for silence]: a slow start
+ *  with long pauses, then an even pace in the green; it loops. */
 const PACE: readonly (readonly [number, number | null])[] = [
-  [0, null], [0.6, 0.55], [1.6, 0.85], [2.6, 0.95], [3.4, 0.9], [3.9, 0.15], [4.6, 0.05],
-  [5.2, 0.5], [6.4, 0.6], [7.6, 0.45], [8.6, 0.55], [9.6, 0.5], [10.4, null], [11.4, null],
+  [0, null], [0.6, 0.22], [1.6, 0.12], [2.4, 0.2], [3.2, 0.08], [4.0, 0.15],
+  [4.8, 0.48], [6.0, 0.58], [7.2, 0.5], [8.4, 0.6], [9.4, 0.52], [10.4, null], [11.4, null],
 ];
+
+/** Which play button calls: the founder's, then the AI clip's, then none. */
+type Call = "said" | "ai" | null;
 
 /** The set pace at a moment of the loop. Pure. */
 export function setPaceAt(seconds: number): number | null {
@@ -55,11 +63,19 @@ export default function WelcomeExample({
   onTry: () => void;
   onClose: () => void;
 }) {
+  const [call, setCall] = useState<Call>("said");
+  const [awake, setAwake] = useState(false);
   const startedAt = useRef<number | null>(null);
   const activity = () => {
     const now = typeof performance === "undefined" ? 0 : performance.now();
     if (startedAt.current === null) startedAt.current = now;
     return setPaceAt((now - startedAt.current) / 1000);
+  };
+  const wake = () => {
+    if (awake) return;
+    startedAt.current = null;
+    setCall(null);
+    setAwake(true);
   };
 
   return (
@@ -86,12 +102,18 @@ export default function WelcomeExample({
           <p className="flex min-h-14 items-center text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             {WELCOME_EXAMPLE_COPY.title}
           </p>
-          <WalkPlayer
-            look="me"
-            seed="welcome-example-said"
-            src={SAID_SRC}
-            label={WELCOME_EXAMPLE_COPY.title}
-          />
+          <div
+            className={call === "said" ? "example-call example-ripple" : undefined}
+            onPlay={() => setCall(null)}
+            onEnded={() => setCall((c) => (c === null && !awake ? "ai" : c))}
+          >
+            <WalkPlayer
+              look="me"
+              seed="welcome-example-said"
+              src={SAID_SRC}
+              label={WELCOME_EXAMPLE_COPY.title}
+            />
+          </div>
           <p className="text-[15px] leading-relaxed text-muted-foreground">
             {WELCOME_EXAMPLE_COPY.said}
           </p>
@@ -106,19 +128,33 @@ export default function WelcomeExample({
               </span>
               {WALK_COPY.aiVoiceLabel}
             </span>
-            <div className="mt-2">
+            <div
+              className={call === "ai" ? "example-call mt-2" : "mt-2"}
+              onPlay={() => setCall(null)}
+              onEnded={wake}
+            >
               <WalkPlayer look="bare" seed="welcome-example-ai" src={AI_SRC} label={WALK_COPY.aiVoiceLabel} />
             </div>
           </WalkMessage>
           <WalkMessage>
-            <span>{TEMPO_COPY.game.rushed}</span>
+            <span>{TEMPO_COPY.game.slow}</span>
           </WalkMessage>
           <WalkMessage>
             <span>{TEMPO_COPY.task(WELCOME_EXAMPLE_COPY.topic)}</span>
           </WalkMessage>
-          <WalkMessage wide>
-            <PaceScale activity={activity} label={TEMPO_COPY.scale} className="h-[clamp(92px,24vw,140px)]" />
-          </WalkMessage>
+          <div
+            onClick={wake}
+            className={awake ? undefined : "cursor-pointer"}
+          >
+            <WalkMessage wide>
+              <PaceScale
+                activity={activity}
+                asleep={!awake}
+                label={TEMPO_COPY.scale}
+                className="h-[clamp(92px,24vw,140px)]"
+              />
+            </WalkMessage>
+          </div>
         </div>
       </div>
 
