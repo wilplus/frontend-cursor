@@ -1390,7 +1390,7 @@ src/lib/willab/tempoStep.test.ts,Story,"As a speaker in a pace week, I want the 
 O2  It never appears in the coach-only walk or for a guest (N162).
 O3  A try that stays mostly in the green reads as better; otherwise the side the ball leaned to.
 O4  The step closes ""dynamic"" once a try was better and the last was not rushed; otherwise the side the tries leaned to.
-O5  The step runs on the backend's stretch only when its answer is whole; anything else means no tempo step.
+O5  The step runs on the backend's stretch only when its answer is whole; anything else means no tempo step. On a plan it names this week's pace level (N289).
 O6  A try lands only when it runs 20 s from the first word with the ball four fifths in the green; then Will says so and the game ends (N245).
 O7  A try that came closer gets a push for one more while a try is left; otherwise its comment alone (N245).","O1 -> ""comes right after the practise moments, before other speakers"", ""leaves the walk unchanged when the Take has no intervention""
 O2 -> ""is never in the coach-only walk or a guest's""
@@ -1398,7 +1398,7 @@ O3 -> ""reads a try from where the ball stayed""
 O4 -> ""closes on one line from the tries""
 O5 -> ""takes the backend's stretch only when it is whole""
 O6 -> ""lands a try only when it is long and green""
-O7 -> ""pushes for one more only when a try came closer and one is left""","Founder 2026-10-26 (backend N162: ""in the feedback walk only""; N166: ""go with the defaults""); founder 2026-10-28 (backend N245: ""If it was really better, you let me go to the next step""); Never-rule 1."
+O7 -> ""pushes for one more only when a try came closer and one is left""","Founder 2026-10-26 (backend N162: ""in the feedback walk only""; N166: ""go with the defaults""); founder 2026-10-28 (backend N245: ""If it was really better, you let me go to the next step""); founder 2026-10-30 (backend N289 item 8); Never-rule 1."
 src/lib/willab/trackedChanges.test.ts,Story,"As a speaker, I want a suggestion whose words have moved to be dropped rather than painted on the wrong words, so that strike-throughs always mark what I said.","O1  A suggestion whose span still holds its quote is kept.
 O2  A stale span is dropped, never re-anchored by searching for the quote.","O1 -> ""KEEPS a span whose words are still there""
 O2 -> ""DROPS a stale span rather than re-anchoring by search (FE-5)""",FE-5: re-finding a moved quote struck the wrong words.
@@ -1413,11 +1413,13 @@ src/lib/willab/walkPlan.test.ts,Story,"As a speaker, I want the walk to praise e
 O2  The steps come in order: each praise, its practise, then its helper words; each correction (clearer version, practise); others; the summary; never a judging step; two praises or two corrections are ordinary Takes (founder 2026-10-20; N122).
 O3  Every moment has a practice step, even with nothing attached.
 O4  A praised moment the server does not mark for practice, or with practice off, goes straight to its helper words (N122).
-O5  Each moment after the first opens with ""let's look at your next key moment"", and the first step after the last moment with ""These were some real good moments of yours""; never in the coach's own walk (N285).","O1 -> carries no number, read or score
+O5  Each moment after the first opens with ""let's look at your next key moment"", and the first step after the last moment with ""These were some real good moments of yours""; never in the coach's own walk (N285).
+O6  A Take served with slots walks its strongest first (praise, helper words, no AI clip), then its weakest (practise), any next best (praise), then the one between (its Clearer version), then the tempo step; a Take served before them keeps praise first (N289).","O1 -> carries no number, read or score
 O2 -> praises each strong moment, practises each corrected one, and never asks the speaker to judge
 O3 -> a moment with nothing attached is the moment said again
 O4 -> a praised moment not marked for practice, or with practice off, goes straight to its helper words
-O5 -> the next moment and the end of the moments each get their line, once","Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, ""do we practice the confident moments? I think yes we should!""); 2026-10-30 (N285, ""let's look at your next key moment we spotted"")."
+O5 -> the next moment and the end of the moments each get their line, once
+O6 -> the strongest, the weakest, then the one between, ending on the precise fix","Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, ""do we practice the confident moments? I think yes we should!""); 2026-10-30 (N285, ""let's look at your next key moment we spotted""; N289, ""First, show the strongest, then the weakest, and then the average"")."
 src/lib/willab/walkPractise.test.ts,Story,"As a speaker practising, I want each try answered with a line in words for what changed, never a number, so that I hear progress without a score.","O1  The ""not yet"", ""better"" and ""thanks"" lines come from the approved wording and contain no digits.
 O2  A try the server could not hear is a step that says so, in place of the machine's answer (founder, signed 2026-10-21).","O1 -> each try's line is the one for the reading that moved, never a number
 O2 -> a try the server could not hear is a late step that says so",Never-rule 1 (no scores to speakers).
@@ -1440,7 +1442,9 @@ still loading (N80, D4).
 O7  My most confident moment, when the walk goes on to make it better, is
 named as solid and confident in a line that fits what follows (a
 clearer version, an example, or saying it again), and is never told to
-sound like my confident moment (founder 2026-10-21).
+sound like my confident moment (founder 2026-10-21). My weakest
+moment opens with ""Here's one with more in it."" (the level's line
+instead, on a plan), then Line A (N289).
 O8  The hello and the short AI bubble are stored once, and the Lounge
 says the same words as the walk (N120).
 O9  In the chat a Take's walk is one Feedback walk at its first step's
