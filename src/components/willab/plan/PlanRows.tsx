@@ -41,7 +41,7 @@ function WillBubble({ children }: { children: ReactNode }) {
 }
 
 /** The speaker's voice answer, and under it the words Will heard, as a
- *  phone's voice message writes them out (N273): they see what was taken. */
+ *  phone's voice message writes them out (N274): they see what was taken. */
 function VoiceBubble({ message }: { message: LoungeMessage }) {
   const meta = (message.metadata ?? {}) as Meta;
   const id = String(meta.plan_voice);
@@ -60,7 +60,7 @@ function VoiceBubble({ message }: { message: LoungeMessage }) {
 }
 
 /** The answer just sent, while it is heard: its bubble at once, playing
- *  from the phone, and the dots where its words will be (N273). */
+ *  from the phone, and the dots where its words will be (N274). */
 export function PendingVoice({ src, durationMs }: { src: string; durationMs: number }) {
   return (
     <div data-row="me" className="ml-auto max-w-[85%] rounded-2xl bg-[#FF640A] py-2 pl-2 pr-3" data-plan-voice-pending>
