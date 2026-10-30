@@ -83,8 +83,9 @@ it is built in.
    customer, with the customer's photo as the avatar, the first name and the
    question, the last message, the unread count and a status (Waiting for
    you, Sent, Booked). Waiting for you comes first; filters All, Waiting,
-   Sent, Done. A speaker without customer requests never sees the list: the
-   Lounge opens as today (Never 3). She is told of each request on WhatsApp:
+   Sent, Done. Everyone has this list now, with colleagues and coaches as
+   chats too (backend N274); a person whose only chat is Will's opens on
+   Will's chat, as the Lounge does today (Never 3). She is told of each request on WhatsApp:
    one message from WillpowerLab's number with a link to her chats (N236
    item 5).
 2. **The customer's chat**: the request is the customer's bubble, with the
@@ -479,6 +480,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-30 · N274 · C1: the list of chats is everyone's, not only an answerer's; a person whose only chat is Will's opens on it. Was: a speaker without customer requests never saw the list · BE #1506, FE (this PR)
 - 2026-10-29 · N256 · C1 to C4, D5, F1, F2, K, §3, §5: the answerer's Lounge becomes a list of chats, Will pinned, one chat per customer; her answer, the send ask, the customer's replies and the outcomes in the customer's chat; the walk in Will's chat; no group chat. Was: every customer in one thread, a "To {customer}" chip for replies · BE #1479, FE (this PR)
 - 2026-10-28 · N250 · H8, H10, H11, I4, §3: a frontier model first, the client's data as its asset, one kit per client, the enterprise pack; the call's questions 11 to 17 (what Invita already has). Was: a fine-tune at 200 pairs · BE #1466, FE (this PR)
 - 2026-10-28 · §3: the questions only Invita can answer gathered for the strategic call with Invita; ours kept apart · FE (this PR)
