@@ -6,12 +6,14 @@ OUTCOME
   O3  Every moment has a practice step, even with nothing attached.
   O4  A praised moment the server does not mark for practice, or with practice off, goes straight to its helper words (N122).
   O5  Each moment after the first opens with "let's look at your next key moment", and the first step after the last moment with "These were some real good moments of yours"; never in the coach's own walk (N285).
+  O6  A Take served with slots walks its strongest first (praise, helper words, no AI clip), then its weakest (practise), any next best (praise), then the one between (its Clearer version), then the tempo step; a Take served before them keeps praise first (N289).
 PROVES   O1 -> carries no number, read or score
          O2 -> praises each strong moment, practises each corrected one, and never asks the speaker to judge
          O3 -> a moment with nothing attached is the moment said again
          O4 -> a praised moment not marked for practice, or with practice off, goes straight to its helper words
          O5 -> the next moment and the end of the moments each get their line, once
-WHY      Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N285, "let's look at your next key moment we spotted").
+         O6 -> the strongest, the weakest, then the one between, ending on the precise fix
+WHY      Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N285, "let's look at your next key moment we spotted"; N289, "First, show the strongest, then the weakest, and then the average").
 */
 import { describe, expect, it } from "vitest";
 import { buildWalkPlan, momentLead, walkMoments, type WalkMoment } from "./walkPlan";
@@ -101,5 +103,31 @@ describe("the lines between moments (founder 2026-10-30, N285)", () => {
     // The coach's own walk has neither.
     const coach = buildWalkPlan({ moments: [{ index: 0, slide: 0, coach: true }, { index: 1, slide: 0, coach: true }], coachNote: true, coachOnly: true, practiceOn: true, guest: false });
     expect(coach.map((_, i) => momentLead(coach, i)).filter(Boolean)).toEqual([]);
+  });
+});
+
+describe("three moments, three jobs (founder 2026-10-30, N289)", () => {
+  it("the strongest, the weakest, then the one between, ending on the precise fix", () => {
+    const plan = (items: Parameters<typeof walkMoments>[0]) =>
+      buildWalkPlan({ moments: walkMoments(items), interventions: ["tempo"], coachNote: false, practiceOn: true, guest: false })
+        .map((s) => (s.moment == null ? s.key : `${s.key}:${s.moment}`));
+    // Page order: the between on slide 0, the strongest on 1, the weakest on 2.
+    expect(plan([
+      { start: 0, slide: 0, blockId: "a", tiered: true, practicePrompt: true, hasRewrite: true, walkSlot: "between" },
+      { start: 10, slide: 1, blockId: "b", tiered: true, green: true, walkSlot: "strongest" },
+      { start: 20, slide: 2, blockId: "c", tiered: true, practicePrompt: true, walkSlot: "weakest" },
+    ])).toEqual([
+      "page", "praise:1", "helpers:1", "exVideo:2", "practise:2", "clearer:0", "practise:0",
+      "tempo", "others", "summary", "end",
+    ]);
+    // No words to help: a next best, praised, after the weakest.
+    expect(plan([
+      { start: 0, slide: 0, blockId: "a", tiered: true, green: true, walkSlot: "next" },
+      { start: 10, slide: 1, blockId: "b", tiered: true, green: true, walkSlot: "strongest" },
+      { start: 20, slide: 2, blockId: "c", tiered: true, practicePrompt: true, walkSlot: "weakest" },
+    ])).toEqual([
+      "page", "praise:1", "helpers:1", "exVideo:2", "practise:2", "praise:0", "helpers:0",
+      "tempo", "others", "summary", "end",
+    ]);
   });
 });

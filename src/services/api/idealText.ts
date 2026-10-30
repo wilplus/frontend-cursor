@@ -275,8 +275,12 @@ export interface DocumentSuggestion {
    *  backend N113): the walk offers its helper words, also after its
    *  Clearer version. A flag, never the score. */
   helperWordsPrompt?: boolean;
-  /** A praised moment the walk practises with its AI clip (backend N122). */
+  /** A praised moment the walk practised with its AI clip (backend N122):
+   *  only on Takes baked before N289, which praises without one. */
   confidentPractice?: boolean;
+  /** The moment's job in the walk (backend N289): the walk orders its
+   *  moments by it. A word, never a score or a rank. */
+  walkSlot?: WalkSlot | null;
   /** On a plan, the moment where this week's level shows most (backend
    *  G7, N209): the level's key, a word, never a score. */
   planLevel?: string | null;
@@ -532,6 +536,10 @@ function readBookmarkTier(value: unknown): BookmarkTierName | null {
   if (tier === null) return null;
   return LEGACY_TIERS[tier] ?? (tier as BookmarkTierName);
 }
+/** A moment's job in the walk (backend N289). */
+export type WalkSlot = "strongest" | "weakest" | "between" | "next";
+const WALK_SLOTS: readonly WalkSlot[] = ["strongest", "weakest", "between", "next"];
+
 const FEEDBACK_FAMILIES: readonly FeedbackFamily[] = [
   "confident_voice",
   "great_formulation",
@@ -766,6 +774,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     highestMoment: record.highest_moment === true,
     helperWordsPrompt: record.helper_words_prompt === true,
     confidentPractice: record.confident_practice === true,
+    walkSlot: readEnum(record.walk_slot, WALK_SLOTS),
     planLevel: readNonEmptyString(record.plan_level),
     praiseReason: readPraiseReason(record.praise_reason),
     practicePrompt: record.practice_prompt === true,

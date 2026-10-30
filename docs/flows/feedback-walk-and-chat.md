@@ -297,23 +297,27 @@ step; the loop never waits for a coach.
   coach's share asks for the rows to be baked again (backend, N92,
   2026-10-21: "the video was sent too with the coach feedback and didn't
   pass through").
-- **C2 Praise.** The Take's three best moments are shown, however low,
-  never two in one paragraph and several on one slide when that is where
-  they are (H1; founder, 2026-10-30, N284: "we need more moments at least
-  2", "Best three"; two since 2026-10-23, N118: "minimum 2; best two"; a short Take
-  too, and a sentence that already has its helper words gives its place to
-  the next best, 2026-10-28, N246: "go for the next confident moment"; on a
-  plan, this week's level as well, the-plan.md G7), praise first
-  and then the corrections, each group in slide order, and the voice decides
-  each: a moment whose voice reaches the floor is praised unless its words
-  need help (then the Clearer version, C5), one whose voice is under it is
-  corrected (C4); both strong, two praises, each practised (N122; until then no practise); both weak, two
-  corrections (founder, 2026-10-21, N108: "Voice decides", after a moment
-  that "was a confident moment ... even more confident than the first one"
-  was told "Say this one like your confident moment."; until then S × W
-  decided, 2026-10-20, so weaker words could put a stronger voice under the
-  floor; the fixed roles of 2026-10-14 and 2026-10-17 are history). A
-  praised moment:
+- **C2 Three moments, three jobs** (founder, 2026-10-30, N289: "the
+  praise clips just get the praise ... the moments that need to be
+  improved, get the AI [clip]"; "do it a sandwich way. First, show the
+  strongest, then the weakest, and then the average"). The Take shows three
+  moments, one per paragraph, several on one slide when that is where they
+  are (H1; three since N284; a short Take still shows two, N246):
+  the **strongest**, the highest willfidence, always praised whatever its
+  voice, with no AI clip and no practise, then its helper words (C3); the
+  **weakest**, practised with the AI clip (C4); and the **one between**,
+  the moment whose words need help most, with its Clearer version (C5),
+  kept only when a rewrite passes the gate. A slot nothing fills, or a
+  rewrite that does not pass, is a **next best**, praised like the
+  strongest. The order: the strongest, the weakest, any next best, then the
+  one between, then the tempo step (T), so the walk ends on the precise fix.
+  On a plan, this week's level takes the slot whose tool fits it, never a
+  fourth moment (the-plan.md G7, N289 item 8). Was: the three highest,
+  praise first and then the corrections, the voice deciding each (N108,
+  N284), every praise practised with the AI clip (N122); the server still
+  says `confident_practice` on a Take baked before 30 October, and such a
+  Take keeps that walk. A
+praised moment:
   its clip as the speaker's orange bubble; on the highest moment the line
   "This was your most confident moment." (signed 2026-10-20), then the
   opening line by its level (W1–W10, three signed lines a level, rotated;
@@ -331,16 +335,11 @@ step; the loop never waits for a coach.
   that moment (founder, 2026-10-21: it had said "so far", gone straight to
   the fix and asked the confident moment to sound like the confident moment;
   "vary around the line I suggested … no abruptions"). Then
-  "Next". A praised moment is then practised (founder 2026-10-23, N122:
-  "do we practice the confident moments? I think yes we should!"): C6's
-  short bubble with its tip, the AI clip of their own sentence a little
-  stronger, up to three tries as C7, a Good job ends it, then its helper
-  words (C3); with no AI clip there is no practise and the praise stands on
-  its own. Praise is never
+  "Next", then its helper words (C3); no practise (N289 item 1). Praise is never
   promised. A served moment with nothing attached is the moment said again,
   so the lens always has a step; with no moment at all the text shows.
   Helper words kept from an earlier Take settle nothing: this Take's moment
-  on that paragraph is walked like any other, praise first (founder
+  on that paragraph is walked like any other, in its slot (founder
   2026-10-21: the Exercise had opened the walk and the confident moment came
   later; the server already counted only this Take's words, 2026-10-13).
 - **C3 Choose your helper words**, after each praised moment, after the
@@ -373,12 +372,18 @@ step; the loop never waits for a coach.
   picker waits for them, so it is the Take's step in the walk and not one
   screen on its own; only a paragraph with no moment opens on its own
   words (F5; 2026-10-20).
-- **C4 Correction.** A shown moment below the floor is corrected (founder,
-  2026-10-20; until then the second highest was always corrected and the
-  highest never, 2026-10-14). It is never called weak. It opens on the Clearer version only
-  when both gates pass (H3), else on the voice Exercise with the AI clip
-  (words first, then voice, 2026-10-18, N76). Two weak moments mean two
-  corrections, in slide order, each with its own tries and clips. The
+- **C4 The weakest** (founder, 2026-10-30, N289 item 2). It is never
+  called weak. Its bubbles: "Here's one with more in it." (signed, N289 item
+  7; the level's line in its place when it carries one), its clip, Line A
+  "Say this one like your confident moment.", the strongest moment's clip
+  played again under "Your confident moment" (signed, N289 item 7), then
+  the AI clip with its one tip (C6), up to three tries (C7). Was: a shown
+  moment below the floor was corrected (2026-10-20 to 2026-10-30, N108).
+  The one between opens on the Clearer version only
+  when both gates pass (H3), else it is praised as a next best (N289 item
+  5; until then the voice Exercise, words first, then voice, 2026-10-18,
+  N76). On a plan, the level's moment in that slot is practised whatever
+  passes (G7). The
   Clearer version is served on its moment (the row names the moment's
   block; until 2026-10-20 it did not, so the walk never drew it, "the
   rewrite doesn't appear at all"). A corrected moment with neither a
@@ -731,13 +736,22 @@ step; the loop never waits for a coach.
   willfidence(sentence) = S × W                 0 … 1
     S = voice_confidence (7 cues vs the speaker's own baseline)
     W = mean of: few fillers/hedges · fits the slide · holds together
-  shown     = the three highest willfidence (S × W) of the Take, however
-              low, at most one per ~75-word block, several on one slide
-              allowed; clips with enough words rank before short ones;
-              a sentence that already has its slide's helper words (as
-              when the Take was recorded) comes last (N246);
-              fewer than three only with fewer playable clips, never
-              fewer than two with two (N284, 2026-10-30; two since N118)
+  shown     = three, at most one per ~75-word block, several on one
+              slide allowed (N289, 2026-10-30; three since N284):
+    strongest = the highest willfidence; clips with enough words rank
+              before short ones; a sentence that already has its slide's
+              helper words (as when the Take was recorded) comes last
+              (N246); praised whatever its voice, no AI clip
+    between   = from another block, the clip whose words need help most
+              (H3; lowest W, then lowest S × W), picked before the
+              weakest; the Clearer version when a rewrite passes the gate,
+              else a next best
+    weakest   = from a block left, the lowest S × W with 8 words or more
+              and a sound read, never one holding its helper words; Line
+              A, the strongest's clip again, the AI clip
+    next      = a slot nothing filled: the next best block, praised
+              fewer than three only with fewer blocks, never fewer than
+              two with two
   clip      = in each shown block, its highest willfidence clip that can
               be served, a frozen choice kept (N122)
   blocks    = when the two best share a block, the boundary between them
@@ -746,19 +760,18 @@ step; the loop never waits for a coach.
               same way when each clip has 5 words or more (N118); when no
               cut keeps 40 words a side and nothing else could be shown,
               the block is split evenly between the two (N246)
-  each      S ≥ FLOOR → praised, unless the words need help (H3) → the
-              Clearer version, then its helper words (N113); S < FLOOR →
-              corrected: the Clearer version
-              when the words need help, else the voice Exercise (N108)
-  highest   = of the two, the stronger voice (S); its bubble opens with
-              the signed line (C2, N118)
+  order     = strongest, weakest, next, between, then the tempo step (C2)
+  helpers   = offered on a shown moment whose S ≥ FLOOR, also after its
+              Clearer version (N113)
+  highest   = the strongest; its bubble opens with the signed line (C2)
   try       = Δ voice score (S) vs the original ≥ MARGIN (+0.05) → better
-  plan      = on a plan (the-plan.md G7, N246): the two best, and the
-              clip where this week's level shows most
-              (services/plan_walk.py): a third moment, or one of the two;
-              practised with the level's own practice, its line above the
-              clip; nothing shows it → just the two best; the level is the
-              one the plan had when the Take was recorded
+  plan      = on a plan (the-plan.md G7, N289 item 8): the clip where
+              this week's level shows most (services/plan_walk.py) takes
+              the slot whose tool fits it: "Say it once" the between, "A
+              voice that moves" the weakest, never the strongest's block;
+              the pace levels' line opens the tempo step instead; nothing
+              shows it → as off a plan; the level is the one the plan had
+              when the Take was recorded
   ```
 
   The unit is the sentence. FLOOR is 0.6 at launch, then calibrated so
@@ -1210,6 +1223,9 @@ October (backend N111).
   word." / "This one stood out as solid and confident. Say it again and make
   it even stronger." (founder 2026-10-21, variations around the founder's
   line, to be confirmed in the PR).
+- **The weakest** (N289 item 7, signed 2026-10-30): "Here's one with
+  more in it." above its clip; "Your confident moment" on the strongest
+  moment's clip played again under Line A.
 - **Practise:** Line A "Say this one like your confident moment."; "That
   sounded more assured than the first."; the praise, not-yet and move-on
   lines of the signed bank (backend [`docs/SIGNED-line-bank-2026-10-06.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/SIGNED-line-bank-2026-10-06.md),
@@ -1290,7 +1306,7 @@ while a dot on a scale follows their pace live.
 - In the Feedback walk only. Never in the coach panel, the Lounge, or before the Take.
 - **Opened again** once the walk is done, it shows what the chat kept, read only: the stretch, Will's opening lines, each "Try N" with the line the dot drew and Will's word on it, the closing line (none after a try that landed) or the Skip, and no Next (N259). No scale and no microphone. A Take that had no tempo step has none (N247). The same, without its Next, when the walk is opened again further on before it is done (B5).
 - It sits before the Ideal Text, so it always has a Skip, and the whole walk has a time limit (N178, which replaces N130's "never between a Take and the Ideal Text" for the walk's own practice steps). Open: the limit; the founder sets it (§3).
-- It shows when the diagnosis and the plan say so: in a pace or pause week, from Take 2 ([the plan](the-plan.md), item 5). A speaker without a plan gets it from Take 2 whenever the pace scale finds a stretch outside the green, once in that walk (N181).
+- It shows on any Take, Take 1 included, whenever the pace scale finds a stretch outside the green, once in that walk, with or without a plan (N289 item 6; was from Take 2, N181, a rule the code never had). Right after the walk's moments, so a Take that needs both has the Clearer version first, then this step (C2). In a "Let your key line land" or "Pauses that hold the room" week it opens with "This week's level: {level}. Here's where it shows:" (N289 item 8). Who has it is the rings panel's `tempo_step` row.
 - It is the founder's "Sniper": the pace exercise of N129. The old Strength/Pace dartboard stays retired (N127, N181).
 
 **The scale.** A dot on a horizontal line. It moves right while you talk
@@ -1515,6 +1531,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-30 · N289 · built: three moments, three jobs: the strongest praised with no AI clip, then its helper words; the weakest with "Here's one with more in it.", Line A, the strongest's clip again under "Your confident moment", and the AI clip; the one between with its Clearer version, else a next best; order strongest, weakest, next, between, then the tempo step; the tempo step on any Take, with this week's pace level's line on a plan (C2, C4, H1, K, T). Was: the three highest, praise first, each praised or corrected by its voice, every praise practised with the AI clip (N108, N122, N284), and the tempo step from Take 2 (N181) · BE #1528 (the decision), BE #1529 (the code), FE (this PR)
 - 2026-10-30 · N286 · built (J6): the bubbles take Messenger's shape: no tail; the open side round, the lined-up side drawn in to 6px where two bubbles of one side meet, in the Lounge (Will's split replies, his offer and top-up bubbles, the policy note and the speaker's recording included); in the walk, where every bubble stands apart, each is round all round. Was: every corner round and a small tail on a run's last bubble (2026-10-14) · BE #1525 (N286 entry), FE (this PR)
 - 2026-10-30 · N285 · built (C7a, K): a line between the walk's moments, "Okay, thank you for that, let's look at your next key moment we spotted.", and one after the last, "These were some real good moments of yours, thanks for that practice – we are really moving forward.", before the tempo step or other speakers; the summary stays. Was: the next moment, or other speakers, followed the last step with nothing in between · BE (N285 log), FE (this PR)
 - 2026-10-30 · N284 · built: the Take shows its three best moments, was two; a corrected moment with no exercise and no AI clip is walked as a good one, its helper words, and never skipped. Was: two moments, and such a moment left the walk (N108), so a Take could show one (founder 2026-10-30: "there is just one confident moment and the rule is that there should be at least two") (C2, C4, H1) · BE #1521 (the decision), BE #1523, FE (this PR)

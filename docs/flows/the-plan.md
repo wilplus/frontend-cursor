@@ -300,23 +300,23 @@ built and what is still to come.
    The last practice and the next plan show the same bubble with N89's
    closing line. No "Start a new project" under it: the "+" next to "Type
    here" opens the projects, as today (N167, N169).
-7. The walk shows the Take's two best moments and this week's level as
-   well: as a third moment, or on one of the two when the level shows there;
-   when nothing shows the level, just the two best (N246, "Two best +
-   level"; was the best moment and the level's, N134, N209). The level's
-   moment opens with "This week's level: {level}.
-   Here's where it shows:" above the speaker's clip, and is practised with
-   the level's own practice, its row of the treatment picker: the AI
-   version of the voice with its pace tip ("Let your key line land"), its
-   pause tip ("Pauses that hold the room") or its stress tip ("A voice that
-   moves"); the Clearer version ("Say it once, and it lands"). "Make it
-   yours" keeps the walk as today. Where a level shows is read on each clip
+7. This week's level takes the walk's slot whose tool fits it, never a
+   fourth moment and never the strongest's paragraph (N289 item 8; the walk's
+   three slots, its page C2): "Say it once, and it lands" the one between,
+   with the Clearer version; "A voice that moves" the weakest, with the AI
+   voice's stress tip; "Let your key line land" and "Pauses that hold the
+   room" go with the tempo step, which opens with the level's line. Was: the
+   two best moments and the level as a third, practised with the AI voice's
+   pace, pause or stress tip (N246, N209). The level's moment opens with
+   "This week's level: {level}.
+   Here's where it shows:" above the speaker's clip. When nothing shows the
+   level, or with "Make it yours", the walk is as off a plan. Where a level shows is read on each clip
    against the speaker's own usual on that Take, the key line's clip first
    when it shows it; never shown as a number. A walk reads the level the
    plan had when its Take was recorded, so it reads the same on every
    opening (the walk's page, H1).
-8. In a pace or pause week the speaker practises their pace, from Take 2
-   (Take 1 has no Ideal Text yet). The pace practice is the tempo step of
+8. In a pace or pause week the speaker practises their pace, on any Take
+   whose pace scale finds a stretch (N289 item 6; was from Take 2). The pace practice is the tempo step of
    the Feedback walk and nowhere else: not the coach panel, not the Lounge,
    not before the Take. Its rules are on the walk's page, §2 "Tempo"
    (N130, N134, N140, N142, N162). A speaker without a plan gets the same step from Take 2 when the Take has a stretch outside the green; it is the founder's "Sniper" (N181).
@@ -615,6 +615,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-30 · N289 · G7: this week's level takes the walk's slot whose tool fits it ("Say it once" the between, "A voice that moves" the weakest), the pace levels' line opens the tempo step; item 8, the tempo step on any Take. Was: the level as a third moment practised with the AI voice, and the pace practice from Take 2 · BE #1528, BE #1529, FE (this PR)
 - 2026-10-30 · N288 · G13: after a Take's ask, the two lines wait until it is answered, then come before "practice makes perfect" and "Record Take N", which is last. No new words. Was: written with the summary, under the ask, which hid Will's question's answers and brought the closing message at once · BE #1526, #1527
 - 2026-10-30 · N281 · the calls are asked for first: Will's two new asks, "Skip" and "Book now" under each; the calendar opens only on "Book now" and goes the moment "Book" is tapped, with "Booked: {when}." in the chat at once, no typing (F1, F2, K). Was: the calendar came up by itself after Will's line, and stayed with a spinner and a tick until the booking was saved · BE #1516, #1517, FE (this PR)
 - 2026-10-30 · founder, 2026-10-30 · the plan's footer ("Record your answer" and the rest) sits as low as the message box it stands in for: 12px above it, 8px under it. No new words. Was: about 28px under it, from the hidden message box's empty wrapper and the footer's own margin · FE (this PR)
