@@ -907,10 +907,14 @@ src/components/willab/readout.test.ts,Story,"As a speaker, I want my transcript 
 nothing said is kept, with its place in the recording.","O1 -> ""maps deck slides + complete per-slide transcripts (sorted, '' valid)""",
 src/components/willab/readoutFeedbackPending.test.tsx,Story,"As a speaker, I want a paragraph I tap right after a Take to wait for its feedback, not open empty, so that I never see a sheet missing its moment.","O1  The paragraphs are told feedback is still coming while it loads, and
 that it is done once it has landed.","O1 -> ""holds taps while the enrichment read is out, and stops once the server is done""",Audit 2026-10-05 (DL-overlays); founder 2026-09-28.
+src/components/willab/readySignUpMoment.test.tsx,Story,"As a guest whose first Take is processed, I want to hear one real piece of my result on the account wall, so that I know what an account keeps for me.","O1  The wall plays the clip of the Take's most confident moment, the one
+the walk praises first, with ""This was your most confident moment.""
+O2  With no such moment (or no clip), the wall is exactly as before.","O1 -> ""shows the most confident moment's clip and the walk's line""
+O2 -> ""is unchanged when the Take has no praised most confident moment""","Founder 2026-10-29, backend N273 item 5."
 src/components/willab/recordingCopy.test.ts,Story,"As the founder, I want the recording screens' words fixed to the signed set with no digits or score words, so that nothing unapproved or numeric reaches the speaker.","O1  Never 4 (no new words without the founder's OK): RECORDING_COPY holds
 exactly the signed keys, typed exactly as signed.
 O2  Never 1 (no scores or numbers): no signed line carries a digit, a % or
-a score word.","O1, O2 -> ""is exactly the signed words, with no digit or score word""","Recording lock 2026-10-07 (N59, N70). recordingWhere's ""Take N · Slide n of m"" is pinned in recordingStillFrame.test, not here."
+a score word.","O1, O2 -> ""is exactly the signed words, with no digit or score word""","Recording lock 2026-10-07 (N59, N70); the microphone line, N273. recordingWhere's ""Take N · Slide n of m"" is pinned in recordingStillFrame.test, not here."
 src/components/willab/recordingNoPullRefresh.test.tsx,Story,"As a speaker, I want pulling down on the recording screens never to reload the page, so that I never lose a Take.","O1  A pull down on the slide while recording is cancelled.
 O2  From ""getting your mic ready"" through the recording, the page is set
 not to pull-refresh.

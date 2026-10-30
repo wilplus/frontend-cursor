@@ -65,6 +65,7 @@ docs/flows/recording-screens.md
 docs/flows/consent-screens.md
   src/components/willab/Phase1AcceptanceFlow.tsx
   src/components/willab/WelcomeConsent.tsx
+  src/components/willab/WelcomeExample.tsx
   src/components/willab/PolicyUpdate.tsx
   src/app/account/data-consent/page.tsx
   src/components/account/
