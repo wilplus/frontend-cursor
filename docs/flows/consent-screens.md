@@ -382,6 +382,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-30 · N286 · the policy update's grey bubble in the Lounge takes the chat's bubble shape (feedback-walk-and-chat.md J6): no hard top-left corner, drawn in only where it meets another grey bubble · FE (this PR)
 - 2026-10-30 · N279 · the example: the walk's slow tempo line and a slow set pace; "…until you are." without the 😏; on open only the founder's play button calls, then the AI clip's, and the Sniper rests until the AI clip ends (`WelcomeExample.tsx`, `WelcomeConsent.tsx`, `globals.css`). Was: the fast line, the 😏, and the Sniper moving on open · BE #1511, FE (this PR)
 - 2026-10-30 · N277 · the welcome: two paragraphs under the name; "Read blog posts" goes; "See an example" opens over the whole page with the founder's own clip and words, the AI version of his voice, the tempo lines and the Sniper on a set pace (`WelcomeConsent.tsx`, `WelcomeExample.tsx`, `public/examples/`). Was: N273's description and a written example with its Ideal Text and feedback · BE #1509, FE (this PR)
 - 2026-10-29 · N273 · the welcome says what you get: the page's description under the name, and "See an example" opening one example with "Try it with your talk" (`WelcomeConsent.tsx`, `WelcomeExample.tsx`). Was: "Public speaking excellence tool." and nothing to show · BE (N273 log), FE (this PR)

@@ -298,7 +298,7 @@ function Takeover({ children }: { children: React.ReactNode }) {
 /** Will's message, a plain grey bot bubble, as every ask's. */
 function Bubble() {
   return (
-    <div className="mr-auto block max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-left text-[15px] leading-relaxed text-foreground">
+    <div data-row="app" data-bubble="" className="mr-auto block max-w-[85%] rounded-2xl bg-muted px-3 py-2 text-left text-[15px] leading-relaxed text-foreground">
       {POLICY_UPDATE_COPY.bubble}
     </div>
   );
