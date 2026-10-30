@@ -334,6 +334,9 @@ export function shownStep(
     case "hello":
       // The walk's hello (N120), in the words it drew.
       return app(line);
+    case "lead":
+      // The line between moments, or after the last (N285), as drawn.
+      return app(line);
     case "coachnote":
       // "Your coach:" over the words, as the lens writes it (founder
       // 2026-10-20: the colon).

@@ -1410,10 +1410,12 @@ O2 -> shows 1% before the first report, and a real report takes over","Founder 2
 src/lib/willab/walkPlan.test.ts,Story,"As a speaker, I want the walk to praise each of my shown moments that sounded sure and practise each that did not, never ask me to judge, never show a score, and give every moment a step, so that feedback is in words and always has something to show.","O1  The plan holds no number, read or score.
 O2  The steps come in order: each praise, its practise, then its helper words; each correction (clearer version, practise); others; the summary; never a judging step; two praises or two corrections are ordinary Takes (founder 2026-10-20; N122).
 O3  Every moment has a practice step, even with nothing attached.
-O4  A praised moment the server does not mark for practice, or with practice off, goes straight to its helper words (N122).","O1 -> carries no number, read or score
+O4  A praised moment the server does not mark for practice, or with practice off, goes straight to its helper words (N122).
+O5  Each moment after the first opens with ""let's look at your next key moment"", and the first step after the last moment with ""These were some real good moments of yours""; never in the coach's own walk (N285).","O1 -> carries no number, read or score
 O2 -> praises each strong moment, practises each corrected one, and never asks the speaker to judge
 O3 -> a moment with nothing attached is the moment said again
-O4 -> a praised moment not marked for practice, or with practice off, goes straight to its helper words","Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, ""do we practice the confident moments? I think yes we should!"")."
+O4 -> a praised moment not marked for practice, or with practice off, goes straight to its helper words
+O5 -> the next moment and the end of the moments each get their line, once","Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, ""do we practice the confident moments? I think yes we should!""); 2026-10-30 (N285, ""let's look at your next key moment we spotted"")."
 src/lib/willab/walkPractise.test.ts,Story,"As a speaker practising, I want each try answered with a line in words for what changed, never a number, so that I hear progress without a score.","O1  The ""not yet"", ""better"" and ""thanks"" lines come from the approved wording and contain no digits.
 O2  A try the server could not hear is a step that says so, in place of the machine's answer (founder, signed 2026-10-21).","O1 -> each try's line is the one for the reading that moved, never a number
 O2 -> a try the server could not hear is a late step that says so",Never-rule 1 (no scores to speakers).
