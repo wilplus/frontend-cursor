@@ -836,13 +836,16 @@ error.
 O3  A cancelled render is not reported as a failed slide.","O1 -> ""a parent re-render with a new onError keeps the slide drawn""
 O2 -> ""a page change cancels the old render and redraws""
 O3 -> ""does not report a cancellation as a failed slide""","Founder 2026-09-19 ""the slides are gone"": an inline onError restarted the render on a busy canvas and latched the slide off. The fake below enforces pdf.js's one-render-per-canvas rule."
-src/components/willab/plan/PlanCalendar.test.tsx,Story,"As a speaker on a plan, I want to book my calls with my coach on a big calendar I can swipe through, so that booking takes a few taps and never stands between me and my first Take.","O1  Once Will asks for a call, its calendar comes up full screen: the
-call's name, ""0 of 2 booked"" and the deadline; only a day with an
-open time can be picked, and Book waits for a time.
-O2  A day, then a time, then Book sends exactly that time.
+src/components/willab/plan/PlanCalendar.test.tsx,Story,"As a speaker on a plan, I want Will to ask before I book my calls with my coach, then a big calendar I can swipe through that goes as soon as I book, so that booking takes a few taps and never stands between me and my first Take.","O1  Will's ask for a call has ""Skip"" and ""Book now"" under it; the
+calendar does not open by itself (N281).
+O2  ""Book now"" opens it full screen: the call's name, ""0 of 2 booked""
+and the deadline; only a day with an open time can be picked, and
+Book waits for a time.
 O3  Edit moves the deadline from the same screen (N168).
-O4  Skip passes the call on without booking it.","O1, O2, O3 -> ""a day, a time, then Book""
-O4 -> ""Skip passes the call on""","The calls' calendar, full screen (founder 2026-10-28, backend N248); docs/flows/the-plan.md §1 F."
+O4  A day, then a time, then Book sends exactly that time, and the
+calendar is gone at once.
+O5  ""Skip"" passes the call on without booking it.","O1 to O4 -> ""Book now, a day, a time, then Book""
+O5 -> ""Skip passes the call on""","The calls' calendar, full screen and asked for first (founder 2026-10-28 and 2026-10-30, backend N248, N281); docs/flows/the-plan.md §1 F."
 src/components/willab/plan/plan.test.tsx,Story,"As a new speaker on the plan's ring, I want the Lounge to ask me my questions one at a time in the footer, and to show my plan as it was drawn, so that I reach my first Take without a form.","O1  Each step of the plan gets its own footer in place of the message
 box: the deadline's two chips, ""Record your answer"" with no Skip,
 the 1 to 10 scale, the calls' calendar, then only ""Start your

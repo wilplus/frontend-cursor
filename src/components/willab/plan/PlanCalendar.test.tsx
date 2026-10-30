@@ -1,19 +1,24 @@
 // @vitest-environment jsdom
 /*
- * STORY    As a speaker on a plan, I want to book my calls with my coach on
- *          a big calendar I can swipe through, so that booking takes a few
- *          taps and never stands between me and my first Take.
+ * STORY    As a speaker on a plan, I want Will to ask before I book my calls
+ *          with my coach, then a big calendar I can swipe through that goes
+ *          as soon as I book, so that booking takes a few taps and never
+ *          stands between me and my first Take.
  * OUTCOME
- *   O1  Once Will asks for a call, its calendar comes up full screen: the
- *       call's name, "0 of 2 booked" and the deadline; only a day with an
- *       open time can be picked, and Book waits for a time.
- *   O2  A day, then a time, then Book sends exactly that time.
+ *   O1  Will's ask for a call has "Skip" and "Book now" under it; the
+ *       calendar does not open by itself (N281).
+ *   O2  "Book now" opens it full screen: the call's name, "0 of 2 booked"
+ *       and the deadline; only a day with an open time can be picked, and
+ *       Book waits for a time.
  *   O3  Edit moves the deadline from the same screen (N168).
- *   O4  Skip passes the call on without booking it.
- * PROVES   O1, O2, O3 -> "a day, a time, then Book"
- *          O4 -> "Skip passes the call on"
- * WHY      The calls' calendar, full screen (founder 2026-10-28, backend
- *          N248); docs/flows/the-plan.md §1 F.
+ *   O4  A day, then a time, then Book sends exactly that time, and the
+ *       calendar is gone at once.
+ *   O5  "Skip" passes the call on without booking it.
+ * PROVES   O1 to O4 -> "Book now, a day, a time, then Book"
+ *          O5 -> "Skip passes the call on"
+ * WHY      The calls' calendar, full screen and asked for first (founder
+ *          2026-10-28 and 2026-10-30, backend N248, N281);
+ *          docs/flows/the-plan.md §1 F.
  */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -91,10 +96,16 @@ const wait = async (ms: number) => {
   await act(() => vi.advanceTimersByTimeAsync(100));
 };
 
-it("a day, a time, then Book", async () => {
+it("Book now, a day, a time, then Book", async () => {
   const a = actions();
   act(() => root.render(<PlanDock plan={PLAN} busy={false} booking={null} onCloseBooking={() => {}} actions={a} />));
   await wait(1100);
+  expect(q("[data-plan-calendar]")).toBeNull();
+  const ask = [...document.querySelectorAll("[data-plan-dock='call'] button")];
+  expect(ask.map((b) => b.textContent)).toEqual(["Skip", "Book now"]);
+
+  act(() => (ask[1] as HTMLButtonElement).click());
+  await wait(100);
   const sheet = q("[data-plan-calendar='kickoff']");
   expect(sheet.textContent).toContain("Kickoff call with your coach");
   expect(sheet.textContent).toContain("0 of 2 booked");
@@ -102,18 +113,20 @@ it("a day, a time, then Book", async () => {
   expect(q("[data-plan-day='2026-10-31']").getAttribute("aria-disabled")).toBe("true");
   expect(q("[data-plan-act]").disabled).toBe(true);
 
+  tap("[data-plan-edit-deadline]");
+  expect(q("[data-plan-calendar]").textContent).toContain("Your deadline");
+  tap("[data-plan-day='2026-11-20']");
+  tap("[data-plan-act]");
+  expect(a.saveDeadline).toHaveBeenCalledWith("2026-11-20");
+
   tap("[data-plan-day='2026-10-29']");
   await wait(400);
   expect([...document.querySelectorAll("[data-plan-time]")].map((b) => b.textContent)).toEqual(["12:00", "12:30"]);
   tap(`[data-plan-time='${NOON}']`);
   tap("[data-plan-act]");
   expect(a.book).toHaveBeenCalledWith("kickoff", NOON);
-
-  tap("[data-plan-edit-deadline]");
-  expect(q("[data-plan-calendar]").textContent).toContain("Your deadline");
-  tap("[data-plan-day='2026-11-20']");
-  tap("[data-plan-act]");
-  expect(a.saveDeadline).toHaveBeenCalledWith("2026-11-20");
+  await wait(600);
+  expect(q("[data-plan-calendar]")).toBeNull();
 });
 
 it("Skip passes the call on", async () => {
@@ -121,8 +134,8 @@ it("Skip passes the call on", async () => {
   act(() =>
     root.render(<PlanDock plan={{ ...PLAN, step: "summary" }} busy={false} booking={null} onCloseBooking={() => {}} actions={a} />),
   );
-  await wait(1100);
-  expect(q("[data-plan-calendar='summary']").textContent).toContain("Summary call with your coach");
-  tap("[data-plan-skip]");
+  await wait(100);
+  tap("[data-plan-dock='call'] button");
   expect(a.book).toHaveBeenCalledWith("summary", null);
+  expect(q("[data-plan-calendar]")).toBeNull();
 });

@@ -29,6 +29,9 @@ export const PLAN_COPY = {
   back: "Back",
   save: "Save",
   booked: (n: number) => `${n} of 2 booked`,
+  /** Will's line once a call is booked, as the backend writes it (signed,
+   *  N173), shown at once while it is saved (N281). */
+  bookedAt: (when: string) => `Booked: ${when}.`,
   changeYourPlan: "Change your plan",
   seeYourPlan: "See your plan",
   yourPlan: "Your plan",
@@ -102,6 +105,13 @@ export function fmtShort(d: Date): string {
 
 export function monthTitle(d: Date): string {
   return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+/** "Tuesday 27 October, 10:00", in local time (Booked: …). */
+export function fmtWhen(iso: string): string {
+  const d = new Date(iso);
+  const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${WEEKDAYS[d.getDay()]} ${fmtDay(d)}, ${hm}`;
 }
 
 export function weekdayName(d: Date): string {
