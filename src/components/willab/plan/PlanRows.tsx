@@ -70,6 +70,16 @@ export function PendingVoice({ src, durationMs }: { src: string; durationMs: num
   );
 }
 
+/** A call just booked: Will's "Booked: {when}." at once, while the booking
+ *  is saved; the thread's own row takes its place (N281). */
+export function PendingBooked({ text }: { text: string }) {
+  return (
+    <div data-row="app" data-bubble className="mr-auto max-w-[85%] rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground" data-plan-booked-pending>
+      {text}
+    </div>
+  );
+}
+
 function RecordButton({ label, onClick, disabled }: { label: string; onClick: () => void; disabled: boolean }) {
   return (
     <button

@@ -7,12 +7,13 @@ import { fmtDay, fmtShort, fromIsoDay, isoDay, monthTitle, PLAN_COPY, weekdayNam
 
 /* The plan's calendars (rules: the-plan.md §1 F). MonthGrid is the small one
    the deadline's question and Change your plan open. PlanCalendar is the
-   calls' (backend N248, prototype
+   calls' (backend N248, N281; prototype
    https://claude.ai/artifact/Gfnp8Fg8G2uXcqbCSNycgf): full screen over the
-   chat once Will asks for a call. The month swipes; a day picked folds it
-   into its week, which swipes too, with the day's times under it; "Skip" at
-   the top, one "Book" at the bottom. "Edit" next to the deadline turns the
-   same screen into the deadline's (N168). */
+   chat once the speaker taps "Book now" under Will's ask. The month swipes; a
+   day picked folds it into its week, which swipes too, with the day's times
+   under it; "Skip" at the top, one "Book" at the bottom, and the calendar
+   goes the moment it is tapped. "Edit" next to the deadline turns the same
+   screen into the deadline's (N168). */
 
 const HEAD = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
@@ -123,8 +124,6 @@ export function MonthGrid({
 
 const ROW = 58; // a week's row, px
 const FOLD_MS = 400; // the month folding into the picked day's week
-const RISE_MS = 1000; // Will's words are read before the calendar comes up
-const TICK_MS = 650;
 const SLIDE_MS = 520;
 const SHEET_EASE = "cubic-bezier(.32,.72,0,1)";
 const TRACK = "transform 420ms cubic-bezier(.22,.8,.2,1)";
@@ -425,57 +424,26 @@ function useStill(): boolean {
   );
 }
 
-/** The sheet's motion: the call asked for comes up once Will has asked and the
- *  chat has caught up; after "Book" it waits for the plan's answer, then a
- *  tick and away, or stays for another try; after "Skip" it goes at once, and
- *  the next call comes up after Will's next ask. */
-function useCallSheet({
-  plan,
-  which,
-  busy,
-  soon,
-  onDraw,
-}: {
-  plan: Plan;
-  which: CallWhich | null;
-  busy: boolean;
-  soon: boolean;
-  onDraw: (which: CallWhich) => void;
-}) {
+/** The sheet's motion: it comes up the moment a call is asked for ("Book
+ *  now", or "Book" in the plan's list) and slides away the moment it no
+ *  longer is: after "Book" or "Skip" (N281). */
+function useCallSheet({ which, onDraw }: { which: CallWhich | null; onDraw: (which: CallWhich) => void }) {
   const [drawn, setDrawn] = useState<CallWhich | null>(null);
   const [rising, setRising] = useState(false);
   const [up, setUp] = useState(false);
   const [closing, setClosing] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [done, setDone] = useState(false);
   const sheet = useRef<HTMLDivElement>(null);
   const draw = useRef(onDraw);
   draw.current = onDraw;
   const later = useLater();
 
-  const close = () => {
-    setUp(false);
-    setClosing(true);
-    later(SLIDE_MS, () => {
-      setClosing(false);
-      setDone(false);
-      setDrawn(null);
-    });
-  };
-
   // A call asked for and nothing up: draw it below the screen, then raise it.
   useEffect(() => {
-    if (up || closing || rising || !which || busy) return;
-    const t = window.setTimeout(
-      () => {
-        draw.current(which);
-        setDrawn(which);
-        setRising(true);
-      },
-      soon ? 0 : RISE_MS,
-    );
-    return () => window.clearTimeout(t);
-  }, [up, closing, rising, which, busy, soon]);
+    if (up || closing || rising || !which) return;
+    draw.current(which);
+    setDrawn(which);
+    setRising(true);
+  }, [up, closing, rising, which]);
 
   useEffect(() => {
     if (!rising) return;
@@ -490,34 +458,21 @@ function useCallSheet({
     if (up) sheet.current?.focus({ preventScroll: true });
   }, [up]);
 
-  // After "Book", once the plan has answered: a tick and away when the call
-  // is booked, away when it is no longer asked for, else the times stay.
+  // The call is no longer asked for (booked, skipped): the sheet goes at once.
   useEffect(() => {
-    if (!sending || busy) return;
-    setSending(false);
-    if (drawn && plan.calls[drawn]) {
-      setDone(true);
-      later(TICK_MS, close);
-    } else if (which !== drawn) {
-      close();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sending, busy]);
-
-  // The call asked for changed on its own: this one goes, the next comes up.
-  useEffect(() => {
-    if (up && !sending && !done && which !== drawn) close();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [up, sending, done, which, drawn]);
+    if (!up || which === drawn) return;
+    setUp(false);
+    setClosing(true);
+    later(SLIDE_MS, () => {
+      setClosing(false);
+      setDrawn(null);
+    });
+  }, [up, which, drawn, later]);
 
   return {
     drawn,
     up,
-    sending,
-    done,
     sheet,
-    close,
-    send: () => setSending(true),
   };
 }
 
@@ -658,22 +613,8 @@ function Times({ times, time, onPick }: { times: string[]; time: string | null; 
   );
 }
 
-/** The one button at the bottom: pale until there is something to send, a
- *  spinner while it goes, a green tick once the call is booked. */
-function ActButton({
-  label,
-  can,
-  sending,
-  done,
-  onAct,
-}: {
-  label: string;
-  can: boolean;
-  sending: boolean;
-  done: boolean;
-  onAct: () => void;
-}) {
-  const tone = done ? "bg-[#2E9D63] text-white" : can || sending ? "bg-[#121212] text-white" : "bg-[#F0F0F0] text-[#A3A3A3]";
+/** The one button at the bottom, pale until there is something to send. */
+function ActButton({ label, can, onAct }: { label: string; can: boolean; onAct: () => void }) {
   return (
     <div className="flex-none px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-2.5">
       <button
@@ -681,27 +622,11 @@ function ActButton({
         onClick={onAct}
         disabled={!can}
         data-plan-act
-        className={`flex h-[58px] w-full items-center justify-center rounded-full text-[17px] font-semibold transition-[background-color,color,transform] duration-200 active:scale-[.985] ${tone}`}
+        className={`flex h-[58px] w-full items-center justify-center rounded-full text-[17px] font-semibold transition-[background-color,color,transform] duration-200 active:scale-[.985] ${
+          can ? "bg-[#121212] text-white" : "bg-[#F0F0F0] text-[#A3A3A3]"
+        }`}
       >
-        {done ? (
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#FFFFFF"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <path d="M5 12.5l4.5 4.5L19 7.5" />
-          </svg>
-        ) : sending ? (
-          <span className="block h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-hidden />
-        ) : (
-          label
-        )}
+        {label}
       </button>
     </div>
   );
@@ -801,17 +726,15 @@ export default function PlanCalendar({
   plan,
   which,
   busy,
-  soon = false,
   onBook,
   onSkip,
   onSaveDeadline,
 }: {
   plan: Plan;
-  /** The call Will asks for; null once none is, and the calendar slides away. */
+  /** The call being booked ("Book now", or "Book" in the plan's list); null
+   *  once it is booked or skipped, and the calendar slides away. */
   which: CallWhich | null;
   busy: boolean;
-  /** Opened by a tap ("Book" in the plan's list): it comes up at once. */
-  soon?: boolean;
   onBook: (which: CallWhich, start: string) => void;
   onSkip: (which: CallWhich) => void;
   onSaveDeadline: (day: string) => void;
@@ -832,10 +755,7 @@ export default function PlanCalendar({
   const today = todayLocal();
   const deadline = fromIsoDay(plan.deadline);
   const motion = useCallSheet({
-    plan,
     which,
-    busy,
-    soon,
     onDraw: (w) => {
       setMode("call");
       setView("month");
@@ -846,7 +766,7 @@ export default function PlanCalendar({
       setDlPicked(null);
     },
   });
-  const { drawn, up, sending, done } = motion;
+  const { drawn, up } = motion;
   const call: CallWhich = drawn ?? which ?? "kickoff";
   const dl = mode === "dl";
   const dayView = view === "day" && !dl;
@@ -886,7 +806,8 @@ export default function PlanCalendar({
   const open = dl
     ? (day: Date) => day > today && (!kickDay || day > kickDay) && (!sumDay || day < sumDay)
     : (day: Date) => byDay.has(isoDay(day)) && fits(call, day, deadline);
-  const idle = () => !sending && !done;
+  // Taps count only while the sheet is up, not as it slides away.
+  const idle = () => up;
 
   const pickMonthDay = (day: Date) => {
     if (dl) return setDlPicked(day);
@@ -920,8 +841,7 @@ export default function PlanCalendar({
     return dl ? setDlMonthAt(m) : setMonthAt(m);
   };
   const skip = () => {
-    if (!up || !idle()) return;
-    motion.close();
+    if (!idle()) return;
     onSkip(drawn);
   };
   const edit = () => {
@@ -949,7 +869,6 @@ export default function PlanCalendar({
   };
   const book = () => {
     if (!time || !idle() || busy) return;
-    motion.send();
     onBook(drawn, time);
   };
 
@@ -1008,7 +927,7 @@ export default function PlanCalendar({
           <Times key={isoDay(picked)} times={byDay.get(isoDay(picked)) ?? []} time={time} onPick={(t) => idle() && setTime(t)} />
         ) : null}
       </div>
-      <ActButton label={label} can={can} sending={sending} done={done} onAct={dl ? save : book} />
+      <ActButton label={label} can={can} onAct={dl ? save : book} />
     </SheetFrame>
   );
 }
