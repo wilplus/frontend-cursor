@@ -3,7 +3,7 @@
 STORY    As a speaker, I want the Feedback walk to take me through my coach's note, praise with its reason, helper words, the clearer version and a summary, in words only, as one chat that grows with each tap, so that feedback after every Take is clear and backed by what I said.
 OUTCOME
   O1  The steps come in order as one chat: coach's note, praise, helper words, next praise, summary, back to my page; earlier steps stay above, my choices land as my own bubbles.
-  O2  A good moment shows the praise line, then why it landed, quoting my words; the Take's highest moment opens with “This was your most confident moment.”
+  O2  A good moment shows the praise line, then why it landed, quoting my words; the Take's highest moment opens with “This was your most confident moment.”, and no bubble says the same thing twice.
   O3  Reopened from the Lounge, a clip I already judged shows as answered and is not asked again.
   O4  If the summary cannot be read, the walk goes straight back to my page.
   O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.
@@ -14,7 +14,8 @@ OUTCOME
   O10 What a step showed stays in the thread once I move on: the tempo game's tries, their comments and its closing line, then other speakers' moments with my answers, all still above the summary; opened again further on, the tempo game is drawn as the chat kept it, each try with the dot's line, never cut off after "Find a quiet spot first." (B5).
 PROVES   O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
          O2 -> a green moment says why it landed,
-               the Take's highest moment opens with “This was your most confident moment.”
+               the Take's highest moment opens with “This was your most confident moment.”,
+               the highest moment's bubble never says it twice, in the walk or the chat
          O3 -> reopened from the Lounge, the judging shows the moment already answered
          O4 -> skips the summary when it cannot be read, straight onto the page
          O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder (with its own line, N268)
@@ -28,6 +29,8 @@ PROVES   O1 -> walks coach's note → praise → helper words → the next prais
 WHY      Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, "add the name at the start"; N122, "the 3 dots loading should be at the bottom"; N119, "3 clips (high, middle, low willfidence) from 3 different speakers"); founder 2026-10-28 ("I click next and it's gone ... should be in the walk, so that there is a continuity").
 */
 import { HELPER_WORDS_MAX } from "@/lib/willab/phraseTokens";
+import { PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
+import { praiseChat } from "@/lib/willab/walkThread";
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -156,6 +159,22 @@ describe("FeedbackWalk", () => {
     expect(screen()).toBe("walk-screen-praise");
     expect(bubble()[0]).toBe(COPY.titleMostConfident);
     expect(bubble()[1]).toBe(COPY.titlePraise);
+  });
+
+  it("the highest moment's bubble never says it twice, in the walk or the chat (founder 2026-10-30)", () => {
+    // The founder's screenshot: the title, the level's line and the praise
+    // lead stacked into "…most confident moment. … It was your confident moment."
+    const title = "Wow, great job. That really landed! 🔥";
+    const cue = "You went straight through it — fewer and shorter pauses than you usually take.";
+    const items: FeedbackWalkItem[] = [{ ...ITEMS[0], highest: true, praiseTitle: title, praiseWords: [PRAISE_LEAD, cue] }];
+    const model = buildFeedbackWalk({ items, coachNote: false, practiceOn: true, guest: false });
+    draw({ seq: 1, at: 1 }, { model, coachNote: null });
+    expect(screen()).toBe("walk-screen-praise");
+    expect(bubble()).toEqual([COPY.titleMostConfident, title, cue]);
+    const moment = model.moments[0];
+    expect(praiseChat(moment, { paragraphs: ["It was your confident moment."], quote: null }).body).toBe(
+      [COPY.titleMostConfident, title, cue].join("\n"),
+    );
   });
 
   it("walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows", async () => {

@@ -13,7 +13,7 @@ import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "@/components/willab/idealEd
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import type { FeedbackWalkMoment, WalkStepTarget } from "./feedbackWalkModel";
 import type { PraiseReason } from "./praiseReason";
-import { clearerOpening, topMomentLine, type WalkBankKey } from "./walkLines";
+import { clearerOpening, praiseBubble, topMomentLine, withoutRepeats, type WalkBankKey } from "./walkLines";
 import type { WalkStep } from "./walkPlan";
 import { encourageLine, improvedLine, thanksLine } from "./walkPractise";
 
@@ -281,14 +281,8 @@ export function praiseChat(
   moment: FeedbackWalkMoment<unknown>,
   reason: PraiseReason,
 ): { author: WalkAuthor; body: string } {
-  const lead = (moment.praiseLead ?? moment.praiseWords).join(" ");
-  const lines = [
-    ...(moment.highest ? [COPY.titleMostConfident] : []),
-    moment.praiseTitle ?? COPY.titlePraise,
-    lead,
-    ...reason.paragraphs,
-  ];
-  return { author: "app", body: lines.filter((line) => line.trim() !== "").join("\n") };
+  const lines = withoutRepeats([...praiseBubble(moment, moment.praiseLead ?? moment.praiseWords), ...reason.paragraphs]);
+  return { author: "app", body: lines.join("\n") };
 }
 
 /** The Exercise's bubble: its instruction, no title (founder 2026-10-21, K:
@@ -346,10 +340,9 @@ export function shownStep(
       return coachText ? { author: "coach", body: `${COPY.titleCoachLine}\n${coachText}` } : null;
     case "praise":
       if (moment?.praiseReason) return praiseChat(moment, moment.praiseReason);
-      return titled(
-        `${moment?.highest ? `${COPY.titleMostConfident}\n` : ""}${moment?.praiseTitle ?? COPY.titlePraise}`,
-        moment?.praiseWords.join(" "),
-      );
+      // No praise words, no message, as before; the bubble's lines say
+      // nothing twice (founder 2026-10-30).
+      return moment?.praiseWords.join(" ").trim() ? app(praiseBubble(moment, moment.praiseWords).join("\n")) : null;
     case "helpers":
       return app(COPY.titleEmphasis);
     case "clearer": {

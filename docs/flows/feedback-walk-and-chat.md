@@ -1084,6 +1084,14 @@ October (backend N111).
 
 ### K · Words on screen (all signed)
 
+- **One bubble never says the same thing twice** (founder 2026-10-30, N281,
+  on a screenshot of the Take's highest moment: "This was your most confident
+  moment. Wow, great job. That really landed! 🔥 It was your confident
+  moment."). Every grey praise bubble, in the walk and in the chat, is
+  stacked from its signed lines and then passed through one check
+  (`withoutRepeats`, `src/lib/willab/walkLines.ts`): a sentence whose gist an
+  earlier sentence of the same bubble already said is dropped; the first one
+  and every other word stay. Nothing is reworded and no word is added.
 - **Said fresh, from the signed meaning** (founder 2026-10-23, N123: "please
   do not make the asks fixed all the time, please make them fairly smart
   like there should be some flexibility"; then "both"). Each ask after the
@@ -1479,6 +1487,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-30 · N281 · fixed (K): the Take's highest moment's bubble says "This was your most confident moment." once; the praise lead "It was your confident moment." under it is dropped there, and any sentence that repeats an earlier one in the same bubble goes, in the walk and the chat. Was: both lines in one bubble · BE (N281 log), FE (this PR)
 - 2026-10-29 · N273 · built (A4): a guest's "Done" wall carries the clip of the Take's most confident moment (the orange bubble) and "This was your most confident moment." (the grey bubble), between the line and the buttons, from the Ideal Text page and from the Lounge; read through the same owner-or-guest reads as the page, nothing new on the backend. The account stays before the walk, replacing N30's and N32 item 5's "a guest reads the whole Feedback". Was: "Done", the line and the two buttons only · BE (N273 log), FE (this PR)
 - 2026-10-29 · N273 · built (B3): the empty Lounge opens with Will's hello (N270's line) as a bubble, "Start your first recording" under it and "About 2 minutes to record. Your feedback comes about a minute later." under that. Was: the button alone, and Will's hello only after the visitor typed · BE (N273 log), FE (this PR)
 - 2026-10-29 · — (B5) · fixed: scrolling the walk by hand is smooth. The thread follows the newest bubble again only once a scroll by hand has come to rest at the bottom. Was: a drag up from the bottom turned following back on within its first pixels, so the thread pulled itself down under the finger, on every step (founder 2026-10-29: "I scroll through it and it stalls a little bit"). No rule changes · FE (this PR)
