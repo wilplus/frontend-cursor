@@ -360,7 +360,9 @@ built and what is still to come.
    practice is done, Will says in the chat "That's your 15 minutes for
    today." and "Now go and live it, away from the phone." Never on a clock
    and never on other days; nothing is locked and the message box stays.
-   The founder first, then everyone.
+   The founder first, then everyone. After a Take with an ask (Will's
+   question, WhatsApp, "Did this help?") they wait until it is answered,
+   then come before the closing message, so "Record Take N" is last (N288).
 
 ### H · Changing the plan
 
@@ -613,6 +615,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-30 · N288 · G13: after a Take's ask, the two lines wait until it is answered, then come before "practice makes perfect" and "Record Take N", which is last. No new words. Was: written with the summary, under the ask, which hid Will's question's answers and brought the closing message at once · BE #1526, #1527
 - 2026-10-30 · N281 · the calls are asked for first: Will's two new asks, "Skip" and "Book now" under each; the calendar opens only on "Book now" and goes the moment "Book" is tapped, with "Booked: {when}." in the chat at once, no typing (F1, F2, K). Was: the calendar came up by itself after Will's line, and stayed with a spinner and a tick until the booking was saved · BE #1516, #1517, FE (this PR)
 - 2026-10-30 · founder, 2026-10-30 · the plan's footer ("Record your answer" and the rest) sits as low as the message box it stands in for: 12px above it, 8px under it. No new words. Was: about 28px under it, from the hidden message box's empty wrapper and the footer's own margin · FE (this PR)
 - 2026-10-30 · N276 · B8, B9: every transcription drops what the transcriber wrote that nobody said (a stretch it calls silence, a video's "Thanks for watching") before anything is kept; Will asks the same question again at most twice, after nothing heard or a correction, and the third time moves on to the next question in its plain words, or to what follows the questions. No new words. Was: "didn't catch that" could come back for ever on a phone whose microphone records nothing; the Takes' transcripts could keep a "Thanks for watching" from silence at their end · BE, FE (this PR)
