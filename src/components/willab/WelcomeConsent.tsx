@@ -22,7 +22,7 @@ import WelcomeExample from "./WelcomeExample";
  *  "Record your talk. You get the ideal text…". */
 export const WELCOME_PROMISE: readonly (readonly [string, string])[] = [
   ["Great presentations aren’t about slides.", "They’re about a dream and the guts to deliver it."],
-  ["You bring the dream.", "We’ll help you sound brave until you are 😏"],
+  ["You bring the dream.", "We’ll help you sound brave until you are."],
 ];
 export const SEE_AN_EXAMPLE = "See an example";
 
