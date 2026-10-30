@@ -1772,7 +1772,11 @@ export default function Lounge({
     );
 
   return (
-    <div className="flex flex-1 flex-col gap-3 overflow-hidden">
+    /* Like WhatsApp (founder 2026-10-30): the thread runs down to the
+       composer. An empty slot takes no room (hidden; never the thread, which
+       is empty while it loads), the thread's -mb-3 cancels the gap under it,
+       and its pb-2 keeps the last message off the composer at the bottom. */
+    <div className="flex flex-1 flex-col gap-3 overflow-hidden [&>:empty:not([data-thread])]:hidden">
       {/* The lenses open as fixed overlays (WalkStage); closed, each is still
           an empty <div>. Out of the column's flow, so their four gaps no
           longer push the thread down (founder 2026-10-30: "Please remove
@@ -1799,12 +1803,13 @@ export default function Lounge({
           document, one of them outside the conversation the product is. */}
       <div
         ref={scrollRef}
+        data-thread
         onScroll={handleThreadScroll}
         /* `overflow-x-hidden` is load-bearing: `overflow-y-auto` alone computes
            overflow-x to auto, so any bubble content wider than the column (a
            long unbroken token, a wide card) makes the WHOLE thread pan
            sideways — every bubble slides off the left edge of the screen. */
-        className="scrollbar-none flex flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain"
+        className="scrollbar-none -mb-3 flex flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain pb-2"
       >
         {thread.hasMore && (
           <button
