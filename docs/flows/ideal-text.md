@@ -432,6 +432,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-30 · N280 · no space under "Close": the bottom bar's own padding under it goes from 16 px to zero; "Record Take N", "Close", their sizes and gap are unchanged (`IdealTextOverlay.tsx`). Was: 16 px · BE #1514, FE (this PR)
 - 2026-10-29 · N273 · a guest's "Done" wall, shown in this page's place, carries the clip of the Take's most confident moment and "This was your most confident moment.", read from the rows the page already holds; nothing on the Ideal Text changes ([`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) A4) · FE (this PR), BE (N273 log)
 - 2026-10-29 · N268 · the walk's copy (`idealEditCopy.ts`) gains the signed line after "Keep my words" and the walk quote's lines; nothing on the Ideal Text changes ([`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C5, [`principles.md`](principles.md) §1 R) · FE (this PR)
 - 2026-10-29 · N260 · the "One project at a time" sentence ends "you can bring it back from Settings." (the ☰ menu's Settings page, N196). Was: "Data & consent" · FE (this PR), BE (N260 log)
