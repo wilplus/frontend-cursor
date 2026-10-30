@@ -13,6 +13,7 @@ import {
 } from "./sendStatus";
 import { notifyPendingSendSettled } from "./usePendingSendHold";
 import { lensHref } from "@/lib/willab/lensScreen";
+import { countFirstVisit } from "@/lib/funnel/firstVisit";
 
 /** Completes a parked guest Project Take handoff after authentication. */
 export default function PendingCoachSend() {
@@ -47,6 +48,8 @@ export default function PendingCoachSend() {
           // chat. The lens address opens it as its own screen; the walk ends
           // on the Ideal Text, and ✕ shows the chat behind it.
           opened = true;
+          // The last step of a first visit (backend N271).
+          countFirstVisit("walk");
           window.location.href = lensHref(pending.projectId, "review");
         }
       } finally {

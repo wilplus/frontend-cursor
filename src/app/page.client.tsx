@@ -10,6 +10,7 @@ import {
   hasAcceptedConsentLocally,
 } from "@/components/willab/useWillabFlow";
 import { useSignedIn } from "@/components/willab/useSignedIn";
+import { countFirstVisit } from "@/lib/funnel/firstVisit";
 import JournalCard from "@/components/journal/JournalCard";
 import { type JournalPostSummary } from "@/services/api/journal";
 
@@ -63,6 +64,8 @@ export default function LandingClient({
 
   useEffect(() => {
     if (signedIn === true) router.replace("/chat");
+    // The first step of a first visit (backend N271).
+    if (signedIn === false) countFirstVisit("landing");
   }, [signedIn, router]);
 
   // Already signed in: render nothing rather than flash marketing during the
@@ -85,6 +88,7 @@ export default function LandingClient({
       <section className="flex min-h-[calc(100dvh-6rem)] flex-col">
         <WelcomeConsent
           onAccept={() => {
+            countFirstVisit("enter");
             acceptConsentLocally();
             router.push("/chat");
           }}
