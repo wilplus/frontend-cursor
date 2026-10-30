@@ -1,4 +1,4 @@
-import { AI_CLIP_BANK, TOP_MOMENT_LINES, WALK_COPY, WALK_LINE_BANK } from "@/components/willab/idealEditCopy";
+import { AI_CLIP_BANK, CHUNK_SHEET_COPY, TOP_MOMENT_LINES, WALK_COPY, WALK_LINE_BANK } from "@/components/willab/idealEditCopy";
 import type { AiClipProblem } from "@/services/api/aiVoice";
 import type { WalkStep } from "./walkPlan";
 
@@ -165,4 +165,76 @@ export function topMomentLine(
   let hash = 0;
   for (let i = 0; i < seed.length; i += 1) hash = (hash * 31 + seed.charCodeAt(i)) | 0;
   return lines[Math.abs(hash) % lines.length];
+}
+
+/* -------------------------------------------------------------------------- */
+/*  ONE BUBBLE NEVER SAYS THE SAME THING TWICE (founder 2026-10-30).          */
+/*                                                                            */
+/*  A bubble is stacked from lines that were each signed on their own: the    */
+/*  Take's highest moment's "This was your most confident moment.", the      */
+/*  level's title, the praise lead "It was your confident moment.", a cue    */
+/*  line, a signed line from the bank. Stacked, two of them can say the same */
+/*  thing (the founder's screenshot, 2026-10-30: both confident-moment lines */
+/*  in one bubble). So every bubble the walk and the chat draw passes        */
+/*  through `withoutRepeats`: a sentence whose gist an earlier sentence in   */
+/*  the bubble already said is dropped; the first one, and every other      */
+/*  word, stays. Nothing is reworded and no word is added.                   */
+/* -------------------------------------------------------------------------- */
+
+/** Words that carry no gist of their own: "This was your most confident
+ *  moment." and "It was your confident moment." say one thing. */
+const FILLER = new Set([
+  "a", "an", "the", "this", "that", "these", "it", "its", "it's", "was", "is", "were", "are", "be",
+  "your", "you", "you're", "my", "our", "most", "more", "one", "of", "here", "really", "so", "very",
+  "just", "and", "in", "on", "to", "at", "for",
+]);
+
+function sentencesOf(line: string): string[] {
+  return line.split(/(?<=[.!?…])\s+/).filter((s) => s.trim() !== "");
+}
+
+function gistOf(sentence: string): Set<string> {
+  const words = sentence.toLowerCase().replace(/’/g, "'").match(/[\p{L}\p{N}']+/gu) ?? [];
+  return new Set(
+    words.filter((w) => !FILLER.has(w)).map((w) => (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w)),
+  );
+}
+
+/** One says what the other says: two words of gist or more, and all of one
+ *  inside the other. Pure. */
+function restates(a: Set<string>, b: Set<string>): boolean {
+  if (a.size < 2 || b.size < 2) return false;
+  const [small, big] = a.size <= b.size ? [a, b] : [b, a];
+  return [...small].every((w) => big.has(w));
+}
+
+/** The lines of one bubble, each sentence that repeats an earlier one's
+ *  gist taken out; a line left empty goes. Pure. */
+export function withoutRepeats(lines: readonly string[]): string[] {
+  const said: Set<string>[] = [];
+  const out: string[] = [];
+  for (const line of lines) {
+    const kept = sentencesOf(line).filter((sentence) => {
+      const gist = gistOf(sentence);
+      if (said.some((before) => restates(gist, before))) return false;
+      said.push(gist);
+      return true;
+    });
+    if (kept.length > 0) out.push(kept.join(" "));
+  }
+  return out;
+}
+
+/** A green moment's first bubble, in order: "This was your most confident
+ *  moment." on the Take's highest, the level's title, then the praise
+ *  words, with nothing said twice. Pure. */
+export function praiseBubble(
+  moment: { highest?: boolean; praiseTitle?: string | null },
+  words: readonly string[],
+): string[] {
+  return withoutRepeats([
+    ...(moment.highest ? [CHUNK_SHEET_COPY.titleMostConfident] : []),
+    moment.praiseTitle ?? CHUNK_SHEET_COPY.titlePraise,
+    words.join(" "),
+  ]);
 }

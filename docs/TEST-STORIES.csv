@@ -1016,7 +1016,7 @@ O2  Once the server has heard it (its next read says the word is not
 new), the ring goes; a later change of the word rings again.","O1 -> ""the coach's changed word opens the walk at the coach's step; the tap marks nothing""
 O2 -> ""a word changed again after it was watched rings again""","Founder 2026-10-19, N80 (D4, D7); 2026-10-20, N89 (""THE SAME MECHANISM""): the word alone in its own lens with Close is history."
 src/components/willab/walk/feedbackWalk.test.tsx,Story,"As a speaker, I want the Feedback walk to take me through my coach's note, praise with its reason, helper words, the clearer version and a summary, in words only, as one chat that grows with each tap, so that feedback after every Take is clear and backed by what I said.","O1  The steps come in order as one chat: coach's note, praise, helper words, next praise, summary, back to my page; earlier steps stay above, my choices land as my own bubbles.
-O2  A good moment shows the praise line, then why it landed, quoting my words; the Take's highest moment opens with “This was your most confident moment.”
+O2  A good moment shows the praise line, then why it landed, quoting my words; the Take's highest moment opens with “This was your most confident moment.”, and no bubble says the same thing twice.
 O3  Reopened from the Lounge, a clip I already judged shows as answered and is not asked again.
 O4  If the summary cannot be read, the walk goes straight back to my page.
 O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.
@@ -1026,7 +1026,8 @@ O8  Other speakers asks for my Take's moments and shows each one the server send
 O9  On a plan, the moment where this week's level shows most opens with ""This week's level: {level}. Here's where it shows:"" above my clip; no other moment does (G7, backend N209).
 O10 What a step showed stays in the thread once I move on: the tempo game's tries, their comments and its closing line, then other speakers' moments with my answers, all still above the summary; opened again further on, the tempo game is drawn as the chat kept it, each try with the dot's line, never cut off after ""Find a quiet spot first."" (B5).","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
 O2 -> a green moment says why it landed,
-the Take's highest moment opens with “This was your most confident moment.”
+the Take's highest moment opens with “This was your most confident moment.”,
+the highest moment's bubble never says it twice, in the walk or the chat
 O3 -> reopened from the Lounge, the judging shows the moment already answered
 O4 -> skips the summary when it cannot be read, straight onto the page
 O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder (with its own line, N268)

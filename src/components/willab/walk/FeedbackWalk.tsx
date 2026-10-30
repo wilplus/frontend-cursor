@@ -27,7 +27,7 @@ import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, type AiVoiceLines
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
-import { aiClipLines, clearerOpening, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
+import { aiClipLines, clearerOpening, praiseBubble, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import { WALK_MAX_TRIES, type WalkStep } from "@/lib/willab/walkPlan";
 import {
@@ -1003,9 +1003,9 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
     >
       <Clip moment={moment} />
       <WalkMessage>
-        {moment.highest ? <span>{COPY.titleMostConfident}</span> : null}
-        <span>{moment.praiseTitle ?? COPY.titlePraise}</span>
-        {words.length > 0 ? <span>{words.join(" ")}</span> : null}
+        {praiseBubble(moment, words).map((line, i) => (
+          <span key={i}>{line}</span>
+        ))}
       </WalkMessage>
       {reason ? <PraiseReasonBubble reason={reason} /> : null}
       <CoachAnswerBubble moment={moment} />
