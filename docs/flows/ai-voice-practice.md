@@ -357,7 +357,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-10-30 · N289 · the clip is for the weakest moment only; a praise gets none. Was: every praise practised with a clip (N122) · BE #1528, BE (the code), FE (this PR)
+- 2026-10-30 · N289 · the clip is for the weakest moment only; a praise gets none. Was: every praise practised with a clip (N122) · BE #1528, BE #1529, FE (this PR)
 - 2026-10-28 · — · wording: the try is checked on its voice score (Δ ≥ +0.05, N84), not willfidence, as built and as the walk's page H1 says; no rule changes · FE (this PR)
 - 2026-10-26 · N188 · the limits: 3 clips a day and 20 a month for each speaker, and no new voice while the plan's voice slots are full; was 10 a day with no monthly limit · BE #1363
 - 2026-10-23 · N120, N122 · built: the clip in one short bubble (opener, tip by problem with the speaker's phrase, the clip, "Your turn." / "Try again."), the server naming the clip's `problem` and `phrase` as soon as it chooses them; a praised moment's practise gets its clip, started early by the bake like a corrected moment's · BE #1279
