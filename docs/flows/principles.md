@@ -508,6 +508,7 @@ Nothing in flight.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-30 · — · the small mic answers at the tap, as WhatsApp's does: a light buzz (Android's vibration, the iPhone's switch haptic) and the recording bar at once, while the phone opens the mic; trash or send in that moment records nothing, no mic permission puts the mic back; no new words · FE (this PR)
 - 2026-10-29 · N268 · R, built: after a Good job on a Clearer version, the walk may quote the speaker's own kept words (a strength, the vision, a # note naming what is theirs), at most one per Take, with "Not here" the first time, a setting turned back on in the Life Panel's Your data page; A3 makes room for it; ring row `walk_quotes` at ring 5 by its migration · BE #1495 (the decision), BE (the code), FE (this PR)
 - 2026-10-29 · N264 · the rows `in_control` and `sales_framing` set at ring 5 by migration 0499 (its outside review: "Safe to merge"), in place of the founder making them on the rings page: Will's answer to a worry (O) and the sales steps (P) are on at ring 5 · BE #1490, #1491, FE (this PR)
 - 2026-10-29 · N263 · the empty Principles page says "No principles yet."; what stopped: its sentence "The first one arrives when you send a case with #mistake." · BE #1490, FE (this PR)

@@ -3,10 +3,12 @@
 STORY    As the founder in a rush, I want to say a note and close the app, so that what I said is kept and I can see it was written as I meant it.
 OUTCOME
   O1  The moment I tap, my note shows the wave of my voice; the words follow it; leaving the app sends the note, it is not thrown away (N194, N199).
+  O1b The tap answers at once, as WhatsApp's: a buzz and the recording bar before the phone has opened the mic; trash in that moment records nothing.
   O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).
   O4  Typing "#" offers one option, "# note", and tapping it leaves "#" to write on: a typed "#" is one note, as the mic's (N253).
   O5  Under "Which step did it stall at?" the sale's four steps take the message box's place, and a tap answers for that note with that step (N241 P2).
 PROVES   O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
+         O1b -> buzzes and shows the recording at the tap, before the mic opens
          O2 -> keeps a note that cannot go and sends it once when back online
          O4 -> offers only "# note" after "#", and leaves "#" to write on
          O5 -> opens the four steps under the sales question and answers with the one tapped
@@ -138,6 +140,24 @@ describe("the voice note, written as it is said", () => {
     expect((audio as Blob).size).toBeGreaterThan(0);
     expect(typeof key).toBe("string");
     expect(reload).toHaveBeenCalled();
+  });
+
+  it("buzzes and shows the recording at the tap, before the mic opens", async () => {
+    const vibrate = vi.fn(() => true);
+    Object.defineProperty(navigator, "vibrate", { value: vibrate, configurable: true });
+    let openMic: (stream: unknown) => void = () => undefined;
+    (navigator.mediaDevices.getUserMedia as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      () => new Promise((resolve) => (openMic = resolve)),
+    );
+    act(() => notebook.tapMic());
+    expect(vibrate).toHaveBeenCalledTimes(1);
+    expect(notebook.recording).toBe(true);
+
+    act(() => notebook.note.cancel());
+    await act(async () => openMic({ getTracks: () => [{ stop: vi.fn() }] }));
+    await settle();
+    expect(notebook.recording).toBe(false);
+    expect(FakeRecorder.all).toHaveLength(0);
   });
 
   it("keeps a note that cannot go and sends it once when back online", async () => {
