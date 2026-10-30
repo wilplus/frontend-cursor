@@ -33,7 +33,7 @@ import { ChangePlanSheet, SeePlanSheet } from "./PlanSheet";
 export type PlanLounge = {
   dock: ReactNode;
   sheets: ReactNode;
-  /** The voice answer just sent, in the thread while it is heard (N274). */
+  /** The voice answer just sent, in the thread while it is heard (N275). */
   pending: ReactNode;
   rows: PlanRowCtx | undefined;
   /** The message box's display: hidden while the plan's footer replaces it. */
