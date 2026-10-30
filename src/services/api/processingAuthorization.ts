@@ -6,6 +6,7 @@ import {
 } from "./projects";
 import { mapPendingDeletion, type PendingDeletion } from "./accountDeletion";
 import { bffFetch } from "@/lib/api/bffFetch";
+import { countFirstVisitIfGuest } from "@/lib/funnel/firstVisit";
 
 /* -------------------------------------------------------------------------- */
 /*  Phase-1 processing authorization — the client half (Task 3).               */
@@ -303,6 +304,8 @@ export async function acceptAuthorization(
   if (code === "PROCESSING_POLICY_STALE") return { kind: "stale" };
   if (response.ok && row?.authorized === true) {
     await markGuestOwnerUsed();
+    // A first visit's agreement (backend N271); an account's is not counted.
+    countFirstVisitIfGuest("agreed");
     return {
       kind: "accepted",
       receiptId: str(row.receipt_id),
