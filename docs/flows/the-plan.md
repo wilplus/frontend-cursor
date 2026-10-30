@@ -103,7 +103,11 @@ built and what is still to come.
    didn't quite catch that. Could you say it again?" and the same question
    stays (N262). Words that are only the transcriber's stock lines for a
    clip with no words in it ("Thanks for watching", "Thank you", the
-   Amara.org subtitles line) count as no words (N275).
+   Amara.org subtitles line) count as no words (N275). Every recording the
+   app transcribes drops what the transcriber wrote that nobody said before
+   it is kept (N276). Will asks the same question again at most twice; the
+   third time he moves on to the next question in its plain words, without
+   the voice message's ack, or to what follows the questions (N276).
 9. **A correction.** When an answer puts Will right ("No, that's not what
    I meant …") instead of answering his question, Will agrees, "Got it,
    thank you for putting me right.", says back in one sentence what he now
@@ -114,7 +118,8 @@ built and what is still to come.
    that writes Will's turn tells a correction from an answer; when it
    fails, or is not sure, the answer counts as an answer (N262). One
    correction per question: once Will was put right on it, the next answer
-   to it is an answer (N275).
+   to it is an answer (N275). Being put right counts as asked again, as in
+   B8: the third time, Will moves on (N276).
 
 ### C · The diagnosis
 
@@ -521,6 +526,8 @@ Waiting for the founder's OK:
   - Built on 29 October 2026 (N275): the words under each voice answer,
     the dots while it is heard (B3); the transcriber's stock lines count as
     nothing heard (B8); one correction per question (B9) · BE, FE (this PR).
+  - Built on 30 October 2026 (N276): one check on every transcription for
+    what nobody said; no question asked more than three times (B8, B9) · BE.
 
 ## 3. Still open
 
@@ -605,6 +612,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-30 · N276 · B8, B9: every transcription drops what the transcriber wrote that nobody said (a stretch it calls silence, a video's "Thanks for watching") before anything is kept; Will asks the same question again at most twice, after nothing heard or a correction, and the third time moves on to the next question in its plain words, or to what follows the questions. No new words. Was: "didn't catch that" could come back for ever on a phone whose microphone records nothing; the Takes' transcripts could keep a "Thanks for watching" from silence at their end · BE, FE (this PR)
 - 2026-10-29 · N275 · B3, B8, B9: a voice answer's bubble shows at once with the typing dots under the voice, then the words Will heard, and every voice answer keeps its words under it; a transcript that is only the transcriber's stock lines for no words ("Thanks for watching", "Thank you", the Amara.org line) is nothing heard, and Will asks again; the AI takes a correction only when it is sure, and once per question: the next answer to it is an answer. No new words. Was: the bubble came only with Will's reply and showed no words, so a speaker couldn't see what was heard; "Thanks for watching" from a clip with no words was taken as a correction ("You thanked me for watching."), and then every answer after it, a 14-second one too, was read as another correction, so the same question came round with each · BE, FE (this PR)
 - 2026-10-29 · N272 · D4: "How do you feel?" is asked only of a signed-in speaker, in the set-up's look; the pick is not answered and the screen has no line about the coach; Skip stays. Was: asked of guests too, with a reply line and "Your coach sees your answer." · BE #1501, FE (this PR)
 - 2026-10-29 · N262 · A1, B3, B8, B9, K: "Start your first recording" under "Record your answer" while a new speaker's voice questions are asked, and what isn't answered comes back after that Take's walk, where Will left off; a voice answer with no speech, or no words, is not kept and Will says "Sorry, I didn't quite catch that. Could you say it again?"; an answer that puts Will right is taken as a correction ("Got it, thank you for putting me right." and what he now has), and the question is asked again; the voice answers answer Safari's byte-range requests, so they play there (the BFF's `relayAudio`, for the coach's player too). Was: the questions couldn't be skipped (N136, N146); silence came back from the transcriber as words and was kept; a correction was kept as the answer to the question; Safari played nothing · BE #1488, #1489, FE (this PR)
