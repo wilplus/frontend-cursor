@@ -915,16 +915,16 @@ function Answered({ ctx, line }: { ctx: ScreenCtx; line: string | null }) {
 }
 
 /** The speaker's own clip: the orange bubble on the right. */
-function Clip({ moment, words }: { moment: FeedbackWalkMoment; words?: ReactNode }) {
+function Clip({ moment, words, replay }: { moment: FeedbackWalkMoment; words?: ReactNode; replay?: string }) {
   if (!moment.clip && !words) return null;
   return (
     <WalkPlayer
       look="me"
-      seed={`moment-${moment.index}`}
+      seed={replay ? `replay-${moment.index}` : `moment-${moment.index}`}
       src={moment.clip?.src ?? null}
       startOffsetMs={moment.clip?.startOffsetMs}
       durationMs={moment.clip?.durationMs}
-      label={moment.slideLabel ?? COPY.pagerMoment}
+      label={replay ?? moment.slideLabel ?? COPY.pagerMoment}
       words={words}
     />
   );
@@ -1151,12 +1151,29 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
  *  coming either, the clip alone as the walk moves past it, N108). */
 function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkStep; moment: FeedbackWalkMoment<R> }) {
   const exercise = moment.exercise;
+  // The weakest (founder 2026-10-30, N289): its own line above its clip
+  // (the level's instead when it carries one), then Line A and the
+  // strongest moment's clip played again, so "your confident moment" is
+  // one the speaker has just heard.
+  const weakest = moment.slot === "weakest" && !moment.praised;
+  const strongest = weakest ? ctx.walk.moments.find((m) => m.slot === "strongest" && m.clip) : undefined;
   // A praised moment's practise follows its praise (N122): its clip is
   // just above, and it has the AI clip or nothing, never Line A.
   return (
     <>
       {moment.praised ? null : <LevelHere moment={moment} />}
+      {weakest && !moment.planLevel ? (
+        <WalkMessage>
+          <span data-walk-weakest>{WALK_COPY.weakestOpener}</span>
+        </WalkMessage>
+      ) : null}
       {moment.praised ? null : <Clip moment={moment} />}
+      {weakest ? (
+        <WalkMessage>
+          <span>{WALK_COPY.lineA}</span>
+        </WalkMessage>
+      ) : null}
+      {strongest ? <Clip moment={strongest} replay={WALK_COPY.confidentReplay} /> : null}
       {aiExercise(ctx, step, moment) ?? (ctx.bare(step) || moment.praised ? null : (
         <WalkMessage coach={exercise?.byCoach === true} wide>
           {moment.highest ? <span>{topMomentLine(exercise?.video ? "example" : "again", moment)}</span> : null}
@@ -1168,7 +1185,7 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
           ) : null}
           {/* Line A asks for the confident moment's voice: not on that moment
               itself (founder 2026-10-21). */}
-          {exercise?.instruction || !moment.highest ? <span>{exercise?.instruction ?? WALK_COPY.lineA}</span> : null}
+          {exercise?.instruction || !(moment.highest || weakest) ? <span>{exercise?.instruction ?? WALK_COPY.lineA}</span> : null}
         </WalkMessage>
       ))}
       <CoachAnswerBubble moment={moment} />

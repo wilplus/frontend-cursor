@@ -300,8 +300,15 @@ function exerciseChat(
   // On the confident moment itself its own line, for what follows (an
   // example only with a video to show), and no Line A (founder 2026-10-21).
   const top = Boolean(moment.highest);
-  const head = top ? `${topMomentLine(ex?.video ? "example" : "again", moment)}\n` : "";
-  const line = ex?.instruction ?? (top ? "" : WALK_COPY.lineA);
+  // The weakest (N289): its own line, unless the level's says it, then
+  // Line A, as the walk draws them.
+  const weakest = moment.slot === "weakest";
+  const head = top
+    ? `${topMomentLine(ex?.video ? "example" : "again", moment)}\n`
+    : weakest
+      ? `${moment.planLevel ? "" : `${WALK_COPY.weakestOpener}\n`}${WALK_COPY.lineA}\n`
+      : "";
+  const line = ex?.instruction ?? (top || weakest ? "" : WALK_COPY.lineA);
   if (!ex) return { author: "app", body: `${head}${line}`.trim() };
   return {
     author: ex.byCoach ? "coach" : "app",
