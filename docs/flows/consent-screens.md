@@ -303,22 +303,26 @@ Written in the present tense.
 - **What the number is for** (backend N238): the sign-up page says nothing of its own. The Terms of Service and
   the Privacy Policy say that the number someone signs up or signs in with is also the number the messages go to.
 
-### Amended 2026-10-29: the welcome says what you get (backend N273)
+### Amended 2026-10-29, again 2026-10-30: the welcome and its example (backend N273, N277)
 
-Approved on the clickable prototype <https://claude.ai/artifact/VqrCoZ3ddRkkiSayMfnTJp>: "the landing
-page, just the landing page is fine ... and how it opens the example, that's okay." Written in the
-present tense.
+Approved on the clickable prototype <https://claude.ai/artifact/MVyWmdoWUqisttfkW8qb8D>: "OK", then
+"go and build it" (N277, which replaces N273's line and example; N273's prototype
+<https://claude.ai/artifact/VqrCoZ3ddRkkiSayMfnTJp> is history).
 
-- **The line under the name** is the page's own description: "Record your talk. You get the ideal text
-  of your presentation and see which moments landed best." It replaces "Public speaking excellence
-  tool." on the landing and the in-app welcome, which are one composition.
-- **See an example**, with a small orange play mark, sits under Enter the lab (above "Read blog posts" on
-  the landing). It shows, in the welcome's own place: **An example** and a ✕ that goes back; **What
-  they said**, the sentence with the words the Ideal Text leaves out struck; **The Ideal Text**, the
-  sentence as it becomes; **The feedback**, the walk's own line; and **Try it with your talk**, which
-  does what Enter the lab does. Nothing is agreed, recorded or sent.
-- The prototype plays what was said. That clip shows once a recording someone has agreed to share
-  exists (`EXAMPLE_CLIP_SRC` in `WelcomeExample.tsx`); until then the words stand alone.
+- **Under the name**, two paragraphs, each broken in two: "Great presentations aren’t about slides. /
+  They’re about a dream and the guts to deliver it." and "You bring the dream. / We’ll help you sound
+  brave until you are 😏". On the landing and the in-app welcome, which are one composition. The
+  2026-07-17 honest-positioning rule does not bind this line (N277).
+- **Enter the lab**, then **See an example** with a small orange play mark. "Read blog posts" is gone:
+  the posts sit right under the welcome.
+- **See an example** opens over the whole page, with a ✕ at the top right that goes back. Its first line,
+  level with the ✕, is **An example**. Then the founder's own Take, shared with his consent, as the walk
+  draws it: his clip (`public/examples/founder-take-said.mp3`) and its words, "“All around actors, their
+  costumes, all that was really great.”"; the walk's "That was good. But what if you said it more like
+  this?" with **AI version of your voice** and its clip (`public/examples/founder-take-ai.mp3`); the tempo
+  step's "That part went fast. 🏃 Let's try a little game." and "Tell me more about the actors, and keep the
+  ball in the green."; and the Sniper (the pace scale), moving on a set pace, since the page has no
+  microphone. **Try it with your talk** does what Enter the lab does. Nothing is agreed, recorded or sent.
 - Nothing after the welcome changes.
 
 ## 2. In flight
@@ -340,7 +344,7 @@ Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 
 - `src/components/willab/Phase1AcceptanceFlow.tsx`
 - `src/components/willab/WelcomeConsent.tsx`
-- `src/components/willab/WelcomeExample.tsx` — "See an example" (N273).
+- `src/components/willab/WelcomeExample.tsx` — "See an example" (N273, N277), with its two clips in `public/examples/`.
 - `src/components/willab/PolicyUpdate.tsx`
 - `src/app/account/data-consent/page.tsx`
 - `src/components/account/`
@@ -368,12 +372,14 @@ Every prototype link in §1, in the order it first appears:
 - <https://claude.ai/artifact/GPRRXaivyrZE2UjrRZY93K>
 - <https://claude.ai/artifact/CzVL6JWK85tZDVpU9JRtgY>
 - <https://claude.ai/artifact/5tNVcdnq9PjkTyHHm9hzfT>
+- <https://claude.ai/artifact/MVyWmdoWUqisttfkW8qb8D>
 - <https://claude.ai/artifact/VqrCoZ3ddRkkiSayMfnTJp>
 
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-30 · N277 · the welcome: two paragraphs under the name; "Read blog posts" goes; "See an example" opens over the whole page with the founder's own clip and words, the AI version of his voice, the tempo lines and the Sniper on a set pace (`WelcomeConsent.tsx`, `WelcomeExample.tsx`, `public/examples/`). Was: N273's description and a written example with its Ideal Text and feedback · BE #1509, FE (this PR)
 - 2026-10-29 · N273 · the welcome says what you get: the page's description under the name, and "See an example" opening one example with "Try it with your talk" (`WelcomeConsent.tsx`, `WelcomeExample.tsx`). Was: "Public speaking excellence tool." and nothing to show · BE (N273 log), FE (this PR)
 - 2026-10-28 · N238 · the sign-up page gets no line of its own on what the WhatsApp number is for; the Terms and the Privacy Policy say it gets the messages too · BE #1449, FE (this PR)
 - 2026-10-28 · N235 · a number another account signs in with gets "That number already has an account." in this card's WhatsApp row · BE #1446, FE (this PR)
