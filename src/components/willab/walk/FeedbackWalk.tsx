@@ -29,7 +29,7 @@ import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
 import { aiClipLines, clearerOpening, praiseBubble, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
-import { WALK_MAX_TRIES, type WalkStep } from "@/lib/willab/walkPlan";
+import { WALK_MAX_TRIES, goodJobHelpers, type WalkStep } from "@/lib/willab/walkPlan";
 import {
   encourageLine,
   improvedLine,
@@ -565,15 +565,18 @@ export default function FeedbackWalk<R = unknown>({
       shownRef.current?.(s, moment, (bank) => sayLine(s, bank), chatAi(s, i), null);
     });
   });
-  // The bare correction leaves the live walk once its ask is answered
-  // (N108): it was reached, so the coach's queue heard it; its Exercise and
-  // practise go, and the walk stands on what follows them.
+  // The bare correction's Exercise and practise leave the live walk once its
+  // ask is answered (N108): it was reached, so the coach's queue heard it.
+  // It is walked as a good moment, never skipped (founder 2026-10-30, N284,
+  // "Treat as good"): its helper words stand in their place, unless the
+  // plan gives them already (a praise's, N122).
   const aiVoiceOf = practise.aiVoiceOf;
   useEffect(() => {
     if (seq === null || !step || step.replay || !bare(step, at)) return;
     const end = loopEnd(plan, at);
-    setReach((r) => (r > at ? Math.max(at, r - (end - at)) : r));
-    relay([...plan.slice(0, at), ...plan.slice(end)], at, "forward");
+    const helpers = goodJobHelpers(plan, step);
+    setReach((r) => (r > at ? Math.max(at, r - (end - at) + helpers.length) : r));
+    relay([...plan.slice(0, at), ...helpers, ...plan.slice(end)], at, "forward");
     // The ask's answer lands as a new `aiVoiceOf`; `bare` reads it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq, step, at, plan, relay, aiVoiceOf, walk.moments]);

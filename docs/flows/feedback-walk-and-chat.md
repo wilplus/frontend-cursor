@@ -298,9 +298,10 @@ step; the loop never waits for a coach.
   coach's share asks for the rows to be baked again (backend, N92,
   2026-10-21: "the video was sent too with the coach feedback and didn't
   pass through").
-- **C2 Praise.** The Take's two best moments are shown, however low,
-  never two in one paragraph and both on one slide when that is where they
-  are (H1; founder, 2026-10-23, N118: "minimum 2; best two"; a short Take
+- **C2 Praise.** The Take's three best moments are shown, however low,
+  never two in one paragraph and several on one slide when that is where
+  they are (H1; founder, 2026-10-30, N284: "we need more moments at least
+  2", "Best three"; two since 2026-10-23, N118: "minimum 2; best two"; a short Take
   too, and a sentence that already has its helper words gives its place to
   the next best, 2026-10-28, N246: "go for the next confident moment"; on a
   plan, this week's level as well, the-plan.md G7), praise first
@@ -383,9 +384,12 @@ step; the loop never waits for a coach.
   block; until 2026-10-20 it did not, so the walk never drew it, "the
   rewrite doesn't appear at all"). A corrected moment with neither a
   clearer version nor an exercise is said again with the AI clip; when no
-  AI clip comes either, the walk moves past it, never Line A on its own,
-  and the moment still reaches the coach (founder 2026-10-21, N108: "Skip
-  that moment"; it was "said again, never dropped", N88). Played again with
+  AI clip comes either, it is walked as a good moment, never skipped: its
+  helper words (C3), never Line A on its own, and the moment still reaches
+  the coach (founder 2026-10-30, N284: "if smth is already good it's ok to
+  just lock the helper words", "Treat as good"; until then the walk moved
+  past it, N108: "Skip that moment"; before that it was "said again, never
+  dropped", N88). Played again with
   no try, it shows the clip alone. The Take's most confident moment is not
   skipped: it opens with its own line and is said again (N109, C2).
 - **C5 The Clearer version.** The speaker's words with the changed words
@@ -718,13 +722,13 @@ step; the loop never waits for a coach.
   willfidence(sentence) = S × W                 0 … 1
     S = voice_confidence (7 cues vs the speaker's own baseline)
     W = mean of: few fillers/hedges · fits the slide · holds together
-  shown     = the two highest willfidence (S × W) of the Take, however
-              low, at most one per ~75-word block, two on one slide
+  shown     = the three highest willfidence (S × W) of the Take, however
+              low, at most one per ~75-word block, several on one slide
               allowed; clips with enough words rank before short ones;
               a sentence that already has its slide's helper words (as
               when the Take was recorded) comes last (N246);
-              fewer than two only with fewer than two playable clips
-              (N118, 2026-10-23)
+              fewer than three only with fewer playable clips, never
+              fewer than two with two (N284, 2026-10-30; two since N118)
   clip      = in each shown block, its highest willfidence clip that can
               be served, a frozen choice kept (N122)
   blocks    = when the two best share a block, the boundary between them
@@ -1487,6 +1491,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-30 · N284 · built: the Take shows its three best moments, was two; a corrected moment with no exercise and no AI clip is walked as a good one, its helper words, and never skipped. Was: two moments, and such a moment left the walk (N108), so a Take could show one (founder 2026-10-30: "there is just one confident moment and the rule is that there should be at least two") (C2, C4, H1) · BE #1521 (the decision), BE #1523, FE (this PR)
 - 2026-10-30 · N283 · fixed (K): the Take's highest moment's bubble says "This was your most confident moment." once; the praise lead "It was your confident moment." under it is dropped there, and any sentence that repeats an earlier one in the same bubble goes, in the walk and the chat. Was: both lines in one bubble · BE (N283 log), FE (this PR)
 - 2026-10-29 · N273 · built (A4): a guest's "Done" wall carries the clip of the Take's most confident moment (the orange bubble) and "This was your most confident moment." (the grey bubble), between the line and the buttons, from the Ideal Text page and from the Lounge; read through the same owner-or-guest reads as the page, nothing new on the backend. The account stays before the walk, replacing N30's and N32 item 5's "a guest reads the whole Feedback". Was: "Done", the line and the two buttons only · BE (N273 log), FE (this PR)
 - 2026-10-29 · N273 · built (B3): the empty Lounge opens with Will's hello (N270's line) as a bubble, "Start your first recording" under it and "About 2 minutes to record. Your feedback comes about a minute later." under that. Was: the button alone, and Will's hello only after the visitor typed · BE (N273 log), FE (this PR)
