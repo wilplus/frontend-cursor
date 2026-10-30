@@ -5,14 +5,16 @@ OUTCOME
   O2  The steps come in order: each praise, its practise, then its helper words; each correction (clearer version, practise); others; the summary; never a judging step; two praises or two corrections are ordinary Takes (founder 2026-10-20; N122).
   O3  Every moment has a practice step, even with nothing attached.
   O4  A praised moment the server does not mark for practice, or with practice off, goes straight to its helper words (N122).
+  O5  Each moment after the first opens with "let's look at your next key moment", and the first step after the last moment with "These were some real good moments of yours"; never in the coach's own walk (N285).
 PROVES   O1 -> carries no number, read or score
          O2 -> praises each strong moment, practises each corrected one, and never asks the speaker to judge
          O3 -> a moment with nothing attached is the moment said again
          O4 -> a praised moment not marked for practice, or with practice off, goes straight to its helper words
-WHY      Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, "do we practice the confident moments? I think yes we should!").
+         O5 -> the next moment and the end of the moments each get their line, once
+WHY      Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N285, "let's look at your next key moment we spotted").
 */
 import { describe, expect, it } from "vitest";
-import { buildWalkPlan, walkMoments, type WalkMoment } from "./walkPlan";
+import { buildWalkPlan, momentLead, walkMoments, type WalkMoment } from "./walkPlan";
 
 /** The harness's four moments (walkFixtures MOMENTS): praise, clearer,
  *  praise, exercise, all on one slide. */
@@ -77,5 +79,27 @@ describe("a praised moment not marked for practice (founder 2026-10-23, N122)", 
     const strong = { start: 0, slide: 0, blockId: "a", tiered: true, green: true };
     expect(keys([strong])).toEqual(["page", "praise", "helpers", "others", "summary", "end"]);
     expect(keys([{ ...strong, confidentPractice: true }], false)).toEqual(["page", "praise", "helpers", "others", "summary", "end"]);
+  });
+});
+
+describe("the lines between moments (founder 2026-10-30, N285)", () => {
+  it("the next moment and the end of the moments each get their line, once", () => {
+    const plan = buildWalkPlan({
+      moments: walkMoments([
+        { start: 0, slide: 0, blockId: "a", tiered: true, green: true, confidentPractice: true },
+        { start: 10, slide: 1, blockId: "b", tiered: true, practicePrompt: true },
+      ]),
+      interventions: ["tempo"],
+      coachNote: true,
+      practiceOn: true,
+      guest: false,
+    });
+    const leads = plan.map((s, i) => [s.key, momentLead(plan, i)]).filter(([, lead]) => lead);
+    // The second moment opens on its Exercise; the tempo step follows the last.
+    expect(leads).toEqual([["exVideo", "next"], ["tempo", "done"]]);
+    expect(plan.map((_, i) => momentLead(plan, i)).filter(Boolean)).toHaveLength(2);
+    // The coach's own walk has neither.
+    const coach = buildWalkPlan({ moments: [{ index: 0, slide: 0, coach: true }, { index: 1, slide: 0, coach: true }], coachNote: true, coachOnly: true, practiceOn: true, guest: false });
+    expect(coach.map((_, i) => momentLead(coach, i)).filter(Boolean)).toEqual([]);
   });
 });
