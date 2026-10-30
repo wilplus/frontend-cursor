@@ -89,9 +89,11 @@ for the screens below.
      what i want").
 4. **Close:** **Discard this take?** / "This recording has not been saved."
    / **Keep recording** / **Discard take**, as today.
-5. **Finish take:** the processing wait (voice mark, stage label and its
-   percent, **While you wait** tips). The bar shows 1% from the first
-   second. The wait stays on screen when the Lounge takes the Take over, and
+5. **Finish take:** the processing wait, one narrow centred column (the
+   breathing mark, the stage label and its percent, a rounded bar, and under
+   it **Usually about a minute.**; nothing to read or scroll, N271, N273;
+   prototype <https://claude.ai/artifact/S66ZsrqTQZ4se74caoCj2J>).
+   The bar shows 1% from the first second. The wait stays on screen when the Lounge takes the Take over, and
    lifts only when the walk's first step is on screen; then the walk, and
    the Ideal Text page after it (founder 2026-10-21, N110; the walk's page,
    [A1 and A2](feedback-walk-and-chat.md)).
@@ -180,6 +182,44 @@ green); the app shows the speaker's own slides, unchanged.
   cannot lock itself on a long slide and cut the mic off; it asks again when
   the page is back in view and lets go when the Take ends. Nothing on screen
   changes. Lives in `src/hooks/useDualCaptureMic.ts`.
+- **2026-10-29 · new slides inside the project (N257).** A project's deck
+  can be added or changed inside the project (the Ideal Text page's ⋯, or
+  the chat). The line under **Getting your mic ready** says **New slides**
+  on the first Take after the change (the setup read's `deck_changed`),
+  and from the next Take **Same presentation as Take {n}**, {n} the Take
+  the deck was first used on (`deck_since_take`; Take 1 when not sent).
+  The stand-in line is unchanged. The Take records with the setup read's
+  newest deck. Signed in the Claude Code chat, 29 October 2026, on the
+  prototype <https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A>.
+- **2026-10-29 · one project at a time (N254).** The "+" opens the
+  projects. **Start a new project**, or a project that is not the current
+  one (the one with the newest Take), first asks **One project at a time**
+  · **"{current}" will be archived. Its Takes and Ideal Text stay safe, and
+  you can bring it back from Settings.** · **Cancel** | **Continue**
+  ("Settings" in place of "Data & consent", N260).
+  Continue archives the current project, then goes on as before; Cancel
+  stays on the list. Picking the current project, a draft, or an account
+  with no Take yet asks nothing. A failed archive says "Couldn't archive.
+  Try again." and nothing goes on. Lives in `ProjectPicker.tsx` and
+  `OneProjectQuestion.tsx`.
+- **2026-10-29 · the same question in the chat (N260).** Will's **Create
+  new project** button asks it too, when there is a current project: the
+  grey card with the title and the sentence takes the message box's place,
+  as the WhatsApp ask and the slides upload do, then **Cancel** |
+  **Continue**. Continue archives the current project and opens the new
+  project's setup as before; Cancel brings the message box back and leaves
+  the button under Will's reply. With no current project it starts at
+  once. Signed on the prototype
+  <https://claude.ai/artifact/Ta5hMGw8EbA6ewUssUugMK>. Lives in
+  `OneProjectQuestion.tsx` and `Lounge.tsx`.
+- **2026-10-29 · why the microphone (N273 item 4).** On Take 1, while the
+  browser asks for the microphone, one line in the same small grey sits
+  directly under **Getting your mic ready**: **WillpowerLab uses the
+  microphone to record your Takes.** (N269's sentence). No new screen and no
+  tap; the Take still starts by itself once the mic is allowed. Later Takes
+  keep their presentation line. Signed in the Claude Code chat, 29 October
+  2026, on the prototype <https://claude.ai/artifact/6AVcGS1ksx86KzvUPyKEes>.
+  Lives in `recordingCopy.ts` and `LabOverlay.tsx`.
 
 
 ## 2. In flight
@@ -187,7 +227,7 @@ green); the app shows the speaker's own slides, unchanged.
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
 doing it fills its line in its PR and deletes the line when the work is merged (the change goes to §6).
 
-- **The plan's two touches on the set-up** · the topic arrives filled in from the plan's voice message (backend N141); "How do you feel?" shows before every practice between a plan's first and last, and the stress and readiness ratings take its place on those two (backend N151, N157) · the set-up's first question and the feelings check · built, on for ring 5 since 27 October 2026 (N203, N204, backend #1394): "Start your first recording" opens the set-up with the topic filled in and no feelings check; with an active plan, every later Take opens "How do you feel?" first, with a Skip (a new project's first Take shows it with a Skip too, N211), only after the plan's own yes (N217), then the project's stored setup · rules: [`the-plan.md`](the-plan.md) §1 B7, D
+- **The plan's two touches on the set-up** · the topic arrives filled in from the plan's voice message (backend N141); "How do you feel?" shows before every practice between a plan's first and last, and the stress and readiness ratings take its place on those two (backend N151, N157) · the set-up's first question and the feelings check · built, on for ring 5 since 27 October 2026 (N203, N204, backend #1394): "Start your first recording" opens the set-up with the topic filled in and no feelings check; with an active plan, every later Take opens "How do you feel?" first, with a Skip (a new project's first Take shows it with a Skip too, N211), only after the plan's own yes (N217) and only for a signed-in speaker (N272), then the project's stored setup · rules: [`the-plan.md`](the-plan.md) §1 B7, D
 
 ## 3. Still open
 
@@ -206,7 +246,7 @@ Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 - `src/lib/willab/recordingGesture.ts`
 - `src/components/willab/DiscardTakeDialog.tsx` — "Discard this take?" (step 4) (guarded since N111).
 - `src/components/willab/RecordingAnalysisPresentation.tsx` — the wait while a Take is processed (step 5) (guarded since N111).
-- `src/components/willab/ProcessingWait.tsx` — "While you wait" (step 5) (guarded since N111).
+- `src/components/willab/ProcessingWait.tsx` — the wait's stage and percent (step 5) (guarded since N111).
 - `src/components/willab/SlideStage.tsx` — the slide on the recording screen (guarded since N111).
 - `src/components/willab/labFade.tsx` — the fade between the screens (guarded since N111).
 
@@ -220,11 +260,20 @@ Every prototype link in §1, in the order it first appears:
 - <https://claude.ai/artifact/9CFAAP2Ue7pvRdLvdesn9h>
 - <https://claude.ai/artifact/LU1XgQyqY2nPSvDAmsRJFo>
 - <https://claude.ai/artifact/JUwW4FfFzyUhgCpPrMAKjG>
+- <https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A>
+- <https://claude.ai/artifact/Ta5hMGw8EbA6ewUssUugMK>
+- <https://claude.ai/artifact/S66ZsrqTQZ4se74caoCj2J>
+- <https://claude.ai/artifact/6AVcGS1ksx86KzvUPyKEes>
 
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N271, N273 · the calm wait: "While you wait" and its slider of advice go; one narrow column with the breathing mark a little larger, the stage and its percent, a rounded bar and "Usually about a minute." under it (`RecordingAnalysisPresentation.tsx`; the tips' modules are deleted). Prototype <https://claude.ai/artifact/S66ZsrqTQZ4se74caoCj2J>. Was: the stage line, a 3px bar and "While you wait" with a scrollable deck of advice · FE (this PR), BE (N271, N273 log)
+- 2026-10-29 · N273 · on Take 1, "WillpowerLab uses the microphone to record your Takes." under "Getting your mic ready" while the browser asks (`recordingCopy.ts`, `LabOverlay.tsx`). Was: the browser's prompt with nothing saying why · FE (this PR), BE (N273 log)
+- 2026-10-29 · N272 · "How do you feel?" takes the set-up's look: its dots and ✕ (the check is the first of four when the set-up follows, then the topic is the second; the ✕ alone when the setup is restored), its heading with the mic, "Before you step on stage" under it, the four feelings two by two and Skip under Calm in the same pill, faded. The pick shows, then the set-up opens half a second later, with nothing said back. No "Your coach sees your answer." A guest is never asked (`FeelingsCheckIn.tsx`, `LabOverlay.tsx`, `RecordingSetup.tsx`, `wizard.tsx`). Prototype <https://claude.ai/artifact/CiCCZEE4rp7TfeVjfdnj1A>. No new words. Was: the overlay's ✕ above a 20px heading, four pills in a row, a reply line for a second, Skip as a text link, the coach line, and guests asked · BE #1501, FE (this PR)
+- 2026-10-29 · N260 · Will's "Create new project" in the chat asks "One project at a time" first, in place of the message box, and the question's sentence ends "you can bring it back from Settings." Was: the chat's button started a new project with the current one left open, and the sentence said "Data & consent" · FE (this PR), BE (N260 log)
+- 2026-10-29 · N254, N257 · built: the "+"'s "Start a new project", or another project than the one with the newest Take, asks "One project at a time" first and Continue archives the current one (`ProjectPicker.tsx`); the line under "Getting your mic ready" says "New slides" on the first Take after a deck change, then "Same presentation as Take {n}" (`presentationInPlay.ts`, `LabOverlay.tsx`). Was: any number of projects side by side, and always "Same presentation as Take 1" · FE (this PR), BE (with it)
 - 2026-10-27 · N217 · "How do you feel?" says "Your coach sees your answer." under "Before you step on stage" (signed with Privacy 3.9, question 1 A: answering is the yes for that one answer); on a plan it is asked only after the plan's own yes, and without it the check is passed by at once and keeps nothing, as a Skip (`FeelingsCheckIn.tsx`, `plan.ts`). The plan's yes is switched off (`PLAN_CONSENT_ENABLED`) until Privacy 3.9 is published, so today every plan reads as yes. Was: asked of every speaker with no word on who sees it · FE (this PR), BE (with it)
 - 2026-10-27 · N211 · "How do you feel?" has a Skip wherever it shows, a new project's first Take included (`FeelingsCheckIn.tsx`); skipping keeps no feeling. Was: a Skip only between a plan's first and last practice · BE #1408
 - 2026-10-26 · N151, N178, N203 · with an active plan, "How do you feel?" comes before every Take but the plan's first, with a Skip (`FeelingsCheckIn.tsx`, `useWillabFlow.ts`); the plan's first Take opens the set-up with the topic filled in. Was: once per new project, before Take 1, no Skip · BE #1386, FE #1018

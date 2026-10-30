@@ -7,7 +7,8 @@ import type { RecordingProgress } from "@/services/api/recordingProgress";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import LoadingState from "./LoadingState";
 import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
-import { isLabOverlay, useWillabFlow } from "./useWillabFlow";
+import { isLabOverlay, useWillabFlow, type WillabState } from "./useWillabFlow";
+import { countFirstVisit, type FirstVisitStep } from "@/lib/funnel/firstVisit";
 import { useSignedIn } from "./useSignedIn";
 import { usePendingSendHold } from "./usePendingSendHold";
 import { useUserId } from "./useUserId";
@@ -170,6 +171,7 @@ export default function WillabSurface({
     void reconcileWillabStatus(settleHomeStatus);
   }, [settleHomeStatus]);
   usePublishLiveSubscription(userId, onPublish);
+  useFirstVisitSteps(flow.state, signedIn);
 
   // A2 — `flush` drops the TOP padding so the chat sits flush under the navbar
   // (no gap). Scoped to the home/Lounge call only; welcome keeps py-6.
@@ -229,7 +231,12 @@ export default function WillabSurface({
   // First-run, full-screen (no Lounge underneath yet).
   if (flow.state === "welcome_consent") {
     return consentedShell(
-      <WelcomeConsent onAccept={flow.acceptConsent} />,
+      <WelcomeConsent
+        onAccept={() => {
+          if (signedIn === false) countFirstVisit("enter");
+          flow.acceptConsent();
+        }}
+      />,
       false,
       true,
     );
@@ -379,11 +386,28 @@ export default function WillabSurface({
   );
 }
 
+/** The steps of a first visit the flow itself shows (backend N271): the
+ *  recording screen opening, the Take going to processing, and its result.
+ *  Counted only for a visitor without an account; firstVisit.ts counts each
+ *  once per tab. */
+const FIRST_VISIT_STEP: Partial<Record<WillabState, FirstVisitStep>> = {
+  lab_recording: "recording",
+  lab_processing: "recorded",
+  readout: "ready",
+};
+
+function useFirstVisitSteps(state: WillabState | null, signedIn: boolean | null) {
+  useEffect(() => {
+    const step = state ? FIRST_VISIT_STEP[state] : undefined;
+    if (step && signedIn === false) countFirstVisit(step);
+  }, [state, signedIn]);
+}
+
 /** The shell's padding. The welcome (`bare`) has none: it scrolls itself
  *  from its true top and owns its 24px sides (consent lock 2026-10-07). The
  *  Lounge (`flush`) sits flush under the navbar; every other shell keeps
  *  pt-6. */
 function shellPadding(flush: boolean, bare: boolean): string {
   if (bare) return "";
-  return `px-4 pb-6 ${flush ? "pt-0" : "pt-6"}`;
+  return `px-4 pb-2 ${flush ? "pt-0" : "pt-6"}`;
 }

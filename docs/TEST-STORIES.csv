@@ -109,6 +109,9 @@ src/app/api/v2/lab/presentation/extract/route.test.ts,Story,"As a guest speaker,
 owner token (X-Willab-Guest-Owner) passed on.","O1 -> ""forwards a guest's owner token""",
 src/app/api/v2/learning-exposures/ack/route.test.ts,Story,"As the founder, I want every ""the speaker saw this"" receipt the app sends to reach the backend unchanged, so that the records of what each speaker was shown are complete.","O1  The receipt is POSTed to the backend's receipt route exactly as sent,
 and the speaker must be signed in.","O1 -> ""forwards the acknowledgement verbatim to the backend ack route""",Audit 2026-09-22 (G-1): before this route every receipt was lost.
+src/app/api/v2/plan/answers/[answerId]/audio/route.test.ts,Story,"As a speaker on Safari, I want my own voice answers to play when I tap them, so that I can hear what I told Will.","O1  The player's byte-range request reaches the backend, and the part it
+answers comes back as a part: 206 with its Content-Range, which
+Safari needs before it plays anything.","O1 -> ""relays a byte range as a byte range""",The founder's voice bubbles didn't play in Safari on a Mac (backend N262 item 4); docs/flows/the-plan.md §6.
 src/app/api/v2/processing-authorization/[[...path]]/route.test.ts,Story,"As a speaker, I want to be able to cancel my own account deletion, and nobody to reach the erase-my-data route through the app, so that deletion is safe both ways.","O1  Cancelling one's own deletion (POST with a valid deletion id) reaches
 the backend and is never cached.
 O2  The cancel is refused (404, nothing sent) as a GET, with a bad id, or
@@ -330,17 +333,17 @@ O5 -> ""never carries one clip's answer onto the next clip (L3)""",Never 1 (feed
 src/components/willab/FeedbackFailedNotice.test.tsx,Story,"As a speaker whose feedback could not be made, I want the app to try again once by itself and then tell me, with Try again, so that I am never left waiting for nothing.","O1  The app retries once by itself, then shows the signed-off sentence
 and a Try again button that retries; it never retries on its own
 again.","O1 -> ""says so, with Try again, when the retry failed too""",Contract 24h: the server sends no stand-in feedback.
-src/components/willab/FeelingsCheckIn.test.tsx,Story,"As a speaker, I want to be able to skip ""How do you feel?"", so that nobody is made to tell the app how they feel before they record.","O1  The check offers a Skip every time it shows, whether or not I have a
-plan.
+src/components/willab/FeelingsCheckIn.test.tsx,Story,"As a speaker, I want to name how I feel before I record, or skip it, and as a guest not to be asked at all.","O1  Signed in, the check offers a Skip every time it shows.
 O2  Skipping goes on to the recording set-up and keeps no feeling.
-O3  Naming a feeling still keeps it and goes on.
-O4  Before the tap, the screen says the coach sees the answer.
+O3  Naming a feeling keeps it and goes on, with nothing said back.
+O4  A guest is never asked: the check is passed by at once and keeps
+nothing.
 O5  On a plan without its own yes, the check is passed by at once and
-keeps nothing; with the yes, it is asked.","O1 -> ""offers a Skip with no plan""
+keeps nothing; with the yes, it is asked.","O1 -> ""offers a Skip when signed in""
 O2 -> ""Skip goes on and keeps no feeling""
 O3 -> ""naming a feeling keeps it and goes on""
-O4 -> ""says the coach sees the answer before the tap""
-O5 -> ""on a plan, only after its own yes""","Founder 2026-10-27, backend N211 (the plan's consent, question 3 A): a feeling is the speaker's own, and a check with no way past it is not asked freely. Privacy 3.9 §4e, signed with question 1 A (N217): answering is the yes for that one answer, so the screen says first who sees it; on a plan, the plan's own yes comes first."
+O4 -> ""a guest is never asked""
+O5 -> ""on a plan, only after its own yes""","Founder 2026-10-27, backend N211: a feeling is the speaker's own, and a check with no way past it is not asked freely. Founder 2026-10-29, backend N272: the set-up's look, no reply, no coach line, and no check for a guest; on a plan, the plan's own yes comes first (N217)."
 src/components/willab/Linkified.test.tsx,Story,"As a speaker reading Will's message, I want links in a message to be clickable, so that I can open the booking page.","O1  A web address on its own, or inside a sentence, becomes a link;
 plain text stays plain.","O1 -> ""makes a bubble that is only a URL a link"",
 ""makes a URL inside a sentence a link and leaves plain text alone""",Founder 2026-10-18: the booking link was not clickable.
@@ -727,6 +730,14 @@ after the first read and two retries.
 O3  Take 1 has no helper words, does not read them, and starts at once.","O1 -> ""a good read shows the words on the first frame""
 O2 -> ""still starts within 1.5 s when the read fails every time""
 O3 -> ""Take 1 starts at once, without a read""","Build plan D-RC-4: the words used to land a moment after the first slide. The host is LabOverlay's wiring in miniature (real hook, real auto-start, real recording phase)."
+src/components/willab/loungeGuestHello.test.ts,Story,"As a visitor who has not signed in or recorded yet, I want Will to answer my first message with a hello and a way to record, so that the chat does not look broken and I know what to do next.","O1  A refused chat turn (no processing agreement yet) for a signed-out
+visitor with no project gets Will's hello and ""Start your first
+recording"" under it, never the lab error.
+O2  A signed-in speaker, or a real failure, still gets the lab error.
+O3  A guest who accepted chats with Will: the chat carries their guest
+identity, which holds the acceptance until they sign up.","O1 -> ""greets a signed-out visitor and points to the first recording""
+O2 -> ""keeps the lab error for everyone else""
+O3 -> ""sends the guest's identity with every chat turn""","Founder 2026-10-29: ""answer something intelligible, but then push the user to actually record the first recording""."
 src/components/willab/loungeLifeGoals.test.tsx,Story,"As the founder, I want to set one life goal in the lens by answering one question at a time, so that the goal comes from my words and lands as a ladder in my chat.","O1  Start opens the lens with the paper-notebook line; the space, three open questions, Will's draft with my words, goal or want, ambitious, give up, the horizon and the quarter come one at a time, and the goal is set with its ladder and the line that sends me out to live it.
 O2  With every open question skipped, Will drafts nothing and says so.
 O3  A new goal that pulls against a kept one is asked ""When they clash, which wins?"" before it is set, and the answer is noted for both ladders (N185).
@@ -757,10 +768,34 @@ this device's clock is behind the server's.
 O3  The newest ask on screen is known, so it is not asked a second time.","O1 -> ""tells Will the screen in its order, cards in words""
 O2 -> ""stamps a new bubble under the newest one on screen""
 O3 -> ""knows the ask that shows last""","Founder 2026-10-20: ""the conversational chat should be aware of the order of bubbles it displays"" (a number typed under the WhatsApp ask got a generic reply and the ask again; a card jumped under ""Skip"")."
+src/components/willab/loungeStrengths.test.tsx,Story,"As a speaker, I want Will to show me a strength my notes keep showing, and keep it only in words I accept, so that I go on stage remembering what I am good at.","O1  Look opens the lens: the notes it came from with their days, ""Will suggests a strength:"", then Accept, Edit or Not now; Accept or my own words keep it (""Noted. Added to your strengths."") (backend N241 N2).
+O2  Not now on the ask keeps nothing and opens nothing (N2).
+O3  ""That's your 💪 … again."" takes me to that strength on the Life Panel (N3).","O1 -> Look shows the notes, and I keep the strength in my words
+O2 -> Not now keeps nothing
+O3 -> the strength again links to the Life Panel",
+src/components/willab/loungeYourWhy.test.tsx,Story,"As a speaker, I want to write my why, my vision and how I want to treat people once in my own words, and see one of them each day, so that I remember why I do this.","O1  Start opens the lens; three questions come one at a time, each with Skip; Will drafts each line only from my words and quotes them; Accept or my own words keep it, and ""Noted. Your why is set."" (backend N255 Q1, Q2).
+O2  The day's why's › opens that line as it is now; my change is kept, dated (Q6).","O1 -> sets my why from my answers, one question at a time
+O2 -> the day's why opens its line to change it",
 src/components/willab/noStarsOnUserSurfaces.test.ts,Guard,No component in src/components or src/app draws a star icon.,"Never 1 (no verdicts shown to speakers): a `<Star` element or a lucide
 `Star` import in any .tsx, user lane or coach lane. A source scan on
 purpose: the star rating once lived in six separate renderers, and a
 render test only covers the surface it mounts.","star drawn -> ""NO component draws a star icon""",If removed: A star rating (a verdict) can quietly come back on any screen.
+src/components/willab/oneProject.test.tsx,Story,"As a speaker, I want to work on one project at a time and be asked before I leave the current one, so that starting or going back to a project never mixes two presentations, and nothing is lost.","O1  ""Start a new project"" asks ""One project at a time"", naming the project
+with my newest Take; Continue archives that one, then starts the new
+project; Cancel leaves me on the list with nothing archived.
+O2  Picking another project asks the same; Continue archives the current
+one and opens the one I picked. Picking the current one asks nothing,
+and with no Take yet nothing is asked.
+O3  ""Record Take N"" on an archived project asks first; Continue brings it
+back, archives the current one, then records. On the current project
+it records at once, asking nothing (Never 3).
+O4  Will's ""Create new project"" in the chat asks the same, in place of the
+message box; Continue archives the current one, then starts the new
+project; Cancel brings the message box back; with no Take yet it
+starts at once (N260).","O1 -> ""Start a new project asks, and Continue archives the current one first""
+O2 -> ""another project asks; the current one and a first project do not""
+O3 -> ""Record Take N on an archived project asks; on the current one it never does""
+O4 -> ""Will's Create new project asks in place of the message box""","Founder 2026-10-29, backend N254 (items 1, 2, 4, 5) and N260."
 src/components/willab/paragraphPractise.test.tsx,Story,"As a speaker, I want Practise on a paragraph to open the same practise screens as the Feedback walk, recording at once on the right clip, so that practice feels the same everywhere.","O1  A clearer version's card opens the walk's practise screen with its
 words, the mic starts, and the practice opens on the moment's
 snippet; ✕ stops the mic and ends nothing else.
@@ -830,13 +865,17 @@ more, its footer is ""Not now"" and ""Yes, ask me"" and nothing else
 is taken while he waits (N211).
 O7  Before my first Take nothing of the principles is in my way: no
 notebook mic, no ask; once my first Take lands, both are there,
-without opening the app again (N243).","O1 -> ""each step has its own footer""
+without opening the app again (N243).
+O8  The questions never stand between me and my first Take: under
+""Record your answer"", ""Start your first recording"" opens it, and
+is gone once I have a Take (N262).","O1 -> ""each step has its own footer""
 O2 -> ""a rating is sent once and never written back""
 O3 -> ""the plan's rows are drawn as the prototype draws them""
 O4 -> ""the newest bubble holds the one record button""
 O5 -> ""a new project's question, and the feelings before a Take""
 O6 -> ""Will asks for the plan's own yes""
-O7 -> ""nothing of the principles before my first Take""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; docs/flows/the-plan.md §1."
+O7 -> ""nothing of the principles before my first Take""
+O8 -> ""my first Take is never behind the questions""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; record first, backend N262; docs/flows/the-plan.md §1."
 src/components/willab/plan/planNewEvent.test.tsx,Story,"As a speaker with a plan, I want ""I have a new event"" out of my way while my Take is still processing, so that I never tap something that leaves me with nothing to do.","O1  While the Take is processing, Change your plan has no ""I have a new
 event"", and the plan's end shows only ""Keep practising"".
 O2  Once the Take has landed, both show ""I have a new event"" again.","O1, O2 -> ""a new event waits for the Take being processed""","The founder, 2026-10-28 (backend N242); docs/flows/the-plan.md §1 H1 and I2."
@@ -858,17 +897,24 @@ a PDF over the size limit is refused with a message naming 20 MB.","O1 -> ""reje
 src/components/willab/presentationInPlay.test.ts,Story,"As a speaker starting a later Take, I want to be told whether I am speaking to my own slides or the stand-in deck, so that I know what this Take goes with.","O1  It names my own file, the stand-in deck, or nothing while the setup
 is not known yet.
 O2  It is shown only before Take 2 and later, from that Take's own setup
-first, then the project's.","O1 -> ""names the speaker's own file, the stand-in deck, or nothing until the setup is known""
-O2 -> ""is shown before a later Take only, from the Take's own setup first""",Founder 2026-10-16.
+first, then the project's.
+O3  On the first Take after I changed the slides it says ""New slides"";
+after that it names the Take the slides were first used on.","O1 -> ""names the speaker's own file, the stand-in deck, or nothing until the setup is known""
+O2 -> ""is shown before a later Take only, from the Take's own setup first""
+O3 -> ""says New slides on the first Take with them, then the Take they started on""",Founder 2026-10-16; backend N257 (2026-10-29).
 src/components/willab/readout.sayItStronger.test.ts,Story,"As a speaker, I want ""why"" and reason lines that the server removed to be left out, not shown blank, so that I never see empty or forbidden text.","O1  An empty ""why"" or reason becomes nothing to show.","O1 -> ""nulls why + reason when the BE output-guard stripped them (AC-9)""",Never 1; AC-9 (the backend guard strips score-like lines).
 src/components/willab/readout.test.ts,Story,"As a speaker, I want my transcript split by slide in slide order, silent slides included, so that each paragraph lines up with its slide.","O1  Slides and their transcripts come out in slide order; a slide with
 nothing said is kept, with its place in the recording.","O1 -> ""maps deck slides + complete per-slide transcripts (sorted, '' valid)""",
 src/components/willab/readoutFeedbackPending.test.tsx,Story,"As a speaker, I want a paragraph I tap right after a Take to wait for its feedback, not open empty, so that I never see a sheet missing its moment.","O1  The paragraphs are told feedback is still coming while it loads, and
 that it is done once it has landed.","O1 -> ""holds taps while the enrichment read is out, and stops once the server is done""",Audit 2026-10-05 (DL-overlays); founder 2026-09-28.
+src/components/willab/readySignUpMoment.test.tsx,Story,"As a guest whose first Take is processed, I want to hear one real piece of my result on the account wall, so that I know what an account keeps for me.","O1  The wall plays the clip of the Take's most confident moment, the one
+the walk praises first, with ""This was your most confident moment.""
+O2  With no such moment (or no clip), the wall is exactly as before.","O1 -> ""shows the most confident moment's clip and the walk's line""
+O2 -> ""is unchanged when the Take has no praised most confident moment""","Founder 2026-10-29, backend N273 item 5."
 src/components/willab/recordingCopy.test.ts,Story,"As the founder, I want the recording screens' words fixed to the signed set with no digits or score words, so that nothing unapproved or numeric reaches the speaker.","O1  Never 4 (no new words without the founder's OK): RECORDING_COPY holds
 exactly the signed keys, typed exactly as signed.
 O2  Never 1 (no scores or numbers): no signed line carries a digit, a % or
-a score word.","O1, O2 -> ""is exactly the signed words, with no digit or score word""","Recording lock 2026-10-07 (N59, N70). recordingWhere's ""Take N · Slide n of m"" is pinned in recordingStillFrame.test, not here."
+a score word.","O1, O2 -> ""is exactly the signed words, with no digit or score word""","Recording lock 2026-10-07 (N59, N70); the microphone line, N273. recordingWhere's ""Take N · Slide n of m"" is pinned in recordingStillFrame.test, not here."
 src/components/willab/recordingNoPullRefresh.test.tsx,Story,"As a speaker, I want pulling down on the recording screens never to reload the page, so that I never lose a Take.","O1  A pull down on the slide while recording is cancelled.
 O2  From ""getting your mic ready"" through the recording, the page is set
 not to pull-refresh.
@@ -905,9 +951,11 @@ O3 -> ""a sheet closing or a save reads anew""",F4 (founder 2026-10-08): one rec
 src/components/willab/slideEditor.test.tsx,Story,"As a speaker, I want editing a slide to save only the paragraphs I changed, so that the others keep their locks and history.","O1  Save sends only the changed paragraph, with its new words.","O1 -> ""writes only the paragraphs whose words changed""",Never 5 (every old version stays in the history).
 src/components/willab/sundayLens.test.tsx,Story,"As the founder, I want to investigate the pattern Will spotted in my # notes one step at a time, so that I name the bug, the principle I had and my own reflection, and keep a new principle only if I say so.","O1  Investigate opens the lens on the case; the bug, the principle held, my reflection and Will's new principle come one at a time, each answer goes to the backend as that step, and the lens ends with Close.
 O2  Opened again, the lens replays the rows so far and asks only the step it waits on.
-O3  In the Lounge, the ""We spotted a pattern!"" bubble waits (orange outline) until Will's last line is in the thread, and Not now | Investigate is about the newest case.","O1 -> walks me through the case one step at a time
+O3  In the Lounge, the ""We spotted a pattern!"" bubble waits (orange outline) until Will's last line is in the thread, and Not now | Investigate is about the newest case.
+O4  A sales week offers the sale's four steps and ""Add a new step"" in place of the bugs, and a tapped step goes to the backend as the answer (backend N241 P3).","O1 -> walks me through the case one step at a time
 O2 -> reopens where it stands
-O3 -> knows which case waits",
+O3 -> knows which case waits
+O4 -> offers the sale's steps for a sales week",
 src/components/willab/topUpCardGate.test.ts,Story,"As a speaker, I want no top-up offer while the Lab is on screen, so that payment never gets in the way of a Take.","O1  Never 3 (the loop is never blocked): the top-up card may not mount in
 any Lab or readout state, nor in project pick, nor while the thread loads.
 O2  In the Lounge, once the thread has loaded, it may mount.","O1 -> ""never mounts while the Lab owns the screen""
@@ -919,6 +967,17 @@ O2  A version the thread holds twice keeps only the later copy.
 O3  Different versions with no review card all stay.","O1 -> ""hides the bubble of a Take that already has its review card""
 O2 -> ""hides the earlier copy of a version the thread holds twice""
 O3 -> ""keeps each version's own bubble""","Founder 2026-10-14 (walk first) and 2026-10-18 (""I can see two bubbles"")."
+src/components/willab/updateSlides.test.tsx,Story,"As a speaker, I want to add or change my project's slides from the Ideal Text page or the chat, and stay in the same project, so that my next Take uses the new deck without starting over.","O1  The Ideal Text ⋯ menu says ""Add slides"" when my project has no deck and
+""Update slides"" when it has one.
+O2  Choosing a PDF there reads it, saves it as this project's deck
+(slides and the served PDF), says ""New slides ready for Take 5."" and
+leaves this device's copy of the deck on the new slides.
+O3  In the chat, Will's update_slides is never a button: a grey card with
+""Update slides"" takes the message box's place; the upload ends with
+Will's line ""New slides ready for Take 5."" and the message box comes
+back. Cancel brings the message box back with nothing sent.","O1 -> ""the ⋯ item says Add slides without a deck and Update slides with one""
+O2 -> ""a chosen PDF becomes the project's deck and the next Take's""
+O3 -> ""the chat's card stands in for the message box until the upload or Cancel""","Founder 2026-10-29, backend N257; prototype https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A."
 src/components/willab/useAdminAsk.test.tsx,Story,"As a speaker, I want a question the founder sent me from the CEO panel to come at the end of a Take, as that Take's one ask, and only once per Take, so that it never competes with recording again.","O1  It shows when a Take's message waits for it, and not before.
 O2  After a reload it is not posted again: its form opens again.
 O3  With no ask left to show, the Take's message comes at once.","O1 -> ""shows at the end of a Take whose message waits for it""
@@ -942,9 +1001,11 @@ from there the next Take, a pause, or ""sign up to send"" (and on to
 review) are expected steps.","O1 -> ""is the record → process → Ideal Text loop""",Never 3; audit Q-C4.
 src/components/willab/voiceNotebook.test.tsx,Story,"As the founder in a rush, I want to say a note and close the app, so that what I said is kept and I can see it was written as I meant it.","O1  The moment I tap, my note shows the wave of my voice; the words follow it; leaving the app sends the note, it is not thrown away (N194, N199).
 O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).
-O4  Typing ""#"" offers one option, ""# note"", and tapping it leaves ""#"" to write on: a typed ""#"" is one note, as the mic's (N253).","O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
+O4  Typing ""#"" offers one option, ""# note"", and tapping it leaves ""#"" to write on: a typed ""#"" is one note, as the mic's (N253).
+O5  Under ""Which step did it stall at?"" the sale's four steps take the message box's place, and a tap answers for that note with that step (N241 P2).","O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
 O2 -> keeps a note that cannot go and sends it once when back online
-O4 -> offers only ""# note"" after ""#"", and leaves ""#"" to write on",
+O4 -> offers only ""# note"" after ""#"", and leaves ""#"" to write on
+O5 -> opens the four steps under the sales question and answers with the one tapped",
 src/components/willab/walk/coachUpdateLens.test.tsx,Story,"As a speaker, I want my coach's changed word to wait for me in the chat under ""Later · from your coach"" and open the walk at my coach's place when I tap it, the same way every bubble opens its step, so that I watch exactly what my coach sent, where it belongs.","O1  The coach's bubble rings while the server says the word is new; a tap
 opens the Take's walk at the coach's step (Step 0 for a general word),
 not a screen of its own; nothing is marked watched by the tap.
@@ -965,7 +1026,7 @@ O2 -> a green moment says why it landed,
 the Take's highest moment opens with “This was your most confident moment.”
 O3 -> reopened from the Lounge, the judging shows the moment already answered
 O4 -> skips the summary when it cannot be read, straight onto the page
-O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder
+O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder (with its own line, N268)
 O6 -> a step's bubbles land behind the typing dots, then its buttons (founder 2026-10-20),
 new bubbles land at the bottom and the thread follows them until the speaker scrolls up by hand (N122)
 O7 -> the walk opens once with the hello and the speaker's first name (N120)
@@ -996,12 +1057,15 @@ O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubb
 O7 -> a try not yet better gets the same short bubble, opened with “Close.” and closed with “Try again.”, with only Practise again (N120)
 O8 -> with no exercise and no AI clip coming, the walk moves past it: no Line A alone, and the coach's queue still hears it; the Take's most confident moment with nothing to offer says its own line and is said again
 O9 -> a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122), with no AI clip the praise goes straight to its helper words (N122)","Never-rule 1 (no scores to speakers); founder 2026-10-21 (N108, ""Skip that moment""); 2026-10-23 (N120, ""make it shorter focused on one only thing""; N122, ""do we practice the confident moments? I think yes we should!"")."
-src/components/willab/walk/walkReplay.test.tsx,Story,"As a speaker, I want to replay a finished walk with my answers shown and nothing written or recorded again, so that I can look back safely.","O1  The same screens play with my answers; only a change to my helper words is saved.
-O2  A done exercise plays my past tries and records nothing new.
-O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.","O1 -> opens on the coach's note and plays the same screens answered; helper words stay editable, nothing else writes
-O1 -> opened on a later step, a tap on an earlier part's helper words stands the walk there; their buttons save them and bring it back
-O2 -> opens on the coach's note and plays the same screens answered ...
-O3 -> an exercise opened from its bubble in the chat shows its AI clip and every try, a try tapped in the chat opens its exercise on the last answer",
+src/components/willab/walk/walkReplay.test.tsx,Story,"As a speaker, I want a finished walk opened again to be one scroll of everything I went through, with my answers and no buttons, nothing written or recorded again, so that I can look back safely.","O1  Opened again, the whole walk is one scroll with my answers in it, and no buttons and no Next under it; nothing is written (N259).
+O2  A done exercise shows my past tries and records nothing new.
+O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.
+O4  A tap on my helper words brings their buttons; saving takes them away again, and so does Keep these, which leaves the words as saved (C3, N259).
+O5  A walk not yet done keeps its buttons: scrolled away from the step it stands on, they read Next, which brings that step back (B9).","O1 -> opened again, the whole walk is one scroll: every part answered, no buttons and no Next, nothing written
+O2 -> opened again, the whole walk is one scroll ...
+O3 -> an exercise opened from its bubble in the chat shows its AI clip and every try, a try tapped in the chat opens its exercise on the last answer
+O4 -> a tap on helper words brings their buttons; saving or keeping them takes the buttons away again
+O5 -> a walk not yet done: scrolled away from the step it stands on, the dock reads Next, which brings that step back",
 src/components/willab/walk/walkSwipe.test.tsx,Story,"As a speaker on a phone, I want to swipe left for next and right for back, with scrolls and short drags doing nothing, so that I move through feedback naturally.","O1  A swipe left goes on, a swipe right goes back.
 O2  A scroll, a short drag or a swipe toward a turned-off arrow does nothing and never closes the walk.","O1 -> goes on to the left and back to the right
 O2 -> leaves a scroll, a short drag and an arrow that is off alone, and never closes",
@@ -1433,7 +1497,7 @@ O2 -> ""withholds Practise when sensitive information is withdrawn (B6-3)""
 O3 -> ""withholds Practise when Personalised practice is off""
 O4 -> ""leaves the server to decide when there is no agreement yet""
 O4 -> ""leaves the server to decide when the read fails""","B6-3: a practice attempt is new recording, and withdrawing sensitive information stops new recording."
-src/services/api/glueContracts.test.ts,Guard,"Each of 59 service clients still sends exactly the request and gives back exactly the answer it did before the shared-fetch refactor, signed in and signed out (golden file glueContracts.golden.json).","A change to a URL, method, header, body, credentials, cache setting
+src/services/api/glueContracts.test.ts,Guard,"Each of 60 service clients still sends exactly the request and gives back exactly the answer it did before the shared-fetch refactor, signed in and signed out (golden file glueContracts.golden.json).","A change to a URL, method, header, body, credentials, cache setting
 or returned value that a speaker, coach or the backend would notice.","one test per client case, titled by its name, e.g. ""checkPracticeAttempt"",
 ""shareTake refused"", ""setPartLock undecided"", ""uploadCoachVideo""",If removed: A wire-contract change in any of these clients could ship unnoticed; keep it only while it is the single wire-contract home.
 src/services/api/idealText.changes.test.ts,Story,"As a speaker, I want a new Take's suggested upgrade shown as an offer and never applied to my text without my yes, so that my Ideal Text is only what I said or chose.","O1  An upgrade offered by a new Take arrives as a pending offer, not as an

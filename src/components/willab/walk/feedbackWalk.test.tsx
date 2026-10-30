@@ -17,7 +17,7 @@ PROVES   O1 -> walks coach's note → praise → helper words → the next prais
                the Take's highest moment opens with “This was your most confident moment.”
          O3 -> reopened from the Lounge, the judging shows the moment already answered
          O4 -> skips the summary when it cannot be read, straight onto the page
-         O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder
+         O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder (with its own line, N268)
          O6 -> a step's bubbles land behind the typing dots, then its buttons (founder 2026-10-20),
                new bubbles land at the bottom and the thread follows them until the speaker scrolls up by hand (N122)
          O7 -> the walk opens once with the hello and the speaker's first name (N120)
@@ -558,16 +558,16 @@ describe("the clearer version (D-FW-15)", () => {
     expect(chat!.body).toBe([...opening, OFFERED].join("\n"));
   });
 
-  it("Keep my words records the decline and, with a practise to do, opens the recorder on the speaker's own sentence with Line A", () => {
+  it("Keep my words records the decline and, with a practise to do, opens the recorder on the speaker's own sentence with its own line (N268)", () => {
     const handlers = drawClearer(true, FIRST, { practise: QUIET_PRACTISE });
     click(live()!.querySelector("[data-testid='walk-keep']"));
     expect(handlers.onKeepWords).toHaveBeenCalledWith("s-rewrite");
     // The choice lands as the speaker's bubble, then the practise opens in
-    // the same chat: Line A over the speaker's own sentence, the recorder in
-    // the dock (founder 2026-10-20).
+    // the same chat: "Your words it is. …" over the speaker's own sentence
+    // (N268; was Line A), the recorder in the dock (founder 2026-10-20).
     expect(said()).toEqual([COPY.linkKeepMyWords]);
     expect(screen()).toBe("walk-screen-practise");
-    expect(now()!.querySelector("[data-walk-message]")!.textContent).toContain(WALK_COPY.lineA);
+    expect(now()!.querySelector("[data-walk-message]")!.textContent).toContain(WALK_COPY.keepWords);
     expect(now()!.querySelector("[data-walk-say]")!.textContent).toBe(SAID);
     expect(live()!.querySelector("[data-walk-dock] [data-testid='walk-stop']")).not.toBeNull();
     // ✕ on the recorder goes back to the walk, the clearer version unanswered.

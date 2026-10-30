@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import WalkLoading from "./WalkLoading";
 import type { WalkNav } from "./WalkOverlay";
@@ -15,6 +15,9 @@ import type { WalkTry } from "./useWalkPractise";
 import type { SayLine } from "@/lib/willab/walkLines";
 import type { AiVoiceState } from "@/services/api/aiVoice";
 import WalkAiVoice, { aiVoiceShown } from "./WalkAiVoice";
+import { WalkSpeakerBubble } from "./WalkThread";
+import type { WalkQuotes } from "./useWalkQuote";
+import type { WalkQuote } from "@/services/api/walkQuote";
 
 /* -------------------------------------------------------------------------- */
 /*  The practise loop's bubbles (build plan D-FW-16; founder lock 2026-10-12,  */
@@ -62,6 +65,8 @@ export type PractiseScreenCtx = {
   /** The AI version of the speaker's voice for a voice Exercise moment (N71). */
   aiVoiceOf?: (moment: number) => AiVoiceState | undefined;
   aiVoicePlayed?: (moment: number) => void;
+  /** The Take's one quote from the speaker's notebook (backend N268). */
+  quotes?: WalkQuotes;
 };
 
 /** The try's own voice as the speaker's orange bubble, "Practise N" above it
@@ -110,8 +115,9 @@ function wordsToSay(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string
 /** The bubble above the words to say: the served line (an exercise's
  *  instruction, a clearer version's `rewriteMove`), else Line A; on the
  *  Take's confident moment itself no Line A, the words alone (founder
- *  2026-10-21). */
+ *  2026-10-21). After "Keep my words", its own line (N268). */
 function lineAbove(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string | null {
+  if (step.kind === "keep") return WALK_COPY.keepWords;
   const served = step.kind === "instruction" ? moment.exercise?.instruction : step.kind === "words" ? moment.clearer?.coachLine : null;
   return served ?? (moment.highest ? null : WALK_COPY.lineA);
 }
@@ -158,6 +164,64 @@ function ImprovedMessage({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep
       <span>{COPY.titlePraise}</span>
       <span>{improvedLine(ctx.plan, ctx.at(step), ctx.say)}</span>
     </WalkMessage>
+  );
+}
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** "2026-10-14" as "14 October", the way the notebook dates a note. */
+function dayLabel(on: string | null): string | null {
+  const m = on ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(on) : null;
+  return m ? `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]}` : null;
+}
+
+/** Under a Clearer version's Good job, the speaker's own kept words (backend
+ *  N268): the signed line, the words with their date; the first one ever
+ *  shown says where it comes from, with "Not here". After "Not here", their
+ *  answer and Will's "Noted." in its place. Read only when played again. */
+function QuoteMessage({ ctx, step, moment }: { ctx: PractiseScreenCtx; step: WalkStep; moment: FeedbackWalkMoment<unknown> }) {
+  const q = ctx.quotes?.quoteOf(moment.index) ?? null;
+  if (!q) return null;
+  if (ctx.quotes?.notHere) {
+    return (
+      <>
+        <WalkSpeakerBubble>{WALK_COPY.quoteNotHere}</WalkSpeakerBubble>
+        <WalkMessage>{WALK_COPY.quoteNotHereNoted}</WalkMessage>
+      </>
+    );
+  }
+  return <QuoteShown quote={q} quotes={ctx.quotes} readOnly={Boolean(step.readOnly || step.replay)} />;
+}
+
+function QuoteShown({ quote, quotes, readOnly }: { quote: WalkQuote; quotes?: WalkQuotes; readOnly: boolean }) {
+  const shown = quotes?.shown;
+  useEffect(() => {
+    if (!readOnly) shown?.();
+  }, [shown, readOnly]);
+  const day = dayLabel(quote.said_on);
+  return (
+    <>
+      <WalkMessage>
+        <span data-walk-quote-line>{quote.line}</span>
+        <span data-walk-quote className="mt-2 block border-t border-foreground/10 pt-2 font-medium">
+          “{quote.quote}”
+        </span>
+        {day ? <span className="block text-[13px] text-muted-foreground">{day}</span> : null}
+      </WalkMessage>
+      {quote.first && !readOnly ? (
+        <p data-walk-quote-first className="m-0 flex flex-wrap items-center gap-x-1 pl-1 text-[13px] text-muted-foreground">
+          <span>{WALK_COPY.quoteFirst}</span>
+          <button
+            type="button"
+            data-testid="walk-quote-not-here"
+            onClick={quotes?.tapNotHere}
+            className="min-h-11 px-2 font-semibold text-accent-foreground underline"
+          >
+            {WALK_COPY.quoteNotHere}
+          </button>
+        </p>
+      ) : null}
+    </>
   );
 }
 
@@ -257,7 +321,12 @@ export function practiseThreadItem(
     case "processing":
       return current ? <Checking /> : null;
     case "improved":
-      return <ImprovedMessage ctx={ctx} step={step} />;
+      return (
+        <>
+          <ImprovedMessage ctx={ctx} step={step} />
+          <QuoteMessage ctx={ctx} step={step} moment={moment} />
+        </>
+      );
     case "encourage":
       return <EncourageMessage ctx={ctx} step={step} moment={moment} />;
     case "thanks":

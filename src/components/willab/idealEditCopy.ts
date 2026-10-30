@@ -444,6 +444,15 @@ export const WALK_COPY = {
   shareAdd: "Add",
   /* The practise (founder lock 2026-10-12, sections 2.5 and 8). */
   lineA: "Say this one like your confident moment.",
+  /* After "Keep my words", in Line A's place there only (founder
+     2026-10-29, backend N268, signed in the chat). */
+  keepWords: "Your words it is. Now say them like you mean every one.",
+  /* The walk quotes your notebook (backend N268, signed 2026-10-29): under
+     the first quote ever shown, and after "Not here". The line above each
+     quote comes from the backend. */
+  quoteFirst: "From your notebook. Only you and Will see this.",
+  quoteNotHere: "Not here",
+  quoteNotHereNoted: "Noted. Your notebook stays out of the walk.",
   /* The AI version of your voice (founder lock 2026-10-12, N71; L1-L5
      signed 2026-10-12). L1 labels every AI clip. L2 to L5 and L14 to L18 are
      no longer said in the walk: the clip comes in one short bubble

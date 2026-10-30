@@ -19,6 +19,9 @@ export const RECORDING_COPY = {
    *  founder signed every word a locked prototype shows (Q-B4 A, decisions
    *  log N62/N63, 2026-10-07). */
   micReady: "Getting your mic ready",
+  /** On Take 1, under "Getting your mic ready", while the browser asks for
+   *  the microphone: why it asks (N269's sentence; N273 item 4). */
+  micWhy: "WillpowerLab uses the microphone to record your Takes.",
 } as const;
 
 /** The top bar's line while recording: "Take N · Slide n of m". The only

@@ -6,4 +6,4 @@ export const runtime = "nodejs";
 
 /** One of the speaker's own voice answers, played back (the key line's "How
  *  you said it", and their voice bubbles). */
-export const GET = proxyRoute("GET", "/v2/plan/answers/:answerId/audio", { relay: relayAudio });
+export const GET = proxyRoute("GET", "/v2/plan/answers/:answerId/audio", { relay: relayAudio, range: true });

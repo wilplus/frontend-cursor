@@ -5,9 +5,11 @@ OUTCOME
   O1  Investigate opens the lens on the case; the bug, the principle held, my reflection and Will's new principle come one at a time, each answer goes to the backend as that step, and the lens ends with Close.
   O2  Opened again, the lens replays the rows so far and asks only the step it waits on.
   O3  In the Lounge, the "We spotted a pattern!" bubble waits (orange outline) until Will's last line is in the thread, and Not now | Investigate is about the newest case.
+  O4  A sales week offers the sale's four steps and "Add a new step" in place of the bugs, and a tapped step goes to the backend as the answer (backend N241 P3).
 PROVES   O1 -> walks me through the case one step at a time
          O2 -> reopens where it stands
          O3 -> knows which case waits
+         O4 -> offers the sale's steps for a sales week
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -115,6 +117,19 @@ describe("the Sunday note lens", () => {
     expect(api.answerSundayNote).not.toHaveBeenCalledWith("s1", "open");
     expect(document.querySelector("textarea")).not.toBeNull();
     expect(text()).not.toContain("Wishful thinking");
+  });
+
+  it("offers the sale's steps for a sales week", async () => {
+    const opened = { role: "bot", body: "Which step was it?", step: "open" } as const;
+    api.getSundayNote.mockResolvedValue({ ...note("bug", []), kind: "sales" });
+    api.answerSundayNote.mockImplementation(async (_id: string, step: string) =>
+      step === "open" ? { ...note("bug", [opened]), kind: "sales" } : { ...note("applied", [opened]), kind: "sales" });
+    await open();
+    expect(text()).toContain("Which step was it?");
+    for (const step of ["The opening", "Discovery", "The offer", "The follow-up", "Add a new step"]) expect(text()).toContain(step);
+    expect(text()).not.toContain("Hubris");
+    await tap("The follow-up");
+    expect(api.answerSundayNote).toHaveBeenCalledWith("s1", "bug", "follow_up");
   });
 
   it("knows which case waits", () => {

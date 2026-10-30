@@ -6,6 +6,7 @@ import { isPastDue, orderGoals } from "@/lib/life/goalOrder";
 import { betByKey } from "@/lib/life/types";
 import { fetchGoals } from "@/services/api/life";
 import LifeGoalsLadders from "@/components/life/LifeGoalsLadders";
+import { YourWhyLines } from "@/components/willab/LoungeYourWhy";
 import {
   EmptyState,
   PanelLede,
@@ -41,6 +42,9 @@ export default function GoalsPage() {
     <>
       {/* The life goals ladders, the top layer above the three bets (backend
           N172 M15, N197). Nothing at all before the first goal is set. */}
+      {/* Your why, at the top of Goals, above Life goals (backend N255 Q5,
+          signed N258). Nothing before it is set. */}
+      <YourWhyLines />
       <LifeGoalsLadders />
       <PanelLede lede={VIEWS.goals.lede} />
       <Resource resource={resource}>

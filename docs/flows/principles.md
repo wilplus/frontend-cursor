@@ -39,7 +39,9 @@ Life Panel.
    people who know it is a test (N212, which widened N182's ring 6; N208).
 3. Not the speaking coach. The Feedback walk, the plan, the coach panel and
    a Take's feedback and summary never read or show the principles, the
-   Sunday note or life goals (N182).
+   Sunday note or life goals (N182). One place only: after a Good job on a
+   Clearer version, the walk may quote the speaker's own kept words (R,
+   N268); the coach never sees it.
 4. Where it shows: the Sunday note and life goals in the Lounge and their
    lens; the principles in the Life Panel. Never on the recording screens,
    never shown to a coach. Private like the notebook (N158, N172, N182).
@@ -132,7 +134,28 @@ The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
   (M15): "History", "Hide history", "Set on {date}", "＋ Add a goal";
   "That's the base. Now go and live it. Come back for a short recap.". With N170: "Nothing stands out in your notes from the last
   seven days yet."; "There are no # notes from the last seven days yet."
-- **"#" is one note (B8, N253):** "# note", the founder's words.
+- **"#" is one note (B8, N253):** "# note", the founder's words. The Life
+  Panel's first-run page (N258): "The way in is the chat you already use.
+  Start a message with # note, or tap the small mic, and it is kept as a note
+  for you and Will. On Sunday, when your notes show a pattern, Will asks what
+  you take from it and suggests a principle." in place of its two paragraphs
+  on the old tags. The empty Principles page (N263): "No principles yet.",
+  without its sentence on #mistake.
+- **The companions and your why (N, P, Q; signed 2026-10-29, N258):** every
+  word as drawn on the prototype, version 3
+  (<https://claude.ai/artifact/1hfLf8mCif8pgC1X1Z6caJ>), with its marks: 💪 a
+  strength; 🚪 🔍 🎁 📨 the sales steps; 🔥 🔭 🤝 your why, vision and how you
+  treat people.
+- **The walk quotes your notebook (R; signed 2026-10-29, N268):** "That's
+  your 💪 {strength} again." (N258); "That's the voice of your 🔭 vision.";
+  "You talked about the part that's yours. That's where your effort goes.";
+  "From your notebook. Only you and Will see this."; "Not here"; "Noted. Your
+  notebook stays out of the walk."; on the Life Panel's Your data page, "Your
+  notebook in the Feedback walk", "After a good try, Will may quote one of
+  your notes. Only you and Will see it.", and under its switch "Off since you
+  tapped "Not here". Your walks stay as they are today. Turn it on to see
+  Will's quotes again after a good try." or "On. Will may quote one note
+  after a good try, at most once per Take."
 - **The voice note (B; approved with the prototype, 2026-10-26, N194,
   N199):** no new words on screen; "Noted." as before; the wave, the tick,
   the clock. Read by screen readers only: "Fix this note", "Close", "Kept",
@@ -305,9 +328,10 @@ The prototype is the design: <https://claude.ai/artifact/HaWehtwfg1jzJvGeGM1c24>
 
 Ring 5 and up, through its own row on the rings page (N241 item 7). Private
 like the notebook; never on the recording screens, never shown to a coach.
-The words on screen wait for the prototype (§2 P0, Never 4).
+The words on screen are signed on the prototype (N258).
 
-- **N1** Kept in the Life Panel beside the principles and life goals.
+- **N1** Kept in the Life Panel: a pill of its own, Strengths, right after
+  Principles (N258).
 - **N2** Will suggests a strength only when a positive trait shows in #
   notes on two different days; the life goals answer "What fits your nature
   and strengths?" (M4) counts as one note. Once, in the Lounge, quoting both
@@ -316,9 +340,10 @@ The words on screen wait for the prototype (§2 P0, Never 4).
 - **N3** A later # note that shows a kept strength at work: Will says so
   once and keeps the note under that strength, so each strength gathers its
   own examples from daily life.
-- **N4** Before a talk: in the Lounge, the day before a talk date (the
-  plan's deadline, or a date a # note names), Will brings back one kept
-  strength, quoting the note it came from. With no date, no reminder.
+- **N4** Before a talk: in the Lounge, the first time it opens on the day
+  before a talk date (the plan's deadline, or a date a # note names; N258),
+  Will brings back one kept strength, quoting the note it came from. With no
+  date, no reminder.
 - **N5** Will never says a strength did not show. Only the speaker archives
   one, and it stays in the history.
 
@@ -331,9 +356,9 @@ How Will talks, not a screen; its own row on the rings page, at ring 5.
   meaning, once per worry: it names what is out of their hands, names what
   is theirs, and ends on one thing they control now.
 - **O2** Will's guide (constants and variables, the Stoic grounding, the
-  hotel example, the tips) is drafted for the founder as a Claude Doc,
-  <https://claude.ai/artifact/EL8NpV6kPKdcEb2rjYc9Fj>, and goes into Will's
-  instructions word for word once signed (§2 W1).
+  hotel example, the tips) is the Claude Doc
+  <https://claude.ai/artifact/EL8NpV6kPKdcEb2rjYc9Fj>, signed 2026-10-29
+  (N258); it goes into Will's instructions word for word.
 - **O3** What a speaker leaves any chat with Will holding: one thing they
   control.
 
@@ -350,7 +375,7 @@ ring 5. It points at the sale's process, never at the person.
 - **P3** On Sunday, when the week's pattern is a sales one, the Sunday note
   offers the sale's steps in place of the four bugs (L4), then the
   reflection (L6) and a principle about the process (L7). L is locked
-  (N158): the change is drawn on the prototype first (§2 P0).
+  (N158): the change is drawn on the prototype, signed (N258).
 - **P4** Done when it has been tried with salespeople on ring 5 and reads as
   support, not judgement (§3).
 
@@ -358,7 +383,8 @@ ring 5. It points at the sale's process, never at the person.
 
 Ring 5 and up, through its own row on the rings page. Private like the
 notebook; never on the recording screens, never shown to a coach. The words
-on screen wait for the prototype (§2 P0, Never 4).
+on screen are signed on the prototype (N258); the three lines sit at the top
+of the Life Panel's Goals screen, above Life goals.
 
 - **Q1** Three lines of the person's own: their why (why they do this), their
   vision (what they see when it works) and how they want to treat others.
@@ -380,6 +406,35 @@ on screen wait for the prototype (§2 P0, Never 4).
   the › on the daily bubble, "Now: …", a field, Keep the change; dated, the
   earlier words kept in its history.
 
+### R · The walk quotes your notebook (decided 2026-10-29, N268)
+
+The prototype: <https://claude.ai/artifact/Jt2XrfdifpU2A41rbZed8D> (version
+2, placement B). Ring 5 and up, through its own row `walk_quotes` (set at
+ring 5 by its migration), and only with the notebook kept. Private like the
+notebook; never shown to a coach, never in the coach's queue or the coach
+panel; never on the Ideal Text.
+
+- **R1** Where. In the Feedback walk, on a corrected moment's Clearer
+  version, after a try that is a Good job: one bubble under the praise line.
+  Never before the rewrite, never between the offer and its question (the
+  walk's C5). The rewrite rules do not change.
+- **R2** What. The signed line and the speaker's own words, word for word,
+  with their date: a kept 💪 strength and a note it gathered (N), "That's
+  your 💪 {strength} again."; the 🔭 vision (Q1), "That's the voice of your
+  🔭 vision."; or a # note naming what is theirs (O), "You talked about the
+  part that's yours. That's where your effort goes."
+- **R3** When. Only when the sentence doubted the speaker, played the idea
+  down or leaned on something out of their hands, and the words answer it.
+  Will picks which, or none; it never writes them. At most one per Take.
+- **R4** Never in the way. It is asked while the speaker practises and
+  shown only when it is ready; the walk never waits for it.
+- **R5** Not here. The first quote ever shown carries "From your notebook.
+  Only you and Will see this." and "Not here". Not here lands as the
+  speaker's bubble, then "Noted. Your notebook stays out of the walk.", and
+  keeps the notebook out of every later walk until the speaker turns it back
+  on in the Life Panel's Your data page.
+- **R6** A walk played again shows the quote it showed, read only.
+
 ---
 
 ## 2. In flight
@@ -388,28 +443,13 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-The companions (N241), in order:
-
-- P0 · the clickable prototype on the real Lounge and Life Panel screens: a strength suggested (N2), kept (N1), linked to a note (N3), brought back before a talk (N4), archived (N5); the sales steps in the Sunday note (P3); your why (Q); every new word for the founder to sign · N, P3, Q, K · drawn, <https://claude.ai/artifact/1hfLf8mCif8pgC1X1Z6caJ>, waits on the founder's signature · —
-- W1 · Will's guide to what is in your control, with the sales framing, as a Claude Doc for the founder to sign, <https://claude.ai/artifact/EL8NpV6kPKdcEb2rjYc9Fj> · O1, O2, P2 · drafted, waits on the founder's signature · —
-- R1 · the three rows on the rings page at ring 5, a migration with its outside review · A2, N, O, P · waits on P0 · —
-- N-be · backend: strengths kept in the Life Panel's store with their history; the two-day suggestion from # notes and the M4 answer; later notes linked; the before-a-talk reminder from the plan's deadline or a note's date · N1 to N5 · waits on P0 · —
-- N-fe · frontend: strengths in the Life Panel; the suggestion, the linked note and the reminder in the Lounge, as the prototype draws them · N1 to N5 · waits on P0 · —
-- O-be · Will's chat: the worry heard and sorted, ending on one thing in their control, from the signed guide · O1, O3 · waits on W1 · —
-- P-be · Will's chat on a sales note, and the Sunday note's sales steps (backend `services/sunday_note.py`, frontend `SundayLens.tsx`) · P1 to P3 · waits on W1 and P0 · —
-- Q-be · backend: the three lines kept with their history (a migration with its outside review), the sitting's questions and drafts from the person's words, the daily why on the first open, Will reading all three, the rings row · Q1 to Q6 · waits on P0 · —
-- Q-fe · frontend: the sitting in the lens, the daily bubble with its ›, the lines on the Life Panel's Goals screen · Q2 to Q6 · waits on P0 · —
+Nothing in flight.
 
 ## 3. Still open
 
 - Who gets it beyond ring 5: the founder widens the `voice_notebook` and
   `life_goals` rings further (N212).
-- The Life Panel's first-run guide (`GUIDE` in `src/lib/life/copy.ts`) still
-  teaches #mistake, #observation, #win and #add; its new words wait for the
-  founder (N253).
-- The companions' words on screen, signed on the prototype (§2 P0).
 - The sales framing tried with salespeople on ring 5 (P4).
-- Your why's words, its marks (🔥 🔭 🤝) and where the three lines sit in the Life Panel, signed on the prototype (Q, §2 P0).
 - Linear: WIL-112, WIL-113 and WIL-114 get these lines as sub-issues once
   the Linear connector is signed in.
 
@@ -422,6 +462,24 @@ The companions (N241), in order:
   outbox `src/lib/willab/voiceNoteOutbox.ts`.
 - The Sunday note: backend `services/sunday_note.py`; frontend
   `src/app/api/v2/notebook/sunday/`.
+- What is in your control and the sales framing (O, P): backend
+  `services/in_control.py` (Will's signed guide, word for word, in `GUIDE`)
+  and `services/sales_framing.py`, after a note's "Noted."; frontend the
+  offer `sales_step` (`SalesSteps` in `useVoiceNotebook.tsx`) and
+  `src/app/api/v2/notebook/sales-step/`.
+- Your why and strengths (Q, N): backend `services/your_why.py`,
+  `routes/v2/your_why.py`, `services/strengths.py`, `routes/v2/strengths.py`;
+  frontend `src/components/willab/LoungeYourWhy.tsx`,
+  `src/components/willab/LoungeStrengths.tsx`, `src/services/api/yourWhy.ts`,
+  `src/services/api/lifeStrengths.ts`, `src/app/api/v2/your-why/`,
+  `src/app/api/v2/strengths/`, and the Life Panel's
+  `src/app/panel/strengths/`.
+- The walk quotes your notebook (R): backend `services/walk_quote.py`,
+  `routes/v2/walk_quote.py`; frontend
+  `src/components/willab/walk/useWalkQuote.ts` (drawn in
+  `WalkPractiseScreens.tsx`), `src/services/api/walkQuote.ts`,
+  `src/app/api/v2/walk-quote/`, and the Life Panel's switch
+  `src/components/life/WalkQuoteSetting.tsx` on `src/app/panel/data/`.
 - Life goals: backend `services/life_goals.py`, `routes/v2/life_goals.py`;
   frontend `src/components/willab/LoungeLifeGoals.tsx`,
   `src/lib/willab/lifeGoals.ts`, `src/services/api/lifeGoals.ts`,
@@ -433,9 +491,11 @@ The companions (N241), in order:
 
 ## 5. Prototypes
 
+- The walk quotes your notebook <https://claude.ai/artifact/Jt2XrfdifpU2A41rbZed8D>
+  (N268, version 2, placement B, 2026-10-29).
 - The companions, drawn for signing: strengths, what is in your control, the
   sales framing and your why <https://claude.ai/artifact/1hfLf8mCif8pgC1X1Z6caJ>
-  (N241, N255; version 3, 2026-10-29). Not signed yet (§2 P0).
+  (N241, N255; version 3, 2026-10-29). Signed 2026-10-29 (N258).
 - The voice note <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (N194,
   2026-10-26; version 4, the wave first and the words follow, N199).
 - The Sunday note as a lens <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo>
@@ -448,6 +508,12 @@ The companions (N241), in order:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-29 · N268 · R, built: after a Good job on a Clearer version, the walk may quote the speaker's own kept words (a strength, the vision, a # note naming what is theirs), at most one per Take, with "Not here" the first time, a setting turned back on in the Life Panel's Your data page; A3 makes room for it; ring row `walk_quotes` at ring 5 by its migration · BE #1495 (the decision), BE (the code), FE (this PR)
+- 2026-10-29 · N264 · the rows `in_control` and `sales_framing` set at ring 5 by migration 0499 (its outside review: "Safe to merge"), in place of the founder making them on the rings page: Will's answer to a worry (O) and the sales steps (P) are on at ring 5 · BE #1490, #1491, FE (this PR)
+- 2026-10-29 · N263 · the empty Principles page says "No principles yet."; what stopped: its sentence "The first one arrives when you send a case with #mistake." · BE #1490, FE (this PR)
+- 2026-10-29 · N241, N255 · built: N, strengths (the two-day suggestion from # notes and the life goals answer, the lens, "That's your 💪 … again.", the Life Panel's Strengths pill for the ring row, the strength the day before a talk), and Q, your why (the ask after the first goal, the sitting, the daily why with its › to change a line, the three lines on the Goals screen); the migration had its outside review ("Safe to merge"); on at ring 5 · BE #1485, FE #1081
+- 2026-10-29 · N241 · built: O, Will's answer to a worry, under a # note's "Noted.", on once the founder makes the `in_control` row; P, the sales framing: "Which step did it stall at?" with the four steps and one change, and a sales week's Sunday note asks "Which step was it?" in place of the bugs, on once the founder makes the `sales_framing` row · BE #1481, #1482, #1484, FE #1077, #1079
+- 2026-10-29 · N258 · the companions' prototype (version 3) and Will's guide are signed, with the choices as drawn (Strengths its own pill, 💪, the talk reminder on the first open the day before, 🚪 🔍 🎁 📨, 🔥 🔭 🤝 at the top of Goals); the Life Panel's first-run page says "# note" in place of the old tags · BE #1480, FE (this PR)
 - 2026-10-29 · N255 · Q: your why, every day: a short sitting for the why, the vision and how to treat others, in their own words; the why waits in the Lounge the first time it opens each day; its tasks in §2 · BE #1477, FE (this PR)
 - 2026-10-28 · N253 · B8: "#" in the message box offers only "# note", and every typed "#" message is one note, as the small mic's; what stopped: the Life Panel's tag list in the box and, for a notebook user, its tags routing from the chat (#mistake to a case, #observation to the strategy check, #win, #add, #edit) · BE #1471, #1472, FE (this PR)
 - 2026-10-28 · N243 · A6: the principles wait while a speaker is onboarded (from the plan's first question to a new speaker's first Take; while the plan's questions are asked for a speaker who already has Takes): the mic and the asks in the Lounge, the Sunday note's evening, the quarter's ask and the chat's answers as the notebook, the Sunday note or life goals; was: nothing held them back · BE #1456, #1460, FE (this PR)

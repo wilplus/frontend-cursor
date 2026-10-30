@@ -25,6 +25,9 @@ export interface ProxyOptions {
   guest?: boolean;
   /** Answer with `Cache-Control: no-store`. */
   noStore?: boolean;
+  /** Forward the request's `Range` header: a recording played back, which
+   *  Safari asks for in byte ranges (with `relayAudio`). */
+  range?: boolean;
 }
 
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -38,8 +41,10 @@ function fill(template: string, params: Record<string, string>): string {
 export function proxyRoute(method: Method, template: string, options: ProxyOptions = {}) {
   return async function handler(req: NextRequest, context: Context): Promise<NextResponse> {
     const text = options.body ? await req.text() : null;
+    const range = options.range ? req.headers.get("Range") : null;
     const response = await callBackend(fill(template, context?.params ?? {}), {
       method,
+      ...(range ? { headers: { Range: range } } : {}),
       ...(text === null
         ? {}
         : {

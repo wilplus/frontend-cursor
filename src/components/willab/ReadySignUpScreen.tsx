@@ -1,8 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { VoiceMark } from "./LoadingState";
 import { READY_SIGN_UP_COPY } from "./GuestSignUpDialog";
+import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
+import WalkPlayer from "./walk/WalkPlayer";
+import WalkMessage from "./walk/WalkMessage";
+import type { WallMoment } from "./wallMoment";
 
 /* -------------------------------------------------------------------------- */
 /*  ReadySignUpScreen — "the processing is done" (founder 2026-10-16)          */
@@ -16,17 +21,30 @@ import { READY_SIGN_UP_COPY } from "./GuestSignUpDialog";
 /*                                                                            */
 /*  Drawn like the wait screen it follows (the mark, one column, the pill),   */
 /*  so processing → ready reads as one screen changing its line.              */
+/*                                                                            */
+/*  ONE PIECE OF THE RESULT (founder 2026-10-29, backend N273 item 5;         */
+/*  prototype https://claude.ai/artifact/LyE1Xa7M5D2FWXDxFzPKtT): between    */
+/*  the line and the buttons, the clip of the Take's most confident moment   */
+/*  as the walk draws it (the orange bubble on the right) and the walk's own  */
+/*  "This was your most confident moment." in the grey bubble under it. No   */
+/*  moment, or a clip that will not play: the screen is as it was.          */
 /* -------------------------------------------------------------------------- */
 
 export default function ReadySignUpScreen({
   onSignUp,
   onNotNow,
+  moment = null,
 }: {
   onSignUp: () => void;
+  /** The Take's most confident moment and its clip (wallMoment.ts). */
+  moment?: WallMoment | null;
   /** The host's way out (the Lab parks the text; the Lounge closes). Absent,
    *  as for a host with its own exit, the link is not drawn. */
   onNotNow?: () => void;
 }) {
+  // A clip that fails is taken away whole: never "unavailable" on the wall.
+  const [deadSrc, setDeadSrc] = useState<string | null>(null);
+  const shown = moment && moment.src !== deadSrc ? moment : null;
   return (
     <div
       data-ready-sign-up
@@ -48,6 +66,22 @@ export default function ReadySignUpScreen({
             {READY_SIGN_UP_COPY.body}
           </p>
         </div>
+        {shown ? (
+          <div data-ready-moment className="flex w-full max-w-sm flex-col gap-2 text-left">
+            <WalkPlayer
+              look="me"
+              seed={shown.seed}
+              src={shown.src}
+              startOffsetMs={shown.startOffsetMs}
+              durationMs={shown.durationMs}
+              label={COPY.pagerMoment}
+              onError={() => setDeadSrc(shown.src)}
+            />
+            <WalkMessage>
+              <span>{COPY.titleMostConfident}</span>
+            </WalkMessage>
+          </div>
+        ) : null}
         <div className="mt-2 flex w-full max-w-xs flex-col items-center gap-3">
           <Button
             type="button"

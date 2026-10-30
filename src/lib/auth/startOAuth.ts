@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/client";
 import { isStandalonePwa, markOAuthFromPwa } from "@/lib/pwa";
 import type { OAuthProvider } from "@/lib/auth/oauthRetry";
 import { sameSitePath } from "@/lib/auth/sameSitePath";
+import { APP_CALLBACK, isNativeApp, openInAppSignIn } from "@/lib/auth/nativeSignIn";
 
 export const AFTER_SIGN_IN_KEY = "willab_after_sign_in";
 
@@ -54,7 +55,10 @@ export async function startOAuth(
   // No query string deliberately: Supabase's redirect-URL allow-list can
   // refuse query strings even with `**` wildcards and silently fall back to
   // the Site URL. /auth/callback defaults `next` when it is missing.
-  const callbackUrl = `${window.location.origin}/auth/callback`;
+  // In the iPhone app the provider returns to the app's own address instead
+  // (nativeSignIn.ts); on the web nothing changes.
+  const native = isNativeApp();
+  const callbackUrl = native ? APP_CALLBACK : `${window.location.origin}/auth/callback`;
 
   // skipBrowserRedirect: get the URL and validate it before redirecting
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -75,6 +79,10 @@ export async function startOAuth(
   }
 
   console.log(`[OAuth ${provider}] Redirecting to:`, data.url);
+  if (native) {
+    await openInAppSignIn(data.url);
+    return null;
+  }
   window.location.href = data.url;
   return null;
 }

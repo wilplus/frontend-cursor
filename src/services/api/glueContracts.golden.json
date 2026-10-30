@@ -399,7 +399,9 @@
             "body": "b"
           }
         ],
-        "presentationRef": null
+        "presentationRef": null,
+        "deckChanged": false,
+        "deckSinceTake": null
       }
     },
     "signedOut": {
@@ -423,7 +425,9 @@
             "body": "b"
           }
         ],
-        "presentationRef": null
+        "presentationRef": null,
+        "deckChanged": false,
+        "deckSinceTake": null
       }
     }
   },
@@ -557,7 +561,8 @@
           "bestPresentationArcId": "a1",
           "coverRef": null,
           "deletion": null,
-          "archived": false
+          "archived": false,
+          "lastTakeAt": null
         }
       ]
     },
@@ -2076,6 +2081,34 @@
       "result": {
         "ok": false,
         "message": "No."
+      }
+    }
+  },
+  "updateProjectDeck": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/projects/p1/deck",
+          "method": "PUT",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{\"slides\":[{\"title\":\"s\",\"body\":\"b\"}],\"presentation_ref\":\"https://x.test/d.pdf\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": true,
+        "projectId": "p1",
+        "nextTake": 5
+      }
+    },
+    "signedOut": {
+      "requests": [],
+      "result": {
+        "ok": false
       }
     }
   }

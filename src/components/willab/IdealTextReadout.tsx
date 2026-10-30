@@ -43,6 +43,7 @@ import IdealTextHeading from "./IdealTextHeading";
 import AiGeneratedNote from "./AiGeneratedNote";
 import { GuestGateContext, guestNeedsAccount, useGuestGate } from "./GuestSignUpDialog";
 import ReadySignUpScreen from "./ReadySignUpScreen";
+import { wallMomentOf } from "./wallMoment";
 import {
   aiGeneratedAttrs,
   copyAiGeneratedText,
@@ -953,6 +954,12 @@ export default function IdealTextReadout({
   // land on the readout, nor leave for the chat by itself -- it lands on
   // ReadySignUpScreen below, which holds the way out.
   const needsAccount = guestNeedsAccount(signedIn);
+  // The wall's one moment (backend N273 item 5): read from the rows the page
+  // already holds; the walk's own most confident moment.
+  const wallMoment = useMemo(
+    () => (needsAccount ? wallMomentOf(sd?.suggestions) : null),
+    [needsAccount, sd?.suggestions],
+  );
   const covered = useReadoutLanding({
     reviewWaiting: reviewWaiting === true,
     analysisPending,
@@ -995,7 +1002,7 @@ export default function IdealTextReadout({
   // out (the Lab parks the text and shows the chat).
   if (needsAccount) {
     return (
-      <ReadySignUpScreen onSignUp={onSignUp} onNotNow={onClose} />
+      <ReadySignUpScreen onSignUp={onSignUp} onNotNow={onClose} moment={wallMoment} />
     );
   }
 

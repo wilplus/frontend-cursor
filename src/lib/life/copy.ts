@@ -26,8 +26,9 @@ export const GUIDE = {
   title: "Principles",
   paragraphs: [
     "A principle is a short rule you write for yourself after something goes wrong, so the same thing costs you less next time. You write it once, in your own words, and it stays.",
-    "The way in is the chat you already use. Start a message with a hashtag and it goes here instead of to Will. Type #mistake and paste what happened, along with what you make of it, and it becomes a case: the situation, what kind of error it was, which of your existing principles bore on it, your own reflection, and the one line you take away.",
-    "Other tags do other jobs. #observation checks something you noticed against the strategy you wrote. #win keeps a win. #add puts a line on your phrase wall, so your own words can come back to you later, at the moment they apply.",
+    // Founder 2026-10-29 (backend N258): one line on "# note" replaces the
+    // two paragraphs on the old tags (#mistake, #observation, #win, #add).
+    "The way in is the chat you already use. Start a message with # note, or tap the small mic, and it is kept as a note for you and Will. On Sunday, when your notes show a pattern, Will asks what you take from it and suggests a principle.",
     "The point is not to log your days. It is to catch the ideas, concerns and conclusions you pick up in meetings and from watching other people, and to build wisdom in how you communicate and in general.",
     "Nothing here pings you. There is no streak, no score, and nothing that counts the days you did not write. When you open it, it is waiting.",
   ],
@@ -100,6 +101,15 @@ export const DELETE = {
   workingLabel: "Erasing",
 } as const;
 
+/* The walk quotes your notebook (backend N268, signed 2026-10-29): the
+   switch "Not here" turns off, on this page. */
+export const WALK_QUOTES = {
+  title: "Your notebook in the Feedback walk",
+  body: "After a good try, Will may quote one of your notes. Only you and Will see it.",
+  offHint: "Off since you tapped \u201cNot here\u201d. Your walks stay as they are today. Turn it on to see Will\u2019s quotes again after a good try.",
+  onHint: "On. Will may quote one note after a good try, at most once per Take.",
+} as const;
+
 export const EXPORT = {
   title: "Download your data",
   body: "Everything you have written here, as one file. Yours to keep.",
@@ -110,7 +120,9 @@ export const EXPORT = {
 /** SIGN-OFF — the empty state on every view. None of these says you are behind,
  *  none counts what is missing, and none asks you to come back (N3). */
 export const EMPTY = {
-  principles: "No principles yet. The first one arrives when you send a case with #mistake.",
+  // Founder 2026-10-29 (backend N263): "#mistake" no longer sends a case
+  // (N253), so the sentence about it went.
+  principles: "No principles yet.",
   wins: "No wins kept yet. #win in the chat puts one here.",
   phrases: "The wall is empty. #add followed by a line puts it here, and it can come back to you later.",
   today: "No card for today yet. It is written at five in the morning and waits here.",
@@ -162,6 +174,8 @@ export const VIEWS = {
     title: "Principles",
     lede: "What you took away, in your own words.",
   },
+  /** Strengths (backend N241 N1, signed N258): its own pill after Principles. */
+  strengths: { title: "Strengths", lede: "What you're good at, in your own notes." },
   wins: { title: "Wins", lede: "Kept, so they are there when you need them." },
   phrases: {
     title: "Phrases",
