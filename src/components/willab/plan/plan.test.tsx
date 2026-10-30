@@ -184,6 +184,8 @@ it("the plan's rows are drawn as the prototype draws them", () => {
   act(() => root.render(<>{planRowFor(row({ plan_voice: "answer-1", duration_ms: 64000 }, "said", "user"), ctx())}</>));
   expect(host.querySelector("[data-plan-voice]")).not.toBeNull();
   expect(host.textContent).toContain("1:04");
+  // The words Will heard, under the voice (N275).
+  expect(host.querySelector("[data-plan-voice-words]")?.textContent).toBe("said");
 
   const c = ctx({ ...PLAN, status: "active", step: "done" });
   act(() => root.render(<>{planRowFor(row({ plan_card: true }), c)}</>));

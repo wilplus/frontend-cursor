@@ -1883,6 +1883,7 @@ export default function Lounge({
         <PolicyUpdateBubble />
 
         <VoiceNoteThread notebook={notebook} />
+        {plan.pending}
         {botThinking && <TypingDots />}
       </div>
 

@@ -20,7 +20,7 @@ import {
   type PlanState,
 } from "@/services/api/plan";
 import PlanDock, { dockFor, type PlanActions } from "./PlanDock";
-import { newestOneOf, type PlanRowCtx } from "./PlanRows";
+import { newestOneOf, PendingVoice, type PlanRowCtx } from "./PlanRows";
 import { ChangePlanSheet, SeePlanSheet } from "./PlanSheet";
 
 /* The plan in the Lounge (rules: docs/flows/the-plan.md; backend
@@ -33,6 +33,8 @@ import { ChangePlanSheet, SeePlanSheet } from "./PlanSheet";
 export type PlanLounge = {
   dock: ReactNode;
   sheets: ReactNode;
+  /** The voice answer just sent, in the thread while it is heard (N275). */
+  pending: ReactNode;
   rows: PlanRowCtx | undefined;
   /** The message box's display: hidden while the plan's footer replaces it. */
   composerDisplay: (base: string) => string;
@@ -80,6 +82,7 @@ export function usePlanLounge({
   const [busy, setBusy] = useState(false);
   const [booking, setBooking] = useState<CallWhich | null>(null);
   const [sheet, setSheet] = useState<"see" | "change" | null>(null);
+  const [sent, setSent] = useState<{ src: string; ms: number } | null>(null);
   const { reload } = thread;
 
   const load = useCallback(async () => {
@@ -147,7 +150,16 @@ export function usePlanLounge({
   const actions: PlanActions = useMemo(
     () => ({
       deadline: (day) => void run(() => answerDeadline(day)),
-      answer: (audio, ms) => run(() => sendPlanAnswer(audio, ms)),
+      answer: async (audio, ms) => {
+        const src = URL.createObjectURL(audio);
+        setSent({ src, ms });
+        try {
+          await run(() => sendPlanAnswer(audio, ms));
+        } finally {
+          setSent(null);
+          URL.revokeObjectURL(src);
+        }
+      },
       rating: (value) => void run(() => sendRating(value)),
       book: (which, start) =>
         void run(async () => {
@@ -229,6 +241,7 @@ export function usePlanLounge({
   return {
     dock,
     sheets,
+    pending: sent ? <PendingVoice src={sent.src} durationMs={sent.ms} /> : null,
     rows,
     composerDisplay: (base) => (kind ? "hidden" : base),
     holdsEmpty: signedIn && (state === null || plan !== null),
