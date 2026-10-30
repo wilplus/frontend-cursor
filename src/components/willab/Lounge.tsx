@@ -1773,17 +1773,23 @@ export default function Lounge({
 
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
-      {lifeGoals.lens}
-      {why.lens}
-      {strengths.lens}
-      <SundayLens
-        noteId={sunday?.id ?? null}
-        nonce={sunday?.nonce ?? 0}
-        onClose={() => {
-          setSunday(null);
-          void reload();
-        }}
-      />
+      {/* The lenses open as fixed overlays (WalkStage); closed, each is still
+          an empty <div>. Out of the column's flow, so their four gaps no
+          longer push the thread down (founder 2026-10-30: "Please remove
+          that", the empty strip under the header). */}
+      <div className="absolute">
+        {lifeGoals.lens}
+        {why.lens}
+        {strengths.lens}
+        <SundayLens
+          noteId={sunday?.id ?? null}
+          nonce={sunday?.nonce ?? 0}
+          onClose={() => {
+            setSunday(null);
+            void reload();
+          }}
+        />
+      </div>
       {/* Founder 2026-07-30 — the status region above the thread is GONE, and
           with it the last top banner. U5 moved the sent confirmation into the
           thread and U6 did the same for insights ready; the parked card was
