@@ -102,6 +102,10 @@ export type WalkStepKey =
   /** The walk's hello (founder 2026-10-23, N120): never planned, drawn
    *  above the first step and told to the chat once. */
   | "hello"
+  /** The line between the walk's moments and after its last one (founder
+   *  2026-10-30, N285): never planned, drawn above the step it leads into
+   *  and told to the chat once. */
+  | "lead"
   | "coachnote"
   /** The coach's answer on a moment no other screen shows, and every
    *  answered moment in the coach-only walk (founder 2026-10-14). */
@@ -277,6 +281,23 @@ export function withOutcomes(
     }
   }
   return out;
+}
+
+/** The walk's line before step `i` (founder 2026-10-30, N285): "next" as a
+ *  moment after the first begins, "done" on the first step after the last
+ *  moment (the tempo step, other speakers or the summary); null elsewhere.
+ *  Only in the whole walk, the one that ends on the summary. Pure. */
+export function momentLead(plan: readonly WalkStep[], i: number): "next" | "done" | null {
+  const step = plan[i];
+  if (!step || step.overlay === false || !plan.some((s) => s.key === "summary")) return null;
+  const before = plan.slice(0, i).filter((s) => s.moment != null);
+  if (before.length === 0) return null;
+  if (step.moment == null) {
+    const after = new Set<WalkStepKey>(["tempo", "others", "summary"]);
+    const first = plan.findIndex((s) => after.has(s.key));
+    return first === i ? "done" : null;
+  }
+  return before.some((s) => s.moment === step.moment) ? null : "next";
 }
 
 /** Where a tap on a paragraph opens the walk (Q-B3 A): at that moment's

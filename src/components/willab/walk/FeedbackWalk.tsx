@@ -27,9 +27,9 @@ import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, type AiVoiceLines
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
-import { aiClipLines, clearerOpening, praiseBubble, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
+import { MOMENT_LEAD_LINES, aiClipLines, clearerOpening, praiseBubble, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
-import { WALK_MAX_TRIES, goodJobHelpers, type WalkStep } from "@/lib/willab/walkPlan";
+import { WALK_MAX_TRIES, goodJobHelpers, momentLead, type WalkStep } from "@/lib/willab/walkPlan";
 import {
   encourageLine,
   improvedLine,
@@ -518,6 +518,20 @@ export default function FeedbackWalk<R = unknown>({
     // Once per walk: the words are fixed when it opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq, step]);
+  // The line between moments and after the last (N285): told to the chat
+  // once, before the step it leads into; never for a step played again.
+  const toldLead = useRef(new Set<string>());
+  useEffect(() => {
+    if (seq === null || !step || step.replay) return;
+    const lead = momentLead(plan, at);
+    const told = `${seq}:${step.moment ?? step.key}:${lead}`;
+    if (!lead || toldLead.current.has(told)) return;
+    toldLead.current.add(told);
+    const said: WalkStep = { key: "lead", kind: lead, ...(step.moment != null ? { moment: step.moment } : {}) };
+    shownRef.current?.(said, null, (bank) => sayLine(said, bank), null, leadLine(lead));
+    // Once per step it leads into.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seq, step, at, plan]);
   useEffect(() => {
     if (seq === null || !step || step.overlay === false) return;
     const moment = step.moment != null ? (walk.moments[step.moment] ?? null) : null;
@@ -785,6 +799,9 @@ export default function FeedbackWalk<R = unknown>({
     </div>
   );
 }
+
+/** The line between moments, or after the last (founder 2026-10-30, N285). */
+const leadLine = (lead: "next" | "done") => MOMENT_LEAD_LINES[lead];
 
 /** The walk's hello, the first bubble of its chat (founder 2026-10-23,
  *  N120). */
@@ -1459,8 +1476,17 @@ function renderThread<R>(
     const mark = label && label !== last ? <WalkThreadMark label={label} /> : null;
     last = step.key === "others" ? null : (label ?? last);
     const said = answerSaid(ctx, step);
+    const start = threadStart(ctx.walk.plan, part.at);
+    const lead = momentLead(ctx.walk.plan, start >= 0 ? start : part.at);
     return (
       <div key={`${seq ?? 0}:${part.key}`} data-walk-now={i === now ? "" : undefined} className="contents">
+        {lead ? (
+          <div data-walk-lead={lead} className="contents">
+            <WalkMessage>
+              <span>{leadLine(lead)}</span>
+            </WalkMessage>
+          </div>
+        ) : null}
         {mark}
         <WalkPart now={i === now} fresh={i === parts.length - 1}>
           {renderScreen(ctx, step, backFromPractise)}

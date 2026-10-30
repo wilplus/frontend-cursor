@@ -238,3 +238,10 @@ export function praiseBubble(
     words.join(" "),
   ]);
 }
+
+/** The line between the walk's moments, and the one after the last (signed
+ *  2026-10-30, N285, the founder's own words; flow page C7a, K). */
+export const MOMENT_LEAD_LINES = {
+  next: "Okay, thank you for that, let's look at your next key moment we spotted.",
+  done: "These were some real good moments of yours, thanks for that practice – we are really moving forward.",
+} as const;

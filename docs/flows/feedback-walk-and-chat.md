@@ -458,6 +458,16 @@ step; the loop never waits for a coach.
   a finished walk shows the thread alone, with no buttons (N259): nothing is
   recorded there.
   Nothing else interrupts the practice.
+- **C7a Between the moments** (founder 2026-10-30, N285: "okay, thank you
+  for that, let's look at your next key moment we spotted"; "if it's the end
+  of the moments it should say …"): each moment after the first opens with
+  one grey bubble, "Okay, thank you for that, let's look at your next key
+  moment we spotted.", and the first step after the last moment (the tempo
+  step, other speakers or the summary) with "These were some real good
+  moments of yours, thanks for that practice – we are really moving
+  forward."; the summary stays where it is (D). Each is told to the chat
+  once (B1, step `lead`), and drawn again in a walk opened again; never in
+  the coach's own walk (`momentLead` in `walkPlan.ts`, the words in `walkLines.ts`).
 - **C8 Other speakers**, once, after the practice: three moments, one the
   machine reads high, one in the middle and one low, each from a different
   speaker, never the speaker's own and never one they already judged, in a
@@ -1196,6 +1206,10 @@ October (backend N111).
   `services/line_bank.py`); the opening lines W1–W10
   (`src/lib/willab/praiseLevels.ts`); the AI clip's L1–L18 (backend
   [`FOUNDER-LOCK-ai-voice-practice-2026-10-12.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-ai-voice-practice-2026-10-12.md)).
+- **Between the moments:** "Okay, thank you for that, let's look at your
+  next key moment we spotted." and "These were some real good moments of
+  yours, thanks for that practice – we are really moving forward." (signed
+  2026-10-30, N285, the founder's own words, C7a).
 - **Other speakers:** Line B "Now one moment from another speaker." / "Now N
   moments from other speakers." / "Now one moment from {community}."; "Does
   this sound confident to you?"; "Yes", "In-between", "No", "Audio unclear".
@@ -1491,6 +1505,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-30 · N285 · built (C7a, K): a line between the walk's moments, "Okay, thank you for that, let's look at your next key moment we spotted.", and one after the last, "These were some real good moments of yours, thanks for that practice – we are really moving forward.", before the tempo step or other speakers; the summary stays. Was: the next moment, or other speakers, followed the last step with nothing in between · BE (N285 log), FE (this PR)
 - 2026-10-30 · N284 · built: the Take shows its three best moments, was two; a corrected moment with no exercise and no AI clip is walked as a good one, its helper words, and never skipped. Was: two moments, and such a moment left the walk (N108), so a Take could show one (founder 2026-10-30: "there is just one confident moment and the rule is that there should be at least two") (C2, C4, H1) · BE #1521 (the decision), BE #1523, FE (this PR)
 - 2026-10-30 · N283 · fixed (K): the Take's highest moment's bubble says "This was your most confident moment." once; the praise lead "It was your confident moment." under it is dropped there, and any sentence that repeats an earlier one in the same bubble goes, in the walk and the chat. Was: both lines in one bubble · BE (N283 log), FE (this PR)
 - 2026-10-29 · N273 · built (A4): a guest's "Done" wall carries the clip of the Take's most confident moment (the orange bubble) and "This was your most confident moment." (the grey bubble), between the line and the buttons, from the Ideal Text page and from the Lounge; read through the same owner-or-guest reads as the page, nothing new on the backend. The account stays before the walk, replacing N30's and N32 item 5's "a guest reads the whole Feedback". Was: "Done", the line and the two buttons only · BE (N273 log), FE (this PR)
