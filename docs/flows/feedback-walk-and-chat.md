@@ -122,7 +122,7 @@ step; the loop never waits for a coach.
   - Both are as wide as the card: 80% of the chat, at most 384px. The
     Feedback walk has that width from the moment it lands.
   - The card sits 3px under the Feedback walk, their left corners drawn in
-    where they meet. The Feedback walk has no tail: the card closes the pair.
+    where they meet (no bubble has a tail, J6).
   - While the walk runs, the Feedback walk stands alone: the Take's "Your
     ideal text is ready" card waits for the walk's end. A walk left before
     its end (the next Take recorded) pairs with that card.
@@ -204,8 +204,7 @@ step; the loop never waits for a coach.
     the Feedback walk.
   - **The orange outline:** the Feedback walk of a Take whose walk still
     waits, or whose coach's word changed and is not yet seen, has a full 2px
-    orange stroke all the way round and no tail, so nothing cuts it (the tail
-    had covered the ring at its corner).
+    orange stroke all the way round, nothing cutting it (J6).
   - **An answered step** is read only. While the walk is not yet done, it
     stands with its own buttons: the helper words still editable on the
     latest Take (F3), any other answered step reading Next. Once it is done
@@ -1085,6 +1084,17 @@ October (backend N111).
   a chosen answer fills black, holds 0.28 s, then moves on; ticks, words and
   colour changes fade in 0.16 s; redrawing the same screen does not move.
   With reduce motion on, every move is instant.
+- **J6** The shape of a run (founder 2026-10-30, N285, as Messenger draws
+  it, on the preview <https://claude.ai/artifact/HjKX9XgJZFnnfZt3QQFGX9>):
+  no bubble has a tail, in the Lounge and in the walk. A bubble's open side
+  (the right of a grey one, the left of an orange one) is round at both
+  corners, always. On the side the bubbles line up on, the corner where a
+  bubble meets the next one of the same side is drawn in to 6px; the top of
+  a run's first bubble and the bottom of its last stay round, so a bubble
+  alone is round all round (`globals.css`, `data-row` and `data-bubble`). In
+  the walk every bubble stands apart, so each is round all round.
+  Was: every corner round and a small tail on the last bubble of a run
+  (2026-10-14).
 
 ### K · Words on screen (all signed)
 
@@ -1491,6 +1501,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-30 · N285 · built (J6): the bubbles take Messenger's shape: no tail; the open side round, the lined-up side drawn in to 6px where two bubbles of one side meet, in the Lounge (Will's split replies, his offer and top-up bubbles, the policy note and the speaker's recording included); in the walk, where every bubble stands apart, each is round all round. Was: every corner round and a small tail on a run's last bubble (2026-10-14) · BE (N285 entry), FE (this PR)
 - 2026-10-30 · N284 · built: the Take shows its three best moments, was two; a corrected moment with no exercise and no AI clip is walked as a good one, its helper words, and never skipped. Was: two moments, and such a moment left the walk (N108), so a Take could show one (founder 2026-10-30: "there is just one confident moment and the rule is that there should be at least two") (C2, C4, H1) · BE #1521 (the decision), BE #1523, FE (this PR)
 - 2026-10-30 · N283 · fixed (K): the Take's highest moment's bubble says "This was your most confident moment." once; the praise lead "It was your confident moment." under it is dropped there, and any sentence that repeats an earlier one in the same bubble goes, in the walk and the chat. Was: both lines in one bubble · BE (N283 log), FE (this PR)
 - 2026-10-29 · N273 · built (A4): a guest's "Done" wall carries the clip of the Take's most confident moment (the orange bubble) and "This was your most confident moment." (the grey bubble), between the line and the buttons, from the Ideal Text page and from the Lounge; read through the same owner-or-guest reads as the page, nothing new on the backend. The account stays before the walk, replacing N30's and N32 item 5's "a guest reads the whole Feedback". Was: "Done", the line and the two buttons only · BE (N273 log), FE (this PR)

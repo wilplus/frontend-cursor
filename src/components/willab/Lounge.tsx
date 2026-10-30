@@ -2543,7 +2543,7 @@ function SequentialBotBubbles({
       {chunks.slice(0, revealed).map((part, i) => (
         <div
           key={`${i}-${part.slice(0, 12)}`}
-          data-bubble={i === revealed - 1 ? "" : undefined}
+          data-bubble=""
           className="whitespace-pre-wrap break-words rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground"
         >
           {/* FE-13 — Will's replies carry booking links; they were dead text. */}
@@ -3119,13 +3119,13 @@ function recordFor(
  *  bubble, "Feedback walk", and under it the walk's date, with "Edited"
  *  before it once something in the walk changed (B13) and "🔒 Take N" for
  *  an older Take, and the › that opens the walk. While a step in it waits it
- *  wears the orange outline, a full stroke with no tail (`data-outlined`).
+ *  wears the orange outline, a full 2px stroke (`data-outlined`).
  *  A tap opens the Take's whole walk: an older Take's read only; live on
  *  what waits while the review waits; on the coach's word while the walk's
  *  own copy of it is not yet seen (C1); else standing on its newest step.
  *  It is as wide as the Take's Ideal Text card, which sits right under it
- *  once the walk is done, one pair (founder 2026-10-26, N202): then it has
- *  no tail, the card closes the pair (`data-paired`, globals.css). */
+ *  once the walk is done, one pair (founder 2026-10-26, N202): their left
+ *  corners are drawn in where they meet (`data-paired`, globals.css). */
 function FeedbackWalkBubble({
   walk,
   older,

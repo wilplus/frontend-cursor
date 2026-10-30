@@ -685,29 +685,32 @@ button,
   to { opacity: 1; }
 }
 
-/* THE TAIL ON THE LAST BUBBLE OF A RUN (founder 2026-10-14, WhatsApp-like):
-   a row is the app's (`data-row="app"`, left) or the speaker's ("me",
-   right); the bubble (`data-bubble`) of a row whose next sibling is not of
-   the same side gets a small tail at its bottom corner. An outlined bubble
-   (`data-outlined`: a step or a coach's word that waits) has none: the
-   tail covered its stroke at the corner (founder 2026-10-26, N192: "make
-   sure it is well visible and not cut"). Nor has a Feedback walk with its
-   Ideal Text card under it (`data-paired`): the card closes the pair. */
-[data-row="app"]:not(:has(+ [data-row="app"])) [data-bubble]:not([data-outlined]):not([data-paired]),
-[data-row="app"][data-bubble]:not([data-outlined]):not([data-paired]):not(:has(+ [data-row="app"])) {
-  position: relative;
-  border-bottom-left-radius: 4px;
+/* THE SHAPE OF A RUN (founder 2026-10-30, N285, Messenger-like; was the
+   WhatsApp tail of 2026-10-14): no bubble has a tail. A row is the app's
+   (`data-row="app"`, left) or the speaker's ("me", right); its bubbles
+   (`data-bubble`) keep every corner round on their open side, and on the
+   side they line up on, the corner where a bubble meets the next one of the
+   same side (in its own row, or the next row) is drawn in to 6px. The top of
+   a run's first bubble and the bottom of its last stay round. */
+[data-row="app"] [data-bubble]:has(~ [data-bubble]),
+[data-row="app"]:has(+ [data-row="app"]) [data-bubble],
+[data-row="app"][data-bubble]:has(+ [data-row="app"]) {
+  border-bottom-left-radius: 6px;
 }
-[data-row="app"]:not(:has(+ [data-row="app"])) [data-bubble]:not([data-outlined]):not([data-paired])::before,
-[data-row="app"][data-bubble]:not([data-outlined]):not([data-paired]):not(:has(+ [data-row="app"]))::before {
-  content: "";
-  position: absolute;
-  left: -7px;
-  bottom: 0;
-  width: 10px;
-  height: 14px;
-  background: inherit;
-  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+[data-row="app"] [data-bubble] ~ [data-bubble],
+[data-row="app"] + [data-row="app"] [data-bubble],
+[data-row="app"] + [data-row="app"][data-bubble] {
+  border-top-left-radius: 6px;
+}
+[data-row="me"] [data-bubble]:has(~ [data-bubble]),
+[data-row="me"]:has(+ [data-row="me"]) [data-bubble],
+[data-row="me"][data-bubble]:has(+ [data-row="me"]) {
+  border-bottom-right-radius: 6px;
+}
+[data-row="me"] [data-bubble] ~ [data-bubble],
+[data-row="me"] + [data-row="me"] [data-bubble],
+[data-row="me"] + [data-row="me"][data-bubble] {
+  border-top-right-radius: 6px;
 }
 /* THE PAIR (founder 2026-10-26, N202): a Take's Feedback walk and its Ideal
    Text card right under it, 3px apart (Lounge.tsx), their left corners drawn
@@ -717,20 +720,4 @@ button,
 }
 [data-walk-pair] [data-review-card] {
   border-top-left-radius: 6px;
-}
-[data-row="me"]:not(:has(+ [data-row="me"])) [data-bubble],
-[data-row="me"][data-bubble]:not(:has(+ [data-row="me"])) {
-  position: relative;
-  border-bottom-right-radius: 4px;
-}
-[data-row="me"]:not(:has(+ [data-row="me"])) [data-bubble]::before,
-[data-row="me"][data-bubble]:not(:has(+ [data-row="me"]))::before {
-  content: "";
-  position: absolute;
-  right: -7px;
-  bottom: 0;
-  width: 10px;
-  height: 14px;
-  background: inherit;
-  clip-path: polygon(0 0, 0 100%, 100% 100%);
 }
