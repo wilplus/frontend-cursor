@@ -17,22 +17,17 @@ import WelcomeExample from "./WelcomeExample";
 /*  links at the foot are likewise left as-is per the request.                 */
 /* -------------------------------------------------------------------------- */
 
-/** Under the name (founder 2026-10-29, N273 item 1): what you get, in the
- *  page's own description. Replaces "Public speaking excellence tool." */
-export const WELCOME_PROMISE =
-  "Record your talk. You get the ideal text of your presentation and see which moments landed best.";
+/** Under the name (founder 2026-10-30, N277, on its prototype): two short
+ *  paragraphs, each broken where the founder broke it. Replaces N273's
+ *  "Record your talk. You get the ideal text…". */
+export const WELCOME_PROMISE: readonly (readonly [string, string])[] = [
+  ["Great presentations aren’t about slides.", "They’re about a dream and the guts to deliver it."],
+  ["You bring the dream.", "We’ll help you sound brave until you are 😏"],
+];
 export const SEE_AN_EXAMPLE = "See an example";
 
-export default function WelcomeConsent({
-  onAccept,
-  /** Landing only. When given, a secondary "Read blog posts" action renders
-   *  under the CTA and calls this. The in-app first run has no journal strip
-   *  beneath it, so the button would scroll to nothing and is omitted there. */
-  onReadJournal,
-}: {
-  onAccept: () => void;
-  onReadJournal?: () => void;
-}) {
+/* "Read blog posts" is gone (N277): the posts sit right under the welcome. */
+export default function WelcomeConsent({ onAccept }: { onAccept: () => void }) {
   // Fade-out on enter: opacity-0 over 200ms, then continue at ~220ms.
   const [leaving, setLeaving] = useState(false);
   const enter = () => {
@@ -40,8 +35,8 @@ export default function WelcomeConsent({
     setLeaving(true);
     setTimeout(onAccept, 220);
   };
-  // "See an example" (founder 2026-10-29, N273 item 1): the welcome's own
-  // place shows one example; its "Try it with your talk" enters as Enter does.
+  // "See an example" (N273 item 1; N277): one example over the whole page;
+  // its "Try it with your talk" enters as Enter does.
   const [example, setExample] = useState(false);
 
   /* ITS OWN SCROLLER, FROM ITS TRUE TOP (consent lock 2026-10-07: "every
@@ -52,18 +47,6 @@ export default function WelcomeConsent({
      centres the column while it fits and collapses once it is taller, leaving
      an ordinary scroll from the top; py-6 keeps the breathing rings clear of
      the edge. 24px sides, as the prototype's `.wel`. */
-  if (example) {
-    return (
-      <div
-        className={`flex min-h-0 flex-1 flex-col transition-opacity duration-200 ${
-          leaving ? "opacity-0" : "opacity-100"
-        }`}
-      >
-        <WelcomeExample onTry={enter} onClose={() => setExample(false)} />
-      </div>
-    );
-  }
-
   return (
     <div
       className={`flex min-h-0 flex-1 flex-col overflow-y-auto transition-opacity duration-200 ${
@@ -124,13 +107,24 @@ export default function WelcomeConsent({
             what the tool is for, still without promising an outcome.
 
             Founder 2026-10-29 (N273 item 1): now the page's own description,
-            which names the deliverable, and "See an example" shows it. */}
+            which names the deliverable, and "See an example" shows it.
+
+            Founder 2026-10-30 (N277): now the two paragraphs above, on the
+            prototype. The founder lifted the honest-positioning rule for this
+            line in N277; it still binds everything else. */}
         <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tight text-foreground sm:text-[48px]">
           WillpowerLab
         </h1>
-        <p className="mt-3.5 max-w-[36ch] text-[15px] leading-relaxed text-muted-foreground">
-          {WELCOME_PROMISE}
-        </p>
+        {WELCOME_PROMISE.map(([first, second], i) => (
+          <p
+            key={first}
+            className={`${i === 0 ? "mt-3.5" : "mt-2.5"} max-w-[36ch] text-[15px] leading-relaxed text-muted-foreground`}
+          >
+            {first}
+            <br />
+            {second}
+          </p>
+        ))}
 
         {/* THE CTA NO LONGER CLAIMS ACCEPTANCE. It read "Accept & enter the lab"
             with fine print saying that entering accepted the terms. Acceptance now
@@ -166,18 +160,9 @@ export default function WelcomeConsent({
             </span>
             {SEE_AN_EXAMPLE}
           </button>
-
-          {onReadJournal ? (
-            <button
-              type="button"
-              onClick={onReadJournal}
-              className="mt-1 h-11 px-2 text-[14px] text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Read blog posts
-            </button>
-          ) : null}
         </div>
       </div>
+      {example ? <WelcomeExample onTry={enter} onClose={() => setExample(false)} /> : null}
     </div>
   );
 }
