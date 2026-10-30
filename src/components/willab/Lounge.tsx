@@ -2062,6 +2062,9 @@ export default function Lounge({
       ) : null}
       {plan.dock}
       {plan.sheets}
+      {/* Hidden whole while the plan's footer stands in for it, so its empty
+          wrapper adds no gap under that footer (founder 2026-10-30). */}
+      <div className={plan.composerDisplay("contents")}>
       <NewProjectAskComposer ask={newProjectAsk}>
       <SlidesAskComposer ask={slidesAsk}>
       <PolicyUpdateComposer>
@@ -2136,6 +2139,7 @@ export default function Lounge({
       </PolicyUpdateComposer>
       </SlidesAskComposer>
       </NewProjectAskComposer>
+      </div>
 
       {/* Delivery layer — the 4 bubbles' destinations. */}
       {feedbackTarget && (

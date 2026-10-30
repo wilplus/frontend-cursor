@@ -178,7 +178,9 @@ export function usePlanLounge({
 
   const kind = dockFor(plan, booking);
   const dock = plan ? (
-    <div className="mb-2" data-plan-dock-slot>
+    // In place of the message box (hidden then), nothing is under it: the
+    // shell's padding alone, as under the message box (founder 2026-10-30).
+    <div className={kind ? undefined : "mb-2"} data-plan-dock-slot>
       <PlanDock
         plan={plan}
         busy={busy}
