@@ -11,7 +11,7 @@ import PlanCalendar, { MonthGrid } from "./PlanCalendar";
    E5, I; prototype version 27): the deadline's chips, Will's ask for the
    plan's own yes (N211), the voice answer's recorder (no Skip; before a new
    speaker's first Take, "Start your first recording" under it, N262), the
-   1 to 10 scale, the calls' calendar (full screen over the chat, N248), then
+   1 to 10 scale, Skip or Book now under Will's ask for a call and its calendar (full screen over the chat, N248, N281), then
    only "Start your first recording". Each answer goes to the backend, which
    writes Will's next words into the thread. */
 
@@ -242,23 +242,45 @@ export default function PlanDock({
   newEventHeld?: boolean;
 }) {
   const kind = dockFor(plan, booking);
-  // The calls' calendar is full screen over the chat (N248), so it stays
-  // mounted while it slides away, and the footer under it stays empty.
-  const which: CallWhich | null =
-    kind === "book" ? booking : kind === "call" ? (plan.step === "kickoff" ? "kickoff" : "summary") : null;
+  // Will asks for a call; "Book now" opens its calendar, full screen over the
+  // chat (N248, N281). It stays mounted while it slides away.
+  const asked: CallWhich | null = kind === "call" ? (plan.step === "kickoff" ? "kickoff" : "summary") : null;
+  const [open, setOpen] = useState<CallWhich | null>(null);
+  const which: CallWhich | null = kind === "book" ? booking : asked && open === asked ? asked : null;
+  const done = () => (kind === "book" ? onCloseBooking() : setOpen(null));
   return (
     <>
       <PlanCalendar
         plan={plan}
         which={which}
         busy={busy}
-        soon={kind === "book"}
-        onBook={(call, start) => actions.book(call, start)}
-        onSkip={(call) => (kind === "book" ? onCloseBooking() : actions.book(call, null))}
+        onBook={(call, start) => {
+          done();
+          actions.book(call, start);
+        }}
+        onSkip={(call) => {
+          done();
+          if (kind !== "book") actions.book(call, null);
+        }}
         onSaveDeadline={actions.saveDeadline}
       />
-      <DockFooter kind={kind} plan={plan} busy={busy} actions={actions} newEventHeld={newEventHeld} />
+      {asked && !busy && which === null ? (
+        <CallAsk onSkip={() => actions.book(asked, null)} onBookNow={() => setOpen(asked)} />
+      ) : (
+        <DockFooter kind={kind} plan={plan} busy={busy} actions={actions} newEventHeld={newEventHeld} />
+      )}
     </>
+  );
+}
+
+/** Under Will's ask for a call: "Skip" moves on, "Book now" opens the
+ *  calendar (N281). */
+function CallAsk({ onSkip, onBookNow }: { onSkip: () => void; onBookNow: () => void }) {
+  return (
+    <div className="flex flex-wrap justify-end gap-2" data-plan-dock="call">
+      <Chip label={PLAN_COPY.skip} onClick={onSkip} />
+      <Chip label={PLAN_COPY.bookNow} dark onClick={onBookNow} />
+    </div>
   );
 }
 

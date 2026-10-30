@@ -218,11 +218,12 @@ built and what is still to come.
 
 ### F · The two calls with the coach, before the plan
 
-1. After the ratings, before the plan card, Will says "Before I show you
-   your plan, pick a time for a 15-minute call with your coach. It's your
-   kickoff call." Then the calendar comes up full screen over the chat, in
-   place of "Type here". The kickoff comes before the deadline (N157, N161,
-   N248). On the screen, top to bottom:
+1. After the ratings, before the plan card, Will asks "Every plan starts
+   with a kickoff session with your coach. Would you like to book it now?"
+   In place of "Type here": "Skip" and "Book now". The calendar never opens
+   by itself; "Book now" opens it, full screen over the chat. The kickoff
+   comes before the deadline (N157, N161, N248, N281). On the screen, top
+   to bottom:
    - "Skip" on the left, "{n} of 2 booked" on the right.
    - The call's name, large: "Kickoff call with your coach".
    - The month, large. It swipes left and right; the arrows stay. Only the
@@ -231,14 +232,14 @@ built and what is still to come.
      and the day's times show under it in four even columns. A tap on the
      month's name opens the whole month again.
    - "Your deadline: {date}" with "Edit" (7).
-   - One button at the bottom, "Book", pale until a time is picked. After
-     it, a tick, the calendar slides away and Will's "Booked: {when}." is in
-     the chat.
-2. Then Will offers the summary call: "Would you also like to book your
-   summary call? It's after your deadline, to look back and plan what's
-   next." The calendar comes up again once he has asked, with "Skip" or
-   "Book now"; no yes-or-no question first. It counts "1 of 2 booked"
-   (N157, N161, N248).
+   - One button at the bottom, "Book", pale until a time is picked. On
+     "Book" the calendar goes at once and Will's "Booked: {when}." is in the
+     chat straight away, with no typing first, while the booking is saved.
+2. Then Will asks "Every learning cycle also finishes with a summary session
+   after your deadline. Would you like to choose it now?", with "Skip" and
+   "Book now" under it, and the same calendar and bubble. It counts "1 of 2
+   booked". "Skip", under Will's ask or at the top of the calendar, moves on
+   (N157, N161, N248, N281).
 3. Either call can wait ("Skip"), so no coach stands in the way of the first
    Take (Never 3). A kickoff not booked is offered again after Take 1 (N157).
 4. Calls are paid as the booking page is paid today, and free with a link
@@ -480,11 +481,11 @@ Signed:
   will you open? Say your first sentence." · the plain key line, "If your
   audience remembers one sentence from you, what is it? Say it the way
   you'll say it."; the ratings "Two quick taps before your plan." · "Calm" ·
-  "Very stressed" · "Not ready" · "Fully ready"; the calls "Before I show
-  you your plan, pick a time for a 15-minute call with your coach. It's your
-  kickoff call." · "{n} of 2 booked" · "Your deadline" · "Skip" · "Book" ·
-  "Book now" · "Would you also like to book your summary call? It's after
-  your deadline, to look back and plan what's next."; the plan's end "15
+  "Very stressed" · "Not ready" · "Fully ready"; the calls "Every plan
+  starts with a kickoff session with your coach. Would you like to book it
+  now?" · "{n} of 2 booked" · "Your deadline" · "Skip" · "Book" · "Book now"
+  · "Every learning cycle also finishes with a summary session after your
+  deadline. Would you like to choose it now?" (N281); the plan's end "15
   minutes with your coach, to look back and plan what's next." · "Choose a
   date" · "Not now" · "Here's your next plan." · "Is this for {date}?".
 
@@ -612,6 +613,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-30 · N281 · the calls are asked for first: Will's two new asks, "Skip" and "Book now" under each; the calendar opens only on "Book now" and goes the moment "Book" is tapped, with "Booked: {when}." in the chat at once, no typing (F1, F2, K). Was: the calendar came up by itself after Will's line, and stayed with a spinner and a tick until the booking was saved · BE #1516, #1517, FE (this PR)
 - 2026-10-30 · founder, 2026-10-30 · the plan's footer ("Record your answer" and the rest) sits as low as the message box it stands in for: 12px above it, 8px under it. No new words. Was: about 28px under it, from the hidden message box's empty wrapper and the footer's own margin · FE (this PR)
 - 2026-10-30 · N276 · B8, B9: every transcription drops what the transcriber wrote that nobody said (a stretch it calls silence, a video's "Thanks for watching") before anything is kept; Will asks the same question again at most twice, after nothing heard or a correction, and the third time moves on to the next question in its plain words, or to what follows the questions. No new words. Was: "didn't catch that" could come back for ever on a phone whose microphone records nothing; the Takes' transcripts could keep a "Thanks for watching" from silence at their end · BE, FE (this PR)
 - 2026-10-29 · N275 · B3, B8, B9: a voice answer's bubble shows at once with the typing dots under the voice, then the words Will heard, and every voice answer keeps its words under it; a transcript that is only the transcriber's stock lines for no words ("Thanks for watching", "Thank you", the Amara.org line) is nothing heard, and Will asks again; the AI takes a correction only when it is sure, and once per question: the next answer to it is an answer. No new words. Was: the bubble came only with Will's reply and showed no words, so a speaker couldn't see what was heard; "Thanks for watching" from a clip with no words was taken as a correction ("You thanked me for watching."), and then every answer after it, a 14-second one too, was read as another correction, so the same question came round with each · BE, FE (this PR)
