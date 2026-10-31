@@ -25,6 +25,12 @@ interface TakeRow {
   /** The Take's willfidence in whole percent; null when no piece has a sound
    *  read (founder 2026-10-21, backend N103). */
   willfidence?: number | null;
+  /** The same read with the voice against the speaker's first Takes, frozen,
+   *  so progress shows (backend N291 item 2); null until those exist. */
+  willfidence_anchored?: number | null;
+  /** The fixes the walk gave on this Take and whether each issue came back
+   *  on the next Take of the talk, same slide (backend N291 item 1). */
+  fixes?: { slide_index: number | null; kind: string; outcome: "came_back" | "gone" | "not_measured" }[];
   /** The Take's AI clip (the voice Exercise): the problem practised, the next
    *  try's outcome and, for fillers, hesitations per 100 words before and after. */
   ai_clip?: {
@@ -83,9 +89,17 @@ const COLS: Col[] = [
   { key: "emphasis_per_min", label: "Emphasis / min", get: (t) => t.piece_means.emphasis_per_min },
   { key: "energy_ratio", label: "Energy ratio", get: (t) => t.piece_means.energy_ratio },
   { key: "willfidence", label: "Willfidence", get: (t) => t.willfidence ?? null },
+  { key: "willfidence_anchored", label: "Willfidence vs first Takes", get: (t) => t.willfidence_anchored ?? null },
+  { key: "fixes", label: "Fixes → next Take", get: (t) => (t.fixes?.length ? t.fixes.map(fixLabel).join(" · ") : null) },
   { key: "status", label: "Status", get: (t) => t.status },
 ];
-const NUMERIC = COLS.filter((c) => !["created_at", "project", "kind", "transcript", "status", "ai_clip", "ai_clip_fillers"].includes(c.key));
+const NUMERIC = COLS.filter((c) => !["created_at", "project", "kind", "transcript", "status", "ai_clip", "ai_clip_fillers", "fixes"].includes(c.key));
+
+/** One fix as the founder reads it: "slide 3 clearer: gone". */
+function fixLabel(f: NonNullable<TakeRow["fixes"]>[number]): string {
+  const outcome = { came_back: "came back", gone: "gone", not_measured: "not measured" }[f.outcome];
+  return `slide ${f.slide_index ?? "?"} ${f.kind}: ${outcome}`;
+}
 
 const fmt = (v: number | string | null | undefined) =>
   v === null || v === undefined || v === "" ? "—"
