@@ -772,6 +772,14 @@ praised moment:
               the pace levels' line opens the tempo step instead; nothing
               shows it → as off a plan; the level is the one the plan had
               when the Take was recorded
+  context   = each Take's who / what it answers / success (N293,
+              services/take_context.py), each sure, guess or missing:
+              Will's answers in the talk's setup first, then the plan's
+              answers, then Will's "heard" read of the Take (a guess); a
+              clip carrying the key line or the call to action is relevant
+              (1 when sure, 0.5 when a guess): its willfidence counts
+              ×(1 + 0.25 × relevance) for the strongest and ×(1 − 0.25 ×
+              relevance) for the fix slots; nothing known → as before
   ```
 
   The unit is the sentence. FLOOR is 0.6 at launch, then calibrated so
@@ -1531,6 +1539,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-31 · N293 · built (H1): each Take carries its context (who, what it answers, success; sure, guess or missing), from Will's answers in the talk's setup, the plan's answers and Will's "heard" read of the Take, now kept; a clip carrying the key line or the call to action counts for more as the strongest and is likelier to be the one fixed. Nothing on screen changes. Was: the pick read voice and words only, and the heard read was thrown away after Will asked · BE #1534 (the decision), BE #1535 (the code), FE (this PR)
 - 2026-10-30 · N289 · built: three moments, three jobs: the strongest praised with no AI clip, then its helper words; the weakest with "Here's one with more in it.", Line A, the strongest's clip again under "Your confident moment", and the AI clip; the one between with its Clearer version, else a next best; order strongest, weakest, next, between, then the tempo step; the tempo step on any Take, with this week's pace level's line on a plan (C2, C4, H1, K, T). Was: the three highest, praise first, each praised or corrected by its voice, every praise practised with the AI clip (N108, N122, N284), and the tempo step from Take 2 (N181) · BE #1528 (the decision), BE #1529 (the code), FE (this PR)
 - 2026-10-30 · N286 · built (J6): the bubbles take Messenger's shape: no tail; the open side round, the lined-up side drawn in to 6px where two bubbles of one side meet, in the Lounge (Will's split replies, his offer and top-up bubbles, the policy note and the speaker's recording included); in the walk, where every bubble stands apart, each is round all round. Was: every corner round and a small tail on a run's last bubble (2026-10-14) · BE #1525 (N286 entry), FE (this PR)
 - 2026-10-30 · N285 · built (C7a, K): a line between the walk's moments, "Okay, thank you for that, let's look at your next key moment we spotted.", and one after the last, "These were some real good moments of yours, thanks for that practice – we are really moving forward.", before the tempo step or other speakers; the summary stays. Was: the next moment, or other speakers, followed the last step with nothing in between · BE (N285 log), FE (this PR)
