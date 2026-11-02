@@ -63,7 +63,7 @@ import { PROCESSING_STAGES } from "./ProcessingWait";
 import type { IdealTextLaunchMode } from "./IdealTextOverlay";
 import { lensAddress } from "@/lib/willab/lensScreen";
 import { startOpenTrace } from "@/lib/willab/openTrace";
-import { chatDrawsStep, chatWalks, doorOf, feedbackWalkDoor, inPairs, shareLines, walkPairs, type ChatWalk } from "@/lib/willab/walkThread";
+import { chatDrawsStep, chatWalks, doorOf, feedbackWalkDoor, inPairs, latestShareLine, shareLines, walkPairs, type ChatWalk, type ShareLineChange } from "@/lib/willab/walkThread";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import {
   clearExploreArc,
@@ -457,6 +457,8 @@ export default function Lounge({
   const walks = useMemo(() => chatWalks(drawnOf(threadItems)), [threadItems]);
   const walkAt = useMemo(() => new Map(walks.map((walk) => [walk.at, walk])), [walks]);
   const shares = useMemo(() => shareLines(drawnOf(threadItems)), [threadItems]);
+  // The latest Take's line opens the sharing screen to change it (N309 item 5).
+  const shareChange = useMemo(() => latestShareLine(drawnOf(threadItems)), [threadItems]);
   const summaries = useMemo(() => summaryByTake(drawnOf(threadItems)), [threadItems]);
   // "Continue review" (founder lock 2026-10-12, section 1): the newest walk
   // step names its project and is not the review's end.
@@ -1767,6 +1769,7 @@ export default function Lounge({
         key={item.reactKey}
         message={item.message}
         shareLine={shares.get(item.message.client_id) ?? null}
+        shareChange={shareChange?.recording === item.message.client_id ? shareChange : null}
         onOpenBestPresentation={(arcId) =>
           openIdealText(arcId)
         }
@@ -2716,10 +2719,13 @@ function Bubble({
   animate = false,
   latestForArc = false,
   shareLine = null,
+  shareChange = null,
 }: {
   message: LoungeMessage;
   /** A recording's line: who heard the Take (G1, N192). */
   shareLine?: string | null;
+  /** The latest Take's line opens the sharing screen (N309 item 5). */
+  shareChange?: ShareLineChange | null;
   /** The project's latest Ideal Text bubble: it wears the dot (Q39 B). */
   latestForArc?: boolean;
   onViewInsights?: (sessionId: string) => void;
@@ -2782,6 +2788,7 @@ function Bubble({
         onRetryIdealText={onRetryIdealText}
         latestForArc={latestForArc}
         shareLine={shareLine}
+        shareChange={shareChange}
       />
     );
   }

@@ -9,32 +9,37 @@ import WalkFooter from "./walk/WalkFooter";
 import WalkMessage from "./walk/WalkMessage";
 import WalkOptions, { WalkField, type WalkOption } from "./walk/WalkOptions";
 import WalkToast from "./walk/WalkToast";
-import { fetchCommunities, joinCommunity, type Community } from "@/services/api/communities";
-import { keepNextTakeShare, SHARE_PASS_CODE_MIN } from "@/lib/willab/nextTakeShare";
-import { shareChat } from "@/lib/willab/walkThread";
+import { fetchCommunities, joinCommunity, shareTake, type Community } from "@/services/api/communities";
+import { keepNextTakeShare, shareChoiceMeta, SHARE_PASS_CODE_MIN, type ShareChoiceMeta } from "@/lib/willab/nextTakeShare";
+import { shareChat, shareLineDraft, shareLineText } from "@/lib/willab/walkThread";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
 
 /* -------------------------------------------------------------------------- */
-/*  NextTakeShareScreen — "Do you agree to share your next take with          */
-/*  others?", asked when "Record Take N" is tapped, from Take 2 on (founder    */
-/*  lock 2026-10-12, moment and feedback chat, sections 5 and 9; prototype    */
-/*  v31, the share step, one to one).                                          */
+/*  NextTakeShareScreen — "How big you want your audience?" (flow page G;     */
+/*  prototype v31, the share step, one to one). Asked once, the first time   */
+/*  "Record Take 2" is tapped, and again only when the words change or a     */
+/*  community is added (backend N309 item 5; IdealTextActions decides).      */
 /*                                                                            */
-/*    The opener and the question in one grey bubble; the top bar names the   */
+/*    The opener and the question in grey bubbles; the top bar names the     */
 /*    Take. General community · Only my community (the saved communities,    */
 /*    all ticked; "+ Add a community with a passcode" → Passcode + Add) ·    */
-/*    Only me, which stands alone. Ticked by default: "Only my community"    */
-/*    when the speaker has communities, else "General community".            */
+/*    Only me, which stands alone. Nothing is ticked until the speaker       */
+/*    chooses, except when the line under a Take's recording opens it again  */
+/*    to change the choice: then the choice as it stands (`initial`).        */
 /*                                                                            */
-/*  The choice is kept for the Take about to be recorded (nextTakeShare.ts).  */
-/*  ✕ closes the question and records nothing (prototype v31, lensOff); only */
-/*  Continue goes on to the recording. With communities off, nothing is      */
-/*  asked.                                                                    */
+/*  Before a Take the choice is kept for the Take about to be recorded       */
+/*  (nextTakeShare.ts) and stored as the line it will show; from the line it */
+/*  is applied to that Take at once, shared or taken back (G4), and stored   */
+/*  as its new line. Either way the newest line is the choice the next      */
+/*  Takes keep. ✕ closes the question and records nothing (prototype v31,   */
+/*  lensOff); only Continue goes on.                                          */
 /* -------------------------------------------------------------------------- */
 
 export default function NextTakeShareScreen({
   takeCount = null,
   arcId = null,
+  initial = null,
+  takeSessionId = null,
   onDone,
   onClose,
 }: {
@@ -42,7 +47,13 @@ export default function NextTakeShareScreen({
   takeCount?: number | null;
   /** The project: its chat bubbles open its Ideal Text (›). */
   arcId?: string | null;
-  /** Continue: on to the recording. */
+  /** Opened again to change: the choice as it stands, ticked
+   *  (`communityIds` null ticks every saved community, as before). */
+  initial?: { ticks: string[]; communityIds: string[] | null } | null;
+  /** Opened from the line under this Take's recording: Continue applies the
+   *  choice to it now instead of keeping it for the next Take. */
+  takeSessionId?: string | null;
+  /** Continue: on to the recording, or back from the line. */
   onDone: () => void;
   /** ✕: the question closes and nothing is recorded. */
   onClose: () => void;
@@ -63,17 +74,20 @@ export default function NextTakeShareScreen({
       // A failed read still asks: the speaker's communities are just not
       // listed (it used to skip the question and look like it closed).
       const own = res.ok ? res.data.filter((c) => c.kind === "private") : [];
+      const ids = own.map((c) => c.id);
+      const kept = initial?.communityIds?.filter((id) => ids.includes(id)) ?? [];
       setSaved(own);
-      setMine(own.map((c) => c.id));
+      setMine(kept.length ? kept : ids);
       // Nothing is ticked until the speaker chooses (founder 2026-10-15,
       // fix 1; Privacy 3.6 §4d: a pre-ticked box is not consent). Continue
-      // waits for one choice; "Only me" counts.
-      setTicks([]);
+      // waits for one choice; "Only me" counts. Opened again to change, the
+      // choice they gave is ticked (N309 item 5).
+      setTicks(initial ? initial.ticks : []);
     });
     return () => {
       live = false;
     };
-    // Asked once per tap.
+    // Read once per opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -81,7 +95,7 @@ export default function NextTakeShareScreen({
   const ready = ticks.length > 0 && (!ticks.includes("mine") || mine.length > 0) && !busy;
 
   const close = () => {
-    keepNextTakeShare(null);
+    if (!takeSessionId) keepNextTakeShare(null);
     onClose();
   };
 
@@ -103,17 +117,40 @@ export default function NextTakeShareScreen({
     setAdding(false);
   };
 
+  /** From the line: the Take is shared as chosen, or taken back from every
+   *  community (G4), then its line says the new choice. A refusal keeps
+   *  the line as it was. */
+  const change = async (take: string, share: ShareChoiceMeta, names: string[]) => {
+    setBusy(true);
+    const res = await shareTake(
+      take,
+      share.none
+        ? { general: false, communityIds: [], none: true }
+        : { general: share.general, communityIds: share.community_ids, none: false, shareWordsVersion: share.words_version },
+    );
+    setBusy(false);
+    if (!res.ok) {
+      say(WALK_COPY.shareFailed);
+      return;
+    }
+    await thread?.append(shareLineDraft(shareLineText(ticks, names), share, arcId, take)).catch(() => undefined);
+    onDone();
+  };
+
   const submit = () => {
     if (!ready) return;
     // The choice as the chat shows it; a failed post never stops recording.
     const names = (saved ?? []).filter((c) => mine.includes(c.id)).map((c) => c.name ?? "").filter(Boolean);
+    const share = shareChoiceMeta(ticks, mine);
+    if (takeSessionId) {
+      void change(takeSessionId, share, names);
+      return;
+    }
     const next = typeof takeCount === "number" ? takeCount + 1 : null;
     void (async () => {
-      for (const draft of shareChat(next, ticks, names, arcId)) await thread?.append(draft);
+      for (const draft of shareChat(next, ticks, names, arcId, share)) await thread?.append(draft);
     })().catch(() => undefined);
-    keepNextTakeShare(
-      ticks.includes("none") ? null : { general: ticks.includes("general"), communityIds: ticks.includes("mine") ? mine : [] },
-    );
+    keepNextTakeShare(share.none ? null : { general: share.general, communityIds: share.community_ids });
     onDone();
   };
 

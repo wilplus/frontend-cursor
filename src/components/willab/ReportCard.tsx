@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
 import {
   Crown,
@@ -28,6 +29,8 @@ import {
 } from "./loungeReports";
 import IdealTextCard from "./IdealTextCard";
 import SnippetWavePlayer from "./SnippetWavePlayer";
+import NextTakeShareScreen from "./NextTakeShareScreen";
+import type { ShareLineChange } from "@/lib/willab/walkThread";
 
 /* -------------------------------------------------------------------------- */
 /*  ReportCard — persisted Readout / Insight / Ideal-Text cards (C2 taxonomy)   */
@@ -474,6 +477,7 @@ function renderInsightOrRecordingSummaryReportCard(
   message: LoungeMessage,
   onOpenFeedback?: (target: FeedbackBubbleTarget) => void,
   shareLine: string | null = null,
+  shareChange: ShareLineChange | null = null,
 ): React.ReactNode {
   const date = reportDateLabel(message.client_created_at);
   const rsArcId =
@@ -563,9 +567,53 @@ function renderInsightOrRecordingSummaryReportCard(
         </span>
       ) : null}
       {/* Who heard this Take, in the sharing choice's own words (G1, N192):
-          the question asked before it leaves no bubbles of its own. */}
-      {shareLine ? <span className="text-[12.5px] leading-snug text-primary-foreground/90">{shareLine}</span> : null}
+          the question asked before it leaves no bubbles of its own. On the
+          latest Take it opens the sharing screen to change it (N309 item 5). */}
+      {shareLine ? <ShareLine line={shareLine} change={shareChange} /> : null}
     </div>
+  );
+}
+
+const SHARE_LINE_CLASS = "text-[12.5px] leading-snug text-primary-foreground/90";
+
+/** The recording's line; on the speaker's latest Take, the same line opens
+ *  the sharing screen, ticked as it stands, to change the choice for this
+ *  Take and the ones after it (backend N309 item 5). The screen sits on the
+ *  page, not in the bubble, and no tap or key in it reaches the bubble. */
+function ShareLine({ line, change }: { line: string; change: ShareLineChange | null }) {
+  const [open, setOpen] = useState(false);
+  if (!change) return <span className={SHARE_LINE_CLASS}>{line}</span>;
+  const own = { onClick: (e: React.SyntheticEvent) => e.stopPropagation(), onKeyDown: (e: React.SyntheticEvent) => e.stopPropagation() };
+  return (
+    <>
+      <button
+        type="button"
+        data-share-line
+        {...own}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(true);
+        }}
+        className={`${SHARE_LINE_CLASS} text-left`}
+      >
+        {line}
+      </button>
+      {open
+        ? createPortal(
+            <div {...own}>
+              <NextTakeShareScreen
+                takeCount={change.takeIndex}
+                arcId={change.arcId}
+                initial={{ ticks: change.ticks, communityIds: change.communityIds }}
+                takeSessionId={change.takeSessionId}
+                onDone={() => setOpen(false)}
+                onClose={() => setOpen(false)}
+              />
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 
@@ -593,11 +641,14 @@ export default function ReportCard({
   onRetryIdealText,
   latestForArc = false,
   shareLine = null,
+  shareChange = null,
 }: {
   /** This bubble is its project's latest Ideal Text bubble (Q39 B). */
   latestForArc?: boolean;
   /** A recording's line: who heard the Take (G1, N192). */
   shareLine?: string | null;
+  /** The speaker's latest Take: its line opens the sharing screen (N309 item 5). */
+  shareChange?: ShareLineChange | null;
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
   onOpenBestPresentation?: (arcId: string) => void;
@@ -634,7 +685,12 @@ export default function ReportCard({
   if (message.kind === "best_presentation_ready") {
     return renderBestPresentationReportCard(message, onOpenBestPresentation);
   }
-  return renderInsightOrRecordingSummaryReportCard(message, onOpenFeedback, message.kind === "recording_summary" ? shareLine : null);
+  return renderInsightOrRecordingSummaryReportCard(
+    message,
+    onOpenFeedback,
+    message.kind === "recording_summary" ? shareLine : null,
+    message.kind === "recording_summary" ? shareChange : null,
+  );
 }
 
 /* -------------------------------------------------------------------------- */
