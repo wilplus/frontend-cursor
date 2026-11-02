@@ -55,6 +55,26 @@ function VoiceBubble({ message }: { message: LoungeMessage }) {
   );
 }
 
+/** A tap on the 1 to 10 scale, said back without its number (backend N339):
+ *  the speaker's turn, a small grey bubble on their side, a lock and the
+ *  backend's word ("Answered"). The lock says the number stays hidden; the
+ *  number itself is never in the row (N178). */
+function LockedAnswer({ message }: { message: LoungeMessage }) {
+  return (
+    <div
+      data-row="me"
+      data-plan-answered
+      className="ml-auto inline-flex w-max items-center gap-1.5 rounded-full border-[1.5px] border-[#E6E6E6] bg-white py-1 pl-2.5 pr-3 text-[13.5px] text-[#737373]"
+    >
+      <svg aria-hidden viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <rect x="5" y="11" width="14" height="9" rx="2" />
+        <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+      </svg>
+      {message.body}
+    </div>
+  );
+}
+
 /** The answer just sent, while it is heard: its bubble at once, playing
  *  from the phone, and the dots where its words will be (N275). */
 export function PendingVoice({ src, durationMs }: { src: string; durationMs: number }) {
@@ -179,6 +199,7 @@ export function planRowFor(message: LoungeMessage, ctx: PlanRowCtx | undefined):
   const meta = (message.metadata ?? {}) as Meta;
   if (!ctx || typeof meta.plan !== "string") return null;
   if (meta.plan_voice) return <VoiceBubble message={message} />;
+  if (meta.plan_answered === "rating") return <LockedAnswer message={message} />;
   if (meta.plan_card) return <Card message={message} ctx={ctx} />;
   if (meta.plan_hello) return <Hello message={message} ctx={ctx} />;
   if (meta.plan_one) return <OneThing message={message} ctx={ctx} />;
