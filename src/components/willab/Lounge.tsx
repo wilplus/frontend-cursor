@@ -1100,8 +1100,9 @@ export default function Lounge({
   const takeInFlight =
     processingResume?.status === "analyzing" || documentSettle.pending;
 
-  // The plan in the Lounge (docs/flows/the-plan.md): its rows, its footer in
-  // place of the message box, its sheets. Off unless the ring row reaches.
+  // The plan in the Lounge (docs/flows/the-plan.md): its rows, its answers
+  // in the thread with the Lounge's bar under them (N319 item 1), its sheets.
+  // Off unless the ring row reaches.
   const plan = usePlanLounge({
     signedIn: thread.signedIn,
     thread,
@@ -1896,6 +1897,10 @@ export default function Lounge({
           })
         )}
 
+        {/* The plan's answers under Will's question, the after-walk way
+            (N319 item 1): tap answers on the right, or the 1 to 10 scale. */}
+        {plan.asks}
+
         {/* Under the goodbye after a Take, the one tap (N294 item 6): it
             stays the speaker's own answer in the thread. */}
         <ContinueTap
@@ -2167,6 +2172,11 @@ export default function Lounge({
             // narrowest supported width, where the original copy wrapped to
             // two and made a chat field read as a text area.
             placeholder="Type here"
+            // While the plan asks (N319 item 3): in the bar, faded, not
+            // focusable; Will needs to hear the answer. The short note a tap
+            // shows above the bar waits for the founder's words (Never 4), so
+            // there is none yet (the-plan.md §3).
+            disabled={plan.typingOff}
             /* B9 — kill any autofill / password-manager overlay that can ghost
                a second line of placeholder text over a chat composer. R4-12 —
                autocorrect ON now (this is prose, not a password field). */
@@ -2178,14 +2188,14 @@ export default function Lounge({
                field does scroll, but a bar inside a rounded chat input reads as
                a broken control, and a textarea has no business scrolling
                sideways at all — it soft-wraps. */
-            className={`scrollbar-none block max-h-40 min-h-[40px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-2 pl-3.5 text-[15px] leading-snug outline-none focus:border-primary ${
+            className={`scrollbar-none block max-h-40 min-h-[40px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-2 pl-3.5 text-[15px] leading-snug outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-45 ${
               draftText.trim() ? "pr-12" : "pr-4"
             }`}
             aria-label="Message Will"
           />
           {/* Only once there is text: an always-present grey Send is a button
               that cannot be pressed, and it costs the field 32px to say so. */}
-          {draftText.trim() ? (
+          {plan.draft(draftText).trim() ? (
             <button
               type="submit"
               disabled={botThinking}
@@ -2198,8 +2208,9 @@ export default function Lounge({
         </div>
         {/* The voice notebook's mic, right of the input (founder 2026-10-20);
             orange while Will waits, and then it records the answer (N296
-            state 2). */}
-        <VoiceNoteMic notebook={notebook} draft={draftText} waiting={willVoice.waiting} />
+            state 2): his question after the walk, or the plan's voice
+            question before it (N319 item 1). */}
+        <VoiceNoteMic notebook={notebook} draft={plan.draft(draftText)} waiting={plan.mic(willVoice.waiting)} />
       </form>
       </PolicyUpdateComposer>
       </SlidesAskComposer>

@@ -146,7 +146,8 @@ step; the loop never waits for a coach.
   box's place, the plan's black button with the red dot ("Start your first
   recording"'s shape), the message box and the mic gone (N296 state 4, D4).
   With a plan, under the plan card, in place of "Type here", there is only
-  "Start your first recording" (N161), and on a practice day the chat has
+  "Start your first recording" (N161), the one button before the first
+  Take, under no question (N319 item 2), and on a practice day the chat has
   one record button, in the newest bubble (N167; [`the-plan.md`](the-plan.md)
   E5, G6).
 
@@ -266,8 +267,13 @@ step; the loop never waits for a coach.
   1. nothing asked: the Lounge's bar, "+", "Type here", the mic (the mic
      where the voice notebook is on);
   2. Will waits for an answer (his question or its follow-up is the
-     newest bubble): the same bar, and the same mic fills orange, colour
-     only, for every speaker; it records the answer (E3). No Skip;
+     newest bubble, or the plan's voice question before the first Take,
+     [`the-plan.md`](the-plan.md) B10, N319 item 1): the same bar, and the
+     same mic fills orange, colour only, for every speaker; it records the
+     answer (E3). No Skip. The plan's choices are tap answers on the right,
+     as Will's (E3), with the same bar under them; while the plan asks
+     before the first Take, "Type here" stays in the bar, faded and not
+     focusable (N319 item 3);
   3. recording: **the one recording bar** (N314, locked; N304): the trash
      on the left, then the walk's strip (the pulsing dot, the clock, the
      track) with the red Stop inside it. Stop sends, the trash throws it
@@ -279,7 +285,7 @@ step; the loop never waits for a coach.
   4. the next Take offered: "Record Take N" alone (B3, D4).
 - **B15** **The chat follows the newest bubble after an answer** (founder
   2026-11-01, N319 item 9): after a tap, a typed message, a voice answer,
-  the continue tap or an answer in the plan's footer, the Lounge lands on
+  the continue tap or an answer to the plan's question, the Lounge lands on
   the newest bubble even when it was scrolled up. Bubbles that arrive on
   their own move it as before.
 
@@ -1805,6 +1811,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N319 items 1 to 3 · B3, B14: before the first Take the plan's questions are asked as Will's after the walk: its choices tap answers on the right, the bar under them, its voice questions with the orange mic; "Start your first recording" only after the plan card; "Type here" faded and not focusable while the plan asks (the-plan.md B10). Was: the plan's footer in place of the bar · FE (this PR)
 - 2026-11-02 · N309 · built (C, C0, C0a, C2, C3, C4, C5, C7, C8, C9, K, T): the One thing walk: "Hi {name}.", Last time when last Take's fix rose, their best with why it worked, "And now, one thing to improve:" and one fix (the Clearer version, the AI clip after their best, or the Sniper on a pace or pause week), "Try it" with Skip or Keep mine, two tries ("Yes. That's it.", "Close. Once more.", "Good try. Take it with you."), from Take 2 one moment of another speaker with its level turning across Takes, the helper words on their own, "Lesson done." and Close back to the chat. The server serves the strongest and the one fix only. Was: N289's three moments, each praise's helper-words picker, three judged moments every walk from Take 1, the tempo step on any Take, N285's lines, the summary and Next onto the Ideal Text inside the walk · BE slice4-walk (the code), FE (this PR)
 - 2026-11-02 · N309 item 5 · built (G1, G2, G3): sharing is asked once, the first time "Record Take 2" is tapped; the choice is remembered, the newest line under a Take's recording carrying it (`metadata.share`, read back by `GET /v2/user/takes/share/last`), and every later "Record Take N" records at once with it, stamped on the new Take as before; asked again when the words change, a community is added or none of its communities is left; the latest Take's line opens the same screen, the choice ticked, and Continue re-shares or takes back that Take. No migration. Was: the screen before every Take from Take 2, nothing ticked, the choice kept six hours for that Take alone · BE (slice5-share), FE (this PR)
 - 2026-11-02 · N314, N304, N296 state 3 · built (B14, K): every short recording in the chat records with the one bar, the trash then the walk's strip with Stop inside it; Stop sends (the voice note, an answer to Will, the life goals' words; the plan's on the-plan.md). Was: the voice note's bordered pill and black send · FE (this PR)

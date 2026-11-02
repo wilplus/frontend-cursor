@@ -4,14 +4,15 @@
  *          work the same, so that I always know how to stop and send, or
  *          throw it away.
  * OUTCOME
- *   O1  A voice note in the Lounge and a voice answer to the plan record
- *       with one bar (backend N314, N304): the trash on the left, then the
- *       walk's strip (the dot, the clock, the track) with the red Stop
- *       inside it. Stop sends the recording; the trash throws it away and
- *       sends nothing. The WhatsApp-style bar (a black send) and the plan's
- *       separate large Stop are gone.
- * PROVES   O1 -> "a voice note and a plan answer record with one bar: Stop
- *                 sends, the trash throws it away"
+ *   O1  A voice note in the Lounge records with the one bar (backend N314,
+ *       N304): the trash on the left, then the walk's strip (the dot, the
+ *       clock, the track) with the red Stop inside it. Stop sends the
+ *       recording; the trash throws it away and sends nothing. The
+ *       WhatsApp-style bar (a black send) is gone. The plan's voice answer
+ *       records with the same bar from the Lounge's orange mic (N319 item
+ *       1), proved with the plan's questions (plan/plan.test.tsx).
+ * PROVES   O1 -> "a voice note records with one bar: Stop sends, the trash
+ *                 throws it away"
  * WHY      Founder 2026-10-31 (N304): "unify the recording pls just like it
  *          is here"; N314: "Can you make it locked everywhere?".
  */
@@ -33,8 +34,6 @@ const notebookApi = vi.hoisted(() => ({
 vi.mock("@/services/api/voiceNotebook", () => notebookApi);
 
 import { useVoiceNotebook, VoiceNoteBar, type VoiceNotebook } from "./useVoiceNotebook";
-import PlanDock, { type PlanActions } from "./plan/PlanDock";
-import type { Plan } from "@/services/api/plan";
 
 /** A mic that records whatever the test says. */
 class FakeRecorder {
@@ -95,7 +94,7 @@ function oneBar(scope: Element) {
   return { trash, stop };
 }
 
-it("a voice note and a plan answer record with one bar: Stop sends, the trash throws it away", async () => {
+it("a voice note records with one bar: Stop sends, the trash throws it away", async () => {
   // The Lounge's voice note.
   let notebook: VoiceNotebook | null = null;
   function Note() {
@@ -108,28 +107,14 @@ it("a voice note and a plan answer record with one bar: Stop sends, the trash th
   await flush();
   await act(async () => notebook!.tapMic());
   await flush();
-  const note = oneBar(host);
-  await act(async () => note.stop.click());
+  await act(async () => oneBar(host).trash.click());
   await flush();
-  expect(notebookApi.sendVoiceNote).toHaveBeenCalledTimes(1);
+  expect(notebookApi.sendVoiceNote).not.toHaveBeenCalled(); // thrown away
   expect(host.querySelector("[data-recording-bar]")).toBeNull();
-
-  // The plan's voice answer: the same bar, no "Your answer" line, no big Stop.
-  const answer = vi.fn(async () => undefined);
-  const actions = { answer } as unknown as PlanActions;
-  const plan = { id: "p1", step: "why", status: "active", first_take_done: true } as unknown as Plan;
-  act(() => root.render(createElement(PlanDock, { plan, busy: false, booking: null, onCloseBooking: vi.fn(), actions })));
-  await act(async () => (host.querySelector("[data-plan-dock='record']") as HTMLButtonElement).click());
-  await flush();
-  const planBar = oneBar(host.querySelector("[data-plan-dock='recording']")!);
-  expect(host.textContent).not.toContain("Your answer");
-  expect(host.querySelectorAll("button").length).toBe(2); // the trash and Stop, nothing else
-  await act(async () => planBar.trash.click());
-  await flush();
-  expect(answer).not.toHaveBeenCalled(); // thrown away
-  await act(async () => (host.querySelector("[data-plan-dock='record']") as HTMLButtonElement).click());
+  await act(async () => notebook!.tapMic());
   await flush();
   await act(async () => oneBar(host).stop.click());
   await flush();
-  expect(answer).toHaveBeenCalledTimes(1);
+  expect(notebookApi.sendVoiceNote).toHaveBeenCalledTimes(1);
+  expect(host.querySelector("[data-recording-bar]")).toBeNull();
 });

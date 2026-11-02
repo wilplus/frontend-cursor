@@ -15,7 +15,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Plan } from "@/services/api/plan";
-import PlanDock, { type PlanActions } from "./PlanDock";
+import { PlanAsk, type PlanActions } from "./PlanDock";
 import { ChangePlanSheet } from "./PlanSheet";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -67,12 +67,12 @@ function plansEnd(processing: boolean) {
   const actions = { next: vi.fn() } as unknown as PlanActions;
   act(() =>
     root.render(
-      <PlanDock
+      <PlanAsk
         plan={{ ...PLAN, status: "ending", step: "whats_next" }}
         busy={false}
         booking={null}
-        onCloseBooking={() => {}}
         actions={actions}
+        onBookNow={() => {}}
         newEventHeld={processing}
       />,
     ),
