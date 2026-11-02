@@ -9,12 +9,12 @@
 /*  no number, read or score (AC-9).                                          */
 /* -------------------------------------------------------------------------- */
 
-import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "@/components/willab/idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "@/components/willab/idealEditCopy";
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import type { FeedbackWalkMoment, WalkStepTarget } from "./feedbackWalkModel";
 import { shareChoiceOf, ticksOf, type ShareChoiceMeta } from "./nextTakeShare";
 import type { PraiseReason } from "./praiseReason";
-import { clearerOpening, praiseBubble, topMomentLine, withoutRepeats, type WalkBankKey } from "./walkLines";
+import { bestBubble, clearerOpening, praiseBubble, topMomentLine, withoutRepeats, type WalkBankKey } from "./walkLines";
 import type { WalkStep } from "./walkPlan";
 import { encourageLine, improvedLine, thanksLine } from "./walkPractise";
 
@@ -230,6 +230,43 @@ export function othersChat(
   };
 }
 
+/** The machine level of the One thing walk's one judged moment (N309
+ *  item 2). Never shown. */
+export type OthersLevel = "high" | "middle" | "low";
+
+/** The level the walk of Take `takeIndex` judges (N309 item 2): Take 2 high,
+ *  3 middle, 4 low, then round again, so over three Takes the speaker hears
+ *  all three and the place never tells the level; none on Take 1, which
+ *  judges no one. Pure. */
+export function othersLevelFor(takeIndex: number | null | undefined): OthersLevel | null {
+  if (takeIndex == null || !Number.isInteger(takeIndex) || takeIndex < 2) return null;
+  const levels: readonly OthersLevel[] = ["high", "middle", "low"];
+  return levels[(takeIndex - 2) % levels.length];
+}
+
+/** The speaker's answer on the one judged moment, as their own reply: the
+ *  face and the answer with the app's tick ("👍 Yes ✓"; N309 item 2). */
+export function othersOneSaid(answer: string): string | null {
+  const said = FACES[answer];
+  return said ? WALK_COPY.answerToast(said) : null;
+}
+
+/** The One thing walk's judged moment in the chat (N309 item 2): the
+ *  intro line with the question under it when shown; once answered, the
+ *  speaker's reply and "Got it.". Pure. */
+export function othersOneChat(answer: string | null): Omit<WalkThreadEntry, "take" | "arcId">[] {
+  const where = { moment: null, attempt: 1 };
+  if (!answer) {
+    return [{ key: "others", ...where, author: "app", body: ONE_THING_COPY.judgeIntro, extra: { hint: COPY.confidenceQuestion } }];
+  }
+  const said = othersOneSaid(answer);
+  if (!said) return [];
+  return [
+    { key: "answer:others", ...where, author: "speaker", body: said },
+    { key: "others:got", ...where, author: "app", body: ONE_THING_COPY.gotIt },
+  ];
+}
+
 /** The tempo step as the chat kept it in `take`'s walk (N166 step 4): Will's
  *  opening lines, each "Try N" with the dot's line and its comment, the
  *  closing line or the Skip, in order. A walk opened again shows them (B5,
@@ -246,6 +283,28 @@ export function tempoSaidIn(messages: readonly LoungeMessage[], take: string): W
 
 /** One line of the tempo step as the chat kept it; a try has the dot's line. */
 export type WalkTempoLine = { author: "app" | "speaker"; body: string; path?: readonly number[] };
+
+/** The tip the One thing walk gave in the Take right before Take
+ *  `takeIndex` of the project (N309 item 1), as its fix step kept it in the
+ *  chat (`fix_tip`); null when that Take kept none. Pure. */
+export function lastFixTip(
+  messages: readonly LoungeMessage[],
+  take: string | null,
+  arcId: string | null,
+  takeIndex: number | null,
+): string | null {
+  if (takeIndex == null) return null;
+  let found: { index: number; tip: string } | null = null;
+  for (const m of messages) {
+    const meta = m.metadata ?? {};
+    if (m.kind !== "walk_step" || meta.take_session_id === take || typeof meta.fix_tip !== "string" || !meta.fix_tip.trim()) continue;
+    if (arcId && meta.arc_id !== arcId) continue;
+    const index = typeof meta.take_index === "number" ? meta.take_index : null;
+    if (index === null || index >= takeIndex) continue;
+    if (!found || index >= found.index) found = { index, tip: meta.fix_tip };
+  }
+  return found && found.index === takeIndex - 1 ? found.tip : null;
+}
 
 /** How many of other speakers' moments the speaker judged in `take`'s walk:
  *  their "👍 Yes" bubbles in the chat (`answer:others`). The judging
@@ -350,6 +409,39 @@ function exerciseChat(
   };
 }
 
+/** What the One thing walk's steps say in the chat (founder 2026-10-31,
+ *  N309), its own words as drawn; undefined for any other step. Pure. */
+function oneThingSaid(
+  step: WalkStep,
+  moment: FeedbackWalkMoment<unknown> | null,
+  line: string | null,
+): { author: WalkAuthor; body: string } | null | undefined {
+  const app = (body: string | null | undefined) => (body && body.trim() ? { author: "app" as const, body } : null);
+  // Last time, "And now, one thing to improve:" and the helper words, in
+  // the words the walk drew.
+  if (step.key === "last" || step.key === "one" || step.key === "words") return app(line);
+  if (!step.one) return undefined;
+  const one = [step];
+  switch (step.key) {
+    case "praise":
+      return moment ? app(bestBubble(moment).join("\n")) : null;
+    case "clearer":
+      return moment?.clearer?.say ? app(`${ONE_THING_COPY.sayStraight}\n${moment.clearer.say}`) : null;
+    case "exVideo":
+      return app(ONE_THING_COPY.likeConfident);
+    case "improved":
+      return app(line ?? improvedLine(one, 0));
+    case "encourage":
+      return app(line ?? encourageLine(one, 0));
+    case "thanks":
+      return app(line ?? thanksLine(one, 0));
+    case "done":
+      return app(ONE_THING_COPY.lessonDone);
+    default:
+      return undefined;
+  }
+}
+
 /** What a shown step says in the chat, and who says it; null: nothing.
  *  `say`: the signed line the walk's screen took from a bank, so the chat
  *  says the same one. `line`: the practise answer's line as the walk showed
@@ -370,6 +462,8 @@ export function shownStep(
   // (founder 2026-10-21).
   const top = moment?.highest ? `${topMomentLine("clearer", moment)}\n` : "";
   const one = [step];
+  const oneThing = oneThingSaid(step, moment, line);
+  if (oneThing !== undefined) return oneThing;
   switch (step.key) {
     case "hello":
       // The walk's hello (N120), in the words it drew.

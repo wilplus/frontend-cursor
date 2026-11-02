@@ -149,3 +149,19 @@ export async function setPartHelperWordsFromTake(
   );
   return res.kind === "response" && res.ok;
 }
+
+/** The One thing walk's helper words after a Clearer version (founder
+ *  2026-10-31, backend N309 item 3): the sentence the practice was opened
+ *  on, which is not the paragraph's, goes to the Slide with no pick. The
+ *  lock that follows is `setPartLock`, as for any pick. */
+export async function setHelperWordsFromPractice(
+  practiceId: string,
+  partId: string,
+  phrase: string,
+): Promise<boolean> {
+  const res = await bffFetch(
+    `/api/v2/user/confidence-practice/${encodeURIComponent(practiceId)}/helper-words`,
+    { method: "PUT", auth: "optional", credentials: "include", json: { part_id: partId, phrase, source: "passage" } }
+  );
+  return res.kind === "response" && res.ok;
+}

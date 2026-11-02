@@ -23,9 +23,9 @@
 /*  WALK_LINE_BANK); this file only picks among them.                        */
 /* -------------------------------------------------------------------------- */
 
-import { PRACTISE_LINES, type PractiseCueKey } from "@/components/willab/idealEditCopy";
+import { ONE_THING_COPY, PRACTISE_LINES, type PractiseCueKey } from "@/components/willab/idealEditCopy";
 import type { SayLine } from "./walkLines";
-import { WALK_MAX_TRIES, afterTry, goodJobHelpers, type WalkStep, type WalkStepKey } from "./walkPlan";
+import { afterTry, goodJobHelpers, maxTries, type WalkStep, type WalkStepKey } from "./walkPlan";
 
 /** O5: a read later than this is "not reached yet"; the walk offers Next or
  *  Practise again and never waits longer. */
@@ -127,7 +127,7 @@ export function triesRecorded(plan: readonly WalkStep[], at: number): number {
 export function withNextTry(plan: readonly WalkStep[], at: number): WalkStep[] | null {
   const start = threadStart(plan, at);
   const made = triesMade(plan, at);
-  if (start < 0 || made >= WALK_MAX_TRIES || threadPraised(plan, at)) return null;
+  if (start < 0 || made >= maxTries(plan[at]) || threadPraised(plan, at)) return null;
   const next = plan[at + 1];
   if (next?.key === "practise" && next.moment === plan[at].moment) return [...plan];
   const first = plan.slice(start, loopEnd(plan, start)).find((s) => s.key === "practise");
@@ -147,6 +147,7 @@ export function withChecking(plan: readonly WalkStep[], at: number): WalkStep[] 
     slide: practise.slide,
     attempt: practise.attempt,
     ...(practise.readOnly ? { readOnly: true } : {}),
+    ...(practise.one ? { one: true } : {}),
   };
   return [...plan.slice(0, at + 1), checking, ...plan.slice(loopEnd(plan, at))];
 }
@@ -164,7 +165,12 @@ export function withRead(
 ): WalkStep[] {
   const head = plan.slice(0, at + 1);
   const rest = plan.slice(loopEnd(plan, at));
-  const base = { moment: practise.moment, slide: practise.slide, ...(practise.readOnly ? { readOnly: true } : {}) };
+  const base = {
+    moment: practise.moment,
+    slide: practise.slide,
+    ...(practise.readOnly ? { readOnly: true } : {}),
+    ...(practise.one ? { one: true } : {}),
+  };
   if (read === null) {
     // No read: the machine was late, or (`kind` "unheard") it could not hear
     // the try and says so (founder 2026-10-21).
@@ -172,7 +178,7 @@ export function withRead(
     return [...head, { key: "late", ...base, attempt: retry, ...(opts.kind ? { kind: opts.kind } : {}) }, ...rest];
   }
   const attempt = practise.attempt ?? 1;
-  const asked = read.next === "moved_on" ? { ...practise, attempt: Math.max(attempt, WALK_MAX_TRIES) } : practise;
+  const asked = read.next === "moved_on" ? { ...practise, attempt: Math.max(attempt, maxTries(practise)) } : practise;
   const next = afterTry(asked, read.next === "praise" ? "praise" : "again")
     .filter((s) => s.key !== "processing")
     .map((s): WalkStep => {
@@ -193,8 +199,8 @@ export function withRetry(plan: readonly WalkStep[], at: number, practise: WalkS
 }
 
 /** Whether "Practise again" is offered on a late screen: only while a try
- *  is left (CM3a A, up to three). */
-export const triesLeft = (late: WalkStep): boolean => (late.attempt ?? 1) <= WALK_MAX_TRIES;
+ *  is left (CM3a A, up to three; two in the One thing walk, N309). */
+export const triesLeft = (late: WalkStep): boolean => (late.attempt ?? 1) <= maxTries(late);
 
 /** The reading a key names: "cue:x" (it moved toward confident) or
  *  "miss:x" (it went the other way); null for any other key. */
@@ -229,6 +235,8 @@ const START = Math.floor(Math.random() * 3);
 /** The praise after a try at `at`: a line for the reading that moved
  *  toward confident, else a general one (founder 2026-10-13, option A). */
 export function improvedLine(plan: readonly WalkStep[], at: number, _say?: SayLine): string {
+  // The One thing walk's try that lands (N309 item 1).
+  if (plan[at]?.one) return ONE_THING_COPY.landed;
   const cue = cueOf(plan[at]?.kind, "cue:");
   return inTurn(plan, at, "improved", "cue:", PRACTISE_LINES.better[cue ?? "general"]);
 }
@@ -244,10 +252,14 @@ export function missLine(plan: readonly WalkStep[], at: number): string | null {
 /** The "not yet" at `at`: a line for the reading that went the wrong way,
  *  else a general one (option A). */
 export function encourageLine(plan: readonly WalkStep[], at: number, _say?: SayLine): string {
+  // The One thing walk's one miss (N309 item 1).
+  if (plan[at]?.one) return ONE_THING_COPY.onceMore;
   return missLine(plan, at) ?? inTurn(plan, at, "encourage", "miss:", PRACTISE_LINES.notYet.general);
 }
 
-/** The line after the third try that is not praise (CM3b A): one line. */
-export function thanksLine(_plan: readonly WalkStep[], _at: number, _say?: SayLine): string {
+/** The line after the third try that is not praise (CM3b A): one line; in
+ *  the One thing walk, after the second miss (N309 item 1). */
+export function thanksLine(plan: readonly WalkStep[], at: number, _say?: SayLine): string {
+  if (plan[at]?.one) return ONE_THING_COPY.takeItWithYou;
   return PRACTISE_LINES.movedOn;
 }

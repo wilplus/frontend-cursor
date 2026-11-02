@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { startPaceMic, type PaceMic } from "@/lib/willab/pace/paceMic";
 import {
+  ONE_THING_TEMPO_TRIES,
   TEMPO_COPY as W,
   TEMPO_MAX_TRIES,
   TEMPO_PATH_EVERY_MS,
   afterTry,
   closeOf,
   landed,
+  oneThingTempoLines,
   readTry,
   type TempoEvent,
   type TempoPlayed,
@@ -16,6 +18,7 @@ import {
 } from "@/lib/willab/tempoStep";
 import PaceScale from "../pace/PaceScale";
 import { PLAN_COPY } from "@/lib/willab/planCopy";
+import { ONE_THING_COPY } from "../idealEditCopy";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
 import WalkFooter from "./WalkFooter";
@@ -41,6 +44,11 @@ import { WalkSpeakerBubble, useMountedAsPast, useWalkPart } from "./WalkThread";
 /*  Once the walk moves on, the game stays in the thread as it was played    */
 /*  (B5): the tries, their comments and the closing line, or the speaker's   */
 /*  Skip; the scale shows only while the walk stands on the step.            */
+/*                                                                            */
+/*  As the One thing walk's fix, the Sniper on this week's level (founder    */
+/*  2026-10-31, N309 item 1; `one`): "Try it" with Skip in I'm ready's place, */
+/*  two tries, and the walk's own words on each ("Yes. That's it.", "Close.  */
+/*  Once more.", "Good try. Take it with you."), no closing line of its own. */
 /* -------------------------------------------------------------------------- */
 
 /** A try left running stops itself after a minute, as a practise's upload does. */
@@ -54,6 +62,7 @@ export default function WalkTempo({
   onDone,
   onClose,
   onEvent,
+  one = false,
 }: {
   testId?: string;
   stretch: TempoStretch;
@@ -61,7 +70,11 @@ export default function WalkTempo({
   onClose: () => void;
   /** What happened, for the chat and for Will (N166 step 4). */
   onEvent?: (event: TempoEvent) => void;
+  /** The One thing walk's fix (N309): its dock, two tries and its words. */
+  one?: boolean;
 }) {
+  const most = one ? ONE_THING_TEMPO_TRIES : TEMPO_MAX_TRIES;
+  const linesFor = (t: TempoPlayed, n: number) => (one ? oneThingTempoLines(t.landed, n) : afterTry(t.result, t.landed, n));
   const past = useMountedAsPast();
   const part = useWalkPart();
   const [phase, setPhase] = useState<Phase>("idle");
@@ -121,11 +134,11 @@ export default function WalkTempo({
     const next = [...tries, { result, path: taken, landed: hit }];
     setTries(next);
     tell.current?.({ kind: "try", n: next.length, result, path: taken, landed: hit });
-    if (hit || next.length >= TEMPO_MAX_TRIES) {
+    if (hit || next.length >= most) {
       setPhase("closed");
       end(next);
     } else setPhase("commented");
-  }, [halt, tries, end]);
+  }, [halt, tries, end, most]);
 
   useEffect(() => {
     if (phase !== "listening") return;
@@ -184,7 +197,7 @@ export default function WalkTempo({
         <span>{W.room}</span>
       </WalkMessage>
       {tries.map((t, i) => (
-        <TryParts key={i} n={i + 1} path={t.path} lines={afterTry(t.result, t.landed, i + 1)} />
+        <TryParts key={i} n={i + 1} path={t.path} lines={linesFor(t, i + 1)} />
       ))}
       {scaleShown ? (
         <WalkMessage wide>
@@ -201,7 +214,7 @@ export default function WalkTempo({
           <span>{W.blocked}</span>
         </WalkMessage>
       ) : null}
-      {phase === "closed" && !aTryLanded ? (
+      {phase === "closed" && !aTryLanded && !one ? (
         <WalkMessage>
           <span>{W.close[closeOf(tries.map((t) => t.result))]}</span>
         </WalkMessage>
@@ -219,13 +232,13 @@ export default function WalkTempo({
       );
     }
     if (phase === "closed") return <WalkFooter pill={{ label: W.next, onClick: onDone, testId: "walk-forward" }} />;
-    if (phase === "commented") {
+    if (phase === "commented" && !one) {
       return <WalkFooter dot outline pill={{ label: W.again, onClick: () => void begin(), testId: "walk-practise" }} />;
     }
     return (
       <WalkFooter
         dot
-        pill={{ label: W.ready, onClick: () => void begin(), testId: "walk-tempo-ready" }}
+        pill={{ label: one ? ONE_THING_COPY.tryIt : W.ready, onClick: () => void begin(), testId: "walk-tempo-ready" }}
         links={[{ label: W.skip, onClick: skip, testId: "walk-tempo-skip" }]}
       />
     );

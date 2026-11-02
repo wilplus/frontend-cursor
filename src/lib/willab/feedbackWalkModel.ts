@@ -250,6 +250,8 @@ export const WALK_PHASE_SCREENS: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>
   "summary",
   "intro",
   "judge",
+  "words",
+  "done",
   "end",
 ]);
 
@@ -354,10 +356,11 @@ function withoutLoneIntro(plan: WalkStep[]): WalkStep[] {
   return plan.filter((step) => step.key !== "intro");
 }
 
-/** Other speakers' moments and the closing summary follow a review: they
+/** Other speakers' moments and the closing summary follow a review, and so
+ *  do the One thing walk's helper words and "Lesson done." (N309): they
  *  never stand as the walk's only screens, so "Review feedback" with nothing
  *  to review opens nothing. */
-const TAIL: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>(["others", "summary"]);
+const TAIL: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>(["others", "summary", "words", "done"]);
 function withoutLoneOthers(plan: WalkStep[]): WalkStep[] {
   if (plan.some((step) => step.overlay !== false && !TAIL.has(step.key))) return plan;
   return plan.filter((step) => !TAIL.has(step.key));
@@ -373,6 +376,9 @@ export function buildFeedbackWalk<R = unknown>(input: {
   coachOnly?: boolean;
   coachWordOnly?: boolean;
   interventions?: readonly WalkIntervention[];
+  /** The One thing walk judges one other speaker's moment: from Take 2
+   *  (N309 item 2). */
+  judge?: boolean;
 }): FeedbackWalkModel<R> {
   const groups = walkMomentGroups(input.items);
   const moments = groups.map((group, index) => momentOf(group, index));
@@ -384,6 +390,7 @@ export function buildFeedbackWalk<R = unknown>(input: {
     coachOnly: input.coachOnly,
     coachWordOnly: input.coachWordOnly,
     interventions: input.interventions,
+    judge: input.judge,
   }).filter((step) => {
     const moment = step.moment == null ? undefined : moments[step.moment];
     return (
@@ -535,8 +542,15 @@ export function walkAsItStands<R>(
     drawn.add(m);
     plan.push(...live.plan.filter((s) => s.moment === m));
   }
-  return { ...replay, plan, asItStands: true, scroll: false };
+  // While a moment still waits, the One thing walk's tail is live too: its
+  // judged moment, its helper words and "Lesson done." with Close (N309),
+  // never the finished walk's read-only copies.
+  const tail = drawn.size > 0 ? plan.map((s) => (LIVE_TAIL.has(s.key) ? (live.plan.find((l) => l.key === s.key) ?? s) : s)) : plan;
+  return { ...replay, plan: tail, asItStands: true, scroll: false };
 }
+
+/** The One thing walk's steps after its fix (N309). */
+const LIVE_TAIL: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>(["others", "words", "done"]);
 
 /** How the walk left a moment it stood on live (founder 2026-10-21: "the
  *  black lines on the ideal text are still there even though I walked
@@ -612,6 +626,8 @@ const REPLAY_AS_GIVEN: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>([
   "thanks",
   "others",
   "tempo",
+  "words",
+  "done",
 ]);
 
 /** THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A; walk
@@ -642,11 +658,13 @@ export function buildFeedbackReplay<R = unknown>(input: {
   triesOf?: (moment: FeedbackWalkMoment<R>) => ReplayTries | null;
   /** The interventions the walk had, as the chat kept them (N247). */
   interventions?: readonly WalkIntervention[];
+  /** The One thing walk judged one moment (from Take 2, N309 item 2). */
+  judge?: boolean;
 }): FeedbackWalkModel<R> {
   const items = input.items.map((i) =>
     i.judge != null && input.answerOf(i.judge) === null ? { ...i, judge: null } : i,
   );
-  const base = buildFeedbackWalk({ items, coachNote: input.coachNote, practiceOn: input.practiceOn, guest: false, coachOnly: input.coachOnly, coachWordOnly: input.coachWordOnly, interventions: input.interventions });
+  const base = buildFeedbackWalk({ items, coachNote: input.coachNote, practiceOn: input.practiceOn, guest: false, coachOnly: input.coachOnly, coachWordOnly: input.coachWordOnly, interventions: input.interventions, judge: input.judge });
   const tries: Record<number, ReplayTries> = {};
   const outcomes: Record<number, readonly TryOutcome[]> = {};
   for (const moment of base.moments) {

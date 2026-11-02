@@ -84,6 +84,22 @@ export async function helperWordsBehind<
   return (await setRoot(chunk, span)) ? "ok" : "failed";
 }
 
+/** The One thing walk's helper words from a Clearer version's practice
+ *  (N309 item 3), then the lock: the lock to the paragraph as it is, then
+ *  the sentence to the Slide. A blocked lock is final. */
+export async function helperWordsFromPracticeBehind<C extends { part: { text: string } }>(
+  setFromPractice: (practiceId: string, partId: string, phrase: string) => Promise<boolean>,
+  lock: (chunk: C, text: string) => Promise<{ outcome: string }>,
+  chunk: C & { part: { id: string } },
+  practiceId: string,
+  phrase: string,
+): Promise<BehindOutcome> {
+  const result = await lock(chunk, chunk.part.text);
+  if (result.outcome === "blocked") return "final";
+  if (result.outcome !== "ok") return "failed";
+  return (await setFromPractice(practiceId, chunk.part.id, phrase)) ? "ok" : "failed";
+}
+
 /** Helper words from an earlier Take, then the lock (founder lock
  *  2026-09-30, B4, D5): the lock to the paragraph as it is, then the
  *  words to the Slide. A blocked lock is final. */

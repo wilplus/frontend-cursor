@@ -1,4 +1,5 @@
-import { AI_CLIP_BANK, CHUNK_SHEET_COPY, TOP_MOMENT_LINES, WALK_COPY, WALK_LINE_BANK } from "@/components/willab/idealEditCopy";
+import { AI_CLIP_BANK, CHUNK_SHEET_COPY, ONE_THING_COPY, TOP_MOMENT_LINES, WALK_COPY, WALK_LINE_BANK } from "@/components/willab/idealEditCopy";
+import { PRAISE_LEAD } from "./trackedChangeWhy";
 import type { AiClipProblem } from "@/services/api/aiVoice";
 import type { WalkStep } from "./walkPlan";
 
@@ -63,6 +64,63 @@ export function aiClipLines(
   const then = AI_CLIP_BANK.AIend[again ? 1 : 0];
   if (own) return said ? { lead: own, line: said, then } : { line: own, then };
   return { line: said ? `${opener} ${said}` : opener, then };
+}
+
+/** The AI clip's tip for the problem the clip fixes, quoting the speaker's
+ *  phrase, without ", like this:" (N120's bank); null when the clip names
+ *  no problem, or a phrase the tip needs is missing. Pure apart from `say`. */
+export function aiTip(
+  say: (bank: WalkBankKey) => string,
+  clip: { problem?: AiClipProblem | null; phrase?: string | null } | null | undefined,
+): string | null {
+  const bank = clip?.problem ? TIP_BANK[clip.problem] : null;
+  const tip = bank ? say(bank) : null;
+  if (!tip || (tip.includes("{phrase}") && !clip?.phrase)) return null;
+  return tip.replace("{phrase}", clip?.phrase ?? "");
+}
+
+/** The One thing walk's AI bubble (founder 2026-10-31, N309 item 1): the
+ *  tip ending ", like this:", the clip, "Your turn."; no opener, and no
+ *  bubble again after a miss. A tip not known yet is left out. */
+export function oneThingAiLines(
+  say: (bank: WalkBankKey) => string,
+  clip: { problem?: AiClipProblem | null; phrase?: string | null } | null | undefined,
+): { line: string; then: string } {
+  const tip = aiTip(say, clip);
+  return { line: tip ? `${tip}, like this:` : "", then: ONE_THING_COPY.yourTurn };
+}
+
+/** The tip as "Last time: {the tip}." says it next Take: its first letter
+ *  lower-cased, as the prototype shows ("Last time: let “fourteen shades”
+ *  wait a beat. You did."). Pure. */
+export function tipSaid(tip: string): string {
+  return lowerFirst(tip.trim().replace(/[.:]+$/, ""));
+}
+
+/** "your voice …" from "Your voice …"; "I" stays. Pure. */
+function lowerFirst(line: string): string {
+  if (/^I\b/.test(line)) return line;
+  return line.charAt(0).toLowerCase() + line.slice(1);
+}
+
+/** Their best's own signed cue line (B01 to B09, or the cue's sentence),
+ *  never the lead "It was your confident moment."; null when it has none.
+ *  Pure. */
+export function cueLineOf(moment: { praiseWords: readonly string[]; praiseLead?: readonly string[] }): string | null {
+  const lead = new Set(moment.praiseLead ?? []);
+  const cue = moment.praiseWords.find((w) => !lead.has(w) && w.trim());
+  if (cue) return cue;
+  // A signed line (35f) stands as its own lead: it is the cue line.
+  const only = moment.praiseWords[0]?.trim();
+  return only && only !== PRAISE_LEAD && only !== CHUNK_SHEET_COPY.praiseTentative ? only : null;
+}
+
+/** Their best's bubble (N309 item 1): "This was your most confident
+ *  moment." and "Why it worked: {the cue line}", lower-cased after the
+ *  colon as the prototype shows. Pure. */
+export function bestBubble(moment: { praiseWords: readonly string[]; praiseLead?: readonly string[] }): string[] {
+  const cue = cueLineOf(moment);
+  return cue ? [ONE_THING_COPY.best, ONE_THING_COPY.whyItWorked(lowerFirst(cue))] : [ONE_THING_COPY.best];
 }
 
 /** The clearer version's opening lines, above the new words. Words that

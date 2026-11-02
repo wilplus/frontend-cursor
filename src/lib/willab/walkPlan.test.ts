@@ -6,17 +6,21 @@ OUTCOME
   O3  Every moment has a practice step, even with nothing attached.
   O4  A praised moment the server does not mark for practice, or with practice off, goes straight to its helper words (N122).
   O5  Each moment after the first opens with "let's look at your next key moment", and the first step after the last moment with "These were some real good moments of yours"; never in the coach's own walk (N285).
-  O6  A Take served with slots walks its strongest first (praise, helper words, no AI clip), then its weakest (practise), any next best (praise), then the one between (its Clearer version), then the tempo step; a Take served before them keeps praise first (N289).
+  O6  A Take served with slots is the One thing walk: their best (praise, nothing to practise), one fix with the tool it needs (the Clearer version first, else the AI clip on the weakest), from Take 2 one moment of another speaker, the helper words on their own, then "Lesson done."; no picker, no second moment, no summary; a Take served before them keeps praise first (N309).
+  O7  With no moment to fix and the tempo step there, the Sniper is the one fix; with a moment to fix, no tempo step (N309).
+  O8  The One thing walk's fix allows two tries: a second miss ends it (N309).
 PROVES   O1 -> carries no number, read or score
          O2 -> praises each strong moment, practises each corrected one, and never asks the speaker to judge
          O3 -> a moment with nothing attached is the moment said again
          O4 -> a praised moment not marked for practice, or with practice off, goes straight to its helper words
          O5 -> the next moment and the end of the moments each get their line, once
-         O6 -> the strongest, the weakest, then the one between, ending on the precise fix
-WHY      Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N285, "let's look at your next key moment we spotted"; N289, "First, show the strongest, then the weakest, and then the average").
+         O6 -> their best, one fix with its tool, one judged moment from Take 2, the helper words, then Lesson done
+         O7 -> with no moment to fix, the Sniper on this week's level is the one fix
+         O8 -> a second miss ends the fix
+WHY      Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N285, "let's look at your next key moment we spotted"; N289, "First, show the strongest, then the weakest, and then the average"); 2026-10-31 (N309, "apply to it the one thing walk").
 */
 import { describe, expect, it } from "vitest";
-import { buildWalkPlan, momentLead, walkMoments, type WalkMoment } from "./walkPlan";
+import { afterTry, buildWalkPlan, momentLead, walkMoments, type WalkMoment } from "./walkPlan";
 
 /** The harness's four moments (walkFixtures MOMENTS): praise, clearer,
  *  praise, exercise, all on one slide. */
@@ -106,28 +110,39 @@ describe("the lines between moments (founder 2026-10-30, N285)", () => {
   });
 });
 
-describe("three moments, three jobs (founder 2026-10-30, N289)", () => {
-  it("the strongest, the weakest, then the one between, ending on the precise fix", () => {
-    const plan = (items: Parameters<typeof walkMoments>[0]) =>
-      buildWalkPlan({ moments: walkMoments(items), interventions: ["tempo"], coachNote: false, practiceOn: true, guest: false })
-        .map((s) => (s.moment == null ? s.key : `${s.key}:${s.moment}`));
-    // Page order: the between on slide 0, the strongest on 1, the weakest on 2.
-    expect(plan([
-      { start: 0, slide: 0, blockId: "a", tiered: true, practicePrompt: true, hasRewrite: true, walkSlot: "between" },
-      { start: 10, slide: 1, blockId: "b", tiered: true, green: true, walkSlot: "strongest" },
-      { start: 20, slide: 2, blockId: "c", tiered: true, practicePrompt: true, walkSlot: "weakest" },
-    ])).toEqual([
-      "page", "praise:1", "helpers:1", "exVideo:2", "practise:2", "clearer:0", "practise:0",
-      "tempo", "others", "summary", "end",
+describe("the One thing walk (founder 2026-10-31, N309)", () => {
+  type Items = Parameters<typeof walkMoments>[0];
+  const plan = (items: Items, opts: { judge?: boolean; interventions?: readonly "tempo"[] } = {}) =>
+    buildWalkPlan({ moments: walkMoments(items), coachNote: false, practiceOn: true, guest: false, ...opts }).map((s) =>
+      s.moment != null ? `${s.key}:${s.moment}` : s.of != null ? `${s.key}:of${s.of}` : s.key,
+    );
+  const between = { start: 0, slide: 0, blockId: "a", tiered: true, practicePrompt: true, hasRewrite: true, walkSlot: "between" as const };
+  const strongest = { start: 10, slide: 1, blockId: "b", tiered: true, green: true, walkSlot: "strongest" as const };
+  const weakest = { start: 20, slide: 2, blockId: "c", tiered: true, practicePrompt: true, walkSlot: "weakest" as const };
+
+  it("their best, one fix with its tool, one judged moment from Take 2, the helper words, then Lesson done", () => {
+    // Words come first: the Clearer version is the one fix; the weakest is
+    // not walked. Take 2 and on: one moment of another speaker.
+    expect(plan([between, strongest, weakest], { judge: true })).toEqual([
+      "page", "praise:1", "clearer:0", "practise:0", "others", "words:of0", "done", "end",
     ]);
-    // No words to help: a next best, praised, after the weakest.
-    expect(plan([
-      { start: 0, slide: 0, blockId: "a", tiered: true, green: true, walkSlot: "next" },
-      { start: 10, slide: 1, blockId: "b", tiered: true, green: true, walkSlot: "strongest" },
-      { start: 20, slide: 2, blockId: "c", tiered: true, practicePrompt: true, walkSlot: "weakest" },
-    ])).toEqual([
-      "page", "praise:1", "helpers:1", "exVideo:2", "practise:2", "praise:0", "helpers:0",
-      "tempo", "others", "summary", "end",
+    // No words to help: the AI clip on the weakest. Take 1 judges no one.
+    // No helper-word picker, no second moment, no summary.
+    expect(plan([strongest, weakest])).toEqual(["page", "praise:0", "exVideo:1", "practise:1", "words:of1", "done", "end"]);
+    expect(buildWalkPlan({ moments: walkMoments([strongest, weakest]), coachNote: false, practiceOn: true, guest: false }).every((s) => s.overlay === false || s.one)).toBe(true);
+  });
+
+  it("with no moment to fix, the Sniper on this week's level is the one fix", () => {
+    expect(plan([strongest], { interventions: ["tempo"], judge: true })).toEqual([
+      "page", "praise:0", "tempo", "others", "words", "done", "end",
     ]);
+    // A moment to fix: the tempo step is not walked.
+    expect(plan([strongest, weakest], { interventions: ["tempo"] })).not.toContain("tempo");
+  });
+
+  it("a second miss ends the fix", () => {
+    const second = { key: "practise" as const, moment: 0, attempt: 2, one: true };
+    expect(afterTry(second, "again").map((s) => s.key)).toEqual(["processing", "thanks"]);
+    expect(afterTry({ ...second, attempt: 1 }, "again").map((s) => s.key)).toEqual(["processing", "encourage", "practise"]);
   });
 });

@@ -4,20 +4,21 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, momentChat, othersAnswered, othersChat, praiseChat, shownStep, storedSummaryOf, tempoSaidIn, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, praiseChat, shownStep, storedSummaryOf, tempoSaidIn, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkIntervention, WalkStep } from "@/lib/willab/walkPlan";
-import type { WalkBankKey } from "@/lib/willab/walkLines";
+import { tipSaid, type WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
-import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkRequest, type WalkAiShown } from "./walk/FeedbackWalk";
+import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkLastTime, type FeedbackWalkRequest, type FeedbackWalkTempoWords, type WalkAiShown } from "./walk/FeedbackWalk";
 import type { WalkJudgementSave } from "./walk/useWalkJudging";
 import { useWalkJournalPost } from "./useWalkJournalPost";
 import { noteOwnAnswer, ownAnswersOf } from "./paragraphSheetData";
 import type { OwnerAnswer } from "@/services/api/bookmarkHistory";
-import { CHUNK_SHEET_COPY, WALK_COPY } from "./idealEditCopy";
+import { CHUNK_SHEET_COPY, ONE_THING_COPY, WALK_COPY } from "./idealEditCopy";
 import {
   acceptRewriteBehind,
   helperWordsBehind,
+  helperWordsFromPracticeBehind,
   keepWordsBehind,
   type SaveBehind,
 } from "./saveBehind";
@@ -59,7 +60,8 @@ import {
   shownKey,
   type CoachFeedbackShown,
 } from "@/services/api/coachFeedbackSeen";
-import type { RootPhraseSpan } from "@/services/api/partLock";
+import { setHelperWordsFromPractice, type RootPhraseSpan } from "@/services/api/partLock";
+import { fetchLastFix, type LastFix } from "@/services/api/reviewLastFix";
 import type { LockResult } from "./DeckChunkModal";
 import { praiseTitleFor } from "@/lib/willab/praiseLevels";
 import { useGreenReasons } from "./walk/useGreenReasons";
@@ -72,7 +74,7 @@ import { useRingState } from "@/hooks/useRingState";
 import { postTempoGame } from "@/services/api/reviewTempo";
 import { askWalkQuote, replayWalkQuote, setWalkQuote, walkQuoteShown } from "@/services/api/walkQuote";
 import type { WalkQuoteIO } from "./walk/useWalkQuote";
-import { TEMPO_COPY, TEMPO_STEP_FEATURE, afterTry, type TempoEvent } from "@/lib/willab/tempoStep";
+import { TEMPO_COPY, TEMPO_STEP_FEATURE, afterTry, oneThingTempoLines, type TempoEvent } from "@/lib/willab/tempoStep";
 
 /* -------------------------------------------------------------------------- */
 /*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
@@ -208,7 +210,9 @@ function withLateReason<S extends { author: WalkAuthor; body: string } | null>(
   moment: FeedbackWalkMoment<DocumentSuggestion> | null,
   reasons: WalkPraiseReasons,
 ): S | ReturnType<typeof praiseChat> {
-  if (!said || !moment || step.key !== "praise" || moment.praiseReason) return said;
+  // Their best in the One thing walk says why it worked in its own line
+  // (N309): no reason bubble.
+  if (!said || !moment || step.key !== "praise" || step.one || moment.praiseReason) return said;
   const reason = reasons.of(moment.clip?.snippetId);
   return reason ? praiseChat(moment, reason) : said;
 }
@@ -809,11 +813,35 @@ export function useDeckFeedbackWalk(args: {
     [take, coachOnly],
   );
   const interventions = useMemo<readonly WalkIntervention[]>(() => (tempo ? ["tempo"] : []), [tempo]);
+  /* LAST TIME (founder 2026-10-31, N309 item 1): the last Take's fix, when
+     it rose on this Take, read once per Take; the speaker's own walk only. */
+  const [lastFix, setLastFix] = useState<LastFix | null>(null);
+  useEffect(() => {
+    setLastFix(null);
+    const arcId = args.arcId ?? null;
+    if (!arcId || !take || coachOnly || (args.takeIndex ?? 0) < 2) return;
+    let on = true;
+    void fetchLastFix(arcId, take).then((fix) => {
+      if (on) setLastFix(fix);
+    });
+    return () => {
+      on = false;
+    };
+  }, [args.arcId, take, coachOnly, args.takeIndex]);
+  /* The Sniper's helper words (N309 item 3): its stretch's words, on the
+     paragraph that says them. */
+  const tempoWords = useMemo<FeedbackWalkTempoWords | null>(() => {
+    const text = tempo?.said.stretch.trim();
+    const chunk = text ? chunks.find((c) => c.part.text.includes(text)) : undefined;
+    return text && chunk ? { partId: chunk.part.id, paragraphText: chunk.part.text, text } : null;
+  }, [tempo, chunks]);
   /* WHY THE GREEN MOMENT LANDED (founder 2026-10-18): a green clip that
      reached the page before its reason was written is asked for here, and
      the walk draws it once it is in. */
+  // Not in the One thing walk (a Take served with slots): their best says
+  // why it worked in its signed cue line, with no reason bubble (N309).
   const reasonClips = useMemo(
-    () => [...new Set(items.flatMap((i) => (i.green === true && !i.praiseReason && i.clip?.snippetId ? [i.clip.snippetId] : [])))],
+    () => [...new Set(items.flatMap((i) => (i.green === true && !i.walkSlot && !i.praiseReason && i.clip?.snippetId ? [i.clip.snippetId] : [])))],
     [items],
   );
   const greenReasons = useGreenReasons(args.arcId ?? null, take, reasonClips);
@@ -847,7 +875,7 @@ export function useDeckFeedbackWalk(args: {
      step, so the walk opened again draws the game as it went (B5, N247);
      the game itself kept for Will's note. */
   const onTempo = useCallback(
-    (event: TempoEvent) => {
+    (event: TempoEvent, one = false) => {
       if (!tempo) return;
       const say = (key: string, author: "app" | "speaker", body: string, attempt: number | null = null, extra?: Record<string, unknown>) =>
         post({ key, moment: null, attempt, author, body, extra });
@@ -855,16 +883,23 @@ export function useDeckFeedbackWalk(args: {
         say("tempo:open", "app", [TEMPO_COPY.game[tempo.reading], TEMPO_COPY.task(tempo.topic), TEMPO_COPY.room].join("\n"));
       } else if (event.kind === "try") {
         say("tempo:try", "speaker", TEMPO_COPY.tryLabel(event.n), event.n, { path: event.path.slice(0, 300).map((v) => Math.round(v * 1000) / 1000) });
-        say("tempo:comment", "app", afterTry(event.result, event.landed, event.n).join("\n"), event.n);
+        // The Sniper as the One thing walk's fix says its own words (N309).
+        const lines = one ? oneThingTempoLines(event.landed, event.n) : afterTry(event.result, event.landed, event.n);
+        say("tempo:comment", "app", lines.join("\n"), event.n);
       } else {
         if (!event.close) say("tempo:skip", "speaker", TEMPO_COPY.skip);
-        else if (!event.tries.some((t) => t.landed)) say("tempo:close", "app", TEMPO_COPY.close[event.close]);
+        else if (!one && !event.tries.some((t) => t.landed)) say("tempo:close", "app", TEMPO_COPY.close[event.close]);
         const arcId = args.arcId ?? null;
         if (arcId && take) void postTempoGame(arcId, take, tempo.reading, event);
       }
     },
     [tempo, post, args.arcId, take],
   );
+  /* THE ONE THING WALK JUDGES ONE MOMENT, FROM TAKE 2 (founder 2026-10-31,
+     N309 item 2, N300): its machine level the Take's turn, high, middle,
+     low; Take 1 judges no one. */
+  const judgesOne = (args.takeIndex ?? 0) >= 2;
+  const othersLevel = othersLevelFor(args.takeIndex ?? null);
   const model = useMemo(
     () =>
       buildFeedbackWalk({
@@ -875,8 +910,9 @@ export function useDeckFeedbackWalk(args: {
         practiceOn,
         guest: false,
         interventions,
+        judge: judgesOne,
       }),
-    [items, coachMessage, practiceOn, args.coachOnly, args.coachWordOnly, interventions],
+    [items, coachMessage, practiceOn, args.coachOnly, args.coachWordOnly, interventions, judgesOne],
   );
 
   /* THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A): the
@@ -927,16 +963,29 @@ export function useDeckFeedbackWalk(args: {
   // summary as the chat holds it, and says "Edited" on helper words picked
   // again in this Take.
   const storedSummary = useMemo(() => (threadMessages && take ? storedSummaryOf(threadMessages, take) : null), [threadMessages, take]);
+  const storedSummaryRef = useRef(storedSummary);
+  storedSummaryRef.current = storedSummary;
   const editedWords = useMemo(() => (threadMessages && take ? wordsEditedIn(threadMessages, take) : null), [threadMessages, take]);
   // A walk played again holds every step as it went (N247): the tempo step
   // as the chat kept it, when this Take had one.
   const tempoSaid = useMemo(() => (threadMessages && take ? tempoSaidIn(threadMessages, take) : []), [threadMessages, take]);
   const replayInterventions = useMemo<readonly WalkIntervention[]>(() => (tempoSaid.length > 0 ? ["tempo"] : []), [tempoSaid]);
+  // "Last time: {the tip}. You did." (N309 item 1): the tip the last Take's
+  // walk gave, as its fix step kept it in the chat; a Clearer version's is
+  // its "Say it straight". No tip kept: no line.
+  const lastTime = useMemo<FeedbackWalkLastTime | null>(() => {
+    if (!lastFix) return null;
+    const kept = threadMessages ? lastFixTip(threadMessages, take, args.arcId ?? null, args.takeIndex ?? null) : null;
+    const tip = kept ?? (lastFix.kind === "clearer" ? ONE_THING_COPY.sayStraight : null);
+    return tip ? { tip: tipSaid(tip), clip: lastFix.clip } : null;
+  }, [lastFix, threadMessages, take, args.arcId, args.takeIndex]);
   // How far a finished walk is drawn: through the judging and the summary
   // where the chat holds them (N247).
   const threadEnd = useCallback(
     (done: FeedbackWalkModel<DocumentSuggestion>) =>
-      walkThreadEnd(done, (s) => (s.key === "summary" ? storedSummary !== null : othersJudged > 0)),
+      walkThreadEnd(done, (s) =>
+        s.key === "summary" ? storedSummary !== null : s.key === "others" ? othersJudged > 0 : true,
+      ),
     [storedSummary, othersJudged],
   );
   const [triedByPractice, setTriedByPractice] = useState<Readonly<Record<string, ReplayTries | null>>>({});
@@ -986,8 +1035,9 @@ export function useDeckFeedbackWalk(args: {
           return practiceId ? (triedByPractice[practiceId] ?? null) : null;
         },
         interventions: replayInterventions,
+        judge: judgesOne,
       }),
-    [replayItems, replayReady, coachMessage, practiceOn, helperWordsOf, triedByPart, triedByPractice, args.coachOnly, args.coachWordOnly, replayInterventions],
+    [replayItems, replayReady, coachMessage, practiceOn, helperWordsOf, triedByPart, triedByPractice, args.coachOnly, args.coachWordOnly, replayInterventions, judgesOne],
   );
   /* THE WHOLE TAKE'S WALK AS IT STANDS (founder 2026-10-21, B10: every door
      opens the whole walk, "live while that step waits"): what is answered as
@@ -998,9 +1048,9 @@ export function useDeckFeedbackWalk(args: {
   const liveAll = useMemo(
     () =>
       replayReady
-        ? buildFeedbackWalk({ items: replayItems, coachNote: coachMessage !== null, coachOnly: args.coachOnly === true, coachWordOnly: args.coachWordOnly === true, practiceOn, guest: false })
+        ? buildFeedbackWalk({ items: replayItems, coachNote: coachMessage !== null, coachOnly: args.coachOnly === true, coachWordOnly: args.coachWordOnly === true, practiceOn, guest: false, interventions, judge: judgesOne })
         : null,
-    [replayReady, replayItems, coachMessage, args.coachOnly, args.coachWordOnly, practiceOn],
+    [replayReady, replayItems, coachMessage, args.coachOnly, args.coachWordOnly, practiceOn, interventions, judgesOne],
   );
   const waitsOn = useCallback(
     (moment: FeedbackWalkMoment<DocumentSuggestion>) => walkStepForPart(model, moment.partId) !== null,
@@ -1195,13 +1245,29 @@ export function useDeckFeedbackWalk(args: {
   const saveHelperWords = useCallback((save: FeedbackWalkHelperWords) => {
     // Each new pick is its own bubble; the chat strikes the ones it replaces.
     // The speaker's bubble says the words without the sentence's punctuation
-    // at either end, as the walk shows them (founder 2026-10-21, B7).
+    // at either end, as the walk shows them (founder 2026-10-21, B7). The One
+    // thing walk's come on their own: the walk says them, with its line
+    // (N309 item 3).
     const words = helperWordsSaid(stripRichMarkers(save.span.text));
-    post({ key: `words:${save.partId}:${words}`, moment: null, attempt: null, author: "speaker", body: words, extra: { words_of: save.partId } });
+    post(
+      save.auto
+        ? { key: `words:${save.partId}:${words}`, moment: null, attempt: null, author: "app", body: `${ONE_THING_COPY.helperWords}\n${words}`, extra: { words_of: save.partId } }
+        : { key: `words:${save.partId}:${words}`, moment: null, attempt: null, author: "speaker", body: words, extra: { words_of: save.partId } },
+    );
     wordsSavedRef.current.add(save.partId);
     const { chunks: now, setRootPhrase, lockPart, saveBehind } = live.current;
     const chunk = now.find((c) => c.part.id === save.partId);
     if (!chunk) return;
+    // The Clearer version's sentence is not the paragraph's: to the slide,
+    // from the practice it was opened on (N309 item 3).
+    if (save.practiceId) {
+      const practiceId = save.practiceId;
+      saveBehind(
+        () => helperWordsFromPracticeBehind(setHelperWordsFromPractice, lockPart, chunk, practiceId, save.span.text),
+        CHUNK_SHEET_COPY.failWordsBehind,
+      );
+      return;
+    }
     const span = spanOnLiveText(save, chunk.part.text);
     // The words already saved, pressed again: nothing to write.
     if (span && sameHelperWords(span.text, live.current.helperWordsOf?.(save.partId))) return;
@@ -1210,15 +1276,15 @@ export function useDeckFeedbackWalk(args: {
       CHUNK_SHEET_COPY.failWordsBehind,
     );
   }, [post]);
-  const acceptClearer = useCallback((item: DocumentSuggestion) => {
-    post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: CHUNK_SHEET_COPY.pillAcceptPractise });
+  const acceptClearer = useCallback((item: DocumentSuggestion, label?: string) => {
+    post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: label ?? CHUNK_SHEET_COPY.pillAcceptPractise });
     // The coach's version is practised, never written on the text.
     if (coachVersionOf(item)) return;
     const { onAccept, saveBehind } = live.current;
     saveBehind(() => acceptRewriteBehind(onAccept, item), CHUNK_SHEET_COPY.failApply);
   }, [post]);
-  const keepWords = useCallback((item: DocumentSuggestion) => {
-    post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: CHUNK_SHEET_COPY.linkKeepMyWords });
+  const keepWords = useCallback((item: DocumentSuggestion, label?: string) => {
+    post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: label ?? CHUNK_SHEET_COPY.linkKeepMyWords });
     if (coachVersionOf(item)) return;
     const { onKeepMine, saveBehind } = live.current;
     saveBehind(() => keepWordsBehind(onKeepMine, item), CHUNK_SHEET_COPY.failKeep);
@@ -1346,6 +1412,22 @@ export function useDeckFeedbackWalk(args: {
     if (lensRef.current) live.current.onLensClose?.();
     live.current.onWalkClose?.();
   }, [postEnd]);
+  /* "LESSON DONE." AND CLOSE (founder 2026-10-31, N309 item 4): the review's
+     end is written, so "Continue review" goes and the Take's card lands
+     under its Feedback walk; the walk closes back to the chat. The summary
+     is no longer a step of the walk, and is still written once per Take as
+     the walk ends, so the chat's chain after the review (its card, the one
+     ask, the closing message with "Record Take N") runs as before. */
+  const summaryAsked = useRef<string | null>(null);
+  const onLessonDone = useCallback(() => {
+    if (practisingRef.current || live.current.coachOnly) return;
+    postEnd();
+    const { take: on } = threadRef.current;
+    if (on && summaryAsked.current !== on && storedSummaryRef.current === null) {
+      summaryAsked.current = on;
+      void summary();
+    }
+  }, [postEnd, summary]);
   // NEXT GOES TO WHAT STILL WAITS (founder 2026-10-14, walk first): on a
   // step played again, while a moment of this Take still waits, Next goes
   // to the live walk's first waiting step; with nothing waiting it plays on.
@@ -1401,7 +1483,7 @@ export function useDeckFeedbackWalk(args: {
       // The label above a moment, and the speaker's clip before its bubble.
       const chat = said ? momentChat(walkModel.plan, step, moment) : null;
       // The moment's paragraph: a tap in the chat finds the step by it.
-      const part = { part_id: moment?.partId ?? null };
+      const part = chatPartOf(step, moment, ai);
       postLevel(post, step, moment, Boolean(said), { ...at, extra: { ...part } });
       if (chat?.clip) post({ key: `clip:${step.key}`, ...at, author: "speaker", body: "", extra: { ...chat.label, clip: chat.clip, ...part } });
       if (said) post({ key: step.key, ...at, ...said, extra: { ...(chat?.clip ? {} : chat?.label), ...said.extra, ...part } });
@@ -1417,7 +1499,12 @@ export function useDeckFeedbackWalk(args: {
 
   /** Another speaker's moment, shown or answered: in the chat. */
   const onOthers = useCallback(
-    (at: number, of: number, from: string | null, answer: string | null) => {
+    (at: number, of: number, from: string | null, answer: string | null, one?: boolean) => {
+      // The One thing walk's one moment says its own words (N309 item 2).
+      if (one) {
+        othersOneChat(answer).forEach(post);
+        return;
+      }
       const entry = othersChat(at, of, from, answer);
       if (entry) post(entry);
     },
@@ -1488,6 +1575,11 @@ export function useDeckFeedbackWalk(args: {
           tempoSaid={tempoSaid}
           onTempo={onTempo}
           quotes={quotes}
+          lastTime={lastTime}
+          othersLevel={othersLevel}
+          tempoWords={tempoWords}
+          helperWordsOf={helperWordsOf ?? null}
+          onLessonDone={onLessonDone}
         />
     ),
     [
@@ -1522,6 +1614,11 @@ export function useDeckFeedbackWalk(args: {
       tempoSaid,
       onTempo,
       quotes,
+      lastTime,
+      othersLevel,
+      tempoWords,
+      helperWordsOf,
+      onLessonDone,
     ],
   );
 
@@ -1529,6 +1626,28 @@ export function useDeckFeedbackWalk(args: {
     () => ({ review, openPart, openHelpers, hasMoment, waits, replay, canReplay, replaySettled, practisePart, element }),
     [review, openPart, openHelpers, hasMoment, waits, replay, canReplay, replaySettled, practisePart, element],
   );
+}
+
+/** What a shown step's chat messages carry besides their words: the
+ *  moment's paragraph, so a tap in the chat finds the step by it, and on the
+ *  One thing walk's fix its tip, for "Last time" next Take (N309). Pure. */
+function chatPartOf(
+  step: WalkStep,
+  moment: { partId: string } | null,
+  ai: { line: string } | null | undefined,
+): { part_id: string | null; fix_tip?: string } {
+  const tip = step.one ? fixTipOf(step, ai ?? null) : null;
+  return tip ? { part_id: moment?.partId ?? null, fix_tip: tip } : { part_id: moment?.partId ?? null };
+}
+
+/** The tip the One thing walk's fix gave (N309 item 1), kept with its step
+ *  for "Last time" next Take: the AI clip's tip without ", like this:", or
+ *  the Clearer version's "Say it straight". Null: none. Pure. */
+export function fixTipOf(step: WalkStep, ai: { line: string } | null): string | null {
+  if (step.key === "clearer") return ONE_THING_COPY.sayStraight;
+  if (step.key !== "exVideo" || !ai?.line) return null;
+  const tip = ai.line.replace(/, like this:$/, "").trim();
+  return tip && tip !== ai.line ? tip : null;
 }
 
 /** Two helper word sets read the same, markers and case aside. Pure. */
