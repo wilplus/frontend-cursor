@@ -1,48 +1,60 @@
 // @vitest-environment jsdom
 /*
- * STORY    As a new speaker on the plan's ring, I want the Lounge to ask me
- *          my questions one at a time in the footer, and to show my plan
- *          as it was drawn, so that I reach my first Take without a form.
+ * STORY    As a new speaker on the plan's ring, I want Will to ask me my
+ *          questions one at a time the way he asks after the walk, and to
+ *          show my plan as it was drawn, so that I reach my first Take
+ *          without a form.
  * OUTCOME
- *   O1  Each step of the plan gets its own footer in place of the message
- *       box: the deadline's two chips, "Record your answer" with no Skip,
- *       the 1 to 10 scale, the calls' calendar, then only "Start your
- *       first recording"; with no plan, the message box stays.
- *   O2  A tap on the scale is sent once, and the number is never written
- *       back into the chat (N178).
- *   O3  The plan's rows are drawn by their metadata: the speaker's voice
+ *   O1  A choice (the deadline, the plan's own yes, a new project's
+ *       question) is tap answers on the right of the thread, Will's orange
+ *       pills, the plan's "Not now" grey and quieter; the Lounge's bar
+ *       stays under it, and a tap sends that answer (N319 item 1).
+ *   O2  A voice question turns the bar's mic orange; a tap records with the
+ *       one recording bar in the message box's place, the trash throws it
+ *       away, and Stop sends the answer to the plan (N319 item 1, N314).
+ *   O3  The 1 to 10 scale sits in the thread under its question; a tap is
+ *       sent once, and the number is never written back into the chat
+ *       (N178).
+ *   O4  One action a step: "Start your first recording" is never under a
+ *       question; it is the one button after the plan card, in the message
+ *       box's place, and opens the first Take (N319 item 2). A Take
+ *       recorded first: its walk comes before the questions (N262).
+ *   O5  While the plan asks, "Type here" stays in the bar, faded and not
+ *       focusable, with no note yet (N319 item 3); with nothing asked it
+ *       takes words again.
+ *   O6  The plan's rows are drawn by their metadata: the speaker's voice
  *       answer as their own bubble, the card with its list, the deadline
  *       in orange and Book on a call not booked, the plan's progress after
  *       the walk as Will's bubble with its bar and "{n} of {total}
  *       practices done." (N319 item 7); a plain row is left to the Lounge.
- *   O4  The chat has one record button: a practice day's one thing holds
+ *   O7  The chat has one record button: a practice day's one thing holds
  *       it until a newer Take's closing message takes it back (N167), and
  *       gives it up once a newer Take is recorded, in any project (N244,
  *       N251).
- *   O5  A new project's question takes Yes or No in the footer (H2), and
- *       "How do you feel?" comes before a Take only once the plan's first
+ *   O8  "How do you feel?" comes before a Take only once the plan's first
  *       Take is recorded (D4).
- *   O6  Will's ask for the plan's own yes is drawn as his bubble with Read
- *       more, its footer is "Not now" and "Yes, ask me" and nothing else
- *       is taken while he waits (N211).
- *   O7  Before my first Take nothing of the principles is in my way: no
+ *   O9  Will's ask for the plan's own yes is drawn as his bubble with Read
+ *       more (N211).
+ *   O10 Before my first Take nothing of the principles is in my way: no
  *       notebook mic, no ask; once my first Take lands, both are there,
  *       without opening the app again (N243).
- *   O8  The questions never stand between me and my first Take: under
- *       "Record your answer", "Start your first recording" opens it, and
- *       is gone once I have a Take (N262).
- * PROVES   O1 -> "each step has its own footer"
- *          O2 -> "a rating is sent once and never written back"
- *          O3 -> "the plan's rows are drawn as the prototype draws them"
- *          O4 -> "the newest bubble holds the one record button"
- *          O5 -> "a new project's question, and the feelings before a Take"
- *          O6 -> "Will asks for the plan's own yes"
- *          O7 -> "nothing of the principles before my first Take"
- *          O8 -> "my first Take is never behind the questions"
+ * PROVES   O1, O5 -> "a choice is taps in the thread, the bar stays and
+ *                     typing waits"
+ *          O2 -> "a voice question: the mic is orange and its recording
+ *                 sends the answer"
+ *          O3 -> "a rating is sent once and never written back"
+ *          O4 -> "Start your first recording only after the plan card"
+ *          O6 -> "the plan's rows are drawn as the prototype draws them"
+ *          O7 -> "the newest bubble holds the one record button"
+ *          O8 -> "the feelings before a Take"
+ *          O9 -> "Will asks for the plan's own yes"
+ *          O10 -> "nothing of the principles before my first Take"
  * WHY      The plan, built one to one with the prototype (founder
  *          2026-10-26, backend N203, N204); the principles waiting for the
- *          onboarding, backend N243; record first, backend N262;
- *          docs/flows/the-plan.md §1.
+ *          onboarding, backend N243; record first, backend N262; every
+ *          question the after-walk way, one action a step, typing waits
+ *          before Take 1, backend N319 items 1 to 3; docs/flows/the-plan.md
+ *          §1.
  */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -50,7 +62,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { Plan } from "@/services/api/plan";
 import { feelingsDue, rememberPlan } from "@/services/api/plan";
-import PlanDock, { dockFor, type PlanActions } from "./PlanDock";
+import { PlanAsk, type PlanActions } from "./PlanDock";
 import { newestOneOf, planRowFor, type PlanRowCtx } from "./PlanRows";
 import { usePlanLounge } from "./usePlanLounge";
 import { useVoiceNotebook, VoiceNoteMic } from "../useVoiceNotebook";
@@ -119,58 +131,216 @@ function row(metadata: Record<string, unknown>, body = "", role: LoungeMessage["
   return { client_id: `c-${Math.random()}`, role, kind: "text", body, metadata: { plan: "plan-1", ...metadata }, client_created_at: "2026-10-24T10:00:00Z" };
 }
 
-it("each step has its own footer", () => {
-  expect(dockFor(null, null)).toBeNull();
-  expect(dockFor({ ...PLAN, waiting: true }, null)).toBeNull();
-  expect(dockFor(PLAN, null)).toBe("deadline");
-  expect(dockFor({ ...PLAN, step: "followup" }, null)).toBe("voice");
-  expect(dockFor({ ...PLAN, step: "ready" }, null)).toBe("ready");
-  expect(dockFor({ ...PLAN, step: "summary" }, null)).toBe("call");
-  expect(dockFor({ ...PLAN, status: "active", step: "done" }, null)).toBe("start");
-  expect(dockFor({ ...PLAN, status: "active", step: "done", first_take_done: true }, null)).toBeNull();
-  expect(dockFor({ ...PLAN, status: "active", step: "done", first_take_done: true }, "kickoff")).toBe("book");
+/** A mic that records whatever the test says. */
+class FakeRecorder {
+  state: "inactive" | "recording" = "inactive";
+  mimeType = "audio/webm";
+  ondataavailable: ((e: { data: Blob }) => void) | null = null;
+  onstop: (() => void) | null = null;
+  static isTypeSupported = () => true;
+  start() {
+    this.state = "recording";
+    this.ondataavailable?.({ data: new Blob(["voice"], { type: "audio/webm" }) });
+  }
+  stop() {
+    this.state = "inactive";
+    queueMicrotask(() => this.onstop?.());
+  }
+}
 
-  act(() => root.render(<PlanDock plan={PLAN} busy={false} booking={null} onCloseBooking={() => {}} actions={actions()} />));
-  expect([...host.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Pick a date", "No date yet"]);
+/** The backend as the Lounge meets it: the plan as it stands, and every
+ *  answer posted. */
+function backend(plan: () => Plan) {
+  bffFetch.mockImplementation(async (url: string) => ({
+    kind: "response",
+    ok: true,
+    body: url.startsWith("/api/v2/plan")
+      ? { enabled: true, wrote: false, plan: plan() }
+      : url.startsWith("/api/v2/notebook/state")
+        ? { enabled: true, consented: false, max_seconds: 300 }
+        : { slots: [] },
+  }));
+}
 
-  act(() => root.render(<PlanDock plan={{ ...PLAN, step: "why" }} busy={false} booking={null} onCloseBooking={() => {}} actions={actions()} />));
-  expect(host.textContent).toContain("Record your answer");
-  expect(host.textContent).not.toContain("Skip");
+const posted = (path: string) =>
+  bffFetch.mock.calls.filter(([url, init]) => url === path && (init as { method?: string } | undefined)?.method === "POST");
 
-  const a = actions();
-  act(() => root.render(<PlanDock plan={{ ...PLAN, status: "active", step: "done" }} busy={false} booking={null} onCloseBooking={() => {}} actions={a} />));
-  act(() => (host.querySelector("[data-plan-dock='start']") as HTMLButtonElement).click());
-  expect(a.startFirst).toHaveBeenCalledTimes(1);
+/** The Lounge as it wires the plan: the thread's end, the plan's footer, and
+ *  the bar ("+", "Type here", the mic) with the plan's say over it. */
+function Lounge({ messages, onStartRecording }: { messages: LoungeMessage[]; onStartRecording?: (topic: string | null) => void }) {
+  const reload = async () => {};
+  const plan = usePlanLounge({
+    signedIn: true,
+    thread: { messages, loading: false, reload },
+    setThinking: () => {},
+    onStartRecording,
+    onRecordNext: () => {},
+    recordHeld: false,
+  });
+  const notebook = useVoiceNotebook({ signedIn: true, threadLoading: false, held: plan.holdsPrinciples, drawn: messages, openOffer: vi.fn(), reload });
+  return (
+    <>
+      <div data-thread="">{plan.asks}</div>
+      {plan.dock}
+      <form data-bar="" className={plan.composerDisplay("flex")}>
+        <button type="button" aria-label="Your projects" />
+        <textarea placeholder="Type here" disabled={plan.typingOff} />
+        <VoiceNoteMic notebook={notebook} draft={plan.draft("")} waiting={plan.mic(null)} />
+      </form>
+    </>
+  );
+}
+
+/** The Lounge opened afresh: it reads the plan as it now stands. */
+async function showLounge(messages: LoungeMessage[] = [], onStartRecording?: (topic: string | null) => void) {
+  act(() => root.unmount());
+  root = createRoot(host);
+  await act(async () => root.render(<Lounge messages={messages} onStartRecording={onStartRecording} />));
+  await act(async () => {});
+}
+
+const bar = () => host.querySelector("[data-bar]") as HTMLFormElement;
+const typeHere = () => host.querySelector("textarea[placeholder='Type here']") as HTMLTextAreaElement;
+const taps = (scope: ParentNode = host) => [...scope.querySelectorAll("[data-thread] button")].map((b) => b.textContent);
+const tapOn = async (label: string) => {
+  const button = [...host.querySelectorAll("[data-thread] button")].find((b) => b.textContent === label) as HTMLButtonElement;
+  await act(async () => button.click());
+  await act(async () => {});
+};
+
+it("a choice is taps in the thread, the bar stays and typing waits", async () => {
+  let now: Plan = PLAN;
+  backend(() => now);
+  await showLounge();
+  // The deadline: Will's tap answers, on the right of the thread.
+  expect(taps()).toEqual(["Pick a date", "No date yet"]);
+  expect(host.querySelector("[data-thread] [data-plan-ask='deadline']")).not.toBeNull();
+  // The Lounge's bar stays under it; "Type here" in it, faded and not
+  // focusable, with no note (N319 item 3).
+  expect(bar().className).not.toContain("hidden");
+  expect(host.querySelector("[aria-label='Your projects']")).not.toBeNull();
+  expect(typeHere().disabled).toBe(true);
+  expect(host.querySelector("[data-plan-dock='start']")).toBeNull();
+  await tapOn("No date yet");
+  expect(posted("/api/v2/plan/deadline")[0][1]).toMatchObject({ json: { date: null } });
+
+  // The plan's own yes: "Yes, ask me" orange outlined, "Not now" grey and
+  // quieter, the same shape.
+  now = { ...PLAN, step: "consent" };
+  await showLounge([row({}, "a"), row({}, "b")]);
+  expect(taps()).toEqual(["Not now", "Yes, ask me"]);
+  const [notNow, yes] = [...host.querySelectorAll("[data-thread] button")];
+  expect(notNow.hasAttribute("data-quiet")).toBe(true);
+  expect(yes.hasAttribute("data-quiet")).toBe(false);
+  expect(typeHere().disabled).toBe(true);
+  await tapOn("Yes, ask me");
+  expect(posted("/api/v2/plan/consent/answer")[0][1]).toMatchObject({ json: { yes: true } });
+
+  // A new project's question, after a Take: the same taps, the same bar.
+  now = { ...PLAN, status: "active", step: "same_event", first_take_done: true };
+  await showLounge([row({}, "c")]);
+  expect(taps()).toEqual(["Yes", "No"]);
+  await tapOn("No");
+  expect(posted("/api/v2/plan/same-event")[0][1]).toMatchObject({ json: { yes: false } });
+
+  // Nothing asked: no taps, and "Type here" takes words again.
+  now = { ...PLAN, status: "active", step: "done", first_take_done: true };
+  await showLounge([row({}, "d")]);
+  expect(taps()).toEqual([]);
+  expect(typeHere().disabled).toBe(false);
+  expect(bar().className).not.toContain("hidden");
 });
 
-it("my first Take is never behind the questions", () => {
-  const a = actions();
-  const asking = { ...PLAN, step: "followup" as const, record_now: true };
-  act(() => root.render(<PlanDock plan={asking} busy={false} booking={null} onCloseBooking={() => {}} actions={a} />));
-  expect([...host.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
-    "Record your answer",
-    "Start your first recording",
-  ]);
-  act(() => (host.querySelector("[data-plan-dock='start']") as HTMLButtonElement).click());
-  expect(a.startFirst).toHaveBeenCalledTimes(1);
+it("a voice question: the mic is orange and its recording sends the answer", async () => {
+  vi.stubGlobal("MediaRecorder", FakeRecorder);
+  Object.defineProperty(navigator, "mediaDevices", {
+    value: { getUserMedia: vi.fn(async () => ({ getTracks: () => [{ stop: vi.fn() }] })) },
+    configurable: true,
+  });
+  // The answer plays from the phone while it is heard (N275).
+  Object.assign(URL, { createObjectURL: vi.fn(() => "blob:answer"), revokeObjectURL: vi.fn() });
+  try {
+    backend(() => ({ ...PLAN, step: "why" }));
+    await showLounge([row({ plan_ask: "voice" }, "Please tell me, why does it matter and what is it about?")]);
+    // The bar stays, its mic orange while the question waits; no Skip, no
+    // button under the question.
+    expect(bar().className).not.toContain("hidden");
+    expect(typeHere().disabled).toBe(true);
+    const mic = () => host.querySelector("[data-testid='voice-note-mic']") as HTMLButtonElement;
+    expect(mic().hasAttribute("data-will-waits")).toBe(true);
+    expect(taps()).toEqual([]);
+    expect(host.textContent).not.toContain("Start your first recording");
+
+    // A tap records with the one bar, in the message box's place.
+    const record = async () => {
+      await act(async () => mic().click());
+      await act(async () => new Promise((done) => setTimeout(done, 0)));
+    };
+    const oneBar = () => host.querySelector("[data-plan-voice-recording] [data-recording-bar]") as HTMLElement;
+    await record();
+    expect(oneBar()).not.toBeNull();
+    expect(bar().className).toContain("hidden");
+    // The trash throws it away: nothing is sent, the bar comes back.
+    await act(async () => (oneBar().querySelector("button[aria-label='Delete']") as HTMLButtonElement).click());
+    await act(async () => new Promise((done) => setTimeout(done, 0)));
+    expect(posted("/api/v2/plan/answer")).toHaveLength(0);
+    expect(bar().className).not.toContain("hidden");
+    // Stop sends it through the plan's answer path.
+    await record();
+    await act(async () => (oneBar().querySelector("button[aria-label='Stop']") as HTMLButtonElement).click());
+    await act(async () => new Promise((done) => setTimeout(done, 0)));
+    const sent = posted("/api/v2/plan/answer");
+    expect(sent).toHaveLength(1);
+    expect((sent[0][1] as { body: FormData }).body.get("audio")).toBeInstanceOf(Blob);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it("a rating is sent once and never written back", async () => {
+  backend(() => ({ ...PLAN, step: "stress" }));
+  await showLounge([row({ plan_ask: "scale" }, "How stressed do you feel about it right now?")]);
+  // The scale keeps its shape, in the thread under the question.
+  const scale = host.querySelector("[data-thread] [data-plan-ask='stress']")!;
+  expect(scale.textContent).toContain("Calm");
+  expect(scale.textContent).toContain("Very stressed");
+  expect(bar().className).not.toContain("hidden");
+  const seven = scale.querySelector("[aria-label='7 of 10']") as HTMLButtonElement;
+  act(() => seven.click());
+  act(() => seven.click());
+  await act(async () => {});
+  const sent = posted("/api/v2/plan/rating");
+  expect(sent).toHaveLength(1);
+  expect(sent[0][1]).toMatchObject({ json: { value: 7 } });
+});
+
+it("Start your first recording only after the plan card", async () => {
+  let now: Plan = { ...PLAN, step: "followup" };
+  backend(() => now);
+  const start = vi.fn();
+  // While the questions are asked: no "Start your first recording" under any
+  // of them (N319 item 2).
+  for (const step of ["deadline", "why", "followup", "consent", "stress"] as const) {
+    now = { ...PLAN, step };
+    await showLounge([row({}, step)], start);
+    expect(host.textContent).not.toContain("Start your first recording");
+  }
+  // After the plan card, it is the one button, in the message box's place.
+  now = { ...PLAN, status: "active", step: "done" };
+  await showLounge([row({ plan_card: true })], start);
+  const button = host.querySelector("[data-plan-dock='start']") as HTMLButtonElement;
+  expect(button.textContent).toBe("Start your first recording");
+  expect(bar().className).toContain("hidden");
+  expect(taps()).toEqual([]);
+  await act(async () => button.click());
+  expect(start).toHaveBeenCalledWith("Our Q3 board pitch");
 
   // A Take recorded first: its walk comes before the questions do (N262).
-  expect(dockFor({ ...asking, record_now: false, waiting: true }, null)).toBeNull();
-  act(() => root.render(<PlanDock plan={{ ...asking, record_now: false }} busy={false} booking={null} onCloseBooking={() => {}} actions={a} />));
-  expect(host.textContent).toContain("Record your answer");
+  now = { ...PLAN, step: "followup", waiting: true };
+  await showLounge([row({}, "e")], start);
   expect(host.textContent).not.toContain("Start your first recording");
-});
-
-it("a rating is sent once and never written back", () => {
-  const a = actions();
-  act(() => root.render(<PlanDock plan={{ ...PLAN, step: "stress" }} busy={false} booking={null} onCloseBooking={() => {}} actions={a} />));
-  expect(host.textContent).toContain("Calm");
-  expect(host.textContent).toContain("Very stressed");
-  const seven = host.querySelector("[aria-label='7 of 10']") as HTMLButtonElement;
-  act(() => seven.click());
-  act(() => seven.click());
-  expect(a.rating).toHaveBeenCalledTimes(1);
-  expect(a.rating).toHaveBeenCalledWith(7);
+  expect(host.querySelector("[data-testid='voice-note-mic'][data-will-waits]")).toBeNull();
+  expect(typeHere().disabled).toBe(false);
 });
 
 function ctx(plan: Plan | null = PLAN): PlanRowCtx {
@@ -223,15 +393,7 @@ it("the newest bubble holds the one record button", () => {
   expect(c.onRecordNext).toHaveBeenCalledWith("arc-1");
 });
 
-it("a new project's question, and the feelings before a Take", () => {
-  const active: Plan = { ...PLAN, status: "active", step: "same_event", first_take_done: true };
-  expect(dockFor(active, null)).toBe("same_event");
-  const a = actions();
-  act(() => root.render(<PlanDock plan={active} busy={false} booking={null} onCloseBooking={() => {}} actions={a} />));
-  const no = [...host.querySelectorAll("button")].find((b) => b.textContent === "No") as HTMLButtonElement;
-  act(() => no.click());
-  expect(a.sameEvent).toHaveBeenCalledWith(false);
-
+it("the feelings before a Take", () => {
   rememberPlan(null);
   expect(feelingsDue()).toBe(false);
   rememberPlan({ ...PLAN, status: "active", step: "done", first_take_done: false });
@@ -243,13 +405,11 @@ it("a new project's question, and the feelings before a Take", () => {
 
 it("Will asks for the plan's own yes", () => {
   const waiting: Plan = { ...PLAN, step: "consent" };
-  expect(dockFor(waiting, null)).toBe("consent");
   const a = actions();
-  act(() => root.render(<PlanDock plan={waiting} busy={false} booking={null} onCloseBooking={() => {}} actions={a} />));
-  const labels = [...host.querySelectorAll("button")].map((b) => b.textContent);
-  expect(labels).toEqual(["Not now", "Yes, ask me"]);
-  act(() => (host.querySelectorAll("button")[1] as HTMLButtonElement).click());
-  act(() => (host.querySelectorAll("button")[0] as HTMLButtonElement).click());
+  act(() => root.render(<PlanAsk plan={waiting} busy={false} booking={null} actions={a} onBookNow={vi.fn()} />));
+  const [notNow, yes] = [...host.querySelectorAll("button")];
+  act(() => (yes as HTMLButtonElement).click());
+  act(() => (notNow as HTMLButtonElement).click());
   expect(a.consent).toHaveBeenNthCalledWith(1, true);
   expect(a.consent).toHaveBeenNthCalledWith(2, false);
 

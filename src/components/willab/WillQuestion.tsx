@@ -87,15 +87,19 @@ export default function WillQuestionBubble({
 }
 
 /** Orange outlined taps on the right of the thread, where the speaker's own
- *  messages go: Will's tap answers, and "I want to continue my practice"
- *  under the goodbye after a Take (N294 item 6). */
+ *  messages go: Will's tap answers, "I want to continue my practice" under
+ *  the goodbye after a Take (N294 item 6), and the plan's answers before
+ *  the walk (N319 item 1). A `quiet` label keeps the shape, grey and
+ *  quieter: the plan's "Not now". */
 export function TapRow({
   labels,
+  quiet = [],
   disabled = false,
   onTap,
   dataAttr,
 }: {
   labels: string[];
+  quiet?: readonly string[];
   disabled?: boolean;
   onTap: (label: string) => void;
   dataAttr: Record<string, string>;
@@ -108,7 +112,12 @@ export function TapRow({
           type="button"
           disabled={disabled}
           onClick={() => onTap(label)}
-          className="rounded-full border-[1.5px] border-primary bg-background px-3 py-1.5 text-[14.5px] font-semibold text-primary disabled:opacity-60"
+          data-quiet={quiet.includes(label) ? "" : undefined}
+          className={`rounded-full border-[1.5px] bg-background px-3 py-1.5 text-[14.5px] disabled:opacity-60 ${
+            quiet.includes(label)
+              ? "border-[#E2E2E2] font-medium text-[#737373] opacity-70"
+              : "border-primary font-semibold text-primary"
+          }`}
         >
           {label}
         </button>

@@ -40,12 +40,15 @@ built and what is still to come.
 ### A · Who gets it
 
 1. Every new speaker is diagnosed and gets a plan. The questions come once,
-   after consent and before the first Take, and never stop the speaker from
-   recording it: while a voice question is asked, "Start your first
-   recording" sits under "Record your answer" and opens the first Take at
-   once. What isn't answered yet comes back after that Take's walk, where
-   Will left off, and the plan counts that Take as its first practice
-   (N136, N146, N262).
+   after consent and before the first Take, one at a time and in this
+   order: the deadline, why it matters, the plan's own yes, the key line
+   and two follow-ups, the two ratings after the yes. The first Take follows
+   the plan card, whose one button is "Start your first recording" (E5); no
+   question has it under it (N319 item 2, which amends N262). When a Take
+   is recorded first all the same (the "+" in the bar opens the projects),
+   what isn't answered yet comes back after that Take's walk, where Will
+   left off, and the plan counts that Take as its first practice (N136,
+   N146, N262).
 2. A speaker who already has Takes is asked only "When is your deadline?",
    after their next Take, never before it. Their plan is built from the Takes
    they have (N147, N178).
@@ -70,14 +73,16 @@ built and what is still to come.
    fine. Let's give it two months, until 19 December." (N135, N137, N140).
 3. "I assume you came here to practise for some important event in your
    life. Please tell me, why does it matter and what is it about?" One voice
-   message, recorded with the one recording bar (backend N314, locked): the
-   trash on the left, then the walk's strip (the pulsing dot, the clock, the
-   track) with the red Stop inside it; Stop sends, the trash throws it away;
-   no Skip; before the first Take, "Start your first recording" under
-   "Record your answer" (A1). Was: a "Your answer" line over the strip and
-   a large red Stop under it. It lands as the speaker's orange voice bubble,
-   which plays back, and it goes through the processing authorization like
-   every recording (N135, N136, N137, N262). The bubble shows at once, with
+   message: while it waits the bar's mic is orange (B10); a tap records with
+   the one recording bar (backend N314, locked): the trash on the left, then
+   the walk's strip (the pulsing dot, the clock, the track) with the red
+   Stop inside it; Stop sends, the trash throws it away; no Skip (N319 item
+   1). Was: "Record your answer" in the footer, with "Start your first
+   recording" under it before the first Take (N262); before that a "Your
+   answer" line over the strip and a large red Stop under it. It lands as
+   the speaker's orange voice bubble, which plays back, and it goes through
+   the processing authorization like every recording (N135, N136, N137,
+   N262). The bubble shows at once, with
    the typing dots under the voice while it is heard; then the words Will
    heard take the dots' place, as a phone writes out a voice message, and
    stay under every voice answer (N275).
@@ -85,8 +90,8 @@ built and what is still to come.
    words, then says "I can already hear your main vocal cues and verbal
    habits." and "Let me draft your plan. A few more questions first."
    (N138, N150).
-5. Up to three follow-ups, one at a time, each answered by voice with the
-   same "Record your answer". The key line always comes first: "If {the
+5. Up to three follow-ups, one at a time, each answered by voice as in B3
+   (N319 item 1). The key line always comes first: "If {the
    board} remembers one sentence from you, what is it? Say it the way you'll
    say it." Then the first one this speaker hasn't answered yet, in this
    order: audience, talk length and slides, worry, experience, success,
@@ -123,6 +128,24 @@ built and what is still to come.
    correction per question: once Will was put right on it, the next answer
    to it is an answer (N275). Being put right counts as asked again, as in
    B8: the third time, Will moves on (N276).
+10. **Asked the after-walk way** (N319 items 1 and 3, as Will asks after
+   the walk, [the walk's page](feedback-walk-and-chat.md) B14, E3): each
+   question is Will's bubble, and the Lounge's bar stays under it ("+",
+   "Type here", the mic). A choice is tap answers on the right of the
+   thread, Will's orange outlined pills: "Pick a date" (it opens the date
+   sheet) and "No date yet"; the plan's own yes, "Yes, ask me" orange
+   outlined and "Not now" grey and quieter, the same shape (D5); "Skip" and
+   "Book now" under a call's ask while the calls show (F1). A voice
+   question turns the bar's mic orange, and its answer is recorded as in
+   B3. The 1 to 10 scale keeps its shape, in the thread under its question
+   (D2). While the plan asks before the first Take, "Type here" stays in
+   the bar, faded and not focusable: Will needs to hear the answer. A tap
+   on it is to show one short note above the bar, whose words wait for the
+   founder (§3, Never 4); until then it shows nothing. The taps and the
+   scale go while an answer is on its way; the answer and Will's next words
+   then land in the thread. Was: the plan's footer in place of the bar,
+   with its own chips, "Record your answer" and the scale, and the bar
+   hidden while the plan had a step.
 
 ### C · The diagnosis
 
@@ -153,7 +176,9 @@ built and what is still to come.
    they come at the end of the questions, before the plan card; on the last
    practice, after its Take (N148, N151, N178).
 2. One question at a time: the question in the thread, its scale in the
-   footer in place of "Type here". The number they tapped is never shown
+   thread under it, right side and full width, its shape kept, with the
+   Lounge's bar under it (N319 item 1, B10; was in the footer in place of
+   "Type here"). The number they tapped is never shown
    back to them; how the chat answers the tap waits for the founder's words
    (§3; N178, which changes N161's orange bubble with the number).
 3. The founder and the coach see the number; Will speaks of it only in words
@@ -174,8 +199,9 @@ built and what is still to come.
    you, and how you feel before each Take. I only ask with your yes. Your
    coach and I use your answers to shape your plan. You can turn this off in
    Settings." (N249) with Read more, which opens Privacy section 4e in a
-   window, and in the footer "Not now" and "Yes, ask me"; nothing else is
-   taken while Will waits. "Yes, ask me" goes on with the worry question and
+   window, and under it, on the right of the thread, "Not now" (grey and
+   quieter) and "Yes, ask me" (orange outlined) (N319 item 1, B10; was in
+   the footer); nothing else is taken while Will waits. "Yes, ask me" goes on with the worry question and
    the ratings. "Not now" adds no line from Will: the worry question and the
    ratings are not asked or kept, the plan is built from what it has and
    goes on to the calls, and its end goes to "What's next?" without "How did
@@ -219,13 +245,15 @@ built and what is still to come.
    orange #C2410C, the green #1F7A4A, the grey #737373. Every link has a
    fingertip's tap area; the text keeps its size (N167).
 5. Under the card, in place of "Type here", only "Start your first
-   recording" (N161).
+   recording" (N161): the one button before the first Take, under no
+   question (N319 item 2).
 
 ### F · The two calls with the coach, before the plan
 
 1. After the ratings, before the plan card, Will asks "Every plan starts
    with a kickoff session with your coach. Would you like to book it now?"
-   In place of "Type here": "Skip" and "Book now". The calendar never opens
+   Under it, tap answers on the right of the thread: "Skip" and "Book now"
+   (N319 item 1; was in place of "Type here"). The calendar never opens
    by itself; "Book now" opens it, full screen over the chat. The kickoff
    comes before the deadline (N157, N161, N248, N281). On the screen, top
    to bottom:
@@ -425,17 +453,18 @@ Signed:
   "When is your deadline?" · "Pick a date" · "No date yet" · "That's fine.
   Let's give it two months, until {date}." · "I assume you came here to
   practise for some important event in your life." · "Please tell me, why
-  does it matter and what is it about?" · "Record your answer" (N137,
-  N140); the recording bar's "Stop" (N314). Signed, no longer shown: "Your
-  answer" over the strip (N314).
+  does it matter and what is it about?" (N137, N140); the recording bar's
+  "Stop" (N314). Signed, no longer shown: "Your answer" over the strip
+  (N314); "Record your answer" (N137, N140; the orange mic since N319 item
+  1).
 - Will's reply: "I can already hear your main vocal cues and verbal habits."
   · "Let me draft your plan. A few more questions first." · when the AI
   fails, "Thank you. Now I can hear you talking about your goal and why it
   matters." (N140, N150).
 - Nothing heard and a correction (B8, B9, N262): "Sorry, I didn't quite
   catch that. Could you say it again?" · "Got it, thank you for putting me
-  right." · and "Start your first recording" under "Record your answer"
-  (A1; signed with E5, N161).
+  right." · "Start your first recording" is no longer under a question; it
+  stays after the plan card (E5, N161; N319 item 2).
 - The follow-up templates: "If {the board} remembers one sentence from you,
   what is it? Say it the way you'll say it." · "Who will be in the room on
   {date}, and how many?" · "How long will you speak, and will you have
@@ -508,6 +537,9 @@ Signed:
 Waiting for the founder's OK:
 
 - The deadline morning's good-luck line, still to be written (N169).
+- The note a tap on the faded "Type here" shows before the first Take
+  (B10), drafted "We need to hear this in your voice. Tap the mic." (N319
+  item 3).
 - The pace game's words are the tempo step's, on the walk's page §2 "Tempo"
   (N166), not here.
 
@@ -545,11 +577,28 @@ Waiting for the founder's OK:
     nothing heard (B8); one correction per question (B9) · BE, FE (this PR).
   - Built on 30 October 2026 (N276): one check on every transcription for
     what nobody said; no question asked more than three times (B8, B9) · BE.
+  - Built on 2 November 2026 (N319 items 1 to 3): every question the
+    after-walk way, the bar under it; one action a step; typing waits
+    before the first Take, with no note until its words are signed (A1,
+    B3, B5, B10, D2, D5, E5, F1) · BE, FE (this PR).
 
 ## 3. Still open
 
 - **How the chat answers a rating tap**, now that the number is not shown
   back (N178): the words wait for the founder (Never 4).
+- **The note under "Type here" before the first Take** (N319 item 3, B10):
+  a tap on the faded box is to show one short note above the bar; its
+  words, drafted "We need to hear this in your voice. Tap the mic.", wait
+  for the founder (Never 4). Until they are signed a tap shows nothing.
+- **As built, where N319 and its prototype (version 39) don't say:** the
+  bar's mic on a choice or the scale shows only where the voice notebook is
+  on, as with nothing asked (the walk's page B14 state 1), since the plan
+  hears no spoken answer there; the prototype draws it plain, and lets the
+  deadline be said, which the backend does not hear. A plan question after
+  the first Take (the deadline for a speaker with Takes, a new project's
+  question, "How did it go?", "What's next?", the last ratings) is asked
+  the same way, and "Type here" waits there too: the plan takes no typed
+  answer, and until N319 the box was hidden.
 - **The words in §1 K** still waiting for the founder's OK.
 - **As built, where the prototype doesn't say** (N203): after a rating tap the
   next question follows with nothing between, until the words in the first
@@ -571,8 +620,10 @@ Waiting for the founder's OK:
 
 The plan's own code, guarded by this page (`scripts/flow-pages.txt`):
 
-- `src/components/willab/plan/`: the footer by step (`PlanDock.tsx`, with
-  Will's ask for the plan's own yes), the
+- `src/components/willab/plan/`: the questions by step (`PlanDock.tsx`:
+  `PlanAsk`, the tap answers and the scale in the thread; `usePlanVoice`,
+  the orange mic's recording; `PlanDock`, "Start your first recording" and
+  the calls' calendar in the footer), the
   calls' calendar (`PlanCalendar.tsx`), the card (`PlanCard.tsx`), the rows in
   the thread (`PlanRows.tsx`), the two sheets (`PlanSheet.tsx`), the voice
   player and the hook the Lounge calls (`usePlanLounge.tsx`).
@@ -589,9 +640,12 @@ The plan's own code, guarded by this page (`scripts/flow-pages.txt`):
 It touches these places, each with its own page for what it owns:
 
 - The Lounge (`Lounge.tsx`): one hook call, the plan's rows drawn from the ask
-  bubbles, its footer in place of the message box, and the empty Lounge's
-  button held while the plan asks. The walk's page owns the Lounge's other
-  rules.
+  bubbles, its answers at the thread's end, its say over the bar (the mic
+  orange, "Type here" waiting), its footer in place of the message box only
+  for "Start your first recording", a call's calendar and the recording bar,
+  and the empty Lounge's button held while the plan asks. The plan's taps
+  are Will's (`WillQuestion.tsx`, `TapRow`, with "Not now" quiet). The
+  walk's page owns the Lounge's other rules.
 - `WillabSurface.tsx` and `src/lib/willab/setupDraft.ts`: "Start your first
   recording" opens the set-up with the topic filled in, without the feelings
   check (E5, B7).
@@ -629,6 +683,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N319 items 1 to 3 · A1, B3, B5, B10, D2, D5, E5, F1, K, §3, §4: every question the after-walk way: Will's bubble, the Lounge's bar under it ("+", "Type here", the mic); a choice is tap answers on the right of the thread (`PlanAsk`, Will's `TapRow`), the plan's "Not now" grey and quieter; a voice question turns the bar's mic orange and records with the one recording bar (`usePlanVoice`); the scale in the thread under its question; "Start your first recording" only after the plan card (the backend no longer sends `record_now`); "Type here" faded and not focusable while the plan asks, its note waiting for the founder's words. No new words. Was: the plan's footer in place of the bar (its chips, "Record your answer", the scale, "Skip" and "Book now"), the bar hidden while the plan had a step, and "Start your first recording" under each voice question before the first Take (N262) · BE, FE (this PR)
 - 2026-11-02 · N314 · B3, K: the plan's voice answers record with the one recording bar, the trash then the walk's strip with Stop inside it; Stop sends, the trash throws it away. Was: a "Your answer" line over the strip and a large red Stop under it · FE (this PR)
 - 2026-11-02 · N319 item 9 · B: after an answer in the plan's footer the chat lands on the newest bubble, even when scrolled up (feedback-walk-and-chat.md B15) · FE (this PR)
 - 2026-11-02 · N294 item 2 · after the walk, a key line said to Will goes into the open plan that has none (`facts.key_line`), where its practice days and walk read it (feedback-walk-and-chat.md E4) · BE (this PR)
