@@ -378,6 +378,17 @@ my go"), on the prototype <https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A>.
   current it brings this one back and records without asking. On a project
   that is not archived nothing is asked (Never 3).
 
+### Record Take N and sharing (2026-11-02, N309 item 5)
+
+- **Sharing is asked once.** From Take 2, **Record Take N** asks the
+  sharing screen only the first time ("Record Take 2"), and again only when
+  its words change or a community is added; otherwise it records at once
+  with the remembered choice, which goes with the new Take and is the line
+  under its recording. Opened from the chat's "Record Take N" (share mode),
+  the page does the same: the screen when it asks, else straight to the
+  recording; the screen's ✕ goes back to the chat. The rules: the walk's
+  page, G1 to G3. Was: the screen before every Take from Take 2.
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
@@ -432,6 +443,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N309 item 5 · built (§1, "Record Take N and sharing"): "Record Take N" asks the sharing screen once, the first time "Record Take 2" is tapped, and again only when its words change or a community is added; otherwise it records at once with the remembered choice (`IdealTextActions.tsx`); the button, its words and the screen are unchanged. Was: the screen before every Take from Take 2 · BE (slice5-share), FE (this PR)
 - 2026-10-30 · N289 · no change to this page's screens: the shared copy file (`idealEditCopy.ts`) gains the Feedback walk's two signed lines for the weakest moment, "Here's one with more in it." and "Your confident moment" (the walk's page, C4, K) · BE #1528, FE (this PR)
 - 2026-10-30 · N280 · no space under "Close": the bottom bar's own padding under it goes from 16 px to zero; "Record Take N", "Close", their sizes and gap are unchanged (`IdealTextOverlay.tsx`). Was: 16 px · BE #1514, FE (this PR)
 - 2026-10-29 · N273 · a guest's "Done" wall, shown in this page's place, carries the clip of the Take's most confident moment and "This was your most confident moment.", read from the rows the page already holds; nothing on the Ideal Text changes ([`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) A4) · FE (this PR), BE (N273 log)
