@@ -160,8 +160,12 @@ export function PlanAsk({
   }
   if (kind === "call") {
     const asked: CallWhich = plan.step === "kickoff" ? "kickoff" : "summary";
-    return taps([PLAN_COPY.skip, PLAN_COPY.bookNow], (label) =>
-      label === PLAN_COPY.bookNow ? onBookNow(asked) : actions.book(asked, null),
+    // "Skip" on the left, grey and quieter; "Book now" on the right, orange
+    // outlined (N325 item 2).
+    return taps(
+      [PLAN_COPY.skip, PLAN_COPY.bookNow],
+      (label) => (label === PLAN_COPY.bookNow ? onBookNow(asked) : actions.book(asked, null)),
+      [PLAN_COPY.skip],
     );
   }
   if (kind === "next") {

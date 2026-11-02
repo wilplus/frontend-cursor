@@ -327,9 +327,6 @@ deletes the line when the work is merged (the change goes to §6).
 
 - **"Do you hear it?" and "Pick the most confident moment"** are built and
   switched off (B3); switching them on is the founder's call.
-- **A later change of the coach's word updates the in-review bubble in
-  place** on the speaker's side (the walk's page, D5): a backend follow-up,
-  not built.
 - **The coach panel showing more of Will's knowledge** (the speaker's
   private note) is not asked for; the founder reads it on the person's admin
   page.
@@ -406,6 +403,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N192 · §3: the open line on a later change of the coach's word is closed: it shows in place with "Edited" on the speaker's side (the walk's page D5), built with N192 · docs (this PR)
 - 2026-11-02 · N301 · the coach's grey-blue picture is gone from beside the coach's words (F1), as from every bubble in the app; `WalkAvatar` draws nothing. Was: the grey-blue avatar (N80) · BE (N301 log), FE (this PR)
 - 2026-10-27 · N213 · a speaker's plan reaches the queue and their page: a new plan and their ask picked blind, then What happened; a stuck level answered with the coach's video as their word on the latest Take (K, J) · BE #1415, FE
 - 2026-10-21 · N111 · D2 and E1 stand: once a coach's answer is saved, the panel shows what the machine heard (in place of contract 34's amendment of 6 October); B3's blind lines are off; the page also guards the coach walk's words, the panel's state and both corpus screens (§4) · BE, FE

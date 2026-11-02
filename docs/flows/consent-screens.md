@@ -333,7 +333,7 @@ Approved on the clickable prototype <https://claude.ai/artifact/MVyWmdoWUqisttfk
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
 doing it fills its line in its PR and deletes the line when the work is merged (the change goes to §6).
 
-- **One "Messages" place** · on Data & consent: WhatsApp on or off with the number, email on or off, practice reminders on or off with their time, in place of the WhatsApp card, the email's unsubscribe links and the reminder in "Change your plan" · Data & consent · decided (backend N189), its design and words wait for the founder · BE #1360
+- **One "Messages" place** · on Data & consent: WhatsApp on or off with the number, email on or off, practice reminders on or off with their time, in place of the WhatsApp card, the email's unsubscribe links and the reminder in "Change your plan" · Data & consent · decided (backend N189), drawn later (backend N338 item 4) · BE #1360
 - **The plan's questions after the acceptance** · "Agree and continue" opens the Lounge with the plan's questions, not the empty Lounge; the screen itself does not change · the flow after the screen · decided (backend N136, N146), not built · rules: [`the-plan.md`](the-plan.md) §1 B
 
 ## 3. Still open
@@ -382,6 +382,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N338 · §2: one "Messages" place (N189 item 6) waits; it is drawn later · docs (this PR)
 - 2026-10-30 · N286 · the policy update's grey bubble in the Lounge takes the chat's bubble shape (feedback-walk-and-chat.md J6): no hard top-left corner, drawn in only where it meets another grey bubble · FE (this PR)
 - 2026-10-30 · N279 · the example: the walk's slow tempo line and a slow set pace; "…until you are." without the 😏; on open only the founder's play button calls, then the AI clip's, and the Sniper rests until the AI clip ends (`WelcomeExample.tsx`, `WelcomeConsent.tsx`, `globals.css`). Was: the fast line, the 😏, and the Sniper moving on open · BE #1511, FE (this PR)
 - 2026-10-30 · N277 · the welcome: two paragraphs under the name; "Read blog posts" goes; "See an example" opens over the whole page with the founder's own clip and words, the AI version of his voice, the tempo lines and the Sniper on a set pace (`WelcomeConsent.tsx`, `WelcomeExample.tsx`, `public/examples/`). Was: N273's description and a written example with its Ideal Text and feedback · BE #1509, FE (this PR)

@@ -6,8 +6,9 @@
  *          stands between me and my first Take.
  * OUTCOME
  *   O1  Will's ask for a call has "Skip" and "Book now" under it, tap
- *       answers in the thread (N319 item 1); the calendar does not open by
- *       itself (N281).
+ *       answers in the thread (N319 item 1), "Skip" grey and quieter on the
+ *       left, "Book now" orange on the right (N325 item 2); the calendar
+ *       does not open by itself (N281).
  *   O2  "Book now" opens it full screen: the call's name, "0 of 2 booked"
  *       and the deadline; only a day with an open time can be picked, and
  *       Book waits for a time.
@@ -18,7 +19,8 @@
  * PROVES   O1 to O4 -> "Book now, a day, a time, then Book"
  *          O5 -> "Skip passes the call on"
  * WHY      The calls' calendar, full screen and asked for first (founder
- *          2026-10-28 and 2026-10-30, backend N248, N281);
+ *          2026-10-28 and 2026-10-30, backend N248, N281; Skip quieter,
+ *          backend N325 item 2);
  *          docs/flows/the-plan.md §1 F.
  */
 import { act, useState } from "react";
@@ -115,6 +117,7 @@ it("Book now, a day, a time, then Book", async () => {
   expect(q("[data-plan-calendar]")).toBeNull();
   const ask = [...document.querySelectorAll("[data-plan-ask='call'] button")];
   expect(ask.map((b) => b.textContent)).toEqual(["Skip", "Book now"]);
+  expect(ask.map((b) => b.hasAttribute("data-quiet"))).toEqual([true, false]);
 
   act(() => (ask[1] as HTMLButtonElement).click());
   await wait(100);

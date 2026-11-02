@@ -398,11 +398,6 @@ doing it fills its line in its PR and deletes the line when the work is merged (
 
 ## 3. Still open
 
-- **"rewrite" heard as "route ride"** (same day, same Take). Whisper misheard a
-  word the speaker said twice. Planned: the app's own words ("rewrite", "Take",
-  "Ideal Text") join the talk's vocabulary hint by default, so Whisper is told
-  them (backend `services/snippet_transcription.py`; the talk's
-  `domain_vocabulary`). Not built.
 - **§1 in the present tense.** §1 is the lock as written, with its amendments after it. The next change to
   this screen rewrites the part it touches in the present tense, the way the walk's page did (backend N107).
 
@@ -443,6 +438,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N338 · §3: the app's own words ("rewrite", "Take", "Ideal Text") are not added to every Take's word hint; the open item on "route ride" is closed, not built · docs (this PR)
 - 2026-11-02 · N309 · no change to this page's screens: the shared copy file (`idealEditCopy.ts`) gains the One thing walk's signed words (`ONE_THING_COPY`; the walk's page, C and K). The walk's helper words, which now come on their own, reach this page through the same save as a pick, so they show orange on their paragraph as before; a Clearer version's sentence goes to the slide's helper words ([`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C3) · BE slice4-walk, FE (this PR)
 - 2026-11-02 · N309 item 5 · built (§1, "Record Take N and sharing"): "Record Take N" asks the sharing screen once, the first time "Record Take 2" is tapped, and again only when its words change or a community is added; otherwise it records at once with the remembered choice (`IdealTextActions.tsx`); the button, its words and the screen are unchanged. Was: the screen before every Take from Take 2 · BE (slice5-share), FE (this PR)
 - 2026-10-30 · N289 · no change to this page's screens: the shared copy file (`idealEditCopy.ts`) gains the Feedback walk's two signed lines for the weakest moment, "Here's one with more in it." and "Your confident moment" (the walk's page, C4, K) · BE #1528, FE (this PR)

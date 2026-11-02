@@ -46,6 +46,9 @@ export const PLAN_COPY = {
   /** The note a tap on the faded "Type here" shows above the bar while the
    *  plan asks before the first Take (signed, backend N323 item 1). */
   typeHereNote: "We need to hear this in your voice. Tap the mic.",
+  /** The same note while the plan waits for a tap answer instead (signed,
+   *  backend N325 item 4). */
+  tapAnswerNote: "Tap one of the answers above.",
   recordTake: (n: number) => `Record Take ${n}`,
   yourSummaryCall: "Your summary call",
   summaryCallWhat: "15 minutes with your coach, to look back and plan what's next.",

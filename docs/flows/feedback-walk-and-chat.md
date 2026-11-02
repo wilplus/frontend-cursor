@@ -993,6 +993,23 @@ praised moment:
               (1 when sure, 0.5 when a guess): its willfidence counts
               ×(1 + 0.25 × relevance) for the strongest and ×(1 − 0.25 ×
               relevance) for the fix slots; nothing known → as before
+  notes     = for a speaker the ring row walk_inner_context reaches (N326;
+              ring 6, the founder first): one verbal read per Take
+              (services/verbal_read.py), an AI call inside the Take's
+              processing authorization, reads what was said against the
+              Take's set-up (who, what it answers, success, the key line,
+              the set-up's note) and what the speaker noted themselves
+              (services/inner_context.py: principles with the Life Panel's
+              yes, kept strengths, life goals, Your why, # notes of the
+              last 60 days with the notebook's yes, each only where its own
+              ring row and consent reach; never Will's private note;
+              variables and constants are kept nowhere, so not read) for
+              the eight kinds of N290 item 4; a moment it weighs (high 1,
+              some 0.5) counts ×(1 − 0.5 × weight) for the between, kept
+              only when its Clearer version passes the gate (H3), else the
+              pick as without it; never the strongest or the weakest; at
+              most 5 seconds before the Take is ready (N327), late or failed → as
+              without it; a frozen Take keeps the walk it froze
   ```
 
   The unit is the sentence. FLOOR is 0.6 at launch, then calibrated so
@@ -1002,6 +1019,18 @@ praised moment:
   read is given the middle of the sound scale and the words order the clips;
   processing logs why nothing was stamped (2026-10-17). H4 works one clip
   through, step by step, with three examples.
+
+  The notes (N326) also shape the Clearer version: the moments the verbal
+  read weighs most (two at most) that the model already rewrites (an
+  unconfident read, profanity or a low slide fit) are written again with the
+  read's one line on what matters to the speaker, in the read's own words;
+  a rewrite that repeats three content words in a row from the notes that
+  the speaker did not say in the Take is refused (`rewrite_gate.leaks`),
+  and H3 then applies unchanged. Nothing of it is shown: no line says a
+  note was used (N326 item 1), no score (Never 1); the frame, the coach's
+  queue and the suggestion rows carry only the choice of moments and the
+  speaker's own words, never the notes, that they were used, a kind, a
+  weight or a reason built from them (Never 2).
 - **H2** The AI clip's problem (pace, pause, stress, fillers) is measured
   against the speaker's own usual delivery; the clip is made once per
   exercise, at the end of the bake, checked before it is shown, and made
@@ -1626,18 +1655,16 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- **N171, N189, N193** · messages: no check message when a number is saved, since the app shows it back; coach-feedback messages wait from 21:00 to 8:00 in the time zone of the speaker's country of residence, and in the United States go only between 11:00 and 21:00 New York time (C1's doors) · C1 · decided, not built · BE #1326, #1360, #1367
 
 - **The plan** (backend N129 onward) · the diagnosis, the plan card, the practice days and the plan's end have their own page, [`the-plan.md`](the-plan.md); it meets this page in the Lounge, in the walk's level moment (C, N134 item 2), the bar on the end sheet (N140 item 11) and the pace practice in a pace week (the tempo step), and in the chat's day line before each day's first message (N169, the-plan.md G3) · decided, not built · its rules live there, not here (backend N160). Built, on for ring 5 since 27 October 2026 (N203, N204, backend #1394): the plan in the Lounge, and the bar with "{n} of {total} practices done. Next: {day}." on the walk's end card (`WalkEnd.tsx`, `PlanProgress`); and since 27 October the level's moment in the walk (H1, N209: "This week's level: {level}. Here's where it shows:" above the clip, `LevelHere` in `FeedbackWalk.tsx`)
 
 - **WIL-76** · the stale processing step (urgent) · A1, A2 · confirmed in the app 2026-10-20 ("it doesn't open right after the processing"). Built: the marks are baked in the run right after ready (BE), the processing bubble waits for them and the page keeps asking for late marks to its ceiling and closes its slot when it stops (FE) · BE #1209, FE #896 · the founder checks the app
 - **WIL-89** · the lens as one chat: the opening order, the lenses, the interventions × chat awareness · B, C1, F · built and merged: FE #868, #882, #885, #886; BE #1170, #1190, #1194, #1196. Whether it works as drawn is the founder's check in the app ("success?") · to confirm
-- **WIL-84, WIL-86** · videos match (the coach's changed word and video, N80) · C1, D5 · built and merged: BE #1160, FE #861, FE #872 (the speaker's side). One backend follow-up stays: a later change of the coach's word updates the in-review bubble in place (D5) · to confirm in the app
+- **WIL-84, WIL-86** · videos match (the coach's changed word and video, N80) · C1, D5 · built and merged: BE #1160, FE #861, FE #872 (the speaker's side). The coach's later change shows in place with "Edited" (D5, N192)
 - **WIL-90** · the exercise is blocked · C6, C7 · BE #1206 fixed the coach's gate; built 2026-10-20: the Manager's exercise offer, the verbal-cue gate and the error-presence audit read the speaker's own page too · BE #1209 · the founder checks the app
 
 The four lines above were filled from main's history by the page's keeper on
 2026-10-20; the sessions doing the work overwrite them when they push.
-- **N123 · the asks and the walk's lines said fresh** · E1, E2, K · founder 2026-10-23 ("please do not make the asks fixed all the time, please make them fairly smart like there should be some flexibility"; "both"). To build: one call per ask and one per Take for the walk's lines, under the Take's processing authorization, kept only past the check (the same kind as `will_question.vary`), the signed line otherwise; stored with the Take so the lens and the chat agree; never twice the same wording in a row per speaker · decided, not built · the founder checks the app
 - **N77 · the coach's link names the word's Take** · C1 · founder 2026-10-21 ("the links carry the Take the word was written on, and open that Take's coach-only walk with the word"). Found: with the earlier-Take fallback gone (BE #1212), the WhatsApp and email links open the latest Take, where an earlier Take's late word is no longer served. Built: the links carry `&take=<session_id>` (BE); the chat page reads it, the Ideal Text asks the journey for that Take and the coach-only walk opens on its word; an earlier Take's link shows that word alone, with no moments of the latest Take (founder 2026-10-21); without it, as before (FE) · FE #905 merges first, then BE #1212, then FE #903 · the founder checks the app
 - **N92 · the coach's video reaches the walk** · C1, D5 · founder 2026-10-21 ("the video was sent too with the coach feedback and didn't pass through"). Found: the speaker's feedback rows are served from a stored bake that only the speaker's own writes retire; the coach's answer, with its signed video link, stayed as baked, so a video added after the bake never arrived and a baked link went dark after six hours. Built: the bake re-reads the coach's answer on every read, one read per Take, the video signed afresh; a coach's share asks for one rebake (BE) · BE #1213 · the founder checks the app: the coach's bubble in the walk shows the video above the words
 - **N91 · the walk as one thread, from every door** · B5, B9, B10, F3 · founder 2026-10-21, two recordings (the app at 06:29; the prototype, "this is how it should be"): a door opened a lone fragment of the walk, the helper words opened from the Lounge did not scroll on to the next step, Next closed the walk instead of moving on. Found: the thread was drawn only up to the step the walk stood on, and the dock was always the newest part's. Built: the thread holds every part up to the walk's furthest; the step a door names stands with its own buttons and is brought to the top; Next moves on to the next part, after the last onto the page; scrolling and ‹ › move through every part; "Review feedback" opens the whole finished walk on its newest step (FE) · FE #899 · the founder checks the app; open: what was missing of the coach's feedback in the walk (the video, the fragment's audio, or the rest of the walk)
@@ -1771,6 +1798,8 @@ Backend (`wilplus/backend-cursor`): `services/moment_pick.py`,
 `services/will_question.py`, `services/feedback_check.py` (E; a voice
 answer: `routes/v2/explore_ideal_text.py`, `/will-question/voice`);
 `services/take_context.py` (the key line, E4, H1);
+`services/inner_context.py`, `services/verbal_read.py`,
+`services/prompts/verbal_read.py` (the notes, H1);
 `services/coach_message_read.py` (`coach_message_for`, C1);
 `services/line_bank.py` (K); `services/speaker_memory.py` (I4);
 `services/coach_moments_queue.py` (I5); `services/chat_query.py` (the
@@ -1828,6 +1857,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N338 · §2: the messages line (no message at night, N189 item 1 and N193) and N123 (the asks and the walk's lines said fresh) are withdrawn, nothing like them is built, and the signed words stay; the WIL-84/86 line's follow-up is the in-place "Edited" of N192 · docs (this PR)
+- 2026-11-02 · N326 · built (H1): the walk's pick and its Clearer version read what the speaker noted themselves (principles, kept strengths, life goals, Your why, # notes of the last 60 days), behind the ring row `walk_inner_context` at ring 6: one verbal read per Take, inside the processing authorization, weighs the moments for the between and gives the Clearer version a line on what matters to them; a rewrite repeating the notes' words they did not say is refused; read late or failed → the pick as before; nothing on screen changes and a coach never sees the notes or that they were used. Was: the walk never read them (N182 item 3) · BE N326 (the decision, the code), FE (this PR)
 - 2026-11-02 · N323 item 6 · C, C2, T, §3: the Sniper is the One thing walk's one fix for everyone, with or without a plan, at any level, when rushing is the Take's biggest issue: the stretch ran fast and its share of time past the green is larger than 1 minus the willfidence of each moment the walk could fix (a plan's level moment included; a tie keeps the moment); on a pace or pause week as before; only for a speaker the `tempo_step` row reaches, or the founder, since without the step the walk cannot show it (backend `_sniper_first`, `tempo_stretch.tempo_on_for`). Was: only on a plan's pace or pause week, with no check that the speaker had the step · BE, FE (this PR)
 - 2026-11-02 · N323 items 2 and 3 · C3, §3: the walk's own helper words are saved whole, whatever their length: their own sentence after "Keep mine", the words an AI clip's tip quotes (the paragraph's save, `source: "walk"`) and the Clearer version's sentence (`source: "passage"`); the cap of eight stays for a pick by hand on the Ideal Text and for the Sniper's stretch. A tip with no quoted phrase gives none and the walk goes on to "Lesson done." (as built). Was: none past eight words · BE, FE (this PR)
 - 2026-11-02 · N314 · built (B14, C7, T): the walk's practice and the tempo step record with the one recording bar, the trash on the left, then the strip with the red Stop inside it, Skip under it as the walk's grey link; Stop sends as before; the trash throws the try away, nothing uploaded, checked or counted (the tempo game keeps nothing of it), back on the step that opened it. B3, D4: on a practice day the chat's one record button is "Record Take N" alone under the chat, not in today's one thing (N294 item 7, the-plan.md G6). Was: the practice's strip with Skip in the Back style beside a red Stop in the Finish-take style, and the tempo step's strip with Stop and no trash · FE (this PR)
