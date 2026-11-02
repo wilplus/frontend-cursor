@@ -253,7 +253,8 @@ built and what is still to come.
    hello, and in the chat after the walk, one part per Take. It fills with
    what the speaker did, never with a measure of the voice. After the walk
    it is Will's grey bubble with the bar and "{n} of {total} practices
-   done.", under "Good job. See you next {day}." (N319 item 7); it no
+   done.", under the goodbye that names the next practice day (G13; N319
+   item 7, N347 item 2); it no
    longer shows on the walk's end sheet (was N129, N131, N140).
 4. The card uses one typeface, the app's own, and three sizes: the date, the
    text, the small labels (N161). Text colours read on white (4.5:1): the
@@ -436,10 +437,12 @@ built and what is still to come.
    today." Never on a clock and never on other days; nothing is locked and
    the message box stays. The founder first, then everyone. After a Take
    with an ask (Will's question, "Did this help?") it waits until the ask is
-   answered (N288). Then one bubble "Good job. See you next {day}." (the
-   plan's next practice day, by its weekday; without a plan "Good job. See
-   you next time."), then one bubble with the plan's bar and "{n} of
-   {total} practices done.", then the tap "I want to continue my practice"
+   answered (N288). Then one bubble that names the plan's next practice
+   day as a person would (N347 item 2): "Good job. See you tomorrow." when
+   it is tomorrow in the speaker's own time zone (the plan's), else "Good
+   job. See you {weekday}." (no "next"); without a plan "Good job. See you
+   next time.". Then one bubble with the plan's bar and "{n} of {total}
+   practices done.", then the tap "I want to continue my practice"
    (N319 item 7, feedback-walk-and-chat.md D4). "Now go and live it, away
    from the phone." is gone (N319 item 4).
 
@@ -486,10 +489,12 @@ built and what is still to come.
 Signed:
 
 - The proverbial 15 minutes (G13, N183): "That's your 15 minutes for
-  today."; then (N319 item 7) "Good job. See you next {day}." · "{n} of
-  {total} practices done.". Signed, no longer shown: "Now go and live it,
-  away from the phone." (N319 item 4) and "{n} of {total} practices done.
-  Next: {day}." on the walk's end sheet (N319 item 7).
+  today."; then (N319 item 7) "Good job. See you tomorrow." or "Good job.
+  See you {weekday}." (signed 2026-11-02, N347 item 2) · "{n} of {total}
+  practices done.". Signed, no longer shown: "Now go and live it, away
+  from the phone." (N319 item 4), "{n} of {total} practices done. Next:
+  {day}." on the walk's end sheet (N319 item 7) and "Good job. See you
+  next {day}." (N347 item 2).
 - The questions: "Hi! A few quick questions before your first practice." ·
   "When is your deadline?" · "Pick a date" · "No date yet" · "That's fine.
   Let's give it two months, until {date}." · "I assume you came here to
@@ -740,6 +745,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N347 item 2 · E3, G13, K: the goodbye after the walk names the next practice day as a person would, "Good job. See you tomorrow." when it is tomorrow in the plan's time zone, else "Good job. See you {weekday}." (backend `plan.next_day_text`, `after_take.SEE_YOU_ON`). Was: "Good job. See you next {day}.", tomorrow named by its weekday · BE n347, FE (this PR)
 - 2026-11-02 · N339 · D2, K, §3: a tap on the 1 to 10 scale comes back as the speaker's turn, one small grey bubble on their side with a lock and "Answered", never the number; kept in the chat, and Will's next question follows it. Was: nothing between Will's two questions; §3's question on it is closed · BE `plan_flow.answer_rating`, FE `PlanRows` (this PR)
 - 2026-11-02 · N325 items 1, 2, 4 and 6 · B10, D5, F1, G6, K, §3: a tap on the faded "Type here" before the first Take, while a tap answer waits (a choice, the scale, a call's ask), shows "Tap one of the answers above." as the voice note does (`PLAN_COPY.tapAnswerNote`; was nothing); under a call's ask "Skip" is grey and quieter on the left, "Book now" orange on the right (was both orange); the plan's own yes in the words of Privacy section 4e, signed (BE `services/plan.py` `consent_ask`); a practice day's "Record Take N" stays alone under the chat, and §3's question on it is closed · BE, FE (this PR)
 - 2026-11-02 · N323 item 6 · G7, G8: the tempo step is the One thing walk's one fix for everyone, with or without a plan, at any level, when rushing is the Take's biggest issue; a level that takes a slot keeps it unless rushing outweighs it (the rule on the walk's page T). Was: only in a pace or pause week · BE, FE (this PR)

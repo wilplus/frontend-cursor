@@ -305,16 +305,26 @@ step; the loop never waits for a coach.
   account "Hi." (N309 item 1). Was: "Hi {name}, good to see you back!", on
   Take 1 "Hi {name}, great to meet you!" (N120), which a Take served before
   N289 still says.
-- **C0a Last time** (N309 item 1). When last Take's fix rose on this Take
-  (the issue gone on the same slide, backend `take_progress.last_fix`,
-  route `GET /v2/explore/arc/<arc>/review/last-fix/<take>`): "Last time:
-  {the tip}. You did." under the hello, with this Take's best clip on that
-  slide as the speaker's orange bubble. The tip is the one the last walk
-  gave, kept with its fix step in the chat (`fix_tip`): the AI clip's tip,
-  lower-cased ("Last time: let “fourteen shades” wait a beat. You did."),
-  or the Clearer version's "say it straight". Only a moment's fix; the
-  Sniper's has no tip, so it has no Last time (§3). Drawn when it is there
-  while the walk still stands where it opened, told to the chat once.
+- **C0a Last time** (N309 item 1; every fix, the pace game too, N347 item
+  3). When last Take's fix rose on this Take (backend
+  `take_progress.last_fix`, route `GET
+  /v2/explore/arc/<arc>/review/last-fix/<take>`): "Last time: {the tip}.
+  You did." under the hello, with this Take's best clip on that slide as
+  the speaker's orange bubble. A moment's fix rose when its issue is gone
+  on the same slide; the pace game's (the Sniper, when the last walk fixed
+  no moment, T) when that slide came out slower: every clip of it this
+  Take spent less of its time past the green, on the side the stretch
+  leaned, than the stretch did, read as the tempo step reads it
+  (`tempo_stretch.furthest`). The tip is the one the last walk gave, kept
+  with its fix step in the chat (`fix_tip`): the AI clip's tip, lower-cased
+  ("Last time: let “fourteen shades” wait a beat. You did."), the Clearer
+  version's "say it straight", or the pace game's "give “{words}” more
+  room", kept with the tempo step's opening, {words} the Sniper's helper
+  words (C3): "Last time: give “{words}” more room. You did.". Not risen,
+  or no tip kept (a stretch past eight words gives no helper words): no
+  line. Drawn when it is there while the walk still stands where it
+  opened, told to the chat once. Was: only a moment's fix; the Sniper had
+  no tip, so no Last time (2026-11-02).
 - **C1 Your coach.** First, if there is one: "Your coach:", the coach's
   bubble (video or words only; everything the coach sent), then "Continue".
   Only this Take's coach word opens it (2026-10-20, narrowing N48.3 Q11 A):
@@ -426,7 +436,10 @@ praised moment:
   which is not the paragraph's, to the slide from the practice it was
   opened on, backend `helper_words_from_practice`, `source: "passage"`),
   so they show under the slide in the next Take and on the Ideal Text, and
-  the chat says them with the line. Their own sentence's words and the
+  the chat says them with the line. One set of helper words per slide,
+  the newest wins (N347 item 4, N118): when two moments on one slide both
+  give helper words, the later pick is the one the recording screen shows,
+  as the words are kept per slide. Their own sentence's words and the
   Clearer version's sentence are saved whole, whatever their length
   (N323 item 2; the paragraph's save sends `source: "walk"`); the cap of
   eight stays for helper words picked by hand on the Ideal Text, and, as
@@ -668,11 +681,14 @@ praised moment:
   3. only then the goodbye, "Good job. See you next time." (backend
      `services/after_take.py`), held back while the chain runs. No push to
      the next Take (founder 2026-10-31, N294 item 6). On a plan: "That's
-     your 15 minutes for today." on a practice day, then one bubble "Good
-     job. See you next {day}." (the plan's next practice day, by its
-     weekday), then Will's grey bubble with the plan's bar and "{n} of
-     {total} practices done." (N319 item 7; it replaced the bar on the
-     walk's end sheet). Under the last of them, on the right, the one tap,
+     your 15 minutes for today." on a practice day, then one bubble that
+     names the plan's next practice day as a person would (N347 item 2):
+     "Good job. See you tomorrow." when it is tomorrow in the speaker's own
+     time zone (the plan's), else "Good job. See you {weekday}." (no
+     "next"; `plan.next_day_text`); then Will's grey bubble with the plan's
+     bar and "{n} of {total} practices done." (N319 item 7; it replaced the
+     bar on the walk's end sheet). Was: "Good job. See you next {day}.",
+     tomorrow named by its weekday. Under the last of them, on the right, the one tap,
      orange outlined as Will's tap answers: "I want to continue my
      practice". Tapping it, or typing that they want to practise, lands as
      the speaker's own bubble and brings "Record Take N" under the chat,
@@ -781,7 +797,8 @@ praised moment:
   the practice did not land or the voice dipped two Takes running (never two
   Takes running); "On purpose?" when the clearer line practised last Take
   did not come back (the practice's own passage match, no AI guess); who the
-  talk is for; what they should do or feel; with both known and the talk's
+  talk is for ("Who were you talking to? 🎯", N347 item 1; was "Quick one:
+  who's this talk really for? 🎯"); what they should do or feel; with both known and the talk's
   key line missing, the key line (N294 item 2); from Take 3, with all three
   known, one deeper question in their own words. Each once per talk. Will's question
   is never in the lens. It is about the moment the walk just worked on
@@ -948,7 +965,10 @@ praised moment:
   ```
   willfidence(sentence) = S × W                 0 … 1
     S = voice_confidence (7 cues vs the speaker's own baseline)
-    W = mean of: few fillers/hedges · fits the slide · holds together
+    W = mean of: few fillers · few hedges · fits the slide (fillers
+        and hedges counted apart, as the clip read counts them and the
+        signed legal note describes, document 02 v1.3, N208; "holds
+        together" only in the hidden read of a moment, H4; N347 item 6)
   shown     = three, at most one per ~75-word block, several on one
               slide allowed (N289, 2026-10-30; three since N284):
     strongest = the highest willfidence; clips with enough words rank
@@ -1373,7 +1393,9 @@ October (backend N111).
 
 - **The One thing walk (N309 item 6, signed 2026-10-31, "please implement"
   2026-11-02; `ONE_THING_COPY`, `idealEditCopy.ts`):** "Hi {name}." (no
-  name: "Hi."), "Last time: {the tip}. You did.", "This was your most
+  name: "Hi."), "Last time: {the tip}. You did.", "Last time: give
+  “{words}” more room." (the pace game's, signed 2026-11-02, N347 item 3,
+  `paceTip`), "This was your most
   confident moment.", "Why it worked: {the moment's signed cue line}",
   "And now, one thing to improve:", "Say it straight:", "Say this one like
   your confident moment:", the tip ending ", like this:", "Your turn.",
@@ -1509,9 +1531,10 @@ October (backend N111).
   passcode".
 - **The Ideal Text:** "Record Take N", "Close".
 - **The goodbye after a Take** (signed 2026-10-31, N294 item 6; N319 item
-  7): "Good job. See you next time." · on a plan "Good job. See you next
-  {day}." · "{n} of {total} practices done." · the tap "I want to continue
-  my practice", then "Record Take N".
+  7; N347 item 2): "Good job. See you next time." · on a plan "Good job.
+  See you tomorrow." or "Good job. See you {weekday}." (signed 2026-11-02,
+  N347 item 2) · "{n} of {total} practices done." · the tap "I want to
+  continue my practice", then "Record Take N".
 - **The settings asks at the next visit** (N295): "It seems you enjoy using
   WillpowerLab." before the WhatsApp ask; "Well, I can see you're doing
   pretty good." before the home screen's (the founder's own opener, E1).
@@ -1521,7 +1544,8 @@ October (backend N111).
   (backend `services/will_question.py`; the questions may vary lightly from
   2026-10-20, the tap answers never), opened on the walk's moment with
   "When you said “…”, " or "We just worked on “…”. " (signed 2026-10-31,
-  N294 item 1): "Quick one: who's this talk really for? 🎯"; "When you finish, what do you want them to do? Or feel? 🤔";
+  N294 item 1): "Who were you talking to? 🎯" (signed 2026-11-02, N347
+  item 1); "When you finish, what do you want them to do? Or feel? 🤔";
   "Last time we practised “…”. It didn't make it into this Take. On purpose?
   😏" (Yes, on purpose · I forgot · It didn't feel like me); "You've put real
   work into this one 💪 Need a breather, or does something feel missing?" (A
@@ -1567,7 +1591,9 @@ October (backend N111).
   (2026-10-23, N120); the tempo step's "See how it went" (2026-10-28,
   N245: Will decides when the game ends); "Look, practice makes perfect.
   If you're ready, let's go with the next take. 💪" (N89; gone with N294
-  item 6, 2026-10-31); "Skip" under Will's questions (N296 item 2). The praise keeps its own lines
+  item 6, 2026-10-31); "Skip" under Will's questions (N296 item 2);
+  "Quick one: who's this talk really for? 🎯" and "Good job. See you next
+  {day}." (2026-11-02, N347 items 1 and 2). The praise keeps its own lines
   (N122: the one-sentence praise of N120 was dropped before it was built).
 
 ### L and M · The Sunday note and life goals
@@ -1590,7 +1616,7 @@ while a dot on a scale follows their pace live.
 **Where and when** (N162, N178).
 - In the Feedback walk only. Never in the coach panel, the Lounge, or before the Take.
 - **Opened again** once the walk is done, it shows what the chat kept, read only: the stretch, Will's opening lines, each "Try N" with the line the dot drew and Will's word on it, the closing line (none after a try that landed) or the Skip, and no Next (N259). No scale and no microphone. A Take that had no tempo step has none (N247). The same, without its Next, when the walk is opened again further on before it is done (B5).
-- It sits before the Ideal Text, so it always has a Skip, and the whole walk has a time limit (N178, which replaces N130's "never between a Take and the Ideal Text" for the walk's own practice steps). Open: the limit; the founder sets it (§3).
+- It sits before the Ideal Text, so it always has a Skip (N178, which replaces N130's "never between a Take and the Ideal Text" for the walk's own practice steps). The walk has no time limit: it ends when the speaker taps Close (N347 item 5; N178's time limit is withdrawn).
 - In the One thing walk it is the Sniper, the fix, and then no moment is fixed: on a plan's pace or pause week whose Take has a stretch outside the green (N309 item 1), and, for everyone, with or without a plan, at any level, whenever rushing is the Take's biggest issue (N323 item 6). Rushing is the biggest issue when the stretch ran fast and the share of its time the pace scale spent past the green is larger than what each moment the walk could fix falls short of, 1 minus its willfidence (S × W, the read the picker ranks the moments by, H); both are shares from 0 to 1 where 0 is all well; a tie, or a moment with no read, keeps the moment; with no moment to fix, a rushed stretch is the fix. A plan's level moment (N289 item 8) counts as a fix like any other, so the plan's choice stays unless rushing outweighs it. A slow stretch off a pace or pause week leaves the fix a moment. Only for a speaker the step reaches (below): without it the walk could not show the Sniper, so the fix stays a moment (backend `take_feedback_policy_v3._sniper_first`). Was (N309, 2026-11-02): only on a plan's pace or pause week. Under "And now, one thing to improve:", its opening lines as below, "Try it" with Skip in "I'm ready"'s place, two tries, and the walk's words on each ("Yes. That's it.", "Close. Once more.", "Good try. Take it with you."), no closing line of its own (`WalkTempo` `one`). With a moment to fix that outweighs the rushing, the walk has no tempo step. Was: on any Take, Take 1 included, whenever the pace scale finds a stretch outside the green, once in that walk, with or without a plan (N289 item 6; was from Take 2, N181, a rule the code never had), as a Take served before N289 still has it. Right after the walk's moments, so a Take that needs both has the Clearer version first, then this step (C2). In a "Let your key line land" or "Pauses that hold the room" week it opens with "This week's level: {level}. Here's where it shows:" (N289 item 8). Who has it is the rings panel's `tempo_step` row.
 - It is the founder's "Sniper": the pace exercise of N129. The old Strength/Pace dartboard stays retired (N127, N181).
 
@@ -1689,8 +1715,7 @@ The four lines above were filled from main's history by the page's keeper on
   Sniper's helper words are its stretch's words only when they are eight or
   fewer: the stretch is a whole clip, and N323 item 2 names the Clearer
   version's sentence and their own sentence kept, which are saved whole.
-  The Sniper has no tip, so no Last time follows it. "Since it was last
-  worked on" is read as "the fix the last walk gave". The founder decides
+  "Since it was last worked on" is read as "the fix the last walk gave". The founder decides
   each. The cap on the walk's sentences and the AI clip with no quoted
   phrase were answered by N323 items 2 and 3.
 - **The rule for "rushing is the biggest issue"** (N323 item 6, T): built
@@ -1698,20 +1723,13 @@ The four lines above were filled from main's history by the page's keeper on
   willfidence, the two reads already there; the founder may want it tuned
   once Takes show how often the Sniper wins.
 
-- **The walk's time limit** (N178): the whole walk, the tempo step included, gets one; the founder sets it.
-
 - **After the walk, as built where the prototype and N294 leave room**
   (2026-11-02, for the founder): Will's questions keep their signed words
-  after the moment's opener; the prototype's "who were you talking to? 🎯"
-  (N319 item 8 names it) is not signed in §1 K, so it is not built. "See
-  you next tomorrow" does not read, so the goodbye names the next practice
-  day by its weekday even when it is tomorrow. A visit is the tab's
+  after the moment's opener. A visit is the tab's
   session: the settings ask comes on the first Lounge load of a new
   session after the Take, at most one per Take. Typing "I want to practise"
   under the goodbye is read in the app (practise, record, continue, again,
   next take; never with "no", "not", "later").
-
-- **Tempo step**: its questions are decided (§1 T); only the walk's time limit above is open.
 
 - **A typed answer to the key line** is kept as the key
   line too: nothing on screen says it should be said, since the note
@@ -1727,24 +1745,7 @@ The four lines above were filled from main's history by the page's keeper on
   a clip where the speaker and the lone coach disagree goes first to a
   second blind listener. It waits until speakers answer about their own
   clips again; judging your own moments stays out of the walk (C10).
-- **A Stop tapped before the mic has started** may leave the typing dots
-  up and the mic on (read in the code 2026-10-20, not reproduced): the
-  recorder's stop does nothing until the mic reports started.
-- **Two moments on one slide share its helper words** (found 2026-10-23,
-  building N118's core): helper words are kept one set per slide (the
-  recording screen reads them per slide), so when both shown moments sit on
-  one slide and both voices reach the floor (N113), words picked at the
-  second replace those picked at the first. Nothing changed; the founder
-  decides whether that stays.
 - **FLOOR** is 0.6 until the blind judges calibrate it (H1).
-- **H1's W and the build differ** (found 2026-10-29, writing H4): H1 says
-  W is the mean of "few fillers/hedges · fits the slide · holds together".
-  The clip read that picks the moments, gives the coach's line and fills
-  the Takes table has three signals, fillers, hedges and slide fit, with
-  fillers and hedges counted apart; that is also how the signed legal note
-  describes it (backend [document 02, v1.3](https://github.com/wilplus/backend-cursor/blob/main/legal/phase1-2026.1/02-power-score-classification-v1.3-NOTE-SIGNED-2026-10-27.md), N208).
-  Holding together is read only per moment, in the dark read (H4). Nothing
-  changed; the founder decides which is meant.
 - **willfidence-v2** waits for 200 settled clips (I3).
 
 ## 4. Where it lives
@@ -1857,6 +1858,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · — · §3 closed: a Stop tapped while the practise's mic is still opening (C7) is kept by the mic (`useDualCaptureMic`): the mic goes off the moment it opens, no recording starts, and an empty try goes on like any other, so the mic is never left on. Was: the Stop did nothing, the walk moved on and the mic went live a moment later · FE (this PR)
+- 2026-11-02 · N347 · built (C0a, C3, D4, E2, H1, K, T, §3): Will asks "Who were you talking to? 🎯" (was "Quick one: who's this talk really for? 🎯"), its taps and "Someone else" unchanged; on a plan the goodbye says "Good job. See you tomorrow." when the next practice day is tomorrow, else "Good job. See you {weekday}." (was "Good job. See you next {day}.", tomorrow by its weekday); the pace game gets its Last time, "Last time: give “{words}” more room. You did.", with the Sniper's helper words, in the same place and under the same rule as the other fixes, risen when that slide came out slower (was: no Last time after the Sniper); and, with no code, one set of helper words per slide, the newest wins (N118), no time limit on the walk (N178's withdrawn), and H1's W as the code counts it, fillers, hedges and slide fit, "holds together" only in the hidden read; the six items closed in §3 · BE n347, FE (this PR)
 - 2026-11-02 · N338 · §2: the messages line (no message at night, N189 item 1 and N193) and N123 (the asks and the walk's lines said fresh) are withdrawn, nothing like them is built, and the signed words stay; the WIL-84/86 line's follow-up is the in-place "Edited" of N192 · docs (this PR)
 - 2026-11-02 · N326 · built (H1): the walk's pick and its Clearer version read what the speaker noted themselves (principles, kept strengths, life goals, Your why, # notes of the last 60 days), behind the ring row `walk_inner_context` at ring 6: one verbal read per Take, inside the processing authorization, weighs the moments for the between and gives the Clearer version a line on what matters to them; a rewrite repeating the notes' words they did not say is refused; read late or failed → the pick as before; nothing on screen changes and a coach never sees the notes or that they were used. Was: the walk never read them (N182 item 3) · BE N326 (the decision, the code), FE (this PR)
 - 2026-11-02 · N323 item 6 · C, C2, T, §3: the Sniper is the One thing walk's one fix for everyone, with or without a plan, at any level, when rushing is the Take's biggest issue: the stretch ran fast and its share of time past the green is larger than 1 minus the willfidence of each moment the walk could fix (a plan's level moment included; a tie keeps the moment); on a pace or pause week as before; only for a speaker the `tempo_step` row reaches, or the founder, since without the step the walk cannot show it (backend `_sniper_first`, `tempo_stretch.tempo_on_for`). Was: only on a plan's pace or pause week, with no check that the speaker had the step · BE, FE (this PR)
@@ -1879,6 +1882,7 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-02 · N294 items 6 and 7, N296 state 4 · built (B3, D3, D4, K): the chat after a Take ends on "Good job. See you next time." with the tap "I want to continue my practice" on the right; tapping it, or typing that they want to practise, brings "Record Take N" under the chat, alone, the plan's black button with the red dot, the message box and the mic gone; no bubble carries a button. Was: "Look, practice makes perfect. If you're ready, let's go with the next take. 💪" with "Record Take N" inside its bubble (N89) · BE, FE (this PR)
 - 2026-11-02 · N319 item 7 · built (D4, K; the-plan.md E3, G13): on a plan, "That's your 15 minutes for today.", then "Good job. See you next {day}.", then Will's bubble with the plan's bar and "{n} of {total} practices done."; the walk's end sheet no longer shows the bar. Was: "Now go and live it, away from the phone." under the 15 minutes, and the bar with "{n} of {total} practices done. Next: {day}." on the end sheet · BE, FE (this PR)
 - 2026-11-02 · N294 item 8, N295 · built (E1, K): WhatsApp and the home screen are never asked after a Take; the next time the speaker opens the app, one at a time, one a Take, never before the second Take, WhatsApp first ("It seems you enjoy using WillpowerLab." and its ask), the home screen last ("Well, I can see you're doing pretty good." and its ask). Was: the Take's one ask, WhatsApp from Take 1 (N171), the home screen from Take 2, with Will's lead-in · BE, FE (this PR)
+- 2026-11-02 · N334 · ring 6 only (feature `chats`): when the Lounge is opened from the list of chats, it has its own top bar (back, Will's mark, "Will") in place of the WillpowerLab bar, as every chat; the Lounge itself is unchanged, and off the ring it is as it was. Was (N322 item 4): the WillpowerLab bar with "‹ Will" under it · FE (this PR)
 - 2026-11-02 · N301 · built (B2, B3, B4, J2): no picture beside any bubble, the coach's included: the coach's grey-blue silhouette is gone from the Lounge (`ChatAvatar`), the walk and the coach panel (`WalkAvatar` draws nothing). Who wrote a bubble shows in its words ("Your coach:"). Was: only the coach kept a picture, on phones (founder 2026-10-14) · BE (N301 log), FE (this PR)
 - 2026-10-31 · N293 · built (H1): each Take carries its context (who, what it answers, success; sure, guess or missing), from Will's answers in the talk's setup, the plan's answers and Will's "heard" read of the Take, now kept; a clip carrying the key line or the call to action counts for more as the strongest and is likelier to be the one fixed. Nothing on screen changes. Was: the pick read voice and words only, and the heard read was thrown away after Will asked · BE #1534 (the decision), BE #1535 (the code), FE (this PR)
 - 2026-10-30 · N289 · built: three moments, three jobs: the strongest praised with no AI clip, then its helper words; the weakest with "Here's one with more in it.", Line A, the strongest's clip again under "Your confident moment", and the AI clip; the one between with its Clearer version, else a next best; order strongest, weakest, next, between, then the tempo step; the tempo step on any Take, with this week's pace level's line on a plan (C2, C4, H1, K, T). Was: the three highest, praise first, each praised or corrected by its voice, every praise practised with the AI clip (N108, N122, N284), and the tempo step from Take 2 (N181) · BE #1528 (the decision), BE #1529 (the code), FE (this PR)

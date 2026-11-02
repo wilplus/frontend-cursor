@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, Mic } from "lucide-react";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 import RecordingBar from "@/components/willab/RecordingBar";
@@ -18,7 +18,7 @@ import {
   type ChatEmoji,
   type ChatMessage,
 } from "@/services/api/chats";
-import { EMOJI_MEANING, LetterCircle, meaningOf } from "./ChatList";
+import { EMOJI_MEANING, LetterCircle, WILL_ROW_TITLE, WillMark, meaningOf } from "./ChatList";
 import { markChatOpened } from "./chatOpened";
 import { joinedThrough } from "./joinCopy";
 import { clockTime, dayKey, dayLabel } from "./chatTime";
@@ -37,27 +37,9 @@ import { clockTime, dayKey, dayLabel } from "./chatTime";
 /* -------------------------------------------------------------------------- */
 
 /** Will's chat, under the WillpowerLab bar: back, then his name (N322 item 4). */
-export function ChatHeader({ title, subtitle = null, onBack }: { title: string; subtitle?: string | null; onBack: () => void }) {
-  return (
-    <div data-chat-header className="-ml-2.5 flex min-h-[44px] shrink-0 items-center gap-0.5">
-      <button
-        type="button"
-        onClick={onBack}
-        aria-label={CHUNK_SHEET_COPY.pagerBack}
-        className="walk-press-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground"
-      >
-        <ChevronLeft className="h-5 w-5" aria-hidden />
-      </button>
-      <span className="flex min-w-0 flex-col">
-        <span className="truncate text-[16px] font-semibold leading-tight text-foreground">{title}</span>
-        {subtitle ? <span className="truncate text-[12px] leading-tight text-muted-foreground">{subtitle}</span> : null}
-      </span>
-    </div>
-  );
-}
-
-/** A person's chat's own top bar, full width, where the WillpowerLab bar was. */
-function ChatTopBar({ chat, onBack }: { chat: Chat; onBack: () => void }) {
+/** Every chat's own top bar, full width, where the WillpowerLab bar was
+ *  (backend N321 item 1, N334): back, the circle, the name, and who they are. */
+function TopBar({ circle, title, subtitle = null, onBack }: { circle: ReactNode; title: string; subtitle?: string | null; onBack: () => void }) {
   return (
     <div
       data-chat-header
@@ -72,16 +54,32 @@ function ChatTopBar({ chat, onBack }: { chat: Chat; onBack: () => void }) {
         <ChevronLeft className="h-6 w-6" aria-hidden />
       </button>
       <span className="flex min-w-0 items-center gap-2.5">
-        <LetterCircle id={chat.id} name={chat.title} size={36} />
+        {circle}
         <span className="flex min-w-0 flex-col">
           <span data-chat-name className="truncate text-[16px] font-semibold leading-tight text-foreground">
-            {chat.title}
+            {title}
           </span>
-          {chat.subtitle ? (
-            <span className="truncate text-[12.5px] leading-tight text-muted-foreground">{chat.subtitle}</span>
-          ) : null}
+          {subtitle ? <span className="truncate text-[12.5px] leading-tight text-muted-foreground">{subtitle}</span> : null}
         </span>
       </span>
+    </div>
+  );
+}
+
+/** A person's chat's top bar: the letter circle, the name, who they are. */
+function ChatTopBar({ chat, onBack }: { chat: Chat; onBack: () => void }) {
+  return (
+    <TopBar circle={<LetterCircle id={chat.id} name={chat.title} size={36} />} title={chat.title} subtitle={chat.subtitle} onBack={onBack} />
+  );
+}
+
+/** Will's chat's top bar, over the Lounge: his mark and his name; the
+ *  WillpowerLab bar is on the list only (backend N334 item 1). It spans the
+ *  Lounge's column, across its side padding. */
+export function WillTopBar({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="-mx-4">
+      <TopBar circle={<WillMark size={36} />} title={WILL_ROW_TITLE} onBack={onBack} />
     </div>
   );
 }

@@ -57,7 +57,7 @@ it("the newest question shows its answers, no Skip, and a tap goes to the backen
   const will = willQuestionOf(META)!;
   expect(will).toEqual({ arcId: "arc-1", takeSessionId: "take-1", chips: ["The board", "My team", "A buyer"] });
   const onAnswer = vi.fn((choice: string) => postWillQuestion(will.arcId, will.takeSessionId, choice).then(() => {}));
-  const body = "Quick one: who's this talk really for? 🎯";
+  const body = "Who were you talking to? 🎯";
   act(() => root.render(<WillQuestionBubble body={body} chips={will.chips} open onAnswer={onAnswer} />));
   const buttons = [...host.querySelectorAll("[data-will-answers] button")].map((b) => b.textContent);
   expect(buttons).toEqual(["The board", "My team", "A buyer"]);

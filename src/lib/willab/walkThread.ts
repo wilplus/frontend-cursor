@@ -11,8 +11,11 @@
 
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "@/components/willab/idealEditCopy";
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
+import type { RootPhraseSpan } from "@/services/api/partLock";
 import type { FeedbackWalkMoment, WalkStepTarget } from "./feedbackWalkModel";
 import { shareChoiceOf, ticksOf, type ShareChoiceMeta } from "./nextTakeShare";
+import { HELPER_WORDS_MAX, quoteSpan } from "./phraseTokens";
+import { stripRichMarkers } from "./richMarkers";
 import type { PraiseReason } from "./praiseReason";
 import { bestBubble, clearerOpening, praiseBubble, topMomentLine, withoutRepeats, type WalkBankKey } from "./walkLines";
 import type { WalkStep } from "./walkPlan";
@@ -339,6 +342,19 @@ export function wordsPickedIn(messages: readonly LoungeMessage[], take: string |
  *  keep theirs. Pure. */
 export function helperWordsSaid(words: string): string {
   return words.replace(/^[\p{P}\s]+|[\p{P}\s]+$/gu, "") || words;
+}
+
+/** The Sniper's helper words (N309 item 3): its stretch's words where the
+ *  paragraph says them, as the speaker's bubble says them, within the cap
+ *  of eight (the stretch is a whole clip, N323 item 2); else none. The same
+ *  words are its tip for "Last time" next Take, "give “{words}” more room"
+ *  (N347 item 3). Pure. */
+export function sniperWords(paragraphText: string, stretch: string): { text: string; span: RootPhraseSpan } | null {
+  const words = stretch.trim();
+  const n = words.split(/\s+/).filter(Boolean).length;
+  if (n === 0 || n > HELPER_WORDS_MAX) return null;
+  const span = quoteSpan(paragraphText, words);
+  return span ? { text: helperWordsSaid(stripRichMarkers(span.text)), span } : null;
 }
 
 export function answerBody(step: WalkStep, value: string): string | null {
