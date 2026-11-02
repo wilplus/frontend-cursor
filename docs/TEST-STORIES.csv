@@ -1276,10 +1276,14 @@ O3  One tap on Finish is enough: the Take is handed over within a moment,
 and not empty, even when the browser is slow to deliver the last of the
 audio and Finish is tapped twice.
 O4  The phone's screen stays on while the Take records, so it cannot lock
-and cut the mic off; it may lock again once the Take ends.","O1 -> records at once on start
+and cut the mic off; it may lock again once the Take ends.
+O5  A Stop tapped while the mic is still opening is kept: the mic goes off
+the moment it opens, no recording starts, and an empty try is handed
+over, so the mic is never left on.","O1 -> records at once on start
 O2 -> hands over a real take on stop and releases the stream
 O3 -> hands over the take at once when the audio comes late and Finish is tapped twice
-O4 -> keeps the screen awake while recording and lets it lock after",Never-rule 3 (never break record → process → Ideal Text).
+O4 -> keeps the screen awake while recording and lets it lock after
+O5 -> a stop while the mic is opening leaves the mic off",Never-rule 3 (never break record → process → Ideal Text).
 src/lib/api/bffFetch.test.ts,Story,"As a developer, I want every call to our own server routes to carry the sign-in token and to report ""no connection"" separately from a server answer, so that screens handle being offline correctly.","O1  The call carries the sign-in token and only the options it was given.
 O2  A dropped connection comes back as ""network"", never as a server answer.","O1 -> sends the Bearer header and only the options it was given
 O2 -> reports a thrown fetch as network, never as a response",
