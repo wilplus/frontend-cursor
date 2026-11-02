@@ -737,25 +737,48 @@ praised moment:
 
 ### G · Sharing, before the next recording
 
-- **G1** Asked when "Record Take N" is tapped, from Take 2 on, never before
-  Take 1; the choice applies to the Take about to be recorded. "Before we
-  start the new take!", "After all, it's about speaking publicly!" (regular
-  weight) and "How big you want your audience?" (founder 2026-10-21: the
-  app's words, "Do you agree to share your next take with others?" is
-  history). In the Lounge the question leaves no bubbles: the choice, in its
-  own words ("Only my community (Invita)", "General community", "Only me"),
-  is one small line under that Take's recording, and "Record Take N" posts
-  no bubble of its own (founder 2026-10-26, N192, question 3; until then
-  "Record Take N", the question as one bubble and the choice as the
-  speaker's bubble, #847).
+- **G1** Asked once, the first time "Record Take 2" is tapped, never before
+  Take 1, on the app's own screen: "Before we start the new take!", "After
+  all, it's about speaking publicly!" (regular weight) and "How big you want
+  your audience?" (founder 2026-10-21: the app's words, "Do you agree to
+  share your next take with others?" is history). The choice applies to the
+  Take about to be recorded and is remembered: every later "Record Take N"
+  starts the recording at once with it, applied to the new Take as Continue
+  applies it (stamped with the words version, G4). Asked again only when
+  the screen's words change (a new words version) or a community is added
+  (a private community joined after the choice); a choice none of whose
+  communities is left open asks too (founder 2026-10-31, N309 item 5; until
+  then asked before every Take from Take 2, the choice kept six hours for
+  that Take alone). The remembered choice is the newest line under a Take's
+  recording, which carries what it says and the words version
+  (`metadata.share`, "Only me" included); the server reads it back
+  (`GET /v2/user/takes/share/last`). A line stored before N309 item 5
+  carries none, so the first "Record Take N" after it asks once more. In
+  the Lounge the question leaves no bubbles: the choice, in its own words
+  ("Only my community (Invita)", "General community", "Only me"), is one
+  small line under that Take's recording, also when the Take kept it
+  without asking, and "Record Take N" posts no bubble of its own (founder
+  2026-10-26, N192, question 3; until then "Record Take N", the question as
+  one bubble and the choice as the speaker's bubble, #847). On the
+  speaker's latest Take the line, drawn the same, opens the same screen to
+  change the choice for that Take and the ones after it: Continue shares
+  that Take as now chosen or takes it back from every community (G4), and
+  its line says the new choice; ✕ changes nothing (N309 item 5). Open
+  (N309): whether the consent words must say the choice covers later Takes
+  (a lawyer's check; Never 4).
 - **G2** The options: **General community.** **Only my community**, with the
   speaker's saved communities inside (a passcode entered once; one is ticked;
   several are all ticked and any can be unticked; "+ Add a community with a
-  passcode" at the bottom). **Only me**, which stands alone.
-- **G3** Who you judge follows who you share with: only my community → that
-  community first, the general community fills in; general community → the
-  general community, and its members may hear your Take; only me → nobody
-  but the coach hears you, and you still judge general-community moments.
+  passcode" at the bottom). **Only me**, which stands alone. Nothing is
+  ticked when the screen asks, and Continue waits for a choice, "Only me"
+  counting (founder 2026-10-15, Privacy 3.6 §4d); opened from the line, the
+  choice as it stands is ticked (N309 item 5).
+- **G3** Who you judge follows who you share with, the choice each Take
+  carries (asked, remembered or changed from its line): only my community →
+  that community first, the general community fills in; general community →
+  the general community, and its members may hear your Take; only me →
+  nobody but the coach hears you, and you still judge general-community
+  moments.
 - **G4** Consent is per Take, revocable, stamped with the version of the
   words the speaker saw; taking it back removes the Take from every community
   queue. Only the voices of people who agreed reach others; the training
@@ -1601,6 +1624,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N309 item 5 · built (G1, G2, G3): sharing is asked once, the first time "Record Take 2" is tapped; the choice is remembered, the newest line under a Take's recording carrying it (`metadata.share`, read back by `GET /v2/user/takes/share/last`), and every later "Record Take N" records at once with it, stamped on the new Take as before; asked again when the words change, a community is added or none of its communities is left; the latest Take's line opens the same screen, the choice ticked, and Continue re-shares or takes back that Take. No migration. Was: the screen before every Take from Take 2, nothing ticked, the choice kept six hours for that Take alone · BE (slice5-share), FE (this PR)
 - 2026-11-02 · N294 item 1 · built (E2, K): Will's question opens on the speaker's own words of the last moment the walk showed (its clip's words): "When you said “…”, " where it reads on ("Sounds like this one's for …"), else "We just worked on “…”. "; "On purpose?" opens on nothing more. Was: the question alone · BE, FE (this PR)
 - 2026-11-02 · N294 item 4 · built (E1, E2): who the talk is for, answered, is followed by what they should do when that is missing too, as Will's next question in the chain; not answering or a Skip ends them. Was: one question a Take · BE (this PR)
 - 2026-11-02 · N294 item 5 · built (E2, K): Will says back who the talk is for, "{who}. I'll keep them in mind."; other answers keep "Got it, thanks 🙏". Was: "Got it, thanks 🙏" for every answer · BE (this PR)

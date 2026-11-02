@@ -357,8 +357,13 @@ comes shows the step's plain words (founder 2026-10-20).","O1 -> ""draws the pla
 asked for the clip, short, with its ›""
 O2 -> ""a clip still being made comes in when it lands, and one
 that never comes shows the plain words""",
-src/components/willab/NextTakeShareScreen.test.tsx,Story,"As a speaker before my next Take, I want nothing ticked for me and Continue to wait until I choose, with ""Only me"" counting as a choice, so that any sharing is my own decision.","O1  Nothing starts ticked, Continue is off, and choosing ""Only me"" turns
-it on.","O1 -> ""starts with nothing ticked; Continue waits for a choice, Only me counts""",Founder 2026-10-15 (Privacy 3.6 section 4d).
+src/components/willab/NextTakeShareScreen.test.tsx,Story,"As a speaker before my next Take, I want nothing ticked for me and Continue to wait until I choose, with ""Only me"" counting as a choice, so that any sharing is my own decision; and I want the line under my latest Take's recording to open the same screen with my choice ticked, so that I can change who hears that Take and the ones after it.","O1  Nothing starts ticked, Continue is off, and choosing ""Only me"" turns
+it on.
+O2  The line under my latest Take opens the screen with my choice ticked
+(and not my recording's feedback); Continue shares that Take as I
+now chose, stamped with the words I saw, and its line says the new
+choice; ""Only me"" takes it back from every community.","O1 -> ""starts with nothing ticked; Continue waits for a choice, Only me counts""
+O2 -> ""the latest Take's line opens the screen ticked as it stands, and a change re-stamps that Take""","Founder 2026-10-15 (Privacy 3.6 section 4d). O2: founder 2026-10-31, backend N309 item 5; G4 (each Take stamped and revocable)."
 src/components/willab/OtherAccountLink.test.tsx,Story,"As a speaker who opens my coach's WhatsApp or email link while signed in to my other account, I want to be told so and taken to log in with the right one, so that I reach my coach's feedback instead of a wait that never ends.","O1  The server's ""arc not found"" (the project is not in this account)
 reads as another account's link, never as a text still being built;
 any other 404 still reads as pending.
@@ -697,7 +702,15 @@ O3 -> ""one chip per Take; an earlier Take's words save with its number""
 O4 -> ""Delete asks once, then deletes""
 O5 -> ""the button lights only when the words differ from the saved ones""","Founder lock 2026-09-30 (B4, B10, D4, D5, Q2, Q3)."
 src/components/willab/idealTextActions.test.tsx,Story,"As a speaker, I want the bottom of my Ideal Text page to offer ""Record Take N+1"" and a grey Close, so that the next Take is always one tap away.","O1  The only buttons are ""Record Take 2"" and ""Close"", even when a review
-is waiting; Close closes the page.","O1 -> ""is ● Record Take N and a grey Close, the one way out""","Founder lock 2026-10-12, sections 4 and 9; locked Ideal Text screen."
+is waiting; Close closes the page.
+O2  Sharing is asked once: ""Record Take 2"" with no choice yet opens the
+sharing screen; once I have chosen, ""Record Take 3"" starts the
+recording at once, my choice kept for that Take (shared with the
+words I saw) and stored as the line under its recording.
+O3  It is asked again when the server says so (a community added since)
+or when my choice was given under other words than the screen's.","O1 -> ""is ● Record Take N and a grey Close, the one way out""
+O2 -> ""asks at Take 2, then records Take 3 at once with the remembered choice""
+O3 -> ""asks again after a community is added or when the words changed""","Founder lock 2026-10-12, sections 4 and 9; locked Ideal Text screen. O2, O3: founder 2026-10-31, backend N309 item 5 (sharing is asked once; replaces G1's ask before every Take)."
 src/components/willab/idealTextLoad.test.ts,Story,"As a speaker, I want my Ideal Text page to show the coach's note as soon as it arrives and keep the feedback shown while a new read loads, so that the page never goes blank or flickers.","O1  The coach's message is shown before the slower feedback arrives, and
 both are on the page once it does.
 O2  When the page re-reads, the feedback bars, style changes, additions
@@ -1367,9 +1380,13 @@ src/lib/willab/markedEditorSerialize.test.ts,Story,"As a speaker, I want opening
 bytes, for every marker grammar (bold, underline, italic, accent,
 moment, paragraphs). Never-5: the Ideal Text stays what the speaker
 said; an unchanged save never rewrites it.","O1 -> ""returns an untouched document byte-for-byte""",FE-1 acceptance: edit-with-no-changes posts back the text received.
-src/lib/willab/nextTakeShare.test.ts,Story,"As a speaker, I want my sharing choice applied once, to my next uploaded Take, with the wording I saw, and ""Only me"" to share nothing, so that I control who hears me.","O1  My choice shares the next Take once, with the wording I saw, and not the Take after.
-O2  Choosing Only me shares nothing.","O1 -> shares the next uploaded Take as chosen, once, with the words the speaker saw
-O2 -> Only me shares nothing",
+src/lib/willab/nextTakeShare.test.ts,Story,"As a speaker, I want my sharing choice applied once, to my next uploaded Take, with the wording I saw, and ""Only me"" to share nothing, so that I control who hears me; and I want the choice I keep shown under each Take's recording, so that I always see who hears me.","O1  My choice shares the next Take once, with the wording I saw, and not the Take after.
+O2  Choosing Only me shares nothing.
+O3  A Take that kept my choice without asking has the same line under its
+recording, a change from the line replaces that Take's line, and only
+my latest Take's line opens the sharing screen, ticked as it stands.","O1 -> shares the next uploaded Take as chosen, once, with the words the speaker saw
+O2 -> Only me shares nothing
+O3 -> says a kept or changed choice as its Take's line, and only the latest Take's line opens the screen","Founder lock 2026-10-12, section 5; O3: founder 2026-10-31, backend N309 item 5 (sharing is asked once; the choice is the line under each Take's recording, which opens the screen to change it)."
 src/lib/willab/pace/paceSignal.test.ts,Story,"As the founder, I want the Pace Circle's ball and rim to follow my voice as the three signed definitions say, so that tuning it on a real voice tunes the right thing.","O1  Speed counts syllables per second of speech, with pauses left out.
 O2  Only gaps of a quarter second or longer count as pause.
 O3  The rim goes green, amber, deep amber, and never further.

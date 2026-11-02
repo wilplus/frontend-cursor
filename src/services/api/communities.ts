@@ -22,6 +22,21 @@ export interface ShareResult {
   none: boolean;
 }
 
+/** The speaker's remembered sharing choice (backend N309 item 5): the
+ *  newest line under a Take's recording, and whether the sharing screen
+ *  asks again (no choice yet, other words, a community added since). */
+export interface RememberedShare {
+  ask: boolean;
+  choice: {
+    general: boolean;
+    communityIds: string[];
+    none: boolean;
+    wordsVersion: string | null;
+    /** The communities it names, still open and still the speaker's. */
+    communities: Array<{ id: string; name: string | null }>;
+  } | null;
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
@@ -60,6 +75,30 @@ function mapShare(data: Record<string, unknown>): ShareResult {
     communityIds: strings(data.community_ids),
     none: data.none === true,
   };
+}
+
+function mapRemembered(data: Record<string, unknown>): RememberedShare {
+  const raw = data.choice !== null && typeof data.choice === "object" ? asRecord(data.choice) : null;
+  return {
+    // Anything but a plain "no" asks: asking is never wrong.
+    ask: data.ask !== false || raw === null,
+    choice: raw
+      ? {
+          general: raw.general === true,
+          communityIds: strings(raw.community_ids),
+          none: raw.none === true,
+          wordsVersion: strOrNull(raw.share_words_version),
+          communities: (Array.isArray(raw.communities) ? raw.communities : []).map((c) => {
+            const row = asRecord(c);
+            return { id: typeof row.id === "string" ? row.id : "", name: strOrNull(row.name) };
+          }),
+        }
+      : null,
+  };
+}
+
+export function fetchRememberedShare(): Promise<Outcome<RememberedShare>> {
+  return call("/api/v2/user/takes/share/last", { method: "GET" }, mapRemembered);
 }
 
 export function fetchCommunities(): Promise<Outcome<Community[]>> {
