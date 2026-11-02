@@ -586,6 +586,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N354 · C1: in the iPhone app, no glimpse of Will's chat before the list: the rings and the chats are now read together at the chat boot, after the Lounge's own reads (they were one after the other), and the loader covers the Lounge until the list is known. Was: the Lounge for a moment, then the list over it. The website is unchanged: off, or with no chats, /chat is the Lounge at once · FE (this PR)
 - 2026-11-02 · N331 · C1, K: a voice note's words, once ready, behind "Read it" under its player, inside the bubble; "Hide" closes them; closed by default for both people; none shown when there are no words; the list keeps "🎤 Voice message". The backend's read and the voice note's answer carry `words`. Was (N324): the words kept, shown nowhere · BE #1604, FE (this PR)
 - 2026-11-02 · N341 · C1: in a chat with a person, the mic shows only while a question waits for your answer (the newest message is theirs and is a question: their words, or a message marked as one); answered with an emoji or a voice note, it goes. Was (N321 item 2): the mic always beside the emoji. The "+" comes with N351 · FE (this PR)
 - 2026-11-02 · N357 · C1: after joining through a link, /chat opens on the list of chats, the inviter's chat its first row, above Will, marked new with its last message or the joined line, until it is opened. Was (N348 item 1): that chat opened · FE (this PR)
