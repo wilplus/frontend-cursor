@@ -1,6 +1,6 @@
 import { bffFetch } from "@/lib/api/bffFetch";
 
-/* The chats between users (backend N298, N302, N306, N311; rules:
+/* The chats between users (backend N298, N302, N306, N311, N321; rules:
    docs/flows/customer-requests.md §1 C1). Ring 6, feature `chats`: the
    backend answers 404 for anyone else, read here as nothing. Every read
    and write answers null on any failure; the caller keeps what it has. */
@@ -59,4 +59,27 @@ export async function sendChatEmoji(chatId: string, emoji: ChatEmoji): Promise<C
   });
   const message = body?.message;
   return message && typeof message === "object" ? (message as ChatMessage) : null;
+}
+
+/** A voice note sent in the chat (N321 item 2): the recording, up to two
+ *  minutes, with its length. The backend keeps it under the caller's
+ *  processing authorization; any refusal (not a member, too long, no
+ *  authorization) answers null. */
+export async function sendChatVoice(chatId: string, audio: Blob, durationMs: number): Promise<ChatMessage | null> {
+  const form = new FormData();
+  const ext = audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm";
+  form.append("audio", audio, `voice.${ext}`);
+  form.append("duration_ms", String(Math.round(durationMs)));
+  const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/voice`, {
+    method: "POST",
+    timeoutMs: 60_000,
+    body: form,
+  });
+  const message = body?.message;
+  return message && typeof message === "object" ? (message as ChatMessage) : null;
+}
+
+/** Where a voice message in the chat plays from. */
+export function chatVoiceSrc(chatId: string, messageId: string): string {
+  return `/api/v2/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}/audio`;
 }
