@@ -73,7 +73,10 @@ export function KeyLine({ plan }: { plan: Plan }) {
   );
 }
 
-export function PlanBar({ plan }: { plan: Plan }) {
+/** One part per practice, filled with what the speaker did, never a measure
+ *  of the voice: on the plan card, the practice day's hello, and the chat's
+ *  progress bubble after the walk (N319 item 7). */
+export function PlanBar({ plan }: { plan: Pick<Plan, "done" | "total"> }) {
   const total = Math.max(1, Math.min(plan.total, 24));
   return (
     <div className="flex gap-1" aria-hidden="true" data-plan-bar>
