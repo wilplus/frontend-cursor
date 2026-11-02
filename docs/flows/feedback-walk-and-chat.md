@@ -147,10 +147,9 @@ step; the loop never waits for a coach.
   recording"'s shape), the message box and the mic gone (N296 state 4, D4).
   With a plan, under the plan card, in place of "Type here", there is only
   "Start your first recording" (N161), the one button before the first
-  Take, under no question (N319 item 2), and on a practice day the chat has
-  one record button, the same "Record Take N" alone under the chat while
-  today's one thing is the newest, never inside its bubble (N167, N294
-  item 7; [`the-plan.md`](the-plan.md) E5, G6).
+  Take, under no question (N319 item 2; [`the-plan.md`](the-plan.md) E5).
+  A practice day's "Record Take N" is the plan's:
+  [`the-plan.md`](the-plan.md) G6.
 
   (Founder 2026-10-26, N192: "there should be just the ideal text after the
   take and the feedback walk above it", "make sure that all of these are in
@@ -442,8 +441,8 @@ praised moment:
   as the words are kept per slide. Their own sentence's words and the
   Clearer version's sentence are saved whole, whatever their length
   (N323 item 2; the paragraph's save sends `source: "walk"`); the cap of
-  eight stays for helper words picked by hand on the Ideal Text, and, as
-  built, for the Sniper's stretch, a whole clip (§3). Found where they are
+  eight stays for helper words picked by hand on the Ideal Text and for
+  the Sniper's stretch, a whole clip (N325 item 5). Found where they are
   saved; else none. A tip that quotes no phrase (the AI clip's tips for
   pace or fillers) gives none: the walk goes from the try to "Lesson
   done." (N323 item 3). No pick. The picker below
@@ -696,8 +695,7 @@ praised moment:
      own button does (the sharing question first from Take 2, G). The
      speaker may simply close the app; the "+" still opens the projects.
      A practice day's one thing, newer than the goodbye, holds the chat's
-     one record button, the same "Record Take N" alone under the chat (N167,
-     N294 item 7, [`the-plan.md`](the-plan.md) G6).
+     one record button: [`the-plan.md`](the-plan.md) G6.
 
   **Between two Takes** (N244, N251). From the moment the next Take is
   recorded, in any project, until its walk reaches its summary, the chat
@@ -1024,8 +1022,8 @@ praised moment:
               last 60 days with the notebook's yes, each only where its own
               ring row and consent reach; never Will's private note;
               variables and constants are kept nowhere, so not read) for
-              the eight kinds of N290 item 4; a moment it weighs (high 1,
-              some 0.5) counts ×(1 − 0.5 × weight) for the between, kept
+              the eight kinds of N290 item 4; a weighed moment ranks as
+              needing more help for the between, kept
               only when its Clearer version passes the gate (H3), else the
               pick as without it; never the strongest or the weakest; at
               most 5 seconds before the Take is ready (N327), late or failed → as
@@ -1040,13 +1038,17 @@ praised moment:
   processing logs why nothing was stamped (2026-10-17). H4 works one clip
   through, step by step, with three examples.
 
-  The notes (N326) also shape the Clearer version: the moments the verbal
-  read weighs most (two at most) that the model already rewrites (an
-  unconfident read, profanity or a low slide fit) are written again with the
-  read's one line on what matters to the speaker, in the read's own words;
-  a rewrite that repeats three content words in a row from the notes that
-  the speaker did not say in the Take is refused (`rewrite_gate.leaks`),
-  and H3 then applies unchanged. Nothing of it is shown: no line says a
+  The notes (N326) also shape the Clearer version: the moments it weighs
+  most that the model already rewrites (an unconfident read, profanity or a
+  low slide fit) are written again with the read's one line on what
+  matters to the speaker, in the read's own words; a rewrite that repeats
+  a run of words from the notes that the speaker did not say in the Take
+  is refused (`rewrite_gate.leaks`), and H3 then applies unchanged. The
+  numbers behind the notes live in the code and are calibrated there, not
+  here: the weights (`services/verbal_read.py`), how much a weight counts
+  (`services/moment_pick.py`), how many moments are written again
+  (`services/moment_suggestions.py`) and how long a run is
+  (`services/rewrite_gate.py`). Nothing of it is shown: no line says a
   note was used (N326 item 1), no score (Never 1); the frame, the coach's
   queue and the suggestion rows carry only the choice of moments and the
   speaker's own words, never the notes, that they were used, a kind, a
@@ -1711,13 +1713,9 @@ The four lines above were filled from main's history by the page's keeper on
 
 ## 3. Still open
 
-- **The One thing walk, built as closest to N309 (2026-11-02):** the
-  Sniper's helper words are its stretch's words only when they are eight or
-  fewer: the stretch is a whole clip, and N323 item 2 names the Clearer
-  version's sentence and their own sentence kept, which are saved whole.
-  "Since it was last worked on" is read as "the fix the last walk gave". The founder decides
-  each. The cap on the walk's sentences and the AI clip with no quoted
-  phrase were answered by N323 items 2 and 3.
+- **The One thing walk, built as closest to N309 (2026-11-02):** "Since
+  it was last worked on" is read as "the fix the last walk gave". The
+  founder decides.
 - **The rule for "rushing is the biggest issue"** (N323 item 6, T): built
   as the rushed share of the stretch against 1 minus each fix moment's
   willfidence, the two reads already there; the founder may want it tuned
@@ -1730,10 +1728,6 @@ The four lines above were filled from main's history by the page's keeper on
   session after the Take, at most one per Take. Typing "I want to practise"
   under the goodbye is read in the app (practise, record, continue, again,
   next take; never with "no", "not", "later").
-
-- **A typed answer to the key line** is kept as the key
-  line too: nothing on screen says it should be said, since the note
-  drafted for before Take 1 (N319 item 3) is not signed.
 
 - **Self-judgement of your own practice try** is off for launch (2026-10-12):
   4 speaker answers, 21 clips with coach answers, 1 with both. Re-run the
@@ -1786,11 +1780,13 @@ Frontend, shared with other flows (not guarded): `src/components/willab/Lounge.t
 `src/components/willab/TranscriptReviewDeck.tsx` (the black line and the
 paragraph tap), `src/components/willab/IdealTextOverlay.tsx` and
 `idealTextLoad.ts` (the page and its loading), `src/components/willab/loungeReports.ts`,
-`src/components/willab/RecordingBar.tsx` (the one recording bar, B14, C7, T),
 `src/components/willab/WillVoiceAnswer.tsx` (the orange mic and the voice
 answer, B14, E3), `src/components/willab/WillQuestion.tsx` (Will's
 question and its taps, E2, E3).
-The Ideal Text's own files are in `scripts/design-locked-files.txt`.
+The Ideal Text's own files are in `scripts/design-locked-files.txt`. So is
+`src/components/willab/RecordingBar.tsx` (the one recording bar, B14, C7,
+T), locked by backend N314: a change to it needs the `Founder-Approved:`
+trailer; shared with the chats and the plan, no flow page names it.
 
 Backend (`wilplus/backend-cursor`): `services/moment_pick.py`,
 `services/take_feedback_policy_v3.py` (the marks), `services/willfidence.py`,
@@ -1858,6 +1854,10 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N323 item 1 · §3 closed: the note under "Type here" before Take 1 is signed and built ([`the-plan.md`](the-plan.md) B10, K); a typed answer to the key line is kept as the key line, as built · docs (this PR)
+- 2026-11-02 · N325 item 5 · C3, §3: the Sniper's stretch keeps the cap of eight as decided, no longer "as built"; its open question closed, "since it was last worked on" stays open · docs (this PR)
+- 2026-11-02 · N314 · §4: `src/components/willab/RecordingBar.tsx`, the one recording bar, is in `scripts/design-locked-files.txt`, so a change to it needs the founder's trailer. Was: listed as not guarded · FE (this PR)
+- 2026-11-02 · — · B3, D4, H1: one home per rule: a practice day's "Record Take N" points to the-plan.md G6; H1 says the notes' rules in words and names where their numbers live in the code, so the page does not drift when they are calibrated; principles.md S3 points to H1. No rule changes · docs (this PR)
 - 2026-11-02 · — · §3 closed: a Stop tapped while the practise's mic is still opening (C7) is kept by the mic (`useDualCaptureMic`): the mic goes off the moment it opens, no recording starts, and an empty try goes on like any other, so the mic is never left on. Was: the Stop did nothing, the walk moved on and the mic went live a moment later · FE (this PR)
 - 2026-11-02 · N347 · built (C0a, C3, D4, E2, H1, K, T, §3): Will asks "Who were you talking to? 🎯" (was "Quick one: who's this talk really for? 🎯"), its taps and "Someone else" unchanged; on a plan the goodbye says "Good job. See you tomorrow." when the next practice day is tomorrow, else "Good job. See you {weekday}." (was "Good job. See you next {day}.", tomorrow by its weekday); the pace game gets its Last time, "Last time: give “{words}” more room. You did.", with the Sniper's helper words, in the same place and under the same rule as the other fixes, risen when that slide came out slower (was: no Last time after the Sniper); and, with no code, one set of helper words per slide, the newest wins (N118), no time limit on the walk (N178's withdrawn), and H1's W as the code counts it, fillers, hedges and slide fit, "holds together" only in the hidden read; the six items closed in §3 · BE n347, FE (this PR)
 - 2026-11-02 · N338 · §2: the messages line (no message at night, N189 item 1 and N193) and N123 (the asks and the walk's lines said fresh) are withdrawn, nothing like them is built, and the signed words stay; the WIL-84/86 line's follow-up is the in-place "Edited" of N192 · docs (this PR)

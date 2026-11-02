@@ -73,6 +73,7 @@ import { describe, expect, it } from "vitest";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "@/components/willab/idealEditCopy";
 import { aiVoiceChat, answerBody, chatDrawsStep, chatWalks, coachNoteToChat, feedbackWalkDoor, inPairs, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, shareChat, shareLines, shownStep, sniperWords, stableUuid, storedSummaryOf, walkPairs, walkStepDraft, wordsEditedIn } from "./walkThread";
 import { tipSaid } from "./walkLines";
+import { readLastFix } from "@/services/api/reviewLastFix";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { WalkStep } from "./walkPlan";
 
@@ -117,17 +118,19 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
     // Only the Take right before: none kept there, none said.
     expect(lastFixTip(thread, "t5", "arc-1", 5)).toBeNull();
     expect(lastFixTip(thread, "t1", "arc-1", 1)).toBeNull();
-    // The pace game keeps its tip with its opening, its helper words in it
-    // (N347 item 3); a stretch past eight words gives none, and no line.
+    // The pace game's tip, its helper words in it (N347 item 3; the walk
+    // keeps it with the game's opening, deckFeedbackWalk.test.tsx O10); a
+    // stretch past eight words gives none, and no line. The server's last
+    // fix may be the pace game's.
     const paragraph = "We start today. Above ninety percent, every week.";
     const words = sniperWords(paragraph, "Above ninety percent, every week.");
     expect(words?.text).toBe("Above ninety percent, every week");
     expect(sniperWords(paragraph, "We start today and we keep going above ninety percent.")).toBeNull();
-    const opening = kept("t4", 4, ONE_THING_COPY.paceTip(words!.text));
-    const paced = [...thread, { ...opening, client_id: "t4-tempo", metadata: { ...opening.metadata, step: "tempo:open" } }];
+    const paced = [...thread, kept("t4", 4, ONE_THING_COPY.paceTip(words!.text))];
     expect(ONE_THING_COPY.lastTime(tipSaid(lastFixTip(paced, "t5", "arc-1", 5)!))).toBe(
       "Last time: give “Above ninety percent, every week” more room. You did.",
     );
+    expect(readLastFix({ kind: "tempo", clip: { url: "https://media/t5.wav" } })?.kind).toBe("tempo");
   });
 
   it("counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles", () => {

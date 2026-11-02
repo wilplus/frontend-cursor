@@ -221,8 +221,9 @@ export function planRowFor(message: LoungeMessage, ctx: PlanRowCtx | undefined):
 
 /** The newest "Today, one thing" row's client id, when it is newer than any
  *  closing message ("Record Take N", N89): the chat has one record button,
- *  and it is that bubble's (N167). None once a newer Take is recorded, in
- *  any project (N244, N251). */
+ *  and while that bubble is the newest it is "Record Take N" under the
+ *  chat, alone (N294 item 7; was inside the bubble, N167). None once a
+ *  newer Take is recorded, in any project (N244, N251). */
 export function newestOneOf(messages: LoungeMessage[]): string | null {
   const recorded = recordedPast(messages);
   for (let i = messages.length - 1; i >= 0; i -= 1) {

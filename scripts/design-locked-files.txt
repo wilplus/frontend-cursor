@@ -32,6 +32,8 @@ src/components/willab/idealEditCopy.ts
 src/components/willab/walk/
 src/components/willab/WalkEnd.tsx
 src/lib/willab/walkMotion.ts
+# The one recording bar: the trash, then the walk's strip (founder 2026-10-31, backend N314)
+src/components/willab/RecordingBar.tsx
 
 # ── The coach panel V2 (founder, 2026-10-07); the founder's Library and
 #    Speaking errors pages in admin are its screens too (CP3 A)
