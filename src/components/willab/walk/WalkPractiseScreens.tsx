@@ -8,7 +8,7 @@ import WalkMessage from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import RecordingStrip from "./RecordingStrip";
-import { WALK_MAX_TRIES, type WalkStep } from "@/lib/willab/walkPlan";
+import { maxTries, type WalkStep } from "@/lib/willab/walkPlan";
 import type { FeedbackWalkMoment, ReplayTries } from "@/lib/willab/feedbackWalkModel";
 import { encourageLine, improvedLine, thanksLine, triesLeft, triesRecorded } from "@/lib/willab/walkPractise";
 import type { WalkTry } from "./useWalkPractise";
@@ -159,6 +159,14 @@ function Checking() {
 }
 
 function ImprovedMessage({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
+  // The One thing walk's try that lands is its one line (N309 item 1).
+  if (step.one) {
+    return (
+      <WalkMessage>
+        <span>{improvedLine(ctx.plan, ctx.at(step), ctx.say)}</span>
+      </WalkMessage>
+    );
+  }
   return (
     <WalkMessage>
       <span>{COPY.titlePraise}</span>
@@ -228,6 +236,14 @@ function QuoteShown({ quote, quotes, readOnly }: { quote: WalkQuote; quotes?: Wa
 /** The "not yet": the AI clip in the voice Exercise or after a clearer
  *  version (founder 2026-10-18), else the encouragement. */
 function EncourageMessage({ ctx, step, moment }: { ctx: PractiseScreenCtx; step: WalkStep; moment: FeedbackWalkMoment<unknown> }) {
+  // The One thing walk's one miss: "Close. Once more." (N309 item 1).
+  if (step.one) {
+    return (
+      <WalkMessage>
+        <span>{encourageLine(ctx.plan, ctx.at(step), ctx.say)}</span>
+      </WalkMessage>
+    );
+  }
   return (
     aiInstead(ctx, step, moment) ?? (
       <WalkMessage>
@@ -264,7 +280,7 @@ function aiInstead(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkM
  *  server could not hear offers both at once, Practise again and Next
  *  (founder 2026-10-21: "record once more or move on"). */
 function LateFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
-  const more = triesLeft(step) && triesRecorded(ctx.plan, ctx.at(step)) < WALK_MAX_TRIES;
+  const more = triesLeft(step) && triesRecorded(ctx.plan, ctx.at(step)) < maxTries(step);
   if (!more) return <WalkFooter pill={{ label: COPY.pagerNext, onClick: ctx.skip, testId: "walk-forward" }} />;
   return (
     <WalkFooter
@@ -304,6 +320,20 @@ export function practiseThreadItem(
 ): ReactNode {
   switch (step.key) {
     case "practise":
+      // The One thing walk's fix already said what to say (N309): before
+      // its first try only "Your words it is…" after "Keep mine".
+      if (step.one) {
+        return (
+          <>
+            {firstTry && step.kind === "keep" ? (
+              <WalkMessage>
+                <span>{WALK_COPY.keepWords}</span>
+              </WalkMessage>
+            ) : null}
+            {current ? <LiveTry attempt={step.attempt} /> : <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />}
+          </>
+        );
+      }
       return (
         <>
           {/* What to say, before the first try only (founder 2026-10-13). */}

@@ -46,9 +46,14 @@ function mapAnswers(data: Record<string, unknown>): OtherAnswer[] {
 }
 
 /** The moments to judge after practice, for the walk of `take` (N119): one
- *  per level, three speakers, fixed for the Take. None on any failure. */
-export async function fetchOtherClips(take?: string | null): Promise<OtherClip[]> {
-  const query = take ? `?take=${encodeURIComponent(take)}` : "";
+ *  per level, three speakers, fixed for the Take; with `level`, the One
+ *  thing walk's one moment of that machine level (N309 item 2). None on any
+ *  failure. */
+export async function fetchOtherClips(take?: string | null, level?: "high" | "middle" | "low" | null): Promise<OtherClip[]> {
+  const params = new URLSearchParams();
+  if (take) params.set("take", take);
+  if (level) params.set("level", level);
+  const query = params.toString() ? `?${params.toString()}` : "";
   const res = await call(`/api/v2/user/communities/queue${query}`, { method: "GET" }, mapClips);
   return res.ok ? res.data : [];
 }

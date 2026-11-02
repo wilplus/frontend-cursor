@@ -3,9 +3,9 @@
 import { reasonRuns, type PraiseReason, type WalkPraiseReasons } from "@/lib/willab/praiseReason";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { answerBody, helperWordsSaid, type WalkTempoLine } from "@/lib/willab/walkThread";
+import { answerBody, helperWordsSaid, type OthersLevel, type WalkTempoLine } from "@/lib/willab/walkThread";
 import CoachVideo from "../CoachVideo";
-import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
 import WalkStage from "./WalkStage";
 import WalkThread, { WalkEdited, WalkPart, WalkSpeakerBubble, WalkThreadMark, useMountedAsPast } from "./WalkThread";
@@ -27,9 +27,9 @@ import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, type AiVoiceLines
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
-import { MOMENT_LEAD_LINES, aiClipLines, clearerOpening, praiseBubble, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
+import { MOMENT_LEAD_LINES, aiClipLines, aiTip, bestBubble, clearerOpening, oneThingAiLines, praiseBubble, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
-import { WALK_MAX_TRIES, goodJobHelpers, momentLead, type WalkStep } from "@/lib/willab/walkPlan";
+import { goodJobHelpers, maxTries, momentLead, type WalkStep } from "@/lib/willab/walkPlan";
 import {
   encourageLine,
   improvedLine,
@@ -42,9 +42,9 @@ import {
   withNextTry,
 } from "@/lib/willab/walkPractise";
 import type { WalkPractiseIO } from "@/services/api/walkPractise";
-import { momentEnd, type FeedbackWalkModel, type FeedbackWalkMoment, type WalkMomentEnd } from "@/lib/willab/feedbackWalkModel";
+import { momentEnd, type FeedbackWalkModel, type FeedbackWalkMoment, type WalkClip, type WalkMomentEnd } from "@/lib/willab/feedbackWalkModel";
 import type { ClearerPiece } from "@/lib/willab/clearerPieces";
-import { phraseTokens, selectionSpan, type PhraseSelection } from "@/lib/willab/phraseTokens";
+import { HELPER_WORDS_MAX, phraseTokens, quoteSpan, selectionSpan, type PhraseSelection } from "@/lib/willab/phraseTokens";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 
 /* -------------------------------------------------------------------------- */
@@ -126,7 +126,21 @@ export type FeedbackWalkHelperWords = {
   partId: string;
   span: RootPhraseSpan;
   paragraphText: string;
+  /** The One thing walk's helper words, which come on their own (N309 item
+   *  3): the chat says them as the walk's, not as the speaker's pick. */
+  auto?: boolean;
+  /** Words that are not the paragraph's (the Clearer version's sentence):
+   *  saved to the slide from the practice they were practised in. */
+  practiceId?: string | null;
 };
+
+/** "Last time: {the tip}. You did." with this Take's clip on that slide
+ *  (founder 2026-10-31, N309 item 1). */
+export type FeedbackWalkLastTime = { tip: string; clip: WalkClip };
+
+/** The Sniper's helper words: the stretch's words, on the paragraph that
+ *  says them (N309 item 3). */
+export type FeedbackWalkTempoWords = { partId: string; paragraphText: string; text: string };
 
 type Props<R> = {
   /** The walk, live. It is held still from the moment the walk opens until
@@ -151,13 +165,14 @@ type Props<R> = {
   /** Opens the sign-up dialog for a guest known to the caller. */
   onGuest?: () => void;
   onSaveHelperWords: (save: FeedbackWalkHelperWords) => void;
-  /** "Accept and practise" (or "Accept") on a clearer version: the host
-   *  writes the speaker's decision through the accept lane. The walk moves
-   *  on at once; it never waits on the write. */
-  onAcceptClearer?: (item: R) => void;
-  /** "Keep my words": the host records the decline; the speaker's own
-   *  sentence is practised with Line A. */
-  onKeepWords?: (item: R) => void;
+  /** "Accept and practise" (or "Accept", or the One thing walk's "Try it")
+   *  on a clearer version: the host writes the speaker's decision through
+   *  the accept lane. The walk moves on at once; it never waits on the
+   *  write. `label`: the words the speaker tapped, for their bubble. */
+  onAcceptClearer?: (item: R, label?: string) => void;
+  /** "Keep my words" (the One thing walk's "Keep mine"): the host records
+   *  the decline; the speaker's own sentence is practised. */
+  onKeepWords?: (item: R, label?: string) => void;
   /** The practise's calls (open, upload, check). Without them a practise
    *  screen is never reached: "Accept and practise" goes past it. */
   practise?: WalkPractiseIO<R> | null;
@@ -213,8 +228,9 @@ type Props<R> = {
    *  the walk as given. ✕, and back from a try, settle nothing. */
   onMomentDone?: (moment: FeedbackWalkMoment<R>, end: WalkMomentEnd) => void;
   /** Another speaker's moment shown (`answer` null) or answered: the host
-   *  posts it to the chat. Nothing is drawn from it. */
-  onOthers?: (at: number, of: number, from: string | null, answer: string | null) => void;
+   *  posts it to the chat. Nothing is drawn from it. `one`: the One thing
+   *  walk's one moment (N309). */
+  onOthers?: (at: number, of: number, from: string | null, answer: string | null, one?: boolean) => void;
   /** Reasons for green moments written after the page was read (founder
    *  2026-10-18): drawn once they arrive, without moving the walk. */
   reasons?: WalkPraiseReasons | null;
@@ -228,8 +244,21 @@ type Props<R> = {
   /** The tempo step as the chat kept it: a walk played again shows it so
    *  (N247). */
   tempoSaid?: readonly WalkTempoLine[];
-  /** What the tempo step did, for the chat and for Will (N166 step 4). */
-  onTempo?: (event: TempoEvent) => void;
+  /** What the tempo step did, for the chat and for Will (N166 step 4);
+   *  `one`: as the One thing walk's fix, the Sniper (N309). */
+  onTempo?: (event: TempoEvent, one?: boolean) => void;
+  /** The One thing walk's "Last time" (N309 item 1), when the last Take's
+   *  fix rose; drawn under the hello when it is there as the walk opens. */
+  lastTime?: FeedbackWalkLastTime | null;
+  /** The level of the One thing walk's one judged moment (N309 item 2). */
+  othersLevel?: OthersLevel | null;
+  /** The Sniper's helper words, when its stretch's words can be (N309). */
+  tempoWords?: FeedbackWalkTempoWords | null;
+  /** The helper words saved on a paragraph: the finished walk shows them. */
+  helperWordsOf?: ((partId: string) => string | null) | null;
+  /** "Close" under "Lesson done." (N309 item 4): the review is over; the
+   *  host writes its end, then the walk closes back to the chat. */
+  onLessonDone?: () => void;
   /** The Take's one quote from the speaker's notebook, under a Clearer
    *  version's Good job (backend N268). Absent: none. */
   quotes?: WalkQuoteIO | null;
@@ -246,6 +275,20 @@ const testId = (step: WalkStep) => `walk-screen-${step.key}`;
 
 /** The steps a practise is opened from; ✕ on the recorder goes back there. */
 const OPENERS = new Set(["clearer", "exVideo", "encourage", "late"]);
+
+/** The One thing walk's fix opens on one of these, under "And now, one
+ *  thing to improve:" (N309 item 1). */
+const FIX_OPENERS: ReadonlySet<string> = new Set(["clearer", "exVideo", "tempo"]);
+
+/** The helper words the One thing walk gives (N309 item 3): the words, and
+ *  how they are saved; none to save when they are already the saved ones. */
+type OneWords = { text: string; save: FeedbackWalkHelperWords | null; practice?: Promise<string | null> | null };
+
+/** One to eight words, the helper words' signed cap. Pure. */
+const withinCap = (text: string) => {
+  const n = text.split(/\s+/).filter(Boolean).length;
+  return n > 0 && n <= HELPER_WORDS_MAX;
+};
 
 /** The steps whose dock is the recorder or a try being checked. */
 const RECORDER = new Set(["practise", "processing"]);
@@ -320,6 +363,11 @@ export default function FeedbackWalk<R = unknown>({
   tempoSaid = NO_LINES,
   onTempo,
   quotes: quotesIO = null,
+  lastTime = null,
+  othersLevel = null,
+  tempoWords = null,
+  helperWordsOf = null,
+  onLessonDone,
 }: Props<R>) {
   const liveModel = useRef(model);
   liveModel.current = model;
@@ -465,7 +513,7 @@ export default function FeedbackWalk<R = unknown>({
    *  moment's practise opens like any other (N122). */
   const ownLine = (s: WalkStep): string | null => {
     const moment = s.moment == null ? undefined : walk.moments[s.moment];
-    return s.key === "exVideo" && moment?.highest && !moment.praised ? topMomentLine("example", moment) : null;
+    return s.key === "exVideo" && !s.one && moment?.highest && !moment.praised ? topMomentLine("example", moment) : null;
   };
   const ai =
     step?.moment != null
@@ -484,7 +532,8 @@ export default function FeedbackWalk<R = unknown>({
     const lines = practiceId
       ? aiVoiceComing(plan, i, practise.aiVoiceOf(s.moment), (bank) => sayLine(s, bank), ownLine(s))
       : null;
-    return lines && practiceId ? { ...lines, practiceId } : null;
+    // The One thing walk's fix says its line above the bubble (N309).
+    return lines && practiceId ? { ...lines, ...(s.one ? { lead: ONE_THING_COPY.likeConfident } : {}), practiceId } : null;
   };
   /** A voice correction with nothing to offer (founder 2026-10-21, N108):
    *  no exercise served and no AI clip, live once its ask came back without
@@ -494,6 +543,9 @@ export default function FeedbackWalk<R = unknown>({
    *  too: the praise stands on its own (N122). */
   const bare = (s: WalkStep | undefined, i: number): boolean => {
     const moment = s?.moment == null ? undefined : walk.moments[s.moment];
+    // The One thing walk's fix stays, with or without its AI clip: it is
+    // the one thing (N309).
+    if (s?.one) return false;
     if (s?.key !== "exVideo" || s.moment == null || !moment || moment.exercise != null) return false;
     if (moment.highest && !moment.praised) return false;
     if (s.replay || s.readOnly) return s.replay === true && walk.replay?.tries?.[s.moment] === undefined;
@@ -506,7 +558,9 @@ export default function FeedbackWalk<R = unknown>({
   reachedRef.current = onReached;
   // The walk's hello (founder 2026-10-23, N120): drawn once above the walk's
   // first opening, and told to the chat once, before its first step.
-  const hello = WALK_COPY.hello(firstName, firstTake);
+  // The One thing walk says "Hi {name}." (N309 item 1).
+  const oneThing = plan.some((s) => s.one);
+  const hello = oneThing ? ONE_THING_COPY.hello(firstName) : WALK_COPY.hello(firstName, firstTake);
   const helloSeq = useRef<number | null>(null);
   if (seq !== null && helloSeq.current === null) helloSeq.current = seq;
   const helloTold = useRef(false);
@@ -516,6 +570,32 @@ export default function FeedbackWalk<R = unknown>({
     const greet: WalkStep = { key: "hello" };
     shownRef.current?.(greet, null, (bank) => sayLine(greet, bank), null, hello);
     // Once per walk: the words are fixed when it opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seq, step]);
+  // "Last time: {the tip}. You did." (N309 item 1): under the hello, once,
+  // when the last Take's fix rose. Held from when it is there while the walk
+  // still stands where it opened, so it never lands above steps already
+  // walked; told to the chat once.
+  const [last, setLast] = useState<FeedbackWalkLastTime | null>(null);
+  const lastTold = useRef(false);
+  useEffect(() => {
+    if (seq === null || lastTold.current || !lastTime || !oneThing || walk.replay || at !== openedAt.current) return;
+    lastTold.current = true;
+    setLast(lastTime);
+    const said: WalkStep = { key: "last" };
+    shownRef.current?.(said, null, (bank) => sayLine(said, bank), null, ONE_THING_COPY.lastTime(lastTime.tip));
+    // Once per walk.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seq, lastTime, at, oneThing]);
+  // "And now, one thing to improve:" (N309 item 1): told to the chat once,
+  // as the walk reaches the fix.
+  const toldOne = useRef(new Set<number>());
+  useEffect(() => {
+    if (seq === null || !step || step.replay || !step.one || !FIX_OPENERS.has(step.key) || toldOne.current.has(seq)) return;
+    toldOne.current.add(seq);
+    const said: WalkStep = { key: "one", ...(step.moment != null ? { moment: step.moment } : {}) };
+    shownRef.current?.(said, null, (bank) => sayLine(said, bank), null, ONE_THING_COPY.one);
+    // Once per opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq, step]);
   // The line between moments and after the last (N285): told to the chat
@@ -651,6 +731,52 @@ export default function FeedbackWalk<R = unknown>({
     close();
   };
 
+  /** The helper words the One thing walk gives after its fix, on their own
+   *  (N309 item 3): the words of their own sentence the fix leans on (the AI
+   *  clip's quoted phrase, their own sentence kept), or the Clearer
+   *  version's sentence; the Sniper's stretch. Within the signed cap of
+   *  eight words, and found where they are saved; else none. Played again,
+   *  the words as saved. */
+  const fixWords = (s: WalkStep): OneWords | null => {
+    if (s.of == null) {
+      if (s.replay || !tempoWords || !withinCap(tempoWords.text)) return null;
+      const span = quoteSpan(tempoWords.paragraphText, tempoWords.text.trim());
+      return span
+        ? { text: helperWordsSaid(stripRichMarkers(span.text)), save: { partId: tempoWords.partId, span, paragraphText: tempoWords.paragraphText, auto: true } }
+        : null;
+    }
+    const moment = walk.moments[s.of];
+    if (!moment) return null;
+    if (s.replay) {
+      const saved = helperWordsOf?.(moment.partId);
+      return saved ? { text: helperWordsSaid(stripRichMarkers(saved)), save: null } : null;
+    }
+    const own = (text: string | null | undefined): OneWords | null => {
+      const words = text?.trim();
+      if (!words || !withinCap(words)) return null;
+      const span = quoteSpan(moment.paragraphText, words);
+      return span
+        ? { text: helperWordsSaid(stripRichMarkers(span.text)), save: { partId: moment.partId, span, paragraphText: moment.paragraphText, auto: true } }
+        : null;
+    };
+    const opener = plan.find((x) => x.moment === s.of && (x.key === "clearer" || x.key === "exVideo"));
+    if (opener?.key === "clearer" && moment.clearer) {
+      const tried = plan.find((x) => x.key === "practise" && x.moment === s.of);
+      if (!tried) return null;
+      if (tried.kind === "keep") return own(moment.clearer.said);
+      const sentence = moment.clearer.say.trim();
+      const practice = practise.practiceOf(moment.index);
+      if (!withinCap(sentence) || !practice) return null;
+      return {
+        text: sentence,
+        save: { partId: moment.partId, span: { text: sentence, start: null, end: null }, paragraphText: moment.paragraphText, auto: true },
+        practice,
+      };
+    }
+    if (opener?.key === "exVideo") return own(practise.aiVoiceOf(moment.index)?.clip?.phrase);
+    return null;
+  };
+
   const ctx: ScreenCtx<R> = {
     walk,
     reasons,
@@ -706,7 +832,8 @@ export default function FeedbackWalk<R = unknown>({
     accept: (s, moment) => {
       if (s.replay) return forward();
       if (blocked(s) || !moment.clearer) return;
-      onAcceptClearer?.(moment.clearer.item);
+      if (s.one) onAcceptClearer?.(moment.clearer.item, ONE_THING_COPY.tryIt);
+      else onAcceptClearer?.(moment.clearer.item);
       answer(s, "accept");
       // "Accept and practise" opens the recorder on the new words; it
       // records as it arrives. With no practise to do, the walk goes on.
@@ -717,7 +844,8 @@ export default function FeedbackWalk<R = unknown>({
     keep: (s, moment) => {
       if (s.replay) return forward();
       if (blocked(s) || !moment.clearer) return;
-      onKeepWords?.(moment.clearer.item);
+      if (s.one) onKeepWords?.(moment.clearer.item, ONE_THING_COPY.keepMine);
+      else onKeepWords?.(moment.clearer.item);
       answer(s, "keep");
       // "Keep my words" practises the speaker's own sentence with Line A
       // (lock 2026-10-12, section 2.4).
@@ -763,6 +891,23 @@ export default function FeedbackWalk<R = unknown>({
     tempo,
     tempoSaid,
     onTempo,
+    othersLevel,
+    fixWords: (s) => fixWords(s),
+    saveWords: (s, words) => {
+      if (s.replay || blocked(s) || !words.save) return;
+      const save = words.save;
+      if (words.practice) {
+        // The Clearer version's sentence: from the practice it was opened on.
+        void words.practice.then((practiceId) => {
+          if (practiceId) onSaveHelperWords({ ...save, practiceId });
+        });
+      } else onSaveHelperWords(save);
+    },
+    finish: () => {
+      onLessonDone?.();
+      close();
+    },
+    last,
   };
 
   // The walk is one chat (founder 2026-10-20): the stage moves only as the
@@ -792,6 +937,7 @@ export default function FeedbackWalk<R = unknown>({
             onClose={close}
           >
             {s.seq !== null && s.seq === helloSeq.current ? <WalkHello text={hello} /> : null}
+            {s.seq !== null && s.seq === helloSeq.current && last ? <WalkLastTime last={last} /> : null}
             {renderThread(ctx, s.head, s.seq, backFromPractise, s.at)}
           </WalkThread>
         )}
@@ -811,6 +957,26 @@ function WalkHello({ text }: { text: string }) {
       <WalkMessage>
         <span>{text}</span>
       </WalkMessage>
+    </div>
+  );
+}
+
+/** "Last time: {the tip}. You did." and this Take's clip on that slide, as
+ *  the speaker's own orange bubble (founder 2026-10-31, N309 item 1). */
+function WalkLastTime({ last }: { last: FeedbackWalkLastTime }) {
+  return (
+    <div data-walk-last className="contents">
+      <WalkMessage>
+        <span>{ONE_THING_COPY.lastTime(last.tip)}</span>
+      </WalkMessage>
+      <WalkPlayer
+        look="me"
+        seed="last-time"
+        src={last.clip.src}
+        startOffsetMs={last.clip.startOffsetMs}
+        durationMs={last.clip.durationMs}
+        label={COPY.pagerMoment}
+      />
     </div>
   );
 }
@@ -871,13 +1037,23 @@ type ScreenCtx<R = unknown> = {
   nav: (step: WalkStep, moment: FeedbackWalkMoment<unknown>) => WalkNav;
   /** The signed line a screen says (D-FW-3). */
   say: SayLine;
-  onOthers?: (at: number, of: number, from: string | null, answer: string | null) => void;
+  onOthers?: (at: number, of: number, from: string | null, answer: string | null, one?: boolean) => void;
   /** Green moments' reasons that arrived after the walk opened. */
   reasons: WalkPraiseReasons | null;
   othersJudged: number;
   tempo: TempoStretch | null;
   tempoSaid: readonly WalkTempoLine[];
-  onTempo?: (event: TempoEvent) => void;
+  onTempo?: (event: TempoEvent, one?: boolean) => void;
+  /** The One thing walk's one judged moment's level (N309 item 2). */
+  othersLevel: OthersLevel | null;
+  /** The One thing walk's helper words after its fix (N309 item 3). */
+  fixWords: (step: WalkStep) => OneWords | null;
+  /** Saves them, once, as the paragraph's (or the slide's) helper words. */
+  saveWords: (step: WalkStep, words: OneWords) => void;
+  /** "Close" under "Lesson done.": back to the chat (N309 item 4). */
+  finish: () => void;
+  /** "Last time" as drawn under the hello (N309 item 1). */
+  last: FeedbackWalkLastTime | null;
 };
 
 const noop = () => undefined;
@@ -1033,6 +1209,121 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   );
 }
 
+/** Their best (founder 2026-10-31, N309 item 1): the clip, "This was your
+ *  most confident moment." and "Why it worked: {the cue line}"; nothing to
+ *  practise; Next. */
+function Best(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
+  const ok = () => {
+    ctx.answer(step, "ok");
+    ctx.forward();
+  };
+  return (
+    <WalkOverlay
+      testId={testId(step)}
+      nav={ctx.nav(step, moment)}
+      onClose={ctx.close}
+      footer={<WalkFooter pill={{ label: COPY.pagerNext, onClick: ok, testId: "walk-forward" }} />}
+    >
+      <Clip moment={moment} />
+      <WalkMessage>
+        {bestBubble(moment).map((line, i) => (
+          <span key={i} data-walk-best={i === 0 ? "" : "why"}>
+            {line}
+          </span>
+        ))}
+      </WalkMessage>
+      <CoachAnswerBubble moment={moment} />
+    </WalkOverlay>
+  );
+}
+
+/** The Clearer version as the One thing walk's fix (N309 item 1): the
+ *  speaker's words with their clip, "Say it straight:" and the sentence in
+ *  bold; "Try it" with the record dot, "Keep mine". With practice off, the
+ *  fix alone and Next. */
+function OneClearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
+  const clearer = moment.clearer;
+  if (!clearer) return null;
+  const given = ctx.answered(step);
+  const practiseOff = step.kind === "accept";
+  const footer = given ? (
+    <Answered ctx={ctx} line={null} />
+  ) : practiseOff ? (
+    <WalkFooter pill={{ label: COPY.pagerNext, onClick: ctx.forward, testId: "walk-forward" }} />
+  ) : (
+    <WalkFooter
+      dot
+      pill={{ label: ONE_THING_COPY.tryIt, onClick: () => ctx.accept(step, moment), testId: "walk-forward" }}
+      links={[{ label: ONE_THING_COPY.keepMine, onClick: () => ctx.keep(step, moment), testId: "walk-keep" }]}
+    />
+  );
+  return (
+    <WalkOverlay testId={testId(step)} nav={ctx.nav(step, moment)} onClose={ctx.close} footer={footer}>
+      <LevelHere moment={moment} />
+      <Clip moment={moment} words={<span>{clearer.said}</span>} />
+      <WalkMessage coach={clearer.byCoach === true} wide={clearer.byCoach === true}>
+        {clearer.byCoach && moment.coachAnswer?.videoUrl ? (
+          <CoachVideo src={moment.coachAnswer.videoUrl} className="my-2 w-full flex-none" />
+        ) : null}
+        <span>{ONE_THING_COPY.sayStraight}</span>
+        <span data-walk-say className="font-semibold">
+          {clearer.say}
+        </span>
+      </WalkMessage>
+      {clearer.byCoach ? null : <CoachAnswerBubble moment={moment} />}
+    </WalkOverlay>
+  );
+}
+
+/** The One thing walk's helper words, on their own (N309 item 3): "These
+ *  are your helper words. …" and the words alone, in bold, saved as the
+ *  paragraph's helper words as they land; then the walk goes on to its end
+ *  by itself. None to give, nothing drawn. */
+function Words({ ctx, step }: { ctx: ScreenCtx; step: WalkStep }) {
+  const words = ctx.fixWords(step);
+  if (!words) return <PassBy onPass={() => ctx.forwardFrom(step)} />;
+  return <WordsShown ctx={ctx} step={step} words={words} />;
+}
+
+function WordsShown({ ctx, step, words }: { ctx: ScreenCtx; step: WalkStep; words: OneWords }) {
+  const past = useMountedAsPast();
+  const go = useRef({ ctx, step, words });
+  go.current = { ctx, step, words };
+  useEffect(() => {
+    if (past || step.replay) return;
+    const now = go.current;
+    now.ctx.saveWords(now.step, now.words);
+    now.ctx.forwardFrom(now.step);
+  }, [past, step.replay]);
+  return (
+    <WalkOverlay testId={testId(step)} onClose={ctx.close} footer={null}>
+      <WalkMessage>
+        <span>{ONE_THING_COPY.helperWords}</span>
+      </WalkMessage>
+      <WalkMessage>
+        <span data-walk-helper-words className="font-semibold">
+          {words.text}
+        </span>
+      </WalkMessage>
+    </WalkOverlay>
+  );
+}
+
+/** "Lesson done." and Close, back to the chat (N309 item 4): no "Record
+ *  Take N" and no summary in the walk. Played again, the line alone. */
+function Done(ctx: ScreenCtx, step: WalkStep) {
+  const footer = step.replay || step.readOnly ? null : (
+    <WalkFooter pill={{ label: COPY.pillClose, onClick: ctx.finish, testId: "walk-close" }} />
+  );
+  return (
+    <WalkOverlay testId={testId(step)} onClose={ctx.close} footer={footer}>
+      <WalkMessage>
+        <span data-walk-done>{ONE_THING_COPY.lessonDone}</span>
+      </WalkMessage>
+    </WalkOverlay>
+  );
+}
+
 /** "Choose your helper words": the bubble, then the picker as a big bubble
  *  in the thread. On a part the walk does not stand on, a tap stands the
  *  walk there first, so the words are editable anywhere in the thread (C3,
@@ -1150,6 +1441,7 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
  *  (with no exercise served, the locked screen with Line A; with no AI clip
  *  coming either, the clip alone as the walk moves past it, N108). */
 function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkStep; moment: FeedbackWalkMoment<R> }) {
+  if (step.one) return <OneExerciseBody ctx={ctx} step={step} moment={moment} />;
   const exercise = moment.exercise;
   // The weakest (founder 2026-10-30, N289): its own line above its clip
   // (the level's instead when it carries one), then Line A and the
@@ -1188,6 +1480,39 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
           {exercise?.instruction || !(moment.highest || weakest) ? <span>{exercise?.instruction ?? WALK_COPY.lineA}</span> : null}
         </WalkMessage>
       ))}
+      <CoachAnswerBubble moment={moment} />
+    </>
+  );
+}
+
+/** The AI clip after their best, as the One thing walk's fix (N309 item
+ *  1): the speaker's clip, "Say this one like your confident moment:",
+ *  their best played again, then the AI bubble: the tip ending ", like
+ *  this:", the clip, "Your turn.". With no AI clip coming, the rest stands
+ *  and the try is still theirs. */
+function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkStep; moment: FeedbackWalkMoment<R> }) {
+  const best = ctx.walk.moments.find((m) => m.slot === "strongest" && m.clip && m.index !== moment.index);
+  const state = ctx.practise.aiVoiceOf(moment.index);
+  const say = (bank: WalkBankKey) => ctx.say(step, bank);
+  const ai = aiVoiceShown(ctx.walk.plan, ctx.at(step), state, say);
+  const lines = ai === "pending" ? oneThingAiLines(say, state?.clip) : ai;
+  return (
+    <>
+      <LevelHere moment={moment} />
+      <Clip moment={moment} />
+      <WalkMessage>
+        <span data-walk-like>{ONE_THING_COPY.likeConfident}</span>
+      </WalkMessage>
+      {best ? <Clip moment={best} replay={best.slideLabel ?? COPY.pagerMoment} /> : null}
+      {lines ? (
+        <WalkAiVoice
+          seed={`ai-ex-${moment.index}`}
+          state={state}
+          {...lines}
+          arrive
+          onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
+        />
+      ) : null}
       <CoachAnswerBubble moment={moment} />
     </>
   );
@@ -1273,13 +1598,28 @@ function ThreadFooter<R>({ ctx, step }: { ctx: ScreenCtx<R>; step: WalkStep }) {
   const plan = ctx.walk.plan;
   const at = ctx.at(step);
   const tries = triesMade(plan, at);
-  const more = !step.replay && tries < WALK_MAX_TRIES && !threadPraised(plan, at);
+  const more = !step.replay && tries < maxTries(step) && !threadPraised(plan, at);
   const next = () => {
     ctx.answer(step, step.key === "improved" || step.key === "thanks" ? "ok" : "skip");
     ctx.pastLoop();
   };
   const practise = () => (tries === 0 ? ctx.exercise(step) : ctx.practiseAgain(plan[threadShownEnd(plan, at)]));
   if (!more) return <WalkFooter pill={{ label: COPY.pagerNext, onClick: next, testId: "walk-forward" }} />;
+  // The One thing walk's fix (N309 item 1): "Try it" with the record dot,
+  // and Skip, before the first try and after one miss. With practice off
+  // there is nothing to try: Next.
+  if (step.one) {
+    if (!plan.some((s) => s.key === "practise" && s.moment === step.moment)) {
+      return <WalkFooter pill={{ label: COPY.pagerNext, onClick: next, testId: "walk-forward" }} />;
+    }
+    return (
+      <WalkFooter
+        dot
+        pill={{ label: ONE_THING_COPY.tryIt, onClick: practise, testId: "walk-practise" }}
+        links={[{ label: WALK_COPY.skip, onClick: () => ctx.skipExercise(step), testId: "walk-skip" }]}
+      />
+    );
+  }
   const label = tries === 0 ? WALK_COPY.exercisePractise : COPY.pillPractiseAgain;
   return <WalkFooter dot outline pill={{ label, onClick: practise, testId: "walk-practise" }} />;
 }
@@ -1313,16 +1653,20 @@ function Others(ctx: ScreenCtx, step: WalkStep) {
   // Played again, the moments judged in this walk with their answers
   // (N247); none judged, the step is passed by.
   const replay = Boolean(step.replay);
+  // The One thing walk judges one moment of its level (N309 item 2); with
+  // no level (Take 1) it judges no one.
+  const one = step.one === true;
   return (
     <WalkOthers
       testId={testId(step)}
       take={ctx.takeId}
       judged={ctx.othersJudged}
       replay={replay}
-      skip={Boolean(step.readOnly) || (replay && ctx.othersJudged === 0)}
+      skip={Boolean(step.readOnly) || (replay && ctx.othersJudged === 0) || (one && !ctx.othersLevel)}
       onDone={() => ctx.forwardFrom(step)}
       onClose={ctx.close}
       onChat={ctx.onOthers}
+      level={one ? ctx.othersLevel : null}
     />
   );
 }
@@ -1350,7 +1694,8 @@ function Tempo(ctx: ScreenCtx, step: WalkStep) {
         stretch={ctx.tempo}
         onDone={() => ctx.forwardFrom(step)}
         onClose={ctx.close}
-        onEvent={ctx.onTempo}
+        onEvent={(event) => ctx.onTempo?.(event, step.one === true)}
+        one={step.one === true}
       />
     </TempoOrKept>
   );
@@ -1398,12 +1743,14 @@ function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep, backFromPractise: ()
   if (step.key === "others") return Others(ctx, step);
   if (step.key === "summary") return Summary(ctx, step);
   if (step.key === "tempo") return Tempo(ctx, step);
+  if (step.key === "words") return <Words ctx={ctx as ScreenCtx} step={step} />;
+  if (step.key === "done") return Done(ctx, step);
   const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];
   if (!moment) return null;
   if (step.key === "coach") return CoachAnswer(ctx, step, moment);
-  if (step.key === "praise") return Praise(ctx, step, moment);
+  if (step.key === "praise") return step.one ? Best(ctx, step, moment) : Praise(ctx, step, moment);
   if (step.key === "helpers") return Helpers(ctx, step, moment);
-  if (step.key === "clearer") return Clearer(ctx, step, moment);
+  if (step.key === "clearer") return step.one ? OneClearer(ctx, step, moment) : Clearer(ctx, step, moment);
   const practiseCtx: PractiseScreenCtx = {
     plan: ctx.walk.plan,
     at: ctx.at,
@@ -1426,7 +1773,7 @@ function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep, backFromPractise: ()
 function partLabel(ctx: ScreenCtx, step: WalkStep): string | null {
   if (step.key === "coachnote") return COPY.titleCoach;
   if (step.key === "summary") return ctx.takeIndex != null ? `${COPY.historyTake} ${ctx.takeIndex}` : COPY.historyTake;
-  if (step.key === "others") return null;
+  if (step.key === "others" || step.key === "words" || step.key === "done") return null;
   if (step.key === "tempo") return TEMPO_COPY.mark;
   const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];
   return moment ? (stepNav(ctx, step, moment).position ?? null) : null;
@@ -1455,6 +1802,7 @@ function answerSaid(ctx: ScreenCtx, step: WalkStep): string | null {
     return span ? helperWordsSaid(stripRichMarkers(span.text)) : null;
   }
   if (step.key === "clearer") {
+    if (step.one) return given === "keep" ? ONE_THING_COPY.keepMine : given === "accept" ? ONE_THING_COPY.tryIt : null;
     if (given === "keep") return COPY.linkKeepMyWords;
     if (given === "accept") return step.kind === "accept" ? WALK_COPY.clearerAccept : COPY.pillAcceptPractise;
     return null;
@@ -1495,12 +1843,22 @@ function renderThread<R>(
     const said = answerSaid(ctx, step);
     const start = threadStart(ctx.walk.plan, part.at);
     const lead = momentLead(ctx.walk.plan, start >= 0 ? start : part.at);
+    const opener = ctx.walk.plan[start >= 0 ? start : part.at];
+    // "And now, one thing to improve:" above the One thing walk's fix (N309).
+    const one = opener?.one === true && FIX_OPENERS.has(opener.key);
     return (
       <div key={`${seq ?? 0}:${part.key}`} data-walk-now={i === now ? "" : undefined} className="contents">
         {lead ? (
           <div data-walk-lead={lead} className="contents">
             <WalkMessage>
               <span>{leadLine(lead)}</span>
+            </WalkMessage>
+          </div>
+        ) : null}
+        {one ? (
+          <div data-walk-one className="contents">
+            <WalkMessage>
+              <span>{ONE_THING_COPY.one}</span>
             </WalkMessage>
           </div>
         ) : null}

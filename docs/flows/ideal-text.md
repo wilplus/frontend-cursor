@@ -443,6 +443,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N309 · no change to this page's screens: the shared copy file (`idealEditCopy.ts`) gains the One thing walk's signed words (`ONE_THING_COPY`; the walk's page, C and K). The walk's helper words, which now come on their own, reach this page through the same save as a pick, so they show orange on their paragraph as before; a Clearer version's sentence goes to the slide's helper words ([`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C3) · BE slice4-walk, FE (this PR)
 - 2026-11-02 · N309 item 5 · built (§1, "Record Take N and sharing"): "Record Take N" asks the sharing screen once, the first time "Record Take 2" is tapped, and again only when its words change or a community is added; otherwise it records at once with the remembered choice (`IdealTextActions.tsx`); the button, its words and the screen are unchanged. Was: the screen before every Take from Take 2 · BE (slice5-share), FE (this PR)
 - 2026-10-30 · N289 · no change to this page's screens: the shared copy file (`idealEditCopy.ts`) gains the Feedback walk's two signed lines for the weakest moment, "Here's one with more in it." and "Your confident moment" (the walk's page, C4, K) · BE #1528, FE (this PR)
 - 2026-10-30 · N280 · no space under "Close": the bottom bar's own padding under it goes from 16 px to zero; "Record Take N", "Close", their sizes and gap are unchanged (`IdealTextOverlay.tsx`). Was: 16 px · BE #1514, FE (this PR)

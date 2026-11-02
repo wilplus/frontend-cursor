@@ -11,6 +11,7 @@
 /*  Words only, never a number (Never 1).                                     */
 /* -------------------------------------------------------------------------- */
 
+import { ONE_THING_COPY } from "@/components/willab/idealEditCopy";
 import { zoneLevel } from "./pace/paceSignal";
 
 /** The rings panel's row for the step (backend rings.TEMPO_STEP, N166 step
@@ -101,6 +102,16 @@ export function afterTry(result: TempoTry, isLanded: boolean, n: number): string
   const lines: string[] = [TEMPO_COPY.comment[result]];
   if (result === "ok" && n < TEMPO_MAX_TRIES) lines.push(TEMPO_COPY.push);
   return lines;
+}
+
+/** The Sniper as the One thing walk's fix (founder 2026-10-31, N309 item
+ *  1): two tries; a try that lands, "Yes. That's it."; one miss, "Close.
+ *  Once more."; two, "Good try. Take it with you.", with no closing line of
+ *  its own. Pure. */
+export const ONE_THING_TEMPO_TRIES = 2;
+export function oneThingTempoLines(isLanded: boolean, n: number): string[] {
+  if (isLanded) return [ONE_THING_COPY.landed];
+  return [n < ONE_THING_TEMPO_TRIES ? ONE_THING_COPY.onceMore : ONE_THING_COPY.takeItWithYou];
 }
 
 /** The closing line: dynamic once a try was ok and the last one was not

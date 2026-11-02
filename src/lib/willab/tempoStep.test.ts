@@ -8,6 +8,7 @@ OUTCOME
   O5  The step runs on the backend's stretch only when its answer is whole; anything else means no tempo step. On a plan it names this week's pace level (N289).
   O6  A try lands only when it runs 20 s from the first word with the ball four fifths in the green; then Will says so and the game ends (N245).
   O7  A try that came closer gets a push for one more while a try is left; otherwise its comment alone (N245).
+  O8  As the One thing walk's fix, the Sniper has two tries and says the walk's own words (N309).
 PROVES   O1 -> "comes right after the practise moments, before other speakers", "leaves the walk unchanged when the Take has no intervention"
          O2 -> "is never in the coach-only walk or a guest's"
          O3 -> "reads a try from where the ball stayed"
@@ -15,11 +16,13 @@ PROVES   O1 -> "comes right after the practise moments, before other speakers", 
          O5 -> "takes the backend's stretch only when it is whole"
          O6 -> "lands a try only when it is long and green"
          O7 -> "pushes for one more only when a try came closer and one is left"
+         O8 -> "as the one fix, two tries in the walk's own words"
 WHY      Founder 2026-10-26 (backend N162: "in the feedback walk only"; N166: "go with the defaults"); founder 2026-10-28 (backend N245: "If it was really better, you let me go to the next step"); founder 2026-10-30 (backend N289 item 8); Never-rule 1.
 */
 import { describe, expect, it } from "vitest";
 import { buildWalkPlan, type WalkMoment } from "./walkPlan";
-import { TEMPO_COPY, afterTry, closeOf, landed, readTry } from "./tempoStep";
+import { ONE_THING_TEMPO_TRIES, TEMPO_COPY, afterTry, closeOf, landed, oneThingTempoLines, readTry } from "./tempoStep";
+import { ONE_THING_COPY } from "@/components/willab/idealEditCopy";
 import { readTempo } from "@/services/api/reviewTempo";
 
 const MOMENTS: WalkMoment[] = [
@@ -92,5 +95,15 @@ describe("the backend's stretch", () => {
     expect(readTempo({ ...whole, reading: "fast" })).toBeNull();
     expect(readTempo({ ...whole, topic: "" })).toBeNull();
     expect(readTempo({ ...whole, said: { stretch: "" } })).toBeNull();
+  });
+});
+
+
+describe("the Sniper as the One thing walk's fix (N309)", () => {
+  it("as the one fix, two tries in the walk's own words", () => {
+    expect(ONE_THING_TEMPO_TRIES).toBe(2);
+    expect(oneThingTempoLines(true, 1)).toEqual([ONE_THING_COPY.landed]);
+    expect(oneThingTempoLines(false, 1)).toEqual([ONE_THING_COPY.onceMore]);
+    expect(oneThingTempoLines(false, 2)).toEqual([ONE_THING_COPY.takeItWithYou]);
   });
 });
