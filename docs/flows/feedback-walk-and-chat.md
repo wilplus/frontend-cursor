@@ -90,12 +90,12 @@ step; the loop never waits for a coach.
   step is still stored, so Will, the summary and the coach's queue read the
   same rows.
 - **B2** Lens on is the walk: the same messages as one chat that grows by
-  taps, full screen, 18.5px text, 22px corners, 22px avatar, ‹ › and ✕ in
-  the bar, no message box, no scrollbar (wheel, trackpad or finger). On a
+  taps, full screen, 18.5px text, 22px corners, no picture beside a bubble
+  (N301), ‹ › and ✕ in the bar, no message box, no scrollbar (wheel, trackpad or finger). On a
   computer the lens is as wide as the Lounge's chat column (max-w-3xl); the
   Ideal Text's Record Take and Close sit in the same column (2026-10-20).
 - **B3** **The Lounge** (lens off) is the main view: 15px text, 16px corners,
-  20px avatar. After a Take the chat shows, in this order:
+  no picture beside a bubble (N301). After a Take the chat shows, in this order:
   1. the speaker's recording, with who hears it as one line under its player
      (G1);
   2. **the pair:** the Take's "Feedback walk" bubble and, right under it, the
@@ -151,7 +151,8 @@ step; the loop never waits for a coach.
   every paragraph the walk has something on, and one card with a Feedback
   walk row.)
 - **B4** Bubbles: the speaker orange on the right; the app and the coach
-  light grey on the left with a small avatar (the coach's grey-blue). No
+  light grey on the left. No picture of a sender or a receiver beside any
+  bubble, the coach's included (N301): who wrote it shows in its words. No
   bold in any bubble, the Clearer version's new words included (2026-10-21).
   No sender labels, except "Your coach:" which opens the
   coach's bubble, with the colon (2026-10-20).
@@ -1097,7 +1098,7 @@ October (backend N111).
   Mode, the export, Recording Mode and the coach panel's "Something else" stay
   orange (N63).
 - **J2** One player and one judgement design across the app. Every message
-  is plain text with a small grey avatar. The speaker's part is their voice;
+  is plain text with no picture of its sender (N301). The speaker's part is their voice;
   their words show only where the feedback is about the words.
 - **J3** Feedback opens as a full-screen overlay; nothing of the page shows
   behind it. The overlay slides in from the right over the page (0.34 s) and
@@ -1539,6 +1540,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N301 · built (B2, B3, B4, J2): no picture beside any bubble, the coach's included: the coach's grey-blue silhouette is gone from the Lounge (`ChatAvatar`), the walk and the coach panel (`WalkAvatar` draws nothing). Who wrote a bubble shows in its words ("Your coach:"). Was: only the coach kept a picture, on phones (founder 2026-10-14) · BE (N301 log), FE (this PR)
 - 2026-10-31 · N293 · built (H1): each Take carries its context (who, what it answers, success; sure, guess or missing), from Will's answers in the talk's setup, the plan's answers and Will's "heard" read of the Take, now kept; a clip carrying the key line or the call to action counts for more as the strongest and is likelier to be the one fixed. Nothing on screen changes. Was: the pick read voice and words only, and the heard read was thrown away after Will asked · BE #1534 (the decision), BE #1535 (the code), FE (this PR)
 - 2026-10-30 · N289 · built: three moments, three jobs: the strongest praised with no AI clip, then its helper words; the weakest with "Here's one with more in it.", Line A, the strongest's clip again under "Your confident moment", and the AI clip; the one between with its Clearer version, else a next best; order strongest, weakest, next, between, then the tempo step; the tempo step on any Take, with this week's pace level's line on a plan (C2, C4, H1, K, T). Was: the three highest, praise first, each praised or corrected by its voice, every praise practised with the AI clip (N108, N122, N284), and the tempo step from Take 2 (N181) · BE #1528 (the decision), BE #1529 (the code), FE (this PR)
 - 2026-10-30 · N286 · built (J6): the bubbles take Messenger's shape: no tail; the open side round, the lined-up side drawn in to 6px where two bubbles of one side meet, in the Lounge (Will's split replies, his offer and top-up bubbles, the policy note and the speaker's recording included); in the walk, where every bubble stands apart, each is round all round. Was: every corner round and a small tail on a run's last bubble (2026-10-14) · BE #1525 (N286 entry), FE (this PR)

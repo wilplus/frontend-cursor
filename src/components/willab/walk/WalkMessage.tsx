@@ -7,34 +7,15 @@ import { cn } from "@/lib/utils";
 /*                                                                            */
 /*  18.5px text, line height 1.45, 22px corners, padding 13px 17px, no bold   */
 /*  anywhere in it: the step's name ("Good job", "Clearer version") is its    */
-/*  first line at regular weight. The row aligns at the bottom with a 7px gap */
-/*  to the small avatar, which shows on the phone only (founder 2026-10-12:   */
-/*  wide screens show no avatar). The coach's bubbles carry the grey-blue     */
-/*  avatar. No sender label: the picture is decoration, hidden from           */
-/*  assistive tech.                                                           */
+/*  first line at regular weight. No picture beside any bubble, the coach's   */
+/*  included (backend N301): who wrote it shows in its words ("Your coach:"). */
 /* -------------------------------------------------------------------------- */
 
-/** The grey profile picture: one grey silhouette for the app, the grey-blue
- *  one for the coach, no photos (founder NX2 B, 2026-10-06; lock 2026-10-12).
- *  aria-hidden; still no sender label. */
-export function WalkAvatar({ coach = false }: { coach?: boolean }) {
-  // The app's own picture is gone everywhere (founder 2026-10-14).
-  if (!coach) return null;
-  return (
-    <span
-      aria-hidden="true"
-      data-walk-avatar={coach ? "coach" : "app"}
-      className={cn(
-        "inline-flex h-[22px] w-[22px] flex-none items-end justify-center overflow-hidden rounded-full",
-        coach ? "bg-[#bfc7d6]" : "bg-foreground/15",
-      )}
-    >
-      <svg viewBox="0 0 24 24" className={cn("h-[17px] w-[17px]", coach ? "fill-[#5d6b85]" : "fill-foreground/40")} aria-hidden="true">
-        <circle cx="12" cy="9" r="4.2" />
-        <path d="M3.5 24c.6-5 4.1-8 8.5-8s7.9 3 8.5 8z" />
-      </svg>
-    </span>
-  );
+/** The sender's picture, retired: no bubble shows one, the coach's included
+ *  (backend N301; the app's went on 2026-10-14). Kept so the coach panel's
+ *  places for it stay as they are; it draws nothing. */
+export function WalkAvatar(_props: { coach?: boolean }): null {
+  return null;
 }
 
 export default function WalkMessage({
@@ -44,7 +25,7 @@ export default function WalkMessage({
   className,
 }: {
   children: ReactNode;
-  /** The coach's bubble: their avatar tone. */
+  /** The coach's bubble, marked `data-walk-coach`. */
   coach?: boolean;
   /** The bubble takes the whole row (another speaker's clip, a video). */
   wide?: boolean;
@@ -58,12 +39,6 @@ export default function WalkMessage({
       data-walk-coach={coach ? "true" : undefined}
       className={cn("flex items-end gap-[7px] text-[18.5px] leading-[1.45] text-foreground", wide ? "max-w-full" : "max-w-[94%]", className)}
     >
-      {/* Only the coach has an avatar (founder 2026-10-14). */}
-      {coach ? (
-        <span className="md:hidden">
-          <WalkAvatar coach />
-        </span>
-      ) : null}
       <div data-bubble="" className={cn("flex min-w-0 flex-col rounded-[22px] bg-muted px-[17px] py-[13px] font-normal", wide && "flex-1")}>
         {children}
       </div>

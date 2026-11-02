@@ -1867,7 +1867,6 @@ export default function Lounge({
             place of the breathing mark); its tap opens the processing view. */}
         {processingResume?.status === "analyzing" ? (
           <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
-            <ChatAvatar />
             <button
               ref={processingTriggerRef}
               type="button"
@@ -3196,8 +3195,8 @@ function FeedbackWalkBubble({
 
 /** One step of a review, lens off (founder lock 2026-10-12, section 1): the
  *  speaker's orange on the right, the app's and the coach's light grey on
- *  the left with a small avatar (the coach's grey-blue); 15px text, 16px
- *  corners, 20px avatar. A tap turns the lens back on. */
+ *  the left, with no picture beside any bubble (backend N301); 15px text,
+ *  16px corners. A tap turns the lens back on. */
 export function WalkStepBubble({
   message,
   card,
@@ -3260,7 +3259,7 @@ export function WalkStepBubble({
           then={ai.then}
           fallback={ai.fallback}
           seed={message.client_id}
-          avatar={<ChatAvatar />}
+          avatar={null}
           onOpen={open}
         />
       ) : clip ? (
@@ -3404,7 +3403,6 @@ function AppStepBubble({
   const cut = video ? (nl >= 0 ? nl : message.body.length) : -1;
   return (
     <div data-row="app" className="mr-auto flex max-w-[88%] items-end gap-1.5">
-      <ChatAvatar coach={meta.author === "coach"} />
       <button
         type="button"
         data-bubble=""
@@ -3601,24 +3599,6 @@ export function replacedWordIds(items: readonly ThreadItem[]): Set<string> {
   return new Set(all.filter(([key, id]) => latest.get(key) !== id).map(([, id]) => id));
 }
 
-/** The small grey silhouette beside the app's and the coach's bubbles (the
- *  coach's grey-blue). Phones only (founder 2026-10-12). */
-function ChatAvatar({ coach = false }: { coach?: boolean }) {
-  // The app's own avatar is gone (founder 2026-10-14): only the coach keeps one.
-  if (!coach) return null;
-  return (
-    <span
-      aria-hidden="true"
-      className={`inline-flex h-5 w-5 shrink-0 items-end justify-center overflow-hidden rounded-full md:hidden ${coach ? "bg-[#bfc7d6]" : "bg-[#d9d9de]"}`}
-    >
-      <svg viewBox="0 0 24 24" className={`h-[15px] w-[15px] ${coach ? "fill-[#5d6b85]" : "fill-[#8a8a93]"}`} aria-hidden="true">
-        <circle cx="12" cy="9" r="4.2" />
-        <path d="M3.5 24c.6-5 4.1-8 8.5-8s7.9 3 8.5 8z" />
-      </svg>
-    </span>
-  );
-}
-
 /** The words on a review's Ideal Text card: the project's name (as its
  *  Ideal Text bubbles carry it) and the Take (its own, else as its summary
  *  carries it: the summary may still wait under the Take's ask). Null when
@@ -3653,7 +3633,6 @@ function SummaryBubble({ message, record = null }: { message: LoungeMessage; rec
   const earlier = meta.coach_update === true && typeof meta.earlier === "string" ? meta.earlier : null;
   return (
     <div data-summary-bubble data-row="app" className="mr-auto flex max-w-[88%] items-end gap-1.5">
-      <ChatAvatar />
       <div data-bubble="" className="whitespace-pre-wrap break-words rounded-[16px] bg-muted px-3 py-2 text-[15px] leading-[1.45] text-foreground">
         {message.body}
         {earlier ? (

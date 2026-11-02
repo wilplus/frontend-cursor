@@ -14,7 +14,7 @@ present, a change is a line, the design-lock check refuses a change to a
 file in `scripts/flow-pages.txt` without this page.
 
 The panel takes the Feedback walk's look and motion (that page, J): the
-full-screen overlay, the grey profile picture, one player, the same moves
+full-screen overlay, no picture beside the words (N301), one player, the same moves
 between screens. Two rules always hold: the coach's Judge stays blind
 (nothing about the moment is fetched until the coach answers), and the
 founder's rows are the founder's alone.
@@ -127,8 +127,8 @@ founder's rows are the founder's alone.
 ### F · The coach's words, video and share
 
 - **F1** Your words, as the speaker will see them: the speaker's passage and
-  player on top, the coach's words below beside the grey-blue coach avatar
-  (as speakers see the coach; N80), a pencil in the top-right corner to edit
+  player on top, the coach's words below (as speakers see the coach; N80),
+  with no picture beside them (N301), a pencil in the top-right corner to edit
   every word. An empty words field stays open, so Next is never stuck
   (#874).
 - **F2** Your video: Record, one action; "Say the instruction in your own
@@ -406,6 +406,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N301 · the coach's grey-blue picture is gone from beside the coach's words (F1), as from every bubble in the app; `WalkAvatar` draws nothing. Was: the grey-blue avatar (N80) · BE (N301 log), FE (this PR)
 - 2026-10-27 · N213 · a speaker's plan reaches the queue and their page: a new plan and their ask picked blind, then What happened; a stuck level answered with the coach's video as their word on the latest Take (K, J) · BE #1415, FE
 - 2026-10-21 · N111 · D2 and E1 stand: once a coach's answer is saved, the panel shows what the machine heard (in place of contract 34's amendment of 6 October); B3's blind lines are off; the page also guards the coach walk's words, the panel's state and both corpus screens (§4) · BE, FE
 - 2026-10-21 · N106 · the page's label line under its title, and the docs it names as clickable links; no rule changes · BE #1239, FE #926
