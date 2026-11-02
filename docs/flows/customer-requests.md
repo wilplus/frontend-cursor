@@ -118,8 +118,12 @@ order it is built in.
      each bubble, bottom right; under a big emoji, its meaning and time
      ("It's good · 06:12"). The bubbles stay the Lounge's. The bar is the
      three emoji in the box and, on its right, the Lounge's mic, 40px and
-     plain: you can always answer with an emoji or a voice note (N321
-     item 2). The mic records with the one recording bar (the trash, the
+     plain, only while a question waits for your answer (N341; was N321
+     item 2, the mic always): the newest message is the other person's and
+     is a question, their words (people never type, N335 item 4, so words
+     come only from a customer's request) or a message the backend marks
+     as one. Once you answer, with an emoji or a voice note, the mic goes.
+     Will deciding what is a question (N322 item 5) is not built. The mic records with the one recording bar (the trash, the
      strip with Stop inside, N314), up to two minutes; Stop sends, the
      trash throws it away, and the bar comes back. The voice note joins
      the thread once the backend has kept it; a refused mic, a failed
@@ -578,6 +582,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N341 · C1: in a chat with a person, the mic shows only while a question waits for your answer (the newest message is theirs and is a question: their words, or a message marked as one); answered with an emoji or a voice note, it goes. Was (N321 item 2): the mic always beside the emoji. The "+" comes with N351 · FE (this PR)
 - 2026-11-02 · N357 · C1: after joining through a link, /chat opens on the list of chats, the inviter's chat its first row, above Will, marked new with its last message or the joined line, until it is opened. Was (N348 item 1): that chat opened · FE (this PR)
 - 2026-11-02 · N354 · C1: in the iPhone app only, sign-in first, then the chats: the app opens on /login (no landing, no welcome; consent unchanged, sign-up's Terms box and Phase1AcceptanceGate); with the chats on, it opens on the list even when Will's chat is the only one, and the row under Will is then "Add someone to chat with", opening the add sheet as the + does. Was: the landing and the welcome, and no list with Will's chat alone. The website is unchanged · FE (this PR)
 - 2026-11-02 · N348 · C1: joined through a link, /chat opens on the chat with the person who invited you (`/chat?with=<chat>`), not on the list; Will's first lines wait in Will's chat. Was: the list · FE (this PR)

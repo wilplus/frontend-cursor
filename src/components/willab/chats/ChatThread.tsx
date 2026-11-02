@@ -32,7 +32,7 @@ import { clockTime, dayKey, dayLabel } from "./chatTime";
 /*  beside them, each with its time; the messages start at the bottom, by the */
 /*  bar, under the day ("Today"). The locked bar's shape with the three emoji */
 /*  in the box where Will's chat has "Type here" (N306), and the mic beside   */
-/*  it: you can always answer with an emoji or a voice note (N321 item 2).    */
+/*  it only while a question waits for your answer (N341; was N321 item 2).   */
 /*  Only the conversation shows here; no asks (N305).                         */
 /* -------------------------------------------------------------------------- */
 
@@ -187,11 +187,22 @@ function withDays(messages: readonly ChatMessage[]): { day: string | null; messa
   });
 }
 
+/** A question waits for my answer (backend N341 item 1): the newest message
+ *  is the other person's, and it is a question: their words (people never
+ *  type, N335 item 4, so words come only from a customer's request) or a
+ *  message the backend marks as one (`meta.question`). My answer, an emoji
+ *  or a voice note, is then the newest, and nothing waits. */
+export function questionWaits(messages: readonly ChatMessage[] | null): boolean {
+  const newest = messages?.at(-1);
+  if (!newest || newest.mine) return false;
+  return newest.kind === "text" || newest.meta?.question === true;
+}
+
 /** The locked bar's shape (the Lounge's composer): the rounded box, with the
  *  three emoji as round buttons in it, and on its right the Lounge's mic,
- *  40px and plain (N321 item 2; the prototype's `r6Bar`). No typing outside
- *  Will's chat. */
-function EmojiBar({ onPick, onMic }: { onPick: (emoji: ChatEmoji) => void; onMic: () => void }) {
+ *  40px and plain, only while a question waits (N341; the prototype's
+ *  `pBar`). No typing outside Will's chat. */
+function EmojiBar({ onPick, onMic }: { onPick: (emoji: ChatEmoji) => void; onMic: (() => void) | null }) {
   return (
     <>
       <div data-chat-emoji-box className="flex min-h-[40px] min-w-0 flex-1 items-center justify-around rounded-3xl border border-border bg-background px-2">
@@ -207,15 +218,17 @@ function EmojiBar({ onPick, onMic }: { onPick: (emoji: ChatEmoji) => void; onMic
           </button>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={onMic}
-        aria-label="Voice note"
-        data-chat-mic=""
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
-      >
-        <Mic className="h-5 w-5" aria-hidden />
-      </button>
+      {onMic ? (
+        <button
+          type="button"
+          onClick={onMic}
+          aria-label="Voice note"
+          data-chat-mic=""
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
+        >
+          <Mic className="h-5 w-5" aria-hidden />
+        </button>
+      ) : null}
     </>
   );
 }
@@ -315,7 +328,7 @@ export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () =>
             <RecordingBar elapsedMs={note.elapsedMs} onTrash={note.cancel} onStop={note.send} />
           </div>
         ) : (
-          <EmojiBar onPick={(emoji) => void send(emoji)} onMic={() => void note.start()} />
+          <EmojiBar onPick={(emoji) => void send(emoji)} onMic={questionWaits(messages) ? () => void note.start() : null} />
         )}
       </div>
     </div>
