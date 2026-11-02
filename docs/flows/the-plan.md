@@ -185,8 +185,11 @@ built and what is still to come.
    thread under it, right side and full width, its shape kept, with the
    Lounge's bar under it (N319 item 1, B10; was in the footer in place of
    "Type here"). The number they tapped is never shown
-   back to them; how the chat answers the tap waits for the founder's words
-   (§3; N178, which changes N161's orange bubble with the number).
+   back to them (N178, which changes N161's orange bubble with the number).
+   The tap comes back as their turn: the scale folds into one small grey
+   bubble on their side, a lock and "Answered", kept in the chat like any
+   answer, and Will's next question follows it (N339; `PlanRows`
+   `LockedAnswer`, the row's `plan_answered: "rating"`).
 3. The founder and the coach see the number; Will speaks of it only in words
    (Never 1; N149, N178).
 4. Every practice in between gets only "How do you feel?" (Nervous, Excited,
@@ -573,7 +576,8 @@ Signed:
   will you open? Say your first sentence." · the plain key line, "If your
   audience remembers one sentence from you, what is it? Say it the way
   you'll say it."; the ratings "Two quick taps before your plan." · "Calm" ·
-  "Very stressed" · "Not ready" · "Fully ready"; the calls "Every plan
+  "Very stressed" · "Not ready" · "Fully ready" · "Answered" (with a lock,
+  after a tap, N339); the calls "Every plan
   starts with a kickoff session with your coach. Would you like to book it
   now?" · "{n} of 2 booked" · "Your deadline" · "Skip" · "Book" · "Book now"
   · "Every learning cycle also finishes with a summary session after your
@@ -635,8 +639,6 @@ Waiting for the founder's OK:
 
 ## 3. Still open
 
-- **How the chat answers a rating tap**, now that the number is not shown
-  back (N178): the words wait for the founder (Never 4).
 - **As built, where N319 and its prototype (version 39) don't say:** the
   bar's mic on a choice or the scale shows only where the voice notebook is
   on, as with nothing asked (the walk's page B14 state 1), since the plan
@@ -738,6 +740,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N339 · D2, K, §3: a tap on the 1 to 10 scale comes back as the speaker's turn, one small grey bubble on their side with a lock and "Answered", never the number; kept in the chat, and Will's next question follows it. Was: nothing between Will's two questions; §3's question on it is closed · BE `plan_flow.answer_rating`, FE `PlanRows` (this PR)
 - 2026-11-02 · N325 items 1, 2, 4 and 6 · B10, D5, F1, G6, K, §3: a tap on the faded "Type here" before the first Take, while a tap answer waits (a choice, the scale, a call's ask), shows "Tap one of the answers above." as the voice note does (`PLAN_COPY.tapAnswerNote`; was nothing); under a call's ask "Skip" is grey and quieter on the left, "Book now" orange on the right (was both orange); the plan's own yes in the words of Privacy section 4e, signed (BE `services/plan.py` `consent_ask`); a practice day's "Record Take N" stays alone under the chat, and §3's question on it is closed · BE, FE (this PR)
 - 2026-11-02 · N323 item 6 · G7, G8: the tempo step is the One thing walk's one fix for everyone, with or without a plan, at any level, when rushing is the Take's biggest issue; a level that takes a slot keeps it unless rushing outweighs it (the rule on the walk's page T). Was: only in a pace or pause week · BE, FE (this PR)
 - 2026-11-02 · N323 item 1 · B10, K, §2, §3, §4: a tap on the faded "Type here" before the first Take, while the orange mic waits for a spoken answer, shows "We need to hear this in your voice. Tap the mic." above the bar, a small dark pill, one at a time, gone after about 2.5 seconds (`usePlanLounge` `typingWait`, `PLAN_COPY.typeHereNote`); none on a choice, where no mic shows, or after the first Take. Was: a tap showed nothing, the words waiting for the founder · FE (this PR)

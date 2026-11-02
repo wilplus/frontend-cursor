@@ -910,7 +910,8 @@ one recording bar in the message box's place, the trash throws it
 away, and Stop sends the answer to the plan (N319 item 1, N314).
 O3  The 1 to 10 scale sits in the thread under its question; a tap is
 sent once, and the number is never written back into the chat
-(N178).
+(N178): the tap comes back as my turn, a lock and ""Answered""
+(N339).
 O4  One action a step: ""Start your first recording"" is never under a
 question; it is the one button after the plan card, in the message
 box's place, and opens the first Take (N319 item 2). A Take
@@ -952,7 +953,7 @@ O2 -> ""a voice question: the mic is orange and its recording
 sends the answer""
 O3 -> ""a rating is sent once and never written back""
 O4 -> ""Start your first recording only after the plan card""
-O6 -> ""the plan's rows are drawn as the prototype draws them""
+O3, O6 -> ""the plan's rows are drawn as the prototype draws them""
 O7 -> ""a practice day's Record Take N is the button under the chat, alone""
 O8 -> ""the feelings before a Take""
 O9 -> ""Will asks for the plan's own yes""
