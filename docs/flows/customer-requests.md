@@ -126,6 +126,27 @@ order it is built in.
    - **Will's chat** keeps the WillpowerLab bar, with "‹ Will" under it
      (N322 item 4). On a computer, the list and a person's chat sit in a
      phone-wide column in the middle.
+   - **The join link** (N308, N328, N335; built 2026-11-02 behind the same
+     ring): the "+" at the bottom right of the list opens the add sheet:
+     "Add someone to chat with", "Send them your link, in any email or
+     message. Whoever opens it joins you here.", the person's own link
+     (/c/<token>) to select, and "Copy my link" (a tick shows for two
+     seconds once copied; N310 item 3). The link opens the join page, before
+     any sign-in: who invites you ("{Name} asks you to join them on
+     WillpowerLab"), "A chat with {name}", "Your own chat with Will, your
+     speaking coach", "Nobody else can reach you here unless you open their
+     link too.", one button, "Join" (N307), and "Opens in your browser.
+     Nothing to install." (N335 item 2). Signed out, Join goes to sign in or
+     sign up and comes back to finish; joined, /chat opens on the list,
+     where the chat with the person who invited you now is: one chat for the
+     two of them, however often either opens a link (N328). In that chat,
+     above the messages, the one who joined reads "You joined through
+     {name}'s link. Only the two of you are in this chat." A wrong or
+     replaced link is the site's not-found page; your own link, or a link
+     that stops working on the way, lands on /chat. Both people need the
+     ring for now. Not yet: "Invite by email" (N307), "Join with your
+     {company} account" (it waits for a company to name; the button is
+     "Join"), the ask link (N312).
 2. **The customer's chat**: the request is the customer's bubble, with the
    photo, the words and the last digits of the number; the ask sits in the
    Lounge's footer slot, the grey card "{customer} asks for your advice."
@@ -393,7 +414,8 @@ three emoji in the locked bar and the mic beside them for a voice note of
 up to two minutes, played in its bubble (N298, N302, N305, N306, N311,
 N321, N322). Off, /chat is the Lounge as it is. Not yet: "Record an
 answer" for a complex question (N321 item 4), passing on, the status and
-the filters.
+the filters. Built since: the join link, the add sheet and the join page
+(C1, N308, N328, N335).
 There is no typing outside Will's chat (N298 item 4).
 
 Nothing else built. The order of the build, each slice proving one thing (N223
@@ -547,6 +569,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N308, N310, N328, N335 · C1, §2: the join link built behind ring 6: the "+" on the list opens the add sheet with the person's own link and Copy my link; /c/<token> is the join page; joining makes one chat for the two and says whose link it was. Not yet: Invite by email, the company sign-in, the ask link · BE (this change), FE (this change)
 - 2026-11-02 · N321 · C1, §2, §4: the mic in a person's chat: on ring 6, the bar is the three emoji in the box and the Lounge's mic on its right (40px, plain, "Voice note"); a tap records with the one recording bar (N314), up to two minutes; Stop posts the recording and its length to `POST /v2/chats/<id>/voice`, the trash throws it away, the bar comes back at once and the voice note joins the thread when the backend answers. A refused mic, a failed recording or a failed send shows nothing new. A voice note is a bubble like the others (mine orange on the right, theirs grey on the left) with the plan's small player and its time, played from `GET /v2/chats/<id>/messages/<messageId>/audio`. The emoji in the box are 38px at 23px, as the prototype's `r6Bar` draws them. Was: the three emoji only, at 40px and 21px; "the mic comes with the voice notes" · BE (the voice routes), FE (this PR)
 - 2026-11-02 · N321, N322 · C1, K, §2, §4: the chats with a WhatsApp feel, on ring 6: each row a circle with the first letter of the name (no photo), the name with who they are, the time ("06:12", the date before today) and the last message on one line ("👍 It's good", "🎤 Voice message"); a new message bold with an orange dot, no number, from when the chat was last opened on this device; Will pinned first with his mark and a pin, then the chats newest first. In a person's chat the WillpowerLab bar goes and the chat's own top bar takes the top (back, the letter circle, the name and who they are); the messages start at the bottom, under "Today" or the date, each with its time; on a computer, a phone-wide column. Will's chat keeps the WillpowerLab bar. Was: rows of text only in their order from the backend, the chat under the WillpowerLab bar, the messages at the top with no time. Not yet: the mic, the voice notes and "Record an answer" · FE (this PR)
 - 2026-11-02 · N298, N302, N306, N311 · C1, §2, §4: built behind ring 6 (feature `chats`): the list of chats in front of the Lounge, Will pinned first (his row opens the Lounge as it is, with a back to the list), then each chat with its title, subtitle and last message, and the two demo chats the first time; a chat's screen with back, title and subtitle, the Lounge's bubbles with no picture (N301), and the locked bar's shape with 👍 👀 🙏 in the box where Will's chat has "Type here", each sent emoji large with its meaning under it ("It's good", "Seen, I'll answer", "Thanks"). Off, /chat is the Lounge as it is. No typing, voice note or passing on yet · BE (the chats routes), FE (this PR)

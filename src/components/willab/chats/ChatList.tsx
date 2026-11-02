@@ -1,10 +1,11 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { Pin } from "lucide-react";
-import type { Chat, ChatEmoji, ChatLast } from "@/services/api/chats";
+import { useEffect, useState, type ReactNode } from "react";
+import { Check, Pin, Plus } from "lucide-react";
+import { getMyChatLink, type Chat, type ChatEmoji, type ChatLast } from "@/services/api/chats";
 import { chatIsNew } from "./chatOpened";
 import { listTime, timeOf } from "./chatTime";
+import { ADD_SHEET_LINE, ADD_SHEET_TITLE, COPY_MY_LINK } from "./joinCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  The list of chats (backend N256, N274, N298, N321, N322; rules:            */
@@ -147,6 +148,64 @@ function ChatListRow({
   );
 }
 
+/** Add someone (backend N308, N310, N328): your own link, to paste into any
+ *  email or message; whoever opens it joins you here. The only way anyone
+ *  comes into your chats. "Invite by email" (N307) comes with the email
+ *  invite; copying the link needs nothing else. */
+function AddSomeoneSheet({ onClose }: { onClose: () => void }) {
+  const [link, setLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void getMyChatLink().then((path) => {
+      if (alive) setLink(path ? `${window.location.origin}${path}` : null);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const copy = async () => {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // The clipboard is refused: the link stays on screen to select.
+    }
+  };
+  return (
+    <div data-add-sheet className="absolute inset-0 z-30 flex flex-col justify-end bg-black/30" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-label={ADD_SHEET_TITLE}
+        className="flex flex-col gap-3 rounded-t-3xl bg-background px-4 pb-6 pt-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex flex-col gap-2 rounded-xl bg-muted p-3">
+          <p className="text-[13px] font-medium leading-snug text-foreground">{ADD_SHEET_TITLE}</p>
+          <p className="text-[13px] leading-snug text-muted-foreground">{ADD_SHEET_LINE}</p>
+          {link ? (
+            <p data-my-link className="select-all break-all rounded-lg border border-foreground bg-background px-3 py-2 text-[14px] font-medium text-foreground">
+              {link}
+            </p>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          data-copy-link=""
+          onClick={() => void copy()}
+          disabled={!link}
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[15px] font-medium text-background disabled:opacity-50"
+        >
+          {copied ? <Check className="h-4 w-4" aria-hidden /> : null}
+          {COPY_MY_LINK}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** Newest last message first; a chat with none goes last. */
 function newestFirst(chats: readonly Chat[]): Chat[] {
   const at = (chat: Chat) => timeOf(chat.last?.created_at) ?? -Infinity;
@@ -163,8 +222,10 @@ export default function ChatList({
   onOpen: (chat: Chat) => void;
 }) {
   const now = new Date();
+  const [adding, setAdding] = useState(false);
   return (
-    <div data-chat-list className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <div data-chat-list className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
       <ChatListRow id="will" circle={<WillMark />} title={WILL_ROW_TITLE} pinned onOpen={onOpenWill} />
       {newestFirst(chats).map((chat) => (
         <ChatListRow
@@ -179,6 +240,17 @@ export default function ChatList({
           onOpen={() => onOpen(chat)}
         />
       ))}
+      </div>
+      <button
+        type="button"
+        data-add-someone=""
+        aria-label={ADD_SHEET_TITLE}
+        onClick={() => setAdding(true)}
+        className="absolute bottom-5 right-4 flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background shadow-lg"
+      >
+        <Plus className="h-5 w-5" aria-hidden />
+      </button>
+      {adding ? <AddSomeoneSheet onClose={() => setAdding(false)} /> : null}
     </div>
   );
 }

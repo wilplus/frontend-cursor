@@ -48,8 +48,46 @@ export async function seedDemoChats(): Promise<Chat[] | null> {
 }
 
 export async function getChatMessages(chatId: string): Promise<ChatMessage[] | null> {
+  return (await getChatThread(chatId))?.messages ?? null;
+}
+
+/** A chat's messages, oldest first, and, for the one who joined it through
+ *  someone's link, that person's first name (backend N308, N335 item 2). */
+export async function getChatThread(
+  chatId: string,
+): Promise<{ messages: ChatMessage[]; joinedThrough: string | null } | null> {
   const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/messages`, { method: "GET" });
-  return body && Array.isArray(body.messages) ? (body.messages as ChatMessage[]) : null;
+  if (!body || !Array.isArray(body.messages)) return null;
+  const through = typeof body.joined_through === "string" && body.joined_through ? body.joined_through : null;
+  return { messages: body.messages as ChatMessage[], joinedThrough: through };
+}
+
+/** The caller's own join link (backend N308): its path, "/c/<token>". */
+export async function getMyChatLink(): Promise<string | null> {
+  const body = await call("/api/v2/chats/link", { method: "GET" });
+  return typeof body?.path === "string" ? body.path : null;
+}
+
+/** Joining through someone's link (backend N308, N328): the chat made, or
+ *  found, for the two; "signin" when there is no session; "refused" for
+ *  anything else (your own link, a link that no longer works, no ring). */
+export type JoinResult = { kind: "joined"; chatId: string } | { kind: "signin" } | { kind: "refused" };
+
+export async function joinChatLink(token: string): Promise<JoinResult> {
+  try {
+    const result = await bffFetch(`/api/v2/chats/join/${encodeURIComponent(token)}`, {
+      method: "POST",
+      json: {},
+      cache: "no-store",
+    });
+    if (result.kind === "unauthenticated") return { kind: "signin" };
+    if (result.kind !== "response") return { kind: "refused" };
+    if (result.status === 401) return { kind: "signin" };
+    const chat = result.ok && result.body && typeof result.body === "object" ? (result.body as { chat?: { id?: unknown } }).chat : null;
+    return chat && typeof chat.id === "string" ? { kind: "joined", chatId: chat.id } : { kind: "refused" };
+  } catch {
+    return { kind: "refused" };
+  }
 }
 
 export async function sendChatEmoji(chatId: string, emoji: ChatEmoji): Promise<ChatMessage | null> {

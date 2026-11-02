@@ -27,6 +27,12 @@ OUTCOME
       thread as my bubble; the bar comes back (N321 item 2, N314).
   O7  A voice note from the other person is their grey bubble with a play
       control that plays it from the chat's audio route (N321 item 2).
+  O8  The + on the list opens my own link, with the add sheet's signed
+      words, and Copy my link puts the whole link on the clipboard (N308,
+      N310).
+  O9  In a chat I joined through someone's link, one line above the
+      messages says whose link it was (N335 item 2); a chat without it has
+      no such line.
 PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O2 -> "with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back"
          O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning"
@@ -34,6 +40,8 @@ PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O5 -> "a chat with a message newer than its last opening shows as new until it is opened"
          O6 -> "the mic records a voice note, Stop posts it and it joins the thread"
          O7 -> "a voice note from the other person plays from the chat's audio route"
+         O8 -> "the + opens my own link and copies it"
+         O9 -> "a chat joined through a link says whose link it was"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -346,5 +354,39 @@ describe("the chats in front of the Lounge", () => {
     await tap(theirs?.querySelector('button[aria-label="Play"]'));
     expect(played).toEqual(["/api/v2/chats/c-ariel/messages/m9/audio"]);
     expect(theirs?.querySelector('button[aria-label="Pause"]')).not.toBeNull();
+  });
+
+  it("the + opens my own link and copies it", async () => {
+    const copied: string[] = [];
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText: async (t: string) => void copied.push(t) } });
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
+    routes.set("GET /api/v2/chats/link", () => ({ token: "AbCdEfGhIjKlMnOpQrStUvWx", path: "/c/AbCdEfGhIjKlMnOpQrStUvWx" }));
+    await render();
+
+    await tap(container.querySelector('[data-add-someone][aria-label="Add someone to chat with"]'));
+    const sheet = container.querySelector("[data-add-sheet]")!;
+    expect(sheet.textContent).toContain("Add someone to chat with");
+    expect(sheet.textContent).toContain("Send them your link, in any email or message. Whoever opens it joins you here.");
+    const link = `${window.location.origin}/c/AbCdEfGhIjKlMnOpQrStUvWx`;
+    expect(sheet.querySelector("[data-my-link]")?.textContent).toBe(link);
+    await tap(sheet.querySelector("[data-copy-link]"));
+    expect(copied).toEqual([link]);
+  });
+
+  it("a chat joined through a link says whose link it was", async () => {
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, ARIEL] }));
+    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({ messages: [], joined_through: "Ariel" }));
+    routes.set("GET /api/v2/chats/c-sarah/messages", () => ({ messages: [], joined_through: null }));
+    await render();
+
+    await tap(row("c-ariel"));
+    expect(container.querySelector("[data-chat-joined]")?.textContent).toBe(
+      "You joined through Ariel's link. Only the two of you are in this chat.",
+    );
+    await tap(container.querySelector("[data-chat-screen] button"));
+    await tap(row("c-sarah"));
+    expect(container.querySelector("[data-chat-joined]")).toBeNull();
   });
 });

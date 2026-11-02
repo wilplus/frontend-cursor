@@ -11,7 +11,7 @@ import { useVoiceNote } from "@/components/willab/useVoiceNote";
 import {
   CHAT_EMOJI,
   chatVoiceSrc,
-  getChatMessages,
+  getChatThread,
   sendChatEmoji,
   sendChatVoice,
   type Chat,
@@ -20,6 +20,7 @@ import {
 } from "@/services/api/chats";
 import { EMOJI_MEANING, LetterCircle, meaningOf } from "./ChatList";
 import { markChatOpened } from "./chatOpened";
+import { joinedThrough } from "./joinCopy";
 import { clockTime, dayKey, dayLabel } from "./chatTime";
 
 /* -------------------------------------------------------------------------- */
@@ -168,6 +169,16 @@ function ChatDay({ label }: { label: string }) {
   );
 }
 
+/** For the one who joined through someone's link, above the messages: how
+ *  the two are connected (N335 item 2, signed). */
+function JoinedLine({ name }: { name: string }) {
+  return (
+    <div data-chat-joined className="max-w-[86%] self-center rounded-xl bg-muted px-3 py-2 text-center text-[13.5px] leading-snug text-foreground">
+      {joinedThrough(name)}
+    </div>
+  );
+}
+
 /** Each message, with the day line before the first of each day. */
 function withDays(messages: readonly ChatMessage[]): { day: string | null; message: ChatMessage }[] {
   const now = new Date();
@@ -215,6 +226,7 @@ let localSeq = 0;
 
 export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () => void }) {
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
+  const [through, setThrough] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   useBackDismiss(onBack);
 
@@ -245,8 +257,10 @@ export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () =>
 
   useEffect(() => {
     let cancelled = false;
-    void getChatMessages(chat.id).then((list) => {
-      if (!cancelled) setMessages(list ?? []);
+    void getChatThread(chat.id).then((thread) => {
+      if (cancelled) return;
+      setMessages(thread?.messages ?? []);
+      setThrough(thread?.joinedThrough ?? null);
     });
     return () => {
       cancelled = true;
@@ -286,6 +300,7 @@ export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () =>
       >
         {/* The messages start at the bottom, by the bar (N321 item 3). */}
         <div className="mt-auto flex flex-col gap-2">
+          {through ? <JoinedLine name={through} /> : null}
           {messages === null ? (
             <TypingDots label="Loading" />
           ) : (
