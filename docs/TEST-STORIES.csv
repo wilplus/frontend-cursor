@@ -940,12 +940,12 @@ question; it is the one button after the plan card, in the message
 box's place, and opens the first Take (N319 item 2). A Take
 recorded first: its walk comes before the questions (N262).
 O5  While the plan asks, ""Type here"" stays in the bar, faded and not
-focusable (N319 item 3); before my first Take, while the orange
-mic waits for my answer, a tap on it shows ""We need to hear this in
-your voice. Tap the mic."" above the bar, one note at a time, gone
-after a moment (N323 item 1), and while a tap answer waits, ""Tap one
-of the answers above."" (N325 item 4); with nothing asked it takes
-words again.
+focusable (N319 item 3); wherever it is faded, before my first Take
+and after it (N350 item 4), while the orange mic waits for my
+answer, a tap on it shows ""We need to hear this in your voice. Tap
+the mic."" above the bar, one note at a time, gone after a moment
+(N323 item 1), and while a tap answer waits, ""Tap one of the answers
+above."" (N325 item 4); with nothing asked it takes words again.
 O6  The plan's rows are drawn by their metadata: the speaker's voice
 answer as their own bubble; the card as the plan only (N319 item
 6): ""Plan"", its bar, the practice days, the deadline and ""Change
@@ -971,7 +971,7 @@ ring row ""plan_calls"" on, the card lists both calls, Book on one
 not booked, and the plan's end shows the summary call; off, none.","O1, O5 -> ""a choice is taps in the thread, the bar stays and
 typing waits""
 O5 -> ""a tap on the faded Type here says why, before the first
-Take""
+Take and after it""
 O2 -> ""a voice question: the mic is orange and its recording
 sends the answer""
 O3 -> ""a rating is sent once and never written back""
@@ -981,7 +981,7 @@ O7 -> ""a practice day's Record Take N is the button under the chat, alone""
 O8 -> ""the feelings before a Take""
 O9 -> ""Will asks for the plan's own yes""
 O10 -> ""nothing of the principles before my first Take""
-O11 -> ""the plan's calls show only with their ring row""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; record first, backend N262; every question the after-walk way, one action a step, typing waits before Take 1, backend N319 items 1 to 3, its note signed, backend N323 item 1, and on a choice, backend N325 item 4; the calls hidden, backend N315; the plan card simplified, backend N319 item 6; no bubble carries a button, backend N294 item 7; docs/flows/the-plan.md §1."
+O11 -> ""the plan's calls show only with their ring row""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; record first, backend N262; every question the after-walk way, one action a step, typing waits before Take 1, backend N319 items 1 to 3, its note signed, backend N323 item 1, and on a choice, backend N325 item 4, wherever the box is faded, backend N350 item 4; the calls hidden, backend N315; the plan card simplified, backend N319 item 6; no bubble carries a button, backend N294 item 7; docs/flows/the-plan.md §1."
 src/components/willab/plan/planNewEvent.test.tsx,Story,"As a speaker with a plan, I want ""I have a new event"" out of my way while my Take is still processing, so that I never tap something that leaves me with nothing to do.","O1  While the Take is processing, Change your plan has no ""I have a new
 event"", and the plan's end shows only ""Keep practising"".
 O2  Once the Take has landed, both show ""I have a new event"" again.","O1, O2 -> ""a new event waits for the Take being processed""","The founder, 2026-10-28 (backend N242); docs/flows/the-plan.md §1 H1 and I2."
@@ -1173,7 +1173,7 @@ WALK_COPY or CHUNK_SHEET_COPY. Never 1: a digit in a signed walk line
 (the only numbers the walk shows are a Take or moment position, put in
 by the caller).","unsigned word -> ""every literal a primitive shows or reads out is signed""
 digit         -> ""no signed walk line carries a digit""",If removed: An unsigned word or a number can reach speakers in the Feedback walk.
-src/components/willab/walk/walkPractise.test.tsx,Story,"As a speaker, I want to practise inside the walk's chat (record, hear an answer in words, hear an AI version of my voice, at most 3 tries), so that practice is quick, kind and free of numbers.","O1  A try records with the one recording bar (N314): Stop uploads it and asks for a check, and I am back in the walk at once; the trash throws it away instead: nothing is sent, no try is counted, and I am back on the step that opened it.
+src/components/willab/walk/walkPractise.test.tsx,Story,"As a speaker, I want to practise inside the walk's chat (record, hear an answer in words, hear an AI version of my voice, at most 3 tries), so that practice is quick, kind and free of numbers.","O1  A try records with the one recording bar (N314): Stop shows once the mic is live, not while it opens (N350 item 5); Stop uploads it and asks for a check, and I am back in the walk at once; the trash throws it away instead: nothing is sent, no try is counted, and I am back on the step that opened it.
 O2  A better try gets praise in words for what improved, then my helper words for that moment, so what I improved can become my habit words (N220).
 O3  A ""not yet"" on the clearer words brings the AI version of my voice; a good try does not.
 O4  The AI clip comes in one short bubble: a one-word opener, one tip quoting my phrase and ending "", like this:"", my AI voice, then ""Your turn.""; never a long explanation, never a number (N120).
@@ -1181,8 +1181,8 @@ O5  At most 3 tries, all shown together in the chat with the steps before them; 
 O6  The Exercise reaches the coach's queue the moment it is on screen, and the Lounge as the AI bubble once a clip is coming, even when I tap Practise first.
 O7  A try not yet better gets the same short bubble, opened with ""Close."" and closed with ""Try again."", with only ""Practise again"" (N120).
 O8  A voice correction with nothing to offer (no exercise, no AI clip coming) is skipped: no ""Say this one like your confident moment."" on its own, in the walk or the chat; it still reaches the coach's queue. The Take's most confident moment is not skipped: it says its own line and is said again (N109).
-O9  A praised moment is practised too: after its praise the short bubble with my AI voice and ""Your turn."", up to three tries, a Good job ends it, then its helper words; with no AI clip the praise goes straight to its helper words (N122).","O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check,
-the trash throws the try away: nothing is sent, no try counted, back on the step that opened it; Stop still sends (N314)
+O9  A praised moment is practised too: after its praise the short bubble with my AI voice and ""Your turn."", up to three tries, a Good job ends it, then its helper words; with no AI clip the praise goes straight to its helper words (N122).","O1 -> Stop shows once the mic is live, uploads through the attempts route, returns to the walk at once ... and posts /check,
+the trash throws the try away: nothing is sent, no try counted, back on the step that opened it (N314)
 O2 -> praise on try 1: the line for the reading that moved, then Next opens its helper words (N220)
 O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
 O4 -> the bubble is there at once: the typing dots alone ..., the AI clip comes in one short bubble: the opener, the tip quoting their phrase, the clip, then “Your turn.” (N120)
@@ -1190,7 +1190,7 @@ O5 -> shows the whole history at once, offers only ... Practise again until the 
 O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first
 O7 -> a try not yet better gets the same short bubble, opened with “Close.” and closed with “Try again.”, with only Practise again (N120)
 O8 -> with no exercise and no AI clip coming, it is walked as a good moment, never skipped: its helper words, no Line A alone, and the coach's queue still hears it; the Take's most confident moment with nothing to offer says its own line and is said again
-O9 -> a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122), with no AI clip the praise goes straight to its helper words (N122)","Never-rule 1 (no scores to speakers); founder 2026-10-31 (N314, ""Can you make it locked everywhere?""); founder 2026-10-21 (N108, ""Skip that moment""); 2026-10-23 (N120, ""make it shorter focused on one only thing""; N122, ""do we practice the confident moments? I think yes we should!""); 2026-10-30 (N284, ""Treat as good"")."
+O9 -> a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122), with no AI clip the praise goes straight to its helper words (N122)","Never-rule 1 (no scores to speakers); founder 2026-10-31 (N314, ""Can you make it locked everywhere?""); 2026-11-02 (N350 item 5, ""Stop once the mic is live, in both""); founder 2026-10-21 (N108, ""Skip that moment""); 2026-10-23 (N120, ""make it shorter focused on one only thing""; N122, ""do we practice the confident moments? I think yes we should!""); 2026-10-30 (N284, ""Treat as good"")."
 src/components/willab/walk/walkReplay.test.tsx,Story,"As a speaker, I want a finished walk opened again to be one scroll of everything I went through, with my answers and no buttons, nothing written or recorded again, so that I can look back safely.","O1  Opened again, the whole walk is one scroll with my answers in it, and no buttons and no Next under it; nothing is written (N259).
 O2  A done exercise shows my past tries and records nothing new.
 O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.

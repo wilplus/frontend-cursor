@@ -457,8 +457,8 @@ reads of this feature.
   first, widened later. No row is off for everyone.
 - **S3** What it does. One verbal read per Take weighs which moment the
   walk fixes and gives its Clearer version a short line on what matters to
-  the speaker. How long the Take waits for it and the rule against
-  repeating the notes are the walk's H1
+  the speaker. How long the walk waits for it ("ready" never does, N350
+  item 2) and the rule against repeating the notes are the walk's H1
   ([feedback-walk-and-chat.md](feedback-walk-and-chat.md)).
 - **S4** Never shown. No line on screen says a note was used, and nothing
   of it reaches the plan, the coach panel, the coach's queue or a Take's
@@ -541,6 +541,7 @@ Nothing in flight.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N350 item 2 · S3: the verbal read waits after the Take is flipped ready, before the walk's marks are baked, so "ready" never waits for it; the rule is the walk's H1. Was: "the Take waits for it" · docs (this PR)
 - 2026-11-02 · — · S3: the wait for the verbal read and the rule against repeating the notes are the walk's H1 only; S3 points there. No rule changes · docs (this PR)
 - 2026-11-02 · N326 · A3, S: the walk's pick and its Clearer version read what the speaker noted themselves (principles, kept strengths, life goals, Your why, # notes of the last 60 days), each where its own ring row and consent reach, behind the ring row `walk_inner_context` at ring 6; never shown, never to a coach; Will's private note is not read. Was: the walk never read or showed them except R's quote (N182 item 3) · BE N326 (the decision, the code), FE (this PR)
 - 2026-11-02 · N314 · B1 (the notebook's note) and the life goals lens's words: they record with the one recording bar, the trash then the walk's strip with Stop inside it; Stop sends. Was: delete, the running time in a pill, a send · FE (this PR)

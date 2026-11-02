@@ -103,7 +103,6 @@ import {
   heldFor,
   heldMessage,
   heldTake,
-  type NextTake,
   waitingFor,
   wantsToPractise,
 } from "./afterTake";
@@ -167,7 +166,7 @@ import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import WillQuestionBubble, { TapRow, willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
 import { isWillVoice, useWillVoice, WillVoiceBubble } from "./WillVoiceAnswer";
-import { RecordDockButton } from "./plan/PlanDock";
+import { RecordTakeButton } from "./plan/PlanDock";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -1108,13 +1107,12 @@ export default function Lounge({
     thread,
     setThinking: setBotThinking,
     onStartRecording: onStartPlanRecording,
-    onRecordNext: (arc) => openIdealText(arc, "share"),
     recordHeld: takeInFlight,
   });
   // AFTER THE GOODBYE (founder 2026-10-31, N294 items 6 and 7, N296 state
   // 4): no push to the next Take; the tap under the goodbye, then "Record
   // Take N" alone under the chat (`useGoodbye`).
-  const goodbye = useGoodbye({ messages, oneHoldsRecord: plan.oneHoldsRecord, olderTake, append: thread.append });
+  const goodbye = useGoodbye({ messages, oneHoldsRecord: plan.oneHoldsRecord, planOne: plan.one, olderTake, append: thread.append });
 
   const closeProcessingOverlay = useCallback(() => {
     setOpenedProcessingSessionId(null);
@@ -2122,9 +2120,11 @@ export default function Lounge({
       ) : null}
       {plan.dock}
       {plan.sheets}
-      {/* The next Take offered (N294 item 7, N296 state 4): the plan's black
-          button with the red dot, alone, the message box and the mic gone. */}
-      <RecordNextTake next={goodbye.recordNext} held={takeInFlight} onRecord={(arc) => openIdealText(arc, "share")} />
+      {/* The chat's one "Record Take N" (N294 item 7, N296 state 4): the
+          next Take after the goodbye, or a practice day's (the-plan.md G6);
+          the plan's black button with the red dot, alone, the message box
+          and the mic gone. */}
+      <RecordTakeButton next={goodbye.recordNext} held={takeInFlight} onRecord={(arc) => openIdealText(arc, "share")} />
       {/* Hidden whole while the plan's footer, or the next Take's button,
           stands in for it, so its empty wrapper adds no gap under it
           (founder 2026-10-30). */}
@@ -3146,11 +3146,15 @@ export function useCoachUpdates(messages: readonly LoungeMessage[]): {
 function useGoodbye({
   messages,
   oneHoldsRecord,
+  planOne,
   olderTake,
   append,
 }: {
   messages: readonly LoungeMessage[];
   oneHoldsRecord: boolean;
+  /** A practice day's Take, while its one thing holds the chat's one record
+   *  button (`usePlanLounge` `one`). */
+  planOne: { arcId: string; takeIndex: number } | null;
   olderTake: (meta?: Record<string, unknown> | null) => number | null;
   append: (draft: LoungeMessageDraft) => Promise<LoungeMessage>;
 }) {
@@ -3171,7 +3175,10 @@ function useGoodbye({
   };
   return {
     tap: goodbye?.step === "tap",
-    recordNext: goodbye?.step === "record" ? goodbye.next : null,
+    /** The chat's one "Record Take N": the next Take once they chose to
+     *  continue, else a practice day's (the-plan.md G6); never both, as the
+     *  practice day's one thing holds the button. */
+    recordNext: goodbye?.step === "record" ? goodbye.next : planOne,
     choose,
     /** Typed words under the goodbye that say they want to practise are the
      *  tap; true when taken so. */
@@ -3187,21 +3194,6 @@ function useGoodbye({
 function ContinueTap({ shown, onTap }: { shown: boolean; onTap: (said: string) => void }) {
   if (!shown) return null;
   return <TapRow labels={[CONTINUE_PRACTICE]} onTap={onTap} dataAttr={{ "data-continue-practice": "" }} />;
-}
-
-/** "Record Take N" under the chat, alone; held while a Take is still
- *  landing, as the "+" is. It opens the text the way its own button does
- *  (from Take 2 on, the sharing question first). */
-function RecordNextTake({ next, held, onRecord }: { next: NextTake | null; held: boolean; onRecord: (arcId: string) => void }) {
-  if (!next) return null;
-  return (
-    <RecordDockButton
-      label={`Record Take ${next.takeIndex + 1}`}
-      onClick={() => onRecord(next.arcId)}
-      disabled={held}
-      dataAttr={{ "data-record-next": "" }}
-    />
-  );
 }
 
 /** A wrapper's class: hidden while `standIn` takes its place. */

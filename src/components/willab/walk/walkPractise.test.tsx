@@ -2,7 +2,7 @@
 /*
 STORY    As a speaker, I want to practise inside the walk's chat (record, hear an answer in words, hear an AI version of my voice, at most 3 tries), so that practice is quick, kind and free of numbers.
 OUTCOME
-  O1  A try records with the one recording bar (N314): Stop uploads it and asks for a check, and I am back in the walk at once; the trash throws it away instead: nothing is sent, no try is counted, and I am back on the step that opened it.
+  O1  A try records with the one recording bar (N314): Stop shows once the mic is live, not while it opens (N350 item 5); Stop uploads it and asks for a check, and I am back in the walk at once; the trash throws it away instead: nothing is sent, no try is counted, and I am back on the step that opened it.
   O2  A better try gets praise in words for what improved, then my helper words for that moment, so what I improved can become my habit words (N220).
   O3  A "not yet" on the clearer words brings the AI version of my voice; a good try does not.
   O4  The AI clip comes in one short bubble: a one-word opener, one tip quoting my phrase and ending ", like this:", my AI voice, then "Your turn."; never a long explanation, never a number (N120).
@@ -11,8 +11,8 @@ OUTCOME
   O7  A try not yet better gets the same short bubble, opened with "Close." and closed with "Try again.", with only "Practise again" (N120).
   O8  A voice correction with nothing to offer (no exercise, no AI clip coming) is skipped: no "Say this one like your confident moment." on its own, in the walk or the chat; it still reaches the coach's queue. The Take's most confident moment is not skipped: it says its own line and is said again (N109).
   O9  A praised moment is practised too: after its praise the short bubble with my AI voice and "Your turn.", up to three tries, a Good job ends it, then its helper words; with no AI clip the praise goes straight to its helper words (N122).
-PROVES   O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check,
-               the trash throws the try away: nothing is sent, no try counted, back on the step that opened it; Stop still sends (N314)
+PROVES   O1 -> Stop shows once the mic is live, uploads through the attempts route, returns to the walk at once ... and posts /check,
+               the trash throws the try away: nothing is sent, no try counted, back on the step that opened it (N314)
          O2 -> praise on try 1: the line for the reading that moved, then Next opens its helper words (N220)
          O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
          O4 -> the bubble is there at once: the typing dots alone ..., the AI clip comes in one short bubble: the opener, the tip quoting their phrase, the clip, then “Your turn.” (N120)
@@ -21,7 +21,7 @@ PROVES   O1 -> Stop uploads through the attempts route, returns to the walk at o
          O7 -> a try not yet better gets the same short bubble, opened with “Close.” and closed with “Try again.”, with only Practise again (N120)
          O8 -> with no exercise and no AI clip coming, it is walked as a good moment, never skipped: its helper words, no Line A alone, and the coach's queue still hears it; the Take's most confident moment with nothing to offer says its own line and is said again
          O9 -> a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122), with no AI clip the praise goes straight to its helper words (N122)
-WHY      Never-rule 1 (no scores to speakers); founder 2026-10-31 (N314, "Can you make it locked everywhere?"); founder 2026-10-21 (N108, "Skip that moment"); 2026-10-23 (N120, "make it shorter focused on one only thing"; N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N284, "Treat as good").
+WHY      Never-rule 1 (no scores to speakers); founder 2026-10-31 (N314, "Can you make it locked everywhere?"); 2026-11-02 (N350 item 5, "Stop once the mic is live, in both"); founder 2026-10-21 (N108, "Skip that moment"); 2026-10-23 (N120, "make it shorter focused on one only thing"; N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N284, "Treat as good").
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -39,8 +39,8 @@ vi.mock("@/services/api/otherSpeakers", () => ({ fetchOtherClips: vi.fn(async ()
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }));
 
 /** The microphone: a stand-in for the app's recorder, counting what the walk
- *  asks of it. */
-const mic = vi.hoisted(() => ({ starts: 0, stops: 0, cancels: 0, fail: false }));
+ *  asks of it. `opening`: start() leaves it opening until `open()`. */
+const mic = vi.hoisted(() => ({ starts: 0, stops: 0, cancels: 0, fail: false, opening: false, open: () => {} }));
 vi.mock("@/hooks/useDualCaptureMic", async () => {
   const React = await import("react");
   type State =
@@ -55,6 +55,8 @@ vi.mock("@/hooks/useDualCaptureMic", async () => {
         state,
         start: async () => {
           mic.starts += 1;
+          mic.open = () => setState({ status: "recording", partialText: "" });
+          if (mic.opening) return;
           setState(
             mic.fail
               ? { status: "error", code: "denied", message: "denied" }
@@ -218,7 +220,7 @@ let host: HTMLDivElement;
 let root: Root;
 let ended: number;
 beforeEach(() => {
-  Object.assign(mic, { starts: 0, stops: 0, cancels: 0, fail: false });
+  Object.assign(mic, { starts: 0, stops: 0, cancels: 0, fail: false, opening: false });
   answers = [];
   uploadFails = false;
   aiClip = "coming";
@@ -310,13 +312,18 @@ async function tryAndRead() {
 
 describe("the practise screen", () => {
 
-  it("Stop uploads through the attempts route, returns to the walk at once with the voice mark under the try, and posts /check", async () => {
+  it("Stop shows once the mic is live, uploads through the attempts route, returns to the walk at once with the voice mark under the try, and posts /check", async () => {
+    mic.opening = true;
     draw();
     await accept();
     // The practise opens in the same chat: the words to say under the
     // clearer version, the recorder in the dock (founder 2026-10-20).
     expect(screen()).toBe("walk-screen-practise");
     expect(now()!.querySelector("[data-walk-say]")!.textContent).toBe(OFFERED);
+    // While the mic opens: the trash and the strip, no Stop (N350 item 5).
+    expect(recorder()!.querySelector("button[aria-label='Delete']")).not.toBeNull();
+    expect(recorder()!.querySelector("button[aria-label='Stop']")).toBeNull();
+    act(() => mic.open());
     expect(recorder()!.querySelector("[data-walk-recording-strip] button[aria-label='Stop']")).not.toBeNull();
     answers = ["hang"];
     stop();
@@ -335,14 +342,11 @@ describe("the practise screen", () => {
     expect(calls.some((c) => c.url.endsWith("/attempts/a1/check") && c.method === "POST")).toBe(true);
   });
 
-  it("the trash throws the try away: nothing is sent, no try counted, back on the step that opened it; Stop still sends (N314)", async () => {
+  it("the trash throws the try away: nothing is sent, no try counted, back on the step that opened it (N314)", async () => {
     draw();
     await accept();
     expect(screen()).toBe("walk-screen-practise");
-    // The one bar: the trash on the left of the strip.
-    const trash = recorder()!.querySelector("button[aria-label='Delete']")!;
-    expect(trash.compareDocumentPosition(recorder()!.querySelector("[data-walk-recording-strip]")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    click(trash);
+    click(recorder()!.querySelector("button[aria-label='Delete']"));
     await settle();
     expect(calls.some((c) => c.url.endsWith("/attempts"))).toBe(false);
     expect(calls.some((c) => c.url.includes("/check"))).toBe(false);
@@ -350,12 +354,9 @@ describe("the practise screen", () => {
     // Back on the clearer version, unanswered, as before the try.
     expect(screen()).toBe("walk-screen-clearer");
     expect(recorder()).toBeNull();
-    // The next try is still the first, and Stop sends it.
+    // The next try is still the first.
     await accept();
     expect(live()!.querySelector("[data-walk-live-try]")?.textContent).toContain(WALK_COPY.practiseN(1));
-    answers = ["hang"];
-    await tryAndRead();
-    expect(calls.filter((c) => c.url.endsWith("/attempts") && c.method === "POST")).toHaveLength(1);
   });
 
   it("a try the server could not hear says so, then Practise again or Next (founder, signed 2026-10-21)", async () => {

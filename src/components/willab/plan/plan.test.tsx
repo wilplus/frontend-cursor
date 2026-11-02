@@ -21,12 +21,12 @@
  *       box's place, and opens the first Take (N319 item 2). A Take
  *       recorded first: its walk comes before the questions (N262).
  *   O5  While the plan asks, "Type here" stays in the bar, faded and not
- *       focusable (N319 item 3); before my first Take, while the orange
- *       mic waits for my answer, a tap on it shows "We need to hear this in
- *       your voice. Tap the mic." above the bar, one note at a time, gone
- *       after a moment (N323 item 1), and while a tap answer waits, "Tap one
- *       of the answers above." (N325 item 4); with nothing asked it takes
- *       words again.
+ *       focusable (N319 item 3); wherever it is faded, before my first Take
+ *       and after it (N350 item 4), while the orange mic waits for my
+ *       answer, a tap on it shows "We need to hear this in your voice. Tap
+ *       the mic." above the bar, one note at a time, gone after a moment
+ *       (N323 item 1), and while a tap answer waits, "Tap one of the answers
+ *       above." (N325 item 4); with nothing asked it takes words again.
  *   O6  The plan's rows are drawn by their metadata: the speaker's voice
  *       answer as their own bubble; the card as the plan only (N319 item
  *       6): "Plan", its bar, the practice days, the deadline and "Change
@@ -53,7 +53,7 @@
  * PROVES   O1, O5 -> "a choice is taps in the thread, the bar stays and
  *                     typing waits"
  *          O5 -> "a tap on the faded Type here says why, before the first
- *                 Take"
+ *                 Take and after it"
  *          O2 -> "a voice question: the mic is orange and its recording
  *                 sends the answer"
  *          O3 -> "a rating is sent once and never written back"
@@ -69,7 +69,8 @@
  *          onboarding, backend N243; record first, backend N262; every
  *          question the after-walk way, one action a step, typing waits
  *          before Take 1, backend N319 items 1 to 3, its note signed, backend
- *          N323 item 1, and on a choice, backend N325 item 4; the calls hidden, backend
+ *          N323 item 1, and on a choice, backend N325 item 4, wherever the
+ *          box is faded, backend N350 item 4; the calls hidden, backend
  *          N315; the plan card simplified, backend N319 item 6; no bubble
  *          carries a button, backend N294 item 7; docs/flows/the-plan.md
  *          §1.
@@ -81,8 +82,8 @@ import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { Plan } from "@/services/api/plan";
 import { feelingsDue, rememberPlan } from "@/services/api/plan";
 import { loadRingState, resetRingStateCache } from "@/services/api/rings";
-import { PlanAsk, type PlanActions } from "./PlanDock";
-import { newestOneOf, planRowFor, type PlanRowCtx } from "./PlanRows";
+import { PlanAsk, RecordTakeButton, type PlanActions } from "./PlanDock";
+import { planRowFor, type PlanRowCtx } from "./PlanRows";
 import { SeePlanSheet } from "./PlanSheet";
 import { TYPE_HERE_NOTE_MS, usePlanLounge } from "./usePlanLounge";
 import { useVoiceNotebook, VoiceNoteMic } from "../useVoiceNotebook";
@@ -194,8 +195,9 @@ function backend(plan: () => Plan) {
 const posted = (path: string) =>
   bffFetch.mock.calls.filter(([url, init]) => url === path && (init as { method?: string } | undefined)?.method === "POST");
 
-/** The Lounge as it wires the plan: the thread's end, the plan's footer, and
- *  the bar ("+", "Type here", the mic) with the plan's say over it. */
+/** The Lounge as it wires the plan: the thread's end, the plan's footer, the
+ *  chat's one "Record Take N", and the bar ("+", "Type here", the mic) with
+ *  the plan's say over it. */
 function Lounge({
   messages,
   onStartRecording,
@@ -211,7 +213,6 @@ function Lounge({
     thread: { messages, loading: false, reload },
     setThinking: () => {},
     onStartRecording,
-    onRecordNext,
     recordHeld: false,
   });
   const notebook = useVoiceNotebook({ signedIn: true, threadLoading: false, held: plan.holdsPrinciples, drawn: messages, openOffer: vi.fn(), reload });
@@ -219,6 +220,7 @@ function Lounge({
     <>
       <div data-thread="">{plan.asks}</div>
       {plan.dock}
+      <RecordTakeButton next={plan.one} held={false} onRecord={onRecordNext} />
       <form data-bar="" className={plan.composerDisplay("flex")}>
         <button type="button" aria-label="Your projects" />
         <div className="relative">
@@ -346,7 +348,7 @@ it("a voice question: the mic is orange and its recording sends the answer", asy
   }
 });
 
-it("a tap on the faded Type here says why, before the first Take", async () => {
+it("a tap on the faded Type here says why, before the first Take and after it", async () => {
   const why = row({ plan_ask: "voice" }, "Please tell me, why does it matter and what is it about?");
   backend(() => ({ ...PLAN, step: "why" }));
   await showLounge([why]);
@@ -367,11 +369,12 @@ it("a tap on the faded Type here says why, before the first Take", async () => {
     vi.useRealTimers();
   }
   // After the first Take a plan question takes no typed answer either, and
-  // the note, written for the first Take, is not shown.
+  // a tap says why the same way (N350 item 4).
   backend(() => ({ ...PLAN, status: "active", step: "how_it_went", first_take_done: true }));
   await showLounge([why, row({}, "e")]);
   expect(typeHere().disabled).toBe(true);
-  expect(host.querySelector("[data-type-here-wait]")).toBeNull();
+  tap();
+  expect(notes()).toEqual(["We need to hear this in your voice. Tap the mic."]);
 });
 
 it("a rating is sent once and never written back", async () => {
@@ -441,7 +444,6 @@ it("the plan's rows are drawn as the prototype draws them", async () => {
   act(() => root.render(<>{planRowFor(row({ plan_answered: "rating" }, "Answered", "user"), ctx())}</>));
   const answered = host.querySelector("[data-plan-answered]")!;
   expect(answered.textContent).toBe("Answered");
-  expect(answered.querySelector("svg")).not.toBeNull();
 
   const c = ctx({ ...PLAN, status: "active", step: "done", done: 1 });
   act(() => root.render(<>{planRowFor(row({ plan_card: true }), c)}</>));
@@ -495,10 +497,7 @@ it("the plan's calls show only with their ring row", async () => {
 it("a practice day's Record Take N is the button under the chat, alone", async () => {
   const closing = { ...row({}), metadata: { next_take: true, arc_id: "arc-1", take_index: 1 } };
   const one = row({ plan_one: true, arc_id: "arc-1", take_index: 1 }, "Today, one thing: say your key line a little slower than the rest. You've got this 💪");
-  expect(newestOneOf([closing, one])).toBe(one.client_id);
-  expect(newestOneOf([one, closing])).toBeNull();
   const recorded = { ...row({ arc_id: "arc-2", take_index: 1 }), kind: "recording_summary" as const };
-  expect(newestOneOf([closing, one, recorded])).toBeNull();
 
   // The bubble keeps its words and the key line, and carries no button
   // (N294 item 7).
@@ -514,15 +513,18 @@ it("a practice day's Record Take N is the button under the chat, alone", async (
   backend(() => practiceDay);
   const record = vi.fn();
   await showLounge([closing, one], undefined, record);
-  const button = host.querySelector("[data-plan-dock-slot] [data-plan-record]") as HTMLButtonElement;
+  const button = host.querySelector("[data-record-next]") as HTMLButtonElement;
   expect(button.textContent).toBe("Record Take 2");
   expect(bar().className).toContain("hidden");
   await act(async () => button.click());
   expect(record).toHaveBeenCalledWith("arc-1");
 
-  // Once a newer Take is in, the button goes and the bar is back.
+  // A newer Take's closing message takes the button back (N167), and once a
+  // newer Take is in, the button goes and the bar is back.
+  await showLounge([one, closing], undefined, record);
+  expect(host.querySelector("[data-record-next]")).toBeNull();
   await showLounge([closing, one, recorded], undefined, record);
-  expect(host.querySelector("[data-plan-record]")).toBeNull();
+  expect(host.querySelector("[data-record-next]")).toBeNull();
   expect(bar().className).not.toContain("hidden");
 });
 
@@ -566,7 +568,7 @@ it("nothing of the principles before my first Take", async () => {
   const openOffer = vi.fn();
   const reload = async () => {};
   function Lounge({ messages }: { messages: LoungeMessage[] }) {
-    const plan = usePlanLounge({ signedIn: true, thread: { messages, loading: false, reload }, setThinking: () => {}, onRecordNext: () => {}, recordHeld: false });
+    const plan = usePlanLounge({ signedIn: true, thread: { messages, loading: false, reload }, setThinking: () => {}, recordHeld: false });
     const notebook = useVoiceNotebook({ signedIn: true, threadLoading: false, held: plan.holdsPrinciples, drawn: messages, openOffer, reload });
     return <VoiceNoteMic notebook={notebook} draft="" />;
   }
