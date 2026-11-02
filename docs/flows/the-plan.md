@@ -139,10 +139,12 @@ built and what is still to come.
    right) under a call's ask while the calls show (F1, N325 item 2). A voice
    question turns the bar's mic orange, and its answer is recorded as in
    B3. The 1 to 10 scale keeps its shape, in the thread under its question
-   (D2). While the plan asks before the first Take, "Type here" stays in
-   the bar, faded and not focusable: Will needs to hear the answer. While
-   the orange mic waits for a spoken answer, a tap on it shows one short
-   note above the bar, "We need to hear this in your voice. Tap the mic."
+   (D2). While the plan asks, before the first Take and after it, "Type
+   here" stays in the bar, faded and not focusable: Will needs to hear the
+   answer. Wherever it is faded (N350 item 4; was: before the first Take
+   only), while the orange mic waits for a spoken answer, a tap on it
+   shows one short note above the bar, "We need to hear this in your
+   voice. Tap the mic."
    (N323 item 1), a small dark pill centred over the bar, gone after about
    two and a half seconds; another tap while it shows keeps the one note.
    While a tap answer waits instead (a choice, the scale, a call's ask), a
@@ -357,7 +359,8 @@ built and what is still to come.
    said it"). No bubble carries a button (N294 item 7): while this bubble is
    the newest one thing, "Record Take N" stands under the chat, alone, the
    plan's black button with the red dot ("Start your first recording"'s
-   shape, `RecordDockButton`), the message box, the "+" and the mic gone
+   shape; the chat's one `RecordTakeButton`, drawn from one place for this
+   Take and for the goodbye's next, N350 item 1), the message box, the "+" and the mic gone
    (N296 state 4; kept so, N325 item 1); a tap starts that Take as the old button did, and it
    waits (greyed) while a Take is still landing. While the plan asks a
    question, or a call's calendar is open, that stands there instead. The
@@ -505,8 +508,9 @@ Signed:
   · when the AI fails, "Thank you. Now I can hear you talking about your
   goal and why it matters." (N140, N150). Signed, no longer shown: "Let me
   draft your plan. A few more questions first." (N319 item 4).
-- The note a tap on the faded "Type here" shows before the first Take
-  (B10, N323 item 1): "We need to hear this in your voice. Tap the mic."
+- The note a tap on the faded "Type here" shows wherever the box is faded,
+  before the first Take and after it (B10, N323 item 1, N350 item 4): "We
+  need to hear this in your voice. Tap the mic."
   While a tap answer waits instead (B10, N325 item 4): "Tap one of the
   answers above."
 - The plan's own yes (D5, N325 item 6): "Some of my questions are
@@ -639,6 +643,9 @@ Waiting for the founder's OK:
   - Built on 2 November 2026 (N323 item 1): the note under "Type here"
     while the orange mic waits before the first Take (B10, K) · FE (this
     PR).
+  - Built on 2 November 2026 (N350 items 1 and 4): the notes wherever
+    "Type here" is faded, after the first Take too (B10, K); one "Record
+    Take N" in the chat (G6) · FE (this PR).
 
 ## 3. Still open
 
@@ -651,9 +658,9 @@ Waiting for the founder's OK:
   question, "How did it go?", "What's next?", the last ratings) is asked
   the same way, and "Type here" waits there too: the plan takes no typed
   answer, and until N319 the box was hidden. The notes under "Type here"
-  (B10, N323 item 1, N325 item 4) show only before the first Take, while
-  the plan waits for an answer there: after it the notes, signed for the
-  first Take, do not show.
+  (B10, N323 item 1, N325 item 4) show there too, wherever the box is
+  faded: decided (N350 item 4; was, as built, before the first Take
+  only).
 - **The words in §1 K** still waiting for the founder's OK.
 - **As built, where the prototype doesn't say** (N203): "Choose a date" on
   the summary call opens the plan's own full-screen calendar, as "Book"
@@ -676,10 +683,11 @@ The plan's own code, guarded by this page (`scripts/flow-pages.txt`):
 
 - `src/components/willab/plan/`: the questions by step (`PlanDock.tsx`:
   `PlanAsk`, the tap answers and the scale in the thread; `usePlanVoice`,
-  the orange mic's recording; `PlanDock`, "Start your first recording", a
-  practice day's "Record Take N" (`standsOne`, G6) and the calls' calendar
-  in the footer; `RecordDockButton`, the plan's black button with the red
-  dot), the
+  the orange mic's recording; `PlanDock`, "Start your first recording" and
+  the calls' calendar in the footer; `RecordDockButton`, the plan's black
+  button with the red dot; `RecordTakeButton`, the chat's one "Record Take
+  N" on it, which the Lounge draws for the goodbye's next Take or a
+  practice day's, `usePlanLounge` `one` from `PlanRows` `newestOneOf`, G6), the
   calls' calendar (`PlanCalendar.tsx`), the card (`PlanCard.tsx`, which
   reads the calls' ring row `plan_calls`, N315), the rows in
   the thread (`PlanRows.tsx`), the two sheets (`PlanSheet.tsx`), the voice
@@ -700,8 +708,9 @@ It touches these places, each with its own page for what it owns:
   bubbles, its answers at the thread's end, its say over the bar (the mic
   orange, "Type here" waiting, and its note on a tap, `typingWait`), its
   footer in place of the message box only
-  for "Start your first recording", a call's calendar, the recording bar
-  and a practice day's "Record Take N",
+  for "Start your first recording", a call's calendar and the recording
+  bar, and the chat's one "Record Take N" (`RecordTakeButton`) for a
+  practice day's Take as for the goodbye's,
   and the empty Lounge's button held while the plan asks. The plan's taps
   are Will's (`WillQuestion.tsx`, `TapRow`, with "Not now" quiet). The
   walk's page owns the Lounge's other rules.
@@ -742,6 +751,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N350 items 1 and 4 · B10, G6, K, §2, §3, §4: the notes under the faded "Type here" show wherever the box is faded, before the first Take and after it: "We need to hear this in your voice. Tap the mic." while the mic waits, "Tap one of the answers above." while a tap answer waits (`usePlanLounge` `typingNote`); was: before the first Take only. The chat's one "Record Take N" is drawn from one place, `RecordTakeButton`, for the goodbye's next Take and a practice day's (`usePlanLounge` `one`); what shows is unchanged; `standsOne`, `oneRecordOf` and `StartFirst` are gone, `newestOneOf` gives the Take · FE (this PR)
 - 2026-11-02 · N339 · §3: the line "after a rating tap the next question follows with nothing between" is gone; N339 settled it (D2) · docs (this PR)
 - 2026-11-02 · — · D5, G8: one home per rule: D5 points to K for the words of the plan's own yes; G8 points to the walk's page T for the tempo step as the One thing walk's fix; the code comments of `usePlanLounge` and `PlanRows` say the note for a voice or a tap answer (N323 item 1, N325 item 4) and the record button under the chat (N294 item 7). No rule changes · docs (this PR)
 - 2026-11-02 · N347 item 2 · E3, G13, K: the goodbye after the walk names the next practice day as a person would, "Good job. See you tomorrow." when it is tomorrow in the plan's time zone, else "Good job. See you {weekday}." (backend `plan.next_day_text`, `after_take.SEE_YOU_ON`). Was: "Good job. See you next {day}.", tomorrow named by its weekday · BE n347, FE (this PR)

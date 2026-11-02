@@ -212,15 +212,9 @@ export function usePlanVoice({
   };
 }
 
-function StartFirst({ onStart }: { onStart: () => void }) {
-  return <RecordDockButton label={PLAN_COPY.startFirst} onClick={onStart} dataAttr={{ "data-plan-dock": "start" }} />;
-}
-
 /** The plan's black button with the red dot, "Start your first recording";
- *  the same piece carries the chat's "Record Take N", alone under the chat
- *  (backend N294 item 7, N296 state 4): after a Take's goodbye, and on a
- *  practice day while today's one thing is the newest (`PlanDock`). */
-export function RecordDockButton({
+ *  the same piece carries the chat's "Record Take N" (`RecordTakeButton`). */
+function RecordDockButton({
   label,
   onClick,
   disabled = false,
@@ -245,6 +239,32 @@ export function RecordDockButton({
   );
 }
 
+/** The chat's one "Record Take N", alone under the chat, the plan's black
+ *  button with the red dot (backend N294 item 7, N296 state 4): the next
+ *  Take after a Take's goodbye, or a practice day's while today's one thing
+ *  is the newest (`usePlanLounge` `one`). Held, greyed, while a Take is
+ *  still landing, as the "+" is; a tap opens that Take's text the way its
+ *  own button does (from Take 2 on, the sharing question first). */
+export function RecordTakeButton({
+  next,
+  held,
+  onRecord,
+}: {
+  next: { arcId: string; takeIndex: number } | null;
+  held: boolean;
+  onRecord: (arcId: string) => void;
+}) {
+  if (!next) return null;
+  return (
+    <RecordDockButton
+      label={PLAN_COPY.recordTake(next.takeIndex + 1)}
+      onClick={() => onRecord(next.arcId)}
+      disabled={held}
+      dataAttr={{ "data-record-next": "" }}
+    />
+  );
+}
+
 /** Which step of the plan is open, or null for none: a question ("deadline",
  *  "consent", "voice", "stress", "ready", "call", "next", "same_event"),
  *  "start" (the one button after the plan card) or "book" (a call's
@@ -263,29 +283,17 @@ export function dockFor(plan: Plan | null, booking: CallWhich | null): string | 
   return null;
 }
 
-/** A practice day's Take (`oneRecordOf`), offered under the chat only while
- *  the plan stands nothing else there: no question, no calendar, no first
- *  recording (G6, N294 item 7). Else null. */
-export function standsOne(plan: Plan | null, booking: CallWhich | null, one: OneTake | null): OneTake | null {
-  return plan && one && dockFor(plan, booking) === null ? one : null;
-}
-
-type OneTake = { arcId: string; takeIndex: number };
-
 /** The plan's footer, only where it stands in for the message box: "Start
- *  your first recording" after the plan card (E5, N319 item 2), the calls'
- *  calendar, full screen over the chat, for "Book now" under Will's ask or
- *  "Book" in the plan's list (N248, N281), and a practice day's "Record Take
- *  N", alone (G6, N294 item 7, N296 state 4). */
+ *  your first recording" after the plan card (E5, N319 item 2) and the
+ *  calls' calendar, full screen over the chat, for "Book now" under Will's
+ *  ask or "Book" in the plan's list (N248, N281). A practice day's "Record
+ *  Take N" is the chat's one `RecordTakeButton` (G6). */
 export default function PlanDock({
   plan,
   busy,
   booking,
   onCloseBooking,
   actions,
-  one = null,
-  recordHeld = false,
-  onRecordNext,
 }: {
   plan: Plan;
   busy: boolean;
@@ -294,12 +302,6 @@ export default function PlanDock({
   booking: CallWhich | null;
   onCloseBooking: () => void;
   actions: PlanActions;
-  /** A practice day's Take, while today's one thing holds the chat's one
-   *  record button (`standsOne`). */
-  one?: OneTake | null;
-  /** A Take is still landing: the button waits, greyed. */
-  recordHeld?: boolean;
-  onRecordNext?: (arcId: string) => void;
 }) {
   const kind = dockFor(plan, booking);
   // Will's ask for a call: "Skip" on its calendar moves on, as under the ask;
@@ -321,14 +323,8 @@ export default function PlanDock({
         }}
         onSaveDeadline={actions.saveDeadline}
       />
-      {kind === "start" && !busy ? <StartFirst onStart={actions.startFirst} /> : null}
-      {one ? (
-        <RecordDockButton
-          label={PLAN_COPY.recordTake(one.takeIndex + 1)}
-          onClick={() => onRecordNext?.(one.arcId)}
-          disabled={recordHeld}
-          dataAttr={{ "data-plan-record": "" }}
-        />
+      {kind === "start" && !busy ? (
+        <RecordDockButton label={PLAN_COPY.startFirst} onClick={actions.startFirst} dataAttr={{ "data-plan-dock": "start" }} />
       ) : null}
     </>
   );

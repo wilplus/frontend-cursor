@@ -940,12 +940,12 @@ question; it is the one button after the plan card, in the message
 box's place, and opens the first Take (N319 item 2). A Take
 recorded first: its walk comes before the questions (N262).
 O5  While the plan asks, ""Type here"" stays in the bar, faded and not
-focusable (N319 item 3); before my first Take, while the orange
-mic waits for my answer, a tap on it shows ""We need to hear this in
-your voice. Tap the mic."" above the bar, one note at a time, gone
-after a moment (N323 item 1), and while a tap answer waits, ""Tap one
-of the answers above."" (N325 item 4); with nothing asked it takes
-words again.
+focusable (N319 item 3); wherever it is faded, before my first Take
+and after it (N350 item 4), while the orange mic waits for my
+answer, a tap on it shows ""We need to hear this in your voice. Tap
+the mic."" above the bar, one note at a time, gone after a moment
+(N323 item 1), and while a tap answer waits, ""Tap one of the answers
+above."" (N325 item 4); with nothing asked it takes words again.
 O6  The plan's rows are drawn by their metadata: the speaker's voice
 answer as their own bubble; the card as the plan only (N319 item
 6): ""Plan"", its bar, the practice days, the deadline and ""Change
@@ -971,7 +971,7 @@ ring row ""plan_calls"" on, the card lists both calls, Book on one
 not booked, and the plan's end shows the summary call; off, none.","O1, O5 -> ""a choice is taps in the thread, the bar stays and
 typing waits""
 O5 -> ""a tap on the faded Type here says why, before the first
-Take""
+Take and after it""
 O2 -> ""a voice question: the mic is orange and its recording
 sends the answer""
 O3 -> ""a rating is sent once and never written back""
@@ -981,7 +981,7 @@ O7 -> ""a practice day's Record Take N is the button under the chat, alone""
 O8 -> ""the feelings before a Take""
 O9 -> ""Will asks for the plan's own yes""
 O10 -> ""nothing of the principles before my first Take""
-O11 -> ""the plan's calls show only with their ring row""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; record first, backend N262; every question the after-walk way, one action a step, typing waits before Take 1, backend N319 items 1 to 3, its note signed, backend N323 item 1, and on a choice, backend N325 item 4; the calls hidden, backend N315; the plan card simplified, backend N319 item 6; no bubble carries a button, backend N294 item 7; docs/flows/the-plan.md §1."
+O11 -> ""the plan's calls show only with their ring row""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; record first, backend N262; every question the after-walk way, one action a step, typing waits before Take 1, backend N319 items 1 to 3, its note signed, backend N323 item 1, and on a choice, backend N325 item 4, wherever the box is faded, backend N350 item 4; the calls hidden, backend N315; the plan card simplified, backend N319 item 6; no bubble carries a button, backend N294 item 7; docs/flows/the-plan.md §1."
 src/components/willab/plan/planNewEvent.test.tsx,Story,"As a speaker with a plan, I want ""I have a new event"" out of my way while my Take is still processing, so that I never tap something that leaves me with nothing to do.","O1  While the Take is processing, Change your plan has no ""I have a new
 event"", and the plan's end shows only ""Keep practising"".
 O2  Once the Take has landed, both show ""I have a new event"" again.","O1, O2 -> ""a new event waits for the Take being processed""","The founder, 2026-10-28 (backend N242); docs/flows/the-plan.md §1 H1 and I2."
