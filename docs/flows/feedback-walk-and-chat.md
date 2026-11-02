@@ -1059,7 +1059,9 @@ praised moment:
               T): the weakest passes over that slide's clips for the AI
               clip, the between for the Clearer version, the plan's level
               for its tool, and the Sniper is not the fix when its stretch
-              is there; each slot fills from everything else as above; came
+              is there, nor offered by the tempo route
+              (take_progress.pace_worked); each slot fills from everything
+              else as above; came
               back → may be given again; no walk before or any failure →
               as without it; read from what is stored, so a frozen Take
               read again keeps its walk; nothing in the frame, on screen or
