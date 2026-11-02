@@ -6,12 +6,22 @@ import type { CapacitorConfig } from "@capacitor/cli";
 // sends a redirect to another host out to Safari, so the app would load
 // nothing. `webDir` is only there because Capacitor requires one; the app
 // never shows it while `server.url` is set.
+//
+// The app opens on sign-in, not the landing page (N354): a signed-out person
+// sees sign-in at once, and the middleware sends a signed-in one on to /chat
+// server-side, so the landing never flashes. The path goes in
+// `appStartPath`, never in `server.url`: iOS keeps a page inside the app only
+// when its address starts with `server.url`, so ".../login" there would send
+// /chat and /auth/callback out to Safari. Capacitor also refuses to start
+// unless `webDir` has a matching path, hence `capacitor/www/login/`. A link
+// that opens the app on "/" still reaches sign-in through page.client.tsx.
 const config: CapacitorConfig = {
   appId: "com.willpowerlab.app",
   appName: "WillpowerLab",
   webDir: "capacitor/www",
   server: {
     url: "https://www.willpowerlab.com",
+    appStartPath: "login",
     cleartext: false,
   },
   ios: {

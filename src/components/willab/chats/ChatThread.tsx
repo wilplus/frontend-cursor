@@ -32,7 +32,7 @@ import { clockTime, dayKey, dayLabel } from "./chatTime";
 /*  beside them, each with its time; the messages start at the bottom, by the */
 /*  bar, under the day ("Today"). The locked bar's shape with the three emoji */
 /*  in the box where Will's chat has "Type here" (N306), and the mic beside   */
-/*  it: you can always answer with an emoji or a voice note (N321 item 2).    */
+/*  it only while a question waits for your answer (N341; was N321 item 2).   */
 /*  Only the conversation shows here; no asks (N305).                         */
 /* -------------------------------------------------------------------------- */
 
@@ -84,10 +84,43 @@ export function WillTopBar({ onBack }: { onBack: () => void }) {
   );
 }
 
+/** The two words under a voice note's player (backend N331, signed). */
+export const READ_IT = "Read it";
+export const HIDE_WORDS = "Hide";
+
+/** A voice note's words, closed under its player (backend N331): "Read it"
+ *  opens them inside the bubble, "Hide" closes them. Closed by default, for
+ *  both people, so the voice is heard; shown only once there are words. */
+function VoiceWords({ words, mine }: { words: string; mine: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        data-chat-read=""
+        aria-expanded={open}
+        onClick={() => setOpen((was) => !was)}
+        className={`self-start py-1 text-[12.5px] font-semibold underline underline-offset-[3px] ${
+          mine ? "text-primary-foreground" : "text-foreground"
+        }`}
+      >
+        {open ? HIDE_WORDS : READ_IT}
+      </button>
+      {open ? (
+        <p data-chat-words="" className="mb-0.5 mt-1 whitespace-pre-wrap break-words text-[14.5px] leading-[1.45]">
+          {words}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 /** A voice note (N321 item 2), in the same bubble: the plan's small player
- *  (play, the drawn bars, the length), its time bottom right. */
+ *  (play, the drawn bars, the length), its time bottom right, and its words
+ *  behind "Read it" once they are ready (N331). */
 function ChatVoice({ chatId, message, time }: { chatId: string; message: ChatMessage; time: string }) {
   const ms = typeof message.meta?.duration_ms === "number" ? message.meta.duration_ms : null;
+  const words = typeof message.words === "string" && message.words.trim() ? message.words : null;
   const player = <VoicePlayer src={chatVoiceSrc(chatId, message.id)} tone={message.mine ? "orange" : "grey"} durationMs={ms} />;
   const stamp = time ? (
     <span
@@ -97,19 +130,31 @@ function ChatVoice({ chatId, message, time }: { chatId: string; message: ChatMes
       {time}
     </span>
   ) : null;
-  if (message.mine) {
-    return (
-      <div data-row="me" data-bubble="" data-chat-voice="" className="ml-auto flex max-w-[85%] items-end gap-2.5 rounded-2xl bg-primary py-2 pl-2 pr-3">
+  const body = (
+    <>
+      <span className="flex items-end gap-2.5">
         {player}
         {stamp}
+      </span>
+      {words ? <VoiceWords words={words} mine={message.mine} /> : null}
+    </>
+  );
+  if (message.mine) {
+    return (
+      <div
+        data-row="me"
+        data-bubble=""
+        data-chat-voice=""
+        className="ml-auto flex max-w-[85%] flex-col rounded-2xl bg-primary py-2 pl-2 pr-3 text-primary-foreground"
+      >
+        {body}
       </div>
     );
   }
   return (
     <div data-row="app" className="mr-auto flex max-w-[88%]">
-      <div data-bubble="" data-chat-voice="" className="flex items-end gap-2.5 rounded-[16px] bg-muted py-2 pl-2 pr-3">
-        {player}
-        {stamp}
+      <div data-bubble="" data-chat-voice="" className="flex flex-col rounded-[16px] bg-muted py-2 pl-2 pr-3 text-foreground">
+        {body}
       </div>
     </div>
   );
@@ -187,11 +232,22 @@ function withDays(messages: readonly ChatMessage[]): { day: string | null; messa
   });
 }
 
+/** A question waits for my answer (backend N341 item 1): the newest message
+ *  is the other person's, and it is a question: their words (people never
+ *  type, N335 item 4, so words come only from a customer's request) or a
+ *  message the backend marks as one (`meta.question`). My answer, an emoji
+ *  or a voice note, is then the newest, and nothing waits. */
+export function questionWaits(messages: readonly ChatMessage[] | null): boolean {
+  const newest = messages?.at(-1);
+  if (!newest || newest.mine) return false;
+  return newest.kind === "text" || newest.meta?.question === true;
+}
+
 /** The locked bar's shape (the Lounge's composer): the rounded box, with the
  *  three emoji as round buttons in it, and on its right the Lounge's mic,
- *  40px and plain (N321 item 2; the prototype's `r6Bar`). No typing outside
- *  Will's chat. */
-function EmojiBar({ onPick, onMic }: { onPick: (emoji: ChatEmoji) => void; onMic: () => void }) {
+ *  40px and plain, only while a question waits (N341; the prototype's
+ *  `pBar`). No typing outside Will's chat. */
+function EmojiBar({ onPick, onMic }: { onPick: (emoji: ChatEmoji) => void; onMic: (() => void) | null }) {
   return (
     <>
       <div data-chat-emoji-box className="flex min-h-[40px] min-w-0 flex-1 items-center justify-around rounded-3xl border border-border bg-background px-2">
@@ -207,15 +263,17 @@ function EmojiBar({ onPick, onMic }: { onPick: (emoji: ChatEmoji) => void; onMic
           </button>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={onMic}
-        aria-label="Voice note"
-        data-chat-mic=""
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
-      >
-        <Mic className="h-5 w-5" aria-hidden />
-      </button>
+      {onMic ? (
+        <button
+          type="button"
+          onClick={onMic}
+          aria-label="Voice note"
+          data-chat-mic=""
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
+        >
+          <Mic className="h-5 w-5" aria-hidden />
+        </button>
+      ) : null}
     </>
   );
 }
@@ -315,7 +373,7 @@ export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () =>
             <RecordingBar elapsedMs={note.elapsedMs} onTrash={note.cancel} onStop={note.send} />
           </div>
         ) : (
-          <EmojiBar onPick={(emoji) => void send(emoji)} onMic={() => void note.start()} />
+          <EmojiBar onPick={(emoji) => void send(emoji)} onMic={questionWaits(messages) ? () => void note.start() : null} />
         )}
       </div>
     </div>

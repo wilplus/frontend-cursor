@@ -334,7 +334,6 @@ One line per piece of work: `item · what it is · the rules it touches · where
 doing it fills its line in its PR and deletes the line when the work is merged (the change goes to §6).
 
 - **One "Messages" place** · on Data & consent: WhatsApp on or off with the number, email on or off, practice reminders on or off with their time, in place of the WhatsApp card, the email's unsubscribe links and the reminder in "Change your plan" · Data & consent · decided (backend N189), drawn later (backend N338 item 4) · BE #1360
-- **The plan's questions after the acceptance** · "Agree and continue" opens the Lounge with the plan's questions, not the empty Lounge; the screen itself does not change · the flow after the screen · decided (backend N136, N146), not built · rules: [`the-plan.md`](the-plan.md) §1 B
 
 ## 3. Still open
 
@@ -382,6 +381,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N203, N204 · §2: "The plan's questions after the acceptance" closed: built with the plan, ring 5 (since 27 October 2026). "Agree and continue" opens the Lounge, which reads the plan as it opens and begins its questions for a new speaker the ring row `plan` reaches, the empty Lounge's button held meanwhile ([`the-plan.md`](the-plan.md) A1, B1). Was: listed as decided (backend N136, N146), not built · docs (this PR)
 - 2026-11-02 · N338 · §2: one "Messages" place (N189 item 6) waits; it is drawn later · docs (this PR)
 - 2026-10-30 · N286 · the policy update's grey bubble in the Lounge takes the chat's bubble shape (feedback-walk-and-chat.md J6): no hard top-left corner, drawn in only where it meets another grey bubble · FE (this PR)
 - 2026-10-30 · N279 · the example: the walk's slow tempo line and a slow set pace; "…until you are." without the 😏; on open only the founder's play button calls, then the AI clip's, and the Sniper rests until the AI clip ends (`WelcomeExample.tsx`, `WelcomeConsent.tsx`, `globals.css`). Was: the fast line, the 😏, and the Sniper moving on open · BE #1511, FE (this PR)
