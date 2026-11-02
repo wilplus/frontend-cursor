@@ -5,7 +5,7 @@ import { Check, Pin, Plus } from "lucide-react";
 import { getMyChatLink, type Chat, type ChatEmoji, type ChatLast } from "@/services/api/chats";
 import { chatIsNew } from "./chatOpened";
 import { listTime, timeOf } from "./chatTime";
-import { ADD_SHEET_LINE, ADD_SHEET_TITLE, COPY_MY_LINK } from "./joinCopy";
+import { ADD_SHEET_LINE, ADD_SHEET_TITLE, COPY_MY_LINK, joinedThrough } from "./joinCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  The list of chats (backend N256, N274, N298, N321, N322; rules:            */
@@ -13,7 +13,9 @@ import { ADD_SHEET_LINE, ADD_SHEET_TITLE, COPY_MY_LINK } from "./joinCopy";
 /*  pinned on top with his mark, then each chat, newest first, with the first */
 /*  letter of the name in a circle (no photo, N301, N322 item 1), the name and */
 /*  who they are, the time, and the last message on one line. A new message   */
-/*  shows bold with an orange dot; no number, ever.                           */
+/*  shows bold with an orange dot; no number, ever. Just joined through a     */
+/*  link, the chat with the one who invited you is the first row, above Will, */
+/*  new until opened, its line theirs or "You joined through…" (N357).        */
 /* -------------------------------------------------------------------------- */
 
 /** Will's chat is the Lounge; its row carries his mark, his name and a pin. */
@@ -219,32 +221,39 @@ function newestFirst(chats: readonly Chat[]): Chat[] {
 
 export default function ChatList({
   chats,
+  joined = null,
   onOpenWill,
   onOpen,
 }: {
   chats: readonly Chat[];
+  /** The chat just joined through someone's link: the first row, above
+   *  Will's, marked new until it is opened (backend N357). */
+  joined?: string | null;
   onOpenWill: () => void;
   onOpen: (chat: Chat) => void;
 }) {
   const now = new Date();
   const [adding, setAdding] = useState(false);
+  const first = joined ? chats.find((chat) => chat.id === joined) ?? null : null;
+  const row = (chat: Chat, justJoined = false) => (
+    <ChatListRow
+      key={chat.id}
+      id={chat.id}
+      circle={<LetterCircle id={chat.id} name={chat.title} size={48} />}
+      title={chat.title}
+      subtitle={chat.subtitle}
+      time={listTime(chat.last?.created_at, now)}
+      preview={chat.last ? lastLine(chat.last) : justJoined ? joinedThrough(chat.title) : ""}
+      isNew={justJoined || chatIsNew(chat)}
+      onOpen={() => onOpen(chat)}
+    />
+  );
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       <div data-chat-list className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+      {first ? row(first, true) : null}
       <ChatListRow id="will" circle={<WillMark />} title={WILL_ROW_TITLE} pinned onOpen={onOpenWill} />
-      {newestFirst(chats).map((chat) => (
-        <ChatListRow
-          key={chat.id}
-          id={chat.id}
-          circle={<LetterCircle id={chat.id} name={chat.title} size={48} />}
-          title={chat.title}
-          subtitle={chat.subtitle}
-          time={listTime(chat.last?.created_at, now)}
-          preview={lastLine(chat.last)}
-          isNew={chatIsNew(chat)}
-          onOpen={() => onOpen(chat)}
-        />
-      ))}
+      {newestFirst(chats.filter((chat) => chat !== first)).map((chat) => row(chat))}
       </div>
       <button
         type="button"

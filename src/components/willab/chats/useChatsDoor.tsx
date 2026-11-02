@@ -31,9 +31,10 @@ export type ChatsDoor = {
 
 const CLOSED: ChatsDoor = { back: null, front: null, navbar: true };
 
-/** The chat to open first, from `/chat?with=<id>`: the chat just joined
- *  through someone's link (backend N348). */
-function chatToOpen(): string | null {
+/** The chat just joined through someone's link, from `/chat?with=<id>`: the
+ *  list opens with it as the first row, marked new (backend N357; was N348
+ *  item 1: that chat opened). */
+function chatJustJoined(): string | null {
   if (typeof window === "undefined") return null;
   return new URLSearchParams(window.location.search).get("with");
 }
@@ -44,15 +45,12 @@ export function useChatsDoor(willFirst: boolean): ChatsDoor {
   const on = useChatsOn();
   const { chats, reload } = useChatList(on);
   const [view, setView] = useState<View>(() => ({ at: willFirst ? "will" : "list" }));
-  const [opening, setOpening] = useState<string | null>(chatToOpen);
-  // Just joined: that chat opens first, then the address is clean again.
+  const [joined, setJoined] = useState<string | null>(chatJustJoined);
+  // Just joined: the address is clean again; the list keeps that chat on top
+  // until it is opened.
   useEffect(() => {
-    if (!opening || !chats) return;
-    const chat = chats.find((c) => c.id === opening);
-    if (chat) setView({ at: "chat", chat });
-    setOpening(null);
-    window.history.replaceState(null, "", window.location.pathname);
-  }, [opening, chats]);
+    if (joined && window.location.search) window.history.replaceState(null, "", window.location.pathname);
+  }, [joined]);
   if (!on || !chats || chats.length === 0) return CLOSED;
   const toList = () => {
     setView({ at: "list" });
@@ -70,7 +68,15 @@ export function useChatsDoor(willFirst: boolean): ChatsDoor {
           {view.at === "chat" ? (
             <ChatThread key={view.chat.id} chat={view.chat} onBack={toList} />
           ) : (
-            <ChatList chats={chats} onOpenWill={() => setView({ at: "will" })} onOpen={(chat) => setView({ at: "chat", chat })} />
+            <ChatList
+              chats={chats}
+              joined={joined}
+              onOpenWill={() => setView({ at: "will" })}
+              onOpen={(chat) => {
+                if (chat.id === joined) setJoined(null);
+                setView({ at: "chat", chat });
+              }}
+            />
           )}
         </div>
       </div>
