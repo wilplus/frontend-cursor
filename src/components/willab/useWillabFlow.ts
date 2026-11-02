@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchSessionState } from "@/services/api/chatSessionState";
-import { prefetchChatBoot } from "@/services/api/bootPrefetch";
+import { prefetchChatBoot, prefetchChatsDoor } from "@/services/api/bootPrefetch";
 import { markChatBootStarted } from "@/lib/chatBoot";
 import { hasParkedReadout } from "./willabParked";
 import { clearReviewPending } from "./sendStatus";
@@ -222,7 +222,7 @@ export function useWillabFlow(): UseWillabFlowReturn {
     // instead of joining this burst (chatBoot.ts).
     prefetchChatBoot();
     markChatBootStarted();
-    if (hasParkedReadout()) { setState("parked"); return; }
+    if (hasParkedReadout()) { setState("parked"); prefetchChatsDoor(); return; }
 
     // Post-intake active state is BE-owned (seam 8). Fetch once on mount;
     // immediate transitions (Lab send → review_pending) are dispatched.
@@ -231,6 +231,8 @@ export function useWillabFlow(): UseWillabFlowReturn {
       else if (v === "REVIEW_LOOP") setState("insights_ready");
       else setState("lounge_idle"); // NO_SESSION or fetch failed
     });
+    // The chats door's reads, together and behind the Lounge's own.
+    prefetchChatsDoor();
   }, []);
 
   const dispatch = useCallback((event: WillabEvent) => {

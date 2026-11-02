@@ -4,7 +4,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { Chat } from "@/services/api/chats";
 import ChatList from "./ChatList";
 import ChatThread, { WillTopBar } from "./ChatThread";
-import { useChatList, useChatsOn } from "./useChats";
+import { useChatList, useChatsDecided } from "./useChats";
+import LoadingState from "../LoadingState";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /* -------------------------------------------------------------------------- */
@@ -17,7 +18,10 @@ import { isNativeApp } from "@/lib/auth/nativeSignIn";
 /*  item 1; was N322 item 4). On a computer, the list and a person's chat sit */
 /*  in a phone-wide column in the middle. Off, or with no chat but Will's,    */
 /*  nothing is drawn and /chat is the Lounge as it is (Never 3); in the       */
-/*  iPhone app, on, the list opens even with Will's chat alone.               */
+/*  iPhone app, on, the list opens even with Will's chat alone; there, until  */
+/*  the rings and the list have answered, the loader covers the Lounge, so it */
+/*  never shows for a moment before the list draws over it. On the web the    */
+/*  Lounge paints at once, as most accounts have no chats.                    */
 /* -------------------------------------------------------------------------- */
 
 type View = { at: "list" } | { at: "will" } | { at: "chat"; chat: Chat };
@@ -33,6 +37,17 @@ export type ChatsDoor = {
 
 const CLOSED: ChatsDoor = { back: null, front: null, navbar: true };
 
+/** The iPhone app, while the door is not yet known: the loader over the Lounge. */
+const WAITING: ChatsDoor = {
+  back: null,
+  navbar: true,
+  front: (
+    <div data-chats-front data-chats-waiting className="absolute inset-0 z-20 flex flex-col bg-background">
+      <LoadingState placement="surface" />
+    </div>
+  ),
+};
+
 /** The chat to open first, from `/chat?with=<id>`: the chat just joined
  *  through someone's link (backend N348). */
 function chatToOpen(): string | null {
@@ -43,7 +58,8 @@ function chatToOpen(): string | null {
 /** `willFirst`: a link that opens something in the Lounge (the coach's
  *  feedback) opens on Will's chat, not the list. */
 export function useChatsDoor(willFirst: boolean): ChatsDoor {
-  const on = useChatsOn();
+  const decided = useChatsDecided();
+  const on = decided === true;
   const { chats, reload } = useChatList(on);
   const [view, setView] = useState<View>(() => ({ at: willFirst ? "will" : "list" }));
   const [opening, setOpening] = useState<string | null>(chatToOpen);
@@ -57,6 +73,9 @@ export function useChatsDoor(willFirst: boolean): ChatsDoor {
   }, [opening, chats]);
   // In the iPhone app the list opens even with Will's chat alone, with the
   // way to add someone under him (founder 2026-11-02); on the web, as before.
+  const waiting = decided === null || (on && !chats);
+  // A link into the Lounge opens on Will's chat: nothing would cover it.
+  if (waiting && isNativeApp() && view.at !== "will") return WAITING;
   if (!on || !chats || (chats.length === 0 && !isNativeApp())) return CLOSED;
   const toList = () => {
     setView({ at: "list" });
