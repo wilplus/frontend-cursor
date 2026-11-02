@@ -486,10 +486,11 @@ the chats, newest last message first, each with its title, subtitle
 and last message (an emoji with its meaning); an empty list asks for
 the demo once. Will's row uncovers the Lounge, never remounted, with
 a back to the list (customer-requests.md C1; N274, N298, N322).
-O3  In a chat, the bar holds the three emoji in the box and the mic
-beside it, no typing; a tap on an emoji posts
-{""kind"":""emoji"",""body"":…} and shows the emoji at once, large, with its
-meaning and time under it (N306, N311, N321 item 2, N322).
+O3  In a chat, the bar holds the three emoji in the box, no typing, and
+the mic beside it only while a question waits for my answer; a tap on
+an emoji posts {""kind"":""emoji"",""body"":…} and shows the emoji at once,
+large, with its meaning and time under it, and the mic goes (N306,
+N311, N322, N341).
 O4  The WillpowerLab bar shows on the list only: in a person's chat and
 in Will's, the chat's own top bar takes its place (N321 item 1, N334).
 O5  A chat whose last message is newer than the last time it was opened
@@ -510,7 +511,7 @@ the one who invited me as its first row, above Will's, marked new with
 the joined line, and the address is clean again; opened, it is a chat
 like the rest (N357; was N348 item 1).","O1 -> ""with chats off, the Lounge is all there is and no chat is read""
 O2 -> ""with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back""
-O3 -> ""an emoji tapped in a chat is posted and shown at once with its meaning""
+O3 -> ""an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question""
 O4 -> ""the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's""
 O5 -> ""a chat with a message newer than its last opening shows as new until it is opened""
 O6 -> ""the mic records a voice note, Stop posts it and it joins the thread""

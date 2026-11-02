@@ -13,10 +13,11 @@ OUTCOME
       and last message (an emoji with its meaning); an empty list asks for
       the demo once. Will's row uncovers the Lounge, never remounted, with
       a back to the list (customer-requests.md C1; N274, N298, N322).
-  O3  In a chat, the bar holds the three emoji in the box and the mic
-      beside it, no typing; a tap on an emoji posts
-      {"kind":"emoji","body":…} and shows the emoji at once, large, with its
-      meaning and time under it (N306, N311, N321 item 2, N322).
+  O3  In a chat, the bar holds the three emoji in the box, no typing, and
+      the mic beside it only while a question waits for my answer; a tap on
+      an emoji posts {"kind":"emoji","body":…} and shows the emoji at once,
+      large, with its meaning and time under it, and the mic goes (N306,
+      N311, N322, N341).
   O4  The WillpowerLab bar shows on the list only: in a person's chat and
       in Will's, the chat's own top bar takes its place (N321 item 1, N334).
   O5  A chat whose last message is newer than the last time it was opened
@@ -38,7 +39,7 @@ OUTCOME
       like the rest (N357; was N348 item 1).
 PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O2 -> "with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back"
-         O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning"
+         O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question"
          O4 -> "the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's"
          O5 -> "a chat with a message newer than its last opening shows as new until it is opened"
          O6 -> "the mic records a voice note, Stop posts it and it joins the thread"
@@ -215,7 +216,7 @@ describe("the chats in front of the Lounge", () => {
     expect(loungeMounts).toBe(1);
   });
 
-  it("an emoji tapped in a chat is posted and shown at once with its meaning", async () => {
+  it("an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question", async () => {
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
     routes.set("GET /api/v2/chats/c-sarah/messages", () => ({
@@ -229,7 +230,7 @@ describe("the chats in front of the Lounge", () => {
     const screen = container.querySelector("[data-chat-screen]")!;
     expect(screen.querySelector("[data-chat-header]")?.textContent).toContain("SarahInvita customer");
     expect(screen.querySelector("[data-chat-thread] [data-bubble]")?.textContent).toContain(SARAH.last.body);
-    // The bar: the three emoji in the box, the mic beside it, no typing.
+    // Sarah's question waits: the three emoji in the box, the mic beside it, no typing.
     const bar = screen.querySelector("[data-chat-bar]")!;
     expect([...bar.querySelectorAll("button")].map((b) => b.textContent || b.getAttribute("aria-label"))).toEqual([
       "👍",
@@ -253,6 +254,9 @@ describe("the chats in front of the Lounge", () => {
     expect(post[0]).toBe("/api/v2/chats/c-sarah/messages");
     expect(post[1].method).toBe("POST");
     expect(JSON.parse(String(post[1].body))).toEqual({ kind: "emoji", body: "👍" });
+
+    // Answered: nothing waits, so the mic goes (N341).
+    expect(bar.querySelector('button[aria-label="Voice note"]')).toBeNull();
 
     release();
     await flush();
@@ -306,7 +310,10 @@ describe("the chats in front of the Lounge", () => {
     });
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
-    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({ messages: [] }));
+    // Ariel's question waits for my answer, so the mic shows (N341).
+    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({
+      messages: [{ id: "q1", mine: false, author: "Ariel", kind: "voice", body: "", meta: { question: true }, created_at: ARIEL.last.created_at }],
+    }));
     routes.set("POST /api/v2/chats/c-ariel/voice", () => ({
       message: { id: "v1", mine: true, author: "Me", kind: "voice", body: "", meta: { duration_ms: 4200 }, created_at: "2026-11-02T08:00:00Z" },
     }));
@@ -327,9 +334,11 @@ describe("the chats in front of the Lounge", () => {
     expect((form.get("audio") as Blob).type).toBe("audio/webm");
     expect(form.get("duration_ms")).toMatch(/^\d+$/);
 
-    // The bar is back; the voice note is mine, orange on the right, with its length.
+    // The bar is back, without the mic: answered; the voice note is mine,
+    // orange on the right, with its length.
     expect(screen.querySelector("[data-recording-bar]")).toBeNull();
     expect(screen.querySelector("[data-chat-emoji-box]")).not.toBeNull();
+    expect(screen.querySelector("[data-chat-mic]")).toBeNull();
     const voice = screen.querySelector('[data-chat-thread] [data-row="me"][data-chat-voice]');
     expect(voice?.textContent).toMatch(/^0:04\d\d:\d\d$/);
   });
