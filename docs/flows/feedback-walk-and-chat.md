@@ -376,7 +376,14 @@ step; the loop never waits for a coach.
   weakest with the AI clip after their best (C4); the Sniper (T) and no
   moment on a pace or pause week whose Take has a stretch, and for
   everyone, with or without a plan, at any level, when rushing is the
-  Take's biggest issue (T, N323 item 6). The server serves
+  Take's biggest issue (T, N323 item 6). A fix the last walk gave that
+  worked on this Take (its issue gone on that slide, by the rule Last time
+  uses, C0a) is not given again on that slide: the AI clip, the Clearer
+  version, the level's moment with that tool and the Sniper pass over that
+  slide, and the one fix is chosen from everything else as above (another
+  slide, another tool, or none); when the issue came back the same fix may
+  be given again; no walk before, or one that cannot be read, and the pick
+  is as it always was. Nothing on screen says so (N359). The server serves
   only these two (backend `take_feedback_policy_v3._one_thing`), so the
   Ideal Text's marks, the coach's queue and "did the fix work" hold the
   same two; the next bests and the second fix are not shown. Was (N289,
@@ -1043,6 +1050,22 @@ praised moment:
               never built beside the bake without the read; late or
               failed → as without it; a frozen Take keeps the walk it
               froze
+  worked    = the fixes the walk of the Take before gave (the completed
+              spoken Take before this one in the talk;
+              take_progress.last_walk) whose issue is gone on this Take's
+              same slide, by the rule the Takes table and Last time use
+              (take_progress.worked → outcome: the voice at the floor, no
+              words that need help, the pace game's slide inside the green,
+              T): the weakest passes over that slide's clips for the AI
+              clip, the between for the Clearer version, the plan's level
+              for its tool, and the Sniper is not the fix when its stretch
+              is there, nor offered by the tempo route
+              (take_progress.pace_worked); each slot fills from everything
+              else as above; came
+              back → may be given again; no walk before or any failure →
+              as without it; read from what is stored, so a frozen Take
+              read again keeps its walk; nothing in the frame, on screen or
+              for a coach (N359)
   ```
 
   The unit is the sentence. FLOOR is 0.6 at launch, then calibrated so
@@ -1880,6 +1903,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N359 · built (C2, H1): a fix the last walk gave (the AI clip, the Clearer version or the pace game) that worked on this Take, its issue gone on that slide by Last time's rule, is not given again on that slide; the walk picks from everything else as before, and gives it again only when the issue comes back; no walk before, or one that cannot be read, picks as before; nothing on screen, in the frame or for a coach. Was: the same fix could be given again on a slide where it had just worked · BE (this change), FE (this PR)
 - 2026-11-02 · N350, N325 item 3 · C0a, H1, T, §2: mirrors the backend half: while the run waits for the verbal read the walk's read answers "pending" until the bake starts (`ideal_text_feedback_bake.hold_for_bake`, a 15-second "queued" mark set only when the run waits); the pace fix worked when every clip on that slide spends less than the bar that picks a stretch (`tempo_stretch.MIN_OUTSIDE`) of its time past the green on the stretch's side (`tempo_stretch.stays_inside`; was `tempo_stretch.furthest`), for Last time and the Takes table alike; the tempo step reaches whoever the `tempo_step` row reaches, at ring 0 everyone, and the walk's choice of the Sniper reads the row alone (`tempo_stretch.tempo_on_for`; was: also the founder reading their own Take) · BE n350, docs (this PR)
 - 2026-11-02 · N350 · C0a, C7, H1, T: Stop shows in the walk's practise once its mic is live, as in the tempo step: while the mic opens, the trash and the strip alone (`useWalkPractise` `capturing`; was Stop from the moment the practise opened); the notes' verbal read waits at most 5 seconds after the Take is flipped ready and before the walk's marks are baked, so "ready" and the Ideal Text never wait and the walk may open up to 5 seconds later (was: "ready" waited for it); one rule for "the pace fix worked", every clip on that slide in the next Take inside the green on that side, the bar that picks a stretch, for Last time and the Takes table (was: any drop for the walk, a moved stretch for the table); the code simplified with the same behaviour: a Stop while the mic opens goes through the mic's generation token (`useDualCaptureMic`, no `stopEarlyRef`), the Sniper's helper words read once (`tempoWords`) · BE n350, FE (this PR)
 - 2026-11-02 · N323 item 1 · §3 closed: the note under "Type here" before Take 1 is signed and built ([`the-plan.md`](the-plan.md) B10, K); a typed answer to the key line is kept as the key line, as built · docs (this PR)
