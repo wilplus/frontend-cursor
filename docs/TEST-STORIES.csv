@@ -135,12 +135,13 @@ O2  A 409 ""already final"" reply also comes back exactly as sent.","O1 -> ""pas
 O2 -> ""still relays a rewrite's 409 as it came""",
 src/app/api/v2/user/takes/[takeSessionId]/share/route.test.ts,Story,"As a speaker, I want my share choice for a Take saved to that Take, so that only the people I chose see it.","O1  The share choice is sent (PUT) unchanged to the backend path for
 exactly this Take.","O1 -> ""relays the share body to the encoded take path""",
-src/app/c/[token]/JoinPage.test.tsx,Story,"As someone who got a colleague's link in an email, I want to see who invites me and what I get, then join in one tap, signing in first if I must, so that I land in my chats with them (N308, N328, N335).","O1  The page names who invites me and what I get, in the signed words,
+src/app/c/[token]/JoinPage.test.tsx,Story,"As someone who got a colleague's link in an email, I want to see who invites me and what I get, then join in one tap, signing in first if I must, so that I land in my chat with them (N308, N328, N335, N348).","O1  The page names who invites me and what I get, in the signed words,
 with one button, Join (N307, N310, N335).
-O2  Signed in, Join posts to the link and opens /chat.
+O2  Signed in, Join posts to the link and opens my chat with the one who
+invited me (/chat?with=<chat>).
 O3  Signed out, Join goes to sign in and comes back to this link to
 finish (?join=1); back here, it joins without a second tap.","O1 -> ""the page names who invites me and what I get""
-O2 -> ""signed in, Join joins and opens the chats""
+O2 -> ""signed in, Join joins and opens my chat with the one who invited me""
 O3 -> ""signed out, Join goes to sign in and finishes on the way back""",
 src/app/chat/page.test.tsx,Story,"As a speaker tapping a WhatsApp or email link, I want to land on my coach's feedback or on the review, so that the link takes me where it says.","O1  A feedback link (lens, or idealArc with feedback) opens the feedback;
 a link with mode=review opens the review; a bare idealArc link opens
@@ -489,9 +490,8 @@ O3  In a chat, the bar holds the three emoji in the box and the mic
 beside it, no typing; a tap on an emoji posts
 {""kind"":""emoji"",""body"":…} and shows the emoji at once, large, with its
 meaning and time under it (N306, N311, N321 item 2, N322).
-O4  The WillpowerLab bar goes while a person's chat is open, its own top
-bar in its place, and comes back on the list and in Will's chat
-(N321 item 1, N322 item 4).
+O4  The WillpowerLab bar shows on the list only: in a person's chat and
+in Will's, the chat's own top bar takes its place (N321 item 1, N334).
 O5  A chat whose last message is newer than the last time it was opened
 on this device shows as new, and stops being new once opened (N322).
 O6  The mic records with the one recording bar; Stop posts the recording
@@ -504,15 +504,18 @@ words, and Copy my link puts the whole link on the clipboard (N308,
 N310).
 O9  In a chat I joined through someone's link, one line above the
 messages says whose link it was (N335 item 2); a chat without it has
-no such line.","O1 -> ""with chats off, the Lounge is all there is and no chat is read""
+no such line.
+O10 Just joined (/chat?with=<chat>), the chat with the one who invited
+me opens first, not the list, and the address is clean again (N348).","O1 -> ""with chats off, the Lounge is all there is and no chat is read""
 O2 -> ""with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back""
 O3 -> ""an emoji tapped in a chat is posted and shown at once with its meaning""
-O4 -> ""the WillpowerLab bar hides while a person's chat is open and is back on the list""
+O4 -> ""the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's""
 O5 -> ""a chat with a message newer than its last opening shows as new until it is opened""
 O6 -> ""the mic records a voice note, Stop posts it and it joins the thread""
 O7 -> ""a voice note from the other person plays from the chat's audio route""
 O8 -> ""the + opens my own link and copies it""
-O9 -> ""a chat joined through a link says whose link it was""",
+O9 -> ""a chat joined through a link says whose link it was""
+O10 -> ""after joining, the chat with the one who invited me opens first""",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.

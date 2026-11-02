@@ -139,9 +139,10 @@ order it is built in.
      speaking coach", "Nobody else can reach you here unless you open their
      link too.", one button, "Join" (N307), and "Opens in your browser.
      Nothing to install." (N335 item 2). Signed out, Join goes to sign in or
-     sign up and comes back to finish; joined, /chat opens on the list,
-     where the chat with the person who invited you now is: one chat for the
-     two of them, however often either opens a link (N328). In that chat,
+     sign up and comes back to finish; joined, /chat opens on the chat with
+     the person who invited you (N348; was the list): one chat for the two
+     of them, however often either opens a link (N328). Will's first lines
+     wait in Will's chat until they open it (N348 item 2). In that chat,
      above the messages, the one who joined reads "You joined through
      {name}'s link. Only the two of you are in this chat." A wrong or
      replaced link is the site's not-found page; your own link, or a link
@@ -571,6 +572,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N348 · C1: joined through a link, /chat opens on the chat with the person who invited you (`/chat?with=<chat>`), not on the list; Will's first lines wait in Will's chat. Was: the list · FE (this PR)
 - 2026-11-02 · N308, N310, N328, N335 · C1, §2: the join link built behind ring 6: the "+" on the list opens the add sheet with the person's own link and Copy my link; /c/<token> is the join page; joining makes one chat for the two and says whose link it was. Not yet: Invite by email, the company sign-in, the ask link · BE (this change), FE (this change)
 - 2026-11-02 · N334 · C1, §4: every chat shows its own top bar, Will's included: in Will's chat the WillpowerLab bar goes and his top bar takes its place (back, his mark, "Will"), over the Lounge, which is unchanged; the WillpowerLab bar shows on the list only. Was (N322 item 4): the WillpowerLab bar, with "‹ Will" under it · FE (this PR)
 - 2026-11-02 · N321 · C1, §2, §4: the mic in a person's chat: on ring 6, the bar is the three emoji in the box and the Lounge's mic on its right (40px, plain, "Voice note"); a tap records with the one recording bar (N314), up to two minutes; Stop posts the recording and its length to `POST /v2/chats/<id>/voice`, the trash throws it away, the bar comes back at once and the voice note joins the thread when the backend answers. A refused mic, a failed recording or a failed send shows nothing new. A voice note is a bubble like the others (mine orange on the right, theirs grey on the left) with the plan's small player and its time, played from `GET /v2/chats/<id>/messages/<messageId>/audio`. The emoji in the box are 38px at 23px, as the prototype's `r6Bar` draws them. Was: the three emoji only, at 40px and 21px; "the mic comes with the voice notes" · BE (the voice routes), FE (this PR)
