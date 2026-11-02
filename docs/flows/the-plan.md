@@ -139,9 +139,13 @@ built and what is still to come.
    question turns the bar's mic orange, and its answer is recorded as in
    B3. The 1 to 10 scale keeps its shape, in the thread under its question
    (D2). While the plan asks before the first Take, "Type here" stays in
-   the bar, faded and not focusable: Will needs to hear the answer. A tap
-   on it is to show one short note above the bar, whose words wait for the
-   founder (§3, Never 4); until then it shows nothing. The taps and the
+   the bar, faded and not focusable: Will needs to hear the answer. While
+   the orange mic waits for a spoken answer, a tap on it shows one short
+   note above the bar, "We need to hear this in your voice. Tap the mic."
+   (N323 item 1), a small dark pill centred over the bar, gone after about
+   two and a half seconds; another tap while it shows keeps the one note.
+   On a choice there is no mic to tap, so a tap shows nothing (as built,
+   §3). The taps and the
    scale go while an answer is on its way; the answer and Will's next words
    then land in the thread. Was: the plan's footer in place of the bar,
    with its own chips, "Record your answer" and the scale, and the bar
@@ -359,7 +363,10 @@ built and what is still to come.
    three slots, its page C2): "Say it once, and it lands" the one between,
    with the Clearer version; "A voice that moves" the weakest, with the AI
    voice's stress tip; "Let your key line land" and "Pauses that hold the
-   room" go with the tempo step, which opens with the level's line. Was: the
+   room" go with the tempo step, which opens with the level's line. On a
+   week whose level takes a slot, the plan's choice stays unless rushing is
+   the Take's biggest issue; then the tempo step is the one fix (N323 item
+   6, the walk's page T). Was: the
    two best moments and the level as a third, practised with the AI voice's
    pace, pause or stress tip (N246, N209). The level's moment opens with
    "This week's level: {level}.
@@ -373,7 +380,7 @@ built and what is still to come.
    whose pace scale finds a stretch (N289 item 6; was from Take 2). The pace practice is the tempo step of
    the Feedback walk and nowhere else: not the coach panel, not the Lounge,
    not before the Take. Its rules are on the walk's page, §2 "Tempo"
-   (N130, N134, N140, N142, N162). A speaker without a plan gets the same step from Take 2 when the Take has a stretch outside the green; it is the founder's "Sniper" (N181).
+   (N130, N134, N140, N142, N162). Any speaker, with or without a plan, at any level, gets the same step as the One thing walk's one fix when rushing is the Take's biggest issue (N323 item 6, the walk's page T; was, with N309, only in a pace or pause week); it is the founder's "Sniper" (N181).
 9. A practise that slowed down gets its own lines, said in turn: "You gave it
    room, and it landed." · "Slower, and every word counted." · "That pace
    lets them keep up with you." (N140).
@@ -481,6 +488,8 @@ Signed:
   · when the AI fails, "Thank you. Now I can hear you talking about your
   goal and why it matters." (N140, N150). Signed, no longer shown: "Let me
   draft your plan. A few more questions first." (N319 item 4).
+- The note a tap on the faded "Type here" shows before the first Take
+  (B10, N323 item 1): "We need to hear this in your voice. Tap the mic."
 - Nothing heard and a correction (B8, B9, N262): "Sorry, I didn't quite
   catch that. Could you say it again?" · "Got it, thank you for putting me
   right." · "Start your first recording" is no longer under a question; it
@@ -558,9 +567,6 @@ Signed:
 Waiting for the founder's OK:
 
 - The deadline morning's good-luck line, still to be written (N169).
-- The note a tap on the faded "Type here" shows before the first Take
-  (B10), drafted "We need to hear this in your voice. Tap the mic." (N319
-  item 3).
 - The pace game's words are the tempo step's, on the walk's page §2 "Tempo"
   (N166), not here.
 
@@ -606,15 +612,14 @@ Waiting for the founder's OK:
     behind the ring row `plan_calls`, off for everyone with no row (F0);
     the card the plan only (E1, E2); "Let me draft your plan. …" gone (B4)
     · BE, FE (this PR).
+  - Built on 2 November 2026 (N323 item 1): the note under "Type here"
+    while the orange mic waits before the first Take (B10, K) · FE (this
+    PR).
 
 ## 3. Still open
 
 - **How the chat answers a rating tap**, now that the number is not shown
   back (N178): the words wait for the founder (Never 4).
-- **The note under "Type here" before the first Take** (N319 item 3, B10):
-  a tap on the faded box is to show one short note above the bar; its
-  words, drafted "We need to hear this in your voice. Tap the mic.", wait
-  for the founder (Never 4). Until they are signed a tap shows nothing.
 - **As built, where N319 and its prototype (version 39) don't say:** the
   bar's mic on a choice or the scale shows only where the voice notebook is
   on, as with nothing asked (the walk's page B14 state 1), since the plan
@@ -623,7 +628,11 @@ Waiting for the founder's OK:
   the first Take (the deadline for a speaker with Takes, a new project's
   question, "How did it go?", "What's next?", the last ratings) is asked
   the same way, and "Type here" waits there too: the plan takes no typed
-  answer, and until N319 the box was hidden.
+  answer, and until N319 the box was hidden. The note under "Type here"
+  (B10, N323 item 1) shows only where it is true, while the orange mic
+  waits for a spoken answer before the first Take: on a choice no mic
+  shows before the first Take (the voice notebook waits, N243), and after
+  it the note, signed for the first Take, does not show.
 - **The words in §1 K** still waiting for the founder's OK.
 - **As built, where the prototype doesn't say** (N203): after a rating tap the
   next question follows with nothing between, until the words in the first
@@ -667,7 +676,8 @@ It touches these places, each with its own page for what it owns:
 
 - The Lounge (`Lounge.tsx`): one hook call, the plan's rows drawn from the ask
   bubbles, its answers at the thread's end, its say over the bar (the mic
-  orange, "Type here" waiting), its footer in place of the message box only
+  orange, "Type here" waiting, and its note on a tap, `typingWait`), its
+  footer in place of the message box only
   for "Start your first recording", a call's calendar and the recording bar,
   and the empty Lounge's button held while the plan asks. The plan's taps
   are Will's (`WillQuestion.tsx`, `TapRow`, with "Not now" quiet). The
@@ -709,6 +719,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N323 item 6 · G7, G8: the tempo step is the One thing walk's one fix for everyone, with or without a plan, at any level, when rushing is the Take's biggest issue; a level that takes a slot keeps it unless rushing outweighs it (the rule on the walk's page T). Was: only in a pace or pause week · BE, FE (this PR)
+- 2026-11-02 · N323 item 1 · B10, K, §2, §3, §4: a tap on the faded "Type here" before the first Take, while the orange mic waits for a spoken answer, shows "We need to hear this in your voice. Tap the mic." above the bar, a small dark pill, one at a time, gone after about 2.5 seconds (`usePlanLounge` `typingWait`, `PLAN_COPY.typeHereNote`); none on a choice, where no mic shows, or after the first Take. Was: a tap showed nothing, the words waiting for the founder · FE (this PR)
 - 2026-11-02 · N319 items 1 to 3 · A1, B3, B5, B10, D2, D5, E5, F1, K, §3, §4: every question the after-walk way: Will's bubble, the Lounge's bar under it ("+", "Type here", the mic); a choice is tap answers on the right of the thread (`PlanAsk`, Will's `TapRow`), the plan's "Not now" grey and quieter; a voice question turns the bar's mic orange and records with the one recording bar (`usePlanVoice`); the scale in the thread under its question; "Start your first recording" only after the plan card (the backend no longer sends `record_now`); "Type here" faded and not focusable while the plan asks, its note waiting for the founder's words. No new words. Was: the plan's footer in place of the bar (its chips, "Record your answer", the scale, "Skip" and "Book now"), the bar hidden while the plan had a step, and "Start your first recording" under each voice question before the first Take (N262) · BE, FE (this PR)
 - 2026-11-02 · N315, N319 items 4 and 6 · B4, D5, E1, E2, F0, G5, I2, K, §4: the plan's coach calls hidden, not removed, behind the ring row `plan_calls` (backend `rings.PLAN_CALLS`; no row, off for everyone, the founder included): off, the plan goes from its last question or rating straight to "You're all set. Here's your plan.", with no call asked, by every path (the questions, "Not now", the ratings, a speaker with Takes, Will asking again after a Take's walk); a plan left at a call's ask moves on to the plan when the Lounge opens, and "Skip" there asks no summary call; the card's call lines, a booked kickoff's mark and the summary call at the plan's end show only with the row on. The card is the plan only: "Plan", its bar, the practice days, "Your deadline: {date}" and "Change your plan"; "See your plan" adds "This week's level" and the level above it. "Let me draft your plan. A few more questions first." is not written. No new words. Was: both calls asked of everyone after the questions; the card with "Your next level", the level, the key line, "How you said it", "Why this line?", the pace week's line and the two call lines; "Let me draft your plan. …" under Will's reply · BE, FE (this PR)
 - 2026-11-02 · N314 · B3, K: the plan's voice answers record with the one recording bar, the trash then the walk's strip with Stop inside it; Stop sends, the trash throws it away. Was: a "Your answer" line over the strip and a large red Stop under it · FE (this PR)

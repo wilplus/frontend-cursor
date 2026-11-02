@@ -91,6 +91,10 @@ export interface RootPhraseSpan {
   /** Null for words picked apart (founder 2026-10-15): no single span. */
   start: number | null;
   end: number | null;
+  /** The walk's own helper words, which come on their own: saved whole,
+   *  past the eight-word cap that holds for a pick by hand (backend N323
+   *  item 2). */
+  whole?: boolean;
 }
 
 function mapRootPhraseSpan(raw: unknown): RootPhraseSpan | null {
@@ -126,6 +130,7 @@ export async function setPartRootPhrase(
         phrase: phrase?.text ?? null,
         start: phrase?.start ?? null,
         end: phrase?.end ?? null,
+        ...(phrase?.whole ? { source: "walk" } : {}),
       },
     }
   );
