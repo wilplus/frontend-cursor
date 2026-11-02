@@ -16,9 +16,9 @@ import {
 /*  The join page (backend N308, N328, N335; rules:                            */
 /*  docs/flows/customer-requests.md §1 C1): who invites you and what you get, */
 /*  then Join. Signed out, Join goes to sign in or sign up and comes back here */
-/*  to finish (`?join=1`). Joined, /chat opens on the list, where the chat     */
-/*  with the person who invited you now is (N335 item 1). Your own link, or a  */
-/*  link that stops working on the way, also lands on /chat: no new words.    */
+/*  to finish (`?join=1`). Joined, /chat opens on the chat with the person    */
+/*  who invited you (N335 item 1, N348). Your own link, or a link that stops   */
+/*  working on the way, lands on /chat: no new words.                         */
 /* -------------------------------------------------------------------------- */
 
 export default function JoinPage({ token, name, finish }: { token: string; name: string; finish: boolean }) {
@@ -35,7 +35,7 @@ export default function JoinPage({ token, name, finish }: { token: string; name:
       router.push(`/login?redirectTo=${encodeURIComponent(back)}`);
       return;
     }
-    router.push("/chat");
+    router.push(result.kind === "joined" ? `/chat?with=${encodeURIComponent(result.chatId)}` : "/chat");
   };
 
   // Back from signing in: finish joining without a second tap.

@@ -17,9 +17,8 @@ OUTCOME
       beside it, no typing; a tap on an emoji posts
       {"kind":"emoji","body":…} and shows the emoji at once, large, with its
       meaning and time under it (N306, N311, N321 item 2, N322).
-  O4  The WillpowerLab bar goes while a person's chat is open, its own top
-      bar in its place, and comes back on the list and in Will's chat
-      (N321 item 1, N322 item 4).
+  O4  The WillpowerLab bar shows on the list only: in a person's chat and
+      in Will's, the chat's own top bar takes its place (N321 item 1, N334).
   O5  A chat whose last message is newer than the last time it was opened
       on this device shows as new, and stops being new once opened (N322).
   O6  The mic records with the one recording bar; Stop posts the recording
@@ -33,15 +32,18 @@ OUTCOME
   O9  In a chat I joined through someone's link, one line above the
       messages says whose link it was (N335 item 2); a chat without it has
       no such line.
+  O10 Just joined (/chat?with=<chat>), the chat with the one who invited
+      me opens first, not the list, and the address is clean again (N348).
 PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O2 -> "with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back"
          O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning"
-         O4 -> "the WillpowerLab bar hides while a person's chat is open and is back on the list"
+         O4 -> "the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's"
          O5 -> "a chat with a message newer than its last opening shows as new until it is opened"
          O6 -> "the mic records a voice note, Stop posts it and it joins the thread"
          O7 -> "a voice note from the other person plays from the chat's audio route"
          O8 -> "the + opens my own link and copies it"
          O9 -> "a chat joined through a link says whose link it was"
+         O10 -> "after joining, the chat with the one who invited me opens first"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -391,5 +393,16 @@ describe("the chats in front of the Lounge", () => {
     await tap(container.querySelector("[data-chat-screen] button"));
     await tap(row("c-sarah"));
     expect(container.querySelector("[data-chat-joined]")).toBeNull();
+  });
+
+  it("after joining, the chat with the one who invited me opens first", async () => {
+    window.history.replaceState(null, "", "/chat?with=c-sarah");
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, ARIEL] }));
+    routes.set("GET /api/v2/chats/c-sarah/messages", () => ({ messages: [] }));
+    await render();
+    expect(container.querySelector("[data-chat-screen]")).not.toBeNull();
+    expect(container.querySelector("[data-chat-name]")?.textContent).toBe("Sarah");
+    expect(window.location.search).toBe("");
   });
 });

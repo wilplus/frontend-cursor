@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Chat } from "@/services/api/chats";
 import ChatList from "./ChatList";
 import ChatThread, { WillTopBar } from "./ChatThread";
@@ -31,12 +31,28 @@ export type ChatsDoor = {
 
 const CLOSED: ChatsDoor = { back: null, front: null, navbar: true };
 
+/** The chat to open first, from `/chat?with=<id>`: the chat just joined
+ *  through someone's link (backend N348). */
+function chatToOpen(): string | null {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search).get("with");
+}
+
 /** `willFirst`: a link that opens something in the Lounge (the coach's
  *  feedback) opens on Will's chat, not the list. */
 export function useChatsDoor(willFirst: boolean): ChatsDoor {
   const on = useChatsOn();
   const { chats, reload } = useChatList(on);
   const [view, setView] = useState<View>(() => ({ at: willFirst ? "will" : "list" }));
+  const [opening, setOpening] = useState<string | null>(chatToOpen);
+  // Just joined: that chat opens first, then the address is clean again.
+  useEffect(() => {
+    if (!opening || !chats) return;
+    const chat = chats.find((c) => c.id === opening);
+    if (chat) setView({ at: "chat", chat });
+    setOpening(null);
+    window.history.replaceState(null, "", window.location.pathname);
+  }, [opening, chats]);
   if (!on || !chats || chats.length === 0) return CLOSED;
   const toList = () => {
     setView({ at: "list" });

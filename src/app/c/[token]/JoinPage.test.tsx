@@ -2,15 +2,16 @@
 /*
 STORY    As someone who got a colleague's link in an email, I want to see who
          invites me and what I get, then join in one tap, signing in first if
-         I must, so that I land in my chats with them (N308, N328, N335).
+         I must, so that I land in my chat with them (N308, N328, N335, N348).
 OUTCOME
   O1  The page names who invites me and what I get, in the signed words,
       with one button, Join (N307, N310, N335).
-  O2  Signed in, Join posts to the link and opens /chat.
+  O2  Signed in, Join posts to the link and opens my chat with the one who
+      invited me (/chat?with=<chat>).
   O3  Signed out, Join goes to sign in and comes back to this link to
       finish (?join=1); back here, it joins without a second tap.
 PROVES   O1 -> "the page names who invites me and what I get"
-         O2 -> "signed in, Join joins and opens the chats"
+         O2 -> "signed in, Join joins and opens my chat with the one who invited me"
          O3 -> "signed out, Join goes to sign in and finishes on the way back"
 */
 import { act, createElement } from "react";
@@ -72,13 +73,13 @@ describe("the join page", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("signed in, Join joins and opens the chats", async () => {
+  it("signed in, Join joins and opens my chat with the one who invited me", async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ chat: { id: "c-1" } }), { status: 200 }));
     await render();
     await act(async () => container.querySelector<HTMLButtonElement>("[data-join-button]")!.click());
     await flush();
     expect(joinPosts()).toHaveLength(1);
-    expect(push).toHaveBeenCalledWith("/chat");
+    expect(push).toHaveBeenCalledWith("/chat?with=c-1");
   });
 
   it("signed out, Join goes to sign in and finishes on the way back", async () => {
@@ -97,6 +98,6 @@ describe("the join page", () => {
     root = createRoot(container);
     await render(true);
     expect(joinPosts()).toHaveLength(1);
-    expect(push).toHaveBeenCalledWith("/chat");
+    expect(push).toHaveBeenCalledWith("/chat?with=c-1");
   });
 });
