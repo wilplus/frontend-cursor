@@ -72,17 +72,20 @@ type MicWaits = { onTap: () => void } | null;
 /** How long the note under a tap on the faded "Type here" stays. */
 export const TYPE_HERE_NOTE_MS = 2500;
 
-/** The note under "Type here" is true only where the orange mic waits for
- *  a spoken answer before the first Take (N323 item 1). Pure. */
-function typingNoteDue(kind: string | null, plan: Plan | null): boolean {
-  return kind === "voice" && plan !== null && !plan.first_take_done;
+/** The note a tap on the faded "Type here" shows before the first Take, or
+ *  null for none: where the orange mic waits for a spoken answer, "Tap the
+ *  mic" (N323 item 1); where a tap answer waits, "Tap one of the answers
+ *  above." (N325 item 4). Pure. */
+function typingNote(kind: string | null, plan: Plan | null): string | null {
+  if (plan === null || plan.first_take_done || !planAsks(kind)) return null;
+  return kind === "voice" ? PLAN_COPY.typeHereNote : PLAN_COPY.tapAnswerNote;
 }
 
 /** Over the faded "Type here": a tap shows one short note above the bar,
  *  gone after a moment; another tap while it shows keeps the one note
- *  (N323 item 1). A disabled box takes no tap of its own, so a clear layer
- *  over it takes it. */
-function TypingWait() {
+ *  (N323 item 1, N325 item 4). A disabled box takes no tap of its own, so a
+ *  clear layer over it takes it. */
+function TypingWait({ note }: { note: string }) {
   const [tapped, setTapped] = useState(0);
   useEffect(() => {
     if (tapped === 0) return;
@@ -98,7 +101,7 @@ function TypingWait() {
           data-type-here-note
           className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-full bg-foreground px-3.5 py-2 text-center text-[13.5px] leading-snug text-background"
         >
-          {PLAN_COPY.typeHereNote}
+          {note}
         </div>
       ) : null}
     </>
@@ -239,6 +242,7 @@ export function usePlanLounge({
 
   const kind = dockFor(plan, booking);
   const asks = planAsks(kind);
+  const typedNote = typingNote(kind, plan);
   // A voice question: the Lounge's mic, orange while it waits (N319 item 1).
   const voice = usePlanVoice({ open: kind === "voice" && !busy && sent === null, onAnswer: actions.answer });
   // A practice day's one thing, while it holds the chat's one record button
@@ -329,10 +333,11 @@ export function usePlanLounge({
     mic: (otherwise) => voice.waiting ?? otherwise,
     // Before the first Take Will needs to hear it, so "Type here" waits
     // (N319 item 3); after it a plan question takes no typed answer either
-    // (until N319 the box was hidden). Before the first Take, where the
-    // orange mic waits for the answer, a tap on it says why (N323 item 1).
+    // (until N319 the box was hidden). Before the first Take a tap on it
+    // says why: the mic waits for the answer (N323 item 1), or a tap answer
+    // does (N325 item 4).
     typingOff: asks,
-    typingWait: typingNoteDue(kind, plan) ? <TypingWait /> : null,
+    typingWait: typedNote ? <TypingWait key={kind} note={typedNote} /> : null,
     draft: (typed) => (asks ? "" : typed),
     holdsEmpty: signedIn && (state === null || plan !== null),
     oneHoldsRecord: newestOne !== null,

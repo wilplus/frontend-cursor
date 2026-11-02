@@ -23,8 +23,9 @@
  *       focusable (N319 item 3); before my first Take, while the orange
  *       mic waits for my answer, a tap on it shows "We need to hear this in
  *       your voice. Tap the mic." above the bar, one note at a time, gone
- *       after a moment (N323 item 1); with nothing asked it takes words
- *       again.
+ *       after a moment (N323 item 1), and while a tap answer waits, "Tap one
+ *       of the answers above." (N325 item 4); with nothing asked it takes
+ *       words again.
  *   O6  The plan's rows are drawn by their metadata: the speaker's voice
  *       answer as their own bubble; the card as the plan only (N319 item
  *       6): "Plan", its bar, the practice days, the deadline and "Change
@@ -67,7 +68,7 @@
  *          onboarding, backend N243; record first, backend N262; every
  *          question the after-walk way, one action a step, typing waits
  *          before Take 1, backend N319 items 1 to 3, its note signed, backend
- *          N323 item 1; the calls hidden, backend
+ *          N323 item 1, and on a choice, backend N325 item 4; the calls hidden, backend
  *          N315; the plan card simplified, backend N319 item 6; no bubble
  *          carries a button, backend N294 item 7; docs/flows/the-plan.md
  *          §1.
@@ -258,11 +259,15 @@ it("a choice is taps in the thread, the bar stays and typing waits", async () =>
   expect(taps()).toEqual(["Pick a date", "No date yet"]);
   expect(host.querySelector("[data-thread] [data-plan-ask='deadline']")).not.toBeNull();
   // The Lounge's bar stays under it; "Type here" in it, faded and not
-  // focusable (N319 item 3). A choice has no mic to tap: no note to say so.
+  // focusable (N319 item 3). A choice has no mic to tap: a tap on the box
+  // points at the answers instead (N325 item 4).
   expect(bar().className).not.toContain("hidden");
   expect(host.querySelector("[aria-label='Your projects']")).not.toBeNull();
   expect(typeHere().disabled).toBe(true);
-  expect(host.querySelector("[data-type-here-wait]")).toBeNull();
+  act(() => (host.querySelector("[data-type-here-wait]") as HTMLElement).click());
+  expect([...host.querySelectorAll("[data-type-here-note]")].map((n) => n.textContent)).toEqual([
+    "Tap one of the answers above.",
+  ]);
   expect(host.querySelector("[data-plan-dock='start']")).toBeNull();
   await tapOn("No date yet");
   expect(posted("/api/v2/plan/deadline")[0][1]).toMatchObject({ json: { date: null } });
@@ -533,7 +538,7 @@ it("Will asks for the plan's own yes", () => {
   expect(a.consent).toHaveBeenNthCalledWith(1, true);
   expect(a.consent).toHaveBeenNthCalledWith(2, false);
 
-  const ask = "A few of my questions are personal: how stressed and how ready you feel, what worries you, and how you feel before each Take.";
+  const ask = "Some of my questions are personal: how stressed and ready you feel, what worries you, how you feel before each Take.";
   act(() => root.render(<>{planRowFor(row({ plan_ask: "consent" }, ask), ctx(waiting))}</>));
   expect(host.querySelector("[data-bubble]")?.textContent).toContain(ask);
   expect([...host.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Read more"]);

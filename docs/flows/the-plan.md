@@ -134,8 +134,9 @@ built and what is still to come.
    "Type here", the mic). A choice is tap answers on the right of the
    thread, Will's orange outlined pills: "Pick a date" (it opens the date
    sheet) and "No date yet"; the plan's own yes, "Yes, ask me" orange
-   outlined and "Not now" grey and quieter, the same shape (D5); "Skip" and
-   "Book now" under a call's ask while the calls show (F1). A voice
+   outlined and "Not now" grey and quieter, the same shape (D5); "Skip"
+   (grey and quieter, on the left) and "Book now" (orange outlined, on the
+   right) under a call's ask while the calls show (F1, N325 item 2). A voice
    question turns the bar's mic orange, and its answer is recorded as in
    B3. The 1 to 10 scale keeps its shape, in the thread under its question
    (D2). While the plan asks before the first Take, "Type here" stays in
@@ -144,8 +145,9 @@ built and what is still to come.
    note above the bar, "We need to hear this in your voice. Tap the mic."
    (N323 item 1), a small dark pill centred over the bar, gone after about
    two and a half seconds; another tap while it shows keeps the one note.
-   On a choice there is no mic to tap, so a tap shows nothing (as built,
-   §3). The taps and the
+   While a tap answer waits instead (a choice, the scale, a call's ask), a
+   tap shows "Tap one of the answers above." the same way (N325 item 4;
+   was: nothing). The taps and the
    scale go while an answer is on its way; the answer and Will's next words
    then land in the thread. Was: the plan's footer in place of the bar,
    with its own chips, "Record your answer" and the scale, and the bar
@@ -198,11 +200,13 @@ built and what is still to come.
    two ratings in 1, "How did it go?" at the plan's end (I2) and the feelings
    check in 4) are asked only after the speaker says yes
    to a question of its own, once. Will asks it after the speaker's voice
-   answer about the event, before any personal question: "A few of my
-   questions are personal: how stressed and how ready you feel, what worries
-   you, and how you feel before each Take. I only ask with your yes. Your
-   coach and I use your answers to shape your plan. You can turn this off in
-   Settings." (N249) with Read more, which opens Privacy section 4e in a
+   answer about the event, before any personal question: "Some of my
+   questions are personal: how stressed and ready you feel, what worries
+   you, how you feel before each Take. I ask only with your yes. Your
+   answers shape your plan and help your coach prepare. You can turn this
+   off in Settings." (N325 item 6, in the words of Privacy section 4e; was
+   N249's "A few of my questions are personal: … Your coach and I use your
+   answers to shape your plan. …") with Read more, which opens Privacy section 4e in a
    window, and under it, on the right of the thread, "Not now" (grey and
    quieter) and "Yes, ask me" (orange outlined) (N319 item 1, B10; was in
    the footer); nothing else is taken while Will waits. "Yes, ask me" goes on with the worry question and
@@ -273,8 +277,9 @@ built and what is still to come.
    flow while the calls are on.
 1. After the ratings, before the plan card, Will asks "Every plan starts
    with a kickoff session with your coach. Would you like to book it now?"
-   Under it, tap answers on the right of the thread: "Skip" and "Book now"
-   (N319 item 1; was in place of "Type here"). The calendar never opens
+   Under it, tap answers on the right of the thread: "Skip" grey and
+   quieter on the left, "Book now" orange outlined on the right (N319 item
+   1, N325 item 2; was in place of "Type here", then both orange). The calendar never opens
    by itself; "Book now" opens it, full screen over the chat. The kickoff
    comes before the deadline (N157, N161, N248, N281). On the screen, top
    to bottom:
@@ -353,7 +358,7 @@ built and what is still to come.
    the newest one thing, "Record Take N" stands under the chat, alone, the
    plan's black button with the red dot ("Start your first recording"'s
    shape, `RecordDockButton`), the message box, the "+" and the mic gone
-   (N296 state 4); a tap starts that Take as the old button did, and it
+   (N296 state 4; kept so, N325 item 1); a tap starts that Take as the old button did, and it
    waits (greyed) while a Take is still landing. While the plan asks a
    question, or a call's calendar is open, that stands there instead. The
    chat has one record button: the previous Take's goodbye keeps its words
@@ -496,6 +501,12 @@ Signed:
   draft your plan. A few more questions first." (N319 item 4).
 - The note a tap on the faded "Type here" shows before the first Take
   (B10, N323 item 1): "We need to hear this in your voice. Tap the mic."
+  While a tap answer waits instead (B10, N325 item 4): "Tap one of the
+  answers above."
+- The plan's own yes (D5, N325 item 6): "Some of my questions are
+  personal: how stressed and ready you feel, what worries you, how you feel
+  before each Take. I ask only with your yes. Your answers shape your plan
+  and help your coach prepare. You can turn this off in Settings."
 - Nothing heard and a correction (B8, B9, N262): "Sorry, I didn't quite
   catch that. Could you say it again?" · "Got it, thank you for putting me
   right." · "Start your first recording" is no longer under a question; it
@@ -624,13 +635,6 @@ Waiting for the founder's OK:
 
 ## 3. Still open
 
-- **The practice day's "Record Take N" stands alone all day** (N294 item 7,
-  G6, built 2026-11-02): from the hello until a Take is recorded the
-  message box, the "+" (another project) and the mic are gone, so the
-  speaker cannot write to Will that day before recording. After the
-  goodbye the button comes only once they tap "I want to continue my
-  practice". Whether the practice day's should wait for a tap too, or keep
-  the bar under it, is the founder's call.
 - **How the chat answers a rating tap**, now that the number is not shown
   back (N178): the words wait for the founder (Never 4).
 - **As built, where N319 and its prototype (version 39) don't say:** the
@@ -641,11 +645,10 @@ Waiting for the founder's OK:
   the first Take (the deadline for a speaker with Takes, a new project's
   question, "How did it go?", "What's next?", the last ratings) is asked
   the same way, and "Type here" waits there too: the plan takes no typed
-  answer, and until N319 the box was hidden. The note under "Type here"
-  (B10, N323 item 1) shows only where it is true, while the orange mic
-  waits for a spoken answer before the first Take: on a choice no mic
-  shows before the first Take (the voice notebook waits, N243), and after
-  it the note, signed for the first Take, does not show.
+  answer, and until N319 the box was hidden. The notes under "Type here"
+  (B10, N323 item 1, N325 item 4) show only before the first Take, while
+  the plan waits for an answer there: after it the notes, signed for the
+  first Take, do not show.
 - **The words in §1 K** still waiting for the founder's OK.
 - **As built, where the prototype doesn't say** (N203): after a rating tap the
   next question follows with nothing between, until the words in the first
@@ -735,6 +738,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N325 items 1, 2, 4 and 6 · B10, D5, F1, G6, K, §3: a tap on the faded "Type here" before the first Take, while a tap answer waits (a choice, the scale, a call's ask), shows "Tap one of the answers above." as the voice note does (`PLAN_COPY.tapAnswerNote`; was nothing); under a call's ask "Skip" is grey and quieter on the left, "Book now" orange on the right (was both orange); the plan's own yes in the words of Privacy section 4e, signed (BE `services/plan.py` `consent_ask`); a practice day's "Record Take N" stays alone under the chat, and §3's question on it is closed · BE, FE (this PR)
 - 2026-11-02 · N323 item 6 · G7, G8: the tempo step is the One thing walk's one fix for everyone, with or without a plan, at any level, when rushing is the Take's biggest issue; a level that takes a slot keeps it unless rushing outweighs it (the rule on the walk's page T). Was: only in a pace or pause week · BE, FE (this PR)
 - 2026-11-02 · N323 item 1 · B10, K, §2, §3, §4: a tap on the faded "Type here" before the first Take, while the orange mic waits for a spoken answer, shows "We need to hear this in your voice. Tap the mic." above the bar, a small dark pill, one at a time, gone after about 2.5 seconds (`usePlanLounge` `typingWait`, `PLAN_COPY.typeHereNote`); none on a choice, where no mic shows, or after the first Take. Was: a tap showed nothing, the words waiting for the founder · FE (this PR)
 - 2026-11-02 · N294 item 7, N296 state 4 · G6, §3, §4: a practice day's "Record Take N" is the plan's black button with the red dot under the chat, alone (the message box, the "+" and the mic gone), while today's one thing is the newest and the plan asks nothing; a tap starts that Take as before, greyed while a Take is still landing; today's one thing keeps its words, the key line and "How you said it". No new words. Was: "● Record Take N" inside the bubble (N167) · FE (this PR)
