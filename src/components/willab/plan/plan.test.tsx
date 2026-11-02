@@ -20,8 +20,11 @@
  *       box's place, and opens the first Take (N319 item 2). A Take
  *       recorded first: its walk comes before the questions (N262).
  *   O5  While the plan asks, "Type here" stays in the bar, faded and not
- *       focusable, with no note yet (N319 item 3); with nothing asked it
- *       takes words again.
+ *       focusable (N319 item 3); before my first Take, while the orange
+ *       mic waits for my answer, a tap on it shows "We need to hear this in
+ *       your voice. Tap the mic." above the bar, one note at a time, gone
+ *       after a moment (N323 item 1); with nothing asked it takes words
+ *       again.
  *   O6  The plan's rows are drawn by their metadata: the speaker's voice
  *       answer as their own bubble; the card as the plan only (N319 item
  *       6): "Plan", its bar, the practice days, the deadline and "Change
@@ -47,6 +50,8 @@
  *       not booked, and the plan's end shows the summary call; off, none.
  * PROVES   O1, O5 -> "a choice is taps in the thread, the bar stays and
  *                     typing waits"
+ *          O5 -> "a tap on the faded Type here says why, before the first
+ *                 Take"
  *          O2 -> "a voice question: the mic is orange and its recording
  *                 sends the answer"
  *          O3 -> "a rating is sent once and never written back"
@@ -61,7 +66,8 @@
  *          2026-10-26, backend N203, N204); the principles waiting for the
  *          onboarding, backend N243; record first, backend N262; every
  *          question the after-walk way, one action a step, typing waits
- *          before Take 1, backend N319 items 1 to 3; the calls hidden, backend
+ *          before Take 1, backend N319 items 1 to 3, its note signed, backend
+ *          N323 item 1; the calls hidden, backend
  *          N315; the plan card simplified, backend N319 item 6; no bubble
  *          carries a button, backend N294 item 7; docs/flows/the-plan.md
  *          §1.
@@ -76,7 +82,7 @@ import { loadRingState, resetRingStateCache } from "@/services/api/rings";
 import { PlanAsk, type PlanActions } from "./PlanDock";
 import { newestOneOf, planRowFor, type PlanRowCtx } from "./PlanRows";
 import { SeePlanSheet } from "./PlanSheet";
-import { usePlanLounge } from "./usePlanLounge";
+import { TYPE_HERE_NOTE_MS, usePlanLounge } from "./usePlanLounge";
 import { useVoiceNotebook, VoiceNoteMic } from "../useVoiceNotebook";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -213,7 +219,10 @@ function Lounge({
       {plan.dock}
       <form data-bar="" className={plan.composerDisplay("flex")}>
         <button type="button" aria-label="Your projects" />
-        <textarea placeholder="Type here" disabled={plan.typingOff} />
+        <div className="relative">
+          <textarea placeholder="Type here" disabled={plan.typingOff} />
+          {plan.typingWait}
+        </div>
         <VoiceNoteMic notebook={notebook} draft={plan.draft("")} waiting={plan.mic(null)} />
       </form>
     </>
@@ -249,10 +258,11 @@ it("a choice is taps in the thread, the bar stays and typing waits", async () =>
   expect(taps()).toEqual(["Pick a date", "No date yet"]);
   expect(host.querySelector("[data-thread] [data-plan-ask='deadline']")).not.toBeNull();
   // The Lounge's bar stays under it; "Type here" in it, faded and not
-  // focusable, with no note (N319 item 3).
+  // focusable (N319 item 3). A choice has no mic to tap: no note to say so.
   expect(bar().className).not.toContain("hidden");
   expect(host.querySelector("[aria-label='Your projects']")).not.toBeNull();
   expect(typeHere().disabled).toBe(true);
+  expect(host.querySelector("[data-type-here-wait]")).toBeNull();
   expect(host.querySelector("[data-plan-dock='start']")).toBeNull();
   await tapOn("No date yet");
   expect(posted("/api/v2/plan/deadline")[0][1]).toMatchObject({ json: { date: null } });
@@ -328,6 +338,34 @@ it("a voice question: the mic is orange and its recording sends the answer", asy
   } finally {
     vi.unstubAllGlobals();
   }
+});
+
+it("a tap on the faded Type here says why, before the first Take", async () => {
+  const why = row({ plan_ask: "voice" }, "Please tell me, why does it matter and what is it about?");
+  backend(() => ({ ...PLAN, step: "why" }));
+  await showLounge([why]);
+  const notes = () => [...host.querySelectorAll("[data-type-here-note]")].map((n) => n.textContent);
+  const tap = () => act(() => (host.querySelector("[data-type-here-wait]") as HTMLElement).click());
+  expect(typeHere().disabled).toBe(true);
+  expect(notes()).toEqual([]);
+  vi.useFakeTimers();
+  try {
+    tap();
+    expect(notes()).toEqual(["We need to hear this in your voice. Tap the mic."]);
+    // Another tap while it shows: still the one note.
+    tap();
+    expect(notes()).toHaveLength(1);
+    act(() => vi.advanceTimersByTime(TYPE_HERE_NOTE_MS));
+    expect(notes()).toEqual([]);
+  } finally {
+    vi.useRealTimers();
+  }
+  // After the first Take a plan question takes no typed answer either, and
+  // the note, written for the first Take, is not shown.
+  backend(() => ({ ...PLAN, status: "active", step: "how_it_went", first_take_done: true }));
+  await showLounge([why, row({}, "e")]);
+  expect(typeHere().disabled).toBe(true);
+  expect(host.querySelector("[data-type-here-wait]")).toBeNull();
 });
 
 it("a rating is sent once and never written back", async () => {

@@ -26,9 +26,9 @@ OUTCOME
       only the rewording (N113).
   O9  The One thing walk on the deck: their best, then the one fix; after
       "Keep mine" and a skipped try, the helper words come on their own
-      through the deck's own save (the lock, then the words), both moments
-      lose their black line, and Close under "Lesson done." asks the summary
-      once and goes back to the chat (N309).
+      through the deck's own save (the lock, then the words), marked whole
+      (N323 item 2), both moments lose their black line, and Close under
+      "Lesson done." asks the summary once and goes back to the chat (N309).
 PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's sheet"
          O2 -> "‹ › move through the walk's chat, never answering and never
                 closing it (founder 2026-10-20)"
@@ -483,6 +483,9 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     expect((p.onSetRootPhrase.mock.calls as unknown[][]).map((c) => [chunkOf(c), (c[1] as { text: string }).text])).toEqual([
       ["p2", "retention went up"],
     ]);
+    // The walk's own words go whole, past the cap on a pick by hand (N323
+    // item 2).
+    expect((p.onSetRootPhrase.mock.calls as unknown[][])[0][1]).toMatchObject({ whole: true });
     // Both moments were told to the server as walked past.
     expect(vi.mocked(reportMomentEvent).mock.calls.map((c) => c[0])).toEqual(expect.arrayContaining(["snip-best", "snip-1"]));
     expect(screen()).toBe("walk-screen-done");
