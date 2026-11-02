@@ -135,6 +135,13 @@ O2  A 409 ""already final"" reply also comes back exactly as sent.","O1 -> ""pas
 O2 -> ""still relays a rewrite's 409 as it came""",
 src/app/api/v2/user/takes/[takeSessionId]/share/route.test.ts,Story,"As a speaker, I want my share choice for a Take saved to that Take, so that only the people I chose see it.","O1  The share choice is sent (PUT) unchanged to the backend path for
 exactly this Take.","O1 -> ""relays the share body to the encoded take path""",
+src/app/c/[token]/JoinPage.test.tsx,Story,"As someone who got a colleague's link in an email, I want to see who invites me and what I get, then join in one tap, signing in first if I must, so that I land in my chats with them (N308, N328, N335).","O1  The page names who invites me and what I get, in the signed words,
+with one button, Join (N307, N310, N335).
+O2  Signed in, Join posts to the link and opens /chat.
+O3  Signed out, Join goes to sign in and comes back to this link to
+finish (?join=1); back here, it joins without a second tap.","O1 -> ""the page names who invites me and what I get""
+O2 -> ""signed in, Join joins and opens the chats""
+O3 -> ""signed out, Join goes to sign in and finishes on the way back""",
 src/app/chat/page.test.tsx,Story,"As a speaker tapping a WhatsApp or email link, I want to land on my coach's feedback or on the review, so that the link takes me where it says.","O1  A feedback link (lens, or idealArc with feedback) opens the feedback;
 a link with mode=review opens the review; a bare idealArc link opens
 neither.
@@ -491,13 +498,21 @@ O6  The mic records with the one recording bar; Stop posts the recording
 (multipart audio and duration_ms) and the voice note joins the
 thread as my bubble; the bar comes back (N321 item 2, N314).
 O7  A voice note from the other person is their grey bubble with a play
-control that plays it from the chat's audio route (N321 item 2).","O1 -> ""with chats off, the Lounge is all there is and no chat is read""
+control that plays it from the chat's audio route (N321 item 2).
+O8  The + on the list opens my own link, with the add sheet's signed
+words, and Copy my link puts the whole link on the clipboard (N308,
+N310).
+O9  In a chat I joined through someone's link, one line above the
+messages says whose link it was (N335 item 2); a chat without it has
+no such line.","O1 -> ""with chats off, the Lounge is all there is and no chat is read""
 O2 -> ""with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back""
 O3 -> ""an emoji tapped in a chat is posted and shown at once with its meaning""
 O4 -> ""the WillpowerLab bar hides while a person's chat is open and is back on the list""
 O5 -> ""a chat with a message newer than its last opening shows as new until it is opened""
 O6 -> ""the mic records a voice note, Stop posts it and it joins the thread""
-O7 -> ""a voice note from the other person plays from the chat's audio route""",
+O7 -> ""a voice note from the other person plays from the chat's audio route""
+O8 -> ""the + opens my own link and copies it""
+O9 -> ""a chat joined through a link says whose link it was""",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.
@@ -1276,10 +1291,14 @@ O3  One tap on Finish is enough: the Take is handed over within a moment,
 and not empty, even when the browser is slow to deliver the last of the
 audio and Finish is tapped twice.
 O4  The phone's screen stays on while the Take records, so it cannot lock
-and cut the mic off; it may lock again once the Take ends.","O1 -> records at once on start
+and cut the mic off; it may lock again once the Take ends.
+O5  A Stop tapped while the mic is still opening is kept: the mic goes off
+the moment it opens, no recording starts, and an empty try is handed
+over, so the mic is never left on.","O1 -> records at once on start
 O2 -> hands over a real take on stop and releases the stream
 O3 -> hands over the take at once when the audio comes late and Finish is tapped twice
-O4 -> keeps the screen awake while recording and lets it lock after",Never-rule 3 (never break record → process → Ideal Text).
+O4 -> keeps the screen awake while recording and lets it lock after
+O5 -> a stop while the mic is opening leaves the mic off",Never-rule 3 (never break record → process → Ideal Text).
 src/lib/api/bffFetch.test.ts,Story,"As a developer, I want every call to our own server routes to carry the sign-in token and to report ""no connection"" separately from a server answer, so that screens handle being offline correctly.","O1  The call carries the sign-in token and only the options it was given.
 O2  A dropped connection comes back as ""network"", never as a server answer.","O1 -> sends the Bearer header and only the options it was given
 O2 -> reports a thrown fetch as network, never as a response",
@@ -1599,7 +1618,9 @@ the Ideal Text never opens in the walk's place (B10, founder
 O14 The One thing walk's judged moment turns its level across my Takes
 (Take 2 high, 3 middle, 4 low, then round again; none on Take 1), and
 the chat says the intro, my reply with its tick and ""Got it.""; ""Last
-time"" finds the tip my Take before kept (N309).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
+time"" finds the tip my Take before kept (N309), the pace game's too:
+""Last time: give “{words}” more room. You did."" with the Sniper's
+helper words, none past the cap of eight (N347 item 3).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
 O2 -> ""posts judging other speakers as the prototype's chat does, never their recording""
 O3 -> ""counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles""
 O4 -> ""stores the sharing question and says the choice as one line on the next recording, also for a question stored as three""
@@ -1612,7 +1633,7 @@ O10 -> ""marks the Feedback walk Edited for a second pick, a changed coach word 
 O11 -> ""gives the walk the summary as the chat holds it, with the version a coach's note replaced""
 O12 -> ""draws each Take's card right under its Feedback walk, after the walk's end, what was said in between under the pair""
 O13 -> ""opens the Feedback walk on the coach's word, on what waits, on its newest part, or on the Take alone, never with no door""
-O14 -> ""the One thing walk's judged moment turns its level, says its words, and last time finds the tip the Take before kept""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word); founder 2026-10-31, N309 (the One thing walk)."
+O14 -> ""the One thing walk's judged moment turns its level, says its words, and last time finds the tip the Take before kept""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word); founder 2026-10-31, N309 (the One thing walk); N347 item 3 (every fix gets its Last time, the pace game too)."
 src/services/api/accountDeletion.test.ts,Story,"As a speaker, I want ""delete my account"" to send one deletion request and show me how long I have to change my mind, and a refusal to change nothing, so that I can trust deletion and cancel it in time.","O1  Asking to delete sends one request with a one-time key and shows the
 pending deletion with its end date.
 O2  A refusal or no connection records nothing.

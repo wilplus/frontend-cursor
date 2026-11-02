@@ -173,6 +173,13 @@ export function useDualCaptureMic(opts?: {
   // One in-flight start at a time; cleared in a finally so the latch can
   // never stick (success, early-return, or throw) and jam the mic.
   const startingRef = useRef(false);
+  // A Stop tapped while the mic is still opening (the walk's practise opens
+  // it on arrival and shows Stop at once). Without this, stop() saw no
+  // recorder and did nothing, and the mic went live a moment later and
+  // stayed on. Now the start that is still waiting sees it, switches the
+  // just-granted mic straight off and hands over an empty try, so the caller
+  // goes on as after any stop and the mic is never left on.
+  const stopEarlyRef = useRef(false);
   // The stop in flight, so a second Finish tap joins it instead of starting
   // its own. MediaRecorder.stop() turns the recorder "inactive" at once but
   // delivers the audio in a LATER task: a second stop() saw "inactive",
@@ -277,6 +284,7 @@ export function useDualCaptureMic(opts?: {
     // One in-flight start at a time (T2). See `startingRef` above.
     if (startingRef.current) return;
     startingRef.current = true;
+    stopEarlyRef.current = false;
     try {
       // No getUserMedia at all on this device (the iOS < 14.3 standalone-PWA
       // case). Don't attempt — on iOS surface a Safari escape hatch (the
@@ -321,6 +329,13 @@ export function useDualCaptureMic(opts?: {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch (err) {
+        if (stopEarlyRef.current) {
+          // Stopped before the mic answered, and it then refused: nothing
+          // was said, so the caller gets the same empty try as above.
+          stopEarlyRef.current = false;
+          setState({ status: "stopped", finalText: "", audioBlob: new Blob([], { type: mime }), durationSec: 0 });
+          return;
+        }
         const name =
           err instanceof Error ? `${err.name} ${err.message}` : String(err);
         const denied = /NotAllowed|Permission|denied/i.test(name);
@@ -343,6 +358,18 @@ export function useDualCaptureMic(opts?: {
             /* ignore */
           }
         });
+        return;
+      }
+      if (stopEarlyRef.current) {
+        stopEarlyRef.current = false;
+        stream.getTracks().forEach((t) => {
+          try {
+            t.stop();
+          } catch {
+            /* ignore */
+          }
+        });
+        setState({ status: "stopped", finalText: "", audioBlob: new Blob([], { type: mime }), durationSec: 0 });
         return;
       }
       streamRef.current = stream;
@@ -487,8 +514,13 @@ export function useDualCaptureMic(opts?: {
     // for that same stop (see stoppingRef).
     if (stoppingRef.current) return stoppingRef.current;
     // No-op if not actively recording — callers may invoke stop()
-    // defensively (route change, blur) and we shouldn't change state.
-    if (!recorderRef.current && !recognitionRef.current) return Promise.resolve();
+    // defensively (route change, blur) and we shouldn't change state. While
+    // the mic is still opening, the stop is kept for the start to honour
+    // (see stopEarlyRef).
+    if (!recorderRef.current && !recognitionRef.current) {
+      if (startingRef.current) stopEarlyRef.current = true;
+      return Promise.resolve();
+    }
     const stopping = finishRecording().finally(() => {
       stoppingRef.current = null;
     });

@@ -3,7 +3,7 @@
 import { reasonRuns, type PraiseReason, type WalkPraiseReasons } from "@/lib/willab/praiseReason";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { answerBody, helperWordsSaid, type OthersLevel, type WalkTempoLine } from "@/lib/willab/walkThread";
+import { answerBody, helperWordsSaid, sniperWords, type OthersLevel, type WalkTempoLine } from "@/lib/willab/walkThread";
 import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
@@ -44,7 +44,7 @@ import {
 import type { WalkPractiseIO } from "@/services/api/walkPractise";
 import { momentEnd, type FeedbackWalkModel, type FeedbackWalkMoment, type WalkClip, type WalkMomentEnd } from "@/lib/willab/feedbackWalkModel";
 import type { ClearerPiece } from "@/lib/willab/clearerPieces";
-import { HELPER_WORDS_MAX, phraseTokens, quoteSpan, selectionSpan, type PhraseSelection } from "@/lib/willab/phraseTokens";
+import { phraseTokens, quoteSpan, selectionSpan, type PhraseSelection } from "@/lib/willab/phraseTokens";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 
 /* -------------------------------------------------------------------------- */
@@ -283,14 +283,6 @@ const FIX_OPENERS: ReadonlySet<string> = new Set(["clearer", "exVideo", "tempo"]
 /** The helper words the One thing walk gives (N309 item 3): the words, and
  *  how they are saved; none to save when they are already the saved ones. */
 type OneWords = { text: string; save: FeedbackWalkHelperWords | null; practice?: Promise<string | null> | null };
-
-/** One to eight words, the helper words' signed cap: kept for the Sniper's
- *  stretch, a whole clip; the walk's sentences are saved whole (N323 item
- *  2). Pure. */
-const withinCap = (text: string) => {
-  const n = text.split(/\s+/).filter(Boolean).length;
-  return n > 0 && n <= HELPER_WORDS_MAX;
-};
 
 /** The steps whose dock is the recorder or a try being checked. */
 const RECORDER = new Set(["practise", "processing"]);
@@ -743,10 +735,9 @@ export default function FeedbackWalk<R = unknown>({
    *  saved. */
   const fixWords = (s: WalkStep): OneWords | null => {
     if (s.of == null) {
-      if (s.replay || !tempoWords || !withinCap(tempoWords.text)) return null;
-      const span = quoteSpan(tempoWords.paragraphText, tempoWords.text.trim());
-      return span
-        ? { text: helperWordsSaid(stripRichMarkers(span.text)), save: { partId: tempoWords.partId, span, paragraphText: tempoWords.paragraphText, auto: true } }
+      const sniper = !s.replay && tempoWords ? sniperWords(tempoWords.paragraphText, tempoWords.text) : null;
+      return sniper && tempoWords
+        ? { text: sniper.text, save: { partId: tempoWords.partId, span: sniper.span, paragraphText: tempoWords.paragraphText, auto: true } }
         : null;
     }
     const moment = walk.moments[s.of];
