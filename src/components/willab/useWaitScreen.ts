@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import {
   readProcessingTake,
   type ProcessingPhase,
+  type ProcessingTake,
   type ProcessingTakeProgress,
 } from "@/lib/willab/processingTake";
 import { WALK_STEP_SELECTOR } from "@/lib/willab/lensScreen";
@@ -27,6 +28,11 @@ import {
 /*     still loads the walk." The wait closed when the text was stored and     */
 /*     the lens opened on its own loading frame. Now the wait stays over the   */
 /*     lens until the walk is on screen (lib/willab/waitHandover).             */
+/*  3. "From the Take straight into the walk" (founder 2026-11-01, N319 item  */
+/*     10): the wait over the lens comes from the Take's own marker, so it    */
+/*     covers even when the Lounge was not following that job (the speaker   */
+/*     came back to the app, or left the wait for the chat): the chat is     */
+/*     never shown between the processing and the walk.                      */
 /*                                                                            */
 /*  Presentation only: the Lounge still owns the job, the marker and the       */
 /*  settle; this decides which wait, if any, is on screen.                     */
@@ -68,7 +74,7 @@ export function useWaitScreen({
   /** The wait to draw full screen, or null. */
   view: WaitView | null;
   /** The review is opening for this Take: keep its wait over the lens. */
-  coverWalk: (sessionId: string) => void;
+  coverWalk: (take: ProcessingTake) => void;
   /** The speaker's ✕: no wait covers anything any more. */
   lift: () => void;
 } {
@@ -94,11 +100,12 @@ export function useWaitScreen({
 
   // 2 — the wait over the lens, until the walk is there.
   const [cover, setCover] = useState<(WaitView & { coveredAt: number }) | null>(null);
-  const coverWalk = useCallback((sessionId: string) => {
+  const coverWalk = useCallback((take: ProcessingTake) => {
     const shown = latest.current.resume;
+    const view = shown?.sessionId === take.sessionId ? shown : waitViewOf(take);
     // A guest's text opens behind its own ask, which the wait must not hide.
-    if (!latest.current.signedIn || shown?.sessionId !== sessionId || shown.status !== "analyzing") return;
-    setCover({ ...shown, coveredAt: Date.now() });
+    if (!latest.current.signedIn || view.status !== "analyzing") return;
+    setCover({ ...view, coveredAt: Date.now() });
   }, []);
   const lift = useCallback(() => setCover(null), []);
   useEffect(() => {
@@ -121,4 +128,18 @@ export function useWaitScreen({
   const live =
     resume?.status === "analyzing" && resume.sessionId === openedSessionId ? resume : null;
   return { view: live ?? cover, coverWalk, lift };
+}
+
+/** A Take's wait from its own marker, for the cover when the Lounge was not
+ *  following that job (N319 item 10). Pure. */
+export function waitViewOf(take: ProcessingTake): WaitView {
+  return {
+    sessionId: take.sessionId,
+    takeIndex: take.takeIndex,
+    status: take.status === "processing" ? "analyzing" : "failed",
+    startedAt: take.startedAt,
+    progress: take.progress,
+    phase: take.phase,
+    phaseStartedAt: take.phaseStartedAt,
+  };
 }

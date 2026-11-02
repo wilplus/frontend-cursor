@@ -64,7 +64,11 @@ step; the loop never waits for a coach.
   never holds its slot open without asking (2026-10-20, WIL-76: the typing
   dots that never ended). The wait lifts at the latest when those ninety
   seconds and the last resort are spent, or when no lens has come after
-  five seconds (N110).
+  five seconds (N110). The wait over the walk comes from the Take's own
+  marker, so it covers also when the Lounge was not following that job (the
+  speaker came back to the app, or left the wait for the chat): from the
+  Take straight into the walk, the chat never shown in between, and under
+  the walk when it closes (founder 2026-11-01, N319 item 10).
 - **A3** The loop never waits for a coach (2026-09-16, 2026-09-26). The
   coach's word opens the walk only when it is there.
 - **A4** A guest's processed Take lands on "Done" and the account ask,
@@ -256,6 +260,28 @@ step; the loop never waits for a coach.
   (Founder 2026-10-26, N192: "it should show on the feedback walk as edited
   like on the whatsapp; but it should not go at the bttom like a new message
   cause it is not!")
+- **B14** **The bottom of the chat** is one design from the app's own
+  pieces, which keep their shape and only come or go (N296, N297 item 3;
+  N306 item 1 for Will's chat):
+  1. nothing asked: the Lounge's bar, "+", "Type here", the mic (the mic
+     where the voice notebook is on);
+  2. Will waits for an answer (his question or its follow-up is the
+     newest bubble): the same bar, and the same mic fills orange, colour
+     only, for every speaker; it records the answer (E3). No Skip;
+  3. recording: **the one recording bar** (N314, locked; N304): the trash
+     on the left, then the walk's strip (the pulsing dot, the clock, the
+     track) with the red Stop inside it. Stop sends, the trash throws it
+     away. The same bar for the voice note, an answer to Will and the
+     plan's voice answers ([`the-plan.md`](the-plan.md) B3); a Take keeps
+     its locked recording screen, whose strip is the same (N70, N303). Was:
+     the voice note's WhatsApp-style bar, the time in a bordered pill and a
+     black send (founder 2026-10-20);
+  4. the next Take offered: "Record Take N" alone (B3, D4).
+- **B15** **The chat follows the newest bubble after an answer** (founder
+  2026-11-01, N319 item 9): after a tap, a typed message, a voice answer,
+  the continue tap or an answer in the plan's footer, the Lounge lands on
+  the newest bubble even when it was scrolled up. Bubbles that arrive on
+  their own move it as before.
 
 ### C · The walk, in order
 
@@ -606,7 +632,8 @@ praised moment:
   was at most two, N94). The order: the CEO panel's ask (from Take 2),
   Will's question (which his next one may follow, E2), "Did this help?"
   when the Take looks off. One question or ask is on screen at a time
-  (N294 item 4).
+  (N294 item 4). While Will's question waits, the bar under the chat is
+  B14's second state: the mic orange, answering by voice (E3).
 
   **The settings asks wait for the next visit** (founder 2026-10-31, N294
   item 8, N295). WhatsApp and the home screen are never asked after a
@@ -651,8 +678,9 @@ praised moment:
   the practice did not land or the voice dipped two Takes running (never two
   Takes running); "On purpose?" when the clearer line practised last Take
   did not come back (the practice's own passage match, no AI guess); who the
-  talk is for; what they should do or feel; from Take 3, with both known,
-  one deeper question in their own words. Each once per talk. Will's question
+  talk is for; what they should do or feel; with both known and the talk's
+  key line missing, the key line (N294 item 2); from Take 3, with all three
+  known, one deeper question in their own words. Each once per talk. Will's question
   is never in the lens. It is about the moment the walk just worked on
   (N294 item 1): it opens on the speaker's own words of the last moment the
   walk showed (its clip's words), "When you said “…”, " where the question
@@ -660,8 +688,15 @@ praised moment:
   🎯"), else "We just worked on “…”. " before it; "On purpose?" already
   quotes its own line and opens on nothing more; with no moment, the
   question as signed. One at a time (N294 item 4): who the talk is for,
-  answered, is followed by what they should do when that is missing too
-  (no moment quoted again); not answering, or a Skip, ends them. Will says
+  answered, is followed by what they should do when that is missing too,
+  and what they should do, answered, by the key line when it is missing too
+  (no moment quoted again; at most two a Take); not answering, or a Skip,
+  ends them. **The key line** (N294 item 2) is the plan's signed question,
+  "If {who} remembers one sentence from you, what is it? Say it the way
+  you'll say it." with who the talk is for in it ("your audience" when it
+  is not known; after a just-answered who, the answer), opened on the
+  moment as the others ("We just worked on “…”. "), said as signed, with no
+  tap answers: it is answered by voice (E3). Will says
   back who the talk is for, "{who}. I'll keep them in mind." (N294 item 5);
   every other answer keeps "Got it, thanks 🙏". Will may say the signed questions with light
   variation, the same meaning in slightly different words; the tap answers
@@ -674,7 +709,17 @@ praised moment:
   is for ends on "Someone else", which opens "Who is it for, then? 👀",
   answered in their own words (N319 item 8). No Skip under Will's
   questions (N296 item 2): not answering is allowed, and the "+" still
-  opens the projects; their own words in the message box answer too. One
+  opens the projects; their own words in the message box answer too, and
+  so does **a voice answer** (N294 items 2 and 3, N319 item 1): while Will
+  waits the mic is orange (B14); a tap records with the one recording bar,
+  Stop sends, and the answer shows at once as the speaker's voice bubble,
+  playing from the phone, with the typing dots where its words will be.
+  The backend hears it under the processing authorization (the plan's own
+  transcriber call, `POST /v2/explore/arc/<arc>/will-question/voice`), its
+  words are the answer as typed words are (a tap answer said is that tap),
+  and the bubble then carries the words heard (N275). The recording itself
+  is not kept (the Lounge thread is text only): it plays back in that
+  sitting, and the words stay. Nothing heard keeps the question open. One
   follow-up at most, with no tap answers (N294 item 3). A Take that names its audience twice is checked instead
   ("Sounds like this one's for {the board}. Right? 🎯"; the guess becomes
   the audience only on Yes). How Will knows: one gpt-4o-mini call per Take
@@ -685,7 +730,10 @@ praised moment:
 - **E4** Every answer is kept for Will (speaker memory, kind "answer"); who
   the talk is for fills the Take's setup `audience`, what they should do its
   `strategic_context` ("Desired call to action:"). The next Take's setup
-  carries them.
+  carries them. The key line (N294 item 2) fills the Take's setup
+  `key_line` and an open plan that has none (`facts.key_line`); the Take's
+  context reads it as sure, on that Take and the talk's later Takes (H1,
+  N293).
 - **E5** The founder edits Will's questions on the coach panel, under the
   blind lists ("Will · only you" → "Will's questions"; N83; backend
   [`FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md`](https://github.com/wilplus/backend-cursor/blob/51c67077c3bb09d5a22211f55d9d122919b9983f/docs/FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md)). A question with no
@@ -737,25 +785,48 @@ praised moment:
 
 ### G · Sharing, before the next recording
 
-- **G1** Asked when "Record Take N" is tapped, from Take 2 on, never before
-  Take 1; the choice applies to the Take about to be recorded. "Before we
-  start the new take!", "After all, it's about speaking publicly!" (regular
-  weight) and "How big you want your audience?" (founder 2026-10-21: the
-  app's words, "Do you agree to share your next take with others?" is
-  history). In the Lounge the question leaves no bubbles: the choice, in its
-  own words ("Only my community (Invita)", "General community", "Only me"),
-  is one small line under that Take's recording, and "Record Take N" posts
-  no bubble of its own (founder 2026-10-26, N192, question 3; until then
-  "Record Take N", the question as one bubble and the choice as the
-  speaker's bubble, #847).
+- **G1** Asked once, the first time "Record Take 2" is tapped, never before
+  Take 1, on the app's own screen: "Before we start the new take!", "After
+  all, it's about speaking publicly!" (regular weight) and "How big you want
+  your audience?" (founder 2026-10-21: the app's words, "Do you agree to
+  share your next take with others?" is history). The choice applies to the
+  Take about to be recorded and is remembered: every later "Record Take N"
+  starts the recording at once with it, applied to the new Take as Continue
+  applies it (stamped with the words version, G4). Asked again only when
+  the screen's words change (a new words version) or a community is added
+  (a private community joined after the choice); a choice none of whose
+  communities is left open asks too (founder 2026-10-31, N309 item 5; until
+  then asked before every Take from Take 2, the choice kept six hours for
+  that Take alone). The remembered choice is the newest line under a Take's
+  recording, which carries what it says and the words version
+  (`metadata.share`, "Only me" included); the server reads it back
+  (`GET /v2/user/takes/share/last`). A line stored before N309 item 5
+  carries none, so the first "Record Take N" after it asks once more. In
+  the Lounge the question leaves no bubbles: the choice, in its own words
+  ("Only my community (Invita)", "General community", "Only me"), is one
+  small line under that Take's recording, also when the Take kept it
+  without asking, and "Record Take N" posts no bubble of its own (founder
+  2026-10-26, N192, question 3; until then "Record Take N", the question as
+  one bubble and the choice as the speaker's bubble, #847). On the
+  speaker's latest Take the line, drawn the same, opens the same screen to
+  change the choice for that Take and the ones after it: Continue shares
+  that Take as now chosen or takes it back from every community (G4), and
+  its line says the new choice; ✕ changes nothing (N309 item 5). Open
+  (N309): whether the consent words must say the choice covers later Takes
+  (a lawyer's check; Never 4).
 - **G2** The options: **General community.** **Only my community**, with the
   speaker's saved communities inside (a passcode entered once; one is ticked;
   several are all ticked and any can be unticked; "+ Add a community with a
-  passcode" at the bottom). **Only me**, which stands alone.
-- **G3** Who you judge follows who you share with: only my community → that
-  community first, the general community fills in; general community → the
-  general community, and its members may hear your Take; only me → nobody
-  but the coach hears you, and you still judge general-community moments.
+  passcode" at the bottom). **Only me**, which stands alone. Nothing is
+  ticked when the screen asks, and Continue waits for a choice, "Only me"
+  counting (founder 2026-10-15, Privacy 3.6 §4d); opened from the line, the
+  choice as it stands is ticked (N309 item 5).
+- **G3** Who you judge follows who you share with, the choice each Take
+  carries (asked, remembered or changed from its line): only my community →
+  that community first, the general community fills in; general community →
+  the general community, and its members may hear your Take; only me →
+  nobody but the coach hears you, and you still judge general-community
+  moments.
 - **G4** Consent is per Take, revocable, stamped with the version of the
   words the speaker saw; taking it back removes the Take from every community
   queue. Only the voices of people who agreed reach others; the training
@@ -1321,7 +1392,12 @@ October (backend N111).
   (business: My team · Leadership · A client; public speaking: A big room ·
   Colleagues · Friends and family; sales: A buyer · Their team · The decision
   maker; customer service: A customer · A caller · My team; interviews: The
-  hiring manager · A panel · A recruiter); goal: Say yes · Trust me · Get it.
+  hiring manager · A panel · A recruiter); goal: Say yes · Trust me · Get it;
+  the key line, the plan's signed question (the-plan.md K, N140; after the
+  walk N294 item 2): "If {who} remembers one sentence from you, what is it?
+  Say it the way you'll say it.".
+- **Recording** (N314): "Stop" in the one recording bar (the tempo step's
+  word).
 - **The Sunday note and life goals:** their words are on [`principles.md`](principles.md) §1 K (N182).
 - **Signed, no longer shown:** "Judgement time!", "If you are honest when
   judging others, it will help you find your confident voice and calm the
@@ -1461,10 +1537,7 @@ The four lines above were filled from main's history by the page's keeper on
 - **The walk's time limit** (N178): the whole walk, the tempo step included, gets one; the founder sets it.
 
 - **After the walk, as built where the prototype and N294 leave room**
-  (2026-11-02, for the founder): Will's key-line question (N294 item 2) is
-  not yet among his questions: it is answered by voice, and the chat's
-  microphone while Will waits comes with the recording strip (the next
-  slice); it will have no taps. Will's questions keep their signed words
+  (2026-11-02, for the founder): Will's questions keep their signed words
   after the moment's opener; the prototype's "who were you talking to? 🎯"
   (N319 item 8 names it) is not signed in §1 K, so it is not built. "See
   you next tomorrow" does not read, so the goodbye names the next practice
@@ -1475,6 +1548,13 @@ The four lines above were filled from main's history by the page's keeper on
   next take; never with "no", "not", "later").
 
 - **Tempo step**: its questions are decided (§1 T); only the walk's time limit above is open.
+
+- **The one recording bar in the walk** (N314 names the walk's practice and
+  the tempo step): both keep the walk's strip without the trash for now;
+  their files belong to the walk's own change in flight, so the trash comes
+  with it (2026-11-02). A typed answer to the key line is kept as the key
+  line too: nothing on screen says it should be said, since the note
+  drafted for before Take 1 (N319 item 3) is not signed.
 
 - **Self-judgement of your own practice try** is off for launch (2026-10-12):
   4 speaker answers, 21 clips with coach answers, 1 with both. Re-run the
@@ -1538,14 +1618,20 @@ Frontend, shared with other flows (not guarded): `src/components/willab/Lounge.t
 (the chat), `src/components/willab/useLoungeThread.ts`,
 `src/components/willab/TranscriptReviewDeck.tsx` (the black line and the
 paragraph tap), `src/components/willab/IdealTextOverlay.tsx` and
-`idealTextLoad.ts` (the page and its loading), `src/components/willab/loungeReports.ts`.
+`idealTextLoad.ts` (the page and its loading), `src/components/willab/loungeReports.ts`,
+`src/components/willab/RecordingBar.tsx` (the one recording bar, B14),
+`src/components/willab/WillVoiceAnswer.tsx` (the orange mic and the voice
+answer, B14, E3), `src/components/willab/WillQuestion.tsx` (Will's
+question and its taps, E2, E3).
 The Ideal Text's own files are in `scripts/design-locked-files.txt`.
 
 Backend (`wilplus/backend-cursor`): `services/moment_pick.py`,
 `services/take_feedback_policy_v3.py` (the marks), `services/willfidence.py`,
 `services/rewrite_gate.py` (H);
 `services/take_summary.py` (D); `services/after_take.py`,
-`services/will_question.py`, `services/feedback_check.py` (E);
+`services/will_question.py`, `services/feedback_check.py` (E; a voice
+answer: `routes/v2/explore_ideal_text.py`, `/will-question/voice`);
+`services/take_context.py` (the key line, E4, H1);
 `services/coach_message_read.py` (`coach_message_for`, C1);
 `services/line_bank.py` (K); `services/speaker_memory.py` (I4);
 `services/coach_moments_queue.py` (I5); `services/chat_query.py` (the
@@ -1559,8 +1645,10 @@ Tests that hold the promises: `src/components/willab/walk/feedbackWalk.test.tsx`
 `src/components/willab/walkReachesCoach.test.ts`,
 `src/components/willab/loungeNewCoachFeedback.test.tsx`,
 `src/lib/willab/walkPlan.test.ts`, `walkThread.test.ts`, `lensScreen.test.ts`,
-`waitHandover.test.ts`, `waitProgress.test.ts`;
-backend `tests/test_speaker_memory.py`. Every test's story: `docs/TEST-STORIES.csv`.
+`waitHandover.test.ts`, `waitProgress.test.ts`,
+`src/components/willab/recordingBar.test.tsx`, `willVoiceAnswer.test.tsx`,
+`takeIntoWalk.test.tsx`;
+backend `tests/test_speaker_memory.py`, `tests/test_will_question.py`. Every test's story: `docs/TEST-STORIES.csv`.
 
 ## 5. Prototypes
 
@@ -1601,6 +1689,13 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N309 item 5 · built (G1, G2, G3): sharing is asked once, the first time "Record Take 2" is tapped; the choice is remembered, the newest line under a Take's recording carrying it (`metadata.share`, read back by `GET /v2/user/takes/share/last`), and every later "Record Take N" records at once with it, stamped on the new Take as before; asked again when the words change, a community is added or none of its communities is left; the latest Take's line opens the same screen, the choice ticked, and Continue re-shares or takes back that Take. No migration. Was: the screen before every Take from Take 2, nothing ticked, the choice kept six hours for that Take alone · BE (slice5-share), FE (this PR)
+- 2026-11-02 · N314, N304, N296 state 3 · built (B14, K): every short recording in the chat records with the one bar, the trash then the walk's strip with Stop inside it; Stop sends (the voice note, an answer to Will, the life goals' words; the plan's on the-plan.md). Was: the voice note's bordered pill and black send · FE (this PR)
+- 2026-11-02 · N296 state 2, N306 item 1 · built (B14): while Will's question or its follow-up waits, the same mic fills orange, colour only, for every speaker, and records the answer. Was: the mic unchanged, and only where the voice notebook is on · FE (this PR)
+- 2026-11-02 · N294 items 2 and 3, N319 item 1 · built (E3): an answer to Will by voice: transcribed under the processing authorization, its words the answer, shown as the speaker's voice bubble with the words heard; the recording not kept. Was: typed or tapped only · BE, FE (this PR)
+- 2026-11-02 · N294 item 2 · built (E2, E4, K): the key line in Will's chain, once who and what are known and it is missing, the plan's signed question with who in it, on the moment, no taps, answered by voice; it follows an answered "what they should do"; kept as the key line (sure) in the Take's setup, the open plan without one, and for Will. Was: not asked after the walk · BE (this PR)
+- 2026-11-02 · N319 item 9 · built (B15): after an answer the chat lands on the newest bubble even when scrolled up. Was: only a new bubble moved it · FE (this PR)
+- 2026-11-02 · N319 item 10 · built (A2): the wait over the walk comes from the Take's own marker, so the chat is never shown between the processing and the walk, also when the Lounge was not following that job. Was: the cover only while the Lounge followed the job · FE (this PR)
 - 2026-11-02 · N294 item 1 · built (E2, K): Will's question opens on the speaker's own words of the last moment the walk showed (its clip's words): "When you said “…”, " where it reads on ("Sounds like this one's for …"), else "We just worked on “…”. "; "On purpose?" opens on nothing more. Was: the question alone · BE, FE (this PR)
 - 2026-11-02 · N294 item 4 · built (E1, E2): who the talk is for, answered, is followed by what they should do when that is missing too, as Will's next question in the chain; not answering or a Skip ends them. Was: one question a Take · BE (this PR)
 - 2026-11-02 · N294 item 5 · built (E2, K): Will says back who the talk is for, "{who}. I'll keep them in mind."; other answers keep "Got it, thanks 🙏". Was: "Got it, thanks 🙏" for every answer · BE (this PR)

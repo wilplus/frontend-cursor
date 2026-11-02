@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import RecordingStrip from "@/components/willab/walk/RecordingStrip";
+import RecordingBar from "@/components/willab/RecordingBar";
 import { useVoiceNote } from "@/components/willab/useVoiceNote";
 import type { CallWhich, Plan } from "@/services/api/plan";
 import { isoDay, PLAN_COPY } from "@/lib/willab/planCopy";
@@ -9,7 +9,8 @@ import PlanCalendar, { MonthGrid } from "./PlanCalendar";
 
 /* The plan's footer, in place of "Type here" (rules: the-plan.md §1 B, D, F,
    E5, I; prototype version 27): the deadline's chips, Will's ask for the
-   plan's own yes (N211), the voice answer's recorder (no Skip; before a new
+   plan's own yes (N211), the voice answer's recorder (the one recording bar,
+   backend N314: the trash, the walk's strip with Stop inside; no Skip; before a new
    speaker's first Take, "Start your first recording" under it, N262), the
    1 to 10 scale, Skip or Book now under Will's ask for a call and its calendar (full screen over the chat, N248, N281), then
    only "Start your first recording". Each answer goes to the backend, which
@@ -93,7 +94,10 @@ function DeadlineChips({ actions }: { actions: PlanActions }) {
 
 /** "Record your answer"; before a new speaker's first Take, "Start your
  *  first recording" under it: the questions never stand between them and
- *  that Take, and what isn't answered comes back after its walk (N262). */
+ *  that Take, and what isn't answered comes back after its walk (N262).
+ *  Recording, the one bar (backend N314): the trash, then the walk's strip
+ *  with Stop inside it; Stop sends. Was a "Your answer" line over the strip
+ *  and a large red Stop under it. */
 function VoiceAnswer({ actions, recordNow }: { actions: PlanActions; recordNow: boolean }) {
   const note = useVoiceNote({ maxSeconds: 300, onDone: ({ audio, durationMs }) => actions.answer(audio, durationMs) });
   if (note.phase === "idle") {
@@ -113,21 +117,8 @@ function VoiceAnswer({ actions, recordNow }: { actions: PlanActions; recordNow: 
     );
   }
   return (
-    <div className="flex flex-col gap-2" data-plan-dock="recording">
-      <div className="flex items-center justify-end gap-1.5 text-[13px] text-[#6B6B6B]">
-        <span className="h-2 w-2 rounded-full bg-[#EF4444] motion-safe:animate-pulse" aria-hidden />
-        {PLAN_COPY.yourAnswer}
-      </div>
-      <RecordingStrip elapsed={note.elapsedMs / 1000} />
-      <button
-        type="button"
-        onClick={() => void note.send()}
-        disabled={note.phase === "sending"}
-        className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-record text-[15px] font-semibold text-record-foreground disabled:opacity-60"
-      >
-        <span className="h-3 w-3 rounded-[3px] bg-white" aria-hidden />
-        {PLAN_COPY.stop}
-      </button>
+    <div data-plan-dock="recording">
+      <RecordingBar elapsedMs={note.elapsedMs} onTrash={note.cancel} onStop={note.send} />
     </div>
   );
 }

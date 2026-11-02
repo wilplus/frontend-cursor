@@ -8,8 +8,6 @@ export const PLAN_COPY = {
   pickDate: "Pick a date",
   noDate: "No date yet",
   recordAnswer: "Record your answer",
-  yourAnswer: "Your answer",
-  stop: "Stop",
   thisWeeksLevel: "This week's level",
   howYouSaidIt: "How you said it",
   planHeading: "Plan",

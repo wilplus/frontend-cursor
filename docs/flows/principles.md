@@ -73,8 +73,11 @@ The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
 1. A tap on the mic records at once, and the person's own orange "# " note
    appears at the bottom of the thread with a small wave of their voice,
    drawn on the phone from the mic's level, so it shows at once that it
-   hears. The bar under the thread stays: delete, the running time, send
-   (founder 2026-10-20).
+   hears. Under the thread, the one recording bar (backend N314): the trash
+   on the left, then the walk's strip (the dot, the clock, the track) with
+   the red Stop inside it; Stop sends. Was: delete, the running time in a
+   pill, send (founder 2026-10-20). The life goals lens's small mic records
+   with the same bar.
 2. The words follow the wave about 2 to 4 seconds behind the voice (the
    path: Vercel, Railway, the processing-authorization permit, Whisper)
    and replace the stretch of wave they cover, a phrase at a time. The
@@ -508,6 +511,7 @@ Nothing in flight.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N314 · B1 (the notebook's note) and the life goals lens's words: they record with the one recording bar, the trash then the walk's strip with Stop inside it; Stop sends. Was: delete, the running time in a pill, a send · FE (this PR)
 - 2026-10-30 · — · the small mic answers at the tap, as WhatsApp's does: a light buzz (Android's vibration, the iPhone's switch haptic) and the recording bar at once, while the phone opens the mic; trash or send in that moment records nothing, no mic permission puts the mic back; no new words · FE (this PR)
 - 2026-10-29 · N268 · R, built: after a Good job on a Clearer version, the walk may quote the speaker's own kept words (a strength, the vision, a # note naming what is theirs), at most one per Take, with "Not here" the first time, a setting turned back on in the Life Panel's Your data page; A3 makes room for it; ring row `walk_quotes` at ring 5 by its migration · BE #1495 (the decision), BE (the code), FE (this PR)
 - 2026-10-29 · N264 · the rows `in_control` and `sales_framing` set at ring 5 by migration 0499 (its outside review: "Safe to merge"), in place of the founder making them on the rings page: Will's answer to a worry (O) and the sales steps (P) are on at ring 5 · BE #1490, #1491, FE (this PR)

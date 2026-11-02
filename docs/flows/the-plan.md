@@ -70,9 +70,12 @@ built and what is still to come.
    fine. Let's give it two months, until 19 December." (N135, N137, N140).
 3. "I assume you came here to practise for some important event in your
    life. Please tell me, why does it matter and what is it about?" One voice
-   message, recorded with the walk practise's recorder: the strip and the red
-   Stop, no Skip; before the first Take, "Start your first recording" under
-   "Record your answer" (A1). It lands as the speaker's orange voice bubble,
+   message, recorded with the one recording bar (backend N314, locked): the
+   trash on the left, then the walk's strip (the pulsing dot, the clock, the
+   track) with the red Stop inside it; Stop sends, the trash throws it away;
+   no Skip; before the first Take, "Start your first recording" under
+   "Record your answer" (A1). Was: a "Your answer" line over the strip and
+   a large red Stop under it. It lands as the speaker's orange voice bubble,
    which plays back, and it goes through the processing authorization like
    every recording (N135, N136, N137, N262). The bubble shows at once, with
    the typing dots under the voice while it is heard; then the words Will
@@ -442,8 +445,9 @@ Signed:
   "When is your deadline?" · "Pick a date" · "No date yet" · "That's fine.
   Let's give it two months, until {date}." · "I assume you came here to
   practise for some important event in your life." · "Please tell me, why
-  does it matter and what is it about?" · "Record your answer" · "Your
-  answer" (N137, N140).
+  does it matter and what is it about?" · "Record your answer" (N137,
+  N140); the recording bar's "Stop" (N314). Signed, no longer shown: "Your
+  answer" over the strip (N314).
 - Will's reply: "I can already hear your main vocal cues and verbal habits."
   · when the AI fails, "Thank you. Now I can hear you talking about your
   goal and why it matters." (N140, N150). Signed, no longer shown: "Let me
@@ -652,6 +656,9 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-02 · N315, N319 items 4 and 6 · B4, D5, E1, E2, F0, G5, I2, K, §4: the plan's coach calls hidden, not removed, behind the ring row `plan_calls` (backend `rings.PLAN_CALLS`; no row, off for everyone, the founder included): off, the plan goes from its last question or rating straight to "You're all set. Here's your plan.", with no call asked, by every path (the questions, "Not now", the ratings, a speaker with Takes, Will asking again after a Take's walk); a plan left at a call's ask moves on to the plan when the Lounge opens, and "Skip" there asks no summary call; the card's call lines, a booked kickoff's mark and the summary call at the plan's end show only with the row on. The card is the plan only: "Plan", its bar, the practice days, "Your deadline: {date}" and "Change your plan"; "See your plan" adds "This week's level" and the level above it. "Let me draft your plan. A few more questions first." is not written. No new words. Was: both calls asked of everyone after the questions; the card with "Your next level", the level, the key line, "How you said it", "Why this line?", the pace week's line and the two call lines; "Let me draft your plan. …" under Will's reply · BE, FE (this PR)
+- 2026-11-02 · N314 · B3, K: the plan's voice answers record with the one recording bar, the trash then the walk's strip with Stop inside it; Stop sends, the trash throws it away. Was: a "Your answer" line over the strip and a large red Stop under it · FE (this PR)
+- 2026-11-02 · N319 item 9 · B: after an answer in the plan's footer the chat lands on the newest bubble, even when scrolled up (feedback-walk-and-chat.md B15) · FE (this PR)
+- 2026-11-02 · N294 item 2 · after the walk, a key line said to Will goes into the open plan that has none (`facts.key_line`), where its practice days and walk read it (feedback-walk-and-chat.md E4) · BE (this PR)
 - 2026-11-02 · N319 items 4 and 7 · E3, G5, G13, K: after the walk, on a plan, "That's your 15 minutes for today.", then one bubble "Good job. See you next {day}." (the next practice day by its weekday: "See you next tomorrow" does not read, so tomorrow is named too), then Will's bubble with the plan's bar and "{n} of {total} practices done." (`plan_progress`, drawn by `PlanRows`), then the tap "I want to continue my practice"; the plan's black button with the red dot (`RecordDockButton`, "Start your first recording"'s shape) also carries the chat's "Record Take N". Was: "Now go and live it, away from the phone." under the 15 minutes, "Look, practice makes perfect…" with "Record Take N" in its bubble, and the bar with "{n} of {total} practices done. Next: {day}." on the walk's end sheet (`PlanProgress`, gone) · BE, FE (this PR)
 
 - 2026-10-30 · N289 · G7: this week's level takes the walk's slot whose tool fits it ("Say it once" the between, "A voice that moves" the weakest), the pace levels' line opens the tempo step; item 8, the tempo step on any Take. Was: the level as a third moment practised with the AI voice, and the pace practice from Take 2 · BE #1528, BE #1529, FE (this PR)

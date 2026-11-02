@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Mic, Send, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
 import {
@@ -45,7 +45,8 @@ import {
 } from "@/services/api/lifeGoals";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
-import { clock, useVoiceNote } from "./useVoiceNote";
+import { useVoiceNote } from "./useVoiceNote";
+import RecordingBar from "./RecordingBar";
 import WalkStage from "./walk/WalkStage";
 import WalkMessage from "./walk/WalkMessage";
 import { WalkSpeakerBubble } from "./walk/WalkThread";
@@ -188,29 +189,16 @@ export function WordsDock({ onAnswer }: { onAnswer: (text: string | null) => voi
   if (note.phase === "recording" || sending) {
     return (
       <DockColumn>
-        <div data-life-goals-recording className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={note.cancel}
-            disabled={sending}
-            aria-label="Delete"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground"
-          >
-            <Trash2 className="h-5 w-5" aria-hidden />
-          </button>
-          <div className="flex h-10 flex-1 items-center gap-2 rounded-3xl border border-border bg-background px-3.5 text-[15px] tabular-nums">
-            {sending ? <TypingGlyph /> : <span aria-hidden className="h-2.5 w-2.5 animate-pulse rounded-full bg-destructive" />}
-            {sending ? null : clock(note.elapsedMs)}
-          </div>
-          <button
-            type="button"
-            onClick={note.send}
-            disabled={sending}
-            aria-label="Send"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
-          >
-            <Send className="h-5 w-5" aria-hidden />
-          </button>
+        {/* The one recording bar (backend N314): the trash, the walk's strip
+            with Stop inside it; while the words are written, the dots. */}
+        <div data-life-goals-recording>
+          {sending ? (
+            <div className="flex h-10 items-center px-3.5">
+              <TypingGlyph />
+            </div>
+          ) : (
+            <RecordingBar elapsedMs={note.elapsedMs} onTrash={note.cancel} onStop={note.send} />
+          )}
         </div>
         <WalkLink action={{ label: COPY.typeInstead, onClick: note.cancel, disabled: sending }} />
       </DockColumn>
