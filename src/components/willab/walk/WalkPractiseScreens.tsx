@@ -7,7 +7,7 @@ import type { WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
-import RecordingStrip from "./RecordingStrip";
+import RecordingBar from "../RecordingBar";
 import { maxTries, type WalkStep } from "@/lib/willab/walkPlan";
 import type { FeedbackWalkMoment, ReplayTries } from "@/lib/willab/feedbackWalkModel";
 import { encourageLine, improvedLine, thanksLine, triesLeft, triesRecorded } from "@/lib/willab/walkPractise";
@@ -27,7 +27,8 @@ import type { WalkQuote } from "@/services/api/walkQuote";
 /*                                                                            */
 /*    practise    the served line (else Line A) with the words to say, before */
 /*                the first try; the try as it records; the recorder in the   */
-/*                dock: the Take's strip (dot, clock, bar) and Skip / red Stop */
+/*                dock: the one recording bar (N314), the trash then the      */
+/*                strip with the red Stop inside it, and Skip under it        */
 /*    processing  the typing dots under the try while it is checked          */
 /*    improved    "Good job" and a signed line                                */
 /*    encourage   the AI clip's short bubble, or the signed encouragement     */
@@ -45,7 +46,8 @@ export type PractiseScreenCtx = {
   at: (step: WalkStep) => number;
   nav: (step: WalkStep, moment: FeedbackWalkMoment<unknown>) => WalkNav;
   close: () => void;
-  /** ✕ on the recorder: back to the step that opened the practise. */
+  /** ✕ or the trash on the recorder: the try thrown away, back to the step
+   *  that opened the practise. */
   back: () => void;
   forward: () => void;
   /** The answer given to `step` earlier in this walk; null: none yet. */
@@ -122,33 +124,18 @@ function lineAbove(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string 
   return served ?? (moment.highest ? null : WALK_COPY.lineA);
 }
 
-/** The recorder's footer (N70): the Take's strip, then Skip as its Back
- *  and a red Stop as its Finish take, because a practise is one sentence. */
+/** The recorder's footer: the one recording bar (founder 2026-10-31, backend
+ *  N314, locked), the trash on the left, then the Take's strip with the red
+ *  Stop inside it, and Skip under it as the walk's grey link (the tempo
+ *  step's dock). Stop sends the try; the trash throws it away, nothing
+ *  uploaded and no try counted, back to the step that opened the practise,
+ *  as ✕ does. Was: the strip, then Skip in the Back style beside a red Stop
+ *  in the Finish-take style (N70). */
 function RecorderFooter({ ctx }: { ctx: PractiseScreenCtx }) {
   return (
-    <div data-walk-footer className="flex flex-col px-5 pb-[max(30px,env(safe-area-inset-bottom))] pt-2">
-      <RecordingStrip elapsed={ctx.elapsed} />
-      <div className="mt-2.5 flex gap-2.5">
-        <button
-          type="button"
-          data-testid="walk-skip"
-          onClick={ctx.skip}
-          className="flex h-12 flex-1 items-center justify-center rounded-2xl border-[1.5px] border-border bg-background text-[15px] font-semibold text-foreground"
-        >
-          {WALK_COPY.skip}
-        </button>
-        <button
-          type="button"
-          data-testid="walk-stop"
-          onClick={ctx.stop}
-          aria-label={COPY.pillStop}
-          className="flex h-12 flex-1 shrink-0 items-center justify-center gap-2 rounded-2xl bg-record text-[15px] font-semibold text-record-foreground"
-        >
-          <span className="h-3 w-3 shrink-0 rounded-[2px] bg-current" aria-hidden />
-          {COPY.pillStop}
-        </button>
-      </div>
-    </div>
+    <WalkFooter links={[{ label: WALK_COPY.skip, onClick: ctx.skip, testId: "walk-skip" }]}>
+      <RecordingBar elapsedMs={ctx.elapsed * 1000} onTrash={ctx.back} onStop={ctx.stop} />
+    </WalkFooter>
   );
 }
 

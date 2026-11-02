@@ -20,8 +20,8 @@ import {
   type PlanState,
 } from "@/services/api/plan";
 import { fmtWhen, PLAN_COPY } from "@/lib/willab/planCopy";
-import PlanDock, { dockFor, PlanAsk, planAsks, usePlanVoice, type PlanActions } from "./PlanDock";
-import { newestOneOf, PendingBooked, PendingVoice, type PlanRowCtx } from "./PlanRows";
+import PlanDock, { dockFor, PlanAsk, planAsks, standsOne, usePlanVoice, type PlanActions } from "./PlanDock";
+import { newestOneOf, oneRecordOf, PendingBooked, PendingVoice, type PlanRowCtx } from "./PlanRows";
 import { followNewest } from "@/components/willab/usePinThreadBottom";
 import { ChangePlanSheet, SeePlanSheet } from "./PlanSheet";
 
@@ -42,7 +42,8 @@ export type PlanLounge = {
   pending: ReactNode;
   rows: PlanRowCtx | undefined;
   /** The message box's display: hidden while the plan's footer replaces it
-   *  ("Start your first recording", a call's calendar, the recording bar). */
+   *  ("Start your first recording", a call's calendar, the recording bar, a
+   *  practice day's "Record Take N"). */
   composerDisplay: (base: string) => string;
   /** The Lounge's mic: orange while the plan's voice question waits, and it
    *  records the answer; else what the Lounge would give it (Will's own). */
@@ -200,10 +201,16 @@ export function usePlanLounge({
   const asks = planAsks(kind);
   // A voice question: the Lounge's mic, orange while it waits (N319 item 1).
   const voice = usePlanVoice({ open: kind === "voice" && !busy && sent === null, onAnswer: actions.answer });
+  // A practice day's one thing, while it holds the chat's one record button
+  // and the plan stands nothing else there: "Record Take N" under the chat,
+  // alone (N294 item 7, N296 state 4).
+  const newestOne = state?.enabled ? newestOneOf(thread.messages) : null;
+  const one = standsOne(plan, booking, oneRecordOf(thread.messages));
   // What stands in for the message box: the one button after the plan card,
-  // a call's calendar, the recording bar while an answer is said. While the
-  // plan asks, the Lounge's bar stays ("+", "Type here", the mic).
-  const replaces = kind === "start" || kind === "book" || voice.recording;
+  // a call's calendar, the recording bar while an answer is said, a practice
+  // day's Take. While the plan asks, the Lounge's bar stays ("+", "Type
+  // here", the mic).
+  const replaces = kind === "start" || kind === "book" || voice.recording || one !== null;
   const openBook = (which: CallWhich) => {
     setSheet(null);
     setBooking(which);
@@ -212,7 +219,16 @@ export function usePlanLounge({
     // In place of the message box (hidden then), nothing is under it: the
     // shell's padding alone, as under the message box (founder 2026-10-30).
     <div className={replaces ? undefined : "mb-2"} data-plan-dock-slot>
-      <PlanDock plan={plan} busy={busy} booking={booking} onCloseBooking={() => setBooking(null)} actions={actions} />
+      <PlanDock
+        plan={plan}
+        busy={busy}
+        booking={booking}
+        onCloseBooking={() => setBooking(null)}
+        actions={actions}
+        one={one}
+        recordHeld={recordHeld}
+        onRecordNext={onRecordNext}
+      />
       {voice.bar}
     </div>
   ) : null;
@@ -247,16 +263,12 @@ export function usePlanLounge({
     </>
   ) : null;
 
-  const newestOne = state?.enabled ? newestOneOf(thread.messages) : null;
   const rows: PlanRowCtx | undefined = state?.enabled
     ? {
         plan,
-        newestOne,
-        recordHeld,
         onSeePlan: () => setSheet("see"),
         onChangePlan: () => setSheet("change"),
         onBook: openBook,
-        onRecordNext,
       }
     : undefined;
 

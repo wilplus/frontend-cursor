@@ -919,7 +919,9 @@ item 7); a plain row is left to the Lounge.
 O7  The chat has one record button: a practice day's one thing holds
 it until a newer Take's closing message takes it back (N167), and
 gives it up once a newer Take is recorded, in any project (N244,
-N251).
+N251). It is ""Record Take N"" under the chat, alone, the message box
+gone, never inside the bubble, and a tap starts that Take (N294
+item 7, N296 state 4).
 O8  ""How do you feel?"" comes before a Take only once the plan's first
 Take is recorded (D4).
 O9  Will's ask for the plan's own yes is drawn as his bubble with Read
@@ -936,11 +938,11 @@ sends the answer""
 O3 -> ""a rating is sent once and never written back""
 O4 -> ""Start your first recording only after the plan card""
 O6 -> ""the plan's rows are drawn as the prototype draws them""
-O7 -> ""the newest bubble holds the one record button""
+O7 -> ""a practice day's Record Take N is the button under the chat, alone""
 O8 -> ""the feelings before a Take""
 O9 -> ""Will asks for the plan's own yes""
 O10 -> ""nothing of the principles before my first Take""
-O11 -> ""the plan's calls show only with their ring row""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; record first, backend N262; every question the after-walk way, one action a step, typing waits before Take 1, backend N319 items 1 to 3; the calls hidden, backend N315; the plan card simplified, backend N319 item 6; docs/flows/the-plan.md §1."
+O11 -> ""the plan's calls show only with their ring row""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; record first, backend N262; every question the after-walk way, one action a step, typing waits before Take 1, backend N319 items 1 to 3; the calls hidden, backend N315; the plan card simplified, backend N319 item 6; no bubble carries a button, backend N294 item 7; docs/flows/the-plan.md §1."
 src/components/willab/plan/planNewEvent.test.tsx,Story,"As a speaker with a plan, I want ""I have a new event"" out of my way while my Take is still processing, so that I never tap something that leaves me with nothing to do.","O1  While the Take is processing, Change your plan has no ""I have a new
 event"", and the plan's end shows only ""Keep practising"".
 O2  Once the Take has landed, both show ""I have a new event"" again.","O1, O2 -> ""a new event waits for the Take being processed""","The founder, 2026-10-28 (backend N242); docs/flows/the-plan.md §1 H1 and I2."
@@ -1102,7 +1104,7 @@ O6  A step's grey bubbles land one after another behind the typing dots, and its
 O7  The walk opens once with ""Hi {name}, good to see you back!"" (Take 1: ""Hi {name}, great to meet you!""; no name: the same without it), and the Lounge keeps the same words (N120).
 O8  Other speakers asks for my Take's moments and shows each one the server sends, up to three (""Now 3 moments from other speakers.""), however many tries I made; with none the step is left out (N119). My answer on one moves me on to the next, though the chat counts it at once.
 O9  On a plan, the moment where this week's level shows most opens with ""This week's level: {level}. Here's where it shows:"" above my clip; no other moment does (G7, backend N209).
-O10 What a step showed stays in the thread once I move on: the tempo game's tries, their comments and its closing line, then other speakers' moments with my answers, all still above the summary; opened again further on, the tempo game is drawn as the chat kept it, each try with the dot's line, never cut off after ""Find a quiet spot first."" (B5).","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
+O10 What a step showed stays in the thread once I move on: the tempo game's tries, their comments and its closing line, then other speakers' moments with my answers, all still above the summary; opened again further on, the tempo game is drawn as the chat kept it, each try with the dot's line, never cut off after ""Find a quiet spot first."" (B5). A tempo try records with the one recording bar: the trash throws it away, nothing counted or kept, back to ""I'm ready""; Stop reads it (N314).","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
 O2 -> a green moment says why it landed,
 the Take's highest moment opens with “This was your most confident moment.”,
 the highest moment's bubble never says it twice, in the walk or the chat
@@ -1115,7 +1117,7 @@ O7 -> the walk opens once with the hello and the speaker's first name (N120)
 O8 -> other speakers: the Take's three moments, whatever the tries (N119); an answer moves on to the next,
 with nobody to judge, the step leaves nothing in the thread
 O9 -> on a plan, the level's moment says where this week's level shows, above the clip (G7, N209)
-O10 -> the tempo game and other speakers stay in the thread as the walk moves on to the summary (B5)","Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, ""add the name at the start""; N122, ""the 3 dots loading should be at the bottom""; N119, ""3 clips (high, middle, low willfidence) from 3 different speakers""); founder 2026-10-28 (""I click next and it's gone ... should be in the walk, so that there is a continuity"")."
+O10 -> the tempo game and other speakers stay in the thread as the walk moves on to the summary (B5; the trash, N314)","Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, ""add the name at the start""; N122, ""the 3 dots loading should be at the bottom""; N119, ""3 clips (high, middle, low willfidence) from 3 different speakers""); founder 2026-10-28 (""I click next and it's gone ... should be in the walk, so that there is a continuity"")."
 src/components/willab/walk/oneThingWalk.test.tsx,Story,"As a speaker, I want the walk after each Take to show me my best moment and why it worked, then one thing to improve with the tool it needs, so that I leave every Take with one clear thing to carry into the next.","O1  The walk goes in order: ""Hi {name}."", my best with ""This was your most confident moment."" and why it worked, then ""And now, one thing to improve:"" and one fix; the Clearer version says ""Say it straight:"" and the sentence, with ""Try it"" and ""Keep mine""; no helper-word picker, no second moment and no summary in the walk.
 O2  After the fix my helper words come on their own: ""These are your helper words. …"" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on.
 O3  The walk ends on ""Lesson done."" with Close, which ends the review and takes me back to the chat; no ""Record Take N"" in the walk.
@@ -1131,7 +1133,7 @@ WALK_COPY or CHUNK_SHEET_COPY. Never 1: a digit in a signed walk line
 (the only numbers the walk shows are a Take or moment position, put in
 by the caller).","unsigned word -> ""every literal a primitive shows or reads out is signed""
 digit         -> ""no signed walk line carries a digit""",If removed: An unsigned word or a number can reach speakers in the Feedback walk.
-src/components/willab/walk/walkPractise.test.tsx,Story,"As a speaker, I want to practise inside the walk's chat (record, hear an answer in words, hear an AI version of my voice, at most 3 tries), so that practice is quick, kind and free of numbers.","O1  Stopping a try uploads it and asks for a check, and I am back in the walk at once.
+src/components/willab/walk/walkPractise.test.tsx,Story,"As a speaker, I want to practise inside the walk's chat (record, hear an answer in words, hear an AI version of my voice, at most 3 tries), so that practice is quick, kind and free of numbers.","O1  A try records with the one recording bar (N314): Stop uploads it and asks for a check, and I am back in the walk at once; the trash throws it away instead: nothing is sent, no try is counted, and I am back on the step that opened it.
 O2  A better try gets praise in words for what improved, then my helper words for that moment, so what I improved can become my habit words (N220).
 O3  A ""not yet"" on the clearer words brings the AI version of my voice; a good try does not.
 O4  The AI clip comes in one short bubble: a one-word opener, one tip quoting my phrase and ending "", like this:"", my AI voice, then ""Your turn.""; never a long explanation, never a number (N120).
@@ -1139,7 +1141,8 @@ O5  At most 3 tries, all shown together in the chat with the steps before them; 
 O6  The Exercise reaches the coach's queue the moment it is on screen, and the Lounge as the AI bubble once a clip is coming, even when I tap Practise first.
 O7  A try not yet better gets the same short bubble, opened with ""Close."" and closed with ""Try again."", with only ""Practise again"" (N120).
 O8  A voice correction with nothing to offer (no exercise, no AI clip coming) is skipped: no ""Say this one like your confident moment."" on its own, in the walk or the chat; it still reaches the coach's queue. The Take's most confident moment is not skipped: it says its own line and is said again (N109).
-O9  A praised moment is practised too: after its praise the short bubble with my AI voice and ""Your turn."", up to three tries, a Good job ends it, then its helper words; with no AI clip the praise goes straight to its helper words (N122).","O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check
+O9  A praised moment is practised too: after its praise the short bubble with my AI voice and ""Your turn."", up to three tries, a Good job ends it, then its helper words; with no AI clip the praise goes straight to its helper words (N122).","O1 -> Stop uploads through the attempts route, returns to the walk at once ... and posts /check,
+the trash throws the try away: nothing is sent, no try counted, back on the step that opened it; Stop still sends (N314)
 O2 -> praise on try 1: the line for the reading that moved, then Next opens its helper words (N220)
 O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
 O4 -> the bubble is there at once: the typing dots alone ..., the AI clip comes in one short bubble: the opener, the tip quoting their phrase, the clip, then “Your turn.” (N120)
@@ -1147,7 +1150,7 @@ O5 -> shows the whole history at once, offers only ... Practise again until the 
 O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first
 O7 -> a try not yet better gets the same short bubble, opened with “Close.” and closed with “Try again.”, with only Practise again (N120)
 O8 -> with no exercise and no AI clip coming, it is walked as a good moment, never skipped: its helper words, no Line A alone, and the coach's queue still hears it; the Take's most confident moment with nothing to offer says its own line and is said again
-O9 -> a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122), with no AI clip the praise goes straight to its helper words (N122)","Never-rule 1 (no scores to speakers); founder 2026-10-21 (N108, ""Skip that moment""); 2026-10-23 (N120, ""make it shorter focused on one only thing""; N122, ""do we practice the confident moments? I think yes we should!""); 2026-10-30 (N284, ""Treat as good"")."
+O9 -> a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122), with no AI clip the praise goes straight to its helper words (N122)","Never-rule 1 (no scores to speakers); founder 2026-10-31 (N314, ""Can you make it locked everywhere?""); founder 2026-10-21 (N108, ""Skip that moment""); 2026-10-23 (N120, ""make it shorter focused on one only thing""; N122, ""do we practice the confident moments? I think yes we should!""); 2026-10-30 (N284, ""Treat as good"")."
 src/components/willab/walk/walkReplay.test.tsx,Story,"As a speaker, I want a finished walk opened again to be one scroll of everything I went through, with my answers and no buttons, nothing written or recorded again, so that I can look back safely.","O1  Opened again, the whole walk is one scroll with my answers in it, and no buttons and no Next under it; nothing is written (N259).
 O2  A done exercise shows my past tries and records nothing new.
 O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.

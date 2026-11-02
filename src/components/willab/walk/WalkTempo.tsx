@@ -22,7 +22,7 @@ import { ONE_THING_COPY } from "../idealEditCopy";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
 import WalkFooter from "./WalkFooter";
-import RecordingStrip from "./RecordingStrip";
+import RecordingBar from "../RecordingBar";
 import { WalkSpeakerBubble, useMountedAsPast, useWalkPart } from "./WalkThread";
 
 /* -------------------------------------------------------------------------- */
@@ -33,6 +33,9 @@ import { WalkSpeakerBubble, useMountedAsPast, useWalkPart } from "./WalkThread";
 /*  Will's bubbles (what the stretch was, the task with its topic, the quiet */
 /*  spot); under them the scale, asleep, with I'm ready and Skip. I'm ready   */
 /*  wakes the scale and the recording bar; nothing else lands until Stop.    */
+/*  The bar is the app's one recording bar (backend N314): the trash, then   */
+/*  the strip with Stop inside it, Skip under it. The trash throws the try   */
+/*  away: no try counted or kept, back to before it was started.            */
 /*  Each try: the dot's path as the speaker's bubble, then Will's word on it */
 /*  (N245). A try that lands ends the game with Next; one that came closer   */
 /*  gets a push, and Practise again; Will decides, not the speaker. After    */
@@ -87,6 +90,9 @@ export default function WalkTempo({
   const tell = useRef(onEvent);
   tell.current = onEvent;
   const ended = useRef(false);
+  // Each start of the microphone; a halt or the trash moves it on, so a
+  // microphone that opens after the try was given up is closed again.
+  const run = useRef(0);
   useEffect(() => {
     if (!past) tell.current?.({ kind: "opened" });
   }, [past]);
@@ -98,6 +104,7 @@ export default function WalkTempo({
   }, []);
 
   const halt = useCallback(() => {
+    run.current += 1;
     mic.current?.stop();
     mic.current = null;
     timers.current.forEach((id) => window.clearInterval(id));
@@ -106,12 +113,17 @@ export default function WalkTempo({
   useEffect(() => halt, [halt]);
 
   const begin = useCallback(async () => {
+    const mine = ++run.current;
     setPhase("starting");
     activity.current = null;
     path.current = [];
     const opened = await startPaceMic((read) => {
       activity.current = read.activity;
     });
+    if (mine !== run.current) {
+      opened?.stop();
+      return;
+    }
     if (!opened) {
       setPhase("blocked");
       return;
@@ -145,6 +157,13 @@ export default function WalkTempo({
     const id = window.setTimeout(stop, TRY_LIMIT_MS);
     return () => window.clearTimeout(id);
   }, [phase, stop]);
+
+  // The trash: the try is thrown away, nothing counted or told; the step is
+  // back where it was before it started (I'm ready, Try it or Practise again).
+  const trash = useCallback(() => {
+    halt();
+    setPhase(tries.length > 0 ? "commented" : "idle");
+  }, [halt, tries]);
 
   const skip = useCallback(() => {
     halt();
@@ -227,7 +246,7 @@ export default function WalkTempo({
     if (live) {
       return (
         <WalkFooter links={[{ label: W.skip, onClick: skip, testId: "walk-tempo-skip" }]}>
-          <RecordingStrip elapsed={elapsed} stopLabel={W.stop} onStop={phase === "listening" ? stop : undefined} />
+          <RecordingBar elapsedMs={elapsed * 1000} onTrash={trash} onStop={phase === "listening" ? stop : undefined} />
         </WalkFooter>
       );
     }

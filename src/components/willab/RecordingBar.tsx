@@ -11,8 +11,9 @@ import RecordingStrip from "./walk/RecordingStrip";
 /*  strip, class for class (walk/RecordingStrip.tsx): the pulsing dot, the     */
 /*  clock, the track, and the red Stop inside it. Stop sends; the trash throws */
 /*  the recording away. Used by the Lounge's voice note, an answer to Will by  */
-/*  voice and the plan's voice answers. A Take keeps its locked recording      */
-/*  screen, whose strip is the same (N70, N303). "Stop" is signed.            */
+/*  voice, the plan's voice answers, the walk's practice and the tempo step.  */
+/*  A Take keeps its locked recording screen, whose strip is the same (N70,   */
+/*  N303). "Stop" is signed.                                                  */
 /*  Was: the voice note's bordered pill with a black send, and the plan's own */
 /*  large red Stop under the strip.                                           */
 /* -------------------------------------------------------------------------- */
@@ -27,7 +28,9 @@ export default function RecordingBar({
 }: {
   elapsedMs: number;
   onTrash: () => void;
-  onStop: () => void;
+  /** Absent while the microphone is still opening: the strip shows no Stop
+   *  yet (the tempo step). */
+  onStop?: () => void;
 }) {
   return (
     <div className="flex items-center gap-1" data-recording-bar="">

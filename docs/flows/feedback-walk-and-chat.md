@@ -148,8 +148,9 @@ step; the loop never waits for a coach.
   With a plan, under the plan card, in place of "Type here", there is only
   "Start your first recording" (N161), the one button before the first
   Take, under no question (N319 item 2), and on a practice day the chat has
-  one record button, in the newest bubble (N167; [`the-plan.md`](the-plan.md)
-  E5, G6).
+  one record button, the same "Record Take N" alone under the chat while
+  today's one thing is the newest, never inside its bubble (N167, N294
+  item 7; [`the-plan.md`](the-plan.md) E5, G6).
 
   (Founder 2026-10-26, N192: "there should be just the ideal text after the
   take and the feedback walk above it", "make sure that all of these are in
@@ -277,8 +278,9 @@ step; the loop never waits for a coach.
   3. recording: **the one recording bar** (N314, locked; N304): the trash
      on the left, then the walk's strip (the pulsing dot, the clock, the
      track) with the red Stop inside it. Stop sends, the trash throws it
-     away. The same bar for the voice note, an answer to Will and the
-     plan's voice answers ([`the-plan.md`](the-plan.md) B3); a Take keeps
+     away. The same bar for the voice note, an answer to Will, the
+     plan's voice answers ([`the-plan.md`](the-plan.md) B3), the walk's
+     practice (C7) and the tempo step (T); a Take keeps
      its locked recording screen, whose strip is the same (N70, N303). Was:
      the voice note's WhatsApp-style bar, the time in a bordered pill and a
      black send (founder 2026-10-20);
@@ -528,17 +530,22 @@ praised moment:
   (2026-10-16). The clip's own rules: backend
   [`FOUNDER-LOCK-ai-voice-practice-2026-10-12.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-ai-voice-practice-2026-10-12.md).
 - **C7 Practise.** The One thing walk's fix (N309 item 1): the recorder
-  is the walk's RecordingStrip in the dock as below; two tries. A try that
+  is the one recording bar in the dock as below; two tries. A try that
   lands: "Yes. That's it." and Next; one miss: "Close. Once more." with
   "Try it" and Skip; two: "Good try. Take it with you." and Next. A try not
   heard says so as below. In a Take served before N289: every practise is one thread: the words to say, the
-  recorder in the dock (the strip with the dot, the clock and the bar;
-  "Skip" in the Back style and a red "Stop" in the Finish-take style), the
+  recorder in the dock (the one recording bar, N314: the trash on the left,
+  then the strip with the dot, the clock, the bar and the red "Stop" inside
+  it; "Skip" under it, the walk's grey link; was "Skip" in the Back style
+  beside a red "Stop" in the Finish-take style), the
   try as the orange "Practise N", the typing dots while it is checked, then
   the answer. Each try keeps its own number and its own voice on screen, a
   try the server did not keep (late, not sent, not heard) included: the
-  next is numbered after it (2026-10-21). The recorder is the recording screen as re-locked 2026-10-12
-  (N70) without the slide card; after Stop the walk returns instantly. The
+  next is numbered after it (2026-10-21). The recorder's strip is the recording screen's as re-locked 2026-10-12
+  (N70), without the slide card; after Stop the walk returns instantly.
+  The trash throws the try away: nothing is uploaded or checked, no try is
+  counted, and the walk is back on the step that opened it ("Try it",
+  "Practise", "Practise again"), as ✕ does (N314). The
   machine decides (H1): a Good job on the voice alone needs the margin,
   +0.05 (`after_practice.GOOD_JOB_MARGIN`, N84); a cleared problem, or a cue
   moved by at least half a within-speaker deviation, counts too; a clearer
@@ -665,7 +672,8 @@ praised moment:
      own button does (the sharing question first from Take 2, G). The
      speaker may simply close the app; the "+" still opens the projects.
      A practice day's one thing, newer than the goodbye, holds the chat's
-     one record button (N167, [`the-plan.md`](the-plan.md) G6).
+     one record button, the same "Record Take N" alone under the chat (N167,
+     N294 item 7, [`the-plan.md`](the-plan.md) G6).
 
   **Between two Takes** (N244, N251). From the moment the next Take is
   recorded, in any project, until its walk reaches its summary, the chat
@@ -1560,7 +1568,7 @@ backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
 2. Will's bubble, from what the stretch was: "That part went fast. 🏃 Let's try a little game." or "That part slowed down, with long pauses. 🐢 Let's try a little game."
 3. Will's bubble with the stretch's topic: "Tell me more about {topic}, and keep the ball in the green."
 4. Will's bubble: "🤫 Find a quiet spot first."
-5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar. Nothing else appears until Stop.
+5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar, the app's one recording bar (N314): the trash, then the strip with Stop inside it, the Skip under it. Nothing else appears until Stop. The trash throws the try away: no try is counted or kept for Will, and the step is back where it was before it (I'm ready, "Try it" or Practise again).
 6. The try: the dot's path, then Will's word on it; Will guides, the speaker never has to choose between another try and moving on (N245):
    - **It lands** (really better): "That landed. 🎯 Really better. Let's move on.", then **Next**; the game ends there, on any try.
    - **It came closer** (more than half in the green, not enough to land): "Better. You let it breathe." and, while a try is left, "You're close. 💪 Give it one more try.", then **Practise again**.
@@ -1666,10 +1674,7 @@ The four lines above were filled from main's history by the page's keeper on
 
 - **Tempo step**: its questions are decided (§1 T); only the walk's time limit above is open.
 
-- **The one recording bar in the walk** (N314 names the walk's practice and
-  the tempo step): both keep the walk's strip without the trash for now;
-  their files belong to the walk's own change in flight, so the trash comes
-  with it (2026-11-02). A typed answer to the key line is kept as the key
+- **A typed answer to the key line** is kept as the key
   line too: nothing on screen says it should be said, since the note
   drafted for before Take 1 (N319 item 3) is not signed.
 
@@ -1741,7 +1746,7 @@ Frontend, shared with other flows (not guarded): `src/components/willab/Lounge.t
 `src/components/willab/TranscriptReviewDeck.tsx` (the black line and the
 paragraph tap), `src/components/willab/IdealTextOverlay.tsx` and
 `idealTextLoad.ts` (the page and its loading), `src/components/willab/loungeReports.ts`,
-`src/components/willab/RecordingBar.tsx` (the one recording bar, B14),
+`src/components/willab/RecordingBar.tsx` (the one recording bar, B14, C7, T),
 `src/components/willab/WillVoiceAnswer.tsx` (the orange mic and the voice
 answer, B14, E3), `src/components/willab/WillQuestion.tsx` (Will's
 question and its taps, E2, E3).
@@ -1811,6 +1816,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N314 · built (B14, C7, T): the walk's practice and the tempo step record with the one recording bar, the trash on the left, then the strip with the red Stop inside it, Skip under it as the walk's grey link; Stop sends as before; the trash throws the try away, nothing uploaded, checked or counted (the tempo game keeps nothing of it), back on the step that opened it. B3, D4: on a practice day the chat's one record button is "Record Take N" alone under the chat, not in today's one thing (N294 item 7, the-plan.md G6). Was: the practice's strip with Skip in the Back style beside a red Stop in the Finish-take style, and the tempo step's strip with Stop and no trash · FE (this PR)
 - 2026-11-02 · N319 items 1 to 3 · B3, B14: before the first Take the plan's questions are asked as Will's after the walk: its choices tap answers on the right, the bar under them, its voice questions with the orange mic; "Start your first recording" only after the plan card; "Type here" faded and not focusable while the plan asks (the-plan.md B10). Was: the plan's footer in place of the bar · FE (this PR)
 - 2026-11-02 · N309 · built (C, C0, C0a, C2, C3, C4, C5, C7, C8, C9, K, T): the One thing walk: "Hi {name}.", Last time when last Take's fix rose, their best with why it worked, "And now, one thing to improve:" and one fix (the Clearer version, the AI clip after their best, or the Sniper on a pace or pause week), "Try it" with Skip or Keep mine, two tries ("Yes. That's it.", "Close. Once more.", "Good try. Take it with you."), from Take 2 one moment of another speaker with its level turning across Takes, the helper words on their own, "Lesson done." and Close back to the chat. The server serves the strongest and the one fix only. Was: N289's three moments, each praise's helper-words picker, three judged moments every walk from Take 1, the tempo step on any Take, N285's lines, the summary and Next onto the Ideal Text inside the walk · BE slice4-walk (the code), FE (this PR)
 - 2026-11-02 · N309 item 5 · built (G1, G2, G3): sharing is asked once, the first time "Record Take 2" is tapped; the choice is remembered, the newest line under a Take's recording carrying it (`metadata.share`, read back by `GET /v2/user/takes/share/last`), and every later "Record Take N" records at once with it, stamped on the new Take as before; asked again when the words change, a community is added or none of its communities is left; the latest Take's line opens the same screen, the choice ticked, and Continue re-shares or takes back that Take. No migration. Was: the screen before every Take from Take 2, nothing ticked, the choice kept six hours for that Take alone · BE (slice5-share), FE (this PR)

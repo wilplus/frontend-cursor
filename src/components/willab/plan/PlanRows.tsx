@@ -17,13 +17,9 @@ import { TypingGlyph } from "@/components/willab/TypingDots";
 
 export type PlanRowCtx = {
   plan: Plan | null;
-  /** The newest "Today, one thing" bubble: the one that keeps Record Take N. */
-  newestOne: string | null;
-  recordHeld: boolean;
   onSeePlan: () => void;
   onChangePlan: () => void;
   onBook: (which: CallWhich) => void;
-  onRecordNext: (arcId: string) => void;
 };
 
 type Meta = Record<string, unknown>;
@@ -80,27 +76,12 @@ export function PendingBooked({ text }: { text: string }) {
   );
 }
 
-function RecordButton({ label, onClick, disabled }: { label: string; onClick: () => void; disabled: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      data-plan-record
-      className="mb-2.5 mt-[18px] flex h-8 w-fit items-center gap-1.5 rounded-full border border-[#E6E6E6] bg-white px-3.5 text-[14px] font-semibold text-[#121212] disabled:opacity-50"
-    >
-      <span className="h-2 w-2 rounded-full bg-record" aria-hidden />
-      {label}
-    </button>
-  );
-}
-
+/** Today's one thing: its words, the key line and "How you said it". No
+ *  bubble carries a button (N294 item 7): while it is the newest, its
+ *  "Record Take N" stands under the chat, alone (`oneRecordOf`, the plan's
+ *  footer). */
 function OneThing({ message, ctx }: { message: LoungeMessage; ctx: PlanRowCtx }) {
-  const meta = (message.metadata ?? {}) as Meta;
   const plan = ctx.plan;
-  const arc = typeof meta.arc_id === "string" ? meta.arc_id : null;
-  const take = typeof meta.take_index === "number" ? meta.take_index : null;
-  const keeps = ctx.newestOne === message.client_id && arc !== null && take !== null;
   return (
     <WillBubble>
       <div className="whitespace-pre-wrap">{message.body}</div>
@@ -108,9 +89,6 @@ function OneThing({ message, ctx }: { message: LoungeMessage; ctx: PlanRowCtx })
         <div className="mb-2 mt-2.5 border-l-[3px] border-[#FF640A] py-0.5 pl-2.5 text-[15px] leading-[1.4]">“{plan.key_line}”</div>
       ) : null}
       {plan?.key_answer_id ? <VoicePlayer src={answerAudioUrl(plan.key_answer_id)} tone="grey" label={PLAN_COPY.howYouSaidIt} /> : null}
-      {keeps ? (
-        <RecordButton label={PLAN_COPY.recordTake((take ?? 0) + 1)} disabled={ctx.recordHeld} onClick={() => arc && ctx.onRecordNext(arc)} />
-      ) : null}
     </WillBubble>
   );
 }
@@ -222,8 +200,8 @@ export function planRowFor(message: LoungeMessage, ctx: PlanRowCtx | undefined):
 
 /** The newest "Today, one thing" row's client id, when it is newer than any
  *  closing message ("Record Take N", N89): the chat has one record button,
- *  in the newest bubble (N167). None once a newer Take is recorded, in any
- *  project (N244, N251). */
+ *  and it is that bubble's (N167). None once a newer Take is recorded, in
+ *  any project (N244, N251). */
 export function newestOneOf(messages: LoungeMessage[]): string | null {
   const recorded = recordedPast(messages);
   for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -232,4 +210,13 @@ export function newestOneOf(messages: LoungeMessage[]): string | null {
     if (meta.next_take === true) return null;
   }
   return null;
+}
+
+/** The Take the newest "Today, one thing" offers, while it holds the chat's
+ *  one record button: "Record Take N" under the chat, alone, the plan's
+ *  black button with the red dot (N294 item 7, N296 state 4). */
+export function oneRecordOf(messages: LoungeMessage[]): { arcId: string; takeIndex: number } | null {
+  const id = newestOneOf(messages);
+  const meta = ((id ? messages.find((m) => m.client_id === id)?.metadata : null) ?? {}) as Meta;
+  return typeof meta.arc_id === "string" && typeof meta.take_index === "number" ? { arcId: meta.arc_id, takeIndex: meta.take_index } : null;
 }
