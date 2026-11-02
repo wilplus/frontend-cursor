@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, praiseChat, shownStep, storedSummaryOf, tempoSaidIn, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, praiseChat, shownStep, sniperWords, storedSummaryOf, tempoSaidIn, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkIntervention, WalkStep } from "@/lib/willab/walkPlan";
 import { tipSaid, type WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
@@ -873,14 +873,17 @@ export function useDeckFeedbackWalk(args: {
      lines, each try with the dot's line and Will's word on it (N245), the
      closing line unless a try landed, as Lounge messages like every other
      step, so the walk opened again draws the game as it went (B5, N247);
-     the game itself kept for Will's note. */
+     the game itself kept for Will's note. As the One thing walk's fix its
+     opening keeps its tip, "give “{words}” more room" with the Sniper's
+     helper words, for "Last time" next Take (N347 item 3). */
   const onTempo = useCallback(
     (event: TempoEvent, one = false) => {
       if (!tempo) return;
       const say = (key: string, author: "app" | "speaker", body: string, attempt: number | null = null, extra?: Record<string, unknown>) =>
         post({ key, moment: null, attempt, author, body, extra });
       if (event.kind === "opened") {
-        say("tempo:open", "app", [TEMPO_COPY.game[tempo.reading], TEMPO_COPY.task(tempo.topic), TEMPO_COPY.room].join("\n"));
+        const words = one && tempoWords ? sniperWords(tempoWords.paragraphText, tempoWords.text) : null;
+        say("tempo:open", "app", [TEMPO_COPY.game[tempo.reading], TEMPO_COPY.task(tempo.topic), TEMPO_COPY.room].join("\n"), null, words ? { fix_tip: ONE_THING_COPY.paceTip(words.text) } : undefined);
       } else if (event.kind === "try") {
         say("tempo:try", "speaker", TEMPO_COPY.tryLabel(event.n), event.n, { path: event.path.slice(0, 300).map((v) => Math.round(v * 1000) / 1000) });
         // The Sniper as the One thing walk's fix says its own words (N309).
@@ -893,7 +896,7 @@ export function useDeckFeedbackWalk(args: {
         if (arcId && take) void postTempoGame(arcId, take, tempo.reading, event);
       }
     },
-    [tempo, post, args.arcId, take],
+    [tempo, tempoWords, post, args.arcId, take],
   );
   /* THE ONE THING WALK JUDGES ONE MOMENT, FROM TAKE 2 (founder 2026-10-31,
      N309 item 2, N300): its machine level the Take's turn, high, middle,
@@ -972,7 +975,8 @@ export function useDeckFeedbackWalk(args: {
   const replayInterventions = useMemo<readonly WalkIntervention[]>(() => (tempoSaid.length > 0 ? ["tempo"] : []), [tempoSaid]);
   // "Last time: {the tip}. You did." (N309 item 1): the tip the last Take's
   // walk gave, as its fix step kept it in the chat; a Clearer version's is
-  // its "Say it straight". No tip kept: no line.
+  // its "Say it straight"; the pace game's "give “{words}” more room" (N347
+  // item 3). No tip kept: no line.
   const lastTime = useMemo<FeedbackWalkLastTime | null>(() => {
     if (!lastFix) return null;
     const kept = threadMessages ? lastFixTip(threadMessages, take, args.arcId ?? null, args.takeIndex ?? null) : null;
