@@ -247,7 +247,7 @@ describe("the chats in front of the Lounge", () => {
     expect(sent()).toEqual([expect.stringMatching(/^👍It's good · \d\d:\d\d$/)]);
   });
 
-  it("the WillpowerLab bar hides while a person's chat is open and is back on the list", async () => {
+  it("the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's", async () => {
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
     routes.set("GET /api/v2/chats/c-sarah/messages", () => ({ messages: [] }));
@@ -262,8 +262,11 @@ describe("the chats in front of the Lounge", () => {
     expect(container.querySelector("[data-chat-list]")).not.toBeNull();
     expect(navbar().hidden).toBe(false);
 
-    // Will's chat keeps it (N322 item 4).
+    // Will's chat has its own top bar too (N334 item 1; was N322 item 4).
     await tap(row("will"));
+    expect(navbar().hidden).toBe(true);
+    expect(container.querySelector("[data-chat-header]")?.textContent).toBe("Will");
+    await tap(container.querySelector("[data-chat-header] button"));
     expect(navbar().hidden).toBe(false);
   });
 
