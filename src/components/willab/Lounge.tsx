@@ -166,6 +166,7 @@ import {
 import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import WillQuestionBubble, { TapRow, willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
+import { isWillVoice, useWillVoice, WillVoiceBubble } from "./WillVoiceAnswer";
 import { RecordDockButton } from "./plan/PlanDock";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
@@ -1045,11 +1046,14 @@ export default function Lounge({
       // THE REVIEW OPENS BY ITSELF when the Take's feedback is ready, even if
       // the speaker left the processing screen for the chat (section 1). The
       // wait stays over it until the walk is on screen (founder 2026-10-21).
-      void reload().catch(() => undefined);
+      // FROM THE TAKE STRAIGHT INTO THE WALK (founder 2026-11-01, N319 item
+      // 10): the walk opens at once, its wait over it from this Take's own
+      // marker, and the chat fills in underneath; it is never shown between.
       if (take.arcId) {
-        waitScreen.coverWalk(take.sessionId);
+        waitScreen.coverWalk(take);
         openIdealText(take.arcId, "review");
       }
+      void reload().catch(() => undefined);
     },
     onExpired: (take) => {
       if (take.arcId && take.takeIndex === 1) {
@@ -1494,7 +1498,19 @@ export default function Lounge({
   // A NEW BUBBLE IS ALWAYS SHOWN (founder 2026-09-28), even when the thread
   // was scrolled up, and See next steps lands on the newest one. Only a new
   // message moves the thread; reading history otherwise stays where it is.
-  usePinThreadBottom(scrollRef, messages.length, thread.loading, didInitScrollRef);
+  const pinBottom = usePinThreadBottom(scrollRef, messages.length, thread.loading, didInitScrollRef);
+  // THE CHAT FOLLOWS THE NEWEST BUBBLE AFTER AN ANSWER (founder 2026-11-01,
+  // N319 item 9): a tap, a typed message, a voice answer or the continue tap
+  // lands the thread on the newest bubble even when it was scrolled up;
+  // bubbles that arrive on their own move it as above.
+  const followAnswer = useCallback(() => {
+    atBottomRef.current = true;
+    pinBottom();
+  }, [pinBottom]);
+  // Answering Will by voice (N294 items 2 and 3, N296 states 2 and 3): the
+  // mic orange while he waits, the one recording bar, the answer's bubble.
+  const shownMessages = useMemo(() => shownItems.map((item) => item.message), [shownItems]);
+  const willVoice = useWillVoice({ shown: shownMessages, reload, onAnswered: followAnswer });
 
   // U3 — capture the historical baseline once the thread first loads, so only
   // messages that arrive AFTER it (new bot replies) animate.
@@ -1527,7 +1543,7 @@ export default function Lounge({
     if (!q || botThinking) return;
     setDraftText("");
     // Under the goodbye, saying they want to practise is the tap (N294 item 6).
-    if (goodbye.typed(q)) return;
+    if (goodbye.typed(q)) return followAnswer();
     await runSend(q);
   }
 
@@ -1553,6 +1569,7 @@ export default function Lounge({
   // writes it with the reply, then the thread reads it back.
   async function answerWillQuestion(target: WillQuestionTarget, choice: string): Promise<void> {
     if (await postWillQuestion(target.arcId, target.takeSessionId, choice)) await reload();
+    followAnswer();
   }
 
   function postAnswerBubble(label: string) {
@@ -1714,6 +1731,7 @@ export default function Lounge({
         await thread.append(chatFailureReply(err, thread.signedIn, readExploreArc(userId) !== null));
       } finally {
         setBotThinking(false);
+        followAnswer();
       }
       return true;
     } finally {
@@ -1877,7 +1895,13 @@ export default function Lounge({
 
         {/* Under the goodbye after a Take, the one tap (N294 item 6): it
             stays the speaker's own answer in the thread. */}
-        <ContinueTap shown={goodbye.tap && !thread.loading} onTap={goodbye.choose} />
+        <ContinueTap
+          shown={goodbye.tap && !thread.loading}
+          onTap={(said) => {
+            goodbye.choose(said);
+            followAnswer();
+          }}
+        />
 
         {/* While a Take processes (founder lock 2026-10-12, section 1): a
             bubble in the chat with the typing dots (founder 2026-10-20, in
@@ -1911,6 +1935,7 @@ export default function Lounge({
 
         <VoiceNoteThread notebook={notebook} />
         {plan.pending}
+        {willVoice.pending}
         {botThinking && <TypingDots />}
       </div>
 
@@ -2100,8 +2125,12 @@ export default function Lounge({
       <SlidesAskComposer ask={slidesAsk}>
       <PolicyUpdateComposer>
       <VoiceNoteBar notebook={notebook} />
+      {willVoice.bar}
       <VoiceNoteFixBar notebook={notebook} />
-      <form onSubmit={handleSend} className={`${plan.composerDisplay(notebook.composerDisplay)} items-end gap-1`}>
+      <form
+        onSubmit={handleSend}
+        className={`${plan.composerDisplay(willVoice.composerDisplay(notebook.composerDisplay))} items-end gap-1`}
+      >
         {/* THE "+" (founder 2026-10-12, WhatsApp-like): it opens the
             projects, where "Start a new project" starts one. It replaced the
             Record button. Held while a Take is still landing, for the same
@@ -2164,8 +2193,10 @@ export default function Lounge({
             </button>
           ) : null}
         </div>
-        {/* The voice notebook's mic, right of the input (founder 2026-10-20). */}
-        <VoiceNoteMic notebook={notebook} draft={draftText} />
+        {/* The voice notebook's mic, right of the input (founder 2026-10-20);
+            orange while Will waits, and then it records the answer (N296
+            state 2). */}
+        <VoiceNoteMic notebook={notebook} draft={draftText} waiting={willVoice.waiting} />
       </form>
       </PolicyUpdateComposer>
       </SlidesAskComposer>
@@ -2610,6 +2641,7 @@ function askBubble(
 ) {
   const planned = planRowFor(message, planRows);
   if (planned) return <>{planned}</>;
+  if (isWillVoice(message)) return <WillVoiceBubble message={message} />;
   const head = sundayHeadOf(message.metadata);
   if (head) {
     return <SundayHeadBubble body={message.body} waiting={sundayWaiting?.(head) ?? false} onOpen={() => onOpenSunday?.(head)} />;
