@@ -11,8 +11,9 @@ N228, folded here into the rules as they stand; each later entry about
 customer requests is folded in the same way. The entries keep their
 N-numbers and stay the record.
 
-**Not built.** Decided and drawn; nothing in the code yet. §2 says the order
-it is built in.
+**Not built,** but for its first slice: the list of chats and a chat's
+screen, behind ring 6 (feature `chats`, §2). Decided and drawn; §2 says the
+order it is built in.
 
 **How this page works**
 
@@ -341,7 +342,15 @@ them:
 
 ## 2. In flight
 
-Nothing built. The order of the build, each slice proving one thing (N223
+Built behind ring 6 (feature `chats`, the founder only; 2026-11-02): the
+list of chats in front of the Lounge (C1: Will pinned, then each chat's
+title, subtitle and last message; the first time, the two demo chats) and a
+chat's screen, the conversation only, with the three emoji in the locked
+bar (N298, N302, N305, N306, N311). Off, /chat is the Lounge as it is. Not
+yet: the voice note, passing on, the unread count, the status and the
+filters. There is no typing outside Will's chat (N298 item 4).
+
+Nothing else built. The order of the build, each slice proving one thing (N223
 item 15, N225):
 
 1. The workspace, the widget and the popup, the request card in the chat, the
@@ -416,7 +425,12 @@ item 15, N225):
 
 ## 4. Where it lives
 
-Not built. Where it will live, so §1 has a home from the first PR:
+The list of chats and a chat's screen (§2): frontend
+`src/components/willab/chats/` (mounted by `WillabSurface.tsx` around the
+Lounge, which it leaves as it is), `src/services/api/chats.ts` and the BFF
+routes `src/app/api/v2/chats/`; the backend's `/v2/chats` routes.
+
+The rest is not built. Where it will live, so §1 has a home from the first PR:
 
 - Frontend: `public/w.js` (the widget), `src/app/w/[key]/` (the form the
   widget opens), `src/app/a/[token]/` (the answer chat), the answerer's ask
@@ -480,6 +494,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N298, N302, N306, N311 · C1, §2, §4: built behind ring 6 (feature `chats`): the list of chats in front of the Lounge, Will pinned first (his row opens the Lounge as it is, with a back to the list), then each chat with its title, subtitle and last message, and the two demo chats the first time; a chat's screen with back, title and subtitle, the Lounge's bubbles with no picture (N301), and the locked bar's shape with 👍 👀 🙏 in the box where Will's chat has "Type here", each sent emoji large with its meaning under it ("It's good", "Seen, I'll answer", "Thanks"). Off, /chat is the Lounge as it is. No typing, voice note or passing on yet · BE (the chats routes), FE (this PR)
 - 2026-10-30 · N274 · C1: the list of chats is everyone's, not only an answerer's; a person whose only chat is Will's opens on it. Was: a speaker without customer requests never saw the list · BE #1506, FE (this PR)
 - 2026-10-29 · N256 · C1 to C4, D5, F1, F2, K, §3, §5: the answerer's Lounge becomes a list of chats, Will pinned, one chat per customer; her answer, the send ask, the customer's replies and the outcomes in the customer's chat; the walk in Will's chat; no group chat. Was: every customer in one thread, a "To {customer}" chip for replies · BE #1479, FE (this PR)
 - 2026-10-28 · N250 · H8, H10, H11, I4, §3: a frontier model first, the client's data as its asset, one kit per client, the enterprise pack; the call's questions 11 to 17 (what Invita already has). Was: a fine-tune at 200 pairs · BE #1466, FE (this PR)

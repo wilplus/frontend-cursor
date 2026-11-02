@@ -35,6 +35,7 @@ import {
 } from "@/lib/willab/coachLink";
 import { readParked } from "./willabParked";
 import { LoungeThreadProvider } from "./LoungeThreadContext";
+import { useChatsDoor } from "./chats/useChatsDoor";
 import { afterChatBoot } from "@/lib/chatBoot";
 import {
   beginSetupDraft,
@@ -172,6 +173,10 @@ export default function WillabSurface({
   }, [settleHomeStatus]);
   usePublishLiveSubscription(userId, onPublish);
   useFirstVisitSteps(flow.state, signedIn);
+  // The list of chats in front of the Lounge, ring 6 only (feature `chats`;
+  // docs/flows/customer-requests.md C1). Off, it draws nothing: the Lounge
+  // as it is. A link into the Lounge opens on Will's chat.
+  const chats = useChatsDoor(idealTextArcId !== null || bestPresentationArcId !== null);
 
   // A2 — `flush` drops the TOP padding so the chat sits flush under the navbar
   // (no gap). Scoped to the home/Lounge call only; welcome keeps py-6.
@@ -190,7 +195,7 @@ export default function WillabSurface({
         className={`mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden ${shellPadding(
           flush,
           bare,
-        )}`}
+        )}${flush && chats.front ? " relative" : ""}`}
       >
         {children}
       </div>
@@ -247,6 +252,7 @@ export default function WillabSurface({
   // recording's Readout into the same scrollable history.
   return authorizedShell(
     <LoungeThreadProvider signedIn={signedIn}>
+      {chats.back}
       <Lounge
         state={flow.state}
         onStart={flow.startRecording}
@@ -381,6 +387,7 @@ export default function WillabSurface({
       )}
       {/* The Lab's screens fade back out over the Lounge (Q-B14 A, D-RC-7). */}
       <LabFadeOut open={flow.labOverlayOpen} />
+      {chats.front}
     </LoungeThreadProvider>,
     true // A2 — home/Lounge: flush the chat to the navbar (no top gap)
   );
