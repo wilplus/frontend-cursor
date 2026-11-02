@@ -2173,9 +2173,9 @@ export default function Lounge({
             // two and made a chat field read as a text area.
             placeholder="Type here"
             // While the plan asks (N319 item 3): in the bar, faded, not
-            // focusable; Will needs to hear the answer. The short note a tap
-            // shows above the bar waits for the founder's words (Never 4), so
-            // there is none yet (the-plan.md §3).
+            // focusable; Will needs to hear the answer. A tap on it shows
+            // the plan's short note above the bar (`plan.typingWait`, N323
+            // item 1; the-plan.md B10).
             disabled={plan.typingOff}
             /* B9 — kill any autofill / password-manager overlay that can ghost
                a second line of placeholder text over a chat composer. R4-12 —
@@ -2193,6 +2193,7 @@ export default function Lounge({
             }`}
             aria-label="Message Will"
           />
+          {plan.typingWait}
           {/* Only once there is text: an always-present grey Send is a button
               that cannot be pressed, and it costs the field 32px to say so. */}
           {plan.draft(draftText).trim() ? (

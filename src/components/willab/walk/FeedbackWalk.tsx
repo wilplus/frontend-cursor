@@ -284,7 +284,9 @@ const FIX_OPENERS: ReadonlySet<string> = new Set(["clearer", "exVideo", "tempo"]
  *  how they are saved; none to save when they are already the saved ones. */
 type OneWords = { text: string; save: FeedbackWalkHelperWords | null; practice?: Promise<string | null> | null };
 
-/** One to eight words, the helper words' signed cap. Pure. */
+/** One to eight words, the helper words' signed cap: kept for the Sniper's
+ *  stretch, a whole clip; the walk's sentences are saved whole (N323 item
+ *  2). Pure. */
 const withinCap = (text: string) => {
   const n = text.split(/\s+/).filter(Boolean).length;
   return n > 0 && n <= HELPER_WORDS_MAX;
@@ -734,9 +736,11 @@ export default function FeedbackWalk<R = unknown>({
   /** The helper words the One thing walk gives after its fix, on their own
    *  (N309 item 3): the words of their own sentence the fix leans on (the AI
    *  clip's quoted phrase, their own sentence kept), or the Clearer
-   *  version's sentence; the Sniper's stretch. Within the signed cap of
-   *  eight words, and found where they are saved; else none. Played again,
-   *  the words as saved. */
+   *  version's sentence, whole, whatever their length (N323 item 2); the
+   *  Sniper's stretch within the cap of eight words. Found where they are
+   *  saved; else none: a tip that quotes no phrase gives none, and the walk
+   *  goes on to "Lesson done." (N323 item 3). Played again, the words as
+   *  saved. */
   const fixWords = (s: WalkStep): OneWords | null => {
     if (s.of == null) {
       if (s.replay || !tempoWords || !withinCap(tempoWords.text)) return null;
@@ -753,7 +757,7 @@ export default function FeedbackWalk<R = unknown>({
     }
     const own = (text: string | null | undefined): OneWords | null => {
       const words = text?.trim();
-      if (!words || !withinCap(words)) return null;
+      if (!words) return null;
       const span = quoteSpan(moment.paragraphText, words);
       return span
         ? { text: helperWordsSaid(stripRichMarkers(span.text)), save: { partId: moment.partId, span, paragraphText: moment.paragraphText, auto: true } }
@@ -766,7 +770,7 @@ export default function FeedbackWalk<R = unknown>({
       if (tried.kind === "keep") return own(moment.clearer.said);
       const sentence = moment.clearer.say.trim();
       const practice = practise.practiceOf(moment.index);
-      if (!withinCap(sentence) || !practice) return null;
+      if (!sentence || !practice) return null;
       return {
         text: sentence,
         save: { partId: moment.partId, span: { text: sentence, start: null, end: null }, paragraphText: moment.paragraphText, auto: true },

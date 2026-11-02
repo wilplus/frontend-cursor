@@ -1268,9 +1268,12 @@ export function useDeckFeedbackWalk(args: {
       );
       return;
     }
-    const span = spanOnLiveText(save, chunk.part.text);
+    const found = spanOnLiveText(save, chunk.part.text);
     // The words already saved, pressed again: nothing to write.
-    if (span && sameHelperWords(span.text, live.current.helperWordsOf?.(save.partId))) return;
+    if (found && sameHelperWords(found.text, live.current.helperWordsOf?.(save.partId))) return;
+    // The walk's own words are saved whole, past the cap on a pick by hand
+    // (N323 item 2).
+    const span = found && save.auto ? { ...found, whole: true } : found;
     saveBehind(
       async () => (span ? helperWordsBehind(setRootPhrase, lockPart, chunk, span) : "final"),
       CHUNK_SHEET_COPY.failWordsBehind,
