@@ -24,6 +24,11 @@ export const WILL_ROW_TITLE = "Will";
 /** Signed in N322 item 3 (Never 4): the list's line after a voice note. */
 export const VOICE_MESSAGE_LINE = "🎤 Voice message";
 
+/** The list's line after a photo, and after a file, with the file's own
+ *  name (N351): an emoji and the person's own words, no word of ours. */
+export const PHOTO_LINE = "📷";
+export const fileLine = (name: string) => `📄 ${name}`;
+
 /** One meaning per emoji, everywhere; a sent emoji shows it under itself
  *  (N311 item 1, signed). */
 export const EMOJI_MEANING: Record<ChatEmoji, string> = {
@@ -87,10 +92,12 @@ export function WillMark({ size = 48 }: { size?: number }) {
 }
 
 /** The last message on one line: its words, the emoji with its meaning, or
- *  the voice note's line. */
+ *  the voice note's, the photo's or the file's line. */
 export function lastLine(last: ChatLast | null): string {
   if (!last) return "";
   if (last.kind === "voice") return VOICE_MESSAGE_LINE;
+  if (last.kind === "photo") return PHOTO_LINE;
+  if (last.kind === "file") return fileLine(last.body);
   if (last.kind === "emoji") {
     const meaning = meaningOf(last.body);
     return meaning ? `${last.body} ${meaning}` : last.body;
@@ -158,8 +165,9 @@ function ChatListRow({
 /** Add someone (backend N308, N310, N328): your own link, to paste into any
  *  email or message; whoever opens it joins you here. The only way anyone
  *  comes into your chats. "Invite by email" (N307) comes with the email
- *  invite; copying the link needs nothing else. */
-function AddSomeoneSheet({ onClose }: { onClose: () => void }) {
+ *  invite; copying the link needs nothing else. The list's "+" opens it, and
+ *  so does "Someone else" on a chat's "+" (N351). Needs a `relative` parent. */
+export function AddSomeoneSheet({ onClose }: { onClose: () => void }) {
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   useEffect(() => {

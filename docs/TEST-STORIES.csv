@@ -479,15 +479,16 @@ O4  A save the server refuses hands the deck the signed
 O2 -> ""the same answer sends nothing""
 O3 -> ""a rewrite never reopens""
 O4 -> ""a failed save hands the deck the signed notice""","Founder QA1 A, decisions log N51.5; build plan D-FW-9."
-src/components/willab/chats/chats.test.tsx,Story,"As the founder testing the chats between users (ring 6), I want my chats in front of the Lounge, with Will first, so that I can open a colleague's or a customer's chat and answer with an emoji or a voice note; and as every other speaker, I want /chat to stay the Lounge as it is.","O1  Off (no `chats` in the ring's features_on): nothing is drawn around
+src/components/willab/chats/chats.test.tsx,Story,"As the founder testing the chats between users (ring 6), I want my chats in front of the Lounge, with Will first, so that I can open a colleague's or a customer's chat, answer with an emoji or a voice note, and start something new with a photo or a file; and as every other speaker, I want /chat to stay the Lounge as it is.","O1  Off (no `chats` in the ring's features_on): nothing is drawn around
 the Lounge and no chat is read (Never 3).
 O2  On: the list stands in front of the Lounge, Will pinned first, then
 the chats, newest last message first, each with its title, subtitle
 and last message (an emoji with its meaning); an empty list asks for
 the demo once. Will's row uncovers the Lounge, never remounted, with
 a back to the list (customer-requests.md C1; N274, N298, N322).
-O3  In a chat, the bar holds the three emoji in the box, no typing, and
-the mic beside it only while a question waits for my answer; a tap on
+O3  In a chat, the bar holds the ""+"", the three emoji in the box, no
+typing, and the mic beside it only while a question waits for my
+answer; a tap on
 an emoji posts {""kind"":""emoji"",""body"":…} and shows the emoji at once,
 large, with its meaning and time under it, and the mic goes (N306,
 N311, N322, N341).
@@ -511,7 +512,17 @@ no such line.
 O10 Just joined (/chat?with=<chat>), the list opens with the chat with
 the one who invited me as its first row, above Will's, marked new with
 the joined line, and the address is clean again; opened, it is a chat
-like the rest (N357; was N348 item 1).","O1 -> ""with chats off, the Lounge is all there is and no chat is read""
+like the rest (N357; was N348 item 1).
+O11 The ""+"" in a chat swaps the bar for four tiles with their names,
+Photos, Camera, Files and Someone else; Someone else opens the add
+sheet with my link; Cancel brings the bar back (N351).
+O12 A photo I pick is posted to the chat's photo route and joins the
+thread as my image; the mic then shows, so I can say what I need, and
+goes once my voice note is sent (N337, N341 item 2, N351).
+O13 The other person's photo or file waits for my voice: the mic shows. A
+file shows a tile with its extension and its own name, and downloads
+from the chat's file route; a photo opens full size with a close and
+no words; the list's line is ""📷"", or ""📄"" and the file's name (N351).","O1 -> ""with chats off, the Lounge is all there is and no chat is read""
 O2 -> ""with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back""
 O3 -> ""an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question""
 O4 -> ""the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's""
@@ -520,7 +531,10 @@ O6 -> ""the mic records a voice note, Stop posts it and it joins the thread""
 O7 -> ""a voice note from the other person plays from the chat's audio route, its words behind Read it""
 O8 -> ""the + opens my own link and copies it""
 O9 -> ""a chat joined through a link says whose link it was""
-O10 -> ""after joining, the list opens with the one who invited me on top, marked new""",
+O10 -> ""after joining, the list opens with the one who invited me on top, marked new""
+O11 -> ""the + shows the four tiles, Someone else opens my link, and Cancel brings the bar back""
+O12 -> ""a photo I send joins the thread and the mic shows until my voice note says what I need""
+O13 -> ""the other person's photo or file waits for my voice, and each opens from the chat's file route""",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.

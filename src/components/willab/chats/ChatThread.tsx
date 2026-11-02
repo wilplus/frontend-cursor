@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronLeft, Mic } from "lucide-react";
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { Camera, ChevronLeft, File as FileIcon, ImageIcon, Mic, Plus, UserPlus, X, type LucideIcon } from "lucide-react";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 import RecordingBar from "@/components/willab/RecordingBar";
 import TypingDots from "@/components/willab/TypingDots";
@@ -10,15 +10,18 @@ import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { useVoiceNote } from "@/components/willab/useVoiceNote";
 import {
   CHAT_EMOJI,
+  chatFileSrc,
   chatVoiceSrc,
   getChatThread,
   sendChatEmoji,
+  sendChatUpload,
   sendChatVoice,
   type Chat,
   type ChatEmoji,
   type ChatMessage,
 } from "@/services/api/chats";
-import { EMOJI_MEANING, LetterCircle, WILL_ROW_TITLE, WillMark, meaningOf } from "./ChatList";
+import { AddSomeoneSheet, EMOJI_MEANING, LetterCircle, WILL_ROW_TITLE, WillMark, meaningOf } from "./ChatList";
+import { photoForUpload } from "./photoForUpload";
 import { markChatOpened } from "./chatOpened";
 import { joinedThrough } from "./joinCopy";
 import { clockTime, dayKey, dayLabel } from "./chatTime";
@@ -31,8 +34,9 @@ import { clockTime, dayKey, dayLabel } from "./chatTime";
 /*  Lounge's own chat design (N301): its grey and orange bubbles, no picture  */
 /*  beside them, each with its time; the messages start at the bottom, by the */
 /*  bar, under the day ("Today"). The locked bar's shape with the three emoji */
-/*  in the box where Will's chat has "Type here" (N306), and the mic beside   */
-/*  it only while a question waits for your answer (N341; was N321 item 2).   */
+/*  in the box where Will's chat has "Type here" (N306), the "+" on its left  */
+/*  (N351: Photos, Camera, Files, Someone else), and the mic beside it only   */
+/*  while a question waits for a voice (N341; was N321 item 2).               */
 /*  Only the conversation shows here; no asks (N305).                         */
 /* -------------------------------------------------------------------------- */
 
@@ -87,6 +91,17 @@ export function WillTopBar({ onBack }: { onBack: () => void }) {
 /** The two words under a voice note's player (backend N331, signed). */
 export const READ_IT = "Read it";
 export const HIDE_WORDS = "Hide";
+
+/** The "+" (backend N337, N351, signed): its name for a screen reader, its
+ *  four tiles and the quiet link that brings the bar back. */
+export const addToChatWith = (name: string) => `Add to your chat with ${name}`;
+export const PLUS_TILES: readonly { id: "photos" | "camera" | "files" | "someone"; label: string; color: string; Icon: LucideIcon }[] = [
+  { id: "photos", label: "Photos", color: "#7C5CFF", Icon: ImageIcon },
+  { id: "camera", label: "Camera", color: "#E5484D", Icon: Camera },
+  { id: "files", label: "Files", color: "#2F7CF6", Icon: FileIcon },
+  { id: "someone", label: "Someone else", color: "#1F9D55", Icon: UserPlus },
+];
+export const PLUS_CANCEL = "Cancel";
 
 /** A voice note's words, closed under its player (backend N331): "Read it"
  *  opens them inside the bubble, "Hide" closes them. Closed by default, for
@@ -160,12 +175,97 @@ function ChatVoice({ chatId, message, time }: { chatId: string; message: ChatMes
   );
 }
 
+/** A photo's or a file's bubble (N351): mine orange on the right, theirs
+ *  grey on the left, its time under it on the right. */
+function FileBubble({ mine, time, children }: { mine: boolean; time: string; children: ReactNode }) {
+  const body = (
+    <>
+      {children}
+      {time ? (
+        <span data-chat-time className={`mt-1 self-end px-1 text-[11px] leading-none ${mine ? "text-primary-foreground/90" : "text-muted-foreground"}`}>
+          {time}
+        </span>
+      ) : null}
+    </>
+  );
+  if (mine) {
+    return (
+      <div data-row="me" data-bubble="" className="ml-auto flex max-w-[85%] flex-col rounded-2xl bg-primary p-1.5 pb-2 text-primary-foreground">
+        {body}
+      </div>
+    );
+  }
+  return (
+    <div data-row="app" className="mr-auto flex max-w-[88%]">
+      <div data-bubble="" className="flex min-w-0 flex-col rounded-[16px] bg-muted p-1.5 pb-2 text-foreground">
+        {body}
+      </div>
+    </div>
+  );
+}
+
+/** A file's extension, from its own name ("PDF"); empty when it has none. */
+export function extensionOf(name: string): string {
+  const dot = name.lastIndexOf(".");
+  const ext = dot > 0 ? name.slice(dot + 1) : "";
+  return /^[a-z0-9]{1,5}$/i.test(ext) ? ext.toUpperCase() : "";
+}
+
+/** A photo (N351): tapped, it opens full size. */
+function ChatPhoto({ src, mine, time, onOpen }: { src: string; mine: boolean; time: string; onOpen: (src: string) => void }) {
+  return (
+    <FileBubble mine={mine} time={time}>
+      <button type="button" data-chat-photo={src} onClick={() => onOpen(src)} className="block overflow-hidden rounded-xl">
+        {/* eslint-disable-next-line @next/next/no-img-element -- a photo from the chat's own route, behind the session; nothing for next/image to optimise */}
+        <img src={src} alt="📷" className="block max-h-[280px] w-full max-w-[240px] object-cover" />
+      </button>
+    </FileBubble>
+  );
+}
+
+/** A file (N351): a small tile with its extension, and its own name; no size,
+ *  no other words. Tapped, the backend gives it, to keep or to open. */
+function ChatFile({ src, message, time }: { src: string; message: ChatMessage; time: string }) {
+  const name = message.body;
+  return (
+    <FileBubble mine={message.mine} time={time}>
+      <a href={src} download={name || true} data-chat-file="" className="flex items-center gap-2.5 rounded-[10px] bg-black/[0.12] px-2.5 py-2">
+        <span data-chat-file-ext="" className="flex h-10 w-[34px] shrink-0 items-center justify-center rounded-[5px] bg-[#E5484D] text-[9px] font-bold text-white">
+          {extensionOf(name)}
+        </span>
+        <span className="min-w-0 break-words text-[14px] font-semibold leading-snug">{name}</span>
+      </a>
+    </FileBubble>
+  );
+}
+
+/** A photo full size, over everything, with a close ✕ and no words (N351). */
+function PhotoFull({ src, onClose }: { src: string; onClose: () => void }) {
+  return (
+    <div data-chat-photo-full="" className="fixed inset-0 z-50 flex items-center justify-center bg-black/90" onClick={onClose}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- as in the bubble */}
+      <img src={src} alt="📷" className="max-h-full max-w-full object-contain" onClick={(e) => e.stopPropagation()} />
+      <button
+        type="button"
+        aria-label={CHUNK_SHEET_COPY.pillClose}
+        onClick={onClose}
+        className="absolute right-3 top-[calc(env(safe-area-inset-top)+12px)] flex h-11 w-11 items-center justify-center rounded-full text-white"
+      >
+        <X className="h-6 w-6" aria-hidden />
+      </button>
+    </div>
+  );
+}
+
 /** One message, as the Lounge draws it: theirs grey on the left, mine orange
  *  on the right, its time inside, bottom right; an emoji large, with its
- *  meaning and time under it; a voice note with its player. */
-function ChatRow({ chatId, message }: { chatId: string; message: ChatMessage }) {
+ *  meaning and time under it; a voice note with its player; a photo or a
+ *  file (N351). */
+function ChatRow({ chatId, message, onPhoto }: { chatId: string; message: ChatMessage; onPhoto: (src: string) => void }) {
   const time = clockTime(message.created_at);
   if (message.kind === "voice") return <ChatVoice chatId={chatId} message={message} time={time} />;
+  if (message.kind === "photo") return <ChatPhoto src={chatFileSrc(chatId, message.id)} mine={message.mine} time={time} onOpen={onPhoto} />;
+  if (message.kind === "file") return <ChatFile src={chatFileSrc(chatId, message.id)} message={message} time={time} />;
   if (message.kind === "emoji") {
     const caption = [meaningOf(message.body), time].filter(Boolean).join(" · ");
     return (
@@ -232,24 +332,75 @@ function withDays(messages: readonly ChatMessage[]): { day: string | null; messa
   });
 }
 
-/** A question waits for my answer (backend N341 item 1): the newest message
- *  is the other person's, and it is a question: their words (people never
+/** The mic shows while the newest message waits for a voice (backend N341,
+ *  N351): the other person's question, that is their words (people never
  *  type, N335 item 4, so words come only from a customer's request) or a
- *  message the backend marks as one (`meta.question`). My answer, an emoji
- *  or a voice note, is then the newest, and nothing waits. */
-export function questionWaits(messages: readonly ChatMessage[] | null): boolean {
+ *  message the backend marks as one (`meta.question`: each photo or file,
+ *  and the voice note sent right after it, N341 item 2); or my own photo or
+ *  file, until my voice note says what I need (N337). My answer, an emoji or
+ *  a voice note, is then the newest, and nothing waits. */
+export function micShows(messages: readonly ChatMessage[] | null): boolean {
   const newest = messages?.at(-1);
-  if (!newest || newest.mine) return false;
+  if (!newest) return false;
+  if (newest.mine) return newest.kind === "photo" || newest.kind === "file";
   return newest.kind === "text" || newest.meta?.question === true;
 }
 
-/** The locked bar's shape (the Lounge's composer): the rounded box, with the
- *  three emoji as round buttons in it, and on its right the Lounge's mic,
- *  40px and plain, only while a question waits (N341; the prototype's
- *  `pBar`). No typing outside Will's chat. */
-function EmojiBar({ onPick, onMic }: { onPick: (emoji: ChatEmoji) => void; onMic: (() => void) | null }) {
+/** The "+"'s four tiles in the bar's place, each a round colour with its
+ *  name under it, and "Cancel" under the row, quiet, which brings the bar
+ *  back (N351; the prototype's `attachSheet`). */
+function PlusTiles({ onTile, onCancel }: { onTile: (id: (typeof PLUS_TILES)[number]["id"]) => void; onCancel: () => void }) {
+  return (
+    <div data-chat-tiles="" className="flex min-w-0 flex-1 flex-col gap-2 pt-2">
+      <div className="grid grid-cols-4 gap-x-1.5 gap-y-2.5 px-0.5 pb-0.5 pt-1.5">
+        {PLUS_TILES.map(({ id, label, color, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            data-chat-tile={id}
+            onClick={() => onTile(id)}
+            className="flex flex-col items-center gap-1.5 py-1 text-[12.5px] font-medium text-foreground"
+          >
+            <i aria-hidden className="flex h-[52px] w-[52px] items-center justify-center rounded-full text-white" style={{ background: color }}>
+              <Icon className="h-6 w-6" strokeWidth={2} />
+            </i>
+            {label}
+          </button>
+        ))}
+      </div>
+      <button type="button" data-chat-tiles-cancel="" onClick={onCancel} className="h-[34px] w-full text-[16px] text-muted-foreground">
+        {PLUS_CANCEL}
+      </button>
+    </div>
+  );
+}
+
+/** The locked bar's shape (the Lounge's composer): the "+" on the left
+ *  (N351), the rounded box with the three emoji as round buttons in it, and
+ *  on its right the Lounge's mic, 40px and plain, only while a question
+ *  waits (N341; the prototype's `pBar`). No typing outside Will's chat. */
+function EmojiBar({
+  name,
+  onPlus,
+  onPick,
+  onMic,
+}: {
+  name: string;
+  onPlus: () => void;
+  onPick: (emoji: ChatEmoji) => void;
+  onMic: (() => void) | null;
+}) {
   return (
     <>
+      <button
+        type="button"
+        onClick={onPlus}
+        aria-label={addToChatWith(name)}
+        data-chat-plus=""
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
+      >
+        <Plus className="h-5 w-5" aria-hidden />
+      </button>
       <div data-chat-emoji-box className="flex min-h-[40px] min-w-0 flex-1 items-center justify-around rounded-3xl border border-border bg-background px-2">
         {CHAT_EMOJI.map((emoji) => (
           <button
@@ -283,7 +434,12 @@ let localSeq = 0;
 export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () => void }) {
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
   const [through, setThrough] = useState<string | null>(null);
+  // The "+" (N351): its tiles in the bar's place, the add sheet, a photo full size.
+  const [tiles, setTiles] = useState(false);
+  const [inviting, setInviting] = useState(false);
+  const [fullPhoto, setFullPhoto] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const pickers = { photos: useRef<HTMLInputElement>(null), camera: useRef<HTMLInputElement>(null), files: useRef<HTMLInputElement>(null) };
   useBackDismiss(onBack);
 
   // The voice note (N321 item 2): the mic records with the one recording
@@ -329,6 +485,28 @@ export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () =>
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
+  // A tile: the bar comes back at once, and the browser's own picker opens
+  // (Photos, Camera, Files), or the add sheet (Someone else). We draw no
+  // picker of our own.
+  const tile = (id: (typeof PLUS_TILES)[number]["id"]) => {
+    setTiles(false);
+    if (id === "someone") setInviting(true);
+    else pickers[id].current?.click();
+  };
+
+  // What was picked goes, one by one, in order; each joins the thread once
+  // the backend has kept it. A refused picker, a failed send or a file too
+  // big shows nothing new.
+  const upload = (kind: "photo" | "file") => async (e: ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    for (const file of picked) {
+      const { blob, name } = kind === "photo" ? await photoForUpload(file) : { blob: file, name: file.name };
+      const sent = await sendChatUpload(chat.id, kind, blob, name);
+      if (sent) setMessages((list) => [...(list ?? []), sent]);
+    }
+  };
+
   // Drawn at once; the backend's copy replaces it, a failed send takes it away.
   const send = async (emoji: ChatEmoji) => {
     localSeq += 1;
@@ -347,7 +525,7 @@ export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () =>
   };
 
   return (
-    <div data-chat-screen className="flex min-h-0 flex-1 flex-col">
+    <div data-chat-screen className="relative flex min-h-0 flex-1 flex-col">
       <ChatTopBar chat={chat} onBack={onBack} />
       <div
         ref={scrollRef}
@@ -362,7 +540,7 @@ export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () =>
           ) : (
             withDays(messages).flatMap(({ day, message }) => [
               ...(day ? [<ChatDay key={`day-${message.id}`} label={day} />] : []),
-              <ChatRow key={message.id} chatId={chat.id} message={message} />,
+              <ChatRow key={message.id} chatId={chat.id} message={message} onPhoto={setFullPhoto} />,
             ])
           )}
         </div>
@@ -372,10 +550,23 @@ export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () =>
           <div className="min-w-0 flex-1">
             <RecordingBar elapsedMs={note.elapsedMs} onTrash={note.cancel} onStop={note.send} />
           </div>
+        ) : tiles ? (
+          <PlusTiles onTile={tile} onCancel={() => setTiles(false)} />
         ) : (
-          <EmojiBar onPick={(emoji) => void send(emoji)} onMic={questionWaits(messages) ? () => void note.start() : null} />
+          <EmojiBar
+            name={chat.title}
+            onPlus={() => setTiles(true)}
+            onPick={(emoji) => void send(emoji)}
+            onMic={micShows(messages) ? () => void note.start() : null}
+          />
         )}
       </div>
+      {/* The browser's own pickers (N351), kept mounted while the bar is back. */}
+      <input ref={pickers.photos} type="file" accept="image/*" multiple hidden data-chat-pick="photos" onChange={(e) => void upload("photo")(e)} />
+      <input ref={pickers.camera} type="file" accept="image/*" capture="environment" hidden data-chat-pick="camera" onChange={(e) => void upload("photo")(e)} />
+      <input ref={pickers.files} type="file" hidden data-chat-pick="files" onChange={(e) => void upload("file")(e)} />
+      {inviting ? <AddSomeoneSheet onClose={() => setInviting(false)} /> : null}
+      {fullPhoto ? <PhotoFull src={fullPhoto} onClose={() => setFullPhoto(null)} /> : null}
     </div>
   );
 }

@@ -2,9 +2,9 @@
 /*
 STORY    As the founder testing the chats between users (ring 6), I want my
          chats in front of the Lounge, with Will first, so that I can open a
-         colleague's or a customer's chat and answer with an emoji or a
-         voice note; and as every other speaker, I want /chat to stay the
-         Lounge as it is.
+         colleague's or a customer's chat, answer with an emoji or a voice
+         note, and start something new with a photo or a file; and as every
+         other speaker, I want /chat to stay the Lounge as it is.
 OUTCOME
   O1  Off (no `chats` in the ring's features_on): nothing is drawn around
       the Lounge and no chat is read (Never 3).
@@ -13,8 +13,9 @@ OUTCOME
       and last message (an emoji with its meaning); an empty list asks for
       the demo once. Will's row uncovers the Lounge, never remounted, with
       a back to the list (customer-requests.md C1; N274, N298, N322).
-  O3  In a chat, the bar holds the three emoji in the box, no typing, and
-      the mic beside it only while a question waits for my answer; a tap on
+  O3  In a chat, the bar holds the "+", the three emoji in the box, no
+      typing, and the mic beside it only while a question waits for my
+      answer; a tap on
       an emoji posts {"kind":"emoji","body":…} and shows the emoji at once,
       large, with its meaning and time under it, and the mic goes (N306,
       N311, N322, N341).
@@ -39,6 +40,16 @@ OUTCOME
       the one who invited me as its first row, above Will's, marked new with
       the joined line, and the address is clean again; opened, it is a chat
       like the rest (N357; was N348 item 1).
+  O11 The "+" in a chat swaps the bar for four tiles with their names,
+      Photos, Camera, Files and Someone else; Someone else opens the add
+      sheet with my link; Cancel brings the bar back (N351).
+  O12 A photo I pick is posted to the chat's photo route and joins the
+      thread as my image; the mic then shows, so I can say what I need, and
+      goes once my voice note is sent (N337, N341 item 2, N351).
+  O13 The other person's photo or file waits for my voice: the mic shows. A
+      file shows a tile with its extension and its own name, and downloads
+      from the chat's file route; a photo opens full size with a close and
+      no words; the list's line is "📷", or "📄" and the file's name (N351).
 PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O2 -> "with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back"
          O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question"
@@ -49,6 +60,9 @@ PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O8 -> "the + opens my own link and copies it"
          O9 -> "a chat joined through a link says whose link it was"
          O10 -> "after joining, the list opens with the one who invited me on top, marked new"
+         O11 -> "the + shows the four tiles, Someone else opens my link, and Cancel brings the bar back"
+         O12 -> "a photo I send joins the thread and the mic shows until my voice note says what I need"
+         O13 -> "the other person's photo or file waits for my voice, and each opens from the chat's file route"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -177,6 +191,23 @@ async function tap(el: Element | null | undefined) {
   await flush();
 }
 
+/** The browser's own picker answering with these files. */
+async function pick(input: Element | null, files: File[]) {
+  if (!input) throw new Error(`no picker in: ${container.innerHTML}`);
+  Object.defineProperty(input, "files", { value: files, configurable: true });
+  await act(async () => void input.dispatchEvent(new Event("change", { bubbles: true })));
+  await flush();
+}
+
+/** The phone's microphone, granted, recording with the FakeRecorder. */
+function micGranted() {
+  vi.stubGlobal("MediaRecorder", FakeRecorder);
+  Object.defineProperty(navigator, "mediaDevices", {
+    value: { getUserMedia: vi.fn(async () => ({ getTracks: () => [{ stop: vi.fn() }] })) },
+    configurable: true,
+  });
+}
+
 describe("the chats in front of the Lounge", () => {
   it("with chats off, the Lounge is all there is and no chat is read", async () => {
     backend(["tempo_step"]);
@@ -232,15 +263,16 @@ describe("the chats in front of the Lounge", () => {
     const screen = container.querySelector("[data-chat-screen]")!;
     expect(screen.querySelector("[data-chat-header]")?.textContent).toContain("SarahInvita customer");
     expect(screen.querySelector("[data-chat-thread] [data-bubble]")?.textContent).toContain(SARAH.last.body);
-    // Sarah's question waits: the three emoji in the box, the mic beside it, no typing.
+    // Sarah's question waits: the "+", the three emoji in the box, the mic beside it, no typing.
     const bar = screen.querySelector("[data-chat-bar]")!;
     expect([...bar.querySelectorAll("button")].map((b) => b.textContent || b.getAttribute("aria-label"))).toEqual([
+      "Add to your chat with Sarah",
       "👍",
       "👀",
       "🙏",
       "Voice note",
     ]);
-    expect(screen.querySelector("textarea, input")).toBeNull();
+    expect(screen.querySelector("textarea, input:not([type=file])")).toBeNull();
 
     fetchMock.mockImplementationOnce(async (url: string, init?: RequestInit) => {
       await posted;
@@ -305,11 +337,7 @@ describe("the chats in front of the Lounge", () => {
   });
 
   it("the mic records a voice note, Stop posts it and it joins the thread", async () => {
-    vi.stubGlobal("MediaRecorder", FakeRecorder);
-    Object.defineProperty(navigator, "mediaDevices", {
-      value: { getUserMedia: vi.fn(async () => ({ getTracks: () => [{ stop: vi.fn() }] })) },
-      configurable: true,
-    });
+    micGranted();
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
     // Ariel's question waits for my answer, so the mic shows (N341).
@@ -439,5 +467,106 @@ describe("the chats in front of the Lounge", () => {
     expect(window.location.search).toBe("");
     await act(async () => (top as HTMLElement).click());
     expect(container.querySelector("[data-chat-name]")?.textContent).toBe("Ariel");
+  });
+
+  it("the + shows the four tiles, Someone else opens my link, and Cancel brings the bar back", async () => {
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
+    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({ messages: [] }));
+    routes.set("GET /api/v2/chats/link", () => ({ token: "AbCdEfGhIjKlMnOpQrStUvWx", path: "/c/AbCdEfGhIjKlMnOpQrStUvWx" }));
+    await render();
+    await tap(row("c-ariel"));
+    const bar = () => container.querySelector("[data-chat-bar]")!;
+
+    await tap(bar().querySelector('button[aria-label="Add to your chat with Ariel"]'));
+    expect(bar().querySelector("[data-chat-emoji-box]")).toBeNull();
+    expect([...bar().querySelectorAll("[data-chat-tile]")].map((t) => t.textContent)).toEqual(["Photos", "Camera", "Files", "Someone else"]);
+    await tap(bar().querySelector("[data-chat-tiles-cancel]"));
+    expect(bar().querySelector("[data-chat-tile]")).toBeNull();
+    expect(bar().querySelector("[data-chat-emoji-box]")).not.toBeNull();
+
+    // Someone else: the bar is back, and the add sheet opens with my link.
+    await tap(bar().querySelector("[data-chat-plus]"));
+    await tap(bar().querySelector('[data-chat-tile="someone"]'));
+    expect(bar().querySelector("[data-chat-emoji-box]")).not.toBeNull();
+    expect(container.querySelector("[data-chat-screen] [data-add-sheet] [data-my-link]")?.textContent).toBe(
+      `${window.location.origin}/c/AbCdEfGhIjKlMnOpQrStUvWx`,
+    );
+  });
+
+  it("a photo I send joins the thread and the mic shows until my voice note says what I need", async () => {
+    micGranted();
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
+    // Ariel's 👍: nothing waits, so no mic.
+    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({
+      messages: [{ id: "m1", mine: false, author: "Ariel", kind: "emoji", body: "👍", meta: { label: "good" }, created_at: ARIEL.last.created_at }],
+    }));
+    routes.set("POST /api/v2/chats/c-ariel/photo", () => ({
+      message: { id: "p1", mine: true, author: "Me", kind: "photo", body: "", meta: { question: true }, created_at: "2026-11-02T08:00:00Z" },
+    }));
+    routes.set("POST /api/v2/chats/c-ariel/voice", () => ({
+      message: { id: "v1", mine: true, author: "Me", kind: "voice", body: "", meta: { duration_ms: 4200, question: true }, created_at: "2026-11-02T08:01:00Z" },
+    }));
+    await render();
+    await tap(row("c-ariel"));
+    const screen = container.querySelector("[data-chat-screen]")!;
+    expect(screen.querySelector("[data-chat-mic]")).toBeNull();
+
+    await tap(screen.querySelector("[data-chat-plus]"));
+    await tap(screen.querySelector('[data-chat-tile="photos"]'));
+    const picker = screen.querySelector<HTMLInputElement>('input[type=file][data-chat-pick="photos"]')!;
+    expect([picker.accept, picker.multiple]).toEqual(["image/*", true]);
+    await pick(picker, [new File(["png"], "Screenshot 1.png", { type: "image/png" })]);
+
+    const posts = calls("POST /api/v2/chats/c-ariel/photo");
+    expect(posts).toHaveLength(1);
+    expect(((posts[0][1].body as FormData).get("file") as File).name).toBe("Screenshot 1.png");
+    expect(screen.querySelector('[data-row="me"] [data-chat-photo] img')?.getAttribute("src")).toBe("/api/v2/chats/c-ariel/messages/p1/file");
+    // My photo waits for what I need: the mic shows.
+    expect(screen.querySelector("[data-chat-mic]")).not.toBeNull();
+
+    await tap(screen.querySelector("[data-chat-mic]"));
+    await tap(screen.querySelector('[data-recording-bar] button[aria-label="Stop"]'));
+    await flush();
+    expect(calls("POST /api/v2/chats/c-ariel/voice")).toHaveLength(1);
+    expect(screen.querySelector("[data-chat-emoji-box]")).not.toBeNull();
+    expect(screen.querySelector("[data-chat-mic]")).toBeNull();
+  });
+
+  it("the other person's photo or file waits for my voice, and each opens from the chat's file route", async () => {
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({
+      chats: [
+        { ...ARIEL, last: { kind: "photo", body: "", created_at: "2026-11-01T11:00:00Z" } },
+        { ...SARAH, last: { kind: "file", body: "Newsroom AI guidelines.pdf", created_at: "2026-11-01T10:30:00Z" } },
+      ],
+    }));
+    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({
+      messages: [
+        { id: "f9", mine: false, author: "Ariel", kind: "file", body: "Newsroom AI guidelines.pdf", meta: { question: true }, created_at: "2026-11-01T10:59:00Z" },
+        { id: "p9", mine: false, author: "Ariel", kind: "photo", body: "", meta: { question: true }, created_at: "2026-11-01T11:00:00Z" },
+      ],
+    }));
+    await render();
+    expect(lastLineOf("c-ariel")).toBe("📷");
+    expect(lastLineOf("c-sarah")).toBe("📄 Newsroom AI guidelines.pdf");
+
+    await tap(row("c-ariel"));
+    const screen = container.querySelector("[data-chat-screen]")!;
+    expect(screen.querySelector("[data-chat-mic]")).not.toBeNull();
+    const file = screen.querySelector<HTMLAnchorElement>('[data-row="app"] a[data-chat-file]')!;
+    expect(file.textContent).toBe("PDFNewsroom AI guidelines.pdf");
+    expect([file.getAttribute("href"), file.getAttribute("download")]).toEqual([
+      "/api/v2/chats/c-ariel/messages/f9/file",
+      "Newsroom AI guidelines.pdf",
+    ]);
+
+    await tap(screen.querySelector('[data-row="app"] [data-chat-photo]'));
+    const full = screen.querySelector("[data-chat-photo-full]")!;
+    expect(full.querySelector("img")?.getAttribute("src")).toBe("/api/v2/chats/c-ariel/messages/p9/file");
+    expect(full.textContent).toBe("");
+    await tap(full.querySelector('button[aria-label="Close"]'));
+    expect(screen.querySelector("[data-chat-photo-full]")).toBeNull();
   });
 });
