@@ -11,10 +11,15 @@
  *   O2  A tap on the scale is sent once, and the number is never written
  *       back into the chat (N178).
  *   O3  The plan's rows are drawn by their metadata: the speaker's voice
- *       answer as their own bubble, the card with its list, the deadline
- *       in orange and Book on a call not booked, the plan's progress after
- *       the walk as Will's bubble with its bar and "{n} of {total}
- *       practices done." (N319 item 7); a plain row is left to the Lounge.
+ *       answer as their own bubble; the card as the plan only (N319 item
+ *       6): "Plan", its bar, the practice days, the deadline and "Change
+ *       your plan", with no level, key line or call; "See your plan" adds
+ *       this week's level; the plan's progress after the walk as Will's
+ *       bubble with its bar and "{n} of {total} practices done." (N319
+ *       item 7); a plain row is left to the Lounge.
+ *   O9  The plan's coach calls are hidden, not removed (N315): with the
+ *       ring row "plan_calls" on, the card lists both calls, Book on one
+ *       not booked, and the plan's end shows the summary call; off, none.
  *   O4  The chat has one record button: a practice day's one thing holds
  *       it until a newer Take's closing message takes it back (N167), and
  *       gives it up once a newer Take is recorded, in any project (N244,
@@ -39,9 +44,11 @@
  *          O6 -> "Will asks for the plan's own yes"
  *          O7 -> "nothing of the principles before my first Take"
  *          O8 -> "my first Take is never behind the questions"
+ *          O9 -> "the plan's calls show only with their ring row"
  * WHY      The plan, built one to one with the prototype (founder
  *          2026-10-26, backend N203, N204); the principles waiting for the
- *          onboarding, backend N243; record first, backend N262;
+ *          onboarding, backend N243; record first, backend N262; the calls
+ *          hidden, backend N315; the plan card simplified, backend N319;
  *          docs/flows/the-plan.md §1.
  */
 import { act } from "react";
@@ -50,8 +57,10 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { Plan } from "@/services/api/plan";
 import { feelingsDue, rememberPlan } from "@/services/api/plan";
+import { loadRingState, resetRingStateCache } from "@/services/api/rings";
 import PlanDock, { dockFor, type PlanActions } from "./PlanDock";
 import { newestOneOf, planRowFor, type PlanRowCtx } from "./PlanRows";
+import { SeePlanSheet } from "./PlanSheet";
 import { usePlanLounge } from "./usePlanLounge";
 import { useVoiceNotebook, VoiceNoteMic } from "../useVoiceNotebook";
 
@@ -73,7 +82,16 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+  vi.unstubAllGlobals();
+  resetRingStateCache();
 });
+
+/** The person's ring read (GET /v2/user/rings), answering these features on. */
+async function ringsOn(features: string[]) {
+  resetRingStateCache();
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ring: 5, features_on: features }), { status: 200 })));
+  await loadRingState();
+}
 
 const PLAN: Plan = {
   id: "plan-1",
@@ -177,7 +195,8 @@ function ctx(plan: Plan | null = PLAN): PlanRowCtx {
   return { plan, newestOne: null, recordHeld: false, onSeePlan: vi.fn(), onChangePlan: vi.fn(), onBook: vi.fn(), onRecordNext: vi.fn() };
 }
 
-it("the plan's rows are drawn as the prototype draws them", () => {
+it("the plan's rows are drawn as the prototype draws them", async () => {
+  await ringsOn(["plan"]);
   const plain = row({}, "When is your deadline?");
   expect(planRowFor(plain, ctx())).toBeNull();
   expect(planRowFor(row({ plan_card: true }), undefined)).toBeNull();
@@ -188,23 +207,53 @@ it("the plan's rows are drawn as the prototype draws them", () => {
   // The words Will heard, under the voice (N275).
   expect(host.querySelector("[data-plan-voice-words]")?.textContent).toBe("said");
 
-  const c = ctx({ ...PLAN, status: "active", step: "done" });
+  const c = ctx({ ...PLAN, status: "active", step: "done", done: 1 });
   act(() => root.render(<>{planRowFor(row({ plan_card: true }), c)}</>));
   const card = host.querySelector("[data-plan-card]")!;
-  expect(card.textContent).toContain("Your next level");
-  expect(card.textContent).toContain("Let your key line land");
-  expect(card.textContent).toContain("15 minutes, 3 times a week: Mon, Wed, Fri");
-  expect(card.textContent).toContain("This week your walk has a pace game");
-  expect(card.textContent).toContain("Your deadline: Sat 14 Nov");
-  const books = card.querySelectorAll("[data-plan-book]");
-  expect(books.length).toBe(2);
-  act(() => (books[0] as HTMLButtonElement).click());
-  expect(c.onBook).toHaveBeenCalledWith("kickoff");
+  // The plan only (N319 item 6): no level, no key line, no "How you said
+  // it", no "Why this line?", no call (N315).
+  expect(card.textContent).toBe("Plan15 minutes, 3 times a week: Mon, Wed, FriYour deadline: Sat 14 NovChange your plan");
+  const parts = [...card.querySelectorAll("[data-plan-bar] i")];
+  expect(parts.length).toBe(9); // one part per practice, filled with what was done
+  expect(parts.filter((i) => i.className.includes("FF640A")).length).toBe(1);
+  const change = [...card.querySelectorAll("button")].find((b) => b.textContent === "Change your plan")!;
+  act(() => change.click());
+  expect(c.onChangePlan).toHaveBeenCalledTimes(1);
+
+  // "See your plan": the same card, with this week's level above it.
+  act(() => root.render(<SeePlanSheet plan={c.plan!} onClose={() => {}} onBook={() => {}} onChange={() => {}} />));
+  const seen = document.querySelector("[data-plan-card]")!;
+  expect(seen.textContent).toBe(
+    "This week's levelLet your key line landPlan15 minutes, 3 times a week: Mon, Wed, FriYour deadline: Sat 14 NovChange your plan",
+  );
 
   act(() => root.render(<>{planRowFor(row({ plan_progress: true, done: 1, total: 9 }, "1 of 9 practices done."), c)}</>));
   const progress = host.querySelector("[data-plan-progress]")!;
   expect(progress.querySelector("[data-plan-bar]")).not.toBeNull();
   expect(progress.textContent).toBe("1 of 9 practices done.");
+});
+
+it("the plan's calls show only with their ring row", async () => {
+  const c = ctx({ ...PLAN, status: "ending", step: "whats_next" });
+  await ringsOn(["plan"]);
+  act(() => root.render(<>{planRowFor(row({ plan_summary_call: true }), c)}</>));
+  expect(host.textContent).toBe(""); // a row written while the calls were on draws nothing
+  act(() => root.render(<>{planRowFor(row({ plan_card: true }), c)}</>));
+  expect(host.querySelector("[data-plan-book]")).toBeNull();
+  expect(host.textContent).not.toContain("call with your coach");
+
+  await ringsOn(["plan", "plan_calls"]);
+  act(() => root.render(<></>));
+  act(() => root.render(<>{planRowFor(row({ plan_card: true }), c)}</>));
+  const card = host.querySelector("[data-plan-card]")!;
+  expect(card.textContent).toContain("Kickoff call with your coach: Book");
+  expect(card.textContent).toContain("Summary call with your coach: Book");
+  const books = card.querySelectorAll("[data-plan-book]");
+  expect(books.length).toBe(2);
+  act(() => (books[0] as HTMLButtonElement).click());
+  expect(c.onBook).toHaveBeenCalledWith("kickoff");
+  act(() => root.render(<>{planRowFor(row({ plan_summary_call: true }), c)}</>));
+  expect(host.textContent).toContain("Your summary call");
 });
 
 it("the newest bubble holds the one record button", () => {

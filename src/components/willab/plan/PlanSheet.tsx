@@ -3,14 +3,16 @@
 import { useState, type ReactNode } from "react";
 import type { CallWhich, Plan } from "@/services/api/plan";
 import { DAY_SHORT, fmtDay, fromIsoDay, isoDay, PLAN_COPY, WEEK_ORDER } from "@/lib/willab/planCopy";
-import PlanCard from "./PlanCard";
+import PlanCard, { usePlanCallsOn } from "./PlanCard";
 import { MonthGrid } from "./PlanCalendar";
 
 /* The plan's two sheets (rules: the-plan.md §1 G5, H; prototype version 27,
-   openPlanView and openPlanSheet): "See your plan" opens the plan, and
-   "Change your plan" opens the deadline, the practice days, the level (the
-   coach's) and "I have a new event", hidden while a Take is still processing
-   (H1, backend N242). */
+   openPlanView and openPlanSheet): "See your plan" opens the plan card with
+   this week's level above it (N319 item 6), and "Change your plan" opens the
+   deadline, the practice days, the level (the coach's) and "I have a new
+   event", hidden while a Take is still processing (H1, backend N242). A
+   booked kickoff's mark on the deadline's month shows only while the calls
+   are on (N315). */
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
@@ -102,6 +104,7 @@ function DaysView({ plan, onSave, onBack }: { plan: Plan; onSave: (days: number[
 }
 
 function DeadlineView({ plan, onSave }: { plan: Plan; onSave: (day: string) => void }) {
+  const callsOn = usePlanCallsOn();
   const deadline = fromIsoDay(plan.deadline);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -115,7 +118,7 @@ function DeadlineView({ plan, onSave }: { plan: Plan; onSave: (day: string) => v
       enabled={(day) => day > today && (!kick || day > kick) && (!sum || day < sum)}
       picked={null}
       deadline={deadline}
-      kickoff={kick}
+      kickoff={callsOn ? kick : null}
       onPick={(day) => onSave(isoDay(day))}
       onMonth={(s) => setMonth(new Date(month.getFullYear(), month.getMonth() + s, 1))}
     />
@@ -192,7 +195,7 @@ export function SeePlanSheet({
 }) {
   return (
     <Sheet title={PLAN_COPY.yourPlan} onClose={onClose}>
-      <PlanCard plan={plan} label={PLAN_COPY.thisWeeksLevel} onBook={onBook} onChange={onChange} />
+      <PlanCard plan={plan} levelLabel={PLAN_COPY.thisWeeksLevel} onBook={onBook} onChange={onChange} />
     </Sheet>
   );
 }

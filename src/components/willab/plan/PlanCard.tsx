@@ -1,25 +1,41 @@
 "use client";
 
-import { useState } from "react";
-import { answerAudioUrl, type CallWhich, type Plan } from "@/services/api/plan";
+import type { CallWhich, Plan } from "@/services/api/plan";
+import { useRingState } from "@/hooks/useRingState";
 import { PLAN_COPY } from "@/lib/willab/planCopy";
-import { VoicePlayer } from "./VoicePlayer";
 
-/* The plan card (rules: docs/flows/the-plan.md §1 E; prototype version 27,
-   planCard): the level, its line in the speaker's own words and voice, "Why
-   this line?", then the plan in bullet points with the two calls. One
+/* The plan card (rules: docs/flows/the-plan.md §1 E; the prototype's card,
+   https://claude.ai/artifact/X4gDmGfHH7ivuoRZ9ufiy9, N319 item 6): the plan
+   only. "Plan", its bar, the practice days, the deadline and "Change your
+   plan". The level shows where it acts (the practice day's hello, "See your
+   plan"), not here. The two calls are hidden, not removed (N315): their lines
+   show only while the ring row "plan_calls" reaches the speaker. One
    typeface, three sizes; text colours that read on white (N161, N167). */
 
-export function PlanList({ plan, onBook }: { plan: Plan; onBook?: (which: CallWhich) => void }) {
+/** The rings panel's row for the plan's coach calls (backend
+ *  rings.PLAN_CALLS, N315). With no row they are off for everyone. */
+export const PLAN_CALLS_FEATURE = "plan_calls";
+
+/** Whether the plan's coach calls show: the backend's ring decision, as the
+ *  tempo step reads its own. Off while that read is in flight or failed. */
+export function usePlanCallsOn(): boolean {
+  return useRingState()?.featuresOn.has(PLAN_CALLS_FEATURE) === true;
+}
+
+function PlanList({ plan, onBook }: { plan: Plan; onBook?: (which: CallWhich) => void }) {
+  const callsOn = usePlanCallsOn();
   return (
     <ul className="m-0 flex list-disc flex-col gap-1.5 pl-[18px] text-[15px] leading-[1.4] marker:text-[#9A9A9A]">
       <li>{plan.every_day ? PLAN_COPY.everyDay : PLAN_COPY.threeTimes(plan.days_text)}</li>
-      {plan.pace_week ? <li>{PLAN_COPY.paceGame}</li> : null}
-      <CallItem name={PLAN_COPY.kickoffCall} call={plan.calls.kickoff} onBook={onBook && (() => onBook("kickoff"))} />
+      {callsOn ? (
+        <CallItem name={PLAN_COPY.kickoffCall} call={plan.calls.kickoff} onBook={onBook && (() => onBook("kickoff"))} />
+      ) : null}
       <li>
         {PLAN_COPY.yourDeadline}: <span className="font-semibold text-[#C2410C]">{plan.deadline_short}</span>
       </li>
-      <CallItem name={PLAN_COPY.summaryCall} call={plan.calls.summary} onBook={onBook && (() => onBook("summary"))} />
+      {callsOn ? (
+        <CallItem name={PLAN_COPY.summaryCall} call={plan.calls.summary} onBook={onBook && (() => onBook("summary"))} />
+      ) : null}
     </ul>
   );
 }
@@ -48,31 +64,6 @@ function CallItem({ name, call, onBook }: { name: string; call: Plan["calls"]["k
   );
 }
 
-export function KeyLine({ plan }: { plan: Plan }) {
-  const [why, setWhy] = useState(false);
-  return (
-    <div className="flex flex-col gap-1.5">
-      {plan.key_line ? (
-        <div className="border-l-[3px] border-[#FF640A] py-0.5 pl-2.5 text-[15px] leading-[1.4]">“{plan.key_line}”</div>
-      ) : null}
-      {plan.key_answer_id ? <VoicePlayer src={answerAudioUrl(plan.key_answer_id)} label={PLAN_COPY.howYouSaidIt} tone="grey" /> : null}
-      {plan.why_line ? (
-        <div>
-          <button
-            type="button"
-            onClick={() => setWhy((w) => !w)}
-            aria-expanded={why}
-            className="-mx-2 -my-3 px-2 py-3 text-[13px] text-[#6B6B6B] underline underline-offset-[3px]"
-          >
-            {PLAN_COPY.whyThisLine}
-          </button>
-          {why ? <div className="mt-1 text-[13px] leading-[1.45] text-[#4A4A4A]">{plan.why_line}</div> : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 /** One part per practice, filled with what the speaker did, never a measure
  *  of the voice: on the plan card, the practice day's hello, and the chat's
  *  progress bubble after the walk (N319 item 7). */
@@ -92,12 +83,13 @@ export function PlanBar({ plan }: { plan: Pick<Plan, "done" | "total"> }) {
 
 export default function PlanCard({
   plan,
-  label = PLAN_COPY.yourNextLevel,
+  levelLabel,
   onBook,
   onChange,
 }: {
   plan: Plan;
-  label?: string;
+  /** "See your plan" names this week's level above the plan (N319 item 6). */
+  levelLabel?: string;
   onBook?: (which: CallWhich) => void;
   onChange?: () => void;
 }) {
@@ -106,16 +98,18 @@ export default function PlanCard({
       data-plan-card
       className="flex w-full flex-col gap-3 rounded-[18px] border border-[#E6E6E6] bg-white p-4 text-[#121212] shadow-[0_6px_20px_-14px_rgba(0,0,0,0.25)]"
     >
-      <div className="flex flex-col gap-1.5">
-        <div className="text-[13px] text-[#6B6B6B]">{label}</div>
-        <div className="text-[15px] font-semibold">{plan.level_name}</div>
-        <KeyLine plan={plan} />
-      </div>
-      <hr className="m-0 h-px border-0 bg-[#EDEDED]" />
-      <div className="flex flex-col gap-1.5">
-        <div className="text-[13px] text-[#6B6B6B]">{PLAN_COPY.planHeading}</div>
-        <PlanList plan={plan} onBook={onBook} />
-      </div>
+      {levelLabel && plan.level_name ? (
+        <>
+          <div className="flex flex-col gap-1.5" data-plan-level>
+            <div className="text-[13px] text-[#6B6B6B]">{levelLabel}</div>
+            <div className="text-[15px] font-semibold">{plan.level_name}</div>
+          </div>
+          <hr className="m-0 h-px border-0 bg-[#EDEDED]" />
+        </>
+      ) : null}
+      <div className="text-[15px] font-semibold">{PLAN_COPY.planHeading}</div>
+      <PlanBar plan={plan} />
+      <PlanList plan={plan} onBook={onBook} />
       {onChange ? (
         <button
           type="button"

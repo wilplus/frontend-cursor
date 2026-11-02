@@ -10,14 +10,13 @@ export const PLAN_COPY = {
   recordAnswer: "Record your answer",
   yourAnswer: "Your answer",
   stop: "Stop",
-  yourNextLevel: "Your next level",
   thisWeeksLevel: "This week's level",
   howYouSaidIt: "How you said it",
-  whyThisLine: "Why this line?",
   planHeading: "Plan",
   everyDay: "15 minutes every day",
   threeTimes: (days: string) => `15 minutes, 3 times a week: ${days}`,
-  paceGame: "This week your walk has a pace game",
+  /** The two calls, hidden, not removed (backend N315): shown only while
+   *  the ring row "plan_calls" reaches the speaker. */
   kickoffCall: "Kickoff call with your coach",
   summaryCall: "Summary call with your coach",
   kickoffShort: "Kickoff call",

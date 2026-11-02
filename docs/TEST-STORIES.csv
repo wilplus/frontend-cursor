@@ -871,10 +871,15 @@ first recording""; with no plan, the message box stays.
 O2  A tap on the scale is sent once, and the number is never written
 back into the chat (N178).
 O3  The plan's rows are drawn by their metadata: the speaker's voice
-answer as their own bubble, the card with its list, the deadline
-in orange and Book on a call not booked, the plan's progress after
-the walk as Will's bubble with its bar and ""{n} of {total}
-practices done."" (N319 item 7); a plain row is left to the Lounge.
+answer as their own bubble; the card as the plan only (N319 item
+6): ""Plan"", its bar, the practice days, the deadline and ""Change
+your plan"", with no level, key line or call; ""See your plan"" adds
+this week's level; the plan's progress after the walk as Will's
+bubble with its bar and ""{n} of {total} practices done."" (N319
+item 7); a plain row is left to the Lounge.
+O9  The plan's coach calls are hidden, not removed (N315): with the
+ring row ""plan_calls"" on, the card lists both calls, Book on one
+not booked, and the plan's end shows the summary call; off, none.
 O4  The chat has one record button: a practice day's one thing holds
 it until a newer Take's closing message takes it back (N167), and
 gives it up once a newer Take is recorded, in any project (N244,
@@ -897,7 +902,8 @@ O4 -> ""the newest bubble holds the one record button""
 O5 -> ""a new project's question, and the feelings before a Take""
 O6 -> ""Will asks for the plan's own yes""
 O7 -> ""nothing of the principles before my first Take""
-O8 -> ""my first Take is never behind the questions""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; record first, backend N262; docs/flows/the-plan.md §1."
+O8 -> ""my first Take is never behind the questions""
+O9 -> ""the plan's calls show only with their ring row""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; record first, backend N262; the calls hidden, backend N315; the plan card simplified, backend N319; docs/flows/the-plan.md §1."
 src/components/willab/plan/planNewEvent.test.tsx,Story,"As a speaker with a plan, I want ""I have a new event"" out of my way while my Take is still processing, so that I never tap something that leaves me with nothing to do.","O1  While the Take is processing, Change your plan has no ""I have a new
 event"", and the plan's end shows only ""Keep practising"".
 O2  Once the Take has landed, both show ""I have a new event"" again.","O1, O2 -> ""a new event waits for the Take being processed""","The founder, 2026-10-28 (backend N242); docs/flows/the-plan.md §1 H1 and I2."

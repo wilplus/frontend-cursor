@@ -80,8 +80,8 @@ built and what is still to come.
    stay under every voice answer (N275).
 4. Will's reply names the speaker's event, date and reason in their own
    words, then says "I can already hear your main vocal cues and verbal
-   habits." and "Let me draft your plan. A few more questions first."
-   (N138, N150).
+   habits." (N138, N150). The next question follows it; "Let me draft your
+   plan. A few more questions first." is gone (N319 item 4).
 5. Up to three follow-ups, one at a time, each answered by voice with the
    same "Record your answer". The key line always comes first: "If {the
    board} remembers one sentence from you, what is it? Say it the way you'll
@@ -175,8 +175,8 @@ built and what is still to come.
    taken while Will waits. "Yes, ask me" goes on with the worry question and
    the ratings. "Not now" adds no line from Will: the worry question and the
    ratings are not asked or kept, the plan is built from what it has and
-   goes on to the calls, and its end goes to "What's next?" without "How did
-   it go?". A plan made before the yes existed is asked at its next personal
+   goes on to the calls while they are on (F), else to the plan (E1), and
+   its end goes to "What's next?" without "How did it go?". A plan made before the yes existed is asked at its next personal
    moment (the last ratings, or its end). Settings has a card,
    "Personal answers in your plan", between Help improve WillpowerLab and
    WhatsApp, where the yes is turned on later or off: off asks first, then
@@ -191,20 +191,24 @@ built and what is still to come.
 
 ### E · The plan card
 
-1. After the calls (F), Will says "You're all set. Here's your plan." Then
-   the card: under "Your next level", the level, the key line in the
-   speaker's own words, their recording of it ("How you said it", from a
-   small grey play button) and "Why this line?", which opens one sentence
-   from what was heard. No "Ready by {date}" heading: the deadline is the
-   orange line in the list (N153, N154, N157, N161, N167).
-2. Under "Plan", in bullet points: the practice days ("15 minutes, 3 times
-   a week: Mon, Wed, Fri", or "15 minutes every day"); in a pace or pause
-   week, "This week your walk has a pace game"; "Kickoff call with your
-   coach", with its time once booked; "Your deadline: {date}", the date in
-   orange (for example "Sat 14 Nov"); "Summary call with your coach", with
-   its time once booked. The booked times are green. A call not booked yet
-   reads "Book", a link that opens the same full-screen calendar (F); then
-   "Booked: {when}." Then "Change your plan" (N157, N163, N164, N167).
+1. After the last question (and after the calls, while they are on, F),
+   Will says "You're all set. Here's your plan." Then the card, the plan
+   only (N319 item 6): "Plan"; the plan's bar (3); in bullet points the
+   practice days ("15 minutes, 3 times a week: Mon, Wed, Fri", or "15
+   minutes every day") and "Your deadline: {date}", the date in orange (for
+   example "Sat 14 Nov"); then "Change your plan", which opens its sheet
+   (H: Deadline, Practice days, Your level, I have a new event). No "Ready
+   by {date}" heading (N167). Gone from the card: "Your next level" and the
+   level, the key line, "How you said it", "Why this line?", the pace
+   week's line and the call lines (N315, N319 item 6). The level shows
+   where it acts: each practice day's hello (G5), and "See your plan",
+   which names this week's level above the same card (G5).
+2. While the calls are on (F), the list also has "Kickoff call with your
+   coach" before the deadline and "Summary call with your coach" after it,
+   each with its time once booked, in green. A call not booked yet reads
+   "Book", a link that opens the same full-screen calendar (F); then
+   "Booked: {when}." With the calls hidden, neither line shows (N157,
+   N164, N167, N315).
 3. The progress bar (`PlanBar`) shows on the card, on a practice day's
    hello, and in the chat after the walk, one part per Take. It fills with
    what the speaker did, never with a measure of the voice. After the walk
@@ -220,6 +224,19 @@ built and what is still to come.
 
 ### F · The two calls with the coach, before the plan
 
+0. **Hidden, not removed** (N315): the two asks, their "Skip" and "Book
+   now", the full-screen calendar, the card's two call lines (E2), a booked
+   kickoff's mark on the deadline's month and the summary call at the
+   plan's end (I2) show only while the ring row `plan_calls` reaches the
+   speaker. With no row they are off for everyone, the founder included;
+   the founder turns it on in the rings panel (the tempo step's precedent).
+   Off, the plan goes from its last question or rating straight to "You're
+   all set. Here's your plan." (E1), with no call asked; a plan left at a
+   call's ask moves on to it when the Lounge opens, or after the Take's
+   walk it waits for. The code and the words stay, and the deadline's Edit
+   stays in "Change your plan" (H1). Listed with the other hidden features
+   in the backend's README §0, "Hidden, not removed". What follows is the
+   flow while the calls are on.
 1. After the ratings, before the plan card, Will asks "Every plan starts
    with a kickoff session with your coach. Would you like to book it now?"
    In place of "Type here": "Skip" and "Book now". The calendar never opens
@@ -282,8 +299,10 @@ built and what is still to come.
    N169).
 5. On a practice day, under the day line: "Hi Artur, good to see you back!
    Today is practice 2 of 9: Let your key line land." (N140), the bar under
-   it, and "See your plan", which opens the plan in a sheet ("Your plan",
-   "This week's level", the list with "Book", "Change your plan"). The plan
+   it, and "See your plan", which opens the plan in a sheet ("Your plan";
+   "This week's level" and the level; then the card as in E1, with "Change
+   your plan"; "Book" on a call only while the calls are on, N315, N319
+   item 6). The plan
    card itself is posted in the chat only when the plan is made or changed.
    Progress has one unit: there is no "Week {n} of {weeks}", and "{n} of
    {total} practices done." shows only after the Take, in the chat, under
@@ -390,8 +409,9 @@ built and what is still to come.
 
 1. At the last practice, the two ratings come after the Take (D1; N178).
 2. The first time the speaker opens the app on or after the deadline: "How
-   did it go?" as a voice message. Then the summary call: shown with its time
-   if it was booked, offered if not. Then "What's next?": "I have a new
+   did it go?" as a voice message. Then, while the calls are on (F0), the
+   summary call: shown with its time if it was booked, offered if not. Then
+   "What's next?": "I have a new
    event" (the questions again, a new plan) or "Keep practising" (a new
    two-month plan from their Takes, no questions, its first ratings after
    its first Take) (N149, N151, N157, N178). While a Take is still
@@ -425,9 +445,9 @@ Signed:
   does it matter and what is it about?" · "Record your answer" · "Your
   answer" (N137, N140).
 - Will's reply: "I can already hear your main vocal cues and verbal habits."
-  · "Let me draft your plan. A few more questions first." · when the AI
-  fails, "Thank you. Now I can hear you talking about your goal and why it
-  matters." (N140, N150).
+  · when the AI fails, "Thank you. Now I can hear you talking about your
+  goal and why it matters." (N140, N150). Signed, no longer shown: "Let me
+  draft your plan. A few more questions first." (N319 item 4).
 - Nothing heard and a correction (B8, B9, N262): "Sorry, I didn't quite
   catch that. Could you say it again?" · "Got it, thank you for putting me
   right." · and "Start your first recording" under "Record your answer"
@@ -447,13 +467,14 @@ Signed:
   have given. Your plan stays." · "Off. We deleted your personal answers."
   The text of Privacy section 4e waits for the founder's signature with
   Privacy 3.9.
-- The plan: "Thanks! Here's your plan." · "Your next
-  level" · the five level names · "How you said it" · "Why this line:" and
-  its sentence · "15 minutes, 3 times a week: {days}" · "15 minutes every
-  day" · "This week your walk has a pace game" (N163) · "Why this line?" ·
-  "Plan" · "Kickoff call with your coach" · "Summary call with your coach" ·
-  "Your deadline: {date}" (N175) · "Change your
-  plan" (N140, N154).
+- The plan: "Thanks! Here's your plan." · the five level names · "How you
+  said it" · "15 minutes, 3 times a week: {days}" · "15 minutes every
+  day" · "Plan" · "Your deadline: {date}" (N175) · "Change your
+  plan" (N140, N154). Hidden with the calls (N315): "Kickoff call with your
+  coach" · "Summary call with your coach" (N175). Signed, no longer shown
+  on the card (N319 item 6): "Your next level" · "Why this line?" and its
+  sentence ("Why this line:") · "This week your walk has a pace game"
+  (N163).
 - Changing the plan: "Your plan" · "Deadline" · "Practice days" · "Your
   level" · "Pick 3 days." · "Save" · "Your deadline is close, so you
   practise every day." · "Your level comes from what I heard in your voice.
@@ -541,6 +562,10 @@ Waiting for the founder's OK:
     nothing heard (B8); one correction per question (B9) · BE, FE (this PR).
   - Built on 30 October 2026 (N276): one check on every transcription for
     what nobody said; no question asked more than three times (B8, B9) · BE.
+  - Built on 2 November 2026 (N315, N319 items 4 and 6): the calls hidden
+    behind the ring row `plan_calls`, off for everyone with no row (F0);
+    the card the plan only (E1, E2); "Let me draft your plan. …" gone (B4)
+    · BE, FE (this PR).
 
 ## 3. Still open
 
@@ -569,7 +594,8 @@ The plan's own code, guarded by this page (`scripts/flow-pages.txt`):
 
 - `src/components/willab/plan/`: the footer by step (`PlanDock.tsx`, with
   Will's ask for the plan's own yes), the
-  calls' calendar (`PlanCalendar.tsx`), the card (`PlanCard.tsx`), the rows in
+  calls' calendar (`PlanCalendar.tsx`), the card (`PlanCard.tsx`, which
+  reads the calls' ring row `plan_calls`, N315), the rows in
   the thread (`PlanRows.tsx`), the two sheets (`PlanSheet.tsx`), the voice
   player and the hook the Lounge calls (`usePlanLounge.tsx`).
 - `src/lib/willab/planCopy.ts`: the words the app draws itself.
@@ -625,6 +651,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N315, N319 items 4 and 6 · B4, D5, E1, E2, F0, G5, I2, K, §4: the plan's coach calls hidden, not removed, behind the ring row `plan_calls` (backend `rings.PLAN_CALLS`; no row, off for everyone, the founder included): off, the plan goes from its last question or rating straight to "You're all set. Here's your plan.", with no call asked, by every path (the questions, "Not now", the ratings, a speaker with Takes, Will asking again after a Take's walk); a plan left at a call's ask moves on to the plan when the Lounge opens, and "Skip" there asks no summary call; the card's call lines, a booked kickoff's mark and the summary call at the plan's end show only with the row on. The card is the plan only: "Plan", its bar, the practice days, "Your deadline: {date}" and "Change your plan"; "See your plan" adds "This week's level" and the level above it. "Let me draft your plan. A few more questions first." is not written. No new words. Was: both calls asked of everyone after the questions; the card with "Your next level", the level, the key line, "How you said it", "Why this line?", the pace week's line and the two call lines; "Let me draft your plan. …" under Will's reply · BE, FE (this PR)
 - 2026-11-02 · N319 items 4 and 7 · E3, G5, G13, K: after the walk, on a plan, "That's your 15 minutes for today.", then one bubble "Good job. See you next {day}." (the next practice day by its weekday: "See you next tomorrow" does not read, so tomorrow is named too), then Will's bubble with the plan's bar and "{n} of {total} practices done." (`plan_progress`, drawn by `PlanRows`), then the tap "I want to continue my practice"; the plan's black button with the red dot (`RecordDockButton`, "Start your first recording"'s shape) also carries the chat's "Record Take N". Was: "Now go and live it, away from the phone." under the 15 minutes, "Look, practice makes perfect…" with "Record Take N" in its bubble, and the bar with "{n} of {total} practices done. Next: {day}." on the walk's end sheet (`PlanProgress`, gone) · BE, FE (this PR)
 
 - 2026-10-30 · N289 · G7: this week's level takes the walk's slot whose tool fits it ("Say it once" the between, "A voice that moves" the weakest), the pace levels' line opens the tempo step; item 8, the tempo step on any Take. Was: the level as a third moment practised with the AI voice, and the pace practice from Take 2 · BE #1528, BE #1529, FE (this PR)
