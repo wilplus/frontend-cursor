@@ -232,6 +232,20 @@ export default function ChatList({
     <div className="relative flex min-h-0 flex-1 flex-col">
       <div data-chat-list className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
       <ChatListRow id="will" circle={<WillMark />} title={WILL_ROW_TITLE} pinned onOpen={onOpenWill} />
+      {chats.length === 0 ? (
+        /* Nobody else yet (the iPhone app shows the list with Will alone,
+           founder 2026-11-02): adding someone is the next row, as the + does. */
+        <ChatListRow
+          id="add"
+          circle={
+            <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted">
+              <Plus className="h-5 w-5 text-foreground" />
+            </span>
+          }
+          title={ADD_SHEET_TITLE}
+          onOpen={() => setAdding(true)}
+        />
+      ) : null}
       {newestFirst(chats).map((chat) => (
         <ChatListRow
           key={chat.id}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import WelcomeConsent from "@/components/willab/WelcomeConsent";
@@ -62,10 +63,14 @@ export default function LandingClient({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // The iPhone app has no landing (founder 2026-11-02): it opens on sign-in.
+  const app = mounted && isNativeApp();
+
   useEffect(() => {
     if (signedIn === true) router.replace("/chat");
-    // The first step of a first visit (backend N271).
-    if (signedIn === false) countFirstVisit("landing");
+    else if (signedIn === false && isNativeApp()) router.replace("/login");
+    // The first step of a first visit (backend N271); the app shows no landing.
+    else if (signedIn === false) countFirstVisit("landing");
   }, [signedIn, router]);
 
   // Already signed in: render nothing rather than flash marketing during the
@@ -74,6 +79,7 @@ export default function LandingClient({
   // browser (consent flag / auth token present) gets a neutral instant wait
   // instead, so the entrance animation never flashes before the redirect.
   if (signedIn === true) return null;
+  if (app) return <LoadingState placement="viewport" />;
   if (mounted && returningHint && signedIn === null) {
     return <LoadingState placement="viewport" />;
   }

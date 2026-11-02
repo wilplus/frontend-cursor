@@ -572,6 +572,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N354 · C1: in the iPhone app only, sign-in first, then the chats: the app opens on /login (no landing, no welcome; consent unchanged, sign-up's Terms box and Phase1AcceptanceGate); with the chats on, it opens on the list even when Will's chat is the only one, and the row under Will is then "Add someone to chat with", opening the add sheet as the + does. Was: the landing and the welcome, and no list with Will's chat alone. The website is unchanged · FE (this PR)
 - 2026-11-02 · N348 · C1: joined through a link, /chat opens on the chat with the person who invited you (`/chat?with=<chat>`), not on the list; Will's first lines wait in Will's chat. Was: the list · FE (this PR)
 - 2026-11-02 · N308, N310, N328, N335 · C1, §2: the join link built behind ring 6: the "+" on the list opens the add sheet with the person's own link and Copy my link; /c/<token> is the join page; joining makes one chat for the two and says whose link it was. Not yet: Invite by email, the company sign-in, the ask link · BE (this change), FE (this change)
 - 2026-11-02 · N334 · C1, §4: every chat shows its own top bar, Will's included: in Will's chat the WillpowerLab bar goes and his top bar takes its place (back, his mark, "Will"), over the Lounge, which is unchanged; the WillpowerLab bar shows on the list only. Was (N322 item 4): the WillpowerLab bar, with "‹ Will" under it · FE (this PR)
