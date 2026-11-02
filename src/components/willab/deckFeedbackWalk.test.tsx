@@ -29,6 +29,10 @@ OUTCOME
       through the deck's own save (the lock, then the words), marked whole
       (N323 item 2), both moments lose their black line, and Close under
       "Lesson done." asks the summary once and goes back to the chat (N309).
+  O10 With no moment to fix, the pace game is the One thing walk's fix,
+      and its opening keeps its tip, "give “{words}” more room" with the
+      Sniper's helper words, in the chat for "Last time" next Take (N347
+      item 3).
 PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's sheet"
          O2 -> "‹ › move through the walk's chat, never answering and never
                 closing it (founder 2026-10-20)"
@@ -44,6 +48,7 @@ PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's 
          O8 -> "a confident voice whose words are reworded gets its helper
                 words after the rewording (founder 2026-10-22, N113)"
          O9 -> "the One thing walk saves its helper words without a pick, settles both moments and asks the summary once at Close (N309)"
+         O10 -> "the pace game as the walk's fix keeps its tip in the chat, for Last time next Take (N347 item 3)"
 WHY      Feedback walk lock 2026-10-06/2026-10-12; founder 2026-10-21 ("the
          black lines on the ideal text are still there even though I walked
          through them"); 2026-10-22 (N113, "After the rewording"). The
@@ -55,12 +60,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { GuestGateContext } from "./GuestSignUpDialog";
-import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "./idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "./idealEditCopy";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { reportMomentEvent } from "@/services/api/momentEvents";
 import { PRAISE_CUE_COPY, PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
 import type { Part } from "@/lib/willab/documentParts";
 import type { DocumentSuggestion } from "@/services/api/idealText";
+import { FOUNDER_EMAIL } from "@/lib/founder";
 
 vi.mock("@/services/api/takeFeedback", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/api/takeFeedback")>()),
@@ -101,6 +107,12 @@ vi.mock("@/services/api/bookmarkHistory", () => ({
   fetchOwnerAnswers: vi.fn(async () => []),
   fetchParagraphHistory: vi.fn(async () => null),
 }));
+/** The Lounge thread the walk posts into; none outside it. Who is signed
+ *  in: the founder sees the tempo step (O10). */
+const chat = vi.hoisted(() => ({ thread: null as unknown }));
+vi.mock("./LoungeThreadContext", () => ({ useLoungeThreadMaybe: () => chat.thread }));
+const who = vi.hoisted(() => ({ email: null as string | null }));
+vi.mock("./useUserEmail", () => ({ useUserEmail: () => who.email }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -166,6 +178,8 @@ let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
   practice.on = true;
+  chat.thread = null;
+  who.email = null;
   mic.starts = 0;
   mic.cancels = 0;
   vi.mocked(saveTakeFeedbackResponse).mockClear();
@@ -443,16 +457,18 @@ describe("the clearer version in the walk (D-FW-15)", () => {
 
 
 describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
+  const first = SLIDES[0].indexOf("Today I want");
+  /** Their best on slide 1 (the strongest). */
+  const best = {
+    ...base, id: "s-best", start: first, end: first + 12, quote: "Today I want", blockId: "block-1",
+    feedbackFamily: "confident_voice", source: "confident_voice", openCard: "praise",
+    bookmarkTier: "confident", highestMoment: true, walkSlot: "strongest", snippetId: "snip-best",
+    praiseLine: "Smooth and steady, no stumbling. That sounded confident!",
+  } as unknown as DocumentSuggestion;
+
   it("the One thing walk saves its helper words without a pick, settles both moments and asks the summary once at Close (N309)", async () => {
-    const first = SLIDES[0].indexOf("Today I want");
-    // Their best on slide 1 (the strongest); the one fix on slide 2, its
-    // Clearer version (the between).
-    const best = {
-      ...base, id: "s-best", start: first, end: first + 12, quote: "Today I want", blockId: "block-1",
-      feedbackFamily: "confident_voice", source: "confident_voice", openCard: "praise",
-      bookmarkTier: "confident", highestMoment: true, walkSlot: "strongest", snippetId: "snip-best",
-      praiseLine: "Smooth and steady, no stumbling. That sounded confident!",
-    } as unknown as DocumentSuggestion;
+    // Their best on slide 1; the one fix on slide 2, its Clearer version
+    // (the between).
     const fix = {
       ...base, id: "s-fix", start: at, kind: "replace", proposedText: "retention rose",
       feedbackFamily: "rewrite_clarity", source: "new_take", blockKey: 2, bookmarkTier: "standard",
@@ -494,5 +510,29 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     await click(live()!.querySelector("[data-testid='walk-close']"));
     expect(fetched()).toHaveLength(1);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("the pace game as the walk's fix keeps its tip in the chat, for Last time next Take (N347 item 3)", async () => {
+    who.email = FOUNDER_EMAIL;
+    const append = vi.fn(async (draft: unknown) => draft);
+    chat.thread = { messages: [], loading: false, append, reload: vi.fn(async () => undefined) };
+    // No moment to fix: the Take's rushed stretch is the fix, the pace game.
+    const stretch = "retention went up, churn went down";
+    const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) =>
+      String(input).includes("/review/tempo/take-2")
+        ? json({ tempo: { reading: "rushed", topic: "the pilot", said: { before: "Three things stood out: ", stretch, after: "" } } })
+        : new Response("{}", { status: 404 }),
+    ));
+    const p = props({ suggestions: [best] });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    expect(screen()).toBe("walk-screen-praise");
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    expect(screen()).toBe("walk-screen-tempo");
+    const opening = append.mock.calls
+      .map(([draft]) => (draft as { metadata: Record<string, unknown> }).metadata)
+      .find((m) => m.step === "tempo:open");
+    expect(opening?.fix_tip).toBe(ONE_THING_COPY.paceTip(stretch));
   });
 });

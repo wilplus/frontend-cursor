@@ -1,5 +1,5 @@
 /*
-GUARD    Each of 60 service clients still sends exactly the request and gives
+GUARD    Each of 61 service clients still sends exactly the request and gives
          back exactly the answer it did before the shared-fetch refactor,
          signed in and signed out (golden file glueContracts.golden.json).
 CATCHES  A change to a URL, method, header, body, credentials, cache setting
@@ -96,6 +96,9 @@ const CASES: Case[] = [
   ["fetchIdealTextRevisions", () => fetchIdealTextRevisions("a1"), { status: 200, json: { head_revision: 1, revisions: [{ revision: 1, take_index: 1, text: "Hello.", created_at: "2026-10-12T10:00:00Z", is_head: true }] } }],
   ["setPartLock undecided", () => setPartLock("a1", "p1", true, "words"), { status: 409, json: { code: "UNDECIDED" } }],
   ["setPartRootPhrase", () => setPartRootPhrase("a1", "p1", "words", null), { status: 200, json: {} }],
+  // The walk's own helper words go whole: `source: "walk"` lifts the cap of
+  // eight a pick by hand keeps (backend N323 item 2).
+  ["setPartRootPhrase walk", () => setPartRootPhrase("a1", "p1", "words", { text: "words", start: 0, end: 5, whole: true }), { status: 200, json: {} }],
   ["setPartHelperWordsFromTake", () => setPartHelperWordsFromTake("a1", "p1", "go", 2), { status: 200, json: {} }],
   ["fetchArcFeedback", () => fetchArcFeedback("a1"), { status: 200, json: {} }],
   ["fetchStrengths", () => fetchStrengths(), { status: 200, json: {} }],

@@ -245,8 +245,9 @@ describe("the list", () => {
     // "— the coach panel"
     "src/components/willab/coachpanel/",
     "src/lib/willab/coachPanelCopy.ts",
-    // the Feedback walk
+    // the Feedback walk, and its recording bar everywhere (backend N314)
     "src/components/willab/walk/",
+    "src/components/willab/RecordingBar.tsx",
     // "— the recording screens"
     "src/components/willab/LabOverlay.tsx",
     "src/components/willab/RecordingRoadmap.tsx",

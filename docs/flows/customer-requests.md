@@ -105,7 +105,12 @@ order it is built in.
      the time orange-dark and a small orange dot. No number, ever.
    - **Will** stays pinned first, with his mark (the logo's three dots in a
      grey circle), his name and a pin; then the chats, newest last message
-     first.
+     first. **Just joined through a link** (`/chat?with=<chat>`), the list
+     opens, not a chat: the chat with the one who invited you is the first
+     row, above Will, marked new, its line their last message or, with none
+     yet, "You joined through {name}'s link. Only the two of you are in this
+     chat." (N335 item 2); opened, it takes its place with the rest (N357;
+     was N348 item 1: that chat opened).
    - **A person's chat**: the WillpowerLab bar goes; the chat's own top bar
      takes the top, full width: back, a 36px circle with the letter, the
      name and who they are. The messages start at the bottom, by the bar,
@@ -113,8 +118,12 @@ order it is built in.
      each bubble, bottom right; under a big emoji, its meaning and time
      ("It's good · 06:12"). The bubbles stay the Lounge's. The bar is the
      three emoji in the box and, on its right, the Lounge's mic, 40px and
-     plain: you can always answer with an emoji or a voice note (N321
-     item 2). The mic records with the one recording bar (the trash, the
+     plain, only while a question waits for your answer (N341; was N321
+     item 2, the mic always): the newest message is the other person's and
+     is a question, their words (people never type, N335 item 4, so words
+     come only from a customer's request) or a message the backend marks
+     as one. Once you answer, with an emoji or a voice note, the mic goes.
+     Will deciding what is a question (N322 item 5) is not built. The mic records with the one recording bar (the trash, the
      strip with Stop inside, N314), up to two minutes; Stop sends, the
      trash throws it away, and the bar comes back. The voice note joins
      the thread once the backend has kept it; a refused mic, a failed
@@ -139,9 +148,10 @@ order it is built in.
      speaking coach", "Nobody else can reach you here unless you open their
      link too.", one button, "Join" (N307), and "Opens in your browser.
      Nothing to install." (N335 item 2). Signed out, Join goes to sign in or
-     sign up and comes back to finish; joined, /chat opens on the chat with
-     the person who invited you (N348; was the list): one chat for the two
-     of them, however often either opens a link (N328). Will's first lines
+     sign up and comes back to finish; joined, /chat opens on the list of chats,
+     the chat with the person who invited you its first row, marked new
+     (N357; was N348 item 1, the chat itself): one chat for the two of them,
+     however often either opens a link (N328). Will's first lines
      wait in Will's chat until they open it (N348 item 2). In that chat,
      above the messages, the one who joined reads "You joined through
      {name}'s link. Only the two of you are in this chat." A wrong or
@@ -572,6 +582,9 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N341 · C1: in a chat with a person, the mic shows only while a question waits for your answer (the newest message is theirs and is a question: their words, or a message marked as one); answered with an emoji or a voice note, it goes. Was (N321 item 2): the mic always beside the emoji. The "+" comes with N351 · FE (this PR)
+- 2026-11-02 · N357 · C1: after joining through a link, /chat opens on the list of chats, the inviter's chat its first row, above Will, marked new with its last message or the joined line, until it is opened. Was (N348 item 1): that chat opened · FE (this PR)
+- 2026-11-02 · N354 · C1: in the iPhone app only, sign-in first, then the chats: the app opens on /login (no landing, no welcome; consent unchanged, sign-up's Terms box and Phase1AcceptanceGate); with the chats on, it opens on the list even when Will's chat is the only one, and the row under Will is then "Add someone to chat with", opening the add sheet as the + does. Was: the landing and the welcome, and no list with Will's chat alone. The website is unchanged · FE (this PR)
 - 2026-11-02 · N348 · C1: joined through a link, /chat opens on the chat with the person who invited you (`/chat?with=<chat>`), not on the list; Will's first lines wait in Will's chat. Was: the list · FE (this PR)
 - 2026-11-02 · N308, N310, N328, N335 · C1, §2: the join link built behind ring 6: the "+" on the list opens the add sheet with the person's own link and Copy my link; /c/<token> is the join page; joining makes one chat for the two and says whose link it was. Not yet: Invite by email, the company sign-in, the ask link · BE (this change), FE (this change)
 - 2026-11-02 · N334 · C1, §4: every chat shows its own top bar, Will's included: in Will's chat the WillpowerLab bar goes and his top bar takes its place (back, his mark, "Will"), over the Lounge, which is unchanged; the WillpowerLab bar shows on the list only. Was (N322 item 4): the WillpowerLab bar, with "‹ Will" under it · FE (this PR)

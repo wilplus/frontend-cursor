@@ -98,8 +98,8 @@ export function PendingBooked({ text }: { text: string }) {
 
 /** Today's one thing: its words, the key line and "How you said it". No
  *  bubble carries a button (N294 item 7): while it is the newest, its
- *  "Record Take N" stands under the chat, alone (`oneRecordOf`, the plan's
- *  footer). */
+ *  "Record Take N" stands under the chat, alone (`newestOneOf`,
+ *  `RecordTakeButton`). */
 function OneThing({ message, ctx }: { message: LoungeMessage; ctx: PlanRowCtx }) {
   const plan = ctx.plan;
   return (
@@ -219,25 +219,21 @@ export function planRowFor(message: LoungeMessage, ctx: PlanRowCtx | undefined):
   return null;
 }
 
-/** The newest "Today, one thing" row's client id, when it is newer than any
- *  closing message ("Record Take N", N89): the chat has one record button,
- *  and it is that bubble's (N167). None once a newer Take is recorded, in
- *  any project (N244, N251). */
-export function newestOneOf(messages: LoungeMessage[]): string | null {
+/** The Take the newest "Today, one thing" row offers, when that row is newer
+ *  than any closing message ("Record Take N", N89): the chat has one record
+ *  button, and while that bubble is the newest it is "Record Take N" under
+ *  the chat, alone, the plan's black button with the red dot (N294 item 7,
+ *  N296 state 4; was inside the bubble, N167). None once a newer Take is
+ *  recorded, in any project (N244, N251), or when the row names no Take. */
+export function newestOneOf(messages: LoungeMessage[]): { arcId: string; takeIndex: number } | null {
   const recorded = recordedPast(messages);
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const meta = (messages[i].metadata ?? {}) as Meta;
-    if (meta.plan_one) return recorded.has(messages[i].client_id) ? null : messages[i].client_id;
+    if (meta.plan_one) {
+      if (recorded.has(messages[i].client_id)) return null;
+      return typeof meta.arc_id === "string" && typeof meta.take_index === "number" ? { arcId: meta.arc_id, takeIndex: meta.take_index } : null;
+    }
     if (meta.next_take === true) return null;
   }
   return null;
-}
-
-/** The Take the newest "Today, one thing" offers, while it holds the chat's
- *  one record button: "Record Take N" under the chat, alone, the plan's
- *  black button with the red dot (N294 item 7, N296 state 4). */
-export function oneRecordOf(messages: LoungeMessage[]): { arcId: string; takeIndex: number } | null {
-  const id = newestOneOf(messages);
-  const meta = ((id ? messages.find((m) => m.client_id === id)?.metadata : null) ?? {}) as Meta;
-  return typeof meta.arc_id === "string" && typeof meta.take_index === "number" ? { arcId: meta.arc_id, takeIndex: meta.take_index } : null;
 }

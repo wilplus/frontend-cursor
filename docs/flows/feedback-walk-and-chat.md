@@ -147,10 +147,9 @@ step; the loop never waits for a coach.
   recording"'s shape), the message box and the mic gone (N296 state 4, D4).
   With a plan, under the plan card, in place of "Type here", there is only
   "Start your first recording" (N161), the one button before the first
-  Take, under no question (N319 item 2), and on a practice day the chat has
-  one record button, the same "Record Take N" alone under the chat while
-  today's one thing is the newest, never inside its bubble (N167, N294
-  item 7; [`the-plan.md`](the-plan.md) E5, G6).
+  Take, under no question (N319 item 2; [`the-plan.md`](the-plan.md) E5).
+  A practice day's "Record Take N" is the plan's:
+  [`the-plan.md`](the-plan.md) G6.
 
   (Founder 2026-10-26, N192: "there should be just the ideal text after the
   take and the feedback walk above it", "make sure that all of these are in
@@ -312,10 +311,12 @@ step; the loop never waits for a coach.
   You did." under the hello, with this Take's best clip on that slide as
   the speaker's orange bubble. A moment's fix rose when its issue is gone
   on the same slide; the pace game's (the Sniper, when the last walk fixed
-  no moment, T) when that slide came out slower: every clip of it this
-  Take spent less of its time past the green, on the side the stretch
-  leaned, than the stretch did, read as the tempo step reads it
-  (`tempo_stretch.furthest`). The tip is the one the last walk gave, kept
+  no moment, T) when every clip on that slide this Take spends less of
+  its time past the green, on the side the stretch leaned, than the bar
+  that picks a stretch (`tempo_stretch.MIN_OUTSIDE`;
+  `tempo_stretch.stays_inside`), T's one rule for "the pace fix worked"
+  (N350 item 3; was: less than the stretch itself had, any drop,
+  `tempo_stretch.furthest`). The tip is the one the last walk gave, kept
   with its fix step in the chat (`fix_tip`): the AI clip's tip, lower-cased
   ("Last time: let “fourteen shades” wait a beat. You did."), the Clearer
   version's "say it straight", or the pace game's "give “{words}” more
@@ -375,7 +376,14 @@ step; the loop never waits for a coach.
   weakest with the AI clip after their best (C4); the Sniper (T) and no
   moment on a pace or pause week whose Take has a stretch, and for
   everyone, with or without a plan, at any level, when rushing is the
-  Take's biggest issue (T, N323 item 6). The server serves
+  Take's biggest issue (T, N323 item 6). A fix the last walk gave that
+  worked on this Take (its issue gone on that slide, by the rule Last time
+  uses, C0a) is not given again on that slide: the AI clip, the Clearer
+  version, the level's moment with that tool and the Sniper pass over that
+  slide, and the one fix is chosen from everything else as above (another
+  slide, another tool, or none); when the issue came back the same fix may
+  be given again; no walk before, or one that cannot be read, and the pick
+  is as it always was. Nothing on screen says so (N359). The server serves
   only these two (backend `take_feedback_policy_v3._one_thing`), so the
   Ideal Text's marks, the coach's queue and "did the fix work" hold the
   same two; the next bests and the second fix are not shown. Was (N289,
@@ -442,8 +450,8 @@ praised moment:
   as the words are kept per slide. Their own sentence's words and the
   Clearer version's sentence are saved whole, whatever their length
   (N323 item 2; the paragraph's save sends `source: "walk"`); the cap of
-  eight stays for helper words picked by hand on the Ideal Text, and, as
-  built, for the Sniper's stretch, a whole clip (§3). Found where they are
+  eight stays for helper words picked by hand on the Ideal Text and for
+  the Sniper's stretch, a whole clip (N325 item 5). Found where they are
   saved; else none. A tip that quotes no phrase (the AI clip's tips for
   pace or fillers) gives none: the walk goes from the try to "Lesson
   done." (N323 item 3). No pick. The picker below
@@ -564,6 +572,10 @@ praised moment:
   try the server did not keep (late, not sent, not heard) included: the
   next is numbered after it (2026-10-21). The recorder's strip is the recording screen's as re-locked 2026-10-12
   (N70), without the slide card; after Stop the walk returns instantly.
+  Stop shows once the mic is live: while the mic opens, the bar shows the
+  trash and the strip without Stop, as the tempo step's does (T; N350 item
+  5; was: Stop from the moment the practise opened, `useWalkPractise`
+  `capturing`).
   The trash throws the try away: nothing is uploaded or checked, no try is
   counted, and the walk is back on the step that opened it ("Try it",
   "Practise", "Practise again"), as ✕ does (N314). The
@@ -696,8 +708,7 @@ praised moment:
      own button does (the sharing question first from Take 2, G). The
      speaker may simply close the app; the "+" still opens the projects.
      A practice day's one thing, newer than the goodbye, holds the chat's
-     one record button, the same "Record Take N" alone under the chat (N167,
-     N294 item 7, [`the-plan.md`](the-plan.md) G6).
+     one record button: [`the-plan.md`](the-plan.md) G6.
 
   **Between two Takes** (N244, N251). From the moment the next Take is
   recorded, in any project, until its walk reaches its summary, the chat
@@ -1024,12 +1035,37 @@ praised moment:
               last 60 days with the notebook's yes, each only where its own
               ring row and consent reach; never Will's private note;
               variables and constants are kept nowhere, so not read) for
-              the eight kinds of N290 item 4; a moment it weighs (high 1,
-              some 0.5) counts ×(1 − 0.5 × weight) for the between, kept
+              the eight kinds of N290 item 4; a weighed moment ranks as
+              needing more help for the between, kept
               only when its Clearer version passes the gate (H3), else the
-              pick as without it; never the strongest or the weakest; at
-              most 5 seconds before the Take is ready (N327), late or failed → as
-              without it; a frozen Take keeps the walk it froze
+              pick as without it; never the strongest or the weakest; the
+              run waits for it at most 5 seconds, only for a speaker it
+              reaches, after the Take is flipped ready and before the
+              walk's marks are baked: "ready" and the Ideal Text never
+              wait, the walk may open up to 5 seconds later (N350 item 2;
+              was: "ready" waited for it); while the run waits, the
+              walk's read answers "pending" until the bake starts
+              (ideal_text_feedback_bake.hold_for_bake, a 15-second
+              "queued" mark set only when the run waits), so the walk is
+              never built beside the bake without the read; late or
+              failed → as without it; a frozen Take keeps the walk it
+              froze
+  worked    = the fixes the walk of the Take before gave (the completed
+              spoken Take before this one in the talk;
+              take_progress.last_walk) whose issue is gone on this Take's
+              same slide, by the rule the Takes table and Last time use
+              (take_progress.worked → outcome: the voice at the floor, no
+              words that need help, the pace game's slide inside the green,
+              T): the weakest passes over that slide's clips for the AI
+              clip, the between for the Clearer version, the plan's level
+              for its tool, and the Sniper is not the fix when its stretch
+              is there, nor offered by the tempo route
+              (take_progress.pace_worked); each slot fills from everything
+              else as above; came
+              back → may be given again; no walk before or any failure →
+              as without it; read from what is stored, so a frozen Take
+              read again keeps its walk; nothing in the frame, on screen or
+              for a coach (N359)
   ```
 
   The unit is the sentence. FLOOR is 0.6 at launch, then calibrated so
@@ -1040,13 +1076,17 @@ praised moment:
   processing logs why nothing was stamped (2026-10-17). H4 works one clip
   through, step by step, with three examples.
 
-  The notes (N326) also shape the Clearer version: the moments the verbal
-  read weighs most (two at most) that the model already rewrites (an
-  unconfident read, profanity or a low slide fit) are written again with the
-  read's one line on what matters to the speaker, in the read's own words;
-  a rewrite that repeats three content words in a row from the notes that
-  the speaker did not say in the Take is refused (`rewrite_gate.leaks`),
-  and H3 then applies unchanged. Nothing of it is shown: no line says a
+  The notes (N326) also shape the Clearer version: the moments it weighs
+  most that the model already rewrites (an unconfident read, profanity or a
+  low slide fit) are written again with the read's one line on what
+  matters to the speaker, in the read's own words; a rewrite that repeats
+  a run of words from the notes that the speaker did not say in the Take
+  is refused (`rewrite_gate.leaks`), and H3 then applies unchanged. The
+  numbers behind the notes live in the code and are calibrated there, not
+  here: the weights (`services/verbal_read.py`), how much a weight counts
+  (`services/moment_pick.py`), how many moments are written again
+  (`services/moment_suggestions.py`) and how long a run is
+  (`services/rewrite_gate.py`). Nothing of it is shown: no line says a
   note was used (N326 item 1), no score (Never 1); the frame, the coach's
   queue and the suggestion rows carry only the choice of moments and the
   speaker's own words, never the notes, that they were used, a kind, a
@@ -1607,7 +1647,7 @@ them.
 
 ### T · The tempo step (the pace step)
 
-Founder 2026-10-24 to 2026-10-28, backend N162, N166, N179, N181, N245. Built: the founder and whoever the rings panel's `tempo_step` row reaches see it (§2 says what is left). Everything about this feature is in this block; it moved here from §2 when its build steps were done (docs audit, 2026-10-26).
+Founder 2026-10-24 to 2026-10-28, backend N162, N166, N179, N181, N245. Built: whoever the rings panel's `tempo_step` row reaches sees it; at ring 0 it reaches everyone, the founder too (N325 item 3). Everything about this feature is in this block; it moved here from §2 when its build steps were done (docs audit, 2026-10-26).
 
 **In one line.** After a Take where the speaker rushed or dragged, the walk
 plays that stretch back and asks them to talk about the same thing again
@@ -1617,7 +1657,7 @@ while a dot on a scale follows their pace live.
 - In the Feedback walk only. Never in the coach panel, the Lounge, or before the Take.
 - **Opened again** once the walk is done, it shows what the chat kept, read only: the stretch, Will's opening lines, each "Try N" with the line the dot drew and Will's word on it, the closing line (none after a try that landed) or the Skip, and no Next (N259). No scale and no microphone. A Take that had no tempo step has none (N247). The same, without its Next, when the walk is opened again further on before it is done (B5).
 - It sits before the Ideal Text, so it always has a Skip (N178, which replaces N130's "never between a Take and the Ideal Text" for the walk's own practice steps). The walk has no time limit: it ends when the speaker taps Close (N347 item 5; N178's time limit is withdrawn).
-- In the One thing walk it is the Sniper, the fix, and then no moment is fixed: on a plan's pace or pause week whose Take has a stretch outside the green (N309 item 1), and, for everyone, with or without a plan, at any level, whenever rushing is the Take's biggest issue (N323 item 6). Rushing is the biggest issue when the stretch ran fast and the share of its time the pace scale spent past the green is larger than what each moment the walk could fix falls short of, 1 minus its willfidence (S × W, the read the picker ranks the moments by, H); both are shares from 0 to 1 where 0 is all well; a tie, or a moment with no read, keeps the moment; with no moment to fix, a rushed stretch is the fix. A plan's level moment (N289 item 8) counts as a fix like any other, so the plan's choice stays unless rushing outweighs it. A slow stretch off a pace or pause week leaves the fix a moment. Only for a speaker the step reaches (below): without it the walk could not show the Sniper, so the fix stays a moment (backend `take_feedback_policy_v3._sniper_first`). Was (N309, 2026-11-02): only on a plan's pace or pause week. Under "And now, one thing to improve:", its opening lines as below, "Try it" with Skip in "I'm ready"'s place, two tries, and the walk's words on each ("Yes. That's it.", "Close. Once more.", "Good try. Take it with you."), no closing line of its own (`WalkTempo` `one`). With a moment to fix that outweighs the rushing, the walk has no tempo step. Was: on any Take, Take 1 included, whenever the pace scale finds a stretch outside the green, once in that walk, with or without a plan (N289 item 6; was from Take 2, N181, a rule the code never had), as a Take served before N289 still has it. Right after the walk's moments, so a Take that needs both has the Clearer version first, then this step (C2). In a "Let your key line land" or "Pauses that hold the room" week it opens with "This week's level: {level}. Here's where it shows:" (N289 item 8). Who has it is the rings panel's `tempo_step` row.
+- In the One thing walk it is the Sniper, the fix, and then no moment is fixed: on a plan's pace or pause week whose Take has a stretch outside the green (N309 item 1), and, for everyone, with or without a plan, at any level, whenever rushing is the Take's biggest issue (N323 item 6). Rushing is the biggest issue when the stretch ran fast and the share of its time the pace scale spent past the green is larger than what each moment the walk could fix falls short of, 1 minus its willfidence (S × W, the read the picker ranks the moments by, H); both are shares from 0 to 1 where 0 is all well; a tie, or a moment with no read, keeps the moment; with no moment to fix, a rushed stretch is the fix. A plan's level moment (N289 item 8) counts as a fix like any other, so the plan's choice stays unless rushing outweighs it. A slow stretch off a pace or pause week leaves the fix a moment. Only for a speaker the step reaches (below): without it the walk could not show the Sniper, so the fix stays a moment (backend `take_feedback_policy_v3._sniper_first`). Was (N309, 2026-11-02): only on a plan's pace or pause week. Under "And now, one thing to improve:", its opening lines as below, "Try it" with Skip in "I'm ready"'s place, two tries, and the walk's words on each ("Yes. That's it.", "Close. Once more.", "Good try. Take it with you."), no closing line of its own (`WalkTempo` `one`). With a moment to fix that outweighs the rushing, the walk has no tempo step. Was: on any Take, Take 1 included, whenever the pace scale finds a stretch outside the green, once in that walk, with or without a plan (N289 item 6; was from Take 2, N181, a rule the code never had), as a Take served before N289 still has it. Right after the walk's moments, so a Take that needs both has the Clearer version first, then this step (C2). In a "Let your key line land" or "Pauses that hold the room" week it opens with "This week's level: {level}. Here's where it shows:" (N289 item 8). Who has it is the rings panel's `tempo_step` row, at ring 0 (N325 item 3); the walk's choice of the Sniper reads the row alone (backend `tempo_stretch.tempo_on_for`; was: also the founder reading their own Take, N350 item 1).
 - It is the founder's "Sniper": the pace exercise of N129. The old Strength/Pace dartboard stays retired (N127, N181).
 
 **The scale.** A dot on a horizontal line. It moves right while you talk
@@ -1631,7 +1671,7 @@ backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
 2. Will's bubble, from what the stretch was: "That part went fast. 🏃 Let's try a little game." or "That part slowed down, with long pauses. 🐢 Let's try a little game."
 3. Will's bubble with the stretch's topic: "Tell me more about {topic}, and keep the ball in the green."
 4. Will's bubble: "🤫 Find a quiet spot first."
-5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar, the app's one recording bar (N314): the trash, then the strip with Stop inside it, the Skip under it. Nothing else appears until Stop. The trash throws the try away: no try is counted or kept for Will, and the step is back where it was before it (I'm ready, "Try it" or Practise again).
+5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar, the app's one recording bar (N314): the trash, then the strip with Stop inside it, the Skip under it. Stop shows once the mic is live, as in the walk's practise (C7, N350 item 5). Nothing else appears until Stop. The trash throws the try away: no try is counted or kept for Will, and the step is back where it was before it (I'm ready, "Try it" or Practise again).
 6. The try: the dot's path, then Will's word on it; Will guides, the speaker never has to choose between another try and moving on (N245):
    - **It lands** (really better): "That landed. 🎯 Really better. Let's move on.", then **Next**; the game ends there, on any try.
    - **It came closer** (more than half in the green, not enough to land): "Better. You let it breathe." and, while a try is left, "You're close. 💪 Give it one more try.", then **Practise again**.
@@ -1652,6 +1692,17 @@ Once the walk goes on, the game stays in the thread as it was played (B5): each 
 | When a try came closer | More than half of it in the green (N245) |
 | A noisy room | The quiet-spot line only; no listening check |
 
+**When the pace fix worked** (N350 item 3, one rule). The stretch the pace
+game fixed counts as fixed when every clip on that slide in the next Take
+stays inside the green on that side: each spends less of its time past
+the green on the side the stretch leaned than the bar that picks a stretch,
+a quarter (`tempo_stretch.MIN_OUTSIDE`; `tempo_stretch.stays_inside`). It
+is the rule for "Last time: give “{words}” more room. You did." (C0a, N347
+item 3) and for the founder's Takes table's "did the fix work" for the
+pace game (backend `take_progress`), the same rule for both. Was:
+any drop for the walk (every clip on that slide spent less of its time past
+the green than the stretch did), a moved stretch for the table.
+
 **The build, in order** (N166 item 5):
 
 | Step | What | Where it stands |
@@ -1661,7 +1712,7 @@ Once the walk goes on, the game stays in the thread as it was played (B5): each 
 | 3 | The Take's own stretch, its reading and its topic: the backend replays the pace scale's rules over the Take's word timings and takes the clip furthest from the green; the topic is one small-model call under the Take's processing authorization, else "that part"; no stretch, no step | Built |
 | 4 | Kept: the step's lines, each try and its comment, and the closing line are Lounge messages like every other step; the game (the stretch's reading, each try's result and the dot's path, how it ended; never audio) is one speaker-memory event, so Will's note learns it in words | Built |
 | 5 | The words signed (N179) and listed in §1 K | Built |
-| 6 | Who sees it: the founder, and whoever the `tempo_step` row in the rings panel (`/admin/rings`) reaches; no row, nobody else. The backend answers the step only to them. The ring is widened, then turned on for everyone: a speaker without a plan when the Take needs it, a speaker with a plan in a pace or pause week (N147, N181) | Built (the plan part waits on the plan; the speaker without a plan needs no build) |
+| 6 | Who sees it: whoever the `tempo_step` row in the rings panel (`/admin/rings`) reaches; no row, nobody else. The backend answers the step only to them. The row is at ring 0, so it reaches everyone (N325 item 3): a speaker without a plan when the Take needs it, a speaker with a plan in a pace or pause week (N147, N181) | Built |
 
 **The code.**
 - The plan: `src/lib/willab/walkPlan.ts`, `WalkIntervention` and the `tempo` step key. A new intervention is a new kind there, its place in `buildWalkPlan` and its screen.
@@ -1669,7 +1720,7 @@ Once the walk goes on, the game stays in the thread as it was played (B5): each 
 - The meter: `src/lib/willab/pace/` (`paceSignal.ts`, `paceMic.ts`); the scale: `src/components/willab/pace/PaceScale.tsx`.
 - The stretch: backend `services/tempo_stretch.py` (route `GET /v2/explore/arc/<arc>/review/tempo/<take>`), asked once per Take by `useReviewTempo.ts` through `src/services/api/reviewTempo.ts`. The scale reads slow only on pauses of several seconds, so most stretches it picks are rushed.
 - What is kept: backend `POST /v2/explore/arc/<arc>/review/tempo/<take>` (`tempo_stretch.keep_tries`, a speaker-memory event of kind `take` with its `tempo` part, docs/SPEAKER-MEMORY.md), sent by `postTempoGame` in `src/services/api/reviewTempo.ts` when the game ends.
-- Who sees it today: the founder's account, and anyone the rings panel's `tempo_step` row reaches (`useDeckFeedbackWalk.tsx`, `useRingState`; backend `tempo_stretch.tempo_is_on`). To try it on the dev harness: `/dev/feedback-walk?live=1&tempo=1` (the stand-in stretch).
+- Who sees it today: everyone the rings panel's `tempo_step` row reaches, at ring 0 everyone (`useDeckFeedbackWalk.tsx`, `useRingState`, which also asks for the founder's account; backend `tempo_stretch.tempo_is_on`, the founder or the row, and `tempo_on_for`, the row alone, for the walk's choice of the Sniper). To try it on the dev harness: `/dev/feedback-walk?live=1&tempo=1` (the stand-in stretch).
 - The founder's bench, `src/app/admin/pace-circle/`, uses the same meter and scale.
 
 **History.** The [Pace Circle brief](https://claude.ai/artifact/VJ2uSugQWmbAsmReyxuufz)
@@ -1707,17 +1758,13 @@ The four lines above were filled from main's history by the page's keeper on
 - **The lens scrolls** · B2, B5 · founder 2026-10-20 ("It is scrollable!"), read as WIL-89 working as drawn; say if that was a complaint · confirmed
 - **Review from the Lounge loads very long** · F1, A2 · founder 2026-10-20. The same cause as WIL-76: the marks computed live (20 to 40 s) or pending behind a queued bake; the bake in the run stores them before the Take is ready, so the tap finds them · BE #1209 · the founder checks the app
 
-- **Tempo · the pace step** · §1 T · built; it reaches the founder and the `tempo_step` ring. Left: widening the ring, then turning it on for everyone (N181), and the plan's pace weeks, which wait on the plan (N147) · the founder decides when
+- **Tempo · the pace step** · §1 T · built; it reaches whoever the `tempo_step` ring row reaches, at ring 0 everyone (N325 item 3; the founder-only fallback in the walk's choice of the Sniper is gone, N350 item 1). Left: the plan's pace weeks, which wait on the plan (N147) · the founder decides when
 
 ## 3. Still open
 
-- **The One thing walk, built as closest to N309 (2026-11-02):** the
-  Sniper's helper words are its stretch's words only when they are eight or
-  fewer: the stretch is a whole clip, and N323 item 2 names the Clearer
-  version's sentence and their own sentence kept, which are saved whole.
-  "Since it was last worked on" is read as "the fix the last walk gave". The founder decides
-  each. The cap on the walk's sentences and the AI clip with no quoted
-  phrase were answered by N323 items 2 and 3.
+- **The One thing walk, built as closest to N309 (2026-11-02):** "Since
+  it was last worked on" is read as "the fix the last walk gave". The
+  founder decides.
 - **The rule for "rushing is the biggest issue"** (N323 item 6, T): built
   as the rushed share of the stretch against 1 minus each fix moment's
   willfidence, the two reads already there; the founder may want it tuned
@@ -1730,10 +1777,6 @@ The four lines above were filled from main's history by the page's keeper on
   session after the Take, at most one per Take. Typing "I want to practise"
   under the goodbye is read in the app (practise, record, continue, again,
   next take; never with "no", "not", "later").
-
-- **A typed answer to the key line** is kept as the key
-  line too: nothing on screen says it should be said, since the note
-  drafted for before Take 1 (N319 item 3) is not signed.
 
 - **Self-judgement of your own practice try** is off for launch (2026-10-12):
   4 speaker answers, 21 clips with coach answers, 1 with both. Re-run the
@@ -1786,11 +1829,13 @@ Frontend, shared with other flows (not guarded): `src/components/willab/Lounge.t
 `src/components/willab/TranscriptReviewDeck.tsx` (the black line and the
 paragraph tap), `src/components/willab/IdealTextOverlay.tsx` and
 `idealTextLoad.ts` (the page and its loading), `src/components/willab/loungeReports.ts`,
-`src/components/willab/RecordingBar.tsx` (the one recording bar, B14, C7, T),
 `src/components/willab/WillVoiceAnswer.tsx` (the orange mic and the voice
 answer, B14, E3), `src/components/willab/WillQuestion.tsx` (Will's
 question and its taps, E2, E3).
-The Ideal Text's own files are in `scripts/design-locked-files.txt`.
+The Ideal Text's own files are in `scripts/design-locked-files.txt`. So is
+`src/components/willab/RecordingBar.tsx` (the one recording bar, B14, C7,
+T), locked by backend N314: a change to it needs the `Founder-Approved:`
+trailer; shared with the chats and the plan, no flow page names it.
 
 Backend (`wilplus/backend-cursor`): `services/moment_pick.py`,
 `services/take_feedback_policy_v3.py` (the marks), `services/willfidence.py`,
@@ -1858,6 +1903,13 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N359 · built (C2, H1): a fix the last walk gave (the AI clip, the Clearer version or the pace game) that worked on this Take, its issue gone on that slide by Last time's rule, is not given again on that slide; the walk picks from everything else as before, and gives it again only when the issue comes back; no walk before, or one that cannot be read, picks as before; nothing on screen, in the frame or for a coach. Was: the same fix could be given again on a slide where it had just worked · BE (this change), FE (this PR)
+- 2026-11-02 · N350, N325 item 3 · C0a, H1, T, §2: mirrors the backend half: while the run waits for the verbal read the walk's read answers "pending" until the bake starts (`ideal_text_feedback_bake.hold_for_bake`, a 15-second "queued" mark set only when the run waits); the pace fix worked when every clip on that slide spends less than the bar that picks a stretch (`tempo_stretch.MIN_OUTSIDE`) of its time past the green on the stretch's side (`tempo_stretch.stays_inside`; was `tempo_stretch.furthest`), for Last time and the Takes table alike; the tempo step reaches whoever the `tempo_step` row reaches, at ring 0 everyone, and the walk's choice of the Sniper reads the row alone (`tempo_stretch.tempo_on_for`; was: also the founder reading their own Take) · BE n350, docs (this PR)
+- 2026-11-02 · N350 · C0a, C7, H1, T: Stop shows in the walk's practise once its mic is live, as in the tempo step: while the mic opens, the trash and the strip alone (`useWalkPractise` `capturing`; was Stop from the moment the practise opened); the notes' verbal read waits at most 5 seconds after the Take is flipped ready and before the walk's marks are baked, so "ready" and the Ideal Text never wait and the walk may open up to 5 seconds later (was: "ready" waited for it); one rule for "the pace fix worked", every clip on that slide in the next Take inside the green on that side, the bar that picks a stretch, for Last time and the Takes table (was: any drop for the walk, a moved stretch for the table); the code simplified with the same behaviour: a Stop while the mic opens goes through the mic's generation token (`useDualCaptureMic`, no `stopEarlyRef`), the Sniper's helper words read once (`tempoWords`) · BE n350, FE (this PR)
+- 2026-11-02 · N323 item 1 · §3 closed: the note under "Type here" before Take 1 is signed and built ([`the-plan.md`](the-plan.md) B10, K); a typed answer to the key line is kept as the key line, as built · docs (this PR)
+- 2026-11-02 · N325 item 5 · C3, §3: the Sniper's stretch keeps the cap of eight as decided, no longer "as built"; its open question closed, "since it was last worked on" stays open · docs (this PR)
+- 2026-11-02 · N314 · §4: `src/components/willab/RecordingBar.tsx`, the one recording bar, is in `scripts/design-locked-files.txt`, so a change to it needs the founder's trailer. Was: listed as not guarded · FE (this PR)
+- 2026-11-02 · — · B3, D4, H1: one home per rule: a practice day's "Record Take N" points to the-plan.md G6; H1 says the notes' rules in words and names where their numbers live in the code, so the page does not drift when they are calibrated; principles.md S3 points to H1. No rule changes · docs (this PR)
 - 2026-11-02 · — · §3 closed: a Stop tapped while the practise's mic is still opening (C7) is kept by the mic (`useDualCaptureMic`): the mic goes off the moment it opens, no recording starts, and an empty try goes on like any other, so the mic is never left on. Was: the Stop did nothing, the walk moved on and the mic went live a moment later · FE (this PR)
 - 2026-11-02 · N347 · built (C0a, C3, D4, E2, H1, K, T, §3): Will asks "Who were you talking to? 🎯" (was "Quick one: who's this talk really for? 🎯"), its taps and "Someone else" unchanged; on a plan the goodbye says "Good job. See you tomorrow." when the next practice day is tomorrow, else "Good job. See you {weekday}." (was "Good job. See you next {day}.", tomorrow by its weekday); the pace game gets its Last time, "Last time: give “{words}” more room. You did.", with the Sniper's helper words, in the same place and under the same rule as the other fixes, risen when that slide came out slower (was: no Last time after the Sniper); and, with no code, one set of helper words per slide, the newest wins (N118), no time limit on the walk (N178's withdrawn), and H1's W as the code counts it, fillers, hedges and slide fit, "holds together" only in the hidden read; the six items closed in §3 · BE n347, FE (this PR)
 - 2026-11-02 · N338 · §2: the messages line (no message at night, N189 item 1 and N193) and N123 (the asks and the walk's lines said fresh) are withdrawn, nothing like them is built, and the signed words stay; the WIL-84/86 line's follow-up is the in-place "Edited" of N192 · docs (this PR)
