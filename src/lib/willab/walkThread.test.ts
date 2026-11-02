@@ -47,7 +47,9 @@ OUTCOME
   O14 The One thing walk's judged moment turns its level across my Takes
       (Take 2 high, 3 middle, 4 low, then round again; none on Take 1), and
       the chat says the intro, my reply with its tick and "Got it."; "Last
-      time" finds the tip my Take before kept (N309).
+      time" finds the tip my Take before kept (N309), the pace game's too:
+      "Last time: give “{words}” more room. You did." with the Sniper's
+      helper words, none past the cap of eight (N347 item 3).
 PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own message, with no score"
          O2 -> "posts judging other speakers as the prototype's chat does, never their recording"
          O3 -> "counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles"
@@ -64,11 +66,13 @@ PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own
          O14 -> "the One thing walk's judged moment turns its level, says its words, and last time finds the tip the Take before kept"
 WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12);
          founder 2026-10-19, N80 (when the coach changes their word);
-         founder 2026-10-31, N309 (the One thing walk).
+         founder 2026-10-31, N309 (the One thing walk); N347 item 3 (every
+         fix gets its Last time, the pace game too).
 */
 import { describe, expect, it } from "vitest";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "@/components/willab/idealEditCopy";
-import { aiVoiceChat, answerBody, chatDrawsStep, chatWalks, coachNoteToChat, feedbackWalkDoor, inPairs, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, shareChat, shareLines, shownStep, stableUuid, storedSummaryOf, walkPairs, walkStepDraft, wordsEditedIn } from "./walkThread";
+import { aiVoiceChat, answerBody, chatDrawsStep, chatWalks, coachNoteToChat, feedbackWalkDoor, inPairs, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, shareChat, shareLines, shownStep, sniperWords, stableUuid, storedSummaryOf, walkPairs, walkStepDraft, wordsEditedIn } from "./walkThread";
+import { tipSaid } from "./walkLines";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { WalkStep } from "./walkPlan";
 
@@ -113,6 +117,17 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
     // Only the Take right before: none kept there, none said.
     expect(lastFixTip(thread, "t5", "arc-1", 5)).toBeNull();
     expect(lastFixTip(thread, "t1", "arc-1", 1)).toBeNull();
+    // The pace game keeps its tip with its opening, its helper words in it
+    // (N347 item 3); a stretch past eight words gives none, and no line.
+    const paragraph = "We start today. Above ninety percent, every week.";
+    const words = sniperWords(paragraph, "Above ninety percent, every week.");
+    expect(words?.text).toBe("Above ninety percent, every week");
+    expect(sniperWords(paragraph, "We start today and we keep going above ninety percent.")).toBeNull();
+    const opening = kept("t4", 4, ONE_THING_COPY.paceTip(words!.text));
+    const paced = [...thread, { ...opening, client_id: "t4-tempo", metadata: { ...opening.metadata, step: "tempo:open" } }];
+    expect(ONE_THING_COPY.lastTime(tipSaid(lastFixTip(paced, "t5", "arc-1", 5)!))).toBe(
+      "Last time: give “Above ninety percent, every week” more room. You did.",
+    );
   });
 
   it("counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles", () => {
