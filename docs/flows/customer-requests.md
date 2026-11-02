@@ -81,14 +81,41 @@ order it is built in.
 
 1. **A list of chats** (N256): an answerer with customer requests opens her
    Lounge on a list, as WhatsApp does: Will pinned on top, then one chat per
-   customer, with the customer's photo as the avatar, the first name and the
-   question, the last message, the unread count and a status (Waiting for
-   you, Sent, Booked). Waiting for you comes first; filters All, Waiting,
-   Sent, Done. Everyone has this list now, with colleagues and coaches as
+   customer, with a circle holding the first letter of the name (no photo,
+   N322 item 1), the first name and the question, the last message, an
+   orange dot for a new message (no number, as the prototype draws it,
+   N322) and a status (Waiting for you, Sent, Booked). Waiting for you
+   comes first; filters All, Waiting, Sent, Done. Everyone has this list
+   now, with colleagues and coaches as
    chats too (backend N274); a person whose only chat is Will's opens on
    Will's chat, as the Lounge does today (Never 3). She is told of each request on WhatsApp:
    one message from WillpowerLab's number with a link to her chats (N236
    item 5).
+   **As built on ring 6** (N320, N321, N322), with a WhatsApp feel, under
+   the WillpowerLab bar:
+   - **Each row**, 76px, its divider starting after the circle: a 48px
+     circle with the first letter of the name, its tint fixed per chat from
+     a small palette (no photo); the name, who they are (muted, cut short)
+     and the time on the right ("06:12" today, the date before, never
+     "Yesterday"); under them, the last message on one line: its words, an
+     emoji with its meaning ("👍 It's good"), or "🎤 Voice message".
+   - **A new message** (its last message newer than the last time the
+     person opened that chat on this device, kept per chat in the browser;
+     unreadable storage reads as not new): the name bold, the line dark,
+     the time orange-dark and a small orange dot. No number, ever.
+   - **Will** stays pinned first, with his mark (the logo's three dots in a
+     grey circle), his name and a pin; then the chats, newest last message
+     first.
+   - **A person's chat**: the WillpowerLab bar goes; the chat's own top bar
+     takes the top, full width: back, a 36px circle with the letter, the
+     name and who they are. The messages start at the bottom, by the bar,
+     with the day above them ("Today", otherwise the date) and the time in
+     each bubble, bottom right; under a big emoji, its meaning and time
+     ("It's good · 06:12"). The bubbles stay the Lounge's. The bar is the
+     three emoji in the box; the mic comes with the voice notes.
+   - **Will's chat** keeps the WillpowerLab bar, with "‹ Will" under it
+     (N322 item 4). On a computer, the list and a person's chat sit in a
+     phone-wide column in the middle.
 2. **The customer's chat**: the request is the customer's bubble, with the
    photo, the words and the last digits of the number; the ask sits in the
    Lounge's footer slot, the grey card "{customer} asks for your advice."
@@ -337,6 +364,10 @@ them:
   treatment, for every second day at home.", "Not now", "Write to me here once you've tried it, or
   whenever you like.", "Of course. Write to me here whenever you like.",
   "Type here", "Sent to Ariel. She answers here, usually the same day."
+- The chats between people, as built on ring 6 (N320 item 4, N322):
+  "You", "Customer · Invita", "Your colleague · Invita", Sarah's and
+  Ariel's lines, "Will", "Only 👍, 👀 or 🙏 for now.", "Today", "🎤 Voice
+  message", the dates and the clock times.
 
 ---
 
@@ -344,11 +375,15 @@ them:
 
 Built behind ring 6 (feature `chats`, the founder only; 2026-11-02): the
 list of chats in front of the Lounge (C1: Will pinned, then each chat's
-title, subtitle and last message; the first time, the two demo chats) and a
-chat's screen, the conversation only, with the three emoji in the locked
-bar (N298, N302, N305, N306, N311). Off, /chat is the Lounge as it is. Not
-yet: the voice note, passing on, the unread count, the status and the
-filters. There is no typing outside Will's chat (N298 item 4).
+letter circle, title, subtitle, time and last message, newest first, a new
+message bold with an orange dot; the first time, the two demo chats) and a
+chat's screen, the conversation only, under its own top bar in the
+WillpowerLab bar's place, with the day and each message's time and the
+three emoji in the locked bar (N298, N302, N305, N306, N311, N321, N322).
+Off, /chat is the Lounge as it is. Not yet: the voice note and the mic
+beside the emoji (they need the backend's storage), "Record an answer" for
+a complex question (N321 item 4), passing on, the status and the filters.
+There is no typing outside Will's chat (N298 item 4).
 
 Nothing else built. The order of the build, each slice proving one thing (N223
 item 15, N225):
@@ -427,8 +462,10 @@ item 15, N225):
 
 The list of chats and a chat's screen (§2): frontend
 `src/components/willab/chats/` (mounted by `WillabSurface.tsx` around the
-Lounge, which it leaves as it is), `src/services/api/chats.ts` and the BFF
-routes `src/app/api/v2/chats/`; the backend's `/v2/chats` routes.
+Lounge, which it leaves as it is; the door's `navbar` tells it to hide the
+WillpowerLab bar while a person's chat is open; `chatTime.ts` the times and
+the day, `chatOpened.ts` what is new), `src/services/api/chats.ts` and the
+BFF routes `src/app/api/v2/chats/`; the backend's `/v2/chats` routes.
 
 The rest is not built. Where it will live, so §1 has a home from the first PR:
 
@@ -494,6 +531,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N321, N322 · C1, K, §2, §4: the chats with a WhatsApp feel, on ring 6: each row a circle with the first letter of the name (no photo), the name with who they are, the time ("06:12", the date before today) and the last message on one line ("👍 It's good", "🎤 Voice message"); a new message bold with an orange dot, no number, from when the chat was last opened on this device; Will pinned first with his mark and a pin, then the chats newest first. In a person's chat the WillpowerLab bar goes and the chat's own top bar takes the top (back, the letter circle, the name and who they are); the messages start at the bottom, under "Today" or the date, each with its time; on a computer, a phone-wide column. Will's chat keeps the WillpowerLab bar. Was: rows of text only in their order from the backend, the chat under the WillpowerLab bar, the messages at the top with no time. Not yet: the mic, the voice notes and "Record an answer" · FE (this PR)
 - 2026-11-02 · N298, N302, N306, N311 · C1, §2, §4: built behind ring 6 (feature `chats`): the list of chats in front of the Lounge, Will pinned first (his row opens the Lounge as it is, with a back to the list), then each chat with its title, subtitle and last message, and the two demo chats the first time; a chat's screen with back, title and subtitle, the Lounge's bubbles with no picture (N301), and the locked bar's shape with 👍 👀 🙏 in the box where Will's chat has "Type here", each sent emoji large with its meaning under it ("It's good", "Seen, I'll answer", "Thanks"). Off, /chat is the Lounge as it is. No typing, voice note or passing on yet · BE (the chats routes), FE (this PR)
 - 2026-10-30 · N274 · C1: the list of chats is everyone's, not only an answerer's; a person whose only chat is Will's opens on it. Was: a speaker without customer requests never saw the list · BE #1506, FE (this PR)
 - 2026-10-29 · N256 · C1 to C4, D5, F1, F2, K, §3, §5: the answerer's Lounge becomes a list of chats, Will pinned, one chat per customer; her answer, the send ask, the customer's replies and the outcomes in the customer's chat; the walk in Will's chat; no group chat. Was: every customer in one thread, a "To {customer}" chip for replies · BE #1479, FE (this PR)
