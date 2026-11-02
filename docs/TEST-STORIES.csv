@@ -499,7 +499,9 @@ O6  The mic records with the one recording bar; Stop posts the recording
 (multipart audio and duration_ms) and the voice note joins the
 thread as my bubble; the bar comes back (N321 item 2, N314).
 O7  A voice note from the other person is their grey bubble with a play
-control that plays it from the chat's audio route (N321 item 2).
+control that plays it from the chat's audio route (N321 item 2); its
+words, once ready, are closed behind ""Read it"" under the player, and
+""Hide"" closes them again (N331).
 O8  The + on the list opens my own link, with the add sheet's signed
 words, and Copy my link puts the whole link on the clipboard (N308,
 N310).
@@ -515,7 +517,7 @@ O3 -> ""an emoji tapped in a chat is posted and shown at once with its meaning, 
 O4 -> ""the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's""
 O5 -> ""a chat with a message newer than its last opening shows as new until it is opened""
 O6 -> ""the mic records a voice note, Stop posts it and it joins the thread""
-O7 -> ""a voice note from the other person plays from the chat's audio route""
+O7 -> ""a voice note from the other person plays from the chat's audio route, its words behind Read it""
 O8 -> ""the + opens my own link and copies it""
 O9 -> ""a chat joined through a link says whose link it was""
 O10 -> ""after joining, the list opens with the one who invited me on top, marked new""",
