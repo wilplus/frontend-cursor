@@ -105,7 +105,12 @@ order it is built in.
      the time orange-dark and a small orange dot. No number, ever.
    - **Will** stays pinned first, with his mark (the logo's three dots in a
      grey circle), his name and a pin; then the chats, newest last message
-     first.
+     first. **Just joined through a link** (`/chat?with=<chat>`), the list
+     opens, not a chat: the chat with the one who invited you is the first
+     row, above Will, marked new, its line their last message or, with none
+     yet, "You joined through {name}'s link. Only the two of you are in this
+     chat." (N335 item 2); opened, it takes its place with the rest (N357;
+     was N348 item 1: that chat opened).
    - **A person's chat**: the WillpowerLab bar goes; the chat's own top bar
      takes the top, full width: back, a 36px circle with the letter, the
      name and who they are. The messages start at the bottom, by the bar,
@@ -139,9 +144,10 @@ order it is built in.
      speaking coach", "Nobody else can reach you here unless you open their
      link too.", one button, "Join" (N307), and "Opens in your browser.
      Nothing to install." (N335 item 2). Signed out, Join goes to sign in or
-     sign up and comes back to finish; joined, /chat opens on the chat with
-     the person who invited you (N348; was the list): one chat for the two
-     of them, however often either opens a link (N328). Will's first lines
+     sign up and comes back to finish; joined, /chat opens on the list of chats,
+     the chat with the person who invited you its first row, marked new
+     (N357; was N348 item 1, the chat itself): one chat for the two of them,
+     however often either opens a link (N328). Will's first lines
      wait in Will's chat until they open it (N348 item 2). In that chat,
      above the messages, the one who joined reads "You joined through
      {name}'s link. Only the two of you are in this chat." A wrong or
@@ -572,6 +578,8 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N357 · C1: after joining through a link, /chat opens on the list of chats, the inviter's chat its first row, above Will, marked new with its last message or the joined line, until it is opened. Was (N348 item 1): that chat opened · FE (this PR)
+- 2026-11-02 · N354 · C1: in the iPhone app only, sign-in first, then the chats: the app opens on /login (no landing, no welcome; consent unchanged, sign-up's Terms box and Phase1AcceptanceGate); with the chats on, it opens on the list even when Will's chat is the only one, and the row under Will is then "Add someone to chat with", opening the add sheet as the + does. Was: the landing and the welcome, and no list with Will's chat alone. The website is unchanged · FE (this PR)
 - 2026-11-02 · N348 · C1: joined through a link, /chat opens on the chat with the person who invited you (`/chat?with=<chat>`), not on the list; Will's first lines wait in Will's chat. Was: the list · FE (this PR)
 - 2026-11-02 · N308, N310, N328, N335 · C1, §2: the join link built behind ring 6: the "+" on the list opens the add sheet with the person's own link and Copy my link; /c/<token> is the join page; joining makes one chat for the two and says whose link it was. Not yet: Invite by email, the company sign-in, the ask link · BE (this change), FE (this change)
 - 2026-11-02 · N334 · C1, §4: every chat shows its own top bar, Will's included: in Will's chat the WillpowerLab bar goes and his top bar takes its place (back, his mark, "Will"), over the Lounge, which is unchanged; the WillpowerLab bar shows on the list only. Was (N322 item 4): the WillpowerLab bar, with "‹ Will" under it · FE (this PR)

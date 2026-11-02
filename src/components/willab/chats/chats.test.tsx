@@ -32,8 +32,10 @@ OUTCOME
   O9  In a chat I joined through someone's link, one line above the
       messages says whose link it was (N335 item 2); a chat without it has
       no such line.
-  O10 Just joined (/chat?with=<chat>), the chat with the one who invited
-      me opens first, not the list, and the address is clean again (N348).
+  O10 Just joined (/chat?with=<chat>), the list opens with the chat with
+      the one who invited me as its first row, above Will's, marked new with
+      the joined line, and the address is clean again; opened, it is a chat
+      like the rest (N357; was N348 item 1).
 PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O2 -> "with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back"
          O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning"
@@ -43,7 +45,7 @@ PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O7 -> "a voice note from the other person plays from the chat's audio route"
          O8 -> "the + opens my own link and copies it"
          O9 -> "a chat joined through a link says whose link it was"
-         O10 -> "after joining, the chat with the one who invited me opens first"
+         O10 -> "after joining, the list opens with the one who invited me on top, marked new"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -395,14 +397,23 @@ describe("the chats in front of the Lounge", () => {
     expect(container.querySelector("[data-chat-joined]")).toBeNull();
   });
 
-  it("after joining, the chat with the one who invited me opens first", async () => {
-    window.history.replaceState(null, "", "/chat?with=c-sarah");
+  it("after joining, the list opens with the one who invited me on top, marked new", async () => {
+    window.history.replaceState(null, "", "/chat?with=c-ariel");
     backend(["chats"]);
-    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, ARIEL] }));
-    routes.set("GET /api/v2/chats/c-sarah/messages", () => ({ messages: [] }));
+    const joined = { ...ARIEL, last: null };
+    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, joined] }));
+    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({ messages: [], joined_through: "Ariel" }));
     await render();
-    expect(container.querySelector("[data-chat-screen]")).not.toBeNull();
-    expect(container.querySelector("[data-chat-name]")?.textContent).toBe("Sarah");
+    expect(container.querySelector("[data-chat-screen]")).toBeNull();
+    const rows = [...container.querySelectorAll("[data-chat-row]")].map((r) => r.getAttribute("data-chat-row"));
+    expect(rows.slice(0, 2)).toEqual(["c-ariel", "will"]);
+    const top = container.querySelector('[data-chat-row="c-ariel"]')!;
+    expect(top.hasAttribute("data-chat-new")).toBe(true);
+    expect(top.querySelector("[data-chat-last]")?.textContent).toBe(
+      "You joined through Ariel's link. Only the two of you are in this chat.",
+    );
     expect(window.location.search).toBe("");
+    await act(async () => (top as HTMLElement).click());
+    expect(container.querySelector("[data-chat-name]")?.textContent).toBe("Ariel");
   });
 });

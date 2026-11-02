@@ -5,6 +5,7 @@ import type { Chat } from "@/services/api/chats";
 import ChatList from "./ChatList";
 import ChatThread, { WillTopBar } from "./ChatThread";
 import { useChatList, useChatsOn } from "./useChats";
+import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /* -------------------------------------------------------------------------- */
 /*  The chats in front of the Lounge (ring 6, feature `chats`; backend N274,   */
@@ -15,7 +16,8 @@ import { useChatList, useChatsOn } from "./useChats";
 /*  top bar takes its place; it shows on the list only (N321 item 1, N334     */
 /*  item 1; was N322 item 4). On a computer, the list and a person's chat sit */
 /*  in a phone-wide column in the middle. Off, or with no chat but Will's,    */
-/*  nothing is drawn and /chat is the Lounge as it is (Never 3).              */
+/*  nothing is drawn and /chat is the Lounge as it is (Never 3); in the       */
+/*  iPhone app, on, the list opens even with Will's chat alone.               */
 /* -------------------------------------------------------------------------- */
 
 type View = { at: "list" } | { at: "will" } | { at: "chat"; chat: Chat };
@@ -31,9 +33,10 @@ export type ChatsDoor = {
 
 const CLOSED: ChatsDoor = { back: null, front: null, navbar: true };
 
-/** The chat to open first, from `/chat?with=<id>`: the chat just joined
- *  through someone's link (backend N348). */
-function chatToOpen(): string | null {
+/** The chat just joined through someone's link, from `/chat?with=<id>`: the
+ *  list opens with it as the first row, marked new (backend N357; was N348
+ *  item 1: that chat opened). */
+function chatJustJoined(): string | null {
   if (typeof window === "undefined") return null;
   return new URLSearchParams(window.location.search).get("with");
 }
@@ -44,16 +47,15 @@ export function useChatsDoor(willFirst: boolean): ChatsDoor {
   const on = useChatsOn();
   const { chats, reload } = useChatList(on);
   const [view, setView] = useState<View>(() => ({ at: willFirst ? "will" : "list" }));
-  const [opening, setOpening] = useState<string | null>(chatToOpen);
-  // Just joined: that chat opens first, then the address is clean again.
+  const [joined, setJoined] = useState<string | null>(chatJustJoined);
+  // Just joined: the address is clean again; the list keeps that chat on top
+  // until it is opened.
   useEffect(() => {
-    if (!opening || !chats) return;
-    const chat = chats.find((c) => c.id === opening);
-    if (chat) setView({ at: "chat", chat });
-    setOpening(null);
-    window.history.replaceState(null, "", window.location.pathname);
-  }, [opening, chats]);
-  if (!on || !chats || chats.length === 0) return CLOSED;
+    if (joined && window.location.search) window.history.replaceState(null, "", window.location.pathname);
+  }, [joined]);
+  // In the iPhone app the list opens even with Will's chat alone, with the
+  // way to add someone under him (founder 2026-11-02); on the web, as before.
+  if (!on || !chats || (chats.length === 0 && !isNativeApp())) return CLOSED;
   const toList = () => {
     setView({ at: "list" });
     reload();
@@ -70,7 +72,15 @@ export function useChatsDoor(willFirst: boolean): ChatsDoor {
           {view.at === "chat" ? (
             <ChatThread key={view.chat.id} chat={view.chat} onBack={toList} />
           ) : (
-            <ChatList chats={chats} onOpenWill={() => setView({ at: "will" })} onOpen={(chat) => setView({ at: "chat", chat })} />
+            <ChatList
+              chats={chats}
+              joined={joined}
+              onOpenWill={() => setView({ at: "will" })}
+              onOpen={(chat) => {
+                if (chat.id === joined) setJoined(null);
+                setView({ at: "chat", chat });
+              }}
+            />
           )}
         </div>
       </div>
