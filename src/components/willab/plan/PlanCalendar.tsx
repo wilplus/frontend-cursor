@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type
 import { createPortal } from "react-dom";
 import { callSlots, type CallWhich, type Plan } from "@/services/api/plan";
 import { fmtDay, fmtShort, fromIsoDay, isoDay, monthTitle, PLAN_COPY, weekdayName } from "@/lib/willab/planCopy";
+import { usePlanCallsOn } from "./PlanCard";
 
 /* The plan's calendars (rules: the-plan.md §1 F). MonthGrid is the small one
    the deadline's question and Change your plan open. PlanCalendar is the
@@ -13,7 +14,9 @@ import { fmtDay, fmtShort, fromIsoDay, isoDay, monthTitle, PLAN_COPY, weekdayNam
    day picked folds it into its week, which swipes too, with the day's times
    under it; "Skip" at the top, one "Book" at the bottom, and the calendar
    goes the moment it is tapped. "Edit" next to the deadline turns the same
-   screen into the deadline's (N168). */
+   screen into the deadline's (N168). The calls are hidden, not removed
+   (N315): with the ring row "plan_calls" off, nothing opens this calendar,
+   and a kickoff booked before shows no mark. */
 
 const HEAD = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
@@ -751,6 +754,7 @@ export default function PlanCalendar({
   const [leftView, setLeftView] = useState<"month" | "day">("month");
   const later = useLater();
   const still = useStill();
+  const callsOn = usePlanCallsOn();
 
   const today = todayLocal();
   const deadline = fromIsoDay(plan.deadline);
@@ -875,7 +879,7 @@ export default function PlanCalendar({
   const { title, label } = wordsOf(dl, drawn);
   const can = dl ? !!dlPicked : !!time && !busy && idle();
   const dayCell = (day: Date, onPick: (day: Date) => void) => (
-    <Day day={day} ok={open(day)} picked={dl ? dlPicked : picked} deadline={deadline} kickoff={kick} today={today} onPick={onPick} />
+    <Day day={day} ok={open(day)} picked={dl ? dlPicked : picked} deadline={deadline} kickoff={callsOn ? kick : null} today={today} onPick={onPick} />
   );
   const near = (i: number, at: number) => Math.abs(i - at) <= 1;
 
@@ -922,7 +926,7 @@ export default function PlanCalendar({
             )}
           </Pager>
         )}
-        {dl ? null : <DeadlineLine deadline={deadline} kickoff={!!kick} onEdit={edit} />}
+        {dl ? null : <DeadlineLine deadline={deadline} kickoff={callsOn && !!kick} onEdit={edit} />}
         {dayView && picked ? (
           <Times key={isoDay(picked)} times={byDay.get(isoDay(picked)) ?? []} time={time} onPick={(t) => idle() && setTime(t)} />
         ) : null}

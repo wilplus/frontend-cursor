@@ -5,7 +5,7 @@ import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { answerAudioUrl, type CallWhich, type Plan } from "@/services/api/plan";
 import { PLAN_COPY } from "@/lib/willab/planCopy";
 import PlanReadMore from "@/components/legal/PlanReadMore";
-import PlanCard, { PlanBar } from "./PlanCard";
+import PlanCard, { PlanBar, usePlanCallsOn } from "./PlanCard";
 import { VoicePlayer } from "./VoicePlayer";
 import { recordedPast } from "@/components/willab/afterTake";
 import { TypingGlyph } from "@/components/willab/TypingDots";
@@ -151,8 +151,12 @@ function ConsentAsk({ message }: { message: LoungeMessage }) {
   );
 }
 
+/** The summary call at the plan's end (I2): one of the plan's calls, hidden
+ *  with them (N315); a row written while they were on draws nothing. */
 function SummaryCall({ ctx }: { ctx: PlanRowCtx }) {
+  const callsOn = usePlanCallsOn();
   const call = ctx.plan?.calls.summary ?? null;
+  if (!callsOn) return null;
   return (
     <div className="flex w-full flex-col gap-2.5 rounded-[18px] border border-[#E6E6E6] bg-white p-4 shadow-[0_6px_20px_-14px_rgba(0,0,0,0.25)]" data-plan-summary-call>
       <div className="text-[18px] font-semibold">{PLAN_COPY.yourSummaryCall}</div>
