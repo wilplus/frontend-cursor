@@ -458,8 +458,9 @@ reads of this feature.
 - **S3** What it does. One verbal read per Take weighs which moment the
   walk fixes and gives its Clearer version a short line on what matters to
   the speaker; a Clearer version never repeats a phrase from the notes the
-  speaker did not say in the Take. Read late or failed, the walk picks as
-  before; the loop never waits (Never 3).
+  speaker did not say in the Take. The Take's analysis waits for the read
+  at most 5 seconds, and only for a speaker it reaches (backend N327); read
+  late or failed, the walk picks as before.
 - **S4** Never shown. No line on screen says a note was used, and nothing
   of it reaches the plan, the coach panel, the coach's queue or a Take's
   summary (Never 1, Never 2).

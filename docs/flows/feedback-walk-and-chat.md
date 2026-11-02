@@ -1008,7 +1008,7 @@ praised moment:
               some 0.5) counts ×(1 − 0.5 × weight) for the between, kept
               only when its Clearer version passes the gate (H3), else the
               pick as without it; never the strongest or the weakest; at
-              most 5 seconds before the Take is ready, late or failed → as
+              most 5 seconds before the Take is ready (N327), late or failed → as
               without it; a frozen Take keeps the walk it froze
   ```
 
