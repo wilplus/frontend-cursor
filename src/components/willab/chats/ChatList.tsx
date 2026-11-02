@@ -67,10 +67,15 @@ export function LetterCircle({ id, name, size }: { id: string; name: string; siz
   );
 }
 
-/** Will's mark: the logo's three dots, the middle one bigger. */
-function WillMark() {
+/** Will's mark: the logo's three dots, the middle one bigger; 48px in the
+ *  list, 36px in his chat's top bar (backend N334). */
+export function WillMark({ size = 48 }: { size?: number }) {
   return (
-    <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center gap-[3px] rounded-full bg-muted">
+    <span
+      aria-hidden
+      className="flex shrink-0 items-center justify-center gap-[3px] rounded-full bg-muted"
+      style={{ width: size, height: size }}
+    >
       <i className="h-[5px] w-[5px] rounded-full bg-foreground" />
       <i className="h-[7px] w-[7px] rounded-full bg-foreground" />
       <i className="h-[5px] w-[5px] rounded-full bg-foreground" />
