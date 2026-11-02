@@ -18,9 +18,9 @@ PROVES   O1 -> Stop uploads through the attempts route, returns to the walk at o
          O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing
          O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first
          O7 -> a try not yet better gets the same short bubble, opened with “Close.” and closed with “Try again.”, with only Practise again (N120)
-         O8 -> with no exercise and no AI clip coming, the walk moves past it: no Line A alone, and the coach's queue still hears it; the Take's most confident moment with nothing to offer says its own line and is said again
+         O8 -> with no exercise and no AI clip coming, it is walked as a good moment, never skipped: its helper words, no Line A alone, and the coach's queue still hears it; the Take's most confident moment with nothing to offer says its own line and is said again
          O9 -> a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122), with no AI clip the praise goes straight to its helper words (N122)
-WHY      Never-rule 1 (no scores to speakers); founder 2026-10-21 (N108, "Skip that moment"); 2026-10-23 (N120, "make it shorter focused on one only thing"; N122, "do we practice the confident moments? I think yes we should!").
+WHY      Never-rule 1 (no scores to speakers); founder 2026-10-21 (N108, "Skip that moment"); 2026-10-23 (N120, "make it shorter focused on one only thing"; N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N284, "Treat as good").
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -579,15 +579,15 @@ describe("the AI voice reaches the chat (founder 2026-10-20)", () => {
   });
 });
 
-describe("a voice correction with nothing to offer (founder 2026-10-21, N108)", () => {
-  it("with no exercise and no AI clip coming, the walk moves past it: no Line A alone, and the coach's queue still hears it", async () => {
+describe("a voice correction with nothing to offer (founder 2026-10-21, N108; 2026-10-30, N284)", () => {
+  it("with no exercise and no AI clip coming, it is walked as a good moment: its helper words, no Line A alone, and the coach's queue still hears it", async () => {
     aiClip = "none";
     const onShown = vi.fn();
     const onReached = vi.fn();
     draw({ items: PLAIN_ITEMS, at: 1, onShown, onReached });
     expect(onReached).toHaveBeenCalledWith(expect.objectContaining({ key: "exVideo" }), expect.anything());
     await settle();
-    expect(screen()).not.toBe("walk-screen-exVideo");
+    expect(screen()).toBe("walk-screen-helpers");
     expect(host.textContent).not.toContain(WALK_COPY.lineA);
     expect(onShown.mock.calls.some(([s]) => ["exVideo", "practise"].includes((s as { key: string }).key))).toBe(false);
     expect(mic.starts).toBe(0);

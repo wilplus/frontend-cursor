@@ -27,9 +27,9 @@ import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, type AiVoiceLines
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
-import { aiClipLines, clearerOpening, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
+import { MOMENT_LEAD_LINES, aiClipLines, clearerOpening, praiseBubble, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
-import { WALK_MAX_TRIES, type WalkStep } from "@/lib/willab/walkPlan";
+import { WALK_MAX_TRIES, goodJobHelpers, momentLead, type WalkStep } from "@/lib/willab/walkPlan";
 import {
   encourageLine,
   improvedLine,
@@ -518,6 +518,20 @@ export default function FeedbackWalk<R = unknown>({
     // Once per walk: the words are fixed when it opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq, step]);
+  // The line between moments and after the last (N285): told to the chat
+  // once, before the step it leads into; never for a step played again.
+  const toldLead = useRef(new Set<string>());
+  useEffect(() => {
+    if (seq === null || !step || step.replay) return;
+    const lead = momentLead(plan, at);
+    const told = `${seq}:${step.moment ?? step.key}:${lead}`;
+    if (!lead || toldLead.current.has(told)) return;
+    toldLead.current.add(told);
+    const said: WalkStep = { key: "lead", kind: lead, ...(step.moment != null ? { moment: step.moment } : {}) };
+    shownRef.current?.(said, null, (bank) => sayLine(said, bank), null, leadLine(lead));
+    // Once per step it leads into.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seq, step, at, plan]);
   useEffect(() => {
     if (seq === null || !step || step.overlay === false) return;
     const moment = step.moment != null ? (walk.moments[step.moment] ?? null) : null;
@@ -565,15 +579,18 @@ export default function FeedbackWalk<R = unknown>({
       shownRef.current?.(s, moment, (bank) => sayLine(s, bank), chatAi(s, i), null);
     });
   });
-  // The bare correction leaves the live walk once its ask is answered
-  // (N108): it was reached, so the coach's queue heard it; its Exercise and
-  // practise go, and the walk stands on what follows them.
+  // The bare correction's Exercise and practise leave the live walk once its
+  // ask is answered (N108): it was reached, so the coach's queue heard it.
+  // It is walked as a good moment, never skipped (founder 2026-10-30, N284,
+  // "Treat as good"): its helper words stand in their place, unless the
+  // plan gives them already (a praise's, N122).
   const aiVoiceOf = practise.aiVoiceOf;
   useEffect(() => {
     if (seq === null || !step || step.replay || !bare(step, at)) return;
     const end = loopEnd(plan, at);
-    setReach((r) => (r > at ? Math.max(at, r - (end - at)) : r));
-    relay([...plan.slice(0, at), ...plan.slice(end)], at, "forward");
+    const helpers = goodJobHelpers(plan, step);
+    setReach((r) => (r > at ? Math.max(at, r - (end - at) + helpers.length) : r));
+    relay([...plan.slice(0, at), ...helpers, ...plan.slice(end)], at, "forward");
     // The ask's answer lands as a new `aiVoiceOf`; `bare` reads it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq, step, at, plan, relay, aiVoiceOf, walk.moments]);
@@ -783,6 +800,9 @@ export default function FeedbackWalk<R = unknown>({
   );
 }
 
+/** The line between moments, or after the last (founder 2026-10-30, N285). */
+const leadLine = (lead: "next" | "done") => MOMENT_LEAD_LINES[lead];
+
 /** The walk's hello, the first bubble of its chat (founder 2026-10-23,
  *  N120). */
 function WalkHello({ text }: { text: string }) {
@@ -895,16 +915,16 @@ function Answered({ ctx, line }: { ctx: ScreenCtx; line: string | null }) {
 }
 
 /** The speaker's own clip: the orange bubble on the right. */
-function Clip({ moment, words }: { moment: FeedbackWalkMoment; words?: ReactNode }) {
+function Clip({ moment, words, replay }: { moment: FeedbackWalkMoment; words?: ReactNode; replay?: string }) {
   if (!moment.clip && !words) return null;
   return (
     <WalkPlayer
       look="me"
-      seed={`moment-${moment.index}`}
+      seed={replay ? `replay-${moment.index}` : `moment-${moment.index}`}
       src={moment.clip?.src ?? null}
       startOffsetMs={moment.clip?.startOffsetMs}
       durationMs={moment.clip?.durationMs}
-      label={moment.slideLabel ?? COPY.pagerMoment}
+      label={replay ?? moment.slideLabel ?? COPY.pagerMoment}
       words={words}
     />
   );
@@ -1003,9 +1023,9 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
     >
       <Clip moment={moment} />
       <WalkMessage>
-        {moment.highest ? <span>{COPY.titleMostConfident}</span> : null}
-        <span>{moment.praiseTitle ?? COPY.titlePraise}</span>
-        {words.length > 0 ? <span>{words.join(" ")}</span> : null}
+        {praiseBubble(moment, words).map((line, i) => (
+          <span key={i}>{line}</span>
+        ))}
       </WalkMessage>
       {reason ? <PraiseReasonBubble reason={reason} /> : null}
       <CoachAnswerBubble moment={moment} />
@@ -1131,12 +1151,29 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
  *  coming either, the clip alone as the walk moves past it, N108). */
 function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkStep; moment: FeedbackWalkMoment<R> }) {
   const exercise = moment.exercise;
+  // The weakest (founder 2026-10-30, N289): its own line above its clip
+  // (the level's instead when it carries one), then Line A and the
+  // strongest moment's clip played again, so "your confident moment" is
+  // one the speaker has just heard.
+  const weakest = moment.slot === "weakest" && !moment.praised;
+  const strongest = weakest ? ctx.walk.moments.find((m) => m.slot === "strongest" && m.clip) : undefined;
   // A praised moment's practise follows its praise (N122): its clip is
   // just above, and it has the AI clip or nothing, never Line A.
   return (
     <>
       {moment.praised ? null : <LevelHere moment={moment} />}
+      {weakest && !moment.planLevel ? (
+        <WalkMessage>
+          <span data-walk-weakest>{WALK_COPY.weakestOpener}</span>
+        </WalkMessage>
+      ) : null}
       {moment.praised ? null : <Clip moment={moment} />}
+      {weakest ? (
+        <WalkMessage>
+          <span>{WALK_COPY.lineA}</span>
+        </WalkMessage>
+      ) : null}
+      {strongest ? <Clip moment={strongest} replay={WALK_COPY.confidentReplay} /> : null}
       {aiExercise(ctx, step, moment) ?? (ctx.bare(step) || moment.praised ? null : (
         <WalkMessage coach={exercise?.byCoach === true} wide>
           {moment.highest ? <span>{topMomentLine(exercise?.video ? "example" : "again", moment)}</span> : null}
@@ -1148,7 +1185,7 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
           ) : null}
           {/* Line A asks for the confident moment's voice: not on that moment
               itself (founder 2026-10-21). */}
-          {exercise?.instruction || !moment.highest ? <span>{exercise?.instruction ?? WALK_COPY.lineA}</span> : null}
+          {exercise?.instruction || !(moment.highest || weakest) ? <span>{exercise?.instruction ?? WALK_COPY.lineA}</span> : null}
         </WalkMessage>
       ))}
       <CoachAnswerBubble moment={moment} />
@@ -1456,8 +1493,17 @@ function renderThread<R>(
     const mark = label && label !== last ? <WalkThreadMark label={label} /> : null;
     last = step.key === "others" ? null : (label ?? last);
     const said = answerSaid(ctx, step);
+    const start = threadStart(ctx.walk.plan, part.at);
+    const lead = momentLead(ctx.walk.plan, start >= 0 ? start : part.at);
     return (
       <div key={`${seq ?? 0}:${part.key}`} data-walk-now={i === now ? "" : undefined} className="contents">
+        {lead ? (
+          <div data-walk-lead={lead} className="contents">
+            <WalkMessage>
+              <span>{leadLine(lead)}</span>
+            </WalkMessage>
+          </div>
+        ) : null}
         {mark}
         <WalkPart now={i === now} fresh={i === parts.length - 1}>
           {renderScreen(ctx, step, backFromPractise)}

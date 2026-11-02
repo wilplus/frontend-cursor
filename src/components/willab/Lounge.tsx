@@ -1772,18 +1772,28 @@ export default function Lounge({
     );
 
   return (
-    <div className="flex flex-1 flex-col gap-3 overflow-hidden">
-      {lifeGoals.lens}
-      {why.lens}
-      {strengths.lens}
-      <SundayLens
-        noteId={sunday?.id ?? null}
-        nonce={sunday?.nonce ?? 0}
-        onClose={() => {
-          setSunday(null);
-          void reload();
-        }}
-      />
+    /* Like WhatsApp (founder 2026-10-30): the thread runs down to the
+       composer. An empty slot takes no room (hidden; never the thread, which
+       is empty while it loads), the thread's -mb-3 cancels the gap under it,
+       and its pb-2 keeps the last message off the composer at the bottom. */
+    <div className="flex flex-1 flex-col gap-3 overflow-hidden [&>:empty:not([data-thread])]:hidden">
+      {/* The lenses open as fixed overlays (WalkStage); closed, each is still
+          an empty <div>. Out of the column's flow, so their four gaps no
+          longer push the thread down (founder 2026-10-30: "Please remove
+          that", the empty strip under the header). */}
+      <div className="absolute">
+        {lifeGoals.lens}
+        {why.lens}
+        {strengths.lens}
+        <SundayLens
+          noteId={sunday?.id ?? null}
+          nonce={sunday?.nonce ?? 0}
+          onClose={() => {
+            setSunday(null);
+            void reload();
+          }}
+        />
+      </div>
       {/* Founder 2026-07-30 — the status region above the thread is GONE, and
           with it the last top banner. U5 moved the sent confirmation into the
           thread and U6 did the same for insights ready; the parked card was
@@ -1793,12 +1803,13 @@ export default function Lounge({
           document, one of them outside the conversation the product is. */}
       <div
         ref={scrollRef}
+        data-thread
         onScroll={handleThreadScroll}
         /* `overflow-x-hidden` is load-bearing: `overflow-y-auto` alone computes
            overflow-x to auto, so any bubble content wider than the column (a
            long unbroken token, a wide card) makes the WHOLE thread pan
            sideways — every bubble slides off the left edge of the screen. */
-        className="scrollbar-none flex flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain"
+        className="scrollbar-none -mb-3 flex flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain pb-2"
       >
         {thread.hasMore && (
           <button
@@ -1883,6 +1894,7 @@ export default function Lounge({
         <PolicyUpdateBubble />
 
         <VoiceNoteThread notebook={notebook} />
+        {plan.pending}
         {botThinking && <TypingDots />}
       </div>
 
@@ -2061,6 +2073,9 @@ export default function Lounge({
       ) : null}
       {plan.dock}
       {plan.sheets}
+      {/* Hidden whole while the plan's footer stands in for it, so its empty
+          wrapper adds no gap under that footer (founder 2026-10-30). */}
+      <div className={plan.composerDisplay("contents")}>
       <NewProjectAskComposer ask={newProjectAsk}>
       <SlidesAskComposer ask={slidesAsk}>
       <PolicyUpdateComposer>
@@ -2135,6 +2150,7 @@ export default function Lounge({
       </PolicyUpdateComposer>
       </SlidesAskComposer>
       </NewProjectAskComposer>
+      </div>
 
       {/* Delivery layer — the 4 bubbles' destinations. */}
       {feedbackTarget && (
@@ -2532,7 +2548,7 @@ function SequentialBotBubbles({
       {chunks.slice(0, revealed).map((part, i) => (
         <div
           key={`${i}-${part.slice(0, 12)}`}
-          data-bubble={i === revealed - 1 ? "" : undefined}
+          data-bubble=""
           className="whitespace-pre-wrap break-words rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground"
         >
           {/* FE-13 — Will's replies carry booking links; they were dead text. */}
@@ -3108,13 +3124,13 @@ function recordFor(
  *  bubble, "Feedback walk", and under it the walk's date, with "Edited"
  *  before it once something in the walk changed (B13) and "🔒 Take N" for
  *  an older Take, and the › that opens the walk. While a step in it waits it
- *  wears the orange outline, a full stroke with no tail (`data-outlined`).
+ *  wears the orange outline, a full 2px stroke (`data-outlined`).
  *  A tap opens the Take's whole walk: an older Take's read only; live on
  *  what waits while the review waits; on the coach's word while the walk's
  *  own copy of it is not yet seen (C1); else standing on its newest step.
  *  It is as wide as the Take's Ideal Text card, which sits right under it
- *  once the walk is done, one pair (founder 2026-10-26, N202): then it has
- *  no tail, the card closes the pair (`data-paired`, globals.css). */
+ *  once the walk is done, one pair (founder 2026-10-26, N202): their left
+ *  corners are drawn in where they meet (`data-paired`, globals.css). */
 function FeedbackWalkBubble({
   walk,
   older,

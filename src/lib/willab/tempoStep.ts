@@ -40,6 +40,11 @@ export type TempoStretch = {
   topic: string;
   /** The sentence around the stretch, the stretch itself marked. */
   said: { before: string; stretch: string; after: string };
+  /** On a plan, this week's level's name when the step practises it ("Let
+   *  your key line land", "Pauses that hold the room"; backend N289 item
+   *  8): the step opens with "This week's level: {level}. Here's where it
+   *  shows:". */
+  planLevel?: string | null;
 };
 
 /** One try, as the step reads it from the dot's path. */

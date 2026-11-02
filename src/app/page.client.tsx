@@ -92,14 +92,6 @@ export default function LandingClient({
             acceptConsentLocally();
             router.push("/chat");
           }}
-          onReadJournal={
-            posts.length > 0
-              ? () =>
-                  document
-                    .getElementById("journal")
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" })
-              : undefined
-          }
         />
       </section>
 

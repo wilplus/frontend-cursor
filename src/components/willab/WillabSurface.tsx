@@ -409,5 +409,5 @@ function useFirstVisitSteps(state: WillabState | null, signedIn: boolean | null)
  *  pt-6. */
 function shellPadding(flush: boolean, bare: boolean): string {
   if (bare) return "";
-  return `px-4 pb-2 ${flush ? "pt-0" : "pt-6"}`;
+  return `px-4 pb-2 ${flush ? "pt-0" : "pt-2"}`;
 }

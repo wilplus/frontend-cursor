@@ -444,6 +444,11 @@ export const WALK_COPY = {
   shareAdd: "Add",
   /* The practise (founder lock 2026-10-12, sections 2.5 and 8). */
   lineA: "Say this one like your confident moment.",
+  /* The weakest moment (founder 2026-10-30, backend N289 item 7, signed in
+     the chat: "I sign the words"): its first line, above its clip; and the
+     label on the strongest moment's clip, played again under Line A. */
+  weakestOpener: "Here's one with more in it.",
+  confidentReplay: "Your confident moment",
   /* After "Keep my words", in Line A's place there only (founder
      2026-10-29, backend N268, signed in the chat). */
   keepWords: "Your words it is. Now say them like you mean every one.",

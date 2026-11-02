@@ -175,7 +175,9 @@ export function TopUpBubble({ offer }: { offer: TopUpOffer }) {
       onClick={offer.rearm}
       aria-expanded={offer.armed}
       aria-label="Reopen this option"
-      className="mr-auto block max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-left text-[15px] leading-relaxed text-foreground transition-colors hover:bg-muted/80"
+      data-row="app"
+      data-bubble=""
+      className="mr-auto block max-w-[85%] rounded-2xl bg-muted px-3 py-2 text-left text-[15px] leading-relaxed text-foreground transition-colors hover:bg-muted/80"
     >
       {TOKENS_COPY.topUpTitle} {TOKENS_COPY.topUpNoDate}
     </button>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { hearPiece } from "@/services/api/voiceNotebook";
 import { liveWords, type LiveWord } from "@/lib/willab/liveNoteWords";
 import { dropNote, keepNote, noteKey, type OutboxNote } from "@/lib/willab/voiceNoteOutbox";
+import { tapHaptic } from "@/lib/phone/haptic";
 
 /* -------------------------------------------------------------------------- */
 /*  useVoiceNote — the Lounge mic for the founder's voice notebook (Will       */
@@ -28,6 +29,10 @@ import { dropNote, keepNote, noteKey, type OutboxNote } from "@/lib/willab/voice
 /*  Only delete throws a note away. What is recorded so far goes to the       */
 /*  phone's outbox every few seconds, and leaving the app sends the note, so  */
 /*  closing the app at any moment keeps what was said.                        */
+/*                                                                            */
+/*  The tap answers at once, as WhatsApp's does: a light buzz and the         */
+/*  recording bar, while the phone is still opening the mic. A trash or send */
+/*  in that moment ends it; no mic permission puts the mic back.              */
 /* -------------------------------------------------------------------------- */
 
 export type VoiceNotePhase = "idle" | "recording" | "sending";
@@ -115,6 +120,8 @@ export function useVoiceNote({
   const waveTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const meterRef = useRef<ReturnType<typeof levelMeter>>(null);
   const startingRef = useRef(false);
+  /** Trash or send tapped while the mic was still opening. */
+  const endedEarlyRef = useRef<boolean | null>(null);
   const mountedRef = useRef(true);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
@@ -210,6 +217,7 @@ export function useVoiceNote({
 
   const stop = useCallback((keep: boolean) => {
     keepRef.current = keep;
+    if (startingRef.current) endedEarlyRef.current = keep;
     stopLive();
     const recorder = recorderRef.current;
     if (recorder && recorder.state !== "inactive") recorder.stop();
@@ -218,17 +226,32 @@ export function useVoiceNote({
   const start = useCallback(async () => {
     if (phase !== "idle" || startingRef.current || typeof navigator === "undefined" || !navigator.mediaDevices) return;
     startingRef.current = true;
+    endedEarlyRef.current = null;
+    // At once, in the tap: the buzz and the recording bar. Opening the mic
+    // takes the phone a moment, and the speaker should not feel it.
+    tapHaptic();
+    setElapsedMs(0);
+    setWords([]);
+    setWave([]);
+    setWrittenTo(0);
+    setPhase("recording");
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
       startingRef.current = false;
-      return; // no mic permission: nothing changes on screen
+      if (mountedRef.current) setPhase("idle");
+      return; // no mic permission: the mic goes back as it was
     }
     const release = () => stream.getTracks().forEach((t) => t.stop());
     startingRef.current = false;
     if (!mountedRef.current) {
       release(); // the Lounge closed while the browser asked for the mic
+      return;
+    }
+    if (endedEarlyRef.current !== null) {
+      release(); // trash or send before the mic opened: nothing was said
+      setPhase("idle");
       return;
     }
     const mimeType = pickType();
@@ -240,6 +263,7 @@ export function useVoiceNote({
       });
     } catch {
       release(); // a browser that cannot record this format: the mic goes off
+      setPhase("idle");
       return;
     }
     chunksRef.current = [];

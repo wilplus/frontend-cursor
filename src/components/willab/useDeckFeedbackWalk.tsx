@@ -293,8 +293,11 @@ function walkItemOf(
           green,
           practicePrompt: item.practicePrompt === true,
           helperWordsPrompt: item.helperWordsPrompt === true,
-          // A praised moment practised with its AI clip (backend N122).
+          // A praised moment practised with its AI clip (backend N122),
+          // on Takes baked before N289.
           confidentPractice: item.confidentPractice === true,
+          // The moment's job in the walk (backend N289).
+          walkSlot: item.walkSlot ?? null,
         }
       : {}),
     openCard: item.openCard ?? null,

@@ -74,7 +74,10 @@ built and what is still to come.
    Stop, no Skip; before the first Take, "Start your first recording" under
    "Record your answer" (A1). It lands as the speaker's orange voice bubble,
    which plays back, and it goes through the processing authorization like
-   every recording (N135, N136, N137, N262).
+   every recording (N135, N136, N137, N262). The bubble shows at once, with
+   the typing dots under the voice while it is heard; then the words Will
+   heard take the dots' place, as a phone writes out a voice message, and
+   stay under every voice answer (N275).
 4. Will's reply names the speaker's event, date and reason in their own
    words, then says "I can already hear your main vocal cues and verbal
    habits." and "Let me draft your plan. A few more questions first."
@@ -98,7 +101,13 @@ built and what is still to come.
    transcribed, as a Take is. One with no speech in it, or that gives no
    words, is not kept and not sent to a provider: Will says "Sorry, I
    didn't quite catch that. Could you say it again?" and the same question
-   stays (N262).
+   stays (N262). Words that are only the transcriber's stock lines for a
+   clip with no words in it ("Thanks for watching", "Thank you", the
+   Amara.org subtitles line) count as no words (N275). Every recording the
+   app transcribes drops what the transcriber wrote that nobody said before
+   it is kept (N276). Will asks the same question again at most twice; the
+   third time he moves on to the next question in its plain words, without
+   the voice message's ack, or to what follows the questions (N276).
 9. **A correction.** When an answer puts Will right ("No, that's not what
    I meant …") instead of answering his question, Will agrees, "Got it,
    thank you for putting me right.", says back in one sentence what he now
@@ -107,7 +116,10 @@ built and what is still to come.
    line and its recording too); the old answer stays in the history, and
    the coach still hears the voice message itself (C5). The AI
    that writes Will's turn tells a correction from an answer; when it
-   fails, the answer counts as an answer (N262).
+   fails, or is not sure, the answer counts as an answer (N262). One
+   correction per question: once Will was put right on it, the next answer
+   to it is an answer (N275). Being put right counts as asked again, as in
+   B8: the third time, Will moves on (N276).
 
 ### C · The diagnosis
 
@@ -206,11 +218,12 @@ built and what is still to come.
 
 ### F · The two calls with the coach, before the plan
 
-1. After the ratings, before the plan card, Will says "Before I show you
-   your plan, pick a time for a 15-minute call with your coach. It's your
-   kickoff call." Then the calendar comes up full screen over the chat, in
-   place of "Type here". The kickoff comes before the deadline (N157, N161,
-   N248). On the screen, top to bottom:
+1. After the ratings, before the plan card, Will asks "Every plan starts
+   with a kickoff session with your coach. Would you like to book it now?"
+   In place of "Type here": "Skip" and "Book now". The calendar never opens
+   by itself; "Book now" opens it, full screen over the chat. The kickoff
+   comes before the deadline (N157, N161, N248, N281). On the screen, top
+   to bottom:
    - "Skip" on the left, "{n} of 2 booked" on the right.
    - The call's name, large: "Kickoff call with your coach".
    - The month, large. It swipes left and right; the arrows stay. Only the
@@ -219,14 +232,14 @@ built and what is still to come.
      and the day's times show under it in four even columns. A tap on the
      month's name opens the whole month again.
    - "Your deadline: {date}" with "Edit" (7).
-   - One button at the bottom, "Book", pale until a time is picked. After
-     it, a tick, the calendar slides away and Will's "Booked: {when}." is in
-     the chat.
-2. Then Will offers the summary call: "Would you also like to book your
-   summary call? It's after your deadline, to look back and plan what's
-   next." The calendar comes up again once he has asked, with "Skip" or
-   "Book now"; no yes-or-no question first. It counts "1 of 2 booked"
-   (N157, N161, N248).
+   - One button at the bottom, "Book", pale until a time is picked. On
+     "Book" the calendar goes at once and Will's "Booked: {when}." is in the
+     chat straight away, with no typing first, while the booking is saved.
+2. Then Will asks "Every learning cycle also finishes with a summary session
+   after your deadline. Would you like to choose it now?", with "Skip" and
+   "Book now" under it, and the same calendar and bubble. It counts "1 of 2
+   booked". "Skip", under Will's ask or at the top of the calendar, moves on
+   (N157, N161, N248, N281).
 3. Either call can wait ("Skip"), so no coach stands in the way of the first
    Take (Never 3). A kickoff not booked is offered again after Take 1 (N157).
 4. Calls are paid as the booking page is paid today, and free with a link
@@ -287,23 +300,23 @@ built and what is still to come.
    The last practice and the next plan show the same bubble with N89's
    closing line. No "Start a new project" under it: the "+" next to "Type
    here" opens the projects, as today (N167, N169).
-7. The walk shows the Take's two best moments and this week's level as
-   well: as a third moment, or on one of the two when the level shows there;
-   when nothing shows the level, just the two best (N246, "Two best +
-   level"; was the best moment and the level's, N134, N209). The level's
-   moment opens with "This week's level: {level}.
-   Here's where it shows:" above the speaker's clip, and is practised with
-   the level's own practice, its row of the treatment picker: the AI
-   version of the voice with its pace tip ("Let your key line land"), its
-   pause tip ("Pauses that hold the room") or its stress tip ("A voice that
-   moves"); the Clearer version ("Say it once, and it lands"). "Make it
-   yours" keeps the walk as today. Where a level shows is read on each clip
+7. This week's level takes the walk's slot whose tool fits it, never a
+   fourth moment and never the strongest's paragraph (N289 item 8; the walk's
+   three slots, its page C2): "Say it once, and it lands" the one between,
+   with the Clearer version; "A voice that moves" the weakest, with the AI
+   voice's stress tip; "Let your key line land" and "Pauses that hold the
+   room" go with the tempo step, which opens with the level's line. Was: the
+   two best moments and the level as a third, practised with the AI voice's
+   pace, pause or stress tip (N246, N209). The level's moment opens with
+   "This week's level: {level}.
+   Here's where it shows:" above the speaker's clip. When nothing shows the
+   level, or with "Make it yours", the walk is as off a plan. Where a level shows is read on each clip
    against the speaker's own usual on that Take, the key line's clip first
    when it shows it; never shown as a number. A walk reads the level the
    plan had when its Take was recorded, so it reads the same on every
    opening (the walk's page, H1).
-8. In a pace or pause week the speaker practises their pace, from Take 2
-   (Take 1 has no Ideal Text yet). The pace practice is the tempo step of
+8. In a pace or pause week the speaker practises their pace, on any Take
+   whose pace scale finds a stretch (N289 item 6; was from Take 2). The pace practice is the tempo step of
    the Feedback walk and nowhere else: not the coach panel, not the Lounge,
    not before the Take. Its rules are on the walk's page, §2 "Tempo"
    (N130, N134, N140, N142, N162). A speaker without a plan gets the same step from Take 2 when the Take has a stretch outside the green; it is the founder's "Sniper" (N181).
@@ -347,7 +360,9 @@ built and what is still to come.
    practice is done, Will says in the chat "That's your 15 minutes for
    today." and "Now go and live it, away from the phone." Never on a clock
    and never on other days; nothing is locked and the message box stays.
-   The founder first, then everyone.
+   The founder first, then everyone. After a Take with an ask (Will's
+   question, WhatsApp, "Did this help?") they wait until it is answered,
+   then come before the closing message, so "Record Take N" is last (N288).
 
 ### H · Changing the plan
 
@@ -468,11 +483,11 @@ Signed:
   will you open? Say your first sentence." · the plain key line, "If your
   audience remembers one sentence from you, what is it? Say it the way
   you'll say it."; the ratings "Two quick taps before your plan." · "Calm" ·
-  "Very stressed" · "Not ready" · "Fully ready"; the calls "Before I show
-  you your plan, pick a time for a 15-minute call with your coach. It's your
-  kickoff call." · "{n} of 2 booked" · "Your deadline" · "Skip" · "Book" ·
-  "Book now" · "Would you also like to book your summary call? It's after
-  your deadline, to look back and plan what's next."; the plan's end "15
+  "Very stressed" · "Not ready" · "Fully ready"; the calls "Every plan
+  starts with a kickoff session with your coach. Would you like to book it
+  now?" · "{n} of 2 booked" · "Your deadline" · "Skip" · "Book" · "Book now"
+  · "Every learning cycle also finishes with a summary session after your
+  deadline. Would you like to choose it now?" (N281); the plan's end "15
   minutes with your coach, to look back and plan what's next." · "Choose a
   date" · "Not now" · "Here's your next plan." · "Is this for {date}?".
 
@@ -511,6 +526,11 @@ Waiting for the founder's OK:
   - Built on 29 October 2026 (N262): record first, the questions back after
     that Take's walk (A1); nothing heard (B8); a correction (B9); the voice
     answers play in Safari · BE #1489, FE (this PR).
+  - Built on 29 October 2026 (N275): the words under each voice answer,
+    the dots while it is heard (B3); the transcriber's stock lines count as
+    nothing heard (B8); one correction per question (B9) · BE, FE (this PR).
+  - Built on 30 October 2026 (N276): one check on every transcription for
+    what nobody said; no question asked more than three times (B8, B9) · BE.
 
 ## 3. Still open
 
@@ -595,6 +615,12 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-10-30 · N289 · G7: this week's level takes the walk's slot whose tool fits it ("Say it once" the between, "A voice that moves" the weakest), the pace levels' line opens the tempo step; item 8, the tempo step on any Take. Was: the level as a third moment practised with the AI voice, and the pace practice from Take 2 · BE #1528, BE #1529, FE (this PR)
+- 2026-10-30 · N288 · G13: after a Take's ask, the two lines wait until it is answered, then come before "practice makes perfect" and "Record Take N", which is last. No new words. Was: written with the summary, under the ask, which hid Will's question's answers and brought the closing message at once · BE #1526, #1527
+- 2026-10-30 · N281 · the calls are asked for first: Will's two new asks, "Skip" and "Book now" under each; the calendar opens only on "Book now" and goes the moment "Book" is tapped, with "Booked: {when}." in the chat at once, no typing (F1, F2, K). Was: the calendar came up by itself after Will's line, and stayed with a spinner and a tick until the booking was saved · BE #1516, #1517, FE (this PR)
+- 2026-10-30 · founder, 2026-10-30 · the plan's footer ("Record your answer" and the rest) sits as low as the message box it stands in for: 12px above it, 8px under it. No new words. Was: about 28px under it, from the hidden message box's empty wrapper and the footer's own margin · FE (this PR)
+- 2026-10-30 · N276 · B8, B9: every transcription drops what the transcriber wrote that nobody said (a stretch it calls silence, a video's "Thanks for watching") before anything is kept; Will asks the same question again at most twice, after nothing heard or a correction, and the third time moves on to the next question in its plain words, or to what follows the questions. No new words. Was: "didn't catch that" could come back for ever on a phone whose microphone records nothing; the Takes' transcripts could keep a "Thanks for watching" from silence at their end · BE, FE (this PR)
+- 2026-10-29 · N275 · B3, B8, B9: a voice answer's bubble shows at once with the typing dots under the voice, then the words Will heard, and every voice answer keeps its words under it; a transcript that is only the transcriber's stock lines for no words ("Thanks for watching", "Thank you", the Amara.org line) is nothing heard, and Will asks again; the AI takes a correction only when it is sure, and once per question: the next answer to it is an answer. No new words. Was: the bubble came only with Will's reply and showed no words, so a speaker couldn't see what was heard; "Thanks for watching" from a clip with no words was taken as a correction ("You thanked me for watching."), and then every answer after it, a 14-second one too, was read as another correction, so the same question came round with each · BE, FE (this PR)
 - 2026-10-29 · N272 · D4: "How do you feel?" is asked only of a signed-in speaker, in the set-up's look; the pick is not answered and the screen has no line about the coach; Skip stays. Was: asked of guests too, with a reply line and "Your coach sees your answer." · BE #1501, FE (this PR)
 - 2026-10-29 · N262 · A1, B3, B8, B9, K: "Start your first recording" under "Record your answer" while a new speaker's voice questions are asked, and what isn't answered comes back after that Take's walk, where Will left off; a voice answer with no speech, or no words, is not kept and Will says "Sorry, I didn't quite catch that. Could you say it again?"; an answer that puts Will right is taken as a correction ("Got it, thank you for putting me right." and what he now has), and the question is asked again; the voice answers answer Safari's byte-range requests, so they play there (the BFF's `relayAudio`, for the coach's player too). Was: the questions couldn't be skipped (N136, N146); silence came back from the transcriber as words and was kept; a correction was kept as the answer to the question; Safari played nothing · BE #1488, #1489, FE (this PR)
 

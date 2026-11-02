@@ -5,12 +5,11 @@
 /*  Pure: from a Take's moments, the coach's word for the Take and the         */
 /*  speaker's situation, the locked order of screens:                          */
 /*                                                                            */
-/*    the page → the coach's note (only when there is one) → every praise,    */
-/*    each practised with its AI clip when the server marks it (N122) and     */
-/*    followed by its helper words → the practising (a clearer version,       */
-/*    an exercise, or the moment said again; a confident voice's clearer      */
-/*    version is followed by its helper words, N113) → other speakers'        */
-/*    moments →                                                               */
+/*    the page → the coach's note (only when there is one) → the moments    */
+/*    by their job (N289): the strongest, praised, then its helper words;     */
+/*    the weakest, practised with its AI clip; any next best, praised; the    */
+/*    one between, its Clearer version (a confident voice's is followed by    */
+/*    its helper words, N113) → the tempo step → other speakers' moments →    */
 /*    the closing summary → the page. Sharing is asked before the next        */
 /*    recording instead.                                                      */
 /*    "Judgement time!" and judging your own moments are gone (founder lock   */
@@ -34,6 +33,17 @@ import type { WalkScreen } from "./walkMotion";
 /** The tries a practise allows before the walk thanks the speaker and moves
  *  on (founder 2026-10-06, CM3a A, "Up to 3"). */
 export const WALK_MAX_TRIES = 3;
+
+/** A moment's job in the walk (founder 2026-10-30, backend N289): the
+ *  strongest is praised, the weakest practised with the AI clip, the one
+ *  between with the Clearer version; a slot nothing filled is a next best,
+ *  praised. */
+export type WalkSlot = "strongest" | "weakest" | "between" | "next";
+
+/** The walk's order of the slots (N289 item 4): the strongest, the
+ *  weakest, any next best, then the one between, so the walk ends on the
+ *  precise fix. */
+const SLOT_ORDER: Record<WalkSlot, number> = { strongest: 0, weakest: 1, next: 2, between: 3 };
 
 /** One moment of the Take, in page order. */
 export type WalkMoment = {
@@ -63,8 +73,11 @@ export type WalkMoment = {
    *  N113): its helper words follow its Clearer version and its practise. */
   helpers?: boolean;
   /** A praised moment practised with its AI clip (founder 2026-10-23,
-   *  N122): after its praise, before its helper words. */
+   *  N122): after its praise, before its helper words. Only on Takes baked
+   *  before N289. */
   confident?: boolean;
+  /** Its job in the walk (N289), which orders the walk's moments. */
+  slot?: WalkSlot | null;
 };
 
 /** A practice the walk adds for a Take beyond its moments, chosen by the
@@ -102,6 +115,10 @@ export type WalkStepKey =
   /** The walk's hello (founder 2026-10-23, N120): never planned, drawn
    *  above the first step and told to the chat once. */
   | "hello"
+  /** The line between the walk's moments and after its last one (founder
+   *  2026-10-30, N285): never planned, drawn above the step it leads into
+   *  and told to the chat once. */
+  | "lead"
   | "coachnote"
   /** The coach's answer on a moment no other screen shows, and every
    *  answered moment in the coach-only walk (founder 2026-10-14). */
@@ -187,13 +204,58 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
     steps.push({ key: "end", overlay: false });
     return steps;
   }
+  if (moments.some((m) => m.slot)) {
+    steps.push(...bySlot(moments, input.practiceOn));
+  } else {
+    steps.push(...praiseFirst(moments, input.practiceOn));
+  }
+  // The Take's interventions, right after the moments (N166 item 2, N289).
+  if (!input.guest) for (const kind of input.interventions ?? []) steps.push({ key: kind });
+  // Sharing is asked before the next recording now (lock 2026-10-12, §5).
+  steps.push({ key: "others" });
+  steps.push({ key: "summary" });
+  steps.push({ key: "end", overlay: false });
+  if (!input.guest) return steps;
+  return steps.map((s) => (s.key === "page" || s.key === "end" ? s : { ...s, readOnly: true }));
+}
+
+/** One moment's screens: a praise and its helper words, or its practise. */
+function momentSteps(m: WalkMoment, practiceOn: boolean): WalkStep[] {
+  if (m.praise) {
+    const steps = [momentStep(m, "praise")];
+    if (m.confident && practiceOn) {
+      steps.push(momentStep(m, "exVideo"), momentStep(m, "practise", { kind: "moment", attempt: 1 }));
+    }
+    return [...steps, momentStep(m, "helpers")];
+  }
+  if (isPractiseMoment(m)) {
+    const steps = practiseOpening(m, practiceOn);
+    return m.helpers ? [...steps, momentStep(m, "helpers")] : steps;
+  }
+  return m.coach ? [momentStep(m, "coach")] : [];
+}
+
+/** The moments in the order of their jobs (founder 2026-10-30, N289): the
+ *  strongest, the weakest, any next best, then the one between; a moment
+ *  the server gave no slot (a coach's answer alone) after them, in page
+ *  order. */
+function bySlot(moments: readonly WalkMoment[], practiceOn: boolean): WalkStep[] {
+  const rank = (m: WalkMoment) => (m.slot ? SLOT_ORDER[m.slot] : 4);
+  return [...moments]
+    .sort((a, b) => rank(a) - rank(b) || a.index - b.index)
+    .flatMap((m) => momentSteps(m, practiceOn));
+}
+
+/** A Take baked before N289: every praise first, then the practising. */
+function praiseFirst(moments: readonly WalkMoment[], practiceOn: boolean): WalkStep[] {
+  const steps: WalkStep[] = [];
   for (const m of moments) {
     if (!m.praise) continue;
     steps.push(momentStep(m, "praise"));
     // A confident moment is practised too (founder 2026-10-23, N122): the
     // AI clip's short bubble, then the mic, before its helper words. With
     // no clip coming the walk moves past it (FeedbackWalk's `bare`).
-    if (m.confident && input.practiceOn) {
+    if (m.confident && practiceOn) {
       steps.push(momentStep(m, "exVideo"), momentStep(m, "practise", { kind: "moment", attempt: 1 }));
     }
     steps.push(momentStep(m, "helpers"));
@@ -204,19 +266,12 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
   }
   for (const m of moments) {
     if (!isPractiseMoment(m)) continue;
-    steps.push(...practiseOpening(m, input.practiceOn));
+    steps.push(...practiseOpening(m, practiceOn));
     // A confident voice whose words were reworded: its helper words after
     // the rewording (founder 2026-10-22, N113: "After the rewording").
     if (m.helpers) steps.push(momentStep(m, "helpers"));
   }
-  // The Take's interventions, right after the practise moment (N166 item 2).
-  if (!input.guest) for (const kind of input.interventions ?? []) steps.push({ key: kind });
-  // Sharing is asked before the next recording now (lock 2026-10-12, §5).
-  steps.push({ key: "others" });
-  steps.push({ key: "summary" });
-  steps.push({ key: "end", overlay: false });
-  if (!input.guest) return steps;
-  return steps.map((s) => (s.key === "page" || s.key === "end" ? s : { ...s, readOnly: true }));
+  return steps;
 }
 
 /** The screens that follow one answer from the machine on a practise try.
@@ -279,6 +334,23 @@ export function withOutcomes(
   return out;
 }
 
+/** The walk's line before step `i` (founder 2026-10-30, N285): "next" as a
+ *  moment after the first begins, "done" on the first step after the last
+ *  moment (the tempo step, other speakers or the summary); null elsewhere.
+ *  Only in the whole walk, the one that ends on the summary. Pure. */
+export function momentLead(plan: readonly WalkStep[], i: number): "next" | "done" | null {
+  const step = plan[i];
+  if (!step || step.overlay === false || !plan.some((s) => s.key === "summary")) return null;
+  const before = plan.slice(0, i).filter((s) => s.moment != null);
+  if (before.length === 0) return null;
+  if (step.moment == null) {
+    const after = new Set<WalkStepKey>(["tempo", "others", "summary"]);
+    const first = plan.findIndex((s) => after.has(s.key));
+    return first === i ? "done" : null;
+  }
+  return before.some((s) => s.moment === step.moment) ? null : "next";
+}
+
 /** Where a tap on a paragraph opens the walk (Q-B3 A): at that moment's
  *  first screen while it has something open. Null when it has none — an
  *  answered or saved paragraph opens its own screen, not the walk. */
@@ -323,8 +395,10 @@ export type WalkFeedbackItem = {
   /** The voice reached the floor (`helperWordsPrompt`, backend N113). */
   helperWordsPrompt?: boolean;
   /** A praised moment the walk practises with its AI clip
-   *  (`confidentPractice`, backend N122). */
+   *  (`confidentPractice`, backend N122; before N289). */
   confidentPractice?: boolean;
+  /** The moment's job in the walk (`walkSlot`, backend N289). */
+  walkSlot?: WalkSlot | null;
 };
 
 /** The feedback items grouped into the Take's moments, in page order: one
@@ -388,6 +462,7 @@ function lockedMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
     const helpers = target && has((i) => Boolean(i.helperWordsPrompt));
     // A praised moment the server marks is practised with its AI clip (N122).
     const confident = praise && has((i) => Boolean(i.confidentPractice));
+    const slot = group.find((i) => i.walkSlot)?.walkSlot ?? null;
     return {
       index,
       slide: group[0].slide,
@@ -397,6 +472,7 @@ function lockedMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
       ...(exercise ? { exercise } : {}),
       ...(practise ? { practise } : {}),
       ...(helpers ? { helpers } : {}),
+      ...(slot ? { slot } : {}),
       judged: true,
       ...(has((i) => Boolean(i.coachAnswered)) ? { coach: true } : {}),
       ...(has((i) => Boolean(i.coachExercise)) ? { coachExercise: true } : {}),

@@ -19,8 +19,9 @@ import {
   type Plan,
   type PlanState,
 } from "@/services/api/plan";
+import { fmtWhen, PLAN_COPY } from "@/lib/willab/planCopy";
 import PlanDock, { dockFor, type PlanActions } from "./PlanDock";
-import { newestOneOf, type PlanRowCtx } from "./PlanRows";
+import { newestOneOf, PendingBooked, PendingVoice, type PlanRowCtx } from "./PlanRows";
 import { ChangePlanSheet, SeePlanSheet } from "./PlanSheet";
 
 /* The plan in the Lounge (rules: docs/flows/the-plan.md; backend
@@ -33,6 +34,8 @@ import { ChangePlanSheet, SeePlanSheet } from "./PlanSheet";
 export type PlanLounge = {
   dock: ReactNode;
   sheets: ReactNode;
+  /** The voice answer just sent, in the thread while it is heard (N275). */
+  pending: ReactNode;
   rows: PlanRowCtx | undefined;
   /** The message box's display: hidden while the plan's footer replaces it. */
   composerDisplay: (base: string) => string;
@@ -80,6 +83,8 @@ export function usePlanLounge({
   const [busy, setBusy] = useState(false);
   const [booking, setBooking] = useState<CallWhich | null>(null);
   const [sheet, setSheet] = useState<"see" | "change" | null>(null);
+  const [sent, setSent] = useState<{ src: string; ms: number } | null>(null);
+  const [bookedLine, setBookedLine] = useState<string | null>(null);
   const { reload } = thread;
 
   const load = useCallback(async () => {
@@ -125,9 +130,10 @@ export function usePlanLounge({
   }, [newestTake, state?.enabled, busy, load]);
 
   const run = useCallback(
-    async (work: () => Promise<PlanState | null>) => {
+    async (work: () => Promise<PlanState | null>, quiet = false) => {
       setBusy(true);
-      setThinking(true);
+      // A booking shows its bubble at once: no "Will is typing" (N281).
+      if (!quiet) setThinking(true);
       try {
         const got = await work();
         if (got) setState((s) => ({ ...(s ?? got), ...got, plan: got.plan ?? s?.plan ?? null }));
@@ -147,14 +153,22 @@ export function usePlanLounge({
   const actions: PlanActions = useMemo(
     () => ({
       deadline: (day) => void run(() => answerDeadline(day)),
-      answer: (audio, ms) => run(() => sendPlanAnswer(audio, ms)),
+      answer: async (audio, ms) => {
+        const src = URL.createObjectURL(audio);
+        setSent({ src, ms });
+        try {
+          await run(() => sendPlanAnswer(audio, ms));
+        } finally {
+          setSent(null);
+          URL.revokeObjectURL(src);
+        }
+      },
       rating: (value) => void run(() => sendRating(value)),
-      book: (which, start) =>
-        void run(async () => {
-          const got = await bookCall(which, start);
-          setBooking(null);
-          return got?.state ?? null;
-        }),
+      book: (which, start) => {
+        setBooking(null);
+        if (start) setBookedLine(PLAN_COPY.bookedAt(fmtWhen(start)));
+        void run(async () => (await bookCall(which, start))?.state ?? null, !!start).finally(() => setBookedLine(null));
+      },
       saveDeadline: (day) => void run(() => changePlan({ deadline: day })),
       startFirst: () => onStartRecording?.(plan?.topic ?? null),
       next: (choice) => void run(() => nextPlan(choice)),
@@ -166,7 +180,9 @@ export function usePlanLounge({
 
   const kind = dockFor(plan, booking);
   const dock = plan ? (
-    <div className="mb-2" data-plan-dock-slot>
+    // In place of the message box (hidden then), nothing is under it: the
+    // shell's padding alone, as under the message box (founder 2026-10-30).
+    <div className={kind ? undefined : "mb-2"} data-plan-dock-slot>
       <PlanDock
         plan={plan}
         busy={busy}
@@ -229,6 +245,11 @@ export function usePlanLounge({
   return {
     dock,
     sheets,
+    pending: sent ? (
+      <PendingVoice src={sent.src} durationMs={sent.ms} />
+    ) : bookedLine ? (
+      <PendingBooked text={bookedLine} />
+    ) : null,
     rows,
     composerDisplay: (base) => (kind ? "hidden" : base),
     holdsEmpty: signedIn && (state === null || plan !== null),

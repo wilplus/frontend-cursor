@@ -21,7 +21,9 @@ OUTCOME
   O7  My most confident moment, when the walk goes on to make it better, is
       named as solid and confident in a line that fits what follows (a
       clearer version, an example, or saying it again), and is never told to
-      sound like my confident moment (founder 2026-10-21).
+      sound like my confident moment (founder 2026-10-21). My weakest
+      moment opens with "Here's one with more in it." (the level's line
+      instead, on a plan), then Line A (N289).
   O8  The hello and the short AI bubble are stored once, and the Lounge
       says the same words as the walk (N120).
   O9  In the chat a Take's walk is one Feedback walk at its first step's
@@ -175,6 +177,13 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
     const said = shownStep({ key: "clearer", moment: 0 }, clearer, null, () => "Try it this way:")?.body.split("\n") ?? [];
     expect(TOP_MOMENT_LINES.clearer).toContain(said[0]);
     expect(said[1]).toBe("Try it this way:");
+    // The weakest (N289): its own line, then Line A; on a plan the level's
+    // line says it instead of the opener.
+    const weakest = { ...top, highest: false, slot: "weakest" } as unknown as typeof top;
+    expect(shownStep({ key: "exVideo", moment: 0 }, weakest, null)?.body).toBe(
+      `${WALK_COPY.weakestOpener}\n${WALK_COPY.lineA}`);
+    const level = { ...weakest, planLevel: "A voice that moves" } as unknown as typeof top;
+    expect(shownStep({ key: "exVideo", moment: 0 }, level, null)?.body).toBe(WALK_COPY.lineA);
   });
 });
 

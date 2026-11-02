@@ -5,7 +5,7 @@ OUTCOME
   O2  It never appears in the coach-only walk or for a guest (N162).
   O3  A try that stays mostly in the green reads as better; otherwise the side the ball leaned to.
   O4  The step closes "dynamic" once a try was better and the last was not rushed; otherwise the side the tries leaned to.
-  O5  The step runs on the backend's stretch only when its answer is whole; anything else means no tempo step.
+  O5  The step runs on the backend's stretch only when its answer is whole; anything else means no tempo step. On a plan it names this week's pace level (N289).
   O6  A try lands only when it runs 20 s from the first word with the ball four fifths in the green; then Will says so and the game ends (N245).
   O7  A try that came closer gets a push for one more while a try is left; otherwise its comment alone (N245).
 PROVES   O1 -> "comes right after the practise moments, before other speakers", "leaves the walk unchanged when the Take has no intervention"
@@ -15,7 +15,7 @@ PROVES   O1 -> "comes right after the practise moments, before other speakers", 
          O5 -> "takes the backend's stretch only when it is whole"
          O6 -> "lands a try only when it is long and green"
          O7 -> "pushes for one more only when a try came closer and one is left"
-WHY      Founder 2026-10-26 (backend N162: "in the feedback walk only"; N166: "go with the defaults"); founder 2026-10-28 (backend N245: "If it was really better, you let me go to the next step"); Never-rule 1.
+WHY      Founder 2026-10-26 (backend N162: "in the feedback walk only"; N166: "go with the defaults"); founder 2026-10-28 (backend N245: "If it was really better, you let me go to the next step"); founder 2026-10-30 (backend N289 item 8); Never-rule 1.
 */
 import { describe, expect, it } from "vitest";
 import { buildWalkPlan, type WalkMoment } from "./walkPlan";
@@ -85,7 +85,9 @@ describe("the backend's stretch", () => {
   const whole = { reading: "rushed", topic: "the beds for sale", said: { before: "Hi.", stretch: "The beds are on sale.", after: "Bye." } };
 
   it("takes the backend's stretch only when it is whole", () => {
-    expect(readTempo(whole)).toEqual(whole);
+    expect(readTempo(whole)).toEqual({ ...whole, planLevel: null });
+    // On a plan, the pace levels the step practises name it (backend N289).
+    expect(readTempo({ ...whole, plan_level: "pauses" })?.planLevel).toBe("Pauses that hold the room");
     expect(readTempo(null)).toBeNull();
     expect(readTempo({ ...whole, reading: "fast" })).toBeNull();
     expect(readTempo({ ...whole, topic: "" })).toBeNull();

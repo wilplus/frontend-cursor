@@ -15,6 +15,7 @@ import {
   type TempoStretch,
 } from "@/lib/willab/tempoStep";
 import PaceScale from "../pace/PaceScale";
+import { PLAN_COPY } from "@/lib/willab/planCopy";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
 import WalkFooter from "./WalkFooter";
@@ -167,6 +168,11 @@ export default function WalkTempo({
       }}
       footer={past ? null : footerFor()}
     >
+      {stretch.planLevel ? (
+        <WalkMessage>
+          <span data-walk-level>{PLAN_COPY.levelHere(stretch.planLevel)}</span>
+        </WalkMessage>
+      ) : null}
       <TempoStretchBubble stretch={stretch} />
       <WalkMessage>
         <span>{W.game[stretch.reading]}</span>

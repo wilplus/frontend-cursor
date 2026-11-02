@@ -33,6 +33,7 @@ import {
   type TryOutcome,
   type WalkFeedbackItem,
   type WalkIntervention,
+  type WalkSlot,
   type WalkStep,
   type WalkStepKey,
 } from "./walkPlan";
@@ -172,6 +173,9 @@ export type FeedbackWalkMoment<R = unknown> = {
   /** Praised (N122): its practise follows the praise, so it never shows
    *  its clip again, Line A or the confident moment's own line. */
   praised?: boolean;
+  /** Its job in the walk (backend N289): the weakest opens with its own
+   *  line, Line A and the strongest moment's clip played again. */
+  slot?: WalkSlot | null;
   /** The praise line alone, for when a reason follows it. */
   praiseLead?: readonly string[];
   /** Why the green moment landed, when it reached the page with the row. */
@@ -323,6 +327,7 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     highest: group.some((i) => i.highest === true),
     planLevel: group.find((i) => i.planLevel)?.planLevel ?? null,
     praised: group.some((i) => isPraise(i) || i.green === true),
+    slot: group.find((i) => i.walkSlot)?.walkSlot ?? null,
     praiseLead: praise?.praiseLead ?? praise?.praiseWords ?? [],
     praiseReason: group.find((i) => i.praiseReason)?.praiseReason ?? null,
     clip,

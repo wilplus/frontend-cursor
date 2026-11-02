@@ -836,13 +836,16 @@ error.
 O3  A cancelled render is not reported as a failed slide.","O1 -> ""a parent re-render with a new onError keeps the slide drawn""
 O2 -> ""a page change cancels the old render and redraws""
 O3 -> ""does not report a cancellation as a failed slide""","Founder 2026-09-19 ""the slides are gone"": an inline onError restarted the render on a busy canvas and latched the slide off. The fake below enforces pdf.js's one-render-per-canvas rule."
-src/components/willab/plan/PlanCalendar.test.tsx,Story,"As a speaker on a plan, I want to book my calls with my coach on a big calendar I can swipe through, so that booking takes a few taps and never stands between me and my first Take.","O1  Once Will asks for a call, its calendar comes up full screen: the
-call's name, ""0 of 2 booked"" and the deadline; only a day with an
-open time can be picked, and Book waits for a time.
-O2  A day, then a time, then Book sends exactly that time.
+src/components/willab/plan/PlanCalendar.test.tsx,Story,"As a speaker on a plan, I want Will to ask before I book my calls with my coach, then a big calendar I can swipe through that goes as soon as I book, so that booking takes a few taps and never stands between me and my first Take.","O1  Will's ask for a call has ""Skip"" and ""Book now"" under it; the
+calendar does not open by itself (N281).
+O2  ""Book now"" opens it full screen: the call's name, ""0 of 2 booked""
+and the deadline; only a day with an open time can be picked, and
+Book waits for a time.
 O3  Edit moves the deadline from the same screen (N168).
-O4  Skip passes the call on without booking it.","O1, O2, O3 -> ""a day, a time, then Book""
-O4 -> ""Skip passes the call on""","The calls' calendar, full screen (founder 2026-10-28, backend N248); docs/flows/the-plan.md §1 F."
+O4  A day, then a time, then Book sends exactly that time, and the
+calendar is gone at once.
+O5  ""Skip"" passes the call on without booking it.","O1 to O4 -> ""Book now, a day, a time, then Book""
+O5 -> ""Skip passes the call on""","The calls' calendar, full screen and asked for first (founder 2026-10-28 and 2026-10-30, backend N248, N281); docs/flows/the-plan.md §1 F."
 src/components/willab/plan/plan.test.tsx,Story,"As a new speaker on the plan's ring, I want the Lounge to ask me my questions one at a time in the footer, and to show my plan as it was drawn, so that I reach my first Take without a form.","O1  Each step of the plan gets its own footer in place of the message
 box: the deadline's two chips, ""Record your answer"" with no Skip,
 the 1 to 10 scale, the calls' calendar, then only ""Start your
@@ -1000,9 +1003,11 @@ src/components/willab/useWillabFlow.test.ts,Story,"As a speaker, I want the app 
 from there the next Take, a pause, or ""sign up to send"" (and on to
 review) are expected steps.","O1 -> ""is the record → process → Ideal Text loop""",Never 3; audit Q-C4.
 src/components/willab/voiceNotebook.test.tsx,Story,"As the founder in a rush, I want to say a note and close the app, so that what I said is kept and I can see it was written as I meant it.","O1  The moment I tap, my note shows the wave of my voice; the words follow it; leaving the app sends the note, it is not thrown away (N194, N199).
+O1b The tap answers at once, as WhatsApp's: a buzz and the recording bar before the phone has opened the mic; trash in that moment records nothing.
 O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).
 O4  Typing ""#"" offers one option, ""# note"", and tapping it leaves ""#"" to write on: a typed ""#"" is one note, as the mic's (N253).
 O5  Under ""Which step did it stall at?"" the sale's four steps take the message box's place, and a tap answers for that note with that step (N241 P2).","O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
+O1b -> buzzes and shows the recording at the tap, before the mic opens
 O2 -> keeps a note that cannot go and sends it once when back online
 O4 -> offers only ""# note"" after ""#"", and leaves ""#"" to write on
 O5 -> opens the four steps under the sales question and answers with the one tapped",
@@ -1013,7 +1018,7 @@ O2  Once the server has heard it (its next read says the word is not
 new), the ring goes; a later change of the word rings again.","O1 -> ""the coach's changed word opens the walk at the coach's step; the tap marks nothing""
 O2 -> ""a word changed again after it was watched rings again""","Founder 2026-10-19, N80 (D4, D7); 2026-10-20, N89 (""THE SAME MECHANISM""): the word alone in its own lens with Close is history."
 src/components/willab/walk/feedbackWalk.test.tsx,Story,"As a speaker, I want the Feedback walk to take me through my coach's note, praise with its reason, helper words, the clearer version and a summary, in words only, as one chat that grows with each tap, so that feedback after every Take is clear and backed by what I said.","O1  The steps come in order as one chat: coach's note, praise, helper words, next praise, summary, back to my page; earlier steps stay above, my choices land as my own bubbles.
-O2  A good moment shows the praise line, then why it landed, quoting my words; the Take's highest moment opens with “This was your most confident moment.”
+O2  A good moment shows the praise line, then why it landed, quoting my words; the Take's highest moment opens with “This was your most confident moment.”, and no bubble says the same thing twice.
 O3  Reopened from the Lounge, a clip I already judged shows as answered and is not asked again.
 O4  If the summary cannot be read, the walk goes straight back to my page.
 O5  No read, feedback type or score ever appears; the clearer version shows what goes and what arrives, and Keep my words is recorded before practise opens.
@@ -1023,7 +1028,8 @@ O8  Other speakers asks for my Take's moments and shows each one the server send
 O9  On a plan, the moment where this week's level shows most opens with ""This week's level: {level}. Here's where it shows:"" above my clip; no other moment does (G7, backend N209).
 O10 What a step showed stays in the thread once I move on: the tempo game's tries, their comments and its closing line, then other speakers' moments with my answers, all still above the summary; opened again further on, the tempo game is drawn as the chat kept it, each try with the dot's line, never cut off after ""Find a quiet spot first."" (B5).","O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
 O2 -> a green moment says why it landed,
-the Take's highest moment opens with “This was your most confident moment.”
+the Take's highest moment opens with “This was your most confident moment.”,
+the highest moment's bubble never says it twice, in the walk or the chat
 O3 -> reopened from the Lounge, the judging shows the moment already answered
 O4 -> skips the summary when it cannot be read, straight onto the page
 O5 -> shows no read, family or score anywhere in the DOM (AC-9), draws the served words, Keep my words records the decline and ... opens the recorder (with its own line, N268)
@@ -1055,8 +1061,8 @@ O4 -> the bubble is there at once: the typing dots alone ..., the AI clip comes 
 O5 -> shows the whole history at once, offers only ... Practise again until the third try, a Good job ends the practise: Next alone, no number, lane or score in the DOM on any practise screen (AC-9), a guest's practise asks to sign up and records nothing
 O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first
 O7 -> a try not yet better gets the same short bubble, opened with “Close.” and closed with “Try again.”, with only Practise again (N120)
-O8 -> with no exercise and no AI clip coming, the walk moves past it: no Line A alone, and the coach's queue still hears it; the Take's most confident moment with nothing to offer says its own line and is said again
-O9 -> a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122), with no AI clip the praise goes straight to its helper words (N122)","Never-rule 1 (no scores to speakers); founder 2026-10-21 (N108, ""Skip that moment""); 2026-10-23 (N120, ""make it shorter focused on one only thing""; N122, ""do we practice the confident moments? I think yes we should!"")."
+O8 -> with no exercise and no AI clip coming, it is walked as a good moment, never skipped: its helper words, no Line A alone, and the coach's queue still hears it; the Take's most confident moment with nothing to offer says its own line and is said again
+O9 -> a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122), with no AI clip the praise goes straight to its helper words (N122)","Never-rule 1 (no scores to speakers); founder 2026-10-21 (N108, ""Skip that moment""); 2026-10-23 (N120, ""make it shorter focused on one only thing""; N122, ""do we practice the confident moments? I think yes we should!""); 2026-10-30 (N284, ""Treat as good"")."
 src/components/willab/walk/walkReplay.test.tsx,Story,"As a speaker, I want a finished walk opened again to be one scroll of everything I went through, with my answers and no buttons, nothing written or recorded again, so that I can look back safely.","O1  Opened again, the whole walk is one scroll with my answers in it, and no buttons and no Next under it; nothing is written (N259).
 O2  A done exercise shows my past tries and records nothing new.
 O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.
@@ -1384,7 +1390,7 @@ src/lib/willab/tempoStep.test.ts,Story,"As a speaker in a pace week, I want the 
 O2  It never appears in the coach-only walk or for a guest (N162).
 O3  A try that stays mostly in the green reads as better; otherwise the side the ball leaned to.
 O4  The step closes ""dynamic"" once a try was better and the last was not rushed; otherwise the side the tries leaned to.
-O5  The step runs on the backend's stretch only when its answer is whole; anything else means no tempo step.
+O5  The step runs on the backend's stretch only when its answer is whole; anything else means no tempo step. On a plan it names this week's pace level (N289).
 O6  A try lands only when it runs 20 s from the first word with the ball four fifths in the green; then Will says so and the game ends (N245).
 O7  A try that came closer gets a push for one more while a try is left; otherwise its comment alone (N245).","O1 -> ""comes right after the practise moments, before other speakers"", ""leaves the walk unchanged when the Take has no intervention""
 O2 -> ""is never in the coach-only walk or a guest's""
@@ -1392,7 +1398,7 @@ O3 -> ""reads a try from where the ball stayed""
 O4 -> ""closes on one line from the tries""
 O5 -> ""takes the backend's stretch only when it is whole""
 O6 -> ""lands a try only when it is long and green""
-O7 -> ""pushes for one more only when a try came closer and one is left""","Founder 2026-10-26 (backend N162: ""in the feedback walk only""; N166: ""go with the defaults""); founder 2026-10-28 (backend N245: ""If it was really better, you let me go to the next step""); Never-rule 1."
+O7 -> ""pushes for one more only when a try came closer and one is left""","Founder 2026-10-26 (backend N162: ""in the feedback walk only""; N166: ""go with the defaults""); founder 2026-10-28 (backend N245: ""If it was really better, you let me go to the next step""); founder 2026-10-30 (backend N289 item 8); Never-rule 1."
 src/lib/willab/trackedChanges.test.ts,Story,"As a speaker, I want a suggestion whose words have moved to be dropped rather than painted on the wrong words, so that strike-throughs always mark what I said.","O1  A suggestion whose span still holds its quote is kept.
 O2  A stale span is dropped, never re-anchored by searching for the quote.","O1 -> ""KEEPS a span whose words are still there""
 O2 -> ""DROPS a stale span rather than re-anchoring by search (FE-5)""",FE-5: re-finding a moved quote struck the wrong words.
@@ -1406,10 +1412,14 @@ O2 -> shows 1% before the first report, and a real report takes over","Founder 2
 src/lib/willab/walkPlan.test.ts,Story,"As a speaker, I want the walk to praise each of my shown moments that sounded sure and practise each that did not, never ask me to judge, never show a score, and give every moment a step, so that feedback is in words and always has something to show.","O1  The plan holds no number, read or score.
 O2  The steps come in order: each praise, its practise, then its helper words; each correction (clearer version, practise); others; the summary; never a judging step; two praises or two corrections are ordinary Takes (founder 2026-10-20; N122).
 O3  Every moment has a practice step, even with nothing attached.
-O4  A praised moment the server does not mark for practice, or with practice off, goes straight to its helper words (N122).","O1 -> carries no number, read or score
+O4  A praised moment the server does not mark for practice, or with practice off, goes straight to its helper words (N122).
+O5  Each moment after the first opens with ""let's look at your next key moment"", and the first step after the last moment with ""These were some real good moments of yours""; never in the coach's own walk (N285).
+O6  A Take served with slots walks its strongest first (praise, helper words, no AI clip), then its weakest (practise), any next best (praise), then the one between (its Clearer version), then the tempo step; a Take served before them keeps praise first (N289).","O1 -> carries no number, read or score
 O2 -> praises each strong moment, practises each corrected one, and never asks the speaker to judge
 O3 -> a moment with nothing attached is the moment said again
-O4 -> a praised moment not marked for practice, or with practice off, goes straight to its helper words","Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, ""do we practice the confident moments? I think yes we should!"")."
+O4 -> a praised moment not marked for practice, or with practice off, goes straight to its helper words
+O5 -> the next moment and the end of the moments each get their line, once
+O6 -> the strongest, the weakest, then the one between, ending on the precise fix","Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, ""do we practice the confident moments? I think yes we should!""); 2026-10-30 (N285, ""let's look at your next key moment we spotted""; N289, ""First, show the strongest, then the weakest, and then the average"")."
 src/lib/willab/walkPractise.test.ts,Story,"As a speaker practising, I want each try answered with a line in words for what changed, never a number, so that I hear progress without a score.","O1  The ""not yet"", ""better"" and ""thanks"" lines come from the approved wording and contain no digits.
 O2  A try the server could not hear is a step that says so, in place of the machine's answer (founder, signed 2026-10-21).","O1 -> each try's line is the one for the reading that moved, never a number
 O2 -> a try the server could not hear is a late step that says so",Never-rule 1 (no scores to speakers).
@@ -1432,7 +1442,9 @@ still loading (N80, D4).
 O7  My most confident moment, when the walk goes on to make it better, is
 named as solid and confident in a line that fits what follows (a
 clearer version, an example, or saying it again), and is never told to
-sound like my confident moment (founder 2026-10-21).
+sound like my confident moment (founder 2026-10-21). My weakest
+moment opens with ""Here's one with more in it."" (the level's line
+instead, on a plan), then Line A (N289).
 O8  The hello and the short AI bubble are stored once, and the Lounge
 says the same words as the walk (N120).
 O9  In the chat a Take's walk is one Feedback walk at its first step's
