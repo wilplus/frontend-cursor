@@ -44,6 +44,10 @@ OUTCOME
       waits on, once done the walk's newest part, else the Take itself, so
       the Ideal Text never opens in the walk's place (B10, founder
       2026-10-26).
+  O14 The One thing walk's judged moment turns its level across my Takes
+      (Take 2 high, 3 middle, 4 low, then round again; none on Take 1), and
+      the chat says the intro, my reply with its tick and "Got it."; "Last
+      time" finds the tip my Take before kept (N309).
 PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own message, with no score"
          O2 -> "posts judging other speakers as the prototype's chat does, never their recording"
          O3 -> "counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles"
@@ -57,12 +61,14 @@ PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own
          O11 -> "gives the walk the summary as the chat holds it, with the version a coach's note replaced"
          O12 -> "draws each Take's card right under its Feedback walk, after the walk's end, what was said in between under the pair"
          O13 -> "opens the Feedback walk on the coach's word, on what waits, on its newest part, or on the Take alone, never with no door"
+         O14 -> "the One thing walk's judged moment turns its level, says its words, and last time finds the tip the Take before kept"
 WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12);
-         founder 2026-10-19, N80 (when the coach changes their word).
+         founder 2026-10-19, N80 (when the coach changes their word);
+         founder 2026-10-31, N309 (the One thing walk).
 */
 import { describe, expect, it } from "vitest";
-import { CHUNK_SHEET_COPY as COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "@/components/willab/idealEditCopy";
-import { aiVoiceChat, answerBody, chatDrawsStep, chatWalks, coachNoteToChat, feedbackWalkDoor, inPairs, momentChat, othersAnswered, othersChat, shareChat, shareLines, shownStep, stableUuid, storedSummaryOf, walkPairs, walkStepDraft, wordsEditedIn } from "./walkThread";
+import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "@/components/willab/idealEditCopy";
+import { aiVoiceChat, answerBody, chatDrawsStep, chatWalks, coachNoteToChat, feedbackWalkDoor, inPairs, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, shareChat, shareLines, shownStep, stableUuid, storedSummaryOf, walkPairs, walkStepDraft, wordsEditedIn } from "./walkThread";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { WalkStep } from "./walkPlan";
 
@@ -86,6 +92,27 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
     expect(othersChat(1, 2, "Invita", null)?.body).toBe("Moment 2 of 2");
     expect(othersChat(0, 1, null, "yes")).toMatchObject({ author: "speaker", body: "👍 Yes" });
     expect(JSON.stringify(shown)).not.toMatch(/clip|src|http/);
+  });
+
+  it("the One thing walk's judged moment turns its level, says its words, and last time finds the tip the Take before kept", () => {
+    expect([1, 2, 3, 4, 5].map(othersLevelFor)).toEqual([null, "high", "middle", "low", "high"]);
+    expect(othersOneChat(null).map((e) => [e.author, e.body])).toEqual([["app", ONE_THING_COPY.judgeIntro]]);
+    expect(othersOneChat("yes").map((e) => [e.key, e.author, e.body])).toEqual([
+      ["answer:others", "speaker", "👍 Yes ✓"],
+      ["others:got", "app", ONE_THING_COPY.gotIt],
+    ]);
+    // Counted like any judged moment.
+    expect(othersOneChat("audio_unclear")[0].body).toBe("Audio unclear ✓");
+    const kept = (take: string, index: number, tip: string, arc = "arc-1") => ({
+      client_id: `${take}-fix`, role: "bot" as const, kind: "walk_step" as const, body: "",
+      metadata: { take_session_id: take, arc_id: arc, take_index: index, step: "exVideo", fix_tip: tip },
+      client_created_at: "2026-10-31T10:00:00Z",
+    });
+    const thread = [kept("t2", 2, "Pause before “ten”"), kept("t3", 3, "Lean on “above ninety percent”"), kept("x3", 3, "Other talk", "arc-2")];
+    expect(lastFixTip(thread, "t4", "arc-1", 4)).toBe("Lean on “above ninety percent”");
+    // Only the Take right before: none kept there, none said.
+    expect(lastFixTip(thread, "t5", "arc-1", 5)).toBeNull();
+    expect(lastFixTip(thread, "t1", "arc-1", 1)).toBeNull();
   });
 
   it("counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles", () => {

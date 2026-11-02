@@ -1,19 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import RecordingStrip from "@/components/willab/walk/RecordingStrip";
+import RecordingBar from "@/components/willab/RecordingBar";
 import { useVoiceNote } from "@/components/willab/useVoiceNote";
+import { TapRow } from "@/components/willab/WillQuestion";
 import type { CallWhich, Plan } from "@/services/api/plan";
 import { isoDay, PLAN_COPY } from "@/lib/willab/planCopy";
 import PlanCalendar, { MonthGrid } from "./PlanCalendar";
 
-/* The plan's footer, in place of "Type here" (rules: the-plan.md §1 B, D, F,
-   E5, I; prototype version 27): the deadline's chips, Will's ask for the
-   plan's own yes (N211), the voice answer's recorder (no Skip; before a new
-   speaker's first Take, "Start your first recording" under it, N262), the
-   1 to 10 scale, Skip or Book now under Will's ask for a call and its calendar (full screen over the chat, N248, N281), then
-   only "Start your first recording". Each answer goes to the backend, which
-   writes Will's next words into the thread. */
+/* The plan's questions, asked the after-walk way (rules: the-plan.md §1 B,
+   D, F, E5, I; backend N319 items 1 to 3, on the prototype version 39).
+   While the plan asks, the Lounge's bar stays ("+", "Type here", the mic):
+   - a choice (the deadline, the plan's own yes, a call, what's next, a new
+     project's question) is tap answers on the right of the thread, drawn as
+     Will's after the walk (orange outlined pills); the plan's "Not now" is
+     grey and quieter (`PlanAsk`);
+   - the 1 to 10 scale keeps its shape, in the thread under its question
+     (`PlanAsk`);
+   - a voice question (why it matters, the key line, the follow-ups, "How
+     did it go?") turns the Lounge's mic orange; a tap records with the one
+     recording bar (backend N314), Stop sends the answer (`usePlanVoice`).
+   In the footer, only what stands in for the message box (`PlanDock`):
+   "Start your first recording", the one button after the plan card (N319
+   item 2), and the calls' calendar, full screen over the chat (N248, N281).
+   Each answer goes to the backend, which writes Will's next words into the
+   thread. */
 
 export type PlanActions = {
   deadline: (day: string | null) => void;
@@ -28,26 +39,14 @@ export type PlanActions = {
   consent: (yes: boolean) => void;
 };
 
-function Chip({ label, onClick, icon, dark }: { label: string; onClick: () => void; icon?: boolean; dark?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex h-10 items-center gap-2 rounded-full border px-4 text-[15px] font-medium ${
-        dark
-          ? "border-[#121212] bg-[#121212] text-white"
-          : "border-[#DCDCDC] bg-white text-[#121212] hover:border-[#9A9A9A]"
-      }`}
-    >
-      {icon ? (
-        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="#121212" strokeWidth="1.4">
-          <rect x="2" y="3" width="12" height="11" rx="2" />
-          <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" />
-        </svg>
-      ) : null}
-      {label}
-    </button>
-  );
+/** The steps that ask a question: the Lounge's bar stays under it, and
+ *  "Type here" waits (N319 items 1 and 3). */
+const ASKING = new Set(["deadline", "consent", "voice", "stress", "ready", "call", "next", "same_event"]);
+
+/** Does the plan ask a question now (its answer in the thread, or by the
+ *  mic)? */
+export function planAsks(kind: string | null): boolean {
+  return kind !== null && ASKING.has(kind);
 }
 
 function DatePickSheet({ onPick, onClose }: { onPick: (day: string) => void; onClose: () => void }) {
@@ -72,70 +71,10 @@ function DatePickSheet({ onPick, onClose }: { onPick: (day: string) => void; onC
   );
 }
 
-function DeadlineChips({ actions }: { actions: PlanActions }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="flex flex-wrap justify-end gap-2" data-plan-dock="deadline">
-      <Chip label={PLAN_COPY.pickDate} icon onClick={() => setOpen(true)} />
-      <Chip label={PLAN_COPY.noDate} onClick={() => actions.deadline(null)} />
-      {open ? (
-        <DatePickSheet
-          onClose={() => setOpen(false)}
-          onPick={(day) => {
-            setOpen(false);
-            actions.deadline(day);
-          }}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-/** "Record your answer"; before a new speaker's first Take, "Start your
- *  first recording" under it: the questions never stand between them and
- *  that Take, and what isn't answered comes back after its walk (N262). */
-function VoiceAnswer({ actions, recordNow }: { actions: PlanActions; recordNow: boolean }) {
-  const note = useVoiceNote({ maxSeconds: 300, onDone: ({ audio, durationMs }) => actions.answer(audio, durationMs) });
-  if (note.phase === "idle") {
-    return (
-      <div className="flex flex-col gap-2">
-        <button
-          type="button"
-          onClick={() => void note.start()}
-          data-plan-dock="record"
-          className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full border border-[#DCDCDC] bg-white text-[15.5px] font-medium text-[#121212]"
-        >
-          <span className="h-[9px] w-[9px] rounded-full bg-[#EF4444]" aria-hidden />
-          {PLAN_COPY.recordAnswer}
-        </button>
-        {recordNow ? <StartFirst onStart={actions.startFirst} /> : null}
-      </div>
-    );
-  }
-  return (
-    <div className="flex flex-col gap-2" data-plan-dock="recording">
-      <div className="flex items-center justify-end gap-1.5 text-[13px] text-[#6B6B6B]">
-        <span className="h-2 w-2 rounded-full bg-[#EF4444] motion-safe:animate-pulse" aria-hidden />
-        {PLAN_COPY.yourAnswer}
-      </div>
-      <RecordingStrip elapsed={note.elapsedMs / 1000} />
-      <button
-        type="button"
-        onClick={() => void note.send()}
-        disabled={note.phase === "sending"}
-        className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-record text-[15px] font-semibold text-record-foreground disabled:opacity-60"
-      >
-        <span className="h-3 w-3 rounded-[3px] bg-white" aria-hidden />
-        {PLAN_COPY.stop}
-      </button>
-    </div>
-  );
-}
-
 function Scale({ lo, hi, onPick }: { lo: string; hi: string; onPick: (v: number) => void }) {
   const [picked, setPicked] = useState<number | null>(null);
   return (
-    <div className="flex flex-col gap-2 py-1" data-plan-dock="scale">
+    <div className="flex flex-col gap-2 py-1">
       <div className="flex justify-between gap-1">
         {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
           <button
@@ -166,50 +105,144 @@ function Scale({ lo, hi, onPick }: { lo: string; hi: string; onPick: (v: number)
   );
 }
 
+/** The plan's answers in the thread, under Will's question (N319 item 1):
+ *  his tap answers' pills on the right, or the 1 to 10 scale, right side,
+ *  full width. Gone while the answer is on its way; the speaker's answer
+ *  and Will's next words then land in the thread. */
+export function PlanAsk({
+  plan,
+  busy,
+  booking,
+  actions,
+  onBookNow,
+  newEventHeld = false,
+}: {
+  plan: Plan;
+  busy: boolean;
+  booking: CallWhich | null;
+  actions: PlanActions;
+  /** "Book now" under Will's ask for a call: its calendar opens (N281). */
+  onBookNow: (which: CallWhich) => void;
+  /** A Take is still processing: "I have a new event" is not shown (H1, N242). */
+  newEventHeld?: boolean;
+}) {
+  const kind = dockFor(plan, booking);
+  const [picking, setPicking] = useState(false);
+  if (busy || !kind) return null;
+  const taps = (labels: string[], onTap: (label: string) => void, quiet?: string[]) => (
+    <TapRow labels={labels} quiet={quiet} onTap={onTap} dataAttr={{ "data-plan-ask": kind }} />
+  );
+  if (kind === "deadline") {
+    // "Pick a date" opens the date sheet; a day picked answers at once.
+    return (
+      <>
+        {taps([PLAN_COPY.pickDate, PLAN_COPY.noDate], (label) =>
+          label === PLAN_COPY.pickDate ? setPicking(true) : actions.deadline(null),
+        )}
+        {picking ? (
+          <DatePickSheet
+            onClose={() => setPicking(false)}
+            onPick={(day) => {
+              setPicking(false);
+              actions.deadline(day);
+            }}
+          />
+        ) : null}
+      </>
+    );
+  }
+  if (kind === "consent") {
+    // "Yes, ask me" orange outlined; "Not now" grey and quieter (N319 item 1).
+    return taps([PLAN_COPY.consentNo, PLAN_COPY.consentYes], (label) => actions.consent(label === PLAN_COPY.consentYes), [
+      PLAN_COPY.consentNo,
+    ]);
+  }
+  if (kind === "call") {
+    const asked: CallWhich = plan.step === "kickoff" ? "kickoff" : "summary";
+    return taps([PLAN_COPY.skip, PLAN_COPY.bookNow], (label) =>
+      label === PLAN_COPY.bookNow ? onBookNow(asked) : actions.book(asked, null),
+    );
+  }
+  if (kind === "next") {
+    const labels = newEventHeld ? [PLAN_COPY.keepPractising] : [PLAN_COPY.keepPractising, PLAN_COPY.newEvent];
+    return taps(labels, (label) => actions.next(label === PLAN_COPY.newEvent ? "new_event" : "keep_practising"));
+  }
+  if (kind === "same_event") return taps([PLAN_COPY.yes, PLAN_COPY.no], (label) => actions.sameEvent(label === PLAN_COPY.yes));
+  if (kind === "stress" || kind === "ready") {
+    const [lo, hi] = kind === "stress" ? [PLAN_COPY.stressLo, PLAN_COPY.stressHi] : [PLAN_COPY.readyLo, PLAN_COPY.readyHi];
+    return (
+      <div className="ml-auto w-full" data-plan-ask={kind}>
+        <Scale key={kind} lo={lo} hi={hi} onPick={actions.rating} />
+      </div>
+    );
+  }
+  return null;
+}
+
+/** A voice question (why it matters, the key line, the follow-ups, "How did
+ *  it go?"): while it waits the Lounge's mic is orange, as after the walk
+ *  (N319 item 1, the walk's page B14 state 2); a tap records with the one
+ *  recording bar (backend N314): the trash, then the walk's strip with Stop
+ *  inside it. Stop sends the answer through the plan's answer path; the
+ *  trash throws it away. No Skip. */
+export function usePlanVoice({
+  open,
+  onAnswer,
+}: {
+  open: boolean;
+  onAnswer: (audio: Blob, durationMs: number) => Promise<void>;
+}) {
+  const note = useVoiceNote({ maxSeconds: 300, onDone: ({ audio, durationMs }) => onAnswer(audio, durationMs) });
+  const recording = note.phase === "recording";
+  return {
+    /** The question waits: the mic is orange and records the answer. */
+    waiting: open && note.phase === "idle" ? { onTap: () => void note.start() } : null,
+    recording,
+    /** The recording bar, in the message box's place while the answer is said. */
+    bar: recording ? (
+      <div data-plan-voice-recording="">
+        <RecordingBar elapsedMs={note.elapsedMs} onTrash={note.cancel} onStop={note.send} />
+      </div>
+    ) : null,
+  };
+}
+
 function StartFirst({ onStart }: { onStart: () => void }) {
+  return <RecordDockButton label={PLAN_COPY.startFirst} onClick={onStart} dataAttr={{ "data-plan-dock": "start" }} />;
+}
+
+/** The plan's black button with the red dot, "Start your first recording";
+ *  the same piece carries the chat's "Record Take N" after a Take, alone
+ *  under the chat (backend N296 state 4). */
+export function RecordDockButton({
+  label,
+  onClick,
+  disabled = false,
+  dataAttr,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  dataAttr: Record<string, string>;
+}) {
   return (
     <button
       type="button"
-      onClick={onStart}
-      data-plan-dock="start"
-      className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-foreground text-[15px] font-medium text-background"
+      onClick={onClick}
+      disabled={disabled}
+      {...dataAttr}
+      className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-foreground text-[15px] font-medium text-background disabled:opacity-50"
     >
       <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
-      {PLAN_COPY.startFirst}
+      {label}
     </button>
   );
 }
 
-/** "What's next?" (I2); "I have a new event" is not shown while a Take is
- *  still processing (H1, backend N242). */
-function NextChips({ actions, newEventHeld }: { actions: PlanActions; newEventHeld: boolean }) {
-  return (
-    <div className="flex flex-wrap justify-end gap-2" data-plan-dock="next">
-      <Chip label={PLAN_COPY.keepPractising} onClick={() => actions.next("keep_practising")} />
-      {newEventHeld ? null : <Chip label={PLAN_COPY.newEvent} onClick={() => actions.next("new_event")} />}
-    </div>
-  );
-}
-
-function SameEventChips({ actions }: { actions: PlanActions }) {
-  return (
-    <div className="flex flex-wrap justify-end gap-2" data-plan-dock="same_event">
-      <Chip label={PLAN_COPY.yes} onClick={() => actions.sameEvent(true)} />
-      <Chip label={PLAN_COPY.no} onClick={() => actions.sameEvent(false)} />
-    </div>
-  );
-}
-
-function ConsentChips({ actions }: { actions: PlanActions }) {
-  return (
-    <div className="flex flex-wrap justify-end gap-2" data-plan-dock="consent">
-      <Chip label={PLAN_COPY.consentNo} onClick={() => actions.consent(false)} />
-      <Chip label={PLAN_COPY.consentYes} dark onClick={() => actions.consent(true)} />
-    </div>
-  );
-}
-
-/** Which footer a plan shows, or null for the message box. */
+/** Which step of the plan is open, or null for none: a question ("deadline",
+ *  "consent", "voice", "stress", "ready", "call", "next", "same_event"),
+ *  "start" (the one button after the plan card) or "book" (a call's
+ *  calendar). */
 export function dockFor(plan: Plan | null, booking: CallWhich | null): string | null {
   if (!plan || plan.waiting) return booking ? "book" : null;
   if (booking) return "book";
@@ -224,86 +257,46 @@ export function dockFor(plan: Plan | null, booking: CallWhich | null): string | 
   return null;
 }
 
+/** The plan's footer, only where it stands in for the message box: "Start
+ *  your first recording" after the plan card (E5, N319 item 2), and the
+ *  calls' calendar, full screen over the chat, for "Book now" under Will's
+ *  ask or "Book" in the plan's list (N248, N281). */
 export default function PlanDock({
   plan,
   busy,
   booking,
   onCloseBooking,
   actions,
-  newEventHeld = false,
 }: {
   plan: Plan;
   busy: boolean;
-  /** A call booked later, from the plan's list ("Book"). */
+  /** The call whose calendar is open: "Book now" under Will's ask, or
+   *  "Book" in the plan's list. */
   booking: CallWhich | null;
   onCloseBooking: () => void;
   actions: PlanActions;
-  /** A Take is still processing: "I have a new event" is not shown (N242). */
-  newEventHeld?: boolean;
 }) {
   const kind = dockFor(plan, booking);
-  // Will asks for a call; "Book now" opens its calendar, full screen over the
-  // chat (N248, N281). It stays mounted while it slides away.
-  const asked: CallWhich | null = kind === "call" ? (plan.step === "kickoff" ? "kickoff" : "summary") : null;
-  const [open, setOpen] = useState<CallWhich | null>(null);
-  const which: CallWhich | null = kind === "book" ? booking : asked && open === asked ? asked : null;
-  const done = () => (kind === "book" ? onCloseBooking() : setOpen(null));
+  // Will's ask for a call: "Skip" on its calendar moves on, as under the ask;
+  // a call booked later from the plan's list just closes (N281).
+  const asked: CallWhich | null = plan.step === "kickoff" || plan.step === "summary" ? plan.step : null;
   return (
     <>
       <PlanCalendar
         plan={plan}
-        which={which}
+        which={kind === "book" ? booking : null}
         busy={busy}
         onBook={(call, start) => {
-          done();
+          onCloseBooking();
           actions.book(call, start);
         }}
         onSkip={(call) => {
-          done();
-          if (kind !== "book") actions.book(call, null);
+          onCloseBooking();
+          if (call === asked) actions.book(call, null);
         }}
         onSaveDeadline={actions.saveDeadline}
       />
-      {asked && !busy && which === null ? (
-        <CallAsk onSkip={() => actions.book(asked, null)} onBookNow={() => setOpen(asked)} />
-      ) : (
-        <DockFooter kind={kind} plan={plan} busy={busy} actions={actions} newEventHeld={newEventHeld} />
-      )}
+      {kind === "start" && !busy ? <StartFirst onStart={actions.startFirst} /> : null}
     </>
   );
-}
-
-/** Under Will's ask for a call: "Skip" moves on, "Book now" opens the
- *  calendar (N281). */
-function CallAsk({ onSkip, onBookNow }: { onSkip: () => void; onBookNow: () => void }) {
-  return (
-    <div className="flex flex-wrap justify-end gap-2" data-plan-dock="call">
-      <Chip label={PLAN_COPY.skip} onClick={onSkip} />
-      <Chip label={PLAN_COPY.bookNow} dark onClick={onBookNow} />
-    </div>
-  );
-}
-
-function DockFooter({
-  kind,
-  plan,
-  busy,
-  actions,
-  newEventHeld,
-}: {
-  kind: string | null;
-  plan: Plan;
-  busy: boolean;
-  actions: PlanActions;
-  newEventHeld: boolean;
-}) {
-  if (!kind || kind === "book" || kind === "call" || busy) return null;
-  if (kind === "deadline") return <DeadlineChips actions={actions} />;
-  if (kind === "voice") return <VoiceAnswer key={`${plan.step}-${plan.id}`} actions={actions} recordNow={plan.record_now === true} />;
-  if (kind === "stress") return <Scale key="stress" lo={PLAN_COPY.stressLo} hi={PLAN_COPY.stressHi} onPick={actions.rating} />;
-  if (kind === "ready") return <Scale key="ready" lo={PLAN_COPY.readyLo} hi={PLAN_COPY.readyHi} onPick={actions.rating} />;
-  if (kind === "next") return <NextChips actions={actions} newEventHeld={newEventHeld} />;
-  if (kind === "same_event") return <SameEventChips actions={actions} />;
-  if (kind === "consent") return <ConsentChips actions={actions} />;
-  return <StartFirst onStart={actions.startFirst} />;
 }

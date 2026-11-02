@@ -20,8 +20,9 @@ import {
   type PlanState,
 } from "@/services/api/plan";
 import { fmtWhen, PLAN_COPY } from "@/lib/willab/planCopy";
-import PlanDock, { dockFor, type PlanActions } from "./PlanDock";
+import PlanDock, { dockFor, PlanAsk, planAsks, usePlanVoice, type PlanActions } from "./PlanDock";
 import { newestOneOf, PendingBooked, PendingVoice, type PlanRowCtx } from "./PlanRows";
+import { followNewest } from "@/components/willab/usePinThreadBottom";
 import { ChangePlanSheet, SeePlanSheet } from "./PlanSheet";
 
 /* The plan in the Lounge (rules: docs/flows/the-plan.md; backend
@@ -34,11 +35,23 @@ import { ChangePlanSheet, SeePlanSheet } from "./PlanSheet";
 export type PlanLounge = {
   dock: ReactNode;
   sheets: ReactNode;
+  /** The plan's answers in the thread, under Will's question: tap answers or
+   *  the 1 to 10 scale (N319 item 1). */
+  asks: ReactNode;
   /** The voice answer just sent, in the thread while it is heard (N275). */
   pending: ReactNode;
   rows: PlanRowCtx | undefined;
-  /** The message box's display: hidden while the plan's footer replaces it. */
+  /** The message box's display: hidden while the plan's footer replaces it
+   *  ("Start your first recording", a call's calendar, the recording bar). */
   composerDisplay: (base: string) => string;
+  /** The Lounge's mic: orange while the plan's voice question waits, and it
+   *  records the answer; else what the Lounge would give it (Will's own). */
+  mic: (otherwise: MicWaits) => MicWaits;
+  /** "Type here" stays in the bar, faded and not focusable, while the plan
+   *  asks (N319 item 3). */
+  typingOff: boolean;
+  /** The draft the bar reads: none while typing waits, so the mic shows. */
+  draft: (typed: string) => string;
   /** True while the empty Lounge's own button must wait for the plan. */
   holdsEmpty: boolean;
   /** A practice day's one thing holds the chat's one record button. */
@@ -47,6 +60,9 @@ export type PlanLounge = {
    *  the plan is read, then while it says so. */
   holdsPrinciples: boolean;
 };
+
+/** The Lounge's mic while someone waits for a spoken answer: its tap. */
+type MicWaits = { onTap: () => void } | null;
 
 type Thread = { messages: LoungeMessage[]; loading: boolean; reload: () => Promise<void> | void };
 
@@ -138,6 +154,8 @@ export function usePlanLounge({
         const got = await work();
         if (got) setState((s) => ({ ...(s ?? got), ...got, plan: got.plan ?? s?.plan ?? null }));
         await reload();
+        // The chat follows the newest bubble after an answer (N319 item 9).
+        followNewest();
       } finally {
         setThinking(false);
         setBusy(false);
@@ -179,25 +197,25 @@ export function usePlanLounge({
   );
 
   const kind = dockFor(plan, booking);
-  const dock = plan ? (
-    // In place of the message box (hidden then), nothing is under it: the
-    // shell's padding alone, as under the message box (founder 2026-10-30).
-    <div className={kind ? undefined : "mb-2"} data-plan-dock-slot>
-      <PlanDock
-        plan={plan}
-        busy={busy}
-        booking={booking}
-        onCloseBooking={() => setBooking(null)}
-        actions={actions}
-        newEventHeld={recordHeld}
-      />
-    </div>
-  ) : null;
-
+  const asks = planAsks(kind);
+  // A voice question: the Lounge's mic, orange while it waits (N319 item 1).
+  const voice = usePlanVoice({ open: kind === "voice" && !busy && sent === null, onAnswer: actions.answer });
+  // What stands in for the message box: the one button after the plan card,
+  // a call's calendar, the recording bar while an answer is said. While the
+  // plan asks, the Lounge's bar stays ("+", "Type here", the mic).
+  const replaces = kind === "start" || kind === "book" || voice.recording;
   const openBook = (which: CallWhich) => {
     setSheet(null);
     setBooking(which);
   };
+  const dock = plan ? (
+    // In place of the message box (hidden then), nothing is under it: the
+    // shell's padding alone, as under the message box (founder 2026-10-30).
+    <div className={replaces ? undefined : "mb-2"} data-plan-dock-slot>
+      <PlanDock plan={plan} busy={busy} booking={booking} onCloseBooking={() => setBooking(null)} actions={actions} />
+      {voice.bar}
+    </div>
+  ) : null;
   const sheets = plan ? (
     <>
       {sheet === "see" ? (
@@ -245,13 +263,24 @@ export function usePlanLounge({
   return {
     dock,
     sheets,
+    asks:
+      plan && asks && !thread.loading ? (
+        <PlanAsk plan={plan} busy={busy} booking={booking} actions={actions} onBookNow={openBook} newEventHeld={recordHeld} />
+      ) : null,
     pending: sent ? (
       <PendingVoice src={sent.src} durationMs={sent.ms} />
     ) : bookedLine ? (
       <PendingBooked text={bookedLine} />
     ) : null,
     rows,
-    composerDisplay: (base) => (kind ? "hidden" : base),
+    composerDisplay: (base) => (replaces ? "hidden" : base),
+    mic: (otherwise) => voice.waiting ?? otherwise,
+    // Before the first Take Will needs to hear it, so "Type here" waits
+    // (N319 item 3); after it a plan question takes no typed answer either
+    // (until N319 the box was hidden). The note a tap on it shows waits for
+    // the founder's words (N319 item 3, Never 4): no note until they are signed.
+    typingOff: asks,
+    draft: (typed) => (asks ? "" : typed),
     holdsEmpty: signedIn && (state === null || plan !== null),
     oneHoldsRecord: newestOne !== null,
     holdsPrinciples: signedIn && (state === null || plan?.onboarding === true),

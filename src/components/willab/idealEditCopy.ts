@@ -503,6 +503,47 @@ export const WALK_COPY = {
 } as const;
 
 /* -------------------------------------------------------------------------- */
+/*  THE ONE THING WALK (founder 2026-10-31, backend N309 item 6: "Signed     */
+/*  (Never 4): every line quoted in items 1 to 5"; "please implement",       */
+/*  2026-11-02). The walk's own words, steady tone only: the hello, last    */
+/*  time, their best, the one fix and its tries, the judged moment, the      */
+/*  helper words and the end. "Does this sound confident to you?", "Next",  */
+/*  "Close", "Skip" and the faces are signed already (CHUNK_SHEET_COPY,      */
+/*  WALK_COPY).                                                              */
+/* -------------------------------------------------------------------------- */
+export const ONE_THING_COPY = {
+  /** "Hi {name}."; with no name on the account, "Hi." */
+  hello: (name: string | null) => (name ? `Hi ${name}.` : "Hi."),
+  /** Last Take's fix played back when it rose. */
+  lastTime: (tip: string) => `Last time: ${tip}. You did.`,
+  /** Their best: the clip, then this and why it worked. */
+  best: "This was your most confident moment.",
+  whyItWorked: (cue: string) => `Why it worked: ${cue}`,
+  /** Above the one fix. */
+  one: "And now, one thing to improve:",
+  /** The Clearer version's lead, then the sentence in bold. */
+  sayStraight: "Say it straight:",
+  /** The AI clip after their best played again. */
+  likeConfident: "Say this one like your confident moment:",
+  yourTurn: "Your turn.",
+  /** The dock. */
+  tryIt: "Try it",
+  keepMine: "Keep mine",
+  /** A try that lands; one miss; two misses. */
+  landed: "Yes. That's it.",
+  onceMore: "Close. Once more.",
+  takeItWithYou: "Good try. Take it with you.",
+  /** Judging one moment from Take 2 (N300). */
+  judgeIntro: "Let's see how you find this voice. It helps us understand you and serve you better.",
+  gotIt: "Got it.",
+  /** The helper words, on their own. */
+  helperWords:
+    "These are your helper words. They'll appear on screen during your next take, to remind you of what you learned here.",
+  /** The end, with "Close". */
+  lessonDone: "Lesson done.",
+} as const;
+
+/* -------------------------------------------------------------------------- */
 /*  THE SIGNED LINE BANK, B01 to B14 (founder 2026-10-06, N54)                 */
 /*                                                                            */
 /*  Copied exactly from docs/SIGNED-line-bank-2026-10-06.md in the backend    */

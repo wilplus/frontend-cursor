@@ -15,17 +15,24 @@ OUTCOME
       the new Take's closing message, after its walk's summary (founder
       2026-10-28, N244, N251: it came back as processing ended, beside the
       new Take's walk).
+  O6  Nothing pushes the next Take (N294 items 6 and 7): under the goodbye,
+      with the plan's progress under it, the one tap "I want to continue
+      my practice"; once I tap it, or type that I want to practise, "Record
+      Take N" stands alone under the chat; while an ask waits, once I said
+      anything else, or once a newer Take is recorded, neither shows.
 PROVES   O1 -> "draws the card, the ask, and the message only once it is let go"
          O2 -> "opens the Take's WhatsApp ask by itself"
          O3 -> "knows when no ask is in front of the speaker"
          O4 -> "keeps the card above the admin's ask, stamped with the message it waits for alone"
          O5 -> "the last Take's Record button goes once the next Take is recorded"
+         O6 -> "after the goodbye, the tap, then Record Take N alone"
 WHY      Founder 2026-10-20: "You cannot have two actions at a time, like
-         feedback and record" (backend services/after_take.py).
+         feedback and record" (backend services/after_take.py); 2026-10-31
+         (N294): "No call to action means that there is no push".
 */
 import { describe, expect, it } from "vitest";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
-import { afterTakeOrder, askShowing, askToOpen, heldMessage, recordedPast } from "./afterTake";
+import { afterGoodbye, afterTakeOrder, askShowing, askToOpen, heldMessage, recordedPast, wantsToPractise } from "./afterTake";
 
 const at = (n: number) => `2026-10-20T10:00:0${n}.000Z`;
 const row = (id: string, n: number, kind: LoungeMessage["kind"], metadata: Record<string, unknown>, body = id): LoungeMessage =>
@@ -82,6 +89,29 @@ describe("after a Take", () => {
     expect(recordedPast([closing, other, next]).has("closing")).toBe(true);
     // The new Take's own closing message, written with its summary, keeps its button.
     expect(recordedPast([closing, other, next]).has("closing-b")).toBe(false);
+  });
+
+  it("after the goodbye, the tap, then Record Take N alone", () => {
+    const goodbye = row("goodbye", 1, "text", { next_take: true, take_index: 2, ...take });
+    const progress = row("progress", 2, "text", { plan: "p1", plan_progress: true, done: 2, total: 9 });
+    const coach = row("coach", 3, "walk_step", { step: "coachnote", ...take });
+    expect(afterGoodbye([goodbye, progress, coach])).toMatchObject({
+      step: "tap",
+      next: { arcId: "a", takeIndex: 2, takeSessionId: "t2" },
+    });
+    // Held behind an ask, or with anything said since: nothing.
+    expect(afterGoodbye([{ ...goodbye, metadata: { ...goodbye.metadata, held_for: "will_question" } }])).toBeNull();
+    expect(afterGoodbye([goodbye, row("reply", 4, "text", {}, "How do I sound calmer?")])).toBeNull();
+    // They chose to continue: Record Take N, until the next Take is recorded.
+    const chose = row("chose", 4, "text", { continue_practice: true, take_index: 2, ...take });
+    expect(afterGoodbye([goodbye, progress, chose])?.step).toBe("record");
+    const recorded = row("rec", 5, "recording_summary", { arc_id: "a", take_index: 3, session_id: "t3" });
+    expect(afterGoodbye([goodbye, progress, chose, recorded])).toBeNull();
+
+    expect(wantsToPractise("I want to practise more")).toBe(true);
+    expect(wantsToPractise("let's record again")).toBe(true);
+    expect(wantsToPractise("not now, later")).toBe(false);
+    expect(wantsToPractise("How do I sound calmer?")).toBe(false);
   });
 
   it("knows when no ask is in front of the speaker", () => {

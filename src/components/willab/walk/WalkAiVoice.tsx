@@ -5,7 +5,7 @@ import { WALK_COPY } from "../idealEditCopy";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "../TypingDots";
 import WalkMessage from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
-import { aiClipLines, linesOf, type WalkBankKey } from "@/lib/willab/walkLines";
+import { aiClipLines, linesOf, oneThingAiLines, type WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkStep } from "@/lib/willab/walkPlan";
 import type { AiVoiceState } from "@/services/api/aiVoice";
 
@@ -92,6 +92,14 @@ export function aiVoiceShown(
 ): AiVoiceLines | "pending" | null {
   const step = plan[at];
   if (!step || step.moment == null) return null;
+  // The One thing walk (founder 2026-10-31, N309 item 1): on the fix, the
+  // tip ending ", like this:", the clip and "Your turn."; after a miss,
+  // "Close. Once more." alone, never the clip again.
+  if (step.one) {
+    if (step.key !== "exVideo") return null;
+    if (aiOnExercise(state)) return oneThingAiLines(say, state?.clip);
+    return aiPendingOnExercise(state) ? "pending" : null;
+  }
   if (step.key === "exVideo") {
     if (aiOnExercise(state)) return aiClipLines(say, state?.clip, false, own);
     return aiPendingOnExercise(state) ? "pending" : null;
@@ -180,7 +188,7 @@ export default function WalkAiVoice({
     <WalkMessage wide className={arrive ? "walk-bubble-in" : undefined}>
       {title ? <span>{title}</span> : null}
       {lead ? <span>{lead}</span> : null}
-      <span>{line}</span>
+      {line ? <span>{line}</span> : null}
       <span data-walk-ai-voice className="mt-2 flex items-center gap-[7px] text-[14px] font-semibold">
         <span
           aria-hidden

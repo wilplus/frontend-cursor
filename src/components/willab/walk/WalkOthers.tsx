@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEditCopy";
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import WalkOverlay from "./WalkOverlay";
@@ -12,7 +12,7 @@ import WalkLoading from "./WalkLoading";
 import WalkFaces, { WalkUnclear } from "./WalkFaces";
 import { WalkSpeakerBubble, WalkThreadMark, useMountedAsPast } from "./WalkThread";
 import { answerOtherClip, fetchOtherAnswers, fetchOtherClips, type OtherClip } from "@/services/api/otherSpeakers";
-import { othersBridge, othersChat } from "@/lib/willab/walkThread";
+import { othersBridge, othersChat, othersOneSaid, type OthersLevel } from "@/lib/willab/walkThread";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkOthers — judge other speakers, once, after practice (founder lock      */
@@ -47,6 +47,14 @@ import { othersBridge, othersChat } from "@/lib/willab/walkThread";
 /*  this walk, each with its answer, all at once, and Next. It reads only     */
 /*  those answers, also drawn as an earlier or later part; the queue is      */
 /*  never asked and nothing is posted. None judged, it is passed by.          */
+/*                                                                            */
+/*  THE ONE THING WALK (founder 2026-10-31, N309 item 2, N300): from Take 2,  */
+/*  ONE moment, right after the speaker's own try, its machine level the     */
+/*  walk's turn (high, middle, low across Takes, `level`). "Let's see how    */
+/*  you find this voice. It helps us understand you and serve you better.",  */
+/*  then the clip and "Does this sound confident to you?" in one bubble (no  */
+/*  Line B), the faces and "Audio unclear" as ever, the answer as the        */
+/*  speaker's own reply "{face} {answer} ✓", then "Got it.".                 */
 /* -------------------------------------------------------------------------- */
 
 type Loaded = { clips: OtherClip[]; given: Record<string, ConfidenceRatingValue> };
@@ -54,18 +62,19 @@ type Loaded = { clips: OtherClip[]; given: Record<string, ConfidenceRatingValue>
 /** What the screen shows: the answers already given in this walk, oldest
  *  first (`judged` of them, at most three), else the Take's queue to judge,
  *  as many as the server sends, at most three. */
-async function load(judged: number, take: string | null): Promise<Loaded> {
-  const answered = await loadGiven(judged);
+async function load(judged: number, take: string | null, level: OthersLevel | null): Promise<Loaded> {
+  const most = level ? 1 : 3;
+  const answered = await loadGiven(judged, most);
   if (answered.clips.length > 0) return answered;
-  const list = await fetchOtherClips(take);
-  return { clips: list.slice(0, 3), given: {} };
+  const list = level ? await fetchOtherClips(take, level) : await fetchOtherClips(take);
+  return { clips: list.slice(0, most), given: {} };
 }
 
 /** The answers already given in this walk, oldest first (`judged` of them,
- *  at most three); none: nothing. */
-async function loadGiven(judged: number): Promise<Loaded> {
+ *  at most `most`); none: nothing. */
+async function loadGiven(judged: number, most = 3): Promise<Loaded> {
   if (judged <= 0) return { clips: [], given: {} };
-  const answers = (await fetchOtherAnswers()).slice(0, Math.min(3, judged)).reverse();
+  const answers = (await fetchOtherAnswers()).slice(0, Math.min(most, judged)).reverse();
   return { clips: answers, given: Object.fromEntries(answers.map((a) => [a.id, a.answer])) };
 }
 
@@ -79,6 +88,7 @@ export default function WalkOthers({
   onClose,
   holdMs = WALK_ANSWER_HOLD_MS,
   onChat,
+  level = null,
 }: {
   testId?: string;
   /** The Take whose walk this is: the server's set for it (N119). */
@@ -94,9 +104,13 @@ export default function WalkOthers({
   onClose: () => void;
   holdMs?: number;
   /** A moment shown (`answer` null) or answered, for the chat. Nothing is
-   *  drawn from it. */
-  onChat?: (at: number, of: number, from: string | null, answer: ConfidenceRatingValue | null) => void;
+   *  drawn from it. `one`: the One thing walk's one moment (N309). */
+  onChat?: (at: number, of: number, from: string | null, answer: ConfidenceRatingValue | null, one?: boolean) => void;
+  /** The One thing walk's one moment, of this machine level (N309 item 2):
+   *  its own words, one clip. Null: the Take's three (N119). */
+  level?: OthersLevel | null;
 }) {
+  const one = level !== null;
   const [clips, setClips] = useState<OtherClip[] | null>(null);
   const [at, setAt] = useState(0);
   const [given, setGiven] = useState<Record<string, ConfidenceRatingValue>>({});
@@ -126,7 +140,7 @@ export default function WalkOthers({
       return;
     }
     let live = true;
-    void (replay ? loadGiven(judgedAtOpen.current) : load(judgedAtOpen.current, take)).then((loaded) => {
+    void (replay ? loadGiven(judgedAtOpen.current, one ? 1 : 3) : load(judgedAtOpen.current, take, level)).then((loaded) => {
       if (!live) return;
       if (loaded.clips.length === 0) {
         setNone(true);
@@ -142,7 +156,7 @@ export default function WalkOthers({
     return () => {
       live = false;
     };
-  }, [past, skip, take, replay]);
+  }, [past, skip, take, replay, level, one]);
 
   const clip = clips?.[at];
   const answered = clip ? given[clip.id] ?? null : null;
@@ -153,8 +167,8 @@ export default function WalkOthers({
   chat.current = onChat;
   useEffect(() => {
     if (past || reopened) return; // the chat already holds these
-    if (clips && at < clips.length) chat.current?.(at, clips.length, clips[0]?.community ?? null, null);
-  }, [clips, at, reopened, past]);
+    if (clips && at < clips.length) chat.current?.(at, clips.length, clips[0]?.community ?? null, null, one);
+  }, [clips, at, reopened, past, one]);
   const forward = () => (clips && at + 1 < clips.length ? setAt(at + 1) : onDone());
   /** "Other speakers · 2 of 3", or the community's name. */
   const where = (i: number) => `${from ?? WALK_COPY.othersTitle} · ${i + 1} ${COPY.pagerOf} ${clips?.length ?? 1}`;
@@ -163,7 +177,7 @@ export default function WalkOthers({
     if (!clip || answered !== null) return;
     setGiven((g) => ({ ...g, [clip.id]: value }));
     void answerOtherClip(clip.id, value);
-    onChat?.(at, clips?.length ?? 1, from, value);
+    onChat?.(at, clips?.length ?? 1, from, value, one);
     timer.current = window.setTimeout(forward, holdMs);
   };
 
@@ -178,6 +192,44 @@ export default function WalkOthers({
       {answered === null ? <WalkUnclear onPick={() => pick("audio_unclear")} /> : null}
     </WalkFooter>
   );
+  if (one) {
+    const said = clip && answered !== null ? othersOneSaid(answered) : null;
+    return (
+      <WalkOverlay testId={testId} onClose={onClose} footer={footer}>
+        {!clips || !clip ? (
+          <WalkLoading />
+        ) : (
+          <>
+            <WalkThreadMark label={from ?? WALK_COPY.othersTitle} />
+            <WalkMessage>
+              <span data-walk-judge-intro>{ONE_THING_COPY.judgeIntro}</span>
+            </WalkMessage>
+            <WalkMessage wide>
+              <div className="mb-2.5">
+                <WalkPlayer
+                  look="bare"
+                  seed={`other-${clip.id}`}
+                  src={clip.src}
+                  startOffsetMs={clip.startOffsetMs}
+                  durationMs={clip.durationMs}
+                  label={from ?? WALK_COPY.othersTitle}
+                />
+              </div>
+              <span>{COPY.confidenceQuestion}</span>
+            </WalkMessage>
+            {said ? (
+              <>
+                <WalkSpeakerBubble>{said}</WalkSpeakerBubble>
+                <WalkMessage>
+                  <span data-walk-got-it>{ONE_THING_COPY.gotIt}</span>
+                </WalkMessage>
+              </>
+            ) : null}
+          </>
+        )}
+      </WalkOverlay>
+    );
+  }
   return (
     <WalkOverlay testId={testId} onClose={onClose} footer={footer}>
       {!clips || !clip ? (

@@ -57,9 +57,6 @@ export type Plan = {
    *  a new speaker's, after a Take recorded first, until that Take's walk
    *  (backend N262). */
   waiting: boolean;
-  /** A new speaker's questions, before any Take: "Start your first
-   *  recording" sits under "Record your answer" (backend N262). */
-  record_now?: boolean;
   /** The speaker is being onboarded: the questions, then a new speaker's plan
    *  until the first Take. The principles wait meanwhile (backend N243). */
   onboarding?: boolean;

@@ -5,8 +5,9 @@
  *          as soon as I book, so that booking takes a few taps and never
  *          stands between me and my first Take.
  * OUTCOME
- *   O1  Will's ask for a call has "Skip" and "Book now" under it; the
- *       calendar does not open by itself (N281).
+ *   O1  Will's ask for a call has "Skip" and "Book now" under it, tap
+ *       answers in the thread (N319 item 1); the calendar does not open by
+ *       itself (N281).
  *   O2  "Book now" opens it full screen: the call's name, "0 of 2 booked"
  *       and the deadline; only a day with an open time can be picked, and
  *       Book waits for a time.
@@ -20,11 +21,11 @@
  *          2026-10-28 and 2026-10-30, backend N248, N281);
  *          docs/flows/the-plan.md §1 F.
  */
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { Plan } from "@/services/api/plan";
-import PlanDock, { type PlanActions } from "./PlanDock";
+import type { CallWhich, Plan } from "@/services/api/plan";
+import PlanDock, { PlanAsk, type PlanActions } from "./PlanDock";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -88,6 +89,17 @@ function actions(): PlanActions {
   };
 }
 
+/** Will's ask in the thread, and the plan's footer with the calendar. */
+function Call({ plan, a }: { plan: Plan; a: PlanActions }) {
+  const [booking, setBooking] = useState<CallWhich | null>(null);
+  return (
+    <>
+      <PlanAsk plan={plan} busy={false} booking={booking} actions={a} onBookNow={setBooking} />
+      <PlanDock plan={plan} busy={false} booking={booking} onCloseBooking={() => setBooking(null)} actions={a} />
+    </>
+  );
+}
+
 const q = <T extends Element = HTMLButtonElement>(selector: string) => document.querySelector(selector) as T;
 const tap = (selector: string) => act(() => q(selector).click());
 /** Time passes: Will's words are read, the calendar comes up, a month folds. */
@@ -98,10 +110,10 @@ const wait = async (ms: number) => {
 
 it("Book now, a day, a time, then Book", async () => {
   const a = actions();
-  act(() => root.render(<PlanDock plan={PLAN} busy={false} booking={null} onCloseBooking={() => {}} actions={a} />));
+  act(() => root.render(<Call plan={PLAN} a={a} />));
   await wait(1100);
   expect(q("[data-plan-calendar]")).toBeNull();
-  const ask = [...document.querySelectorAll("[data-plan-dock='call'] button")];
+  const ask = [...document.querySelectorAll("[data-plan-ask='call'] button")];
   expect(ask.map((b) => b.textContent)).toEqual(["Skip", "Book now"]);
 
   act(() => (ask[1] as HTMLButtonElement).click());
@@ -131,11 +143,9 @@ it("Book now, a day, a time, then Book", async () => {
 
 it("Skip passes the call on", async () => {
   const a = actions();
-  act(() =>
-    root.render(<PlanDock plan={{ ...PLAN, step: "summary" }} busy={false} booking={null} onCloseBooking={() => {}} actions={a} />),
-  );
+  act(() => root.render(<Call plan={{ ...PLAN, step: "summary" }} a={a} />));
   await wait(100);
-  tap("[data-plan-dock='call'] button");
+  tap("[data-plan-ask='call'] button");
   expect(a.book).toHaveBeenCalledWith("summary", null);
   expect(q("[data-plan-calendar]")).toBeNull();
 });
