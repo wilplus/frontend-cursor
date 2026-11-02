@@ -26,7 +26,9 @@ OUTCOME
       (multipart audio and duration_ms) and the voice note joins the
       thread as my bubble; the bar comes back (N321 item 2, N314).
   O7  A voice note from the other person is their grey bubble with a play
-      control that plays it from the chat's audio route (N321 item 2).
+      control that plays it from the chat's audio route (N321 item 2); its
+      words, once ready, are closed behind "Read it" under the player, and
+      "Hide" closes them again (N331).
   O8  The + on the list opens my own link, with the add sheet's signed
       words, and Copy my link puts the whole link on the clipboard (N308,
       N310).
@@ -43,7 +45,7 @@ PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O4 -> "the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's"
          O5 -> "a chat with a message newer than its last opening shows as new until it is opened"
          O6 -> "the mic records a voice note, Stop posts it and it joins the thread"
-         O7 -> "a voice note from the other person plays from the chat's audio route"
+         O7 -> "a voice note from the other person plays from the chat's audio route, its words behind Read it"
          O8 -> "the + opens my own link and copies it"
          O9 -> "a chat joined through a link says whose link it was"
          O10 -> "after joining, the list opens with the one who invited me on top, marked new"
@@ -343,7 +345,7 @@ describe("the chats in front of the Lounge", () => {
     expect(voice?.textContent).toMatch(/^0:04\d\d:\d\d$/);
   });
 
-  it("a voice note from the other person plays from the chat's audio route", async () => {
+  it("a voice note from the other person plays from the chat's audio route, its words behind Read it", async () => {
     const played: string[] = [];
     vi.stubGlobal(
       "Audio",
@@ -360,13 +362,26 @@ describe("the chats in front of the Lounge", () => {
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
     routes.set("GET /api/v2/chats/c-ariel/messages", () => ({
-      messages: [{ id: "m9", mine: false, author: "Ariel", kind: "voice", body: "", meta: { duration_ms: 65_000 }, created_at: ARIEL.last.created_at }],
+      messages: [
+        { id: "m9", mine: false, author: "Ariel", kind: "voice", body: "", meta: { duration_ms: 65_000 }, created_at: ARIEL.last.created_at, words: "Name the treatment first." },
+        { id: "m10", mine: true, author: "Me", kind: "voice", body: "", meta: { duration_ms: 3_000 }, created_at: ARIEL.last.created_at, words: null },
+      ],
     }));
     await render();
     await tap(row("c-ariel"));
 
     const theirs = container.querySelector('[data-chat-thread] [data-row="app"] [data-bubble][data-chat-voice]');
-    expect(theirs?.textContent).toMatch(/^1:05\d\d:\d\d$/);
+    expect(theirs?.textContent).toMatch(/^1:05\d\d:\d\dRead it$/);
+    // The words, closed by default; Read it opens them in the bubble, Hide closes them (N331).
+    expect(theirs?.querySelector("[data-chat-words]")).toBeNull();
+    await tap(theirs?.querySelector("[data-chat-read]"));
+    expect(theirs?.querySelector("[data-chat-words]")?.textContent).toBe("Name the treatment first.");
+    expect(theirs?.querySelector("[data-chat-read]")?.textContent).toBe("Hide");
+    await tap(theirs?.querySelector("[data-chat-read]"));
+    expect(theirs?.querySelector("[data-chat-words]")).toBeNull();
+    // A voice note with no words shows none.
+    expect(container.querySelector('[data-row="me"][data-chat-voice] [data-chat-read]')).toBeNull();
+
     await tap(theirs?.querySelector('button[aria-label="Play"]'));
     expect(played).toEqual(["/api/v2/chats/c-ariel/messages/m9/audio"]);
     expect(theirs?.querySelector('button[aria-label="Pause"]')).not.toBeNull();

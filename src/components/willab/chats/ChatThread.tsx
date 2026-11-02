@@ -84,10 +84,43 @@ export function WillTopBar({ onBack }: { onBack: () => void }) {
   );
 }
 
+/** The two words under a voice note's player (backend N331, signed). */
+export const READ_IT = "Read it";
+export const HIDE_WORDS = "Hide";
+
+/** A voice note's words, closed under its player (backend N331): "Read it"
+ *  opens them inside the bubble, "Hide" closes them. Closed by default, for
+ *  both people, so the voice is heard; shown only once there are words. */
+function VoiceWords({ words, mine }: { words: string; mine: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        data-chat-read=""
+        aria-expanded={open}
+        onClick={() => setOpen((was) => !was)}
+        className={`self-start py-1 text-[12.5px] font-semibold underline underline-offset-[3px] ${
+          mine ? "text-primary-foreground" : "text-foreground"
+        }`}
+      >
+        {open ? HIDE_WORDS : READ_IT}
+      </button>
+      {open ? (
+        <p data-chat-words="" className="mb-0.5 mt-1 whitespace-pre-wrap break-words text-[14.5px] leading-[1.45]">
+          {words}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 /** A voice note (N321 item 2), in the same bubble: the plan's small player
- *  (play, the drawn bars, the length), its time bottom right. */
+ *  (play, the drawn bars, the length), its time bottom right, and its words
+ *  behind "Read it" once they are ready (N331). */
 function ChatVoice({ chatId, message, time }: { chatId: string; message: ChatMessage; time: string }) {
   const ms = typeof message.meta?.duration_ms === "number" ? message.meta.duration_ms : null;
+  const words = typeof message.words === "string" && message.words.trim() ? message.words : null;
   const player = <VoicePlayer src={chatVoiceSrc(chatId, message.id)} tone={message.mine ? "orange" : "grey"} durationMs={ms} />;
   const stamp = time ? (
     <span
@@ -97,19 +130,31 @@ function ChatVoice({ chatId, message, time }: { chatId: string; message: ChatMes
       {time}
     </span>
   ) : null;
-  if (message.mine) {
-    return (
-      <div data-row="me" data-bubble="" data-chat-voice="" className="ml-auto flex max-w-[85%] items-end gap-2.5 rounded-2xl bg-primary py-2 pl-2 pr-3">
+  const body = (
+    <>
+      <span className="flex items-end gap-2.5">
         {player}
         {stamp}
+      </span>
+      {words ? <VoiceWords words={words} mine={message.mine} /> : null}
+    </>
+  );
+  if (message.mine) {
+    return (
+      <div
+        data-row="me"
+        data-bubble=""
+        data-chat-voice=""
+        className="ml-auto flex max-w-[85%] flex-col rounded-2xl bg-primary py-2 pl-2 pr-3 text-primary-foreground"
+      >
+        {body}
       </div>
     );
   }
   return (
     <div data-row="app" className="mr-auto flex max-w-[88%]">
-      <div data-bubble="" data-chat-voice="" className="flex items-end gap-2.5 rounded-[16px] bg-muted py-2 pl-2 pr-3">
-        {player}
-        {stamp}
+      <div data-bubble="" data-chat-voice="" className="flex flex-col rounded-[16px] bg-muted py-2 pl-2 pr-3 text-foreground">
+        {body}
       </div>
     </div>
   );
