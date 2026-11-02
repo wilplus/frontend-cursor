@@ -187,7 +187,9 @@ export default function WillabSurface({
   const shell = (children: React.ReactNode, flush = false, bare = false) => (
     <main className="willab-chat flex h-full flex-col overflow-hidden bg-background">
       {bare ? null : (
-        <div className="shrink-0">
+        // Hidden, not unmounted, while a person's chat draws its own top bar
+        // in its place (ring 6, backend N321 item 1).
+        <div className="shrink-0" hidden={!chats.navbar}>
           <DashboardHeader />
         </div>
       )}

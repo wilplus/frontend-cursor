@@ -8,15 +8,23 @@ OUTCOME
   O1  Off (no `chats` in the ring's features_on): nothing is drawn around
       the Lounge and no chat is read (Never 3).
   O2  On: the list stands in front of the Lounge, Will pinned first, then
-      the chats with title, subtitle and last message; an empty list asks
-      for the demo once. Will's row uncovers the Lounge, never remounted,
-      with a back to the list (customer-requests.md C1; N274, N298).
+      the chats, newest last message first, each with its title, subtitle
+      and last message (an emoji with its meaning); an empty list asks for
+      the demo once. Will's row uncovers the Lounge, never remounted, with
+      a back to the list (customer-requests.md C1; N274, N298, N322).
   O3  In a chat, the bar holds only the three emoji; a tap posts
       {"kind":"emoji","body":…} and shows the emoji at once, large, with its
-      meaning under it (N306, N311).
+      meaning and time under it (N306, N311, N322).
+  O4  The WillpowerLab bar goes while a person's chat is open, its own top
+      bar in its place, and comes back on the list and in Will's chat
+      (N321 item 1, N322 item 4).
+  O5  A chat whose last message is newer than the last time it was opened
+      on this device shows as new, and stops being new once opened (N322).
 PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O2 -> "with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back"
          O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning"
+         O4 -> "the WillpowerLab bar hides while a person's chat is open and is back on the list"
+         O5 -> "a chat with a message newer than its last opening shows as new until it is opened"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -76,10 +84,16 @@ function Lounge() {
   return createElement("div", { "data-testid": "lounge" }, "The Lounge");
 }
 
-/** As WillabSurface draws it: back, the Lounge, the front. */
+/** As WillabSurface draws it: the WillpowerLab bar (hidden as the door
+ *  says), then back, the Lounge, the front. */
 function Surface() {
   const chats = useChatsDoor(false);
-  return createElement("div", { "data-surface": "" }, chats.back, createElement(Lounge), chats.front);
+  return createElement(
+    "div",
+    null,
+    createElement("header", { "data-navbar": "", hidden: !chats.navbar }, "WillpowerLab"),
+    createElement("div", { "data-surface": "" }, chats.back, createElement(Lounge), chats.front),
+  );
 }
 
 const flush = () =>
@@ -89,6 +103,7 @@ const flush = () =>
 
 beforeEach(async () => {
   resetRingStateCache();
+  window.localStorage.clear();
   routes.clear();
   fetchMock.mockReset();
   loungeMounts = 0;
@@ -111,7 +126,10 @@ async function render() {
 }
 
 const surface = () => container.querySelector("[data-surface]")!;
+const navbar = () => container.querySelector<HTMLElement>("[data-navbar]")!;
 const rows = () => [...container.querySelectorAll<HTMLButtonElement>("[data-chat-row]")];
+const row = (id: string) => container.querySelector<HTMLButtonElement>(`[data-chat-row="${id}"]`);
+const lastLineOf = (id: string) => row(id)?.querySelector("[data-chat-last]")?.textContent;
 async function tap(el: Element | null | undefined) {
   if (!el) throw new Error(`nothing to tap in: ${container.innerHTML}`);
   await act(async () => (el as HTMLElement).click());
@@ -138,10 +156,12 @@ describe("the chats in front of the Lounge", () => {
     await render();
 
     expect(container.querySelector("[data-chats-front]")).not.toBeNull();
-    expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-sarah", "c-ariel"]);
+    // Will first, then the newest last message first.
+    expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-ariel", "c-sarah"]);
     expect(rows()[0].textContent).toBe("Will");
-    expect(rows()[1].textContent).toBe("SarahInvita customerIs the scalp scrub good for dry hair?");
-    expect(rows()[2].textContent).toBe("ArielInvita colleague🙏");
+    expect(rows()[2].textContent).toContain("SarahInvita customer");
+    expect(lastLineOf("c-sarah")).toBe("Is the scalp scrub good for dry hair?");
+    expect(lastLineOf("c-ariel")).toBe("🙏 Thanks");
     expect(calls("POST /api/v2/chats/demo")).toHaveLength(1);
 
     await tap(rows()[0]);
@@ -151,7 +171,7 @@ describe("the chats in front of the Lounge", () => {
 
     routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, ARIEL] }));
     await tap(container.querySelector("[data-chat-header] button"));
-    expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-sarah", "c-ariel"]);
+    expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-ariel", "c-sarah"]);
     // The demo is asked for once; the Lounge was never mounted twice.
     expect(calls("POST /api/v2/chats/demo")).toHaveLength(1);
     expect(loungeMounts).toBe(1);
@@ -166,11 +186,11 @@ describe("the chats in front of the Lounge", () => {
     let release: () => void = () => {};
     const posted = new Promise<void>((resolve) => (release = resolve));
     await render();
-    await tap(rows()[1]);
+    await tap(row("c-sarah"));
 
     const screen = container.querySelector("[data-chat-screen]")!;
-    expect(screen.querySelector("[data-chat-header]")?.textContent).toBe("SarahInvita customer");
-    expect(screen.querySelector("[data-chat-thread]")?.textContent).toBe(SARAH.last.body);
+    expect(screen.querySelector("[data-chat-header]")?.textContent).toContain("SarahInvita customer");
+    expect(screen.querySelector("[data-chat-thread] [data-bubble]")?.textContent).toContain(SARAH.last.body);
     // The bar: the three emoji and nothing else (no typing, no mic).
     const bar = screen.querySelector("[data-chat-bar]")!;
     expect([...bar.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["👍", "👀", "🙏"]);
@@ -185,7 +205,7 @@ describe("the chats in front of the Lounge", () => {
     });
     await tap([...bar.querySelectorAll("button")].find((b) => b.textContent === "👍"));
     const sent = () => [...screen.querySelectorAll("[data-chat-emoji]")].map((e) => e.textContent);
-    expect(sent()).toEqual(["👍It's good"]);
+    expect(sent()).toEqual([expect.stringMatching(/^👍It's good · \d\d:\d\d$/)]);
     const post = fetchMock.mock.calls.at(-1)!;
     expect(post[0]).toBe("/api/v2/chats/c-sarah/messages");
     expect(post[1].method).toBe("POST");
@@ -193,6 +213,42 @@ describe("the chats in front of the Lounge", () => {
 
     release();
     await flush();
-    expect(sent()).toEqual(["👍It's good"]);
+    expect(sent()).toEqual([expect.stringMatching(/^👍It's good · \d\d:\d\d$/)]);
+  });
+
+  it("the WillpowerLab bar hides while a person's chat is open and is back on the list", async () => {
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
+    routes.set("GET /api/v2/chats/c-sarah/messages", () => ({ messages: [] }));
+    await render();
+    expect(navbar().hidden).toBe(false);
+
+    await tap(row("c-sarah"));
+    expect(container.querySelector("[data-chat-screen]")).not.toBeNull();
+    expect(navbar().hidden).toBe(true);
+
+    await tap(container.querySelector("[data-chat-header] button"));
+    expect(container.querySelector("[data-chat-list]")).not.toBeNull();
+    expect(navbar().hidden).toBe(false);
+
+    // Will's chat keeps it (N322 item 4).
+    await tap(row("will"));
+    expect(navbar().hidden).toBe(false);
+  });
+
+  it("a chat with a message newer than its last opening shows as new until it is opened", async () => {
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, ARIEL] }));
+    routes.set("GET /api/v2/chats/c-sarah/messages", () => ({ messages: [] }));
+    // Ariel's chat was opened after her last message; Sarah's before hers.
+    window.localStorage.setItem("willab.chats.opened.c-ariel", String(Date.parse(ARIEL.last.created_at) + 60_000));
+    window.localStorage.setItem("willab.chats.opened.c-sarah", String(Date.parse(SARAH.last.created_at) - 60_000));
+    await render();
+    expect(row("c-sarah")?.hasAttribute("data-chat-new")).toBe(true);
+    expect(row("c-ariel")?.hasAttribute("data-chat-new")).toBe(false);
+
+    await tap(row("c-sarah"));
+    await tap(container.querySelector("[data-chat-header] button"));
+    expect(row("c-sarah")?.hasAttribute("data-chat-new")).toBe(false);
   });
 });
