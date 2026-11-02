@@ -14,8 +14,10 @@ import Linkified from "./Linkified";
 /*  N319 item 8). While it is the newest bubble the answers sit under it, on  */
 /*  the right; a tap goes to the backend, which writes it and the reply.      */
 /*  Typed words in the message box are an answer too (the backend's chat      */
-/*  reads them). No Skip (founder 2026-10-31, N296 item 2): not answering is  */
-/*  allowed, the "+" still opens the projects; a follow-up has no taps.       */
+/*  reads them), and so is a voice answer: while it waits the mic is orange   */
+/*  (N296 state 2, WillVoiceAnswer.tsx). No Skip (founder 2026-10-31, N296    */
+/*  item 2): not answering is allowed, the "+" still opens the projects; a   */
+/*  follow-up and the key line (N294 item 2) have no taps.                    */
 /* -------------------------------------------------------------------------- */
 
 export const WILL_QUESTION = "will_question";
@@ -32,6 +34,18 @@ export function willQuestionOf(
   if (typeof arcId !== "string" || typeof takeSessionId !== "string") return null;
   const chips = Array.isArray(meta.chips) ? meta.chips.filter((c): c is string => typeof c === "string") : [];
   return { arcId, takeSessionId, chips };
+}
+
+/** Will's question (or its follow-up) waiting for an answer: the newest
+ *  bubble drawn (messages oldest first). While it waits the Lounge's mic is
+ *  orange and records the answer (backend N296 state 2). */
+export function willWaiting(
+  drawn: readonly { metadata?: Record<string, unknown> | null }[],
+): WillQuestionTarget | null {
+  const meta = drawn[drawn.length - 1]?.metadata;
+  const will = willQuestionOf(meta);
+  const step = meta?.will_question_step;
+  return will && (step === "ask" || step === "follow") ? { arcId: will.arcId, takeSessionId: will.takeSessionId } : null;
 }
 
 export default function WillQuestionBubble({

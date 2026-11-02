@@ -22,6 +22,7 @@ import {
 import { fmtWhen, PLAN_COPY } from "@/lib/willab/planCopy";
 import PlanDock, { dockFor, type PlanActions } from "./PlanDock";
 import { newestOneOf, PendingBooked, PendingVoice, type PlanRowCtx } from "./PlanRows";
+import { followNewest } from "@/components/willab/usePinThreadBottom";
 import { ChangePlanSheet, SeePlanSheet } from "./PlanSheet";
 
 /* The plan in the Lounge (rules: docs/flows/the-plan.md; backend
@@ -138,6 +139,8 @@ export function usePlanLounge({
         const got = await work();
         if (got) setState((s) => ({ ...(s ?? got), ...got, plan: got.plan ?? s?.plan ?? null }));
         await reload();
+        // The chat follows the newest bubble after an answer (N319 item 9).
+        followNewest();
       } finally {
         setThinking(false);
         setBusy(false);
