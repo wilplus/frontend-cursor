@@ -54,6 +54,8 @@ export type PractiseScreenCtx = {
   answered: (step: WalkStep) => string | null;
   answer: (step: WalkStep, value: string) => void;
   elapsed: number;
+  /** The mic is live: Stop shows from here on (N350 item 5). */
+  capturing: boolean;
   stop: () => void;
   skip: () => void;
   again: () => void;
@@ -127,14 +129,16 @@ function lineAbove(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string 
 /** The recorder's footer: the one recording bar (founder 2026-10-31, backend
  *  N314, locked), the trash on the left, then the Take's strip with the red
  *  Stop inside it, and Skip under it as the walk's grey link (the tempo
- *  step's dock). Stop sends the try; the trash throws it away, nothing
- *  uploaded and no try counted, back to the step that opened the practise,
- *  as ✕ does. Was: the strip, then Skip in the Back style beside a red Stop
- *  in the Finish-take style (N70). */
+ *  step's dock). Stop shows once the mic is live, as in the tempo step
+ *  (N350 item 5): while the mic opens, the trash and the strip alone. Stop
+ *  sends the try; the trash throws it away, nothing uploaded and no try
+ *  counted, back to the step that opened the practise, as ✕ does. Was: the
+ *  strip, then Skip in the Back style beside a red Stop in the Finish-take
+ *  style (N70); Stop from the moment the practise opened. */
 function RecorderFooter({ ctx }: { ctx: PractiseScreenCtx }) {
   return (
     <WalkFooter links={[{ label: WALK_COPY.skip, onClick: ctx.skip, testId: "walk-skip" }]}>
-      <RecordingBar elapsedMs={ctx.elapsed * 1000} onTrash={ctx.back} onStop={ctx.stop} />
+      <RecordingBar elapsedMs={ctx.elapsed * 1000} onTrash={ctx.back} onStop={ctx.capturing ? ctx.stop : undefined} />
     </WalkFooter>
   );
 }

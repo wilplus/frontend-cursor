@@ -311,10 +311,10 @@ step; the loop never waits for a coach.
   You did." under the hello, with this Take's best clip on that slide as
   the speaker's orange bubble. A moment's fix rose when its issue is gone
   on the same slide; the pace game's (the Sniper, when the last walk fixed
-  no moment, T) when that slide came out slower: every clip of it this
-  Take spent less of its time past the green, on the side the stretch
-  leaned, than the stretch did, read as the tempo step reads it
-  (`tempo_stretch.furthest`). The tip is the one the last walk gave, kept
+  no moment, T) when every clip on that slide this Take stays inside the
+  green on the side the stretch leaned, T's one rule for "the pace fix
+  worked" (N350 item 3; was: every clip of it spent less of its time past
+  the green than the stretch did, any drop). The tip is the one the last walk gave, kept
   with its fix step in the chat (`fix_tip`): the AI clip's tip, lower-cased
   ("Last time: let “fourteen shades” wait a beat. You did."), the Clearer
   version's "say it straight", or the pace game's "give “{words}” more
@@ -563,6 +563,10 @@ praised moment:
   try the server did not keep (late, not sent, not heard) included: the
   next is numbered after it (2026-10-21). The recorder's strip is the recording screen's as re-locked 2026-10-12
   (N70), without the slide card; after Stop the walk returns instantly.
+  Stop shows once the mic is live: while the mic opens, the bar shows the
+  trash and the strip without Stop, as the tempo step's does (T; N350 item
+  5; was: Stop from the moment the practise opened, `useWalkPractise`
+  `capturing`).
   The trash throws the try away: nothing is uploaded or checked, no try is
   counted, and the walk is back on the step that opened it ("Try it",
   "Practise", "Practise again"), as ✕ does (N314). The
@@ -1025,9 +1029,13 @@ praised moment:
               the eight kinds of N290 item 4; a weighed moment ranks as
               needing more help for the between, kept
               only when its Clearer version passes the gate (H3), else the
-              pick as without it; never the strongest or the weakest; at
-              most 5 seconds before the Take is ready (N327), late or failed → as
-              without it; a frozen Take keeps the walk it froze
+              pick as without it; never the strongest or the weakest; the
+              run waits for it at most 5 seconds, only for a speaker it
+              reaches, after the Take is flipped ready and before the
+              walk's marks are baked: "ready" and the Ideal Text never
+              wait, the walk may open up to 5 seconds later (N350 item 2;
+              was: "ready" waited for it); late or failed → as without
+              it; a frozen Take keeps the walk it froze
   ```
 
   The unit is the sentence. FLOOR is 0.6 at launch, then calibrated so
@@ -1633,7 +1641,7 @@ backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
 2. Will's bubble, from what the stretch was: "That part went fast. 🏃 Let's try a little game." or "That part slowed down, with long pauses. 🐢 Let's try a little game."
 3. Will's bubble with the stretch's topic: "Tell me more about {topic}, and keep the ball in the green."
 4. Will's bubble: "🤫 Find a quiet spot first."
-5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar, the app's one recording bar (N314): the trash, then the strip with Stop inside it, the Skip under it. Nothing else appears until Stop. The trash throws the try away: no try is counted or kept for Will, and the step is back where it was before it (I'm ready, "Try it" or Practise again).
+5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar, the app's one recording bar (N314): the trash, then the strip with Stop inside it, the Skip under it. Stop shows once the mic is live, as in the walk's practise (C7, N350 item 5). Nothing else appears until Stop. The trash throws the try away: no try is counted or kept for Will, and the step is back where it was before it (I'm ready, "Try it" or Practise again).
 6. The try: the dot's path, then Will's word on it; Will guides, the speaker never has to choose between another try and moving on (N245):
    - **It lands** (really better): "That landed. 🎯 Really better. Let's move on.", then **Next**; the game ends there, on any try.
    - **It came closer** (more than half in the green, not enough to land): "Better. You let it breathe." and, while a try is left, "You're close. 💪 Give it one more try.", then **Practise again**.
@@ -1653,6 +1661,16 @@ Once the walk goes on, the game stays in the thread as it was played (B5): each 
 | When a try lands | 20 s or more from the first word, four fifths of it in the green (N245). The Take's stretch was at least a quarter outside the green, so a landed try is always clearly better. A shorter try can't land: the ball needs about 10 s of talk without a pause to leave the green |
 | When a try came closer | More than half of it in the green (N245) |
 | A noisy room | The quiet-spot line only; no listening check |
+
+**When the pace fix worked** (N350 item 3, one rule). The stretch the pace
+game fixed counts as fixed when every clip on that slide in the next Take
+stays inside the green on that side: none spends a quarter of its time or
+more past the green on the side the stretch leaned, the same bar that picks
+a stretch (`tempo_stretch.MIN_OUTSIDE`). It is the rule for "Last time:
+give “{words}” more room. You did." (C0a, N347 item 3) and for the
+founder's Takes table's "did the fix work" (backend `take_progress`). Was:
+any drop for the walk (every clip on that slide spent less of its time past
+the green than the stretch did), a moved stretch for the table.
 
 **The build, in order** (N166 item 5):
 
@@ -1854,6 +1872,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N350 · C0a, C7, H1, T: Stop shows in the walk's practise once its mic is live, as in the tempo step: while the mic opens, the trash and the strip alone (`useWalkPractise` `capturing`; was Stop from the moment the practise opened); the notes' verbal read waits at most 5 seconds after the Take is flipped ready and before the walk's marks are baked, so "ready" and the Ideal Text never wait and the walk may open up to 5 seconds later (was: "ready" waited for it); one rule for "the pace fix worked", every clip on that slide in the next Take inside the green on that side, the bar that picks a stretch, for Last time and the Takes table (was: any drop for the walk, a moved stretch for the table); the code simplified with the same behaviour: a Stop while the mic opens goes through the mic's generation token (`useDualCaptureMic`, no `stopEarlyRef`), the Sniper's helper words read once (`tempoWords`) · BE n350, FE (this PR)
 - 2026-11-02 · N323 item 1 · §3 closed: the note under "Type here" before Take 1 is signed and built ([`the-plan.md`](the-plan.md) B10, K); a typed answer to the key line is kept as the key line, as built · docs (this PR)
 - 2026-11-02 · N325 item 5 · C3, §3: the Sniper's stretch keeps the cap of eight as decided, no longer "as built"; its open question closed, "since it was last worked on" stays open · docs (this PR)
 - 2026-11-02 · N314 · §4: `src/components/willab/RecordingBar.tsx`, the one recording bar, is in `scripts/design-locked-files.txt`, so a change to it needs the founder's trailer. Was: listed as not guarded · FE (this PR)

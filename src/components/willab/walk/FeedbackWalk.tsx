@@ -3,7 +3,7 @@
 import { reasonRuns, type PraiseReason, type WalkPraiseReasons } from "@/lib/willab/praiseReason";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { answerBody, helperWordsSaid, sniperWords, type OthersLevel, type WalkTempoLine } from "@/lib/willab/walkThread";
+import { answerBody, helperWordsSaid, type OthersLevel, type WalkTempoLine } from "@/lib/willab/walkThread";
 import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
@@ -138,9 +138,10 @@ export type FeedbackWalkHelperWords = {
  *  (founder 2026-10-31, N309 item 1). */
 export type FeedbackWalkLastTime = { tip: string; clip: WalkClip };
 
-/** The Sniper's helper words: the stretch's words, on the paragraph that
- *  says them (N309 item 3). */
-export type FeedbackWalkTempoWords = { partId: string; paragraphText: string; text: string };
+/** The Sniper's helper words: the stretch's words as the paragraph that
+ *  says them has them, within the cap of eight (`sniperWords`, N309 item 3),
+ *  read once by the host. */
+export type FeedbackWalkTempoWords = { partId: string; paragraphText: string; text: string; span: RootPhraseSpan };
 
 type Props<R> = {
   /** The walk, live. It is held still from the moment the walk opens until
@@ -735,9 +736,8 @@ export default function FeedbackWalk<R = unknown>({
    *  saved. */
   const fixWords = (s: WalkStep): OneWords | null => {
     if (s.of == null) {
-      const sniper = !s.replay && tempoWords ? sniperWords(tempoWords.paragraphText, tempoWords.text) : null;
-      return sniper && tempoWords
-        ? { text: sniper.text, save: { partId: tempoWords.partId, span: sniper.span, paragraphText: tempoWords.paragraphText, auto: true } }
+      return !s.replay && tempoWords
+        ? { text: tempoWords.text, save: { partId: tempoWords.partId, span: tempoWords.span, paragraphText: tempoWords.paragraphText, auto: true } }
         : null;
     }
     const moment = walk.moments[s.of];

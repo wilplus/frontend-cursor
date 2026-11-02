@@ -598,7 +598,7 @@ describe("the clearer version (D-FW-15)", () => {
     expect(screen()).toBe("walk-screen-practise");
     expect(now()!.querySelector("[data-walk-message]")!.textContent).toContain(WALK_COPY.keepWords);
     expect(now()!.querySelector("[data-walk-say]")!.textContent).toBe(SAID);
-    expect(live()!.querySelector("[data-walk-dock] [data-recording-bar] button[aria-label='Stop']")).not.toBeNull();
+    expect(live()!.querySelector("[data-walk-dock] [data-recording-bar]")).not.toBeNull();
     // ✕ on the recorder goes back to the walk, the clearer version unanswered.
     click(live()!.querySelector("button[aria-label='Close']"));
     expect(screen()).toBe("walk-screen-clearer");

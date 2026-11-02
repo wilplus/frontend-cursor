@@ -829,11 +829,13 @@ export function useDeckFeedbackWalk(args: {
     };
   }, [args.arcId, take, coachOnly, args.takeIndex]);
   /* The Sniper's helper words (N309 item 3): its stretch's words, on the
-     paragraph that says them. */
+     paragraph that says them, within the cap of eight; read once here for
+     the walk's helper words and the pace game's tip (N347 item 3). */
   const tempoWords = useMemo<FeedbackWalkTempoWords | null>(() => {
     const text = tempo?.said.stretch.trim();
     const chunk = text ? chunks.find((c) => c.part.text.includes(text)) : undefined;
-    return text && chunk ? { partId: chunk.part.id, paragraphText: chunk.part.text, text } : null;
+    const words = text && chunk ? sniperWords(chunk.part.text, text) : null;
+    return chunk && words ? { partId: chunk.part.id, paragraphText: chunk.part.text, text: words.text, span: words.span } : null;
   }, [tempo, chunks]);
   /* WHY THE GREEN MOMENT LANDED (founder 2026-10-18): a green clip that
      reached the page before its reason was written is asked for here, and
@@ -882,7 +884,7 @@ export function useDeckFeedbackWalk(args: {
       const say = (key: string, author: "app" | "speaker", body: string, attempt: number | null = null, extra?: Record<string, unknown>) =>
         post({ key, moment: null, attempt, author, body, extra });
       if (event.kind === "opened") {
-        const words = one && tempoWords ? sniperWords(tempoWords.paragraphText, tempoWords.text) : null;
+        const words = one ? tempoWords : null;
         say("tempo:open", "app", [TEMPO_COPY.game[tempo.reading], TEMPO_COPY.task(tempo.topic), TEMPO_COPY.room].join("\n"), null, words ? { fix_tip: ONE_THING_COPY.paceTip(words.text) } : undefined);
       } else if (event.kind === "try") {
         say("tempo:try", "speaker", TEMPO_COPY.tryLabel(event.n), event.n, { path: event.path.slice(0, 300).map((v) => Math.round(v * 1000) / 1000) });

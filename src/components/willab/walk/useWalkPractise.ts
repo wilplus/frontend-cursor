@@ -130,6 +130,9 @@ function aiPractiseKind<R>(here: WalkStep, moment: FeedbackWalkMoment<R>): WalkS
 export type WalkPractise = {
   /** Seconds since the try started, for the strip's clock. */
   elapsed: number;
+  /** The mic is live: the strip shows Stop from here on, not while the mic
+   *  opens (backend N350 item 5, as the tempo step does). */
+  capturing: boolean;
   /** Stop: the try goes to the machine. */
   stop: () => void;
   /** Skip, "Keep my words" or "Next" after a late read: past this moment's
@@ -483,5 +486,5 @@ export function useWalkPractise<R>(args: {
   const aiVoiceAsking = useCallback((moment: number) => aiWaiting.current.has(moment), []);
 
   const practiceOf = useCallback((moment: number) => opened.current.get(moment) ?? null, []);
-  return { elapsed, stop, skip, again, tryOf, cancel, reset, aiVoiceOf, aiVoicePlayed, aiVoicePracticeOf, aiVoiceAsking, practiceOf };
+  return { elapsed, capturing, stop, skip, again, tryOf, cancel, reset, aiVoiceOf, aiVoicePlayed, aiVoicePracticeOf, aiVoiceAsking, practiceOf };
 }
