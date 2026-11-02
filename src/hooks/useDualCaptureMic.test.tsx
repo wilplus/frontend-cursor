@@ -9,10 +9,14 @@ OUTCOME
       audio and Finish is tapped twice.
   O4  The phone's screen stays on while the Take records, so it cannot lock
       and cut the mic off; it may lock again once the Take ends.
+  O5  A Stop tapped while the mic is still opening is kept: the mic goes off
+      the moment it opens, no recording starts, and an empty try is handed
+      over, so the mic is never left on.
 PROVES   O1 -> records at once on start
          O2 -> hands over a real take on stop and releases the stream
          O3 -> hands over the take at once when the audio comes late and Finish is tapped twice
          O4 -> keeps the screen awake while recording and lets it lock after
+         O5 -> a stop while the mic is opening leaves the mic off
 WHY      Never-rule 3 (never break record → process → Ideal Text).
 */
 import { act, createElement } from "react";
@@ -108,6 +112,32 @@ describe("the Lab's mic", () => {
     expect(recorders[0].start).toHaveBeenCalledTimes(1);
     expect(mic.state.status).toBe("recording");
     expect(mic.getAudioStartedAt()).not.toBeNull();
+  });
+
+  it("a stop while the mic is opening leaves the mic off", async () => {
+    let grant: (value: unknown) => void = () => {};
+    getUserMedia.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          grant = resolve;
+        }),
+    );
+    let starting: Promise<void> = Promise.resolve();
+    act(() => {
+      starting = mic.start();
+    });
+    await act(async () => {
+      await mic.stop();
+    });
+    const track = { readyState: "live", stop: vi.fn() };
+    await act(async () => {
+      grant({ getTracks: () => [track] });
+      await starting;
+    });
+    expect(track.stop).toHaveBeenCalled();
+    expect(recorders).toHaveLength(0);
+    expect(mic.state.status).toBe("stopped");
+    if (mic.state.status === "stopped") expect(mic.state.audioBlob.size).toBe(0);
   });
 
   it("hands over a real take on stop and releases the stream", async () => {

@@ -1745,9 +1745,6 @@ The four lines above were filled from main's history by the page's keeper on
   a clip where the speaker and the lone coach disagree goes first to a
   second blind listener. It waits until speakers answer about their own
   clips again; judging your own moments stays out of the walk (C10).
-- **A Stop tapped before the mic has started** may leave the typing dots
-  up and the mic on (read in the code 2026-10-20, not reproduced): the
-  recorder's stop does nothing until the mic reports started.
 - **FLOOR** is 0.6 until the blind judges calibrate it (H1).
 - **willfidence-v2** waits for 200 settled clips (I3).
 
@@ -1861,6 +1858,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · — · §3 closed: a Stop tapped while the practise's mic is still opening (C7) is kept by the mic (`useDualCaptureMic`): the mic goes off the moment it opens, no recording starts, and an empty try goes on like any other, so the mic is never left on. Was: the Stop did nothing, the walk moved on and the mic went live a moment later · FE (this PR)
 - 2026-11-02 · N347 · built (C0a, C3, D4, E2, H1, K, T, §3): Will asks "Who were you talking to? 🎯" (was "Quick one: who's this talk really for? 🎯"), its taps and "Someone else" unchanged; on a plan the goodbye says "Good job. See you tomorrow." when the next practice day is tomorrow, else "Good job. See you {weekday}." (was "Good job. See you next {day}.", tomorrow by its weekday); the pace game gets its Last time, "Last time: give “{words}” more room. You did.", with the Sniper's helper words, in the same place and under the same rule as the other fixes, risen when that slide came out slower (was: no Last time after the Sniper); and, with no code, one set of helper words per slide, the newest wins (N118), no time limit on the walk (N178's withdrawn), and H1's W as the code counts it, fillers, hedges and slide fit, "holds together" only in the hidden read; the six items closed in §3 · BE n347, FE (this PR)
 - 2026-11-02 · N338 · §2: the messages line (no message at night, N189 item 1 and N193) and N123 (the asks and the walk's lines said fresh) are withdrawn, nothing like them is built, and the signed words stay; the WIL-84/86 line's follow-up is the in-place "Edited" of N192 · docs (this PR)
 - 2026-11-02 · N326 · built (H1): the walk's pick and its Clearer version read what the speaker noted themselves (principles, kept strengths, life goals, Your why, # notes of the last 60 days), behind the ring row `walk_inner_context` at ring 6: one verbal read per Take, inside the processing authorization, weighs the moments for the between and gives the Clearer version a line on what matters to them; a rewrite repeating the notes' words they did not say is refused; read late or failed → the pick as before; nothing on screen changes and a coach never sees the notes or that they were used. Was: the walk never read them (N182 item 3) · BE N326 (the decision, the code), FE (this PR)
