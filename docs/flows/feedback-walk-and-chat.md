@@ -993,6 +993,23 @@ praised moment:
               (1 when sure, 0.5 when a guess): its willfidence counts
               ×(1 + 0.25 × relevance) for the strongest and ×(1 − 0.25 ×
               relevance) for the fix slots; nothing known → as before
+  notes     = for a speaker the ring row walk_inner_context reaches (N326;
+              ring 6, the founder first): one verbal read per Take
+              (services/verbal_read.py), an AI call inside the Take's
+              processing authorization, reads what was said against the
+              Take's set-up (who, what it answers, success, the key line,
+              the set-up's note) and what the speaker noted themselves
+              (services/inner_context.py: principles with the Life Panel's
+              yes, kept strengths, life goals, Your why, # notes of the
+              last 60 days with the notebook's yes, each only where its own
+              ring row and consent reach; never Will's private note;
+              variables and constants are kept nowhere, so not read) for
+              the eight kinds of N290 item 4; a moment it weighs (high 1,
+              some 0.5) counts ×(1 − 0.5 × weight) for the between, kept
+              only when its Clearer version passes the gate (H3), else the
+              pick as without it; never the strongest or the weakest; at
+              most 5 seconds before the Take is ready (N327), late or failed → as
+              without it; a frozen Take keeps the walk it froze
   ```
 
   The unit is the sentence. FLOOR is 0.6 at launch, then calibrated so
@@ -1002,6 +1019,18 @@ praised moment:
   read is given the middle of the sound scale and the words order the clips;
   processing logs why nothing was stamped (2026-10-17). H4 works one clip
   through, step by step, with three examples.
+
+  The notes (N326) also shape the Clearer version: the moments the verbal
+  read weighs most (two at most) that the model already rewrites (an
+  unconfident read, profanity or a low slide fit) are written again with the
+  read's one line on what matters to the speaker, in the read's own words;
+  a rewrite that repeats three content words in a row from the notes that
+  the speaker did not say in the Take is refused (`rewrite_gate.leaks`),
+  and H3 then applies unchanged. Nothing of it is shown: no line says a
+  note was used (N326 item 1), no score (Never 1); the frame, the coach's
+  queue and the suggestion rows carry only the choice of moments and the
+  speaker's own words, never the notes, that they were used, a kind, a
+  weight or a reason built from them (Never 2).
 - **H2** The AI clip's problem (pace, pause, stress, fillers) is measured
   against the speaker's own usual delivery; the clip is made once per
   exercise, at the end of the bake, checked before it is shown, and made
@@ -1771,6 +1800,8 @@ Backend (`wilplus/backend-cursor`): `services/moment_pick.py`,
 `services/will_question.py`, `services/feedback_check.py` (E; a voice
 answer: `routes/v2/explore_ideal_text.py`, `/will-question/voice`);
 `services/take_context.py` (the key line, E4, H1);
+`services/inner_context.py`, `services/verbal_read.py`,
+`services/prompts/verbal_read.py` (the notes, H1);
 `services/coach_message_read.py` (`coach_message_for`, C1);
 `services/line_bank.py` (K); `services/speaker_memory.py` (I4);
 `services/coach_moments_queue.py` (I5); `services/chat_query.py` (the
@@ -1828,6 +1859,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N326 · built (H1): the walk's pick and its Clearer version read what the speaker noted themselves (principles, kept strengths, life goals, Your why, # notes of the last 60 days), behind the ring row `walk_inner_context` at ring 6: one verbal read per Take, inside the processing authorization, weighs the moments for the between and gives the Clearer version a line on what matters to them; a rewrite repeating the notes' words they did not say is refused; read late or failed → the pick as before; nothing on screen changes and a coach never sees the notes or that they were used. Was: the walk never read them (N182 item 3) · BE N326 (the decision, the code), FE (this PR)
 - 2026-11-02 · N323 item 6 · C, C2, T, §3: the Sniper is the One thing walk's one fix for everyone, with or without a plan, at any level, when rushing is the Take's biggest issue: the stretch ran fast and its share of time past the green is larger than 1 minus the willfidence of each moment the walk could fix (a plan's level moment included; a tie keeps the moment); on a pace or pause week as before; only for a speaker the `tempo_step` row reaches, or the founder, since without the step the walk cannot show it (backend `_sniper_first`, `tempo_stretch.tempo_on_for`). Was: only on a plan's pace or pause week, with no check that the speaker had the step · BE, FE (this PR)
 - 2026-11-02 · N323 items 2 and 3 · C3, §3: the walk's own helper words are saved whole, whatever their length: their own sentence after "Keep mine", the words an AI clip's tip quotes (the paragraph's save, `source: "walk"`) and the Clearer version's sentence (`source: "passage"`); the cap of eight stays for a pick by hand on the Ideal Text and for the Sniper's stretch. A tip with no quoted phrase gives none and the walk goes on to "Lesson done." (as built). Was: none past eight words · BE, FE (this PR)
 - 2026-11-02 · N314 · built (B14, C7, T): the walk's practice and the tempo step record with the one recording bar, the trash on the left, then the strip with the red Stop inside it, Skip under it as the walk's grey link; Stop sends as before; the trash throws the try away, nothing uploaded, checked or counted (the tempo game keeps nothing of it), back on the step that opened it. B3, D4: on a practice day the chat's one record button is "Record Take N" alone under the chat, not in today's one thing (N294 item 7, the-plan.md G6). Was: the practice's strip with Skip in the Back style beside a red Stop in the Finish-take style, and the tempo step's strip with Stop and no trash · FE (this PR)

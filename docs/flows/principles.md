@@ -37,11 +37,13 @@ Life Panel.
 2. Ring 5 and up, through the rings panel's rows `voice_notebook` and
    `life_goals`, each set to ring 5; nobody below ring 5. Ring 5 holds only
    people who know it is a test (N212, which widened N182's ring 6; N208).
-3. Not the speaking coach. The Feedback walk, the plan, the coach panel and
-   a Take's feedback and summary never read or show the principles, the
-   Sunday note or life goals (N182). One place only: after a Good job on a
-   Clearer version, the walk may quote the speaker's own kept words (R,
-   N268); the coach never sees it.
+3. Not the speaking coach. The plan, the coach panel and a Take's summary
+   never read or show the principles, the Sunday note or life goals (N182).
+   The walk reads them in two places only, and the coach never sees either:
+   after a Good job on a Clearer version, the walk may quote the speaker's
+   own kept words (R, N268); and the walk's pick and its Clearer version
+   read what the speaker noted themselves, never shown (S, N326, which
+   amends N182 item 3 for these two only).
 4. Where it shows: the Sunday note and life goals in the Lounge and their
    lens; the principles in the Life Panel. Never on the recording screens,
    never shown to a coach. Private like the notebook (N158, N172, N182).
@@ -438,6 +440,31 @@ panel; never on the Ideal Text.
   on in the Life Panel's Your data page.
 - **R6** A walk played again shows the quote it showed, read only.
 
+### S · The walk reads what you noted (decided 2026-11-02, N326)
+
+The prototype: <https://claude.ai/artifact/KvAiek4DrxgbpDudcBFJNQ> (the
+founder: "Go with your picks on all four"). Its rules are the walk's H1
+([feedback-walk-and-chat.md](feedback-walk-and-chat.md)); this is what it
+reads of this feature.
+
+- **S1** What. Only what the speaker noted themselves: their principles
+  (with the Life Panel's yes), kept strengths (N), life goals (M), Your why
+  (Q) and # notes from the last 60 days, the window of R (with the
+  notebook's yes), each only where its own ring row and consent already
+  reach them. Never Will's private note; variables and constants (O) are
+  kept nowhere, so they are not read.
+- **S2** Who. Its own ring row, `walk_inner_context`, at ring 6: the founder
+  first, widened later. No row is off for everyone.
+- **S3** What it does. One verbal read per Take weighs which moment the
+  walk fixes and gives its Clearer version a short line on what matters to
+  the speaker; a Clearer version never repeats a phrase from the notes the
+  speaker did not say in the Take. The Take's analysis waits for the read
+  at most 5 seconds, and only for a speaker it reaches (backend N327); read
+  late or failed, the walk picks as before.
+- **S4** Never shown. No line on screen says a note was used, and nothing
+  of it reaches the plan, the coach panel, the coach's queue or a Take's
+  summary (Never 1, Never 2).
+
 ---
 
 ## 2. In flight
@@ -487,6 +514,8 @@ Nothing in flight.
   frontend `src/components/willab/LoungeLifeGoals.tsx`,
   `src/lib/willab/lifeGoals.ts`, `src/services/api/lifeGoals.ts`,
   `src/app/api/v2/life-goals/`.
+- What the walk reads (S): backend `services/inner_context.py` and
+  `services/verbal_read.py`; nothing in the frontend.
 - The principles: frontend `src/app/panel/principles/`, in the Life Panel
   ([`docs/life-panel-spec.md`](../life-panel-spec.md)).
 - How Will learns from all of it: backend
@@ -494,6 +523,8 @@ Nothing in flight.
 
 ## 5. Prototypes
 
+- The walk reads what you noted <https://claude.ai/artifact/KvAiek4DrxgbpDudcBFJNQ>
+  (N290, N326, 2026-11-02).
 - The walk quotes your notebook <https://claude.ai/artifact/Jt2XrfdifpU2A41rbZed8D>
   (N268, version 2, placement B, 2026-10-29).
 - The companions, drawn for signing: strengths, what is in your control, the
@@ -511,6 +542,7 @@ Nothing in flight.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N326 · A3, S: the walk's pick and its Clearer version read what the speaker noted themselves (principles, kept strengths, life goals, Your why, # notes of the last 60 days), each where its own ring row and consent reach, behind the ring row `walk_inner_context` at ring 6; never shown, never to a coach; Will's private note is not read. Was: the walk never read or showed them except R's quote (N182 item 3) · BE N326 (the decision, the code), FE (this PR)
 - 2026-11-02 · N314 · B1 (the notebook's note) and the life goals lens's words: they record with the one recording bar, the trash then the walk's strip with Stop inside it; Stop sends. Was: delete, the running time in a pill, a send · FE (this PR)
 - 2026-10-30 · — · the small mic answers at the tap, as WhatsApp's does: a light buzz (Android's vibration, the iPhone's switch haptic) and the recording bar at once, while the phone opens the mic; trash or send in that moment records nothing, no mic permission puts the mic back; no new words · FE (this PR)
 - 2026-10-29 · N268 · R, built: after a Good job on a Clearer version, the walk may quote the speaker's own kept words (a strength, the vision, a # note naming what is theirs), at most one per Take, with "Not here" the first time, a setting turned back on in the Life Panel's Your data page; A3 makes room for it; ring row `walk_quotes` at ring 5 by its migration · BE #1495 (the decision), BE (the code), FE (this PR)
