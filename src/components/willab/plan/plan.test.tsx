@@ -14,7 +14,8 @@
  *       away, and Stop sends the answer to the plan (N319 item 1, N314).
  *   O3  The 1 to 10 scale sits in the thread under its question; a tap is
  *       sent once, and the number is never written back into the chat
- *       (N178).
+ *       (N178): the tap comes back as my turn, a lock and "Answered"
+ *       (N339).
  *   O4  One action a step: "Start your first recording" is never under a
  *       question; it is the one button after the plan card, in the message
  *       box's place, and opens the first Take (N319 item 2). A Take
@@ -57,7 +58,7 @@
  *                 sends the answer"
  *          O3 -> "a rating is sent once and never written back"
  *          O4 -> "Start your first recording only after the plan card"
- *          O6 -> "the plan's rows are drawn as the prototype draws them"
+ *          O3, O6 -> "the plan's rows are drawn as the prototype draws them"
  *          O7 -> "a practice day's Record Take N is the button under the chat, alone"
  *          O8 -> "the feelings before a Take"
  *          O9 -> "Will asks for the plan's own yes"
@@ -434,6 +435,13 @@ it("the plan's rows are drawn as the prototype draws them", async () => {
   expect(host.textContent).toContain("1:04");
   // The words Will heard, under the voice (N275).
   expect(host.querySelector("[data-plan-voice-words]")?.textContent).toBe("said");
+
+  // A rating tap, said back as the speaker's turn: a lock and "Answered",
+  // never the number (N178, N339).
+  act(() => root.render(<>{planRowFor(row({ plan_answered: "rating" }, "Answered", "user"), ctx())}</>));
+  const answered = host.querySelector("[data-plan-answered]")!;
+  expect(answered.textContent).toBe("Answered");
+  expect(answered.querySelector("svg")).not.toBeNull();
 
   const c = ctx({ ...PLAN, status: "active", step: "done", done: 1 });
   act(() => root.render(<>{planRowFor(row({ plan_card: true }), c)}</>));
