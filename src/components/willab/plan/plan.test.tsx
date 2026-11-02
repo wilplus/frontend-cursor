@@ -20,8 +20,11 @@
  *       box's place, and opens the first Take (N319 item 2). A Take
  *       recorded first: its walk comes before the questions (N262).
  *   O5  While the plan asks, "Type here" stays in the bar, faded and not
- *       focusable, with no note yet (N319 item 3); with nothing asked it
- *       takes words again.
+ *       focusable (N319 item 3); before my first Take, while the orange
+ *       mic waits for my answer, a tap on it shows "We need to hear this in
+ *       your voice. Tap the mic." above the bar, one note at a time, gone
+ *       after a moment (N323 item 1); with nothing asked it takes words
+ *       again.
  *   O6  The plan's rows are drawn by their metadata: the speaker's voice
  *       answer as their own bubble; the card as the plan only (N319 item
  *       6): "Plan", its bar, the practice days, the deadline and "Change
@@ -32,7 +35,9 @@
  *   O7  The chat has one record button: a practice day's one thing holds
  *       it until a newer Take's closing message takes it back (N167), and
  *       gives it up once a newer Take is recorded, in any project (N244,
- *       N251).
+ *       N251). It is "Record Take N" under the chat, alone, the message box
+ *       gone, never inside the bubble, and a tap starts that Take (N294
+ *       item 7, N296 state 4).
  *   O8  "How do you feel?" comes before a Take only once the plan's first
  *       Take is recorded (D4).
  *   O9  Will's ask for the plan's own yes is drawn as his bubble with Read
@@ -45,12 +50,14 @@
  *       not booked, and the plan's end shows the summary call; off, none.
  * PROVES   O1, O5 -> "a choice is taps in the thread, the bar stays and
  *                     typing waits"
+ *          O5 -> "a tap on the faded Type here says why, before the first
+ *                 Take"
  *          O2 -> "a voice question: the mic is orange and its recording
  *                 sends the answer"
  *          O3 -> "a rating is sent once and never written back"
  *          O4 -> "Start your first recording only after the plan card"
  *          O6 -> "the plan's rows are drawn as the prototype draws them"
- *          O7 -> "the newest bubble holds the one record button"
+ *          O7 -> "a practice day's Record Take N is the button under the chat, alone"
  *          O8 -> "the feelings before a Take"
  *          O9 -> "Will asks for the plan's own yes"
  *          O10 -> "nothing of the principles before my first Take"
@@ -59,8 +66,10 @@
  *          2026-10-26, backend N203, N204); the principles waiting for the
  *          onboarding, backend N243; record first, backend N262; every
  *          question the after-walk way, one action a step, typing waits
- *          before Take 1, backend N319 items 1 to 3; the calls hidden, backend
- *          N315; the plan card simplified, backend N319 item 6; docs/flows/the-plan.md
+ *          before Take 1, backend N319 items 1 to 3, its note signed, backend
+ *          N323 item 1; the calls hidden, backend
+ *          N315; the plan card simplified, backend N319 item 6; no bubble
+ *          carries a button, backend N294 item 7; docs/flows/the-plan.md
  *          §1.
  */
 import { act } from "react";
@@ -73,7 +82,7 @@ import { loadRingState, resetRingStateCache } from "@/services/api/rings";
 import { PlanAsk, type PlanActions } from "./PlanDock";
 import { newestOneOf, planRowFor, type PlanRowCtx } from "./PlanRows";
 import { SeePlanSheet } from "./PlanSheet";
-import { usePlanLounge } from "./usePlanLounge";
+import { TYPE_HERE_NOTE_MS, usePlanLounge } from "./usePlanLounge";
 import { useVoiceNotebook, VoiceNoteMic } from "../useVoiceNotebook";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -185,14 +194,22 @@ const posted = (path: string) =>
 
 /** The Lounge as it wires the plan: the thread's end, the plan's footer, and
  *  the bar ("+", "Type here", the mic) with the plan's say over it. */
-function Lounge({ messages, onStartRecording }: { messages: LoungeMessage[]; onStartRecording?: (topic: string | null) => void }) {
+function Lounge({
+  messages,
+  onStartRecording,
+  onRecordNext = () => {},
+}: {
+  messages: LoungeMessage[];
+  onStartRecording?: (topic: string | null) => void;
+  onRecordNext?: (arcId: string) => void;
+}) {
   const reload = async () => {};
   const plan = usePlanLounge({
     signedIn: true,
     thread: { messages, loading: false, reload },
     setThinking: () => {},
     onStartRecording,
-    onRecordNext: () => {},
+    onRecordNext,
     recordHeld: false,
   });
   const notebook = useVoiceNotebook({ signedIn: true, threadLoading: false, held: plan.holdsPrinciples, drawn: messages, openOffer: vi.fn(), reload });
@@ -202,7 +219,10 @@ function Lounge({ messages, onStartRecording }: { messages: LoungeMessage[]; onS
       {plan.dock}
       <form data-bar="" className={plan.composerDisplay("flex")}>
         <button type="button" aria-label="Your projects" />
-        <textarea placeholder="Type here" disabled={plan.typingOff} />
+        <div className="relative">
+          <textarea placeholder="Type here" disabled={plan.typingOff} />
+          {plan.typingWait}
+        </div>
         <VoiceNoteMic notebook={notebook} draft={plan.draft("")} waiting={plan.mic(null)} />
       </form>
     </>
@@ -210,10 +230,14 @@ function Lounge({ messages, onStartRecording }: { messages: LoungeMessage[]; onS
 }
 
 /** The Lounge opened afresh: it reads the plan as it now stands. */
-async function showLounge(messages: LoungeMessage[] = [], onStartRecording?: (topic: string | null) => void) {
+async function showLounge(
+  messages: LoungeMessage[] = [],
+  onStartRecording?: (topic: string | null) => void,
+  onRecordNext?: (arcId: string) => void,
+) {
   act(() => root.unmount());
   root = createRoot(host);
-  await act(async () => root.render(<Lounge messages={messages} onStartRecording={onStartRecording} />));
+  await act(async () => root.render(<Lounge messages={messages} onStartRecording={onStartRecording} onRecordNext={onRecordNext} />));
   await act(async () => {});
 }
 
@@ -234,10 +258,11 @@ it("a choice is taps in the thread, the bar stays and typing waits", async () =>
   expect(taps()).toEqual(["Pick a date", "No date yet"]);
   expect(host.querySelector("[data-thread] [data-plan-ask='deadline']")).not.toBeNull();
   // The Lounge's bar stays under it; "Type here" in it, faded and not
-  // focusable, with no note (N319 item 3).
+  // focusable (N319 item 3). A choice has no mic to tap: no note to say so.
   expect(bar().className).not.toContain("hidden");
   expect(host.querySelector("[aria-label='Your projects']")).not.toBeNull();
   expect(typeHere().disabled).toBe(true);
+  expect(host.querySelector("[data-type-here-wait]")).toBeNull();
   expect(host.querySelector("[data-plan-dock='start']")).toBeNull();
   await tapOn("No date yet");
   expect(posted("/api/v2/plan/deadline")[0][1]).toMatchObject({ json: { date: null } });
@@ -315,6 +340,34 @@ it("a voice question: the mic is orange and its recording sends the answer", asy
   }
 });
 
+it("a tap on the faded Type here says why, before the first Take", async () => {
+  const why = row({ plan_ask: "voice" }, "Please tell me, why does it matter and what is it about?");
+  backend(() => ({ ...PLAN, step: "why" }));
+  await showLounge([why]);
+  const notes = () => [...host.querySelectorAll("[data-type-here-note]")].map((n) => n.textContent);
+  const tap = () => act(() => (host.querySelector("[data-type-here-wait]") as HTMLElement).click());
+  expect(typeHere().disabled).toBe(true);
+  expect(notes()).toEqual([]);
+  vi.useFakeTimers();
+  try {
+    tap();
+    expect(notes()).toEqual(["We need to hear this in your voice. Tap the mic."]);
+    // Another tap while it shows: still the one note.
+    tap();
+    expect(notes()).toHaveLength(1);
+    act(() => vi.advanceTimersByTime(TYPE_HERE_NOTE_MS));
+    expect(notes()).toEqual([]);
+  } finally {
+    vi.useRealTimers();
+  }
+  // After the first Take a plan question takes no typed answer either, and
+  // the note, written for the first Take, is not shown.
+  backend(() => ({ ...PLAN, status: "active", step: "how_it_went", first_take_done: true }));
+  await showLounge([why, row({}, "e")]);
+  expect(typeHere().disabled).toBe(true);
+  expect(host.querySelector("[data-type-here-wait]")).toBeNull();
+});
+
 it("a rating is sent once and never written back", async () => {
   backend(() => ({ ...PLAN, step: "stress" }));
   await showLounge([row({ plan_ask: "scale" }, "How stressed do you feel about it right now?")]);
@@ -362,7 +415,7 @@ it("Start your first recording only after the plan card", async () => {
 });
 
 function ctx(plan: Plan | null = PLAN): PlanRowCtx {
-  return { plan, newestOne: null, recordHeld: false, onSeePlan: vi.fn(), onChangePlan: vi.fn(), onBook: vi.fn(), onRecordNext: vi.fn() };
+  return { plan, onSeePlan: vi.fn(), onChangePlan: vi.fn(), onBook: vi.fn() };
 }
 
 it("the plan's rows are drawn as the prototype draws them", async () => {
@@ -426,7 +479,7 @@ it("the plan's calls show only with their ring row", async () => {
   expect(host.textContent).toContain("Your summary call");
 });
 
-it("the newest bubble holds the one record button", () => {
+it("a practice day's Record Take N is the button under the chat, alone", async () => {
   const closing = { ...row({}), metadata: { next_take: true, arc_id: "arc-1", take_index: 1 } };
   const one = row({ plan_one: true, arc_id: "arc-1", take_index: 1 }, "Today, one thing: say your key line a little slower than the rest. You've got this 💪");
   expect(newestOneOf([closing, one])).toBe(one.client_id);
@@ -434,12 +487,30 @@ it("the newest bubble holds the one record button", () => {
   const recorded = { ...row({ arc_id: "arc-2", take_index: 1 }), kind: "recording_summary" as const };
   expect(newestOneOf([closing, one, recorded])).toBeNull();
 
-  const c = { ...ctx({ ...PLAN, status: "active", step: "done", first_take_done: true }), newestOne: one.client_id };
-  act(() => root.render(<>{planRowFor(one, c)}</>));
-  const record = host.querySelector("[data-plan-record]") as HTMLButtonElement;
-  expect(record.textContent).toContain("Record Take 2");
-  act(() => record.click());
-  expect(c.onRecordNext).toHaveBeenCalledWith("arc-1");
+  // The bubble keeps its words and the key line, and carries no button
+  // (N294 item 7).
+  const practiceDay: Plan = { ...PLAN, status: "active", step: "done", first_take_done: true };
+  act(() => root.render(<>{planRowFor(one, ctx(practiceDay))}</>));
+  expect(host.textContent).toContain("Today, one thing: say your key line a little slower than the rest.");
+  expect(host.textContent).toContain(PLAN.key_line);
+  expect(host.textContent).not.toContain("Record Take");
+
+  // Under the chat, while it is the newest: "Record Take 2", the plan's
+  // black button with the red dot, alone; the message box, the "+" and the
+  // mic are gone. A tap starts that Take.
+  backend(() => practiceDay);
+  const record = vi.fn();
+  await showLounge([closing, one], undefined, record);
+  const button = host.querySelector("[data-plan-dock-slot] [data-plan-record]") as HTMLButtonElement;
+  expect(button.textContent).toBe("Record Take 2");
+  expect(bar().className).toContain("hidden");
+  await act(async () => button.click());
+  expect(record).toHaveBeenCalledWith("arc-1");
+
+  // Once a newer Take is in, the button goes and the bar is back.
+  await showLounge([closing, one, recorded], undefined, record);
+  expect(host.querySelector("[data-plan-record]")).toBeNull();
+  expect(bar().className).not.toContain("hidden");
 });
 
 it("the feelings before a Take", () => {

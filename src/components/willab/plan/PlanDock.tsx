@@ -22,7 +22,8 @@ import PlanCalendar, { MonthGrid } from "./PlanCalendar";
      recording bar (backend N314), Stop sends the answer (`usePlanVoice`).
    In the footer, only what stands in for the message box (`PlanDock`):
    "Start your first recording", the one button after the plan card (N319
-   item 2), and the calls' calendar, full screen over the chat (N248, N281).
+   item 2), a practice day's "Record Take N", alone (N294 item 7), and the
+   calls' calendar, full screen over the chat (N248, N281).
    Each answer goes to the backend, which writes Will's next words into the
    thread. */
 
@@ -212,8 +213,9 @@ function StartFirst({ onStart }: { onStart: () => void }) {
 }
 
 /** The plan's black button with the red dot, "Start your first recording";
- *  the same piece carries the chat's "Record Take N" after a Take, alone
- *  under the chat (backend N296 state 4). */
+ *  the same piece carries the chat's "Record Take N", alone under the chat
+ *  (backend N294 item 7, N296 state 4): after a Take's goodbye, and on a
+ *  practice day while today's one thing is the newest (`PlanDock`). */
 export function RecordDockButton({
   label,
   onClick,
@@ -257,16 +259,29 @@ export function dockFor(plan: Plan | null, booking: CallWhich | null): string | 
   return null;
 }
 
+/** A practice day's Take (`oneRecordOf`), offered under the chat only while
+ *  the plan stands nothing else there: no question, no calendar, no first
+ *  recording (G6, N294 item 7). Else null. */
+export function standsOne(plan: Plan | null, booking: CallWhich | null, one: OneTake | null): OneTake | null {
+  return plan && one && dockFor(plan, booking) === null ? one : null;
+}
+
+type OneTake = { arcId: string; takeIndex: number };
+
 /** The plan's footer, only where it stands in for the message box: "Start
- *  your first recording" after the plan card (E5, N319 item 2), and the
- *  calls' calendar, full screen over the chat, for "Book now" under Will's
- *  ask or "Book" in the plan's list (N248, N281). */
+ *  your first recording" after the plan card (E5, N319 item 2), the calls'
+ *  calendar, full screen over the chat, for "Book now" under Will's ask or
+ *  "Book" in the plan's list (N248, N281), and a practice day's "Record Take
+ *  N", alone (G6, N294 item 7, N296 state 4). */
 export default function PlanDock({
   plan,
   busy,
   booking,
   onCloseBooking,
   actions,
+  one = null,
+  recordHeld = false,
+  onRecordNext,
 }: {
   plan: Plan;
   busy: boolean;
@@ -275,6 +290,12 @@ export default function PlanDock({
   booking: CallWhich | null;
   onCloseBooking: () => void;
   actions: PlanActions;
+  /** A practice day's Take, while today's one thing holds the chat's one
+   *  record button (`standsOne`). */
+  one?: OneTake | null;
+  /** A Take is still landing: the button waits, greyed. */
+  recordHeld?: boolean;
+  onRecordNext?: (arcId: string) => void;
 }) {
   const kind = dockFor(plan, booking);
   // Will's ask for a call: "Skip" on its calendar moves on, as under the ask;
@@ -297,6 +318,14 @@ export default function PlanDock({
         onSaveDeadline={actions.saveDeadline}
       />
       {kind === "start" && !busy ? <StartFirst onStart={actions.startFirst} /> : null}
+      {one ? (
+        <RecordDockButton
+          label={PLAN_COPY.recordTake(one.takeIndex + 1)}
+          onClick={() => onRecordNext?.(one.arcId)}
+          disabled={recordHeld}
+          dataAttr={{ "data-plan-record": "" }}
+        />
+      ) : null}
     </>
   );
 }

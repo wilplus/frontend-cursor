@@ -20,8 +20,8 @@ import {
   type PlanState,
 } from "@/services/api/plan";
 import { fmtWhen, PLAN_COPY } from "@/lib/willab/planCopy";
-import PlanDock, { dockFor, PlanAsk, planAsks, usePlanVoice, type PlanActions } from "./PlanDock";
-import { newestOneOf, PendingBooked, PendingVoice, type PlanRowCtx } from "./PlanRows";
+import PlanDock, { dockFor, PlanAsk, planAsks, standsOne, usePlanVoice, type PlanActions } from "./PlanDock";
+import { newestOneOf, oneRecordOf, PendingBooked, PendingVoice, type PlanRowCtx } from "./PlanRows";
 import { followNewest } from "@/components/willab/usePinThreadBottom";
 import { ChangePlanSheet, SeePlanSheet } from "./PlanSheet";
 
@@ -42,7 +42,8 @@ export type PlanLounge = {
   pending: ReactNode;
   rows: PlanRowCtx | undefined;
   /** The message box's display: hidden while the plan's footer replaces it
-   *  ("Start your first recording", a call's calendar, the recording bar). */
+   *  ("Start your first recording", a call's calendar, the recording bar, a
+   *  practice day's "Record Take N"). */
   composerDisplay: (base: string) => string;
   /** The Lounge's mic: orange while the plan's voice question waits, and it
    *  records the answer; else what the Lounge would give it (Will's own). */
@@ -50,6 +51,10 @@ export type PlanLounge = {
   /** "Type here" stays in the bar, faded and not focusable, while the plan
    *  asks (N319 item 3). */
   typingOff: boolean;
+  /** Over the faded "Type here", in its box, before the first Take while
+   *  the plan's voice question waits: what takes the tap, and the note the
+   *  tap shows above the bar (N323 item 1); else null. */
+  typingWait: ReactNode;
   /** The draft the bar reads: none while typing waits, so the mic shows. */
   draft: (typed: string) => string;
   /** True while the empty Lounge's own button must wait for the plan. */
@@ -63,6 +68,42 @@ export type PlanLounge = {
 
 /** The Lounge's mic while someone waits for a spoken answer: its tap. */
 type MicWaits = { onTap: () => void } | null;
+
+/** How long the note under a tap on the faded "Type here" stays. */
+export const TYPE_HERE_NOTE_MS = 2500;
+
+/** The note under "Type here" is true only where the orange mic waits for
+ *  a spoken answer before the first Take (N323 item 1). Pure. */
+function typingNoteDue(kind: string | null, plan: Plan | null): boolean {
+  return kind === "voice" && plan !== null && !plan.first_take_done;
+}
+
+/** Over the faded "Type here": a tap shows one short note above the bar,
+ *  gone after a moment; another tap while it shows keeps the one note
+ *  (N323 item 1). A disabled box takes no tap of its own, so a clear layer
+ *  over it takes it. */
+function TypingWait() {
+  const [tapped, setTapped] = useState(0);
+  useEffect(() => {
+    if (tapped === 0) return;
+    const gone = window.setTimeout(() => setTapped(0), TYPE_HERE_NOTE_MS);
+    return () => window.clearTimeout(gone);
+  }, [tapped]);
+  return (
+    <>
+      <div aria-hidden data-type-here-wait className="absolute inset-0 cursor-not-allowed" onClick={() => setTapped((n) => n + 1)} />
+      {tapped > 0 ? (
+        <div
+          role="status"
+          data-type-here-note
+          className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-full bg-foreground px-3.5 py-2 text-center text-[13.5px] leading-snug text-background"
+        >
+          {PLAN_COPY.typeHereNote}
+        </div>
+      ) : null}
+    </>
+  );
+}
 
 type Thread = { messages: LoungeMessage[]; loading: boolean; reload: () => Promise<void> | void };
 
@@ -200,10 +241,16 @@ export function usePlanLounge({
   const asks = planAsks(kind);
   // A voice question: the Lounge's mic, orange while it waits (N319 item 1).
   const voice = usePlanVoice({ open: kind === "voice" && !busy && sent === null, onAnswer: actions.answer });
+  // A practice day's one thing, while it holds the chat's one record button
+  // and the plan stands nothing else there: "Record Take N" under the chat,
+  // alone (N294 item 7, N296 state 4).
+  const newestOne = state?.enabled ? newestOneOf(thread.messages) : null;
+  const one = standsOne(plan, booking, oneRecordOf(thread.messages));
   // What stands in for the message box: the one button after the plan card,
-  // a call's calendar, the recording bar while an answer is said. While the
-  // plan asks, the Lounge's bar stays ("+", "Type here", the mic).
-  const replaces = kind === "start" || kind === "book" || voice.recording;
+  // a call's calendar, the recording bar while an answer is said, a practice
+  // day's Take. While the plan asks, the Lounge's bar stays ("+", "Type
+  // here", the mic).
+  const replaces = kind === "start" || kind === "book" || voice.recording || one !== null;
   const openBook = (which: CallWhich) => {
     setSheet(null);
     setBooking(which);
@@ -212,7 +259,16 @@ export function usePlanLounge({
     // In place of the message box (hidden then), nothing is under it: the
     // shell's padding alone, as under the message box (founder 2026-10-30).
     <div className={replaces ? undefined : "mb-2"} data-plan-dock-slot>
-      <PlanDock plan={plan} busy={busy} booking={booking} onCloseBooking={() => setBooking(null)} actions={actions} />
+      <PlanDock
+        plan={plan}
+        busy={busy}
+        booking={booking}
+        onCloseBooking={() => setBooking(null)}
+        actions={actions}
+        one={one}
+        recordHeld={recordHeld}
+        onRecordNext={onRecordNext}
+      />
       {voice.bar}
     </div>
   ) : null;
@@ -247,16 +303,12 @@ export function usePlanLounge({
     </>
   ) : null;
 
-  const newestOne = state?.enabled ? newestOneOf(thread.messages) : null;
   const rows: PlanRowCtx | undefined = state?.enabled
     ? {
         plan,
-        newestOne,
-        recordHeld,
         onSeePlan: () => setSheet("see"),
         onChangePlan: () => setSheet("change"),
         onBook: openBook,
-        onRecordNext,
       }
     : undefined;
 
@@ -277,9 +329,10 @@ export function usePlanLounge({
     mic: (otherwise) => voice.waiting ?? otherwise,
     // Before the first Take Will needs to hear it, so "Type here" waits
     // (N319 item 3); after it a plan question takes no typed answer either
-    // (until N319 the box was hidden). The note a tap on it shows waits for
-    // the founder's words (N319 item 3, Never 4): no note until they are signed.
+    // (until N319 the box was hidden). Before the first Take, where the
+    // orange mic waits for the answer, a tap on it says why (N323 item 1).
     typingOff: asks,
+    typingWait: typingNoteDue(kind, plan) ? <TypingWait /> : null,
     draft: (typed) => (asks ? "" : typed),
     holdsEmpty: signedIn && (state === null || plan !== null),
     oneHoldsRecord: newestOne !== null,
