@@ -203,13 +203,9 @@ built and what is still to come.
    two ratings in 1, "How did it go?" at the plan's end (I2) and the feelings
    check in 4) are asked only after the speaker says yes
    to a question of its own, once. Will asks it after the speaker's voice
-   answer about the event, before any personal question: "Some of my
-   questions are personal: how stressed and ready you feel, what worries
-   you, how you feel before each Take. I ask only with your yes. Your
-   answers shape your plan and help your coach prepare. You can turn this
-   off in Settings." (N325 item 6, in the words of Privacy section 4e; was
-   N249's "A few of my questions are personal: … Your coach and I use your
-   answers to shape your plan. …") with Read more, which opens Privacy section 4e in a
+   answer about the event, before any personal question, in the words K
+   gives (N325 item 6, in the words of Privacy section 4e; was N249's),
+   with Read more, which opens Privacy section 4e in a
    window, and under it, on the right of the thread, "Not now" (grey and
    quieter) and "Yes, ask me" (orange outlined) (N319 item 1, B10; was in
    the footer); nothing else is taken while Will waits. "Yes, ask me" goes on with the worry question and
@@ -395,7 +391,9 @@ built and what is still to come.
    whose pace scale finds a stretch (N289 item 6; was from Take 2). The pace practice is the tempo step of
    the Feedback walk and nowhere else: not the coach panel, not the Lounge,
    not before the Take. Its rules are on the walk's page, §2 "Tempo"
-   (N130, N134, N140, N142, N162). Any speaker, with or without a plan, at any level, gets the same step as the One thing walk's one fix when rushing is the Take's biggest issue (N323 item 6, the walk's page T; was, with N309, only in a pace or pause week); it is the founder's "Sniper" (N181).
+   (N130, N134, N140, N142, N162). When it is the One thing walk's one fix
+   outside a pace or pause week: the walk's page T (N323 item 6). It is the
+   founder's "Sniper" (N181).
 9. A practise that slowed down gets its own lines, said in turn: "You gave it
    room, and it landed." · "Slower, and every word counted." · "That pace
    lets them keep up with you." (N140).
@@ -657,10 +655,9 @@ Waiting for the founder's OK:
   the plan waits for an answer there: after it the notes, signed for the
   first Take, do not show.
 - **The words in §1 K** still waiting for the founder's OK.
-- **As built, where the prototype doesn't say** (N203): after a rating tap the
-  next question follows with nothing between, until the words in the first
-  line above are signed; "Choose a date" on the summary call opens the plan's
-  own full-screen calendar, as "Book" does, rather than the booking page;
+- **As built, where the prototype doesn't say** (N203): "Choose a date" on
+  the summary call opens the plan's own full-screen calendar, as "Book"
+  does, rather than the booking page;
   behind the calendar the chat is dimmed, not drawn smaller as the
   calendar's prototype (§5) draws it;
   the day line comes with the practice day's hello and the day after the
@@ -745,6 +742,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N339 · §3: the line "after a rating tap the next question follows with nothing between" is gone; N339 settled it (D2) · docs (this PR)
+- 2026-11-02 · — · D5, G8: one home per rule: D5 points to K for the words of the plan's own yes; G8 points to the walk's page T for the tempo step as the One thing walk's fix; the code comments of `usePlanLounge` and `PlanRows` say the note for a voice or a tap answer (N323 item 1, N325 item 4) and the record button under the chat (N294 item 7). No rule changes · docs (this PR)
 - 2026-11-02 · N347 item 2 · E3, G13, K: the goodbye after the walk names the next practice day as a person would, "Good job. See you tomorrow." when it is tomorrow in the plan's time zone, else "Good job. See you {weekday}." (backend `plan.next_day_text`, `after_take.SEE_YOU_ON`). Was: "Good job. See you next {day}.", tomorrow named by its weekday · BE n347, FE (this PR)
 - 2026-11-02 · N339 · D2, K, §3: a tap on the 1 to 10 scale comes back as the speaker's turn, one small grey bubble on their side with a lock and "Answered", never the number; kept in the chat, and Will's next question follows it. Was: nothing between Will's two questions; §3's question on it is closed · BE `plan_flow.answer_rating`, FE `PlanRows` (this PR)
 - 2026-11-02 · N325 items 1, 2, 4 and 6 · B10, D5, F1, G6, K, §3: a tap on the faded "Type here" before the first Take, while a tap answer waits (a choice, the scale, a call's ask), shows "Tap one of the answers above." as the voice note does (`PLAN_COPY.tapAnswerNote`; was nothing); under a call's ask "Skip" is grey and quieter on the left, "Book now" orange on the right (was both orange); the plan's own yes in the words of Privacy section 4e, signed (BE `services/plan.py` `consent_ask`); a practice day's "Record Take N" stays alone under the chat, and §3's question on it is closed · BE, FE (this PR)

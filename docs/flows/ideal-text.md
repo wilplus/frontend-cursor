@@ -97,6 +97,8 @@ Done when:
 
 *Amended 2026-10-26 (founder, the docs audit, backend N178): the limit is eight words, as the app has done since 2026-10-15 ("N of 8 words", `HELPER_WORDS_MAX = 8`). Read "four" in B3 as "eight", "the fifth tap" as "the ninth tap", and contract 13's limit as eight.*
 
+*Amended 2026-11-02 (founder, backend N323 item 2): the walk's own helper words, saved whole past eight words (the Clearer version's sentence, their own sentence after "Keep mine"), are shown whole in Recording Mode, as a phrase saved before the limit is (N51), scrolling inside their own space when longer than it (the recording screens' page). The limit of eight stands for a pick by hand.*
+
 *Amended 2026-10-06 (founder, Navigation Panel QA4 A; ledger A004a, A004b; decisions log N51): B3's tap-by-tap model stands — each tap adds one word, the fifth tap does nothing and the untapped words grey out. The 26 September two-tap rule (the run-based picking A004a and A004b describe) is retired; the designer rebuilds the picker to this lock.*
 
 #### B4 — Helper words have their own overlay.
@@ -438,6 +440,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N323 item 2 · B3: a line says the walk's own helper words, saved whole past eight words, are shown whole in Recording Mode, as a phrase saved before the limit is; nothing on screen changes · docs (this PR)
 - 2026-11-02 · N347 items 3 and 4 · no change to this page's screens: the shared copy file (`idealEditCopy.ts`) gains the pace game's signed tip, "give “{words}” more room", for the walk's "Last time: give “{words}” more room." (`ONE_THING_COPY.paceTip`; the walk's page, C0a and K); one set of helper words per slide, the newest wins, as built: when two moments on one slide both give helper words, the later pick is the one the recording screen shows and this page marks ([`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C3) · BE n347, FE (this PR)
 - 2026-11-02 · N338 · §3: the app's own words ("rewrite", "Take", "Ideal Text") are not added to every Take's word hint; the open item on "route ride" is closed, not built · docs (this PR)
 - 2026-11-02 · N309 · no change to this page's screens: the shared copy file (`idealEditCopy.ts`) gains the One thing walk's signed words (`ONE_THING_COPY`; the walk's page, C and K). The walk's helper words, which now come on their own, reach this page through the same save as a pick, so they show orange on their paragraph as before; a Clearer version's sentence goes to the slide's helper words ([`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C3) · BE slice4-walk, FE (this PR)

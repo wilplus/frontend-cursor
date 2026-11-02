@@ -986,6 +986,39 @@
       "result": true
     }
   },
+  "setPartRootPhrase walk": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/parts/p1/root",
+          "method": "PUT",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{\"text_echo\":\"words\",\"phrase\":\"words\",\"start\":0,\"end\":5,\"source\":\"walk\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": true
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/parts/p1/root",
+          "method": "PUT",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"text_echo\":\"words\",\"phrase\":\"words\",\"start\":0,\"end\":5,\"source\":\"walk\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": true
+    }
+  },
   "setPartHelperWordsFromTake": {
     "signedIn": {
       "requests": [

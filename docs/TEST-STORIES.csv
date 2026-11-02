@@ -681,7 +681,11 @@ O9  The One thing walk on the deck: their best, then the one fix; after
 ""Keep mine"" and a skipped try, the helper words come on their own
 through the deck's own save (the lock, then the words), marked whole
 (N323 item 2), both moments lose their black line, and Close under
-""Lesson done."" asks the summary once and goes back to the chat (N309).","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
+""Lesson done."" asks the summary once and goes back to the chat (N309).
+O10 With no moment to fix, the pace game is the One thing walk's fix,
+and its opening keeps its tip, ""give “{words}” more room"" with the
+Sniper's helper words, in the chat for ""Last time"" next Take (N347
+item 3).","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
 O2 -> ""‹ › move through the walk's chat, never answering and never
 closing it (founder 2026-10-20)""
 O3 -> ""a paragraph with or without the line opens the same walk at
@@ -695,7 +699,8 @@ O7 -> ""a moment walked through loses its black line and opens as
 given, never its practise again (founder 2026-10-21)""
 O8 -> ""a confident voice whose words are reworded gets its helper
 words after the rewording (founder 2026-10-22, N113)""
-O9 -> ""the One thing walk saves its helper words without a pick, settles both moments and asks the summary once at Close (N309)""","Feedback walk lock 2026-10-06/2026-10-12; founder 2026-10-21 (""the black lines on the ideal text are still there even though I walked through them""); 2026-10-22 (N113, ""After the rewording""). The paragraph sheet's accept lane is in acceptRewrite.test.tsx."
+O9 -> ""the One thing walk saves its helper words without a pick, settles both moments and asks the summary once at Close (N309)""
+O10 -> ""the pace game as the walk's fix keeps its tip in the chat, for Last time next Take (N347 item 3)""","Feedback walk lock 2026-10-06/2026-10-12; founder 2026-10-21 (""the black lines on the ideal text are still there even though I walked through them""); 2026-10-22 (N113, ""After the rewording""). The paragraph sheet's accept lane is in acceptRewrite.test.tsx."
 src/components/willab/exerciseRenderedAck.test.tsx,Story,"As the founder, I want an exercise counted as shown only once the speaker actually saw it, once per view, silently, so that exercise data is honest.","O1  Nothing goes out on data load; the ack goes out once the card is
 about half visible.
 O2  Once per card per page view, even when the sheet is opened again.
@@ -1669,7 +1674,7 @@ O2 -> ""withholds Practise when sensitive information is withdrawn (B6-3)""
 O3 -> ""withholds Practise when Personalised practice is off""
 O4 -> ""leaves the server to decide when there is no agreement yet""
 O4 -> ""leaves the server to decide when the read fails""","B6-3: a practice attempt is new recording, and withdrawing sensitive information stops new recording."
-src/services/api/glueContracts.test.ts,Guard,"Each of 60 service clients still sends exactly the request and gives back exactly the answer it did before the shared-fetch refactor, signed in and signed out (golden file glueContracts.golden.json).","A change to a URL, method, header, body, credentials, cache setting
+src/services/api/glueContracts.test.ts,Guard,"Each of 61 service clients still sends exactly the request and gives back exactly the answer it did before the shared-fetch refactor, signed in and signed out (golden file glueContracts.golden.json).","A change to a URL, method, header, body, credentials, cache setting
 or returned value that a speaker, coach or the backend would notice.","one test per client case, titled by its name, e.g. ""checkPracticeAttempt"",
 ""shareTake refused"", ""setPartLock undecided"", ""uploadCoachVideo""",If removed: A wire-contract change in any of these clients could ship unnoticed; keep it only while it is the single wire-contract home.
 src/services/api/idealText.changes.test.ts,Story,"As a speaker, I want a new Take's suggested upgrade shown as an offer and never applied to my text without my yes, so that my Ideal Text is only what I said or chose.","O1  An upgrade offered by a new Take arrives as a pending offer, not as an

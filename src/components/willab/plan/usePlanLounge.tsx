@@ -52,8 +52,8 @@ export type PlanLounge = {
    *  asks (N319 item 3). */
   typingOff: boolean;
   /** Over the faded "Type here", in its box, before the first Take while
-   *  the plan's voice question waits: what takes the tap, and the note the
-   *  tap shows above the bar (N323 item 1); else null. */
+   *  the plan waits for a voice or a tap answer: what takes the tap, and the
+   *  note the tap shows above the bar (N323 item 1, N325 item 4); else null. */
   typingWait: ReactNode;
   /** The draft the bar reads: none while typing waits, so the mic shows. */
   draft: (typed: string) => string;
