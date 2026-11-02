@@ -11,6 +11,10 @@ import Link from "next/link";
  * Terms & Policy reads Privacy. (2026-07-30: /science was then consolidated
  * into the blog entirely — the page is deleted and redirects to /blog, where
  * the papers live as "Science"-category posts.)
+ *
+ * prefetch={false} (loading audit, 2026-11-02): the footer is on every page,
+ * so viewport prefetch fetched /about, /blog and /terms on every open,
+ * competing with /chat's boot reads on a phone. A click still navigates.
  */
 export default function Footer() {
   return (
@@ -19,18 +23,21 @@ export default function Footer() {
       <div className="flex gap-3 items-center sm:gap-4">
         <Link
           href="/about"
+          prefetch={false}
           className="no-underline hover:text-foreground transition-colors"
         >
           About us
         </Link>
         <Link
           href="/blog"
+          prefetch={false}
           className="no-underline hover:text-foreground transition-colors"
         >
           Blog
         </Link>
         <Link
           href="/terms"
+          prefetch={false}
           className="no-underline hover:text-foreground transition-colors"
         >
           Privacy
