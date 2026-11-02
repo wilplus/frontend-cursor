@@ -118,6 +118,9 @@ function replayClipPractice(plan: readonly WalkStep[], at: number, replayOf: (mo
  *  again asks too, founder 2026-10-14), and a clearer version's practise of
  *  the accepted words or the kept ones (founder 2026-10-18). */
 function aiPractiseKind<R>(here: WalkStep, moment: FeedbackWalkMoment<R>): WalkStep["kind"] | null {
+  // The One thing walk's Clearer version brings no AI clip: a miss is
+  // "Close. Once more." (founder 2026-10-31, N309 item 1).
+  if (here.one && here.key === "practise" && (here.kind === "words" || here.kind === "keep")) return null;
   if (here.key === "practise" && (here.kind === "words" || here.kind === "keep")) return here.kind;
   const voice = here.key === "exVideo" || (here.key === "practise" && (here.kind === "instruction" || here.kind === "moment"));
   if (!voice || !(moment.exercise || moment.practiseItem != null)) return null;
@@ -149,6 +152,10 @@ export type WalkPractise = {
   aiVoicePracticeOf: (moment: number) => string | undefined;
   /** The moment's clip is being asked and not yet answered. */
   aiVoiceAsking: (moment: number) => boolean;
+  /** The practice the moment's practise was opened on, once asked; null
+   *  when none was (the One thing walk's helper words after a Clearer
+   *  version are saved from it, N309 item 3). */
+  practiceOf: (moment: number) => Promise<string | null> | null;
 };
 
 export function useWalkPractise<R>(args: {
@@ -475,5 +482,6 @@ export function useWalkPractise<R>(args: {
   const aiVoicePracticeOf = useCallback((moment: number) => aiPractice.current.get(moment), []);
   const aiVoiceAsking = useCallback((moment: number) => aiWaiting.current.has(moment), []);
 
-  return { elapsed, stop, skip, again, tryOf, cancel, reset, aiVoiceOf, aiVoicePlayed, aiVoicePracticeOf, aiVoiceAsking };
+  const practiceOf = useCallback((moment: number) => opened.current.get(moment) ?? null, []);
+  return { elapsed, stop, skip, again, tryOf, cancel, reset, aiVoiceOf, aiVoicePlayed, aiVoicePracticeOf, aiVoiceAsking, practiceOf };
 }

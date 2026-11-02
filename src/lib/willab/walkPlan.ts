@@ -5,12 +5,15 @@
 /*  Pure: from a Take's moments, the coach's word for the Take and the         */
 /*  speaker's situation, the locked order of screens:                          */
 /*                                                                            */
-/*    the page → the coach's note (only when there is one) → the moments    */
-/*    by their job (N289): the strongest, praised, then its helper words;     */
-/*    the weakest, practised with its AI clip; any next best, praised; the    */
-/*    one between, its Clearer version (a confident voice's is followed by    */
-/*    its helper words, N113) → the tempo step → other speakers' moments →    */
-/*    the closing summary → the page. Sharing is asked before the next        */
+/*    the page → the coach's note (only when there is one) → THE ONE THING  */
+/*    WALK (founder 2026-10-31, N309): their best (the picker's strongest,    */
+/*    nothing to practise) → one thing to improve, with the tool it needs    */
+/*    (the Clearer version, the AI clip after their best, or the Sniper on   */
+/*    this week's level) → from Take 2, one moment of another speaker to     */
+/*    judge → the helper words, on their own → "Lesson done." → the page.    */
+/*    A Take served before N289 (no slots) keeps its walk: each praise and   */
+/*    its helper words, the practising, the tempo step, other speakers'      */
+/*    moments, the closing summary. Sharing is asked before the next         */
 /*    recording instead.                                                      */
 /*    "Judgement time!" and judging your own moments are gone (founder lock   */
 /*    2026-10-12, moment and feedback chat, section 2).                       */
@@ -34,15 +37,23 @@ import type { WalkScreen } from "./walkMotion";
  *  on (founder 2026-10-06, CM3a A, "Up to 3"). */
 export const WALK_MAX_TRIES = 3;
 
+/** The One thing walk's fix allows two (founder 2026-10-31, N309 item 1:
+ *  one miss, "Close. Once more."; two, "Good try. Take it with you."). */
+export const ONE_THING_TRIES = 2;
+
+/** The tries the practise `step` belongs to allows. */
+export const maxTries = (step: { one?: boolean } | null | undefined): number =>
+  step?.one ? ONE_THING_TRIES : WALK_MAX_TRIES;
+
 /** A moment's job in the walk (founder 2026-10-30, backend N289): the
  *  strongest is praised, the weakest practised with the AI clip, the one
  *  between with the Clearer version; a slot nothing filled is a next best,
  *  praised. */
 export type WalkSlot = "strongest" | "weakest" | "between" | "next";
 
-/** The walk's order of the slots (N289 item 4): the strongest, the
- *  weakest, any next best, then the one between, so the walk ends on the
- *  precise fix. */
+/** The slots' order (N289 item 4); the One thing walk takes its one fix
+ *  from the fix slots in this order once the Clearer version is passed
+ *  over (N309). */
 const SLOT_ORDER: Record<WalkSlot, number> = { strongest: 0, weakest: 1, next: 2, between: 3 };
 
 /** One moment of the Take, in page order. */
@@ -97,6 +108,9 @@ export type WalkPlanInput = {
    *  "Keep my words" with no practise, and nothing else is practised
    *  (N55 WQ3 A, WQ3c A). */
   practiceOn: boolean;
+  /** The One thing walk judges one moment of another speaker: from Take 2
+   *  (founder 2026-10-31, N309 item 2, N300). */
+  judge?: boolean;
   /** A guest: every screen is shown read-only, and any answer, pick or
    *  practise opens sign-up instead of writing (N32.5). */
   guest: boolean;
@@ -119,6 +133,17 @@ export type WalkStepKey =
    *  2026-10-30, N285): never planned, drawn above the step it leads into
    *  and told to the chat once. */
   | "lead"
+  /** "Last time: {the tip}. You did." with this Take's clip (founder
+   *  2026-10-31, N309 item 1): never planned, drawn under the hello and
+   *  told to the chat once. */
+  | "last"
+  /** "And now, one thing to improve:" (N309 item 1): never planned, drawn
+   *  above the One thing walk's fix and told to the chat once. */
+  | "one"
+  /** The helper words, on their own (N309 item 3): no pick. */
+  | "words"
+  /** "Lesson done." and Close, back to the chat (N309 item 4). */
+  | "done"
   | "coachnote"
   /** The coach's answer on a moment no other screen shows, and every
    *  answered moment in the coach-only walk (founder 2026-10-14). */
@@ -157,6 +182,12 @@ export type WalkStep = WalkScreen & {
   /** A screen of the finished walk played again (Q-IT643b A): drawn with the
    *  answer as given, and a tap that would write moves on instead. */
   replay?: boolean;
+  /** A step of the One thing walk (founder 2026-10-31, N309): drawn and
+   *  said with its own words; its practise allows two tries. */
+  one?: boolean;
+  /** The helper words step: the moment whose paragraph takes them (the
+   *  fix's). Not `moment`, so reaching it never settles that moment twice. */
+  of?: number;
 };
 
 /** The machine's answer to one try (D-FW-1): praise ends the loop. */
@@ -205,10 +236,14 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
     return steps;
   }
   if (moments.some((m) => m.slot)) {
-    steps.push(...bySlot(moments, input.practiceOn));
-  } else {
-    steps.push(...praiseFirst(moments, input.practiceOn));
+    // THE ONE THING WALK (founder 2026-10-31, N309): it ends on "Lesson
+    // done.", with no tempo step of its own, no other speakers' three
+    // moments and no summary inside it.
+    steps.push(...oneThing(moments, input), { key: "end", overlay: false });
+    if (!input.guest) return steps;
+    return steps.map((s) => (s.key === "page" || s.key === "end" ? s : { ...s, readOnly: true }));
   }
+  steps.push(...praiseFirst(moments, input.practiceOn));
   // The Take's interventions, right after the moments (N166 item 2, N289).
   if (!input.guest) for (const kind of input.interventions ?? []) steps.push({ key: kind });
   // Sharing is asked before the next recording now (lock 2026-10-12, §5).
@@ -219,31 +254,46 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
   return steps.map((s) => (s.key === "page" || s.key === "end" ? s : { ...s, readOnly: true }));
 }
 
-/** One moment's screens: a praise and its helper words, or its practise. */
-function momentSteps(m: WalkMoment, practiceOn: boolean): WalkStep[] {
-  if (m.praise) {
-    const steps = [momentStep(m, "praise")];
-    if (m.confident && practiceOn) {
-      steps.push(momentStep(m, "exVideo"), momentStep(m, "practise", { kind: "moment", attempt: 1 }));
-    }
-    return [...steps, momentStep(m, "helpers")];
+/** The One thing walk (founder 2026-10-31, N309 items 1 to 4): their best,
+ *  the picker's strongest, praised with nothing to practise; one fix, the
+ *  slot whose tool fits (the between's Clearer version first, words come
+ *  first, else the weakest's AI clip; the server serves one, N309); with no
+ *  moment to fix and the tempo step there, the Sniper on this week's level;
+ *  a coach's answer on any other moment, on its own screen; from Take 2 one
+ *  moment of another speaker; the helper words, on their own; then "Lesson
+ *  done.". Nothing to walk: nothing. */
+function oneThing(moments: readonly WalkMoment[], input: WalkPlanInput): WalkStep[] {
+  const out: WalkStep[] = [];
+  const best = moments.find((m) => m.slot === "strongest" && m.praise);
+  const fixes = [...moments]
+    .filter((m) => (m.slot === "between" || m.slot === "weakest") && isPractiseMoment(m))
+    .sort((a, b) => SLOT_ORDER[a.slot ?? "next"] - SLOT_ORDER[b.slot ?? "next"]);
+  const fix = fixes.find((m) => m.clearer) ?? fixes[0];
+  const sniper = !fix && !input.guest && (input.interventions ?? []).includes("tempo");
+  if (best) out.push(momentStep(best, "praise", { one: true }));
+  if (fix) out.push(...oneFix(fix, input.practiceOn));
+  else if (sniper) out.push({ key: "tempo", one: true });
+  for (const m of moments) {
+    if (m !== best && m !== fix && m.coach) out.push(momentStep(m, "coach"));
   }
-  if (isPractiseMoment(m)) {
-    const steps = practiseOpening(m, practiceOn);
-    return m.helpers ? [...steps, momentStep(m, "helpers")] : steps;
-  }
-  return m.coach ? [momentStep(m, "coach")] : [];
+  if (out.length === 0) return out;
+  if (input.judge) out.push({ key: "others", one: true });
+  if (fix || sniper) out.push({ key: "words", one: true, ...(fix ? { of: fix.index, slide: fix.slide } : {}) });
+  out.push({ key: "done", one: true });
+  return out;
 }
 
-/** The moments in the order of their jobs (founder 2026-10-30, N289): the
- *  strongest, the weakest, any next best, then the one between; a moment
- *  the server gave no slot (a coach's answer alone) after them, in page
- *  order. */
-function bySlot(moments: readonly WalkMoment[], practiceOn: boolean): WalkStep[] {
-  const rank = (m: WalkMoment) => (m.slot ? SLOT_ORDER[m.slot] : 4);
-  return [...moments]
-    .sort((a, b) => rank(a) - rank(b) || a.index - b.index)
-    .flatMap((m) => momentSteps(m, practiceOn));
+/** The fix's screens before its first try: the Clearer version, or the AI
+ *  clip after their best (the voice Exercise), then the recorder. With
+ *  practice off, the fix alone. */
+function oneFix(m: WalkMoment, practiceOn: boolean): WalkStep[] {
+  if (m.clearer) {
+    if (!practiceOn) return [momentStep(m, "clearer", { kind: "accept", one: true })];
+    return [momentStep(m, "clearer", { one: true }), momentStep(m, "practise", { kind: "words", attempt: 1, one: true })];
+  }
+  if (!practiceOn) return [momentStep(m, "exVideo", { one: true })];
+  const kind = m.exercise ? "instruction" : "moment";
+  return [momentStep(m, "exVideo", { one: true }), momentStep(m, "practise", { kind, attempt: 1, one: true })];
 }
 
 /** A Take baked before N289: every praise first, then the practising. */
@@ -282,12 +332,17 @@ function praiseFirst(moments: readonly WalkMoment[], practiceOn: boolean): WalkS
  *  signed thank-you (CM3b) and the walk moves on. */
 export function afterTry(practise: WalkStep, outcome: TryOutcome): WalkStep[] {
   const attempt = practise.attempt ?? 1;
-  const base = { moment: practise.moment, slide: practise.slide, ...(practise.readOnly ? { readOnly: true } : {}) };
+  const base = {
+    moment: practise.moment,
+    slide: practise.slide,
+    ...(practise.readOnly ? { readOnly: true } : {}),
+    ...(practise.one ? { one: true } : {}),
+  };
   const checking: WalkStep = { key: "processing", ...base, attempt };
   if (outcome === "praise") {
     return [checking, { key: "improved", ...base, attempt }];
   }
-  if (attempt >= WALK_MAX_TRIES) return [checking, { key: "thanks", ...base, attempt }];
+  if (attempt >= maxTries(practise)) return [checking, { key: "thanks", ...base, attempt }];
   return [
     checking,
     { key: "encourage", ...base, attempt },
@@ -301,6 +356,9 @@ export function afterTry(practise: WalkStep, outcome: TryOutcome): WalkStep[] {
  *  praise is. A moment the plan already gives them (a praise, N113) keeps
  *  its one step. `improved` is the Good job; `plan` the walk it lands in. */
 export function goodJobHelpers(plan: readonly WalkStep[], improved: WalkStep): WalkStep[] {
+  // The One thing walk's helper words come on their own, after the fix
+  // (N309 item 3): no pick follows its Good job.
+  if (improved.one) return [];
   if (improved.moment == null || plan.some((s) => s.key === "helpers" && s.moment === improved.moment)) return [];
   return [{ key: "helpers", moment: improved.moment, slide: improved.slide, ...(improved.readOnly ? { readOnly: true } : {}) }];
 }

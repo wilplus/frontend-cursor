@@ -256,10 +256,28 @@ step; the loop never waits for a coach.
 
 ### C · The walk, in order
 
-- **C0 Hello.** The walk opens once with the speaker's first name: "Hi
-  {name}, good to see you back!", on Take 1 "Hi {name}, great to meet
-  you!"; with no name on the account "Hi, good to see you back!" / "Hi,
-  great to meet you!" (founder 2026-10-23, N120).
+- **The One thing walk** (founder 2026-10-31, N309; prototype
+  <https://claude.ai/artifact/X4gDmGfHH7ivuoRZ9ufiy9>, the walk from
+  <https://claude.ai/artifact/S8zzcsVEqcDYVC7XQ25Ntg>, steady tone only).
+  In order: "Hi {name}." (C0) · Last time (C0a) · the coach's word when
+  there is one (C1) · their best (C2) · one thing to improve (C4, C5 or
+  T) · from Take 2, one moment of another speaker (C8) · the helper words,
+  on their own (C3) · "Lesson done." and Close (C9). A Take served before
+  N289 (no slots) keeps the walk it had (C2's "Was").
+- **C0 Hello.** The walk opens once with "Hi {name}."; with no name on the
+  account "Hi." (N309 item 1). Was: "Hi {name}, good to see you back!", on
+  Take 1 "Hi {name}, great to meet you!" (N120), which a Take served before
+  N289 still says.
+- **C0a Last time** (N309 item 1). When last Take's fix rose on this Take
+  (the issue gone on the same slide, backend `take_progress.last_fix`,
+  route `GET /v2/explore/arc/<arc>/review/last-fix/<take>`): "Last time:
+  {the tip}. You did." under the hello, with this Take's best clip on that
+  slide as the speaker's orange bubble. The tip is the one the last walk
+  gave, kept with its fix step in the chat (`fix_tip`): the AI clip's tip,
+  lower-cased ("Last time: let “fourteen shades” wait a beat. You did."),
+  or the Clearer version's "say it straight". Only a moment's fix; the
+  Sniper's has no tip, so it has no Last time (§3). Drawn when it is there
+  while the walk still stands where it opened, told to the chat once.
 - **C1 Your coach.** First, if there is one: "Your coach:", the coach's
   bubble (video or words only; everything the coach sent), then "Continue".
   Only this Take's coach word opens it (2026-10-20, narrowing N48.3 Q11 A):
@@ -298,10 +316,25 @@ step; the loop never waits for a coach.
   coach's share asks for the rows to be baked again (backend, N92,
   2026-10-21: "the video was sent too with the coach feedback and didn't
   pass through").
-- **C2 Three moments, three jobs** (founder, 2026-10-30, N289: "the
+- **C2 Their best, and one fix** (founder 2026-10-31, N309 item 1). The
+  picker still chooses (N289, N293; H1): its strongest is **their best**:
+  the clip, then one bubble, "This was your most confident moment." and
+  "Why it worked: {the moment's signed cue line}" (B01–B09 or the cue's
+  sentence, lower-cased after the colon), then Next; nothing to practise,
+  no level line (W1–W10) and no reason bubble. Then **one thing to
+  improve**: "And now, one thing to improve:" and ONE fix, the slot whose
+  tool fits: this week's level's moment on a plan (N289 item 8), else the
+  between with its Clearer version (words come first, C5), else the
+  weakest with the AI clip after their best (C4); on a pace or pause week
+  whose Take has a stretch, the Sniper (T) and no moment. The server serves
+  only these two (backend `take_feedback_policy_v3._one_thing`), so the
+  Ideal Text's marks, the coach's queue and "did the fix work" hold the
+  same two; the next bests and the second fix are not shown. Was (N289,
+  2026-10-30 to 2026-10-31, the paragraphs below):
+  "three moments, three jobs" (founder, 2026-10-30, N289: "the
   praise clips just get the praise ... the moments that need to be
   improved, get the AI [clip]"; "do it a sandwich way. First, show the
-  strongest, then the weakest, and then the average"). The Take shows three
+  strongest, then the weakest, and then the average"). The Take showed three
   moments, one per paragraph, several on one slide when that is where they
   are (H1; three since N284; a short Take still shows two, N246):
   the **strongest**, the highest willfidence, always praised whatever its
@@ -343,7 +376,21 @@ praised moment:
   on that paragraph is walked like any other, in its slot (founder
   2026-10-21: the Exercise had opened the walk and the confident moment came
   later; the server already counted only this Take's words, 2026-10-13).
-- **C3 Choose your helper words**, after each praised moment, after the
+- **C3 The helper words come on their own** (N309 item 3), after the fix
+  and the judged moment: "These are your helper words. They'll appear on
+  screen during your next take, to remind you of what you learned here.",
+  then the words alone, in bold: the words of their own sentence the fix
+  leans on (the AI clip's quoted phrase; their own sentence after "Keep
+  mine"), or the Clearer version's sentence after "Try it"; the Sniper's
+  stretch. They are saved as they land, through the same save the picker
+  used (the paragraph's span and its lock; the Clearer version's sentence,
+  which is not the paragraph's, to the slide from the practice it was
+  opened on, backend `helper_words_from_practice`, `source: "passage"`),
+  so they show under the slide in the next Take and on the Ideal Text, and
+  the chat says them with the line. Within the signed cap of eight words
+  and found where they are saved; else none (§3). No pick. The picker below
+  stays for editing them from the Ideal Text (F5) and in a Take served
+  before N289. Was: **Choose your helper words**, after each praised moment, after the
   Clearer version of a moment whose voice reached the floor (C5; founder
   2026-10-22, N113: "After the rewording"; until then helper words came only
   after a praise, so a Take whose strong voices were all reworded had none),
@@ -373,7 +420,13 @@ praised moment:
   picker waits for them, so it is the Take's step in the walk and not one
   screen on its own; only a paragraph with no moment opens on its own
   words (F5; 2026-10-20).
-- **C4 The weakest** (founder, 2026-10-30, N289 item 2). It is never
+- **C4 The AI clip after their best** (N309 item 1): the fix moment's
+  clip, "Say this one like your confident moment:", their best's clip
+  played again, then the AI bubble: the tip ending ", like this:", the AI
+  clip with its label, "Your turn." (no opener). With no AI clip coming,
+  the rest stands and the try is still theirs (never walked as good, never
+  skipped: it is the one thing). Was (N289 item 2, below): **The weakest**
+  (founder, 2026-10-30, N289 item 2). It is never
   called weak. Its bubbles: "Here's one with more in it." (signed, N289 item
   7; the level's line in its place when it carries one), its clip, Line A
   "Say this one like your confident moment.", the strongest moment's clip
@@ -397,7 +450,13 @@ praised moment:
   dropped", N88). Played again with
   no try, it shows the clip alone. The Take's most confident moment is not
   skipped: it opens with its own line and is said again (N109, C2).
-- **C5 The Clearer version.** The speaker's words with the changed words
+- **C5 The Clearer version.** In the One thing walk (N309 item 1): the
+  speaker's words with their clip, then "Say it straight:" and the
+  sentence in bold; "Try it" with the record dot (the accept, then the
+  recorder on the sentence) and "Keep mine" (the decline, then
+  "Your words it is. Now say them like you mean every one." and the
+  recorder on their own sentence); no Skip before the first try. A miss
+  brings no AI clip. In a Take served before N289: the speaker's words with the changed words
   crossed out; "Here is a slightly more polished option:" (when the reason is
   undermining words, `rewrite_reason: "undermining"`, B10's "Say what you
   mean. Don't dance around it, just say it straight." and "Try saying it
@@ -433,7 +492,11 @@ praised moment:
   whole history: the clip, the Exercise, every try and its answer
   (2026-10-16). The clip's own rules: backend
   [`FOUNDER-LOCK-ai-voice-practice-2026-10-12.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-ai-voice-practice-2026-10-12.md).
-- **C7 Practise.** Every practise is one thread: the words to say, the
+- **C7 Practise.** The One thing walk's fix (N309 item 1): the recorder
+  is the walk's RecordingStrip in the dock as below; two tries. A try that
+  lands: "Yes. That's it." and Next; one miss: "Close. Once more." with
+  "Try it" and Skip; two: "Good try. Take it with you." and Next. A try not
+  heard says so as below. In a Take served before N289: every practise is one thread: the words to say, the
   recorder in the dock (the strip with the dot, the clock and the bar;
   "Skip" in the Back style and a red "Stop" in the Finish-take style), the
   try as the orange "Practise N", the typing dots while it is checked, then
@@ -463,7 +526,8 @@ praised moment:
   a finished walk shows the thread alone, with no buttons (N259): nothing is
   recorded there.
   Nothing else interrupts the practice.
-- **C7a Between the moments** (founder 2026-10-30, N285: "okay, thank you
+- **C7a Between the moments** (not in the One thing walk, which has one
+  moment to fix; a Take served before N289 keeps them) (founder 2026-10-30, N285: "okay, thank you
   for that, let's look at your next key moment we spotted"; "if it's the end
   of the moments it should say …"): each moment after the first opens with
   one grey bubble, "Okay, thank you for that, let's look at your next key
@@ -473,7 +537,18 @@ praised moment:
   forward."; the summary stays where it is (D). Each is told to the chat
   once (B1, step `lead`), and drawn again in a walk opened again; never in
   the coach's own walk (`momentLead` in `walkPlan.ts`, the words in `walkLines.ts`).
-- **C8 Other speakers**, once, after the practice: three moments, one the
+- **C8 Other speakers: one moment, from Take 2** (N309 item 2, N300),
+  right after the speaker's try: "Let's see how you find this voice. It
+  helps us understand you and serve you better.", then the clip and "Does
+  this sound confident to you?" in one bubble (Line B goes), the faces (👍
+  Yes, 😐 In-between, 👎 No, large and full width; "Audio unclear" a small
+  link), their answer as their own reply "{face} {answer} ✓", then "Got
+  it.", and on. The moment's machine level turns across Takes: Take 2
+  high, 3 middle, 4 low, then round again (`othersLevelFor`; the queue's
+  `?level=`, backend `lend_your_ear.other_voices`, the Take's clip of that
+  level, else the next level round), never shown. Take 1 judges no one.
+  Each answer is kept as a peer rating as before (L3). Opened again, the
+  moment with the answer given, as below. Was (N119, below): once, after the practice: three moments, one the
   machine reads high, one in the middle and one low, each from a different
   speaker, never the speaker's own and never one they already judged, in a
   shuffled order so the place never tells the level; the set is fixed for
@@ -495,8 +570,14 @@ praised moment:
   again; with none judged the step is left out (N247; was "no read-only
   replay", 2026-10-13). No other speaker's recording is ever stored in a
   speaker's thread: the moments are read again from the server.
-- **C9 The closing summary** (D), then "Next", which opens the Ideal Text;
-  no Next in a walk opened again once done (N259).
+- **C9 The end** (N309 item 4): "Lesson done." and a Close pill, which
+  writes the review's end (the Take's card under its Feedback walk,
+  "Continue review" goes) and goes back to the chat. No "Record Take N" in
+  the walk and no summary inside it: the summary is still written once per
+  Take as the walk ends, so the chain after the review runs as before (D4).
+  Played again, "Lesson done." alone. Was: the closing summary (D), then
+  "Next", which opened the Ideal Text (a Take served before N289 still
+  does); no Next in a walk opened again once done (N259).
 - **C10 No longer in the walk:** "Judgement time!", judging your own
   moments, self-judging a practice try (on hold, §3), "Not sure", and Will's
   question (it is the Lounge's, E2).
@@ -1130,6 +1211,20 @@ October (backend N111).
 
 ### K · Words on screen (all signed)
 
+- **The One thing walk (N309 item 6, signed 2026-10-31, "please implement"
+  2026-11-02; `ONE_THING_COPY`, `idealEditCopy.ts`):** "Hi {name}." (no
+  name: "Hi."), "Last time: {the tip}. You did.", "This was your most
+  confident moment.", "Why it worked: {the moment's signed cue line}",
+  "And now, one thing to improve:", "Say it straight:", "Say this one like
+  your confident moment:", the tip ending ", like this:", "Your turn.",
+  "Try it", "Keep mine", "Skip", "Yes. That's it.", "Close. Once more.",
+  "Good try. Take it with you.", "Let's see how you find this voice. It
+  helps us understand you and serve you better.", "Does this sound
+  confident to you?", "{face} {answer} ✓", "Got it.", "These are your helper
+  words. They'll appear on screen during your next take, to remind you of
+  what you learned here.", "Lesson done.", "Close". Steady tone only: the
+  prototype's gentle and straight lines are not built. Never varied (N123).
+
 - **One bubble never says the same thing twice** (founder 2026-10-30, N283,
   on a screenshot of the Take's highest moment: "This was your most confident
   moment. Wow, great job. That really landed! 🔥 It was your confident
@@ -1278,6 +1373,13 @@ October (backend N111).
   maker; customer service: A customer · A caller · My team; interviews: The
   hiring manager · A panel · A recruiter); goal: Say yes · Trust me · Get it.
 - **The Sunday note and life goals:** their words are on [`principles.md`](principles.md) §1 K (N182).
+- **Signed, no longer shown in the One thing walk** (N309; a Take served
+  before N289 still shows them): "Choose your helper words" and the
+  picker's words in the walk (they stay for F5), Line B, "Here's one with
+  more in it." and "Your confident moment", N285's lines between moments,
+  the AI clip's openers in the walk, "Good job" over a try, the praise
+  level lines W1–W10 and the reason bubble, "Hi {name}, good to see you
+  back!".
 - **Signed, no longer shown:** "Judgement time!", "If you are honest when
   judging others, it will help you find your confident voice and calm the
   inner critic 😌", "More about self-modeling theory", "I am going to judge
@@ -1315,7 +1417,7 @@ while a dot on a scale follows their pace live.
 - In the Feedback walk only. Never in the coach panel, the Lounge, or before the Take.
 - **Opened again** once the walk is done, it shows what the chat kept, read only: the stretch, Will's opening lines, each "Try N" with the line the dot drew and Will's word on it, the closing line (none after a try that landed) or the Skip, and no Next (N259). No scale and no microphone. A Take that had no tempo step has none (N247). The same, without its Next, when the walk is opened again further on before it is done (B5).
 - It sits before the Ideal Text, so it always has a Skip, and the whole walk has a time limit (N178, which replaces N130's "never between a Take and the Ideal Text" for the walk's own practice steps). Open: the limit; the founder sets it (§3).
-- It shows on any Take, Take 1 included, whenever the pace scale finds a stretch outside the green, once in that walk, with or without a plan (N289 item 6; was from Take 2, N181, a rule the code never had). Right after the walk's moments, so a Take that needs both has the Clearer version first, then this step (C2). In a "Let your key line land" or "Pauses that hold the room" week it opens with "This week's level: {level}. Here's where it shows:" (N289 item 8). Who has it is the rings panel's `tempo_step` row.
+- In the One thing walk it is the Sniper, the fix, on a plan's pace or pause week whose Take has a stretch outside the green, and then no moment is fixed (N309 item 1): under "And now, one thing to improve:", its opening lines as below, "Try it" with Skip in "I'm ready"'s place, two tries, and the walk's words on each ("Yes. That's it.", "Close. Once more.", "Good try. Take it with you."), no closing line of its own (`WalkTempo` `one`). Off a plan, or with a moment to fix, the walk has no tempo step. Was: on any Take, Take 1 included, whenever the pace scale finds a stretch outside the green, once in that walk, with or without a plan (N289 item 6; was from Take 2, N181, a rule the code never had), as a Take served before N289 still has it. Right after the walk's moments, so a Take that needs both has the Clearer version first, then this step (C2). In a "Let your key line land" or "Pauses that hold the room" week it opens with "This week's level: {level}. Here's where it shows:" (N289 item 8). Who has it is the rings panel's `tempo_step` row.
 - It is the founder's "Sniper": the pace exercise of N129. The old Strength/Pace dartboard stays retired (N127, N181).
 
 **The scale.** A dot on a horizontal line. It moves right while you talk
@@ -1411,6 +1513,15 @@ The four lines above were filled from main's history by the page's keeper on
 
 ## 3. Still open
 
+- **The One thing walk, built as closest to N309 (2026-11-02):** the
+  helper words keep the signed cap of eight words, so a Clearer version's
+  sentence, or their own sentence kept, of more than eight words gives no
+  helper words (the prototype shows sentences of 5 and 13 words); the
+  Sniper's helper words are its stretch's words only when they are eight or
+  fewer; the AI clip with no quoted phrase (pace, fillers) gives none. The
+  Sniper has no tip, so no Last time follows it. "Since it was last worked
+  on" is read as "the fix the last walk gave". The founder decides each.
+
 - **The walk's time limit** (N178): the whole walk, the tempo step included, gets one; the founder sets it.
 
 - **Tempo step**: its questions are decided (§1 T); only the walk's time limit above is open.
@@ -1454,7 +1565,12 @@ page):
   `WalkThread.tsx` (the thread and its scrolling), the steps' screens, the
   recorder strip, the word picker, the AI voice bubble.
 - `src/components/willab/WalkEnd.tsx` — the end of the walk.
-- `src/lib/willab/walkPlan.ts` — the order of steps from a Take's moments.
+- `src/lib/willab/walkPlan.ts` — the order of steps from a Take's moments
+  (the One thing walk: `oneThing`, its steps marked `one`; N309).
+- `ONE_THING_COPY` in `src/components/willab/idealEditCopy.ts` — the One
+  thing walk's signed words; `src/services/api/reviewLastFix.ts` and the
+  BFF `review/last-fix` route — Last time (C0a); `WalkOthers.tsx`'s
+  `level` — the one judged moment (C8).
 - `src/lib/willab/feedbackWalkModel.ts` — the walk as mounted on the page.
 - `src/lib/willab/walkThread.ts` — the steps as Lounge messages, stored once.
 - `src/lib/willab/lensScreen.ts` — the lens's wait before the walk (A2).
@@ -1539,6 +1655,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-11-02 · N309 · built (C, C0, C0a, C2, C3, C4, C5, C7, C8, C9, K, T): the One thing walk: "Hi {name}.", Last time when last Take's fix rose, their best with why it worked, "And now, one thing to improve:" and one fix (the Clearer version, the AI clip after their best, or the Sniper on a pace or pause week), "Try it" with Skip or Keep mine, two tries ("Yes. That's it.", "Close. Once more.", "Good try. Take it with you."), from Take 2 one moment of another speaker with its level turning across Takes, the helper words on their own, "Lesson done." and Close back to the chat. The server serves the strongest and the one fix only. Was: N289's three moments, each praise's helper-words picker, three judged moments every walk from Take 1, the tempo step on any Take, N285's lines, the summary and Next onto the Ideal Text inside the walk · BE slice4-walk (the code), FE (this PR)
 
 - 2026-11-02 · N301 · built (B2, B3, B4, J2): no picture beside any bubble, the coach's included: the coach's grey-blue silhouette is gone from the Lounge (`ChatAvatar`), the walk and the coach panel (`WalkAvatar` draws nothing). Who wrote a bubble shows in its words ("Your coach:"). Was: only the coach kept a picture, on phones (founder 2026-10-14) · BE (N301 log), FE (this PR)
 - 2026-10-31 · N293 · built (H1): each Take carries its context (who, what it answers, success; sure, guess or missing), from Will's answers in the talk's setup, the plan's answers and Will's "heard" read of the Take, now kept; a clip carrying the key line or the call to action counts for more as the strongest and is likelier to be the one fixed. Nothing on screen changes. Was: the pick read voice and words only, and the heard read was thrown away after Will asked · BE #1534 (the decision), BE #1535 (the code), FE (this PR)

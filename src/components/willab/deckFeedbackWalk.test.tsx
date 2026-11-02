@@ -24,6 +24,11 @@ OUTCOME
   O8  A moment whose voice sounded confident and whose words are reworded
       offers its helper words after the rewording; one whose voice did not,
       only the rewording (N113).
+  O9  The One thing walk on the deck: their best, then the one fix; after
+      "Keep mine" and a skipped try, the helper words come on their own
+      through the deck's own save (the lock, then the words), both moments
+      lose their black line, and Close under "Lesson done." asks the summary
+      once and goes back to the chat (N309).
 PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's sheet"
          O2 -> "‹ › move through the walk's chat, never answering and never
                 closing it (founder 2026-10-20)"
@@ -38,6 +43,7 @@ PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's 
                 given, never its practise again (founder 2026-10-21)"
          O8 -> "a confident voice whose words are reworded gets its helper
                 words after the rewording (founder 2026-10-22, N113)"
+         O9 -> "the One thing walk saves its helper words without a pick, settles both moments and asks the summary once at Close (N309)"
 WHY      Feedback walk lock 2026-10-06/2026-10-12; founder 2026-10-21 ("the
          black lines on the ideal text are still there even though I walked
          through them"); 2026-10-22 (N113, "After the rewording"). The
@@ -432,5 +438,58 @@ describe("the clearer version in the walk (D-FW-15)", () => {
       await act(async () => root.unmount());
       root = createRoot(container);
     }
+  });
+});
+
+
+describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
+  it("the One thing walk saves its helper words without a pick, settles both moments and asks the summary once at Close (N309)", async () => {
+    const first = SLIDES[0].indexOf("Today I want");
+    // Their best on slide 1 (the strongest); the one fix on slide 2, its
+    // Clearer version (the between).
+    const best = {
+      ...base, id: "s-best", start: first, end: first + 12, quote: "Today I want", blockId: "block-1",
+      feedbackFamily: "confident_voice", source: "confident_voice", openCard: "praise",
+      bookmarkTier: "confident", highestMoment: true, walkSlot: "strongest", snippetId: "snip-best",
+      praiseLine: "Smooth and steady, no stumbling. That sounded confident!",
+    } as unknown as DocumentSuggestion;
+    const fix = {
+      ...base, id: "s-fix", start: at, kind: "replace", proposedText: "retention rose",
+      feedbackFamily: "rewrite_clarity", source: "new_take", blockKey: 2, bookmarkTier: "standard",
+      practicePrompt: true, walkSlot: "between",
+      evidence: { projectId: "arc-1", takeSessionId: "take-2", slideIndex: 1, paragraphIndex: 1, start: 0, end: 17 },
+    } as unknown as DocumentSuggestion;
+    const fixVoice = { ...judgement, bookmarkTier: "standard", practicePrompt: true, walkSlot: "between" } as unknown as DocumentSuggestion;
+    const onClose = vi.fn();
+    const p = props({ suggestions: [best, fixVoice, fix], onLensClose: onClose });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    expect(screen()).toBe("walk-screen-praise");
+    expect(live()!.textContent).toContain("Why it worked: smooth and steady, no stumbling.");
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    expect(screen()).toBe("walk-screen-clearer");
+    await click(live()!.querySelector("[data-testid='walk-keep']"));
+    expect(p.onKeepMine).toHaveBeenCalled();
+    // Their own sentence, on the recorder; Skip on it.
+    expect(screen()).toBe("walk-screen-practise");
+    await click(live()!.querySelector("[data-testid='walk-skip']"));
+    await act(async () => undefined);
+    // The helper words, on their own: "retention went up", their own words,
+    // through the deck's save (the lock, then the words), no picker.
+    expect(live()!.querySelector("[data-walk-word-picker]")).toBeNull();
+    expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe("retention went up");
+    const chunkOf = (call: unknown[]) => (call[0] as { part: { id: string } }).part.id;
+    expect((p.onLockPart.mock.calls as unknown[][]).map(chunkOf)).toEqual(["p2"]);
+    expect((p.onSetRootPhrase.mock.calls as unknown[][]).map((c) => [chunkOf(c), (c[1] as { text: string }).text])).toEqual([
+      ["p2", "retention went up"],
+    ]);
+    // Both moments were told to the server as walked past.
+    expect(vi.mocked(reportMomentEvent).mock.calls.map((c) => c[0])).toEqual(expect.arrayContaining(["snip-best", "snip-1"]));
+    expect(screen()).toBe("walk-screen-done");
+    const fetched = () => vi.mocked(fetch).mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/review/summary"));
+    expect(fetched()).toEqual([]);
+    await click(live()!.querySelector("[data-testid='walk-close']"));
+    expect(fetched()).toHaveLength(1);
+    expect(onClose).toHaveBeenCalled();
   });
 });

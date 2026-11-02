@@ -3,12 +3,14 @@ STORY    As a speaker practising, I want each try answered with a line in words 
 OUTCOME
   O1  The "not yet", "better" and "thanks" lines come from the approved wording and contain no digits.
   O2  A try the server could not hear is a step that says so, in place of the machine's answer (founder, signed 2026-10-21).
+  O3  The One thing walk's fix: a try that lands says "Yes. That's it."; one miss "Close. Once more." with a try left; a second miss "Good try. Take it with you." and no third try (N309).
 PROVES   O1 -> each try's line is the one for the reading that moved, never a number
          O2 -> a try the server could not hear is a late step that says so
-WHY      Never-rule 1 (no scores to speakers).
+         O3 -> the One thing walk's fix: lands, one miss, two misses
+WHY      Never-rule 1 (no scores to speakers); founder 2026-10-31 (N309, the One thing walk).
 */
 import { describe, expect, it } from "vitest";
-import { PRACTISE_LINES } from "@/components/willab/idealEditCopy";
+import { ONE_THING_COPY, PRACTISE_LINES } from "@/components/willab/idealEditCopy";
 import { buildWalkPlan, type WalkStep } from "./walkPlan";
 import {
   encourageLine,
@@ -57,5 +59,31 @@ describe("the practise loop's plan", () => {
     const late = withRead(checking, PRACTISE_AT + 1, tried, null, { retryAttempt: 1 });
     expect(late[PRACTISE_AT + 2]).toMatchObject({ key: "late" });
     expect(late[PRACTISE_AT + 2].kind).toBeUndefined();
+  });
+});
+
+
+describe("the One thing walk's fix (founder 2026-10-31, N309)", () => {
+  it("the One thing walk's fix: lands, one miss, two misses", () => {
+    const one = buildWalkPlan({
+      moments: [
+        { index: 0, slide: 0, praise: true, slot: "strongest" },
+        { index: 1, slide: 1, clearer: true, slot: "between" },
+      ],
+      coachNote: false,
+      practiceOn: true,
+      guest: false,
+    });
+    const first = one.findIndex((s) => s.key === "practise");
+    const landed = tryOnce(one, first, { next: "praise", key: "cue:general" }, 1);
+    expect(improvedLine(landed.plan, landed.at)).toBe(ONE_THING_COPY.landed);
+    const miss = tryOnce(one, first, { next: "again", key: null }, 1);
+    expect(miss.plan[miss.at].key).toBe("encourage");
+    expect(encourageLine(miss.plan, miss.at)).toBe(ONE_THING_COPY.onceMore);
+    // The second try is already planned after the miss; a second miss ends it.
+    const second = tryOnce(miss.plan, miss.at + 1, { next: "again", key: null }, 2);
+    expect(second.plan[second.at].key).toBe("thanks");
+    expect(thanksLine(second.plan, second.at)).toBe(ONE_THING_COPY.takeItWithYou);
+    expect(second.plan.filter((s) => s.key === "practise")).toHaveLength(2);
   });
 });
