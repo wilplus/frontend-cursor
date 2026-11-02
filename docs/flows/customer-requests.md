@@ -112,7 +112,17 @@ order it is built in.
      with the day above them ("Today", otherwise the date) and the time in
      each bubble, bottom right; under a big emoji, its meaning and time
      ("It's good · 06:12"). The bubbles stay the Lounge's. The bar is the
-     three emoji in the box; the mic comes with the voice notes.
+     three emoji in the box and, on its right, the Lounge's mic, 40px and
+     plain: you can always answer with an emoji or a voice note (N321
+     item 2). The mic records with the one recording bar (the trash, the
+     strip with Stop inside, N314), up to two minutes; Stop sends, the
+     trash throws it away, and the bar comes back. The voice note joins
+     the thread once the backend has kept it; a refused mic, a failed
+     recording or a failed send (any refusal, the processing authorization's
+     too) brings the bar back and shows nothing new. A voice note is a
+     bubble like the others, mine orange on the right, theirs grey on the
+     left: the plan's small player (play, the drawn bars, the length) and
+     the time bottom right.
    - **Will's chat** keeps the WillpowerLab bar, with "‹ Will" under it
      (N322 item 4). On a computer, the list and a person's chat sit in a
      phone-wide column in the middle.
@@ -378,11 +388,12 @@ list of chats in front of the Lounge (C1: Will pinned, then each chat's
 letter circle, title, subtitle, time and last message, newest first, a new
 message bold with an orange dot; the first time, the two demo chats) and a
 chat's screen, the conversation only, under its own top bar in the
-WillpowerLab bar's place, with the day and each message's time and the
-three emoji in the locked bar (N298, N302, N305, N306, N311, N321, N322).
-Off, /chat is the Lounge as it is. Not yet: the voice note and the mic
-beside the emoji (they need the backend's storage), "Record an answer" for
-a complex question (N321 item 4), passing on, the status and the filters.
+WillpowerLab bar's place, with the day and each message's time, the
+three emoji in the locked bar and the mic beside them for a voice note of
+up to two minutes, played in its bubble (N298, N302, N305, N306, N311,
+N321, N322). Off, /chat is the Lounge as it is. Not yet: "Record an
+answer" for a complex question (N321 item 4), passing on, the status and
+the filters.
 There is no typing outside Will's chat (N298 item 4).
 
 Nothing else built. The order of the build, each slice proving one thing (N223
@@ -464,8 +475,13 @@ The list of chats and a chat's screen (§2): frontend
 `src/components/willab/chats/` (mounted by `WillabSurface.tsx` around the
 Lounge, which it leaves as it is; the door's `navbar` tells it to hide the
 WillpowerLab bar while a person's chat is open; `chatTime.ts` the times and
-the day, `chatOpened.ts` what is new), `src/services/api/chats.ts` and the
-BFF routes `src/app/api/v2/chats/`; the backend's `/v2/chats` routes.
+the day, `chatOpened.ts` what is new; the voice note records with
+`useVoiceNote.ts` and the locked `RecordingBar.tsx`, and plays with
+`plan/VoicePlayer.tsx`), `src/services/api/chats.ts` and the BFF routes
+`src/app/api/v2/chats/` (the voice note's upload `[chatId]/voice/` and its
+playback `[chatId]/messages/[messageId]/audio/`, in byte ranges); the
+backend's `/v2/chats` routes, `POST /v2/chats/<id>/voice` and
+`GET /v2/chats/<id>/messages/<messageId>/audio`.
 
 The rest is not built. Where it will live, so §1 has a home from the first PR:
 
@@ -531,6 +547,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N321 · C1, §2, §4: the mic in a person's chat: on ring 6, the bar is the three emoji in the box and the Lounge's mic on its right (40px, plain, "Voice note"); a tap records with the one recording bar (N314), up to two minutes; Stop posts the recording and its length to `POST /v2/chats/<id>/voice`, the trash throws it away, the bar comes back at once and the voice note joins the thread when the backend answers. A refused mic, a failed recording or a failed send shows nothing new. A voice note is a bubble like the others (mine orange on the right, theirs grey on the left) with the plan's small player and its time, played from `GET /v2/chats/<id>/messages/<messageId>/audio`. The emoji in the box are 38px at 23px, as the prototype's `r6Bar` draws them. Was: the three emoji only, at 40px and 21px; "the mic comes with the voice notes" · BE (the voice routes), FE (this PR)
 - 2026-11-02 · N321, N322 · C1, K, §2, §4: the chats with a WhatsApp feel, on ring 6: each row a circle with the first letter of the name (no photo), the name with who they are, the time ("06:12", the date before today) and the last message on one line ("👍 It's good", "🎤 Voice message"); a new message bold with an orange dot, no number, from when the chat was last opened on this device; Will pinned first with his mark and a pin, then the chats newest first. In a person's chat the WillpowerLab bar goes and the chat's own top bar takes the top (back, the letter circle, the name and who they are); the messages start at the bottom, under "Today" or the date, each with its time; on a computer, a phone-wide column. Will's chat keeps the WillpowerLab bar. Was: rows of text only in their order from the backend, the chat under the WillpowerLab bar, the messages at the top with no time. Not yet: the mic, the voice notes and "Record an answer" · FE (this PR)
 - 2026-11-02 · N298, N302, N306, N311 · C1, §2, §4: built behind ring 6 (feature `chats`): the list of chats in front of the Lounge, Will pinned first (his row opens the Lounge as it is, with a back to the list), then each chat with its title, subtitle and last message, and the two demo chats the first time; a chat's screen with back, title and subtitle, the Lounge's bubbles with no picture (N301), and the locked bar's shape with 👍 👀 🙏 in the box where Will's chat has "Type here", each sent emoji large with its meaning under it ("It's good", "Seen, I'll answer", "Thanks"). Off, /chat is the Lounge as it is. No typing, voice note or passing on yet · BE (the chats routes), FE (this PR)
 - 2026-10-30 · N274 · C1: the list of chats is everyone's, not only an answerer's; a person whose only chat is Will's opens on it. Was: a speaker without customer requests never saw the list · BE #1506, FE (this PR)
