@@ -7,13 +7,18 @@ import type { OfferType } from "./loungeOffers";
 /*  services/after_take.py).                                                   */
 /*                                                                            */
 /*  After the Feedback walk the chat shows the Take's card and its summary,   */
-/*  then the asks one at a time, then the closing message with "Record Take  */
-/*  N" (founder 2026-10-20, N89). The backend stores the closing message held */
-/*  back (metadata.next_take, held_for the ask in front of the speaker) while */
-/*  the chain runs; the chat does not draw it, and the backend advances the   */
-/*  chain under whatever closed each ask (a tap, a typed turn, the form       */
-/*  closing). In the chain's first form the summary itself was the held row  */
-/*  (metadata.summary); a row of that form still waiting is read the same.   */
+/*  then the asks one at a time, then the goodbye, "Good job. See you next   */
+/*  time." (founder 2026-10-31, N294 item 6: no push to the next Take; was    */
+/*  "Look, practice makes perfect…" with "Record Take N", N89). The backend  */
+/*  stores the closing message held back (metadata.next_take, held_for the    */
+/*  ask in front of the speaker) while the chain runs; the chat does not draw */
+/*  it, and the backend advances the chain under whatever closed each ask (a  */
+/*  tap, a typed turn, the form closing). In the chain's first form the       */
+/*  summary itself was the held row (metadata.summary); a row of that form    */
+/*  still waiting is read the same. Under the goodbye (and the plan's        */
+/*  progress, N319 item 7) the tap "I want to continue my practice"; tapping  */
+/*  it, or typing that they want to practise, brings "Record Take N" under   */
+/*  the chat, alone (`afterGoodbye`, N294 item 7, N296 state 4).              */
 /* -------------------------------------------------------------------------- */
 
 type Meta = Pick<LoungeMessage, "metadata">;
@@ -119,4 +124,51 @@ export function askShowing(drawn: readonly Meta[], formOpen: boolean): boolean {
 export function recordedPast(messages: readonly Pick<LoungeMessage, "client_id" | "kind">[]): ReadonlySet<string> {
   const newest = messages.findLastIndex((m) => m.kind === "recording_summary");
   return new Set(messages.slice(0, Math.max(newest, 0)).map((m) => m.client_id));
+}
+
+/** The tap under the goodbye after a Take (founder 2026-10-31, N294 item 6,
+ *  signed). */
+export const CONTINUE_PRACTICE = "I want to continue my practice";
+
+/** The Take whose goodbye it is: "Record Take N" records the one after it. */
+export type NextTake = { arcId: string; takeIndex: number; takeSessionId: string };
+
+/** The Take a goodbye, or the speaker's choice to continue under it, names. */
+export function goodbyeTake(meta: Record<string, unknown> | null | undefined): NextTake | null {
+  const arcId = meta?.arc_id;
+  const takeIndex = meta?.take_index;
+  const takeSessionId = meta?.take_session_id;
+  if (typeof arcId !== "string" || typeof takeIndex !== "number" || typeof takeSessionId !== "string") return null;
+  return { arcId, takeIndex, takeSessionId };
+}
+
+/** Where the chat stands after a Take's goodbye (messages oldest first):
+ *  "tap" while the goodbye, with the plan's progress under it, is the last
+ *  thing said, so "I want to continue my practice" sits under it; "record"
+ *  once the speaker chose to continue, so "Record Take N" stands alone under
+ *  the chat; null otherwise: the goodbye still held behind an ask, anything
+ *  said since, or a newer Take recorded in any project (N244, N251). The
+ *  walk's own rows (a coach's later word) never count as said since. */
+export function afterGoodbye<T extends Pick<LoungeMessage, "client_id" | "kind" | "metadata">>(
+  messages: readonly T[],
+): { step: "tap" | "record"; next: NextTake; message: T } | null {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const m = messages[i];
+    const meta = m.metadata ?? {};
+    if (m.kind === "walk_step" || meta.plan_progress === true) continue;
+    const step = meta.continue_practice === true ? "record" : meta.next_take === true && heldFor(m) === null ? "tap" : null;
+    const next = step ? goodbyeTake(meta) : null;
+    if (!step || !next || recordedPast(messages).has(m.client_id)) return null;
+    return { step, next, message: m };
+  }
+  return null;
+}
+
+const PRACTISE = /\b(practi[cs]e|practi[cs]ing|record|continue|keep going|again|next take|another take)\b/i;
+const NOT_NOW = /\b(no|not|don'?t|never|later|tomorrow|stop)\b/i;
+
+/** Typed words that say they want to practise now (N294 item 6): they bring
+ *  "Record Take N" as the tap does. Pure. */
+export function wantsToPractise(text: string): boolean {
+  return PRACTISE.test(text) && !NOT_NOW.test(text);
 }

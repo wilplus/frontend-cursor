@@ -15,7 +15,7 @@ import {
   type ChatQueryResponse,
 } from "@/services/api/chatQuery";
 import { warmIdealTextOpen } from "@/services/api/idealText";
-import { newestStamp, refreshNewCoachFeedback, stampLoungeMessage, type LoungeMessage } from "@/services/api/loungeMessages";
+import { newestStamp, refreshNewCoachFeedback, stampLoungeMessage, type LoungeMessage, type LoungeMessageDraft } from "@/services/api/loungeMessages";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import {
   isRetiredLoungeMessage,
@@ -94,9 +94,21 @@ import SymmetricPair from "./SymmetricPair";
 import { offersUpdateSlides, SlidesAskComposer, SlidesAskSlot, useSlidesAsk } from "./UpdateSlides";
 import { NewProjectAskComposer, NewProjectAskSlot, useNewProjectAsk } from "./OneProjectQuestion";
 import { useAdminAsk } from "./useAdminAsk";
-import { afterTakeOrder, askShowing, askToOpen, heldFor, heldMessage, heldTake, recordedPast, waitingFor } from "./afterTake";
-import { postAfterTake } from "@/services/api/afterTake";
-import { setInstallable } from "@/lib/willab/installable";
+import {
+  afterGoodbye,
+  afterTakeOrder,
+  askShowing,
+  askToOpen,
+  CONTINUE_PRACTICE,
+  heldFor,
+  heldMessage,
+  heldTake,
+  type NextTake,
+  waitingFor,
+  wantsToPractise,
+} from "./afterTake";
+import { postAfterTake, postLoungeVisit } from "@/services/api/afterTake";
+import { installableNow, setInstallable } from "@/lib/willab/installable";
 import { ConsentAskActions } from "./ConsentAsk";
 import OfferBubble from "./OfferBubble";
 import {
@@ -153,7 +165,8 @@ import {
 } from "./LoungeStrengths";
 import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
-import WillQuestionBubble, { willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
+import WillQuestionBubble, { TapRow, willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
+import { RecordDockButton } from "./plan/PlanDock";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -1081,10 +1094,6 @@ export default function Lounge({
   const takeInFlight =
     processingResume?.status === "analyzing" || documentSettle.pending;
 
-  // RECORD THE NEXT TAKE FROM ITS SUMMARY (founder 2026-10-20): the
-  // project's newest summary carries "Record Take N", which opens the text
-  // the way its own button does (from Take 2 on, the sharing question
-  // first). Held while a Take is still landing, as the "+" is.
   // The plan in the Lounge (docs/flows/the-plan.md): its rows, its footer in
   // place of the message box, its sheets. Off unless the ring row reaches.
   const plan = usePlanLounge({
@@ -1095,18 +1104,10 @@ export default function Lounge({
     onRecordNext: (arc) => openIdealText(arc, "share"),
     recordHeld: takeInFlight,
   });
-  // Only the newest Take keeps "Record Take N", whatever the project (N244, N251).
-  const recordedSince = useMemo(() => recordedPast(messages), [messages]);
-  const nextTakeOf = (m: LoungeMessage): SummaryRecord | null => {
-    // A practice day's one thing, newer than this message, holds the chat's
-    // one record button (N167).
-    if (plan.oneHoldsRecord || recordedSince.has(m.client_id)) return null;
-    const meta = m.metadata ?? {};
-    const arc = meta.arc_id;
-    const take = meta.take_index;
-    if (typeof arc !== "string" || typeof take !== "number" || olderTake(meta) !== null) return null;
-    return { label: `Record Take ${take + 1}`, onClick: () => openIdealText(arc, "share"), disabled: takeInFlight };
-  };
+  // AFTER THE GOODBYE (founder 2026-10-31, N294 items 6 and 7, N296 state
+  // 4): no push to the next Take; the tap under the goodbye, then "Record
+  // Take N" alone under the chat (`useGoodbye`).
+  const goodbye = useGoodbye({ messages, oneHoldsRecord: plan.oneHoldsRecord, olderTake, append: thread.append });
 
   const closeProcessingOverlay = useCallback(() => {
     setOpenedProcessingSessionId(null);
@@ -1342,9 +1343,6 @@ export default function Lounge({
   // closes. The backend lets it go itself after a tap on the question or a
   // typed turn; the forms (Save, Not now, See prices...) ask for it here.
   const waiting = useMemo(() => heldMessage(messages), [messages]);
-  // The Takes whose closing message is in the thread (N89): "Record Take N"
-  // is under it, not under the summary.
-  const closingTakes = useMemo(() => closingTakesOf(messages), [messages]);
   const lettingGoRef = useRef(false);
   const letGo = useCallback(async () => {
     if (lettingGoRef.current) return;
@@ -1441,6 +1439,19 @@ export default function Lounge({
     openOffer(ask.type);
   }, [threadLoading, drawn, install.canOffer, waiting, letGo, openOffer]);
 
+  // SETTINGS ASKS WAIT FOR THE NEXT VISIT (founder 2026-10-31, N294 item 8,
+  // N295): once a visit, when the thread has loaded, the backend may write
+  // the one settings ask that waited (WhatsApp, then the home screen; never
+  // after a Take, never before the second); its form opens by itself, as
+  // above. A visit is the tab's session.
+  const visitedRef = useRef(false);
+  useEffect(() => {
+    if (threadLoading || !thread.signedIn || visitedRef.current) return;
+    visitedRef.current = true;
+    if (!newVisit()) return;
+    void postLoungeVisit(installableNow()).then((wrote) => (wrote ? reload().catch(() => undefined) : undefined));
+  }, [threadLoading, thread.signedIn, reload]);
+
   // The founder's voice notebook (Will learning plan, step 1, 2026-10-20).
   const notebook = useVoiceNotebook({
     signedIn: thread.signedIn,
@@ -1515,6 +1526,8 @@ export default function Lounge({
     // user's text rather than silently dropping it.
     if (!q || botThinking) return;
     setDraftText("");
+    // Under the goodbye, saying they want to practise is the tap (N294 item 6).
+    if (goodbye.typed(q)) return;
     await runSend(q);
   }
 
@@ -1725,7 +1738,7 @@ export default function Lounge({
         onOpenIdealText={openIdealText}
       />
     ) : isSummaryLike(item.message.metadata) ? (
-      <SummaryBubble key={item.reactKey} message={item.message} record={recordFor(item.message, closingTakes, nextTakeOf)} />
+      <SummaryBubble key={item.reactKey} message={item.message} />
     ) : isOwnVoiceNote(item.message, notebook) ? (
       <VoiceNoteBubble key={item.reactKey} body={item.message.body} clientId={item.message.client_id} notebook={notebook}>
         <Linkified text={item.message.body} />
@@ -1861,6 +1874,10 @@ export default function Lounge({
             );
           })
         )}
+
+        {/* Under the goodbye after a Take, the one tap (N294 item 6): it
+            stays the speaker's own answer in the thread. */}
+        <ContinueTap shown={goodbye.tap && !thread.loading} onTap={goodbye.choose} />
 
         {/* While a Take processes (founder lock 2026-10-12, section 1): a
             bubble in the chat with the typing dots (founder 2026-10-20, in
@@ -2072,9 +2089,13 @@ export default function Lounge({
       ) : null}
       {plan.dock}
       {plan.sheets}
-      {/* Hidden whole while the plan's footer stands in for it, so its empty
-          wrapper adds no gap under that footer (founder 2026-10-30). */}
-      <div className={plan.composerDisplay("contents")}>
+      {/* The next Take offered (N294 item 7, N296 state 4): the plan's black
+          button with the red dot, alone, the message box and the mic gone. */}
+      <RecordNextTake next={goodbye.recordNext} held={takeInFlight} onRecord={(arc) => openIdealText(arc, "share")} />
+      {/* Hidden whole while the plan's footer, or the next Take's button,
+          stands in for it, so its empty wrapper adds no gap under it
+          (founder 2026-10-30). */}
+      <div className={hiddenWhile(goodbye.recordNext, plan.composerDisplay("contents"))}>
       <NewProjectAskComposer ask={newProjectAsk}>
       <SlidesAskComposer ask={slidesAsk}>
       <PolicyUpdateComposer>
@@ -3065,9 +3086,96 @@ export function useCoachUpdates(messages: readonly LoungeMessage[]): {
   return { waits };
 }
 
-/** The Take's summary and, since N89, its closing message ("Look, practice
- *  makes perfect…"): both drawn as the plain bubble, the record button
- *  under whichever carries the next step. */
+/** After a Take's goodbye (founder 2026-10-31, N294 items 6 and 7, N296
+ *  state 4): no push to the next Take. Under the newest Take's goodbye the
+ *  tap "I want to continue my practice"; once chosen, or typed, "Record Take
+ *  N" stands alone under the chat. Only the newest Take's goodbye, whatever
+ *  the project (N244, N251); a practice day's one thing, newer, holds the
+ *  chat's one record button (N167). */
+function useGoodbye({
+  messages,
+  oneHoldsRecord,
+  olderTake,
+  append,
+}: {
+  messages: readonly LoungeMessage[];
+  oneHoldsRecord: boolean;
+  olderTake: (meta?: Record<string, unknown> | null) => number | null;
+  append: (draft: LoungeMessageDraft) => Promise<LoungeMessage>;
+}) {
+  const goodbye = useMemo(() => {
+    const at = afterGoodbye(messages);
+    return at && !oneHoldsRecord && olderTake(at.message.metadata) === null ? at : null;
+  }, [messages, oneHoldsRecord, olderTake]);
+  /** They chose to continue: their own bubble, naming the Take it follows. */
+  const choose = (said: string): void => {
+    if (!goodbye) return;
+    const { arcId, takeIndex, takeSessionId } = goodbye.next;
+    void append({
+      role: "user",
+      kind: "text",
+      body: said,
+      metadata: { continue_practice: true, arc_id: arcId, take_index: takeIndex, take_session_id: takeSessionId },
+    });
+  };
+  return {
+    tap: goodbye?.step === "tap",
+    recordNext: goodbye?.step === "record" ? goodbye.next : null,
+    choose,
+    /** Typed words under the goodbye that say they want to practise are the
+     *  tap; true when taken so. */
+    typed: (said: string): boolean => {
+      if (goodbye?.step !== "tap" || !wantsToPractise(said)) return false;
+      choose(said);
+      return true;
+    },
+  };
+}
+
+/** "I want to continue my practice", on the right, as Will's tap answers. */
+function ContinueTap({ shown, onTap }: { shown: boolean; onTap: (said: string) => void }) {
+  if (!shown) return null;
+  return <TapRow labels={[CONTINUE_PRACTICE]} onTap={onTap} dataAttr={{ "data-continue-practice": "" }} />;
+}
+
+/** "Record Take N" under the chat, alone; held while a Take is still
+ *  landing, as the "+" is. It opens the text the way its own button does
+ *  (from Take 2 on, the sharing question first). */
+function RecordNextTake({ next, held, onRecord }: { next: NextTake | null; held: boolean; onRecord: (arcId: string) => void }) {
+  if (!next) return null;
+  return (
+    <RecordDockButton
+      label={`Record Take ${next.takeIndex + 1}`}
+      onClick={() => onRecord(next.arcId)}
+      disabled={held}
+      dataAttr={{ "data-record-next": "" }}
+    />
+  );
+}
+
+/** A wrapper's class: hidden while `standIn` takes its place. */
+function hiddenWhile(standIn: unknown, shown: string): string {
+  return standIn ? "hidden" : shown;
+}
+
+const VISIT_KEY = "willab.lounge.visit";
+
+/** Whether this Lounge load starts a visit: the first in the tab's session.
+ *  Without storage every load is one; the backend still asks at most once a
+ *  Take. */
+function newVisit(): boolean {
+  try {
+    if (window.sessionStorage.getItem(VISIT_KEY)) return false;
+    window.sessionStorage.setItem(VISIT_KEY, "1");
+  } catch {
+    // No storage (a private window, blocked site data): a visit each load.
+  }
+  return true;
+}
+
+/** The Take's summary and, since N89, its closing message (since N294 the
+ *  goodbye, "Good job. See you next time."): both drawn as the plain
+ *  bubble. */
 function isSummaryLike(meta: Record<string, unknown> | null | undefined): boolean {
   return meta?.summary === true || meta?.next_take === true;
 }
@@ -3084,7 +3192,7 @@ const takeIdOf = (m: LoungeMessage): string | null =>
  *  walk, only its Feedback walk (at its first step), its Ideal Text card and
  *  the coach's "Later" bubble (B3); the summary is the walk's last step
  *  (D4), except for a Take of the chain's first form, with no closing
- *  message, whose summary carries "Record Take N". */
+ *  message. */
 function chatShows(m: LoungeMessage, walkAt: ReadonlyMap<string, ChatWalk>, closing: ReadonlySet<unknown>): boolean {
   if (m.kind === "walk_step") return chatDrawsStep(m) || walkAt.has(m.client_id);
   if (m.metadata?.summary === true) return !closing.has(m.metadata.take_session_id);
@@ -3105,18 +3213,6 @@ function summaryByTake(messages: readonly LoungeMessage[]): Map<string, string> 
 /** The Takes whose closing message is in the thread. */
 function closingTakesOf(messages: readonly LoungeMessage[]): ReadonlySet<unknown> {
   return new Set(messages.filter((m) => m.metadata?.next_take === true).map((m) => m.metadata?.take_session_id));
-}
-
-/** "Record Take N" under the closing message (N89); under the summary only
- *  for a Take of the chain's first form, which has no closing message. */
-function recordFor(
-  message: LoungeMessage,
-  closingTakes: ReadonlySet<unknown>,
-  nextTakeOf: (m: LoungeMessage) => SummaryRecord | null,
-): SummaryRecord | null {
-  const meta = message.metadata ?? {};
-  if (meta.summary === true && closingTakes.has(meta.take_session_id)) return null;
-  return nextTakeOf(message);
 }
 
 /** A Take's walk in the chat (founder 2026-10-26, N192, B3, B10): one grey
@@ -3622,12 +3718,13 @@ export function reviewCardOf(
   return title ? { title, take } : null;
 }
 
-/** The closing summary after a review (founder lock 2026-10-12, section 3):
- *  one plain bubble that is not tapped. Rewritten by a coach update, it
- *  keeps the earlier words one tap away; the update itself is its own
- *  bubble under "Later · from your coach". The newest Take's summary ends
- *  with "Record Take N" in the same bubble (founder 2026-10-20). */
-function SummaryBubble({ message, record = null }: { message: LoungeMessage; record?: SummaryRecord | null }) {
+/** The closing summary after a review (founder lock 2026-10-12, section 3),
+ *  and since N89 the goodbye after a Take: one plain bubble that is not
+ *  tapped. Rewritten by a coach update, it keeps the earlier words one tap
+ *  away; the update itself is its own bubble under "Later · from your
+ *  coach". No bubble carries a button (founder 2026-10-31, N294 item 7):
+ *  "Record Take N" stands alone under the chat. */
+function SummaryBubble({ message }: { message: LoungeMessage }) {
   const [earlierOpen, setEarlierOpen] = useState(false);
   const meta = message.metadata ?? {};
   const earlier = meta.coach_update === true && typeof meta.earlier === "string" ? meta.earlier : null;
@@ -3651,25 +3748,10 @@ function SummaryBubble({ message, record = null }: { message: LoungeMessage; rec
             ) : null}
           </>
         ) : null}
-        {record ? (
-          <button
-            type="button"
-            data-summary-record
-            onClick={record.onClick}
-            disabled={record.disabled}
-            className="mb-3 mt-5 flex h-8 w-fit items-center gap-1.5 rounded-full border border-border bg-background px-3.5 text-[14px] font-semibold text-foreground disabled:cursor-default disabled:opacity-30"
-          >
-            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-record" />
-            {record.label}
-          </button>
-        ) : null}
       </div>
     </div>
   );
 }
-
-/** The next Take, from its summary: the text's own "Record Take N". */
-type SummaryRecord = { label: string; onClick: () => void; disabled: boolean };
 
 /** A wheel anywhere on the page outside the thread scrolls the thread,
  *  unless it lands in an overlay, a dialog or a field that scrolls itself.

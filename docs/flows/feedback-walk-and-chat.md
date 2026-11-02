@@ -100,8 +100,8 @@ step; the loop never waits for a coach.
      (G1);
   2. **the pair:** the Take's "Feedback walk" bubble and, right under it, the
      Take's Ideal Text card (D4);
-  3. the chain after the Take, ending with "Look, practice makes perfect…"
-     and "Record Take N" (D4).
+  3. the chain after the Take, ending with the goodbye, "Good job. See you
+     next time.", and the tap "I want to continue my practice" (D4).
 
   **Before the first Take** the empty Lounge opens with Will's hello, "Hi,
   I'm Will. 👋 Record your first take, and I will help you with your
@@ -136,12 +136,15 @@ step; the loop never waits for a coach.
   their answers, other speakers and the answers, and the summary (D4).
   Opening a walk posts nothing in the chat.
 
-  **Record buttons:** under the thread the Lounge has only the message box;
-  "Record Take N" is in the thread, under the closing message (D4). With a
-  plan, under the plan card, in place of "Type here", there is only "Start
-  your first recording" (N161), and on a practice day the chat has one
-  record button, in the newest bubble (N167); the plan is decided, not built
-  ([`the-plan.md`](the-plan.md) E5, G6).
+  **Record buttons:** under the thread the Lounge has only the message box.
+  No bubble carries a button (N294 item 7): once the speaker chooses to
+  continue after the goodbye, "Record Take N" stands alone in the message
+  box's place, the plan's black button with the red dot ("Start your first
+  recording"'s shape), the message box and the mic gone (N296 state 4, D4).
+  With a plan, under the plan card, in place of "Type here", there is only
+  "Start your first recording" (N161), and on a practice day the chat has
+  one record button, in the newest bubble (N167; [`the-plan.md`](the-plan.md)
+  E5, G6).
 
   (Founder 2026-10-26, N192: "there should be just the ideal text after the
   take and the feedback walk above it", "make sure that all of these are in
@@ -522,7 +525,8 @@ praised moment:
   only with curiosity.
 - **D3** It ends on what the Take showed, never with a question and, since
   N89 (2026-10-20), without the next step and without the record button:
-  the chain (D4) brings them.
+  the chain (D4) ends the chat after the Take, and nothing pushes the next
+  Take (N294 item 6).
 - **D4** **How the review ends in the chat**, one action at a time, each
   after the one before is answered (N89):
   1. the Take's small card (its first slide, the project's name, a version
@@ -533,19 +537,28 @@ praised moment:
      is moved above the Take's whole batch, the admin's asks included
      (2026-10-20: the card had landed between the data question and its
      buttons);
-  3. only then "Look, practice makes perfect. If you're ready, let's go with
-     the next take. 💪" with "Record Take N" under it (backend
-     `services/after_take.py`). The closing message is held back while the
-     chain runs. On a practice day the chat has one record button, in the
-     newest bubble: the closing message keeps its words and gives its button
-     up to the practice day's bubble that comes after it (N167; decided, not
-     built, [`the-plan.md`](the-plan.md) G6).
+  3. only then the goodbye, "Good job. See you next time." (backend
+     `services/after_take.py`), held back while the chain runs. No push to
+     the next Take (founder 2026-10-31, N294 item 6). On a plan: "That's
+     your 15 minutes for today." on a practice day, then one bubble "Good
+     job. See you next {day}." (the plan's next practice day, by its
+     weekday), then Will's grey bubble with the plan's bar and "{n} of
+     {total} practices done." (N319 item 7; it replaced the bar on the
+     walk's end sheet). Under the last of them, on the right, the one tap,
+     orange outlined as Will's tap answers: "I want to continue my
+     practice". Tapping it, or typing that they want to practise, lands as
+     the speaker's own bubble and brings "Record Take N" under the chat,
+     alone (B3, N294 item 7, N296 state 4), which opens the text as its
+     own button does (the sharing question first from Take 2, G). The
+     speaker may simply close the app; the "+" still opens the projects.
+     A practice day's one thing, newer than the goodbye, holds the chat's
+     one record button (N167, [`the-plan.md`](the-plan.md) G6).
 
   **Between two Takes** (N244, N251). From the moment the next Take is
   recorded, in any project, until its walk reaches its summary, the chat
-  shows no "Record Take N". Every closing message above it keeps its words
-  and loses its button for good. The new Take's closing message, written
-  with the summary, brings the button back. So the chat has one record
+  shows no "Record Take N" and no tap under a goodbye. Every goodbye above
+  it keeps its words and loses its tap for good. The new Take's goodbye
+  brings the tap back. So the chat has one record
   button, the newest Take's; another project is reached through the "+".
   The "+" and the Ideal Text page's own "Record Take N" are unchanged
   (founder 2026-10-28: "disable the new event while the processing is
@@ -591,24 +604,34 @@ praised moment:
 - **E1** After the summary comes one ask at most: the first that waits, in
   this order; the others wait for a later Take (backend N189, 2026-10-26;
   was at most two, N94). The order: the CEO panel's ask (from Take 2),
-  WhatsApp (from Take 1 once the Take has gone to the coach, backend N171;
-  at most twice in all), the home screen (once, from Take 2), Will's
-  question, "Did this help?" when the Take looks off. So Take 1 brings the
-  WhatsApp ask and Take 2 the home screen. Will
-  opens WhatsApp, the home screen and "Did this help?" with a lead-in: one or
-  two sentences tied to this Take (never a grade, never advice; "Well, I can
-  see you're doing pretty good. What about adding the application to the
-  screen within one tap?", "You can add your phone number, to know where,
-  when you get the message." are the founder's examples), then the ask's
-  signed words with a light touch, checked as E2's variation is (no number,
-  the ask still said); Will's own question needs none, and the CEO panel's
-  asks are drawn as written. "Yes" to "Did this help?" brings "We're glad it
+  Will's question (which his next one may follow, E2), "Did this help?"
+  when the Take looks off. One question or ask is on screen at a time
+  (N294 item 4).
+
+  **The settings asks wait for the next visit** (founder 2026-10-31, N294
+  item 8, N295). WhatsApp and the home screen are never asked after a
+  Take: they come the next time the speaker opens the app (the Lounge
+  loading, once a visit), one at a time and at most one per Take, never
+  before their second Take is done and never while an ask after a Take
+  waits; WhatsApp first, "It seems you enjoy using WillpowerLab." then
+  "Want a WhatsApp when your coach replies? Add your number." (at most
+  twice in all), the home screen last, "Well, I can see you're doing
+  pretty good." then its signed ask (once, where the phone can add it).
+  Its form opens by itself. Consent is not a settings ask and stays where
+  it is. Was: WhatsApp the Take's one ask from Take 1 (N171), the home
+  screen from Take 2, each opened by Will's lead-in.
+
+  Will opens "Did this help?" with a lead-in: one or two sentences tied to
+  this Take (never a grade, never advice), then the ask's signed words with
+  a light touch, checked as E2's variation is (no number, the ask still
+  said); Will's own question needs none, and the CEO panel's asks are
+  drawn as written. "Yes" to "Did this help?" brings "We're glad it
   helped you.", then the next ask. A typed message passes the ask in front;
   "Not now" on the CEO panel's ask brings it back after the next Take
   (2026-10-20); an ask that no longer applies when its turn comes is
-  skipped. These choices (the condition and place of "Did this help?", Take
-  1's asks, which asks get a lead-in) were confirmed by the founder on
-  2026-10-21. A distressed answer under "What would help?" gets the chat's
+  skipped, and so is a settings ask that a message held from before N294
+  still names. These choices (the condition and place of "Did this help?",
+  which asks get a lead-in) were confirmed by the founder on 2026-10-21. A distressed answer under "What would help?" gets the chat's
   safety reply (backend #1199). The WhatsApp ask's form says, over the
   number field: "We will only use it to let you know your coach texted
   you, or that your call starts soon." The same number gets a booked call's
@@ -630,14 +653,29 @@ praised moment:
   did not come back (the practice's own passage match, no AI guess); who the
   talk is for; what they should do or feel; from Take 3, with both known,
   one deeper question in their own words. Each once per talk. Will's question
-  is never in the lens. Will may say the signed questions with light
+  is never in the lens. It is about the moment the walk just worked on
+  (N294 item 1): it opens on the speaker's own words of the last moment the
+  walk showed (its clip's words), "When you said “…”, " where the question
+  reads on from it ("…, sounds like this one's for {the board}. Right?
+  🎯"), else "We just worked on “…”. " before it; "On purpose?" already
+  quotes its own line and opens on nothing more; with no moment, the
+  question as signed. One at a time (N294 item 4): who the talk is for,
+  answered, is followed by what they should do when that is missing too
+  (no moment quoted again); not answering, or a Skip, ends them. Will says
+  back who the talk is for, "{who}. I'll keep them in mind." (N294 item 5);
+  every other answer keeps "Got it, thanks 🙏". Will may say the signed questions with light
   variation, the same meaning in slightly different words; the tap answers
   and the no-numbers rule stay (founder, 2026-10-20); when the variation
   fails a check he says them as signed.
-- **E3** The tap answers come from what Will knows: this Take's own words,
-  then what the speaker said for an earlier talk, then the signed answers for
-  their field; plus Skip, or their own words in the message box; one
-  follow-up at most. A Take that names its audience twice is checked instead
+- **E3** The tap answers come from what Will knows, the recording first
+  (N297 item 2): this Take's own words, then what the speaker said for an
+  earlier talk, then the signed answers for their field, for who the talk
+  is for and what they should do alike; orange on the right. Who the talk
+  is for ends on "Someone else", which opens "Who is it for, then? 👀",
+  answered in their own words (N319 item 8). No Skip under Will's
+  questions (N296 item 2): not answering is allowed, and the "+" still
+  opens the projects; their own words in the message box answer too. One
+  follow-up at most, with no tap answers (N294 item 3). A Take that names its audience twice is checked instead
   ("Sounds like this one's for {the board}. Right? 🎯"; the guess becomes
   the audience only on Yes). How Will knows: one gpt-4o-mini call per Take
   (`will_question.heard`, drift-locked, golden rows
@@ -1253,15 +1291,20 @@ October (backend N111).
   community", "Only my community", "Only me", "+ Add a community with a
   passcode".
 - **The Ideal Text:** "Record Take N", "Close".
-- **The chain's close:** "Look, practice makes perfect. If you're ready,
-  let's go with the next take." with an encouraging emoji (💪; signed
-  2026-10-20, N89), then "Record Take N".
+- **The goodbye after a Take** (signed 2026-10-31, N294 item 6; N319 item
+  7): "Good job. See you next time." · on a plan "Good job. See you next
+  {day}." · "{n} of {total} practices done." · the tap "I want to continue
+  my practice", then "Record Take N".
+- **The settings asks at the next visit** (N295): "It seems you enjoy using
+  WillpowerLab." before the WhatsApp ask; "Well, I can see you're doing
+  pretty good." before the home screen's (the founder's own opener, E1).
 - **The one ask:** "Did this help?", "We're glad it helped you.", "What
   would help?", "Skip"; Will's lead-ins (E1) are his own words around the
   ask's signed text, checked; Will's questions and tap answers as signed in N82
   (backend `services/will_question.py`; the questions may vary lightly from
-  2026-10-20, the tap answers never): "Quick one: who's this talk really
-  for? 🎯"; "When you finish, what do you want them to do? Or feel? 🤔";
+  2026-10-20, the tap answers never), opened on the walk's moment with
+  "When you said “…”, " or "We just worked on “…”. " (signed 2026-10-31,
+  N294 item 1): "Quick one: who's this talk really for? 🎯"; "When you finish, what do you want them to do? Or feel? 🤔";
   "Last time we practised “…”. It didn't make it into this Take. On purpose?
   😏" (Yes, on purpose · I forgot · It didn't feel like me); "You've put real
   work into this one 💪 Need a breather, or does something feel missing?" (A
@@ -1271,8 +1314,10 @@ October (backend N111).
   to you?"; "If this talk goes perfectly, what changes for you?"; the
   follow-ups "Who is it for, then? 👀", "Tell me more 👀 What's missing?",
   "What would feel more like you?", "What would make it a yes?", "Where do
-  you want it to take you?"; "Got it, thanks 🙏"; "Sounds like this one's
-  for {the board}. Right? 🎯" (Yes · Someone else); the answers by field
+  you want it to take you?"; "Got it, thanks 🙏"; "{who}. I'll keep them in
+  mind." (signed 2026-10-31, N294 item 5); "Sounds like this one's for {the
+  board}. Right? 🎯" (Yes · Someone else); "Someone else" also last under
+  who the talk is for (N319 item 8); the answers by field
   (business: My team · Leadership · A client; public speaking: A big room ·
   Colleagues · Friends and family; sales: A buyer · Their team · The decision
   maker; customer service: A customer · A caller · My team; interviews: The
@@ -1291,7 +1336,9 @@ October (backend N111).
   Answered" and "Do you agree to share your next take with others?"
   (2026-10-21); and the AI clip's L3, L4, L5 and L14–L18 in the walk
   (2026-10-23, N120); the tempo step's "See how it went" (2026-10-28,
-  N245: Will decides when the game ends). The praise keeps its own lines
+  N245: Will decides when the game ends); "Look, practice makes perfect.
+  If you're ready, let's go with the next take. 💪" (N89; gone with N294
+  item 6, 2026-10-31); "Skip" under Will's questions (N296 item 2). The praise keeps its own lines
   (N122: the one-sentence praise of N120 was dropped before it was built).
 
 ### L and M · The Sunday note and life goals
@@ -1412,6 +1459,20 @@ The four lines above were filled from main's history by the page's keeper on
 ## 3. Still open
 
 - **The walk's time limit** (N178): the whole walk, the tempo step included, gets one; the founder sets it.
+
+- **After the walk, as built where the prototype and N294 leave room**
+  (2026-11-02, for the founder): Will's key-line question (N294 item 2) is
+  not yet among his questions: it is answered by voice, and the chat's
+  microphone while Will waits comes with the recording strip (the next
+  slice); it will have no taps. Will's questions keep their signed words
+  after the moment's opener; the prototype's "who were you talking to? 🎯"
+  (N319 item 8 names it) is not signed in §1 K, so it is not built. "See
+  you next tomorrow" does not read, so the goodbye names the next practice
+  day by its weekday even when it is tomorrow. A visit is the tab's
+  session: the settings ask comes on the first Lounge load of a new
+  session after the Take, at most one per Take. Typing "I want to practise"
+  under the goodbye is read in the app (practise, record, continue, again,
+  next take; never with "no", "not", "later").
 
 - **Tempo step**: its questions are decided (§1 T); only the walk's time limit above is open.
 
@@ -1540,6 +1601,14 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N294 item 1 · built (E2, K): Will's question opens on the speaker's own words of the last moment the walk showed (its clip's words): "When you said “…”, " where it reads on ("Sounds like this one's for …"), else "We just worked on “…”. "; "On purpose?" opens on nothing more. Was: the question alone · BE, FE (this PR)
+- 2026-11-02 · N294 item 4 · built (E1, E2): who the talk is for, answered, is followed by what they should do when that is missing too, as Will's next question in the chain; not answering or a Skip ends them. Was: one question a Take · BE (this PR)
+- 2026-11-02 · N294 item 5 · built (E2, K): Will says back who the talk is for, "{who}. I'll keep them in mind."; other answers keep "Got it, thanks 🙏". Was: "Got it, thanks 🙏" for every answer · BE (this PR)
+- 2026-11-02 · N297 item 2, N319 item 8 · built (E3): the taps come from the recording first for what they should do too (the Take's words, their earlier answers, the signed ones); "Someone else" is the last tap on who the talk is for and opens "Who is it for, then? 👀". Was: no earlier answers for what they should do; "Someone else" only on the check · BE (this PR)
+- 2026-11-02 · N296 item 2, N294 item 3 · built (E3, K): no grey Skip chip under Will's questions; a follow-up shows no taps; not answering is allowed and the "+" still opens the projects. Was: Skip under every question and alone under a follow-up · FE (this PR)
+- 2026-11-02 · N294 items 6 and 7, N296 state 4 · built (B3, D3, D4, K): the chat after a Take ends on "Good job. See you next time." with the tap "I want to continue my practice" on the right; tapping it, or typing that they want to practise, brings "Record Take N" under the chat, alone, the plan's black button with the red dot, the message box and the mic gone; no bubble carries a button. Was: "Look, practice makes perfect. If you're ready, let's go with the next take. 💪" with "Record Take N" inside its bubble (N89) · BE, FE (this PR)
+- 2026-11-02 · N319 item 7 · built (D4, K; the-plan.md E3, G13): on a plan, "That's your 15 minutes for today.", then "Good job. See you next {day}.", then Will's bubble with the plan's bar and "{n} of {total} practices done."; the walk's end sheet no longer shows the bar. Was: "Now go and live it, away from the phone." under the 15 minutes, and the bar with "{n} of {total} practices done. Next: {day}." on the end sheet · BE, FE (this PR)
+- 2026-11-02 · N294 item 8, N295 · built (E1, K): WhatsApp and the home screen are never asked after a Take; the next time the speaker opens the app, one at a time, one a Take, never before the second Take, WhatsApp first ("It seems you enjoy using WillpowerLab." and its ask), the home screen last ("Well, I can see you're doing pretty good." and its ask). Was: the Take's one ask, WhatsApp from Take 1 (N171), the home screen from Take 2, with Will's lead-in · BE, FE (this PR)
 - 2026-11-02 · N301 · built (B2, B3, B4, J2): no picture beside any bubble, the coach's included: the coach's grey-blue silhouette is gone from the Lounge (`ChatAvatar`), the walk and the coach panel (`WalkAvatar` draws nothing). Who wrote a bubble shows in its words ("Your coach:"). Was: only the coach kept a picture, on phones (founder 2026-10-14) · BE (N301 log), FE (this PR)
 - 2026-10-31 · N293 · built (H1): each Take carries its context (who, what it answers, success; sure, guess or missing), from Will's answers in the talk's setup, the plan's answers and Will's "heard" read of the Take, now kept; a clip carrying the key line or the call to action counts for more as the strongest and is likelier to be the one fixed. Nothing on screen changes. Was: the pick read voice and words only, and the heard read was thrown away after Will asked · BE #1534 (the decision), BE #1535 (the code), FE (this PR)
 - 2026-10-30 · N289 · built: three moments, three jobs: the strongest praised with no AI clip, then its helper words; the weakest with "Here's one with more in it.", Line A, the strongest's clip again under "Your confident moment", and the AI clip; the one between with its Clearer version, else a next best; order strongest, weakest, next, between, then the tempo step; the tempo step on any Take, with this week's pace level's line on a plan (C2, C4, H1, K, T). Was: the three highest, praise first, each praised or corrected by its voice, every praise practised with the AI clip (N108, N122, N284), and the tempo step from Take 2 (N181) · BE #1528 (the decision), BE #1529 (the code), FE (this PR)

@@ -167,15 +167,33 @@ function Scale({ lo, hi, onPick }: { lo: string; hi: string; onPick: (v: number)
 }
 
 function StartFirst({ onStart }: { onStart: () => void }) {
+  return <RecordDockButton label={PLAN_COPY.startFirst} onClick={onStart} dataAttr={{ "data-plan-dock": "start" }} />;
+}
+
+/** The plan's black button with the red dot, "Start your first recording";
+ *  the same piece carries the chat's "Record Take N" after a Take, alone
+ *  under the chat (backend N296 state 4). */
+export function RecordDockButton({
+  label,
+  onClick,
+  disabled = false,
+  dataAttr,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  dataAttr: Record<string, string>;
+}) {
   return (
     <button
       type="button"
-      onClick={onStart}
-      data-plan-dock="start"
-      className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-foreground text-[15px] font-medium text-background"
+      onClick={onClick}
+      disabled={disabled}
+      {...dataAttr}
+      className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-foreground text-[15px] font-medium text-background disabled:opacity-50"
     >
       <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
-      {PLAN_COPY.startFirst}
+      {label}
     </button>
   );
 }

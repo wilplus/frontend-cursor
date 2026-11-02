@@ -47,7 +47,6 @@ export const PLAN_COPY = {
   keepPractising: "Keep practising",
   startFirst: "Start your first recording",
   recordTake: (n: number) => `Record Take ${n}`,
-  doneNext: (n: number, total: number, day: string) => `${n} of ${total} practices done. Next: ${day}.`,
   yourSummaryCall: "Your summary call",
   summaryCallWhat: "15 minutes with your coach, to look back and plan what's next.",
   chooseDate: "Choose a date",

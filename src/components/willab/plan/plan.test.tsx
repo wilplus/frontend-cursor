@@ -12,8 +12,9 @@
  *       back into the chat (N178).
  *   O3  The plan's rows are drawn by their metadata: the speaker's voice
  *       answer as their own bubble, the card with its list, the deadline
- *       in orange and Book on a call not booked; a plain row is left to
- *       the Lounge.
+ *       in orange and Book on a call not booked, the plan's progress after
+ *       the walk as Will's bubble with its bar and "{n} of {total}
+ *       practices done." (N319 item 7); a plain row is left to the Lounge.
  *   O4  The chat has one record button: a practice day's one thing holds
  *       it until a newer Take's closing message takes it back (N167), and
  *       gives it up once a newer Take is recorded, in any project (N244,
@@ -199,6 +200,11 @@ it("the plan's rows are drawn as the prototype draws them", () => {
   expect(books.length).toBe(2);
   act(() => (books[0] as HTMLButtonElement).click());
   expect(c.onBook).toHaveBeenCalledWith("kickoff");
+
+  act(() => root.render(<>{planRowFor(row({ plan_progress: true, done: 1, total: 9 }, "1 of 9 practices done."), c)}</>));
+  const progress = host.querySelector("[data-plan-progress]")!;
+  expect(progress.querySelector("[data-plan-bar]")).not.toBeNull();
+  expect(progress.textContent).toBe("1 of 9 practices done.");
 });
 
 it("the newest bubble holds the one record button", () => {

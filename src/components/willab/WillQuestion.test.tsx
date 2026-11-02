@@ -1,19 +1,23 @@
 // @vitest-environment jsdom
 /*
  * STORY    As a speaker in the Lounge after a Take, I want Will's one
- *          question to come with answers I can tap (or Skip), so that I
- *          answer in a second and my next Take is never held up.
+ *          question to come with answers I can tap, or answer in my own
+ *          words, so that I answer in a second and my next Take is never
+ *          held up.
  * OUTCOME
- *   O1  While it is the newest bubble, the question shows its answers and
- *       Skip; a tap goes to the backend once, which writes it and the
- *       reply; an older question shows no answers.
+ *   O1  While it is the newest bubble, the question shows its answers, and
+ *       no Skip (N296: not answering is allowed); a tap goes to the backend
+ *       once, which writes it and the reply; an older question shows no
+ *       answers; a follow-up shows none, it takes my own words (N294).
  *   O2  The message after the Take waits while Will's question (or its
  *       follow-up) is the newest bubble.
- * PROVES   O1 -> "the newest question shows its answers and Skip, and a tap
+ * PROVES   O1 -> "the newest question shows its answers, no Skip, and a tap
  *                 goes to the backend once"
  *          O2 -> "the message after the Take waits under Will's question"
  * WHY      Founder 2026-10-20 (N82): "only buttons" in the walk, Will's
- *          questions in the Lounge, tap answers plus my own words.
+ *          questions in the Lounge, tap answers plus my own words;
+ *          2026-10-31 (N296): "maybe we should not give them the option to
+ *          skip; let's try that".
  */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -49,14 +53,14 @@ const META = {
   take_session_id: "take-1",
 };
 
-it("the newest question shows its answers and Skip, and a tap goes to the backend once", async () => {
+it("the newest question shows its answers, no Skip, and a tap goes to the backend once", async () => {
   const will = willQuestionOf(META)!;
   expect(will).toEqual({ arcId: "arc-1", takeSessionId: "take-1", chips: ["The board", "My team", "A buyer"] });
   const onAnswer = vi.fn((choice: string) => postWillQuestion(will.arcId, will.takeSessionId, choice).then(() => {}));
   const body = "Quick one: who's this talk really for? 🎯";
   act(() => root.render(<WillQuestionBubble body={body} chips={will.chips} open onAnswer={onAnswer} />));
   const buttons = [...host.querySelectorAll("[data-will-answers] button")].map((b) => b.textContent);
-  expect(buttons).toEqual(["The board", "My team", "A buyer", "Skip"]);
+  expect(buttons).toEqual(["The board", "My team", "A buyer"]);
   await act(async () => {
     (host.querySelector("[data-will-answers] button") as HTMLButtonElement).click();
     (host.querySelector("[data-will-answers] button") as HTMLButtonElement).click();
@@ -71,6 +75,10 @@ it("the newest question shows its answers and Skip, and a tap goes to the backen
   expect(host.textContent).toContain(body);
   expect(host.querySelector("[data-will-answers]")).toBeNull();
   expect(willQuestionOf({ offer: "whatsapp", arc_id: "a", take_session_id: "t" })).toBeNull();
+  // The follow-up takes their own words: nothing to tap.
+  act(() => root.render(<WillQuestionBubble body="Who is it for, then? 👀" chips={[]} open onAnswer={onAnswer} />));
+  expect(host.querySelector("[data-will-answers]")).toBeNull();
+  expect(host.textContent).not.toContain("Skip");
 });
 
 it("the message after the Take waits under Will's question", () => {
