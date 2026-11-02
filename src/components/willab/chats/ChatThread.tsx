@@ -1,14 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Mic } from "lucide-react";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
+import RecordingBar from "@/components/willab/RecordingBar";
 import TypingDots from "@/components/willab/TypingDots";
+import { VoicePlayer } from "@/components/willab/plan/VoicePlayer";
 import { useBackDismiss } from "@/components/willab/useBackDismiss";
+import { useVoiceNote } from "@/components/willab/useVoiceNote";
 import {
   CHAT_EMOJI,
+  chatVoiceSrc,
   getChatMessages,
   sendChatEmoji,
+  sendChatVoice,
   type Chat,
   type ChatEmoji,
   type ChatMessage,
@@ -25,8 +30,9 @@ import { clockTime, dayKey, dayLabel } from "./chatTime";
 /*  Lounge's own chat design (N301): its grey and orange bubbles, no picture  */
 /*  beside them, each with its time; the messages start at the bottom, by the */
 /*  bar, under the day ("Today"). The locked bar's shape with the three emoji */
-/*  in the box where Will's chat has "Type here" (N306). Only the             */
-/*  conversation shows here; no asks (N305).                                  */
+/*  in the box where Will's chat has "Type here" (N306), and the mic beside   */
+/*  it: you can always answer with an emoji or a voice note (N321 item 2).    */
+/*  Only the conversation shows here; no asks (N305).                         */
 /* -------------------------------------------------------------------------- */
 
 /** Will's chat, under the WillpowerLab bar: back, then his name (N322 item 4). */
@@ -79,11 +85,43 @@ function ChatTopBar({ chat, onBack }: { chat: Chat; onBack: () => void }) {
   );
 }
 
+/** A voice note (N321 item 2), in the same bubble: the plan's small player
+ *  (play, the drawn bars, the length), its time bottom right. */
+function ChatVoice({ chatId, message, time }: { chatId: string; message: ChatMessage; time: string }) {
+  const ms = typeof message.meta?.duration_ms === "number" ? message.meta.duration_ms : null;
+  const player = <VoicePlayer src={chatVoiceSrc(chatId, message.id)} tone={message.mine ? "orange" : "grey"} durationMs={ms} />;
+  const stamp = time ? (
+    <span
+      data-chat-time
+      className={`shrink-0 text-[11px] leading-none ${message.mine ? "text-primary-foreground/90" : "text-muted-foreground"}`}
+    >
+      {time}
+    </span>
+  ) : null;
+  if (message.mine) {
+    return (
+      <div data-row="me" data-bubble="" data-chat-voice="" className="ml-auto flex max-w-[85%] items-end gap-2.5 rounded-2xl bg-primary py-2 pl-2 pr-3">
+        {player}
+        {stamp}
+      </div>
+    );
+  }
+  return (
+    <div data-row="app" className="mr-auto flex max-w-[88%]">
+      <div data-bubble="" data-chat-voice="" className="flex items-end gap-2.5 rounded-[16px] bg-muted py-2 pl-2 pr-3">
+        {player}
+        {stamp}
+      </div>
+    </div>
+  );
+}
+
 /** One message, as the Lounge draws it: theirs grey on the left, mine orange
  *  on the right, its time inside, bottom right; an emoji large, with its
- *  meaning and time under it. */
-function ChatRow({ message }: { message: ChatMessage }) {
+ *  meaning and time under it; a voice note with its player. */
+function ChatRow({ chatId, message }: { chatId: string; message: ChatMessage }) {
   const time = clockTime(message.created_at);
+  if (message.kind === "voice") return <ChatVoice chatId={chatId} message={message} time={time} />;
   if (message.kind === "emoji") {
     const caption = [meaningOf(message.body), time].filter(Boolean).join(" · ");
     return (
@@ -141,24 +179,35 @@ function withDays(messages: readonly ChatMessage[]): { day: string | null; messa
 }
 
 /** The locked bar's shape (the Lounge's composer): the rounded box, with the
- *  three emoji as 40px round buttons in it. No typing outside Will's chat. */
-function EmojiBar({ onPick }: { onPick: (emoji: ChatEmoji) => void }) {
+ *  three emoji as round buttons in it, and on its right the Lounge's mic,
+ *  40px and plain (N321 item 2; the prototype's `r6Bar`). No typing outside
+ *  Will's chat. */
+function EmojiBar({ onPick, onMic }: { onPick: (emoji: ChatEmoji) => void; onMic: () => void }) {
   return (
-    <div data-chat-bar className="flex shrink-0 items-end gap-1 px-4 pb-2">
-      <div className="flex min-h-[40px] flex-1 items-center justify-around rounded-3xl border border-border bg-background px-2">
+    <>
+      <div data-chat-emoji-box className="flex min-h-[40px] min-w-0 flex-1 items-center justify-around rounded-3xl border border-border bg-background px-2">
         {CHAT_EMOJI.map((emoji) => (
           <button
             key={emoji}
             type="button"
             aria-label={EMOJI_MEANING[emoji]}
             onClick={() => onPick(emoji)}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[21px] leading-none transition-colors hover:bg-muted"
+            className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full text-[23px] leading-none transition-colors hover:bg-muted"
           >
             {emoji}
           </button>
         ))}
       </div>
-    </div>
+      <button
+        type="button"
+        onClick={onMic}
+        aria-label="Voice note"
+        data-chat-mic=""
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
+      >
+        <Mic className="h-5 w-5" aria-hidden />
+      </button>
+    </>
   );
 }
 
@@ -168,6 +217,19 @@ export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () =>
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   useBackDismiss(onBack);
+
+  // The voice note (N321 item 2): the mic records with the one recording
+  // bar, up to two minutes; Stop sends, the trash throws it away. The bar
+  // comes back at once; the message joins the thread when the backend has
+  // kept it. A refused mic, a failed recording or a failed send shows
+  // nothing new.
+  const note = useVoiceNote({
+    maxSeconds: 120,
+    onDone: async ({ audio, durationMs }) => {
+      const sent = await sendChatVoice(chat.id, audio, durationMs);
+      if (sent) setMessages((list) => [...(list ?? []), sent]);
+    },
+  });
 
   // Opened: on arrival, as its messages land, and on leaving. The list then
   // no longer shows it as new (N322).
@@ -229,12 +291,20 @@ export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () =>
           ) : (
             withDays(messages).flatMap(({ day, message }) => [
               ...(day ? [<ChatDay key={`day-${message.id}`} label={day} />] : []),
-              <ChatRow key={message.id} message={message} />,
+              <ChatRow key={message.id} chatId={chat.id} message={message} />,
             ])
           )}
         </div>
       </div>
-      <EmojiBar onPick={(emoji) => void send(emoji)} />
+      <div data-chat-bar className="flex shrink-0 items-end gap-1 px-4 pb-2">
+        {note.phase === "recording" ? (
+          <div className="min-w-0 flex-1">
+            <RecordingBar elapsedMs={note.elapsedMs} onTrash={note.cancel} onStop={note.send} />
+          </div>
+        ) : (
+          <EmojiBar onPick={(emoji) => void send(emoji)} onMic={() => void note.start()} />
+        )}
+      </div>
     </div>
   );
 }

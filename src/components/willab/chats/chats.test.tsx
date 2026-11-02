@@ -2,8 +2,9 @@
 /*
 STORY    As the founder testing the chats between users (ring 6), I want my
          chats in front of the Lounge, with Will first, so that I can open a
-         colleague's or a customer's chat and answer with an emoji; and as
-         every other speaker, I want /chat to stay the Lounge as it is.
+         colleague's or a customer's chat and answer with an emoji or a
+         voice note; and as every other speaker, I want /chat to stay the
+         Lounge as it is.
 OUTCOME
   O1  Off (no `chats` in the ring's features_on): nothing is drawn around
       the Lounge and no chat is read (Never 3).
@@ -12,19 +13,27 @@ OUTCOME
       and last message (an emoji with its meaning); an empty list asks for
       the demo once. Will's row uncovers the Lounge, never remounted, with
       a back to the list (customer-requests.md C1; N274, N298, N322).
-  O3  In a chat, the bar holds only the three emoji; a tap posts
+  O3  In a chat, the bar holds the three emoji in the box and the mic
+      beside it, no typing; a tap on an emoji posts
       {"kind":"emoji","body":…} and shows the emoji at once, large, with its
-      meaning and time under it (N306, N311, N322).
+      meaning and time under it (N306, N311, N321 item 2, N322).
   O4  The WillpowerLab bar goes while a person's chat is open, its own top
       bar in its place, and comes back on the list and in Will's chat
       (N321 item 1, N322 item 4).
   O5  A chat whose last message is newer than the last time it was opened
       on this device shows as new, and stops being new once opened (N322).
+  O6  The mic records with the one recording bar; Stop posts the recording
+      (multipart audio and duration_ms) and the voice note joins the
+      thread as my bubble; the bar comes back (N321 item 2, N314).
+  O7  A voice note from the other person is their grey bubble with a play
+      control that plays it from the chat's audio route (N321 item 2).
 PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O2 -> "with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back"
          O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning"
          O4 -> "the WillpowerLab bar hides while a person's chat is open and is back on the list"
          O5 -> "a chat with a message newer than its last opening shows as new until it is opened"
+         O6 -> "the mic records a voice note, Stop posts it and it joins the thread"
+         O7 -> "a voice note from the other person plays from the chat's audio route"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -100,6 +109,23 @@ const flush = () =>
   act(async () => {
     for (let i = 0; i < 12; i += 1) await Promise.resolve();
   });
+
+/** The phone's recorder, as the other tests of the voice note fake it. */
+class FakeRecorder {
+  state: "inactive" | "recording" = "inactive";
+  mimeType = "audio/webm";
+  ondataavailable: ((e: { data: Blob }) => void) | null = null;
+  onstop: (() => void) | null = null;
+  static isTypeSupported = () => true;
+  start() {
+    this.state = "recording";
+    this.ondataavailable?.({ data: new Blob(["voice"], { type: "audio/webm" }) });
+  }
+  stop() {
+    this.state = "inactive";
+    queueMicrotask(() => this.onstop?.());
+  }
+}
 
 beforeEach(async () => {
   resetRingStateCache();
@@ -191,9 +217,14 @@ describe("the chats in front of the Lounge", () => {
     const screen = container.querySelector("[data-chat-screen]")!;
     expect(screen.querySelector("[data-chat-header]")?.textContent).toContain("SarahInvita customer");
     expect(screen.querySelector("[data-chat-thread] [data-bubble]")?.textContent).toContain(SARAH.last.body);
-    // The bar: the three emoji and nothing else (no typing, no mic).
+    // The bar: the three emoji in the box, the mic beside it, no typing.
     const bar = screen.querySelector("[data-chat-bar]")!;
-    expect([...bar.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["👍", "👀", "🙏"]);
+    expect([...bar.querySelectorAll("button")].map((b) => b.textContent || b.getAttribute("aria-label"))).toEqual([
+      "👍",
+      "👀",
+      "🙏",
+      "Voice note",
+    ]);
     expect(screen.querySelector("textarea, input")).toBeNull();
 
     fetchMock.mockImplementationOnce(async (url: string, init?: RequestInit) => {
@@ -250,5 +281,70 @@ describe("the chats in front of the Lounge", () => {
     await tap(row("c-sarah"));
     await tap(container.querySelector("[data-chat-header] button"));
     expect(row("c-sarah")?.hasAttribute("data-chat-new")).toBe(false);
+  });
+
+  it("the mic records a voice note, Stop posts it and it joins the thread", async () => {
+    vi.stubGlobal("MediaRecorder", FakeRecorder);
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: { getUserMedia: vi.fn(async () => ({ getTracks: () => [{ stop: vi.fn() }] })) },
+      configurable: true,
+    });
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
+    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({ messages: [] }));
+    routes.set("POST /api/v2/chats/c-ariel/voice", () => ({
+      message: { id: "v1", mine: true, author: "Me", kind: "voice", body: "", meta: { duration_ms: 4200 }, created_at: "2026-11-02T08:00:00Z" },
+    }));
+    await render();
+    await tap(row("c-ariel"));
+    const screen = container.querySelector("[data-chat-screen]")!;
+
+    await tap(screen.querySelector('[data-chat-bar] button[aria-label="Voice note"]'));
+    // Recording: the one recording bar in the bar's place.
+    expect(screen.querySelector("[data-chat-bar] [data-recording-bar] [data-walk-recording-strip]")).not.toBeNull();
+    expect(screen.querySelector("[data-chat-emoji-box]")).toBeNull();
+
+    await tap(screen.querySelector('[data-recording-bar] button[aria-label="Stop"]'));
+    await flush();
+    const posts = calls("POST /api/v2/chats/c-ariel/voice");
+    expect(posts).toHaveLength(1);
+    const form = posts[0][1].body as FormData;
+    expect((form.get("audio") as Blob).type).toBe("audio/webm");
+    expect(form.get("duration_ms")).toMatch(/^\d+$/);
+
+    // The bar is back; the voice note is mine, orange on the right, with its length.
+    expect(screen.querySelector("[data-recording-bar]")).toBeNull();
+    expect(screen.querySelector("[data-chat-emoji-box]")).not.toBeNull();
+    const voice = screen.querySelector('[data-chat-thread] [data-row="me"][data-chat-voice]');
+    expect(voice?.textContent).toMatch(/^0:04\d\d:\d\d$/);
+  });
+
+  it("a voice note from the other person plays from the chat's audio route", async () => {
+    const played: string[] = [];
+    vi.stubGlobal(
+      "Audio",
+      class {
+        constructor(src: string) {
+          played.push(src);
+        }
+        play() {
+          return Promise.resolve();
+        }
+        pause() {}
+      },
+    );
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
+    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({
+      messages: [{ id: "m9", mine: false, author: "Ariel", kind: "voice", body: "", meta: { duration_ms: 65_000 }, created_at: ARIEL.last.created_at }],
+    }));
+    await render();
+    await tap(row("c-ariel"));
+
+    const theirs = container.querySelector('[data-chat-thread] [data-row="app"] [data-bubble][data-chat-voice]');
+    expect(theirs?.textContent).toMatch(/^1:05\d\d:\d\d$/);
+    await tap(theirs?.querySelector('button[aria-label="Play"]'));
+    expect(played).toEqual(["/api/v2/chats/c-ariel/messages/m9/audio"]);
+    expect(theirs?.querySelector('button[aria-label="Pause"]')).not.toBeNull();
   });
 });
