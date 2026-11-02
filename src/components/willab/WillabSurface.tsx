@@ -36,6 +36,7 @@ import {
 import { readParked } from "./willabParked";
 import { LoungeThreadProvider } from "./LoungeThreadContext";
 import { useChatsDoor } from "./chats/useChatsDoor";
+import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { afterChatBoot } from "@/lib/chatBoot";
 import {
   beginSetupDraft,
@@ -88,6 +89,15 @@ export default function WillabSurface({
   idealTextTake?: string | null;
 }) {
   const flow = useWillabFlow();
+  // The iPhone app has no welcome (founder 2026-11-02): it opens on the chats.
+  // The welcome records no consent (Phase1AcceptanceGate does), so nothing is
+  // skipped but the screen. `state` is null until after mount, so the native
+  // check never runs on the server.
+  const skipWelcome = flow.state === "welcome_consent" && isNativeApp();
+  const { acceptConsent } = flow;
+  useEffect(() => {
+    if (skipWelcome) acceptConsent();
+  }, [skipWelcome, acceptConsent]);
   const [recordingProgress, setRecordingProgress] =
     useState<RecordingProgress | null>(null);
   // Founder 2026-07-27 — picking an EXISTING project from the picker opens
@@ -231,7 +241,7 @@ export default function WillabSurface({
 
   // Resolving the initial state post-mount (hydration-safe); and the wait
   // while a signed-up guest's Take is handed over, before its walk opens.
-  if (flow.state === null || handingOverTake || linkWaits) {
+  if (flow.state === null || handingOverTake || linkWaits || skipWelcome) {
     return consentedShell(<LoadingState placement="surface" />);
   }
 
