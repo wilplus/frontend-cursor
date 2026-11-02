@@ -946,6 +946,13 @@ src/components/willab/readySignUpMoment.test.tsx,Story,"As a guest whose first T
 the walk praises first, with ""This was your most confident moment.""
 O2  With no such moment (or no clip), the wall is exactly as before.","O1 -> ""shows the most confident moment's clip and the walk's line""
 O2 -> ""is unchanged when the Take has no praised most confident moment""","Founder 2026-10-29, backend N273 item 5."
+src/components/willab/recordingBar.test.tsx,Story,"As a speaker, I want every short recording in the app to look and work the same, so that I always know how to stop and send, or throw it away.","O1  A voice note in the Lounge and a voice answer to the plan record
+with one bar (backend N314, N304): the trash on the left, then the
+walk's strip (the dot, the clock, the track) with the red Stop
+inside it. Stop sends the recording; the trash throws it away and
+sends nothing. The WhatsApp-style bar (a black send) and the plan's
+separate large Stop are gone.","O1 -> ""a voice note and a plan answer record with one bar: Stop
+sends, the trash throws it away""","Founder 2026-10-31 (N304): ""unify the recording pls just like it is here""; N314: ""Can you make it locked everywhere?""."
 src/components/willab/recordingCopy.test.ts,Story,"As the founder, I want the recording screens' words fixed to the signed set with no digits or score words, so that nothing unapproved or numeric reaches the speaker.","O1  Never 4 (no new words without the founder's OK): RECORDING_COPY holds
 exactly the signed keys, typed exactly as signed.
 O2  Never 1 (no scores or numbers): no signed line carries a digit, a % or
@@ -991,6 +998,12 @@ O4  A sales week offers the sale's four steps and ""Add a new step"" in place of
 O2 -> reopens where it stands
 O3 -> knows which case waits
 O4 -> offers the sale's steps for a sales week",
+src/components/willab/takeIntoWalk.test.tsx,Story,"As a speaker who just recorded a Take, I want the walk to open the moment its processing is done, with nothing in between, so that the loop goes straight from my Take to my feedback.","O1  When the Take's processing is done the wait stays over the walk
+as it opens, from the Take's own marker, also when the Lounge was
+not following that job (I came back to the app, or left the wait
+for the chat): the chat is never shown in between (backend N319
+item 10). A guest's text, which opens behind its own ask, and a
+failed Take get no cover.","O1 -> ""the walk opens under the wait from the Take's own marker""","Founder 2026-11-01 (N319 item 10): ""after the Take's processing the walk opens at once; the chat is never shown in between""."
 src/components/willab/topUpCardGate.test.ts,Story,"As a speaker, I want no top-up offer while the Lab is on screen, so that payment never gets in the way of a Take.","O1  Never 3 (the loop is never blocked): the top-up card may not mount in
 any Lab or readout state, nor in project pick, nor while the thread loads.
 O2  In the Lounge, once the thread has loaded, it may mount.","O1 -> ""never mounts while the Lab owns the screen""
@@ -1174,6 +1187,20 @@ O3 -> Not now sends nothing and closes
 O4 -> opens with the number typed in the chat,
 a full number typed in the chat gets its code at once
 O5 -> a number another account has is refused in words",
+src/components/willab/willVoiceAnswer.test.tsx,Story,"As a speaker in the Lounge after a Take, I want to see that Will is waiting for my answer and to answer him by voice, so that I say it the way I would say it in my talk, in a second.","O1  While Will's question waits, the bar keeps ""+"", ""Type here"" and the
+mic, and the same mic fills orange, for every speaker (backend
+N296 state 2, N306 item 1); with no question waiting the mic is as
+before: there only with the voice notebook, not orange.
+O2  Tapping it records with the one bar (the trash, the strip with
+Stop inside); Stop sends the recording as the answer to that
+question, it shows at once as my voice bubble, and once Will has
+heard it, my bubble carries the words (N294 items 2 and 3, N319
+item 1).
+O3  After I answer, the chat lands on the newest bubble even when I had
+scrolled up (N319 item 9).","O1 -> ""the mic fills orange while Will waits, and only then""
+O2 -> ""a voice answer answers Will's question and lands as my
+voice bubble with the words""
+O3 -> ""after an answer the chat lands on the newest bubble""","Founder 2026-10-31 (N296): ""the mic fills orange (colour only)""; N294: ""The key line is recorded""; 2026-11-01 (N319): ""after the speaker answers, the chat moves to the new bubble""."
 src/components/willab/willabHelpers.test.ts,Story,"As a speaker, I want my slide taps lined up with the recording's clock, so that each word lands on the right slide.","O1  When the recording started later than the tap clock, the correction is positive by exactly that gap.
 O2  When the recording never reported a start, no correction is sent.","O1 -> is positive when the recorder started after the tap clock's zero
 O2 -> sends nothing when the recorder never reported a start",The backend subtracts this from every tap; the wrong sign would double the drift.
