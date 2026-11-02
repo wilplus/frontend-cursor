@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUp, Check, Clock, Mic, Send, Trash2, X } from "lucide-react";
+import { ArrowUp, Check, Clock, Mic, X } from "lucide-react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import SymmetricPair from "./SymmetricPair";
 import {
@@ -15,7 +15,8 @@ import {
   type SalesStep,
 } from "@/services/api/voiceNotebook";
 import type { OfferType } from "./loungeOffers";
-import { clock, useVoiceNote } from "./useVoiceNote";
+import { useVoiceNote } from "./useVoiceNote";
+import RecordingBar from "./RecordingBar";
 import { dropNote, waitingNotes, type OutboxNote } from "@/lib/willab/voiceNoteOutbox";
 import { wordsOf, type LiveWord } from "@/lib/willab/liveNoteWords";
 import TypingDots, { TypingGlyph } from "./TypingDots";
@@ -271,16 +272,31 @@ export function SalesSteps({ onPick }: { onPick: (step: SalesStep) => void }) {
 
 /** The mic, right of the message box: only where the notebook is on, the
  *  speaker is not being onboarded (N243) and the box is empty. A note on its
- *  way never holds it: the outbox sends notes one after another (N194). */
-export function VoiceNoteMic({ notebook, draft }: { notebook: VoiceNotebook; draft: string }) {
-  if (!notebook.enabled || notebook.held || draft.trim()) return null;
+ *  way never holds it: the outbox sends notes one after another (N194).
+ *  While Will waits for an answer (backend N296 state 2, N306 item 1) the
+ *  same mic fills orange, colour only, for everyone, and records the answer
+ *  (`waiting`). */
+export function VoiceNoteMic({
+  notebook,
+  draft,
+  waiting = null,
+}: {
+  notebook: VoiceNotebook;
+  draft: string;
+  /** Will's question waits: the mic records the answer. */
+  waiting?: { onTap: () => void } | null;
+}) {
+  if (draft.trim() || (!waiting && (!notebook.enabled || notebook.held))) return null;
   return (
     <button
       type="button"
-      onClick={notebook.tapMic}
+      onClick={waiting ? waiting.onTap : notebook.tapMic}
       aria-label="Voice note"
       data-testid="voice-note-mic"
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
+      data-will-waits={waiting ? "" : undefined}
+      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${
+        waiting ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
+      }`}
     >
       <Mic className="h-5 w-5" aria-hidden />
     </button>
@@ -315,32 +331,15 @@ export function VoiceNotePicker({ notebook, draft, onPick }: { notebook: VoiceNo
   );
 }
 
-/** The note on its way (founder 2026-10-20, "exactly like WhatsApp"): trash
- *  on the left, the running time, send on the right. */
+/** The note on its way: the one recording bar (backend N314, N304), the
+ *  trash, then the walk's strip with Stop inside it; Stop sends. Was the
+ *  WhatsApp-style bar (founder 2026-10-20): the time in a bordered pill and
+ *  a black send. */
 export function VoiceNoteBar({ notebook }: { notebook: VoiceNotebook }) {
   if (!notebook.recording) return null;
   return (
-    <div className="flex items-center gap-1" data-testid="voice-note-recording">
-      <button
-        type="button"
-        onClick={notebook.note.cancel}
-        aria-label="Delete"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
-      >
-        <Trash2 className="h-5 w-5" aria-hidden />
-      </button>
-      <div className="flex h-10 flex-1 items-center gap-2 rounded-3xl border border-border bg-background px-3.5 text-[15px] tabular-nums">
-        <span aria-hidden className="h-2.5 w-2.5 animate-pulse rounded-full bg-destructive" />
-        {clock(notebook.note.elapsedMs)}
-      </div>
-      <button
-        type="button"
-        onClick={notebook.note.send}
-        aria-label="Send"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background"
-      >
-        <Send className="h-5 w-5" aria-hidden />
-      </button>
+    <div data-testid="voice-note-recording">
+      <RecordingBar elapsedMs={notebook.note.elapsedMs} onTrash={notebook.note.cancel} onStop={notebook.note.send} />
     </div>
   );
 }

@@ -76,3 +76,11 @@ export function usePinThreadBottom(
 
   return pin;
 }
+
+/** The speaker answered (founder 2026-11-01, N319 item 9): the Lounge lands
+ *  on the newest bubble even when it was scrolled up, as on "See next
+ *  steps". For answers given outside the Lounge's own handlers (the plan's
+ *  footer). */
+export function followNewest(): void {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(WILLAB_THREAD_TO_LATEST_EVENT));
+}

@@ -12,6 +12,7 @@
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "@/components/willab/idealEditCopy";
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import type { FeedbackWalkMoment, WalkStepTarget } from "./feedbackWalkModel";
+import { shareChoiceOf, ticksOf, type ShareChoiceMeta } from "./nextTakeShare";
 import type { PraiseReason } from "./praiseReason";
 import { bestBubble, clearerOpening, praiseBubble, topMomentLine, withoutRepeats, type WalkBankKey } from "./walkLines";
 import type { WalkStep } from "./walkPlan";
@@ -129,22 +130,10 @@ export function momentChat(
  *  them (founder 2026-10-19). */
 const SHARE_QUESTION = [WALK_COPY.shareBefore, WALK_COPY.shareTitle, WALK_COPY.shareAudience].join("\n\n");
 
-/** Sharing before the next recording, in the chat (prototype v31, lens
- *  off): "Record Take N", the question as one bubble, and the speaker's
- *  choice. */
-export function shareChat(
-  nextTake: number | null,
-  ticks: readonly string[],
-  communities: readonly string[],
-  arcId: string | null = null,
-): LoungeMessageDraft[] {
-  const say = (role: "user" | "bot", body: string): LoungeMessageDraft => ({
-    role,
-    kind: "walk_step",
-    body,
-    metadata: { step: "share", author: role === "user" ? "speaker" : "app", arc_id: arcId },
-  });
-  const choice = ticks
+/** The choice in its own words, the line under a Take's recording ("Only
+ *  my community (Invita)", "General community", "Only me"). */
+export function shareLineText(ticks: readonly string[], communities: readonly string[]): string {
+  return ticks
     .map((t) =>
       t === "mine"
         ? `${WALK_COPY.shareMine} (${communities.join(", ")})`
@@ -153,10 +142,54 @@ export function shareChat(
           : WALK_COPY.shareOnlyMe,
     )
     .join(", ");
+}
+
+/** The line under a Take's recording, stored as the speaker's share
+ *  message carrying its choice (backend N309 item 5): posted when a Take
+ *  keeps the remembered choice, and, naming its Take, when the line is
+ *  changed. */
+export function shareLineDraft(
+  line: string,
+  share: ShareChoiceMeta,
+  arcId: string | null = null,
+  takeSessionId: string | null = null,
+): LoungeMessageDraft {
+  return {
+    role: "user",
+    kind: "walk_step",
+    body: line,
+    metadata: {
+      step: "share",
+      author: "speaker",
+      arc_id: arcId,
+      share,
+      ...(takeSessionId ? { take_session_id: takeSessionId } : {}),
+    },
+  };
+}
+
+/** Sharing before the next recording, in the chat (prototype v31, lens
+ *  off): "Record Take N", the question as one bubble, and the speaker's
+ *  choice, which carries what it shares (`share`) so the next Take can
+ *  keep it (backend N309 item 5). */
+export function shareChat(
+  nextTake: number | null,
+  ticks: readonly string[],
+  communities: readonly string[],
+  arcId: string | null = null,
+  share: ShareChoiceMeta | null = null,
+): LoungeMessageDraft[] {
+  const say = (role: "user" | "bot", body: string): LoungeMessageDraft => ({
+    role,
+    kind: "walk_step",
+    body,
+    metadata: { step: "share", author: role === "user" ? "speaker" : "app", arc_id: arcId },
+  });
+  const choice = shareLineText(ticks, communities);
   return [
     ...(nextTake ? [say("user", `Record Take ${nextTake}`)] : []),
     say("bot", SHARE_QUESTION),
-    say("user", choice),
+    share ? shareLineDraft(choice, share, arcId) : say("user", choice),
   ];
 }
 
@@ -665,27 +698,86 @@ export function inPairs<T>(
   return out;
 }
 
+/** One Take's line: what it says and the choice it carries (null for a
+ *  line stored before backend N309 item 5). */
+export type ShareLineEntry = { line: string; share: ShareChoiceMeta | null };
+
 /** Who heard each Take, as one line under its recording (G1, N192): the
- *  sharing choice the speaker gave before it, in its own words ("Only my
- *  community (Invita)"). Keyed by the recording's message. */
-export function shareLines(messages: readonly LoungeMessage[]): Map<string, string> {
-  const out = new Map<string, string>();
+ *  sharing choice the speaker gave or kept before it, in its own words
+ *  ("Only my community (Invita)"), or the one they changed it to from the
+ *  line, which names its Take (N309 item 5). Keyed by the recording's
+ *  message. */
+export function shareLineEntries(messages: readonly LoungeMessage[]): Map<string, ShareLineEntry> {
+  const out = new Map<string, ShareLineEntry>();
+  const changed = new Map<string, ShareLineEntry>();
+  const recordingOf = new Map<string, string>();
   let asked = false;
-  let choice: { line: string; arc: unknown } | null = null;
+  let choice: (ShareLineEntry & { arc: unknown }) | null = null;
   for (const m of messages) {
     const meta = m.metadata ?? {};
     if (m.kind === "walk_step" && meta.step === "share") {
+      const line = m.body.trim();
+      const share = shareChoiceOf(meta);
       if (m.role === "bot") asked = true;
-      else if (asked && m.body.trim()) choice = { line: m.body.trim(), arc: meta.arc_id };
+      else if (line && typeof meta.take_session_id === "string") changed.set(meta.take_session_id, { line, share });
+      else if (line && (asked || share)) choice = { line, share, arc: meta.arc_id };
       continue;
     }
     if (m.kind !== "recording_summary") continue;
+    if (typeof meta.session_id === "string") recordingOf.set(meta.session_id, m.client_id);
     const arc = meta.arc_id;
-    if (choice && (!choice.arc || !arc || choice.arc === arc)) out.set(m.client_id, choice.line);
+    if (choice && (!choice.arc || !arc || choice.arc === arc)) out.set(m.client_id, { line: choice.line, share: choice.share });
     asked = false;
     choice = null;
   }
+  for (const [take, entry] of changed) {
+    const recording = recordingOf.get(take);
+    if (recording) out.set(recording, entry);
+  }
   return out;
+}
+
+/** The lines alone, keyed by the recording's message. */
+export function shareLines(messages: readonly LoungeMessage[]): Map<string, string> {
+  return new Map([...shareLineEntries(messages)].map(([id, entry]) => [id, entry.line]));
+}
+
+/** The speaker's latest Take, when its recording has a line: the one line
+ *  that opens the sharing screen to change it, ticked as it stands (N309
+ *  item 5). `communityIds` null: a line stored without its choice, whose
+ *  communities the screen ticks as it always did, all of them. */
+export type ShareLineChange = {
+  recording: string;
+  takeSessionId: string;
+  arcId: string | null;
+  takeIndex: number | null;
+  ticks: string[];
+  communityIds: string[] | null;
+};
+
+/** The ticks a line stored without its choice says, from its own words. */
+function ticksOfLine(line: string): string[] {
+  if (line === WALK_COPY.shareOnlyMe) return ["none"];
+  return [
+    ...(line.includes(WALK_COPY.shareGeneral) ? ["general"] : []),
+    ...(line.includes(WALK_COPY.shareMine) ? ["mine"] : []),
+  ];
+}
+
+export function latestShareLine(messages: readonly LoungeMessage[]): ShareLineChange | null {
+  const latest = [...messages].reverse().find((m) => m.kind === "recording_summary");
+  const meta = latest?.metadata ?? {};
+  if (!latest || typeof meta.session_id !== "string") return null;
+  const entry = shareLineEntries(messages).get(latest.client_id);
+  if (!entry) return null;
+  return {
+    recording: latest.client_id,
+    takeSessionId: meta.session_id,
+    arcId: typeof meta.arc_id === "string" ? meta.arc_id : null,
+    takeIndex: typeof meta.take_index === "number" ? meta.take_index : null,
+    ticks: entry.share ? ticksOf(entry.share) : ticksOfLine(entry.line),
+    communityIds: entry.share ? entry.share.community_ids : null,
+  };
 }
 
 /** The Take's summary as the chat holds it, for the walk to show (D4,

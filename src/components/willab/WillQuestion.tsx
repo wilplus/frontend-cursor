@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import Linkified from "./Linkified";
-import { CHIP_LABEL } from "./loungePrompts";
 
 /* -------------------------------------------------------------------------- */
 /*  WillQuestion — Will's one question after a Take (founder 2026-10-20, N82; */
@@ -11,10 +10,14 @@ import { CHIP_LABEL } from "./loungePrompts";
 /*  The backend writes the question as the Take's one ask (kind "text",        */
 /*  metadata.offer "will_question") with its tap answers in metadata.chips:    */
 /*  what the Take said, what the speaker said for an earlier talk, then the   */
-/*  signed answers for their field. While it is the newest bubble the answers */
-/*  sit under it, with Skip; a tap goes to the backend, which writes it and   */
-/*  the reply (thanks, or the one follow-up). Typed words in the message box  */
-/*  are an answer too (the backend's chat reads them).                         */
+/*  signed answers for their field ("Someone else" last on who it is for,     */
+/*  N319 item 8). While it is the newest bubble the answers sit under it, on  */
+/*  the right; a tap goes to the backend, which writes it and the reply.      */
+/*  Typed words in the message box are an answer too (the backend's chat      */
+/*  reads them), and so is a voice answer: while it waits the mic is orange   */
+/*  (N296 state 2, WillVoiceAnswer.tsx). No Skip (founder 2026-10-31, N296    */
+/*  item 2): not answering is allowed, the "+" still opens the projects; a   */
+/*  follow-up and the key line (N294 item 2) have no taps.                    */
 /* -------------------------------------------------------------------------- */
 
 export const WILL_QUESTION = "will_question";
@@ -31,6 +34,18 @@ export function willQuestionOf(
   if (typeof arcId !== "string" || typeof takeSessionId !== "string") return null;
   const chips = Array.isArray(meta.chips) ? meta.chips.filter((c): c is string => typeof c === "string") : [];
   return { arcId, takeSessionId, chips };
+}
+
+/** Will's question (or its follow-up) waiting for an answer: the newest
+ *  bubble drawn (messages oldest first). While it waits the Lounge's mic is
+ *  orange and records the answer (backend N296 state 2). */
+export function willWaiting(
+  drawn: readonly { metadata?: Record<string, unknown> | null }[],
+): WillQuestionTarget | null {
+  const meta = drawn[drawn.length - 1]?.metadata;
+  const will = willQuestionOf(meta);
+  const step = meta?.will_question_step;
+  return will && (step === "ask" || step === "follow") ? { arcId: will.arcId, takeSessionId: will.takeSessionId } : null;
 }
 
 export default function WillQuestionBubble({
@@ -64,30 +79,40 @@ export default function WillQuestionBubble({
           <Linkified text={body} />
         </div>
       </div>
-      {open ? (
-        <div data-will-answers="" className="ml-auto flex max-w-[90%] flex-wrap justify-end gap-1.5 pt-0.5">
-          {chips.map((chip) => (
-            <button
-              key={chip}
-              type="button"
-              disabled={busy}
-              onClick={() => tap(chip)}
-              className="rounded-full border-[1.5px] border-primary bg-background px-3 py-1.5 text-[14.5px] font-semibold text-primary disabled:opacity-60"
-            >
-              {chip}
-            </button>
-          ))}
-          <button
-            type="button"
-            data-will-skip=""
-            disabled={busy}
-            onClick={() => tap(CHIP_LABEL.feedback_skip)}
-            className="rounded-full bg-muted px-3 py-1.5 text-[14.5px] text-foreground disabled:opacity-60"
-          >
-            {CHIP_LABEL.feedback_skip}
-          </button>
-        </div>
+      {open && chips.length > 0 ? (
+        <TapRow labels={chips} disabled={busy} onTap={tap} dataAttr={{ "data-will-answers": "" }} />
       ) : null}
     </>
+  );
+}
+
+/** Orange outlined taps on the right of the thread, where the speaker's own
+ *  messages go: Will's tap answers, and "I want to continue my practice"
+ *  under the goodbye after a Take (N294 item 6). */
+export function TapRow({
+  labels,
+  disabled = false,
+  onTap,
+  dataAttr,
+}: {
+  labels: string[];
+  disabled?: boolean;
+  onTap: (label: string) => void;
+  dataAttr: Record<string, string>;
+}) {
+  return (
+    <div {...dataAttr} className="ml-auto flex max-w-[90%] flex-wrap justify-end gap-1.5 pt-0.5">
+      {labels.map((label) => (
+        <button
+          key={label}
+          type="button"
+          disabled={disabled}
+          onClick={() => onTap(label)}
+          className="rounded-full border-[1.5px] border-primary bg-background px-3 py-1.5 text-[14.5px] font-semibold text-primary disabled:opacity-60"
+        >
+          {label}
+        </button>
+      ))}
+    </div>
   );
 }

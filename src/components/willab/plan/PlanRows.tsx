@@ -171,6 +171,21 @@ function SummaryCall({ ctx }: { ctx: PlanRowCtx }) {
   );
 }
 
+/** The plan's progress in the chat after the walk, under the goodbye (N319
+ *  item 7): Will's grey bubble with the plan's bar and "{n} of {total}
+ *  practices done.", as the backend counted them when it wrote the row. */
+function Progress({ message }: { message: LoungeMessage }) {
+  const meta = (message.metadata ?? {}) as Meta;
+  const done = typeof meta.done === "number" ? meta.done : 0;
+  const total = typeof meta.total === "number" ? meta.total : 0;
+  return (
+    <div data-row="app" data-bubble data-plan-progress className="mr-auto flex min-w-[70%] max-w-[85%] flex-col gap-2 rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground">
+      {total > 0 ? <PlanBar plan={{ done, total }} /> : null}
+      <div>{message.body}</div>
+    </div>
+  );
+}
+
 function Card({ message, ctx }: { message: LoungeMessage; ctx: PlanRowCtx }) {
   const meta = (message.metadata ?? {}) as Meta;
   if (!ctx.plan || meta.plan !== ctx.plan.id) return <></>;
@@ -186,6 +201,7 @@ export function planRowFor(message: LoungeMessage, ctx: PlanRowCtx | undefined):
   if (meta.plan_hello) return <Hello message={message} ctx={ctx} />;
   if (meta.plan_one) return <OneThing message={message} ctx={ctx} />;
   if (meta.plan_summary_call) return <SummaryCall ctx={ctx} />;
+  if (meta.plan_progress) return <Progress message={message} />;
   if (meta.plan_ask === "consent") return <ConsentAsk message={message} />;
   if (typeof meta.day_line === "string") {
     return (
