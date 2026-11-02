@@ -348,16 +348,22 @@ built and what is still to come.
    is today (N89): "Today, one thing: say your key line a little slower than
    the rest. You've got this 💪" (the wedding toast: "take a breath before
    your key line"; a speaker's own case: "give your key line a little more
-   room"), the key line in the speaker's words, their recording ("How you
-   said it") and "● Record Take N" inside. The chat has one record button, in
-   the newest bubble: the previous Take's closing message keeps its words and
-   gives its button up, and a line written after it moves the bubble below.
-   Once a newer Take is recorded, in any project, the bubble loses its
-   button for good; the new Take's closing message brings "Record Take N"
-   back after its walk's summary (N244, N251).
+   room"), the key line in the speaker's words and their recording ("How you
+   said it"). No bubble carries a button (N294 item 7): while this bubble is
+   the newest one thing, "Record Take N" stands under the chat, alone, the
+   plan's black button with the red dot ("Start your first recording"'s
+   shape, `RecordDockButton`), the message box, the "+" and the mic gone
+   (N296 state 4); a tap starts that Take as the old button did, and it
+   waits (greyed) while a Take is still landing. While the plan asks a
+   question, or a call's calendar is open, that stands there instead. The
+   chat has one record button: the previous Take's goodbye keeps its words
+   and gives its tap and button up. Once a newer Take is recorded, in any
+   project, the button goes for good and the bar comes back; the new Take's
+   goodbye brings "Record Take N" back after its walk (N244, N251). Was:
+   "● Record Take N" inside the bubble (N167).
    The last practice and the next plan show the same bubble with N89's
    closing line. No "Start a new project" under it: the "+" next to "Type
-   here" opens the projects, as today (N167, N169).
+   here" opens the projects, as today (N167, N169), once the bar is back.
 7. This week's level takes the walk's slot whose tool fits it, never a
    fourth moment and never the strongest's paragraph (N289 item 8; the walk's
    three slots, its page C2): "Say it once, and it lands" the one between,
@@ -618,6 +624,13 @@ Waiting for the founder's OK:
 
 ## 3. Still open
 
+- **The practice day's "Record Take N" stands alone all day** (N294 item 7,
+  G6, built 2026-11-02): from the hello until a Take is recorded the
+  message box, the "+" (another project) and the mic are gone, so the
+  speaker cannot write to Will that day before recording. After the
+  goodbye the button comes only once they tap "I want to continue my
+  practice". Whether the practice day's should wait for a tap too, or keep
+  the bar under it, is the founder's call.
 - **How the chat answers a rating tap**, now that the number is not shown
   back (N178): the words wait for the founder (Never 4).
 - **As built, where N319 and its prototype (version 39) don't say:** the
@@ -656,8 +669,10 @@ The plan's own code, guarded by this page (`scripts/flow-pages.txt`):
 
 - `src/components/willab/plan/`: the questions by step (`PlanDock.tsx`:
   `PlanAsk`, the tap answers and the scale in the thread; `usePlanVoice`,
-  the orange mic's recording; `PlanDock`, "Start your first recording" and
-  the calls' calendar in the footer), the
+  the orange mic's recording; `PlanDock`, "Start your first recording", a
+  practice day's "Record Take N" (`standsOne`, G6) and the calls' calendar
+  in the footer; `RecordDockButton`, the plan's black button with the red
+  dot), the
   calls' calendar (`PlanCalendar.tsx`), the card (`PlanCard.tsx`, which
   reads the calls' ring row `plan_calls`, N315), the rows in
   the thread (`PlanRows.tsx`), the two sheets (`PlanSheet.tsx`), the voice
@@ -678,7 +693,8 @@ It touches these places, each with its own page for what it owns:
   bubbles, its answers at the thread's end, its say over the bar (the mic
   orange, "Type here" waiting, and its note on a tap, `typingWait`), its
   footer in place of the message box only
-  for "Start your first recording", a call's calendar and the recording bar,
+  for "Start your first recording", a call's calendar, the recording bar
+  and a practice day's "Record Take N",
   and the empty Lounge's button held while the plan asks. The plan's taps
   are Will's (`WillQuestion.tsx`, `TapRow`, with "Not now" quiet). The
   walk's page owns the Lounge's other rules.
@@ -721,6 +737,7 @@ One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-02 · N323 item 6 · G7, G8: the tempo step is the One thing walk's one fix for everyone, with or without a plan, at any level, when rushing is the Take's biggest issue; a level that takes a slot keeps it unless rushing outweighs it (the rule on the walk's page T). Was: only in a pace or pause week · BE, FE (this PR)
 - 2026-11-02 · N323 item 1 · B10, K, §2, §3, §4: a tap on the faded "Type here" before the first Take, while the orange mic waits for a spoken answer, shows "We need to hear this in your voice. Tap the mic." above the bar, a small dark pill, one at a time, gone after about 2.5 seconds (`usePlanLounge` `typingWait`, `PLAN_COPY.typeHereNote`); none on a choice, where no mic shows, or after the first Take. Was: a tap showed nothing, the words waiting for the founder · FE (this PR)
+- 2026-11-02 · N294 item 7, N296 state 4 · G6, §3, §4: a practice day's "Record Take N" is the plan's black button with the red dot under the chat, alone (the message box, the "+" and the mic gone), while today's one thing is the newest and the plan asks nothing; a tap starts that Take as before, greyed while a Take is still landing; today's one thing keeps its words, the key line and "How you said it". No new words. Was: "● Record Take N" inside the bubble (N167) · FE (this PR)
 - 2026-11-02 · N319 items 1 to 3 · A1, B3, B5, B10, D2, D5, E5, F1, K, §3, §4: every question the after-walk way: Will's bubble, the Lounge's bar under it ("+", "Type here", the mic); a choice is tap answers on the right of the thread (`PlanAsk`, Will's `TapRow`), the plan's "Not now" grey and quieter; a voice question turns the bar's mic orange and records with the one recording bar (`usePlanVoice`); the scale in the thread under its question; "Start your first recording" only after the plan card (the backend no longer sends `record_now`); "Type here" faded and not focusable while the plan asks, its note waiting for the founder's words. No new words. Was: the plan's footer in place of the bar (its chips, "Record your answer", the scale, "Skip" and "Book now"), the bar hidden while the plan had a step, and "Start your first recording" under each voice question before the first Take (N262) · BE, FE (this PR)
 - 2026-11-02 · N315, N319 items 4 and 6 · B4, D5, E1, E2, F0, G5, I2, K, §4: the plan's coach calls hidden, not removed, behind the ring row `plan_calls` (backend `rings.PLAN_CALLS`; no row, off for everyone, the founder included): off, the plan goes from its last question or rating straight to "You're all set. Here's your plan.", with no call asked, by every path (the questions, "Not now", the ratings, a speaker with Takes, Will asking again after a Take's walk); a plan left at a call's ask moves on to the plan when the Lounge opens, and "Skip" there asks no summary call; the card's call lines, a booked kickoff's mark and the summary call at the plan's end show only with the row on. The card is the plan only: "Plan", its bar, the practice days, "Your deadline: {date}" and "Change your plan"; "See your plan" adds "This week's level" and the level above it. "Let me draft your plan. A few more questions first." is not written. No new words. Was: both calls asked of everyone after the questions; the card with "Your next level", the level, the key line, "How you said it", "Why this line?", the pace week's line and the two call lines; "Let me draft your plan. …" under Will's reply · BE, FE (this PR)
 - 2026-11-02 · N314 · B3, K: the plan's voice answers record with the one recording bar, the trash then the walk's strip with Stop inside it; Stop sends, the trash throws it away. Was: a "Your answer" line over the strip and a large red Stop under it · FE (this PR)
