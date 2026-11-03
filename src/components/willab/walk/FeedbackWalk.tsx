@@ -792,7 +792,8 @@ export default function FeedbackWalk<R = unknown>({
         // Their own sentence, without the hesitations it opens with (N435 item 5).
         if (tried.kind === "keep") return own(moment, withoutOpeningFillers(moment.clearer.said));
         // Without the sentence's punctuation at either end, as after "Keep
-        // mine" (B7; backend N440 item 7).
+        // mine" (B7; backend N440 item 7). A practice that could not be
+        // opened saves nothing: their best's words instead (N374).
         const sentence = helperWordsSaid(moment.clearer.say.trim());
         const practice = practise.practiceOf(moment.index);
         if (!sentence || !practice) return null;

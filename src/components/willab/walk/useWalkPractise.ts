@@ -87,7 +87,7 @@ function within<T>(promise: Promise<T | null>, ms: number): Promise<T | null> {
  *  sentence (`rewrite:{say}`), their own words (`plain`) or the exercise.
  *  "Try it" and "Keep mine" each record against their own sentence (N309
  *  item 1, N435 item 4), so a moment opens again when that changes. */
-type Opened = { on: string; practice: Promise<string | null> };
+type Opened = { on: string; practice: Promise<string | null>; failed?: boolean };
 
 const openedOn = (passage: WalkPractisePassage): string => (passage.kind === "rewrite" ? `rewrite:${passage.say}` : passage.kind);
 
@@ -176,8 +176,9 @@ export type WalkPractise = {
   /** The moment's clip is being asked and not yet answered. */
   aiVoiceAsking: (moment: number) => boolean;
   /** The practice the moment's practise was opened on, once asked; null
-   *  when none was (the One thing walk's helper words after a Clearer
-   *  version are saved from it, N309 item 3). */
+   *  when none was, or it could not be opened (the One thing walk's helper
+   *  words after a Clearer version are saved from it, N309 item 3; without
+   *  it, their best's words, N374). */
   practiceOf: (moment: number) => Promise<string | null> | null;
 };
 
@@ -212,7 +213,12 @@ export function useWalkPractise<R>(args: {
   const openOn = (practiseIO: WalkPractiseIO<R>, index: number, what: { item: R; passage: WalkPractisePassage }) => {
     const on = openedOn(what.passage);
     if (opened.current.get(index)?.on === on) return;
-    opened.current.set(index, { on, practice: practiseIO.open(what.item, what.passage).catch(() => null) });
+    const entry: Opened = { on, practice: practiseIO.open(what.item, what.passage).catch(() => null) };
+    // Known not opened: nothing is saved from it (practiceOf).
+    void entry.practice.then((id) => {
+      if (!id) entry.failed = true;
+    });
+    opened.current.set(index, entry);
   };
   const pending = useRef<{ at: number; step: WalkStep; run: number } | null>(null);
   const urls = useRef<string[]>([]);
@@ -528,6 +534,9 @@ export function useWalkPractise<R>(args: {
   const aiVoicePracticeOf = useCallback((moment: number) => aiPractice.current.get(moment), []);
   const aiVoiceAsking = useCallback((moment: number) => aiWaiting.current.has(moment), []);
 
-  const practiceOf = useCallback((moment: number) => opened.current.get(moment)?.practice ?? null, []);
+  const practiceOf = useCallback((moment: number) => {
+    const entry = opened.current.get(moment);
+    return entry && !entry.failed ? entry.practice : null;
+  }, []);
   return { elapsed, capturing, stop, skip, again, tryOf, cancel, reset, aiVoiceOf, aiVoicePlayed, aiVoicePracticeOf, aiVoiceAsking, practiceOf };
 }
