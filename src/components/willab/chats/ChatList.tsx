@@ -13,9 +13,10 @@ import { ADD_SHEET_LINE, ADD_SHEET_TITLE, COPY_MY_LINK, joinedThrough } from "./
 /*  pinned on top with his mark, then each chat, newest first, with the first */
 /*  letter of the name in a circle (no photo, N301, N322 item 1), the name and */
 /*  who they are, the time, and the last message on one line. A new message   */
-/*  shows bold with an orange dot; no number, ever. Just joined through a     */
-/*  link, the chat with the one who invited you is the first row, above Will, */
-/*  new until opened, its line theirs or "You joined through…" (N357).        */
+/*  shows bold with an orange dot; no number, ever. Will is always the first  */
+/*  row (N360). Just joined through a link, the chat with the one who invited */
+/*  you is right under Will, new until opened, its line theirs or "You joined */
+/*  through…" (N357).                                                         */
 /* -------------------------------------------------------------------------- */
 
 /** Will's chat is the Lounge; its row carries his mark, his name and a pin. */
@@ -234,8 +235,8 @@ export default function ChatList({
   onOpen,
 }: {
   chats: readonly Chat[];
-  /** The chat just joined through someone's link: the first row, above
-   *  Will's, marked new until it is opened (backend N357). */
+  /** The chat just joined through someone's link: the row right under
+   *  Will's, marked new until it is opened (backend N357, N360). */
   joined?: string | null;
   onOpenWill: () => void;
   onOpen: (chat: Chat) => void;
@@ -259,8 +260,8 @@ export default function ChatList({
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       <div data-chat-list className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
-      {first ? row(first, true) : null}
       <ChatListRow id="will" circle={<WillMark />} title={WILL_ROW_TITLE} pinned onOpen={onOpenWill} />
+      {first ? row(first, true) : null}
       {chats.length === 0 ? (
         /* Nobody else yet (the iPhone app shows the list with Will alone,
            founder 2026-11-02): adding someone is the next row, as the + does. */

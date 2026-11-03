@@ -103,14 +103,15 @@ order it is built in.
      person opened that chat on this device, kept per chat in the browser;
      unreadable storage reads as not new): the name bold, the line dark,
      the time orange-dark and a small orange dot. No number, ever.
-   - **Will** stays pinned first, with his mark (the logo's three dots in a
-     grey circle), his name and a pin; then the chats, newest last message
-     first. **Just joined through a link** (`/chat?with=<chat>`), the list
-     opens, not a chat: the chat with the one who invited you is the first
-     row, above Will, marked new, its line their last message or, with none
-     yet, "You joined through {name}'s link. Only the two of you are in this
-     chat." (N335 item 2); opened, it takes its place with the rest (N357;
-     was N348 item 1: that chat opened).
+   - **Will** is always the first row (N360), with his mark (the logo's
+     three dots in a grey circle), his name and a pin; then the chats,
+     newest last message first. **Just joined through a link**
+     (`/chat?with=<chat>`), the list opens, not a chat: the chat with the one
+     who invited you is the row right under Will, marked new, its line their
+     last message or, with none yet, "You joined through {name}'s link. Only
+     the two of you are in this chat." (N335 item 2); opened, it takes its
+     place with the rest (N357; was N348 item 1: that chat opened; was N357
+     item 1: above Will).
    - **A person's chat**: the WillpowerLab bar goes; the chat's own top bar
      takes the top, full width: back, a 36px circle with the letter, the
      name and who they are. The messages start at the bottom, by the bar,
@@ -179,8 +180,8 @@ order it is built in.
      link too.", one button, "Join" (N307), and "Opens in your browser.
      Nothing to install." (N335 item 2). Signed out, Join goes to sign in or
      sign up and comes back to finish; joined, /chat opens on the list of chats,
-     the chat with the person who invited you its first row, marked new
-     (N357; was N348 item 1, the chat itself): one chat for the two of them,
+     Will's row first (N360) and the chat with the person who invited you
+     right under it, marked new (N357; was N348 item 1, the chat itself): one chat for the two of them,
      however often either opens a link (N328). Will's first lines
      wait in Will's chat until they open it (N348 item 2). In that chat,
      above the messages, the one who joined reads "You joined through
@@ -626,6 +627,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-02 · N351, N341 item 2, N337 · C1, K, §2, §4: the "+" on the left of a person's chat bar, in every chat but Will's: a tap swaps the bar for four tiles, Photos, Camera, Files and Someone else, with Cancel under them, which brings the bar back. Photos and Camera send images and Files any file, through the browser's own pickers, each its own message up to 10 MB (a photo: an image bubble that opens full size with a close ✕; a file: a bubble with its extension and its own name that downloads); Someone else opens the add sheet. The list's line is "📷" or "📄 {file name}". Each photo or file is a question for the other person (`meta.question`), and so is the sender's voice note straight after it; the mic shows while the newest message is the other person's question or your own photo or file. The prototype's own pickers and their words are not built (not signed). Was (N341): the bar was the three emoji and the mic, the mic only while the newest message was the other person's question; no "+" · BE #1606, FE (this PR)
+- 2026-11-02 · N360 · C1: Will is always the first row of the list; just joined through a link, the inviter's chat is the row right under Will, still marked new with its last message or the joined line. Was (N357 item 1): the inviter's chat above Will · FE (this PR)
 - 2026-11-02 · N354 · C1: in the iPhone app, no glimpse of Will's chat before the list: the rings and the chats are now read together at the chat boot, after the Lounge's own reads (they were one after the other), and the loader covers the Lounge until the list is known. Was: the Lounge for a moment, then the list over it. The website is unchanged: off, or with no chats, /chat is the Lounge at once · FE (this PR)
 - 2026-11-02 · N331 · C1, K: a voice note's words, once ready, behind "Read it" under its player, inside the bubble; "Hide" closes them; closed by default for both people; none shown when there are no words; the list keeps "🎤 Voice message". The backend's read and the voice note's answer carry `words`. Was (N324): the words kept, shown nowhere · BE #1604, FE (this PR)
 - 2026-11-02 · N341 · C1: in a chat with a person, the mic shows only while a question waits for your answer (the newest message is theirs and is a question: their words, or a message marked as one); answered with an emoji or a voice note, it goes. Was (N321 item 2): the mic always beside the emoji. The "+" comes with N351 · FE (this PR)

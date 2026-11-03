@@ -509,10 +509,11 @@ N310).
 O9  In a chat I joined through someone's link, one line above the
 messages says whose link it was (N335 item 2); a chat without it has
 no such line.
-O10 Just joined (/chat?with=<chat>), the list opens with the chat with
-the one who invited me as its first row, above Will's, marked new with
-the joined line, and the address is clean again; opened, it is a chat
-like the rest (N357; was N348 item 1).
+O10 Just joined (/chat?with=<chat>), the list opens with Will's row
+first, as always, and right under it the chat with the one who invited
+me, marked new with the joined line; the address is clean again;
+opened, it is a chat like the rest (N357, N360; was N348 item 1, and
+N357's inviter above Will).
 O11 In the iPhone app the Lounge never shows for a moment before the list
 covers it: the rings and the chats are asked together at boot, and
 the loader stands in front until both have answered (N354).
@@ -534,7 +535,7 @@ O6 -> ""the mic records a voice note, Stop posts it and it joins the thread""
 O7 -> ""a voice note from the other person plays from the chat's audio route, its words behind Read it""
 O8 -> ""the + opens my own link and copies it""
 O9 -> ""a chat joined through a link says whose link it was""
-O10 -> ""after joining, the list opens with the one who invited me on top, marked new""
+O10 -> ""after joining, the list opens with Will first and the one who invited me under him, marked new""
 O11 -> ""in the app, the loader, not the Lounge, waits for the list; both reads start together""
 O12 -> ""the + shows the four tiles, Someone else opens my link, and Cancel brings the bar back""
 O13 -> ""a photo I send joins the thread and the mic shows until my voice note says what I need""
