@@ -744,22 +744,14 @@ export default function FeedbackWalk<R = unknown>({
    *  clip's quoted phrase, their own sentence kept), or the Clearer
    *  version's sentence, whole, whatever their length (N323 item 2); the
    *  Sniper's stretch within the cap of eight words. Found where they are
-   *  saved; else none: a tip that quotes no phrase gives none, and the walk
-   *  goes on to "Lesson done." (N323 item 3). Played again, the words as
-   *  saved. */
+   *  saved. When the fix gives none (no fix at all, a tip that quotes no
+   *  phrase, a stretch past eight words), their best's own words, whole,
+   *  saved the same way (backend N374); none of those either, and the walk
+   *  goes on to "Lesson done.". Played again, the words as saved. */
   const fixWords = (s: WalkStep): OneWords | null => {
-    if (s.of == null) {
-      return !s.replay && tempoWords
-        ? { text: tempoWords.text, save: { partId: tempoWords.partId, span: tempoWords.span, paragraphText: tempoWords.paragraphText, auto: true } }
-        : null;
-    }
-    const moment = walk.moments[s.of];
-    if (!moment) return null;
-    if (s.replay) {
-      const saved = helperWordsOf?.(moment.partId);
-      return saved ? { text: helperWordsSaid(stripRichMarkers(saved)), save: null } : null;
-    }
-    const own = (text: string | null | undefined): OneWords | null => {
+    const bestAt = plan.find((x) => x.one && x.key === "praise")?.moment;
+    const best = bestAt == null ? undefined : walk.moments[bestAt];
+    const own = (moment: FeedbackWalkMoment<R>, text: string | null | undefined): OneWords | null => {
       const words = text?.trim();
       if (!words) return null;
       const span = quoteSpan(moment.paragraphText, words);
@@ -767,22 +759,36 @@ export default function FeedbackWalk<R = unknown>({
         ? { text: helperWordsSaid(stripRichMarkers(span.text)), save: { partId: moment.partId, span, paragraphText: moment.paragraphText, auto: true } }
         : null;
     };
-    const opener = plan.find((x) => x.moment === s.of && (x.key === "clearer" || x.key === "exVideo"));
-    if (opener?.key === "clearer" && moment.clearer) {
-      const tried = plan.find((x) => x.key === "practise" && x.moment === s.of);
-      if (!tried) return null;
-      if (tried.kind === "keep") return own(moment.clearer.said);
-      const sentence = moment.clearer.say.trim();
-      const practice = practise.practiceOf(moment.index);
-      if (!sentence || !practice) return null;
-      return {
-        text: sentence,
-        save: { partId: moment.partId, span: { text: sentence, start: null, end: null }, paragraphText: moment.paragraphText, auto: true },
-        practice,
-      };
-    }
-    if (opener?.key === "exVideo") return own(practise.aiVoiceOf(moment.index)?.clip?.phrase);
-    return null;
+    const saved = (moment: FeedbackWalkMoment<R> | undefined): OneWords | null => {
+      const words = moment ? helperWordsOf?.(moment.partId) : null;
+      return words ? { text: helperWordsSaid(stripRichMarkers(words)), save: null } : null;
+    };
+    const moment = s.of == null ? undefined : walk.moments[s.of];
+    if (s.replay) return moment ? saved(moment) ?? saved(best) : null;
+    const fixGives = (): OneWords | null => {
+      if (!moment) {
+        return s.of == null && tempoWords
+          ? { text: tempoWords.text, save: { partId: tempoWords.partId, span: tempoWords.span, paragraphText: tempoWords.paragraphText, auto: true } }
+          : null;
+      }
+      const opener = plan.find((x) => x.moment === s.of && (x.key === "clearer" || x.key === "exVideo"));
+      if (opener?.key === "clearer" && moment.clearer) {
+        const tried = plan.find((x) => x.key === "practise" && x.moment === s.of);
+        if (!tried) return null;
+        if (tried.kind === "keep") return own(moment, moment.clearer.said);
+        const sentence = moment.clearer.say.trim();
+        const practice = practise.practiceOf(moment.index);
+        if (!sentence || !practice) return null;
+        return {
+          text: sentence,
+          save: { partId: moment.partId, span: { text: sentence, start: null, end: null }, paragraphText: moment.paragraphText, auto: true },
+          practice,
+        };
+      }
+      if (opener?.key === "exVideo") return own(moment, practise.aiVoiceOf(moment.index)?.clip?.phrase);
+      return null;
+    };
+    return fixGives() ?? (best ? own(best, best.said) : null);
   };
 
   const ctx: ScreenCtx<R> = {

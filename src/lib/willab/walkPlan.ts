@@ -186,7 +186,8 @@ export type WalkStep = WalkScreen & {
    *  said with its own words; its practise allows two tries. */
   one?: boolean;
   /** The helper words step: the moment whose paragraph takes them (the
-   *  fix's). Not `moment`, so reaching it never settles that moment twice. */
+   *  fix's; with no fix and no Sniper, their best's, backend N374). Not
+   *  `moment`, so reaching it never settles that moment twice. */
   of?: number;
 };
 
@@ -260,8 +261,9 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
  *  first, else the weakest's AI clip; the server serves one, N309); with no
  *  moment to fix and the tempo step there, the Sniper on this week's level;
  *  a coach's answer on any other moment, on its own screen; from Take 2 one
- *  moment of another speaker; the helper words, on their own; then "Lesson
- *  done.". Nothing to walk: nothing. */
+ *  moment of another speaker; the helper words, on their own (their best's
+ *  own words when the fix gives none, backend N374); then "Lesson done.".
+ *  Nothing to walk: nothing. */
 function oneThing(moments: readonly WalkMoment[], input: WalkPlanInput): WalkStep[] {
   const out: WalkStep[] = [];
   const best = moments.find((m) => m.slot === "strongest" && m.praise);
@@ -278,7 +280,11 @@ function oneThing(moments: readonly WalkMoment[], input: WalkPlanInput): WalkSte
   }
   if (out.length === 0) return out;
   if (input.judge) out.push({ key: "others", one: true });
-  if (fix || sniper) out.push({ key: "words", one: true, ...(fix ? { of: fix.index, slide: fix.slide } : {}) });
+  // The helper words, on their own (C3): the fix's; with no fix and no
+  // Sniper, their best's own words (backend N374), so the walk always
+  // leaves some.
+  const of = fix ?? (sniper ? null : best);
+  if (fix || sniper || best) out.push({ key: "words", one: true, ...(of ? { of: of.index, slide: of.slide } : {}) });
   out.push({ key: "done", one: true });
   return out;
 }

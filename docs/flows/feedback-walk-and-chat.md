@@ -322,8 +322,8 @@ step; the loop never waits for a coach.
   version's "say it straight", or the pace game's "give “{words}” more
   room", kept with the tempo step's opening, {words} the Sniper's helper
   words (C3): "Last time: give “{words}” more room. You did.". Not risen,
-  or no tip kept (a stretch past eight words gives no helper words): no
-  line. Drawn when it is there while the walk still stands where it
+  or no tip kept (a stretch past eight words gives no words of its own):
+  no line. Drawn when it is there while the walk still stands where it
   opened, told to the chat once. Was: only a moment's fix; the Sniper had
   no tip, so no Last time (2026-11-02).
 - **C1 Your coach.** First, if there is one: "Your coach:", the coach's
@@ -373,7 +373,12 @@ step; the loop never waits for a coach.
   improve**: "And now, one thing to improve:" and ONE fix, the slot whose
   tool fits: this week's level's moment on a plan (N289 item 8), else the
   between with its Clearer version (words come first, C5), else the
-  weakest with the AI clip after their best (C4); the Sniper (T) and no
+  weakest with the AI clip after their best (C4); with no paragraph left
+  for the weakest (a Take of two), a between whose Clearer version does
+  not pass takes the AI clip itself, when it has 8 words or more and a
+  sound read (N374; a Take recorded before 3 November 2026, 11:00 UTC,
+  keeps the walk it had; was: praised as a next best and left out, so the
+  walk was their best alone, with no helper words); the Sniper (T) and no
   moment on a pace or pause week whose Take has a stretch, and for
   everyone, with or without a plan, at any level, when rushing is the
   Take's biggest issue (T, N323 item 6). A fix the last walk gave that
@@ -452,9 +457,13 @@ praised moment:
   (N323 item 2; the paragraph's save sends `source: "walk"`); the cap of
   eight stays for helper words picked by hand on the Ideal Text and for
   the Sniper's stretch, a whole clip (N325 item 5). Found where they are
-  saved; else none. A tip that quotes no phrase (the AI clip's tips for
-  pace or fillers) gives none: the walk goes from the try to "Lesson
-  done." (N323 item 3). No pick. The picker below
+  saved. When the fix gives none (no fix at all, a tip that quotes no
+  phrase, as the AI clip's tips for pace or fillers, or a stretch past
+  eight words), their best's own words, whole, are the helper words, with
+  the same line, saved on their paragraph the same way (N374; was: none,
+  and the walk went from the try to "Lesson done.", N323 item 3); none
+  found there either, and the walk goes on to "Lesson done.". No pick.
+  The picker below
   stays for editing them from the Ideal Text (F5) and in a Take served
   before N289. Was: **Choose your helper words**, after each praised moment, after the
   Clearer version of a moment whose voice reached the floor (C5; founder
@@ -1002,7 +1011,10 @@ praised moment:
     between   = from another block, the clip whose words need help most
               (H3; lowest W, then lowest S × W), picked before the
               weakest; the Clearer version when a rewrite passes the gate,
-              else a next best
+              else a next best, or, with no block left for the weakest,
+              the weakest itself with the AI clip when it has 8 words or
+              more and a sound read (N374; Takes recorded from 3 November
+              2026, 11:00 UTC, `VOICE_FALLBACK_FROM`)
     weakest   = from a block left, the lowest S × W with 8 words or more
               and a sound read, never one holding its helper words; Line
               A, the strongest's clip again, the AI clip
@@ -1916,6 +1928,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N374 · built (C0a, C2, C3, H1): a short Take keeps its one fix: when the between's Clearer version does not pass and no paragraph is left for the weakest (a Take of two), that moment takes the AI clip itself (8 words or more and a sound read), for Takes recorded from 3 November 2026, 11:00 UTC (backend `VOICE_FALLBACK_FROM`); and every walk leaves helper words: when the fix gives none (no fix, a tip that quotes no phrase, a stretch past eight words), their best's own words, whole, with the same line. Was: the between was praised as a next best and left out, so a new speaker's first Take showed their best alone, with no fix and no helper words · BE (the pick), FE (this PR)
 - 2026-11-03 · N373 · built (C4): the fix waits ten seconds on a clip still being made, then says its tip in words (N370's bubble), a clip that comes later joining as its player alone; once the first try began, a clip not yet seen never lands above it (`AI_CLIP_WAIT_MS`, `useClipWait`, `useClipBeforeTry`). Was: the dots as long as the clip took, and a late clip above the try · FE (this PR)
 - 2026-11-03 · N370 · built (C4): the One thing walk's fix with no AI clip (its check failed, the provider or the limits refused, no voice) keeps its tip in words, the exercise's video and instruction when one is served, and "Your turn.", in the walk and the chat; "Last time" keeps the tip; the backend sends what the clip would fix with an unavailable clip once it was chosen. Was: the bubble, and the tip with it, went with the clip · BE #1621, FE (this PR)
 - 2026-11-03 · N371 · E1: suggested answers, one rule for the whole app (`TapRow`): above the bar on the right, at least 44px high, 15px; the most likely last, nearest the thumb, filled orange (Will's question lists it first from the backend, so it is drawn last); two side by side, three or four stacked one per line, more than four the last three and "Show more"; a quiet "Not now" never the filled one. While Will's question waits and typing is allowed, the bar's middle is "Something else", shaped like the box, and a tap opens the box with "Type your answer"; the mic beside it answers by voice as before. Was: small outlined taps in one wrapping row, and "Type here" while Will asked · FE (this PR)

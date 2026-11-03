@@ -3,17 +3,18 @@
 STORY    As a speaker, I want the walk after each Take to show me my best moment and why it worked, then one thing to improve with the tool it needs, so that I leave every Take with one clear thing to carry into the next.
 OUTCOME
   O1  The walk goes in order: "Hi {name}.", my best with "This was your most confident moment." and why it worked, then "And now, one thing to improve:" and one fix; the Clearer version says "Say it straight:" and the sentence, with "Try it" and "Keep mine"; no helper-word picker, no second moment and no summary in the walk.
-  O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2).
+  O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2); with no fix, my best moment's own words are my helper words, saved the same way (backend N374).
   O3  The walk ends on "Lesson done." with Close, which ends the review and takes me back to the chat; no "Record Take N" in the walk.
   O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, my answer as my own reply with a tick, then "Got it."; on Take 1 I judge no one.
 PROVES   O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
          O2 -> the helper words come on their own and are saved without a pick,
                the Clearer version's sentence is saved from its practice,
-               a Clearer version past eight words is saved whole as my helper words (N323 item 2)
+               a Clearer version past eight words is saved whole as my helper words (N323 item 2),
+               with no fix, my best's own words are my helper words, saved without a pick (N374)
          O3 -> Lesson done and Close end the review, back to the chat
          O4 -> from Take 2, one moment of another speaker, of the Take's level, answered as my own reply,
                Take 1 judges no one
-WHY      Founder 2026-10-31 (backend N309: "apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take"; "ok, this finally good"); 2026-11-02 ("please implement"; backend N323: "you can allow helper words to be longer than 8 words").
+WHY      Founder 2026-10-31 (backend N309: "apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take"; "ok, this finally good"); 2026-11-02 ("please implement"; backend N323: "you can allow helper words to be longer than 8 words"); 2026-11-03 (backend N374: a walk with no fix left no helper words; "go with the recommendations").
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -175,6 +176,18 @@ describe("the One thing walk (N309)", () => {
     expect(props.onSaveHelperWords).toHaveBeenCalledWith(
       expect.objectContaining({ partId: "p2", auto: true, practiceId: "pr-1", span: { text: twelve, start: null, end: null } }),
     );
+  });
+
+  it("with no fix, my best's own words are my helper words, saved without a pick (N374)", async () => {
+    const best = "Ledgerly matches every transaction";
+    const model = buildFeedbackWalk<string>({ items: [{ ...ITEMS[0], said: best }], coachNote: false, practiceOn: true, guest: false, judge: false });
+    const props = draw({ seq: 1, at: model.plan.findIndex((s) => s.key === "praise") }, { model });
+    click(testId("walk-forward"));
+    await settle();
+    expect(text()).toContain(ONE_THING_COPY.helperWords);
+    expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe(best);
+    expect(props.onSaveHelperWords).toHaveBeenCalledWith(expect.objectContaining({ partId: "p1", auto: true, span: expect.objectContaining({ text: best }) }));
+    expect(screen()).toBe("walk-screen-done");
   });
 
   it("Lesson done and Close end the review, back to the chat", async () => {
