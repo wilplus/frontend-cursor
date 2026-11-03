@@ -141,7 +141,7 @@ export function useBackDismiss(
 }
 
 /* -------------------------------------------------------------------------- */
-/*  useBackStop — Back goes no further than this screen (founder 2026-11-03)   */
+/*  useBackStop — Back goes no further than this screen (backend N372)         */
 /*                                                                            */
 /*  The list of chats is the bottom of /chat: Back from a chat comes to it,    */
 /*  and Back from it goes nowhere. Behind /chat in the history there can be    */
@@ -165,13 +165,13 @@ function onStopOrAbove(): boolean {
 export function useBackStop(active: boolean): void {
   useEffect(() => {
     if (!active || typeof window === "undefined") return;
-    if (!onStopOrAbove()) window.history.pushState({ [STOP_KEY]: true }, "");
-    const onPop = () => {
+    const arm = () => {
       if (!onStopOrAbove()) window.history.pushState({ [STOP_KEY]: true }, "");
     };
-    window.addEventListener("popstate", onPop);
+    arm();
+    window.addEventListener("popstate", arm);
     // Left in place on the way out: it is /chat's own, and popping it here
     // would fire every other listener for nothing.
-    return () => window.removeEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", arm);
   }, [active]);
 }

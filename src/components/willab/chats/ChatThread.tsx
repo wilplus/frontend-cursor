@@ -116,7 +116,7 @@ function ChatTopBar({ chat, onBack, onOpen }: { chat: Chat; onBack: () => void; 
  *  Lounge's column, across its side padding. */
 export function WillTopBar({ onBack }: { onBack: () => void }) {
   // The device's Back (the iPhone's swipe) is this bar's back: one step, to
-  // the list, as in a person's chat. Without it the swipe walked off /chat.
+  // the list, as in a person's chat (N372).
   useBackDismiss(onBack);
   return (
     <div className="-mx-4">

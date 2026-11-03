@@ -204,7 +204,7 @@ order it is built in.
    - **Back** (the iPhone's swipe, the browser's Back) from Will's chat or
      a person's chat goes back by one, to the list, however abrupt the
      swipe; from the list it goes nowhere, never off /chat to the sign-in
-     page (founder, 2026-11-03).
+     page (N372).
    - **Record an answer** (N321 item 4, N336, N342, N345, N361, N363):
      when the question waiting for your answer is one Will marked as about
      a product or a treatment (`meta.record_answer`), the middle of the bar
