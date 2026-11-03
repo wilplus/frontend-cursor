@@ -47,15 +47,20 @@ Life Panel.
 4. Where it shows: the Sunday note and life goals in the Lounge and their
    lens; the principles in the Life Panel. Never on the recording screens,
    never shown to a coach. Private like the notebook (N158, N172, N182).
-5. How it begins. The first time the person taps the mic, before the
-   notebook's question, Will says why it exists in three grey bubbles: "The
-   jitters before a talk are often about more than the talk. Underneath is a
-   bigger question: where is my life going?" · "So we made a place for your
-   answer: your goals, in your own words." · "A goal you can recall is a
-   goal you can steer by. Keep yours here, and when the jitters come back
-   before your next talk, we'll show you what you're doing it for." Then
-   "Your notes are private. Only you and Will read them. Keep a voice
-   notebook?" with Yes | Not now. Once only (N195; not built yet).
+5. How it begins (N411, which replaces N195's three bubbles). The first
+   time Will spots something, it introduces the notebook: "🎙 Tap the mic any
+   time and say what's on your mind. It helps you catch negative thinking
+   and self-sabotage. One privacy rule first:", then one grey bubble with
+   the three privacy lines (K), then "Do you understand the rules and want
+   this feature on?" with Yes | Not now. Until Will can spot something in
+   the Takes (N411 item 5, not built yet), the introduction comes at the
+   first tap on the mic and the first typed "#". After that, the short line
+   "🔒 Security disclaimer ›" sits under every message where Will spots
+   something (the Sunday note's case, a strength, a strength again, a
+   suggested principle) and under every fifth # note that names someone; a
+   tap shows the three lines. Only a reminder: nothing is offered, changed
+   or deleted (`NotebookPrivacy.tsx`; backend
+   `voice_notebook.privacy_after_note`).
 6. Never in the way of the onboarding (N243). While a speaker is
    onboarded, nothing of it shows: no mic, no "Keep a voice notebook?", no
    life goals ask, no Sunday note, no quarter's ask. Will's chat does not
@@ -117,9 +122,16 @@ The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
 
 ### K · Words on screen (all signed)
 
-- **How it begins (A5, N195):** the three bubbles quoted in A5, word for
-  word; then the notebook's "Your notes are private. Only you and Will read
-  them. Keep a voice notebook?", "Yes", "Not now" and "Noted." (2026-10-20).
+- **How it begins and the security disclaimer (A5, N411, signed
+  2026-11-03):** "🎙 Tap the mic any time and say what's on your mind. It
+  helps you catch negative thinking and self-sabotage. One privacy rule
+  first:"; the three lines "Nothing fragile: health, family, money,
+  address.", "We look for patterns, not secrets. Fewer clues, less for
+  hackers.", "📓 For journalling try paper notebook 😉"; "Do you understand
+  the rules and want this feature on?", "Yes", "Not now", "Noted."; the short
+  line "🔒 Security disclaimer ›". Was (N195, never built): the three bubbles
+  on the jitters, and "Your notes are private. Only you and Will read them.
+  Keep a voice notebook?".
 
 - **The Sunday note (L; approved with the lock, 2026-10-26, N158):** "We
   spotted a pattern!"; "Not now"; "Investigate"; "Sunday note"; "What one of
@@ -525,6 +537,8 @@ Nothing in flight.
 
 ## 5. Prototypes
 
+- The security disclaimer <https://claude.ai/artifact/5X4M3cnSBxX8YcuKFEFY3a>
+  (N411, 2026-11-03).
 - The walk reads what you noted <https://claude.ai/artifact/KvAiek4DrxgbpDudcBFJNQ>
   (N290, N326, 2026-11-02).
 - The walk quotes your notebook <https://claude.ai/artifact/Jt2XrfdifpU2A41rbZed8D>
@@ -544,6 +558,7 @@ Nothing in flight.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N411 · A5, K: the security disclaimer: the mic line and three grey privacy lines above the new ask ("Do you understand the rules and want this feature on?"); the short line "🔒 Security disclaimer ›" under every spotted message and every fifth # note that names someone, a tap shows the three lines; the first spotted message from the Takes is not built yet. Was: N195's three bubbles (never built) and the ask "Your notes are private… Keep a voice notebook?" · BE #1634 (the decision), BE (the code), FE (this PR)
 - 2026-11-03 · N396 · B2: the words stream, well under a second behind the voice, with a short-lived key the backend issues under the permit; the pieces stay as the fallback; no new words on screen. Was: 2 to 4 seconds behind, every piece sent through Vercel and Railway to Whisper · BE (backend PR), FE (this PR)
 - 2026-11-02 · N350 item 2 · S3: the verbal read waits after the Take is flipped ready, before the walk's marks are baked, so "ready" never waits for it; the rule is the walk's H1. Was: "the Take waits for it" · docs (this PR)
 - 2026-11-02 · — · S3: the wait for the verbal read and the rule against repeating the notes are the walk's H1 only; S3 points there. No rule changes · docs (this PR)

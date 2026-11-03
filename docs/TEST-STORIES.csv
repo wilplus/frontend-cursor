@@ -454,12 +454,12 @@ follow-up) is the newest bubble.
 O3  Suggested answers keep one shape everywhere (N371): two side by
 side, three or four stacked, more than four the last three and
 ""Show more"", which shows the rest; a quiet ""Not now"" is never the
-filled one.
+filled one, and a lone answer is outlined, never filled (N415).
 O4  While Will's question waits and typing is allowed, the bar's middle
 is ""Something else""; a tap opens the box with ""Type your answer"".
 While typing is off (the plan asks), it never shows (N371).","O1 -> ""the newest question shows its answers, no Skip, and a tap
 goes to the backend once""
-O3 -> ""suggested answers: two in a row, three stacked, more than four behind Show more""
+O3 -> ""suggested answers: two in a row, three stacked, a lone one outlined, more than four behind Show more""
 O4 -> ""while Will asks, Something else opens the box; the plan's questions never show it""
 O2 -> ""the message after the Take waits under Will's question""","Founder 2026-10-20 (N82): ""only buttons"" in the walk, Will's questions in the Lounge, tap answers plus my own words; 2026-10-31 (N296): ""maybe we should not give them the option to skip; let's try that""."
 src/components/willab/acceptRewrite.test.tsx,Story,"As a speaker accepting a clearer version in the paragraph sheet, I want my answer saved and my text unchanged until I say it in my next Take, so that the Ideal Text is only what I said.","O1  The answer is saved once, as apply_suggestion.
@@ -676,7 +676,10 @@ O9  The done imports sit at the bottom of the list; opening one starts the
 judging, mixed across imports from a clip of it, and the list comes
 back when nothing is left to judge (founder 2026-10-21, N101).
 O10 The list comes in steps (N100): reaching its bottom reads the next
-step, the loader showing until it lands.","O1 -> ""a saved set-up goes straight to judging, with its count""
+step, the loader showing until it lands.
+O11 The corpus is the founder's, in the CEO panel (N416): the coach's
+pinned row has no Training corpus button; the CEO panel's opens the
+imports.","O1 -> ""a saved set-up goes straight to judging, with its count""
 O2 -> ""a set-up with nothing to judge goes back to the imports, never to judging""
 O3 -> ""a new import lands on the imports with its count""
 O4 -> ""the panel's queue read carries no words of a piece""
@@ -685,7 +688,8 @@ O6 -> ""only the founder's ⋯ carries Delete; confirming it erases the import a
 O7 -> ""several files import one at a time, each its own import named by its file""
 O8 -> ""a choice over the upload limit is refused, and a refusal for the hour stops the batch""
 O9 -> ""the done imports sit at the bottom; judging starts from the opened one and comes back to the list""
-O10 -> ""reaching the bottom of the list reads its next step""","Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files in one Import, the list in steps and the corpus judged mixed, founder 2026-10-21."
+O10 -> ""reaching the bottom of the list reads its next step""
+O11 -> ""the corpus opens from the CEO panel, never from the coach's pinned row""","Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files in one Import, the list in steps and the corpus judged mixed, founder 2026-10-21. Moved to the CEO panel, founder 2026-11-03 (backend N416)."
 src/components/willab/coachpanel/coachPlan.test.tsx,Story,"As a coach, I want a speaker's plan in my queue when it needs me, so that I pick their level blind, or send my video for a level that hasn't moved, and their plan follows my answer.","O1  A plan that waits comes first in my queue, on its speaker's card (""New
 plan"", ""Asked about their level"", ""Three Takes without moving""), and
 as ""Their plan"" above their Takes; the Lounge bubble counts it.
@@ -944,6 +948,11 @@ src/components/willab/noStarsOnUserSurfaces.test.ts,Guard,No component in src/co
 `Star` import in any .tsx, user lane or coach lane. A source scan on
 purpose: the star rating once lived in six separate renderers, and a
 render test only covers the surface it mounts.","star drawn -> ""NO component draws a star icon""",If removed: A star rating (a verdict) can quietly come back on any screen.
+src/components/willab/notebookPrivacy.test.tsx,Story,"As a speaker with the voice notebook, I want a short reminder to keep names and fragile things out whenever Will spots something, so that my notes stay about patterns, not secrets (backend N411).","O1  The notebook's ask comes with the mic line and the three privacy lines above it.
+O2  Under a message where Will spots something, the short line ""🔒 Security disclaimer ›""; a tap shows the three lines.
+O3  Other messages get no line; the backend's own line row (every fifth named note) is drawn as the line alone.","O1 -> introduces the notebook with the rules
+O2 -> reminds under every spotted message
+O3 -> stays quiet elsewhere",
 src/components/willab/oneProject.test.tsx,Story,"As a speaker, I want to work on one project at a time and be asked before I leave the current one, so that starting or going back to a project never mixes two presentations, and nothing is lost.","O1  ""Start a new project"" asks ""One project at a time"", naming the project
 with my newest Take; Continue archives that one, then starts the new
 project; Cancel leaves me on the list with nothing archived.

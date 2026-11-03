@@ -9,7 +9,7 @@ import { startPlanCheckout } from "@/services/api/subscribe";
 import { fetchRecordingBand, type RecordingBandState } from "@/services/api/tokens";
 import { canMountTopUpCard } from "./topUpCardGate";
 import { type WillabState } from "./useWillabFlow";
-import SymmetricPair from "./SymmetricPair";
+import { AnswerPair } from "./WillQuestion";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /* -------------------------------------------------------------------------- */
@@ -211,7 +211,7 @@ export function TopUpSlot({
           <p role="alert" className="mt-2 text-[13px] text-destructive">{offer.error}</p>
         ) : null}
       </div>
-      <SymmetricPair
+      <AnswerPair
         closeLabel={TOKENS_COPY.topUpDismiss}
         onClose={offer.notNow}
         actionLabel={TOKENS_COPY.topUpSeePrices}

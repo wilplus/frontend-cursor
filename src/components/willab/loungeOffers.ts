@@ -64,7 +64,9 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
   // The founder's voice notebook (Will learning plan, step 1; words signed
   // 2026-10-20): asked before the first note. Backend COPY["ask"] in
   // services/voice_notebook.py; this is only the fallback.
-  voice_notebook: "Your notes are private. Only you and Will read them. Keep a voice notebook?",
+  // N411 (signed 2026-11-03): the intro and the three lines are drawn above
+  // it (NotebookPrivacy.tsx).
+  voice_notebook: "Do you understand the rules and want this feature on?",
   // The Sunday note as a lens (Will learning plan, step 2; backend N158
   // L2): the backend writes the case under "We spotted a pattern!" with Not
   // now | Investigate (services/sunday_note.py); this is only the fallback.
