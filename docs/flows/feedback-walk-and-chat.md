@@ -622,7 +622,8 @@ praised moment:
   is the one recording bar in the dock as below; two tries. A try that
   lands: "Yes. That's it." and Next; one miss: "Close. Once more." with
   "Try it" and Skip; two: "Good try. Take it with you." and Next. Skip on
-  the fix (in the dock or under the recorder, and the Sniper's) is the
+  the fix (in the dock, and the Sniper's; the recorder has none, founder
+  2026-11-03) is the
   speaker's "Skip", then the walk's "Okay, we'll skip this one.", and the
   walk goes on; the chat says both (N405; was: nothing said). A try not
   heard says so as below. While it records, nothing is added to the thread:
@@ -638,8 +639,10 @@ praised moment:
   and an orange "● Practise N" pill in the thread while recording. In a Take served before N289: every practise is one thread: the words to say, the
   recorder in the dock (the one recording bar, N314: the trash on the left,
   then the strip with the dot, the clock, the bar and the red "Stop" inside
-  it; "Skip" under it, the walk's grey link; was "Skip" in the Back style
-  beside a red "Stop" in the Finish-take style), the
+  it; nothing under it: the trash is the way out (founder 2026-11-03, "for
+  that we have the trash button on the left"); was "Skip" under it, the
+  walk's grey link, and before that "Skip" in the Back style beside a red
+  "Stop" in the Finish-take style), the
   try as the orange "Practise N", the typing dots while it is checked, then
   the answer. Each try keeps its own number and its own voice on screen, a
   try the server did not keep (late, not sent, not heard) included: the
@@ -1797,7 +1800,7 @@ backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
 2. Will's bubble, from what the stretch was: "That part went fast. 🏃 Let's try a little game." or "That part slowed down, with long pauses. 🐢 Let's try a little game."
 3. Will's bubble with the stretch's topic: "Tell me more about {topic}, and keep the ball in the green."
 4. Will's bubble: "🤫 Find a quiet spot first."
-5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar, the app's one recording bar (N314): the trash, then the strip with Stop inside it, the Skip under it. Stop shows once the mic is live, as in the walk's practise (C7, N350 item 5). Nothing else appears until Stop. The trash throws the try away: no try is counted or kept for Will, and the step is back where it was before it (I'm ready, "Try it" or Practise again).
+5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar, the app's one recording bar (N314): the trash, then the strip with Stop inside it, nothing under it (founder 2026-11-03; was the Skip under it). Stop shows once the mic is live, as in the walk's practise (C7, N350 item 5). Nothing else appears until Stop. The trash throws the try away: no try is counted or kept for Will, and the step is back where it was before it (I'm ready, "Try it" or Practise again).
 6. The try: the dot's path, then Will's word on it; Will guides, the speaker never has to choose between another try and moving on (N245):
    - **It lands** (really better): "That landed. 🎯 Really better. Let's move on.", then **Next**; the game ends there, on any try.
    - **It came closer** (more than half in the green, not enough to land): "Better. You let it breathe." and, while a try is left, "You're close. 💪 Give it one more try.", then **Practise again**.
@@ -2029,6 +2032,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · — · C7, T: no Skip under the recording bar, in the walk's practise and the tempo step; the trash on its left is the way out, back to the step that opened it (founder 2026-11-03, "delete that!!!! skip … for that we have the trash button on the left"; the locked prototype's `record()` draws the strip alone). Skip stays where it was before recording. Skip after "Close. Once more." now shows the speaker's "Skip" and "Okay, we'll skip this one." (N405), which it did not: the thread drew its answer only on the planned next try. Was: Skip under the bar as the walk's grey link (N314) · FE (this PR)
 - 2026-11-03 · N440 · built, first part (B6, C4, J6): the chip's waveform is the prototype's 24 bars, sampled from the clip's 44, and never runs under the time (`SnippetWavePlayer` `barCount`); two of the speaker's tries in a row are round all round, as every walk bubble is (`globals.css`); the bar's ‹ › and ✕ answer a 44 px tap. Items 1, 2, 3, 5, 6 and 9 of the run-through follow on top of N435's build · FE (this PR)
 - 2026-11-03 · N425 · C2, C4, H1: the walk's AI clip goes only to a moment whose own clip shows a voice problem it can teach (pace, pauses, loudness range, fillers, against the speaker's own usual on this Take), the strongest such moment, and it teaches that strongest problem, never the runner-up; with none, no AI clip and no "Lean on …" default. Was: the lowest S × W whatever its voice showed, the clip choosing what to teach, stress on the main point when nothing was measured, the runner-up about 15 times in 100 · BE N425 log (#1664), BE #1669, FE (this PR)
 - 2026-11-03 · N417 · E1: the sale's four steps ("Which step did it stall at?") take N371's suggested answers stacked on the right in their order, all four outlined orange and none filled (`TapRow` `even`), since no step is likelier than another; N415 item 2's "the one that goes on filled" does not apply to them. Was: four grey pills, two by two · FE (this PR)

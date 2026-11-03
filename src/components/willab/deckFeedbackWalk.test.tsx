@@ -93,20 +93,29 @@ vi.mock("@/hooks/useVisibleLearningExposure", () => ({
 /** The microphone, counted: the walk's practise opens it only on a
  *  practise screen (D-FW-16). */
 const mic = vi.hoisted(() => ({ starts: 0, cancels: 0 }));
-vi.mock("@/hooks/useDualCaptureMic", () => ({
-  useDualCaptureMic: () => ({
-    state: { status: "idle" },
-    start: async () => {
-      mic.starts += 1;
+vi.mock("@/hooks/useDualCaptureMic", async () => {
+  const React = await import("react");
+  type State = { status: "idle" } | { status: "recording"; partialText: string } | { status: "stopped"; finalText: string; audioBlob: Blob; durationSec: number };
+  return {
+    useDualCaptureMic: () => {
+      const [state, setState] = React.useState<State>({ status: "idle" });
+      return {
+        state,
+        start: async () => {
+          mic.starts += 1;
+          setState({ status: "recording", partialText: "" });
+        },
+        stop: async () => setState({ status: "stopped", finalText: "", audioBlob: new Blob(["x".repeat(2000)]), durationSec: 4 }),
+        cancel: () => {
+          mic.cancels += 1;
+          setState({ status: "idle" });
+        },
+        getAudioStartedAt: () => null,
+        getPausedMs: () => 0,
+      };
     },
-    stop: async () => undefined,
-    cancel: () => {
-      mic.cancels += 1;
-    },
-    getAudioStartedAt: () => null,
-    getPausedMs: () => 0,
-  }),
-}));
+  };
+});
 vi.mock("@/components/results/MediaPlayer", () => ({ default: () => createElement("div") }));
 vi.mock("@/services/api/bookmarkHistory", () => ({
   fetchOwnerAnswers: vi.fn(async () => []),
@@ -343,9 +352,16 @@ describe("the walk on the deck", () => {
     // Past the helper words: slide 2 is answered, its line goes at once.
     expect(line("retention went up")).toBe(false);
     expect(reportMomentEvent).toHaveBeenCalledWith("snip-1", "skipped");
-    // Slide 3: Practise, then Skip on the recorder.
+    // Slide 3: Practise. The recorder has no Skip (founder 2026-11-03):
+    // three tries nothing answers, then Next.
     await click(live()!.querySelector("[data-testid='walk-practise']"));
-    await click(live()!.querySelector("[data-walk-dock] [data-testid='walk-skip']"));
+    expect(live()!.querySelector("[data-walk-dock] [data-testid='walk-skip']")).toBeNull();
+    for (let i = 0; i < 3; i += 1) {
+      await click(live()!.querySelector("[data-walk-dock] button[aria-label='Stop']"));
+      await act(async () => undefined);
+      if (i < 2) await click(live()!.querySelector("[data-testid='walk-again']"));
+    }
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
     await act(async () => undefined);
     expect(line("one more quarter")).toBe(false);
     expect(reportMomentEvent).toHaveBeenCalledWith("snip-3", "skipped");
@@ -492,9 +508,17 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     expect(screen()).toBe("walk-screen-clearer");
     await click(live()!.querySelector("[data-testid='walk-keep']"));
     expect(p.onKeepMine).toHaveBeenCalled();
-    // Their own sentence, on the recorder; Skip on it.
+    // Their own sentence, on the recorder, which has no Skip (founder
+    // 2026-11-03): two tries nothing answers, then Next.
     expect(screen()).toBe("walk-screen-practise");
-    await click(live()!.querySelector("[data-testid='walk-skip']"));
+    expect(live()!.querySelector("[data-testid='walk-skip']")).toBeNull();
+    const stop = () => click(live()!.querySelector("[data-walk-dock] button[aria-label='Stop']"));
+    await stop();
+    await act(async () => undefined);
+    await click(live()!.querySelector("[data-testid='walk-again']"));
+    await stop();
+    await act(async () => undefined);
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
     await act(async () => undefined);
     // The helper words, on their own: "retention went up", their own words,
     // through the deck's save (the lock, then the words), no picker.

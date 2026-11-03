@@ -1943,6 +1943,16 @@ function answerSaid(ctx: ScreenCtx, step: WalkStep): string | null {
   return answerBody(step, given);
 }
 
+/** The step whose answer a part of the thread shows: the part's own, or in
+ *  a practise thread (`start` >= 0) the latest step up to `at` that was
+ *  answered. Pure. */
+function answeredIn(ctx: ScreenCtx, start: number, at: number): WalkStep {
+  const plan = ctx.walk.plan;
+  if (start < 0) return plan[at];
+  for (let j = at; j >= start; j -= 1) if (ctx.answered(plan[j]) !== null) return plan[j];
+  return plan[at];
+}
+
 /** The thread: each step reached up to `head`, opened by its name when it
  *  changes, with the speaker's choice under it. The part holding `at`, the
  *  step the walk stands on, is marked: its buttons are the dock and
@@ -1973,10 +1983,14 @@ function renderThread<R>(
     const label = partLabel(ctx, step);
     const mark = label && label !== last ? <WalkThreadMark label={label} /> : null;
     last = step.key === "others" ? null : (label ?? last);
-    const said = answerSaid(ctx, step);
-    // The walk's answer to Skip on the One thing walk's fix (N405).
-    const reply = said ? skipReply(step, ctx.answered(step)) : null;
     const start = threadStart(ctx.walk.plan, part.at);
+    // A practise thread is drawn at its last step, which can be a try only
+    // planned (after "Close. Once more."): the speaker's answer is the
+    // thread's latest one, so a Skip given there still shows (N405).
+    const by = answeredIn(ctx, start, part.at);
+    const said = answerSaid(ctx, by);
+    // The walk's answer to Skip on the One thing walk's fix (N405).
+    const reply = said ? skipReply(by, ctx.answered(by)) : null;
     const lead = momentLead(ctx.walk.plan, start >= 0 ? start : part.at);
     const opener = ctx.walk.plan[start >= 0 ? start : part.at];
     // "And now, one thing to improve:" above the One thing walk's fix (N309).

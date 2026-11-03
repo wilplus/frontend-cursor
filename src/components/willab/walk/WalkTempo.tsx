@@ -260,9 +260,10 @@ export default function WalkTempo({
   );
 
   function footerFor() {
+    // Recording: the bar alone, its trash the way out (founder 2026-11-03).
     if (live) {
       return (
-        <WalkFooter links={[{ label: W.skip, onClick: skip, testId: "walk-tempo-skip" }]}>
+        <WalkFooter>
           <RecordingBar elapsedMs={elapsed * 1000} onTrash={trash} onStop={phase === "listening" ? stop : undefined} />
         </WalkFooter>
       );

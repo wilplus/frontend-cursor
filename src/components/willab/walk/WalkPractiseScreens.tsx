@@ -136,22 +136,18 @@ function lineAbove(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string 
 
 /** The recorder's footer: the one recording bar (founder 2026-10-31, backend
  *  N314, locked), the trash on the left, then the Take's strip with the red
- *  Stop inside it, and Skip under it as the walk's grey link (the tempo
- *  step's dock). Stop shows once the mic is live, as in the tempo step
- *  (N350 item 5): while the mic opens, the trash and the strip alone. Stop
- *  sends the try; the trash throws it away, nothing uploaded and no try
- *  counted, back to the step that opened the practise, as ✕ does. Was: the
- *  strip, then Skip in the Back style beside a red Stop in the Finish-take
- *  style (N70); Stop from the moment the practise opened. */
-function RecorderFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
-  // Skip here is Skip on the One thing walk's fix: the speaker's "Skip" and
-  // the walk's "Okay, we'll skip this one." (N405), then on.
-  const skip = () => {
-    if (step.one && !step.replay) ctx.answer(step, "skip");
-    ctx.skip();
-  };
+ *  Stop inside it, nothing under it: the trash is the way out (founder
+ *  2026-11-03, "for that we have the trash button on the left"; the locked
+ *  prototype's `record()`). Stop shows once the mic is live, as in the
+ *  tempo step (N350 item 5): while the mic opens, the trash and the strip
+ *  alone. Stop sends the try; the trash throws it away, nothing uploaded
+ *  and no try counted, back to the step that opened the practise, as ✕
+ *  does. Was: Skip under it as the walk's grey link; before that the strip,
+ *  then Skip in the Back style beside a red Stop in the Finish-take style
+ *  (N70); Stop from the moment the practise opened. */
+function RecorderFooter({ ctx }: { ctx: PractiseScreenCtx }) {
   return (
-    <WalkFooter links={[{ label: WALK_COPY.skip, onClick: skip, testId: "walk-skip" }]}>
+    <WalkFooter>
       <RecordingBar elapsedMs={ctx.elapsed * 1000} onTrash={ctx.back} onStop={ctx.capturing ? ctx.stop : undefined} />
     </WalkFooter>
   );
@@ -380,7 +376,7 @@ export function practiseThreadItem(
  *  Practise again / Next after a late read; none while the try is checked.
  *  Every other step of the thread has the thread's footer (FeedbackWalk). */
 export function practiseThreadFooter(ctx: PractiseScreenCtx, step: WalkStep): ReactNode {
-  if (step.key === "practise") return <RecorderFooter ctx={ctx} step={step} />;
+  if (step.key === "practise") return <RecorderFooter ctx={ctx} />;
   if (step.key === "late") return <LateFooter ctx={ctx} step={step} />;
   return null;
 }
