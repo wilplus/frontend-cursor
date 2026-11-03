@@ -158,9 +158,9 @@ export default function IdealTextOverlay({
     lensAddress(arcId, initialMode);
     return () => lensAddress(null);
   }, [arcId, initialMode]);
-  // Founder 2026-07-29 — the notebook is ALWAYS the live, editable document.
-  // The old "historical" read-only step (FE-3b, ?version) is gone: a version
-  // bubble is a history marker, not a frozen destination.
+  // This page is always the live, editable document. An older Take's card
+  // opens its own words elsewhere, read only (IdealTextPastVersion, backend
+  // N375); the old "historical" step here (FE-3b, ?version) stays gone.
   const [status, setStatus] = useState<
     "loading" | "ready" | "instant" | "pending" | "notYours" | "error"
   >("loading");
