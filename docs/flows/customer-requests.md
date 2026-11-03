@@ -12,8 +12,9 @@ customer requests is folded in the same way. The entries keep their
 N-numbers and stay the record.
 
 **Not built,** but for its first slice: the list of chats and a chat's
-screen, behind ring 6 (feature `chats`, §2). Decided and drawn; §2 says the
-order it is built in.
+screen, built and the default for every signed-in person (backend N456;
+was ring 6, feature `chats`). Decided and drawn; §2 says the order the
+rest is built in.
 
 **How this page works**
 
@@ -87,12 +88,18 @@ order it is built in.
    N322) and a status (Waiting for you, Sent, Booked). Waiting for you
    comes first; filters All, Waiting, Sent, Done. Everyone has this list
    now, with colleagues and coaches as
-   chats too (backend N274); a person whose only chat is Will's opens on
-   Will's chat, as the Lounge does today (Never 3). She is told of each request on WhatsApp:
+   chats too (backend N274). **Everyone lands on the list (locked, N456):**
+   every signed-in person, on the web and in the iPhone app, opens /chat on
+   the list, Will first, even when Will's is their only chat; the loader,
+   never Will's chat, stands in front until the list has answered. No ring
+   decides it. A link that opens something in Will's chat (the coach's
+   feedback, the walk) still opens there, with the way back to the list;
+   a join link opens the list (N357). Was: ring 6 only; everyone else, and
+   a person whose only chat was Will's, opened Will's chat (N274). She is told of each request on WhatsApp:
    one message from WillpowerLab's number with a link to her chats (N236
    item 5).
-   **As built on ring 6** (N320, N321, N322), with a WhatsApp feel, under
-   the WillpowerLab bar:
+   **As built** (N320, N321, N322; for everyone since N456), with a
+   WhatsApp feel, under the WillpowerLab bar:
    - **Each row**, 76px, its divider starting after the circle: a 48px
      circle with the first letter of the name, its tint fixed per chat from
      a small palette (no photo); the name, who they are (muted, cut short)
@@ -522,7 +529,7 @@ them:
   treatment, for every second day at home.", "Not now", "Write to me here once you've tried it, or
   whenever you like.", "Of course. Write to me here whenever you like.",
   "Type here", "Sent to Ariel. She answers here, usually the same day."
-- The chats between people, as built on ring 6 (N320 item 4, N322):
+- The chats between people, as built (N320 item 4, N322; for everyone, N456):
   "You", "Customer · Invita", "Your colleague · Invita", Sarah's and
   Ariel's lines, "Will", "Only 👍, 👀 or 🙏 for now.", "Today", "🎤 Voice
   message", the dates and the clock times.
@@ -536,7 +543,8 @@ them:
 
 ## 2. In flight
 
-Built behind ring 6 (feature `chats`, the founder only; 2026-11-02): the
+Built for every signed-in person (backend N456, 2026-11-03; was ring 6,
+feature `chats`, the founder only, 2026-11-02): the
 list of chats in front of the Lounge (C1: Will pinned, then each chat's
 letter circle, title, subtitle, time and last message, newest first, a new
 message bold with an orange dot; with nobody yet, Will and "Add someone to
@@ -711,6 +719,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N456 · C1, §2, K: the list of chats and every chat's own top bar are the default for every signed-in person, on the web and in the iPhone app, locked (backend docs/LOCKS.md, "The chats, all of a piece"): no ring decides them (`useChatsOn` is the session; backend `chats.enabled` every signed-in person); the loader, never Will's chat, waits for the list on the web too. Tests say it as stories: as a user, as a visitor, as a developer (`chats.test.tsx`); as a user and as a server (backend `test_chats.py`, `test_chat_links.py`, `test_people_profiles.py`). Was: ring 6 only (feature `chats`); everyone else opened Will's chat under the WillpowerLab bar · BE N456 log (#1682), BE (#1684), FE (this PR)
 - 2026-11-03 · N368, N365 · C1: in the iPhone app the buzz on every send (N368 item 3) is the iPhone's own light tap (`@capacitor/haptics`); the web's vibration, which an iPhone ignores, stays for the web. Was: no buzz in the app · FE (this PR)
 - 2026-11-03 · N436 · C1: Forward: on the list, a swipe from the right edge (the iPhone app) or the browser's Forward (the web) opens the chat you just came back from again, after the finger; let go early and it slides back; nothing before you have left a chat. A chat being pulled in, or sliding out, no longer holds a history entry of its own. Was: no way forward; Forward on the web landed on a dead entry · BE N436 log, FE (this PR)
 - 2026-11-03 · N401 · C1, §2: no demo chats for a newcomer: an empty list is Will and "Add someone to chat with", on the web as in the iPhone app (the list opens with Will alone everywhere); the list no longer asks for the two demo chats, "Sarah" and "Ariel", and the route that seeded them is gone. Was: on the web, an empty list got the two demo chats the first time · FE (this PR)

@@ -1,25 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRingState } from "@/hooks/useRingState";
+import { useSignedIn } from "../useSignedIn";
 import { getChats, type Chat } from "@/services/api/chats";
 import { takeChats } from "@/services/api/bootPrefetch";
 
-/** The ring feature behind the chats between users (ring 6: the founder). */
-export const CHATS_FEATURE = "chats";
-
-/** Whether the chats are on for the signed-in person: the backend's ring
- *  decision (`features_on` of GET /v2/user/rings, read once per page load),
- *  as the tempo step reads its own. Off while that read is in flight or has
- *  failed, so /chat is then the Lounge as it is. */
+/** Whether the chats are on: for every signed-in person, everywhere
+ *  (backend N456; was ring 6, feature `chats`). No ring is read. */
 export function useChatsOn(): boolean {
   return useChatsDecided() === true;
 }
 
-/** The same decision, `null` while the rings read is still in flight. */
+/** The same, `null` while the session is still being read. */
 export function useChatsDecided(): boolean | null {
-  const ring = useRingState();
-  return ring === null ? null : ring.featuresOn.has(CHATS_FEATURE);
+  return useSignedIn();
 }
 
 /** The person's chats, read while `on`; `null` until the first read lands.
