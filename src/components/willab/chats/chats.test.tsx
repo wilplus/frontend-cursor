@@ -35,10 +35,11 @@ OUTCOME
   O9  In a chat I joined through someone's link, one line above the
       messages says whose link it was (N335 item 2); a chat without it has
       no such line.
-  O10 Just joined (/chat?with=<chat>), the list opens with the chat with
-      the one who invited me as its first row, above Will's, marked new with
-      the joined line, and the address is clean again; opened, it is a chat
-      like the rest (N357; was N348 item 1).
+  O10 Just joined (/chat?with=<chat>), the list opens with Will's row
+      first, as always, and right under it the chat with the one who invited
+      me, marked new with the joined line; the address is clean again;
+      opened, it is a chat like the rest (N357, N360; was N348 item 1, and
+      N357's inviter above Will).
   O11 In the iPhone app the Lounge never shows for a moment before the list
       covers it: the rings and the chats are asked together at boot, and
       the loader stands in front until both have answered (N354).
@@ -51,7 +52,7 @@ PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O7 -> "a voice note from the other person plays from the chat's audio route, its words behind Read it"
          O8 -> "the + opens my own link and copies it"
          O9 -> "a chat joined through a link says whose link it was"
-         O10 -> "after joining, the list opens with the one who invited me on top, marked new"
+         O10 -> "after joining, the list opens with Will first and the one who invited me under him, marked new"
          O11 -> "in the app, the loader, not the Lounge, waits for the list; both reads start together"
 */
 import { act, createElement, useRef } from "react";
@@ -430,7 +431,7 @@ describe("the chats in front of the Lounge", () => {
     expect(container.querySelector("[data-chat-joined]")).toBeNull();
   });
 
-  it("after joining, the list opens with the one who invited me on top, marked new", async () => {
+  it("after joining, the list opens with Will first and the one who invited me under him, marked new", async () => {
     window.history.replaceState(null, "", "/chat?with=c-ariel");
     backend(["chats"]);
     const joined = { ...ARIEL, last: null };
@@ -439,7 +440,7 @@ describe("the chats in front of the Lounge", () => {
     await render();
     expect(container.querySelector("[data-chat-screen]")).toBeNull();
     const rows = [...container.querySelectorAll("[data-chat-row]")].map((r) => r.getAttribute("data-chat-row"));
-    expect(rows.slice(0, 2)).toEqual(["c-ariel", "will"]);
+    expect(rows.slice(0, 3)).toEqual(["will", "c-ariel", "c-sarah"]);
     const top = container.querySelector('[data-chat-row="c-ariel"]')!;
     expect(top.hasAttribute("data-chat-new")).toBe(true);
     expect(top.querySelector("[data-chat-last]")?.textContent).toBe(
