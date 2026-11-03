@@ -263,6 +263,7 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
             chats={chats}
             joined={joined}
             cameFrom={cameFrom}
+            willOpen={atWill}
             onOpenWill={() => setView({ at: "will" })}
             onOpen={(chat) => {
               if (chat.id === joined) setJoined(null);

@@ -42,7 +42,8 @@ OUTCOME
       first, as always, and right under it the chat with the one who invited
       me, marked new with the joined line; the address is clean again;
       opened, it is a chat like the rest (N357, N360; was N348 item 1, and
-      N357's inviter above Will).
+      N357's inviter above Will). Will's row has his newest line, bold with
+      the dot, until his chat is open (N457 item 2).
   O11 In the iPhone app the Lounge never shows for a moment before the list
       covers it: the rings and the chats are asked together at boot, and
       the loader stands in front until both have answered (N354).
@@ -102,6 +103,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }));
 const native = vi.hoisted(() => ({ on: false }));
 vi.mock("@/lib/auth/nativeSignIn", () => ({ isNativeApp: () => native.on }));
+// Will's chat, the Lounge's thread the list reads his row's line from.
+const loungeThread = vi.hoisted(() => ({ messages: [] as Array<Record<string, unknown>> }));
+vi.mock("../LoungeThreadContext", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../LoungeThreadContext")>()),
+  useLoungeThreadMaybe: () => loungeThread,
+}));
 
 import { resetRingStateCache } from "@/services/api/rings";
 import { __resetBootPrefetchForTests, prefetchChatsDoor } from "@/services/api/bootPrefetch";
@@ -200,6 +207,7 @@ beforeEach(async () => {
   routes.clear();
   fetchMock.mockReset();
   loungeMounts = 0;
+  loungeThread.messages = [];
   vi.stubGlobal("fetch", fetchMock);
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -589,6 +597,11 @@ describe("the chats in front of the Lounge", () => {
   });
 
   it("after joining, the list opens with Will first and the one who invited me under him, marked new", async () => {
+    loungeThread.messages = [
+      { client_id: "1", role: "bot", kind: "text", body: "Hi Anna!", client_created_at: "2026-11-03T10:00:00Z" },
+      { client_id: "2", role: "bot", kind: "text", body: "Your first Take is five questions.", client_created_at: "2026-11-03T10:00:01Z" },
+      { client_id: "3", role: "bot", kind: "text", body: "", metadata: { plan_card: true }, client_created_at: "2026-11-03T10:00:02Z" },
+    ];
     window.history.replaceState(null, "", "/chat?with=c-ariel");
     backend(["chats"]);
     const joined = { ...ARIEL, last: null };
@@ -598,6 +611,13 @@ describe("the chats in front of the Lounge", () => {
     expect(container.querySelector("[data-chat-screen]")).toBeNull();
     const rows = [...container.querySelectorAll("[data-chat-row]")].map((r) => r.getAttribute("data-chat-row"));
     expect(rows.slice(0, 3)).toEqual(["will", "c-ariel", "c-sarah"]);
+    // Will's newest line, new: he asks for the first Take (N457 item 2).
+    expect(row("will")?.hasAttribute("data-chat-new")).toBe(true);
+    expect(lastLineOf("will")).toBe("Your first Take is five questions.");
+    await tap(row("will"));
+    await tap(container.querySelector("[data-chat-header] button"));
+    expect(row("will")?.hasAttribute("data-chat-new")).toBe(false);
+    expect(lastLineOf("will")).toBe("Your first Take is five questions.");
     const top = container.querySelector('[data-chat-row="c-ariel"]')!;
     expect(top.hasAttribute("data-chat-new")).toBe(true);
     expect(top.querySelector("[data-chat-last]")?.textContent).toBe(

@@ -104,8 +104,11 @@ order it is built in.
      unreadable storage reads as not new): the name bold, the line dark,
      the time orange-dark and a small orange dot. No number, ever.
    - **Will** is always the first row (N360), with his mark (the logo's
-     three dots in a grey circle), his name and a pin; then the chats,
-     newest last message first. **Just joined through a link**
+     three dots in a grey circle), his name and a pin, and under them his
+     chat's newest line, new (bold, the orange dot) while it is his and
+     came after his chat was last open on this device; open, or just come
+     back from, it is seen (N457 item 2); then the chats, newest last
+     message first. **Just joined through a link**
      (`/chat?with=<chat>`), the list opens, not a chat: the chat with the one
      who invited you is the row right under Will, marked new, its line their
      last message or, with none yet, "You joined through {name}'s link. Only
@@ -711,6 +714,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N457 · C1: Will's row shows his chat's newest line, read from the Lounge's thread underneath (words only: a card, a walk step or a status is not a line), new with the bold name and orange dot while it is his and newer than the last time his chat was open on this device; just joined through a link, it is "Your first Take is five questions…" above the inviter's chat. Joining works for anyone since the chats are everyone's (N456). Was: Will's row had no line · FE (this PR)
 - 2026-11-03 · N368, N365 · C1: in the iPhone app the buzz on every send (N368 item 3) is the iPhone's own light tap (`@capacitor/haptics`); the web's vibration, which an iPhone ignores, stays for the web. Was: no buzz in the app · FE (this PR)
 - 2026-11-03 · N436 · C1: Forward: on the list, a swipe from the right edge (the iPhone app) or the browser's Forward (the web) opens the chat you just came back from again, after the finger; let go early and it slides back; nothing before you have left a chat. A chat being pulled in, or sliding out, no longer holds a history entry of its own. Was: no way forward; Forward on the web landed on a dead entry · BE N436 log, FE (this PR)
 - 2026-11-03 · N401 · C1, §2: no demo chats for a newcomer: an empty list is Will and "Add someone to chat with", on the web as in the iPhone app (the list opens with Will alone everywhere); the list no longer asks for the two demo chats, "Sarah" and "Ariel", and the route that seeded them is gone. Was: on the web, an empty list got the two demo chats the first time · FE (this PR)

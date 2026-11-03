@@ -36,10 +36,16 @@ export function markChatOpened(chatId: string, newestSeen: string | null = null)
   }
 }
 
-export function chatIsNew(chat: Chat): boolean {
-  const last = timeOf(chat.last?.created_at);
+/** Is a message sent at `createdAt` newer than the last time this chat was
+ *  opened on this device? */
+export function isNewSince(chatId: string, createdAt: string | null | undefined): boolean {
+  const last = timeOf(createdAt);
   if (last === null) return false;
-  const opened = readOpened(chat.id);
+  const opened = readOpened(chatId);
   if (opened === undefined || Number.isNaN(opened)) return false;
   return opened === null || last > opened;
+}
+
+export function chatIsNew(chat: Chat): boolean {
+  return isNewSince(chat.id, chat.last?.created_at);
 }

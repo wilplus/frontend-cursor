@@ -3,7 +3,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link as LinkIcon, Pin, Plus, Share } from "lucide-react";
 import { getMyChatLink, type Chat, type ChatEmoji, type ChatLast } from "@/services/api/chats";
-import { chatIsNew } from "./chatOpened";
+import type { LoungeKind, LoungeMessage } from "@/services/api/loungeMessages";
+import { useLoungeThreadMaybe } from "../LoungeThreadContext";
+import { chatIsNew, isNewSince, markChatOpened } from "./chatOpened";
 import { listTime, timeOf } from "./chatTime";
 import { ADD_SHEET_LINE, ADD_SHEET_TITLE, ADD_STEPS, CANCEL, COPIED, COPY_MY_LINK, joinedThrough } from "./joinCopy";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
@@ -17,7 +19,8 @@ import { isNativeApp } from "@/lib/auth/nativeSignIn";
 /*  shows bold with an orange dot; no number, ever. Will is always the first  */
 /*  row (N360). Just joined through a link, the chat with the one who invited */
 /*  you is right under Will, new until opened, its line theirs or "You joined */
-/*  through…" (N357).                                                         */
+/*  through…" (N357). Will's row shows his newest line, bold with the dot     */
+/*  until his chat is open (N457 item 2).                                     */
 /* -------------------------------------------------------------------------- */
 
 /** Will's chat is the Lounge; its row carries his mark, his name and a pin. */
@@ -263,6 +266,40 @@ export function AddSomeoneSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** Will's chat in the list's per-chat "opened" store. */
+const WILL_CHAT = "will";
+
+/** The kinds of Will's chat that read as a line on his row; cards, steps
+ *  and statuses do not. */
+const WILL_LINE_KINDS: ReadonlySet<LoungeKind> = new Set<LoungeKind>(["text", "joke", "cadence"]);
+
+/** Will's newest line, or his newest message's when it is one of yours. */
+export function willNewest(messages: readonly LoungeMessage[]): LoungeMessage | null {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const message = messages[i];
+    if (message.role !== "system" && WILL_LINE_KINDS.has(message.kind) && message.body.trim()) return message;
+  }
+  return null;
+}
+
+/** Will's row (backend N457 item 2): his chat's newest line, read from the
+ *  Lounge's thread underneath, and new while it is his and came after his
+ *  chat was last open on this device. Open, or just come back from, it is
+ *  seen. Outside the Lounge's thread the row is as it was: no line. */
+function useWillRow(willOpen: boolean, back: boolean): { preview: string; isNew: boolean } {
+  const thread = useLoungeThreadMaybe();
+  const newest = willNewest(thread?.messages ?? []);
+  const at = newest?.client_created_at ?? null;
+  const seeing = willOpen || back;
+  useEffect(() => {
+    if (seeing) markChatOpened(WILL_CHAT, at);
+  }, [seeing, at]);
+  return {
+    preview: newest?.body.trim() ?? "",
+    isNew: !seeing && newest?.role === "bot" && isNewSince(WILL_CHAT, at),
+  };
+}
+
 /** Newest last message first; a chat with none goes last. */
 function newestFirst(chats: readonly Chat[]): Chat[] {
   const at = (chat: Chat) => timeOf(chat.last?.created_at) ?? -Infinity;
@@ -273,10 +310,13 @@ export default function ChatList({
   chats,
   joined = null,
   cameFrom = null,
+  willOpen = false,
   onOpenWill,
   onOpen,
 }: {
   chats: readonly Chat[];
+  /** Will's chat is open over the list (its row's line is then seen). */
+  willOpen?: boolean;
   /** The row you just came back from, lit for a moment ("will" for Will's). */
   cameFrom?: string | null;
   /** The chat just joined through someone's link: the row right under
@@ -288,6 +328,7 @@ export default function ChatList({
   const now = new Date();
   const [adding, setAdding] = useState(false);
   const first = joined ? chats.find((chat) => chat.id === joined) ?? null : null;
+  const will = useWillRow(willOpen, cameFrom === WILL_CHAT);
   const row = (chat: Chat, justJoined = false) => (
     <ChatListRow
       key={chat.id}
@@ -305,7 +346,16 @@ export default function ChatList({
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       <div data-chat-list className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
-      <ChatListRow id="will" circle={<WillMark />} title={WILL_ROW_TITLE} pinned cameFrom={cameFrom === "will"} onOpen={onOpenWill} />
+      <ChatListRow
+        id={WILL_CHAT}
+        circle={<WillMark />}
+        title={WILL_ROW_TITLE}
+        preview={will.preview}
+        isNew={will.isNew}
+        pinned
+        cameFrom={cameFrom === WILL_CHAT}
+        onOpen={onOpenWill}
+      />
       {first ? row(first, true) : null}
       {chats.length === 0 ? (
         /* Nobody else yet (the iPhone app shows the list with Will alone,
