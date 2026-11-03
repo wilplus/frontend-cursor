@@ -1175,11 +1175,6 @@ Will's line ""New slides ready for Take 5."" and the message box comes
 back. Cancel brings the message box back with nothing sent.","O1 -> ""the ⋯ item says Add slides without a deck and Update slides with one""
 O2 -> ""a chosen PDF becomes the project's deck and the next Take's""
 O3 -> ""the chat's card stands in for the message box until the upload or Cancel""","Founder 2026-10-29, backend N257; prototype https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A."
-src/components/willab/useAdminAsk.test.tsx,Story,"As a speaker, I want a question the founder sent me from the CEO panel to come at the end of a Take, as that Take's one ask, and only once per Take, so that it never competes with recording again.","O1  It shows when a Take's message waits for it, and not before.
-O2  After a reload it is not posted again: its form opens again.
-O3  With no ask left to show, the Take's message comes at once.","O1 -> ""shows at the end of a Take whose message waits for it""
-O2 -> ""is not posted again after a reload""
-O3 -> ""lets the Take's message go when there is nothing to ask""","Founder 2026-10-18: the admin's ask was not shown in the chat; founder 2026-10-20: at the end of a Take, from Take 2, one action at a time (it no longer shows when the chat opens)."
 src/components/willab/useFailedTakeRecheck.test.ts,Story,"As a speaker, I want a ""failed"" note under my Take cleared when the server says the Take actually finished, and never a failure claimed without asking the server, so that I am not told a done Take failed and can go on to my Ideal Text and the next Take.","O1  While a failed note is on screen the hook asks the server at once and
 reports ""recovered"" when the Take is done.
 O2  The server cannot be reached: ""unknown"", never a verdict.

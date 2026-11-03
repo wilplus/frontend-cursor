@@ -793,35 +793,51 @@ praised moment:
 
 - **E1** After the summary comes one ask at most: the first that waits, in
   this order; the others wait for a later Take (backend N189, 2026-10-26;
-  was at most two, N94). The order: the CEO panel's ask (from Take 2),
-  Will's question (which his next one may follow, E2), "Did this help?"
-  when the Take looks off. One question or ask is on screen at a time
+  was at most two, N94). The order: Will's question (which his next one
+  may follow, E2), "Did this help?" when the Take looks off. The CEO
+  panel's asks are not among them since N391: they come in the bar at the
+  top. One question or ask is on screen at a time
   (N294 item 4). While Will's question waits, the bar under the chat is
   B14's second state: the mic orange, answering by voice (E3).
 
-  **The settings asks wait for the next visit** (founder 2026-10-31, N294
-  item 8, N295). WhatsApp and the home screen are never asked after a
-  Take: they come the next time the speaker opens the app (the Lounge
-  loading, once a visit), one at a time and at most one per Take, never
-  before their second Take is done and never while an ask after a Take
-  waits; WhatsApp first, "It seems you enjoy using WillpowerLab." then
-  "Want a WhatsApp when your coach replies? Add your number." (at most
-  twice in all), the home screen last, "Well, I can see you're doing
-  pretty good." then its signed ask (once, where the phone can add it).
-  Its form opens by itself. Consent is not a settings ask and stays where
-  it is. Was: WhatsApp the Take's one ask from Take 1 (N171), the home
-  screen from Take 2, each opened by Will's lead-in.
+  **Notifications come in a bar at the top of the chat, never in the
+  buttons under it** (founder 2026-11-03, N391; prototype
+  <https://claude.ai/artifact/9gpMMFvLKFMysRE4Db8mMv>; `NoticeBar.tsx`).
+  Once a visit (the Lounge loading, the tab's session) the app asks the
+  backend (POST lounge/visit), which makes the WhatsApp ask when it is due
+  and answers with the one ask for the bar (backend `person_asks`). One at
+  a time, under the top bar, ✕ for Not now. It holds: the WhatsApp ask of
+  the next visit (N294 item 8, N295: never after a Take, never before the
+  second Take is done, one per Take, at most twice, "It seems you enjoy
+  using WillpowerLab." over "Want a WhatsApp when your coach replies? Add
+  your number."; done once shown); and the CEO panel's asks to one person,
+  which no longer wait for the end of a Take: WhatsApp, a consent question
+  ("One question about how we use your data is still open. You can look
+  at it and answer yes or no."), the promo price with See prices (the web
+  only: the iPhone app has no buying, N365 item 1) and the lesson price
+  with See times. Tapping WhatsApp or consent opens its form as a sheet
+  from the top (the WhatsApp form; the consent card with No | Yes); the
+  price bars go to their page. Not now on a CEO panel's ask brings it back
+  on the next visit. **The home-screen ask is deleted** (N391): the next
+  visit's, the CEO panel's and Will's offer in the chat. Not in the bar:
+  the policy update (its own screen; it blocks recording), iPhone's own
+  notification question (N385), and the WhatsApp form Will opens when the
+  speaker asks for it in the chat. An old thread's install, consent, promo
+  or lesson bubble is plain text. Consent is not a settings ask after a
+  Take and the plan's own consent step stays in the plan's questions. Was
+  (N294 item 8, N295): WhatsApp and the home screen written in the chat at
+  the next visit, their form opening by itself in the footer; the CEO
+  panel's asks the Take's one ask from Take 2, in the footer.
 
   Will opens "Did this help?" with a lead-in: one or two sentences tied to
   this Take (never a grade, never advice), then the ask's signed words with
   a light touch, checked as E2's variation is (no number, the ask still
-  said); Will's own question needs none, and the CEO panel's asks are
-  drawn as written. "Yes" to "Did this help?" brings "We're glad it
+  said); Will's own question needs none, and the bar's asks are drawn
+  as written. "Yes" to "Did this help?" brings "We're glad it
   helped you.", then the next ask. A typed message passes the ask in front;
-  "Not now" on the CEO panel's ask brings it back after the next Take
-  (2026-10-20); an ask that no longer applies when its turn comes is
-  skipped, and so is a settings ask that a message held from before N294
-  still names. These choices (the condition and place of "Did this help?",
+  an ask that no longer applies when its turn comes is skipped, and so is
+  a settings ask or a CEO panel's ask that a message held from before N294
+  or N391 still names. These choices (the condition and place of "Did this help?",
   which asks get a lead-in) were confirmed by the founder on 2026-10-21. A distressed answer under "What would help?" gets the chat's
   safety reply (backend #1199). The WhatsApp ask's form says, over the
   number field: "We will only use it to let you know your coach texted
@@ -1618,9 +1634,10 @@ October (backend N111).
   See you tomorrow." or "Good job. See you {weekday}." (signed 2026-11-02,
   N347 item 2) · "{n} of {total} practices done." · the tap "I want to
   continue my practice", then "Record Take N".
-- **The settings asks at the next visit** (N295): "It seems you enjoy using
-  WillpowerLab." before the WhatsApp ask; "Well, I can see you're doing
-  pretty good." before the home screen's (the founder's own opener, E1).
+- **The bar at the top** (N295, N391): "It seems you enjoy using
+  WillpowerLab." over the WhatsApp ask; the CEO panel's lines as written
+  (E1). The home screen's ("Well, I can see you're doing pretty good.") is
+  deleted with its ask.
 - **The one ask:** "Did this help?", "We're glad it helped you.", "What
   would help?", "Skip"; Will's lead-ins (E1) are his own words around the
   ask's signed text, checked; Will's questions and tap answers as signed in N82
@@ -1946,6 +1963,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N391 · E1: notifications come in a bar at the top of the chat, never in the buttons under it: the next visit's WhatsApp ask and the CEO panel's WhatsApp, consent, promo (web only) and lesson asks, one at a time, ✕ for Not now, WhatsApp and consent opening their form as a sheet from the top; the home-screen ask is deleted everywhere. Was: WhatsApp and the home screen written in the chat at the next visit with their form in the footer (N294 item 8, N295); the CEO panel's asks the Take's one ask from Take 2, in the footer · BE (next PR), FE (this PR)
 - 2026-11-03 · N381 · C2, H1: N374 item 1 withdrawn: a between whose Clearer version does not pass is praised as a next best again and left out of the One thing walk; the AI clip is the weakest's alone. Was (N374 item 1, Takes recorded from 11:00 UTC that day): that between took the AI clip when no paragraph was left for the weakest, and the clip coached the voice on a fragment whose trouble was its words. N374 item 2 (their best's own words as the helper words) is unchanged · BE (the revert of #1629), docs (this PR)
 - 2026-11-03 · N380 · F1: an older version says "This is what you said in Take N." with an outlined "Go to Take M" that opens the page, and shows the helper words its slides had while it was the latest (the last set picked before the next version), orange in the words and with the HELPERS label for words it no longer says, as the page draws them; a card whose version was not kept opens the page with "Take N's words weren't saved. This is Take M." at its top (`PAST_TAKE_COPY` in `idealEditCopy.ts`, signed). Was: no line, no way to the latest, no helper words, the page opened in silence · BE N380 log and the History's helper words (BE, next PR), FE (this PR)
 - 2026-11-03 · N376 · F1: which page an Ideal Text card opens is known before either is drawn, and a press on an older card starts its read (`src/lib/willab/pastIdealText.ts`); an older version shows its paragraphs slide by slide, each slide's picture and kicker on the deck that Take was said on. Was: a loader first, then sometimes the live page; plain paragraphs · BE N376 log and the History's slides (BE, next PR), FE (this PR)
