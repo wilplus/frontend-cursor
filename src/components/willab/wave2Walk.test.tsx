@@ -293,7 +293,7 @@ describe("B10: the Feedback walk opens the walk, never the text", () => {
     // The thread opens on the moment and its practise, then the helper
     // words the walk stands on: never those words alone above it.
     const marks = [...live!.querySelectorAll("[data-walk-mark]")].map((m) => m.getAttribute("data-walk-mark"));
-    expect(marks).toEqual(["Slide 2", "Slide 2 · helper words"]);
+    expect(marks).toEqual(["Results", "Results · helper words"]);
     expect(live!.querySelector("[data-walk-now] [data-testid='walk-screen-helpers']")).not.toBeNull();
     expect(reveal).not.toHaveBeenCalled();
   });
@@ -340,8 +340,8 @@ describe("B10: every door opens the whole Take's walk", () => {
     }
     const live = document.querySelector("[data-feedback-walk] .walk-layer:not(.walk-ghost)");
     expect(live).not.toBeNull();
-    // The whole walk: the answered praise on Slide 2 above, to scroll back to.
-    expect(live!.querySelector("[data-walk-mark='Slide 2']")).not.toBeNull();
+    // The whole walk: the answered praise on slide 2, "Results", above, to scroll back to.
+    expect(live!.querySelector("[data-walk-mark='Results']")).not.toBeNull();
     // The Exercise stands live, its Practise in the dock.
     expect(live!.querySelector("[data-walk-now] [data-testid='walk-screen-exVideo']")).not.toBeNull();
     expect(live!.querySelector("[data-walk-dock] [data-testid='walk-practise']")).not.toBeNull();
