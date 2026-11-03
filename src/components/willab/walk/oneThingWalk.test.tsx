@@ -6,7 +6,7 @@ OUTCOME
   O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2), without the sentence's punctuation at either end, as after "Keep mine" (backend N440); with no fix, my best moment's own words are my helper words, saved the same way (backend N374). With the Sniper as the fix, Skip moves the walk on at once, after a try too.
   O3  The walk ends on "Lesson done." with Close, which ends the review and takes me back to the chat; no "Record Take N" in the walk.
   O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after "Try it", my own after "Keep mine"; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
-  O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, my answer as my own reply with a tick, then "Got it."; after it the bar names my fix's slide again for the helper words and "Lesson done."; on Take 1 I judge no one.
+  O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, each landing on its own behind the dots, the card I chose holding 0.28 s before my answer as my own reply with a tick, then "Got it.", and the walk moving on once they have landed; after it the bar names my fix's slide again for the helper words and "Lesson done."; on Take 1 I judge no one.
   O6  My best's clip and the AI clip's fix show my own words above the player, as the prototype draws them; my best played again inside the fix shows none.
   O7  Skip on the fix gets the walk's answer: "Okay, we'll skip this one.", then it goes on (backend N405); while I record, the trash is the Skip, and my taps add no bubble of mine (backend N435 items 2 and 3).
   O10 The fix lands one bubble at a time, the dots before each grey one, after the line that opens it; its buttons come once all have landed; after Skip the walk's answer, then my helper words, then "Lesson done." land the same way (backend N440).
@@ -25,6 +25,7 @@ PROVES   O1 -> walks hello, their best and why it worked, then one thing to impr
                the Sniper opens with one line in the scale's bubble, its slide in the bar
          O5 -> a try is my clip with the words I was asked to say, and nothing shows in the thread while I record
          O4 -> from Take 2, one moment of another speaker, of the Take's level, answered as my own reply,
+               other speakers' moment lands one bubble at a time, its answer and Got it. after the chosen card holds, then on,
                then the bar names the fix's slide again for the helper words and Lesson done,
                Take 1 judges no one
          O6 -> my best's clip and the AI clip's fix show my own words, my best played again shows none
@@ -460,16 +461,62 @@ describe("the One thing walk (N309)", () => {
     expect(now()!.textContent).toContain(COPY.confidenceQuestion);
     expect(now()!.textContent).not.toContain(WALK_COPY.othersOne);
     click(live()!.querySelector("[data-walk-answer='yes']"));
-    expect(said()).toContain(`👍 ${WALK_COPY.judgeYes} ✓`);
-    expect(now()!.querySelector("[data-walk-got-it]")!.textContent).toBe(ONE_THING_COPY.gotIt);
     expect(onOthers).toHaveBeenCalledWith(0, 1, null, "yes", true);
+    // The chosen card holds first (J5): the answer and "Got it." after it.
+    expect(said()).not.toContain(`👍 ${WALK_COPY.judgeYes} ✓`);
     await act(async () => {
       await new Promise((r) => setTimeout(r, WALK_ANSWER_HOLD_MS + 20));
     });
+    expect(said()).toContain(`👍 ${WALK_COPY.judgeYes} ✓`);
+    expect(live()!.querySelector("[data-walk-got-it]")!.textContent).toBe(ONE_THING_COPY.gotIt);
     // On to the helper words and the end.
     expect(screen()).toBe("walk-screen-done");
     // The bar names the fix's slide again, not "Other speakers" (prototype carry(), dots(3)).
     expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Slide 2");
+  });
+
+  it("other speakers' moment lands one bubble at a time, its answer and Got it. after the chosen card holds, then on", async () => {
+    // A browser that welcomes motion, on a clock run by hand.
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }));
+    vi.useFakeTimers();
+    const wait = (ms: number) => {
+      for (let t = 0; t < ms; t += 50) act(() => vi.advanceTimersByTime(50));
+    };
+    // In the step the walk stands on (the parts above have clips too).
+    const shown = (selector: string) => {
+      const el = now()?.querySelector(selector) ?? null;
+      return el !== null && el.closest("[hidden]") === null;
+    };
+    try {
+      vi.mocked(fetchOtherClips).mockResolvedValueOnce([
+        { id: "c1", src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 3000, community: null },
+      ]);
+      draw({ seq: 1, at: at("others", true) }, { judge: true, takeId: "take-7", othersLevel: "middle" });
+      await settle();
+      await settle();
+      // The intro behind the dots, then the clip and its question behind theirs.
+      expect(shown("[data-walk-judge-intro]")).toBe(false);
+      wait(600);
+      expect(shown("[data-walk-judge-intro]")).toBe(true);
+      expect(shown("[data-walk-player]")).toBe(false);
+      wait(600);
+      expect(shown("[data-walk-player]")).toBe(true);
+      click(live()!.querySelector("[data-walk-answer='yes']"));
+      // The card holds; then the answer, then "Got it." behind the dots,
+      // and only once they have landed does the walk move on.
+      wait(250);
+      expect(shown("[data-walk-said]")).toBe(false);
+      wait(350);
+      expect(shown("[data-walk-said]")).toBe(true);
+      expect(shown("[data-walk-got-it]")).toBe(false);
+      expect(screen()).toBe("walk-screen-others");
+      wait(500);
+      expect(live()!.querySelector("[data-walk-got-it]")!.closest("[hidden]")).toBeNull();
+      expect(screen()).not.toBe("walk-screen-others");
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("Take 1 judges no one", () => {
