@@ -751,6 +751,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N355 · §4: the plan's small voice player (`plan/VoicePlayer.tsx`) can tell its caller where the voice is as it plays (`onTime`), for an answer's slide strip in a chat; the plan's own players are unchanged · FE (this PR)
 - 2026-11-02 · N350 items 1 and 4 · B10, G6, K, §2, §3, §4: the notes under the faded "Type here" show wherever the box is faded, before the first Take and after it: "We need to hear this in your voice. Tap the mic." while the mic waits, "Tap one of the answers above." while a tap answer waits (`usePlanLounge` `typingNote`); was: before the first Take only. The chat's one "Record Take N" is drawn from one place, `RecordTakeButton`, for the goodbye's next Take and a practice day's (`usePlanLounge` `one`); what shows is unchanged; `standsOne`, `oneRecordOf` and `StartFirst` are gone, `newestOneOf` gives the Take · FE (this PR)
 - 2026-11-02 · N339 · §3: the line "after a rating tap the next question follows with nothing between" is gone; N339 settled it (D2) · docs (this PR)
 - 2026-11-02 · — · D5, G8: one home per rule: D5 points to K for the words of the plan's own yes; G8 points to the walk's page T for the tempo step as the One thing walk's fix; the code comments of `usePlanLounge` and `PlanRows` say the note for a voice or a tap answer (N323 item 1, N325 item 4) and the record button under the chat (N294 item 7). No rule changes · docs (this PR)

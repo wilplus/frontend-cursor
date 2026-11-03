@@ -54,6 +54,9 @@ OUTCOME
       file shows a tile with its extension and its own name, and downloads
       from the chat's file route; a photo opens full size with a close and
       no words; the list's line is "📷", or "📄" and the file's name (N351).
+  O15 An answer sent to me is one message (N355): its voice, the slides it
+      was said over in a strip that marks the one being heard as it plays,
+      and its words closed behind "Read it"; no Take number.
 PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O2 -> "with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back"
          O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question"
@@ -68,6 +71,7 @@ PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O12 -> "the + shows the four tiles, Someone else opens my link, and Cancel brings the bar back"
          O13 -> "a photo I send joins the thread and the mic shows until my voice note says what I need"
          O14 -> "the other person's photo or file waits for my voice, and each opens from the chat's file route"
+         O15 -> "an answer sent to me plays with its slides following the voice, its words behind Read it"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -605,5 +609,67 @@ describe("the chats in front of the Lounge", () => {
     expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-sarah"]);
     // The list is the one read at boot, not a second one.
     expect(calls("GET /api/v2/chats")).toHaveLength(1);
+  });
+
+  it("an answer sent to me plays with its slides following the voice, its words behind Read it", async () => {
+    const players: { currentTime: number; ontimeupdate: (() => void) | null; onended: (() => void) | null }[] = [];
+    vi.stubGlobal(
+      "Audio",
+      class {
+        currentTime = 0;
+        duration = 30;
+        ontimeupdate: (() => void) | null = null;
+        onended: (() => void) | null = null;
+        constructor() {
+          players.push(this);
+        }
+        play() {
+          return Promise.resolve();
+        }
+        pause() {}
+      },
+    );
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
+    routes.set("GET /api/v2/chats/c-sarah/messages", () => ({
+      messages: [
+        { id: "q", mine: true, author: "Me", kind: "text", body: "Can AI pick the quotes?", meta: null, created_at: SARAH.last.created_at },
+        {
+          id: "a1",
+          mine: false,
+          author: "Sarah",
+          kind: "voice",
+          body: "",
+          meta: { duration_ms: 30_000, answer: true },
+          created_at: SARAH.last.created_at,
+          words: "Yes, it can pick them.\n\nAlways check the quote.",
+          slides: [0, 21_000],
+        },
+      ],
+    }));
+    await render();
+    await tap(row("c-sarah"));
+
+    const answer = container.querySelector('[data-row="app"] [data-chat-voice]')!;
+    const tiles = () => [...answer.querySelectorAll("[data-chat-slide]")].map((t) => t.getAttribute("data-chat-slide"));
+    expect(tiles()).toEqual(["", ""]);
+    expect(answer.textContent).not.toMatch(/Take/);
+    await tap(answer.querySelector('button[aria-label="Play"]'));
+    const audio = players[0];
+    await act(async () => {
+      audio.currentTime = 5;
+      audio.ontimeupdate?.();
+    });
+    expect(tiles()).toEqual(["on", ""]);
+    await act(async () => {
+      audio.currentTime = 22;
+      audio.ontimeupdate?.();
+    });
+    expect(tiles()).toEqual(["", "on"]);
+    await act(async () => audio.onended?.());
+    expect(tiles()).toEqual(["", ""]);
+
+    await tap(answer.querySelector("[data-chat-read]"));
+    expect(answer.querySelector("[data-chat-words]")?.textContent).toBe("Yes, it can pick them.\n\nAlways check the quote.");
   });
 });

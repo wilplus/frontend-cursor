@@ -139,6 +139,18 @@ order it is built in.
      "Read it" opens them inside the bubble and "Hide" closes them; closed
      by default, for both people, so the voice is heard; a voice note with
      no words shows none, and the list keeps "🎤 Voice message" (N331).
+   - **An answer, as the one who asked meets it** (N355, N336 item 2,
+     N333; built 2026-11-03 behind the same ring): their question first,
+     as the thread already has it; then one message from the person who
+     answered: the voice (the Take's own recording), the slides it was said
+     over in a strip of small tiles under the player, the one being heard
+     marked as it plays, and its words (the Take's, slide by slide) behind
+     "Read it", closed. No Take number, no "What to do now" above it. The
+     words and the strip come once the Take is processed; before, the voice
+     alone. Then the bar of every chat. Not yet: the picks under it (the
+     first as the one black button, the others as quiet rows), which wait
+     for the picker (D1); the link to it from WhatsApp, which waits for the
+     WhatsApp notice.
    - **The "+"** (N351, N335 item 3, N337; built 2026-11-02 behind the
      same ring), in every chat but Will's (Will's chat keeps the Lounge's
      bar): a tap swaps the bar for a row of four round coloured tiles, each
@@ -626,6 +638,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N355 · C1: an answer as the one who asked meets it: one message, the voice, the slides in a strip under the player that marks the one being heard as it plays, and its Take's words behind "Read it"; no Take number. The backend's read carries an answer's `words` and `slides` (each slide's start). Not yet: the picks, the WhatsApp link · BE (the answer's words and slides), FE (this PR)
 - 2026-11-02 · N351, N341 item 2, N337 · C1, K, §2, §4: the "+" on the left of a person's chat bar, in every chat but Will's: a tap swaps the bar for four tiles, Photos, Camera, Files and Someone else, with Cancel under them, which brings the bar back. Photos and Camera send images and Files any file, through the browser's own pickers, each its own message up to 10 MB (a photo: an image bubble that opens full size with a close ✕; a file: a bubble with its extension and its own name that downloads); Someone else opens the add sheet. The list's line is "📷" or "📄 {file name}". Each photo or file is a question for the other person (`meta.question`), and so is the sender's voice note straight after it; the mic shows while the newest message is the other person's question or your own photo or file. The prototype's own pickers and their words are not built (not signed). Was (N341): the bar was the three emoji and the mic, the mic only while the newest message was the other person's question; no "+" · BE #1606, FE (this PR)
 - 2026-11-02 · N360 · C1: Will is always the first row of the list; just joined through a link, the inviter's chat is the row right under Will, still marked new with its last message or the joined line. Was (N357 item 1): the inviter's chat above Will · FE (this PR)
 - 2026-11-02 · N354 · C1: in the iPhone app, no glimpse of Will's chat before the list: the rings and the chats are now read together at the chat boot, after the Lounge's own reads (they were one after the other), and the loader covers the Lounge until the list is known. Was: the Lounge for a moment, then the list over it. The website is unchanged: off, or with no chats, /chat is the Lounge at once · FE (this PR)

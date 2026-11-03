@@ -23,6 +23,9 @@ export type ChatMessage = {
   /** A voice note's words, once ready (backend N324, N331); null or absent
    *  until then, and for a voice note with none. */
   words?: string | null;
+  /** An answer's slides (backend N355): when each one starts, in ms, for
+   *  the strip that follows its voice. */
+  slides?: number[];
 };
 
 /** The three emoji, each with one meaning everywhere (N311 item 1). */
