@@ -45,6 +45,7 @@ vi.mock("@/hooks/useDualCaptureMic", () => ({
       mic.cancels += 1;
     },
     getAudioStartedAt: () => null,
+    getPausedMs: () => 0,
   }),
 }));
 

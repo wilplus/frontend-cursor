@@ -199,6 +199,8 @@ function isPublicFile(pathname: string) {
   }
   // /icon is the app icon (src/app/icon.tsx): no extension, same for everyone.
   if (pathname === "/icon") return true;
+  // The iPhone app's links file, which Apple fetches (src/app/.well-known/).
+  if (pathname.startsWith("/.well-known/")) return true;
   return /\.[a-z0-9]+$/i.test(pathname.slice(pathname.lastIndexOf("/") + 1));
 }
 

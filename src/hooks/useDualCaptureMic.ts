@@ -84,7 +84,15 @@ export interface DualCaptureMic {
    *  this so taps can be converted to audio time. A getter rather than state,
    *  so reading it never re-renders the recording screen. */
   getAudioStartedAt: () => number | null;
+  /** How long the Take has been paused so far, in ms: a phone call takes the
+   *  mic (iOS mutes the track), the recorder pauses, and it carries on when
+   *  the call ends (backend N437 item 2). The caller takes it off its clock
+   *  and its slide-tap times, so both stay in step with the audio. A getter,
+   *  so reading it never re-renders the recording screen. */
+  getPausedMs: () => number;
 }
+
+const nowMs = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
 
 /* ---- Minimal Web Speech typings (TS lacks them out of the box) ---------- */
 interface SpeechRecognitionAlt {
@@ -208,6 +216,11 @@ export function useDualCaptureMic(opts?: {
    *  measures that gap and sends it so slide taps land in audio time. null
    *  until the start event fires (and again on every fresh take). */
   const audioStartedAtRef = useRef<number | null>(null);
+  /** A phone call (iOS mutes the mic's track) pauses the Take; these hold
+   *  when the pause began and the pauses so far (N437 item 2). */
+  const pausedAtRef = useRef<number | null>(null);
+  const pausedMsRef = useRef(0);
+  const unlistenRef = useRef<(() => void) | null>(null);
   const mimeRef = useRef<string>("audio/webm");
   // Re-entrancy latch (T2). start() awaits getUserMedia; a second tap during
   // that async gap would fire a concurrent start() whose teardown() rips out
@@ -240,6 +253,8 @@ export function useDualCaptureMic(opts?: {
     // Invalidate any in-flight start() (see startGenRef): a teardown during the
     // getUserMedia gap must abort the pending start so it can't leave a hot mic.
     startGenRef.current += 1;
+    unlistenRef.current?.();
+    unlistenRef.current = null;
     const recognition = recognitionRef.current;
     if (recognition) {
       try {
@@ -276,6 +291,49 @@ export function useDualCaptureMic(opts?: {
     }
   }, []);
 
+  /** A phone call, or another app taking the audio: iOS mutes the mic's track
+   *  for as long as it lasts. The recorder pauses then, so the Take holds no
+   *  stretch of silence, and resumes when the track comes back (backend N437
+   *  item 2). A track that never comes back leaves the Take paused: Finish
+   *  still hands over what was said. A browser without these events records
+   *  as before. */
+  const pauseOnInterruption = useCallback((recorder: MediaRecorder) => {
+    const tracks = streamRef.current?.getTracks() ?? [];
+    const onMute = () => {
+      if (recorder.state !== "recording" || pausedAtRef.current !== null) return;
+      try {
+        recorder.pause();
+        pausedAtRef.current = nowMs();
+      } catch {
+        /* no pause here: it records on, as before */
+      }
+    };
+    const onUnmute = () => {
+      if (pausedAtRef.current === null) return;
+      try {
+        if (recorder.state === "paused") recorder.resume();
+      } catch {
+        /* Finish still hands over what was said */
+      }
+      pausedMsRef.current += nowMs() - pausedAtRef.current;
+      pausedAtRef.current = null;
+    };
+    tracks.forEach((t) => {
+      t.addEventListener?.("mute", onMute);
+      t.addEventListener?.("unmute", onUnmute);
+    });
+    unlistenRef.current = () =>
+      tracks.forEach((t) => {
+        t.removeEventListener?.("mute", onMute);
+        t.removeEventListener?.("unmute", onUnmute);
+      });
+  }, []);
+
+  const getPausedMs = useCallback(
+    () => pausedMsRef.current + (pausedAtRef.current !== null ? nowMs() - pausedAtRef.current : 0),
+    [],
+  );
+
   /** Begin capture on the stream and recorder `start` built. This is the
    *  moment the recording starts: the recorder runs, the duration clock
    *  starts, and state turns "recording". */
@@ -286,6 +344,8 @@ export function useDualCaptureMic(opts?: {
       typeof performance !== "undefined" ? performance.now() : Date.now();
     // A retake must never inherit the previous take's audio anchor.
     audioStartedAtRef.current = null;
+    pausedAtRef.current = null;
+    pausedMsRef.current = 0;
     try {
       // A chunk every second, as useVoiceNote and useCoachVideoRecorder do:
       // the Take is already in hand while it is spoken, so a browser that is
@@ -313,8 +373,9 @@ export function useDualCaptureMic(opts?: {
         // tolerate it rather than poison the state.
       }
     }
+    pauseOnInterruption(recorder);
     setState({ status: "recording", partialText: "" });
-  }, [teardown]);
+  }, [teardown, pauseOnInterruption]);
 
   const start = useCallback(async () => {
     // One in-flight start at a time (T2). See `startingRef` above.
@@ -511,7 +572,7 @@ export function useDualCaptureMic(opts?: {
 
     const blob = new Blob(chunksRef.current, { type: mimeRef.current });
     const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-    const durationSec = (now - startedAtRef.current) / 1000;
+    const durationSec = (now - startedAtRef.current - getPausedMs()) / 1000;
     const finalText = `${finalRef.current} ${partialRef.current}`.trim();
 
     // Release the stream now that the blob is composed. Per C5 this
@@ -528,7 +589,7 @@ export function useDualCaptureMic(opts?: {
     recognitionRef.current = null;
 
     setState({ status: "stopped", finalText, audioBlob: blob, durationSec });
-  }, []);
+  }, [getPausedMs]);
 
   const stop = useCallback((): Promise<void> => {
     // A second tap while the first stop is still collecting the audio waits
@@ -608,5 +669,5 @@ export function useDualCaptureMic(opts?: {
    *  fired. A getter, not state: reading it must not re-render the recorder. */
   const getAudioStartedAt = useCallback(() => audioStartedAtRef.current, []);
 
-  return { state, start, stop, cancel, getAudioStartedAt };
+  return { state, start, stop, cancel, getAudioStartedAt, getPausedMs };
 }

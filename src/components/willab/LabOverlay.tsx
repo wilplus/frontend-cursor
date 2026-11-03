@@ -195,6 +195,7 @@ export default function LabOverlay({
   // whole recording overlay many times a second (worse the longer the take),
   // which is what made the screen go stale / the slide Next feel unresponsive.
   const mic = useDualCaptureMic({ transcript: false });
+  const { getPausedMs } = mic;
   const { cancel: cancelMic } = mic;
   const signedIn = useSignedIn();
   // How many steps came before the set-up in its dots: 1 right after "How do
@@ -1083,12 +1084,13 @@ export default function LabOverlay({
       return;
     }
     const startedAt = performance.now();
+    // A phone call pauses the Take, and the clock with it (backend N437).
     const id = setInterval(
-      () => setElapsed((performance.now() - startedAt) / 1000),
+      () => setElapsed((performance.now() - startedAt - getPausedMs()) / 1000),
       250,
     );
     return () => clearInterval(id);
-  }, [mic.state.status]);
+  }, [mic.state.status, getPausedMs]);
 
   // Resume a parked Readout: restore the held payload on (re)entry to the
   // Readout with nothing loaded (e.g. after reload, via the Lounge's "Resume
@@ -1196,7 +1198,8 @@ export default function LabOverlay({
       if (next !== c) {
         slideAdvancesRef.current.push({
           index: next,
-          tMs: Math.round(performance.now() - recordStartRef.current),
+          // In audio time: a call's pause is not in the recording (N437).
+          tMs: Math.round(performance.now() - recordStartRef.current - getPausedMs()),
         });
       }
       return next;

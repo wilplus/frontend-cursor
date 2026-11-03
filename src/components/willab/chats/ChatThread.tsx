@@ -7,6 +7,7 @@ import RecordingBar from "@/components/willab/RecordingBar";
 import TypingDots from "@/components/willab/TypingDots";
 import { VoicePlayer } from "@/components/willab/plan/VoicePlayer";
 import { useBackDismiss } from "@/components/willab/useBackDismiss";
+import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { useVoiceNote } from "@/components/willab/useVoiceNote";
 import { UNDO_MS, onAnswerSent, sendAgain, undoAnswer, usePendingAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
 import {
@@ -525,10 +526,17 @@ function PlusTiles({ onTile, onCancel }: { onTile: (id: (typeof PLUS_TILES)[numb
  *  send (backend N368 item 3). Quiet when the browser refuses either. */
 let audio: AudioContext | null = null;
 export function sendTick(): void {
-  try {
-    navigator.vibrate?.(12);
-  } catch {
-    // No buzz here.
+  // The iPhone has no web vibration: in the app, its own light tap.
+  if (isNativeApp()) {
+    void import("@capacitor/haptics")
+      .then(({ Haptics, ImpactStyle }) => Haptics.impact({ style: ImpactStyle.Light }))
+      .catch(() => undefined);
+  } else {
+    try {
+      navigator.vibrate?.(12);
+    } catch {
+      // No buzz here.
+    }
   }
   try {
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
