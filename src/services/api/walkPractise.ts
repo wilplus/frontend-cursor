@@ -61,8 +61,16 @@ export interface WalkPractiseIO<R> {
   open(item: R, passage: WalkPractisePassage): Promise<string | null>;
   /** `stoppedAtMs`: when the speaker pressed Stop, on the phone's clock
    *  (V4 B1.4, O5); only measured, never shown. Null when the upload failed;
-   *  `unheard` when the server could not hear the try. */
-  upload(practiceId: string, audio: Blob, durationSec: number, stoppedAtMs?: number): Promise<WalkPractiseTry | WalkPractiseUnheard | null>;
+   *  `unheard` when the server could not hear the try. `words`: the words
+   *  the try's bubble shows (the One thing walk's, `oneThingTryWords`); not
+   *  sent to the server, the chat writes them. */
+  upload(
+    practiceId: string,
+    audio: Blob,
+    durationSec: number,
+    stoppedAtMs?: number,
+    words?: string | null,
+  ): Promise<WalkPractiseTry | WalkPractiseUnheard | null>;
   check(practiceId: string, attemptId: string): Promise<PracticeCheckResult | null>;
 }
 

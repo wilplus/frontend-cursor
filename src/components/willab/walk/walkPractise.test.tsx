@@ -661,7 +661,7 @@ describe("the One thing walk's fix with no AI clip (founder 2026-11-03, N370)", 
   /** Their best, then the weakest as the one fix, with no video to show. */
   const ONE_ITEMS: FeedbackWalkItem<string>[] = [
     { ...PRAISE_ITEM, walkSlot: "strongest", highest: true, tiered: true, green: true },
-    { ...EXERCISE_ITEMS[0], walkSlot: "weakest", tiered: true, practicePrompt: true },
+    { ...EXERCISE_ITEMS[0], walkSlot: "weakest", tiered: true, practicePrompt: true, said: EXERCISE_OFFER.passage },
   ];
   const PAUSE_SAID = AI_CLIP_BANK.AIpause.map((tip) => `${tip.replace("{phrase}", AI_PHRASE)}.`);
   const fixAt = (items: FeedbackWalkItem<string>[]) =>
@@ -732,6 +732,25 @@ describe("the One thing walk's fix with no AI clip (founder 2026-11-03, N370)", 
     expect(live()!.querySelector("[data-walk-no-clip]")).not.toBeNull();
     const told = onShown.mock.calls.filter(([s]) => (s as { key: string }).key === "exVideo");
     expect(told[0][4]).not.toContain(ONE_THING_COPY.likeConfident);
+  });
+
+  it("the try is my clip with the moment's own words, and nothing shows in the thread while I record (locked prototype, record())", async () => {
+    aiClip = "chosen";
+    draw({ items: ONE_ITEMS, at: fixAt(ONE_ITEMS), takeId: "take-words" });
+    await settle(60);
+    click(live()!.querySelector("[data-testid='walk-practise']"));
+    await settle();
+    expect(screen()).toBe("walk-screen-practise");
+    // Recording: the recording bar in the dock is the only sign.
+    expect(recorder()).not.toBeNull();
+    expect(live()!.querySelector("[data-walk-live-try]")).toBeNull();
+    expect(now()!.textContent).not.toContain(WALK_COPY.practiseN(1));
+    answers = ["hang"];
+    stop();
+    await settle();
+    const bubble = [...live()!.querySelectorAll("[data-walk-player][data-walk-me]")].at(-1)!;
+    expect(bubble.querySelector("[data-walk-try-words]")!.textContent).toBe(EXERCISE_OFFER.passage);
+    expect(bubble.textContent).not.toContain(WALK_COPY.practiseN(1));
   });
 
   it("a clip that comes once the try has begun never lands above it (N373 item 2)", async () => {

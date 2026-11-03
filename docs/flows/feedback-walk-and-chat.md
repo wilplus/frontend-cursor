@@ -596,7 +596,17 @@ praised moment:
   is the one recording bar in the dock as below; two tries. A try that
   lands: "Yes. That's it." and Next; one miss: "Close. Once more." with
   "Try it" and Skip; two: "Good try. Take it with you." and Next. A try not
-  heard says so as below. In a Take served before N289: every practise is one thread: the words to say, the
+  heard says so as below. While it records, nothing is added to the thread:
+  the recording bar in the dock is the only sign. After Stop the try is the
+  speaker's orange clip with the words they were asked to say: the Clearer
+  version's sentence after "Try it", their own sentence after "Keep mine",
+  the moment's own words after the AI clip (`oneThingTryWords`,
+  `walkThread.ts`); the chat writes the same words. Each try keeps its own
+  voice and number (its player is named "Practise N" for screen readers).
+  The Sniper's try is the tempo step's "Try N" with the dot's path (T step
+  6). As the locked prototype X4gDmGfHH7ivuoRZ9ufiy9 draws it (`walk.html`,
+  `record()`). Was: every try labelled "Practise N" in place of its words,
+  and an orange "● Practise N" pill in the thread while recording. In a Take served before N289: every practise is one thread: the words to say, the
   recorder in the dock (the one recording bar, N314: the trash on the left,
   then the strip with the dot, the clock, the bar and the red "Stop" inside
   it; "Skip" under it, the walk's grey link; was "Skip" in the Back style
@@ -1964,6 +1974,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-03 · N391 · E1: notifications come in a bar at the top of the chat, never in the buttons under it: the next visit's WhatsApp ask and the CEO panel's WhatsApp, consent, promo (web only) and lesson asks, one at a time, ✕ for Not now, WhatsApp and consent opening their form as a sheet from the top; the home-screen ask is deleted everywhere. Was: WhatsApp and the home screen written in the chat at the next visit with their form in the footer (N294 item 8, N295); the CEO panel's asks the Take's one ask from Take 2, in the footer · BE (next PR), FE (this PR)
+- 2026-11-03 · — · C7: the One thing walk's try is the speaker's orange clip with the words they were asked to say (the Clearer version's sentence, their own after "Keep mine", the moment's own words after the AI clip), in the walk and the chat; nothing in the thread while it records, the recording bar alone, as the locked prototype X4gDmGfHH7ivuoRZ9ufiy9 draws it. A Take served before N289 keeps "Practise N". Was: "Practise N" in place of the words and an orange "● Practise N" pill while recording · FE (this PR)
 - 2026-11-03 · N381 · C2, H1: N374 item 1 withdrawn: a between whose Clearer version does not pass is praised as a next best again and left out of the One thing walk; the AI clip is the weakest's alone. Was (N374 item 1, Takes recorded from 11:00 UTC that day): that between took the AI clip when no paragraph was left for the weakest, and the clip coached the voice on a fragment whose trouble was its words. N374 item 2 (their best's own words as the helper words) is unchanged · BE (the revert of #1629), docs (this PR)
 - 2026-11-03 · N380 · F1: an older version says "This is what you said in Take N." with an outlined "Go to Take M" that opens the page, and shows the helper words its slides had while it was the latest (the last set picked before the next version), orange in the words and with the HELPERS label for words it no longer says, as the page draws them; a card whose version was not kept opens the page with "Take N's words weren't saved. This is Take M." at its top (`PAST_TAKE_COPY` in `idealEditCopy.ts`, signed). Was: no line, no way to the latest, no helper words, the page opened in silence · BE N380 log and the History's helper words (BE, next PR), FE (this PR)
 - 2026-11-03 · N376 · F1: which page an Ideal Text card opens is known before either is drawn, and a press on an older card starts its read (`src/lib/willab/pastIdealText.ts`); an older version shows its paragraphs slide by slide, each slide's picture and kicker on the deck that Take was said on. Was: a loader first, then sometimes the live page; plain paragraphs · BE N376 log and the History's slides (BE, next PR), FE (this PR)
