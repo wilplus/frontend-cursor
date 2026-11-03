@@ -895,11 +895,21 @@ praised moment:
   ends them. **The key line** (N294 item 2) is the plan's signed question,
   "If {who} remembers one sentence from you, what is it? Say it the way
   you'll say it." with who the talk is for in it ("your audience" when it
-  is not known; after a just-answered who, the answer), opened on the
+  is not known, or the talk is for themself; after a just-answered who,
+  the answer, from their side), opened on the
   moment as the others ("We just worked on “…”. "), said as signed, with no
   tap answers: it is answered by voice (E3). Will says
-  back who the talk is for, "{who}. I'll keep them in mind." (N294 item 5);
-  every other answer keeps "Got it, thanks 🙏". Will may say the signed questions with light
+  back who the talk is for, "{who}. I'll keep them in mind." (N294 item 5),
+  from the speaker's side: "my team" comes back as "Your team. I'll keep
+  them in mind.", and a talk to themself ("Myself", "me", "just me") as
+  "I'll keep you in mind." (N406 item 3; was the words as typed, "Myself.
+  I'll keep them in mind."). For a talk to themself, what they should do
+  is "When you finish, what do you want to do? Or feel? 🤔", with no taps
+  (N406 item 4). The goodbye (D4) waits under Will's question until it is
+  answered, however it is answered: nothing lets it go past an open
+  question (N406 item 1; was: after a typed answer the goodbye came under
+  his next question and cut it off).
+  Every other answer keeps "Got it, thanks 🙏". Will may say the signed questions with light
   variation, the same meaning in slightly different words; the tap answers
   and the no-numbers rule stay (founder, 2026-10-20); when the variation
   fails a check he says them as signed.
@@ -907,8 +917,10 @@ praised moment:
   (N297 item 2): this Take's own words, then what the speaker said for an
   earlier talk, then the signed answers for their field, for who the talk
   is for and what they should do alike; orange on the right. Who the talk
-  is for ends on "Someone else", which opens "Who is it for, then? 👀",
-  answered in their own words (N319 item 8). No Skip under Will's
+  is for has no "Someone else": their own words go into "Something else"
+  in the bar (N371), so Will asks once (N406 item 2; was "Someone else"
+  last, opening "Who is it for, then? 👀", N319 item 8). The check
+  ("Right?") keeps "Someone else" and its follow-up. No Skip under Will's
   questions (N296 item 2): not answering is allowed, and the "+" still
   opens the projects; their own words in the message box answer too, and
   so does **a voice answer** (N294 items 2 and 3, N319 item 1): while Will
@@ -1666,6 +1678,8 @@ October (backend N111).
   "When you said “…”, " or "We just worked on “…”. " (signed 2026-10-31,
   N294 item 1): "Who were you talking to? 🎯" (signed 2026-11-02, N347
   item 1); "When you finish, what do you want them to do? Or feel? 🤔";
+  for a talk to themself "When you finish, what do you want to do? Or
+  feel? 🤔" (signed 2026-11-03, N406 item 4);
   "Last time we practised “…”. It didn't make it into this Take. On purpose?
   😏" (Yes, on purpose · I forgot · It didn't feel like me); "You've put real
   work into this one 💪 Need a breather, or does something feel missing?" (A
@@ -1676,9 +1690,10 @@ October (backend N111).
   follow-ups "Who is it for, then? 👀", "Tell me more 👀 What's missing?",
   "What would feel more like you?", "What would make it a yes?", "Where do
   you want it to take you?"; "Got it, thanks 🙏"; "{who}. I'll keep them in
-  mind." (signed 2026-10-31, N294 item 5); "Sounds like this one's for {the
-  board}. Right? 🎯" (Yes · Someone else); "Someone else" also last under
-  who the talk is for (N319 item 8); the answers by field
+  mind." (signed 2026-10-31, N294 item 5), {who} from the speaker's side,
+  "your" for "my" (signed 2026-11-03, N406 item 3); "I'll keep you in
+  mind." (signed 2026-11-03, N406 item 3); "Sounds like this one's for {the
+  board}. Right? 🎯" (Yes · Someone else); the answers by field
   (business: My team · Leadership · A client; public speaking: A big room ·
   Colleagues · Friends and family; sales: A buyer · Their team · The decision
   maker; customer service: A customer · A caller · My team; interviews: The
@@ -1983,6 +1998,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N406 · E2, E3, K: who the talk is for, fixed from the founder's screenshot (prototype <https://claude.ai/artifact/NxE1pMJmngj8Q7ZTj9PQDp>, Option A): the goodbye waits under Will's question until it is answered, however it is answered; no "Someone else" under "Who were you talking to? 🎯", their own words go into "Something else" in the bar; Will says who from the speaker's side, "Your team. I'll keep them in mind.", and "I'll keep you in mind." for a talk to themself, then "When you finish, what do you want to do? Or feel? 🤔" with no taps, the key line keeping "your audience". No frontend code. Was: after a typed answer the goodbye came under the next question and cut it off; "Someone else" last, opening "Who is it for, then? 👀"; the words said back as typed, "Myself. I'll keep them in mind." · BE (next PR), docs (this PR)
 - 2026-11-03 · C4: the phrase the AI clip names (its served `phrase`) is bold where it stands in the fix's own words above the clip and in the tip ("Lean on “**above ninety percent**”, like this:", or the tip in words with no clip), and in the chat's copy of the fix's words, so the speaker sees where to lean (founder, Claude Code chat 2026-11-03: "yes, bold the phrase"; backend log entry to follow). Was: the words and the tip plain · FE (this PR)
 - 2026-11-03 · C2, C4: their best's clip and the AI clip's fix show the moment's own words above the player (its served `said`), as the locked prototype draws them (`clip(u.best.text)`, `clip(f.text)`), in the walk and the chat alike; "Last time" and their best played again inside the fix stay without words. Was: both clips drawn without words · FE (this PR)
 - 2026-11-03 · N395 · Record buttons; after the goodbye: the chat's one "Record Take N" stands 24 px under the last bubble (was 8) with a grey ✕ on its right, no background and no outline; the ✕ closes it and the bar comes back ("+", "Type here", the mic) for that Take, until the chat is opened again or a newer Take's goodbye offers the next. No new words. Was: alone, with no way to close it but recording · BE #1647, FE (this PR)
