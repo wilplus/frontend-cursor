@@ -58,6 +58,10 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
   paragraphText: string;
   /** Where it sits, for the top bar ("Slide 2"). */
   slideLabel: string | null;
+  /** Its slide's title in the speaker's deck, which the walk's bar and
+   *  each part's name say in place of `slideLabel` (backend N397). None or
+   *  empty: `slideLabel`. */
+  slideTitle?: string | null;
   /** On a praise: its words, the coach's or the signed line the item
    *  carries. Never made up here; none means none is shown. */
   praiseWords?: readonly string[] | null;
@@ -164,6 +168,8 @@ export type FeedbackWalkMoment<R = unknown> = {
   partId: string;
   paragraphText: string;
   slideLabel: string | null;
+  /** Its slide's title, for the bar (backend N397); see FeedbackWalkItem. */
+  slideTitle?: string | null;
   praiseWords: readonly string[];
   praiseTitle?: string | null;
   /** The Take's highest moment, praised or corrected (founder 2026-10-20). */
@@ -328,6 +334,7 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     partId: lead.partId,
     paragraphText: lead.paragraphText,
     slideLabel: lead.slideLabel,
+    slideTitle: lead.slideTitle ?? null,
     praiseWords: praise?.praiseWords ?? [],
     // The level rides the green row; the praise words may ride a separate
     // wording note. Whichever row carries the level names the screen.
