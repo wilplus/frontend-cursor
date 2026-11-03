@@ -5,7 +5,8 @@ OUTCOME
   O1  The message waits, undrawn, while its ask is open; the card comes
       before the ask; once let go it comes under what closed the ask.
   O2  A WhatsApp or home-screen ask opens its form by itself.
-  O3  A waiting message whose ask is no longer in front of me is let go.
+  O3  A waiting message whose ask is no longer in front of me is let go;
+      the plan's open question counts as an ask in front of me.
   O4  The admin's ask, stamped only with the message it waits for, is still
       the Take's: the card stays above it and the ask above its buttons
       (founder 2026-10-20: the card landed between the question and its
@@ -137,5 +138,7 @@ describe("after a Take", () => {
     expect(askShowing([ask, row("reply", 4, "text", {})], false)).toBe(false);
     expect(askShowing([ask, row("reply", 4, "text", {})], true)).toBe(true);
     expect(askShowing([row("missing", 4, "text", { feedback_check: "missing" })], false)).toBe(true);
+    // The plan's question holds the goodbye until it is answered (held_for "plan").
+    expect(askShowing([row("deadline", 4, "text", { plan_ask: "deadline" })], false)).toBe(true);
   });
 });

@@ -99,12 +99,14 @@ export function afterTakeOrder<T extends { message: Pick<LoungeMessage, "kind" |
 }
 
 /** Is an ask still in front of the speaker? A form is open in the footer,
- *  or the newest drawn bubble is an ask (an offer, or "What would help?").
- *  A message held back while none is would never show, so it is let go. */
+ *  or the newest drawn bubble is an ask (an offer, "What would help?", or
+ *  the plan's question, whose answer lets the goodbye held behind it go,
+ *  `held_for: "plan"`). A message held back while none is would never
+ *  show, so it is let go. */
 export function askShowing(drawn: readonly Meta[], formOpen: boolean): boolean {
   if (formOpen) return true;
   const meta = drawn[drawn.length - 1]?.metadata ?? {};
-  return typeof meta.offer === "string" || meta.feedback_check === "missing";
+  return typeof meta.offer === "string" || meta.feedback_check === "missing" || typeof meta.plan_ask === "string";
 }
 
 /** The bubbles above the chat's newest recording, in any project (messages
