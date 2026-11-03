@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { createProject } from "@/services/api/projects";
-import { sendChatAnswer, type ChatMessage } from "@/services/api/chats";
+import { sendChatAnswer, undoChatAnswer, type ChatMessage } from "@/services/api/chats";
 import {
   clearExploreArc,
   readExploreArc,
@@ -13,7 +13,7 @@ import {
 
 /* -------------------------------------------------------------------------- */
 /*  "Record an answer" in a chat with a person (backend N321 item 4, N336,    */
-/*  N345, N361, N363; rules: docs/flows/customer-requests.md C1).             */
+/*  N345, N361, N363, N441; rules: docs/flows/customer-requests.md C1).       */
 /*                                                                            */
 /*    start    the question becomes a project of its own, one slide holding   */
 /*             the asker's words (N361 item 3), and the recording screens     */
@@ -24,12 +24,16 @@ import {
 /*             (N363 item 1), where the answer reads "Sending to {name}…"     */
 /*             with Undo for 5 seconds (N345 item 2). The Take uploads and    */
 /*             processes on its own, as any Take does.                        */
-/*    send     once the 5 seconds have passed and the Take is uploaded, the   */
-/*             answer is sent: a voice message that plays the Take (backend   */
-/*             POST /v2/chats/<id>/answer). Undo throws it away before the    */
-/*             person sees it; the Take stays the speaker's own practice. A   */
-/*             Take that never uploads, or a refused send, shows nothing new, */
-/*             as a voice note's failure does (N321 item 2).                  */
+/*    send     as soon as the Take is uploaded, the answer goes to the        */
+/*             backend, held there for what is left of the 5 seconds (N441    */
+/*             item 3), so leaving the app no longer stops it: a voice        */
+/*             message that plays the Take (POST /v2/chats/<id>/answer). Once */
+/*             the 5 seconds have passed it shows as sent. A refused send     */
+/*             stays in the bar, "Not sent" with "Send again" (N441 item 1).  */
+/*    undo     takes it back on the backend before the person sees it; the   */
+/*             Take stays the speaker's own practice and Will says so in      */
+/*             their chat with him (N441 item 5). A Take that never uploads   */
+/*             shows its error on the recording screens, as any Take's.       */
 /*                                                                            */
 /*  One answer at a time. The recording screens read `answering()` as they   */
 /*  open; the chat reads `usePendingAnswer`.                                  */
@@ -38,14 +42,19 @@ import {
 /** How long an answer can still be taken back (N345 item 2). */
 export const UNDO_MS = 5000;
 
+/** The longest answer (N363 item 3): the recording screens count down from
+ *  it and finish by themselves at 0:00 (N441 item 2). */
+export const ANSWER_SECONDS = 300;
+
 /** Who the answer is for, and to what. */
 export interface AnswerFor {
   chatId: string;
-  /** The person's name, above "Take 1 · Slide 1 of 1" (N334 item 2). */
+  /** The person's name, at the top of the recording screens (N441 item 7). */
   name: string;
   /** Their question, the one slide (N361 item 3). */
   question: string;
-  /** A customer gets the answer on WhatsApp (N342). */
+  /** A customer; the answer reaches them in the app until WhatsApp delivery
+   *  exists (N441 item 4). */
   customer: boolean;
 }
 
@@ -58,22 +67,32 @@ export interface PendingAnswer {
   waited: boolean;
   /** When the 5 seconds started (ms), for the bar's countdown (N368). */
   startedAt: number;
+  /** The send was refused: "Not sent" with "Send again" (N441 item 1). */
+  failed: boolean;
 }
 
-type Answering = AnswerFor & { ownerId: string | null; before: ExploreArc | null };
+type Answering = AnswerFor & { ownerId: string | null; before: ExploreArc | null; project: string };
 type Sending = PendingAnswer & {
+  project: string;
   take: string | null;
   posting: boolean;
+  message: ChatMessage | null;
+  undone: boolean;
   timer: ReturnType<typeof setTimeout> | null;
 };
 
 let current: Answering | null = null;
 let starting = false;
 let sending: Sending | null = null;
+/** What the chat sees of `sending`, a new object at each change. */
+let shown: PendingAnswer | null = null;
 const listeners = new Set<() => void>();
 const sentListeners = new Set<(chatId: string, message: ChatMessage) => void>();
 
 function changed() {
+  shown = sending
+    ? { chatId: sending.chatId, name: sending.name, durationMs: sending.durationMs, waited: sending.waited, startedAt: sending.startedAt, failed: sending.failed }
+    : null;
   listeners.forEach((listener) => listener());
 }
 
@@ -111,7 +130,7 @@ export async function startAnswer(answer: AnswerFor, ownerId: string | null, ope
   });
   starting = false;
   if (created.kind !== "ok") return false;
-  current = { ...answer, ownerId, before: readExploreArc(ownerId) };
+  current = { ...answer, ownerId, before: readExploreArc(ownerId), project: created.projectId };
   writeExploreArc(ownerId, created.projectId, 1, deck);
   open();
   return true;
@@ -124,18 +143,23 @@ export function answerRecorded(durationMs: number): void {
   const next: Sending = {
     chatId: current.chatId,
     name: current.name,
+    project: current.project,
     durationMs: Math.max(1, Math.round(durationMs)),
     startedAt: Date.now(),
     take: null,
+    message: null,
     waited: false,
+    failed: false,
     posting: false,
+    undone: false,
     timer: null,
   };
   next.timer = setTimeout(() => {
     if (sending !== next) return;
-    sending = { ...next, waited: true, timer: null };
-    changed();
-    void trySend(sending);
+    next.waited = true;
+    next.timer = null;
+    if (next.message) sent(next);
+    else changed();
   }, UNDO_MS);
   sending = next;
   changed();
@@ -144,18 +168,35 @@ export function answerRecorded(durationMs: number): void {
 /** The Take is uploaded (its session id), or it could not be (null). */
 export function answerTake(take: string | null): void {
   const answer = sending;
-  if (!answer) return;
+  if (!answer || answer.take) return;
   if (!take) {
     drop(answer);
     return;
   }
   answer.take = take;
-  void trySend(answer);
+  void post(answer);
 }
 
-/** Undo (N345 item 2): thrown away before the person sees it. */
+/** Undo (N345 item 2): taken back before the person sees it, on the
+ *  backend too; Will says so in the speaker's chat with him (N441 item 5). */
 export function undoAnswer(): void {
-  if (sending && !sending.waited) drop(sending);
+  const answer = sending;
+  if (!answer || answer.waited || answer.failed) return;
+  answer.undone = true;
+  drop(answer);
+  void tellUndo(answer);
+}
+
+/** "Send again" (N441 item 1): the same Take, at once; no Undo any more. */
+export function sendAgain(): void {
+  const answer = sending;
+  if (!answer || !answer.failed) return;
+  if (answer.timer) clearTimeout(answer.timer);
+  answer.timer = null;
+  answer.failed = false;
+  answer.waited = true;
+  changed();
+  void post(answer, 0);
 }
 
 /** The recording screens closed: the speaker's own project is theirs again.
@@ -186,12 +227,38 @@ function drop(answer: Sending) {
   }
 }
 
-async function trySend(answer: Sending) {
-  if (sending !== answer || !answer.waited || !answer.take || answer.posting) return;
-  answer.posting = true; // sent once
-  const message = await sendChatAnswer(answer.chatId, answer.take, answer.durationMs);
-  if (sending === answer) drop(answer);
+function sent(answer: Sending) {
+  drop(answer);
+  const message = answer.message;
   if (message) sentListeners.forEach((listener) => listener(answer.chatId, message));
+}
+
+/** To the backend, held there for `holdMs`: by default what is left of the
+ *  5 seconds. */
+async function post(answer: Sending, holdMs = Math.max(0, answer.startedAt + UNDO_MS - Date.now())) {
+  if (answer.posting || answer.message || !answer.take) return;
+  answer.posting = true;
+  const message = await sendChatAnswer(answer.chatId, answer.take, answer.durationMs, holdMs);
+  answer.posting = false;
+  answer.message = message;
+  if (sending !== answer) {
+    // Taken back while it was on its way: take this one back too.
+    if (message && answer.undone) void tellUndo(answer);
+    return;
+  }
+  if (!message) {
+    answer.failed = true;
+    changed();
+  } else if (answer.waited) {
+    sent(answer);
+  }
+}
+
+/** Tell the backend about an Undo; one that came too late shows as sent. */
+async function tellUndo(answer: Sending) {
+  const result = await undoChatAnswer(answer.chatId, { message: answer.message?.id ?? null, project: answer.project });
+  const message = answer.message;
+  if (result === "sent" && message) sentListeners.forEach((listener) => listener(answer.chatId, message));
 }
 
 function subscribe(listener: () => void) {
@@ -201,7 +268,7 @@ function subscribe(listener: () => void) {
 
 /** The answer on its way in this chat, if any. */
 export function usePendingAnswer(chatId: string): PendingAnswer | null {
-  const current = useSyncExternalStore(subscribe, () => sending, () => null);
+  const current = useSyncExternalStore(subscribe, () => shown, () => null);
   if (!current || current.chatId !== chatId) return null;
   return current;
 }
@@ -211,6 +278,7 @@ export function forgetAnswers(): void {
   if (sending?.timer) clearTimeout(sending.timer);
   current = null;
   sending = null;
+  shown = null;
   starting = false;
   listeners.clear();
   sentListeners.clear();

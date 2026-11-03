@@ -11,10 +11,14 @@ OUTCOME
   O3  Space after clicking Back goes forward, not Back again.
   O4  The top bar, the strip and the buttons stay put when the slide
       changes; only the slide and its helper words change.
+  O5  An answer (N441): the top bar is the person's name alone, its one
+      slide is drawn as "{name} asks" over the question, Finish take stands
+      alone in the row, and at 5:00 the Take finishes by itself, once.
 PROVES   O1 -> "reads Take N · Slide n of m, and nothing above the slide repeats it"
          O2 -> "turns Next slide into the red Finish take on the last slide, which ends the Take"
          O3 -> "goes forward, never presses the clicked Back again"
          O4 -> "keeps the top bar, the strip and the buttons through a slide change"
+         O5 -> "an answer: the name alone, the asker on its one slide, Finish take alone, done by itself at 5:00"
 WHY      Founder lock 2026-10-12 (N70); locked recording screen.
 */
 import { act, createElement, Fragment, useState } from "react";
@@ -24,11 +28,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./pdfSlides", () => ({
   PdfPage: () => null,
   MockPresentationSlide: () => null,
-  SlideRender: ({ pageIndex }: { pageIndex: number }) =>
-    createElement("div", { "data-testid": "slide" }, `page ${pageIndex + 1}`),
+  SlideRender: ({ pageIndex, asks }: { pageIndex: number; asks?: string | null }) =>
+    createElement("div", { "data-testid": "slide", "data-asks": asks ?? "" }, `page ${pageIndex + 1}`),
 }));
 
-import { RecordingPhase, RecordingWhere } from "./LabOverlay";
+import { RecordingPhase, RecordingWhere, useAnswerEnds } from "./LabOverlay";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -192,5 +196,49 @@ describe("the still frame", () => {
     expect(after.where.textContent).toBe("Take 2 · Slide 2 of 3");
     expect(host.querySelector('[data-testid="slide"]')!.textContent).toBe("page 2");
     expect(host.textContent).toContain("words for slide 2");
+  });
+});
+
+describe("an answer (N441)", () => {
+  it("an answer: the name alone, the asker on its one slide, Finish take alone, done by itself at 5:00", () => {
+    const question = [{ title: "Would the scalp treatment help?", body: "" }] as never[];
+    let elapsed = 299;
+    const answer = { chatId: "c", name: "Sarah", question: "Would the scalp treatment help?", customer: true };
+    function Answer() {
+      useAnswerEnds(answer, "lab_recording", "recording", elapsed, () => {
+        stops += 1;
+      });
+      return createElement(
+        Fragment,
+        null,
+        createElement(RecordingWhere, { show: true, micStatus: "recording", who: "Sarah", takeNumber: 1, slide: 0, slideCount: 1 }),
+        createElement(RecordingPhase, {
+          micState: { status: "recording", partialText: "" },
+          elapsed,
+          targetSec: 300,
+          rejectedMsg: null,
+          uploadRetry: null,
+          onStop: () => undefined,
+          onRecordAgain: () => undefined,
+          slides: question,
+          presentationRef: null,
+          currentSlide: 0,
+          roots: [],
+          onSlideChange: () => undefined,
+          asks: "Sarah",
+        } as never),
+      );
+    }
+    act(() => root.render(createElement(Answer)));
+    expect(where().textContent).toBe("Sarah");
+    expect(host.querySelector('[data-testid="slide"]')?.getAttribute("data-asks")).toBe("Sarah");
+    expect(button("Back")).toBeUndefined();
+    expect(button("Finish take")).toBeDefined();
+    expect(stops).toBe(0);
+    elapsed = 300;
+    act(() => root.render(createElement(Answer)));
+    elapsed = 301;
+    act(() => root.render(createElement(Answer)));
+    expect(stops).toBe(1);
   });
 });

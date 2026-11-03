@@ -267,7 +267,11 @@ export function MockPresentationSlide({
  *  That matters beyond tidiness — per-slide transcription buckets words
  *  against the slide ON SCREEN, so a speaker who cannot see which slide they
  *  are on cannot drive that boundary. */
-export function SlideTextCard({ title, body }: { title: string; body: string }) {
+/** Over an answer's question (backend N441 item 7, signed). */
+export const nameAsks = (name: string) => `${name} asks`;
+
+export function SlideTextCard({ title, body, asks = null }: { title: string; body: string; asks?: string | null }) {
+  if (asks) return <AnswerSlide name={asks} question={title} />;
   const bullets = bulletLines(body);
   // A first Take's question carries its small title above it (backend N401
   // item 2), found by the question's own words.
@@ -305,6 +309,22 @@ export function SlideTextCard({ title, body }: { title: string; body: string }) 
   );
 }
 
+/** An answer's one slide (backend N441 item 7): a small "{name} asks" and the
+ *  question under it in body size, read like a message, not a heading. */
+function AnswerSlide({ name, question }: { name: string; question: string }) {
+  return (
+    <div className="relative h-full w-full overflow-hidden bg-[#061a3a]">
+      <div className="absolute inset-0 flex flex-col justify-center px-[6%] py-[5%] text-white">
+        <span className="mb-[5%] h-1 w-[18%] rounded-full bg-primary" />
+        <p data-slide-asks="" className="mb-1.5 text-[13px] font-semibold text-white/65">
+          {nameAsks(name)}
+        </p>
+        <p className="text-[17px] leading-[1.45]">{question}</p>
+      </div>
+    </div>
+  );
+}
+
 /** What a viewer shows for one slide: the rendered PDF page when a deck PDF is
  *  present, or the canonical artwork for a deckless presentation.
  *
@@ -320,12 +340,15 @@ export function SlideRender({
   className,
   showRetry = true,
   fit = false,
+  asks = null,
 }: {
   presentationRef: string | null;
   pageIndex: number;
   title: string;
   body: string;
   artworkSrc?: string;
+  /** An answer's person (backend N441 item 7). */
+  asks?: string | null;
   className?: string;
   showRetry?: boolean;
   fit?: boolean;
@@ -364,7 +387,7 @@ export function SlideRender({
   if (!presentationRef && (title.trim() || body.trim())) {
     return (
       <div className={className}>
-        <SlideTextCard title={title} body={body} />
+        <SlideTextCard title={title} body={body} asks={asks} />
       </div>
     );
   }

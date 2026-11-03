@@ -150,15 +150,39 @@ export function chatFileSrc(chatId: string, messageId: string): string {
   return `/api/v2/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}/file`;
 }
 
-/** An answer recorded with "Record an answer" (backend N363), sent once its
- *  Undo has passed: a voice message that plays the speaker's own Take, up to
- *  five minutes. Any refusal answers null. */
-export async function sendChatAnswer(chatId: string, take: string, durationMs: number): Promise<ChatMessage | null> {
+/** An answer recorded with "Record an answer" (backend N363), sent as soon
+ *  as its Take is uploaded: a voice message that plays the speaker's own
+ *  Take, up to five minutes. `holdMs`, what is left of its 5 seconds, holds
+ *  it on the server, where Undo can still take it back (N441 item 3). Any
+ *  refusal answers null. */
+export async function sendChatAnswer(chatId: string, take: string, durationMs: number, holdMs = 0): Promise<ChatMessage | null> {
   const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/answer`, {
     method: "POST",
-    json: { take, duration_ms: Math.round(durationMs) },
+    json: { take, duration_ms: Math.round(durationMs), hold_ms: Math.max(0, Math.round(holdMs)) },
   });
   return messageOf(body);
+}
+
+/** Undo (backend N345 item 2, N441): the answer held on the server
+ *  (`message`) is taken back, and Will says so in the speaker's chat with
+ *  him; `project`, the answer's own, names it before its message exists.
+ *  "sent" when it had already gone (409); "failed" for anything else. */
+export async function undoChatAnswer(
+  chatId: string,
+  answer: { message: string | null; project: string },
+): Promise<"undone" | "sent" | "failed"> {
+  try {
+    const result = await bffFetch(`/api/v2/chats/${encodeURIComponent(chatId)}/answer/undo`, {
+      method: "POST",
+      json: answer,
+      cache: "no-store",
+    });
+    if (result.kind !== "response") return "failed";
+    if (result.status === 409) return "sent";
+    return result.ok ? "undone" : "failed";
+  } catch {
+    return "failed";
+  }
 }
 
 /** Where a voice message in the chat plays from. */

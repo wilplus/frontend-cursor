@@ -64,15 +64,17 @@ OUTCOME
       black "Record an answer" in the bar's middle, the "+" and the mic on its
       sides (N321 item 4, N361, N368); it hands the recording screens the
       chat, the person and the question. Back from them, the bar's middle
-      reads "Sending to {name}… {n}" with Undo, then
-      it goes and "Sent to {name} on WhatsApp" (a customer) stands under it
-      (N345, N342).
+      reads "Sending to {name}… {n}" with Undo while the answer, already
+      with the backend, waits out its 5 seconds there (N441 item 3); then
+      "Sent to {name}" stands under it, a customer's too (N345, N441 item 4).
   O17 Back (the iPhone's swipe from the left edge in the app, the browser's
       Back on the web) goes back by one, from a chat to the list, and never
       off the list; back on the list, it is where I left it, the row I came
       from lit. Forward (the swipe from the list's right edge in the app,
       the browser's Forward on the web) opens the chat I just left again;
       before I have left one, it does nothing (N378, N436).
+  O18 An answer the backend refused stays in the bar's middle, "Not sent"
+      with "Send again", which sends the same Take (N441 item 1).
 PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O2 -> "with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back"
          O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question"
@@ -91,6 +93,7 @@ PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O16 -> "a marked question takes Record an answer, and my answer goes with Sending, Undo and Sent"
          O17 -> "the device's Back goes back by one, to the list, never off it, and Forward opens the chat I just left"
          O17 -> "in the app, a swipe from the left edge goes back to the list where I left it, and one from the right edge forward to the chat I just left"
+         O18 -> "a refused answer stays as Not sent, and Send again sends the same Take"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -836,7 +839,11 @@ describe("the chats in front of the Lounge", () => {
       const sending = container.querySelector("[data-chat-bar] [data-chat-sending]");
       expect(sending?.textContent).toBe("Sending to Sarah… 5Undo");
       expect(container.querySelector("[data-chat-record-answer]")).toBeNull();
-      expect(calls("POST /api/v2/chats/c-sarah/answer")).toHaveLength(0);
+      // Already with the backend, held there for the 5 seconds (N441 item 3).
+      const posted = calls("POST /api/v2/chats/c-sarah/answer");
+      expect(posted).toHaveLength(1);
+      expect(JSON.parse(String(posted[0]![1]!.body))).toEqual({ take: "take-1", duration_ms: 52000, hold_ms: 5000 });
+      expect(container.querySelector("[data-chat-sent-line]")).toBeNull();
       await act(async () => {
         await vi.advanceTimersByTimeAsync(UNDO_MS);
       });
@@ -844,10 +851,52 @@ describe("the chats in front of the Lounge", () => {
       vi.useRealTimers();
     }
     await flush();
-    const posted = calls("POST /api/v2/chats/c-sarah/answer");
-    expect(posted).toHaveLength(1);
-    expect(JSON.parse(String(posted[0]![1]!.body))).toEqual({ take: "take-1", duration_ms: 52000 });
+    expect(calls("POST /api/v2/chats/c-sarah/answer")).toHaveLength(1);
     expect(container.querySelector("[data-chat-sending]")).toBeNull();
-    expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent to Sarah on WhatsApp");
+    expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent to Sarah");
+  });
+
+  it("a refused answer stays as Not sent, and Send again sends the same Take", async () => {
+    forgetAnswers();
+    recordedAnswers.length = 0;
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
+    routes.set("GET /api/v2/chats/c-sarah/messages", () => ({
+      messages: [
+        { id: "q", mine: false, author: "Sarah", kind: "text", body: "Would it help?",
+          meta: { record_answer: true }, created_at: "2026-11-03T06:00:00Z" },
+      ],
+      joined_through: null,
+    }));
+    routes.set("POST /api/v2/projects", () => ({ project_id: "p-answer" }));
+    await render();
+    await tap(row("c-sarah"));
+    await tap(container.querySelector("[data-chat-record-answer]"));
+    // No answer route yet: the backend refuses it.
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        await startAnswer(recordedAnswers[0]!, null, () => {});
+        answerRecorded(30_000);
+        answerTake("take-1");
+        await vi.advanceTimersByTimeAsync(UNDO_MS);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    await flush();
+    expect(container.querySelector("[data-chat-bar] [data-chat-sending]")?.textContent).toBe("Not sentSend again");
+    expect(container.querySelector("[data-chat-sent-line]")).toBeNull();
+
+    routes.set("POST /api/v2/chats/c-sarah/answer", () => ({
+      message: { id: "a", mine: true, author: "", kind: "voice", body: "",
+                 meta: { duration_ms: 30000, answer: true, take: "take-1" }, created_at: "2026-11-03T06:05:00Z" },
+    }));
+    await tap(container.querySelector("[data-chat-send-again]"));
+    await flush();
+    const posted = calls("POST /api/v2/chats/c-sarah/answer").map(([, init]) => JSON.parse(String(init!.body)));
+    expect(posted).toEqual([{ take: "take-1", duration_ms: 30000, hold_ms: 5000 }, { take: "take-1", duration_ms: 30000, hold_ms: 0 }]);
+    expect(container.querySelector("[data-chat-sending]")).toBeNull();
+    expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent to Sarah");
   });
 });
