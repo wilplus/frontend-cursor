@@ -22,6 +22,7 @@ import { ONE_THING_COPY } from "../idealEditCopy";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
 import WalkFooter from "./WalkFooter";
+import WalkPlayer from "./WalkPlayer";
 import RecordingBar from "../RecordingBar";
 import { WalkSpeakerBubble, useMountedAsPast, useWalkPart } from "./WalkThread";
 
@@ -51,7 +52,8 @@ import { WalkSpeakerBubble, useMountedAsPast, useWalkPart } from "./WalkThread";
 /*  As the One thing walk's fix, the Sniper on this week's level (founder    */
 /*  2026-10-31, N309 item 1; `one`): "Try it" with Skip in I'm ready's place, */
 /*  two tries, and the walk's own words on each ("Yes. That's it.", "Close.  */
-/*  Once more.", "Good try. Take it with you."), no closing line of its own. */
+/*  Once more.", "Good try. Take it with you."), no closing line of its own; */
+/*  Skip moves the walk on at once, after a try too.                         */
 /* -------------------------------------------------------------------------- */
 
 /** A try left running stops itself after a minute, as a practise's upload does. */
@@ -97,10 +99,10 @@ export default function WalkTempo({
     if (!past) tell.current?.({ kind: "opened" });
   }, [past]);
   // The game ends once: a landed try, the closing line, or a Skip.
-  const end = useCallback((played: TempoPlayed[]) => {
+  const end = useCallback((played: TempoPlayed[], skipped = false) => {
     if (ended.current) return;
     ended.current = true;
-    tell.current?.({ kind: "ended", tries: played, close: played.length ? closeOf(played.map((t) => t.result)) : null });
+    tell.current?.({ kind: "ended", tries: played, close: played.length ? closeOf(played.map((t) => t.result)) : null, skipped });
   }, []);
 
   const halt = useCallback(() => {
@@ -165,15 +167,18 @@ export default function WalkTempo({
     setPhase(tries.length > 0 ? "commented" : "idle");
   }, [halt, tries]);
 
+  // Skip: as the One thing walk's fix, the walk moves on at once, after a
+  // try too, as the prototype's skip() does; otherwise a try made leaves
+  // the game closed on Next.
   const skip = useCallback(() => {
     halt();
-    end(tries);
-    if (tries.length > 0) setPhase("closed");
+    end(tries, true);
+    if (tries.length > 0 && !one) setPhase("closed");
     else {
       setPhase("skipped");
       onDone();
     }
-  }, [halt, tries, end, onDone]);
+  }, [halt, tries, end, onDone, one]);
 
   const nav: WalkNav = {
     position: W.mark,
@@ -226,6 +231,12 @@ export default function WalkTempo({
             label={W.scale}
             className="h-[clamp(120px,30vw,200px)]"
           />
+          {/* Its three zones named, left to right (N405). */}
+          <span data-walk-scale-ends className="mt-1 flex justify-between gap-2 text-[13px] leading-snug text-muted-foreground">
+            {W.ends.map((end) => (
+              <span key={end}>{end}</span>
+            ))}
+          </span>
         </WalkMessage>
       ) : null}
       {phase === "blocked" ? (
@@ -239,6 +250,12 @@ export default function WalkTempo({
         </WalkMessage>
       ) : null}
       {phase === "skipped" ? <WalkSpeakerBubble>{W.skip}</WalkSpeakerBubble> : null}
+      {/* The Sniper as the One thing walk's fix answers Skip (N405). */}
+      {phase === "skipped" && one ? (
+        <WalkMessage>
+          <span data-walk-skip-reply>{ONE_THING_COPY.skipped}</span>
+        </WalkMessage>
+      ) : null}
     </WalkOverlay>
   );
 
@@ -264,15 +281,31 @@ export default function WalkTempo({
   }
 }
 
-/** The speaker's sentence with the stretch they rushed or dragged marked. */
+/** The speaker's sentence with the stretch they rushed or dragged marked:
+ *  their own clip, the words above its player (the locked prototype's
+ *  `clip(f.text)`), as the walk's moments are; the words alone without audio. */
 export function TempoStretchBubble({ stretch }: { stretch: TempoStretch }) {
-  return (
-    <WalkSpeakerBubble>
+  const words = (
+    <>
       {stretch.said.before}{" "}
       <mark className="rounded bg-white/25 px-0.5 text-inherit">{stretch.said.stretch}</mark>{" "}
       {stretch.said.after}
-    </WalkSpeakerBubble>
+    </>
   );
+  if (stretch.clip) {
+    return (
+      <WalkPlayer
+        look="me"
+        seed="tempo-stretch"
+        src={stretch.clip.src}
+        startOffsetMs={stretch.clip.startOffsetMs}
+        durationMs={stretch.clip.durationMs}
+        label={W.mark}
+        words={words}
+      />
+    );
+  }
+  return <WalkSpeakerBubble>{words}</WalkSpeakerBubble>;
 }
 
 /** "Try N" in the speaker's bubble, with the line the dot drew. */

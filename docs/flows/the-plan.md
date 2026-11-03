@@ -362,7 +362,12 @@ built and what is still to come.
    shape; the chat's one `RecordTakeButton`, drawn from one place for this
    Take and for the goodbye's next, N350 item 1), the message box, the "+" and the mic gone
    (N296 state 4; kept so, N325 item 1); a tap starts that Take as the old button did, and it
-   waits (greyed) while a Take is still landing. While the plan asks a
+   waits (greyed) while a Take is still landing. It stands 24 px under the
+   last bubble, with a grey ✕ on its right, no background and no outline
+   (N395): the ✕ closes it and the bar comes back ("+", "Type here", the
+   mic) for that Take, until the chat is opened again or a newer Take's
+   goodbye offers the next; meanwhile the Take's card opens its Ideal Text,
+   with its own "Record Take N". "Start your first recording" has no ✕. While the plan asks a
    question, or a call's calendar is open, that stands there instead. The
    chat has one record button: the previous Take's goodbye keeps its words
    and gives its tap and button up. Once a newer Take is recorded, in any
@@ -686,8 +691,9 @@ The plan's own code, guarded by this page (`scripts/flow-pages.txt`):
   the orange mic's recording; `PlanDock`, "Start your first recording" and
   the calls' calendar in the footer; `RecordDockButton`, the plan's black
   button with the red dot; `RecordTakeButton`, the chat's one "Record Take
-  N" on it, which the Lounge draws for the goodbye's next Take or a
-  practice day's, `usePlanLounge` `one` from `PlanRows` `newestOneOf`, G6), the
+  N" on it with its ✕, which the Lounge draws for the goodbye's next Take or a
+  practice day's, `usePlanLounge` `one` from `PlanRows` `newestOneOf`, G6;
+  `useRecordTake`, which Take's button the ✕ closed, N395), the
   calls' calendar (`PlanCalendar.tsx`), the card (`PlanCard.tsx`, which
   reads the calls' ring row `plan_calls`, N315), the rows in
   the thread (`PlanRows.tsx`), the two sheets (`PlanSheet.tsx`), the voice
@@ -709,7 +715,8 @@ It touches these places, each with its own page for what it owns:
   orange, "Type here" waiting, and its note on a tap, `typingWait`), its
   footer in place of the message box only
   for "Start your first recording", a call's calendar and the recording
-  bar, and the chat's one "Record Take N" (`RecordTakeButton`) for a
+  bar, and the chat's one "Record Take N" (`RecordTakeButton`, which hides
+  the bar itself until its ✕ closes it, `useRecordTake`) for a
   practice day's Take as for the goodbye's,
   and the empty Lounge's button held while the plan asks. The plan's taps
   are Will's (`WillQuestion.tsx`, `TapRow`, with "Not now" quiet). The
@@ -751,6 +758,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N395 · G6, §4: the chat's one "Record Take N" stands 24 px under the last bubble (was 8) with a grey ✕ on its right, no background and no outline; the ✕ closes it and the bar comes back ("+", "Type here", the mic) for that Take, until the chat is opened again or a newer Take's goodbye offers the next (`useRecordTake`, kept in the open chat only); a practice day's Take no longer hides the bar through the plan (`usePlanLounge` `replaces`), the button does, as the goodbye's always has. No new words. "Start your first recording" unchanged. Was: alone until a Take was recorded, no way to close it · BE #1647, FE (this PR)
+- 2026-11-03 · N372 · the plan's voice player plays one voice at a time: starting one pauses the one already playing, and opening the mic pauses it (`plan/VoicePlayer.tsx`, `lib/willab/oneVoice.ts`). Was: two could play over each other · BE #1622, FE (this PR)
 - 2026-11-03 · N371 · B1: the plan's tap answers take the app's one rule for suggested answers (`TapRow`): at least 44px, 15px, the last (most likely) one filled orange nearest the thumb, three or four stacked, more than four behind "Show more"; a quiet "Not now" stays grey. Nothing else in the plan changes; typing stays off while it asks (N319, N323) · FE (this PR)
 - 2026-11-03 · N355 · §4: the plan's small voice player (`plan/VoicePlayer.tsx`) can tell its caller where the voice is as it plays (`onTime`), for an answer's slide strip in a chat; the plan's own players are unchanged · FE (this PR)
 - 2026-11-02 · N350 items 1 and 4 · B10, G6, K, §2, §3, §4: the notes under the faded "Type here" show wherever the box is faded, before the first Take and after it: "We need to hear this in your voice. Tap the mic." while the mic waits, "Tap one of the answers above." while a tap answer waits (`usePlanLounge` `typingNote`); was: before the first Take only. The chat's one "Record Take N" is drawn from one place, `RecordTakeButton`, for the goodbye's next Take and a practice day's (`usePlanLounge` `one`); what shows is unchanged; `standsOne`, `oneRecordOf` and `StartFirst` are gone, `newestOneOf` gives the Take · FE (this PR)

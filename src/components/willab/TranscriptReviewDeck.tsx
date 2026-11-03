@@ -787,12 +787,21 @@ export default function TranscriptReviewDeck({
   const answeredOf = useCallback((c: DeckChunk) => stateOf(c).decided, [stateOf]);
   const helperWordsOf = useCallback((partId: string) => headlines.get(partId) ?? null, [headlines]);
   const partLabel = useCallback((partId: string) => slideLabelOf(groups, partId), [groups]);
+  // The walk's bar names a slide by its title (backend N397).
+  const partTitle = useCallback(
+    (partId: string) => {
+      const group = groups.find((g) => g.chunks.some((c) => c.part.id === partId));
+      return group?.slideIndex == null ? null : (slideTitles?.[group.slideIndex] ?? null);
+    },
+    [groups, slideTitles],
+  );
   const feedbackWalk = useDeckFeedbackWalk({
     chunks,
     groups,
     waiting: barWaiting,
     pendingOf,
     slideLabel: partLabel,
+    slideTitle: partTitle,
     coachMessage: walkCoachMessage,
     coachSeen: coachStep.seen,
     firstTake: takeCount === 1,
@@ -1832,7 +1841,7 @@ function headlineOfChunk(
 /** Helper words the latest Take no longer says, before the paragraph: the
  *  orange HELPERS label and the words (founder 2026-10-14, scenarios B/C).
  *  Not the speaker's text; a tap on the paragraph opens them. */
-function HelpersLabel({ phrases }: { phrases: string[] }) {
+export function HelpersLabel({ phrases }: { phrases: string[] }) {
   if (phrases.length === 0) return null;
   return (
     <span data-helpers-label>

@@ -201,6 +201,15 @@ order it is built in.
      shows on the list only. Was (N322 item 4): the WillpowerLab bar with
      "‹ Will" under it. On a computer, the list and a person's chat sit in
      a phone-wide column in the middle.
+   - **Back** (the iPhone's swipe, the browser's Back) from Will's chat or
+     a person's chat goes back by one, to the list, however abrupt the
+     swipe; from the list it goes nowhere, never off /chat to the sign-in
+     page. In the iPhone app a swipe from the left edge goes back from a
+     chat, after the finger. A person's chat slides in from the right and
+     out to the right over the list; Will's chat opens as the list slides
+     away to the left and closes as it comes back (none with less motion).
+     Back on the list, it is where you left it, the row you came from lit
+     grey for a moment (N378).
    - **Record an answer** (N321 item 4, N336, N342, N345, N361, N363):
      when the question waiting for your answer is one Will marked as about
      a product or a treatment (`meta.record_answer`), the middle of the bar
@@ -514,7 +523,8 @@ them:
 Built behind ring 6 (feature `chats`, the founder only; 2026-11-02): the
 list of chats in front of the Lounge (C1: Will pinned, then each chat's
 letter circle, title, subtitle, time and last message, newest first, a new
-message bold with an orange dot; the first time, the two demo chats) and a
+message bold with an orange dot; with nobody yet, Will and "Add someone to
+chat with", on the web as in the iPhone app, N401) and a
 chat's screen, the conversation only, under its own top bar in the
 WillpowerLab bar's place, with the day and each message's time, the
 three emoji in the locked bar and the mic beside them for a voice note of
@@ -685,8 +695,10 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N401 · C1, §2: no demo chats for a newcomer: an empty list is Will and "Add someone to chat with", on the web as in the iPhone app (the list opens with Will alone everywhere); the list no longer asks for the two demo chats, "Sarah" and "Ariel", and the route that seeded them is gone. Was: on the web, an empty list got the two demo chats the first time · FE (this PR)
+- 2026-11-03 · N372 · one voice at a time: playing a voice message pauses the one already playing, and recording a voice note pauses any that plays (`lib/willab/oneVoice.ts`, `plan/VoicePlayer.tsx`, `useVoiceNote.ts`). Was: two could play over each other, and over the mic · BE #1622, FE (this PR)
 - 2026-11-03 · N361, N363, N368 · C1, §2: the page caught up: "Record an answer" stands in the middle of the bar and "Sending to {name}… {n}" with Undo there too (N368), and §2 no longer lists Record an answer as not yet built · docs (this PR)
-- 2026-11-03 · — · a voice note records the voice as it is: the browser's automatic gain and noise suppression are asked off, mono, on every browser and the iPhone app (`useVoiceNote.ts`, with `TAKE_MIC_AUDIO` from `src/hooks/useDualCaptureMic.ts`); echo cancelling stays on, since another voice note can be playing out loud. Nothing on screen changes. Was: `audio: true`, which turns all of them on · FE (this PR)
+- 2026-11-03 · N372 · a voice note records the voice as it is: the browser's automatic gain and noise suppression are asked off, mono, on every browser and the iPhone app (`useVoiceNote.ts`, with `TAKE_MIC_AUDIO` from `src/hooks/useDualCaptureMic.ts`); echo cancelling stays on, since another voice note can be playing out loud. Nothing on screen changes. Was: `audio: true`, which turns all of them on · FE #1167
 - 2026-11-03 · N369 · C1: Will's chat keeps its own bar (the "+", "Type here", the voice notebook's mic); the one bar is for chats with a person. Was (N368 items 1 and 2): Will's chat with the same bar · docs (this PR)
 - 2026-11-03 · N368 · C1, §4: one bar in a person's chat: the "+" left, the mic always on the right (orange and pulsing while someone waits for your words), and the middle the one thing to do now: the three emoji, "Record an answer", or "Sending to {name}… {n}" with Undo (moved from under the answer into the bar); a short sound and a buzz where the device allows it on every send. Was (N341): the mic only while a question waited; Record an answer filled the whole bar; Sending sat under the answer. Not yet: "Ask {name} first" (it needs the consult), the specialist's "Ask about {topic}" (it needs the setup), the iPhone app's own buzz. Will's chat keeps its own bar (N369) · FE (this PR)
 - 2026-11-03 · N321, N336, N342, N345, N361, N363 · C1: Record an answer: a question Will marked takes the black "Record an answer"; the recording screens on one slide, the question, no feelings check; back in the chat "Sending to {name}…" with Undo for 5 seconds, then the answer (a voice message playing the Take, up to five minutes) with "Sent to {name}" or "Sent to {name} on WhatsApp" under it. Was: the emoji and the mic only · BE #1611, #1612, FE (this PR)

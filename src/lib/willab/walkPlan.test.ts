@@ -7,7 +7,7 @@ OUTCOME
   O4  A praised moment the server does not mark for practice, or with practice off, goes straight to its helper words (N122).
   O5  Each moment after the first opens with "let's look at your next key moment", and the first step after the last moment with "These were some real good moments of yours"; never in the coach's own walk (N285).
   O6  A Take served with slots is the One thing walk: their best (praise, nothing to practise), one fix with the tool it needs (the Clearer version first, else the AI clip on the weakest), from Take 2 one moment of another speaker, the helper words on their own, then "Lesson done."; no picker, no second moment, no summary; a Take served before them keeps praise first (N309).
-  O7  With no moment to fix and the tempo step there, the Sniper is the one fix; with a moment to fix, no tempo step (N309).
+  O7  With no moment to fix and the tempo step there, the Sniper is the one fix; with a moment to fix, no tempo step (N309); with neither, my best still leaves its helper words (N374).
   O8  The One thing walk's fix allows two tries: a second miss ends it (N309).
 PROVES   O1 -> carries no number, read or score
          O2 -> praises each strong moment, practises each corrected one, and never asks the speaker to judge
@@ -17,7 +17,7 @@ PROVES   O1 -> carries no number, read or score
          O6 -> their best, one fix with its tool, one judged moment from Take 2, the helper words, then Lesson done
          O7 -> with no moment to fix, the Sniper on this week's level is the one fix
          O8 -> a second miss ends the fix
-WHY      Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N285, "let's look at your next key moment we spotted"; N289, "First, show the strongest, then the weakest, and then the average"); 2026-10-31 (N309, "apply to it the one thing walk").
+WHY      Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N285, "let's look at your next key moment we spotted"; N289, "First, show the strongest, then the weakest, and then the average"); 2026-10-31 (N309, "apply to it the one thing walk"); 2026-11-03 (N374, "go with the recommendations").
 */
 import { describe, expect, it } from "vitest";
 import { afterTry, buildWalkPlan, momentLead, walkMoments, type WalkMoment } from "./walkPlan";
@@ -138,6 +138,8 @@ describe("the One thing walk (founder 2026-10-31, N309)", () => {
     ]);
     // A moment to fix: the tempo step is not walked.
     expect(plan([strongest, weakest], { interventions: ["tempo"] })).not.toContain("tempo");
+    // Neither: their best, then its own words as the helper words (N374).
+    expect(plan([strongest])).toEqual(["page", "praise:0", "words:of0", "done", "end"]);
   });
 
   it("a second miss ends the fix", () => {

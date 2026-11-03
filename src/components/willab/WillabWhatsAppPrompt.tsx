@@ -14,7 +14,7 @@ const RESEND_AFTER_MS = 60_000;
 /* -------------------------------------------------------------------------- */
 /*  WillabWhatsAppPrompt — the second Lounge offer (founder 2026-10-12).       */
 /*                                                                            */
-/*  Same shape as the install offer (WillabInstallPrompt): a persisted thread  */
+/*  Same shape as the other offers (loungeOffers.ts): a persisted thread      */
 /*  bubble plus a footer action pair that replaces the record button. It asks  */
 /*  for a phone number so "The feedback from your coach is in!" also reaches   */
 /*  the speaker on WhatsApp. It is asked at the end of a Take, from Take 1    */

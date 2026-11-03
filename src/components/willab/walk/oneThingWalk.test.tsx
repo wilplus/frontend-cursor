@@ -3,17 +3,26 @@
 STORY    As a speaker, I want the walk after each Take to show me my best moment and why it worked, then one thing to improve with the tool it needs, so that I leave every Take with one clear thing to carry into the next.
 OUTCOME
   O1  The walk goes in order: "Hi {name}.", my best with "This was your most confident moment." and why it worked, then "And now, one thing to improve:" and one fix; the Clearer version says "Say it straight:" and the sentence, with "Try it" and "Keep mine"; no helper-word picker, no second moment and no summary in the walk.
-  O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2).
+  O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2); with no fix, my best moment's own words are my helper words, saved the same way (backend N374). With the Sniper as the fix, Skip moves the walk on at once, after a try too.
   O3  The walk ends on "Lesson done." with Close, which ends the review and takes me back to the chat; no "Record Take N" in the walk.
-  O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, my answer as my own reply with a tick, then "Got it."; on Take 1 I judge no one.
+  O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after "Try it", my own after "Keep mine"; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
+  O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, my answer as my own reply with a tick, then "Got it."; after it the bar names my fix's slide again for the helper words and "Lesson done."; on Take 1 I judge no one.
+  O6  My best's clip and the AI clip's fix show my own words above the player, as the prototype draws them; my best played again inside the fix shows none.
+  O7  Skip on the fix gets the walk's answer under my "Skip": "Okay, we'll skip this one.", then it goes on (backend N405).
 PROVES   O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
          O2 -> the helper words come on their own and are saved without a pick,
                the Clearer version's sentence is saved from its practice,
-               a Clearer version past eight words is saved whole as my helper words (N323 item 2)
+               a Clearer version past eight words is saved whole as my helper words (N323 item 2),
+               with no fix, my best's own words are my helper words, saved without a pick (N374)
+               the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does
          O3 -> Lesson done and Close end the review, back to the chat
+         O7 -> the helper words come on their own and are saved without a pick
+         O5 -> a try is my clip with the words I was asked to say, and nothing shows in the thread while I record
          O4 -> from Take 2, one moment of another speaker, of the Take's level, answered as my own reply,
+               then the bar names the fix's slide again for the helper words and Lesson done,
                Take 1 judges no one
-WHY      Founder 2026-10-31 (backend N309: "apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take"; "ok, this finally good"); 2026-11-02 ("please implement"; backend N323: "you can allow helper words to be longer than 8 words").
+         O6 -> my best's clip and the AI clip's fix show my own words, my best played again shows none
+WHY      Founder 2026-10-31 (backend N309: "apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take"; "ok, this finally good"); 2026-11-02 ("please implement"; backend N323: "you can allow helper words to be longer than 8 words"); 2026-11-03 (backend N374: a walk with no fix left no helper words; "go with the recommendations"); 2026-11-03 ("so it really matches the design and the prototype": the clips' words, prototype X4gDmGfHH7ivuoRZ9ufiy9).
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -25,15 +34,27 @@ vi.mock("@/services/api/otherSpeakers", () => ({
   answerOtherClip: vi.fn(),
 }));
 import { fetchOtherClips } from "@/services/api/otherSpeakers";
-vi.mock("@/hooks/useDualCaptureMic", () => ({
-  useDualCaptureMic: () => ({
-    state: { status: "idle" },
-    start: async () => undefined,
-    stop: async () => undefined,
-    cancel: () => undefined,
-    getAudioStartedAt: () => null,
-  }),
+/** The Sniper's microphone, open and silent: a try reads as slow, never lands. */
+vi.mock("@/lib/willab/pace/paceMic", () => ({
+  startPaceMic: vi.fn(async () => ({ meter: {}, voiceLike: () => 0, stop: () => undefined })),
 }));
+import { TEMPO_COPY, TEMPO_STAND_IN } from "@/lib/willab/tempoStep";
+vi.mock("@/hooks/useDualCaptureMic", async () => {
+  const React = await import("react");
+  type State = { status: "idle" } | { status: "recording"; partialText: string } | { status: "stopped"; finalText: string; audioBlob: Blob; durationSec: number };
+  return {
+    useDualCaptureMic: () => {
+      const [state, setState] = React.useState<State>({ status: "idle" });
+      return {
+        state,
+        start: async () => setState({ status: "recording", partialText: "" }),
+        stop: async () => setState({ status: "stopped", finalText: "", audioBlob: new Blob(["x".repeat(2000)]), durationSec: 4 }),
+        cancel: () => setState({ status: "idle" }),
+        getAudioStartedAt: () => null,
+      };
+    },
+  };
+});
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
 import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkRequest } from "./FeedbackWalk";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
@@ -142,6 +163,9 @@ describe("the One thing walk (N309)", () => {
     expect(screen()).toBe("walk-screen-practise");
     click(testId("walk-skip"));
     await settle();
+    // Their "Skip", and the walk's answer to it (N405).
+    expect(said()).toContain(WALK_COPY.skip);
+    expect(live()!.querySelector("[data-walk-skip-reply]")!.textContent).toBe(ONE_THING_COPY.skipped);
     expect(props.onSaveHelperWords).toHaveBeenCalledTimes(1);
     expect(props.onSaveHelperWords).toHaveBeenCalledWith(expect.objectContaining({ partId: "p2", auto: true, span: expect.objectContaining({ text: SAID }) }));
     expect(text()).toContain(ONE_THING_COPY.helperWords);
@@ -162,6 +186,34 @@ describe("the One thing walk (N309)", () => {
     );
   });
 
+  it("a try is my clip with the words I was asked to say, and nothing shows in the thread while I record (locked prototype, record())", async () => {
+    for (const [choice, words] of [["walk-forward", CLEARER], ["walk-keep", SAID]] as const) {
+      const sent: unknown[] = [];
+      const practise = {
+        open: async () => "pr-1",
+        upload: async (...args: unknown[]) => {
+          sent.push(args[4]);
+          return { attemptId: "a1", attempt: 1, audio: null };
+        },
+        check: async () => null,
+      } as never;
+      draw({ seq: choice === "walk-forward" ? 1 : 2, at: at("clearer") }, { practise });
+      click(testId(choice));
+      await settle();
+      expect(screen()).toBe("walk-screen-practise");
+      // Recording: the recording bar in the dock is the only sign.
+      expect(live()!.querySelector("[data-walk-live-try]")).toBeNull();
+      expect(now()!.textContent).not.toContain(WALK_COPY.practiseN(1));
+      click(live()!.querySelector("[data-walk-dock] button[aria-label='Stop']"));
+      await settle();
+      const bubble = [...live()!.querySelectorAll("[data-walk-player][data-walk-me]")].at(-1)!;
+      expect(bubble.querySelector("[data-walk-try-words]")!.textContent).toBe(words);
+      expect(bubble.textContent).not.toContain(WALK_COPY.practiseN(1));
+      // The chat writes the same words.
+      expect(sent).toEqual([words]);
+    }
+  });
+
   it("a Clearer version past eight words is saved whole as my helper words (N323 item 2)", async () => {
     const twelve = "We're already seeing real traction with three paying customers this quarter alone.";
     const items = ITEMS.map((i) => (i.rewrite ? { ...i, rewrite: { ...i.rewrite, proposedText: twelve } } : i));
@@ -175,6 +227,60 @@ describe("the One thing walk (N309)", () => {
     expect(props.onSaveHelperWords).toHaveBeenCalledWith(
       expect.objectContaining({ partId: "p2", auto: true, practiceId: "pr-1", span: { text: twelve, start: null, end: null } }),
     );
+  });
+
+  it("with no fix, my best's own words are my helper words, saved without a pick (N374)", async () => {
+    const best = "Ledgerly matches every transaction";
+    const model = buildFeedbackWalk<string>({ items: [{ ...ITEMS[0], said: best }], coachNote: false, practiceOn: true, guest: false, judge: false });
+    const props = draw({ seq: 1, at: model.plan.findIndex((s) => s.key === "praise") }, { model });
+    click(testId("walk-forward"));
+    await settle();
+    expect(text()).toContain(ONE_THING_COPY.helperWords);
+    expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe(best);
+    expect(props.onSaveHelperWords).toHaveBeenCalledWith(expect.objectContaining({ partId: "p1", auto: true, span: expect.objectContaining({ text: best }) }));
+    expect(screen()).toBe("walk-screen-done");
+  });
+
+  it("the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does", async () => {
+    const model = buildFeedbackWalk<string>({ items: [ITEMS[0]], coachNote: false, practiceOn: true, guest: false, judge: false, interventions: ["tempo"] });
+    const onTempo = vi.fn();
+    draw({ seq: 1, at: model.plan.findIndex((s) => s.key === "tempo") }, { model, tempo: TEMPO_STAND_IN, onTempo });
+    expect(screen()).toBe("walk-screen-tempo");
+    // One try that misses, then Skip: no Next to press, the walk goes on.
+    click(testId("walk-tempo-ready"));
+    await settle();
+    click(live()!.querySelector("[data-walk-dock] [data-walk-recording-strip] button"));
+    expect(text()).toContain(TEMPO_COPY.tryLabel(1));
+    click(testId("walk-tempo-skip"));
+    await settle();
+    expect(screen()).not.toBe("walk-screen-tempo");
+    // What the game was is still Will's: the try, then its end.
+    const ended = onTempo.mock.calls.map(([event]) => event).find((event) => event.kind === "ended");
+    expect(ended?.tries).toHaveLength(1);
+  });
+
+  it("my best's clip and the AI clip's fix show my own words, my best played again shows none", async () => {
+    const best = "Ledgerly matches every transaction";
+    const weak = "So, um, the market is big.";
+    const items: FeedbackWalkItem<string>[] = [
+      { ...ITEMS[0], said: best },
+      {
+        partId: "p3", start: 200, slide: 2, blockId: "b3", tiered: true, practicePrompt: true, walkSlot: "weakest",
+        openCard: "exercise", hasExercise: true, paragraphText: `${weak} Really big.`, slideLabel: "Slide 3", said: weak,
+        clip: { src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 4000 },
+        exercise: { video: null, byCoach: false, instruction: "Pause before the number.", say: weak, item: "s-ex" },
+      },
+    ];
+    const model = buildFeedbackWalk<string>({ items, coachNote: false, practiceOn: true, guest: false, judge: false });
+    const clipWords = () => [...now()!.querySelectorAll(".bg-primary > div:first-child:not(:last-child)")].map((n) => n.textContent);
+    draw({ seq: 1, at: model.plan.findIndex((s) => s.key === "praise") }, { model });
+    expect(clipWords()).toEqual([best]);
+    draw({ seq: 2, at: model.plan.findIndex((s) => s.key === "exVideo") }, { model });
+    await settle();
+    expect(screen()).toBe("walk-screen-exVideo");
+    // The fix's own clip has its words; their best played again has none.
+    expect(clipWords()).toEqual([weak]);
+    expect(now()!.textContent).not.toContain(best);
   });
 
   it("Lesson done and Close end the review, back to the chat", async () => {
@@ -214,6 +320,8 @@ describe("the One thing walk (N309)", () => {
     });
     // On to the helper words and the end.
     expect(screen()).toBe("walk-screen-done");
+    // The bar names the fix's slide again, not "Other speakers" (prototype carry(), dots(3)).
+    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Slide 2");
   });
 
   it("Take 1 judges no one", () => {

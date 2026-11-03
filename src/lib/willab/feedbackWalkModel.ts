@@ -58,6 +58,10 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
   paragraphText: string;
   /** Where it sits, for the top bar ("Slide 2"). */
   slideLabel: string | null;
+  /** Its slide's title in the speaker's deck, which the walk's bar and
+   *  each part's name say in place of `slideLabel` (backend N397). None or
+   *  empty: `slideLabel`. */
+  slideTitle?: string | null;
   /** On a praise: its words, the coach's or the signed line the item
    *  carries. Never made up here; none means none is shown. */
   praiseWords?: readonly string[] | null;
@@ -75,6 +79,8 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
   /** Why the green moment landed, as served (services/praise_reason). */
   praiseReason?: PraiseReason | null;
   clip?: WalkClip | null;
+  /** The speaker's words the item anchors on, as served (`quote`). */
+  said?: string | null;
   /** On a served rewrite: the speaker's words it anchors on (`quote`), the
    *  words offered in their place (`proposedText`), and the item itself for
    *  the decision. Only from the served item; never made up. `move` is the
@@ -162,6 +168,8 @@ export type FeedbackWalkMoment<R = unknown> = {
   partId: string;
   paragraphText: string;
   slideLabel: string | null;
+  /** Its slide's title, for the bar (backend N397); see FeedbackWalkItem. */
+  slideTitle?: string | null;
   praiseWords: readonly string[];
   praiseTitle?: string | null;
   /** The Take's highest moment, praised or corrected (founder 2026-10-20). */
@@ -181,6 +189,10 @@ export type FeedbackWalkMoment<R = unknown> = {
   /** Why the green moment landed, when it reached the page with the row. */
   praiseReason?: PraiseReason | null;
   clip: WalkClip | null;
+  /** The moment's own words on the page: its green clip's, else its first
+   *  row's. Their best's are the helper words when the fix gives none
+   *  (backend N374). */
+  said?: string | null;
   /** The clearer version, when the moment has a served rewrite. */
   clearer: FeedbackWalkClearer<R> | null;
   /** The item the moment's practise is opened on: its served rewrite, or
@@ -322,6 +334,7 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     partId: lead.partId,
     paragraphText: lead.paragraphText,
     slideLabel: lead.slideLabel,
+    slideTitle: lead.slideTitle ?? null,
     praiseWords: praise?.praiseWords ?? [],
     // The level rides the green row; the praise words may ride a separate
     // wording note. Whichever row carries the level names the screen.
@@ -333,6 +346,7 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     praiseLead: praise?.praiseLead ?? praise?.praiseWords ?? [],
     praiseReason: group.find((i) => i.praiseReason)?.praiseReason ?? null,
     clip,
+    said: (group.find((i) => i.green === true && i.said?.trim()) ?? group.find((i) => i.said?.trim()))?.said?.trim() ?? null,
     clearer: clearerOf(group),
     // The item a practise opens on: the clearer version's or the coach
     // request's where there is one, else any row of the moment. A corrected

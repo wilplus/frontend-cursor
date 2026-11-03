@@ -39,7 +39,8 @@
  *       gives it up once a newer Take is recorded, in any project (N244,
  *       N251). It is "Record Take N" under the chat, alone, the message box
  *       gone, never inside the bubble, and a tap starts that Take (N294
- *       item 7, N296 state 4).
+ *       item 7, N296 state 4). Its grey ✕ closes it and the bar is back,
+ *       until I open the chat again (N395).
  *   O8  "How do you feel?" comes before a Take only once the plan's first
  *       Take is recorded (D4).
  *   O9  Will's ask for the plan's own yes is drawn as his bubble with Read
@@ -59,7 +60,7 @@
  *          O3 -> "a rating is sent once and never written back"
  *          O4 -> "Start your first recording only after the plan card"
  *          O3, O6 -> "the plan's rows are drawn as the prototype draws them"
- *          O7 -> "a practice day's Record Take N is the button under the chat, alone"
+ *          O7 -> "a practice day's Record Take N is the button under the chat, alone, until its ✕"
  *          O8 -> "the feelings before a Take"
  *          O9 -> "Will asks for the plan's own yes"
  *          O10 -> "nothing of the principles before my first Take"
@@ -82,7 +83,7 @@ import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { Plan } from "@/services/api/plan";
 import { feelingsDue, rememberPlan } from "@/services/api/plan";
 import { loadRingState, resetRingStateCache } from "@/services/api/rings";
-import { PlanAsk, RecordTakeButton, type PlanActions } from "./PlanDock";
+import { PlanAsk, RecordTakeButton, useRecordTake, type PlanActions } from "./PlanDock";
 import { planRowFor, type PlanRowCtx } from "./PlanRows";
 import { SeePlanSheet } from "./PlanSheet";
 import { TYPE_HERE_NOTE_MS, usePlanLounge } from "./usePlanLounge";
@@ -216,12 +217,13 @@ function Lounge({
     recordHeld: false,
   });
   const notebook = useVoiceNotebook({ signedIn: true, threadLoading: false, held: plan.holdsPrinciples, drawn: messages, openOffer: vi.fn(), reload });
+  const recordTake = useRecordTake(plan.one);
   return (
     <>
       <div data-thread="">{plan.asks}</div>
       {plan.dock}
-      <RecordTakeButton next={plan.one} held={false} onRecord={onRecordNext} />
-      <form data-bar="" className={plan.composerDisplay("flex")}>
+      <RecordTakeButton next={recordTake.next} held={false} onRecord={onRecordNext} onClose={recordTake.close} />
+      <form data-bar="" className={recordTake.next ? "hidden" : plan.composerDisplay("flex")}>
         <button type="button" aria-label="Your projects" />
         <div className="relative">
           <textarea placeholder="Type here" disabled={plan.typingOff} />
@@ -494,7 +496,7 @@ it("the plan's calls show only with their ring row", async () => {
   expect(host.textContent).toContain("Your summary call");
 });
 
-it("a practice day's Record Take N is the button under the chat, alone", async () => {
+it("a practice day's Record Take N is the button under the chat, alone, until its ✕", async () => {
   const closing = { ...row({}), metadata: { next_take: true, arc_id: "arc-1", take_index: 1 } };
   const one = row({ plan_one: true, arc_id: "arc-1", take_index: 1 }, "Today, one thing: say your key line a little slower than the rest. You've got this 💪");
   const recorded = { ...row({ arc_id: "arc-2", take_index: 1 }), kind: "recording_summary" as const };
@@ -518,6 +520,14 @@ it("a practice day's Record Take N is the button under the chat, alone", async (
   expect(bar().className).toContain("hidden");
   await act(async () => button.click());
   expect(record).toHaveBeenCalledWith("arc-1");
+
+  // Its grey ✕ closes it: the bar is back ("+", "Type here", the mic), and
+  // the chat opened again brings the button back (N395).
+  await act(async () => (host.querySelector("[data-record-next-close]") as HTMLButtonElement).click());
+  expect(host.querySelector("[data-record-next]")).toBeNull();
+  expect(bar().className).not.toContain("hidden");
+  await showLounge([closing, one], undefined, record);
+  expect(host.querySelector("[data-record-next]")?.textContent).toBe("Record Take 2");
 
   // A newer Take's closing message takes the button back (N167), and once a
   // newer Take is in, the button goes and the bar is back.

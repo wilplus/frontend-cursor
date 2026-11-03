@@ -13,6 +13,7 @@ import {
   withRead,
   withRetry,
 } from "@/lib/willab/walkPractise";
+import { oneThingTryWords } from "@/lib/willab/walkThread";
 import type { WalkPractiseIO, WalkPractisePassage } from "@/services/api/walkPractise";
 import { ensureAiVoice, noteAiVoicePlay, readAiVoice, type AiVoiceState } from "@/services/api/aiVoice";
 
@@ -379,7 +380,9 @@ export function useWalkPractise<R>(args: {
         if (current()) late(checkingAt, from.step, attempt + 1);
         return;
       }
-      const sent = await within(practiseIO.upload(practiceId, audio, durationSec, stoppedAtMs), UPLOAD_LIMIT_MS);
+      const of = live.current.moments[moment];
+      const words = of ? oneThingTryWords(from.step, of) : null;
+      const sent = await within(practiseIO.upload(practiceId, audio, durationSec, stoppedAtMs, words), UPLOAD_LIMIT_MS);
       if (!sent) {
         if (current()) late(checkingAt, from.step, attempt + 1);
         return;

@@ -80,14 +80,46 @@ export function aiTip(
 }
 
 /** The One thing walk's AI bubble (founder 2026-10-31, N309 item 1): the
- *  tip ending ", like this:", the clip, "Your turn."; no opener, and no
- *  bubble again after a miss. A tip not known yet is left out. */
+ *  tip ending ", like this:", then the clip; no opener, no "Your turn."
+ *  (the "Try it" under it says it, N379 item 3), and no bubble again after
+ *  a miss. A tip not known yet is left out. */
 export function oneThingAiLines(
   say: (bank: WalkBankKey) => string,
   clip: { problem?: AiClipProblem | null; phrase?: string | null } | null | undefined,
-): { line: string; then: string } {
+): { line: string } {
   const tip = aiTip(say, clip);
-  return { line: tip ? `${tip}, like this:` : "", then: ONE_THING_COPY.yourTurn };
+  return { line: tip ? `${tip}, like this:` : "" };
+}
+
+/** The One thing walk's fix when no AI clip comes (N370): the tip as its
+ *  own sentence ("Pause before “{phrase}”.") when the server named what the
+ *  clip would fix, the served exercise's video and instruction (no "Your
+ *  turn.", N379 item 3); null when there is none of these. `tip`, bare, is what "Last
+ *  time" keeps. The walk draws `lines` and the chat says them. Pure apart
+ *  from `say`. */
+export function oneThingNoClip(
+  say: (bank: WalkBankKey) => string,
+  clip: { problem?: AiClipProblem | null; phrase?: string | null } | null | undefined,
+  exercise: { video?: string | null; instruction?: string | null; byCoach?: boolean } | null | undefined,
+): { tip: string | null; lines: string[]; video: string | null; byCoach: boolean } | null {
+  const tip = aiTip(say, clip);
+  const instruction = exercise?.instruction?.trim() || null;
+  const video = exercise?.video || null;
+  if (!tip && !instruction && !video) return null;
+  const lines = [tip ? `${tip}.` : null, instruction].filter((l): l is string => l !== null);
+  return { tip, lines, video, byCoach: exercise?.byCoach === true };
+}
+
+/** `text` in pieces with the AI clip's phrase marked bold where it stands
+ *  (founder 2026-11-03: "bold the phrase"), so the speaker sees where to
+ *  lean. Matched without regard to case or the quotes around it; the first
+ *  match only. No phrase, or none found: the text whole. Pure. */
+export function phrasePieces(text: string, phrase: string | null | undefined): { text: string; bold?: boolean }[] {
+  const want = phrase?.replace(/[“”"]/g, "").trim();
+  const at = want ? text.toLowerCase().indexOf(want.toLowerCase()) : -1;
+  if (!want || at < 0) return [{ text }];
+  const end = at + want.length;
+  return [{ text: text.slice(0, at) }, { text: text.slice(at, end), bold: true }, { text: text.slice(end) }].filter((p) => p.text);
 }
 
 /** The tip as "Last time: {the tip}." says it next Take: its first letter

@@ -231,6 +231,15 @@ green); the app shows the speaker's own slides, unchanged.
   keep their presentation line. Signed in the Claude Code chat, 29 October
   2026, on the prototype <https://claude.ai/artifact/6AVcGS1ksx86KzvUPyKEes>.
   Lives in `recordingCopy.ts` and `LabOverlay.tsx`.
+- **2026-11-03 · the voice as it is (N372).** The mic records with the
+  browser's call processing off (automatic gain, noise suppression, echo
+  cancelling), mono, on every browser and the iPhone app; opening it pauses
+  any voice message that plays. When the last Take was recorded through a
+  Bluetooth mic (earbuds, a headset, by the name the browser gives it), one
+  more line in the same small grey sits under **Getting your mic ready**:
+  **Earbuds make you sound like a phone call. The built-in mic sounds like
+  you.** Signed in the Claude Code chat, 3 November 2026. Lives in
+  `src/hooks/useDualCaptureMic.ts`, `recordingCopy.ts` and `LabOverlay.tsx`.
 
 
 ## 2. In flight
@@ -280,7 +289,9 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-11-03 · — · the mic records the voice as it is: the browser's call processing (automatic gain, noise suppression, echo cancellation) is asked off, mono, on every browser and the iPhone app, for a Take and the walk's practise (`TAKE_MIC_AUDIO` in `src/hooks/useDualCaptureMic.ts`), as the pace mic already did. Nothing on screen changes. Was: `audio: true`, which turns all three on · FE (this PR)
+- 2026-11-03 · N392 · "How do you feel?" before a later Take (the project's setup restored) draws two marks in its bar beside the ✕: this screen first and current, the Take second (`FeelingsCheckIn.tsx`). Prototype <https://claude.ai/artifact/ChbCQzEKiTNtxofatBKZ3o>. No new words. Was (N272): the ✕ alone, an empty space above the question · BE #1646, FE (this PR)
+- 2026-11-03 · N372 · the earbuds line under "Getting your mic ready" when the last Take was recorded through a Bluetooth mic; opening the mic pauses any voice message that plays (`useDualCaptureMic.ts`, `recordingCopy.ts`, `LabOverlay.tsx`, `LoadingState.tsx`, `lib/willab/oneVoice.ts`). Was: no word on earbuds · BE #1622, FE (this PR)
+- 2026-11-03 · N372 · the mic records the voice as it is: the browser's call processing (automatic gain, noise suppression, echo cancellation) is asked off, mono, on every browser and the iPhone app, for a Take and the walk's practise (`TAKE_MIC_AUDIO` in `src/hooks/useDualCaptureMic.ts`), as the pace mic already did. Nothing on screen changes. Was: `audio: true`, which turns all three on · FE #1167
 - 2026-11-03 · N363, N334, N361 · flow step 6, an answer in a chat: the person's name above "Take 1 · Slide 1 of 1"; no feelings check; Finish take goes back to the chat ("Sending to {name}…", Undo), the screens hidden while the Take uploads and shown again only for its error; no wait screen, no walk, no carried project, no community share (`LabOverlay.tsx`, `lib/willab/chatAnswer.ts`). Was: every Take ended in the processing wait and the walk · BE #1611, FE (this PR)
 - 2026-10-29 · N271, N273 · the calm wait: "While you wait" and its slider of advice go; one narrow column with the breathing mark a little larger, the stage and its percent, a rounded bar and "Usually about a minute." under it (`RecordingAnalysisPresentation.tsx`; the tips' modules are deleted). Prototype <https://claude.ai/artifact/S66ZsrqTQZ4se74caoCj2J>. Was: the stage line, a 3px bar and "While you wait" with a scrollable deck of advice · FE (this PR), BE (N271, N273 log)
 - 2026-10-29 · N273 · on Take 1, "WillpowerLab uses the microphone to record your Takes." under "Getting your mic ready" while the browser asks (`recordingCopy.ts`, `LabOverlay.tsx`). Was: the browser's prompt with nothing saying why · FE (this PR), BE (N273 log)

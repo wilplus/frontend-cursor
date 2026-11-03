@@ -144,7 +144,10 @@ step; the loop never waits for a coach.
   No bubble carries a button (N294 item 7): once the speaker chooses to
   continue after the goodbye, "Record Take N" stands alone in the message
   box's place, the plan's black button with the red dot ("Start your first
-  recording"'s shape), the message box and the mic gone (N296 state 4, D4).
+  recording"'s shape), the message box and the mic gone (N296 state 4, D4),
+  24 px under the last bubble with a grey ✕ on its right, no background and
+  no outline. The ✕ closes it and the bar comes back for that Take, until
+  the chat is opened again or a newer Take's goodbye offers the next (N395).
   With a plan, under the plan card, in place of "Type here", there is only
   "Start your first recording" (N161), the one button before the first
   Take, under no question (N319 item 2; [`the-plan.md`](the-plan.md) E5).
@@ -177,6 +180,15 @@ step; the loop never waits for a coach.
 - **B6** Each step opens with its name as a small line ("Slide 2", "Slide 2
   · helper words", "Take 2", "Your coach"). The bar shows the step in view;
   ‹ › scroll to the step before or after, within this opening of the walk.
+  A slide is named by its title in the speaker's deck ("Traction",
+  "Traction · helper words"), as the locked prototype's bar does; a slide
+  with no title keeps "Slide N", a talk with no deck "Your talk" (backend
+  N397). The clip's own label and the words posted to the Lounge keep
+  "Slide N".
+  In the One thing walk the helper words (C3) and "Lesson done." (C9) keep
+  the fix's step's name, the slide of the moment whose paragraph takes the
+  words (their best's with no fix, N374), "Tempo" with the Sniper; never
+  "Other speakers" (the prototype's `carry()`, 2026-11-03).
 - **B7** The step's buttons are a dock under the thread. A choice lands as
   the speaker's orange bubble, in the words the Lounge stores (helper words
   without the sentence's punctuation at either end, "growth doubled" not
@@ -322,8 +334,8 @@ step; the loop never waits for a coach.
   version's "say it straight", or the pace game's "give “{words}” more
   room", kept with the tempo step's opening, {words} the Sniper's helper
   words (C3): "Last time: give “{words}” more room. You did.". Not risen,
-  or no tip kept (a stretch past eight words gives no helper words): no
-  line. Drawn when it is there while the walk still stands where it
+  or no tip kept (a stretch past eight words gives no words of its own):
+  no line. Drawn when it is there while the walk still stands where it
   opened, told to the chat once. Was: only a moment's fix; the Sniper had
   no tip, so no Last time (2026-11-02).
 - **C1 Your coach.** First, if there is one: "Your coach:", the coach's
@@ -366,14 +378,17 @@ step; the loop never waits for a coach.
   pass through").
 - **C2 Their best, and one fix** (founder 2026-10-31, N309 item 1). The
   picker still chooses (N289, N293; H1): its strongest is **their best**:
-  the clip, then one bubble, "This was your most confident moment." and
+  the clip with its words, then one bubble, "This was your most confident moment." and
   "Why it worked: {the moment's signed cue line}" (B01–B09 or the cue's
   sentence, lower-cased after the colon), then Next; nothing to practise,
   no level line (W1–W10) and no reason bubble. Then **one thing to
   improve**: "And now, one thing to improve:" and ONE fix, the slot whose
   tool fits: this week's level's moment on a plan (N289 item 8), else the
   between with its Clearer version (words come first, C5), else the
-  weakest with the AI clip after their best (C4); the Sniper (T) and no
+  weakest with the AI clip after their best (C4). The AI clip is the
+  weakest's alone: a between whose Clearer version does not pass is left
+  out, so a Take of two paragraphs can end with their best alone (N381);
+  the Sniper (T) and no
   moment on a pace or pause week whose Take has a stretch, and for
   everyone, with or without a plan, at any level, when rushing is the
   Take's biggest issue (T, N323 item 6). A fix the last walk gave that
@@ -452,9 +467,13 @@ praised moment:
   (N323 item 2; the paragraph's save sends `source: "walk"`); the cap of
   eight stays for helper words picked by hand on the Ideal Text and for
   the Sniper's stretch, a whole clip (N325 item 5). Found where they are
-  saved; else none. A tip that quotes no phrase (the AI clip's tips for
-  pace or fillers) gives none: the walk goes from the try to "Lesson
-  done." (N323 item 3). No pick. The picker below
+  saved. When the fix gives none (no fix at all, a tip that quotes no
+  phrase, as the AI clip's tips for pace or fillers, or a stretch past
+  eight words), their best's own words, whole, are the helper words, with
+  the same line, saved on their paragraph the same way (N374; was: none,
+  and the walk went from the try to "Lesson done.", N323 item 3); none
+  found there either, and the walk goes on to "Lesson done.". No pick.
+  The picker below
   stays for editing them from the Ideal Text (F5) and in a Take served
   before N289. Was: **Choose your helper words**, after each praised moment, after the
   Clearer version of a moment whose voice reached the floor (C5; founder
@@ -487,11 +506,39 @@ praised moment:
   screen on its own; only a paragraph with no moment opens on its own
   words (F5; 2026-10-20).
 - **C4 The AI clip after their best** (N309 item 1): the fix moment's
-  clip, "Say this one like your confident moment:", their best's clip
-  played again, then the AI bubble: the tip ending ", like this:", the AI
-  clip with its label, "Your turn." (no opener). With no AI clip coming,
+  clip with its words, the phrase the AI clip leans on bold in them and in
+  the tip (founder 2026-11-03), "Say this one like your confident moment:", their
+  best's clip played again (without words), then the AI bubble: the tip ending ", like this:", the AI
+  clip with its label (no opener; no "Your turn.": the "Try it" under it
+  says it, N379 item 3). With no AI clip coming,
   the rest stands and the try is still theirs (never walked as good, never
-  skipped: it is the one thing). Was (N289 item 2, below): **The weakest**
+  skipped: it is the one thing), and the fix still says what to do (N370):
+  one bubble with the same tip as its own sentence ("Pause before
+  “{phrase}”."), when the server named what the clip would fix, the served
+  exercise's video and instruction when there is one;
+  the chat says the same (also when a clip it posted as coming never
+  comes), and "Last time" keeps that tip. With none of these, as before.
+  The fix never waits long on its clip (N373): a clip still being made ten
+  seconds after the fix is on screen gives way to that bubble, and one
+  that comes later joins it as its player alone, under the words, which
+  stay; once the first try has begun, a clip not yet seen is never shown
+  above it (a walk played again shows what is there). Was: the dots stood
+  in the player's place as long as the clip took, up to about two and a
+  half minutes, and a clip could land above a try in progress. The words
+  land with the walk's bubble motion, once per wording, never swapping in
+  place; and "Say this one like your confident moment:" is said only with
+  their best's clip after it, in the walk and the chat (N377). Was: the AI
+  bubble changed into the words with no motion, and the line could end on
+  a colon with nothing after it. One example to copy (N379): when the fix
+  has its own (the AI clip, the exercise's video), their best's clip is a
+  small chip, "Your confident moment" (N289 item 7); with none, it stays
+  full, as it is the example. The bubbles after their best are a polite
+  live region, read aloud as they land; the AI bubble's typing dots and its
+  label are not read while no clip is ready. Was: their best full beside
+  the AI clip, two examples to copy; the dots read as "AI version of your
+  voice" for a clip that might never come; "Your turn." above "Try it".
+  Was (2026-10-31 to 2026-11-03): with no clip the tip
+  went with it, and the exercise's video was never drawn in this walk. Was (N289 item 2, below): **The weakest**
   (founder, 2026-10-30, N289 item 2). It is never
   called weak. Its bubbles: "Here's one with more in it." (signed, N289 item
   7; the level's line in its place when it carries one), its clip, Line A
@@ -561,8 +608,21 @@ praised moment:
 - **C7 Practise.** The One thing walk's fix (N309 item 1): the recorder
   is the one recording bar in the dock as below; two tries. A try that
   lands: "Yes. That's it." and Next; one miss: "Close. Once more." with
-  "Try it" and Skip; two: "Good try. Take it with you." and Next. A try not
-  heard says so as below. In a Take served before N289: every practise is one thread: the words to say, the
+  "Try it" and Skip; two: "Good try. Take it with you." and Next. Skip on
+  the fix (in the dock or under the recorder, and the Sniper's) is the
+  speaker's "Skip", then the walk's "Okay, we'll skip this one.", and the
+  walk goes on; the chat says both (N405; was: nothing said). A try not
+  heard says so as below. While it records, nothing is added to the thread:
+  the recording bar in the dock is the only sign. After Stop the try is the
+  speaker's orange clip with the words they were asked to say: the Clearer
+  version's sentence after "Try it", their own sentence after "Keep mine",
+  the moment's own words after the AI clip (`oneThingTryWords`,
+  `walkThread.ts`); the chat writes the same words. Each try keeps its own
+  voice and number (its player is named "Practise N" for screen readers).
+  The Sniper's try is the tempo step's "Try N" with the dot's path (T step
+  6). As the locked prototype X4gDmGfHH7ivuoRZ9ufiy9 draws it (`walk.html`,
+  `record()`). Was: every try labelled "Practise N" in place of its words,
+  and an orange "● Practise N" pill in the thread while recording. In a Take served before N289: every practise is one thread: the words to say, the
   recorder in the dock (the one recording bar, N314: the trash on the left,
   then the strip with the dot, the clock, the bar and the red "Stop" inside
   it; "Skip" under it, the walk's grey link; was "Skip" in the Back style
@@ -706,7 +766,9 @@ praised moment:
      the speaker's own bubble and brings "Record Take N" under the chat,
      alone (B3, N294 item 7, N296 state 4), which opens the text as its
      own button does (the sharing question first from Take 2, G). The
-     speaker may simply close the app; the "+" still opens the projects.
+     speaker may simply close the app, or close the button with its grey ✕
+     and have the bar back (N395); the "+" still opens the projects, and
+     the Take's card still opens its Ideal Text with its own "Record Take N".
      A practice day's one thing, newer than the goodbye, holds the chat's
      one record button: [`the-plan.md`](the-plan.md) G6.
 
@@ -759,35 +821,51 @@ praised moment:
 
 - **E1** After the summary comes one ask at most: the first that waits, in
   this order; the others wait for a later Take (backend N189, 2026-10-26;
-  was at most two, N94). The order: the CEO panel's ask (from Take 2),
-  Will's question (which his next one may follow, E2), "Did this help?"
-  when the Take looks off. One question or ask is on screen at a time
+  was at most two, N94). The order: Will's question (which his next one
+  may follow, E2), "Did this help?" when the Take looks off. The CEO
+  panel's asks are not among them since N391: they come in the bar at the
+  top. One question or ask is on screen at a time
   (N294 item 4). While Will's question waits, the bar under the chat is
   B14's second state: the mic orange, answering by voice (E3).
 
-  **The settings asks wait for the next visit** (founder 2026-10-31, N294
-  item 8, N295). WhatsApp and the home screen are never asked after a
-  Take: they come the next time the speaker opens the app (the Lounge
-  loading, once a visit), one at a time and at most one per Take, never
-  before their second Take is done and never while an ask after a Take
-  waits; WhatsApp first, "It seems you enjoy using WillpowerLab." then
-  "Want a WhatsApp when your coach replies? Add your number." (at most
-  twice in all), the home screen last, "Well, I can see you're doing
-  pretty good." then its signed ask (once, where the phone can add it).
-  Its form opens by itself. Consent is not a settings ask and stays where
-  it is. Was: WhatsApp the Take's one ask from Take 1 (N171), the home
-  screen from Take 2, each opened by Will's lead-in.
+  **Notifications come in a bar at the top of the chat, never in the
+  buttons under it** (founder 2026-11-03, N391; prototype
+  <https://claude.ai/artifact/9gpMMFvLKFMysRE4Db8mMv>; `NoticeBar.tsx`).
+  Once a visit (the Lounge loading, the tab's session) the app asks the
+  backend (POST lounge/visit), which makes the WhatsApp ask when it is due
+  and answers with the one ask for the bar (backend `person_asks`). One at
+  a time, under the top bar, ✕ for Not now. It holds: the WhatsApp ask of
+  the next visit (N294 item 8, N295: never after a Take, never before the
+  second Take is done, one per Take, at most twice, "It seems you enjoy
+  using WillpowerLab." over "Want a WhatsApp when your coach replies? Add
+  your number."; done once shown); and the CEO panel's asks to one person,
+  which no longer wait for the end of a Take: WhatsApp, a consent question
+  ("One question about how we use your data is still open. You can look
+  at it and answer yes or no."), the promo price with See prices (the web
+  only: the iPhone app has no buying, N365 item 1) and the lesson price
+  with See times. Tapping WhatsApp or consent opens its form as a sheet
+  from the top (the WhatsApp form; the consent card with No | Yes); the
+  price bars go to their page. Not now on a CEO panel's ask brings it back
+  on the next visit. **The home-screen ask is deleted** (N391): the next
+  visit's, the CEO panel's and Will's offer in the chat. Not in the bar:
+  the policy update (its own screen; it blocks recording), iPhone's own
+  notification question (N385), and the WhatsApp form Will opens when the
+  speaker asks for it in the chat. An old thread's install, consent, promo
+  or lesson bubble is plain text. Consent is not a settings ask after a
+  Take and the plan's own consent step stays in the plan's questions. Was
+  (N294 item 8, N295): WhatsApp and the home screen written in the chat at
+  the next visit, their form opening by itself in the footer; the CEO
+  panel's asks the Take's one ask from Take 2, in the footer.
 
   Will opens "Did this help?" with a lead-in: one or two sentences tied to
   this Take (never a grade, never advice), then the ask's signed words with
   a light touch, checked as E2's variation is (no number, the ask still
-  said); Will's own question needs none, and the CEO panel's asks are
-  drawn as written. "Yes" to "Did this help?" brings "We're glad it
+  said); Will's own question needs none, and the bar's asks are drawn
+  as written. "Yes" to "Did this help?" brings "We're glad it
   helped you.", then the next ask. A typed message passes the ask in front;
-  "Not now" on the CEO panel's ask brings it back after the next Take
-  (2026-10-20); an ask that no longer applies when its turn comes is
-  skipped, and so is a settings ask that a message held from before N294
-  still names. These choices (the condition and place of "Did this help?",
+  an ask that no longer applies when its turn comes is skipped, and so is
+  a settings ask or a CEO panel's ask that a message held from before N294
+  or N391 still names. These choices (the condition and place of "Did this help?",
   which asks get a lead-in) were confirmed by the founder on 2026-10-21. A distressed answer under "What would help?" gets the chat's
   safety reply (backend #1199). The WhatsApp ask's form says, over the
   number field: "We will only use it to let you know your coach texted
@@ -825,11 +903,21 @@ praised moment:
   ends them. **The key line** (N294 item 2) is the plan's signed question,
   "If {who} remembers one sentence from you, what is it? Say it the way
   you'll say it." with who the talk is for in it ("your audience" when it
-  is not known; after a just-answered who, the answer), opened on the
+  is not known, or the talk is for themself; after a just-answered who,
+  the answer, from their side), opened on the
   moment as the others ("We just worked on “…”. "), said as signed, with no
   tap answers: it is answered by voice (E3). Will says
-  back who the talk is for, "{who}. I'll keep them in mind." (N294 item 5);
-  every other answer keeps "Got it, thanks 🙏". Will may say the signed questions with light
+  back who the talk is for, "{who}. I'll keep them in mind." (N294 item 5),
+  from the speaker's side: "my team" comes back as "Your team. I'll keep
+  them in mind.", and a talk to themself ("Myself", "me", "just me") as
+  "I'll keep you in mind." (N406 item 3; was the words as typed, "Myself.
+  I'll keep them in mind."). For a talk to themself, what they should do
+  is "When you finish, what do you want to do? Or feel? 🤔", with no taps
+  (N406 item 4). The goodbye (D4) waits under Will's question until it is
+  answered, however it is answered: nothing lets it go past an open
+  question (N406 item 1; was: after a typed answer the goodbye came under
+  his next question and cut it off).
+  Every other answer keeps "Got it, thanks 🙏". Will may say the signed questions with light
   variation, the same meaning in slightly different words; the tap answers
   and the no-numbers rule stay (founder, 2026-10-20); when the variation
   fails a check he says them as signed.
@@ -837,8 +925,10 @@ praised moment:
   (N297 item 2): this Take's own words, then what the speaker said for an
   earlier talk, then the signed answers for their field, for who the talk
   is for and what they should do alike; orange on the right. Who the talk
-  is for ends on "Someone else", which opens "Who is it for, then? 👀",
-  answered in their own words (N319 item 8). No Skip under Will's
+  is for has no "Someone else": their own words go into "Something else"
+  in the bar (N371), so Will asks once (N406 item 2; was "Someone else"
+  last, opening "Who is it for, then? 👀", N319 item 8). The check
+  ("Right?") keeps "Someone else" and its follow-up. No Skip under Will's
   questions (N296 item 2): not answering is allowed, and the "+" still
   opens the projects; their own words in the message box answer too, and
   so does **a voice answer** (N294 items 2 and 3, N319 item 1): while Will
@@ -874,7 +964,15 @@ praised moment:
 
 - **F1** It opens from its card, or after the summary. It is not the landing
   screen. The card opens the page on the text, from the top; the Take's
-  Feedback walk opens its walk (B10).
+  Feedback walk opens its walk (B10). Only the project's newest card opens
+  the page; an older Take's card (1.0 when the project is at 3.0) opens the
+  words that Take made, as they were, read only: the project's name, "AI-generated
+  text · Take N", "This is what you said in Take N." with "Go to Take M"
+  (the page), the paragraphs slide by slide with the helper words of that
+  time orange, ✕ and "Close"; a version with no saved words opens the page
+  with "Take N's words weren't saved. This is Take M." at its top (founder
+  2026-11-03, backend N375, N376, N380: "it opens the text that was recorded
+  for that time"; was: every card opened the page).
 - **F2** The text never shows before the walk (A2).
 - **F3** Helper words are orange in the text; no pencil. The black margin
   line means something still waits: only a paragraph with a step still to
@@ -989,7 +1087,8 @@ praised moment:
     between   = from another block, the clip whose words need help most
               (H3; lowest W, then lowest S × W), picked before the
               weakest; the Clearer version when a rewrite passes the gate,
-              else a next best
+              else a next best; never the AI clip, which is the
+              weakest's alone (N381)
     weakest   = from a block left, the lowest S × W with 8 words or more
               and a sound read, never one holding its helper words; Line
               A, the strongest's clip again, the AI clip
@@ -1438,8 +1537,9 @@ October (backend N111).
   `paceTip`), "This was your most
   confident moment.", "Why it worked: {the moment's signed cue line}",
   "And now, one thing to improve:", "Say it straight:", "Say this one like
-  your confident moment:", the tip ending ", like this:", "Your turn.",
-  "Try it", "Keep mine", "Skip", "Yes. That's it.", "Close. Once more.",
+  your confident moment:", the tip ending ", like this:", "Your
+  confident moment" (the chip, N379), "Try it", "Keep mine", "Skip",
+  "Okay, we'll skip this one." (N405), "Yes. That's it.", "Close. Once more.",
   "Good try. Take it with you.", "Let's see how you find this voice. It
   helps us understand you and serve you better.", "Does this sound
   confident to you?", "{face} {answer} ✓", "Got it.", "These are your helper
@@ -1575,9 +1675,10 @@ October (backend N111).
   See you tomorrow." or "Good job. See you {weekday}." (signed 2026-11-02,
   N347 item 2) · "{n} of {total} practices done." · the tap "I want to
   continue my practice", then "Record Take N".
-- **The settings asks at the next visit** (N295): "It seems you enjoy using
-  WillpowerLab." before the WhatsApp ask; "Well, I can see you're doing
-  pretty good." before the home screen's (the founder's own opener, E1).
+- **The bar at the top** (N295, N391): "It seems you enjoy using
+  WillpowerLab." over the WhatsApp ask; the CEO panel's lines as written
+  (E1). The home screen's ("Well, I can see you're doing pretty good.") is
+  deleted with its ask.
 - **The one ask:** "Did this help?", "We're glad it helped you.", "What
   would help?", "Skip"; Will's lead-ins (E1) are his own words around the
   ask's signed text, checked; Will's questions and tap answers as signed in N82
@@ -1586,6 +1687,8 @@ October (backend N111).
   "When you said “…”, " or "We just worked on “…”. " (signed 2026-10-31,
   N294 item 1): "Who were you talking to? 🎯" (signed 2026-11-02, N347
   item 1); "When you finish, what do you want them to do? Or feel? 🤔";
+  for a talk to themself "When you finish, what do you want to do? Or
+  feel? 🤔" (signed 2026-11-03, N406 item 4);
   "Last time we practised “…”. It didn't make it into this Take. On purpose?
   😏" (Yes, on purpose · I forgot · It didn't feel like me); "You've put real
   work into this one 💪 Need a breather, or does something feel missing?" (A
@@ -1596,9 +1699,10 @@ October (backend N111).
   follow-ups "Who is it for, then? 👀", "Tell me more 👀 What's missing?",
   "What would feel more like you?", "What would make it a yes?", "Where do
   you want it to take you?"; "Got it, thanks 🙏"; "{who}. I'll keep them in
-  mind." (signed 2026-10-31, N294 item 5); "Sounds like this one's for {the
-  board}. Right? 🎯" (Yes · Someone else); "Someone else" also last under
-  who the talk is for (N319 item 8); the answers by field
+  mind." (signed 2026-10-31, N294 item 5), {who} from the speaker's side,
+  "your" for "my" (signed 2026-11-03, N406 item 3); "I'll keep you in
+  mind." (signed 2026-11-03, N406 item 3); "Sounds like this one's for {the
+  board}. Right? 🎯" (Yes · Someone else); the answers by field
   (business: My team · Leadership · A client; public speaking: A big room ·
   Colleagues · Friends and family; sales: A buyer · Their team · The decision
   maker; customer service: A customer · A caller · My team; interviews: The
@@ -1657,17 +1761,18 @@ while a dot on a scale follows their pace live.
 - In the Feedback walk only. Never in the coach panel, the Lounge, or before the Take.
 - **Opened again** once the walk is done, it shows what the chat kept, read only: the stretch, Will's opening lines, each "Try N" with the line the dot drew and Will's word on it, the closing line (none after a try that landed) or the Skip, and no Next (N259). No scale and no microphone. A Take that had no tempo step has none (N247). The same, without its Next, when the walk is opened again further on before it is done (B5).
 - It sits before the Ideal Text, so it always has a Skip (N178, which replaces N130's "never between a Take and the Ideal Text" for the walk's own practice steps). The walk has no time limit: it ends when the speaker taps Close (N347 item 5; N178's time limit is withdrawn).
-- In the One thing walk it is the Sniper, the fix, and then no moment is fixed: on a plan's pace or pause week whose Take has a stretch outside the green (N309 item 1), and, for everyone, with or without a plan, at any level, whenever rushing is the Take's biggest issue (N323 item 6). Rushing is the biggest issue when the stretch ran fast and the share of its time the pace scale spent past the green is larger than what each moment the walk could fix falls short of, 1 minus its willfidence (S × W, the read the picker ranks the moments by, H); both are shares from 0 to 1 where 0 is all well; a tie, or a moment with no read, keeps the moment; with no moment to fix, a rushed stretch is the fix. A plan's level moment (N289 item 8) counts as a fix like any other, so the plan's choice stays unless rushing outweighs it. A slow stretch off a pace or pause week leaves the fix a moment. Only for a speaker the step reaches (below): without it the walk could not show the Sniper, so the fix stays a moment (backend `take_feedback_policy_v3._sniper_first`). Was (N309, 2026-11-02): only on a plan's pace or pause week. Under "And now, one thing to improve:", its opening lines as below, "Try it" with Skip in "I'm ready"'s place, two tries, and the walk's words on each ("Yes. That's it.", "Close. Once more.", "Good try. Take it with you."), no closing line of its own (`WalkTempo` `one`). With a moment to fix that outweighs the rushing, the walk has no tempo step. Was: on any Take, Take 1 included, whenever the pace scale finds a stretch outside the green, once in that walk, with or without a plan (N289 item 6; was from Take 2, N181, a rule the code never had), as a Take served before N289 still has it. Right after the walk's moments, so a Take that needs both has the Clearer version first, then this step (C2). In a "Let your key line land" or "Pauses that hold the room" week it opens with "This week's level: {level}. Here's where it shows:" (N289 item 8). Who has it is the rings panel's `tempo_step` row, at ring 0 (N325 item 3); the walk's choice of the Sniper reads the row alone (backend `tempo_stretch.tempo_on_for`; was: also the founder reading their own Take, N350 item 1).
+- In the One thing walk it is the Sniper, the fix, and then no moment is fixed: on a plan's pace or pause week whose Take has a stretch outside the green (N309 item 1), and, for everyone, with or without a plan, at any level, whenever rushing is the Take's biggest issue (N323 item 6). Rushing is the biggest issue when the stretch ran fast and the share of its time the pace scale spent past the green is larger than what each moment the walk could fix falls short of, 1 minus its willfidence (S × W, the read the picker ranks the moments by, H); both are shares from 0 to 1 where 0 is all well; a tie, or a moment with no read, keeps the moment; with no moment to fix, a rushed stretch is the fix. A plan's level moment (N289 item 8) counts as a fix like any other, so the plan's choice stays unless rushing outweighs it. A slow stretch off a pace or pause week leaves the fix a moment. Only for a speaker the step reaches (below): without it the walk could not show the Sniper, so the fix stays a moment (backend `take_feedback_policy_v3._sniper_first`). Was (N309, 2026-11-02): only on a plan's pace or pause week. Under "And now, one thing to improve:", its opening lines as below, "Try it" with Skip in "I'm ready"'s place, two tries, and the walk's words on each ("Yes. That's it.", "Close. Once more.", "Good try. Take it with you."), no closing line of its own; Skip moves the walk on at once, after a try too (`WalkTempo` `one`). With a moment to fix that outweighs the rushing, the walk has no tempo step. Was: on any Take, Take 1 included, whenever the pace scale finds a stretch outside the green, once in that walk, with or without a plan (N289 item 6; was from Take 2, N181, a rule the code never had), as a Take served before N289 still has it. Right after the walk's moments, so a Take that needs both has the Clearer version first, then this step (C2). In a "Let your key line land" or "Pauses that hold the room" week it opens with "This week's level: {level}. Here's where it shows:" (N289 item 8). Who has it is the rings panel's `tempo_step` row, at ring 0 (N325 item 3); the walk's choice of the Sniper reads the row alone (backend `tempo_stretch.tempo_on_for`; was: also the founder reading their own Take, N350 item 1).
 - It is the founder's "Sniper": the pace exercise of N129. The old Strength/Pace dartboard stays retired (N127, N181).
 
 **The scale.** A dot on a horizontal line. It moves right while you talk
 and left while you pause. Green in the middle, orange towards the ends,
-red at the edges. No number, ever (Never 1). How the dot moves is settled:
+red at the edges. Under it, left to right: "too slow", "just right", "too
+fast" (N405; was: no labels). No number, ever (Never 1). How the dot moves is settled:
 backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
 
 **The step, in order** (as drawn in [Tempo in the Walk](https://claude.ai/artifact/VJd5MeFGgZy7e3Q8M1EQXV)):
 
-1. The speaker's clip, with the rushed or dragged stretch marked.
+1. The speaker's clip, with the rushed or dragged stretch marked: their orange bubble, the sentence with the stretch marked above the player of that stretch (the walk's `WalkPlayer`, look "me", as a moment's clip is; the locked prototype X4gDmGfHH7ivuoRZ9ufiy9 `clip(f.text)`). The audio is the stretch's own clip, signed as the moments' are (backend `tempo_stretch.with_clip`); with none, the words alone. The same when opened again.
 2. Will's bubble, from what the stretch was: "That part went fast. 🏃 Let's try a little game." or "That part slowed down, with long pauses. 🐢 Let's try a little game."
 3. Will's bubble with the stretch's topic: "Tell me more about {topic}, and keep the ball in the green."
 4. Will's bubble: "🤫 Find a quiet spot first."
@@ -1903,6 +2008,27 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N415 · Suggested answers: a lone one ("I want to continue my practice") is outlined, never filled, so it is not taken for a sent message; every ask in Will's chat (the offers' "Not now" and action, the top-up card) takes N371's suggested answers, the one that goes on filled on the right. Was: one filled orange pill; the asks as two equal pills, grey outline and black. Not changed: the consent and policy screens, "Update slides", the one-project question, the WhatsApp number's Save · FE (this PR)
+- 2026-11-03 · N406 · E2, E3, K: who the talk is for, fixed from the founder's screenshot (prototype <https://claude.ai/artifact/NxE1pMJmngj8Q7ZTj9PQDp>, Option A): the goodbye waits under Will's question until it is answered, however it is answered; no "Someone else" under "Who were you talking to? 🎯", their own words go into "Something else" in the bar; Will says who from the speaker's side, "Your team. I'll keep them in mind.", and "I'll keep you in mind." for a talk to themself, then "When you finish, what do you want to do? Or feel? 🤔" with no taps, the key line keeping "your audience". No frontend code. Was: after a typed answer the goodbye came under the next question and cut it off; "Someone else" last, opening "Who is it for, then? 👀"; the words said back as typed, "Myself. I'll keep them in mind." · BE (next PR), docs (this PR)
+- 2026-11-03 · N397 · B6: the walk's bar and each part's name call a slide by its title in the speaker's deck (`slideTitle` on the walk's moment, from the deck's `slideTitles`), "Slide N" when the slide has none. Was: always "Slide N" · BE N397 log (#1653), FE (this PR)
+- 2026-11-03 · N405 · built (C7, T, K): Skip on the One thing walk's fix (the dock's, the recorder's, the Sniper's) gets the walk's answer under the speaker's "Skip", "Okay, we'll skip this one.", in the walk and the chat; the pace scale names its zones under it, "too slow", "just right", "too fast". Both lines signed 2026-11-03, the prototype's "Okay." and "slow · just right · fast" rewritten. Was: nothing said after Skip, and a scale without labels · FE (this PR)
+- 2026-11-03 · C4: the phrase the AI clip names (its served `phrase`) is bold where it stands in the fix's own words above the clip and in the tip ("Lean on “**above ninety percent**”, like this:", or the tip in words with no clip), and in the chat's copy of the fix's words, so the speaker sees where to lean (founder, Claude Code chat 2026-11-03: "yes, bold the phrase"; backend log entry to follow). Was: the words and the tip plain · FE (this PR)
+- 2026-11-03 · C2, C4: their best's clip and the AI clip's fix show the moment's own words above the player (its served `said`), as the locked prototype draws them (`clip(u.best.text)`, `clip(f.text)`), in the walk and the chat alike; "Last time" and their best played again inside the fix stay without words. Was: both clips drawn without words · FE (this PR)
+- 2026-11-03 · N395 · Record buttons; after the goodbye: the chat's one "Record Take N" stands 24 px under the last bubble (was 8) with a grey ✕ on its right, no background and no outline; the ✕ closes it and the bar comes back ("+", "Type here", the mic) for that Take, until the chat is opened again or a newer Take's goodbye offers the next. No new words. Was: alone, with no way to close it but recording · BE #1647, FE (this PR)
+- 2026-11-03 · N391 · E1: notifications come in a bar at the top of the chat, never in the buttons under it: the next visit's WhatsApp ask and the CEO panel's WhatsApp, consent, promo (web only) and lesson asks, one at a time, ✕ for Not now, WhatsApp and consent opening their form as a sheet from the top; the home-screen ask is deleted everywhere. Was: WhatsApp and the home screen written in the chat at the next visit with their form in the footer (N294 item 8, N295); the CEO panel's asks the Take's one ask from Take 2, in the footer · BE (next PR), FE (this PR)
+- 2026-11-03 · N309, N374 · B6, C3, C9: in the One thing walk the bar names the fix's slide again during the helper words and "Lesson done." (their best's slide with no fix, "Tempo" with the Sniper), as the locked prototype's `carry()` does (`dots(3)`; X4gDmGfHH7ivuoRZ9ufiy9). Was: the helper words had no name, so the bar kept the last one, "Other speakers" from Take 2 · FE (this PR)
+- 2026-11-03 · — · T: in the One thing walk, the Sniper's Skip moves the walk on at once, after a try too, as the locked prototype's `skip()` does (founder, the Claude Code chat, 2026-11-03: "so it really matches the design and the prototype"). Was: Skip after a try closed the game on a Next · FE (this PR)
+- 2026-11-03 · — · T: the tempo step's stretch is the speaker's orange clip, the sentence with the stretch marked above its player, in the walk and opened again, as the locked prototype X4gDmGfHH7ivuoRZ9ufiy9 draws it; the tempo answer carries the stretch's signed clip. Was: the words alone, no player · BE (tempo-stretch-clip), FE (this PR)
+- 2026-11-03 · — · C7: the One thing walk's try is the speaker's orange clip with the words they were asked to say (the Clearer version's sentence, their own after "Keep mine", the moment's own words after the AI clip), in the walk and the chat; nothing in the thread while it records, the recording bar alone, as the locked prototype X4gDmGfHH7ivuoRZ9ufiy9 draws it. A Take served before N289 keeps "Practise N". Was: "Practise N" in place of the words and an orange "● Practise N" pill while recording · FE (this PR)
+- 2026-11-03 · N381 · C2, H1: N374 item 1 withdrawn: a between whose Clearer version does not pass is praised as a next best again and left out of the One thing walk; the AI clip is the weakest's alone. Was (N374 item 1, Takes recorded from 11:00 UTC that day): that between took the AI clip when no paragraph was left for the weakest, and the clip coached the voice on a fragment whose trouble was its words. N374 item 2 (their best's own words as the helper words) is unchanged · BE (the revert of #1629), docs (this PR)
+- 2026-11-03 · N380 · F1: an older version says "This is what you said in Take N." with an outlined "Go to Take M" that opens the page, and shows the helper words its slides had while it was the latest (the last set picked before the next version), orange in the words and with the HELPERS label for words it no longer says, as the page draws them; a card whose version was not kept opens the page with "Take N's words weren't saved. This is Take M." at its top (`PAST_TAKE_COPY` in `idealEditCopy.ts`, signed). Was: no line, no way to the latest, no helper words, the page opened in silence · BE N380 log and the History's helper words (BE, next PR), FE (this PR)
+- 2026-11-03 · N376 · F1: which page an Ideal Text card opens is known before either is drawn, and a press on an older card starts its read (`src/lib/willab/pastIdealText.ts`); an older version shows its paragraphs slide by slide, each slide's picture and kicker on the deck that Take was said on. Was: a loader first, then sometimes the live page; plain paragraphs · BE N376 log and the History's slides (BE, next PR), FE (this PR)
+- 2026-11-03 · N375 · F1: only the project's newest Ideal Text card opens the page; an older Take's card (the walk's own card or a version card) opens that Take's words as they were, read only, from the versions the History under ⋯ keeps (`IdealTextPastVersion.tsx`); a version with no saved words, or still the newest, opens the page; B10's older Take's walk now ends on that Take's card, which opens those words. Was: every card opened the live page, and the older walk ended with no card · BE N375 log, FE (this PR)
+- 2026-11-03 · N374 · built (C0a, C2, C3, H1): a short Take keeps its one fix: when the between's Clearer version does not pass and no paragraph is left for the weakest (a Take of two), that moment takes the AI clip itself (8 words or more and a sound read), for Takes recorded from 3 November 2026, 11:00 UTC (backend `VOICE_FALLBACK_FROM`); and every walk leaves helper words: when the fix gives none (no fix, a tip that quotes no phrase, a stretch past eight words), their best's own words, whole, with the same line. Was: the between was praised as a next best and left out, so a new speaker's first Take showed their best alone, with no fix and no helper words · BE (the pick), FE (this PR)
+- 2026-11-03 · N379 · built (C4, K): their best's clip a small "Your confident moment" chip when the fix has its own example (`WalkPlayer` `chip`); the fix's bubbles a polite live region, the AI bubble's dots and label hidden from assistive tech until its clip is ready; no "Your turn." in the fix, in the walk and the chat. Item 5 of the audit (naming the sentence for a tip with no phrase) waits on the AI voice lock · FE (this PR)
+- 2026-11-03 · N377 · built (C4): the fix's no-clip words land with `walk-bubble-in`, once per wording (`FixWords`, `useLandsOnce`); "Say this one like your confident moment:" only when their best's clip follows, in the walk and the chat (`fixBest`; the chat's body now comes whole from the walk). Was: a swap with no motion, and a colon that could point at nothing · FE (this PR)
+- 2026-11-03 · N373 · built (C4): the fix waits ten seconds on a clip still being made, then says its tip in words (N370's bubble), a clip that comes later joining as its player alone; once the first try began, a clip not yet seen never lands above it (`AI_CLIP_WAIT_MS`, `useClipWait`, `useClipBeforeTry`). Was: the dots as long as the clip took, and a late clip above the try · FE (this PR)
+- 2026-11-03 · N370 · built (C4): the One thing walk's fix with no AI clip (its check failed, the provider or the limits refused, no voice) keeps its tip in words, the exercise's video and instruction when one is served, and "Your turn.", in the walk and the chat; "Last time" keeps the tip; the backend sends what the clip would fix with an unavailable clip once it was chosen. Was: the bubble, and the tip with it, went with the clip · BE #1621, FE (this PR)
 - 2026-11-03 · N371 · E1: suggested answers, one rule for the whole app (`TapRow`): above the bar on the right, at least 44px high, 15px; the most likely last, nearest the thumb, filled orange (Will's question lists it first from the backend, so it is drawn last); two side by side, three or four stacked one per line, more than four the last three and "Show more"; a quiet "Not now" never the filled one. While Will's question waits and typing is allowed, the bar's middle is "Something else", shaped like the box, and a tap opens the box with "Type your answer"; the mic beside it answers by voice as before. Was: small outlined taps in one wrapping row, and "Type here" while Will asked · FE (this PR)
 - 2026-11-02 · N359 · built (C2, H1): a fix the last walk gave (the AI clip, the Clearer version or the pace game) that worked on this Take, its issue gone on that slide by Last time's rule, is not given again on that slide; the walk picks from everything else as before, and gives it again only when the issue comes back; no walk before, or one that cannot be read, picks as before; nothing on screen, in the frame or for a coach. Was: the same fix could be given again on a slide where it had just worked · BE (this change), FE (this PR)
 - 2026-11-02 · N350, N325 item 3 · C0a, H1, T, §2: mirrors the backend half: while the run waits for the verbal read the walk's read answers "pending" until the bake starts (`ideal_text_feedback_bake.hold_for_bake`, a 15-second "queued" mark set only when the run waits); the pace fix worked when every clip on that slide spends less than the bar that picks a stretch (`tempo_stretch.MIN_OUTSIDE`) of its time past the green on the stretch's side (`tempo_stretch.stays_inside`; was `tempo_stretch.furthest`), for Last time and the Takes table alike; the tempo step reaches whoever the `tempo_step` row reaches, at ring 0 everyone, and the walk's choice of the Sniper reads the row alone (`tempo_stretch.tempo_on_for`; was: also the founder reading their own Take) · BE n350, docs (this PR)

@@ -19,6 +19,7 @@ import { stripRichMarkers } from "./richMarkers";
 import type { PraiseReason } from "./praiseReason";
 import { bestBubble, clearerOpening, praiseBubble, topMomentLine, withoutRepeats, type WalkBankKey } from "./walkLines";
 import type { WalkStep } from "./walkPlan";
+import { phrasePieces } from "./walkLines";
 import { encourageLine, improvedLine, thanksLine } from "./walkPractise";
 
 export type WalkAuthor = "app" | "coach" | "speaker";
@@ -104,6 +105,8 @@ export function momentChat(
   plan: readonly WalkStep[],
   step: WalkStep,
   moment: FeedbackWalkMoment<unknown> | null,
+  /** The AI clip's phrase, bold in the fix's words as the walk draws it. */
+  phrase: string | null = null,
 ): { label: Record<string, unknown>; clip: Record<string, unknown> | null } | null {
   if (!moment || !CHAT_MOMENT_STEPS.has(step.key)) return null;
   // A praised moment's practise follows its praise (N122): its clip and
@@ -115,7 +118,14 @@ export function momentChat(
     step.key === "praise"
       ? { slide_label: slide, green_n: greens.indexOf(moment.index) + 1, green_of: greens.length }
       : { slide_label: slide };
-  const words = step.key === "clearer" ? (moment.clearer?.before ?? null) : null;
+  // The One thing walk's best and its AI clip's fix carry the moment's own
+  // words, as the walk draws them (its prototype's `clip(text)`).
+  const words =
+    step.key === "clearer"
+      ? (moment.clearer?.before ?? null)
+      : step.one && moment.said
+        ? phrasePieces(moment.said, step.key === "exVideo" ? phrase : null).map((p) => ({ ...p, cut: false }))
+        : null;
   const clip =
     moment.clip || words
       ? {
@@ -357,9 +367,32 @@ export function sniperWords(paragraphText: string, stretch: string): { text: str
   return span ? { text: helperWordsSaid(stripRichMarkers(span.text)), span } : null;
 }
 
+/** The words of a One thing walk's try (N309; the locked prototype
+ *  X4gDmGfHH7ivuoRZ9ufiy9 draws the try as the speaker's clip with them):
+ *  the clearer version's words after "Try it", their own sentence after
+ *  "Keep mine", the moment's own words after the AI clip. The walk's bubble
+ *  and the chat's say the same. Null: not the One thing walk (a Take served
+ *  before N289 keeps "Practise N", C7), or no words served. Pure. */
+export function oneThingTryWords(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string | null {
+  if (!step.one) return null;
+  const words = step.kind === "words" ? moment.clearer?.say : step.kind === "keep" ? moment.clearer?.said : moment.said;
+  return words?.trim() || null;
+}
+
 export function answerBody(step: WalkStep, value: string): string | null {
   if (value === "skip" && ["helpers", "exVideo", "encourage"].includes(step.key)) return WALK_COPY.skip;
+  // Skip on the One thing walk's recorder is Skip on the fix (N405).
+  if (value === "skip" && step.one && step.key === "practise") return WALK_COPY.skip;
   return null;
+}
+
+/** The walk's answer to the speaker's Skip on the One thing walk's fix,
+ *  said under their "Skip" before the walk goes on (backend N405): "Okay,
+ *  we'll skip this one.". Null for anything else. The walk and the chat say
+ *  the same. Pure. */
+export function skipReply(step: WalkStep, value: string | null): string | null {
+  if (value !== "skip" || !step.one) return null;
+  return ["exVideo", "encourage", "practise"].includes(step.key) ? ONE_THING_COPY.skipped : null;
 }
 
 /** The AI bubble a step showed (N71), as the chat stores it: its lines, and
@@ -431,7 +464,7 @@ function oneThingSaid(
   step: WalkStep,
   moment: FeedbackWalkMoment<unknown> | null,
   line: string | null,
-): { author: WalkAuthor; body: string } | null | undefined {
+): { author: WalkAuthor; body: string; extra?: Record<string, unknown> } | null | undefined {
   const app = (body: string | null | undefined) => (body && body.trim() ? { author: "app" as const, body } : null);
   // Last time, "And now, one thing to improve:" and the helper words, in
   // the words the walk drew.
@@ -443,8 +476,16 @@ function oneThingSaid(
       return moment ? app(bestBubble(moment).join("\n")) : null;
     case "clearer":
       return moment?.clearer?.say ? app(`${ONE_THING_COPY.sayStraight}\n${moment.clearer.say}`) : null;
-    case "exVideo":
-      return app(ONE_THING_COPY.likeConfident);
+    case "exVideo": {
+      // `line` is what the walk draws (N370, N377): "Say this one like your
+      // confident moment:" when their best's clip follows it, then with no
+      // AI clip the tip, the exercise's instruction and "Your turn.", its
+      // video with it; with a clip on its way, the AI bubble's words should
+      // it never come.
+      const said = app(line);
+      const video = moment?.exercise?.video;
+      return said && video ? { ...said, extra: { video } } : said;
+    }
     case "improved":
       return app(line ?? improvedLine(one, 0));
     case "encourage":

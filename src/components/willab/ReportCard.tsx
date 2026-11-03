@@ -28,6 +28,7 @@ import {
   readoutView,
 } from "./loungeReports";
 import IdealTextCard from "./IdealTextCard";
+import type { IdealTextPast } from "@/lib/willab/pastIdealText";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 import NextTakeShareScreen from "./NextTakeShareScreen";
 import type { ShareLineChange } from "@/lib/willab/walkThread";
@@ -288,6 +289,8 @@ function renderIdealTextReportCard(
   message: LoungeMessage,
   options: {
     onOpenIdealText?: (arcId: string, mode?: "feedback") => void;
+    /** An older card opens its own version, read only (backend N375). */
+    onOpenPastIdealText?: (arcId: string, past: IdealTextPast) => void;
     onRetryIdealText?: (
       target: IdealTextRetryTarget,
     ) => boolean | Promise<boolean>;
@@ -301,6 +304,7 @@ function renderIdealTextReportCard(
   const {
     latest = false,
     onOpenIdealText,
+    onOpenPastIdealText,
     onRetryIdealText,
     onOpenFeedback,
     retryingIdealText,
@@ -316,6 +320,8 @@ function renderIdealTextReportCard(
   // posts its own card, 1.0 unverified through N.0 verified. The version and
   // the verification state both ride on the BE metadata.
   const rawV = message.metadata?.version;
+  const topic =
+    typeof message.metadata?.topic === "string" ? message.metadata.topic : null;
   const version =
     typeof rawV === "number" && Number.isFinite(rawV)
       ? rawV
@@ -324,10 +330,14 @@ function renderIdealTextReportCard(
           Number.isFinite(Number(rawV))
         ? Number(rawV)
         : null;
-  // Every bubble opens the SAME live, editable notebook — the version on
-  // the card is a history marker, never a frozen destination.
+  // The newest card opens the live page; an older one opens the words its
+  // version held, as they were (founder 2026-11-03, backend N375; until
+  // then every card opened the live page, founder 2026-07-29).
   const open = () => {
-    if (arcId && onOpenIdealText) onOpenIdealText(arcId);
+    if (!arcId || !onOpenIdealText) return;
+    if (!latest && version !== null && onOpenPastIdealText) {
+      onOpenPastIdealText(arcId, { by: "version", n: version, title: topic });
+    } else onOpenIdealText(arcId);
   };
   if (variant === "ideal_text_unconfirmed") {
     return (
@@ -404,11 +414,7 @@ function renderIdealTextReportCard(
        * brand-new card is correct on its FIRST paint with no request at
        * all. Absent on every row written before that change — those fall
        * through to the remembered title, then the generic. */
-      stampedTitle={
-        typeof message.metadata?.topic === "string"
-          ? message.metadata.topic
-          : null
-      }
+      stampedTitle={topic}
       version={version}
       // The DATE, not message.body. The BE's sentence used to sit here;
       // founder 2026-08-05 cut it to "just the title, date and the CTA".
@@ -638,6 +644,7 @@ export default function ReportCard({
   onOpenTranscripts,
   onOpenFeedback,
   onOpenIdealText,
+  onOpenPastIdealText,
   onRetryIdealText,
   latestForArc = false,
   shareLine = null,
@@ -660,10 +667,11 @@ export default function ReportCard({
   onRetryIdealText?: (
     target: IdealTextRetryTarget,
   ) => boolean | Promise<boolean>;
-  /** Delivery layer — the purple bubble opens the ideal-text notebook.
-   *  ALWAYS the live, editable document — version bubbles are history markers,
-   *  not frozen read-only destinations (founder 2026-07-29). */
+  /** Delivery layer — the purple bubble opens the ideal-text notebook: the
+   *  project's newest card the live document, an older one its own version
+   *  (backend N375). */
   onOpenIdealText?: (arcId: string, mode?: "feedback") => void;
+  onOpenPastIdealText?: (arcId: string, past: IdealTextPast) => void;
 }) {
   const [retryingIdealText, setRetryingIdealText] = useState(false);
   if (message.kind === "feedback") {
@@ -673,6 +681,7 @@ export default function ReportCard({
     return renderIdealTextReportCard(message, {
       latest: latestForArc,
       onOpenIdealText,
+      onOpenPastIdealText,
       onRetryIdealText,
       onOpenFeedback,
       retryingIdealText,

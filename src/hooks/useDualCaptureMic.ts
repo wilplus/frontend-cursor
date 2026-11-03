@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { hushVoices } from "@/lib/willab/oneVoice";
 
 function isPwaStandalone(): boolean {
   if (typeof window === "undefined") return false;
@@ -148,6 +149,31 @@ export const TAKE_MIC_AUDIO: MediaTrackConstraints = {
  * audio/webm isn't supported — caller should hide the mic affordance
  * entirely in that case.
  */
+const EARBUDS_KEY = "willab:mic-earbuds";
+/** A Bluetooth mic, by the name the browser gives it. Such a mic drops to
+ *  call quality on every phone (backend N372 item 4). */
+const BLUETOOTH_MIC = /airpods|bluetooth|hands-?free|buds\b|beats|jabra|bose/i;
+
+/** Remember whether this Take's mic was a Bluetooth one, for the line before
+ *  the next Take. Never fails the recording. */
+function rememberMic(stream: MediaStream): void {
+  try {
+    const label = stream.getAudioTracks()[0]?.label ?? "";
+    window.localStorage.setItem(EARBUDS_KEY, BLUETOOTH_MIC.test(label) ? "1" : "0");
+  } catch {
+    /* no storage, or a stream without tracks: say nothing */
+  }
+}
+
+/** Whether the last Take was recorded through earbuds or a headset. */
+export function lastMicWasEarbuds(): boolean {
+  try {
+    return window.localStorage.getItem(EARBUDS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function pickDualCaptureMimeType(): string | null {
   if (typeof MediaRecorder === "undefined") return null;
   const candidates = ["audio/webm;codecs=opus", "audio/webm"];
@@ -335,6 +361,7 @@ export function useDualCaptureMic(opts?: {
       const gen = startGenRef.current;
       mimeRef.current = mime;
 
+      hushVoices();
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: TAKE_MIC_AUDIO });
@@ -367,6 +394,7 @@ export function useDualCaptureMic(opts?: {
         return;
       }
       streamRef.current = stream;
+      rememberMic(stream);
 
       // Cap the bitrate so a normal-length recording stays under the upload
       // route's request-body ceiling: the BFF buffers the body and Vercel

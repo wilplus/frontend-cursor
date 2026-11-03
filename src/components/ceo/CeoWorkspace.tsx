@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import CeoBugCapture from "@/components/ceo/CeoBugCapture";
+import { useCeoCorpus } from "@/components/ceo/CeoCorpus";
 import CeoTasks from "@/components/ceo/CeoTasks";
 import { cn } from "@/lib/utils";
 import { withSessionBearer } from "@/lib/api/sessionBearer";
+import { COACH_PANEL_COPY } from "@/lib/willab/coachPanelCopy";
 import {
   CEO_SURFACES,
   activeCeoFeatures,
@@ -63,6 +65,7 @@ export default function CeoWorkspace() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [state, setState] = useState<CeoViewState>(() => initialState([]));
   const [bugDraft, setBugDraft] = useState("");
+  const corpus = useCeoCorpus();
   useEffect(() => {
     setBugDraft(window.localStorage.getItem(`ceo-bug-draft-${project}`) ?? "");
     // SPEED (founder 2026-10-14): open on the last copy at once and refresh
@@ -183,6 +186,16 @@ export default function CeoWorkspace() {
                 </button>
               )
             )}
+            {/* The training corpus, moved here from the coach's side
+                (backend N416): opens over the panel, ✕ comes back. */}
+            <button
+              type="button"
+              onClick={corpus.open}
+              data-testid="ceo-corpus-button"
+              className="rounded-md px-3 py-1 text-[13px] font-medium text-muted-foreground transition-colors"
+            >
+              {COACH_PANEL_COPY.trainingCorpus}
+            </button>
           </nav>
         </div>
 
@@ -199,6 +212,7 @@ export default function CeoWorkspace() {
           ) : null}
         </section>
       </div>
+      {corpus.panel}
     </div>
   );
 }

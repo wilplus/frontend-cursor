@@ -382,6 +382,12 @@ O2  The line under my latest Take opens the screen with my choice ticked
 now chose, stamped with the words I saw, and its line says the new
 choice; ""Only me"" takes it back from every community.","O1 -> ""starts with nothing ticked; Continue waits for a choice, Only me counts""
 O2 -> ""the latest Take's line opens the screen ticked as it stands, and a change re-stamps that Take""","Founder 2026-10-15 (Privacy 3.6 section 4d). O2: founder 2026-10-31, backend N309 item 5; G4 (each Take stamped and revocable)."
+src/components/willab/NoticeBar.test.tsx,Story,"As a speaker, I want a question or a price the founder sent me, and the WhatsApp ask, to come as a bar at the top of the chat, one at a time, never in the buttons I record with, so that it never competes with my next Take.","O1  The ask comes in the bar with its own words (the WhatsApp ask under
+its opener), once a visit, and is reported shown.
+O2  ✕ closes the bar.
+O3  The promo price never shows in the iPhone app (it has no buying).","O1 -> ""shows the ask in the bar once a visit""
+O2 -> ""closes on Not now""
+O3 -> ""never shows the promo in the iPhone app""","Founder 2026-11-03 (backend N391): ""do not mix notifications ... with the main screen buttons. The notifications should come as notifications at the top as a separate bar."""
 src/components/willab/OtherAccountLink.test.tsx,Story,"As a speaker who opens my coach's WhatsApp or email link while signed in to my other account, I want to be told so and taken to log in with the right one, so that I reach my coach's feedback instead of a wait that never ends.","O1  The server's ""arc not found"" (the project is not in this account)
 reads as another account's link, never as a text still being built;
 any other 404 still reads as pending.
@@ -448,12 +454,12 @@ follow-up) is the newest bubble.
 O3  Suggested answers keep one shape everywhere (N371): two side by
 side, three or four stacked, more than four the last three and
 ""Show more"", which shows the rest; a quiet ""Not now"" is never the
-filled one.
+filled one, and a lone answer is outlined, never filled (N415).
 O4  While Will's question waits and typing is allowed, the bar's middle
 is ""Something else""; a tap opens the box with ""Type your answer"".
 While typing is off (the plan asks), it never shows (N371).","O1 -> ""the newest question shows its answers, no Skip, and a tap
 goes to the backend once""
-O3 -> ""suggested answers: two in a row, three stacked, more than four behind Show more""
+O3 -> ""suggested answers: two in a row, three stacked, a lone one outlined, more than four behind Show more""
 O4 -> ""while Will asks, Something else opens the box; the plan's questions never show it""
 O2 -> ""the message after the Take waits under Will's question""","Founder 2026-10-20 (N82): ""only buttons"" in the walk, Will's questions in the Lounge, tap answers plus my own words; 2026-10-31 (N296): ""maybe we should not give them the option to skip; let's try that""."
 src/components/willab/acceptRewrite.test.tsx,Story,"As a speaker accepting a clearer version in the paragraph sheet, I want my answer saved and my text unchanged until I say it in my next Take, so that the Ideal Text is only what I said.","O1  The answer is saved once, as apply_suggestion.
@@ -511,9 +517,11 @@ src/components/willab/chats/chats.test.tsx,Story,"As the founder testing the cha
 the Lounge and no chat is read (Never 3).
 O2  On: the list stands in front of the Lounge, Will pinned first, then
 the chats, newest last message first, each with its title, subtitle
-and last message (an emoji with its meaning); an empty list asks for
-the demo once. Will's row uncovers the Lounge, never remounted, with
-a back to the list (customer-requests.md C1; N274, N298, N322).
+and last message (an emoji with its meaning); an empty list is Will
+and ""Add someone to chat with"", on the web as in the iPhone app, and
+no demo chats are asked for (N401). Will's row uncovers the Lounge,
+never remounted, with a back to the list (customer-requests.md C1;
+N274, N298, N322).
 O3  In a chat, one bar: the ""+"" left, the three emoji in the box, no
 typing, and the mic always on the right, orange while a question waits
 for my answer (N368; was N341: only then); a tap on
@@ -566,7 +574,7 @@ chat, the person and the question. Back from them, the bar's middle
 reads ""Sending to {name}… {n}"" with Undo, then
 it goes and ""Sent to {name} on WhatsApp"" (a customer) stands under it
 (N345, N342).","O1 -> ""with chats off, the Lounge is all there is and no chat is read""
-O2 -> ""with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back""
+O2 -> ""with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back""
 O3 -> ""an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question""
 O4 -> ""the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's""
 O5 -> ""a chat with a message newer than its last opening shows as new until it is opened""
@@ -668,7 +676,10 @@ O9  The done imports sit at the bottom of the list; opening one starts the
 judging, mixed across imports from a clip of it, and the list comes
 back when nothing is left to judge (founder 2026-10-21, N101).
 O10 The list comes in steps (N100): reaching its bottom reads the next
-step, the loader showing until it lands.","O1 -> ""a saved set-up goes straight to judging, with its count""
+step, the loader showing until it lands.
+O11 The corpus is the founder's, in the CEO panel (N416): the coach's
+pinned row has no Training corpus button; the CEO panel's opens the
+imports.","O1 -> ""a saved set-up goes straight to judging, with its count""
 O2 -> ""a set-up with nothing to judge goes back to the imports, never to judging""
 O3 -> ""a new import lands on the imports with its count""
 O4 -> ""the panel's queue read carries no words of a piece""
@@ -677,7 +688,8 @@ O6 -> ""only the founder's ⋯ carries Delete; confirming it erases the import a
 O7 -> ""several files import one at a time, each its own import named by its file""
 O8 -> ""a choice over the upload limit is refused, and a refusal for the hour stops the batch""
 O9 -> ""the done imports sit at the bottom; judging starts from the opened one and comes back to the list""
-O10 -> ""reaching the bottom of the list reads its next step""","Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files in one Import, the list in steps and the corpus judged mixed, founder 2026-10-21."
+O10 -> ""reaching the bottom of the list reads its next step""
+O11 -> ""the corpus opens from the CEO panel, never from the coach's pinned row""","Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files in one Import, the list in steps and the corpus judged mixed, founder 2026-10-21. Moved to the CEO panel, founder 2026-11-03 (backend N416)."
 src/components/willab/coachpanel/coachPlan.test.tsx,Story,"As a coach, I want a speaker's plan in my queue when it needs me, so that I pick their level blind, or send my video for a level that hasn't moved, and their plan follows my answer.","O1  A plan that waits comes first in my queue, on its speaker's card (""New
 plan"", ""Asked about their level"", ""Three Takes without moving""), and
 as ""Their plan"" above their Takes; the Lounge bubble counts it.
@@ -723,7 +735,8 @@ O2  Coming back to the Lounge shows the remembered count right away.
 O3  ""Nobody is waiting"" shows only when the queue was read empty.","O1 -> ""shows no label until the queue is read, then the count""
 O2 -> ""re-entering the Lounge shows the remembered count right away""
 O3 -> ""says nobody is waiting only once the queue was read empty""",Founder 2026-10-18.
-src/components/willab/deckFeedbackWalk.test.tsx,Story,"As a speaker reviewing feedback, I want the walk to open on my first praise, move through its chat with ‹ ›, save helper words through the deck, and ask a guest to sign up, so that feedback flows into my next Take.","O1  Review feedback opens the walk on the first praise.
+src/components/willab/deckFeedbackWalk.test.tsx,Story,"As a speaker reviewing feedback, I want the walk to open on my first praise, move through its chat with ‹ ›, save helper words through the deck, and ask a guest to sign up, so that feedback flows into my next Take.","O1  Review feedback opens the walk on the first praise; the bar names
+its slide by the slide's title in my deck (backend N397).
 O2  The arrows move through the walk's chat, step by step, without
 answering anything or closing it.
 O3  A tap on a paragraph, with or without its black line, opens the same walk at what it asks (its
@@ -750,7 +763,9 @@ through the deck's own save (the lock, then the words), marked whole
 O10 With no moment to fix, the pace game is the One thing walk's fix,
 and its opening keeps its tip, ""give “{words}” more room"" with the
 Sniper's helper words, in the chat for ""Last time"" next Take (N347
-item 3).","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
+item 3); its scale names its zones ""too slow"", ""just right"", ""too
+fast"", and Skip gets ""Okay, we'll skip this one."" in the walk and the
+chat (N405).","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
 O2 -> ""‹ › move through the walk's chat, never answering and never
 closing it (founder 2026-10-20)""
 O3 -> ""a paragraph with or without the line opens the same walk at
@@ -829,6 +844,18 @@ O3  When the page stops asking for late marks, it says so: the reserved
 slot closes, so the lens never waits on it for good (WIL-76).","O1 -> ""applies the coach message before the slow lane answers""
 O2 -> ""keeps what was shown while the core alone has landed""
 O3 -> ""closes the slot when the asks stop with the marks still pending""",Founder 2026-10-08 (waiting-time fixes).
+src/components/willab/idealTextPastVersion.test.tsx,Story,"As a speaker, when I open an older Take's Ideal Text card (1.0 while the project is at 3.0), I want to read what I said in that Take, not my latest words.","O1  An older card opens its own version, the card at the end of an older
+Take's walk too; the newest card opens the live page, as before.
+O2  The older version's page shows that Take's words slide by slide and
+names its Take, never the latest Take's words.
+O3  A version that is the newest, or has no saved words, opens the live
+page, decided before any page is drawn (one screen per tap); one not
+kept says so on the page, the newest says nothing.
+O4  The older page says which Take it is, leads to the latest, and shows
+the helper words of its time orange (N380).","O1 -> ""an older card opens its own version, the newest the live page""
+O2 -> ""shows that Take's words""
+O3 -> ""falls back to the live page""
+O4 -> ""says which Take, leads to the latest, keeps its helper words""","Founder 2026-11-03, backend N375, N376, N380; rule 5."
 src/components/willab/instantParagraphSheet.test.tsx,Story,"As a speaker, I want a paragraph sheet to open complete and my chosen helper words to show at once, so that I never see a half-drawn sheet or wait for my own choice.","O1  Not read ahead, the sheet's data is nothing until both reads land,
 then everything at once.
 O2  A read that never lands holds the sheet for OPEN_WAIT_MS at most,
@@ -921,6 +948,11 @@ src/components/willab/noStarsOnUserSurfaces.test.ts,Guard,No component in src/co
 `Star` import in any .tsx, user lane or coach lane. A source scan on
 purpose: the star rating once lived in six separate renderers, and a
 render test only covers the surface it mounts.","star drawn -> ""NO component draws a star icon""",If removed: A star rating (a verdict) can quietly come back on any screen.
+src/components/willab/notebookPrivacy.test.tsx,Story,"As a speaker with the voice notebook, I want a short reminder to keep names and fragile things out whenever Will spots something, so that my notes stay about patterns, not secrets (backend N411).","O1  The notebook's ask comes with the mic line and the three privacy lines above it.
+O2  Under a message where Will spots something, the short line ""🔒 Security disclaimer ›""; a tap shows the three lines.
+O3  Other messages get no line; the backend's own line row (every fifth named note) is drawn as the line alone.","O1 -> introduces the notebook with the rules
+O2 -> reminds under every spotted message
+O3 -> stays quiet elsewhere",
 src/components/willab/oneProject.test.tsx,Story,"As a speaker, I want to work on one project at a time and be asked before I leave the current one, so that starting or going back to a project never mixes two presentations, and nothing is lost.","O1  ""Start a new project"" asks ""One project at a time"", naming the project
 with my newest Take; Continue archives that one, then starts the new
 project; Cancel leaves me on the list with nothing archived.
@@ -1023,7 +1055,8 @@ it until a newer Take's closing message takes it back (N167), and
 gives it up once a newer Take is recorded, in any project (N244,
 N251). It is ""Record Take N"" under the chat, alone, the message box
 gone, never inside the bubble, and a tap starts that Take (N294
-item 7, N296 state 4).
+item 7, N296 state 4). Its grey ✕ closes it and the bar is back,
+until I open the chat again (N395).
 O8  ""How do you feel?"" comes before a Take only once the plan's first
 Take is recorded (D4).
 O9  Will's ask for the plan's own yes is drawn as his bubble with Read
@@ -1042,7 +1075,7 @@ sends the answer""
 O3 -> ""a rating is sent once and never written back""
 O4 -> ""Start your first recording only after the plan card""
 O3, O6 -> ""the plan's rows are drawn as the prototype draws them""
-O7 -> ""a practice day's Record Take N is the button under the chat, alone""
+O7 -> ""a practice day's Record Take N is the button under the chat, alone, until its ✕""
 O8 -> ""the feelings before a Take""
 O9 -> ""Will asks for the plan's own yes""
 O10 -> ""nothing of the principles before my first Take""
@@ -1093,7 +1126,7 @@ throws it away""","Founder 2026-10-31 (N304): ""unify the recording pls just lik
 src/components/willab/recordingCopy.test.ts,Story,"As the founder, I want the recording screens' words fixed to the signed set with no digits or score words, so that nothing unapproved or numeric reaches the speaker.","O1  Never 4 (no new words without the founder's OK): RECORDING_COPY holds
 exactly the signed keys, typed exactly as signed.
 O2  Never 1 (no scores or numbers): no signed line carries a digit, a % or
-a score word.","O1, O2 -> ""is exactly the signed words, with no digit or score word""","Recording lock 2026-10-07 (N59, N70); the microphone line, N273. recordingWhere's ""Take N · Slide n of m"" is pinned in recordingStillFrame.test, not here."
+a score word.","O1, O2 -> ""is exactly the signed words, with no digit or score word""","Recording lock 2026-10-07 (N59, N70); the microphone line, N273; the earbuds line, N372. recordingWhere's ""Take N · Slide n of m"" is pinned in recordingStillFrame.test, not here."
 src/components/willab/recordingNoPullRefresh.test.tsx,Story,"As a speaker, I want pulling down on the recording screens never to reload the page, so that I never lose a Take.","O1  A pull down on the slide while recording is cancelled.
 O2  From ""getting your mic ready"" through the recording, the page is set
 not to pull-refresh.
@@ -1163,11 +1196,6 @@ Will's line ""New slides ready for Take 5."" and the message box comes
 back. Cancel brings the message box back with nothing sent.","O1 -> ""the ⋯ item says Add slides without a deck and Update slides with one""
 O2 -> ""a chosen PDF becomes the project's deck and the next Take's""
 O3 -> ""the chat's card stands in for the message box until the upload or Cancel""","Founder 2026-10-29, backend N257; prototype https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A."
-src/components/willab/useAdminAsk.test.tsx,Story,"As a speaker, I want a question the founder sent me from the CEO panel to come at the end of a Take, as that Take's one ask, and only once per Take, so that it never competes with recording again.","O1  It shows when a Take's message waits for it, and not before.
-O2  After a reload it is not posted again: its form opens again.
-O3  With no ask left to show, the Take's message comes at once.","O1 -> ""shows at the end of a Take whose message waits for it""
-O2 -> ""is not posted again after a reload""
-O3 -> ""lets the Take's message go when there is nothing to ask""","Founder 2026-10-18: the admin's ask was not shown in the chat; founder 2026-10-20: at the end of a Take, from Take 2, one action at a time (it no longer shows when the chat opens)."
 src/components/willab/useFailedTakeRecheck.test.ts,Story,"As a speaker, I want a ""failed"" note under my Take cleared when the server says the Take actually finished, and never a failure claimed without asking the server, so that I am not told a done Take failed and can go on to my Ideal Text and the next Take.","O1  While a failed note is on screen the hook asks the server at once and
 reports ""recovered"" when the Take is done.
 O2  The server cannot be reached: ""unknown"", never a verdict.
@@ -1223,15 +1251,24 @@ with nobody to judge, the step leaves nothing in the thread
 O9 -> on a plan, the level's moment says where this week's level shows, above the clip (G7, N209)
 O10 -> the tempo game and other speakers stay in the thread as the walk moves on to the summary (B5; the trash, N314)","Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, ""add the name at the start""; N122, ""the 3 dots loading should be at the bottom""; N119, ""3 clips (high, middle, low willfidence) from 3 different speakers""); founder 2026-10-28 (""I click next and it's gone ... should be in the walk, so that there is a continuity"")."
 src/components/willab/walk/oneThingWalk.test.tsx,Story,"As a speaker, I want the walk after each Take to show me my best moment and why it worked, then one thing to improve with the tool it needs, so that I leave every Take with one clear thing to carry into the next.","O1  The walk goes in order: ""Hi {name}."", my best with ""This was your most confident moment."" and why it worked, then ""And now, one thing to improve:"" and one fix; the Clearer version says ""Say it straight:"" and the sentence, with ""Try it"" and ""Keep mine""; no helper-word picker, no second moment and no summary in the walk.
-O2  After the fix my helper words come on their own: ""These are your helper words. …"" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2).
+O2  After the fix my helper words come on their own: ""These are your helper words. …"" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2); with no fix, my best moment's own words are my helper words, saved the same way (backend N374). With the Sniper as the fix, Skip moves the walk on at once, after a try too.
 O3  The walk ends on ""Lesson done."" with Close, which ends the review and takes me back to the chat; no ""Record Take N"" in the walk.
-O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, my answer as my own reply with a tick, then ""Got it.""; on Take 1 I judge no one.","O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
+O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after ""Try it"", my own after ""Keep mine""; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
+O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, my answer as my own reply with a tick, then ""Got it.""; after it the bar names my fix's slide again for the helper words and ""Lesson done.""; on Take 1 I judge no one.
+O6  My best's clip and the AI clip's fix show my own words above the player, as the prototype draws them; my best played again inside the fix shows none.
+O7  Skip on the fix gets the walk's answer under my ""Skip"": ""Okay, we'll skip this one."", then it goes on (backend N405).","O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
 O2 -> the helper words come on their own and are saved without a pick,
 the Clearer version's sentence is saved from its practice,
-a Clearer version past eight words is saved whole as my helper words (N323 item 2)
+a Clearer version past eight words is saved whole as my helper words (N323 item 2),
+with no fix, my best's own words are my helper words, saved without a pick (N374)
+the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does
 O3 -> Lesson done and Close end the review, back to the chat
+O7 -> the helper words come on their own and are saved without a pick
+O5 -> a try is my clip with the words I was asked to say, and nothing shows in the thread while I record
 O4 -> from Take 2, one moment of another speaker, of the Take's level, answered as my own reply,
-Take 1 judges no one","Founder 2026-10-31 (backend N309: ""apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take""; ""ok, this finally good""); 2026-11-02 (""please implement""; backend N323: ""you can allow helper words to be longer than 8 words"")."
+then the bar names the fix's slide again for the helper words and Lesson done,
+Take 1 judges no one
+O6 -> my best's clip and the AI clip's fix show my own words, my best played again shows none","Founder 2026-10-31 (backend N309: ""apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take""; ""ok, this finally good""); 2026-11-02 (""please implement""; backend N323: ""you can allow helper words to be longer than 8 words""); 2026-11-03 (backend N374: a walk with no fix left no helper words; ""go with the recommendations""); 2026-11-03 (""so it really matches the design and the prototype"": the clips' words, prototype X4gDmGfHH7ivuoRZ9ufiy9)."
 src/components/willab/walk/walkCopy.test.ts,Guard,"Every word the walk can show comes from the signed copy, and no signed walk line carries a digit.","Never 4: a literal word typed into a walk/*.tsx primitive (JSX text,
 a string child, an accessible name, title, placeholder) that is not in
 WALK_COPY or CHUNK_SHEET_COPY. Never 1: a digit in a signed walk line
@@ -1246,7 +1283,12 @@ O5  At most 3 tries, all shown together in the chat with the steps before them; 
 O6  The Exercise reaches the coach's queue the moment it is on screen, and the Lounge as the AI bubble once a clip is coming, even when I tap Practise first.
 O7  A try not yet better gets the same short bubble, opened with ""Close."" and closed with ""Try again."", with only ""Practise again"" (N120).
 O8  A voice correction with nothing to offer (no exercise, no AI clip coming) is skipped: no ""Say this one like your confident moment."" on its own, in the walk or the chat; it still reaches the coach's queue. The Take's most confident moment is not skipped: it says its own line and is said again (N109).
-O9  A praised moment is practised too: after its praise the short bubble with my AI voice and ""Your turn."", up to three tries, a Good job ends it, then its helper words; with no AI clip the praise goes straight to its helper words (N122).","O1 -> Stop shows once the mic is live, uploads through the attempts route, returns to the walk at once ... and posts /check,
+O9  A praised moment is practised too: after its praise the short bubble with my AI voice and ""Your turn."", up to three tries, a Good job ends it, then its helper words; with no AI clip the praise goes straight to its helper words (N122).
+O10 In the One thing walk, when no AI clip comes for my fix, I still get the tip in words, the exercise's instruction and ""Your turn."", and the chat says the same (N370).
+O11 I never wait long on the AI clip: after ten seconds the tip is in words, and a clip that comes later joins them as its player; once I have started my try, a clip that arrives late does not appear above it (N373).
+O12 The fix's words land like every message, and ""Say this one like your confident moment:"" only comes with my best's clip after it (N377).
+O14 In the One thing walk's fix, the phrase to lean on is bold in my own words above the clip and in the tip, and the chat gets the same phrase (founder 2026-11-03).
+O13 With an example of its own, the fix shows my best as a small ""Your confident moment"" chip; the bubbles are read aloud as they land, never the AI clip's label before it is ready; and no ""Your turn."" above ""Try it"" (N379).","O1 -> Stop shows once the mic is live, uploads through the attempts route, returns to the walk at once ... and posts /check,
 the trash throws the try away: nothing is sent, no try counted, back on the step that opened it (N314)
 O2 -> praise on try 1: the line for the reading that moved, then Next opens its helper words (N220)
 O3 -> a clearer version's not yet brings the AI version of their voice ..., good energy on the clearer words is a Good job with no AI clip
@@ -1255,7 +1297,12 @@ O5 -> shows the whole history at once, offers only ... Practise again until the 
 O6 -> the Exercise reaches the coach's queue at once and the chat as the AI bubble, even when Practise is tapped first
 O7 -> a try not yet better gets the same short bubble, opened with “Close.” and closed with “Try again.”, with only Practise again (N120)
 O8 -> with no exercise and no AI clip coming, it is walked as a good moment, never skipped: its helper words, no Line A alone, and the coach's queue still hears it; the Take's most confident moment with nothing to offer says its own line and is said again
-O9 -> a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122), with no AI clip the praise goes straight to its helper words (N122)","Never-rule 1 (no scores to speakers); founder 2026-10-31 (N314, ""Can you make it locked everywhere?""); 2026-11-02 (N350 item 5, ""Stop once the mic is live, in both""); founder 2026-10-21 (N108, ""Skip that moment""); 2026-10-23 (N120, ""make it shorter focused on one only thing""; N122, ""do we practice the confident moments? I think yes we should!""); 2026-10-30 (N284, ""Treat as good"")."
+O9 -> a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122), with no AI clip the praise goes straight to its helper words (N122)
+O10 -> says the tip in words, the exercise's instruction and “Your turn.”, in the walk and the chat alike
+O11 -> a clip still being made after the wait gives way to the tip in words ..., a clip that comes once the try has begun never lands above it (N373 item 2)
+O12 -> says the tip in words ... (lands with the bubble motion), with no clip of their best, no line ending on a colon, in the walk or the chat (N377 item 2)
+O13 -> says the tip in words and the exercise's instruction, with no “Your turn.” above Try it ... (live region, no chip), a clip still being made after the wait ... (the chip, the label read once ready)
+O14 -> bolds the phrase to lean on in my words and in the tip, and tells the chat the phrase","Never-rule 1 (no scores to speakers); founder 2026-10-31 (N314, ""Can you make it locked everywhere?""); 2026-11-02 (N350 item 5, ""Stop once the mic is live, in both""); founder 2026-10-21 (N108, ""Skip that moment""); 2026-10-23 (N120, ""make it shorter focused on one only thing""; N122, ""do we practice the confident moments? I think yes we should!""); 2026-10-30 (N284, ""Treat as good"")."
 src/components/willab/walk/walkReplay.test.tsx,Story,"As a speaker, I want a finished walk opened again to be one scroll of everything I went through, with my answers and no buttons, nothing written or recorded again, so that I can look back safely.","O1  Opened again, the whole walk is one scroll with my answers in it, and no buttons and no Next under it; nothing is written (N259).
 O2  A done exercise shows my past tries and records nothing new.
 O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.
@@ -1367,11 +1414,15 @@ O4  The phone's screen stays on while the Take records, so it cannot lock
 and cut the mic off; it may lock again once the Take ends.
 O5  A Stop tapped while the mic is still opening is kept: the mic goes off
 the moment it opens, no recording starts, and an empty try is handed
-over, so the mic is never left on.","O1 -> records at once on start
+over, so the mic is never left on.
+O6  A Take recorded through earbuds is remembered, so ""Getting your mic
+ready"" before the next one can say the built-in mic sounds better
+(N372); the built-in mic clears it.","O1 -> records at once on start
 O2 -> hands over a real take on stop and releases the stream
 O3 -> hands over the take at once when the audio comes late and Finish is tapped twice
 O4 -> keeps the screen awake while recording and lets it lock after
-O5 -> a stop while the mic is opening leaves the mic off",Never-rule 3 (never break record → process → Ideal Text).
+O5 -> a stop while the mic is opening leaves the mic off
+O6 -> remembers a Take recorded through earbuds",Never-rule 3 (never break record → process → Ideal Text).
 src/lib/api/bffFetch.test.ts,Story,"As a developer, I want every call to our own server routes to carry the sign-in token and to report ""no connection"" separately from a server answer, so that screens handle being offline correctly.","O1  The call carries the sign-in token and only the options it was given.
 O2  A dropped connection comes back as ""network"", never as a server answer.","O1 -> sends the Bearer header and only the options it was given
 O2 -> reports a thrown fetch as network, never as a response",
@@ -1560,6 +1611,11 @@ O4  The ladder shows each step with its date, leaves out what I skipped, and sho
 O2 -> applies the four-week rule
 O3 -> aims the quarter at the step above
 O4 -> draws the ladder with dates, changes and gaps",
+src/lib/willab/liveStream.test.ts,Story,"As someone saying a voice note, I want its words to appear as I say them, so that I see at once that I am heard.","O1  Phrases show in the order they were said; a phrase stays lighter
+until its whole is heard, even when the provider finishes a later
+one first.
+O2  The voice is sent at the rate the provider's key names.","O1 -> ""keeps phrases in the order said and the unheard ones current""
+O2 -> ""sends the voice at the provider's rate""","Backend N396 (amends N199 item 2): the words stream, well under a second behind the voice."
 src/lib/willab/markedEditorSerialize.test.ts,Story,"As a speaker, I want opening and saving my Ideal Text without changes to send back exactly the text I received, so that my document is never silently rewritten.","O1  The real editor paints the document, and reading it back gives the same
 bytes, for every marker grammar (bold, underline, italic, accent,
 moment, paragraphs). Never-5: the Ideal Text stays what the speaker
@@ -1613,14 +1669,16 @@ O4  The step closes ""dynamic"" once a try was better and the last was not rushe
 O5  The step runs on the backend's stretch only when its answer is whole; anything else means no tempo step. On a plan it names this week's pace level (N289).
 O6  A try lands only when it runs 20 s from the first word with the ball four fifths in the green; then Will says so and the game ends (N245).
 O7  A try that came closer gets a push for one more while a try is left; otherwise its comment alone (N245).
-O8  As the One thing walk's fix, the Sniper has two tries and says the walk's own words (N309).","O1 -> ""comes right after the practise moments, before other speakers"", ""leaves the walk unchanged when the Take has no intervention""
+O8  As the One thing walk's fix, the Sniper has two tries and says the walk's own words (N309).
+O9  The stretch plays as the speaker's own clip, the words marked above its player, as the locked prototype draws it; with no audio, the words alone.","O1 -> ""comes right after the practise moments, before other speakers"", ""leaves the walk unchanged when the Take has no intervention""
 O2 -> ""is never in the coach-only walk or a guest's""
 O3 -> ""reads a try from where the ball stayed""
 O4 -> ""closes on one line from the tries""
 O5 -> ""takes the backend's stretch only when it is whole""
 O6 -> ""lands a try only when it is long and green""
 O7 -> ""pushes for one more only when a try came closer and one is left""
-O8 -> ""as the one fix, two tries in the walk's own words""","Founder 2026-10-26 (backend N162: ""in the feedback walk only""; N166: ""go with the defaults""); founder 2026-10-28 (backend N245: ""If it was really better, you let me go to the next step""); founder 2026-10-30 (backend N289 item 8); Never-rule 1."
+O8 -> ""as the one fix, two tries in the walk's own words""
+O9 -> ""plays the stretch as the speaker's own clip""","Founder 2026-10-26 (backend N162: ""in the feedback walk only""; N166: ""go with the defaults""); founder 2026-10-28 (backend N245: ""If it was really better, you let me go to the next step""); founder 2026-10-30 (backend N289 item 8); Never-rule 1."
 src/lib/willab/trackedChanges.test.ts,Story,"As a speaker, I want a suggestion whose words have moved to be dropped rather than painted on the wrong words, so that strike-throughs always mark what I said.","O1  A suggestion whose span still holds its quote is kept.
 O2  A stale span is dropped, never re-anchored by searching for the quote.","O1 -> ""KEEPS a span whose words are still there""
 O2 -> ""DROPS a stale span rather than re-anchoring by search (FE-5)""",FE-5: re-finding a moved quote struck the wrong words.
@@ -1637,7 +1695,7 @@ O3  Every moment has a practice step, even with nothing attached.
 O4  A praised moment the server does not mark for practice, or with practice off, goes straight to its helper words (N122).
 O5  Each moment after the first opens with ""let's look at your next key moment"", and the first step after the last moment with ""These were some real good moments of yours""; never in the coach's own walk (N285).
 O6  A Take served with slots is the One thing walk: their best (praise, nothing to practise), one fix with the tool it needs (the Clearer version first, else the AI clip on the weakest), from Take 2 one moment of another speaker, the helper words on their own, then ""Lesson done.""; no picker, no second moment, no summary; a Take served before them keeps praise first (N309).
-O7  With no moment to fix and the tempo step there, the Sniper is the one fix; with a moment to fix, no tempo step (N309).
+O7  With no moment to fix and the tempo step there, the Sniper is the one fix; with a moment to fix, no tempo step (N309); with neither, my best still leaves its helper words (N374).
 O8  The One thing walk's fix allows two tries: a second miss ends it (N309).","O1 -> carries no number, read or score
 O2 -> praises each strong moment, practises each corrected one, and never asks the speaker to judge
 O3 -> a moment with nothing attached is the moment said again
@@ -1645,7 +1703,7 @@ O4 -> a praised moment not marked for practice, or with practice off, goes strai
 O5 -> the next moment and the end of the moments each get their line, once
 O6 -> their best, one fix with its tool, one judged moment from Take 2, the helper words, then Lesson done
 O7 -> with no moment to fix, the Sniper on this week's level is the one fix
-O8 -> a second miss ends the fix","Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, ""do we practice the confident moments? I think yes we should!""); 2026-10-30 (N285, ""let's look at your next key moment we spotted""; N289, ""First, show the strongest, then the weakest, and then the average""); 2026-10-31 (N309, ""apply to it the one thing walk"")."
+O8 -> a second miss ends the fix","Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, ""do we practice the confident moments? I think yes we should!""); 2026-10-30 (N285, ""let's look at your next key moment we spotted""; N289, ""First, show the strongest, then the weakest, and then the average""); 2026-10-31 (N309, ""apply to it the one thing walk""); 2026-11-03 (N374, ""go with the recommendations"")."
 src/lib/willab/walkPractise.test.ts,Story,"As a speaker practising, I want each try answered with a line in words for what changed, never a number, so that I hear progress without a score.","O1  The ""not yet"", ""better"" and ""thanks"" lines come from the approved wording and contain no digits.
 O2  A try the server could not hear is a step that says so, in place of the machine's answer (founder, signed 2026-10-21).
 O3  The One thing walk's fix: a try that lands says ""Yes. That's it.""; one miss ""Close. Once more."" with a try left; a second miss ""Good try. Take it with you."" and no third try (N309).","O1 -> each try's line is the one for the reading that moved, never a number

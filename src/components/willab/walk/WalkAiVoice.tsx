@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { phrasePieces } from "@/lib/willab/walkLines";
 import { WALK_COPY } from "../idealEditCopy";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "../TypingDots";
 import WalkMessage from "./WalkMessage";
@@ -135,9 +136,63 @@ export function aiVoiceComing(
 export const aiTipKnown = (state: AiVoiceState | undefined): boolean =>
   state?.clip?.state !== "pending" || Boolean(state.clip.problem);
 
+/** How long the One thing walk's fix waits on a clip still being made
+ *  before it says the tip in words (N373 item 1). */
+export const AI_CLIP_WAIT_MS = 10_000;
+
+/** When each fix began waiting, and the ones that waited out, in this
+ *  page's life: a screen drawn again keeps the wait it had. */
+const waitStarted = new Map<string, number>();
+const waitedOut = new Set<string>();
+
+/** The fix's clip took longer than AI_CLIP_WAIT_MS (N373 item 1): true
+ *  once the wait ran out while the clip was still `pending`, and from then
+ *  on, so a clip that comes later joins the words and never replaces
+ *  them. A clip ready in time never waits out. */
+export function useClipWait(seed: string, pending: boolean, waitMs: number = AI_CLIP_WAIT_MS): boolean {
+  const [out, setOut] = useState(() => waitedOut.has(seed));
+  useEffect(() => {
+    if (out || !pending) return;
+    const started = waitStarted.get(seed) ?? Date.now();
+    waitStarted.set(seed, started);
+    const timer = setTimeout(() => {
+      waitedOut.add(seed);
+      setOut(true);
+    }, Math.max(0, started + waitMs - Date.now()));
+    return () => clearTimeout(timer);
+  }, [seed, pending, out, waitMs]);
+  return out;
+}
+
+/** The fix's clips the speaker saw before their first try, in this page's
+ *  life (N373 item 2): only those stay once the try has begun. */
+const seenBeforeTry = new Set<string>();
+
+/** The fix's clip may show: always before the first try, and after it only
+ *  when it was already there (N373 item 2: a clip that comes late would
+ *  land above the try, out of sight). */
+export function useClipBeforeTry(seed: string, ready: boolean, tried: boolean): boolean {
+  const seen = ready && !tried;
+  useEffect(() => {
+    if (seen) seenBeforeTry.add(seed);
+  }, [seen, seed]);
+  return !tried || seenBeforeTry.has(seed);
+}
+
 /** The bubbles that already landed in this page's life: a screen drawn
  *  again (the stage's leaving copy, ‹ and ›) shows its bubble at once. */
 const landed = new Set<string>();
+
+/** A bubble lands with the walk's motion the first time it is drawn in this
+ *  page's life; drawn again (‹ ›, the stage's leaving copy) it is there at
+ *  once (N377 item 1). Read once, as the bubble mounts. */
+export function useLandsOnce(seed: string): boolean {
+  const [lands] = useState(() => !landed.has(seed));
+  useEffect(() => {
+    landed.add(seed);
+  }, [seed]);
+  return lands;
+}
 
 /** The two beats of the Exercise bubble's arrival: the typing dots alone,
  *  then the bubble, once per seed. */
@@ -161,6 +216,7 @@ export default function WalkAiVoice({
   lead,
   line,
   then,
+  bold = null,
   arrive = false,
   onPlay,
 }: {
@@ -171,15 +227,21 @@ export default function WalkAiVoice({
   state: AiVoiceState | undefined;
   line: string;
   then?: string;
+  /** The One thing walk's fix: the phrase bold in `line` (founder 2026-11-03). */
+  bold?: string | null;
   /** The Exercise screen: the typing dots first, then the bubble lands. */
   arrive?: boolean;
   onPlay?: () => void;
 }) {
   const clip = state?.clip;
   const shown = useArrival(seed, arrive);
+  // No clip ready, nothing read aloud of it: the dots are hidden from
+  // assistive tech and the label is read once the player is there (N379
+  // item 2).
+  const ready = clip?.state === "ready" && Boolean(clip.url);
   if (!shown) {
     return (
-      <div data-walk-ai-typing className="flex">
+      <div data-walk-ai-typing aria-hidden="true" className="flex">
         <TypingDots label={WALK_COPY.aiVoiceLabel} />
       </div>
     );
@@ -188,8 +250,8 @@ export default function WalkAiVoice({
     <WalkMessage wide className={arrive ? "walk-bubble-in" : undefined}>
       {title ? <span>{title}</span> : null}
       {lead ? <span>{lead}</span> : null}
-      {line ? <span>{line}</span> : null}
-      <span data-walk-ai-voice className="mt-2 flex items-center gap-[7px] text-[14px] font-semibold">
+      {line ? <span>{phrasePieces(line, bold).map((p, i) => (p.bold ? <strong key={i} data-walk-phrase>{p.text}</strong> : p.text))}</span> : null}
+      <span data-walk-ai-voice aria-hidden={ready ? undefined : true} className="mt-2 flex items-center gap-[7px] text-[14px] font-semibold">
         <span
           aria-hidden
           className="inline-flex h-[17px] w-[17px] items-center justify-center rounded-[5px] bg-foreground text-[9.5px] font-bold text-background"
@@ -198,7 +260,7 @@ export default function WalkAiVoice({
         </span>
         {WALK_COPY.aiVoiceLabel}
       </span>
-      {clip?.state === "ready" && clip.url ? (
+      {ready && clip?.url ? (
         <div onClickCapture={onPlay} className="mt-2">
           <WalkPlayer look="bare" seed={seed} src={clip.url} durationMs={clip.durationMs} label={WALK_COPY.aiVoiceLabel} />
         </div>

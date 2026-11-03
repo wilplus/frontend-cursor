@@ -5,6 +5,7 @@ import DeckSlidePreview from "./DeckSlidePreview";
 import { useAfterChatBoot } from "@/lib/chatBoot";
 import { useNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
 import { warmIdealTextOpen } from "@/services/api/idealText";
+import { warmPastIdealText } from "@/lib/willab/pastIdealText";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextCard — a Take's one Ideal Text bubble in the chat (founder        */
@@ -36,7 +37,8 @@ export default function IdealTextCard({
 }) {
   const fresh = useNewCoachFeedback(arcId);
   // A press starts the read the opened page needs, before the tap lands.
-  const card = { title, version, slideRef, onWarm: () => warmIdealTextOpen(arcId) };
+  // An older card opens its own version, so it starts that read (N375).
+  const card = { title, version, slideRef, onWarm: () => (latest ? warmIdealTextOpen(arcId) : warmPastIdealText(arcId)) };
   // ONE CARD (founder 2026-10-20, replacing the second bubble of
   // 2026-10-14): while the coach's feedback waits, the project's latest card
   // itself wears the orange stroke and the dot and opens the walk on it.

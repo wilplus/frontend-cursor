@@ -11,6 +11,7 @@
 /*  Words only, never a number (Never 1).                                     */
 /* -------------------------------------------------------------------------- */
 
+import type { WalkClip } from "./feedbackWalkModel";
 import { ONE_THING_COPY } from "@/components/willab/idealEditCopy";
 import { zoneLevel } from "./pace/paceSignal";
 
@@ -46,6 +47,10 @@ export type TempoStretch = {
    *  8): the step opens with "This week's level: {level}. Here's where it
    *  shows:". */
   planLevel?: string | null;
+  /** The speaker's own voice for the stretch, signed as the walk's moments'
+   *  are (backend `tempo_stretch.with_clip`); none without audio, and the
+   *  bubble is then the words only. */
+  clip?: WalkClip | null;
 };
 
 /** One try, as the step reads it from the dot's path. */
@@ -64,7 +69,7 @@ export type TempoPlayed = { result: TempoTry; path: number[]; landed: boolean };
 export type TempoEvent =
   | { kind: "opened" }
   | ({ kind: "try"; n: number } & TempoPlayed)
-  | { kind: "ended"; tries: TempoPlayed[]; close: TempoClose | null };
+  | { kind: "ended"; tries: TempoPlayed[]; close: TempoClose | null; /** Ended by the speaker's Skip, after a try too (N405). */ skipped?: boolean };
 
 /** The try from the first word on: the quiet before it is not the pace. */
 function spoken(path: readonly number[]): readonly number[] {
@@ -153,6 +158,9 @@ export const TEMPO_COPY = {
   next: "Next",
   tryLabel: (n: number) => `Try ${n}`,
   scale: "The pace scale",
+  /** Under the scale, left to right (backend N405, signed 2026-11-03; the
+   *  prototype's "slow · just right · fast" rewritten). */
+  ends: ["too slow", "just right", "too fast"],
   blocked: "The microphone is blocked. Allow it for this site in the browser's settings, then try again.",
   comment: {
     ok: "Better. You let it breathe.",

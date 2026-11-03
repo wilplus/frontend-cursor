@@ -61,6 +61,8 @@ import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports"
 import { FLOW_COPY } from "./flowCopy";
 import { PROCESSING_STAGES } from "./ProcessingWait";
 import type { IdealTextLaunchMode } from "./IdealTextOverlay";
+import { resolvePastIdealText, type IdealTextPast } from "@/lib/willab/pastIdealText";
+import type { IdealTextRevision } from "@/services/api/blockVariants";
 import { lensAddress } from "@/lib/willab/lensScreen";
 import { startOpenTrace } from "@/lib/willab/openTrace";
 import { chatDrawsStep, chatWalks, doorOf, feedbackWalkDoor, inPairs, latestShareLine, shareLines, walkPairs, type ChatWalk, type ShareLineChange } from "@/lib/willab/walkThread";
@@ -80,36 +82,26 @@ import { isLabOverlay, type WillabEvent, type WillabState } from "./useWillabFlo
 import { useUserProfile } from "./useUserProfile";
 import { TopUpBubble, TopUpSlot, useTopUpOffer } from "./LoungeTopUpCard";
 import {
-  useInstallOffer,
-  InstallOfferActions,
-  type InstallOffer,
-} from "./WillabInstallPrompt";
-import {
   useWhatsAppOffer,
   WhatsAppOfferActions,
   type WhatsAppOffer,
 } from "./WillabWhatsAppPrompt";
 import { useRouter } from "next/navigation";
-import SymmetricPair from "./SymmetricPair";
 import { offersUpdateSlides, SlidesAskComposer, SlidesAskSlot, useSlidesAsk } from "./UpdateSlides";
 import { NewProjectAskComposer, NewProjectAskSlot, useNewProjectAsk } from "./OneProjectQuestion";
-import { useAdminAsk } from "./useAdminAsk";
+import NoticeBar from "./NoticeBar";
 import {
   afterGoodbye,
   afterTakeOrder,
   askShowing,
-  askToOpen,
   CONTINUE_PRACTICE,
   heldFor,
   heldMessage,
-  heldTake,
-  waitingFor,
   wantsToPractise,
 } from "./afterTake";
-import { postAfterTake, postLoungeVisit } from "@/services/api/afterTake";
-import { installableNow, setInstallable } from "@/lib/willab/installable";
-import { ConsentAskActions } from "./ConsentAsk";
+import { postAfterTake } from "@/services/api/afterTake";
 import OfferBubble from "./OfferBubble";
+import { NotebookIntro, PrivacyLine, isNotebookAsk, isPrivacyLineRow, isSpotted } from "./NotebookPrivacy";
 import {
   PolicyUpdateBubble,
   PolicyUpdateComposer,
@@ -164,9 +156,9 @@ import {
 } from "./LoungeStrengths";
 import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
-import WillQuestionBubble, { TapRow, useSomethingElse, willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
+import WillQuestionBubble, { AnswerPair, TapRow, useSomethingElse, willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
 import { isWillVoice, useWillVoice, WillVoiceBubble } from "./WillVoiceAnswer";
-import { RecordTakeButton } from "./plan/PlanDock";
+import { RecordTakeButton, useRecordTake } from "./plan/PlanDock";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -196,6 +188,24 @@ const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOver
 // their chunks once the thread is in, so a tap finds them ready.
 const IdealTextOverlay = dynamic(() => import("./IdealTextOverlay"), { ssr: false });
 const WalkOverlay = dynamic(() => import("./walk/WalkOverlay"), { ssr: false });
+// An older Take's card (N375); a press on one warms it (pastIdealText).
+const IdealTextPastVersion = dynamic(() => import("./IdealTextPastVersion"), { ssr: false });
+
+/** The page a card opened: an older Take's own version, or (none) the live
+ *  page given as children (backend N375). */
+function IdealTextPastOr({
+  shown,
+  onClose,
+  onLatest,
+  children,
+}: {
+  shown: { revision: IdealTextRevision; past: IdealTextPast; latestTake: number | null } | null;
+  onClose: () => void;
+  onLatest: () => void;
+  children: ReactNode;
+}) {
+  return shown ? <IdealTextPastVersion {...shown} onClose={onClose} onLatest={onLatest} /> : <>{children}</>;
+}
 const LifeChatCard = dynamic(
   () => import("@/components/life/LifeChatLayer").then((m) => m.LifeChatCard),
   { ssr: false },
@@ -291,7 +301,7 @@ function IdealTextForReader({
   askFirst: boolean;
   onSignUp: () => void;
   onNotNow: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   // The wall's one moment (backend N273 item 5): the Take's most confident.
   const moment = useWallMoment(arcId, askFirst);
@@ -383,7 +393,7 @@ export default function Lounge({
   useEffect(() => afterChatBoot(warmOverlays), []);
   const [botThinking, setBotThinking] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  // F2/F7 — the offer (install / legacy joke) whose action pair is open in
+  // F2/F7 — the offer (one of Will's asks) whose action pair is open in
   // the footer (replacing the record button). null → the record button shows.
   // The offers themselves persist as thread bubbles (loungeOffers); this only
   // tracks which one is currently "armed".
@@ -564,11 +574,29 @@ export default function Lounge({
     setLibraryOpen(true);
   }
 
+  /** An older Ideal Text card: its own version, read only (founder
+   *  2026-11-03, backend N375). The newest version opens the live page. */
+  function openPastIdealText(arcId: string, past: IdealTextPast): void {
+    // Which page opens is known before either is drawn: one screen per tap.
+    void resolvePastIdealText(arcId, past).then((opened) => {
+      if (opened.kind === "past") {
+        setIdealTextPast({ revision: opened.revision, past, latestTake: opened.latestTake });
+        setIdealTextArcId(arcId);
+        return;
+      }
+      openIdealText(arcId);
+      // Its words were not kept: the page says so (N380).
+      setIdealTextNotice(opened.notice);
+    });
+  }
+
   function openIdealText(
     arcId: string,
     mode: IdealTextLaunchMode = "notebook",
     at: WalkStepTarget | null = null,
   ): void {
+    setIdealTextPast(null);
+    setIdealTextNotice(null);
     startOpenTrace(at?.step ? `${mode}, step ${at.step}` : mode);
     setIdealTextReviewAt(at);
     openedNewCoachFeedback(arcId);
@@ -654,10 +682,6 @@ export default function Lounge({
     return () => clearTimeout(t);
   }, [thread.loading, messages.length]);
 
-  // F2 — install affordance primitives (platform + dismiss state). Drives both
-  // whether to surface the install offer and the footer action pair.
-  const install = useInstallOffer();
-
   // FE-4 — the "practice mode" state that made the record CTA read "Record the
   // next take" and skip the project choice is gone with the shortcut it drove.
   // A cached arc says where the LAST take went, which is not an answer to
@@ -681,6 +705,8 @@ export default function Lounge({
   const [idealTextReviewAt, setIdealTextReviewAt] = useState<WalkStepTarget | null>(null);
   const [idealTextLaunchMode, setIdealTextLaunchMode] =
     useState<IdealTextLaunchMode>("notebook");
+  const [idealTextPast, setIdealTextPast] = useState<{ revision: IdealTextRevision; past: IdealTextPast; latestTake: number | null } | null>(null);
+  const [idealTextNotice, setIdealTextNotice] = useState<string | null>(null);
   const [idealTextCoachTake, setIdealTextCoachTake] = useState<string | null>(null);
   const [confidencePracticeId, setConfidencePracticeId] = useState<
     string | null
@@ -1114,6 +1140,8 @@ export default function Lounge({
   // 4): no push to the next Take; the tap under the goodbye, then "Record
   // Take N" alone under the chat (`useGoodbye`).
   const goodbye = useGoodbye({ messages, oneHoldsRecord: plan.oneHoldsRecord, planOne: plan.one, olderTake, append: thread.append });
+  // Its ✕ gives the bar back for that Take (N395).
+  const recordTake = useRecordTake(goodbye.recordNext);
 
   const closeProcessingOverlay = useCallback(() => {
     setOpenedProcessingSessionId(null);
@@ -1290,7 +1318,7 @@ export default function Lounge({
     // thread stays visible but inert.
     if (type === "joke") return;
     const rank: Record<OfferType, number> = {
-      joke: 2, install: 1, consent: 1, promo: 1, lesson: 1, whatsapp: 0, feedback_check: 0,
+      joke: 2, whatsapp: 0, feedback_check: 0,
       voice_notebook: 0, sunday_note: 0, life_goals: 0, life_goals_quarter: 0, life_goals_change: 0,
       sales_step: 0, your_why: 0, strengths: 0,
     };
@@ -1330,8 +1358,8 @@ export default function Lounge({
   }
 
   // The settle stamp: a recording_summary minted AFTER the thread settled is
-  // the "just recorded this session" signal (consumed by the install offer
-  // below). The joke onboarding that used to arm here is deleted (SD/FE-4).
+  // the "just recorded this session" signal. The joke onboarding and the
+  // install offer that used to arm here are deleted (SD/FE-4, N391).
   const settleTimeRef = useRef<string | null>(null);
   // FE-4 fix — a synchronous in-flight guard for runSend. botThinking only arms
   // AFTER the awaited user-turn append (a network POST when signed in), leaving
@@ -1360,57 +1388,6 @@ export default function Lounge({
       lettingGoRef.current = false;
     }
   }, [thread, reload]);
-  // The home screen may be a Take's one ask: the summary request says so.
-  useEffect(() => setInstallable(install.canOffer), [install.canOffer]);
-
-  // Step 2 (founder 2026-10-13): an ask the admin sent this person shows at
-  // the end of a Take, from Take 2, as its one ask (founder 2026-10-20).
-  const waitingForAdmin = waitingFor(waiting, "admin");
-  const adminAsked = useMemo(() => {
-    if (!waitingForAdmin) return null;
-    const bubble = messages.find((m) => m.metadata?.after_take === waitingForAdmin);
-    return bubble ? readOfferType(bubble.metadata) : null;
-  }, [messages, waitingForAdmin]);
-  const adminAsk = useAdminAsk({
-    threadLoading: thread.loading,
-    append: thread.append,
-    installCanOffer: install.canOffer,
-    openOffer,
-    waitingId: waitingForAdmin,
-    waitingTake: heldTake(waiting),
-    asked: adminAsked,
-    letGo: () => void letGo(),
-  });
-
-  // F2 — surface the install offer once, post-send, on an installable platform,
-  // to a guest. Signed in, the home screen is a Take's one ask at its end
-  // instead (founder 2026-10-20, afterTake.ts). Gated on a FRESH in-session
-  // recording (a recording_summary minted after the settle stamp) so a plain
-  // reload / status reconcile that lands on review_pending never auto-opens
-  // it. hasOffer (+ the ref) dedups the append.
-  const installHandledRef = useRef(false);
-  useEffect(() => {
-    if (thread.loading || settleTimeRef.current === null || thread.signedIn) return;
-    if (state !== "review_pending" || !install.canOffer) return;
-    if (installHandledRef.current || hasOffer(messages, "install")) return;
-    const settle = settleTimeRef.current;
-    const freshSend = messages.some(
-      (m) => m.kind === "recording_summary" && m.client_created_at > settle,
-    );
-    if (!freshSend) return;
-    installHandledRef.current = true;
-    void thread.append(offerDraft("install"));
-    openOffer("install");
-  }, [
-    state,
-    install.canOffer,
-    thread.loading,
-    thread.signedIn,
-    messages,
-    thread.append,
-    openOffer,
-  ]);
-
   // WIL-74 — the question after a Take's summary opens its pair while it is
   // the newest message, once per Take; the record button is back on a tap.
   const feedbackArmedRef = useRef<string | null>(null);
@@ -1428,35 +1405,6 @@ export default function Lounge({
   const whatsapp = useWhatsAppOffer({ append: thread.append });
   const slidesAsk = useSlidesAsk();
   const newProjectAsk = useNewProjectAsk();
-
-  // A Take's WhatsApp or home-screen ask opens its form by itself, once
-  // (founder 2026-10-20: the ask is the one thing to do). A home screen this
-  // device cannot add is passed at once.
-  const askOpenedRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (threadLoading) return;
-    const ask = askToOpen(drawn);
-    if (!ask || askOpenedRef.current === ask.id) return;
-    askOpenedRef.current = ask.id;
-    if (ask.type === "install" && !install.canOffer) {
-      if (waiting) void letGo();
-      return;
-    }
-    openOffer(ask.type);
-  }, [threadLoading, drawn, install.canOffer, waiting, letGo, openOffer]);
-
-  // SETTINGS ASKS WAIT FOR THE NEXT VISIT (founder 2026-10-31, N294 item 8,
-  // N295): once a visit, when the thread has loaded, the backend may write
-  // the one settings ask that waited (WhatsApp, then the home screen; never
-  // after a Take, never before the second); its form opens by itself, as
-  // above. A visit is the tab's session.
-  const visitedRef = useRef(false);
-  useEffect(() => {
-    if (threadLoading || !thread.signedIn || visitedRef.current) return;
-    visitedRef.current = true;
-    if (!newVisit()) return;
-    void postLoungeVisit(installableNow()).then((wrote) => (wrote ? reload().catch(() => undefined) : undefined));
-  }, [threadLoading, thread.signedIn, reload]);
 
   // The founder's voice notebook (Will learning plan, step 1, 2026-10-20).
   const notebook = useVoiceNotebook({
@@ -1479,7 +1427,7 @@ export default function Lounge({
 
   // A message still waiting while no ask is in front of the speaker would
   // never show (a typed turn the backend could not store, say): let it go,
-  // once per message. The CEO panel's ask decides for itself (useAdminAsk).
+  // once per message.
   const unstuckRef = useRef<string | null>(null);
   useEffect(() => {
     if (threadLoading || botThinking || !waiting || heldFor(waiting) === "admin") return;
@@ -1758,6 +1706,7 @@ export default function Lounge({
         onOpenOlder={setOlderReview}
         onOpened={() => setSeenUpdates(keepSeenUpdate(item.message))}
         onOpenIdealText={openIdealText}
+        onOpenPastIdealText={openPastIdealText}
       />
     ) : isSummaryLike(item.message.metadata) ? (
       <SummaryBubble key={item.reactKey} message={item.message} />
@@ -1785,6 +1734,7 @@ export default function Lounge({
             : (target) => openIdealText(target.arcId)
         }
         onOpenIdealText={openIdealText}
+        onOpenPastIdealText={openPastIdealText}
         planRows={plan.rows}
         latestForArc={latestIdealIds.has(item.message.client_id)}
         onRetryIdealText={retryIdealTextFromCard}
@@ -1830,6 +1780,9 @@ export default function Lounge({
           }}
         />
       </div>
+      {/* Notifications: one at a time, in a bar at the top, never in the
+          buttons under the chat (founder 2026-11-03, backend N391). */}
+      <NoticeBar signedIn={thread.signedIn} whatsapp={whatsapp} />
       {/* Founder 2026-07-30 — the status region above the thread is GONE, and
           with it the last top banner. U5 moved the sent confirmation into the
           thread and U6 did the same for insights ready; the parked card was
@@ -1961,6 +1914,10 @@ export default function Lounge({
         replaced={replacedWords}
         newWords={olderNewWords}
         onClose={() => setOlderReview(null)}
+        onOpenPastIdealText={(arc, past) => {
+          setOlderReview(null);
+          openPastIdealText(arc, past);
+        }}
       />
       {processingResume?.status === "failed" ? (
         <p className="mb-1.5 flex items-center justify-center gap-2 rounded-full bg-destructive/10 px-4 py-1.5 text-center text-[13px] text-destructive">
@@ -1998,12 +1955,7 @@ export default function Lounge({
       {activeOffer ? (
         <OfferActions
           type={activeOffer}
-          install={install}
           whatsapp={whatsapp}
-          onConsentOpen={adminAsk.opened}
-          consentKey={adminAsk.consentKey}
-          onConsentAnswered={adminAsk.answered}
-          bookHref={adminAsk.bookHref}
           onFeedbackCheck={(choice) => {
             const target = feedbackCheckTarget(messages, "ask");
             if (target) void answerFeedbackCheck(target, choice);
@@ -2126,12 +2078,17 @@ export default function Lounge({
       {/* The chat's one "Record Take N" (N294 item 7, N296 state 4): the
           next Take after the goodbye, or a practice day's (the-plan.md G6);
           the plan's black button with the red dot, alone, the message box
-          and the mic gone. */}
-      <RecordTakeButton next={goodbye.recordNext} held={takeInFlight} onRecord={(arc) => openIdealText(arc, "share")} />
+          and the mic gone, until its grey ✕ closes it (N395). */}
+      <RecordTakeButton
+        next={recordTake.next}
+        held={takeInFlight}
+        onRecord={(arc) => openIdealText(arc, "share")}
+        onClose={recordTake.close}
+      />
       {/* Hidden whole while the plan's footer, or the next Take's button,
           stands in for it, so its empty wrapper adds no gap under it
           (founder 2026-10-30). */}
-      <div className={hiddenWhile(goodbye.recordNext, plan.composerDisplay("contents"))}>
+      <div className={hiddenWhile(recordTake.next, plan.composerDisplay("contents"))}>
       <NewProjectAskComposer ask={newProjectAsk}>
       <SlidesAskComposer ask={slidesAsk}>
       <PolicyUpdateComposer>
@@ -2243,9 +2200,18 @@ export default function Lounge({
           onSignUp={() => signUpForIdealText(idealTextArcId)}
           onNotNow={() => setIdealTextArcId(null)}
         >
+        <IdealTextPastOr
+          shown={idealTextPast}
+          onClose={() => {
+            setIdealTextPast(null);
+            setIdealTextArcId(null);
+          }}
+          onLatest={() => openIdealText(idealTextArcId)}
+        >
         <IdealTextOverlay
           arcId={idealTextArcId}
           initialMode={idealTextLaunchMode}
+          notice={idealTextNotice}
           coachTake={idealTextCoachTake}
           reviewAt={idealTextReviewAt}
           // W4/W5 — while a take is in flight (EITHER phase: analysing, or
@@ -2264,6 +2230,7 @@ export default function Lounge({
             setIdealTextArcId(null);
             setIdealTextLaunchMode("notebook");
             setIdealTextCoachTake(null);
+            setIdealTextNotice(null);
           }}
           // SD — "Read it aloud": the re-read is just another recording. Seed
           // THIS presentation (only when the cache holds a different arc; the
@@ -2287,6 +2254,7 @@ export default function Lounge({
             (onStartInProject ?? onStart)();
           }}
         />
+        </IdealTextPastOr>
         </IdealTextForReader>
       )}
       {confidencePracticeId && (
@@ -2375,30 +2343,12 @@ function ActionButton({
 
 /** The footer action pair for the currently-armed offer — it replaces the
  *  record button. The matching prompt bubble already lives in the thread; here
- *  we only render the grey/orange pair (install delegates to its platform-aware
- *  actions) and call onResolve to return the record button once the user picks. */
-/** Offers the iPhone app does not draw (backend N365). */
-const APP_HIDDEN_OFFERS: ReadonlySet<OfferType> = new Set<OfferType>(["promo", "install"]);
-
-/** Answers an ask the moment it opens, drawing nothing. */
-function ResolveAtOnce({ onResolve }: { onResolve: () => void }) {
-  const done = useRef(false);
-  useEffect(() => {
-    if (done.current) return;
-    done.current = true;
-    onResolve();
-  }, [onResolve]);
-  return null;
-}
-
+ *  we only render the grey/orange pair and call onResolve to return the record
+ *  button once the user picks. Notifications never come here: they are in the
+ *  bar at the top (NoticeBar.tsx, backend N391). */
 function OfferActions({
   type,
-  install,
   whatsapp,
-  onConsentOpen,
-  consentKey,
-  onConsentAnswered,
-  bookHref,
   onFeedbackCheck,
   onNotebook,
   onSundayNote,
@@ -2411,14 +2361,7 @@ function OfferActions({
   onResolve,
 }: {
   type: OfferType;
-  install: InstallOffer;
   whatsapp: WhatsAppOffer;
-  /** An admin ask was tapped through (consent, promo or lesson). */
-  onConsentOpen: () => void;
-  /** The consent the admin asked about, answered in the chat. */
-  consentKey: string | null;
-  onConsentAnswered: () => void;
-  bookHref: string;
   /** WIL-74 — a tap on "Did this feedback help you?". */
   onFeedbackCheck: (choice: FeedbackCheckChoice) => void;
   /** "Keep a voice notebook?" (Will learning plan, step 1). */
@@ -2440,7 +2383,6 @@ function OfferActions({
   onStrengths: (choice: "look" | "not_now") => void;
   onResolve: () => void;
 }) {
-  const router = useRouter();
   if (type === "your_why" || type === "strengths") {
     const yes = type === "your_why" ? "start" : "look";
     const pick = (choice: "yes" | "not_now") => {
@@ -2449,7 +2391,7 @@ function OfferActions({
       onResolve();
     };
     return (
-      <SymmetricPair
+      <AnswerPair
         closeLabel="Not now"
         onClose={() => pick("not_now")}
         actionLabel={yes === "start" ? "Start" : "Look"}
@@ -2469,7 +2411,7 @@ function OfferActions({
   }
   if (type === "sunday_note") {
     return (
-      <SymmetricPair
+      <AnswerPair
         closeLabel="Not now"
         onClose={() => {
           onSundayNote("not_now");
@@ -2485,7 +2427,7 @@ function OfferActions({
   }
   if (type === "life_goals_change") {
     return (
-      <SymmetricPair
+      <AnswerPair
         closeLabel="Not now"
         onClose={() => {
           onLifeGoalsChange("not_now");
@@ -2502,7 +2444,7 @@ function OfferActions({
   if (type === "life_goals" || type === "life_goals_quarter") {
     const pick = type === "life_goals" ? onLifeGoals : onLifeGoalsQuarter;
     return (
-      <SymmetricPair
+      <AnswerPair
         closeLabel="Not now"
         onClose={() => {
           pick("not_now");
@@ -2518,7 +2460,7 @@ function OfferActions({
   }
   if (type === "voice_notebook") {
     return (
-      <SymmetricPair
+      <AnswerPair
         closeLabel="Not now"
         onClose={() => {
           onNotebook("not_now");
@@ -2534,7 +2476,7 @@ function OfferActions({
   }
   if (type === "feedback_check") {
     return (
-      <SymmetricPair
+      <AnswerPair
         closeLabel={FEEDBACK_CHECK_LABEL.notReally}
         onClose={() => {
           onFeedbackCheck("not_really");
@@ -2548,54 +2490,13 @@ function OfferActions({
       />
     );
   }
-  if (type === "install") {
-    return <InstallOfferActions offer={install} onResolve={onResolve} />;
-  }
   if (type === "whatsapp") {
     return <WhatsAppOfferActions key={whatsapp.draft ?? ""} offer={whatsapp} onResolve={onResolve} />;
-  }
-  if (type === "consent") {
-    // Answered in the chat, No | Yes (founder 2026-10-18).
-    return (
-      <ConsentAskActions
-        consentKey={consentKey}
-        onOpened={onConsentOpen}
-        onAnswered={onConsentAnswered}
-        onResolve={onResolve}
-      />
-    );
-  }
-  if (type === "promo" && isNativeApp()) {
-    // The promo's "See prices" is a way to buy, which the iPhone app has none
-    // of (N365 item 1): the ask counts as "Not now", so nothing waits on it.
-    return <ResolveAtOnce onResolve={onResolve} />;
-  }
-  if (type === "promo" || type === "lesson") {
-    // Step 3: the admin's price for this person; the button opens where it shows.
-    return (
-      <SymmetricPair
-        closeLabel="Not now"
-        onClose={onResolve}
-        actionLabel={type === "promo" ? "See prices" : "See times"}
-        onAction={() => {
-          onConsentOpen();
-          onResolve();
-          router.push(type === "promo" ? "/dashboard/pricing" : bookHref);
-        }}
-      />
-    );
   }
   // The legacy joke offer is the only other type. Its onboarding was deleted
   // (SD/FE-4) and openOffer already refuses to arm it, so this is a dismiss-only
   // fallback for an old thread bubble rather than a live action pair.
-  return (
-    <SymmetricPair
-      closeLabel="Close"
-      onClose={onResolve}
-      actionLabel="Close"
-      onAction={onResolve}
-    />
-  );
+  return <TapRow labels={["Close"]} onTap={onResolve} dataAttr={{ "data-answer-pair": "" }} />;
 }
 
 
@@ -2706,10 +2607,6 @@ function askBubble(
   }
   const offerType = readOfferType(message.metadata);
   if (!offerType) return null;
-  // Not drawn in the iPhone app (backend N365): a price to buy, or adding to
-  // the home screen of an app that is installed. An empty element, not null,
-  // so the message does not fall back to a plain text bubble.
-  if (APP_HIDDEN_OFFERS.has(offerType) && isNativeApp()) return <></>;
   return (
     <OfferBubble
       type={offerType}
@@ -2725,7 +2622,26 @@ function isOwnVoiceNote(message: LoungeMessage, notebook: VoiceNotebook): boolea
   return message.role === "user" && notebook.enabled && typeof message.metadata?.voice_note === "string";
 }
 
-function Bubble({
+/** A message where Will spots something carries the short privacy line
+ *  under it, and the notebook's ask its intro above it (backend N411,
+ *  NotebookPrivacy.tsx); the backend's own line row is drawn as the line. */
+function Bubble(props: Parameters<typeof BubbleBody>[0]) {
+  const { message } = props;
+  if (message.role !== "bot") return <BubbleBody {...props} />;
+  if (isPrivacyLineRow(message.metadata)) return <PrivacyLine />;
+  const intro = isNotebookAsk(message);
+  const spotted = isSpotted(message.metadata);
+  if (!intro && !spotted) return <BubbleBody {...props} />;
+  return (
+    <>
+      {intro ? <NotebookIntro /> : null}
+      <BubbleBody {...props} />
+      {spotted ? <PrivacyLine /> : null}
+    </>
+  );
+}
+
+function BubbleBody({
   message,
   onViewInsights,
   onOpenBestPresentation,
@@ -2749,8 +2665,11 @@ function Bubble({
   latestForArc = false,
   shareLine = null,
   shareChange = null,
+  onOpenPastIdealText,
 }: {
   message: LoungeMessage;
+  /** An older Ideal Text card opens its own version, read only (backend N375). */
+  onOpenPastIdealText?: (arcId: string, past: IdealTextPast) => void;
   /** A recording's line: who heard the Take (G1, N192). */
   shareLine?: string | null;
   /** The latest Take's line opens the sharing screen (N309 item 5). */
@@ -2814,6 +2733,7 @@ function Bubble({
         onOpenTranscripts={onOpenTranscripts}
         onOpenFeedback={onOpenFeedback}
         onOpenIdealText={onOpenIdealText}
+        onOpenPastIdealText={onOpenPastIdealText}
         onRetryIdealText={onRetryIdealText}
         latestForArc={latestForArc}
         shareLine={shareLine}
@@ -3229,21 +3149,6 @@ function hiddenWhile(standIn: unknown, shown: string): string {
   return standIn ? "hidden" : shown;
 }
 
-const VISIT_KEY = "willab.lounge.visit";
-
-/** Whether this Lounge load starts a visit: the first in the tab's session.
- *  Without storage every load is one; the backend still asks at most once a
- *  Take. */
-function newVisit(): boolean {
-  try {
-    if (window.sessionStorage.getItem(VISIT_KEY)) return false;
-    window.sessionStorage.setItem(VISIT_KEY, "1");
-  } catch {
-    // No storage (a private window, blocked site data): a visit each load.
-  }
-  return true;
-}
-
 /** The Take's summary and, since N89, its closing message (since N294 the
  *  goodbye, "Good job. See you next time."): both drawn as the plain
  *  bubble. */
@@ -3375,8 +3280,11 @@ export function WalkStepBubble({
   onOpenOlder,
   onOpened,
   onOpenIdealText,
+  onOpenPastIdealText,
 }: {
   message: LoungeMessage;
+  /** An older Take's Ideal Text card opens that Take's words (backend N375). */
+  onOpenPastIdealText?: (arcId: string, past: IdealTextPast) => void;
   /** The review's end: its Ideal Text card's words; null otherwise. */
   card: { title: string; take: number | null } | null;
   /** The project's newest Ideal Text card: it carries the coach's "new" dot. */
@@ -3398,11 +3306,8 @@ export function WalkStepBubble({
   const meta = message.metadata ?? {};
   const arc = typeof meta.arc_id === "string" ? meta.arc_id : null;
   if (meta.step === "end") {
-    // The project's first slide on the card; no `deck` from the server keeps the plain tile.
-    const deck = meta.deck && typeof meta.deck === "object" ? (meta.deck as { presentation_ref?: unknown }) : null;
-    const slideRef = deck ? (typeof deck.presentation_ref === "string" ? deck.presentation_ref : null) : undefined;
     return arc && card ? (
-      <IdealTextCard title={card.title} version={card.take} slideRef={slideRef} arcId={arc} latest={latest} onOpen={() => onOpenIdealText?.(arc)} onOpenFeedback={() => onOpenIdealText?.(arc, "feedback")} />
+      <WalkEndCard meta={meta} arc={arc} card={card} latest={latest} onOpenIdealText={onOpenIdealText} onOpenPastIdealText={onOpenPastIdealText} />
     ) : null;
   }
   const clip = walkClipOf(meta.clip);
@@ -3453,6 +3358,36 @@ export function WalkStepBubble({
 }
 
 
+/** A review's end: its Ideal Text card. The newest opens the page; an
+ *  older Take's opens that Take's words (backend N375). */
+function WalkEndCard({
+  meta,
+  arc,
+  card,
+  latest,
+  onOpenIdealText,
+  onOpenPastIdealText,
+}: {
+  meta: Record<string, unknown>;
+  arc: string;
+  card: { title: string; take: number | null };
+  latest: boolean;
+  onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode) => void;
+  onOpenPastIdealText?: (arcId: string, past: IdealTextPast) => void;
+}) {
+  // The project's first slide on the card; no `deck` from the server keeps the plain tile.
+  const deck = meta.deck && typeof meta.deck === "object" ? (meta.deck as { presentation_ref?: unknown }) : null;
+  const slideRef = deck ? (typeof deck.presentation_ref === "string" ? deck.presentation_ref : null) : undefined;
+  const take = card.take;
+  const open =
+    !latest && take !== null && onOpenPastIdealText
+      ? () => onOpenPastIdealText(arc, { by: "take", n: take, title: card.title })
+      : () => onOpenIdealText?.(arc);
+  return (
+    <IdealTextCard title={card.title} version={take} slideRef={slideRef} arcId={arc} latest={latest} onOpen={open} onOpenFeedback={() => onOpenIdealText?.(arc, "feedback")} />
+  );
+}
+
 /** What a step's tap opens: that Take's step, found by its paragraph,
  *  answered or not. An older Take's steps are history, with no ›
  *  (prototype v31); an old judging bubble opens Other speakers afresh
@@ -3481,12 +3416,15 @@ function OlderTakeReview({
   replaced,
   newWords,
   onClose,
+  onOpenPastIdealText,
 }: {
   older: { take: number; session: string } | null;
   items: readonly ThreadItem[];
   replaced: ReadonlySet<string>;
   newWords: ReadonlyMap<string, ClearerPiece[]>;
   onClose: () => void;
+  /** The review ends on that Take's Ideal Text card (B10, backend N375). */
+  onOpenPastIdealText: (arcId: string, past: IdealTextPast) => void;
 }) {
   if (!older) return null;
   // Helper words picked again show once, their latest, marked Edited (B13,
@@ -3506,7 +3444,8 @@ function OlderTakeReview({
             <WalkStepBubble
               key={item.reactKey}
               message={item.message}
-              card={null}
+              card={reviewCardOf(item.message, items)}
+              onOpenPastIdealText={onOpenPastIdealText}
               edited={typeof item.message.metadata?.words_of === "string" && repicked.has(item.message.metadata.words_of)}
               newWords={newWords.get(item.message.client_id)}
               lockedTake={older.take}
@@ -3636,7 +3575,7 @@ type WalkChatClip = {
   src: string | null;
   start_ms: number | null;
   duration_ms: number | null;
-  words: { text: string; cut?: boolean }[] | null;
+  words: { text: string; cut?: boolean; bold?: boolean }[] | null;
 };
 
 /** The speaker's clip a walk step carries; null when none. */
@@ -3687,7 +3626,7 @@ function ClipBubble({
         ) : null}
         {clip.words ? (
           <span className="text-[13px] leading-[1.45] opacity-[0.92] [&_s]:text-white/[0.72] [&_s]:decoration-[1.5px]">
-            {clip.words.map((p, i) => (p.cut ? <s key={i}>{p.text}</s> : <span key={i}>{p.text}</span>))}
+            {clip.words.map((p, i) => (p.cut ? <s key={i}>{p.text}</s> : p.bold ? <strong key={i}>{p.text}</strong> : <span key={i}>{p.text}</span>))}
           </span>
         ) : null}
         {clip.src ? (

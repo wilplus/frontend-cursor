@@ -533,6 +533,9 @@ export const ONE_THING_COPY = {
   /** The dock. */
   tryIt: "Try it",
   keepMine: "Keep mine",
+  /** The walk's answer to Skip on the fix, then it goes on (backend N405,
+   *  signed 2026-11-03; the prototype's "Okay." rewritten). */
+  skipped: "Okay, we'll skip this one.",
   /** A try that lands; one miss; two misses. */
   landed: "Yes. That's it.",
   onceMore: "Close. Once more.",
@@ -841,4 +844,15 @@ export const TOP_MOMENT_LINES = {
     "We picked this one out as solid and confident. Give it one more go and own every word.",
     "This one stood out as solid and confident. Say it again and make it even stronger.",
   ],
+} as const;
+
+/** An older Take's Ideal Text (founder 2026-11-03, backend N380, signed). */
+export const PAST_TAKE_COPY = {
+  /** Above an older version's text. */
+  whichTake: (take: number): string => `This is what you said in Take ${take}.`,
+  /** The button under it, to the Ideal Text page. */
+  goToLatest: (latest: number): string => `Go to Take ${latest}`,
+  /** At the top of the Ideal Text page, when the card's version was not kept. */
+  notSaved: (take: number, latest: number): string =>
+    `Take ${take}'s words weren't saved. This is Take ${latest}.`,
 } as const;
