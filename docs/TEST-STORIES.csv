@@ -512,8 +512,8 @@ control that plays it from the chat's audio route (N321 item 2); its
 words, once ready, are closed behind ""Read it"" under the player, and
 ""Hide"" closes them again (N331).
 O8  The + on the list opens my own link, with the add sheet's signed
-words, and Copy my link puts the whole link on the clipboard (N308,
-N310).
+words and its three steps, and Copy my link puts the whole link on
+the clipboard and says ""✓ Copied"" (N308, N310, N367).
 O9  In a chat I joined through someone's link, one line above the
 messages says whose link it was (N335 item 2); a chat without it has
 no such line.
