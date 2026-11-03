@@ -14,7 +14,8 @@ import { NextResponse } from "next/server";
 /*  before. Served as JSON, never redirected: Apple follows no redirect.       */
 /* -------------------------------------------------------------------------- */
 
-// Read per request: set on Vercel, the team id applies without a rebuild.
+// Read per request, not baked in at build. Vercel binds a variable to a
+// deployment: once APPLE_TEAM_ID is added, redeploy production to serve it.
 export const dynamic = "force-dynamic";
 
 export const BUNDLE_ID = "com.willpowerlab.app";
