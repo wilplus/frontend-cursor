@@ -24,6 +24,8 @@ export interface OutboxNote {
   /** Still being said in this page; a note left open by a closed app is not. */
   open: boolean;
   at: number;
+  /** How long its live words were streamed (backend N396), if they were. */
+  liveMs?: number;
 }
 
 const DB = "willab-voice-notes";

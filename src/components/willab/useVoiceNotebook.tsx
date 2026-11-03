@@ -102,7 +102,7 @@ export function useVoiceNotebook({
       setWaiting(notes);
       for (const n of notes) {
         setSending(n.key);
-        const outcome = await sendVoiceNote(n.audio, n.durationMs, n.key);
+        const outcome = await sendVoiceNote(n.audio, n.durationMs, n.key, n.liveMs);
         if (outcome.kind === "retry") {
           setOffline((now) => new Set(now).add(n.key));
           break; // the connection is gone: the rest wait too
