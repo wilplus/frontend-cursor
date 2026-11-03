@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Coins, Home, Link as LinkIcon, LogOut, Menu, Settings, Sparkles } from "lucide-react";
+import { BookOpen, ChevronRight, Coins, Home, Link as LinkIcon, LogOut, Menu, Settings, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { LifeMenuEntry } from "@/lib/life/types";
@@ -222,9 +222,13 @@ export default function AppMenu({
         >
           {signedIn ? (
             <>
-              {/* You first (backend N367 item 1): your circle, name and email.
-                  Your profile (N366) opens from here once it is built. */}
-              <div className="mb-1 flex items-center gap-3 border-b border-border px-2.5 pb-3 pt-2">
+              {/* You first (backend N367 item 1): your circle, name and email;
+                  it opens your profile (N366, /profile). */}
+              <Link
+                href="/profile"
+                onClick={() => setOpen(false)}
+                className="mb-1 flex items-center gap-3 rounded-xl border-b border-border px-2.5 pb-3 pt-2 hover:bg-accent"
+              >
                 <span
                   aria-hidden
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#9FC1AE] text-[16px] font-semibold text-white"
@@ -239,7 +243,8 @@ export default function AppMenu({
                     </span>
                   ) : null}
                 </span>
-              </div>
+                <ChevronRight aria-hidden className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
+              </Link>
               {labHref ? (
                 <Link ref={firstRef()} href={labHref} {...row(labHref)} onClick={() => setOpen(false)}>
                   <MenuIcon tone="dark">

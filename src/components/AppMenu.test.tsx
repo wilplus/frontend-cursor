@@ -4,8 +4,9 @@ STORY    As someone signed in, I want the ☰ menu to hold only what I need,
          with my own link at the top, so that bringing someone in is one tap
          (backend N367, N196, N365).
 OUTCOME
-  O1  Signed in, the menu reads: my name and email, Copy my link, Settings,
-      Tokens with the balance, then Sign out. No Lab, no Log out.
+  O1  Signed in, the menu reads: my name and email (opening my profile),
+      Copy my link, Settings, Tokens with the balance, then Sign out. No
+      Lab, no Log out.
   O2  Copy my link copies the whole link and says "✓ Copied".
   O3  In the iPhone app, Tokens shows the balance and is not a link (no link
       to buy in the app, N365 item 1); on the web it opens the pricing page.
@@ -71,6 +72,7 @@ describe("the ☰ menu", () => {
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(text).not.toContain("Lab");
     expect(text).not.toContain("Log out");
+    expect(container.querySelector('#app-header-menu a[href="/profile"]')?.textContent).toContain("Tomek Nowak");
   });
 
   it("Copy my link copies the whole link", async () => {

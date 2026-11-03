@@ -339,8 +339,7 @@ backend N365 item 1); the coach's Training corpus, discovered products and
 Life Panel rows for the few who have them; a thin line; **Sign out** in red.
 Each row has a 36px icon in the iPhone Settings style. Lab is gone from the
 lab's menu (the logo goes home); signed out, on the blog, the menu is Lab and
-Log in as before. Your profile (backend N366) will open from the top row once
-it is built. The design: the locked prototype "One bar", version 12
+Log in as before. The top row opens your profile (backend N366, /profile). The design: the locked prototype "One bar", version 12
 (<https://claude.ai/artifact/2v8jSi91F157WFR8tjX5E1>).
 
 ## 2. In flight

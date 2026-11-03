@@ -163,8 +163,9 @@ O5  A re-review piece still says so on its write.","O1, O2 -> ""opens on the Jud
 O3     -> ""an answer writes the ternary body only, then moves on in payload order""
 O4     -> ""after the last unlabelled piece the sheet closes, back on the workbench""
 O5     -> ""a re-review piece says so on its write""","Never-2; founder 2026-09-30 B9 / P2-16 (""one instrument in the product; the workbench's own chrome is deleted"")."
-src/components/AppMenu.test.tsx,Story,"As someone signed in, I want the ☰ menu to hold only what I need, with my own link at the top, so that bringing someone in is one tap (backend N367, N196, N365).","O1  Signed in, the menu reads: my name and email, Copy my link, Settings,
-Tokens with the balance, then Sign out. No Lab, no Log out.
+src/components/AppMenu.test.tsx,Story,"As someone signed in, I want the ☰ menu to hold only what I need, with my own link at the top, so that bringing someone in is one tap (backend N367, N196, N365).","O1  Signed in, the menu reads: my name and email (opening my profile),
+Copy my link, Settings, Tokens with the balance, then Sign out. No
+Lab, no Log out.
 O2  Copy my link copies the whole link and says ""✓ Copied"".
 O3  In the iPhone app, Tokens shows the balance and is not a link (no link
 to buy in the app, N365 item 1); on the web it opens the pricing page.
