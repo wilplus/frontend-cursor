@@ -2495,14 +2495,7 @@ function OfferActions({
   // The legacy joke offer is the only other type. Its onboarding was deleted
   // (SD/FE-4) and openOffer already refuses to arm it, so this is a dismiss-only
   // fallback for an old thread bubble rather than a live action pair.
-  return (
-    <AnswerPair
-      closeLabel="Close"
-      onClose={onResolve}
-      actionLabel="Close"
-      onAction={onResolve}
-    />
-  );
+  return <TapRow labels={["Close"]} onTap={onResolve} dataAttr={{ "data-answer-pair": "" }} />;
 }
 
 

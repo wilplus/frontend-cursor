@@ -381,7 +381,18 @@ export function oneThingTryWords(step: WalkStep, moment: FeedbackWalkMoment<unkn
 
 export function answerBody(step: WalkStep, value: string): string | null {
   if (value === "skip" && ["helpers", "exVideo", "encourage"].includes(step.key)) return WALK_COPY.skip;
+  // Skip on the One thing walk's recorder is Skip on the fix (N405).
+  if (value === "skip" && step.one && step.key === "practise") return WALK_COPY.skip;
   return null;
+}
+
+/** The walk's answer to the speaker's Skip on the One thing walk's fix,
+ *  said under their "Skip" before the walk goes on (backend N405): "Okay,
+ *  we'll skip this one.". Null for anything else. The walk and the chat say
+ *  the same. Pure. */
+export function skipReply(step: WalkStep, value: string | null): string | null {
+  if (value !== "skip" || !step.one) return null;
+  return ["exVideo", "encourage", "practise"].includes(step.key) ? ONE_THING_COPY.skipped : null;
 }
 
 /** The AI bubble a step showed (N71), as the chat stores it: its lines, and

@@ -5,7 +5,8 @@ STORY    As a speaker reviewing feedback, I want the walk to open on my
          helper words through the deck, and ask a guest to sign up, so that
          feedback flows into my next Take.
 OUTCOME
-  O1  Review feedback opens the walk on the first praise.
+  O1  Review feedback opens the walk on the first praise; the bar names
+      its slide by the slide's title in my deck (backend N397).
   O2  The arrows move through the walk's chat, step by step, without
       answering anything or closing it.
   O3  A tap on a paragraph, with or without its black line, opens the same walk at what it asks (its
@@ -32,7 +33,9 @@ OUTCOME
   O10 With no moment to fix, the pace game is the One thing walk's fix,
       and its opening keeps its tip, "give “{words}” more room" with the
       Sniper's helper words, in the chat for "Last time" next Take (N347
-      item 3).
+      item 3); its scale names its zones "too slow", "just right", "too
+      fast", and Skip gets "Okay, we'll skip this one." in the walk and the
+      chat (N405).
 PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's sheet"
          O2 -> "‹ › move through the walk's chat, never answering and never
                 closing it (founder 2026-10-20)"
@@ -61,6 +64,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { GuestGateContext } from "./GuestSignUpDialog";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "./idealEditCopy";
+import { TEMPO_COPY } from "@/lib/willab/tempoStep";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { reportMomentEvent } from "@/services/api/momentEvents";
 import { PRAISE_CUE_COPY, PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
@@ -225,7 +229,8 @@ describe("the walk on the deck", () => {
     expect(live()!.querySelector("[data-walk-part] [data-walk-message]")!.textContent).toBe(
       [COPY.titlePraise, [PRAISE_LEAD, PRAISE_CUE_COPY.landed_ending].join(" ")].join(""),
     );
-    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Slide 2");
+    // The bar names the slide by its title in the deck, not "Slide 2" (backend N397).
+    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Results");
   });
 
   it("‹ › move through the walk's chat, never answering and never closing it (founder 2026-10-20)", async () => {
@@ -252,14 +257,14 @@ describe("the walk on the deck", () => {
     const next = () => click(arrow(COPY.pagerNext));
     const back = () => click(arrow(COPY.pagerBack));
     expect(screen()).toBe("walk-screen-praise");
-    expect(bar().getAttribute("aria-label")).toBe("Slide 2");
+    expect(bar().getAttribute("aria-label")).toBe("Results");
     // The newest step is the last in the chat: › is off, and so is ‹ on the
     // first step.
     expect(arrow(COPY.pagerBack).disabled).toBe(true);
     expect(arrow(COPY.pagerNext).disabled).toBe(true);
     await click(live()!.querySelector("[data-testid='walk-forward']"));
     expect(screen()).toBe("walk-screen-helpers");
-    expect(bar().getAttribute("aria-label")).toBe(`Slide 2 · ${WALK_COPY.navHelperWords}`);
+    expect(bar().getAttribute("aria-label")).toBe(`Results · ${WALK_COPY.navHelperWords}`);
     // ‹ goes up the chat; it answers nothing and closes nothing.
     expect(arrow(COPY.pagerBack).disabled).toBe(false);
     await back();
@@ -534,5 +539,12 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
       .map(([draft]) => (draft as { metadata: Record<string, unknown> }).metadata)
       .find((m) => m.step === "tempo:open");
     expect(opening?.fix_tip).toBe(ONE_THING_COPY.paceTip(stretch));
+    // Its scale names its three zones, left to right (N405).
+    expect([...live()!.querySelectorAll("[data-walk-scale-ends] span")].map((n) => n.textContent)).toEqual([...TEMPO_COPY.ends]);
+    // Skip: their "Skip", then the walk's answer to it, in the walk and in the chat (N405).
+    await click(live()!.querySelector("[data-testid='walk-tempo-skip']"));
+    expect(live()!.querySelector("[data-walk-skip-reply]")!.textContent).toBe(ONE_THING_COPY.skipped);
+    const told = append.mock.calls.map(([draft]) => draft as { body: string; metadata: Record<string, unknown> });
+    expect(told.find((d) => d.metadata.step === "tempo:skipped")?.body).toBe(ONE_THING_COPY.skipped);
   });
 });

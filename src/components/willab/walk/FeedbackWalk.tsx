@@ -3,7 +3,7 @@
 import { reasonRuns, type PraiseReason, type WalkPraiseReasons } from "@/lib/willab/praiseReason";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { answerBody, helperWordsSaid, type OthersLevel, type WalkTempoLine } from "@/lib/willab/walkThread";
+import { answerBody, helperWordsSaid, skipReply, type OthersLevel, type WalkTempoLine } from "@/lib/willab/walkThread";
 import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
@@ -1087,7 +1087,7 @@ const noop = () => undefined;
  *  · helper words" on the helper words. The thread's mark and bar say it;
  *  ‹ › are the thread's own (WalkThread). */
 function stepNav(_ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment): WalkNav {
-  const label = moment.slideLabel;
+  const label = slideName(moment);
   const position =
     step.key === "helpers"
       ? label
@@ -1104,6 +1104,13 @@ function stepNav(_ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment): W
     backDisabled: true,
     nextDisabled: true,
   };
+}
+
+/** The slide as the bar names it: its title in the speaker's deck, else
+ *  "Slide N" (backend N397; the locked prototype's `dots()` says the
+ *  slide's title). Until 2026-11-03 the bar always said "Slide N". */
+function slideName(moment: FeedbackWalkMoment): string | null {
+  return moment.slideTitle?.trim() || moment.slideLabel;
 }
 
 /** A step reopened: its answer as a line over a black Next. */
@@ -1896,7 +1903,7 @@ function partLabel(ctx: ScreenCtx, step: WalkStep): string | null {
   if (step.key === "summary") return ctx.takeIndex != null ? `${COPY.historyTake} ${ctx.takeIndex}` : COPY.historyTake;
   if (step.key === "words") {
     const of = step.of == null ? undefined : ctx.walk.moments[step.of];
-    if (of) return of.slideLabel ?? null;
+    if (of) return slideName(of);
     return ctx.walk.plan.some((s) => s.key === "tempo") ? TEMPO_COPY.mark : null;
   }
   if (step.key === "others" || step.key === "done") return null;
@@ -1967,6 +1974,8 @@ function renderThread<R>(
     const mark = label && label !== last ? <WalkThreadMark label={label} /> : null;
     last = step.key === "others" ? null : (label ?? last);
     const said = answerSaid(ctx, step);
+    // The walk's answer to Skip on the One thing walk's fix (N405).
+    const reply = said ? skipReply(step, ctx.answered(step)) : null;
     const start = threadStart(ctx.walk.plan, part.at);
     const lead = momentLead(ctx.walk.plan, start >= 0 ? start : part.at);
     const opener = ctx.walk.plan[start >= 0 ? start : part.at];
@@ -1993,6 +2002,11 @@ function renderThread<R>(
           {renderScreen(ctx, step, backFromPractise)}
         </WalkPart>
         {said ? <WalkSpeakerBubble edited={wordsEdited(ctx, step)}>{said}</WalkSpeakerBubble> : null}
+        {reply ? (
+          <WalkMessage>
+            <span data-walk-skip-reply>{reply}</span>
+          </WalkMessage>
+        ) : null}
       </div>
     );
   });
