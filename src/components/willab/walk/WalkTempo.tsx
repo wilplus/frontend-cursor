@@ -51,7 +51,8 @@ import { WalkSpeakerBubble, useMountedAsPast, useWalkPart } from "./WalkThread";
 /*  As the One thing walk's fix, the Sniper on this week's level (founder    */
 /*  2026-10-31, N309 item 1; `one`): "Try it" with Skip in I'm ready's place, */
 /*  two tries, and the walk's own words on each ("Yes. That's it.", "Close.  */
-/*  Once more.", "Good try. Take it with you."), no closing line of its own. */
+/*  Once more.", "Good try. Take it with you."), no closing line of its own; */
+/*  Skip moves the walk on at once, after a try too.                         */
 /* -------------------------------------------------------------------------- */
 
 /** A try left running stops itself after a minute, as a practise's upload does. */
@@ -165,15 +166,18 @@ export default function WalkTempo({
     setPhase(tries.length > 0 ? "commented" : "idle");
   }, [halt, tries]);
 
+  // Skip: as the One thing walk's fix, the walk moves on at once, after a
+  // try too, as the prototype's skip() does; otherwise a try made leaves
+  // the game closed on Next.
   const skip = useCallback(() => {
     halt();
     end(tries);
-    if (tries.length > 0) setPhase("closed");
+    if (tries.length > 0 && !one) setPhase("closed");
     else {
       setPhase("skipped");
       onDone();
     }
-  }, [halt, tries, end, onDone]);
+  }, [halt, tries, end, onDone, one]);
 
   const nav: WalkNav = {
     position: W.mark,

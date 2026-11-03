@@ -3,7 +3,7 @@
 STORY    As a speaker, I want the walk after each Take to show me my best moment and why it worked, then one thing to improve with the tool it needs, so that I leave every Take with one clear thing to carry into the next.
 OUTCOME
   O1  The walk goes in order: "Hi {name}.", my best with "This was your most confident moment." and why it worked, then "And now, one thing to improve:" and one fix; the Clearer version says "Say it straight:" and the sentence, with "Try it" and "Keep mine"; no helper-word picker, no second moment and no summary in the walk.
-  O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2); with no fix, my best moment's own words are my helper words, saved the same way (backend N374).
+  O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2); with no fix, my best moment's own words are my helper words, saved the same way (backend N374). With the Sniper as the fix, Skip moves the walk on at once, after a try too.
   O3  The walk ends on "Lesson done." with Close, which ends the review and takes me back to the chat; no "Record Take N" in the walk.
   O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after "Try it", my own after "Keep mine"; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
   O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, my answer as my own reply with a tick, then "Got it."; on Take 1 I judge no one.
@@ -12,6 +12,7 @@ PROVES   O1 -> walks hello, their best and why it worked, then one thing to impr
                the Clearer version's sentence is saved from its practice,
                a Clearer version past eight words is saved whole as my helper words (N323 item 2),
                with no fix, my best's own words are my helper words, saved without a pick (N374)
+               the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does
          O3 -> Lesson done and Close end the review, back to the chat
          O5 -> a try is my clip with the words I was asked to say, and nothing shows in the thread while I record
          O4 -> from Take 2, one moment of another speaker, of the Take's level, answered as my own reply,
@@ -28,6 +29,11 @@ vi.mock("@/services/api/otherSpeakers", () => ({
   answerOtherClip: vi.fn(),
 }));
 import { fetchOtherClips } from "@/services/api/otherSpeakers";
+/** The Sniper's microphone, open and silent: a try reads as slow, never lands. */
+vi.mock("@/lib/willab/pace/paceMic", () => ({
+  startPaceMic: vi.fn(async () => ({ meter: {}, voiceLike: () => 0, stop: () => undefined })),
+}));
+import { TEMPO_COPY, TEMPO_STAND_IN } from "@/lib/willab/tempoStep";
 vi.mock("@/hooks/useDualCaptureMic", async () => {
   const React = await import("react");
   type State = { status: "idle" } | { status: "recording"; partialText: string } | { status: "stopped"; finalText: string; audioBlob: Blob; durationSec: number };
@@ -225,6 +231,24 @@ describe("the One thing walk (N309)", () => {
     expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe(best);
     expect(props.onSaveHelperWords).toHaveBeenCalledWith(expect.objectContaining({ partId: "p1", auto: true, span: expect.objectContaining({ text: best }) }));
     expect(screen()).toBe("walk-screen-done");
+  });
+
+  it("the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does", async () => {
+    const model = buildFeedbackWalk<string>({ items: [ITEMS[0]], coachNote: false, practiceOn: true, guest: false, judge: false, interventions: ["tempo"] });
+    const onTempo = vi.fn();
+    draw({ seq: 1, at: model.plan.findIndex((s) => s.key === "tempo") }, { model, tempo: TEMPO_STAND_IN, onTempo });
+    expect(screen()).toBe("walk-screen-tempo");
+    // One try that misses, then Skip: no Next to press, the walk goes on.
+    click(testId("walk-tempo-ready"));
+    await settle();
+    click(live()!.querySelector("[data-walk-dock] [data-walk-recording-strip] button"));
+    expect(text()).toContain(TEMPO_COPY.tryLabel(1));
+    click(testId("walk-tempo-skip"));
+    await settle();
+    expect(screen()).not.toBe("walk-screen-tempo");
+    // What the game was is still Will's: the try, then its end.
+    const ended = onTempo.mock.calls.map(([event]) => event).find((event) => event.kind === "ended");
+    expect(ended?.tries).toHaveLength(1);
   });
 
   it("Lesson done and Close end the review, back to the chat", async () => {
