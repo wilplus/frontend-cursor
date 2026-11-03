@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 /* -------------------------------------------------------------------------- */
-/*  The swipe from the left edge, back from a chat (backend N372 item 3).      */
+/*  The swipe from the left edge, back from a chat (backend N377 item 3).      */
 /*                                                                            */
 /*  In the iPhone app the system's own back swipe is off, so a chat follows    */
 /*  the finger here: a touch that starts at the left edge and moves right      */

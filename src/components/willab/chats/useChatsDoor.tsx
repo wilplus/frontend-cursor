@@ -59,11 +59,11 @@ function chatJustJoined(): string | null {
   return new URLSearchParams(window.location.search).get("with");
 }
 
-/** The slide between the list and a chat (backend N372 item 4): iOS's own
+/** The slide between the list and a chat (backend N377 item 4): iOS's own
  *  timing. None when the phone asks for less motion. */
 const SLIDE_MS = 300;
 const SLIDE_EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
-/** How long the row you came back from stays lit (N372 item 5). */
+/** How long the row you came back from stays lit (N377 item 5). */
 const CAME_FROM_MS = 900;
 
 function moves(): boolean {
@@ -125,11 +125,11 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
   // way to add someone under him (founder 2026-11-02); on the web, as before.
   const waiting = decided === null || (on && !chats);
   const closed = !on || !chats || (chats.length === 0 && !isNativeApp());
-  // Open, the list is the bottom of /chat: Back never goes past it (N372).
+  // Open, the list is the bottom of /chat: Back never goes past it (N377).
   useBackStop(!closed);
   // A chat going out to the right after Back, still drawn while it slides.
   const [leaving, setLeaving] = useState<Chat | null>(null);
-  // The row you came back from, lit for a moment (N372 item 5).
+  // The row you came back from, lit for a moment (N377 item 5).
   const [cameFrom, setCameFrom] = useState<string | null>(null);
   // How far the edge swipe has dragged the chat, while it does.
   const [drag, setDrag] = useState<number | null>(null);
@@ -150,7 +150,7 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
     setView({ at: "list" });
     reload();
   };
-  // The iPhone app's swipe from the left edge (N372 item 3): only from a chat
+  // The iPhone app's swipe from the left edge (N377 item 3): only from a chat
   // that is the top screen, never from the list or over an overlay.
   useEdgeSwipe(
     !closed && view.at !== "list" && isNativeApp(),
@@ -193,7 +193,7 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
 
 /** The list, and a person's chat over it. Will's chat is the Lounge
  *  underneath: the list slides away to the left to open it and comes back
- *  from the left on Back, after the finger as it drags (N372 item 4). */
+ *  from the left on Back, after the finger as it drags (N377 item 4). */
 function ChatsFront({
   atWill,
   drag,
