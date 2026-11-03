@@ -603,7 +603,10 @@ praised moment:
 - **C7 Practise.** The One thing walk's fix (N309 item 1): the recorder
   is the one recording bar in the dock as below; two tries. A try that
   lands: "Yes. That's it." and Next; one miss: "Close. Once more." with
-  "Try it" and Skip; two: "Good try. Take it with you." and Next. A try not
+  "Try it" and Skip; two: "Good try. Take it with you." and Next. Skip on
+  the fix (in the dock or under the recorder, and the Sniper's) is the
+  speaker's "Skip", then the walk's "Okay, we'll skip this one.", and the
+  walk goes on; the chat says both (N405; was: nothing said). A try not
   heard says so as below. While it records, nothing is added to the thread:
   the recording bar in the dock is the only sign. After Stop the try is the
   speaker's orange clip with the words they were asked to say: the Clearer
@@ -1518,7 +1521,8 @@ October (backend N111).
   confident moment.", "Why it worked: {the moment's signed cue line}",
   "And now, one thing to improve:", "Say it straight:", "Say this one like
   your confident moment:", the tip ending ", like this:", "Your
-  confident moment" (the chip, N379), "Try it", "Keep mine", "Skip", "Yes. That's it.", "Close. Once more.",
+  confident moment" (the chip, N379), "Try it", "Keep mine", "Skip",
+  "Okay, we'll skip this one." (N405), "Yes. That's it.", "Close. Once more.",
   "Good try. Take it with you.", "Let's see how you find this voice. It
   helps us understand you and serve you better.", "Does this sound
   confident to you?", "{face} {answer} ✓", "Got it.", "These are your helper
@@ -1742,7 +1746,8 @@ while a dot on a scale follows their pace live.
 
 **The scale.** A dot on a horizontal line. It moves right while you talk
 and left while you pause. Green in the middle, orange towards the ends,
-red at the edges. No number, ever (Never 1). How the dot moves is settled:
+red at the edges. Under it, left to right: "too slow", "just right", "too
+fast" (N405; was: no labels). No number, ever (Never 1). How the dot moves is settled:
 backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
 
 **The step, in order** (as drawn in [Tempo in the Walk](https://claude.ai/artifact/VJd5MeFGgZy7e3Q8M1EQXV)):
@@ -1983,6 +1988,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N405 · built (C7, T, K): Skip on the One thing walk's fix (the dock's, the recorder's, the Sniper's) gets the walk's answer under the speaker's "Skip", "Okay, we'll skip this one.", in the walk and the chat; the pace scale names its zones under it, "too slow", "just right", "too fast". Both lines signed 2026-11-03, the prototype's "Okay." and "slow · just right · fast" rewritten. Was: nothing said after Skip, and a scale without labels · FE (this PR)
 - 2026-11-03 · C4: the phrase the AI clip names (its served `phrase`) is bold where it stands in the fix's own words above the clip and in the tip ("Lean on “**above ninety percent**”, like this:", or the tip in words with no clip), and in the chat's copy of the fix's words, so the speaker sees where to lean (founder, Claude Code chat 2026-11-03: "yes, bold the phrase"; backend log entry to follow). Was: the words and the tip plain · FE (this PR)
 - 2026-11-03 · C2, C4: their best's clip and the AI clip's fix show the moment's own words above the player (its served `said`), as the locked prototype draws them (`clip(u.best.text)`, `clip(f.text)`), in the walk and the chat alike; "Last time" and their best played again inside the fix stay without words. Was: both clips drawn without words · FE (this PR)
 - 2026-11-03 · N395 · Record buttons; after the goodbye: the chat's one "Record Take N" stands 24 px under the last bubble (was 8) with a grey ✕ on its right, no background and no outline; the ✕ closes it and the bar comes back ("+", "Type here", the mic) for that Take, until the chat is opened again or a newer Take's goodbye offers the next. No new words. Was: alone, with no way to close it but recording · BE #1647, FE (this PR)

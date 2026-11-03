@@ -8,6 +8,7 @@ OUTCOME
   O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after "Try it", my own after "Keep mine"; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
   O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, my answer as my own reply with a tick, then "Got it."; after it the bar names my fix's slide again for the helper words and "Lesson done."; on Take 1 I judge no one.
   O6  My best's clip and the AI clip's fix show my own words above the player, as the prototype draws them; my best played again inside the fix shows none.
+  O7  Skip on the fix gets the walk's answer under my "Skip": "Okay, we'll skip this one.", then it goes on (backend N405).
 PROVES   O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
          O2 -> the helper words come on their own and are saved without a pick,
                the Clearer version's sentence is saved from its practice,
@@ -15,6 +16,7 @@ PROVES   O1 -> walks hello, their best and why it worked, then one thing to impr
                with no fix, my best's own words are my helper words, saved without a pick (N374)
                the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does
          O3 -> Lesson done and Close end the review, back to the chat
+         O7 -> the helper words come on their own and are saved without a pick
          O5 -> a try is my clip with the words I was asked to say, and nothing shows in the thread while I record
          O4 -> from Take 2, one moment of another speaker, of the Take's level, answered as my own reply,
                then the bar names the fix's slide again for the helper words and Lesson done,
@@ -161,6 +163,9 @@ describe("the One thing walk (N309)", () => {
     expect(screen()).toBe("walk-screen-practise");
     click(testId("walk-skip"));
     await settle();
+    // Their "Skip", and the walk's answer to it (N405).
+    expect(said()).toContain(WALK_COPY.skip);
+    expect(live()!.querySelector("[data-walk-skip-reply]")!.textContent).toBe(ONE_THING_COPY.skipped);
     expect(props.onSaveHelperWords).toHaveBeenCalledTimes(1);
     expect(props.onSaveHelperWords).toHaveBeenCalledWith(expect.objectContaining({ partId: "p2", auto: true, span: expect.objectContaining({ text: SAID }) }));
     expect(text()).toContain(ONE_THING_COPY.helperWords);

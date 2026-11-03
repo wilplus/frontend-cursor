@@ -758,7 +758,9 @@ through the deck's own save (the lock, then the words), marked whole
 O10 With no moment to fix, the pace game is the One thing walk's fix,
 and its opening keeps its tip, ""give “{words}” more room"" with the
 Sniper's helper words, in the chat for ""Last time"" next Take (N347
-item 3).","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
+item 3); its scale names its zones ""too slow"", ""just right"", ""too
+fast"", and Skip gets ""Okay, we'll skip this one."" in the walk and the
+chat (N405).","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
 O2 -> ""‹ › move through the walk's chat, never answering and never
 closing it (founder 2026-10-20)""
 O3 -> ""a paragraph with or without the line opens the same walk at
@@ -1243,13 +1245,15 @@ O2  After the fix my helper words come on their own: ""These are your helper wor
 O3  The walk ends on ""Lesson done."" with Close, which ends the review and takes me back to the chat; no ""Record Take N"" in the walk.
 O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after ""Try it"", my own after ""Keep mine""; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
 O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, my answer as my own reply with a tick, then ""Got it.""; after it the bar names my fix's slide again for the helper words and ""Lesson done.""; on Take 1 I judge no one.
-O6  My best's clip and the AI clip's fix show my own words above the player, as the prototype draws them; my best played again inside the fix shows none.","O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
+O6  My best's clip and the AI clip's fix show my own words above the player, as the prototype draws them; my best played again inside the fix shows none.
+O7  Skip on the fix gets the walk's answer under my ""Skip"": ""Okay, we'll skip this one."", then it goes on (backend N405).","O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
 O2 -> the helper words come on their own and are saved without a pick,
 the Clearer version's sentence is saved from its practice,
 a Clearer version past eight words is saved whole as my helper words (N323 item 2),
 with no fix, my best's own words are my helper words, saved without a pick (N374)
 the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does
 O3 -> Lesson done and Close end the review, back to the chat
+O7 -> the helper words come on their own and are saved without a pick
 O5 -> a try is my clip with the words I was asked to say, and nothing shows in the thread while I record
 O4 -> from Take 2, one moment of another speaker, of the Take's level, answered as my own reply,
 then the bar names the fix's slide again for the helper words and Lesson done,

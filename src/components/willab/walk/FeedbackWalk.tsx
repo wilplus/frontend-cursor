@@ -3,7 +3,7 @@
 import { reasonRuns, type PraiseReason, type WalkPraiseReasons } from "@/lib/willab/praiseReason";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { answerBody, helperWordsSaid, type OthersLevel, type WalkTempoLine } from "@/lib/willab/walkThread";
+import { answerBody, helperWordsSaid, skipReply, type OthersLevel, type WalkTempoLine } from "@/lib/willab/walkThread";
 import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
@@ -1967,6 +1967,8 @@ function renderThread<R>(
     const mark = label && label !== last ? <WalkThreadMark label={label} /> : null;
     last = step.key === "others" ? null : (label ?? last);
     const said = answerSaid(ctx, step);
+    // The walk's answer to Skip on the One thing walk's fix (N405).
+    const reply = said ? skipReply(step, ctx.answered(step)) : null;
     const start = threadStart(ctx.walk.plan, part.at);
     const lead = momentLead(ctx.walk.plan, start >= 0 ? start : part.at);
     const opener = ctx.walk.plan[start >= 0 ? start : part.at];
@@ -1993,6 +1995,11 @@ function renderThread<R>(
           {renderScreen(ctx, step, backFromPractise)}
         </WalkPart>
         {said ? <WalkSpeakerBubble edited={wordsEdited(ctx, step)}>{said}</WalkSpeakerBubble> : null}
+        {reply ? (
+          <WalkMessage>
+            <span data-walk-skip-reply>{reply}</span>
+          </WalkMessage>
+        ) : null}
       </div>
     );
   });

@@ -32,7 +32,9 @@ OUTCOME
   O10 With no moment to fix, the pace game is the One thing walk's fix,
       and its opening keeps its tip, "give “{words}” more room" with the
       Sniper's helper words, in the chat for "Last time" next Take (N347
-      item 3).
+      item 3); its scale names its zones "too slow", "just right", "too
+      fast", and Skip gets "Okay, we'll skip this one." in the walk and the
+      chat (N405).
 PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's sheet"
          O2 -> "‹ › move through the walk's chat, never answering and never
                 closing it (founder 2026-10-20)"
@@ -61,6 +63,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { GuestGateContext } from "./GuestSignUpDialog";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "./idealEditCopy";
+import { TEMPO_COPY } from "@/lib/willab/tempoStep";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { reportMomentEvent } from "@/services/api/momentEvents";
 import { PRAISE_CUE_COPY, PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
@@ -534,5 +537,12 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
       .map(([draft]) => (draft as { metadata: Record<string, unknown> }).metadata)
       .find((m) => m.step === "tempo:open");
     expect(opening?.fix_tip).toBe(ONE_THING_COPY.paceTip(stretch));
+    // Its scale names its three zones, left to right (N405).
+    expect([...live()!.querySelectorAll("[data-walk-scale-ends] span")].map((n) => n.textContent)).toEqual([...TEMPO_COPY.ends]);
+    // Skip: their "Skip", then the walk's answer to it, in the walk and in the chat (N405).
+    await click(live()!.querySelector("[data-testid='walk-tempo-skip']"));
+    expect(live()!.querySelector("[data-walk-skip-reply]")!.textContent).toBe(ONE_THING_COPY.skipped);
+    const told = append.mock.calls.map(([draft]) => draft as { body: string; metadata: Record<string, unknown> });
+    expect(told.find((d) => d.metadata.step === "tempo:skipped")?.body).toBe(ONE_THING_COPY.skipped);
   });
 });

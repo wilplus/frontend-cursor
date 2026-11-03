@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, praiseChat, shownStep, sniperWords, storedSummaryOf, tempoSaidIn, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, praiseChat, shownStep, skipReply, sniperWords, storedSummaryOf, tempoSaidIn, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkIntervention, WalkStep } from "@/lib/willab/walkPlan";
 import { tipSaid, type WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
@@ -893,7 +893,13 @@ export function useDeckFeedbackWalk(args: {
         const lines = one ? oneThingTempoLines(event.landed, event.n) : afterTry(event.result, event.landed, event.n);
         say("tempo:comment", "app", lines.join("\n"), event.n);
       } else {
-        if (!event.close) say("tempo:skip", "speaker", TEMPO_COPY.skip);
+        // Skipped: before a try, or, as the One thing walk's fix, after one
+        // too, as the walk draws it (#1183). The Sniper then answers Skip
+        // (N405).
+        if (!event.close || (one && event.skipped)) {
+          say("tempo:skip", "speaker", TEMPO_COPY.skip);
+          if (one) say("tempo:skipped", "app", ONE_THING_COPY.skipped);
+        }
         else if (!one && !event.tries.some((t) => t.landed)) say("tempo:close", "app", TEMPO_COPY.close[event.close]);
         const arcId = args.arcId ?? null;
         if (arcId && take) void postTempoGame(arcId, take, tempo.reading, event);
@@ -1531,6 +1537,9 @@ export function useDeckFeedbackWalk(args: {
       const body = answerBody(step, value);
       const part_id = step.moment != null ? (walkModel.moments[step.moment]?.partId ?? null) : null;
       if (body) post({ key: `answer:${step.key}`, moment: step.moment ?? null, attempt: step.attempt ?? null, author: "speaker", body, extra: { part_id } });
+      // The walk's answer to Skip on the One thing walk's fix (N405).
+      const reply = body ? skipReply(step, value) : null;
+      if (reply) post({ key: `skipped:${step.key}`, moment: step.moment ?? null, attempt: step.attempt ?? null, author: "app", body: reply });
       // Continue on the coach's word: the one "watched" (N80, D4), in the
       // live walk, the coach-only walk (WhatsApp, email, the dot card) and
       // a replay alike (the replay leaves this step live).
