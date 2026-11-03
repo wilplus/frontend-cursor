@@ -118,7 +118,9 @@ export function TapRow({
 }) {
   const [all, setAll] = useState(false);
   const shown = labels.length > 4 && !all ? labels.slice(-3) : labels;
-  const goes = [...shown].reverse().find((l) => !quiet.includes(l));
+  // A lone button is outlined, never filled: filled orange on the right is
+  // what one's own sent message looks like (backend N415 item 1).
+  const goes = shown.length > 1 ? [...shown].reverse().find((l) => !quiet.includes(l)) : undefined;
   const stacked = shown.length > 2;
   const tap = (label: string) => (
     <button
@@ -156,6 +158,29 @@ export function TapRow({
       ) : null}
       {shown.map(tap)}
     </div>
+  );
+}
+
+/** An ask's two answers as N371's suggested answers (backend N415 item 2):
+ *  the close on the left, outlined; the one that goes on on the right,
+ *  filled. Replaces the equal grey and black pills in Will's chat. */
+export function AnswerPair({
+  closeLabel,
+  onClose,
+  actionLabel,
+  onAction,
+}: {
+  closeLabel: string;
+  onClose: () => void;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <TapRow
+      labels={[closeLabel, actionLabel]}
+      onTap={(label) => (label === actionLabel ? onAction() : onClose())}
+      dataAttr={{ "data-answer-pair": "" }}
+    />
   );
 }
 

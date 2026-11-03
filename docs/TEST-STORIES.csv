@@ -454,12 +454,12 @@ follow-up) is the newest bubble.
 O3  Suggested answers keep one shape everywhere (N371): two side by
 side, three or four stacked, more than four the last three and
 ""Show more"", which shows the rest; a quiet ""Not now"" is never the
-filled one.
+filled one, and a lone answer is outlined, never filled (N415).
 O4  While Will's question waits and typing is allowed, the bar's middle
 is ""Something else""; a tap opens the box with ""Type your answer"".
 While typing is off (the plan asks), it never shows (N371).","O1 -> ""the newest question shows its answers, no Skip, and a tap
 goes to the backend once""
-O3 -> ""suggested answers: two in a row, three stacked, more than four behind Show more""
+O3 -> ""suggested answers: two in a row, three stacked, a lone one outlined, more than four behind Show more""
 O4 -> ""while Will asks, Something else opens the box; the plan's questions never show it""
 O2 -> ""the message after the Take waits under Will's question""","Founder 2026-10-20 (N82): ""only buttons"" in the walk, Will's questions in the Lounge, tap answers plus my own words; 2026-10-31 (N296): ""maybe we should not give them the option to skip; let's try that""."
 src/components/willab/acceptRewrite.test.tsx,Story,"As a speaker accepting a clearer version in the paragraph sheet, I want my answer saved and my text unchanged until I say it in my next Take, so that the Ideal Text is only what I said.","O1  The answer is saved once, as apply_suggestion.
