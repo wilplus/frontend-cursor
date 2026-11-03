@@ -231,9 +231,13 @@ export default function WalkAiVoice({
 }) {
   const clip = state?.clip;
   const shown = useArrival(seed, arrive);
+  // No clip ready, nothing read aloud of it: the dots are hidden from
+  // assistive tech and the label is read once the player is there (N379
+  // item 2).
+  const ready = clip?.state === "ready" && Boolean(clip.url);
   if (!shown) {
     return (
-      <div data-walk-ai-typing className="flex">
+      <div data-walk-ai-typing aria-hidden="true" className="flex">
         <TypingDots label={WALK_COPY.aiVoiceLabel} />
       </div>
     );
@@ -243,7 +247,7 @@ export default function WalkAiVoice({
       {title ? <span>{title}</span> : null}
       {lead ? <span>{lead}</span> : null}
       {line ? <span>{line}</span> : null}
-      <span data-walk-ai-voice className="mt-2 flex items-center gap-[7px] text-[14px] font-semibold">
+      <span data-walk-ai-voice aria-hidden={ready ? undefined : true} className="mt-2 flex items-center gap-[7px] text-[14px] font-semibold">
         <span
           aria-hidden
           className="inline-flex h-[17px] w-[17px] items-center justify-center rounded-[5px] bg-foreground text-[9.5px] font-bold text-background"
@@ -252,7 +256,7 @@ export default function WalkAiVoice({
         </span>
         {WALK_COPY.aiVoiceLabel}
       </span>
-      {clip?.state === "ready" && clip.url ? (
+      {ready && clip?.url ? (
         <div onClickCapture={onPlay} className="mt-2">
           <WalkPlayer look="bare" seed={seed} src={clip.url} durationMs={clip.durationMs} label={WALK_COPY.aiVoiceLabel} />
         </div>

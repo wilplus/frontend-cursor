@@ -496,12 +496,13 @@ praised moment:
 - **C4 The AI clip after their best** (N309 item 1): the fix moment's
   clip, "Say this one like your confident moment:", their best's clip
   played again, then the AI bubble: the tip ending ", like this:", the AI
-  clip with its label, "Your turn." (no opener). With no AI clip coming,
+  clip with its label (no opener; no "Your turn.": the "Try it" under it
+  says it, N379 item 3). With no AI clip coming,
   the rest stands and the try is still theirs (never walked as good, never
   skipped: it is the one thing), and the fix still says what to do (N370):
   one bubble with the same tip as its own sentence ("Pause before
   “{phrase}”."), when the server named what the clip would fix, the served
-  exercise's video and instruction when there is one, then "Your turn.";
+  exercise's video and instruction when there is one;
   the chat says the same (also when a clip it posted as coming never
   comes), and "Last time" keeps that tip. With none of these, as before.
   The fix never waits long on its clip (N373): a clip still being made ten
@@ -515,7 +516,15 @@ praised moment:
   place; and "Say this one like your confident moment:" is said only with
   their best's clip after it, in the walk and the chat (N377). Was: the AI
   bubble changed into the words with no motion, and the line could end on
-  a colon with nothing after it. Was (2026-10-31 to 2026-11-03): with no clip the tip
+  a colon with nothing after it. One example to copy (N379): when the fix
+  has its own (the AI clip, the exercise's video), their best's clip is a
+  small chip, "Your confident moment" (N289 item 7); with none, it stays
+  full, as it is the example. The bubbles after their best are a polite
+  live region, read aloud as they land; the AI bubble's typing dots and its
+  label are not read while no clip is ready. Was: their best full beside
+  the AI clip, two examples to copy; the dots read as "AI version of your
+  voice" for a clip that might never come; "Your turn." above "Try it".
+  Was (2026-10-31 to 2026-11-03): with no clip the tip
   went with it, and the exercise's video was never drawn in this walk. Was (N289 item 2, below): **The weakest**
   (founder, 2026-10-30, N289 item 2). It is never
   called weak. Its bubbles: "Here's one with more in it." (signed, N289 item
@@ -1472,8 +1481,8 @@ October (backend N111).
   `paceTip`), "This was your most
   confident moment.", "Why it worked: {the moment's signed cue line}",
   "And now, one thing to improve:", "Say it straight:", "Say this one like
-  your confident moment:", the tip ending ", like this:", "Your turn.",
-  "Try it", "Keep mine", "Skip", "Yes. That's it.", "Close. Once more.",
+  your confident moment:", the tip ending ", like this:", "Your
+  confident moment" (the chip, N379), "Try it", "Keep mine", "Skip", "Yes. That's it.", "Close. Once more.",
   "Good try. Take it with you.", "Let's see how you find this voice. It
   helps us understand you and serve you better.", "Does this sound
   confident to you?", "{face} {answer} ✓", "Got it.", "These are your helper
@@ -1942,6 +1951,7 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-03 · N376 · F1: which page an Ideal Text card opens is known before either is drawn, and a press on an older card starts its read (`src/lib/willab/pastIdealText.ts`); an older version shows its paragraphs slide by slide, each slide's picture and kicker on the deck that Take was said on. Was: a loader first, then sometimes the live page; plain paragraphs · BE N376 log and the History's slides (BE, next PR), FE (this PR)
 - 2026-11-03 · N375 · F1: only the project's newest Ideal Text card opens the page; an older Take's card (the walk's own card or a version card) opens that Take's words as they were, read only, from the versions the History under ⋯ keeps (`IdealTextPastVersion.tsx`); a version with no saved words, or still the newest, opens the page; B10's older Take's walk now ends on that Take's card, which opens those words. Was: every card opened the live page, and the older walk ended with no card · BE N375 log, FE (this PR)
 - 2026-11-03 · N374 · built (C0a, C2, C3, H1): a short Take keeps its one fix: when the between's Clearer version does not pass and no paragraph is left for the weakest (a Take of two), that moment takes the AI clip itself (8 words or more and a sound read), for Takes recorded from 3 November 2026, 11:00 UTC (backend `VOICE_FALLBACK_FROM`); and every walk leaves helper words: when the fix gives none (no fix, a tip that quotes no phrase, a stretch past eight words), their best's own words, whole, with the same line. Was: the between was praised as a next best and left out, so a new speaker's first Take showed their best alone, with no fix and no helper words · BE (the pick), FE (this PR)
+- 2026-11-03 · N379 · built (C4, K): their best's clip a small "Your confident moment" chip when the fix has its own example (`WalkPlayer` `chip`); the fix's bubbles a polite live region, the AI bubble's dots and label hidden from assistive tech until its clip is ready; no "Your turn." in the fix, in the walk and the chat. Item 5 of the audit (naming the sentence for a tip with no phrase) waits on the AI voice lock · FE (this PR)
 - 2026-11-03 · N377 · built (C4): the fix's no-clip words land with `walk-bubble-in`, once per wording (`FixWords`, `useLandsOnce`); "Say this one like your confident moment:" only when their best's clip follows, in the walk and the chat (`fixBest`; the chat's body now comes whole from the walk). Was: a swap with no motion, and a colon that could point at nothing · FE (this PR)
 - 2026-11-03 · N373 · built (C4): the fix waits ten seconds on a clip still being made, then says its tip in words (N370's bubble), a clip that comes later joining as its player alone; once the first try began, a clip not yet seen never lands above it (`AI_CLIP_WAIT_MS`, `useClipWait`, `useClipBeforeTry`). Was: the dots as long as the clip took, and a late clip above the try · FE (this PR)
 - 2026-11-03 · N370 · built (C4): the One thing walk's fix with no AI clip (its check failed, the provider or the limits refused, no voice) keeps its tip in words, the exercise's video and instruction when one is served, and "Your turn.", in the walk and the chat; "Last time" keeps the tip; the backend sends what the clip would fix with an unavailable clip once it was chosen. Was: the bubble, and the tip with it, went with the clip · BE #1621, FE (this PR)

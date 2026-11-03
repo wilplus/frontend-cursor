@@ -80,20 +80,21 @@ export function aiTip(
 }
 
 /** The One thing walk's AI bubble (founder 2026-10-31, N309 item 1): the
- *  tip ending ", like this:", the clip, "Your turn."; no opener, and no
- *  bubble again after a miss. A tip not known yet is left out. */
+ *  tip ending ", like this:", then the clip; no opener, no "Your turn."
+ *  (the "Try it" under it says it, N379 item 3), and no bubble again after
+ *  a miss. A tip not known yet is left out. */
 export function oneThingAiLines(
   say: (bank: WalkBankKey) => string,
   clip: { problem?: AiClipProblem | null; phrase?: string | null } | null | undefined,
-): { line: string; then: string } {
+): { line: string } {
   const tip = aiTip(say, clip);
-  return { line: tip ? `${tip}, like this:` : "", then: ONE_THING_COPY.yourTurn };
+  return { line: tip ? `${tip}, like this:` : "" };
 }
 
 /** The One thing walk's fix when no AI clip comes (N370): the tip as its
  *  own sentence ("Pause before “{phrase}”.") when the server named what the
- *  clip would fix, the served exercise's video and instruction, then "Your
- *  turn."; null when there is none of these. `tip`, bare, is what "Last
+ *  clip would fix, the served exercise's video and instruction (no "Your
+ *  turn.", N379 item 3); null when there is none of these. `tip`, bare, is what "Last
  *  time" keeps. The walk draws `lines` and the chat says them. Pure apart
  *  from `say`. */
 export function oneThingNoClip(
@@ -105,7 +106,7 @@ export function oneThingNoClip(
   const instruction = exercise?.instruction?.trim() || null;
   const video = exercise?.video || null;
   if (!tip && !instruction && !video) return null;
-  const lines = [tip ? `${tip}.` : null, instruction, ONE_THING_COPY.yourTurn].filter((l): l is string => l !== null);
+  const lines = [tip ? `${tip}.` : null, instruction].filter((l): l is string => l !== null);
   return { tip, lines, video, byCoach: exercise?.byCoach === true };
 }
 

@@ -359,6 +359,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N379 · in the One thing walk's fix: no "Your turn." under the clip; the dots and the label L1 are not read aloud until the clip is ready · FE (this PR)
 - 2026-11-03 · N373 · the One thing walk's fix waits ten seconds on a clip being made, then the words; a late clip joins as its player alone, never above a try · FE (this PR)
 - 2026-11-03 · N370 · with no clip, the One thing walk's fix keeps its tip in words and the exercise's video; an unavailable clip carries what it would have fixed once chosen · BE #1621, FE (this PR)
 - 2026-10-30 · N289 · the clip is for the weakest moment only; a praise gets none. Was: every praise practised with a clip (N122) · BE #1528, BE #1529, FE (this PR)
