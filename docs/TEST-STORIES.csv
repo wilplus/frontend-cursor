@@ -1048,8 +1048,9 @@ sent once, and the number is never written back into the chat
 (N178): the tap comes back as my turn, a lock and ""Answered""
 (N339).
 O4  One action a step: ""Start your first recording"" is never under a
-question; it is the one button after the plan card, in the message
-box's place, and opens the first Take (N319 item 2). A Take
+question; it is the one button after the plan card, in the bar
+between the ""+"" and the mic, and opens the first Take (N319 item 2,
+N453 item 9). A Take
 recorded first: its walk comes before the questions (N262).
 O5  While the plan asks, ""Type here"" stays in the bar, faded and not
 focusable (N319 item 3); wherever it is faded, before my first Take
@@ -1068,10 +1069,11 @@ item 7); a plain row is left to the Lounge.
 O7  The chat has one record button: a practice day's one thing holds
 it until a newer Take's closing message takes it back (N167), and
 gives it up once a newer Take is recorded, in any project (N244,
-N251). It is ""Record Take N"" under the chat, alone, the message box
-gone, never inside the bubble, and a tap starts that Take (N294
-item 7, N296 state 4). Its grey ✕ closes it and the bar is back,
-until I open the chat again (N395).
+N251). It is ""Record Take N"" in the bar, between the ""+"" and the
+mic, in the typing box's place, never inside the bubble, and a tap
+starts that Take (N294 item 7, N296 state 4, N453 item 9). Where
+the bar has no mic, its grey ✕ stays and brings the typing box back
+(N395); ""Start your first recording"" has none.
 O8  ""How do you feel?"" comes before a Take only once the plan's first
 Take is recorded (D4).
 O9  Will's ask for the plan's own yes is drawn as his bubble with Read
@@ -1084,8 +1086,8 @@ ring row ""plan_calls"" on, the card lists both calls, Book on one
 not booked, and the plan's end shows the summary call; off, none.
 O12 On a first-Take plan (backend N401, the ring row ""first_take""),
 nothing is asked in the chat: ""Start your first recording"" is the
-one button at once, in the message box's place, and it starts the
-first Take with the plan's five slides.","O1, O5 -> ""a choice is taps in the thread, the bar stays and
+one button at once, in the bar between the ""+"" and the mic, and it
+starts the first Take with the plan's five slides.","O1, O5 -> ""a choice is taps in the thread, the bar stays and
 typing waits""
 O5 -> ""a tap on the faded Type here says why, before the first
 Take and after it""
@@ -1094,7 +1096,7 @@ sends the answer""
 O3 -> ""a rating is sent once and never written back""
 O4 -> ""Start your first recording only after the plan card""
 O3, O6 -> ""the plan's rows are drawn as the prototype draws them""
-O7 -> ""a practice day's Record Take N is the button under the chat, alone, until its ✕""
+O7 -> ""a practice day's Record Take N stands in the bar, between the + and the mic""
 O8 -> ""the feelings before a Take""
 O9 -> ""Will asks for the plan's own yes""
 O10 -> ""nothing of the principles before my first Take""

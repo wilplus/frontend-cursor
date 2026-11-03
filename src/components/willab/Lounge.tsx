@@ -134,6 +134,7 @@ import {
   VoiceNoteBubble,
   VoiceNoteFixBar,
   VoiceNoteMic,
+  micShows,
   VoiceNotePicker,
   VoiceNoteThread,
   SalesSteps,
@@ -158,7 +159,7 @@ import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import WillQuestionBubble, { AnswerPair, TapRow, useSomethingElse, willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
 import { isWillVoice, useWillVoice, WillVoiceBubble } from "./WillVoiceAnswer";
-import { RecordTakeButton, useRecordTake } from "./plan/PlanDock";
+import { BarRecord, useRecordTake } from "./plan/PlanDock";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -2078,27 +2079,9 @@ export default function Lounge({
       ) : null}
       {plan.dock}
       {plan.sheets}
-      {/* The chat's one "Record Take N" (N294 item 7, N296 state 4): the
-          next Take after the goodbye, or a practice day's (the-plan.md G6);
-          the plan's black button with the red dot, alone, the message box
-          and the mic gone, until its grey ✕ closes it (N395). */}
-      <RecordTakeButton
-        next={recordTake.next}
-        held={takeInFlight}
-        onRecord={(arc) =>
-          // After the first Take (backend N401 item 4): "Record Take 2" is the
-          // real talk, its own set-up with the plan's topic, never the five
-          // questions again.
-          isFirstTakeArc(userId, arc, recordTake.next?.takeIndex) && onStartPlanRecording
-            ? onStartPlanRecording(plan.topic, { afterFirstTake: true })
-            : openIdealText(arc, "share")
-        }
-        onClose={recordTake.close}
-      />
-      {/* Hidden whole while the plan's footer, or the next Take's button,
-          stands in for it, so its empty wrapper adds no gap under it
-          (founder 2026-10-30). */}
-      <div className={hiddenWhile(recordTake.next, plan.composerDisplay("contents"))}>
+      {/* Hidden whole while the plan's footer stands in for it, so its empty
+          wrapper adds no gap under it (founder 2026-10-30). */}
+      <div className={plan.composerDisplay("contents")}>
       <NewProjectAskComposer ask={newProjectAsk}>
       <SlidesAskComposer ask={slidesAsk}>
       <PolicyUpdateComposer>
@@ -2123,6 +2106,26 @@ export default function Lounge({
         >
           <Plus className="h-5 w-5" aria-hidden />
         </button>
+        {/* A record button stands in the typing box's place, between the "+"
+            and the mic, as the prototype draws the bar (backend N453 item 9):
+            "Start your first recording", or the chat's one "Record Take N"
+            (N294 item 7, N296 state 4), the next Take after the goodbye or a
+            practice day's (the-plan.md G6). */}
+        <BarRecord
+          record={plan.record}
+          next={recordTake.next}
+          held={takeInFlight}
+          micShown={micShows(notebook, plan.mic(willVoice.waiting))}
+          onClose={recordTake.close}
+          // After the first Take, "Record Take 2" is the real talk, its own
+          // set-up with the plan's topic, never the five questions again
+          // (N401 item 4, N449 item 1).
+          onRecord={(arc) =>
+            isFirstTakeArc(userId, arc, recordTake.next?.takeIndex) && onStartPlanRecording
+              ? onStartPlanRecording(plan.topic, { afterFirstTake: true })
+              : openIdealText(arc, "share")
+          }
+        >
         <div className="relative flex-1">
           {somethingElse.button}
           <textarea
@@ -2179,6 +2182,7 @@ export default function Lounge({
             </button>
           ) : null}
         </div>
+        </BarRecord>
         {/* The voice notebook's mic, right of the input (founder 2026-10-20);
             orange while Will waits, and then it records the answer (N296
             state 2): his question after the walk, or the plan's voice
@@ -3164,11 +3168,6 @@ function useGoodbye({
 function ContinueTap({ shown, onTap }: { shown: boolean; onTap: (said: string) => void }) {
   if (!shown) return null;
   return <TapRow labels={[CONTINUE_PRACTICE]} onTap={onTap} dataAttr={{ "data-continue-practice": "" }} />;
-}
-
-/** A wrapper's class: hidden while `standIn` takes its place. */
-function hiddenWhile(standIn: unknown, shown: string): string {
-  return standIn ? "hidden" : shown;
 }
 
 /** The Take's summary and, since N89, its closing message (since N294 the

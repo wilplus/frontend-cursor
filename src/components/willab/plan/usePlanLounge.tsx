@@ -21,7 +21,7 @@ import {
 } from "@/services/api/plan";
 import { fmtWhen, PLAN_COPY } from "@/lib/willab/planCopy";
 import type { FirstTakeSlide } from "@/lib/willab/firstTake";
-import PlanDock, { dockFor, PlanAsk, planAsks, usePlanVoice, type PlanActions } from "./PlanDock";
+import PlanDock, { dockFor, PlanAsk, planAsks, RecordDockButton, usePlanVoice, type PlanActions } from "./PlanDock";
 import { newestOneOf, PendingBooked, PendingVoice, type PlanRowCtx } from "./PlanRows";
 import { followNewest } from "@/components/willab/usePinThreadBottom";
 import { ChangePlanSheet, SeePlanSheet } from "./PlanSheet";
@@ -33,6 +33,14 @@ import { ChangePlanSheet, SeePlanSheet } from "./PlanSheet";
    to. Off for everyone the ring row "plan" doesn't reach (ring 5, N204): the
    backend answers enabled false, and the Lounge is as before. */
 
+/** "Start your first recording" for the bar's middle while it is the plan's
+ *  one step (N453 item 9); else null. */
+function startInBar(kind: string | null, busy: boolean, onStart: () => void): ReactNode {
+  return kind === "start" && !busy ? (
+    <RecordDockButton label={PLAN_COPY.startFirst} onClick={onStart} dataAttr={{ "data-plan-dock": "start" }} />
+  ) : null;
+}
+
 export type PlanLounge = {
   dock: ReactNode;
   sheets: ReactNode;
@@ -42,10 +50,12 @@ export type PlanLounge = {
   /** The voice answer just sent, in the thread while it is heard (N275). */
   pending: ReactNode;
   rows: PlanRowCtx | undefined;
-  /** The message box's display: hidden while the plan's footer replaces it
-   *  ("Start your first recording", a call's calendar, the recording bar) or
-   *  a practice day's "Record Take N" does (`one`). */
+  /** The message box's display: hidden while the plan's footer replaces the
+   *  whole bar (a call's calendar, the recording bar). */
   composerDisplay: (base: string) => string;
+  /** "Start your first recording", for the bar's middle, between the "+"
+   *  and the mic, in the typing box's place (N453 item 9); else null. */
+  record: ReactNode;
   /** The Lounge's mic: orange while the plan's voice question waits, and it
    *  records the answer; else what the Lounge would give it (Will's own). */
   mic: (otherwise: MicWaits) => MicWaits;
@@ -265,12 +275,12 @@ export function usePlanLounge({
   // alone (N294 item 7, N296 state 4).
   const newestOne = state?.enabled ? newestOneOf(thread.messages) : null;
   const one = plan && kind === null ? newestOne : null;
-  // What stands in for the message box: the one button after the plan card,
-  // a call's calendar, the recording bar while an answer is said. While the
-  // plan asks, the Lounge's bar stays ("+", "Type here", the mic). A
-  // practice day's Take is the chat's one "Record Take N", which hides the
-  // bar itself until its ✕ closes it (`useRecordTake`, N395).
-  const replaces = kind === "start" || kind === "book" || voice.recording;
+  // What stands in for the whole bar: a call's calendar, the recording bar
+  // while an answer is said. "Start your first recording" stands in the
+  // bar, between the "+" and the mic, in the typing box's place (`record`,
+  // N453 item 9), as a practice day's "Record Take N" does. While the plan
+  // asks, the Lounge's bar stays ("+", "Type here", the mic).
+  const replaces = kind === "book" || voice.recording;
   const openBook = (which: CallWhich) => {
     setSheet(null);
     setBooking(which);
@@ -337,6 +347,7 @@ export function usePlanLounge({
     ) : null,
     rows,
     composerDisplay: (base) => (replaces ? "hidden" : base),
+    record: startInBar(kind, busy, actions.startFirst),
     mic: (otherwise) => voice.waiting ?? otherwise,
     // Before the first Take Will needs to hear it, so "Type here" waits
     // (N319 item 3); after it a plan question takes no typed answer either
