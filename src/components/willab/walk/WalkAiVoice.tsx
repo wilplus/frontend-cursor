@@ -182,6 +182,17 @@ export function useClipBeforeTry(seed: string, ready: boolean, tried: boolean): 
  *  again (the stage's leaving copy, ‹ and ›) shows its bubble at once. */
 const landed = new Set<string>();
 
+/** A bubble lands with the walk's motion the first time it is drawn in this
+ *  page's life; drawn again (‹ ›, the stage's leaving copy) it is there at
+ *  once (N377 item 1). Read once, as the bubble mounts. */
+export function useLandsOnce(seed: string): boolean {
+  const [lands] = useState(() => !landed.has(seed));
+  useEffect(() => {
+    landed.add(seed);
+  }, [seed]);
+  return lands;
+}
+
 /** The two beats of the Exercise bubble's arrival: the typing dots alone,
  *  then the bubble, once per seed. */
 function useArrival(seed: string, arrive: boolean): boolean {

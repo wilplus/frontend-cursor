@@ -13,6 +13,7 @@ OUTCOME
   O9  A praised moment is practised too: after its praise the short bubble with my AI voice and "Your turn.", up to three tries, a Good job ends it, then its helper words; with no AI clip the praise goes straight to its helper words (N122).
   O10 In the One thing walk, when no AI clip comes for my fix, I still get the tip in words, the exercise's instruction and "Your turn.", and the chat says the same (N370).
   O11 I never wait long on the AI clip: after ten seconds the tip is in words, and a clip that comes later joins them as its player; once I have started my try, a clip that arrives late does not appear above it (N373).
+  O12 The fix's words land like every message, and "Say this one like your confident moment:" only comes with my best's clip after it (N377).
 PROVES   O1 -> Stop shows once the mic is live, uploads through the attempts route, returns to the walk at once ... and posts /check,
                the trash throws the try away: nothing is sent, no try counted, back on the step that opened it (N314)
          O2 -> praise on try 1: the line for the reading that moved, then Next opens its helper words (N220)
@@ -25,6 +26,7 @@ PROVES   O1 -> Stop shows once the mic is live, uploads through the attempts rou
          O9 -> a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122), with no AI clip the praise goes straight to its helper words (N122)
          O10 -> says the tip in words, the exercise's instruction and “Your turn.”, in the walk and the chat alike
          O11 -> a clip still being made after the wait gives way to the tip in words ..., a clip that comes once the try has begun never lands above it (N373 item 2)
+         O12 -> says the tip in words ... (lands with the bubble motion), with no clip of their best, no line ending on a colon, in the walk or the chat (N377 item 2)
 WHY      Never-rule 1 (no scores to speakers); founder 2026-10-31 (N314, "Can you make it locked everywhere?"); 2026-11-02 (N350 item 5, "Stop once the mic is live, in both"); founder 2026-10-21 (N108, "Skip that moment"); 2026-10-23 (N120, "make it shorter focused on one only thing"; N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N284, "Treat as good").
 */
 import { act } from "react";
@@ -672,6 +674,8 @@ describe("the One thing walk's fix with no AI clip (founder 2026-11-03, N370)", 
     const [tip, ...rest] = [...live()!.querySelectorAll("[data-walk-no-clip]")].map((n) => n.textContent);
     expect(PAUSE_SAID).toContain(tip);
     expect(rest).toEqual([EXERCISE_OFFER.instruction, ONE_THING_COPY.yourTurn]);
+    // It lands like every message (N377 item 1).
+    expect(live()!.querySelector("[data-walk-no-clip]")!.closest("[data-walk-message]")!.className).toContain("walk-bubble-in");
     // No AI bubble and no player: nothing to wait for.
     expect(live()!.querySelector("[data-walk-ai-voice], [data-walk-ai-waiting]")).toBeNull();
     // The try is still theirs.
@@ -680,7 +684,7 @@ describe("the One thing walk's fix with no AI clip (founder 2026-11-03, N370)", 
     expect(told).toHaveLength(1);
     // The chat: no AI bubble, the same lines, and the bare tip for "Last time".
     expect(told[0][3]).toBeNull();
-    expect(told[0][4]).toBe([tip, ...rest].join("\n"));
+    expect(told[0][4]).toBe([ONE_THING_COPY.likeConfident, tip, ...rest].join("\n"));
     expect(told[0][5]).toBe(tip!.replace(/\.$/, ""));
   });
 
@@ -702,6 +706,19 @@ describe("the One thing walk's fix with no AI clip (founder 2026-11-03, N370)", 
     expect(live()!.querySelector("[data-walk-ai-voice]")).not.toBeNull();
     expect(live()!.querySelector("audio[src='https://media.example/ai.mp3']")).not.toBeNull();
     expect(aiSpans().some((t) => t?.includes("like this:"))).toBe(false);
+  });
+
+  it("with no clip of their best, no line ending on a colon, in the walk or the chat (N377 item 2)", async () => {
+    aiClip = "chosen";
+    const onShown = vi.fn();
+    const items = [{ ...ONE_ITEMS[0], clip: undefined }, ONE_ITEMS[1]];
+    draw({ items, at: fixAt(items), onShown, takeId: "take-nobest" });
+    await settle(60);
+    expect(screen()).toBe("walk-screen-exVideo");
+    expect(live()!.querySelector("[data-walk-like]")).toBeNull();
+    expect(live()!.querySelector("[data-walk-no-clip]")).not.toBeNull();
+    const told = onShown.mock.calls.filter(([s]) => (s as { key: string }).key === "exVideo");
+    expect(told[0][4]).not.toContain(ONE_THING_COPY.likeConfident);
   });
 
   it("a clip that comes once the try has begun never lands above it (N373 item 2)", async () => {
