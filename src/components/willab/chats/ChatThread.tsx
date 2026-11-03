@@ -98,6 +98,13 @@ function TopBar({
   );
 }
 
+/** The device's Back (the iPhone's swipe, the browser's Back) closes the
+ *  chat while it is the screen: one step, to the list (N378). */
+function BackIsThisChats({ onBack }: { onBack: () => void }) {
+  useBackDismiss(onBack);
+  return null;
+}
+
 /** A person's chat's top bar: the letter circle, the name, who they are. */
 function ChatTopBar({ chat, onBack, onOpen }: { chat: Chat; onBack: () => void; onOpen: () => void }) {
   return (
@@ -632,10 +639,14 @@ let localSeq = 0;
 
 export default function ChatThread({
   chat,
+  open = true,
   onBack,
   onRecordAnswer,
 }: {
   chat: Chat;
+  /** False while the chat is pulled in from the list's right edge, or slides
+   *  out: not yet (or no longer) the screen, so Back is not its own. */
+  open?: boolean;
   onBack: () => void;
   onRecordAnswer?: (answer: AnswerFor) => void;
 }) {
@@ -661,7 +672,6 @@ export default function ChatThread({
   const [profile, setProfile] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pickers = { photos: useRef<HTMLInputElement>(null), camera: useRef<HTMLInputElement>(null), files: useRef<HTMLInputElement>(null) };
-  useBackDismiss(onBack);
 
   // The voice note (N321 item 2): the mic records with the one recording
   // bar, up to two minutes; Stop sends, the trash throws it away. The bar
@@ -756,6 +766,7 @@ export default function ChatThread({
 
   return (
     <div data-chat-screen className="relative flex min-h-0 flex-1 flex-col">
+      {open ? <BackIsThisChats onBack={onBack} /> : null}
       <ChatTopBar chat={chat} onBack={onBack} onOpen={() => setProfile(true)} />
       {profile ? <Profile chatId={chat.id} onBack={() => setProfile(false)} /> : null}
       <div

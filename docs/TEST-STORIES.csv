@@ -573,7 +573,13 @@ sides (N321 item 4, N361, N368); it hands the recording screens the
 chat, the person and the question. Back from them, the bar's middle
 reads ""Sending to {name}… {n}"" with Undo, then
 it goes and ""Sent to {name} on WhatsApp"" (a customer) stands under it
-(N345, N342).","O1 -> ""with chats off, the Lounge is all there is and no chat is read""
+(N345, N342).
+O17 Back (the iPhone's swipe from the left edge in the app, the browser's
+Back on the web) goes back by one, from a chat to the list, and never
+off the list; back on the list, it is where I left it, the row I came
+from lit. Forward (the swipe from the list's right edge in the app,
+the browser's Forward on the web) opens the chat I just left again;
+before I have left one, it does nothing (N378, N436).","O1 -> ""with chats off, the Lounge is all there is and no chat is read""
 O2 -> ""with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back""
 O3 -> ""an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question""
 O4 -> ""the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's""
@@ -588,7 +594,9 @@ O12 -> ""the + shows the four tiles, Someone else opens my link, and Cancel brin
 O13 -> ""a photo I send joins the thread and the mic shows until my voice note says what I need""
 O14 -> ""the other person's photo or file waits for my voice, and each opens from the chat's file route""
 O15 -> ""an answer sent to me plays with its slides following the voice, its words behind Read it""
-O16 -> ""a marked question takes Record an answer, and my answer goes with Sending, Undo and Sent""",
+O16 -> ""a marked question takes Record an answer, and my answer goes with Sending, Undo and Sent""
+O17 -> ""the device's Back goes back by one, to the list, never off it, and Forward opens the chat I just left""
+O17 -> ""in the app, a swipe from the left edge goes back to the list where I left it, and one from the right edge forward to the chat I just left""",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.
