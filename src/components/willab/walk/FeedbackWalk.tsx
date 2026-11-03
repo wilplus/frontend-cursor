@@ -22,6 +22,7 @@ import WalkOthers from "./WalkOthers";
 import WalkSummary, { type WalkStoredSummary } from "./WalkSummary";
 import WalkTempo from "./WalkTempo";
 import WalkTempoSaid from "./WalkTempoSaid";
+import WalkLoading from "./WalkLoading";
 import { TEMPO_COPY, type TempoEvent, type TempoStretch } from "@/lib/willab/tempoStep";
 import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, AI_CLIP_WAIT_MS, useClipBeforeTry, useClipWait, useLandsOnce, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
@@ -252,6 +253,9 @@ type Props<R> = {
   /** The tempo step's stretch, when the plan has a "tempo" step (backend
    *  N162, N166); absent: the step is passed by. */
   tempo?: TempoStretch | null;
+  /** The stretch is still being asked: the Sniper's step, there before it
+   *  (the server chose it, C-SNIPER), shows the typing dots (B8). */
+  tempoAsking?: boolean;
   /** The tempo step as the chat kept it: a walk played again shows it so
    *  (N247). */
   tempoSaid?: readonly WalkTempoLine[];
@@ -369,6 +373,7 @@ export default function FeedbackWalk<R = unknown>({
   reasons = null,
   othersJudged = 0,
   tempo = null,
+  tempoAsking = false,
   tempoSaid = NO_LINES,
   onTempo,
   quotes: quotesIO = null,
@@ -923,6 +928,7 @@ export default function FeedbackWalk<R = unknown>({
     onOthers,
     othersJudged,
     tempo,
+    tempoAsking,
     tempoSaid,
     onTempo,
     tempoSlide,
@@ -1079,6 +1085,8 @@ type ScreenCtx<R = unknown> = {
   reasons: WalkPraiseReasons | null;
   othersJudged: number;
   tempo: TempoStretch | null;
+  /** The stretch is still being asked (C-TEMPO). */
+  tempoAsking: boolean;
   tempoSaid: readonly WalkTempoLine[];
   onTempo?: (event: TempoEvent, one?: boolean) => void;
   /** The Sniper's slide for the bar (backend N435 item 7). */
@@ -1842,6 +1850,15 @@ function Tempo(ctx: ScreenCtx, step: WalkStep) {
       />
     ) : null;
   if (step.replay && kept) return kept;
+  // The Sniper the server chose, its stretch still on its way: the typing
+  // dots, the walk's one wait (B8); with none, it is passed by.
+  if (!ctx.tempo && ctx.tempoAsking && !step.readOnly && !step.replay) {
+    return (
+      <WalkOverlay testId={testId(step)} onClose={ctx.close}>
+        <WalkLoading />
+      </WalkOverlay>
+    );
+  }
   if (!ctx.tempo || step.readOnly || step.replay) return <PassBy onPass={() => ctx.forwardFrom(step)} />;
   return (
     <TempoOrKept kept={kept}>

@@ -70,14 +70,11 @@ import { praiseTitleFor } from "@/lib/willab/praiseLevels";
 import { useGreenReasons } from "./walk/useGreenReasons";
 import { fetchUserProfileShared } from "@/services/api/userProfile";
 import type { WalkPraiseReasons } from "@/lib/willab/praiseReason";
-import { isFounderEmail } from "@/lib/founder";
-import { useUserEmail } from "./useUserEmail";
 import { useReviewTempo } from "./walk/useReviewTempo";
-import { useRingState } from "@/hooks/useRingState";
 import { postTempoGame } from "@/services/api/reviewTempo";
 import { askWalkQuote, replayWalkQuote, setWalkQuote, walkQuoteShown } from "@/services/api/walkQuote";
 import type { WalkQuoteIO } from "./walk/useWalkQuote";
-import { TEMPO_COPY, TEMPO_STEP_FEATURE, afterTry, oneThingTempoLines, tempoOpening, type TempoEvent } from "@/lib/willab/tempoStep";
+import { TEMPO_COPY, afterTry, oneThingTempoLines, stretchWordsIn, tempoOpening, type TempoEvent, type TempoStretch } from "@/lib/willab/tempoStep";
 
 /* -------------------------------------------------------------------------- */
 /*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
@@ -214,6 +211,26 @@ export function deckReplayItems(
     }
   }
   return out;
+}
+
+/** Where the Sniper's stretch is said (N309 item 3, N435 item 7): on its
+ *  slide when the answer names it (C-TEMPO), the paragraph that says its
+ *  words, matched leniently (case, punctuation, hesitations), with those
+ *  words as the paragraph shows them; else the slide's first paragraph,
+ *  with no words. Null when neither is found. Pure. */
+export function stretchParagraph(
+  tempo: TempoStretch | null,
+  chunks: readonly DeckChunk[],
+  groups: readonly SlideGroup[],
+): { chunk: DeckChunk; words: string | null } | null {
+  const stretch = tempo?.said.stretch.trim();
+  if (!tempo || !stretch) return null;
+  const slide = tempo.slideIndex != null ? groups.find((g) => g.slideIndex === tempo.slideIndex) : undefined;
+  for (const chunk of slide ? slide.chunks : chunks) {
+    const words = stretchWordsIn(chunk.part.text, stretch);
+    if (words) return { chunk, words };
+  }
+  return slide?.chunks[0] ? { chunk: slide.chunks[0], words: null } : null;
 }
 
 /** A green moment's reason written after the page was read says in the
@@ -805,12 +822,6 @@ export function useDeckFeedbackWalk(args: {
   const { answeredOf, helperWordsOf, finished = false } = args;
   const coachOnly = args.coachOnly === true;
   const practiceOn = usePracticeOn();
-  /* THE TEMPO STEP (backend N162, N166): the founder, and whoever the rings
-     panel's `tempo_step` row reaches (build step 6; the plan's pace or pause
-     week once the plan is built, N147). On the Take's own stretch from the
-     backend (step 3), and only when one left the green. */
-  const ringState = useRingState();
-  const tempoOn = isFounderEmail(useUserEmail()) || ringState?.featuresOn.has(TEMPO_STEP_FEATURE) === true;
   const journal = useWalkJournalPost(true);
   const pageTake = args.takeSessionId ?? null;
 
@@ -819,7 +830,14 @@ export function useDeckFeedbackWalk(args: {
     [chunks, groups, waiting, pendingOf, slideLabel, slideTitle, answeredOf],
   );
   const take = useMemo(() => reviewedTake(items, pageTake), [items, pageTake]);
-  const tempo = useReviewTempo(tempoOn && !coachOnly ? (args.arcId ?? null) : null, take);
+  /* THE TEMPO STEP (backend N162, N166): on the Take's own stretch from the
+     backend (step 3), only when one left the green, and only for whoever the
+     rings panel's `tempo_step` row reaches (step 6), the founder too: the
+     backend answers the step only to them, so it is asked as soon as the
+     Take is known, never after the rings are read. The One thing walk
+     (items with slots) asks with `one=1` (C-TEMPO). Undefined while asked. */
+  const oneWalk = items.some((i) => i.walkSlot);
+  const tempo = useReviewTempo(!coachOnly ? (args.arcId ?? null) : null, take, oneWalk);
   /* THE WALK QUOTES YOUR NOTEBOOK (backend N268): the speaker's own walk
      only, never a coach's view of it. */
   const quotes = useMemo<WalkQuoteIO | null>(
@@ -839,7 +857,6 @@ export function useDeckFeedbackWalk(args: {
   // plan's pace or pause week (`planLevel`, served only for those); a slow
   // stretch off such a week leaves the fix a moment (T, N323 item 6). A Take
   // served before N289 keeps its tempo step on any stretch.
-  const oneWalk = items.some((i) => i.walkSlot);
   const interventions = useMemo<readonly WalkIntervention[]>(
     () => (tempo && (!oneWalk || tempo.reading === "rushed" || tempo.planLevel != null) ? ["tempo"] : []),
     [tempo, oneWalk],
@@ -862,20 +879,17 @@ export function useDeckFeedbackWalk(args: {
   /* The Sniper's helper words (N309 item 3): its stretch's words, on the
      paragraph that says them, within the cap of eight; read once here for
      the walk's helper words and the pace game's tip (N347 item 3). */
+  const tempoAt = useMemo(() => stretchParagraph(tempo ?? null, chunks, groups), [tempo, chunks, groups]);
   const tempoWords = useMemo<FeedbackWalkTempoWords | null>(() => {
-    const text = tempo?.said.stretch.trim();
-    const chunk = text ? chunks.find((c) => c.part.text.includes(text)) : undefined;
-    const words = text && chunk ? sniperWords(chunk.part.text, text) : null;
-    return chunk && words ? { partId: chunk.part.id, paragraphText: chunk.part.text, text: words.text, span: words.span } : null;
-  }, [tempo, chunks]);
+    const words = tempoAt?.words ? sniperWords(tempoAt.chunk.part.text, tempoAt.words) : null;
+    return tempoAt && words ? { partId: tempoAt.chunk.part.id, paragraphText: tempoAt.chunk.part.text, text: words.text, span: words.span } : null;
+  }, [tempoAt]);
   /* The Sniper's slide, for the walk's bar (N435 item 7): the slide of the
      paragraph that says its stretch, by its title from the deck (N397). */
   const tempoSlide = useMemo<string | null>(() => {
-    const text = tempo?.said.stretch.trim();
-    const chunk = text ? chunks.find((c) => c.part.text.includes(text)) : undefined;
-    if (!chunk) return null;
-    return slideTitle?.(chunk.part.id)?.trim() || slideLabel(chunk.part.id) || null;
-  }, [tempo, chunks, slideTitle, slideLabel]);
+    if (!tempoAt) return null;
+    return slideTitle?.(tempoAt.chunk.part.id)?.trim() || slideLabel(tempoAt.chunk.part.id) || null;
+  }, [tempoAt, slideTitle, slideLabel]);
   /* WHY THE GREEN MOMENT LANDED (founder 2026-10-18): a green clip that
      reached the page before its reason was written is asked for here, and
      the walk draws it once it is in. */
@@ -1686,7 +1700,8 @@ export function useDeckFeedbackWalk(args: {
           onOthers={onOthers}
           reasons={greenReasons}
           othersJudged={othersJudged}
-          tempo={tempo}
+          tempo={tempo ?? null}
+          tempoAsking={tempo === undefined}
           tempoSaid={tempoSaid}
           onTempo={onTempo}
           quotes={quotes}

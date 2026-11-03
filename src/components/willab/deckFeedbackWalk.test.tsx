@@ -585,11 +585,13 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     const append = vi.fn(async (draft: unknown) => draft);
     chat.thread = { messages: [], loading: false, append, reload: vi.fn(async () => undefined) };
     // No moment to fix: the Take's rushed stretch is the fix, the pace game.
+    // The stretch as said, hesitation and case and all, is found in the
+    // smoothed paragraph all the same, on the slide the answer names.
     const stretch = "retention went up, churn went down";
     const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) =>
       String(input).includes("/review/tempo/take-2")
-        ? json({ tempo: { reading: "rushed", topic: "the pilot", said: { before: "Three things stood out: ", stretch, after: "" } } })
+        ? json({ tempo: { reading: "rushed", topic: "the pilot", slide_index: 1, said: { before: "Three things stood out: ", stretch: "Retention went up, um, churn went down", after: "" } } })
         : new Response("{}", { status: 404 }),
     ));
     const p = props({ suggestions: [best] });
@@ -598,6 +600,12 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     expect(screen()).toBe("walk-screen-praise");
     await click(live()!.querySelector("[data-testid='walk-forward']"));
     expect(screen()).toBe("walk-screen-tempo");
+    // The One thing walk asks for the stretch with no topic (C-TEMPO); the
+    // bar names the stretch's slide (N435 item 7).
+    expect(vi.mocked(fetch).mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/review/tempo/"))).toEqual([
+      expect.stringContaining("?one=1"),
+    ]);
+    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Results");
     const opening = append.mock.calls
       .map(([draft]) => (draft as { metadata: Record<string, unknown> }).metadata)
       .find((m) => m.step === "tempo:open");

@@ -14,6 +14,8 @@
 import type { WalkClip } from "./feedbackWalkModel";
 import { ONE_THING_COPY } from "@/components/willab/idealEditCopy";
 import { zoneLevel } from "./pace/paceSignal";
+import { isFiller } from "./liveNoteWords";
+import { parseRichSpans } from "./richMarkers";
 
 /** The rings panel's row for the step (backend rings.TEMPO_STEP, N166 step
  *  6): whoever it reaches has the step, besides the founder. */
@@ -51,6 +53,12 @@ export type TempoStretch = {
    *  are (backend `tempo_stretch.with_clip`); none without audio, and the
    *  bubble is then the words only. */
   clip?: WalkClip | null;
+  /** The stretch's slide, an index (C-TEMPO): its paragraph and the bar's
+   *  name are found by it. Absent when unknown. */
+  slideIndex?: number;
+  /** The stretch's recording, also when its link could not be signed: the
+   *  chat keeps it, so Will's question quotes the stretch (E2). */
+  snippetId?: string;
 };
 
 /** One try, as the step reads it from the dot's path. */
@@ -107,6 +115,36 @@ export function afterTry(result: TempoTry, isLanded: boolean, n: number): string
   const lines: string[] = [TEMPO_COPY.comment[result]];
   if (result === "ok" && n < TEMPO_MAX_TRIES) lines.push(TEMPO_COPY.push);
   return lines;
+}
+
+/** A text's words as compared: lower case, letters and digits only, the
+ *  hesitations and a word said twice in a row left out. */
+function comparedWords(words: readonly { text: string; at: number }[]): { word: string; at: number }[] {
+  const out: { word: string; at: number }[] = [];
+  for (const { text, at } of words) {
+    const word = text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+    if (!word || isFiller(text) || out[out.length - 1]?.word === word) continue;
+    out.push({ word, at });
+  }
+  return out;
+}
+
+/** The paragraph's own words for the stretch, as it shows them, matched
+ *  leniently: case, punctuation, hesitations and a word said twice aside,
+ *  since the Ideal Text is smoothed and the stretch may be the clip as said
+ *  (H3). Null when the paragraph does not say them all, in order. Pure. */
+export function stretchWordsIn(paragraphText: string, stretch: string): string | null {
+  const shown = parseRichSpans(paragraphText).map((span) => span.text).join("");
+  const tokens = [...shown.matchAll(/\S+/g)].map((m) => ({ text: m[0], at: m.index ?? 0 }));
+  const para = comparedWords(tokens);
+  const want = comparedWords(stretch.split(/\s+/).map((text) => ({ text, at: 0 }))).map((w) => w.word);
+  if (want.length === 0) return null;
+  for (let s = 0; s + want.length <= para.length; s += 1) {
+    if (!want.every((word, k) => para[s + k].word === word)) continue;
+    const last = tokens.find((t) => t.at === para[s + want.length - 1].at)!;
+    return shown.slice(para[s].at, last.at + last.text.length);
+  }
+  return null;
 }
 
 /** The Sniper as the One thing walk's fix (founder 2026-10-31, N309 item
