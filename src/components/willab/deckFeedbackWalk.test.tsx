@@ -503,6 +503,8 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     } as unknown as DocumentSuggestion;
     const fixVoice = { ...judgement, bookmarkTier: "standard", practicePrompt: true, walkSlot: "between" } as unknown as DocumentSuggestion;
     const onClose = vi.fn();
+    const append = vi.fn(async (draft: unknown) => draft);
+    chat.thread = { messages: [], loading: false, append, reload: vi.fn(async () => undefined) };
     const p = props({ suggestions: [best, fixVoice, fix], onLensClose: onClose });
     await render(p);
     await render({ ...p, reviewRequest: 1 });
@@ -518,6 +520,9 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     expect(p.onKeepMine).toHaveBeenCalled();
     // Their own sentence, on the recorder; its trash is the Skip (N435 item 3).
     expect(screen()).toBe("walk-screen-practise");
+    // The walk's answer stays in the chat too, once (N452 item 1).
+    const drafts = () => append.mock.calls.map(([d]) => d as { body: string; metadata: Record<string, unknown> });
+    expect(drafts().filter((d) => d.metadata.step === "practise").map((d) => d.body)).toEqual([ONE_THING_COPY.keepWords]);
     await click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
     await act(async () => undefined);
     // The helper words, on their own: "retention went up", their own words,

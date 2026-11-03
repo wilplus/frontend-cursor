@@ -533,6 +533,10 @@ function oneThingSaid(
       return app(line ?? thanksLine(one, 0));
     case "done":
       return app(ONE_THING_COPY.lessonDone);
+    case "practise":
+      // "Your words it is." after "Keep mine", above the first try, as the
+      // walk draws it (N452 item 1: the walk's own answers stay in the chat).
+      return !step.replay && step.kind === "keep" && (step.attempt ?? 1) === 1 ? app(ONE_THING_COPY.keepWords) : null;
     default:
       return undefined;
   }
