@@ -167,3 +167,62 @@ export async function sendChatAnswer(chatId: string, take: string, durationMs: n
 export function chatVoiceSrc(chatId: string, messageId: string): string {
   return `/api/v2/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}/audio`;
 }
+
+/** A person's profile (backend N366): your own, or the other person's in a
+ *  chat, with the photos and files shared. `chat_id` names the chat a photo
+ *  or a file is in. */
+export type SharedItem = { id: string; chat_id: string; name: string; created_at: string };
+export type Profile = {
+  name: string;
+  role: string | null;
+  about: string | null;
+  about_edited_at: string | null;
+  has_photo: boolean;
+  photos: SharedItem[];
+  files: SharedItem[];
+};
+
+function profileOf(body: Record<string, unknown> | null): Profile | null {
+  if (!body || typeof body.name !== "string") return null;
+  const items = (x: unknown) => (Array.isArray(x) ? (x as SharedItem[]) : []);
+  return {
+    name: body.name,
+    role: typeof body.role === "string" ? body.role : null,
+    about: typeof body.about === "string" ? body.about : null,
+    about_edited_at: typeof body.about_edited_at === "string" ? body.about_edited_at : null,
+    has_photo: body.has_photo === true,
+    photos: items(body.photos),
+    files: items(body.files),
+  };
+}
+
+export async function getMyProfile(): Promise<Profile | null> {
+  return profileOf(await call("/api/v2/profile", { method: "GET" }));
+}
+
+export async function getTheirProfile(chatId: string): Promise<Profile | null> {
+  return profileOf(await call(`/api/v2/chats/${encodeURIComponent(chatId)}/profile`, { method: "GET" }));
+}
+
+/** Change your name, who you are or your About; null when refused. */
+export async function saveMyProfile(change: { name?: string; role?: string; about?: string }): Promise<Profile | null> {
+  return profileOf(await call("/api/v2/profile", { method: "PATCH", json: change }));
+}
+
+export async function setMyPhoto(photo: Blob, name: string): Promise<boolean> {
+  const form = new FormData();
+  form.append("file", photo, name);
+  const body = await call("/api/v2/profile/photo", { method: "PUT", timeoutMs: 60_000, body: form });
+  return body?.has_photo === true;
+}
+
+export async function dropMyPhoto(): Promise<boolean> {
+  const body = await call("/api/v2/profile/photo", { method: "DELETE" });
+  return body?.has_photo === false;
+}
+
+/** Where a profile photo is shown from; `v` changes it once it is replaced. */
+export function profilePhotoSrc(chatId: string | null, v = 0): string {
+  const base = chatId ? `/api/v2/chats/${encodeURIComponent(chatId)}/profile/photo` : "/api/v2/profile/photo";
+  return v ? `${base}?v=${v}` : base;
+}

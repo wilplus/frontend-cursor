@@ -479,6 +479,14 @@ O4  A save the server refuses hands the deck the signed
 O2 -> ""the same answer sends nothing""
 O3 -> ""a rewrite never reopens""
 O4 -> ""a failed save hands the deck the signed notice""","Founder QA1 A, decisions log N51.5; build plan D-FW-9."
+src/components/willab/chats/Profile.test.tsx,Story,"As someone in a chat, I want to open the other person's profile and my own, as on WhatsApp, and change mine, so that we know who we are talking to (backend N366).","O1  Their profile shows their name, who they are, their About, and the
+photos and files we shared; with none, ""No photos yet."" and ""No files
+yet.""; no pencil and no Edit.
+O2  On mine, the pencil opens my About to type in; Save keeps it and says
+""Edited today"".
+O3  On mine, Edit turns my name and who I am into fields; Done keeps them.","O1 -> ""their profile shows who they are and what we shared, and cannot be edited""
+O2 -> ""the pencil edits my About and Save keeps it""
+O3 -> ""Edit changes my name and role, Done keeps them""",
 src/components/willab/chats/chats.test.tsx,Story,"As the founder testing the chats between users (ring 6), I want my chats in front of the Lounge, with Will first, so that I can open a colleague's or a customer's chat, answer with an emoji or a voice note, and start something new with a photo or a file; and as every other speaker, I want /chat to stay the Lounge as it is.","O1  Off (no `chats` in the ring's features_on): nothing is drawn around
 the Lounge and no chat is read (Never 3).
 O2  On: the list stands in front of the Lounge, Will pinned first, then

@@ -179,6 +179,21 @@ order it is built in.
      the bar back and shows nothing new. Not built: the prototype's own
      pickers and their words ("Photos and screenshots", "For {name} only.",
      "Send {n}", "Back"), not signed (N351 item 2).
+   - **A person's profile** (N366, the locked prototype "One bar" v12):
+     in a person's chat, a tap on their circle or name in the top bar
+     opens their profile, sliding over the chat, with back to it; your
+     own opens from the top of the ☰ menu, at /profile. One page: a large
+     circle (their photo, or the first letter), the name and who they are;
+     "About"; "Photos", a grid of the photos shared in that chat, each
+     opening full screen; "Files", each opening; "No photos yet." and "No
+     files yet." when there are none. On your own: tap the circle for
+     "Take photo", "Choose photo", "Delete photo" and "Cancel"; the pencil
+     beside About opens it to type in (300 characters, a count, "Cancel",
+     "Save"; "Edited today" under it the same day); "Edit" at the top right
+     turns your name and who you are into fields too, and "Done" keeps
+     them. A new name is the name your chats show. The only place in the
+     app where a person types. Not yet: the About written from the setup's
+     voice note (it waits for the setup).
    - **Will's chat** has its own top bar too, as every chat (N334 item
      1): back, his mark and "Will", over the Lounge; the WillpowerLab bar
      shows on the list only. Was (N322 item 4): the WillpowerLab bar with
@@ -673,6 +688,7 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-02 · N354 · C1: in the iPhone app, no glimpse of Will's chat before the list: the rings and the chats are now read together at the chat boot, after the Lounge's own reads (they were one after the other), and the loader covers the Lounge until the list is known. Was: the Lounge for a moment, then the list over it. The website is unchanged: off, or with no chats, /chat is the Lounge at once · FE (this PR)
 - 2026-11-02 · N331 · C1, K: a voice note's words, once ready, behind "Read it" under its player, inside the bubble; "Hide" closes them; closed by default for both people; none shown when there are no words; the list keeps "🎤 Voice message". The backend's read and the voice note's answer carry `words`. Was (N324): the words kept, shown nowhere · BE #1604, FE (this PR)
 - 2026-11-02 · N341 · C1: in a chat with a person, the mic shows only while a question waits for your answer (the newest message is theirs and is a question: their words, or a message marked as one); answered with an emoji or a voice note, it goes. Was (N321 item 2): the mic always beside the emoji. The "+" comes with N351 · FE (this PR)
+- 2026-11-03 · N366 · C1: a person's profile: from a chat's top bar (theirs) and the ☰ menu (/profile, yours): the circle, name, who they are, About, Photos and Files shared; on yours, the photo sheet, the pencil and Edit/Done. Was: the top bar opened nothing · BE (the profile routes), FE (this PR)
 - 2026-11-03 · N367 item 3, N365 item 6 · C1: the add sheet as redesigned: the title large, the link with its icon, a big Copy my link that turns green "✓ Copied" and closes the sheet, the share sheet beside it in the iPhone app, three tiles and Cancel. Was: a grey box, the link, Copy my link with a tick · FE (this PR)
 - 2026-11-02 · N357 · C1: after joining through a link, /chat opens on the list of chats, the inviter's chat its first row, above Will, marked new with its last message or the joined line, until it is opened. Was (N348 item 1): that chat opened · FE (this PR)
 - 2026-11-02 · N354 · C1: in the iPhone app only, sign-in first, then the chats: the app opens on /login (no landing, no welcome; consent unchanged, sign-up's Terms box and Phase1AcceptanceGate); with the chats on, it opens on the list even when Will's chat is the only one, and the row under Will is then "Add someone to chat with", opening the add sheet as the + does. Was: the landing and the welcome, and no list with Will's chat alone. The website is unchanged · FE (this PR)

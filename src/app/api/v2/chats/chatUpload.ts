@@ -1,6 +1,6 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { callBackend, failure, getAccessToken, relayLenient, type Failures } from "@/app/api/_lib/backend";
+import { callBackend, failure, getAccessToken, relayAudio, relayLenient, type Failures, type Relay } from "@/app/api/_lib/backend";
 
 /**
  * A photo or a file sent from the "+" in a chat with a person (N351):
@@ -18,8 +18,32 @@ const FAILURES: Failures = {
 };
 const RELAY = relayLenient();
 
+/** The headers a photo or a file keeps on its way through: its type, its
+ *  own name (inline for a photo, an attachment otherwise), and what stops
+ *  the browser from reading it as anything else. */
+const KEPT = ["Content-Type", "Content-Disposition", "X-Content-Type-Options", "Content-Security-Policy"];
+
+/** A photo or a file passes through as it came, whatever its type; an
+ *  error stays JSON at its status (relayAudio's error path). */
+export const relayFile: Relay = async (upstream) => {
+  if (!upstream.ok) return relayAudio(upstream);
+  const out = new NextResponse(await upstream.arrayBuffer(), { status: upstream.status });
+  for (const name of KEPT) {
+    const value = upstream.headers.get(name);
+    if (value) out.headers.set(name, value);
+  }
+  out.headers.set("Cache-Control", "private, max-age=3600");
+  return out;
+};
+
 export function chatUploadRoute(kind: "photo" | "file") {
-  return async function POST(req: NextRequest, { params }: { params: { chatId: string } }) {
+  return uploadRoute("POST", (params) => `/v2/chats/${encodeURIComponent(params.chatId ?? "")}/${kind}`);
+}
+
+/** A multipart upload relayed as it came: a chat's photo or file, or your
+ *  profile's photo (N366, `PUT /v2/profile/photo`). */
+export function uploadRoute(method: "POST" | "PUT", path: (params: Record<string, string>) => string) {
+  return async function upload(req: NextRequest, { params }: { params: Record<string, string> }) {
     const token = await getAccessToken();
     if (!token) return failure(FAILURES.unauthenticated!);
     let inbound: FormData;
@@ -34,8 +58,8 @@ export function chatUploadRoute(kind: "photo" | "file") {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 55_000);
     try {
-      return await callBackend(`/v2/chats/${encodeURIComponent(params.chatId)}/${kind}`, {
-        method: "POST",
+      return await callBackend(path(params ?? {}), {
+        method,
         body: out,
         signal: controller.signal,
         token,
