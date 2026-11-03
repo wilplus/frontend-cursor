@@ -117,16 +117,20 @@ order it is built in.
      name and who they are. The messages start at the bottom, by the bar,
      with the day above them ("Today", otherwise the date) and the time in
      each bubble, bottom right; under a big emoji, its meaning and time
-     ("It's good · 06:12"). The bubbles stay the Lounge's. The bar is the
-     "+" on the left (N351, below), the three emoji in the box and, on its
-     right, the Lounge's mic, 40px and plain, only while the newest message
-     waits for a voice (N341, N351; was N321 item 2, the mic always): the
-     other person's question, their words (people never type, N335 item 4,
-     so words come only from a customer's request) or a message the
-     backend marks as one (each photo or file, and the voice note sent
-     straight after it), or your own photo or file, until your voice note
-     says what you need (N337). Once you answer, with an emoji or a voice
-     note, the mic goes.
+     ("It's good · 06:12"). The bubbles stay the Lounge's. One bar
+     (N368, the locked prototype "One bar" v12), three places that never
+     move: the "+" on the left (N351, below); the one thing to do now in
+     the middle (the three emoji in the box; "Record an answer" when a
+     marked question waits; "Sending to {name}… {n}" with Undo while an
+     answer goes); and on the right the mic, 40px, always there, orange and
+     pulsing while the newest message waits for a voice: the other person's
+     question, their words (people never type, N335 item 4, so words come
+     only from a customer's request) or a message the backend marks as one
+     (each photo or file, and the voice note sent straight after it), or
+     your own photo or file, until your voice note says what you need
+     (N337). Once you answer, with an emoji or a voice note, it is plain
+     again. Every send gives a short sound, and a small buzz where the
+     device allows it. Was (N341): the mic only while a voice waited.
      Will deciding what is a question (N322 item 5) is not built. The mic records with the one recording bar (the trash, the
      strip with Stop inside, N314), up to two minutes; Stop sends, the
      trash throws it away, and the bar comes back. The voice note joins
@@ -676,6 +680,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N368 · C1, §4: one bar in a person's chat: the "+" left, the mic always on the right (orange and pulsing while someone waits for your words), and the middle the one thing to do now: the three emoji, "Record an answer", or "Sending to {name}… {n}" with Undo (moved from under the answer into the bar); a short sound and a buzz where the device allows it on every send. Was (N341): the mic only while a question waited; Record an answer filled the whole bar; Sending sat under the answer. Not yet: "Ask {name} first" (it needs the consult), the specialist's "Ask about {topic}" (it needs the setup), Will's chat with the same bar, the iPhone app's own buzz · FE (this PR)
 - 2026-11-03 · N321, N336, N342, N345, N361, N363 · C1: Record an answer: a question Will marked takes the black "Record an answer"; the recording screens on one slide, the question, no feelings check; back in the chat "Sending to {name}…" with Undo for 5 seconds, then the answer (a voice message playing the Take, up to five minutes) with "Sent to {name}" or "Sent to {name} on WhatsApp" under it. Was: the emoji and the mic only · BE #1611, #1612, FE (this PR)
 - 2026-11-03 · N355 · C1: an answer as the one who asked meets it: one message, the voice, the slides in a strip under the player that marks the one being heard as it plays, and its Take's words behind "Read it"; no Take number. The backend's read carries an answer's `words` and `slides` (each slide's start). Not yet: the picks, the WhatsApp link · BE (the answer's words and slides), FE (this PR)
 - 2026-11-02 · N351, N341 item 2, N337 · C1, K, §2, §4: the "+" on the left of a person's chat bar, in every chat but Will's: a tap swaps the bar for four tiles, Photos, Camera, Files and Someone else, with Cancel under them, which brings the bar back. Photos and Camera send images and Files any file, through the browser's own pickers, each its own message up to 10 MB (a photo: an image bubble that opens full size with a close ✕; a file: a bubble with its extension and its own name that downloads); Someone else opens the add sheet. The list's line is "📷" or "📄 {file name}". Each photo or file is a question for the other person (`meta.question`), and so is the sender's voice note straight after it; the mic shows while the newest message is the other person's question or your own photo or file. The prototype's own pickers and their words are not built (not signed). Was (N341): the bar was the three emoji and the mic, the mic only while the newest message was the other person's question; no "+" · BE #1606, FE (this PR)
