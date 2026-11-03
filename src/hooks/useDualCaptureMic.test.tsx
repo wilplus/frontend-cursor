@@ -12,17 +12,21 @@ OUTCOME
   O5  A Stop tapped while the mic is still opening is kept: the mic goes off
       the moment it opens, no recording starts, and an empty try is handed
       over, so the mic is never left on.
+  O6  A Take recorded through earbuds is remembered, so "Getting your mic
+      ready" before the next one can say the built-in mic sounds better
+      (N372); the built-in mic clears it.
 PROVES   O1 -> records at once on start
          O2 -> hands over a real take on stop and releases the stream
          O3 -> hands over the take at once when the audio comes late and Finish is tapped twice
          O4 -> keeps the screen awake while recording and lets it lock after
          O5 -> a stop while the mic is opening leaves the mic off
+         O6 -> remembers a Take recorded through earbuds
 WHY      Never-rule 3 (never break record → process → Ideal Text).
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useDualCaptureMic, type DualCaptureMic } from "./useDualCaptureMic";
+import { lastMicWasEarbuds, useDualCaptureMic, type DualCaptureMic } from "./useDualCaptureMic";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -104,6 +108,28 @@ afterEach(() => {
 });
 
 describe("the Lab's mic", () => {
+  it("remembers a Take recorded through earbuds", async () => {
+    const withMic = (label: string) =>
+      getUserMedia.mockImplementationOnce(async () => {
+        const track = { readyState: "live", stop: vi.fn(), label };
+        tracks.push(track);
+        return { getTracks: () => [track], getAudioTracks: () => [track] };
+      });
+    withMic("AirPods Pro");
+    await act(async () => {
+      await mic.start();
+    });
+    expect(lastMicWasEarbuds()).toBe(true);
+    await act(async () => {
+      mic.cancel();
+    });
+    withMic("iPhone Microphone");
+    await act(async () => {
+      await mic.start();
+    });
+    expect(lastMicWasEarbuds()).toBe(false);
+  });
+
   it("records at once on start", async () => {
     await act(async () => {
       await mic.start();

@@ -6,7 +6,7 @@ import { answerRecorded, answerTake, answering, type AnswerFor } from "@/lib/wil
 import { useRouter } from "next/navigation";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
-import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
+import { lastMicWasEarbuds, useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { useLabNoPull } from "./labNoPull";
 import { probeTakeVerdict } from "./useFailedTakeRecheck";
 import {
@@ -2065,10 +2065,13 @@ function enteringRecording(state: WillabState): boolean {
   );
 }
 
-/** The small grey line under "Getting your mic ready": a later Take's
- *  presentation, and on Take 1 why the browser asks for the mic (N273 item 4). */
-function micWaitNote(take: number, presentation: string | null): string | null {
-  return presentation ?? (take <= 1 ? RECORDING_COPY.micWhy : null);
+/** The small grey lines under "Getting your mic ready": a later Take's
+ *  presentation, and on Take 1 why the browser asks for the mic (N273 item 4);
+ *  then the earbuds line when the last Take was recorded through them (N372). */
+function micWaitNote(take: number, presentation: string | null): string[] {
+  const first = presentation ?? (take <= 1 ? RECORDING_COPY.micWhy : null);
+  const earbuds = lastMicWasEarbuds() ? RECORDING_COPY.earbuds : null;
+  return [first, earbuds].filter((line): line is string => line !== null);
 }
 
 /** "Getting your mic ready": before a later Take and while the mic is still
