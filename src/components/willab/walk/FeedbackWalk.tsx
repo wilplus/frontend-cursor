@@ -8,7 +8,7 @@ import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
 import WalkStage from "./WalkStage";
-import WalkThread, { WalkEdited, WalkPart, WalkSpeakerBubble, WalkThreadMark, useMountedAsPast } from "./WalkThread";
+import WalkThread, { WalkEdited, WalkLanding, WalkPart, WalkSpeakerBubble, WalkThreadMark, useMountedAsPast, useWalkHeld, useWalkPart } from "./WalkThread";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage, { WalkNewWords } from "./WalkMessage";
 import { PLAN_COPY } from "@/lib/willab/planCopy";
@@ -790,7 +790,9 @@ export default function FeedbackWalk<R = unknown>({
         if (!tried) return null;
         // Their own sentence, without the hesitations it opens with (N435 item 5).
         if (tried.kind === "keep") return own(moment, withoutOpeningFillers(moment.clearer.said));
-        const sentence = moment.clearer.say.trim();
+        // Without the sentence's punctuation at either end, as after "Keep
+        // mine" (B7; backend N440 item 7).
+        const sentence = helperWordsSaid(moment.clearer.say.trim());
         const practice = practise.practiceOf(moment.index);
         if (!sentence || !practice) return null;
         return {
@@ -1352,10 +1354,15 @@ function WordsShown({ ctx, step, words }: { ctx: ScreenCtx; step: WalkStep; word
     if (past || step.replay) return;
     const now = go.current;
     now.ctx.saveWords(now.step, now.words);
-    now.ctx.forwardFrom(now.step);
   }, [past, step.replay]);
+  // On once its two bubbles have landed (backend N440; was at once, so they
+  // showed in one frame with "Lesson done." behind them).
+  const landed = () => {
+    if (past || step.replay) return;
+    go.current.ctx.forwardFrom(go.current.step);
+  };
   return (
-    <WalkOverlay testId={testId(step)} onClose={ctx.close} footer={null}>
+    <WalkOverlay testId={testId(step)} onClose={ctx.close} footer={null} onLanded={landed}>
       <WalkMessage>
         <span>{ONE_THING_COPY.helperWords}</span>
       </WalkMessage>
@@ -1581,27 +1588,32 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
   const best = fixBest(ctx.walk.moments, moment.index);
   const { state, seed, lines, latePlayer, noClip } = useFixClip(ctx, step, moment);
   const phrase = state?.clip?.phrase ?? null;
+  // One bubble at a time, the dots before each grey one, after the line
+  // that opens the fix, as the walk's other steps land (backend N440 item
+  // 1; was all of them in one frame, the thread jumping past their clip).
+  const part = useWalkPart();
+  const [lands] = useState(() => part?.now === true && part.fresh && !step.replay && !step.readOnly);
   return (
-    <>
-      <LevelHere moment={moment} />
-      <Clip moment={moment} words={saidWords(moment, phrase)} />
+    <WalkLanding on={lands && part?.now === true} onSettled={noop}>
+      <LevelHere key="level" moment={moment} />
+      <Clip key="clip" moment={moment} words={saidWords(moment, phrase)} />
       {/* The line ends on a colon: only with their best's clip after it (N377 item 2). */}
       {best ? (
-        <>
-          <WalkMessage>
-            <span data-walk-like>{ONE_THING_COPY.likeConfident}</span>
-          </WalkMessage>
-          {/* One example to copy (N379 item 1): with the fix's own (the AI
-              clip, the exercise's video), their best is a small chip. */}
-          {lines || latePlayer || noClip?.video ? (
-            <Clip moment={best} replay={WALK_COPY.confidentReplay} chip />
-          ) : (
-            <Clip moment={best} replay={best.slideLabel ?? COPY.pagerMoment} />
-          )}
-        </>
+        <WalkMessage key="like">
+          <span data-walk-like>{ONE_THING_COPY.likeConfident}</span>
+        </WalkMessage>
+      ) : null}
+      {/* One example to copy (N379 item 1): with the fix's own (the AI
+          clip, the exercise's video), their best is a small chip. */}
+      {best ? (
+        lines || latePlayer || noClip?.video ? (
+          <Clip key="best" moment={best} replay={WALK_COPY.confidentReplay} chip />
+        ) : (
+          <Clip key="best" moment={best} replay={best.slideLabel ?? COPY.pagerMoment} />
+        )
       ) : null}
       {/* Read aloud as they land (N379 item 2). */}
-      <div aria-live="polite" className="contents">
+      <div key="ai" aria-live="polite" className="contents">
         {lines ? (
           <WalkAiVoice
             seed={seed}
@@ -1617,8 +1629,8 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
           <WalkAiVoice seed={`${seed}-late`} state={state} line="" arrive onPlay={() => ctx.practise.aiVoicePlayed(moment.index)} />
         ) : null}
       </div>
-      <CoachAnswerBubble moment={moment} />
-    </>
+      <CoachAnswerBubble key="coach" moment={moment} />
+    </WalkLanding>
   );
 }
 
@@ -1743,7 +1755,14 @@ function ThreadFooter<R>({ ctx, step }: { ctx: ScreenCtx<R>; step: WalkStep }) {
   // there is nothing to try: Next.
   if (step.one) {
     if (!plan.some((s) => s.key === "practise" && s.moment === step.moment)) {
-      return <WalkFooter pill={{ label: COPY.pagerNext, onClick: next, testId: "walk-forward" }} />;
+      // Nothing was offered, so nothing was skipped: Next posts nothing
+      // and the walk says nothing (B7; backend N440 item 4; was "Skip" and
+      // "Okay, we'll skip this one.").
+      const on = () => {
+        ctx.answer(step, "ok");
+        ctx.pastLoop();
+      };
+      return <WalkFooter pill={{ label: COPY.pagerNext, onClick: on, testId: "walk-forward" }} />;
     }
     return (
       <WalkFooter
@@ -1827,7 +1846,14 @@ function Tempo(ctx: ScreenCtx, step: WalkStep) {
         stretch={ctx.tempo}
         onDone={() => ctx.forwardFrom(step)}
         onClose={ctx.close}
-        onEvent={(event) => ctx.onTempo?.(event, step.one === true)}
+        onEvent={(event) => {
+          // Skip on the Sniper as the fix: the walk's answer opens what
+          // comes next and lands there, as the other fixes' does (N440;
+          // was drawn at once inside the game). The chat says it from the
+          // event, so the answer itself posts nothing.
+          if (step.one && event.kind === "ended" && event.skipped) ctx.answer(step, "skip");
+          ctx.onTempo?.(event, step.one === true);
+        }}
         one={step.one === true}
         mark={tempoMark(ctx, step)}
       />
@@ -1848,11 +1874,13 @@ function TempoOrKept({ kept, children }: { kept: ReactNode; children: ReactNode 
 /** A step with nothing to show moves the walk on once drawn. */
 function PassBy({ onPass }: { onPass: () => void }) {
   const past = useMountedAsPast();
+  // What opens its part (the walk's reply to Skip) lands first (N440).
+  const held = useWalkHeld();
   const pass = useRef(onPass);
   pass.current = onPass;
   useEffect(() => {
-    if (!past) pass.current();
-  }, [past]);
+    if (!past && !held) pass.current();
+  }, [past, held]);
   return null;
 }
 
@@ -1998,50 +2026,73 @@ function renderThread<R>(
   // The One thing walk: the bar names the slide, the thread does not, and
   // the speaker's taps add no bubble (backend N435 items 1 and 2).
   const oneWalk = ctx.walk.plan.some((s) => s.one);
-  return parts.map((part, i) => {
+  // The speaker's answer to a step and the walk's reply to it (N405) open
+  // the next part, so they land before its bubbles, one at a time; under
+  // the last part they close it (backend N440; until then they showed at
+  // once, with the next part's bubbles).
+  const answers = parts.map((part) => {
     const step = ctx.walk.plan[part.at];
-    const label = partLabel(ctx, step);
-    const mark = label && label !== last ? <WalkThreadMark label={label} quiet={oneWalk} /> : null;
-    last = step.key === "others" ? null : (label ?? last);
     const start = threadStart(ctx.walk.plan, part.at);
     // A practise thread is drawn at its last step, which can be a try only
-    // planned (after "Close. Once more."): the speaker's answer is the
-    // thread's latest one, so a Skip given there still shows (N405).
+    // planned (after "Close. Once more.") or one a Skip on its opener passed
+    // by: the speaker's answer is the thread's latest one, so a Skip given
+    // there still shows (N405, N440).
     const by = answeredIn(ctx, start, part.at);
     // The One thing walk adds no bubble for the speaker's tap (N435 item 2).
     const said = by.one ? null : answerSaid(ctx, by);
-    // The walk's answer to Skip on the One thing walk's fix (N405).
-    const reply = skipReply(by, ctx.answered(by));
+    // The walk's answer to Skip on the One thing walk's fix (N405); the
+    // Sniper's lands here too (N440), while the chat says it from the
+    // game's own event, so it is not in skipReply.
+    const reply =
+      skipReply(by, ctx.answered(by)) ??
+      (by.one && by.key === "tempo" && ctx.answered(by) === "skip" ? ONE_THING_COPY.skipped : null);
+    return [
+      said ? (
+        <WalkSpeakerBubble key="said" edited={wordsEdited(ctx, step)}>
+          {said}
+        </WalkSpeakerBubble>
+      ) : null,
+      reply ? (
+        <WalkMessage key="reply">
+          <span data-walk-skip-reply>{reply}</span>
+        </WalkMessage>
+      ) : null,
+    ].filter(Boolean);
+  });
+  return parts.map((part, i) => {
+    const step = ctx.walk.plan[part.at];
+    const label = partLabel(ctx, step);
+    const mark = label && label !== last ? <WalkThreadMark key="mark" label={label} quiet={oneWalk} /> : null;
+    last = step.key === "others" ? null : (label ?? last);
+    const start = threadStart(ctx.walk.plan, part.at);
     const lead = momentLead(ctx.walk.plan, start >= 0 ? start : part.at);
     const opener = ctx.walk.plan[start >= 0 ? start : part.at];
     // "And now, one thing to improve:" above the One thing walk's fix (N309).
     const one = opener?.one === true && FIX_OPENERS.has(opener.key);
+    const opening = [
+      ...(i > 0 ? answers[i - 1] : []),
+      lead ? (
+        <div key="lead" data-walk-lead={lead} className="contents">
+          <WalkMessage>
+            <span>{leadLine(lead)}</span>
+          </WalkMessage>
+        </div>
+      ) : null,
+      one ? (
+        <div key="one" data-walk-one className="contents">
+          <WalkMessage>
+            <span>{ONE_THING_COPY.one}</span>
+          </WalkMessage>
+        </div>
+      ) : null,
+      mark,
+    ].filter(Boolean);
     return (
       <div key={`${seq ?? 0}:${part.key}`} data-walk-now={i === now ? "" : undefined} className="contents">
-        {lead ? (
-          <div data-walk-lead={lead} className="contents">
-            <WalkMessage>
-              <span>{leadLine(lead)}</span>
-            </WalkMessage>
-          </div>
-        ) : null}
-        {one ? (
-          <div data-walk-one className="contents">
-            <WalkMessage>
-              <span>{ONE_THING_COPY.one}</span>
-            </WalkMessage>
-          </div>
-        ) : null}
-        {mark}
-        <WalkPart now={i === now} fresh={i === parts.length - 1}>
+        <WalkPart now={i === now} fresh={i === parts.length - 1} opening={opening}>
           {renderScreen(ctx, step, backFromPractise)}
         </WalkPart>
-        {said ? <WalkSpeakerBubble edited={wordsEdited(ctx, step)}>{said}</WalkSpeakerBubble> : null}
-        {reply ? (
-          <WalkMessage>
-            <span data-walk-skip-reply>{reply}</span>
-          </WalkMessage>
-        ) : null}
+        {i === parts.length - 1 ? answers[i] : null}
       </div>
     );
   });

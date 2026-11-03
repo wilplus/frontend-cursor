@@ -171,7 +171,12 @@ step; the loop never waits for a coach.
   earlier steps stay above to scroll back to; nothing leaves the thread while
   the lens is open. Each new bubble, and the typing dots before it, land at
   the bottom, right above the buttons, as in the Lounge; the thread follows
-  them down until the speaker scrolls up by hand (founder 2026-10-23, N122;
+  them down until the speaker scrolls up by hand. What opens a part (the
+  walk's answer to the step before, "And now, one thing to improve:", a
+  lead) lands first, then the step's own bubbles one at a time, the AI
+  clip's fix's too; moving on, the thread glides down to them (N440; was:
+  the opening lines at once, the AI clip's fix in one frame and a jump
+  past it) (founder 2026-10-23, N122;
   until then the newest step came to the top, its name at the top of the
   thread and its bubbles under it, 2026-10-20, which had replaced N81's
   "scroll to the bottom"). The step the walk stands on has the buttons;
@@ -206,12 +211,21 @@ step; the loop never waits for a coach.
   "growth doubled,", 2026-10-21); the next
   step's bubbles land one after another, each grey one behind the typing
   dots, 350 ms a bubble (the Lounge's beat, 2026-10-20), and its buttons once
-  they have all landed. Next and Continue post nothing.
+  they have all landed; the walk's answer to Skip and the helper words
+  after it land the same way, before "Lesson done." (N440). Next and
+  Continue post nothing.
 - **B8** The typing dots are the only wait, in the lens and the Lounge: a
   bubble being written, a try checked, other speakers' moments or the summary
   loading, the thread loading, the processing bubble. No breathing mark.
 - **B9** Scrolled away from the step the walk stands on, the buttons read
-  Next, which brings that step back; the recorder never gives way
+  Next, which brings that step back, with the step's Skip kept under it
+  (founder 2026-11-03, N440: "keep the "skip" below it"); a link that
+  leads elsewhere ("Keep mine" records, "Keep these") waits with the step.
+  The step, from its first bubble to its last, is away once less than
+  48 px of it show and back once 96 px do (all of it, when it is shorter),
+  so the dock changing never moves it in or out of view by itself (N440;
+  was: never away, as the step was measured by a wrapper with no size);
+  the recorder never gives way
   (2026-10-21: "away from", no longer only "back to an answered step"). A
   walk opened again once done has neither (B10, N259).
 - **B10** **Every door opens the walk the same way** (one mechanism, N89):
@@ -467,7 +481,8 @@ praised moment:
   leans on (the AI clip's quoted phrase; their own sentence after "Keep
   mine", without the hesitations it opens with, "So, um, I think…" giving
   "I think…", N435 item 5, `withoutOpeningFillers`), or the Clearer
-  version's sentence after "Try it"; the Sniper's
+  version's sentence after "Try it", without its punctuation at either end
+  as B7 says (N440; was: its full stop kept); the Sniper's
   stretch. They are saved as they land, through the same save the picker
   used (the paragraph's span and its lock; the Clearer version's sentence,
   which is not the paragraph's, to the slide from the practice it was
@@ -641,10 +656,15 @@ praised moment:
   said, then the speaker's "Skip" in the chat). While a try records the dock
   is the recording bar alone, no Skip under it: its trash is the Skip,
   the try thrown away (nothing uploaded or counted) and the walk on with
-  the same answer, in the fix and the Sniper (backend N435 item 3; was,
-  for a few hours on 2026-11-03, the trash back to the step that opened
-  it, which every other walk keeps, below). A try not
-  heard says so as below. While it records, nothing is added to the thread:
+  the same answer, in the fix and the Sniper (backend N435 item 3, N448;
+  was, for a few hours on 2026-11-03, the trash back to the step that opened
+  it, which every other walk keeps, below). A try that could not be checked
+  (late, or not heard, which says so as below) keeps "Try it" and Skip
+  while a try is left, Skip with the same answer (N440; was: the outlined
+  "Practise again" with no Skip). With practice off there is nothing to
+  try: the fix has Next alone, which posts nothing and says nothing about
+  skipping (N440; was: "Skip" and "Okay, we'll skip this one."). While it
+  records, nothing is added to the thread:
   the recording bar in the dock is the only sign. After Stop the try is the
   speaker's orange clip with the words they were asked to say: the Clearer
   version's sentence after "Try it", their own sentence after "Keep mine",
@@ -2052,6 +2072,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N440 · built, second part (B5, B7, B9, C3, C7): what opens a part (the walk's answer to Skip, "And now, one thing to improve:") lands first, then the step's bubbles one at a time, the AI clip's fix's too (`WalkPart` `opening`, a landing inside the fix), and its buttons last; the helper words land before the walk moves on (`WalkOverlay` `onLanded`); moving on glides; the walk's answer to Skip on the AI clip's fix shows in the walk, as the chat already said it; scrolled away, Next keeps the step's Skip under it, the step measured by its bubbles (away under 48 px in view, back at 96); with practice off Next posts nothing; a try that could not be checked keeps "Try it" and Skip; the Clearer version's sentence as helper words without its end punctuation · FE (this PR)
 - 2026-11-03 · N452 · B7, C7, T, K: the chat writes no "Try it", "Keep mine" or "Skip" of the speaker's for the One thing walk's fix and the Sniper, as the walk draws none (`answerBody` null for a One thing step; `onAcceptClearer`/`onKeepWords` with a null label post nothing; the Sniper's Skip posts only "Okay, we'll skip this one."); a slow stretch's Sniper opens with one bubble, "You slowed down here. Keep it moving.", the scale in it (`tempoOpening`). Was: the chat kept the taps; a slow Sniper opened with T's three lines · BE N452 log, FE (this PR)
 - 2026-11-03 · — · C7, T: no Skip under the recording bar, in the walk's practise and the tempo step; the trash on its left is the way out, back to the step that opened it (founder 2026-11-03, "delete that!!!! skip … for that we have the trash button on the left"; the locked prototype's `record()` draws the strip alone). Skip stays where it was before recording. Skip after "Close. Once more." now shows the speaker's "Skip" and "Okay, we'll skip this one." (N405), which it did not: the thread drew its answer only on the planned next try. Was: Skip under the bar as the walk's grey link (N314) · FE (this PR)
 - 2026-11-03 · N440 · built, first part (B6, C4, J6): the chip's waveform is the prototype's 24 bars, sampled from the clip's 44, and never runs under the time (`SnippetWavePlayer` `barCount`); two of the speaker's tries in a row are round all round, as every walk bubble is (`globals.css`); the bar's ‹ › and ✕ answer a 44 px tap. Items 1, 2, 3, 5, 6 and 9 of the run-through follow on top of N435's build · FE (this PR)

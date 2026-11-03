@@ -297,6 +297,22 @@ function aiInstead(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkM
 function LateFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
   const more = triesLeft(step) && triesRecorded(ctx.plan, ctx.at(step)) < maxTries(step);
   if (!more) return <WalkFooter pill={{ label: COPY.pagerNext, onClick: ctx.skip, testId: "walk-forward" }} />;
+  // The One thing walk's fix keeps its own buttons while a try is left:
+  // "Try it" and Skip, as after a miss (C7; backend N440 item 5; was the
+  // outlined "Practise again" with no Skip). Skip is Skip on the fix.
+  if (step.one) {
+    const skip = () => {
+      if (!step.replay) ctx.answer(step, "skip");
+      ctx.skip();
+    };
+    return (
+      <WalkFooter
+        dot
+        pill={{ label: ONE_THING_COPY.tryIt, onClick: ctx.again, testId: "walk-again" }}
+        links={[{ label: WALK_COPY.skip, onClick: skip, testId: "walk-skip" }]}
+      />
+    );
+  }
   return (
     <WalkFooter
       dot
