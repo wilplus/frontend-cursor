@@ -65,7 +65,7 @@ type Mode =
   | { kind: "index" }
   | { kind: "single"; name: ScreenName }
   | { kind: "flow" }
-  | { kind: "live"; guest: boolean; practiceOn: boolean; exerciseVideo: boolean; finished: boolean; tempo: boolean }
+  | { kind: "live"; guest: boolean; practiceOn: boolean; exerciseVideo: boolean; finished: boolean; tempo: boolean; one: "clearer" | "ai" | "sniper" | null; take: number }
   | { kind: "paragraph"; view: ParagraphView }
   | { kind: "lounge"; view: LoungeView };
 
@@ -83,6 +83,8 @@ function readMode(search: string): Mode {
       exerciseVideo: q.get("exvideo") !== "0",
       finished: q.get("replay") === "1",
       tempo: q.get("tempo") === "1",
+      one: (["clearer", "ai", "sniper"].includes(q.get("one") ?? "") ? q.get("one") : null) as "clearer" | "ai" | "sniper" | null,
+      take: Number(q.get("take") || 1),
     };
   }
   if (q.get("flow") === "1") return { kind: "flow" };
@@ -284,6 +286,8 @@ function Harness() {
   if (mode.kind === "live") {
     return (
       <LiveWalk
+        one={mode.one}
+        take={mode.take}
         guest={mode.guest}
         practiceOn={mode.practiceOn}
         exerciseVideo={mode.exerciseVideo}
