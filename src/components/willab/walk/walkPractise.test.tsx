@@ -14,6 +14,7 @@ OUTCOME
   O10 In the One thing walk, when no AI clip comes for my fix, I still get the tip in words, the exercise's instruction and "Your turn.", and the chat says the same (N370).
   O11 I never wait long on the AI clip: after ten seconds the tip is in words, and a clip that comes later joins them as its player; once I have started my try, a clip that arrives late does not appear above it (N373).
   O12 The fix's words land like every message, and "Say this one like your confident moment:" only comes with my best's clip after it (N377).
+  O13 With an example of its own, the fix shows my best as a small "Your confident moment" chip; the bubbles are read aloud as they land, never the AI clip's label before it is ready; and no "Your turn." above "Try it" (N379).
 PROVES   O1 -> Stop shows once the mic is live, uploads through the attempts route, returns to the walk at once ... and posts /check,
                the trash throws the try away: nothing is sent, no try counted, back on the step that opened it (N314)
          O2 -> praise on try 1: the line for the reading that moved, then Next opens its helper words (N220)
@@ -27,6 +28,7 @@ PROVES   O1 -> Stop shows once the mic is live, uploads through the attempts rou
          O10 -> says the tip in words, the exercise's instruction and “Your turn.”, in the walk and the chat alike
          O11 -> a clip still being made after the wait gives way to the tip in words ..., a clip that comes once the try has begun never lands above it (N373 item 2)
          O12 -> says the tip in words ... (lands with the bubble motion), with no clip of their best, no line ending on a colon, in the walk or the chat (N377 item 2)
+         O13 -> says the tip in words and the exercise's instruction, with no “Your turn.” above Try it ... (live region, no chip), a clip still being made after the wait ... (the chip, the label read once ready)
 WHY      Never-rule 1 (no scores to speakers); founder 2026-10-31 (N314, "Can you make it locked everywhere?"); 2026-11-02 (N350 item 5, "Stop once the mic is live, in both"); founder 2026-10-21 (N108, "Skip that moment"); 2026-10-23 (N120, "make it shorter focused on one only thing"; N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N284, "Treat as good").
 */
 import { act } from "react";
@@ -665,7 +667,7 @@ describe("the One thing walk's fix with no AI clip (founder 2026-11-03, N370)", 
   const fixAt = (items: FeedbackWalkItem<string>[]) =>
     buildFeedbackWalk({ items, coachNote: false, practiceOn: true, guest: false }).plan.findIndex((s) => s.key === "exVideo");
 
-  it("says the tip in words, the exercise's instruction and “Your turn.”, in the walk and the chat alike", async () => {
+  it("says the tip in words and the exercise's instruction, with no “Your turn.” above Try it, in the walk and the chat alike", async () => {
     aiClip = "chosen";
     const onShown = vi.fn();
     draw({ items: ONE_ITEMS, at: fixAt(ONE_ITEMS), onShown });
@@ -673,7 +675,13 @@ describe("the One thing walk's fix with no AI clip (founder 2026-11-03, N370)", 
     expect(screen()).toBe("walk-screen-exVideo");
     const [tip, ...rest] = [...live()!.querySelectorAll("[data-walk-no-clip]")].map((n) => n.textContent);
     expect(PAUSE_SAID).toContain(tip);
-    expect(rest).toEqual([EXERCISE_OFFER.instruction, ONE_THING_COPY.yourTurn]);
+    expect(rest).toEqual([EXERCISE_OFFER.instruction]);
+    // One call to try: the button, not "Your turn." above it (N379 item 3).
+    expect(host.textContent).not.toContain(ONE_THING_COPY.yourTurn);
+    // No other example to copy: their best stays full, never the chip.
+    expect(live()!.querySelector("[data-walk-chip]")).toBeNull();
+    // Read aloud as it lands (N379 item 2).
+    expect(live()!.querySelector("[data-walk-no-clip]")!.closest("[aria-live='polite']")).not.toBeNull();
     // It lands like every message (N377 item 1).
     expect(live()!.querySelector("[data-walk-no-clip]")!.closest("[data-walk-message]")!.className).toContain("walk-bubble-in");
     // No AI bubble and no player: nothing to wait for.
@@ -700,8 +708,13 @@ describe("the One thing walk's fix with no AI clip (founder 2026-11-03, N370)", 
     const words = [...live()!.querySelectorAll("[data-walk-no-clip]")].map((n) => n.textContent);
     expect(PAUSE_SAID).toContain(words[0]);
     // The clip comes: its player under the words, which stay as they were.
+    // While none is ready, nothing of it is read aloud (N379 item 2).
+    expect(live()!.querySelector("[data-walk-ai-voice]:not([aria-hidden])")).toBeNull();
     aiLateReady = true;
     await settle(150);
+    // Now an example to copy: their best shrinks to the chip (N379 item 1).
+    expect(live()!.querySelector("[data-walk-chip]")!.textContent).toContain(WALK_COPY.confidentReplay);
+    expect(live()!.querySelector("[data-walk-ai-voice]:not([aria-hidden])")).not.toBeNull();
     expect([...live()!.querySelectorAll("[data-walk-no-clip]")].map((n) => n.textContent)).toEqual(words);
     expect(live()!.querySelector("[data-walk-ai-voice]")).not.toBeNull();
     expect(live()!.querySelector("audio[src='https://media.example/ai.mp3']")).not.toBeNull();

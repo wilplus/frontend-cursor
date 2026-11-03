@@ -1113,11 +1113,11 @@ function Answered({ ctx, line }: { ctx: ScreenCtx; line: string | null }) {
 }
 
 /** The speaker's own clip: the orange bubble on the right. */
-function Clip({ moment, words, replay }: { moment: FeedbackWalkMoment; words?: ReactNode; replay?: string }) {
+function Clip({ moment, words, replay, chip = false }: { moment: FeedbackWalkMoment; words?: ReactNode; replay?: string; chip?: boolean }) {
   if (!moment.clip && !words) return null;
   return (
     <WalkPlayer
-      look="me"
+      look={chip ? "chip" : "me"}
       seed={replay ? `replay-${moment.index}` : `moment-${moment.index}`}
       src={moment.clip?.src ?? null}
       startOffsetMs={moment.clip?.startOffsetMs}
@@ -1553,22 +1553,31 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
           <WalkMessage>
             <span data-walk-like>{ONE_THING_COPY.likeConfident}</span>
           </WalkMessage>
-          <Clip moment={best} replay={best.slideLabel ?? COPY.pagerMoment} />
+          {/* One example to copy (N379 item 1): with the fix's own (the AI
+              clip, the exercise's video), their best is a small chip. */}
+          {lines || latePlayer || noClip?.video ? (
+            <Clip moment={best} replay={WALK_COPY.confidentReplay} chip />
+          ) : (
+            <Clip moment={best} replay={best.slideLabel ?? COPY.pagerMoment} />
+          )}
         </>
       ) : null}
-      {lines ? (
-        <WalkAiVoice
-          seed={seed}
-          state={state}
-          {...lines}
-          arrive
-          onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
-        />
-      ) : null}
-      {noClip ? <FixWords seed={`${seed}-words:${noClip.video ?? ""}:${noClip.lines.join("|")}`} words={noClip} /> : null}
-      {latePlayer ? (
-        <WalkAiVoice seed={`${seed}-late`} state={state} line="" arrive onPlay={() => ctx.practise.aiVoicePlayed(moment.index)} />
-      ) : null}
+      {/* Read aloud as they land (N379 item 2). */}
+      <div aria-live="polite" className="contents">
+        {lines ? (
+          <WalkAiVoice
+            seed={seed}
+            state={state}
+            {...lines}
+            arrive
+            onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
+          />
+        ) : null}
+        {noClip ? <FixWords seed={`${seed}-words:${noClip.video ?? ""}:${noClip.lines.join("|")}`} words={noClip} /> : null}
+        {latePlayer ? (
+          <WalkAiVoice seed={`${seed}-late`} state={state} line="" arrive onPlay={() => ctx.practise.aiVoicePlayed(moment.index)} />
+        ) : null}
+      </div>
       <CoachAnswerBubble moment={moment} />
     </>
   );

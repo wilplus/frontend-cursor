@@ -15,6 +15,9 @@ import SnippetWavePlayer from "../SnippetWavePlayer";
 /*          speaker's words above it where the feedback is about them (the    */
 /*          clearer version, with <s> around what goes) or the try's label    */
 /*    bare  the voice alone, for another speaker's clip inside a grey bubble  */
+/*    chip  the speaker's own clip, small: a narrow orange pill on the right   */
+/*          with its label above the compact player, when another example   */
+/*          is the one to copy (N379 item 1)                                 */
 /*                                                                            */
 /*  It is the app's own clip player (SnippetWavePlayer), so the walk does not */
 /*  grow a second one.                                                        */
@@ -37,7 +40,7 @@ export default function WalkPlayer({
   /** The accessible name of the clip. */
   label: string;
   words?: ReactNode;
-  look?: "box" | "me" | "bare";
+  look?: "box" | "me" | "bare" | "chip";
   /** Told when the clip errors; a fresh link is asked of the host's
    *  MediaRefreshProvider on its own. */
   onError?: () => void;
@@ -49,12 +52,25 @@ export default function WalkPlayer({
       startOffsetMs={startOffsetMs}
       durationMs={durationMs}
       size={look === "me" ? "default" : "compact"}
-      tone={look === "me" ? "me" : "ink"}
+      tone={look === "me" || look === "chip" ? "me" : "ink"}
       label={label}
       onError={onError}
     />
   );
   if (look === "bare") return <div data-walk-player>{player}</div>;
+  if (look === "chip") {
+    return (
+      <div
+        data-walk-player
+        data-walk-chip
+        data-row="me"
+        className="ml-auto flex w-[62%] flex-col gap-1 rounded-[18px] bg-primary px-3 py-2 text-primary-foreground"
+      >
+        <span className="text-[13px] font-semibold text-white/[0.85]">{label}</span>
+        {player}
+      </div>
+    );
+  }
   return (
     <div
       data-walk-player
