@@ -10,6 +10,7 @@ import { fetchRecordingBand, type RecordingBandState } from "@/services/api/toke
 import { canMountTopUpCard } from "./topUpCardGate";
 import { type WillabState } from "./useWillabFlow";
 import SymmetricPair from "./SymmetricPair";
+import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /* -------------------------------------------------------------------------- */
 /*  LoungeTopUpCard — the out-of-tokens offer, INSIDE the conversation        */
@@ -119,7 +120,10 @@ export function useTopUpOffer({
     (band.kind === "exhausted" ? band.periodEndsAt : null) ?? ready?.periodEndsAt ?? null;
   // Every purchase is a one-time package (N48.3 Q13 A): there is no live
   // subscription a second checkout could stack on, so the ask always offers.
+  // Never in the iPhone app: no buy button or link to buy there (backend
+  // N365 item 1); people buy on the website and the balance follows.
   const visible =
+    !isNativeApp() &&
     canMountTopUpCard(state, threadLoading) &&
     !gone && storageRead && wallet.enabled === true &&
     band.kind === "exhausted" && hasPaidTier &&

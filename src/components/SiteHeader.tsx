@@ -4,6 +4,7 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 import AppMenu from "@/components/AppMenu";
 import { useAppMenuData } from "@/hooks/useAppMenuData";
+import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /**
  * Shared sticky header for the public marketing pages (About, Journal/blog —
@@ -32,6 +33,8 @@ export default function SiteHeader() {
       <AppMenu
         authState={menu.authState}
         userEmail={menu.userEmail}
+        // The iPhone app shows the balance and opens nothing (N365 item 1, N367 item 2).
+        tokensOpenNothing={isNativeApp()}
         tokensLabel={menu.tokensLabel}
         lifeMenu={menu.lifeMenu}
         productMenu={menu.productMenu}

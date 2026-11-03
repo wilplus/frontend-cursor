@@ -182,6 +182,7 @@ import { usePlanLounge } from "./plan/usePlanLounge";
 import { planRowFor, type PlanRowCtx } from "./plan/PlanRows";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { afterChatBoot } from "@/lib/chatBoot";
+import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 // Opened on a tap, never on first paint: loaded then, off the boot bundle.
 const CoachWalkEntry = dynamic(() => import("./coachwalk/CoachWalkEntry"), { ssr: false });
@@ -2372,6 +2373,20 @@ function ActionButton({
  *  record button. The matching prompt bubble already lives in the thread; here
  *  we only render the grey/orange pair (install delegates to its platform-aware
  *  actions) and call onResolve to return the record button once the user picks. */
+/** Offers the iPhone app does not draw (backend N365). */
+const APP_HIDDEN_OFFERS: ReadonlySet<OfferType> = new Set<OfferType>(["promo", "install"]);
+
+/** Answers an ask the moment it opens, drawing nothing. */
+function ResolveAtOnce({ onResolve }: { onResolve: () => void }) {
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current) return;
+    done.current = true;
+    onResolve();
+  }, [onResolve]);
+  return null;
+}
+
 function OfferActions({
   type,
   install,
@@ -2546,6 +2561,11 @@ function OfferActions({
       />
     );
   }
+  if (type === "promo" && isNativeApp()) {
+    // The promo's "See prices" is a way to buy, which the iPhone app has none
+    // of (N365 item 1): the ask counts as "Not now", so nothing waits on it.
+    return <ResolveAtOnce onResolve={onResolve} />;
+  }
   if (type === "promo" || type === "lesson") {
     // Step 3: the admin's price for this person; the button opens where it shows.
     return (
@@ -2682,6 +2702,10 @@ function askBubble(
   }
   const offerType = readOfferType(message.metadata);
   if (!offerType) return null;
+  // Not drawn in the iPhone app (backend N365): a price to buy, or adding to
+  // the home screen of an app that is installed. An empty element, not null,
+  // so the message does not fall back to a plain text bubble.
+  if (APP_HIDDEN_OFFERS.has(offerType) && isNativeApp()) return <></>;
   return (
     <OfferBubble
       type={offerType}

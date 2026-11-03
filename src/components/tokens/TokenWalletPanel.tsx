@@ -6,6 +6,7 @@ import type { TokenWallet } from "@/hooks/useTokenWallet";
 import TokenPlanCards from "./TokenPlanCards";
 import type { MyOffers } from "@/lib/booking/offers";
 import { TOKENS_COPY, actionLabel, formatShortDate, formatTokens } from "./copy";
+import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /* -------------------------------------------------------------------------- */
 /*  TokenWalletPanel — balance, plan, coach reviews, prices, ledger            */
@@ -116,7 +117,8 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
 
 
         {/* ----------------------------- plans ----------------------------- */}
-        {prices && Object.keys(prices.tiers).length > 0 ? (
+        {/* Not in the iPhone app: no way to buy there (backend N365 item 1). */}
+        {prices && Object.keys(prices.tiers).length > 0 && !isNativeApp() ? (
           <section className="mt-8 w-full">
             <div>
               {/* Three prices, three CTAs (founder 2026-07-31). The cards own
