@@ -158,7 +158,7 @@ import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import WillQuestionBubble, { TapRow, useSomethingElse, willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
 import { isWillVoice, useWillVoice, WillVoiceBubble } from "./WillVoiceAnswer";
-import { RecordTakeButton } from "./plan/PlanDock";
+import { RecordTakeButton, useRecordTake } from "./plan/PlanDock";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -1140,6 +1140,8 @@ export default function Lounge({
   // 4): no push to the next Take; the tap under the goodbye, then "Record
   // Take N" alone under the chat (`useGoodbye`).
   const goodbye = useGoodbye({ messages, oneHoldsRecord: plan.oneHoldsRecord, planOne: plan.one, olderTake, append: thread.append });
+  // Its ✕ gives the bar back for that Take (N395).
+  const recordTake = useRecordTake(goodbye.recordNext);
 
   const closeProcessingOverlay = useCallback(() => {
     setOpenedProcessingSessionId(null);
@@ -2076,12 +2078,17 @@ export default function Lounge({
       {/* The chat's one "Record Take N" (N294 item 7, N296 state 4): the
           next Take after the goodbye, or a practice day's (the-plan.md G6);
           the plan's black button with the red dot, alone, the message box
-          and the mic gone. */}
-      <RecordTakeButton next={goodbye.recordNext} held={takeInFlight} onRecord={(arc) => openIdealText(arc, "share")} />
+          and the mic gone, until its grey ✕ closes it (N395). */}
+      <RecordTakeButton
+        next={recordTake.next}
+        held={takeInFlight}
+        onRecord={(arc) => openIdealText(arc, "share")}
+        onClose={recordTake.close}
+      />
       {/* Hidden whole while the plan's footer, or the next Take's button,
           stands in for it, so its empty wrapper adds no gap under it
           (founder 2026-10-30). */}
-      <div className={hiddenWhile(goodbye.recordNext, plan.composerDisplay("contents"))}>
+      <div className={hiddenWhile(recordTake.next, plan.composerDisplay("contents"))}>
       <NewProjectAskComposer ask={newProjectAsk}>
       <SlidesAskComposer ask={slidesAsk}>
       <PolicyUpdateComposer>

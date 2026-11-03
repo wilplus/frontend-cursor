@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { X } from "lucide-react";
 import RecordingBar from "@/components/willab/RecordingBar";
 import { useVoiceNote } from "@/components/willab/useVoiceNote";
 import { TapRow } from "@/components/willab/WillQuestion";
@@ -22,8 +23,8 @@ import PlanCalendar, { MonthGrid } from "./PlanCalendar";
      recording bar (backend N314), Stop sends the answer (`usePlanVoice`).
    In the footer, only what stands in for the message box (`PlanDock`):
    "Start your first recording", the one button after the plan card (N319
-   item 2), a practice day's "Record Take N", alone (N294 item 7), and the
-   calls' calendar, full screen over the chat (N248, N281).
+   item 2), a practice day's "Record Take N", alone (N294 item 7) with its
+   grey ✕ (N395), and the calls' calendar, full screen over the chat (N248, N281).
    Each answer goes to the backend, which writes Will's next words into the
    thread. */
 
@@ -244,25 +245,55 @@ function RecordDockButton({
  *  Take after a Take's goodbye, or a practice day's while today's one thing
  *  is the newest (`usePlanLounge` `one`). Held, greyed, while a Take is
  *  still landing, as the "+" is; a tap opens that Take's text the way its
- *  own button does (from Take 2 on, the sharing question first). */
+ *  own button does (from Take 2 on, the sharing question first). 24 px
+ *  under the last bubble, with a grey ✕ on its right, no background and no
+ *  outline, that closes it (N395, `useRecordTake`). */
 export function RecordTakeButton({
   next,
   held,
   onRecord,
+  onClose,
 }: {
-  next: { arcId: string; takeIndex: number } | null;
+  next: NextTake | null;
   held: boolean;
   onRecord: (arcId: string) => void;
+  onClose: () => void;
 }) {
   if (!next) return null;
   return (
-    <RecordDockButton
-      label={PLAN_COPY.recordTake(next.takeIndex + 1)}
-      onClick={() => onRecord(next.arcId)}
-      disabled={held}
-      dataAttr={{ "data-record-next": "" }}
-    />
+    <div className="flex items-center gap-1.5 pt-4">
+      <div className="min-w-0 flex-1">
+        <RecordDockButton
+          label={PLAN_COPY.recordTake(next.takeIndex + 1)}
+          onClick={() => onRecord(next.arcId)}
+          disabled={held}
+          dataAttr={{ "data-record-next": "" }}
+        />
+      </div>
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        data-record-next-close=""
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground"
+      >
+        <X className="h-5 w-5" aria-hidden />
+      </button>
+    </div>
   );
+}
+
+type NextTake = { arcId: string; takeIndex: number };
+
+/** The chat's "Record Take N" as it shows now, and its ✕ (backend N395).
+ *  Closed, that Take's button gives its place back to the bar ("+", "Type
+ *  here", the mic) until the chat is opened again, or until a newer Take's
+ *  goodbye offers the next one. Only the open chat remembers it; nothing
+ *  goes to the backend, and the plan and the goodbye are unchanged. */
+export function useRecordTake<T extends NextTake>(next: T | null): { next: T | null; close: () => void } {
+  const [closed, setClosed] = useState<string | null>(null);
+  const key = next ? `${next.arcId}:${next.takeIndex}` : null;
+  return { next: key !== null && key === closed ? null : next, close: () => setClosed(key) };
 }
 
 /** Which step of the plan is open, or null for none: a question ("deadline",

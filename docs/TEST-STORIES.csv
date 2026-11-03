@@ -1041,7 +1041,8 @@ it until a newer Take's closing message takes it back (N167), and
 gives it up once a newer Take is recorded, in any project (N244,
 N251). It is ""Record Take N"" under the chat, alone, the message box
 gone, never inside the bubble, and a tap starts that Take (N294
-item 7, N296 state 4).
+item 7, N296 state 4). Its grey ✕ closes it and the bar is back,
+until I open the chat again (N395).
 O8  ""How do you feel?"" comes before a Take only once the plan's first
 Take is recorded (D4).
 O9  Will's ask for the plan's own yes is drawn as his bubble with Read
@@ -1060,7 +1061,7 @@ sends the answer""
 O3 -> ""a rating is sent once and never written back""
 O4 -> ""Start your first recording only after the plan card""
 O3, O6 -> ""the plan's rows are drawn as the prototype draws them""
-O7 -> ""a practice day's Record Take N is the button under the chat, alone""
+O7 -> ""a practice day's Record Take N is the button under the chat, alone, until its ✕""
 O8 -> ""the feelings before a Take""
 O9 -> ""Will asks for the plan's own yes""
 O10 -> ""nothing of the principles before my first Take""
