@@ -5,6 +5,7 @@ import { hearPiece } from "@/services/api/voiceNotebook";
 import { liveWords, type LiveWord } from "@/lib/willab/liveNoteWords";
 import { dropNote, keepNote, noteKey, type OutboxNote } from "@/lib/willab/voiceNoteOutbox";
 import { tapHaptic } from "@/lib/phone/haptic";
+import { TAKE_MIC_AUDIO } from "@/hooks/useDualCaptureMic";
 
 /* -------------------------------------------------------------------------- */
 /*  useVoiceNote — the Lounge mic for the founder's voice notebook (Will       */
@@ -237,7 +238,9 @@ export function useVoiceNote({
     setPhase("recording");
     let stream: MediaStream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // The voice as it is, but echo cancelling stays on: a chat can be playing
+      // another voice note out loud while this one records.
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { ...TAKE_MIC_AUDIO, echoCancellation: true } });
     } catch {
       startingRef.current = false;
       if (mountedRef.current) setPhase("idle");
