@@ -90,6 +90,18 @@ export function oneThingAiLines(
   return { line: tip ? `${tip}, like this:` : "", then: ONE_THING_COPY.yourTurn };
 }
 
+/** The One thing walk's fix when no AI clip comes (N370): the same tip as
+ *  its own sentence ("Pause before “{phrase}”."), then "Your turn.";
+ *  null when no tip is known. `tip` is kept bare for "Last time". Pure
+ *  apart from `say`. */
+export function oneThingNoClipLines(
+  say: (bank: WalkBankKey) => string,
+  clip: { problem?: AiClipProblem | null; phrase?: string | null } | null | undefined,
+): { tip: string; line: string; then: string } | null {
+  const tip = aiTip(say, clip);
+  return tip ? { tip, line: `${tip}.`, then: ONE_THING_COPY.yourTurn } : null;
+}
+
 /** The tip as "Last time: {the tip}." says it next Take: its first letter
  *  lower-cased, as the prototype shows ("Last time: let “fourteen shades”
  *  wait a beat. You did."). Pure. */

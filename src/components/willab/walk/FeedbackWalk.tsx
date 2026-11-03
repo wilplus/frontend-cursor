@@ -23,11 +23,12 @@ import WalkSummary, { type WalkStoredSummary } from "./WalkSummary";
 import WalkTempo from "./WalkTempo";
 import WalkTempoSaid from "./WalkTempoSaid";
 import { TEMPO_COPY, type TempoEvent, type TempoStretch } from "@/lib/willab/tempoStep";
+import type { AiVoiceState } from "@/services/api/aiVoice";
 import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
-import { MOMENT_LEAD_LINES, aiClipLines, aiTip, bestBubble, clearerOpening, oneThingAiLines, praiseBubble, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
+import { MOMENT_LEAD_LINES, aiClipLines, aiTip, bestBubble, clearerOpening, oneThingAiLines, oneThingNoClipLines, praiseBubble, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import { goodJobHelpers, maxTries, momentLead, type WalkStep } from "@/lib/willab/walkPlan";
 import {
@@ -651,7 +652,11 @@ export default function FeedbackWalk<R = unknown>({
       if (toldExercise.current.has(told) || practise.aiVoiceAsking(s.moment) || !aiTipKnown(practise.aiVoiceOf(s.moment))) return;
       toldExercise.current.add(told);
       const moment = walk.moments[s.moment] ?? null;
-      shownRef.current?.(s, moment, (bank) => sayLine(s, bank), chatAi(s, i), null);
+      const ai = chatAi(s, i);
+      // The One thing walk's fix with no AI clip: the chat says the tip the
+      // walk drew in words (N370).
+      const tip = !ai && s.one ? oneThingNoClipLines((bank) => sayLine(s, bank), practise.aiVoiceOf(s.moment)?.clip)?.line ?? null : null;
+      shownRef.current?.(s, moment, (bank) => sayLine(s, bank), ai, tip);
     });
   });
   // The bare correction's Exercise and practise leave the live walk once its
@@ -1491,6 +1496,10 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
   const say = (bank: WalkBankKey) => ctx.say(step, bank);
   const ai = aiVoiceShown(ctx.walk.plan, ctx.at(step), state, say);
   const lines = ai === "pending" ? oneThingAiLines(say, state?.clip) : ai;
+  // No AI clip coming (its check failed, the provider or the limits
+  // refused, no voice yet): the tip in words, and the exercise's video
+  // and instruction when one is served (N370).
+  const noClip = lines || ctx.practise.aiVoiceAsking(moment.index) ? null : oneThingNoClip(say, state, moment.exercise);
   return (
     <>
       <LevelHere moment={moment} />
@@ -1508,9 +1517,46 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
           onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
         />
       ) : null}
+      {noClip ? (
+        <WalkMessage coach={noClip.byCoach} wide={Boolean(noClip.video)}>
+          {noClip.line ? <span data-walk-no-clip>{noClip.line}</span> : null}
+          {noClip.video ? (
+            <CoachVideo
+              src={noClip.video}
+              className="my-2 w-full max-h-[300px] flex-none [&>video]:aspect-[4/5] [&>video]:max-h-[300px] [&>video]:object-cover"
+            />
+          ) : null}
+          {noClip.instruction ? <span>{noClip.instruction}</span> : null}
+          <span className="mt-2.5">{noClip.then}</span>
+        </WalkMessage>
+      ) : null}
       <CoachAnswerBubble moment={moment} />
     </>
   );
+}
+
+/** The One thing walk's fix with no AI clip (N370): the tip as its own
+ *  sentence when the server named what the clip would fix, the served
+ *  exercise's video and instruction (the locked Exercise, as before N309),
+ *  then "Your turn."; null when there is none of these. Pure apart from
+ *  `say`. */
+export function oneThingNoClip(
+  say: (bank: WalkBankKey) => string,
+  state: AiVoiceState | undefined,
+  exercise: { video?: string | null; instruction?: string | null; byCoach?: boolean } | null | undefined,
+): { tip: string | null; line: string | null; video: string | null; instruction: string | null; byCoach: boolean; then: string } | null {
+  const said = oneThingNoClipLines(say, state?.clip);
+  const video = exercise?.video || null;
+  const instruction = exercise?.instruction?.trim() || null;
+  if (!said && !video && !instruction) return null;
+  return {
+    tip: said?.tip ?? null,
+    line: said?.line ?? null,
+    video,
+    instruction,
+    byCoach: exercise?.byCoach === true,
+    then: ONE_THING_COPY.yourTurn,
+  };
 }
 
 /** The coach's answer on a moment, its last bubble (founder 2026-10-14):

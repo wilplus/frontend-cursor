@@ -431,7 +431,7 @@ function oneThingSaid(
   step: WalkStep,
   moment: FeedbackWalkMoment<unknown> | null,
   line: string | null,
-): { author: WalkAuthor; body: string } | null | undefined {
+): { author: WalkAuthor; body: string; extra?: Record<string, unknown> } | null | undefined {
   const app = (body: string | null | undefined) => (body && body.trim() ? { author: "app" as const, body } : null);
   // Last time, "And now, one thing to improve:" and the helper words, in
   // the words the walk drew.
@@ -443,8 +443,15 @@ function oneThingSaid(
       return moment ? app(bestBubble(moment).join("\n")) : null;
     case "clearer":
       return moment?.clearer?.say ? app(`${ONE_THING_COPY.sayStraight}\n${moment.clearer.say}`) : null;
-    case "exVideo":
-      return app(ONE_THING_COPY.likeConfident);
+    case "exVideo": {
+      // No AI clip came (N370): `line` is the tip in words; with it, or
+      // with the served exercise, the walk's bubble and "Your turn.".
+      const ex = moment?.exercise;
+      const rest = [line, ex?.instruction?.trim()].filter((x): x is string => Boolean(x && x.trim()));
+      if (!rest.length && !ex?.video) return app(ONE_THING_COPY.likeConfident);
+      const said = app([ONE_THING_COPY.likeConfident, ...rest, ONE_THING_COPY.yourTurn].join("\n"));
+      return said && ex?.video ? { ...said, extra: { video: ex.video } } : said;
+    }
     case "improved":
       return app(line ?? improvedLine(one, 0));
     case "encourage":

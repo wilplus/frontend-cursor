@@ -11,6 +11,7 @@ OUTCOME
   O7  A try not yet better gets the same short bubble, opened with "Close." and closed with "Try again.", with only "Practise again" (N120).
   O8  A voice correction with nothing to offer (no exercise, no AI clip coming) is skipped: no "Say this one like your confident moment." on its own, in the walk or the chat; it still reaches the coach's queue. The Take's most confident moment is not skipped: it says its own line and is said again (N109).
   O9  A praised moment is practised too: after its praise the short bubble with my AI voice and "Your turn.", up to three tries, a Good job ends it, then its helper words; with no AI clip the praise goes straight to its helper words (N122).
+  O10 In the One thing walk, when no AI clip comes for my fix, I still get the tip in words, the exercise's instruction and "Your turn.", and the chat says the same (N370).
 PROVES   O1 -> Stop shows once the mic is live, uploads through the attempts route, returns to the walk at once ... and posts /check,
                the trash throws the try away: nothing is sent, no try counted, back on the step that opened it (N314)
          O2 -> praise on try 1: the line for the reading that moved, then Next opens its helper words (N220)
@@ -21,12 +22,13 @@ PROVES   O1 -> Stop shows once the mic is live, uploads through the attempts rou
          O7 -> a try not yet better gets the same short bubble, opened with “Close.” and closed with “Try again.”, with only Practise again (N120)
          O8 -> with no exercise and no AI clip coming, it is walked as a good moment, never skipped: its helper words, no Line A alone, and the coach's queue still hears it; the Take's most confident moment with nothing to offer says its own line and is said again
          O9 -> a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122), with no AI clip the praise goes straight to its helper words (N122)
+         O10 -> says the tip in words, the exercise's instruction and “Your turn.”, in the walk and the chat alike
 WHY      Never-rule 1 (no scores to speakers); founder 2026-10-31 (N314, "Can you make it locked everywhere?"); 2026-11-02 (N350 item 5, "Stop once the mic is live, in both"); founder 2026-10-21 (N108, "Skip that moment"); 2026-10-23 (N120, "make it shorter focused on one only thing"; N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N284, "Treat as good").
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AI_CLIP_BANK, CHUNK_SHEET_COPY as COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "../idealEditCopy";
+import { AI_CLIP_BANK, CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "../idealEditCopy";
 import FeedbackWalk from "./FeedbackWalk";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 import { walkPractiseIO } from "@/services/api/walkPractise";
@@ -111,8 +113,9 @@ const EXERCISE_OFFER: ConfidentVoicePracticeOffer = {
 type Answer = { next: "praise" | "again" | "moved_on"; key: string } | "hang" | "fail";
 let answers: Answer[];
 let uploadFails: boolean;
-/** The AI clip's ask: on its way (then ready), or none coming. */
-let aiClip: "coming" | "none";
+/** The AI clip's ask: on its way (then ready), none coming, or none
+ *  coming though the server chose what it would fix (N370). */
+let aiClip: "coming" | "none" | "chosen";
 let calls: { method: string; url: string; body: unknown }[];
 
 function practiceJson(tries: number) {
@@ -160,6 +163,7 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
   // with the server's one sentence on what changed and why (WIL-82).
   if (url.endsWith("/ai-voice")) {
     if (aiClip === "none") return Promise.resolve(json({ demo: "ai_voice", clip: { state: "unavailable", url: null } }));
+    if (aiClip === "chosen") return Promise.resolve(json({ demo: "none", clip: { state: "unavailable", url: null, problem: "pause", phrase: AI_PHRASE } }));
     const ready = method === "GET";
     return Promise.resolve(
       json({
@@ -627,6 +631,36 @@ describe("a voice correction with nothing to offer (founder 2026-10-21, N108; 20
     expect(screen()).toBe("walk-screen-exVideo");
     expect(TOP_MOMENT_LINES.again).toContain(message());
     expect(host.textContent).not.toContain(WALK_COPY.lineA);
+  });
+});
+
+describe("the One thing walk's fix with no AI clip (founder 2026-11-03, N370)", () => {
+  /** Their best, then the weakest as the one fix, with no video to show. */
+  const ONE_ITEMS: FeedbackWalkItem<string>[] = [
+    { ...PRAISE_ITEM, walkSlot: "strongest", highest: true, tiered: true, green: true },
+    { ...EXERCISE_ITEMS[0], walkSlot: "weakest", tiered: true, practicePrompt: true },
+  ];
+  const PAUSE_SAID = AI_CLIP_BANK.AIpause.map((tip) => `${tip.replace("{phrase}", AI_PHRASE)}.`);
+  const fixAt = (items: FeedbackWalkItem<string>[]) =>
+    buildFeedbackWalk({ items, coachNote: false, practiceOn: true, guest: false }).plan.findIndex((s) => s.key === "exVideo");
+
+  it("says the tip in words, the exercise's instruction and “Your turn.”, in the walk and the chat alike", async () => {
+    aiClip = "chosen";
+    const onShown = vi.fn();
+    draw({ items: ONE_ITEMS, at: fixAt(ONE_ITEMS), onShown });
+    await settle(60);
+    expect(screen()).toBe("walk-screen-exVideo");
+    const tip = live()!.querySelector("[data-walk-no-clip]")?.textContent;
+    expect(PAUSE_SAID).toContain(tip);
+    expect(message()).toBe(`${tip}${EXERCISE_OFFER.instruction}${ONE_THING_COPY.yourTurn}`);
+    // No AI bubble and no player: nothing to wait for.
+    expect(live()!.querySelector("[data-walk-ai-voice], [data-walk-ai-waiting]")).toBeNull();
+    // The try is still theirs.
+    expect(live()!.querySelector("[data-testid='walk-practise']")).not.toBeNull();
+    const told = onShown.mock.calls.filter(([s]) => (s as { key: string }).key === "exVideo");
+    expect(told).toHaveLength(1);
+    expect(told[0][3]).toBeNull();
+    expect(told[0][4]).toBe(tip);
   });
 });
 
