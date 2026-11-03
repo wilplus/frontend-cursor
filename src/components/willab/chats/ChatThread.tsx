@@ -21,6 +21,7 @@ import {
   type ChatEmoji,
   type ChatMessage,
 } from "@/services/api/chats";
+import Profile from "./Profile";
 import { AddSomeoneSheet, EMOJI_MEANING, LetterCircle, WILL_ROW_TITLE, WillMark, meaningOf } from "./ChatList";
 import { photoForUpload } from "./photoForUpload";
 import { markChatOpened } from "./chatOpened";
@@ -48,7 +49,31 @@ import { clockTime, dayKey, dayLabel } from "./chatTime";
 /** Will's chat, under the WillpowerLab bar: back, then his name (N322 item 4). */
 /** Every chat's own top bar, full width, where the WillpowerLab bar was
  *  (backend N321 item 1, N334): back, the circle, the name, and who they are. */
-function TopBar({ circle, title, subtitle = null, onBack }: { circle: ReactNode; title: string; subtitle?: string | null; onBack: () => void }) {
+function TopBar({
+  circle,
+  title,
+  subtitle = null,
+  onBack,
+  onOpen = null,
+}: {
+  circle: ReactNode;
+  title: string;
+  subtitle?: string | null;
+  onBack: () => void;
+  /** A person's chat: their circle and name open their profile (N366). */
+  onOpen?: (() => void) | null;
+}) {
+  const who = (
+    <>
+      {circle}
+      <span className="flex min-w-0 flex-col text-left">
+        <span data-chat-name className="truncate text-[16px] font-semibold leading-tight text-foreground">
+          {title}
+        </span>
+        {subtitle ? <span className="truncate text-[12.5px] leading-tight text-muted-foreground">{subtitle}</span> : null}
+      </span>
+    </>
+  );
   return (
     <div
       data-chat-header
@@ -62,23 +87,27 @@ function TopBar({ circle, title, subtitle = null, onBack }: { circle: ReactNode;
       >
         <ChevronLeft className="h-6 w-6" aria-hidden />
       </button>
-      <span className="flex min-w-0 items-center gap-2.5">
-        {circle}
-        <span className="flex min-w-0 flex-col">
-          <span data-chat-name className="truncate text-[16px] font-semibold leading-tight text-foreground">
-            {title}
-          </span>
-          {subtitle ? <span className="truncate text-[12.5px] leading-tight text-muted-foreground">{subtitle}</span> : null}
-        </span>
-      </span>
+      {onOpen ? (
+        <button type="button" data-chat-who="" onClick={onOpen} className="flex min-w-0 items-center gap-2.5">
+          {who}
+        </button>
+      ) : (
+        <span className="flex min-w-0 items-center gap-2.5">{who}</span>
+      )}
     </div>
   );
 }
 
 /** A person's chat's top bar: the letter circle, the name, who they are. */
-function ChatTopBar({ chat, onBack }: { chat: Chat; onBack: () => void }) {
+function ChatTopBar({ chat, onBack, onOpen }: { chat: Chat; onBack: () => void; onOpen: () => void }) {
   return (
-    <TopBar circle={<LetterCircle id={chat.id} name={chat.title} size={36} />} title={chat.title} subtitle={chat.subtitle} onBack={onBack} />
+    <TopBar
+      circle={<LetterCircle id={chat.id} name={chat.title} size={36} />}
+      title={chat.title}
+      subtitle={chat.subtitle}
+      onBack={onBack}
+      onOpen={onOpen}
+    />
   );
 }
 
@@ -563,6 +592,7 @@ export default function ChatThread({
   const [tiles, setTiles] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [fullPhoto, setFullPhoto] = useState<string | null>(null);
+  const [profile, setProfile] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pickers = { photos: useRef<HTMLInputElement>(null), camera: useRef<HTMLInputElement>(null), files: useRef<HTMLInputElement>(null) };
   useBackDismiss(onBack);
@@ -653,7 +683,8 @@ export default function ChatThread({
 
   return (
     <div data-chat-screen className="relative flex min-h-0 flex-1 flex-col">
-      <ChatTopBar chat={chat} onBack={onBack} />
+      <ChatTopBar chat={chat} onBack={onBack} onOpen={() => setProfile(true)} />
+      {profile ? <Profile chatId={chat.id} onBack={() => setProfile(false)} /> : null}
       <div
         ref={scrollRef}
         data-chat-thread
