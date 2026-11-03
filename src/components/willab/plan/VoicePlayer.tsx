@@ -31,12 +31,18 @@ export function VoicePlayer({
   tone,
   label,
   durationMs,
+  onTime,
 }: {
   src: string;
   tone: "orange" | "grey" | "dark";
   label?: string;
   durationMs?: number | null;
+  /** Where the voice is, in ms, as it plays; null once it has ended (an
+   *  answer's slide strip follows it, backend N355). */
+  onTime?: (ms: number | null) => void;
 }) {
+  const onTimeRef = useRef(onTime);
+  onTimeRef.current = onTime;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -49,10 +55,12 @@ export function VoicePlayer({
       audio.ontimeupdate = () => {
         const a = audioRef.current;
         if (a && a.duration > 0) setProgress(a.currentTime / a.duration);
+        if (a) onTimeRef.current?.(a.currentTime * 1000);
       };
       audio.onended = () => {
         setPlaying(false);
         setProgress(0);
+        onTimeRef.current?.(null);
       };
       audioRef.current = audio;
     }
