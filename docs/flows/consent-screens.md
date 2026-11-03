@@ -328,6 +328,20 @@ Approved on the clickable prototype <https://claude.ai/artifact/MVyWmdoWUqisttfk
   until the AI clip ends, then wakes and plays; a tap on it wakes it too.
 - Nothing after the welcome changes.
 
+### Amended 2026-11-03: the ☰ menu, redesigned (backend N367)
+
+Signed in, the menu is a card under the ☰ with, top to bottom: your circle,
+name and email; **Copy my link** ("Whoever opens it joins you here"; it
+copies at once and says "✓ Copied"; only where the chats are on);
+**Settings**; **Tokens** with the balance and its date (the pricing page on
+the web; in the iPhone app the row shows the balance and opens nothing,
+backend N365 item 1); the coach's Training corpus, discovered products and
+Life Panel rows for the few who have them; a thin line; **Sign out** in red.
+Each row has a 36px icon in the iPhone Settings style. Lab is gone from the
+lab's menu (the logo goes home); signed out, on the blog, the menu is Lab and
+Log in as before. The top row opens your profile (backend N366, /profile). The design: the locked prototype "One bar", version 12
+(<https://claude.ai/artifact/2v8jSi91F157WFR8tjX5E1>).
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
@@ -381,6 +395,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N367, N196, N365 · §1: the ☰ menu, signed in: you, Copy my link, Settings, Tokens, Sign out (was: the email, Lab, Settings, Tokens, Log out); iPhone-Settings icons; Tokens opens nothing in the iPhone app; "Sign out" replaces "Log out" · FE (this PR)
 - 2026-11-02 · N203, N204 · §2: "The plan's questions after the acceptance" closed: built with the plan, ring 5 (since 27 October 2026). "Agree and continue" opens the Lounge, which reads the plan as it opens and begins its questions for a new speaker the ring row `plan` reaches, the empty Lounge's button held meanwhile ([`the-plan.md`](the-plan.md) A1, B1). Was: listed as decided (backend N136, N146), not built · docs (this PR)
 - 2026-11-02 · N338 · §2: one "Messages" place (N189 item 6) waits; it is drawn later · docs (this PR)
 - 2026-10-30 · N286 · the policy update's grey bubble in the Lounge takes the chat's bubble shape (feedback-walk-and-chat.md J6): no hard top-left corner, drawn in only where it meets another grey bubble · FE (this PR)
