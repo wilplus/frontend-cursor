@@ -81,6 +81,8 @@ speaker's own voice, said a little better**, then the speaker tries again.
 - No question, no consent screen and no recording task inside the walk.
 - When the clip fails its check, the provider is down, the limits are
   reached, or the AI voice is off: no bubble; the screen is the locked one.
+  In the One thing walk's fix the tip stays, in words, with the exercise's
+  video when one is served (N370, [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C4).
 
 ### 4. The AI voice
 
@@ -357,6 +359,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N370 · with no clip, the One thing walk's fix keeps its tip in words and the exercise's video; an unavailable clip carries what it would have fixed once chosen · BE #1621, FE (this PR)
 - 2026-10-30 · N289 · the clip is for the weakest moment only; a praise gets none. Was: every praise practised with a clip (N122) · BE #1528, BE #1529, FE (this PR)
 - 2026-10-28 · — · wording: the try is checked on its voice score (Δ ≥ +0.05, N84), not willfidence, as built and as the walk's page H1 says; no rule changes · FE (this PR)
 - 2026-10-26 · N188 · the limits: 3 clips a day and 20 a month for each speaker, and no new voice while the plan's voice slots are full; was 10 a day with no monthly limit · BE #1363

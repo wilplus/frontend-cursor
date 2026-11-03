@@ -27,7 +27,7 @@ import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, type AiVoiceLines
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
-import { MOMENT_LEAD_LINES, aiClipLines, aiTip, bestBubble, clearerOpening, oneThingAiLines, praiseBubble, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
+import { MOMENT_LEAD_LINES, aiClipLines, aiTip, bestBubble, clearerOpening, oneThingAiLines, oneThingNoClip, praiseBubble, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import { goodJobHelpers, maxTries, momentLead, type WalkStep } from "@/lib/willab/walkPlan";
 import {
@@ -217,6 +217,9 @@ type Props<R> = {
     /** A try's answer: the line the screen shows, so the chat says the
      *  same (founder 2026-10-20). */
     line?: string | null,
+    /** The One thing walk's fix with no AI clip: its tip, for "Last
+     *  time" (N370). */
+    fixTip?: string | null,
   ) => void;
   /** A screen reached the speaker: the host tells the server at once (the
    *  coach's queue, N48.2), before the chat hears what it showed. */
@@ -651,7 +654,13 @@ export default function FeedbackWalk<R = unknown>({
       if (toldExercise.current.has(told) || practise.aiVoiceAsking(s.moment) || !aiTipKnown(practise.aiVoiceOf(s.moment))) return;
       toldExercise.current.add(told);
       const moment = walk.moments[s.moment] ?? null;
-      shownRef.current?.(s, moment, (bank) => sayLine(s, bank), chatAi(s, i), null);
+      const say = (bank: WalkBankKey) => sayLine(s, bank);
+      const ai = chatAi(s, i);
+      // The One thing walk's fix with no AI clip: the chat says what the
+      // walk drew, and "Last time" keeps its tip (N370). With a clip on its
+      // way, the same lines are the chat's words should it never come.
+      const noClip = s.one ? oneThingNoClip(say, practise.aiVoiceOf(s.moment)?.clip, moment?.exercise) : null;
+      shownRef.current?.(s, moment, say, ai, noClip?.lines.join("\n") ?? null, ai ? null : (noClip?.tip ?? null));
     });
   });
   // The bare correction's Exercise and practise leave the live walk once its
@@ -1491,6 +1500,10 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
   const say = (bank: WalkBankKey) => ctx.say(step, bank);
   const ai = aiVoiceShown(ctx.walk.plan, ctx.at(step), state, say);
   const lines = ai === "pending" ? oneThingAiLines(say, state?.clip) : ai;
+  // No AI clip coming (its check failed, the provider or the limits
+  // refused, no voice yet): the tip in words, and the exercise's video
+  // and instruction when one is served (N370).
+  const noClip = lines || ctx.practise.aiVoiceAsking(moment.index) ? null : oneThingNoClip(say, state?.clip, moment.exercise);
   return (
     <>
       <LevelHere moment={moment} />
@@ -1507,6 +1520,21 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
           arrive
           onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
         />
+      ) : null}
+      {noClip ? (
+        <WalkMessage coach={noClip.byCoach} wide={Boolean(noClip.video)}>
+          {noClip.video ? (
+            <CoachVideo
+              src={noClip.video}
+              className="mb-2 w-full max-h-[300px] flex-none [&>video]:aspect-[4/5] [&>video]:max-h-[300px] [&>video]:object-cover"
+            />
+          ) : null}
+          {noClip.lines.map((l, i) => (
+            <span key={i} data-walk-no-clip>
+              {l}
+            </span>
+          ))}
+        </WalkMessage>
       ) : null}
       <CoachAnswerBubble moment={moment} />
     </>
