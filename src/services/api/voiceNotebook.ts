@@ -67,11 +67,18 @@ export type SendOutcome = { kind: "kept"; clientId: string | null } | { kind: "r
 
 /** One voice note. `key` names it, so a note sent again after the app was
  *  closed mid-send is kept once (backend N194). */
-export async function sendVoiceNote(audio: Blob, durationMs: number, key: string): Promise<SendOutcome> {
+export async function sendVoiceNote(
+  audio: Blob,
+  durationMs: number,
+  key: string,
+  liveMs?: number,
+): Promise<SendOutcome> {
   const form = new FormData();
   form.append("audio", audio, audioName(audio, "note"));
   form.append("duration_ms", String(Math.round(durationMs)));
   form.append("key", key);
+  // How long its live words were streamed, for the cost table (backend N392).
+  if (liveMs) form.append("live_ms", String(Math.round(liveMs)));
   try {
     const result = await bffFetch("/api/v2/notebook/notes", { method: "POST", cache: "no-store", body: form });
     if (result.kind !== "response") return { kind: "retry" };
@@ -97,6 +104,22 @@ export async function hearPiece(audio: Blob): Promise<string | null> {
     if (result.kind !== "response" || !result.ok) return null;
     const text = (result.body as { text?: unknown } | null)?.text;
     return typeof text === "string" ? text : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A short-lived key to stream a note being said to the transcription
+ *  provider (backend N392): issued under the caller's processing
+ *  authorization, nothing kept. null when it cannot be had: the note is
+ *  then heard in pieces, as before. */
+export async function openLiveSession(): Promise<{ value: string; rate: number } | null> {
+  try {
+    const result = await bffFetch("/api/v2/notebook/live-session", { method: "POST", cache: "no-store" });
+    if (result.kind !== "response" || !result.ok) return null;
+    const body = result.body as { value?: unknown; rate?: unknown } | null;
+    if (typeof body?.value !== "string" || !body.value) return null;
+    return { value: body.value, rate: typeof body.rate === "number" && body.rate > 0 ? body.rate : 24_000 };
   } catch {
     return null;
   }

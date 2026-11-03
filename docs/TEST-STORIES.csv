@@ -1585,6 +1585,11 @@ O4  The ladder shows each step with its date, leaves out what I skipped, and sho
 O2 -> applies the four-week rule
 O3 -> aims the quarter at the step above
 O4 -> draws the ladder with dates, changes and gaps",
+src/lib/willab/liveStream.test.ts,Story,"As someone saying a voice note, I want its words to appear as I say them, so that I see at once that I am heard.","O1  Phrases show in the order they were said; a phrase stays lighter
+until its whole is heard, even when the provider finishes a later
+one first.
+O2  The voice is sent at the rate the provider's key names.","O1 -> ""keeps phrases in the order said and the unheard ones current""
+O2 -> ""sends the voice at the provider's rate""","Backend N392 (amends N199 item 2): the words stream, well under a second behind the voice."
 src/lib/willab/markedEditorSerialize.test.ts,Story,"As a speaker, I want opening and saving my Ideal Text without changes to send back exactly the text I received, so that my document is never silently rewritten.","O1  The real editor paints the document, and reading it back gives the same
 bytes, for every marker grammar (bold, underline, italic, accent,
 moment, paragraphs). Never-5: the Ideal Text stays what the speaker

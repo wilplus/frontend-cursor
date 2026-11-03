@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { hearPiece } from "@/services/api/voiceNotebook";
+import { openLiveStream, type LiveStream } from "@/lib/willab/liveStream";
 import { liveWords, type LiveWord } from "@/lib/willab/liveNoteWords";
 import { dropNote, keepNote, noteKey, type OutboxNote } from "@/lib/willab/voiceNoteOutbox";
 import { tapHaptic } from "@/lib/phone/haptic";
@@ -25,7 +26,9 @@ import { hushVoices } from "@/lib/willab/oneVoice";
 /*  mic cuts the note into pieces of a few seconds; the piece being said is   */
 /*  sent to be heard every second and a half, and each finished piece once   */
 /*  more, whole. They come back 2 to 4 seconds behind the voice and replace   */
-/*  the wave they cover; the piece still being heard is lighter. They are a   */
+/*  the wave they cover; the piece still being heard is lighter. Streamed     */
+/*  (backend N392, liveStream), the words come well under a second behind;   */
+/*  the pieces are the fallback when the stream cannot open. They are a      */
 /*  preview: the whole recording is what the backend transcribes and keeps.  */
 /*                                                                            */
 /*  Only delete throws a note away. What is recorded so far goes to the       */
@@ -137,6 +140,9 @@ export function useVoiceNote({
   const hearingRef = useRef(false);
   const liveRef = useRef(false);
   const heardAtRef = useRef(0);
+  /** The streamed words (N392), once the stream is open. */
+  const streamRef = useRef<LiveStream | null>(null);
+  const liveMsRef = useRef(0);
   // The wave, and how far into the note the words reach.
   const waveRef = useRef<WaveBar[]>([]);
   const writtenToRef = useRef(0);
@@ -208,6 +214,12 @@ export function useVoiceNote({
 
   const stopLive = useCallback(() => {
     liveRef.current = false;
+    const live = streamRef.current;
+    streamRef.current = null;
+    if (live) {
+      liveMsRef.current = live.streamedMs();
+      live.close();
+    }
     const piece = pieceRef.current;
     pieceRef.current = null;
     try {
@@ -308,6 +320,7 @@ export function useVoiceNote({
         tail: tail(),
         open: false,
         at: startedRef.current,
+        ...(liveMsRef.current ? { liveMs: liveMsRef.current } : {}),
       };
       if (!notebook) {
         setPhase("sending");
@@ -327,8 +340,30 @@ export function useVoiceNote({
     setElapsedMs(0);
     recorder.start(1000);
     liveRef.current = notebook;
+    liveMsRef.current = 0;
     if (notebook) {
-      nextPiece(stream, mimeType, 0);
+      // The words streamed (N392); where the stream cannot open, in pieces.
+      void openLiveStream(stream, (finished, current) => {
+        if (!liveRef.current) return;
+        finishedRef.current = finished;
+        currentRef.current = current;
+        const reach = Date.now() - startedRef.current;
+        if (reach > writtenToRef.current) {
+          writtenToRef.current = reach;
+          setWrittenTo(reach);
+        }
+        showWords();
+      }).then((live) => {
+        if (!live) {
+          if (liveRef.current) nextPiece(stream, mimeType, 0);
+          return;
+        }
+        if (!liveRef.current) {
+          live.close();
+          return;
+        }
+        streamRef.current = live;
+      });
       meterRef.current = levelMeter(stream);
       waveTickRef.current = setInterval(() => {
         const level = meterRef.current?.read() ?? 0.15;
