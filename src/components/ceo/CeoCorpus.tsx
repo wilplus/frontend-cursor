@@ -1,7 +1,7 @@
 "use client";
 
 /* -------------------------------------------------------------------------- */
-/*  The training corpus in the CEO panel (backend N407). It left the coach's   */
+/*  The training corpus in the CEO panel (backend N416). It left the coach's   */
 /*  side (the panel's pinned button and the menu's /coach/corpus row) while    */
 /*  its infrastructure is rebuilt; the founder opens it here. The screens are  */
 /*  the coach panel's own corpus screens, unchanged (D-CP-20, H in             */

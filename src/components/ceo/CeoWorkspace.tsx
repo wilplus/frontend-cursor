@@ -187,7 +187,7 @@ export default function CeoWorkspace() {
               )
             )}
             {/* The training corpus, moved here from the coach's side
-                (backend N407): opens over the panel, ✕ comes back. */}
+                (backend N416): opens over the panel, ✕ comes back. */}
             <button
               type="button"
               onClick={corpus.open}

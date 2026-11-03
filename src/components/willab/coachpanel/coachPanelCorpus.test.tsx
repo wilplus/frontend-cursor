@@ -24,7 +24,7 @@ OUTCOME
       back when nothing is left to judge (founder 2026-10-21, N101).
   O10 The list comes in steps (N100): reaching its bottom reads the next
       step, the loader showing until it lands.
-  O11 The corpus is the founder's, in the CEO panel (N407): the coach's
+  O11 The corpus is the founder's, in the CEO panel (N416): the coach's
       pinned row has no Training corpus button; the CEO panel's opens the
       imports.
 PROVES   O1 -> "a saved set-up goes straight to judging, with its count"
@@ -41,7 +41,7 @@ PROVES   O1 -> "a saved set-up goes straight to judging, with its count"
 WHY      Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files
          in one Import, the list in steps and the corpus judged mixed,
          founder 2026-10-21. Moved to the CEO panel, founder 2026-11-03
-         (backend N407).
+         (backend N416).
 */
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -316,7 +316,7 @@ describe("the training corpus in the panel", () => {
   });
 });
 
-describe("where the corpus opens (N407)", () => {
+describe("where the corpus opens (N416)", () => {
   it("the corpus opens from the CEO panel, never from the coach's pinned row", async () => {
     act(() => root.render(<CoachPanelPinned onSpeakers={() => undefined} />));
     expect(document.querySelector("[data-testid='coach-panel-speakers-button']")).not.toBeNull();

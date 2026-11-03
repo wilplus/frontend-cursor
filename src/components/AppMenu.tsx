@@ -296,7 +296,7 @@ export default function AppMenu({
               {/* Kept from before, for the few who have them: discovered
                   products and the Life Panel's server-sent entries. The
                   training corpus left the coach's menu for the CEO panel
-                  (backend N407). */}
+                  (backend N416). */}
               {productMenu.map((entry) => (
                 <Link key={entry.product} ref={firstRef()} href={entry.href} {...row(entry.href)} onClick={() => setOpen(false)}>
                   <MenuIcon tone="grey">

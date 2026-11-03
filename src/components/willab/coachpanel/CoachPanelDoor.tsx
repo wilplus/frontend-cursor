@@ -11,7 +11,7 @@
 /*                      orange dot on those waiting (D-CP-12, from            */
 /*                      GET /v2/coach/speakers); a speaker opens on their     */
 /*                      goal and their Takes                                  */
-/*    (the training corpus moved to the CEO panel, backend N407: the same   */
+/*    (the training corpus moved to the CEO panel, backend N416: the same   */
 /*     screens, opened from /admin/ceo; no coach sees its button)           */
 /*    Open speaker      a goal card in the Lounge opens that speaker          */
 /*                      (WIL-74, founder 2026-10-19; lib/willab/openSpeaker)  */
@@ -32,7 +32,7 @@ const PINNED =
   "walk-press flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl border-[1.5px] border-border bg-background text-[15px] font-semibold text-foreground";
 
 /** The button pinned above the message box, with its icon. Training corpus
- *  stood beside it until it moved to the CEO panel (backend N407). */
+ *  stood beside it until it moved to the CEO panel (backend N416). */
 export function CoachPanelPinned({ onSpeakers }: { onSpeakers: () => void }) {
   return (
     <div data-testid="coach-panel-pinned" className="flex gap-2.5">
