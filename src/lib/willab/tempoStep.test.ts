@@ -9,6 +9,7 @@ OUTCOME
   O6  A try lands only when it runs 20 s from the first word with the ball four fifths in the green; then Will says so and the game ends (N245).
   O7  A try that came closer gets a push for one more while a try is left; otherwise its comment alone (N245).
   O8  As the One thing walk's fix, the Sniper has two tries and says the walk's own words (N309).
+  O9  The stretch plays as the speaker's own clip, the words marked above its player, as the locked prototype draws it; with no audio, the words alone.
 PROVES   O1 -> "comes right after the practise moments, before other speakers", "leaves the walk unchanged when the Take has no intervention"
          O2 -> "is never in the coach-only walk or a guest's"
          O3 -> "reads a try from where the ball stayed"
@@ -17,6 +18,7 @@ PROVES   O1 -> "comes right after the practise moments, before other speakers", 
          O6 -> "lands a try only when it is long and green"
          O7 -> "pushes for one more only when a try came closer and one is left"
          O8 -> "as the one fix, two tries in the walk's own words"
+         O9 -> "plays the stretch as the speaker's own clip"
 WHY      Founder 2026-10-26 (backend N162: "in the feedback walk only"; N166: "go with the defaults"); founder 2026-10-28 (backend N245: "If it was really better, you let me go to the next step"); founder 2026-10-30 (backend N289 item 8); Never-rule 1.
 */
 import { describe, expect, it } from "vitest";
@@ -24,6 +26,9 @@ import { buildWalkPlan, type WalkMoment } from "./walkPlan";
 import { ONE_THING_TEMPO_TRIES, TEMPO_COPY, afterTry, closeOf, landed, oneThingTempoLines, readTry } from "./tempoStep";
 import { ONE_THING_COPY } from "@/components/willab/idealEditCopy";
 import { readTempo } from "@/services/api/reviewTempo";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { TempoStretchBubble } from "@/components/willab/walk/WalkTempo";
 
 const MOMENTS: WalkMoment[] = [
   { index: 0, slide: 0, praise: true },
@@ -88,13 +93,32 @@ describe("the backend's stretch", () => {
   const whole = { reading: "rushed", topic: "the beds for sale", said: { before: "Hi.", stretch: "The beds are on sale.", after: "Bye." } };
 
   it("takes the backend's stretch only when it is whole", () => {
-    expect(readTempo(whole)).toEqual({ ...whole, planLevel: null });
+    expect(readTempo(whole)).toEqual({ ...whole, planLevel: null, clip: null });
     // On a plan, the pace levels the step practises name it (backend N289).
     expect(readTempo({ ...whole, plan_level: "pauses" })?.planLevel).toBe("Pauses that hold the room");
     expect(readTempo(null)).toBeNull();
     expect(readTempo({ ...whole, reading: "fast" })).toBeNull();
     expect(readTempo({ ...whole, topic: "" })).toBeNull();
     expect(readTempo({ ...whole, said: { stretch: "" } })).toBeNull();
+  });
+
+  it("plays the stretch as the speaker's own clip", () => {
+    const signed = { ...whole, snippet_id: "s2", snippet_audio_ref: "https://media/take.webm?sig",
+      start_offset_ms: 12000, duration_ms: 5000 };
+    const stretch = readTempo(signed)!;
+    expect(stretch.clip).toEqual({ src: "https://media/take.webm?sig", startOffsetMs: 12000, durationMs: 5000, snippetId: "s2" });
+    const html = renderToStaticMarkup(createElement(TempoStretchBubble, { stretch }));
+    expect(html).toContain("data-walk-me");
+    expect(html).toContain("<mark");
+    expect(html).toContain("The beds are on sale.");
+    // No audio, or a link no player can load: the words alone, as before.
+    for (const ref of [null, "s3://bucket/take.webm"]) {
+      const words = readTempo({ ...signed, snippet_audio_ref: ref })!;
+      expect(words.clip).toBeNull();
+      const plain = renderToStaticMarkup(createElement(TempoStretchBubble, { stretch: words }));
+      expect(plain).not.toContain("data-walk-me");
+      expect(plain).toContain("<mark");
+    }
   });
 });
 
