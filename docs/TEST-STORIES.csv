@@ -1093,7 +1093,7 @@ throws it away""","Founder 2026-10-31 (N304): ""unify the recording pls just lik
 src/components/willab/recordingCopy.test.ts,Story,"As the founder, I want the recording screens' words fixed to the signed set with no digits or score words, so that nothing unapproved or numeric reaches the speaker.","O1  Never 4 (no new words without the founder's OK): RECORDING_COPY holds
 exactly the signed keys, typed exactly as signed.
 O2  Never 1 (no scores or numbers): no signed line carries a digit, a % or
-a score word.","O1, O2 -> ""is exactly the signed words, with no digit or score word""","Recording lock 2026-10-07 (N59, N70); the microphone line, N273. recordingWhere's ""Take N · Slide n of m"" is pinned in recordingStillFrame.test, not here."
+a score word.","O1, O2 -> ""is exactly the signed words, with no digit or score word""","Recording lock 2026-10-07 (N59, N70); the microphone line, N273; the earbuds line, N372. recordingWhere's ""Take N · Slide n of m"" is pinned in recordingStillFrame.test, not here."
 src/components/willab/recordingNoPullRefresh.test.tsx,Story,"As a speaker, I want pulling down on the recording screens never to reload the page, so that I never lose a Take.","O1  A pull down on the slide while recording is cancelled.
 O2  From ""getting your mic ready"" through the recording, the page is set
 not to pull-refresh.
@@ -1367,11 +1367,15 @@ O4  The phone's screen stays on while the Take records, so it cannot lock
 and cut the mic off; it may lock again once the Take ends.
 O5  A Stop tapped while the mic is still opening is kept: the mic goes off
 the moment it opens, no recording starts, and an empty try is handed
-over, so the mic is never left on.","O1 -> records at once on start
+over, so the mic is never left on.
+O6  A Take recorded through earbuds is remembered, so ""Getting your mic
+ready"" before the next one can say the built-in mic sounds better
+(N372); the built-in mic clears it.","O1 -> records at once on start
 O2 -> hands over a real take on stop and releases the stream
 O3 -> hands over the take at once when the audio comes late and Finish is tapped twice
 O4 -> keeps the screen awake while recording and lets it lock after
-O5 -> a stop while the mic is opening leaves the mic off",Never-rule 3 (never break record → process → Ideal Text).
+O5 -> a stop while the mic is opening leaves the mic off
+O6 -> remembers a Take recorded through earbuds",Never-rule 3 (never break record → process → Ideal Text).
 src/lib/api/bffFetch.test.ts,Story,"As a developer, I want every call to our own server routes to carry the sign-in token and to report ""no connection"" separately from a server answer, so that screens handle being offline correctly.","O1  The call carries the sign-in token and only the options it was given.
 O2  A dropped connection comes back as ""network"", never as a server answer.","O1 -> sends the Bearer header and only the options it was given
 O2 -> reports a thrown fetch as network, never as a response",

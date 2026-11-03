@@ -22,6 +22,9 @@ export const RECORDING_COPY = {
   /** On Take 1, under "Getting your mic ready", while the browser asks for
    *  the microphone: why it asks (N269's sentence; N273 item 4). */
   micWhy: "WillpowerLab uses the microphone to record your Takes.",
+  /** Under "Getting your mic ready" when the last Take was recorded through
+   *  earbuds or a headset (N372 item 4). */
+  earbuds: "Earbuds make you sound like a phone call. The built-in mic sounds like you.",
 } as const;
 
 /** The top bar's line while recording: "Take N · Slide n of m". The only

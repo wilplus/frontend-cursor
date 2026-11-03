@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { playOnly } from "@/lib/willab/oneVoice";
 
 /* A small voice player (prototype version 27: the speaker's orange voice
    bubble, and the grey "How you said it" under the key line; the coach's
@@ -57,6 +58,8 @@ export function VoicePlayer({
         if (a && a.duration > 0) setProgress(a.currentTime / a.duration);
         if (a) onTimeRef.current?.(a.currentTime * 1000);
       };
+      // Another voice, or the mic, can pause this one (backend N372 item 3).
+      audio.onpause = () => setPlaying(false);
       audio.onended = () => {
         setPlaying(false);
         setProgress(0);
@@ -69,7 +72,7 @@ export function VoicePlayer({
       setPlaying(false);
       return;
     }
-    void audio.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+    void playOnly(audio).then(() => setPlaying(true)).catch(() => setPlaying(false));
   };
 
   const orange = tone === "orange";

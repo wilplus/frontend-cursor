@@ -6,6 +6,7 @@ import { liveWords, type LiveWord } from "@/lib/willab/liveNoteWords";
 import { dropNote, keepNote, noteKey, type OutboxNote } from "@/lib/willab/voiceNoteOutbox";
 import { tapHaptic } from "@/lib/phone/haptic";
 import { TAKE_MIC_AUDIO } from "@/hooks/useDualCaptureMic";
+import { hushVoices } from "@/lib/willab/oneVoice";
 
 /* -------------------------------------------------------------------------- */
 /*  useVoiceNote — the Lounge mic for the founder's voice notebook (Will       */
@@ -236,6 +237,7 @@ export function useVoiceNote({
     setWave([]);
     setWrittenTo(0);
     setPhase("recording");
+    hushVoices();
     let stream: MediaStream;
     try {
       // The voice as it is, but echo cancelling stays on: a chat can be playing
