@@ -489,6 +489,14 @@ O4  A save the server refuses hands the deck the signed
 O2 -> ""the same answer sends nothing""
 O3 -> ""a rewrite never reopens""
 O4 -> ""a failed save hands the deck the signed notice""","Founder QA1 A, decisions log N51.5; build plan D-FW-9."
+src/components/willab/chats/Profile.test.tsx,Story,"As someone in a chat, I want to open the other person's profile and my own, as on WhatsApp, and change mine, so that we know who we are talking to (backend N366).","O1  Their profile shows their name, who they are, their About, and the
+photos and files we shared; with none, ""No photos yet."" and ""No files
+yet.""; no pencil and no Edit.
+O2  On mine, the pencil opens my About to type in; Save keeps it and says
+""Edited today"".
+O3  On mine, Edit turns my name and who I am into fields; Done keeps them.","O1 -> ""their profile shows who they are and what we shared, and cannot be edited""
+O2 -> ""the pencil edits my About and Save keeps it""
+O3 -> ""Edit changes my name and role, Done keeps them""",
 src/components/willab/chats/chats.test.tsx,Story,"As the founder testing the chats between users (ring 6), I want my chats in front of the Lounge, with Will first, so that I can open a colleague's or a customer's chat, answer with an emoji or a voice note, and start something new with a photo or a file; and as every other speaker, I want /chat to stay the Lounge as it is.","O1  Off (no `chats` in the ring's features_on): nothing is drawn around
 the Lounge and no chat is read (Never 3).
 O2  On: the list stands in front of the Lounge, Will pinned first, then
@@ -496,12 +504,12 @@ the chats, newest last message first, each with its title, subtitle
 and last message (an emoji with its meaning); an empty list asks for
 the demo once. Will's row uncovers the Lounge, never remounted, with
 a back to the list (customer-requests.md C1; N274, N298, N322).
-O3  In a chat, the bar holds the ""+"", the three emoji in the box, no
-typing, and the mic beside it only while a question waits for my
-answer; a tap on
+O3  In a chat, one bar: the ""+"" left, the three emoji in the box, no
+typing, and the mic always on the right, orange while a question waits
+for my answer (N368; was N341: only then); a tap on
 an emoji posts {""kind"":""emoji"",""body"":…} and shows the emoji at once,
-large, with its meaning and time under it, and the mic goes (N306,
-N311, N322, N341).
+large, with its meaning and time under it, and the mic is plain again
+(N306, N311, N322, N368).
 O4  The WillpowerLab bar shows on the list only: in a person's chat and
 in Will's, the chat's own top bar takes its place (N321 item 1, N334).
 O5  A chat whose last message is newer than the last time it was opened
@@ -514,8 +522,8 @@ control that plays it from the chat's audio route (N321 item 2); its
 words, once ready, are closed behind ""Read it"" under the player, and
 ""Hide"" closes them again (N331).
 O8  The + on the list opens my own link, with the add sheet's signed
-words, and Copy my link puts the whole link on the clipboard (N308,
-N310).
+words and its three steps, and Copy my link puts the whole link on
+the clipboard and says ""✓ Copied"" (N308, N310, N367).
 O9  In a chat I joined through someone's link, one line above the
 messages says whose link it was (N335 item 2); a chat without it has
 no such line.
@@ -531,9 +539,10 @@ O12 The ""+"" in a chat swaps the bar for four tiles with their names,
 Photos, Camera, Files and Someone else; Someone else opens the add
 sheet with my link; Cancel brings the bar back (N351).
 O13 A photo I pick is posted to the chat's photo route and joins the
-thread as my image; the mic then shows, so I can say what I need, and
-goes once my voice note is sent (N337, N341 item 2, N351).
-O14 The other person's photo or file waits for my voice: the mic shows. A
+thread as my image; the mic then turns orange, so I can say what I
+need, and is plain once my voice note is sent (N337, N341 item 2,
+N351, N368).
+O14 The other person's photo or file waits for my voice: the mic is orange. A
 file shows a tile with its extension and its own name, and downloads
 from the chat's file route; a photo opens full size with a close and
 no words; the list's line is ""📷"", or ""📄"" and the file's name (N351).
@@ -541,9 +550,10 @@ O15 An answer sent to me is one message (N355): its voice, the slides it
 was said over in a strip that marks the one being heard as it plays,
 and its words closed behind ""Read it""; no Take number.
 O16 A question Will marked as about a product or a treatment takes one
-black ""Record an answer"" in the bar's place (N321 item 4, N361); it
-hands the recording screens the chat, the person and the question.
-Back from them, my answer reads ""Sending to {name}…"" with Undo, then
+black ""Record an answer"" in the bar's middle, the ""+"" and the mic on its
+sides (N321 item 4, N361, N368); it hands the recording screens the
+chat, the person and the question. Back from them, the bar's middle
+reads ""Sending to {name}… {n}"" with Undo, then
 it goes and ""Sent to {name} on WhatsApp"" (a customer) stands under it
 (N345, N342).","O1 -> ""with chats off, the Lounge is all there is and no chat is read""
 O2 -> ""with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back""

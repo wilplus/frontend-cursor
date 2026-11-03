@@ -117,16 +117,20 @@ order it is built in.
      name and who they are. The messages start at the bottom, by the bar,
      with the day above them ("Today", otherwise the date) and the time in
      each bubble, bottom right; under a big emoji, its meaning and time
-     ("It's good · 06:12"). The bubbles stay the Lounge's. The bar is the
-     "+" on the left (N351, below), the three emoji in the box and, on its
-     right, the Lounge's mic, 40px and plain, only while the newest message
-     waits for a voice (N341, N351; was N321 item 2, the mic always): the
-     other person's question, their words (people never type, N335 item 4,
-     so words come only from a customer's request) or a message the
-     backend marks as one (each photo or file, and the voice note sent
-     straight after it), or your own photo or file, until your voice note
-     says what you need (N337). Once you answer, with an emoji or a voice
-     note, the mic goes.
+     ("It's good · 06:12"). The bubbles stay the Lounge's. One bar
+     (N368, the locked prototype "One bar" v12), three places that never
+     move: the "+" on the left (N351, below); the one thing to do now in
+     the middle (the three emoji in the box; "Record an answer" when a
+     marked question waits; "Sending to {name}… {n}" with Undo while an
+     answer goes); and on the right the mic, 40px, always there, orange and
+     pulsing while the newest message waits for a voice: the other person's
+     question, their words (people never type, N335 item 4, so words come
+     only from a customer's request) or a message the backend marks as one
+     (each photo or file, and the voice note sent straight after it), or
+     your own photo or file, until your voice note says what you need
+     (N337). Once you answer, with an emoji or a voice note, it is plain
+     again. Every send gives a short sound, and a small buzz where the
+     device allows it. Was (N341): the mic only while a voice waited.
      Will deciding what is a question (N322 item 5) is not built. The mic records with the one recording bar (the trash, the
      strip with Stop inside, N314), up to two minutes; Stop sends, the
      trash throws it away, and the bar comes back. The voice note joins
@@ -175,6 +179,21 @@ order it is built in.
      the bar back and shows nothing new. Not built: the prototype's own
      pickers and their words ("Photos and screenshots", "For {name} only.",
      "Send {n}", "Back"), not signed (N351 item 2).
+   - **A person's profile** (N366, the locked prototype "One bar" v12):
+     in a person's chat, a tap on their circle or name in the top bar
+     opens their profile, sliding over the chat, with back to it; your
+     own opens from the top of the ☰ menu, at /profile. One page: a large
+     circle (their photo, or the first letter), the name and who they are;
+     "About"; "Photos", a grid of the photos shared in that chat, each
+     opening full screen; "Files", each opening; "No photos yet." and "No
+     files yet." when there are none. On your own: tap the circle for
+     "Take photo", "Choose photo", "Delete photo" and "Cancel"; the pencil
+     beside About opens it to type in (300 characters, a count, "Cancel",
+     "Save"; "Edited today" under it the same day); "Edit" at the top right
+     turns your name and who you are into fields too, and "Done" keeps
+     them. A new name is the name your chats show. The only place in the
+     app where a person types. Not yet: the About written from the setup's
+     voice note (it waits for the setup).
    - **Will's chat** has its own top bar too, as every chat (N334 item
      1): back, his mark and "Will", over the Lounge; the WillpowerLab bar
      shows on the list only. Was (N322 item 4): the WillpowerLab bar with
@@ -197,11 +216,18 @@ order it is built in.
      nothing new. Not yet: "Practise with Will" (N344), "Consult with
      someone first" (N343).
    - **The join link** (N308, N328, N335; built 2026-11-02 behind the same
-     ring): the "+" at the bottom right of the list opens the add sheet:
-     "Add someone to chat with", "Send them your link, in any email or
-     message. Whoever opens it joins you here.", the person's own link
-     (/c/<token>) to select, and "Copy my link" (a tick shows for two
-     seconds once copied; N310 item 3). The link opens the join page, before
+     ring): the "+" at the bottom right of the list opens the add sheet, as
+     redesigned (N367 item 3, the locked prototype "One bar" v12): a
+     handle; "Add someone to chat with", large; "Send them your link, in
+     any email or message. Whoever opens it joins you here."; the person's
+     own link (/c/<token>) in a box with a link icon, to select; one big
+     "Copy my link", which turns green with "✓ Copied" and closes the
+     sheet; in the iPhone app, the share sheet beside it (N365 item 6);
+     three tiles, "1. Paste it / in an email or a message you send
+     anyway", "2. They open it / and join with their account", "3. You
+     chat / Only the two of you are in it"; "Cancel" (N310 item 3, N367).
+     Was: a grey box with the title, the line and the link, and Copy my
+     link with a tick for two seconds. The link opens the join page, before
      any sign-in: who invites you ("{Name} asks you to join them on
      WillpowerLab"), "A chat with {name}", "Your own chat with Will, your
      speaking coach", "Nobody else can reach you here unless you open their
@@ -654,6 +680,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N368 · C1, §4: one bar in a person's chat: the "+" left, the mic always on the right (orange and pulsing while someone waits for your words), and the middle the one thing to do now: the three emoji, "Record an answer", or "Sending to {name}… {n}" with Undo (moved from under the answer into the bar); a short sound and a buzz where the device allows it on every send. Was (N341): the mic only while a question waited; Record an answer filled the whole bar; Sending sat under the answer. Not yet: "Ask {name} first" (it needs the consult), the specialist's "Ask about {topic}" (it needs the setup), Will's chat with the same bar, the iPhone app's own buzz · FE (this PR)
 - 2026-11-03 · N321, N336, N342, N345, N361, N363 · C1: Record an answer: a question Will marked takes the black "Record an answer"; the recording screens on one slide, the question, no feelings check; back in the chat "Sending to {name}…" with Undo for 5 seconds, then the answer (a voice message playing the Take, up to five minutes) with "Sent to {name}" or "Sent to {name} on WhatsApp" under it. Was: the emoji and the mic only · BE #1611, #1612, FE (this PR)
 - 2026-11-03 · N355 · C1: an answer as the one who asked meets it: one message, the voice, the slides in a strip under the player that marks the one being heard as it plays, and its Take's words behind "Read it"; no Take number. The backend's read carries an answer's `words` and `slides` (each slide's start). Not yet: the picks, the WhatsApp link · BE (the answer's words and slides), FE (this PR)
 - 2026-11-02 · N351, N341 item 2, N337 · C1, K, §2, §4: the "+" on the left of a person's chat bar, in every chat but Will's: a tap swaps the bar for four tiles, Photos, Camera, Files and Someone else, with Cancel under them, which brings the bar back. Photos and Camera send images and Files any file, through the browser's own pickers, each its own message up to 10 MB (a photo: an image bubble that opens full size with a close ✕; a file: a bubble with its extension and its own name that downloads); Someone else opens the add sheet. The list's line is "📷" or "📄 {file name}". Each photo or file is a question for the other person (`meta.question`), and so is the sender's voice note straight after it; the mic shows while the newest message is the other person's question or your own photo or file. The prototype's own pickers and their words are not built (not signed). Was (N341): the bar was the three emoji and the mic, the mic only while the newest message was the other person's question; no "+" · BE #1606, FE (this PR)
@@ -661,6 +688,8 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-02 · N354 · C1: in the iPhone app, no glimpse of Will's chat before the list: the rings and the chats are now read together at the chat boot, after the Lounge's own reads (they were one after the other), and the loader covers the Lounge until the list is known. Was: the Lounge for a moment, then the list over it. The website is unchanged: off, or with no chats, /chat is the Lounge at once · FE (this PR)
 - 2026-11-02 · N331 · C1, K: a voice note's words, once ready, behind "Read it" under its player, inside the bubble; "Hide" closes them; closed by default for both people; none shown when there are no words; the list keeps "🎤 Voice message". The backend's read and the voice note's answer carry `words`. Was (N324): the words kept, shown nowhere · BE #1604, FE (this PR)
 - 2026-11-02 · N341 · C1: in a chat with a person, the mic shows only while a question waits for your answer (the newest message is theirs and is a question: their words, or a message marked as one); answered with an emoji or a voice note, it goes. Was (N321 item 2): the mic always beside the emoji. The "+" comes with N351 · FE (this PR)
+- 2026-11-03 · N366 · C1: a person's profile: from a chat's top bar (theirs) and the ☰ menu (/profile, yours): the circle, name, who they are, About, Photos and Files shared; on yours, the photo sheet, the pencil and Edit/Done. Was: the top bar opened nothing · BE (the profile routes), FE (this PR)
+- 2026-11-03 · N367 item 3, N365 item 6 · C1: the add sheet as redesigned: the title large, the link with its icon, a big Copy my link that turns green "✓ Copied" and closes the sheet, the share sheet beside it in the iPhone app, three tiles and Cancel. Was: a grey box, the link, Copy my link with a tick · FE (this PR)
 - 2026-11-02 · N357 · C1: after joining through a link, /chat opens on the list of chats, the inviter's chat its first row, above Will, marked new with its last message or the joined line, until it is opened. Was (N348 item 1): that chat opened · FE (this PR)
 - 2026-11-02 · N354 · C1: in the iPhone app only, sign-in first, then the chats: the app opens on /login (no landing, no welcome; consent unchanged, sign-up's Terms box and Phase1AcceptanceGate); with the chats on, it opens on the list even when Will's chat is the only one, and the row under Will is then "Add someone to chat with", opening the add sheet as the + does. Was: the landing and the welcome, and no list with Will's chat alone. The website is unchanged · FE (this PR)
 - 2026-11-02 · N348 · C1: joined through a link, /chat opens on the chat with the person who invited you (`/chat?with=<chat>`), not on the list; Will's first lines wait in Will's chat. Was: the list · FE (this PR)

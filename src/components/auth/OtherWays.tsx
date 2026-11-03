@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import LinkedInAuthButton from "@/components/auth/LinkedInAuthButton";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
+import AppleAuthButton from "@/components/auth/AppleAuthButton";
 
 /* -------------------------------------------------------------------------- */
 /*  OtherWays — under the WhatsApp number on the sign-up and sign-in pages    */
@@ -30,6 +31,8 @@ export default function OtherWays({ mode, onEmail }: { mode: "signup" | "login";
         {OTHER_WAYS_COPY.or}
         <span className="h-px flex-1 bg-border" />
       </div>
+      {/* In the iPhone app only, Apple's own button above the three (N365). */}
+      <AppleAuthButton />
       <div className="grid grid-cols-3 gap-3">
         <Button type="button" variant="outline" className={`w-full gap-2 font-medium ${small}`} onClick={onEmail}>
           <MailIcon className="h-[18px] w-[18px] shrink-0" />
