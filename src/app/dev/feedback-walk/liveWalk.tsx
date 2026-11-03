@@ -134,8 +134,20 @@ const EXERCISE_OFFER: ConfidentVoicePracticeOffer = {
 const HIGHEST = MOMENTS.find((m) => m.praise)?.index ?? -1;
 
 /** The fixtures as the page hands them to the walk: one item per moment. */
-function liveItems(audioSrc: string, exerciseVideo: boolean): FeedbackWalkItem<string>[] {
-  return MOMENTS.map((m) => ({
+type OneTool = "clearer" | "ai" | "sniper";
+/** The One thing walk's slots on the harness moments (local run-through). */
+function oneSlot(index: number, one: OneTool | null): Partial<FeedbackWalkItem<string>> | null {
+  if (!one) return {};
+  if (index === HIGHEST) return { tiered: true, green: true, walkSlot: "strongest" };
+  if (one === "clearer" && index === 1) return { tiered: true, practicePrompt: true, hasRewrite: true, walkSlot: "between" };
+  if (one === "ai" && index === 3) return { tiered: true, practicePrompt: true, walkSlot: "weakest" };
+  return null;
+}
+
+function liveItems(audioSrc: string, exerciseVideo: boolean, one: OneTool | null = null): FeedbackWalkItem<string>[] {
+  return MOMENTS.filter((m) => oneSlot(m.index, one) !== null).map((m) => ({
+    ...oneSlot(m.index, one),
+    said: PARAGRAPHS[m.index],
     start: m.index * 100,
     slide: 1,
     blockId: `block-${m.index}`,
@@ -196,7 +208,11 @@ export default function LiveWalk({
   exerciseVideo = true,
   finished: startFinished = false,
   tempo = false,
+  one = null,
+  take = 1,
 }: {
+  one?: OneTool | null;
+  take?: number;
   guest: boolean;
   practiceOn: boolean;
   exerciseVideo?: boolean;
@@ -209,13 +225,14 @@ export default function LiveWalk({
   const model = useMemo(
     () =>
       buildFeedbackWalk({
-        items: audioSrc ? liveItems(audioSrc, exerciseVideo) : [],
-        coachNote: true,
+        items: audioSrc ? liveItems(audioSrc, exerciseVideo, one) : [],
+        coachNote: !one,
         practiceOn,
         guest,
-        interventions: tempo ? ["tempo"] : [],
+        interventions: tempo || one === "sniper" ? ["tempo"] : [],
+        judge: Boolean(one) && take >= 2,
       }),
-    [audioSrc, guest, practiceOn, exerciseVideo, tempo],
+    [audioSrc, guest, practiceOn, exerciseVideo, tempo, one, take],
   );
   const [request, setRequest] = useState<FeedbackWalkRequest | null>(null);
   const [end, setEnd] = useState(false);
@@ -294,7 +311,8 @@ export default function LiveWalk({
         request={request}
         coachNote={{ text: COACH_NOTE, videoUrl: NO_VIDEO, takeIndex: TAKE_SHOWN }}
         firstTake={false}
-        tempo={tempo ? TEMPO_STAND_IN : null}
+        tempo={tempo || one === "sniper" ? TEMPO_STAND_IN : null}
+        takeIndex={one ? take : undefined}
         guest={guest}
         onGuest={() => setSignUp(true)}
         onSaveHelperWords={(save) => setSaved((list) => [...list, save])}
