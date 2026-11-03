@@ -8,7 +8,7 @@ import TypingDots from "@/components/willab/TypingDots";
 import { VoicePlayer } from "@/components/willab/plan/VoicePlayer";
 import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { useVoiceNote } from "@/components/willab/useVoiceNote";
-import { onAnswerSent, undoAnswer, usePendingAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
+import { UNDO_MS, onAnswerSent, undoAnswer, usePendingAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
 import {
   CHAT_EMOJI,
   chatFileSrc,
@@ -445,7 +445,7 @@ function RecordAnswerButton({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       data-chat-record-answer=""
-      className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-foreground text-[15px] font-medium text-background"
+      className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2.5 rounded-full bg-foreground text-[15px] font-medium text-background"
     >
       <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
       {RECORD_AN_ANSWER}
@@ -482,20 +482,79 @@ function PlusTiles({ onTile, onCancel }: { onTile: (id: (typeof PLUS_TILES)[numb
   );
 }
 
-/** The locked bar's shape (the Lounge's composer): the "+" on the left
- *  (N351), the rounded box with the three emoji as round buttons in it, and
- *  on its right the Lounge's mic, 40px and plain, only while a question
- *  waits (N341; the prototype's `pBar`). No typing outside Will's chat. */
+/** A short sound and, where the device allows it, a small buzz on every
+ *  send (backend N368 item 3). Quiet when the browser refuses either. */
+let audio: AudioContext | null = null;
+export function sendTick(): void {
+  try {
+    navigator.vibrate?.(12);
+  } catch {
+    // No buzz here.
+  }
+  try {
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    audio = audio ?? new Ctx();
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.05, audio.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.12);
+    osc.connect(gain).connect(audio.destination);
+    osc.start();
+    osc.stop(audio.currentTime + 0.13);
+  } catch {
+    // No sound here.
+  }
+}
+
+/** "Sending to {name}… {n}" with Undo, in the middle of the bar while an
+ *  answer goes (backend N368 item 1, N345). */
+function SendingPill({ name, startedAt, waited }: { name: string; startedAt: number; waited: boolean }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (waited) return;
+    const id = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(id);
+  }, [waited]);
+  const left = Math.max(0, Math.ceil((startedAt + UNDO_MS - now) / 1000));
+  return (
+    <div data-chat-sending="" className="flex h-12 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-muted pl-[18px] pr-1.5 text-[14.5px]">
+      <span className="min-w-0 truncate tabular-nums text-foreground">
+        {sendingTo(name)}
+        {waited ? "" : ` ${left}`}
+      </span>
+      {waited ? null : (
+        <button type="button" onClick={undoAnswer} data-chat-undo="" className="h-9 shrink-0 rounded-full bg-background px-4 text-[14.5px] font-semibold text-foreground">
+          {UNDO}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** One bar in every chat (backend N368, the locked prototype "One bar" v12):
+ *  three places that never move: the "+" on the left (N351), the one thing
+ *  to do now in the middle (the three emoji, Record an answer, or "Sending
+ *  to {name}…"), and your voice on the right, always there, orange and
+ *  pulsing while someone waits for your words. No typing outside Will's
+ *  chat. Was (N341): the mic only while a question waited. */
 function EmojiBar({
   name,
   onPlus,
   onPick,
   onMic,
+  hot = false,
+  middle = null,
 }: {
   name: string;
   onPlus: () => void;
   onPick: (emoji: ChatEmoji) => void;
   onMic: (() => void) | null;
+  /** Someone waits for your words: the mic is orange and pulses. */
+  hot?: boolean;
+  /** What stands in the middle instead of the emoji. */
+  middle?: ReactNode;
 }) {
   return (
     <>
@@ -508,6 +567,7 @@ function EmojiBar({
       >
         <Plus className="h-5 w-5" aria-hidden />
       </button>
+      {middle ?? (
       <div data-chat-emoji-box className="flex min-h-[40px] min-w-0 flex-1 items-center justify-around rounded-3xl border border-border bg-background px-2">
         {CHAT_EMOJI.map((emoji) => (
           <button
@@ -521,13 +581,17 @@ function EmojiBar({
           </button>
         ))}
       </div>
+      )}
       {onMic ? (
         <button
           type="button"
           onClick={onMic}
           aria-label="Voice note"
           data-chat-mic=""
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
+          data-chat-mic-hot={hot ? "" : undefined}
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${
+            hot ? "animate-pulse bg-[#FF640A] text-white" : "bg-muted text-foreground hover:bg-muted/70"
+          }`}
         >
           <Mic className="h-5 w-5" aria-hidden />
         </button>
@@ -554,7 +618,10 @@ export default function ChatThread({
   useEffect(
     () =>
       onAnswerSent((chatId, message) => {
-        if (chatId === chat.id) setMessages((list) => [...(list ?? []), message]);
+        if (chatId === chat.id) {
+          sendTick();
+          setMessages((list) => [...(list ?? []), message]);
+        }
       }),
     [chat.id],
   );
@@ -576,7 +643,10 @@ export default function ChatThread({
     maxSeconds: 120,
     onDone: async ({ audio, durationMs }) => {
       const sent = await sendChatVoice(chat.id, audio, durationMs);
-      if (sent) setMessages((list) => [...(list ?? []), sent]);
+      if (sent) {
+        sendTick();
+        setMessages((list) => [...(list ?? []), sent]);
+      }
     },
   });
 
@@ -628,7 +698,10 @@ export default function ChatThread({
     for (const file of picked) {
       const { blob, name } = kind === "photo" ? await photoForUpload(file) : { blob: file, name: file.name };
       const sent = await sendChatUpload(chat.id, kind, blob, name);
-      if (sent) setMessages((list) => [...(list ?? []), sent]);
+      if (sent) {
+        sendTick();
+        setMessages((list) => [...(list ?? []), sent]);
+      }
     }
   };
 
@@ -645,6 +718,7 @@ export default function ChatThread({
       created_at: new Date().toISOString(),
     };
     setMessages((list) => [...(list ?? []), local]);
+    sendTick();
     const sent = await sendChatEmoji(chat.id, emoji);
     setMessages((list) => (list ?? []).flatMap((m) => (m.id !== local.id ? [m] : sent ? [sent] : [])));
   };
@@ -676,21 +750,6 @@ export default function ChatThread({
               />,
             ])
           )}
-          {pending ? (
-            <SentLine pending>
-              {sendingTo(chat.title)}
-              {pending.waited ? null : (
-                <button
-                  type="button"
-                  onClick={undoAnswer}
-                  data-chat-undo=""
-                  className="px-1 py-1.5 text-[13px] font-semibold text-foreground underline underline-offset-[3px]"
-                >
-                  {UNDO}
-                </button>
-              )}
-            </SentLine>
-          ) : null}
         </div>
       </div>
       <div data-chat-bar className="flex shrink-0 items-end gap-1 px-4 pb-2">
@@ -698,10 +757,6 @@ export default function ChatThread({
           <div className="min-w-0 flex-1">
             <RecordingBar elapsedMs={note.elapsedMs} onTrash={note.cancel} onStop={note.send} />
           </div>
-        ) : question && onRecordAnswer && !pending ? (
-          <RecordAnswerButton
-            onClick={() => onRecordAnswer({ chatId: chat.id, name: chat.title, question, customer })}
-          />
         ) : tiles ? (
           <PlusTiles onTile={tile} onCancel={() => setTiles(false)} />
         ) : (
@@ -709,7 +764,15 @@ export default function ChatThread({
             name={chat.title}
             onPlus={() => setTiles(true)}
             onPick={(emoji) => void send(emoji)}
-            onMic={micShows(messages) && !pending ? () => void note.start() : null}
+            onMic={pending ? null : () => void note.start()}
+            hot={micShows(messages) && !pending}
+            middle={
+              pending ? (
+                <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited} />
+              ) : question && onRecordAnswer ? (
+                <RecordAnswerButton onClick={() => onRecordAnswer({ chatId: chat.id, name: chat.title, question, customer })} />
+              ) : null
+            }
           />
         )}
       </div>
