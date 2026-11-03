@@ -197,11 +197,18 @@ order it is built in.
      nothing new. Not yet: "Practise with Will" (N344), "Consult with
      someone first" (N343).
    - **The join link** (N308, N328, N335; built 2026-11-02 behind the same
-     ring): the "+" at the bottom right of the list opens the add sheet:
-     "Add someone to chat with", "Send them your link, in any email or
-     message. Whoever opens it joins you here.", the person's own link
-     (/c/<token>) to select, and "Copy my link" (a tick shows for two
-     seconds once copied; N310 item 3). The link opens the join page, before
+     ring): the "+" at the bottom right of the list opens the add sheet, as
+     redesigned (N367 item 3, the locked prototype "One bar" v12): a
+     handle; "Add someone to chat with", large; "Send them your link, in
+     any email or message. Whoever opens it joins you here."; the person's
+     own link (/c/<token>) in a box with a link icon, to select; one big
+     "Copy my link", which turns green with "✓ Copied" and closes the
+     sheet; in the iPhone app, the share sheet beside it (N365 item 6);
+     three tiles, "1. Paste it / in an email or a message you send
+     anyway", "2. They open it / and join with their account", "3. You
+     chat / Only the two of you are in it"; "Cancel" (N310 item 3, N367).
+     Was: a grey box with the title, the line and the link, and Copy my
+     link with a tick for two seconds. The link opens the join page, before
      any sign-in: who invites you ("{Name} asks you to join them on
      WillpowerLab"), "A chat with {name}", "Your own chat with Will, your
      speaking coach", "Nobody else can reach you here unless you open their
@@ -661,6 +668,7 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-02 · N354 · C1: in the iPhone app, no glimpse of Will's chat before the list: the rings and the chats are now read together at the chat boot, after the Lounge's own reads (they were one after the other), and the loader covers the Lounge until the list is known. Was: the Lounge for a moment, then the list over it. The website is unchanged: off, or with no chats, /chat is the Lounge at once · FE (this PR)
 - 2026-11-02 · N331 · C1, K: a voice note's words, once ready, behind "Read it" under its player, inside the bubble; "Hide" closes them; closed by default for both people; none shown when there are no words; the list keeps "🎤 Voice message". The backend's read and the voice note's answer carry `words`. Was (N324): the words kept, shown nowhere · BE #1604, FE (this PR)
 - 2026-11-02 · N341 · C1: in a chat with a person, the mic shows only while a question waits for your answer (the newest message is theirs and is a question: their words, or a message marked as one); answered with an emoji or a voice note, it goes. Was (N321 item 2): the mic always beside the emoji. The "+" comes with N351 · FE (this PR)
+- 2026-11-03 · N367 item 3, N365 item 6 · C1: the add sheet as redesigned: the title large, the link with its icon, a big Copy my link that turns green "✓ Copied" and closes the sheet, the share sheet beside it in the iPhone app, three tiles and Cancel. Was: a grey box, the link, Copy my link with a tick · FE (this PR)
 - 2026-11-02 · N357 · C1: after joining through a link, /chat opens on the list of chats, the inviter's chat its first row, above Will, marked new with its last message or the joined line, until it is opened. Was (N348 item 1): that chat opened · FE (this PR)
 - 2026-11-02 · N354 · C1: in the iPhone app only, sign-in first, then the chats: the app opens on /login (no landing, no welcome; consent unchanged, sign-up's Terms box and Phase1AcceptanceGate); with the chats on, it opens on the list even when Will's chat is the only one, and the row under Will is then "Add someone to chat with", opening the add sheet as the + does. Was: the landing and the welcome, and no list with Will's chat alone. The website is unchanged · FE (this PR)
 - 2026-11-02 · N348 · C1: joined through a link, /chat opens on the chat with the person who invited you (`/chat?with=<chat>`), not on the list; Will's first lines wait in Will's chat. Was: the list · FE (this PR)
