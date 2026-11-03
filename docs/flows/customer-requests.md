@@ -118,12 +118,15 @@ order it is built in.
      with the day above them ("Today", otherwise the date) and the time in
      each bubble, bottom right; under a big emoji, its meaning and time
      ("It's good · 06:12"). The bubbles stay the Lounge's. The bar is the
-     three emoji in the box and, on its right, the Lounge's mic, 40px and
-     plain, only while a question waits for your answer (N341; was N321
-     item 2, the mic always): the newest message is the other person's and
-     is a question, their words (people never type, N335 item 4, so words
-     come only from a customer's request) or a message the backend marks
-     as one. Once you answer, with an emoji or a voice note, the mic goes.
+     "+" on the left (N351, below), the three emoji in the box and, on its
+     right, the Lounge's mic, 40px and plain, only while the newest message
+     waits for a voice (N341, N351; was N321 item 2, the mic always): the
+     other person's question, their words (people never type, N335 item 4,
+     so words come only from a customer's request) or a message the
+     backend marks as one (each photo or file, and the voice note sent
+     straight after it), or your own photo or file, until your voice note
+     says what you need (N337). Once you answer, with an emoji or a voice
+     note, the mic goes.
      Will deciding what is a question (N322 item 5) is not built. The mic records with the one recording bar (the trash, the
      strip with Stop inside, N314), up to two minutes; Stop sends, the
      trash throws it away, and the bar comes back. The voice note joins
@@ -136,6 +139,30 @@ order it is built in.
      "Read it" opens them inside the bubble and "Hide" closes them; closed
      by default, for both people, so the voice is heard; a voice note with
      no words shows none, and the list keeps "🎤 Voice message" (N331).
+   - **The "+"** (N351, N335 item 3, N337; built 2026-11-02 behind the
+     same ring), in every chat but Will's (Will's chat keeps the Lounge's
+     bar): a tap swaps the bar for a row of four round coloured tiles, each
+     with its name under it, Photos, Camera, Files and Someone else, and
+     "Cancel" under the row, quiet, which brings the bar back (the
+     prototype's `attachSheet`). Photos opens the browser's own picker for
+     images, several at once; Camera the same, to the camera on a phone (on
+     a computer, the browser's file picker); Files the picker for any file.
+     We draw no picker of our own. Each one picked is sent on its own, up
+     to 10 MB (a photo over 4 MB is redrawn smaller in the browser first:
+     the platform refuses a body over about 4.5 MB), and joins the thread
+     once the backend has kept it. A photo is a bubble with the image, mine
+     orange on the right, theirs grey on the left, its time under it;
+     tapped, it opens full size, with a close ✕ and no words. A file is a
+     bubble with a small red tile holding its extension, from its own name
+     ("PDF"), and its name; no size, no other words; tapped, it downloads
+     through the backend. Each photo or file opens a new question for the
+     other person, for that person only (N341 item 2): the mic rule above.
+     Someone else opens the add sheet the list's "+" opens (the join link,
+     below). The list's line is "📷" after a photo and "📄 {file name}"
+     after a file. A refused picker, a failed send or a file too big brings
+     the bar back and shows nothing new. Not built: the prototype's own
+     pickers and their words ("Photos and screenshots", "For {name} only.",
+     "Send {n}", "Back"), not signed (N351 item 2).
    - **Will's chat** has its own top bar too, as every chat (N334 item
      1): back, his mark and "Will", over the Lounge; the WillpowerLab bar
      shows on the list only. Was (N322 item 4): the WillpowerLab bar with
@@ -417,6 +444,10 @@ them:
   Ariel's lines, "Will", "Only 👍, 👀 or 🙏 for now.", "Today", "🎤 Voice
   message", the dates and the clock times.
 - Under a voice note's player (N331): "Read it", "Hide".
+- The "+" in a chat with a person (N337, N351): "Photos", "Camera",
+  "Files", "Someone else", "Cancel", and "Add to your chat with {name}" as
+  its name for a screen reader. The list's "📷" and "📄 {file name}" are an
+  emoji and the person's own file name.
 
 ---
 
@@ -433,7 +464,8 @@ up to two minutes, played in its bubble (N298, N302, N305, N306, N311,
 N321, N322). Off, /chat is the Lounge as it is. Not yet: "Record an
 answer" for a complex question (N321 item 4), passing on, the status and
 the filters. Built since: the join link, the add sheet and the join page
-(C1, N308, N328, N335).
+(C1, N308, N328, N335); the "+" in a chat with a person, with Photos,
+Camera, Files and Someone else (C1, N351).
 There is no typing outside Will's chat (N298 item 4).
 
 Nothing else built. The order of the build, each slice proving one thing (N223
@@ -521,7 +553,14 @@ the day, `chatOpened.ts` what is new; the voice note records with
 `src/app/api/v2/chats/` (the voice note's upload `[chatId]/voice/` and its
 playback `[chatId]/messages/[messageId]/audio/`, in byte ranges); the
 backend's `/v2/chats` routes, `POST /v2/chats/<id>/voice` and
-`GET /v2/chats/<id>/messages/<messageId>/audio`.
+`GET /v2/chats/<id>/messages/<messageId>/audio`. The "+" (N351): its
+tiles, the photo and file bubbles and the mic rule (`micShows`) in
+`ChatThread.tsx`, a big photo made smaller in `photoForUpload.ts`, the add
+sheet reused from `ChatList.tsx`; the BFF routes `[chatId]/photo/` and
+`[chatId]/file/` (both through `chatUpload.ts`) and
+`[chatId]/messages/[messageId]/file/`; the backend's
+`POST /v2/chats/<id>/photo`, `POST /v2/chats/<id>/file` and
+`GET /v2/chats/<id>/messages/<messageId>/file` (table `chat_message_files`).
 
 The rest is not built. Where it will live, so §1 has a home from the first PR:
 
@@ -587,6 +626,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-02 · N351, N341 item 2, N337 · C1, K, §2, §4: the "+" on the left of a person's chat bar, in every chat but Will's: a tap swaps the bar for four tiles, Photos, Camera, Files and Someone else, with Cancel under them, which brings the bar back. Photos and Camera send images and Files any file, through the browser's own pickers, each its own message up to 10 MB (a photo: an image bubble that opens full size with a close ✕; a file: a bubble with its extension and its own name that downloads); Someone else opens the add sheet. The list's line is "📷" or "📄 {file name}". Each photo or file is a question for the other person (`meta.question`), and so is the sender's voice note straight after it; the mic shows while the newest message is the other person's question or your own photo or file. The prototype's own pickers and their words are not built (not signed). Was (N341): the bar was the three emoji and the mic, the mic only while the newest message was the other person's question; no "+" · BE #1606, FE (this PR)
 - 2026-11-02 · N360 · C1: Will is always the first row of the list; just joined through a link, the inviter's chat is the row right under Will, still marked new with its last message or the joined line. Was (N357 item 1): the inviter's chat above Will · FE (this PR)
 - 2026-11-02 · N354 · C1: in the iPhone app, no glimpse of Will's chat before the list: the rings and the chats are now read together at the chat boot, after the Lounge's own reads (they were one after the other), and the loader covers the Lounge until the list is known. Was: the Lounge for a moment, then the list over it. The website is unchanged: off, or with no chats, /chat is the Lounge at once · FE (this PR)
 - 2026-11-02 · N331 · C1, K: a voice note's words, once ready, behind "Read it" under its player, inside the bubble; "Hide" closes them; closed by default for both people; none shown when there are no words; the list keeps "🎤 Voice message". The backend's read and the voice note's answer carry `words`. Was (N324): the words kept, shown nowhere · BE #1604, FE (this PR)
