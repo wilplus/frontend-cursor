@@ -203,14 +203,16 @@ order it is built in.
      a phone-wide column in the middle.
    - **Record an answer** (N321 item 4, N336, N342, N345, N361, N363):
      when the question waiting for your answer is one Will marked as about
-     a product or a treatment (`meta.record_answer`), the bar is one black
-     button with the red dot, "Record an answer". It makes the question a
+     a product or a treatment (`meta.record_answer`), the middle of the bar
+     is the black button with the red dot, "Record an answer" (N368). It
+     makes the question a
      project of its own, one slide holding the asker's words, and opens
      the recording screens on it at once, the person named above "Take 1 ·
      Slide 1 of 1", no feelings check
      ([recording-screens.md](recording-screens.md) step 6). Finish take
-     brings you back to the chat: "Sending to {name}…" with "Undo" for 5
-     seconds, then the answer goes (`POST /v2/chats/<id>/answer`, a voice
+     brings you back to the chat: in the middle of the bar, "Sending to
+     {name}… {n}" counting down 5 seconds with "Undo" (N368), then the
+     answer goes (`POST /v2/chats/<id>/answer`, a voice
      message that plays the Take itself; up to five minutes). Under it,
      "Sent to {name} on WhatsApp" for a customer, "Sent to {name}" for a
      colleague, with a check. The person gets just the answer, never its
@@ -517,11 +519,12 @@ chat's screen, the conversation only, under its own top bar in the
 WillpowerLab bar's place, with the day and each message's time, the
 three emoji in the locked bar and the mic beside them for a voice note of
 up to two minutes, played in its bubble (N298, N302, N305, N306, N311,
-N321, N322). Off, /chat is the Lounge as it is. Not yet: "Record an
-answer" for a complex question (N321 item 4), passing on, the status and
-the filters. Built since: the join link, the add sheet and the join page
+N321, N322). Off, /chat is the Lounge as it is. Not yet: passing on, the
+status and the filters. Built since: the join link, the add sheet and the join page
 (C1, N308, N328, N335); the "+" in a chat with a person, with Photos,
-Camera, Files and Someone else (C1, N351).
+Camera, Files and Someone else (C1, N351); "Record an answer", a marked
+question answered with a Take that goes back to the chat (C1, N361,
+N363).
 There is no typing outside Will's chat (N298 item 4).
 
 Nothing else built. The order of the build, each slice proving one thing (N223
@@ -682,6 +685,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N361, N363, N368 · C1, §2: the page caught up: "Record an answer" stands in the middle of the bar and "Sending to {name}… {n}" with Undo there too (N368), and §2 no longer lists Record an answer as not yet built · docs (this PR)
 - 2026-11-03 · N369 · C1: Will's chat keeps its own bar (the "+", "Type here", the voice notebook's mic); the one bar is for chats with a person. Was (N368 items 1 and 2): Will's chat with the same bar · docs (this PR)
 - 2026-11-03 · N368 · C1, §4: one bar in a person's chat: the "+" left, the mic always on the right (orange and pulsing while someone waits for your words), and the middle the one thing to do now: the three emoji, "Record an answer", or "Sending to {name}… {n}" with Undo (moved from under the answer into the bar); a short sound and a buzz where the device allows it on every send. Was (N341): the mic only while a question waited; Record an answer filled the whole bar; Sending sat under the answer. Not yet: "Ask {name} first" (it needs the consult), the specialist's "Ask about {topic}" (it needs the setup), the iPhone app's own buzz. Will's chat keeps its own bar (N369) · FE (this PR)
 - 2026-11-03 · N321, N336, N342, N345, N361, N363 · C1: Record an answer: a question Will marked takes the black "Record an answer"; the recording screens on one slide, the question, no feelings check; back in the chat "Sending to {name}…" with Undo for 5 seconds, then the answer (a voice message playing the Take, up to five minutes) with "Sent to {name}" or "Sent to {name} on WhatsApp" under it. Was: the emoji and the mic only · BE #1611, #1612, FE (this PR)
