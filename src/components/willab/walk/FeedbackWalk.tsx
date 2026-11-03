@@ -1863,11 +1863,21 @@ function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep, backFromPractise: ()
 }
 
 /** The small line that opens a part: the step's name, as the bar says it.
- *  Other speakers name each of their moments themselves (WalkOthers). */
+ *  Other speakers name each of their moments themselves (WalkOthers). The
+ *  helper words take the bar the fix's step showed: the slide of the moment
+ *  whose paragraph takes them (the fix's, or their best's with no fix,
+ *  N374), the tempo step's with the Sniper; "Lesson done." keeps it, as the
+ *  prototype's carry() does (dots(3)). Until 2026-11-03 they had none, so at
+ *  the end the bar kept the last mark, "Other speakers" from Take 2. */
 function partLabel(ctx: ScreenCtx, step: WalkStep): string | null {
   if (step.key === "coachnote") return COPY.titleCoach;
   if (step.key === "summary") return ctx.takeIndex != null ? `${COPY.historyTake} ${ctx.takeIndex}` : COPY.historyTake;
-  if (step.key === "others" || step.key === "words" || step.key === "done") return null;
+  if (step.key === "words") {
+    const of = step.of == null ? undefined : ctx.walk.moments[step.of];
+    if (of) return of.slideLabel ?? null;
+    return ctx.walk.plan.some((s) => s.key === "tempo") ? TEMPO_COPY.mark : null;
+  }
+  if (step.key === "others" || step.key === "done") return null;
   if (step.key === "tempo") return TEMPO_COPY.mark;
   const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];
   return moment ? (stepNav(ctx, step, moment).position ?? null) : null;
