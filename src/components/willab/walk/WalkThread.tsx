@@ -635,14 +635,16 @@ function LiveThread({
       data-walk-thread
       className="walk-ov flex h-full w-full flex-col bg-background pt-[env(safe-area-inset-top)] text-[17px] leading-[1.55] text-foreground"
     >
-      <div className="walk-ovtop flex min-h-[44px] items-center justify-between px-2.5 pt-2">
+      {/* Above the thread, so the buttons' 44px tap areas reach over its top
+          edge (backend N440). */}
+      <div className="walk-ovtop relative z-10 flex min-h-[44px] items-center justify-between px-2.5 pt-2">
         <nav data-walk-nav aria-label={label} className="flex min-w-0 items-center gap-0.5 text-[13.5px] font-semibold">
           <button
             type="button"
             onClick={() => jump(-1)}
             disabled={bar.at <= 0}
             aria-label={COPY.pagerBack}
-            className="walk-press-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground disabled:cursor-default disabled:opacity-25"
+            className="walk-press-sm relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground after:absolute after:-inset-1 after:content-[''] disabled:cursor-default disabled:opacity-25"
           >
             <ChevronLeft className="h-5 w-5" aria-hidden />
           </button>
@@ -652,12 +654,17 @@ function LiveThread({
             onClick={() => jump(1)}
             disabled={bar.at < 0 || bar.at >= bar.of - 1}
             aria-label={COPY.pagerNext}
-            className="walk-press-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground disabled:cursor-default disabled:opacity-25"
+            className="walk-press-sm relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground after:absolute after:-inset-1 after:content-[''] disabled:cursor-default disabled:opacity-25"
           >
             <ChevronRight className="h-5 w-5" aria-hidden />
           </button>
         </nav>
-        <OverlayCloseButton onClick={() => (close.current ?? onClose)()} className="walk-press-sm mr-2.5" />
+        {/* A 44px tap area around the 28px ✕ and the 36px ‹ ›; they look
+            the same (backend N440). */}
+        <OverlayCloseButton
+          onClick={() => (close.current ?? onClose)()}
+          className="walk-press-sm relative mr-2.5 after:absolute after:-inset-2 after:content-['']"
+        />
       </div>
       {/* No scrollbar (founder 2026-10-20): the thread scrolls by wheel,
           trackpad or finger. */}
