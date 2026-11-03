@@ -45,6 +45,7 @@ import {
   clearActiveSetupDraft,
   resumeSetupDraft,
 } from "@/lib/willab/setupDraft";
+import { startFirstTake } from "@/lib/willab/firstTake";
 
 // The recording screens are not on first paint: they load after it (warmed
 // below), so a tap on Record finds them ready.
@@ -285,13 +286,23 @@ export default function WillabSurface({
           clearActiveSetupDraft(userId);
           flow.startRecordingSetup();
         }}
-        onStartPlanRecording={(topic) => {
+        onStartPlanRecording={(topic, start) => {
+          clearExploreArc(userId);
+          if (start?.firstTake?.length) {
+            // The first Take is the onboarding (backend N401 item 2): its
+            // project, the five questions as its deck, and the recording
+            // screens at once, no set-up form and no feelings check.
+            void startFirstTake(start.firstTake, userId, flow.startAnswerSetup);
+            return;
+          }
           // The plan's first practice (docs/flows/the-plan.md E5, B7): a new
           // project whose set-up arrives with the topic filled in; the two
-          // ratings took the place of "How do you feel?" (N151).
-          clearExploreArc(userId);
+          // ratings took the place of "How do you feel?" (N151). After the
+          // first Take, the real talk: "How do you feel?" with its Skip
+          // first, then the same set-up (backend N401 item 4).
           beginSetupDraftWithTopic(userId, topic);
-          flow.dispatch("setup_requested");
+          if (start?.afterFirstTake) flow.startNewTopicSetup();
+          else flow.dispatch("setup_requested");
         }}
         dispatch={flow.dispatch}
         initialBestPresentationArcId={bestPresentationArcId}

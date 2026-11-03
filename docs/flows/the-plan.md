@@ -607,6 +607,24 @@ Waiting for the founder's OK:
 
 ## 2. In flight
 
+- **The first Take is the onboarding** · backend N401 (locked with the
+  prototypes "The way in" and "The first Take"), behind the ring row
+  `first_take`; with no row, B and E5 stand as written · building in slices:
+  - Built (backend #1665, FE this PR): a new speaker's plan begins with
+    "Hi {name}!" and "Your first Take is five questions. Answer each one out
+    loud, one slide at a time." and no question in the chat; "Start your
+    first recording" opens the recording screens at once on the five
+    questions (no set-up, no feelings check, the strip counting up), each
+    with its small title; after that Take's walk Will reads it slide by
+    slide and writes the plan and its card, or asks "When is your
+    deadline?" when no day was said; the Ideal Text draws the questions as
+    its slides; "Record Take 2" from that Take's goodbye opens the real
+    talk's set-up with the plan's topic, after "How do you feel?".
+  - Next: the coach's blind pick plays the key line's voice for a
+    first-Take speaker; Take 1's processing as a row on top of Will's chat
+    with the checks during it (N401 item 3); "Here's how others will see
+    you" (N400); the team's question and the agreement; the personal
+    questions and a guest's first Take, once decided.
 - **The plan** · all of §1 · decided from 24 October 2026 (N129 onward;
   the latest are in §6), drawn on the prototype (§5) · the build plan:
   <https://claude.ai/artifact/5wuXkBNDctRcbxYs9V7R8A>
@@ -758,6 +776,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N401 · A, B, E5, §2, §4: the first Take is the onboarding, behind the ring row `first_take`: the plan's view carries `first_take` and its five slides, the dock is "Start your first recording" at once (`PlanDock.dockFor`), and the start hands the slides on (`usePlanLounge`, `PlanStart`) to `lib/willab/firstTake.ts`, which makes the first Take's project and opens the recording screens on it; "Record Take 2" from that project's goodbye starts the real talk's set-up with the plan's topic (`Lounge.tsx`, `WillabSurface.tsx`) · BE #1665, FE (this PR)
 - 2026-11-03 · N395 · G6, §4: the chat's one "Record Take N" stands 24 px under the last bubble (was 8) with a grey ✕ on its right, no background and no outline; the ✕ closes it and the bar comes back ("+", "Type here", the mic) for that Take, until the chat is opened again or a newer Take's goodbye offers the next (`useRecordTake`, kept in the open chat only); a practice day's Take no longer hides the bar through the plan (`usePlanLounge` `replaces`), the button does, as the goodbye's always has. No new words. "Start your first recording" unchanged. Was: alone until a Take was recorded, no way to close it · BE #1647, FE (this PR)
 - 2026-11-03 · N372 · the plan's voice player plays one voice at a time: starting one pauses the one already playing, and opening the mic pauses it (`plan/VoicePlayer.tsx`, `lib/willab/oneVoice.ts`). Was: two could play over each other · BE #1622, FE (this PR)
 - 2026-11-03 · N371 · B1: the plan's tap answers take the app's one rule for suggested answers (`TapRow`): at least 44px, 15px, the last (most likely) one filled orange nearest the thumb, three or four stacked, more than four behind "Show more"; a quiet "Not now" stays grey. Nothing else in the plan changes; typing stays off while it asks (N319, N323) · FE (this PR)

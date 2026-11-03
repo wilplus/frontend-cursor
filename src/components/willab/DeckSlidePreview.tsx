@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MockPresentationSlide, PdfPage } from "@/components/willab/pdfSlides";
+import { MockPresentationSlide, PdfPage, SlideTextCard } from "@/components/willab/pdfSlides";
 import { DEFAULT_DECK } from "@/lib/willab/defaultDeck";
 
 /** One slide's picture on the Ideal Text deck.
@@ -56,6 +56,7 @@ const FRAME: Record<"full" | "thumb" | "header", string> = {
 export default function DeckSlidePreview({
   presentationRef,
   pageIndex,
+  slideTitle = null,
   className = "mt-3",
   size = "full",
 }: {
@@ -63,6 +64,10 @@ export default function DeckSlidePreview({
    *  that page's canonical mock slide. */
   presentationRef: string | null;
   pageIndex: number;
+  /** The slide's own title, when the deck has one: a deckless deck in the
+   *  speaker's or the plan's words (the first Take's questions, backend
+   *  N401) draws it as the recording screen did, not the stand-in art. */
+  slideTitle?: string | null;
   /** The outer spacing, which differs between the deck and the slide editor.
    *  Only the margin — the frame and the bound belong to this component, so
    *  both callers are held to the same size. */
@@ -94,6 +99,16 @@ export default function DeckSlidePreview({
      renders nothing at all rather than an apology: a deckless talk has three
      slides, and a fourth was never promised. */
   if (!presentationRef) {
+    const own = slideTitle?.trim() ?? "";
+    if (own && own !== DEFAULT_DECK[pageIndex]?.title) {
+      return (
+        <div className={className}>
+          <div className={frame}>
+            <SlideTextCard title={own} body="" />
+          </div>
+        </div>
+      );
+    }
     const slide = DEFAULT_DECK[pageIndex];
     if (!slide?.artworkSrc) return null;
     return (

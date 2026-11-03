@@ -303,6 +303,9 @@ export function useRecordTake<T extends NextTake>(next: T | null): { next: T | n
 export function dockFor(plan: Plan | null, booking: CallWhich | null): string | null {
   if (!plan || plan.waiting) return booking ? "book" : null;
   if (booking) return "book";
+  // The first Take is the onboarding (backend N401 item 1): no question in
+  // the chat, the one button at once.
+  if (plan.first_take) return "start";
   if (plan.step === "consent") return "consent";
   if (plan.step === "deadline") return "deadline";
   if (plan.step === "why" || plan.step === "followup" || plan.step === "how_it_went") return "voice";

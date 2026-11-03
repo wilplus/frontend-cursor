@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { bulletLines } from "./presentation";
+import { firstTakeKicker } from "@/lib/willab/firstTake";
 
 /* -------------------------------------------------------------------------- */
 /*  pdfSlides — client-only rendering of the deck (T0)                          */
@@ -268,9 +269,20 @@ export function MockPresentationSlide({
  *  are on cannot drive that boundary. */
 export function SlideTextCard({ title, body }: { title: string; body: string }) {
   const bullets = bulletLines(body);
+  // A first Take's question carries its small title above it (backend N401
+  // item 2), found by the question's own words.
+  const kicker = firstTakeKicker(title);
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#061a3a]">
       <div className="absolute inset-0 flex flex-col justify-center px-[6%] py-[5%] text-white">
+        {kicker ? (
+          <span
+            data-slide-kicker=""
+            className="mb-[2.5%] text-[clamp(0.55rem,1.1vw,0.85rem)] font-bold uppercase tracking-[0.08em] text-[#FFB58A]"
+          >
+            {kicker}
+          </span>
+        ) : null}
         <span className="mb-[5%] h-1 w-[18%] rounded-full bg-primary" />
         <h3 className="text-[clamp(1rem,3vw,2.2rem)] font-semibold leading-[1.05] tracking-[-0.025em]">
           {title}

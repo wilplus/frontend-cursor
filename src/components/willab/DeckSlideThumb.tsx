@@ -19,10 +19,13 @@ import DeckSlidePreview from "./DeckSlidePreview";
 export default function DeckSlideThumb({
   presentationRef,
   pageIndex,
+  slideTitle = null,
   label,
 }: {
   presentationRef: string | null;
   pageIndex: number;
+  /** The slide's own title, for a deckless deck in its own words (backend N401). */
+  slideTitle?: string | null;
   /** The slide's kicker ("Slide 2"), used as the tile's accessible name. */
   label: string;
 }) {
@@ -46,6 +49,7 @@ export default function DeckSlideThumb({
         <DeckSlidePreview
           presentationRef={presentationRef}
           pageIndex={pageIndex}
+          slideTitle={slideTitle}
           className=""
           size="header"
         />
@@ -61,6 +65,7 @@ export default function DeckSlideThumb({
             <DeckSlidePreview
               presentationRef={presentationRef}
               pageIndex={pageIndex}
+              slideTitle={slideTitle}
               className=""
             />
           </span>
