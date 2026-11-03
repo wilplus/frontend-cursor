@@ -1,4 +1,5 @@
 import { bffFetch } from "@/lib/api/bffFetch";
+import { noteFeedbackSeen } from "@/lib/nativePush";
 
 /* -------------------------------------------------------------------------- */
 /*  The Lounge bubble's "new" (build plan D-FW-19; walk lock 2026-10-06, flow  */
@@ -42,6 +43,9 @@ export function onTakeWordWatched(listener: (takeSessionId: string) => void): ()
 
 export function markCoachFeedbackSeen(shown: CoachFeedbackShown): Promise<boolean> {
   if (!shown.snippetId) for (const listener of [...wordWatchers]) listener(shown.takeSessionId);
+  // In the iPhone app, iOS's notification question may now come, on the next
+  // open (backend N385 item 2).
+  noteFeedbackSeen();
   const call = sendSeen(shown);
   inFlight.add(call);
   void call.finally(() => inFlight.delete(call));

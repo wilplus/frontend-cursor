@@ -8,6 +8,7 @@ import GuestProjectClaim from "@/components/willab/GuestProjectClaim";
 import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 import HomeScreenReporter from "@/components/pwa/HomeScreenReporter";
 import NativeAppMarker from "@/components/pwa/NativeAppMarker";
+import NativePush from "@/components/pwa/NativePush";
 import BookingReturn from "@/components/booking/BookingReturn";
 
 // Body copy stays on the system stack (font-sans). Headings opt in to DM
@@ -99,6 +100,7 @@ export default function RootLayout({
         <ServiceWorkerRegistrar />
         <HomeScreenReporter />
         <NativeAppMarker />
+        <NativePush />
         {/* Side-effect-only: claim the guest graph, then send the exact parked
             Project Take after OAuth. Renders nothing. */}
         <PendingCoachSend />
