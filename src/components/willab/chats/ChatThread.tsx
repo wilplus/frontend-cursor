@@ -781,21 +781,6 @@ export default function ChatThread({
               />,
             ])
           )}
-          {pending ? (
-            <SentLine pending>
-              {sendingTo(chat.title)}
-              {pending.waited ? null : (
-                <button
-                  type="button"
-                  onClick={undoAnswer}
-                  data-chat-undo=""
-                  className="px-1 py-1.5 text-[13px] font-semibold text-foreground underline underline-offset-[3px]"
-                >
-                  {UNDO}
-                </button>
-              )}
-            </SentLine>
-          ) : null}
         </div>
       </div>
       <div data-chat-bar className="flex shrink-0 items-end gap-1 px-4 pb-2">
@@ -803,10 +788,6 @@ export default function ChatThread({
           <div className="min-w-0 flex-1">
             <RecordingBar elapsedMs={note.elapsedMs} onTrash={note.cancel} onStop={note.send} />
           </div>
-        ) : question && onRecordAnswer && !pending ? (
-          <RecordAnswerButton
-            onClick={() => onRecordAnswer({ chatId: chat.id, name: chat.title, question, customer })}
-          />
         ) : tiles ? (
           <PlusTiles onTile={tile} onCancel={() => setTiles(false)} />
         ) : (
