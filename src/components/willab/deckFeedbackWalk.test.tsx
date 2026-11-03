@@ -564,6 +564,22 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("a walk closed during its Clearer version's try opens again on the Clearer version, never the AI clip (N381)", async () => {
+    // "Keep mine" was tapped: the rewrite is decided, the moment still waits.
+    const kept = {
+      ...base, id: "s-fix", start: at, kind: "replace", proposedText: "retention rose", status: "dismissed",
+      feedbackFamily: "rewrite_clarity", source: "new_take", blockKey: 2, bookmarkTier: "standard",
+      practicePrompt: true, walkSlot: "between",
+    } as unknown as DocumentSuggestion;
+    const fixVoice = { ...judgement, bookmarkTier: "standard", practicePrompt: true, walkSlot: "between" } as unknown as DocumentSuggestion;
+    const p = props({ suggestions: [best, fixVoice, kept] });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    expect(screen()).toBe("walk-screen-praise");
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    expect(screen()).toBe("walk-screen-clearer");
+  });
+
   it("the pace game as the walk's fix keeps its tip in the chat, for Last time next Take (N347 item 3)", async () => {
     who.email = FOUNDER_EMAIL;
     const append = vi.fn(async (draft: unknown) => draft);

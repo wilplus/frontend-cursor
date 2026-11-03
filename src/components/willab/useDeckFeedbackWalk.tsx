@@ -158,7 +158,10 @@ function slideOf(groups: readonly SlideGroup[], partId: string): number | null {
 }
 
 /** The Take's open feedback, as the walk reads it: every item still waiting
- *  on a paragraph whose bar is up. Pure. */
+ *  on a paragraph whose bar is up, and a moment's Clearer version already
+ *  decided while the moment itself still waits (the walk closed during its
+ *  try and opened again keeps its Clearer version, never the AI clip in its
+ *  place, N381). Pure. */
 export function deckWalkItems(
   chunks: readonly DeckChunk[],
   groups: readonly SlideGroup[],
@@ -166,6 +169,7 @@ export function deckWalkItems(
   pendingOf: (chunk: DeckChunk) => readonly DocumentSuggestion[],
   slideLabel: (partId: string) => string | null,
   slideTitle?: (partId: string) => string | null,
+  answeredOf?: (chunk: DeckChunk) => readonly DocumentSuggestion[],
 ): FeedbackWalkItem<DocumentSuggestion>[] {
   const seen = new Set<string>();
   const out: FeedbackWalkItem<DocumentSuggestion>[] = [];
@@ -174,7 +178,12 @@ export function deckWalkItems(
     if (seen.has(partId) || !waiting(chunk)) continue;
     seen.add(partId);
     const slide = slideOf(groups, partId) ?? 0;
-    for (const item of pendingOf(chunk)) out.push(walkItemOf(item, chunk, slide, slideLabel(partId), slideTitle?.(partId) ?? null));
+    const open = pendingOf(chunk);
+    const blocks = new Set(open.map((item) => item.blockId).filter(Boolean));
+    const decided = (answeredOf?.(chunk) ?? []).filter(
+      (item) => item.blockId && blocks.has(item.blockId) && rewriteOf(item) !== null && !open.some((o) => o.id === item.id),
+    );
+    for (const item of [...open, ...decided]) out.push(walkItemOf(item, chunk, slide, slideLabel(partId), slideTitle?.(partId) ?? null));
   }
   return out;
 }
@@ -308,6 +317,8 @@ function walkItemOf(
           confidentPractice: item.confidentPractice === true,
           // The moment's job in the walk (backend N289).
           walkSlot: item.walkSlot ?? null,
+          // The One thing walk's one fix, as the server chose it (C-SNIPER).
+          oneFix: item.oneFix ?? null,
         }
       : {}),
     openCard: item.openCard ?? null,
@@ -804,8 +815,8 @@ export function useDeckFeedbackWalk(args: {
   const pageTake = args.takeSessionId ?? null;
 
   const items = useMemo(
-    () => deckWalkItems(chunks, groups, waiting, pendingOf, slideLabel, slideTitle),
-    [chunks, groups, waiting, pendingOf, slideLabel, slideTitle],
+    () => deckWalkItems(chunks, groups, waiting, pendingOf, slideLabel, slideTitle, answeredOf),
+    [chunks, groups, waiting, pendingOf, slideLabel, slideTitle, answeredOf],
   );
   const take = useMemo(() => reviewedTake(items, pageTake), [items, pageTake]);
   const tempo = useReviewTempo(tempoOn && !coachOnly ? (args.arcId ?? null) : null, take);
@@ -823,7 +834,16 @@ export function useDeckFeedbackWalk(args: {
         : null,
     [take, coachOnly],
   );
-  const interventions = useMemo<readonly WalkIntervention[]>(() => (tempo ? ["tempo"] : []), [tempo]);
+  // The One thing walk served with no choice of its fix (older payloads)
+  // offers the Sniper only where the stretch can be it: a rushed one, or the
+  // plan's pace or pause week (`planLevel`, served only for those); a slow
+  // stretch off such a week leaves the fix a moment (T, N323 item 6). A Take
+  // served before N289 keeps its tempo step on any stretch.
+  const oneWalk = items.some((i) => i.walkSlot);
+  const interventions = useMemo<readonly WalkIntervention[]>(
+    () => (tempo && (!oneWalk || tempo.reading === "rushed" || tempo.planLevel != null) ? ["tempo"] : []),
+    [tempo, oneWalk],
+  );
   /* LAST TIME (founder 2026-10-31, N309 item 1): the last Take's fix, when
      it rose on this Take, read once per Take; the speaker's own walk only. */
   const [lastFix, setLastFix] = useState<LastFix | null>(null);
