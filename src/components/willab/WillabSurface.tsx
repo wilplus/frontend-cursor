@@ -45,7 +45,7 @@ import {
   clearActiveSetupDraft,
   resumeSetupDraft,
 } from "@/lib/willab/setupDraft";
-import { startFirstTake } from "@/lib/willab/firstTake";
+import { startFirstTake, startRealTalk } from "@/lib/willab/firstTake";
 
 // The recording screens are not on first paint: they load after it (warmed
 // below), so a tap on Record finds them ready.
@@ -287,6 +287,10 @@ export default function WillabSurface({
           flow.startRecordingSetup();
         }}
         onStartPlanRecording={(topic, start) => {
+          // After the first Take, the real talk is that project's Take 2
+          // (backend N449 item 1): "How do you feel?" with its Skip, then
+          // its set-up afresh, the topic the plan's (N401 item 4).
+          if (start?.afterFirstTake && startRealTalk(userId, topic, flow.startNewTopicSetup)) return;
           clearExploreArc(userId);
           if (start?.firstTake?.length) {
             // The first Take is the onboarding (backend N401 item 2): its

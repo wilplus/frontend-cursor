@@ -105,7 +105,8 @@ step; the loop never waits for a coach.
   2. **the pair:** the Take's "Feedback walk" bubble and, right under it, the
      Take's Ideal Text card (D4);
   3. the chain after the Take, ending with the goodbye, "Good job. See you
-     next time.", and the tap "I want to continue my practice" (D4).
+     next time.", and the tap "I want to continue my practice" (D4); after
+     the first Take, "Record Take 2" at once, with no tap (N449 item 2).
 
   **Before the first Take** the empty Lounge opens with Will's hello, "Hi,
   I'm Will. 👋 Record your first take, and I will help you with your
@@ -2032,6 +2033,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N449 · B3: after the first Take's goodbye, "Record Take 2" at once, with no "I want to continue my practice" first (`afterTake.ts`, `Lounge.tsx`); every other Take keeps the tap. Was: the tap after every Take · BE #1679, FE (this PR)
 - 2026-11-03 · — · C7, T: no Skip under the recording bar, in the walk's practise and the tempo step; the trash on its left is the way out, back to the step that opened it (founder 2026-11-03, "delete that!!!! skip … for that we have the trash button on the left"; the locked prototype's `record()` draws the strip alone). Skip stays where it was before recording. Skip after "Close. Once more." now shows the speaker's "Skip" and "Okay, we'll skip this one." (N405), which it did not: the thread drew its answer only on the planned next try. Was: Skip under the bar as the walk's grey link (N314) · FE (this PR)
 - 2026-11-03 · N440 · built, first part (B6, C4, J6): the chip's waveform is the prototype's 24 bars, sampled from the clip's 44, and never runs under the time (`SnippetWavePlayer` `barCount`); two of the speaker's tries in a row are round all round, as every walk bubble is (`globals.css`); the bar's ‹ › and ✕ answer a 44 px tap. Items 1, 2, 3, 5, 6 and 9 of the run-through follow on top of N435's build · FE (this PR)
 - 2026-11-03 · N425 · C2, C4, H1: the walk's AI clip goes only to a moment whose own clip shows a voice problem it can teach (pace, pauses, loudness range, fillers, against the speaker's own usual on this Take), the strongest such moment, and it teaches that strongest problem, never the runner-up; with none, no AI clip and no "Lean on …" default. Was: the lowest S × W whatever its voice showed, the clip choosing what to teach, stress on the main point when nothing was measured, the runner-up about 15 times in 100 · BE N425 log (#1664), BE #1669, FE (this PR)

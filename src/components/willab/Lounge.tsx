@@ -1142,7 +1142,7 @@ export default function Lounge({
   // AFTER THE GOODBYE (founder 2026-10-31, N294 items 6 and 7, N296 state
   // 4): no push to the next Take; the tap under the goodbye, then "Record
   // Take N" alone under the chat (`useGoodbye`).
-  const goodbye = useGoodbye({ messages, oneHoldsRecord: plan.oneHoldsRecord, planOne: plan.one, olderTake, append: thread.append });
+  const goodbye = useGoodbye({ messages, oneHoldsRecord: plan.oneHoldsRecord, planOne: plan.one, olderTake, append: thread.append, ownerId: userId });
   // Its ✕ gives the bar back for that Take (N395).
   const recordTake = useRecordTake(goodbye.recordNext);
 
@@ -2089,7 +2089,7 @@ export default function Lounge({
           // After the first Take (backend N401 item 4): "Record Take 2" is the
           // real talk, its own set-up with the plan's topic, never the five
           // questions again.
-          isFirstTakeArc(userId, arc) && onStartPlanRecording
+          isFirstTakeArc(userId, arc, recordTake.next?.takeIndex) && onStartPlanRecording
             ? onStartPlanRecording(plan.topic, { afterFirstTake: true })
             : openIdealText(arc, "share")
         }
@@ -3107,6 +3107,7 @@ function useGoodbye({
   planOne,
   olderTake,
   append,
+  ownerId,
 }: {
   messages: readonly LoungeMessage[];
   oneHoldsRecord: boolean;
@@ -3115,11 +3116,13 @@ function useGoodbye({
   planOne: { arcId: string; takeIndex: number } | null;
   olderTake: (meta?: Record<string, unknown> | null) => number | null;
   append: (draft: LoungeMessageDraft) => Promise<LoungeMessage>;
+  /** Whose first Take's goodbye brings "Record Take 2" at once (N449 item 2). */
+  ownerId: string | null;
 }) {
   const goodbye = useMemo(() => {
-    const at = afterGoodbye(messages);
+    const at = afterGoodbye(messages, (take) => isFirstTakeArc(ownerId, take.arcId, take.takeIndex));
     return at && !oneHoldsRecord && olderTake(at.message.metadata) === null ? at : null;
-  }, [messages, oneHoldsRecord, olderTake]);
+  }, [messages, oneHoldsRecord, olderTake, ownerId]);
   /** They chose to continue: their own bubble, naming the Take it follows. */
   const choose = (said: string): void => {
     if (!goodbye) return;

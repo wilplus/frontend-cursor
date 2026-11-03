@@ -270,8 +270,21 @@ export function MockPresentationSlide({
 /** Over an answer's question (backend N441 item 7, signed). */
 export const nameAsks = (name: string) => `${name} asks`;
 
-export function SlideTextCard({ title, body, asks = null }: { title: string; body: string; asks?: string | null }) {
+export function SlideTextCard({
+  title,
+  body,
+  asks = null,
+  tall = false,
+}: {
+  title: string;
+  body: string;
+  asks?: string | null;
+  /** The first Take's recording screen: the question fills the slide's
+   *  space, its words at the bottom (backend N449 item 4). */
+  tall?: boolean;
+}) {
   if (asks) return <AnswerSlide name={asks} question={title} />;
+  if (tall) return <TallQuestionSlide title={title} body={body} />;
   const bullets = bulletLines(body);
   // A first Take's question carries its small title above it (backend N401
   // item 2), found by the question's own words.
@@ -309,6 +322,25 @@ export function SlideTextCard({ title, body, asks = null }: { title: string; bod
   );
 }
 
+/** A first Take's question, tall (backend N449 item 4; the prototype "The
+ *  first Take", v1): its small title, the short mark, the question, and the
+ *  line under it, at the bottom of the slide. */
+function TallQuestionSlide({ title, body }: { title: string; body: string }) {
+  const kicker = firstTakeKicker(title);
+  return (
+    <div data-slide-tall="" className="flex h-full w-full flex-col justify-end gap-2 bg-[#14213d] p-[22px] text-white">
+      {kicker ? (
+        <span data-slide-kicker="" className="text-[12px] font-bold uppercase tracking-[0.08em] text-[#FFB58A]">
+          {kicker}
+        </span>
+      ) : null}
+      <span className="h-1 w-[26px] rounded-full bg-primary" />
+      <h3 className="text-[27px] font-semibold leading-[1.18] tracking-[-0.02em]">{title}</h3>
+      {body.trim() ? <p className="text-[15px] leading-[1.4] text-white/90">{body}</p> : null}
+    </div>
+  );
+}
+
 /** An answer's one slide (backend N441 item 7): a small "{name} asks" and the
  *  question under it in body size, read like a message, not a heading. */
 function AnswerSlide({ name, question }: { name: string; question: string }) {
@@ -341,6 +373,7 @@ export function SlideRender({
   showRetry = true,
   fit = false,
   asks = null,
+  tall = false,
 }: {
   presentationRef: string | null;
   pageIndex: number;
@@ -349,6 +382,8 @@ export function SlideRender({
   artworkSrc?: string;
   /** An answer's person (backend N441 item 7). */
   asks?: string | null;
+  /** A first Take's question, drawn tall (backend N449 item 4). */
+  tall?: boolean;
   className?: string;
   showRetry?: boolean;
   fit?: boolean;
@@ -387,7 +422,7 @@ export function SlideRender({
   if (!presentationRef && (title.trim() || body.trim())) {
     return (
       <div className={className}>
-        <SlideTextCard title={title} body={body} asks={asks} />
+        <SlideTextCard title={title} body={body} asks={asks} tall={tall} />
       </div>
     );
   }
