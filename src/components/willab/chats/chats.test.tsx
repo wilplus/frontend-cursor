@@ -31,8 +31,8 @@ OUTCOME
       words, once ready, are closed behind "Read it" under the player, and
       "Hide" closes them again (N331).
   O8  The + on the list opens my own link, with the add sheet's signed
-      words, and Copy my link puts the whole link on the clipboard (N308,
-      N310).
+      words and its three steps, and Copy my link puts the whole link on
+      the clipboard and says "✓ Copied" (N308, N310, N367).
   O9  In a chat I joined through someone's link, one line above the
       messages says whose link it was (N335 item 2); a chat without it has
       no such line.
@@ -452,8 +452,11 @@ describe("the chats in front of the Lounge", () => {
     expect(sheet.textContent).toContain("Send them your link, in any email or message. Whoever opens it joins you here.");
     const link = `${window.location.origin}/c/AbCdEfGhIjKlMnOpQrStUvWx`;
     expect(sheet.querySelector("[data-my-link]")?.textContent).toBe(link);
+    expect(sheet.textContent).toContain("1. Paste it");
+    expect(sheet.textContent).toContain("Cancel");
     await tap(sheet.querySelector("[data-copy-link]"));
     expect(copied).toEqual([link]);
+    expect(sheet.querySelector("[data-copy-link]")?.textContent).toBe("✓ Copied");
   });
 
   it("a chat joined through a link says whose link it was", async () => {

@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Check, Pin, Plus } from "lucide-react";
+import { Link as LinkIcon, Pin, Plus, Share } from "lucide-react";
 import { getMyChatLink, type Chat, type ChatEmoji, type ChatLast } from "@/services/api/chats";
 import { chatIsNew } from "./chatOpened";
 import { listTime, timeOf } from "./chatTime";
-import { ADD_SHEET_LINE, ADD_SHEET_TITLE, COPY_MY_LINK, joinedThrough } from "./joinCopy";
+import { ADD_SHEET_LINE, ADD_SHEET_TITLE, ADD_STEPS, CANCEL, COPIED, COPY_MY_LINK, joinedThrough } from "./joinCopy";
+import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /* -------------------------------------------------------------------------- */
 /*  The list of chats (backend N256, N274, N298, N321, N322; rules:            */
@@ -167,7 +168,10 @@ function ChatListRow({
  *  email or message; whoever opens it joins you here. The only way anyone
  *  comes into your chats. "Invite by email" (N307) comes with the email
  *  invite; copying the link needs nothing else. The list's "+" opens it, and
- *  so does "Someone else" on a chat's "+" (N351). Needs a `relative` parent. */
+ *  so does "Someone else" on a chat's "+" (N351). Needs a `relative` parent.
+ *  As redesigned (N367 item 3, the locked prototype "One bar" v12): a handle,
+ *  the title large, the link with its icon, one big Copy my link that turns
+ *  green and closes the sheet, three tiles saying what happens, Cancel. */
 export function AddSomeoneSheet({ onClose }: { onClose: () => void }) {
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -185,37 +189,65 @@ export function AddSomeoneSheet({ onClose }: { onClose: () => void }) {
     try {
       await navigator.clipboard.writeText(link);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+      window.setTimeout(onClose, 1100);
     } catch {
       // The clipboard is refused: the link stays on screen to select.
     }
   };
+  const share = isNativeApp() && typeof navigator !== "undefined" && typeof navigator.share === "function";
   return (
     <div data-add-sheet className="absolute inset-0 z-30 flex flex-col justify-end bg-black/30" onClick={onClose}>
       <div
         role="dialog"
         aria-label={ADD_SHEET_TITLE}
-        className="flex flex-col gap-3 rounded-t-3xl bg-background px-4 pb-6 pt-5"
+        className="flex flex-col gap-3.5 rounded-t-3xl bg-background px-[18px] pb-6 pt-2.5"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex flex-col gap-2 rounded-xl bg-muted p-3">
-          <p className="text-[13px] font-medium leading-snug text-foreground">{ADD_SHEET_TITLE}</p>
-          <p className="text-[13px] leading-snug text-muted-foreground">{ADD_SHEET_LINE}</p>
-          {link ? (
-            <p data-my-link className="select-all break-all rounded-lg border border-foreground bg-background px-3 py-2 text-[14px] font-medium text-foreground">
+        <span aria-hidden className="h-[5px] w-10 self-center rounded-full bg-[#E0E0E0]" />
+        <p className="mt-1 text-[21px] font-bold leading-tight text-foreground">{ADD_SHEET_TITLE}</p>
+        <p className="text-[15px] leading-snug text-muted-foreground">{ADD_SHEET_LINE}</p>
+        {link ? (
+          <div className="flex items-center gap-2.5 rounded-[14px] border-[1.5px] border-foreground px-3.5 py-3">
+            <span aria-hidden className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[#FFF1E7] text-[#F26B21]">
+              <LinkIcon className="h-4 w-4" />
+            </span>
+            <span data-my-link className="min-w-0 select-all break-all text-[15px] font-semibold text-foreground">
               {link}
-            </p>
+            </span>
+          </div>
+        ) : null}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            data-copy-link=""
+            onClick={() => void copy()}
+            disabled={!link}
+            className={`flex h-[54px] flex-1 items-center justify-center rounded-full text-[16px] font-semibold text-white transition-colors disabled:opacity-50 ${copied ? "bg-[#1F9D55]" : "bg-foreground"}`}
+          >
+            {copied ? COPIED : COPY_MY_LINK}
+          </button>
+          {share && link ? (
+            // The iPhone share sheet next to Copy my link (backend N365 item 6).
+            <button
+              type="button"
+              aria-label="Share"
+              onClick={() => void navigator.share({ url: link }).catch(() => {})}
+              className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-full border border-border bg-background text-foreground"
+            >
+              <Share className="h-5 w-5" aria-hidden />
+            </button>
           ) : null}
         </div>
-        <button
-          type="button"
-          data-copy-link=""
-          onClick={() => void copy()}
-          disabled={!link}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[15px] font-medium text-background disabled:opacity-50"
-        >
-          {copied ? <Check className="h-4 w-4" aria-hidden /> : null}
-          {COPY_MY_LINK}
+        <div className="grid grid-cols-3 gap-2">
+          {ADD_STEPS.map(([head, rest]) => (
+            <div key={head} className="rounded-xl bg-muted px-2.5 py-2.5 text-[12.5px] leading-snug text-muted-foreground">
+              <b className="mb-0.5 block text-[13px] font-semibold text-foreground">{head}</b>
+              {rest}
+            </div>
+          ))}
+        </div>
+        <button type="button" onClick={onClose} className="h-10 text-[15px] font-medium text-muted-foreground">
+          {CANCEL}
         </button>
       </div>
     </div>
