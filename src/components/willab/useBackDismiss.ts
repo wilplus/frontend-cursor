@@ -46,6 +46,12 @@ const dismissStack: symbol[] = [];
  *  rather than one dead Back press per stray. */
 let outstandingEntries = 0;
 
+/** How many overlays are open, one over another. A chat's own swipe acts
+ *  only when the chat is the top one (backend N372 item 3). */
+export function backDismissDepth(): number {
+  return dismissStack.length;
+}
+
 function removeFromStack(token: symbol): void {
   const i = dismissStack.lastIndexOf(token);
   if (i >= 0) dismissStack.splice(i, 1);

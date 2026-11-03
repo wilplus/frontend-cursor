@@ -262,7 +262,7 @@ describe("the chats in front of the Lounge", () => {
     expect(calls("POST /api/v2/chats/demo")).toHaveLength(1);
 
     await tap(rows()[0]);
-    expect(container.querySelector("[data-chats-front]")).toBeNull();
+    expect(container.querySelector("[data-chats-front]")?.hasAttribute("data-chats-away")).toBe(true);
     expect(container.querySelector("[data-testid=lounge]")).not.toBeNull();
     expect(container.querySelector("[data-chat-header]")?.textContent).toBe("Will");
 
@@ -304,6 +304,32 @@ describe("the chats in front of the Lounge", () => {
     await swipe(1);
     expect(onList()).toEqual(["will", "c-ariel", "c-sarah"]);
     expect((window.history.state as Record<string, unknown>).__willabBackStop).toBe(true);
+  });
+
+  it("back from a chat, the list is where you left it, the row you came from lit; in the app, a swipe from the left edge goes back", async () => {
+    native.on = true;
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, ARIEL] }));
+    routes.set("GET /api/v2/chats/c-sarah/messages", () => ({ messages: [] }));
+    await render();
+    const list = () => container.querySelector("[data-chat-list]") as HTMLElement;
+    list().scrollTop = 120;
+
+    await tap(rows()[2]);
+    expect(container.querySelector("[data-chat-header]")).not.toBeNull();
+    // The swipe from the left edge, right across the screen.
+    await act(async () => {
+      const at = (x: number) => ({ touches: [{ clientX: x, clientY: 300 }] });
+      window.dispatchEvent(Object.assign(new Event("touchstart"), at(5)));
+      window.dispatchEvent(Object.assign(new Event("touchmove", { cancelable: true }), at(60)));
+      window.dispatchEvent(Object.assign(new Event("touchmove", { cancelable: true }), at(window.innerWidth)));
+      window.dispatchEvent(Object.assign(new Event("touchend"), { touches: [] }));
+    });
+    await flush();
+
+    expect(container.querySelector("[data-chat-header]")).toBeNull();
+    expect(list().scrollTop).toBe(120);
+    expect(container.querySelector("[data-chat-came-from]")?.getAttribute("data-chat-row")).toBe("c-sarah");
   });
 
   it("an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question", async () => {
