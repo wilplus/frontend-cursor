@@ -46,6 +46,10 @@ export type TempoStretch = {
    *  8): the step opens with "This week's level: {level}. Here's where it
    *  shows:". */
   planLevel?: string | null;
+  /** The stretch as the speaker's own clip, when the backend has playable
+   *  audio for it: signed like the moments' clips, placed within that audio.
+   *  Without it the step shows the words alone. */
+  clip?: { src: string; startOffsetMs: number | null; durationMs: number | null; snippetId: string | null } | null;
 };
 
 /** One try, as the step reads it from the dot's path. */

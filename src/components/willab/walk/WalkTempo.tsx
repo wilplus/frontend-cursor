@@ -18,7 +18,8 @@ import {
 } from "@/lib/willab/tempoStep";
 import PaceScale from "../pace/PaceScale";
 import { PLAN_COPY } from "@/lib/willab/planCopy";
-import { ONE_THING_COPY } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY, ONE_THING_COPY } from "../idealEditCopy";
+import WalkPlayer from "./WalkPlayer";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
 import WalkFooter from "./WalkFooter";
@@ -264,14 +265,31 @@ export default function WalkTempo({
   }
 }
 
-/** The speaker's sentence with the stretch they rushed or dragged marked. */
+/** The speaker's sentence with the stretch they rushed or dragged marked:
+ *  their own clip with those words above its player when the backend has
+ *  the audio (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, `fix()`), the words
+ *  alone when it has not. */
 export function TempoStretchBubble({ stretch }: { stretch: TempoStretch }) {
-  return (
-    <WalkSpeakerBubble>
+  const words = (
+    <>
       {stretch.said.before}{" "}
-      <mark className="rounded bg-white/25 px-0.5 text-inherit">{stretch.said.stretch}</mark>{" "}
+      <mark data-walk-tempo-stretch className="rounded bg-white/25 px-0.5 text-inherit">
+        {stretch.said.stretch}
+      </mark>{" "}
       {stretch.said.after}
-    </WalkSpeakerBubble>
+    </>
+  );
+  if (!stretch.clip) return <WalkSpeakerBubble>{words}</WalkSpeakerBubble>;
+  return (
+    <WalkPlayer
+      look="me"
+      seed={`tempo-${stretch.clip.snippetId ?? "stretch"}`}
+      src={stretch.clip.src}
+      startOffsetMs={stretch.clip.startOffsetMs}
+      durationMs={stretch.clip.durationMs}
+      label={CHUNK_SHEET_COPY.pagerMoment}
+      words={words}
+    />
   );
 }
 

@@ -11,7 +11,7 @@ OUTCOME
   O7  The walk opens once with "Hi {name}, good to see you back!" (Take 1: "Hi {name}, great to meet you!"; no name: the same without it), and the Lounge keeps the same words (N120).
   O8  Other speakers asks for my Take's moments and shows each one the server sends, up to three ("Now 3 moments from other speakers."), however many tries I made; with none the step is left out (N119). My answer on one moves me on to the next, though the chat counts it at once.
   O9  On a plan, the moment where this week's level shows most opens with "This week's level: {level}. Here's where it shows:" above my clip; no other moment does (G7, backend N209).
-  O10 What a step showed stays in the thread once I move on: the tempo game's tries, their comments and its closing line, then other speakers' moments with my answers, all still above the summary; opened again further on, the tempo game is drawn as the chat kept it, each try with the dot's line, never cut off after "Find a quiet spot first." (B5). A tempo try records with the one recording bar: the trash throws it away, nothing counted or kept, back to "I'm ready"; Stop reads it (N314).
+  O10 What a step showed stays in the thread once I move on: the tempo game's tries, their comments and its closing line, then other speakers' moments with my answers, all still above the summary; opened again further on, the tempo game is drawn as the chat kept it, each try with the dot's line, never cut off after "Find a quiet spot first." (B5). The stretch is my own orange clip with its words and the stretch marked when the backend has its audio, the words alone when not, live and opened again (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, fix()). A tempo try records with the one recording bar: the trash throws it away, nothing counted or kept, back to "I'm ready"; Stop reads it (N314).
 PROVES   O1 -> walks coach's note → praise → helper words → the next praise → the summary → the page, as one chat that grows
          O2 -> a green moment says why it landed,
                the Take's highest moment opens with “This was your most confident moment.”,
@@ -25,7 +25,7 @@ PROVES   O1 -> walks coach's note → praise → helper words → the next prais
          O8 -> other speakers: the Take's three moments, whatever the tries (N119); an answer moves on to the next,
                with nobody to judge, the step leaves nothing in the thread
          O9 -> on a plan, the level's moment says where this week's level shows, above the clip (G7, N209)
-         O10 -> the tempo game and other speakers stay in the thread as the walk moves on to the summary (B5; the trash, N314)
+         O10 -> the tempo game and other speakers stay in the thread as the walk moves on to the summary (B5; the trash, N314; the stretch's clip)
 WHY      Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, "add the name at the start"; N122, "the 3 dots loading should be at the bottom"; N119, "3 clips (high, middle, low willfidence) from 3 different speakers"); founder 2026-10-28 ("I click next and it's gone ... should be in the walk, so that there is a continuity").
 */
 import { HELPER_WORDS_MAX } from "@/lib/willab/phraseTokens";
@@ -321,6 +321,10 @@ describe("FeedbackWalk", () => {
     draw({ seq: 1, at: over.model.plan.findIndex((s) => s.key === "tempo") }, over);
     const thread = () => live()!.querySelector("[data-walk-thread-body]")!.textContent ?? "";
     const dock = (sel: string) => live()!.querySelector<HTMLElement>(`[data-walk-dock] ${sel}`);
+    const stretch = () => live()!.querySelector("[data-walk-tempo-stretch]")!;
+    // No audio for the stretch: its words alone, the stretch marked.
+    expect(stretch().textContent).toBe(TEMPO_STAND_IN.said.stretch);
+    expect(stretch().closest("[data-walk-player]")).toBeNull();
     // A try records with the one bar (N314): the trash throws it away,
     // nothing counted or kept for Will, and the game is back on I'm ready.
     click(dock("[data-testid='walk-tempo-ready']"));
@@ -363,9 +367,14 @@ describe("FeedbackWalk", () => {
       { author: "app", body: TEMPO_COPY.comment.rush },
       { author: "app", body: TEMPO_COPY.close.rush },
     ] as const;
-    draw({ seq: 2, at: over.model.plan.findIndex((s) => s.key === "summary") }, { ...over, tempoSaid: kept });
+    const audio = { src: "data:audio/wav;base64,", startOffsetMs: 1200, durationMs: 6000, snippetId: "s9" };
+    draw({ seq: 2, at: over.model.plan.findIndex((s) => s.key === "summary") }, { ...over, tempo: { ...TEMPO_STAND_IN, clip: audio }, tempoSaid: kept });
     await act(async () => {});
     expect(thread()).toContain(TEMPO_COPY.close.rush);
+    // With the stretch's audio, it is my orange clip, the stretch marked above its player.
+    const player = [...live()!.querySelectorAll("[data-walk-tempo-stretch]")].at(-1)!.closest("[data-walk-player][data-walk-me]");
+    expect(player?.textContent).toContain(TEMPO_STAND_IN.said.before);
+    expect(player?.querySelector("[data-walk-tempo-stretch]")?.textContent).toBe(TEMPO_STAND_IN.said.stretch);
     // Its try keeps the line the dot drew, from the chat.
     const drawn = Array.from(live()!.querySelectorAll("[data-walk-thread-body] polyline")).at(-1);
     expect(drawn?.getAttribute("points")?.split(" ")).toHaveLength(kept[1].path.length);
