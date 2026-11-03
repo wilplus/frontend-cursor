@@ -64,29 +64,28 @@ type Answering = AnswerFor & { ownerId: string | null; before: ExploreArc | null
 type Sending = PendingAnswer & {
   take: string | null;
   posting: boolean;
-  failed: boolean;
   timer: ReturnType<typeof setTimeout> | null;
 };
 
-let answering_: Answering | null = null;
+let current: Answering | null = null;
 let starting = false;
 let sending: Sending | null = null;
 const listeners = new Set<() => void>();
-const sentTo = new Set<(chatId: string, message: ChatMessage) => void>();
+const sentListeners = new Set<(chatId: string, message: ChatMessage) => void>();
 
 function changed() {
   listeners.forEach((listener) => listener());
 }
 
 /** The deck of an answer: one slide, the asker's words (N361 item 3). */
-export function answerDeck(question: string): ExploreArcDeck {
+function answerDeck(question: string): ExploreArcDeck {
   return { topic: question, audience: null, presentationRef: null, slides: [{ title: question, body: "" }], targetLengthSeconds: null };
 }
 
 /** The answer the recording screens are opening for, else null. */
 export function answering(): AnswerFor | null {
-  if (!answering_) return null;
-  const { chatId, name, question, customer } = answering_;
+  if (!current) return null;
+  const { chatId, name, question, customer } = current;
   return { chatId, name, question, customer };
 }
 
@@ -94,7 +93,7 @@ export function answering(): AnswerFor | null {
  *  recording screens on it. False when the project could not be made (the
  *  bar stays as it was). */
 export async function startAnswer(answer: AnswerFor, ownerId: string | null, open: () => void): Promise<boolean> {
-  if (answering_ || sending || starting) return false;
+  if (current || sending || starting) return false;
   starting = true;
   const deck = answerDeck(answer.question);
   const created = await createProject({
@@ -112,7 +111,7 @@ export async function startAnswer(answer: AnswerFor, ownerId: string | null, ope
   });
   starting = false;
   if (created.kind !== "ok") return false;
-  answering_ = { ...answer, ownerId, before: readExploreArc(ownerId) };
+  current = { ...answer, ownerId, before: readExploreArc(ownerId) };
   writeExploreArc(ownerId, created.projectId, 1, deck);
   open();
   return true;
@@ -120,17 +119,16 @@ export async function startAnswer(answer: AnswerFor, ownerId: string | null, ope
 
 /** Finish take (N363 item 1): the answer is on its way. */
 export function answerRecorded(durationMs: number): void {
-  if (!answering_) return;
+  if (!current) return;
   if (sending?.timer) clearTimeout(sending.timer);
   const next: Sending = {
-    chatId: answering_.chatId,
-    name: answering_.name,
+    chatId: current.chatId,
+    name: current.name,
     durationMs: Math.max(1, Math.round(durationMs)),
     startedAt: Date.now(),
     take: null,
     waited: false,
     posting: false,
-    failed: false,
     timer: null,
   };
   next.timer = setTimeout(() => {
@@ -145,15 +143,14 @@ export function answerRecorded(durationMs: number): void {
 
 /** The Take is uploaded (its session id), or it could not be (null). */
 export function answerTake(take: string | null): void {
-  const current = sending;
-  if (!current) return;
+  const answer = sending;
+  if (!answer) return;
   if (!take) {
-    current.failed = true;
-    if (current.waited) drop(current);
+    drop(answer);
     return;
   }
-  current.take = take;
-  void trySend(current);
+  answer.take = take;
+  void trySend(answer);
 }
 
 /** Undo (N345 item 2): thrown away before the person sees it. */
@@ -164,21 +161,21 @@ export function undoAnswer(): void {
 /** The recording screens closed: the speaker's own project is theirs again.
  *  An answer whose Take never came is dropped; one on its way goes on. */
 export function endAnswer(): void {
-  const done = answering_;
+  const done = current;
   if (!done) return;
-  answering_ = null;
+  current = null;
   if (done.before) {
     writeExploreArc(done.ownerId, done.before.arcId, done.before.nextTakeIndex, done.before.deck, done.before.sessionId);
   } else {
     clearExploreArc(done.ownerId);
   }
-  if (sending && !sending.take && !sending.posting) drop(sending);
+  if (sending && !sending.take) drop(sending);
 }
 
 /** Called with each answer the backend has kept, for its chat to show. */
 export function onAnswerSent(listener: (chatId: string, message: ChatMessage) => void): () => void {
-  sentTo.add(listener);
-  return () => sentTo.delete(listener);
+  sentListeners.add(listener);
+  return () => sentListeners.delete(listener);
 }
 
 function drop(answer: Sending) {
@@ -190,16 +187,11 @@ function drop(answer: Sending) {
 }
 
 async function trySend(answer: Sending) {
-  if (sending !== answer || !answer.waited || answer.posting) return;
-  if (answer.failed && !answer.take) {
-    drop(answer);
-    return;
-  }
-  if (!answer.take) return;
+  if (sending !== answer || !answer.waited || !answer.take || answer.posting) return;
   answer.posting = true; // sent once
   const message = await sendChatAnswer(answer.chatId, answer.take, answer.durationMs);
   if (sending === answer) drop(answer);
-  if (message) sentTo.forEach((listener) => listener(answer.chatId, message));
+  if (message) sentListeners.forEach((listener) => listener(answer.chatId, message));
 }
 
 function subscribe(listener: () => void) {
@@ -217,9 +209,9 @@ export function usePendingAnswer(chatId: string): PendingAnswer | null {
 /** Tests only. */
 export function forgetAnswers(): void {
   if (sending?.timer) clearTimeout(sending.timer);
-  answering_ = null;
+  current = null;
   sending = null;
   starting = false;
   listeners.clear();
-  sentTo.clear();
+  sentListeners.clear();
 }

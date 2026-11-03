@@ -339,17 +339,17 @@ function ChatRow({
   chatId,
   message,
   onPhoto,
-  sentLine = null,
+  sentLine,
 }: {
   chatId: string;
   message: ChatMessage;
   onPhoto: (src: string) => void;
-  sentLine?: string | null;
+  sentLine: string;
 }) {
   const time = clockTime(message.created_at);
   if (message.kind === "voice") {
     const voice = <ChatVoice chatId={chatId} message={message} time={time} />;
-    if (!(message.mine && message.meta?.answer === true && sentLine)) return voice;
+    if (!(message.mine && message.meta?.answer === true)) return voice;
     return (
       <div className="flex flex-col gap-1">
         {voice}
@@ -448,20 +448,16 @@ export function micShows(messages: readonly ChatMessage[] | null): boolean {
  *  slide (N361 item 3). Else null. */
 export function answerWaits(messages: readonly ChatMessage[] | null): string | null {
   const newest = messages?.at(-1);
-  if (!newest || newest.mine || newest.meta?.record_answer !== true) return null;
-  if (newest.kind !== "text" && newest.meta?.question !== true) return null;
+  if (!newest || newest.mine || newest.meta?.record_answer !== true || !micShows(messages)) return null;
   const words = newest.kind === "text" ? newest.body : typeof newest.words === "string" ? newest.words : "";
   return words.trim() || null;
 }
 
-/** The small line under my answer, right-aligned: "Sending to {name}…" with
- *  Undo, then "Sent to {name}" with a check (the prototype's `sentok`). */
-function SentLine({ children, pending = false }: { children: ReactNode; pending?: boolean }) {
+/** The small line under my sent answer, right-aligned: "Sent to {name}"
+ *  with a check (the prototype's `sentok`; "Sending…" is in the bar, N368). */
+function SentLine({ children }: { children: ReactNode }) {
   return (
-    <div
-      data-chat-sent-line={pending ? "sending" : "sent"}
-      className={`flex items-center gap-1.5 self-end text-[12.5px] ${pending ? "text-muted-foreground" : "text-foreground/80"}`}
-    >
+    <div data-chat-sent-line="sent" className="flex items-center gap-1.5 self-end text-[12.5px] text-foreground/80">
       {children}
     </div>
   );

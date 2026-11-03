@@ -42,6 +42,12 @@ async function call(path: string, init: Parameters<typeof bffFetch>[1]): Promise
   }
 }
 
+/** The message a send answers, or null. */
+function messageOf(body: Record<string, unknown> | null): ChatMessage | null {
+  const message = body?.message;
+  return message && typeof message === "object" ? (message as ChatMessage) : null;
+}
+
 function chatsOf(body: Record<string, unknown> | null): Chat[] | null {
   return body && Array.isArray(body.chats) ? (body.chats as Chat[]) : null;
 }
@@ -103,8 +109,7 @@ export async function sendChatEmoji(chatId: string, emoji: ChatEmoji): Promise<C
     method: "POST",
     json: { kind: "emoji", body: emoji },
   });
-  const message = body?.message;
-  return message && typeof message === "object" ? (message as ChatMessage) : null;
+  return messageOf(body);
 }
 
 /** A voice note sent in the chat (N321 item 2): the recording, up to two
@@ -121,8 +126,7 @@ export async function sendChatVoice(chatId: string, audio: Blob, durationMs: num
     timeoutMs: 60_000,
     body: form,
   });
-  const message = body?.message;
-  return message && typeof message === "object" ? (message as ChatMessage) : null;
+  return messageOf(body);
 }
 
 /** A photo or a file sent from the "+" (N351), as multipart `file` under
@@ -142,8 +146,7 @@ export async function sendChatUpload(
     timeoutMs: 60_000,
     body: form,
   });
-  const message = body?.message;
-  return message && typeof message === "object" ? (message as ChatMessage) : null;
+  return messageOf(body);
 }
 
 /** Where a photo or a file in the chat opens from (N351). */
@@ -159,8 +162,7 @@ export async function sendChatAnswer(chatId: string, take: string, durationMs: n
     method: "POST",
     json: { take, duration_ms: Math.round(durationMs) },
   });
-  const message = body?.message;
-  return message && typeof message === "object" ? (message as ChatMessage) : null;
+  return messageOf(body);
 }
 
 /** Where a voice message in the chat plays from. */
