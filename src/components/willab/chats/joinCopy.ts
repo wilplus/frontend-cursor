@@ -9,6 +9,14 @@
 export const ADD_SHEET_TITLE = "Add someone to chat with";
 export const ADD_SHEET_LINE = "Send them your link, in any email or message. Whoever opens it joins you here.";
 export const COPY_MY_LINK = "Copy my link";
+/** The add sheet as redesigned (backend N367 item 3), signed. */
+export const COPIED = "✓ Copied";
+export const ADD_STEPS = [
+  ["1. Paste it", "in an email or a message you send anyway"],
+  ["2. They open it", "and join with their account"],
+  ["3. You chat", "Only the two of you are in it"],
+] as const;
+export const CANCEL = "Cancel";
 
 export const joinTitle = (name: string) => `${name} asks you to join them on WillpowerLab`;
 export const joinChatWith = (name: string) => `A chat with ${name}`;
