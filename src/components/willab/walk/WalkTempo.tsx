@@ -12,6 +12,7 @@ import {
   landed,
   oneThingTempoLines,
   readTry,
+  tempoOpening,
   type TempoEvent,
   type TempoPlayed,
   type TempoStretch,
@@ -68,6 +69,7 @@ export default function WalkTempo({
   onClose,
   onEvent,
   one = false,
+  mark = W.mark,
 }: {
   testId?: string;
   stretch: TempoStretch;
@@ -77,7 +79,11 @@ export default function WalkTempo({
   onEvent?: (event: TempoEvent) => void;
   /** The One thing walk's fix (N309): its dock, two tries and its words. */
   one?: boolean;
+  /** The bar's name for the step: its slide as the One thing walk's fix
+   *  (backend N435 item 7), else "Tempo". */
+  mark?: string;
 }) {
+  const opening = tempoOpening(stretch, one);
   const most = one ? ONE_THING_TEMPO_TRIES : TEMPO_MAX_TRIES;
   const linesFor = (t: TempoPlayed, n: number) => (one ? oneThingTempoLines(t.landed, n) : afterTry(t.result, t.landed, n));
   const past = useMountedAsPast();
@@ -181,7 +187,7 @@ export default function WalkTempo({
   }, [halt, tries, end, onDone, one]);
 
   const nav: WalkNav = {
-    position: W.mark,
+    position: mark,
     index: 0,
     total: 1,
     onBack: noop,
@@ -211,20 +217,22 @@ export default function WalkTempo({
         </WalkMessage>
       ) : null}
       <TempoStretchBubble stretch={stretch} />
-      <WalkMessage>
-        <span>{W.game[stretch.reading]}</span>
-      </WalkMessage>
-      <WalkMessage>
-        <span>{W.task(stretch.topic)}</span>
-      </WalkMessage>
-      <WalkMessage>
-        <span>{W.room}</span>
-      </WalkMessage>
+      {opening.lines.map((line) => (
+        <WalkMessage key={line}>
+          <span>{line}</span>
+        </WalkMessage>
+      ))}
+      {opening.withScale && !scaleShown ? (
+        <WalkMessage>
+          <span data-walk-tempo-lead>{opening.withScale}</span>
+        </WalkMessage>
+      ) : null}
       {tries.map((t, i) => (
         <TryParts key={i} n={i + 1} path={t.path} lines={linesFor(t, i + 1)} />
       ))}
       {scaleShown ? (
         <WalkMessage wide>
+          {opening.withScale ? <span data-walk-tempo-lead>{opening.withScale}</span> : null}
           <PaceScale
             activity={() => activity.current}
             asleep={!live}
@@ -249,7 +257,8 @@ export default function WalkTempo({
           <span>{W.close[closeOf(tries.map((t) => t.result))]}</span>
         </WalkMessage>
       ) : null}
-      {phase === "skipped" ? <WalkSpeakerBubble>{W.skip}</WalkSpeakerBubble> : null}
+      {/* The One thing walk's Skip adds no bubble of the speaker's (N435 item 2). */}
+      {phase === "skipped" && !one ? <WalkSpeakerBubble>{W.skip}</WalkSpeakerBubble> : null}
       {/* The Sniper as the One thing walk's fix answers Skip (N405). */}
       {phase === "skipped" && one ? (
         <WalkMessage>
@@ -260,6 +269,14 @@ export default function WalkTempo({
   );
 
   function footerFor() {
+    if (live && one) {
+      // The bar alone: its trash is the Skip (backend N435 item 3).
+      return (
+        <WalkFooter>
+          <RecordingBar elapsedMs={elapsed * 1000} onTrash={skip} onStop={phase === "listening" ? stop : undefined} />
+        </WalkFooter>
+      );
+    }
     // Recording: the bar alone, its trash the way out (founder 2026-11-03).
     if (live) {
       return (

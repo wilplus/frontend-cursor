@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEditCopy";
 import WalkLoading from "./WalkLoading";
 import type { WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
@@ -145,7 +145,21 @@ function lineAbove(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string 
  *  does. Was: Skip under it as the walk's grey link; before that the strip,
  *  then Skip in the Back style beside a red Stop in the Finish-take style
  *  (N70); Stop from the moment the practise opened. */
-function RecorderFooter({ ctx }: { ctx: PractiseScreenCtx }) {
+function RecorderFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
+  // The One thing walk's fix: its trash is the Skip (backend N435 item 3),
+  // the try thrown away, the walk's "Okay, we'll skip this one." (N405),
+  // then on.
+  if (step.one) {
+    const skip = () => {
+      if (!step.replay) ctx.answer(step, "skip");
+      ctx.skip();
+    };
+    return (
+      <WalkFooter>
+        <RecordingBar elapsedMs={ctx.elapsed * 1000} onTrash={skip} onStop={ctx.capturing ? ctx.stop : undefined} />
+      </WalkFooter>
+    );
+  }
   return (
     <WalkFooter>
       <RecordingBar elapsedMs={ctx.elapsed * 1000} onTrash={ctx.back} onStop={ctx.capturing ? ctx.stop : undefined} />
@@ -330,7 +344,7 @@ export function practiseThreadItem(
           <>
             {firstTry && step.kind === "keep" ? (
               <WalkMessage>
-                <span>{WALK_COPY.keepWords}</span>
+                <span>{ONE_THING_COPY.keepWords}</span>
               </WalkMessage>
             ) : null}
             {current ? null : <TryBubble ctx={ctx} step={step} moment={moment} attempt={step.attempt} />}
@@ -376,7 +390,7 @@ export function practiseThreadItem(
  *  Practise again / Next after a late read; none while the try is checked.
  *  Every other step of the thread has the thread's footer (FeedbackWalk). */
 export function practiseThreadFooter(ctx: PractiseScreenCtx, step: WalkStep): ReactNode {
-  if (step.key === "practise") return <RecorderFooter ctx={ctx} />;
+  if (step.key === "practise") return <RecorderFooter ctx={ctx} step={step} />;
   if (step.key === "late") return <LateFooter ctx={ctx} step={step} />;
   return null;
 }

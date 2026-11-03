@@ -114,6 +114,18 @@ export function afterTry(result: TempoTry, isLanded: boolean, n: number): string
  *  Once more."; two, "Good try. Take it with you.", with no closing line of
  *  its own. Pure. */
 export const ONE_THING_TEMPO_TRIES = 2;
+
+/** The step's opening, before the scale: its lines, and the line drawn in
+ *  the scale's own bubble. Pure. */
+export function tempoOpening(stretch: Pick<TempoStretch, "reading" | "topic">, one: boolean): { lines: string[]; withScale: string | null } {
+  // As the One thing walk's fix, a rushed stretch opens with one bubble,
+  // the pace scale in it (backend N435 item 6, the locked prototype's
+  // scale()); a slow one, which the prototype does not draw, keeps T's.
+  if (one && stretch.reading === "rushed") return { lines: [], withScale: ONE_THING_COPY.letItBreathe };
+  return { lines: [TEMPO_COPY.game[stretch.reading], TEMPO_COPY.task(stretch.topic), TEMPO_COPY.room], withScale: null };
+}
+
+/** The Sniper's lines after a try, as the One thing walk's fix. */
 export function oneThingTempoLines(isLanded: boolean, n: number): string[] {
   if (isLanded) return [ONE_THING_COPY.landed];
   return [n < ONE_THING_TEMPO_TRIES ? ONE_THING_COPY.onceMore : ONE_THING_COPY.takeItWithYou];
