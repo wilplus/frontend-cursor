@@ -2248,6 +2248,15 @@ export default function Lounge({
           onReadAloud={(version) => {
             const arcId = idealTextArcId;
             const cached = readExploreArc(userId);
+            // The first Take's page, with only that Take: "Record Take 2" is
+            // the real talk, as the chat's is (backend N449 item 1), never
+            // the five questions again.
+            const nextTake = cached?.arcId === arcId ? cached.nextTakeIndex : (version ?? 1) + 1;
+            if (isFirstTakeArc(userId, arcId, nextTake - 1) && onStartPlanRecording) {
+              setIdealTextArcId(null);
+              onStartPlanRecording(plan.topic, { afterFirstTake: true });
+              return;
+            }
             if (cached?.arcId !== arcId) {
               // Seed the next-take index from the SD version hint (≈ takes so
               // far); the BE reconciles the real take_index on upload.
