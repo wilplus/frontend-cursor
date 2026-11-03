@@ -259,12 +259,9 @@ export default function WalkTempo({
       ) : null}
       {/* The One thing walk's Skip adds no bubble of the speaker's (N435 item 2). */}
       {phase === "skipped" && !one ? <WalkSpeakerBubble>{W.skip}</WalkSpeakerBubble> : null}
-      {/* The Sniper as the One thing walk's fix answers Skip (N405). */}
-      {phase === "skipped" && one ? (
-        <WalkMessage>
-          <span data-walk-skip-reply>{ONE_THING_COPY.skipped}</span>
-        </WalkMessage>
-      ) : null}
+      {/* The Sniper as the One thing walk's fix answers Skip (N405): the
+          thread draws the answer at the top of what comes next, so it lands
+          there (N440). */}
     </WalkOverlay>
   );
 

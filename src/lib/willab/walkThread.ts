@@ -413,7 +413,8 @@ export function answerBody(step: WalkStep, value: string): string | null {
  *  the same. Pure. */
 export function skipReply(step: WalkStep, value: string | null): string | null {
   if (value !== "skip" || !step.one) return null;
-  return ["exVideo", "encourage", "practise"].includes(step.key) ? ONE_THING_COPY.skipped : null;
+  // "late": Skip after a try that could not be checked (backend N440 item 5).
+  return ["exVideo", "encourage", "practise", "late"].includes(step.key) ? ONE_THING_COPY.skipped : null;
 }
 
 /** The AI bubble a step showed (N71), as the chat stores it: its lines, and

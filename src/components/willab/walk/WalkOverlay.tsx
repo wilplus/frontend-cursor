@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
 import OverlayCloseButton from "../OverlayCloseButton";
 import { useWalkSwipe } from "./useWalkSwipe";
-import { WalkLanding, useWalkPart } from "./WalkThread";
+import { LandingNestContext, WalkLanding, useWalkHeld, useWalkPart } from "./WalkThread";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkOverlay — one screen of the Feedback walk (founder lock 2026-10-06)    */
@@ -105,6 +105,7 @@ export default function WalkOverlay({
   footer,
   bare = false,
   landing = true,
+  onLanded,
   testId,
   children,
 }: {
@@ -136,6 +137,11 @@ export default function WalkOverlay({
    *  dots). Off where they must show at once (a practise records as it
    *  opens). */
   landing?: boolean;
+  /** Once everything in it has landed, the part's opening lines first, as
+   *  the step the walk stands on (at once outside the thread): a screen
+   *  that only shows its bubbles moves on from here, so they land before it
+   *  does (backend N440). */
+  onLanded?: () => void;
   testId?: string;
   children?: ReactNode;
 }) {
@@ -147,19 +153,45 @@ export default function WalkOverlay({
   // have. A part already given (a walk opened on an earlier step) shows at
   // once.
   const [lands] = useState(() => part?.now === true && part.fresh && landing);
-  const [settled, setSettled] = useState(true);
+  // Unknown until its landing has said (null): nothing moves on, and no
+  // button shows, on a guess (N440).
+  const [settled, setSettled] = useState<boolean | null>(null);
+  // Bubbles that land inside the screen's own (the AI clip's fix), and the
+  // part's opening lines above it: the buttons wait for them too (N440).
+  const held = useWalkHeld();
+  const [busy, setBusy] = useState<ReadonlySet<string>>(() => new Set());
+  const nest = useCallback((id: string, on: boolean) => {
+    setBusy((was) => {
+      if (was.has(id) === on) return was;
+      const next = new Set(was);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+  const landed = settled === true && !held && busy.size === 0;
   useEffect(() => {
     if (part?.now) part.close.current = onClose ?? null;
   });
+  const told = useRef(false);
+  const then = useRef(onLanded);
+  then.current = onLanded;
+  useEffect(() => {
+    if (told.current || !landed || (part && !part.now)) return;
+    told.current = true;
+    then.current?.();
+  }, [landed, part]);
   if (part) {
     return (
       <>
         <div data-walk-part data-testid={part.now ? testId : undefined} className="flex flex-col gap-4 empty:hidden">
-          <WalkLanding on={lands && part.now} onSettled={setSettled}>
-            {children}
-          </WalkLanding>
+          <LandingNestContext.Provider value={nest}>
+            <WalkLanding on={lands && part.now} onSettled={setSettled}>
+              {children}
+            </WalkLanding>
+          </LandingNestContext.Provider>
         </div>
-        {part.now && part.dock && footer && settled ? createPortal(footer, part.dock) : null}
+        {part.now && part.dock && footer && landed ? createPortal(footer, part.dock) : null}
       </>
     );
   }

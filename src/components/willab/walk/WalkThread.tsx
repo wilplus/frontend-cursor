@@ -7,6 +7,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -89,6 +90,18 @@ export type WalkPartSlot = Frame & {
 
 const FrameContext = createContext<Frame | null>(null);
 const PartContext = createContext<WalkPartSlot | null>(null);
+/** True while what comes before a screen's bubbles is still landing (its
+ *  part's opening lines): its own bubbles and buttons wait (backend N440). */
+const HoldContext = createContext(false);
+/** A screen's landings tell its overlay when they are busy, so its buttons
+ *  wait for bubbles that land inside it (backend N440). */
+export const LandingNestContext = createContext<((id: string, busy: boolean) => void) | null>(null);
+
+/** True while the part's opening lines are still landing: wait to land, to
+ *  show buttons or to move on. */
+export function useWalkHeld(): boolean {
+  return useContext(HoldContext);
+}
 
 /** The part a screen is drawn in; null outside the thread (the coach panel,
  *  the sheets), where WalkOverlay is a whole screen as before. */
@@ -105,12 +118,47 @@ export function useMountedAsPast(): boolean {
   return past;
 }
 
-export function WalkPart({ now, fresh = now, children }: { now: boolean; fresh?: boolean; children: ReactNode }) {
+/** One part of the thread. `opening`: what lands before the screen's own
+ *  bubbles, in order (the walk's answer to the step before, the part's lead
+ *  and its "And now, one thing to improve:", its name): drawn first as the
+ *  newest part, each lands as the screen's do, and the screen waits for
+ *  them, its bubbles, its buttons and a screen that passes by alike (backend
+ *  N440; until then they showed at once, above bubbles still landing). */
+export function WalkPart({
+  now,
+  fresh = now,
+  opening = null,
+  children,
+}: {
+  now: boolean;
+  fresh?: boolean;
+  opening?: ReactNode;
+  children: ReactNode;
+}) {
   const frame = useContext(FrameContext);
-  if (!frame) return <>{children}</>;
+  const lands = Boolean(frame) && now && fresh && !frame?.ghost;
+  const items = Children.toArray(opening);
+  const has = items.length > 0;
+  // A step's name alone is no bubble: nothing waits for it.
+  const bubbles = items.some((item) => !(isValidElement(item) && item.type === WalkThreadMark));
+  const [opened, setOpened] = useState(() => !(lands && bubbles && landingWelcome()));
+  const openedNow = useCallback((settled: boolean) => setOpened(settled || !bubbles), [bubbles]);
+  if (!frame) {
+    return (
+      <>
+        {opening}
+        {children}
+      </>
+    );
+  }
   return (
     <PartContext.Provider value={{ ...frame, now: now && !frame.ghost, fresh: fresh && !frame.ghost }}>
-      {children}
+      {has ? (
+        <WalkLanding on={lands} onSettled={openedNow}>
+          {opening}
+        </WalkLanding>
+      ) : null}
+      <HoldContext.Provider value={!opened}>{children}</HoldContext.Provider>
     </PartContext.Provider>
   );
 }
@@ -214,6 +262,8 @@ function WalkTyping() {
  *  beat), or nothing drawn (no wait). */
 function landingKind(el: HTMLElement | null | undefined): "app" | "self" | "own" | "none" {
   if (!el || el.childNodes.length === 0) return "none";
+  // A step's name, seen or quiet, is no bubble: no wait (backend N440).
+  if (el.children.length === 1 && el.firstElementChild?.hasAttribute("data-walk-mark")) return "none";
   if (el.querySelector("[data-walk-ai-voice], [data-walk-ai-typing]")) return "self";
   if (el.querySelector("[data-walk-message]")) return "app";
   return "own";
@@ -237,6 +287,9 @@ export function WalkLanding({
 }) {
   const kids = Children.toArray(children);
   const keys = kids.map((k, i) => (isValidElement(k) && k.key != null ? String(k.key) : `#${i}`));
+  const held = useContext(HoldContext);
+  const nest = useContext(LandingNestContext);
+  const id = useId();
   const [active] = useState(() => on && landingWelcome());
   const [waiting, setWaiting] = useState<ReadonlySet<string>>(() => (active ? new Set(keys) : new Set()));
   const [typing, setTyping] = useState<string | null>(null);
@@ -255,9 +308,9 @@ export function WalkLanding({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyList, live]);
 
-  // One at a time, in order.
+  // One at a time, in order, once what comes before has landed.
   useEffect(() => {
-    if (!live || timer.current !== null) return;
+    if (!live || held || timer.current !== null) return;
     const next = keys.find((k) => waiting.has(k));
     if (next === undefined) return;
     const kind = landingKind(boxes.current.get(next));
@@ -274,7 +327,7 @@ export function WalkLanding({
     }, wait);
     // keys is read through keyList
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [live, keyList, waiting]);
+  }, [live, held, keyList, waiting]);
   useEffect(
     () => () => {
       // Cleared and forgotten, so a part drawn again starts its landing again.
@@ -284,8 +337,12 @@ export function WalkLanding({
     [],
   );
 
-  const settled = !live || !keys.some((k) => waiting.has(k));
+  const settled = !live || (!held && !keys.some((k) => waiting.has(k)));
   useEffect(() => onSettled(settled), [settled, onSettled]);
+  useEffect(() => {
+    nest?.(id, !settled);
+    return () => nest?.(id, false);
+  }, [nest, id, settled]);
 
   if (!active) return <>{children}</>;
   return (
@@ -324,6 +381,45 @@ const AT_REST_MS = 120;
 /** Where `node` sits in the scrolling `el`, in its scroll coordinates. */
 const topIn = (el: HTMLElement, node: HTMLElement) =>
   node.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
+
+/** Less of the step than this in view, and it is away (B9): a sliver of
+ *  its first line is not the step. */
+const AWAY_PX = 48;
+/** How much of a step away must show before the dock is its own again
+ *  (B9): more than AWAY_PX by more than the dock's height can change (a
+ *  link row, 44 px), so the dock that changes as it gives way never brings
+ *  the step in or out of view by itself. */
+const BACK_IN_VIEW_PX = 96;
+
+/** The top and bottom of a part's bubbles in the scrolling `el`. A part and
+ *  the wrappers in it are `display: contents`, with no box of their own, so
+ *  their boxes are found inside them (backend N440: measuring the first
+ *  wrapper, a step never counted as scrolled away). Null before it has a
+ *  size. */
+function spanOf(el: HTMLElement, part: HTMLElement): { top: number; bottom: number } | null {
+  let top = Infinity;
+  let bottom = -Infinity;
+  const visit = (node: Element) => {
+    for (const child of Array.from(node.children)) {
+      if (!(child instanceof HTMLElement) || child.hidden) continue;
+      if (getComputedStyle(child).display === "contents") {
+        visit(child);
+        continue;
+      }
+      const height = child.offsetHeight;
+      if (height <= 0) continue;
+      const at = topIn(el, child);
+      top = Math.min(top, at);
+      bottom = Math.max(bottom, at + height);
+    }
+  };
+  visit(part);
+  return bottom > top ? { top, bottom } : null;
+}
+
+/** The dock's Skip, which the Next standing in for the dock keeps under it
+ *  (founder 2026-11-03: "keep the "skip" below it"). */
+const DOCK_SKIP = "[data-walk-link][data-testid='walk-skip'], [data-walk-link][data-testid='walk-tempo-skip']";
 
 /** The thread as it was, kept above a new opening: a still picture, with
  *  nothing in it that waits, lands or answers to a test id. */
@@ -421,7 +517,7 @@ function LiveThread({
     away: false,
   });
   // What the dock holds: any buttons, and whether they are the recorder.
-  const [docked, setDocked] = useState({ any: false, recording: false });
+  const [docked, setDocked] = useState<{ any: boolean; recording: boolean; skip: string | null }>({ any: false, recording: false, skip: null });
 
   // A new opening while the lens stays open: what the thread showed stays
   // above it. Read during render, while the page still holds it.
@@ -463,16 +559,16 @@ function LiveThread({
    *  or the last mark at the bottom, so a standing part shorter than that,
    *  or a thread that fits in view, counted as scrolled away the moment it
    *  opened, and the dock gave way to a Next that scrolled nowhere.) */
-  const awayFromNow = useCallback((): boolean => {
+  const awayFromNow = useCallback((was: boolean): boolean => {
     const el = body.current;
     const part = nowEl();
-    const first = part?.firstElementChild as HTMLElement | null;
-    const last = part?.lastElementChild as HTMLElement | null;
-    if (!el || !first || !last) return false;
-    const top = topIn(el, first);
-    const bottom = topIn(el, last) + last.offsetHeight;
-    if (bottom <= top) return false;
-    return bottom <= el.scrollTop || top >= el.scrollTop + el.clientHeight;
+    const span = el && part ? spanOf(el, part) : null;
+    if (!el || !span) return false;
+    const shown = Math.min(span.bottom, el.scrollTop + el.clientHeight) - Math.max(span.top, el.scrollTop);
+    const height = span.bottom - span.top;
+    // Away once little of it shows, back once enough does (N440); a step
+    // shorter than either is away until all of it shows.
+    return shown < Math.min(was ? BACK_IN_VIEW_PX : AWAY_PX, height);
   }, []);
   /** The mark of the part in view: the last one above the upper 40% of the
    *  thread; at the bottom, the last one. -1 with none. */
@@ -491,11 +587,11 @@ function LiveThread({
   const readBar = useCallback(() => {
     const all = marks();
     const k = inView();
-    const away = awayFromNow();
-    const label = k >= 0 ? (all[k].dataset.walkMark ?? null) : null;
-    setBar((was) =>
-      was.label === label && was.at === k && was.of === all.length && was.away === away ? was : { label, at: k, of: all.length, away },
-    );
+    setBar((was) => {
+      const away = awayFromNow(was.away);
+      const label = k >= 0 ? (all[k].dataset.walkMark ?? null) : null;
+      return was.label === label && was.at === k && was.of === all.length && was.away === away ? was : { label, at: k, of: all.length, away };
+    });
   }, [inView, awayFromNow]);
   /** Sizes the room under the thread so the standing step's name can reach
    *  the top, on a door into a step already answered (N91). A live walk
@@ -540,10 +636,14 @@ function LiveThread({
   // As the walk opens and each time it moves on: the newest bubble in view
   // at the bottom (N122). With parts after it the thread follows nothing
   // and the standing step's name comes to the top (founder 2026-10-21).
+  const opened = useRef(false);
   useEffect(() => {
     if (!body.current) return;
     setFollow(standsLast());
-    toCurrent(false);
+    // The walk opens in place; each step after glides down to its bubbles
+    // (backend N440; was a jump past them).
+    toCurrent(opened.current);
+    opened.current = true;
     readBar();
   }, [current, toCurrent, readBar, setFollow]);
 
@@ -594,7 +694,11 @@ function LiveThread({
     const read = () => {
       const any = dock.childElementCount > 0;
       const recording = dock.querySelector("[data-walk-recording-strip]") !== null;
-      setDocked((was) => (was.any === any && was.recording === recording ? was : { any, recording }));
+      // Only a Skip: a link that leads elsewhere ("Keep mine" records) waits
+      // with the step.
+      const label = dock.querySelector<HTMLElement>(DOCK_SKIP)?.textContent?.trim() || null;
+      const skip = label === WALK_COPY.skip ? label : null;
+      setDocked((was) => (was.any === any && was.recording === recording && was.skip === skip ? was : { any, recording, skip }));
     };
     read();
     const seen = typeof MutationObserver !== "undefined" ? new MutationObserver(read) : null;
@@ -722,6 +826,18 @@ function LiveThread({
               },
               testId: "walk-to-newest",
             }}
+            links={
+              docked.skip
+                ? [
+                    {
+                      label: docked.skip,
+                      // The dock's own Skip: the same answer, the same way on.
+                      onClick: () => dock?.querySelector<HTMLElement>(DOCK_SKIP)?.click(),
+                      testId: "walk-to-newest-skip",
+                    },
+                  ]
+                : []
+            }
           />
         </div>
       ) : null}
