@@ -486,8 +486,8 @@ my practice""; once I tap it, or type that I want to practise, ""Record
 Take N"" stands alone under the chat; while an ask waits, once I said
 anything else, or once a newer Take is recorded, neither shows.
 O7  After the first Take, ""Record Take 2"" comes at once under its
-goodbye, with no tap first; every other Take keeps the tap (N449
-item 2).","O1 -> ""draws the card, the ask, and the message only once it is let go""
+goodbye, with no tap first, on any device (the backend marks that
+goodbye); every other Take keeps the tap (N449 item 2).","O1 -> ""draws the card, the ask, and the message only once it is let go""
 O2 -> ""opens the Take's WhatsApp ask by itself""
 O3 -> ""knows when no ask is in front of the speaker""
 O4 -> ""keeps the card above the admin's ask, stamped with the message it waits for alone""

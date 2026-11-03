@@ -2094,8 +2094,9 @@ export default function Lounge({
         onRecord={(arc) =>
           // After the first Take (backend N401 item 4): "Record Take 2" is the
           // real talk, its own set-up with the plan's topic, never the five
-          // questions again.
-          isFirstTakeArc(userId, arc, recordTake.next?.takeIndex) && onStartPlanRecording
+          // questions again. The goodbye says so; this device's own record of
+          // the first Take is the fallback.
+          (goodbye.afterFirstTake || isFirstTakeArc(userId, arc, recordTake.next?.takeIndex)) && onStartPlanRecording
             ? onStartPlanRecording(plan.topic, { afterFirstTake: true })
             : openIdealText(arc, "share")
         }
@@ -3155,6 +3156,9 @@ function useGoodbye({
      *  continue, else a practice day's (the-plan.md G6); never both, as the
      *  practice day's one thing holds the button. */
     recordNext: goodbye?.step === "record" ? goodbye.next : planOne,
+    /** That "Record Take N" follows the first Take, as its goodbye says
+     *  (backend N449 item 1): the real talk. */
+    afterFirstTake: goodbye?.step === "record" && goodbye.message.metadata?.first_take === true,
     choose,
     /** Typed words under the goodbye that say they want to practise are the
      *  tap; true when taken so. */

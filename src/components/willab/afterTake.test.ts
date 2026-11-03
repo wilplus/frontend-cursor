@@ -21,8 +21,8 @@ OUTCOME
       Take N" stands alone under the chat; while an ask waits, once I said
       anything else, or once a newer Take is recorded, neither shows.
   O7  After the first Take, "Record Take 2" comes at once under its
-      goodbye, with no tap first; every other Take keeps the tap (N449
-      item 2).
+      goodbye, with no tap first, on any device (the backend marks that
+      goodbye); every other Take keeps the tap (N449 item 2).
 PROVES   O1 -> "draws the card, the ask, and the message only once it is let go"
          O2 -> "opens the Take's WhatsApp ask by itself"
          O3 -> "knows when no ask is in front of the speaker"
@@ -121,6 +121,10 @@ describe("after a Take", () => {
       step: "record",
       next: { arcId: "first", takeIndex: 1, takeSessionId: "t1" },
     });
+    // The backend marks the first Take's goodbye: on any device, Record
+    // Take 2 at once, with nothing kept on this one.
+    const marked = row("goodbye", 1, "text", { next_take: true, take_index: 1, first_take: true, ...first });
+    expect(afterGoodbye([marked, progress])?.step).toBe("record");
     // Another Take's goodbye keeps its tap.
     const later = row("later", 1, "text", { next_take: true, take_index: 2, ...take });
     expect(afterGoodbye([later, progress], firstTake)?.step).toBe("tap");
