@@ -357,6 +357,18 @@ export function sniperWords(paragraphText: string, stretch: string): { text: str
   return span ? { text: helperWordsSaid(stripRichMarkers(span.text)), span } : null;
 }
 
+/** The words of a One thing walk's try (N309; the locked prototype
+ *  X4gDmGfHH7ivuoRZ9ufiy9 draws the try as the speaker's clip with them):
+ *  the clearer version's words after "Try it", their own sentence after
+ *  "Keep mine", the moment's own words after the AI clip. The walk's bubble
+ *  and the chat's say the same. Null: not the One thing walk (a Take served
+ *  before N289 keeps "Practise N", C7), or no words served. Pure. */
+export function oneThingTryWords(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string | null {
+  if (!step.one) return null;
+  const words = step.kind === "words" ? moment.clearer?.say : step.kind === "keep" ? moment.clearer?.said : moment.said;
+  return words?.trim() || null;
+}
+
 export function answerBody(step: WalkStep, value: string): string | null {
   if (value === "skip" && ["helpers", "exVideo", "encourage"].includes(step.key)) return WALK_COPY.skip;
   return null;
