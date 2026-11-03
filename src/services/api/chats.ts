@@ -56,10 +56,6 @@ export async function getChats(): Promise<Chat[] | null> {
   return chatsOf(await call("/api/v2/chats", { method: "GET" }));
 }
 
-/** Seeds the two demo chats for the caller; answers the list. */
-export async function seedDemoChats(): Promise<Chat[] | null> {
-  return chatsOf(await call("/api/v2/chats/demo", { method: "POST", json: {} }));
-}
 
 export async function getChatMessages(chatId: string): Promise<ChatMessage[] | null> {
   return (await getChatThread(chatId))?.messages ?? null;

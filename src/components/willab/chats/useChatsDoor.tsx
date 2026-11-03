@@ -121,10 +121,11 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
   useEffect(() => {
     if (joined && window.location.search) window.history.replaceState(null, "", window.location.pathname);
   }, [joined]);
-  // In the iPhone app the list opens even with Will's chat alone, with the
-  // way to add someone under him (founder 2026-11-02); on the web, as before.
+  // The list opens even with Will's chat alone, with the way to add someone
+  // under him: in the iPhone app (founder 2026-11-02) and on the web, where
+  // a newcomer gets no demo chats (backend N401).
   const waiting = decided === null || (on && !chats);
-  const closed = !on || !chats || (chats.length === 0 && !isNativeApp());
+  const closed = !on || !chats;
   // Open, the list is the bottom of /chat: Back never goes past it (N378).
   useBackStop(!closed);
   // A chat going out to the right after Back, still drawn while it slides.

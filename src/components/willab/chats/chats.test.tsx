@@ -10,9 +10,11 @@ OUTCOME
       the Lounge and no chat is read (Never 3).
   O2  On: the list stands in front of the Lounge, Will pinned first, then
       the chats, newest last message first, each with its title, subtitle
-      and last message (an emoji with its meaning); an empty list asks for
-      the demo once. Will's row uncovers the Lounge, never remounted, with
-      a back to the list (customer-requests.md C1; N274, N298, N322).
+      and last message (an emoji with its meaning); an empty list is Will
+      and "Add someone to chat with", on the web as in the iPhone app, and
+      no demo chats are asked for (N401). Will's row uncovers the Lounge,
+      never remounted, with a back to the list (customer-requests.md C1;
+      N274, N298, N322).
   O3  In a chat, one bar: the "+" left, the three emoji in the box, no
       typing, and the mic always on the right, orange while a question waits
       for my answer (N368; was N341: only then); a tap on
@@ -66,7 +68,7 @@ OUTCOME
       it goes and "Sent to {name} on WhatsApp" (a customer) stands under it
       (N345, N342).
 PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
-         O2 -> "with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back"
+         O2 -> "with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back"
          O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question"
          O4 -> "the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's"
          O5 -> "a chat with a message newer than its last opening shows as new until it is opened"
@@ -246,31 +248,31 @@ describe("the chats in front of the Lounge", () => {
     expect(loungeMounts).toBe(1);
   });
 
-  it("with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back", async () => {
+  it("with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back", async () => {
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [] }));
-    routes.set("POST /api/v2/chats/demo", () => ({ chats: [SARAH, ARIEL] }));
     await render();
 
+    // On the web too, the list stands with Will alone and the way to add someone (N401).
     expect(container.querySelector("[data-chats-front]")).not.toBeNull();
-    // Will first, then the newest last message first.
-    expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-ariel", "c-sarah"]);
+    expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "add"]);
     expect(rows()[0].textContent).toBe("Will");
-    expect(rows()[2].textContent).toContain("SarahInvita customer");
-    expect(lastLineOf("c-sarah")).toBe("Is the scalp scrub good for dry hair?");
-    expect(lastLineOf("c-ariel")).toBe("🙏 Thanks");
-    expect(calls("POST /api/v2/chats/demo")).toHaveLength(1);
+    expect(rows()[1].textContent).toBe("Add someone to chat with");
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/v2/chats/demo"))).toBe(false);
 
     await tap(rows()[0]);
     expect(container.querySelector("[data-chats-front]")?.hasAttribute("data-chats-away")).toBe(true);
     expect(container.querySelector("[data-testid=lounge]")).not.toBeNull();
     expect(container.querySelector("[data-chat-header]")?.textContent).toBe("Will");
 
+    // Someone joined meanwhile: back on the list, Will first, then the newest last message first.
     routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, ARIEL] }));
     await tap(container.querySelector("[data-chat-header] button"));
     expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-ariel", "c-sarah"]);
-    // The demo is asked for once; the Lounge was never mounted twice.
-    expect(calls("POST /api/v2/chats/demo")).toHaveLength(1);
+    expect(rows()[2].textContent).toContain("SarahInvita customer");
+    expect(lastLineOf("c-sarah")).toBe("Is the scalp scrub good for dry hair?");
+    expect(lastLineOf("c-ariel")).toBe("🙏 Thanks");
+    // The Lounge was never mounted twice.
     expect(loungeMounts).toBe(1);
   });
 
