@@ -1446,7 +1446,7 @@ export default function Lounge({
     if (!atBottomRef.current) return;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, botThinking, activeOffer]);
+  }, [messages.length, botThinking, thread.writing, activeOffer]);
 
   // A NEW BUBBLE IS ALWAYS SHOWN (founder 2026-09-28), even when the thread
   // was scrolled up, and See next steps lands on the newest one. Only a new
@@ -1521,9 +1521,15 @@ export default function Lounge({
   }
 
   // N82 — Will's one question after a Take: the backend keeps the tap and
-  // writes it with the reply, then the thread reads it back.
+  // writes it with the reply, then the thread reads it back. The typing
+  // dots while it does, as for a typed answer (B8).
   async function answerWillQuestion(target: WillQuestionTarget, choice: string): Promise<void> {
-    if (await postWillQuestion(target.arcId, target.takeSessionId, choice)) await reload();
+    setBotThinking(true);
+    try {
+      if (await postWillQuestion(target.arcId, target.takeSessionId, choice)) await reload();
+    } finally {
+      setBotThinking(false);
+    }
     followAnswer();
   }
 
@@ -1901,7 +1907,7 @@ export default function Lounge({
         <VoiceNoteThread notebook={notebook} />
         {plan.pending}
         {willVoice.pending}
-        {botThinking && <TypingDots />}
+        <ThreadDots thinking={botThinking} writing={thread.writing} />
       </div>
 
       {/* The coach's one door (founder 2026-09-30, A1): the walk. Coaches can
@@ -3158,6 +3164,12 @@ function useGoodbye({
       return true;
     },
   };
+}
+
+/** The Lounge's one wait under the thread (B8): a reply being written, or
+ *  the walk's summary and the chain after it. */
+function ThreadDots({ thinking, writing }: { thinking: boolean; writing: boolean }) {
+  return thinking || writing ? <TypingDots /> : null;
 }
 
 /** "I want to continue my practice", on the right, as Will's tap answers. */

@@ -58,6 +58,11 @@ export interface UseLoungeThreadReturn {
   idle: () => Promise<void>;
   /** Wipe the thread (server DELETE or local clear). */
   clear: () => Promise<void>;
+  /** Something is writing into the thread behind the screen (the walk's
+   *  summary and the chain after it): the Lounge shows the typing dots
+   *  while it does (B8). */
+  writing: boolean;
+  setWriting: (on: boolean) => void;
   /** Replay the local thread into the server thread on sign-up, then rehydrate. */
   mergeFromLocal: () => Promise<void>;
 }
@@ -67,6 +72,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
   const [loading, setLoading] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  const [writing, setWriting] = useState(false);
   const oldestCursorRef = useRef<string | null>(null);
   // What is on screen now: a new message is stamped under its newest bubble.
   const messagesRef = useRef<LoungeMessage[]>(messages);
@@ -217,5 +223,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     idle,
     clear,
     mergeFromLocal,
+    writing,
+    setWriting,
   };
 }

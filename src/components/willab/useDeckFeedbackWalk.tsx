@@ -1409,14 +1409,16 @@ export function useDeckFeedbackWalk(args: {
   // the thread reloads so it shows in the Lounge too. Null: the step is
   // skipped. The thread reads again whatever the answer: the backend may
   // have written the chain after it (Will's question, the goodbye) even
-  // when the answer came back too late. Asked once per Take; a failed ask
-  // is asked again at the walk's next end.
+  // when the answer came back too late. Until it has, the Lounge shows the
+  // typing dots, its one wait (B8). Asked once per Take; a failed ask is
+  // asked again at the walk's next end.
   const summaryAsked = useRef<string | null>(null);
   const summary = useCallback(async (): Promise<string | null> => {
     const { thread: to, take: on, arcId } = threadRef.current;
     if (!on || !arcId) return null;
     summaryAsked.current = on;
     const heard = heardRef.current;
+    to?.setWriting?.(true);
     try {
       const text = await postReviewSummaryText(arcId, {
         takeSessionId: on,
@@ -1428,6 +1430,7 @@ export function useDeckFeedbackWalk(args: {
       return text;
     } finally {
       await to?.reload?.().catch(() => undefined);
+      to?.setWriting?.(false);
     }
   }, []);
   // A paragraph's practise ends on the page quietly; the review's end tells
