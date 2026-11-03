@@ -286,11 +286,15 @@ export function useWalkPractise<R>(args: {
       setAiVoice((v) => ({ ...v, [index]: state }));
     };
     const none: AiVoiceState = { demo: "none", clip: null };
+    // What the last read named the clip fixes, and the phrase: kept when the
+    // asking ends, so the tip in words stays (N370, N373 item 1).
+    let named: AiVoiceState["clip"] = null;
     const poll = (practiceId: string) => {
       const timer = setTimeout(async () => {
         aiTimers.current.delete(timer);
         tries += 1;
         const read = await readAiVoice(practiceId);
+        if (read.ok && read.data.clip?.problem) named = read.data.clip;
         // A read that fails, or answers with no clip while one is being made
         // (the server's own error answer), is the clip still on its way, not
         // the end of the wait.
@@ -299,8 +303,9 @@ export function useWalkPractise<R>(args: {
           poll(practiceId);
           return;
         }
-        // Still not made when the asking ends: no clip, the locked screen.
-        keep(read.ok && !pending ? read.data : { demo: "ai_voice", clip: { state: "unavailable", url: null, durationMs: null, why: null } });
+        // Still not made when the asking ends: no clip, the locked screen,
+        // with the tip it named.
+        keep(read.ok && !pending ? read.data : { demo: "ai_voice", clip: { ...named, state: "unavailable", url: null, durationMs: null, why: null } });
       }, tries < AI_VOICE_POLL_TRIES ? AI_VOICE_POLL_MS : AI_VOICE_SLOW_POLL_MS);
       aiTimers.current.add(timer);
     };
@@ -315,8 +320,15 @@ export function useWalkPractise<R>(args: {
         asked = await ensureAiVoice(practiceId);
       }
       if (!asked.ok) return keep(none);
-      keep(asked.data);
-      if (asked.data.clip?.state === "pending") poll(practiceId);
+      // The start's own error answer has no clip: one read, for a clip the
+      // prewarm already made or is making (N370 item 2, N373 item 1).
+      let state = asked.data;
+      if (!state.clip) {
+        const read = await readAiVoice(practiceId);
+        if (read.ok && read.data.clip) state = read.data;
+      }
+      keep(state);
+      if (state.clip?.state === "pending") poll(practiceId);
     });
     // The clip keeps being asked after while the walk moves on (Exercise →
     // practise → not yet); the walk going away stops it (below).

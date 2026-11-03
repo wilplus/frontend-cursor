@@ -99,6 +99,9 @@ export function aiVoiceShown(
   if (step.one) {
     if (step.key !== "exVideo") return null;
     if (aiOnExercise(state)) return oneThingAiLines(say, state?.clip);
+    // The served video takes the clip's place at once (C6, N370): a demo
+    // of "video" is final, so no dots wait on a clip that is never shown.
+    if (state?.demo === "video") return null;
     return aiPendingOnExercise(state) ? "pending" : null;
   }
   if (step.key === "exVideo") {
