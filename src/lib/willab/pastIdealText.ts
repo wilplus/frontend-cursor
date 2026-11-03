@@ -17,18 +17,14 @@ export type IdealTextPast = {
   title?: string | null;
 };
 
-/** The older version a card opens, or null when the card's version is the
- *  newest or has no saved words: then the live page opens, as before. */
-export function pastRevisionOf(
+/** The row a card names: its document version, or the Take a review's
+ *  own card names. Newest first as served: a Take with two versions names
+ *  its newest. */
+function cardRevision(
   revisions: readonly IdealTextRevision[],
   past: IdealTextPast,
-): IdealTextRevision | null {
-  // Newest first as served: a Take with two versions opens its newest.
-  const hit = revisions.find((r) =>
-    past.by === "version" ? r.revision === past.n : r.takeIndex === past.n,
-  );
-  if (!hit || hit.isHead || !hit.text.trim()) return null;
-  return hit;
+): IdealTextRevision | undefined {
+  return revisions.find((r) => (past.by === "version" ? r.revision === past.n : r.takeIndex === past.n));
 }
 
 /* ONE SCREEN PER TAP. The choice between this page and the live one is made
@@ -66,16 +62,12 @@ export async function resolvePastIdealText(
   const rv = await read;
   if (rv.kind !== "ready") return { kind: "live", notice: null };
   const latestTake = rv.revisions.find((r) => r.isHead)?.takeIndex ?? null;
-  const revision = pastRevisionOf(rv.revisions, past);
-  if (revision) return { kind: "past", revision, latestTake };
-  // The card's version is the newest: the page, as it is. Not kept: say so.
-  const isLatest = rv.revisions.some((r) =>
-    r.isHead && (past.by === "version" ? r.revision === past.n : r.takeIndex === past.n),
-  );
-  const notice =
-    !isLatest && latestTake !== null && latestTake !== past.n
-      ? PAST_TAKE_COPY.notSaved(past.n, latestTake)
-      : null;
+  const hit = cardRevision(rv.revisions, past);
+  // The newest: the page, as it is.
+  if (hit?.isHead) return { kind: "live", notice: null };
+  if (hit?.text.trim()) return { kind: "past", revision: hit, latestTake };
+  // Not kept: the page, saying so.
+  const notice = latestTake !== null && latestTake !== past.n ? PAST_TAKE_COPY.notSaved(past.n, latestTake) : null;
   return { kind: "live", notice };
 }
 
@@ -92,15 +84,15 @@ export function helperHeadlineOf(revision: Pick<IdealTextRevision, "helperWords"
  *  unproved slide map shows the words alone, as one group. */
 export function slideGroupsOf(
   revision: Pick<IdealTextRevision, "text" | "slides">,
-): { slideIndex: number | null; text: string }[] {
+): { slideIndex: number | null; paragraphs: string[] }[] {
   const paragraphs = revision.text.split("\n\n");
   const slides = revision.slides?.length === paragraphs.length ? revision.slides : null;
-  if (!slides) return [{ slideIndex: null, text: revision.text }];
+  if (!slides) return [{ slideIndex: null, paragraphs }];
   const groups: { slideIndex: number | null; paragraphs: string[] }[] = [];
   paragraphs.forEach((paragraph, i) => {
     const last = groups[groups.length - 1];
     if (last && last.slideIndex === slides[i]) last.paragraphs.push(paragraph);
     else groups.push({ slideIndex: slides[i], paragraphs: [paragraph] });
   });
-  return groups.map((g) => ({ slideIndex: g.slideIndex, text: g.paragraphs.join("\n\n") }));
+  return groups;
 }

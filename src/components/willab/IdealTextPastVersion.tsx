@@ -88,7 +88,7 @@ export default function IdealTextPastVersion({
                 </p>
               </div>
             ) : null}
-            <PastSlideText text={g.text} headline={helperHeadlineOf(revision, g.slideIndex)} />
+            <PastSlideText paragraphs={g.paragraphs} headline={helperHeadlineOf(revision, g.slideIndex)} />
           </section>
         ))}
       </div>
@@ -105,12 +105,13 @@ export default function IdealTextPastVersion({
  *  time orange where the words say them, and those the words no longer
  *  say before the first paragraph with the HELPERS label (N380). Read
  *  only: nothing here opens. */
-function PastSlideText({ text, headline }: { text: string; headline: string | null }) {
+function PastSlideText({ paragraphs, headline }: { paragraphs: string[]; headline: string | null }) {
+  const missing = missingHelperWords(paragraphs.join("\n\n"), headline);
   return (
     <div className="flex flex-col gap-4">
-      {text.split("\n\n").map((paragraph, i) => (
+      {paragraphs.map((paragraph, i) => (
         <p key={i} className="text-[clamp(1.0625rem,0.98rem+0.34vw,1.25rem)] leading-[1.65] text-foreground">
-          {i === 0 ? <HelpersLabel phrases={missingHelperWords(text, headline)} /> : null}
+          {i === 0 ? <HelpersLabel phrases={missing} /> : null}
           <RichText
             text={paragraph}
             accent={false}
