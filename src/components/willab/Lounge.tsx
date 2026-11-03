@@ -87,7 +87,6 @@ import {
   type WhatsAppOffer,
 } from "./WillabWhatsAppPrompt";
 import { useRouter } from "next/navigation";
-import SymmetricPair from "./SymmetricPair";
 import { offersUpdateSlides, SlidesAskComposer, SlidesAskSlot, useSlidesAsk } from "./UpdateSlides";
 import { NewProjectAskComposer, NewProjectAskSlot, useNewProjectAsk } from "./OneProjectQuestion";
 import NoticeBar from "./NoticeBar";
@@ -157,7 +156,7 @@ import {
 } from "./LoungeStrengths";
 import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
-import WillQuestionBubble, { TapRow, useSomethingElse, willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
+import WillQuestionBubble, { AnswerPair, TapRow, useSomethingElse, willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
 import { isWillVoice, useWillVoice, WillVoiceBubble } from "./WillVoiceAnswer";
 import { RecordTakeButton, useRecordTake } from "./plan/PlanDock";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
@@ -2392,7 +2391,7 @@ function OfferActions({
       onResolve();
     };
     return (
-      <SymmetricPair
+      <AnswerPair
         closeLabel="Not now"
         onClose={() => pick("not_now")}
         actionLabel={yes === "start" ? "Start" : "Look"}
@@ -2412,7 +2411,7 @@ function OfferActions({
   }
   if (type === "sunday_note") {
     return (
-      <SymmetricPair
+      <AnswerPair
         closeLabel="Not now"
         onClose={() => {
           onSundayNote("not_now");
@@ -2428,7 +2427,7 @@ function OfferActions({
   }
   if (type === "life_goals_change") {
     return (
-      <SymmetricPair
+      <AnswerPair
         closeLabel="Not now"
         onClose={() => {
           onLifeGoalsChange("not_now");
@@ -2445,7 +2444,7 @@ function OfferActions({
   if (type === "life_goals" || type === "life_goals_quarter") {
     const pick = type === "life_goals" ? onLifeGoals : onLifeGoalsQuarter;
     return (
-      <SymmetricPair
+      <AnswerPair
         closeLabel="Not now"
         onClose={() => {
           pick("not_now");
@@ -2461,7 +2460,7 @@ function OfferActions({
   }
   if (type === "voice_notebook") {
     return (
-      <SymmetricPair
+      <AnswerPair
         closeLabel="Not now"
         onClose={() => {
           onNotebook("not_now");
@@ -2477,7 +2476,7 @@ function OfferActions({
   }
   if (type === "feedback_check") {
     return (
-      <SymmetricPair
+      <AnswerPair
         closeLabel={FEEDBACK_CHECK_LABEL.notReally}
         onClose={() => {
           onFeedbackCheck("not_really");
@@ -2497,14 +2496,7 @@ function OfferActions({
   // The legacy joke offer is the only other type. Its onboarding was deleted
   // (SD/FE-4) and openOffer already refuses to arm it, so this is a dismiss-only
   // fallback for an old thread bubble rather than a live action pair.
-  return (
-    <SymmetricPair
-      closeLabel="Close"
-      onClose={onResolve}
-      actionLabel="Close"
-      onAction={onResolve}
-    />
-  );
+  return <TapRow labels={["Close"]} onTap={onResolve} dataAttr={{ "data-answer-pair": "" }} />;
 }
 
 
