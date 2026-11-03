@@ -22,15 +22,27 @@ export async function fetchReviewTempo(arcId: string, takeId: string): Promise<T
 /** The backend's answer, when it is whole. Pure. */
 export function readTempo(raw: unknown): TempoStretch | null {
   if (!raw || typeof raw !== "object") return null;
-  const t = raw as { reading?: unknown; topic?: unknown; said?: unknown; plan_level?: unknown };
+  const t = raw as {
+    reading?: unknown;
+    topic?: unknown;
+    said?: unknown;
+    plan_level?: unknown;
+    snippet_audio_ref?: unknown;
+    start_offset_ms?: unknown;
+    duration_ms?: unknown;
+    snippet_id?: unknown;
+  };
   const said = (t.said ?? {}) as { before?: unknown; stretch?: unknown; after?: unknown };
   const text = (v: unknown) => (typeof v === "string" ? v : "");
+  const src = typeof t.snippet_audio_ref === "string" && t.snippet_audio_ref.trim() ? t.snippet_audio_ref : null;
+  const ms = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
   if ((t.reading !== "rushed" && t.reading !== "slow") || !text(t.topic).trim() || !text(said.stretch).trim()) return null;
   return {
     reading: t.reading,
     topic: text(t.topic),
     said: { before: text(said.before), stretch: text(said.stretch), after: text(said.after) },
     planLevel: levelNameOf(typeof t.plan_level === "string" ? t.plan_level : null),
+    ...(src ? { clip: { src, startOffsetMs: ms(t.start_offset_ms), durationMs: ms(t.duration_ms), snippetId: t.snippet_id != null ? String(t.snippet_id) : null } } : {}),
   };
 }
 

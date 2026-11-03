@@ -5,7 +5,7 @@ OUTCOME
   O2  It never appears in the coach-only walk or for a guest (N162).
   O3  A try that stays mostly in the green reads as better; otherwise the side the ball leaned to.
   O4  The step closes "dynamic" once a try was better and the last was not rushed; otherwise the side the tries leaned to.
-  O5  The step runs on the backend's stretch only when its answer is whole; anything else means no tempo step. On a plan it names this week's pace level (N289).
+  O5  The step runs on the backend's stretch only when its answer is whole; anything else means no tempo step. On a plan it names this week's pace level (N289). With playable audio it carries the stretch's clip; without it, words alone.
   O6  A try lands only when it runs 20 s from the first word with the ball four fifths in the green; then Will says so and the game ends (N245).
   O7  A try that came closer gets a push for one more while a try is left; otherwise its comment alone (N245).
   O8  As the One thing walk's fix, the Sniper has two tries and says the walk's own words (N309).
@@ -95,6 +95,10 @@ describe("the backend's stretch", () => {
     expect(readTempo({ ...whole, reading: "fast" })).toBeNull();
     expect(readTempo({ ...whole, topic: "" })).toBeNull();
     expect(readTempo({ ...whole, said: { stretch: "" } })).toBeNull();
+    // The stretch's clip, placed within its audio, when the backend has playable audio.
+    const clip = { snippet_id: 42, snippet_audio_ref: "https://x/a.webm?sig=1", start_offset_ms: 1200, duration_ms: 6000 };
+    expect(readTempo({ ...whole, ...clip })?.clip).toEqual({ src: "https://x/a.webm?sig=1", startOffsetMs: 1200, durationMs: 6000, snippetId: "42" });
+    expect(readTempo({ ...whole, ...clip, snippet_audio_ref: null })?.clip).toBeUndefined();
   });
 });
 
