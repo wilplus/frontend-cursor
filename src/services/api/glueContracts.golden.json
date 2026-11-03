@@ -887,7 +887,8 @@
             "createdAt": "2026-10-12T10:00:00Z",
             "isHead": true,
             "slides": null,
-            "presentationRef": null
+            "presentationRef": null,
+            "helperWords": []
           }
         ]
       }
@@ -914,7 +915,8 @@
             "createdAt": "2026-10-12T10:00:00Z",
             "isHead": true,
             "slides": null,
-            "presentationRef": null
+            "presentationRef": null,
+            "helperWords": []
           }
         ]
       }
