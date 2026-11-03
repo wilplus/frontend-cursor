@@ -51,6 +51,7 @@ vi.mock("@/hooks/useDualCaptureMic", async () => {
         stop: async () => setState({ status: "stopped", finalText: "", audioBlob: new Blob(["x".repeat(2000)]), durationSec: 4 }),
         cancel: () => setState({ status: "idle" }),
         getAudioStartedAt: () => null,
+        getPausedMs: () => 0,
       };
     },
   };

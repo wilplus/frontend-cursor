@@ -56,6 +56,7 @@ vi.mock("@/hooks/useDualCaptureMic", () => ({
     stop: async () => undefined,
     cancel: () => undefined,
     getAudioStartedAt: () => null,
+    getPausedMs: () => 0,
   }),
 }));
 /** A practise with nothing behind it: the screens open, no call is made. */

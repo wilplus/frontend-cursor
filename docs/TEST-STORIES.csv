@@ -1432,12 +1432,16 @@ the moment it opens, no recording starts, and an empty try is handed
 over, so the mic is never left on.
 O6  A Take recorded through earbuds is remembered, so ""Getting your mic
 ready"" before the next one can say the built-in mic sounds better
-(N372); the built-in mic clears it.","O1 -> records at once on start
+(N372); the built-in mic clears it.
+O7  A phone call during a Take (iOS takes the mic) pauses it, and it
+carries on from where it stopped when the call ends; the call is not in
+the Take's length, nor in the clock the slides are timed on (N437).","O1 -> records at once on start
 O2 -> hands over a real take on stop and releases the stream
 O3 -> hands over the take at once when the audio comes late and Finish is tapped twice
 O4 -> keeps the screen awake while recording and lets it lock after
 O5 -> a stop while the mic is opening leaves the mic off
-O6 -> remembers a Take recorded through earbuds",Never-rule 3 (never break record → process → Ideal Text).
+O6 -> remembers a Take recorded through earbuds
+O7 -> a phone call pauses the Take, which carries on after, the call not in its length",Never-rule 3 (never break record → process → Ideal Text).
 src/lib/api/bffFetch.test.ts,Story,"As a developer, I want every call to our own server routes to carry the sign-in token and to report ""no connection"" separately from a server answer, so that screens handle being offline correctly.","O1  The call carries the sign-in token and only the options it was given.
 O2  A dropped connection comes back as ""network"", never as a server answer.","O1 -> sends the Bearer header and only the options it was given
 O2 -> reports a thrown fetch as network, never as a response",

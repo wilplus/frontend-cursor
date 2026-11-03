@@ -82,6 +82,7 @@ vi.mock("@/hooks/useDualCaptureMic", async () => {
           setState({ status: "idle" });
         },
         getAudioStartedAt: () => null,
+        getPausedMs: () => 0,
       };
     },
   };
