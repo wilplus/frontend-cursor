@@ -20,6 +20,11 @@
 # VERCEL_GIT_PREVIOUS_SHA is the last SUCCESSFUL deployment's commit, so a code
 # change whose build failed is still built by the next docs-only merge.
 #
+# SINCE 2026-11-03 (backend N426) Vercel's production branch is `production`,
+# which .github/workflows/release-to-production.yml moves to the newest green
+# `main` every two hours, so one build carries every merge since the last.
+# This script still skips a batch that changed only docs, Markdown or tests.
+#
 # A skipped build shows as Canceled and still counts toward the deployments a
 # day, but it stores no Function bundles.
 

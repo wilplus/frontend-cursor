@@ -51,6 +51,10 @@
  *   O11 The plan's coach calls are hidden, not removed (N315): with the
  *       ring row "plan_calls" on, the card lists both calls, Book on one
  *       not booked, and the plan's end shows the summary call; off, none.
+ *   O12 On a first-Take plan (backend N401, the ring row "first_take"),
+ *       nothing is asked in the chat: "Start your first recording" is the
+ *       one button at once, in the message box's place, and it starts the
+ *       first Take with the plan's five slides.
  * PROVES   O1, O5 -> "a choice is taps in the thread, the bar stays and
  *                     typing waits"
  *          O5 -> "a tap on the faded Type here says why, before the first
@@ -65,6 +69,7 @@
  *          O9 -> "Will asks for the plan's own yes"
  *          O10 -> "nothing of the principles before my first Take"
  *          O11 -> "the plan's calls show only with their ring row"
+ *          O12 -> "a first-Take plan: the one button at once, and it starts the five slides"
  * WHY      The plan, built one to one with the prototype (founder
  *          2026-10-26, backend N203, N204); the principles waiting for the
  *          onboarding, backend N243; record first, backend N262; every
@@ -423,6 +428,22 @@ it("Start your first recording only after the plan card", async () => {
   expect(host.textContent).not.toContain("Start your first recording");
   expect(host.querySelector("[data-testid='voice-note-mic'][data-will-waits]")).toBeNull();
   expect(typeHere().disabled).toBe(false);
+});
+
+it("a first-Take plan: the one button at once, and it starts the five slides", async () => {
+  const slides = [
+    { kicker: "About you", title: "What do you do, and what do you know best?", body: "So I can send you the right questions." },
+    { kicker: "Your talk", title: "What are you practising for, and why does it matter?", body: "" },
+  ];
+  backend(() => ({ ...PLAN, status: "asking", step: "deadline", first_take: true, first_take_slides: slides }));
+  const start = vi.fn();
+  await showLounge([row({}, "Your first Take is five questions. Answer each one out loud, one slide at a time.")], start);
+  const button = host.querySelector("[data-plan-dock='start']") as HTMLButtonElement;
+  expect(button.textContent).toBe("Start your first recording");
+  expect(taps()).toEqual([]); // no deadline asked in the chat
+  expect(bar().className).toContain("hidden");
+  await act(async () => button.click());
+  expect(start).toHaveBeenCalledWith("Our Q3 board pitch", { firstTake: slides });
 });
 
 function ctx(plan: Plan | null = PLAN): PlanRowCtx {

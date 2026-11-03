@@ -9,7 +9,8 @@
     "deploymentEnabled": {
       "*": false,
       "**": false,
-      "main": true
+      "main": true,
+      "production": true
     }
   }
 }

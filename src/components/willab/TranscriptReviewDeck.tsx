@@ -1344,6 +1344,7 @@ export default function TranscriptReviewDeck({
                   <DeckSlideThumb
                     presentationRef={presentationRef}
                     pageIndex={g.slideIndex}
+                    slideTitle={slideTitles?.[g.slideIndex] ?? null}
                     label={kickerFor(g.slideIndex, slideCount)}
                   />
                 ) : null}

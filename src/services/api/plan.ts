@@ -1,4 +1,5 @@
 import { bffFetch } from "@/lib/api/bffFetch";
+import type { FirstTakeSlide } from "@/lib/willab/firstTake";
 
 /* The plan (rules: docs/flows/the-plan.md; backend services/plan_flow.py).
    The questions before the first Take, the plan card, the practice days and
@@ -62,6 +63,11 @@ export type Plan = {
   onboarding?: boolean;
   /** The plan's own yes (backend N211): "granted" while its switch is off. */
   consent?: "granted" | "declined" | "unanswered";
+  /** The first Take is the onboarding (backend N401, behind the ring row
+   *  `first_take`): true while the plan waits for that Take, with its five
+   *  slides; the bar's middle is then "Start your first recording". */
+  first_take?: boolean;
+  first_take_slides?: FirstTakeSlide[] | null;
 };
 
 export type PlanState = { enabled: boolean; plan: Plan | null; wrote: boolean };

@@ -1066,7 +1066,11 @@ notebook mic, no ask; once my first Take lands, both are there,
 without opening the app again (N243).
 O11 The plan's coach calls are hidden, not removed (N315): with the
 ring row ""plan_calls"" on, the card lists both calls, Book on one
-not booked, and the plan's end shows the summary call; off, none.","O1, O5 -> ""a choice is taps in the thread, the bar stays and
+not booked, and the plan's end shows the summary call; off, none.
+O12 On a first-Take plan (backend N401, the ring row ""first_take""),
+nothing is asked in the chat: ""Start your first recording"" is the
+one button at once, in the message box's place, and it starts the
+first Take with the plan's five slides.","O1, O5 -> ""a choice is taps in the thread, the bar stays and
 typing waits""
 O5 -> ""a tap on the faded Type here says why, before the first
 Take and after it""
@@ -1079,7 +1083,8 @@ O7 -> ""a practice day's Record Take N is the button under the chat, alone, unti
 O8 -> ""the feelings before a Take""
 O9 -> ""Will asks for the plan's own yes""
 O10 -> ""nothing of the principles before my first Take""
-O11 -> ""the plan's calls show only with their ring row""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; record first, backend N262; every question the after-walk way, one action a step, typing waits before Take 1, backend N319 items 1 to 3, its note signed, backend N323 item 1, and on a choice, backend N325 item 4, wherever the box is faded, backend N350 item 4; the calls hidden, backend N315; the plan card simplified, backend N319 item 6; no bubble carries a button, backend N294 item 7; docs/flows/the-plan.md §1."
+O11 -> ""the plan's calls show only with their ring row""
+O12 -> ""a first-Take plan: the one button at once, and it starts the five slides""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; record first, backend N262; every question the after-walk way, one action a step, typing waits before Take 1, backend N319 items 1 to 3, its note signed, backend N323 item 1, and on a choice, backend N325 item 4, wherever the box is faded, backend N350 item 4; the calls hidden, backend N315; the plan card simplified, backend N319 item 6; no bubble carries a button, backend N294 item 7; docs/flows/the-plan.md §1."
 src/components/willab/plan/planNewEvent.test.tsx,Story,"As a speaker with a plan, I want ""I have a new event"" out of my way while my Take is still processing, so that I never tap something that leaves me with nothing to do.","O1  While the Take is processing, Change your plan has no ""I have a new
 event"", and the plan's end shows only ""Keep practising"".
 O2  Once the Take has landed, both show ""I have a new event"" again.","O1, O2 -> ""a new event waits for the Take being processed""","The founder, 2026-10-28 (backend N242); docs/flows/the-plan.md §1 H1 and I2."
@@ -1216,11 +1221,13 @@ src/components/willab/voiceNotebook.test.tsx,Story,"As the founder in a rush, I 
 O1b The tap answers at once, as WhatsApp's: a buzz and the recording bar before the phone has opened the mic; trash in that moment records nothing.
 O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).
 O4  Typing ""#"" offers one option, ""# note"", and tapping it leaves ""#"" to write on: a typed ""#"" is one note, as the mic's (N253).
-O5  Under ""Which step did it stall at?"" the sale's four steps take the message box's place, and a tap answers for that note with that step (N241 P2).","O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
+O5  Under ""Which step did it stall at?"" the sale's four steps take the message box's place, and a tap answers for that note with that step (N241 P2).
+O6  Before I said Yes, opening the Lounge asks once whether Will spotted a strength in my Takes, and the thread is read again when he wrote; after Yes, it never asks (backend N411 items 1, 5).","O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
 O1b -> buzzes and shows the recording at the tap, before the mic opens
 O2 -> keeps a note that cannot go and sends it once when back online
 O4 -> offers only ""# note"" after ""#"", and leaves ""#"" to write on
-O5 -> opens the four steps under the sales question and answers with the one tapped",
+O5 -> opens the four steps under the sales question and answers with the one tapped
+O6 -> asks once for the introduction from my Takes, only before Yes",
 src/components/willab/walk/coachUpdateLens.test.tsx,Story,"As a speaker, I want my coach's changed word to wait for me in the chat under ""Later · from your coach"" and open the walk at my coach's place when I tap it, the same way every bubble opens its step, so that I watch exactly what my coach sent, where it belongs.","O1  The coach's bubble rings while the server says the word is new; a tap
 opens the Take's walk at the coach's step (Step 0 for a general word),
 not a screen of its own; nothing is marked watched by the tap.
@@ -1586,6 +1593,12 @@ O4  Two shown moments on one slide, even in one paragraph, are two moments with 
 O2 -> opens the bubble's own moment, found by its paragraph once moments before it are answered
 O3 -> a corrected moment with nothing attached is said again, not dropped
 O4 -> two moments on one long slide are two moments, each named with that slide",Never-rule 3 (coaches are never in the way of the next Take).
+src/lib/willab/firstTake.test.ts,Story,"As a new speaker whose onboarding is my first Take, I want ""Start your first recording"" to open the recording screens on the five questions at once, and my next Take to be my real talk, so that I practise from the first minute.","O1  The first Take is its own project, ""Your first Take"": its deck the plan's five questions, no length, no PDF; the recording screens open on it at Take 1. If the project can't be made, nothing opens.
+O2  Each question shows its small title above it, found by the question's own words; any other slide has none.
+O3  ""Record Take 2"" from the first Take's project is the real talk: only that project, for that speaker, is the first Take's.","O1 -> ""the first Take is its own project with the five questions as its deck""
+O1 -> ""a project that can't be made opens nothing""
+O2 -> ""each question shows its small title""
+O3 -> ""only the first Take's project leads to the real talk""","Backend N401 items 2 and 4 (the first Take is the onboarding, locked with the prototypes ""The way in"" and ""The first Take""); the rules are docs/flows/the-plan.md."
 src/lib/willab/idealTextDecisions.test.ts,Story,"As a speaker, I want accepting or keeping a suggestion on my Ideal Text saved to the right place for its kind, so that my decision sticks and a suggestion with missing ids sends nothing broken.","O1  A new-take block upgrade goes to blocks/decide, and nowhere else.
 O2  A prior-take change goes to its own route, and nowhere else.
 O3  Every other source rides the per-snippet feedback POST; a coach

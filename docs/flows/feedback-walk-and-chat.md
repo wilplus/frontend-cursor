@@ -385,8 +385,9 @@ step; the loop never waits for a coach.
   improve**: "And now, one thing to improve:" and ONE fix, the slot whose
   tool fits: this week's level's moment on a plan (N289 item 8), else the
   between with its Clearer version (words come first, C5), else the
-  weakest with the AI clip after their best (C4). The AI clip is the
-  weakest's alone: a between whose Clearer version does not pass is left
+  weakest with the AI clip after their best (C4), a moment whose own clip
+  shows a voice problem the clip can teach (N425; with none, no AI clip).
+  The AI clip is the weakest's alone: a between whose Clearer version does not pass is left
   out, so a Take of two paragraphs can end with their best alone (N381);
   the Sniper (T) and no
   moment on a pace or pause week whose Take has a stretch, and for
@@ -510,7 +511,15 @@ praised moment:
   the tip (founder 2026-11-03), "Say this one like your confident moment:", their
   best's clip played again (without words), then the AI bubble: the tip ending ", like this:", the AI
   clip with its label (no opener; no "Your turn.": the "Try it" under it
-  says it, N379 item 3). With no AI clip coming,
+  says it, N379 item 3). The AI clip goes only to a moment whose own clip
+  shows a problem it can teach, against the speaker's own usual on this
+  Take: faster than their usual pace, fewer pauses, a flatter loudness
+  range or more fillers, at the line the clip already uses. It teaches the
+  strongest of these, never the runner-up; with none, the AI clip is not
+  the fix, and there is no "Lean on …" on a guessed phrase (N425). Was: the
+  lowest S × W whatever its voice showed, the clip choosing on its own what
+  to teach, stress on the main point when nothing was measured, and the
+  runner-up about 15 times in 100. With no AI clip coming,
   the rest stands and the try is still theirs (never walked as good, never
   skipped: it is the one thing), and the fix still says what to do (N370):
   one bubble with the same tip as its own sentence ("Pause before
@@ -1089,9 +1098,15 @@ praised moment:
               weakest; the Clearer version when a rewrite passes the gate,
               else a next best; never the AI clip, which is the
               weakest's alone (N381)
-    weakest   = from a block left, the lowest S × W with 8 words or more
-              and a sound read, never one holding its helper words; Line
-              A, the strongest's clip again, the AI clip
+    weakest   = from a block left, the clip whose own voice shows the
+              strongest problem the AI clip can teach (pace, pauses,
+              loudness range, fillers vs the speaker's own usual on this
+              Take, at AI_VOICE_MIN_SEVERITY; a relevant sentence counts
+              a little more, ties to the lower S × W), with 8 words or
+              more and a sound read, never one holding its helper words;
+              none such, no weakest (N425; was: the lowest S × W); Line
+              A, the strongest's clip again, the AI clip teaching that
+              problem
     next      = a slot nothing filled: the next best block, praised
               fewer than three only with fewer blocks, never fewer than
               two with two
@@ -2008,6 +2023,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N425 · C2, C4, H1: the walk's AI clip goes only to a moment whose own clip shows a voice problem it can teach (pace, pauses, loudness range, fillers, against the speaker's own usual on this Take), the strongest such moment, and it teaches that strongest problem, never the runner-up; with none, no AI clip and no "Lean on …" default. Was: the lowest S × W whatever its voice showed, the clip choosing what to teach, stress on the main point when nothing was measured, the runner-up about 15 times in 100 · BE N425 log (#1664), BE #1669, FE (this PR)
+- 2026-11-03 · N417 · E1: the sale's four steps ("Which step did it stall at?") take N371's suggested answers stacked on the right in their order, all four outlined orange and none filled (`TapRow` `even`), since no step is likelier than another; N415 item 2's "the one that goes on filled" does not apply to them. Was: four grey pills, two by two · FE (this PR)
 - 2026-11-03 · N415 · Suggested answers: a lone one ("I want to continue my practice") is outlined, never filled, so it is not taken for a sent message; every ask in Will's chat (the offers' "Not now" and action, the top-up card) takes N371's suggested answers, the one that goes on filled on the right. Was: one filled orange pill; the asks as two equal pills, grey outline and black. Not changed: the consent and policy screens, "Update slides", the one-project question, the WhatsApp number's Save · FE (this PR)
 - 2026-11-03 · N406 · E2, E3, K: who the talk is for, fixed from the founder's screenshot (prototype <https://claude.ai/artifact/NxE1pMJmngj8Q7ZTj9PQDp>, Option A): the goodbye waits under Will's question until it is answered, however it is answered; no "Someone else" under "Who were you talking to? 🎯", their own words go into "Something else" in the bar; Will says who from the speaker's side, "Your team. I'll keep them in mind.", and "I'll keep you in mind." for a talk to themself, then "When you finish, what do you want to do? Or feel? 🤔" with no taps, the key line keeping "your audience". No frontend code. Was: after a typed answer the goodbye came under the next question and cut it off; "Someone else" last, opening "Who is it for, then? 👀"; the words said back as typed, "Myself. I'll keep them in mind." · BE (next PR), docs (this PR)
 - 2026-11-03 · N397 · B6: the walk's bar and each part's name call a slide by its title in the speaker's deck (`slideTitle` on the walk's moment, from the deck's `slideTitles`), "Slide N" when the slide has none. Was: always "Slide N" · BE N397 log (#1653), FE (this PR)
