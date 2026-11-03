@@ -24,6 +24,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const notebookApi = vi.hoisted(() => ({
   getNotebookState: vi.fn(),
+  introFromTakes: vi.fn(async () => false),
   askNotebook: vi.fn(),
   answerNotebook: vi.fn(),
   sendVoiceNote: vi.fn(),
