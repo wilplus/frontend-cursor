@@ -238,7 +238,9 @@ export function useVoiceNote({
     setPhase("recording");
     let stream: MediaStream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: TAKE_MIC_AUDIO });
+      // The voice as it is, but echo cancelling stays on: a chat can be playing
+      // another voice note out loud while this one records.
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { ...TAKE_MIC_AUDIO, echoCancellation: true } });
     } catch {
       startingRef.current = false;
       if (mountedRef.current) setPhase("idle");
