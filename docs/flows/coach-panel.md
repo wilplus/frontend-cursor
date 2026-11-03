@@ -36,9 +36,9 @@ founder's rows are the founder's alone.
 ### B · The door and the queue
 
 - **B1** In the Lounge the bubble "N speakers waiting · Open your queue"
-  opens the queue. Two buttons pinned above the message box, with icons:
-  **Speakers** (every speaker, an orange dot on those waiting) and
-  **Training corpus**.
+  opens the queue. One button pinned above the message box, with its icon:
+  **Speakers** (every speaker, an orange dot on those waiting). **Training
+  corpus** stood beside it until it moved to the CEO panel (N416, H1).
 - **B2** Your queue: your speakers only, the one who sent most recently on
   top, each a card with how many moments wait and an orange dot; an answered
   speaker drops out (2026-10-18). Every card is white; the dot says
@@ -169,7 +169,13 @@ How a coach's blind answer counts, on a speaker's Take (D) or an import
 (H), and every other source the app learns from, is one backend page:
 [`docs/LEARNING-AND-QUORUM.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/LEARNING-AND-QUORUM.md) (N102).
 
-- **H1** From its pinned button: the list of imports ("{n} imports", "{n}
+- **H0** The training corpus is the founder's, in the CEO panel (N416,
+  2026-11-03, while its infrastructure is rebuilt): a **Training corpus**
+  button beside Bugs and Tasks at `/admin/ceo` opens these same screens over
+  the panel, and ✕ comes back. No coach sees it: not the Lounge's pinned
+  button, not the ☰ menu's row; `/coach/corpus` goes to `/admin/ceo`. The
+  backend's corpus endpoints are unchanged.
+- **H1** From its button: the list of imports ("{n} imports", "{n}
   moments to judge"); **Import audio** ("Choose a file", "Audio or video, up
   to 30 minutes", "One recording · it is cut into moments you judge blind");
   the set-up with the corpus page's own fields (what the talk is about,
@@ -222,8 +228,8 @@ How a coach's blind answer counts, on a speaker's Take (D) or an import
 ### J · Words on screen (all signed, CP2 A)
 
 - Queue: "Your speakers · {n} moments waiting"; "Your queue"; "Nobody is
-  waiting for you."; "Open your queue"; "Speakers"; "Training corpus"; "Also
-  waiting · blind".
+  waiting for you."; "Open your queue"; "Speakers"; "Also waiting · blind";
+  "Training corpus" (the CEO panel's button, N416).
 - A speaker: "Goal: …"; "Who it's for: …"; "What they should do: …" (the
   labels from N83, in this place from N87); "{n} of {m} moments waiting";
   "All moments answered"; "Answered"; "Answered · {n} moments"; "Waiting for
@@ -357,7 +363,10 @@ page):
   and Speaking errors pages (I).
 - `src/lib/willab/coachWalkCopy.ts` — the coach walk's words (guarded since N111).
 - `src/lib/willab/coachPanel.ts` — the panel's state (guarded since N111).
-- `src/app/coach/corpus/` — the training corpus for a coach (H) (guarded since N111).
+- `src/app/coach/corpus/` — goes to the CEO panel (H0, N416); its old
+  workbench is kept for the dev harness only (guarded since N111).
+- `src/components/ceo/CeoCorpus.tsx` — the corpus's screens over the CEO
+  panel (H0, N416).
 - `src/app/admin/corpus/` — the training corpus for the founder (H) (guarded since N111).
 
 Frontend, shared (not guarded): `src/components/willab/walk/WalkOverlay.tsx`
@@ -403,6 +412,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N416 · the training corpus moves to the CEO panel while its infrastructure is rebuilt: the Lounge's pinned Training corpus button and the ☰ menu's row are gone for coaches, `/coach/corpus` goes to `/admin/ceo` (B1, H0, J) · BE (N416 log), FE (this PR)
 - 2026-11-02 · N192 · §3: the open line on a later change of the coach's word is closed: it shows in place with "Edited" on the speaker's side (the walk's page D5), built with N192 · docs (this PR)
 - 2026-11-02 · N301 · the coach's grey-blue picture is gone from beside the coach's words (F1), as from every bubble in the app; `WalkAvatar` draws nothing. Was: the grey-blue avatar (N80) · BE (N301 log), FE (this PR)
 - 2026-10-27 · N213 · a speaker's plan reaches the queue and their page: a new plan and their ask picked blind, then What happened; a stuck level answered with the coach's video as their word on the latest Take (K, J) · BE #1415, FE

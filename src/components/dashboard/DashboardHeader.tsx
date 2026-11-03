@@ -71,7 +71,6 @@ export default function DashboardHeader() {
             loggingOut={menu.loggingOut}
             // No Lab row in the lab (backend N367): the logo goes home.
             labHref={null}
-            corpusHref={menu.isCoach ? "/coach/corpus" : null}
             // Every signed-in person (founder 2026-09-25, E4 = A); the
             // menu already hides it from anyone signed out.
             dataConsentHref="/account/data-consent"
