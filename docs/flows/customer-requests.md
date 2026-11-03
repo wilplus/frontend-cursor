@@ -523,7 +523,8 @@ them:
 Built behind ring 6 (feature `chats`, the founder only; 2026-11-02): the
 list of chats in front of the Lounge (C1: Will pinned, then each chat's
 letter circle, title, subtitle, time and last message, newest first, a new
-message bold with an orange dot; the first time, the two demo chats) and a
+message bold with an orange dot; with nobody yet, Will and "Add someone to
+chat with", on the web as in the iPhone app, N401) and a
 chat's screen, the conversation only, under its own top bar in the
 WillpowerLab bar's place, with the day and each message's time, the
 three emoji in the locked bar and the mic beside them for a voice note of
@@ -694,6 +695,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N401 · C1, §2: no demo chats for a newcomer: an empty list is Will and "Add someone to chat with", on the web as in the iPhone app (the list opens with Will alone everywhere); the list no longer asks for the two demo chats, "Sarah" and "Ariel", and the route that seeded them is gone. Was: on the web, an empty list got the two demo chats the first time · FE (this PR)
 - 2026-11-03 · N372 · one voice at a time: playing a voice message pauses the one already playing, and recording a voice note pauses any that plays (`lib/willab/oneVoice.ts`, `plan/VoicePlayer.tsx`, `useVoiceNote.ts`). Was: two could play over each other, and over the mic · BE #1622, FE (this PR)
 - 2026-11-03 · N361, N363, N368 · C1, §2: the page caught up: "Record an answer" stands in the middle of the bar and "Sending to {name}… {n}" with Undo there too (N368), and §2 no longer lists Record an answer as not yet built · docs (this PR)
 - 2026-11-03 · N372 · a voice note records the voice as it is: the browser's automatic gain and noise suppression are asked off, mono, on every browser and the iPhone app (`useVoiceNote.ts`, with `TAKE_MIC_AUDIO` from `src/hooks/useDualCaptureMic.ts`); echo cancelling stays on, since another voice note can be playing out loud. Nothing on screen changes. Was: `audio: true`, which turns all of them on · FE #1167
