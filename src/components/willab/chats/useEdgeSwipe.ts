@@ -1,19 +1,27 @@
 import { useEffect, useRef } from "react";
 
 /* -------------------------------------------------------------------------- */
-/*  The swipe from the left edge, back from a chat (backend N378 item 3).      */
+/*  The swipe from the left edge, back from a chat (backend N378 item 3), and  */
+/*  from the right edge, forward from the list to the chat you just left      */
+/*  (N436).                                                                   */
 /*                                                                            */
-/*  In the iPhone app the system's own back swipe is off, so a chat follows    */
-/*  the finger here: a touch that starts at the left edge and moves right      */
-/*  drags the screen (`onMove`), and on release goes back when it went far     */
-/*  enough or fast enough (`onEnd(true)`), else springs back (`onEnd(false)`). */
-/*  Safari has its own swipe, so this is for the app only (the caller says).   */
+/*  In the iPhone app the system's own swipes are off, so the screen follows   */
+/*  the finger here: a touch that starts at the `from` edge and moves away     */
+/*  from it drags the screen (`onMove`, how far), and on release goes when it  */
+/*  went far enough or fast enough (`onEnd(true)`), else springs back          */
+/*  (`onEnd(false)`). Safari has its own swipes, so this is for the app only   */
+/*  (the caller says).                                                         */
 /* -------------------------------------------------------------------------- */
 
 const EDGE_PX = 24;
 const DECIDE_PX = 8;
 
-export function useEdgeSwipe(enabled: boolean, onMove: (dx: number) => void, onEnd: (back: boolean) => void): void {
+export function useEdgeSwipe(
+  enabled: boolean,
+  onMove: (dx: number) => void,
+  onEnd: (go: boolean) => void,
+  from: "left" | "right" = "left",
+): void {
   const moveRef = useRef(onMove);
   moveRef.current = onMove;
   const endRef = useRef(onEnd);
@@ -31,13 +39,14 @@ export function useEdgeSwipe(enabled: boolean, onMove: (dx: number) => void, onE
     };
     const onStart = (e: TouchEvent) => {
       const t = e.touches[0];
-      if (e.touches.length !== 1 || !t || t.clientX > EDGE_PX) return;
+      const atEdge = t && (from === "left" ? t.clientX <= EDGE_PX : t.clientX >= window.innerWidth - EDGE_PX);
+      if (e.touches.length !== 1 || !t || !atEdge) return;
       start = { x: t.clientX, y: t.clientY, at: Date.now() };
     };
     const onTouchMove = (e: TouchEvent) => {
       const t = e.touches[0];
       if (!start || !t) return;
-      dx = Math.max(0, t.clientX - start.x);
+      dx = Math.max(0, from === "left" ? t.clientX - start.x : start.x - t.clientX);
       if (!dragging) {
         // Up or down first: a scroll, not a swipe.
         if (Math.abs(t.clientY - start.y) > DECIDE_PX && Math.abs(t.clientY - start.y) > dx) return stop();
@@ -64,5 +73,5 @@ export function useEdgeSwipe(enabled: boolean, onMove: (dx: number) => void, onE
       window.removeEventListener("touchend", onFinish);
       window.removeEventListener("touchcancel", onFinish);
     };
-  }, [enabled]);
+  }, [enabled, from]);
 }
