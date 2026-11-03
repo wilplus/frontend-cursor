@@ -144,7 +144,10 @@ step; the loop never waits for a coach.
   No bubble carries a button (N294 item 7): once the speaker chooses to
   continue after the goodbye, "Record Take N" stands alone in the message
   box's place, the plan's black button with the red dot ("Start your first
-  recording"'s shape), the message box and the mic gone (N296 state 4, D4).
+  recording"'s shape), the message box and the mic gone (N296 state 4, D4),
+  24 px under the last bubble with a grey ✕ on its right, no background and
+  no outline. The ✕ closes it and the bar comes back for that Take, until
+  the chat is opened again or a newer Take's goodbye offers the next (N395).
   With a plan, under the plan card, in place of "Type here", there is only
   "Start your first recording" (N161), the one button before the first
   Take, under no question (N319 item 2; [`the-plan.md`](the-plan.md) E5).
@@ -754,7 +757,9 @@ praised moment:
      the speaker's own bubble and brings "Record Take N" under the chat,
      alone (B3, N294 item 7, N296 state 4), which opens the text as its
      own button does (the sharing question first from Take 2, G). The
-     speaker may simply close the app; the "+" still opens the projects.
+     speaker may simply close the app, or close the button with its grey ✕
+     and have the bar back (N395); the "+" still opens the projects, and
+     the Take's card still opens its Ideal Text with its own "Record Take N".
      A practice day's one thing, newer than the goodbye, holds the chat's
      one record button: [`the-plan.md`](the-plan.md) G6.
 
@@ -1977,6 +1982,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N395 · Record buttons; after the goodbye: the chat's one "Record Take N" stands 24 px under the last bubble (was 8) with a grey ✕ on its right, no background and no outline; the ✕ closes it and the bar comes back ("+", "Type here", the mic) for that Take, until the chat is opened again or a newer Take's goodbye offers the next. No new words. Was: alone, with no way to close it but recording · BE #1647, FE (this PR)
 - 2026-11-03 · N391 · E1: notifications come in a bar at the top of the chat, never in the buttons under it: the next visit's WhatsApp ask and the CEO panel's WhatsApp, consent, promo (web only) and lesson asks, one at a time, ✕ for Not now, WhatsApp and consent opening their form as a sheet from the top; the home-screen ask is deleted everywhere. Was: WhatsApp and the home screen written in the chat at the next visit with their form in the footer (N294 item 8, N295); the CEO panel's asks the Take's one ask from Take 2, in the footer · BE (next PR), FE (this PR)
 - 2026-11-03 · N309, N374 · B6, C3, C9: in the One thing walk the bar names the fix's slide again during the helper words and "Lesson done." (their best's slide with no fix, "Tempo" with the Sniper), as the locked prototype's `carry()` does (`dots(3)`; X4gDmGfHH7ivuoRZ9ufiy9). Was: the helper words had no name, so the bar kept the last one, "Other speakers" from Take 2 · FE (this PR)
 - 2026-11-03 · — · T: in the One thing walk, the Sniper's Skip moves the walk on at once, after a try too, as the locked prototype's `skip()` does (founder, the Claude Code chat, 2026-11-03: "so it really matches the design and the prototype"). Was: Skip after a try closed the game on a Next · FE (this PR)

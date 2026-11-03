@@ -254,10 +254,11 @@ export function usePlanLounge({
   const newestOne = state?.enabled ? newestOneOf(thread.messages) : null;
   const one = plan && kind === null ? newestOne : null;
   // What stands in for the message box: the one button after the plan card,
-  // a call's calendar, the recording bar while an answer is said, a practice
-  // day's Take. While the plan asks, the Lounge's bar stays ("+", "Type
-  // here", the mic).
-  const replaces = kind === "start" || kind === "book" || voice.recording || one !== null;
+  // a call's calendar, the recording bar while an answer is said. While the
+  // plan asks, the Lounge's bar stays ("+", "Type here", the mic). A
+  // practice day's Take is the chat's one "Record Take N", which hides the
+  // bar itself until its ✕ closes it (`useRecordTake`, N395).
+  const replaces = kind === "start" || kind === "book" || voice.recording;
   const openBook = (which: CallWhich) => {
     setSheet(null);
     setBooking(which);
