@@ -142,13 +142,45 @@ function VoiceWords({ words, mine }: { words: string; mine: boolean }) {
   );
 }
 
+/** The slides an answer was said over, in a strip under its voice (backend
+ *  N355, N333): one small tile each, the one being heard marked as the
+ *  voice plays. No words and no numbers on it. */
+function SlideStrip({ starts, at, mine }: { starts: readonly number[]; at: number | null; mine: boolean }) {
+  let current = -1;
+  if (at !== null) {
+    for (let i = 0; i < starts.length; i += 1) if (starts[i] <= at) current = i;
+  }
+  return (
+    <span data-chat-slides="" className="mt-1.5 flex flex-wrap gap-[3px]" aria-hidden>
+      {starts.map((start, i) => (
+        <span
+          key={`${start}-${i}`}
+          data-chat-slide={i === current ? "on" : ""}
+          className={`block h-[26px] w-[26px] rounded-[5px] ${
+            i === current ? (mine ? "bg-white" : "bg-foreground") : mine ? "bg-white/40" : "bg-[#D4D4D4]"
+          }`}
+        />
+      ))}
+    </span>
+  );
+}
+
 /** A voice note (N321 item 2), in the same bubble: the plan's small player
  *  (play, the drawn bars, the length), its time bottom right, and its words
  *  behind "Read it" once they are ready (N331). */
 function ChatVoice({ chatId, message, time }: { chatId: string; message: ChatMessage; time: string }) {
   const ms = typeof message.meta?.duration_ms === "number" ? message.meta.duration_ms : null;
   const words = typeof message.words === "string" && message.words.trim() ? message.words : null;
-  const player = <VoicePlayer src={chatVoiceSrc(chatId, message.id)} tone={message.mine ? "orange" : "grey"} durationMs={ms} />;
+  const slides = message.meta?.answer === true && Array.isArray(message.slides) ? message.slides : [];
+  const [at, setAt] = useState<number | null>(null);
+  const player = (
+    <VoicePlayer
+      src={chatVoiceSrc(chatId, message.id)}
+      tone={message.mine ? "orange" : "grey"}
+      durationMs={ms}
+      onTime={slides.length ? setAt : undefined}
+    />
+  );
   const stamp = time ? (
     <span
       data-chat-time
@@ -163,6 +195,7 @@ function ChatVoice({ chatId, message, time }: { chatId: string; message: ChatMes
         {player}
         {stamp}
       </span>
+      {slides.length ? <SlideStrip starts={slides} at={at} mine={message.mine} /> : null}
       {words ? <VoiceWords words={words} mine={message.mine} /> : null}
     </>
   );

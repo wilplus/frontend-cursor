@@ -527,7 +527,10 @@ O14 The other person's photo or file waits for my voice: the mic shows. A
 file shows a tile with its extension and its own name, and downloads
 from the chat's file route; a photo opens full size with a close and
 no words; the list's line is ""📷"", or ""📄"" and the file's name (N351).
-O15 A question Will marked as about a product or a treatment takes one
+O15 An answer sent to me is one message (N355): its voice, the slides it
+was said over in a strip that marks the one being heard as it plays,
+and its words closed behind ""Read it""; no Take number.
+O16 A question Will marked as about a product or a treatment takes one
 black ""Record an answer"" in the bar's place (N321 item 4, N361); it
 hands the recording screens the chat, the person and the question.
 Back from them, my answer reads ""Sending to {name}…"" with Undo, then
@@ -546,7 +549,8 @@ O11 -> ""in the app, the loader, not the Lounge, waits for the list; both reads 
 O12 -> ""the + shows the four tiles, Someone else opens my link, and Cancel brings the bar back""
 O13 -> ""a photo I send joins the thread and the mic shows until my voice note says what I need""
 O14 -> ""the other person's photo or file waits for my voice, and each opens from the chat's file route""
-O15 -> ""a marked question takes Record an answer, and my answer goes with Sending, Undo and Sent""",
+O15 -> ""an answer sent to me plays with its slides following the voice, its words behind Read it""
+O16 -> ""a marked question takes Record an answer, and my answer goes with Sending, Undo and Sent""",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.
