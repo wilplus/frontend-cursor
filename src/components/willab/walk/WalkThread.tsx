@@ -115,8 +115,11 @@ export function WalkPart({ now, fresh = now, children }: { now: boolean; fresh?:
   );
 }
 
-/** A step's name at the top of its part. */
-export function WalkThreadMark({ label }: { label: string }) {
+/** A step's name at the top of its part. `quiet`: the One thing walk's,
+ *  never seen (backend N435 item 1: the bar names the slide, the thread
+ *  does not), a place with no height that the bar and ‹ › still read. */
+export function WalkThreadMark({ label, quiet = false }: { label: string; quiet?: boolean }) {
+  if (quiet) return <p data-walk-mark={label} aria-hidden="true" className="m-0 -mb-4 h-0 overflow-hidden" />;
   return (
     <p data-walk-mark={label} className="m-0 pt-1 text-center text-[12.5px] text-muted-foreground">
       {label}
@@ -299,7 +302,7 @@ export function WalkLanding({
               }}
               data-walk-land
               hidden={hidden}
-              className="walk-bubble-in"
+              className="walk-bubble-in empty:hidden"
             >
               {kid}
             </div>

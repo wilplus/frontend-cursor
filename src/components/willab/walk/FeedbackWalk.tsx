@@ -3,7 +3,7 @@
 import { reasonRuns, type PraiseReason, type WalkPraiseReasons } from "@/lib/willab/praiseReason";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { answerBody, helperWordsSaid, skipReply, type OthersLevel, type WalkTempoLine } from "@/lib/willab/walkThread";
+import { answerBody, helperWordsSaid, skipReply, withoutOpeningFillers, type OthersLevel, type WalkTempoLine } from "@/lib/willab/walkThread";
 import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
@@ -170,10 +170,11 @@ type Props<R> = {
    *  on a clearer version: the host writes the speaker's decision through
    *  the accept lane. The walk moves on at once; it never waits on the
    *  write. `label`: the words the speaker tapped, for their bubble. */
-  onAcceptClearer?: (item: R, label?: string) => void;
+  onAcceptClearer?: (item: R, label?: string | null) => void;
   /** "Keep my words" (the One thing walk's "Keep mine"): the host records
    *  the decline; the speaker's own sentence is practised. */
-  onKeepWords?: (item: R, label?: string) => void;
+  /** `label` null: the One thing walk's tap, no message (backend N452). */
+  onKeepWords?: (item: R, label?: string | null) => void;
   /** The practise's calls (open, upload, check). Without them a practise
    *  screen is never reached: "Accept and practise" goes past it. */
   practise?: WalkPractiseIO<R> | null;
@@ -264,6 +265,9 @@ type Props<R> = {
   othersLevel?: OthersLevel | null;
   /** The Sniper's helper words, when its stretch's words can be (N309). */
   tempoWords?: FeedbackWalkTempoWords | null;
+  /** The Sniper's slide, as the bar names a slide (its title from the deck,
+   *  else "Slide N"; backend N435 item 7); null: "Tempo". */
+  tempoSlide?: string | null;
   /** The helper words saved on a paragraph: the finished walk shows them. */
   helperWordsOf?: ((partId: string) => string | null) | null;
   /** "Close" under "Lesson done." (N309 item 4): the review is over; the
@@ -371,6 +375,7 @@ export default function FeedbackWalk<R = unknown>({
   lastTime = null,
   othersLevel = null,
   tempoWords = null,
+  tempoSlide = null,
   helperWordsOf = null,
   onLessonDone,
 }: Props<R>) {
@@ -783,7 +788,8 @@ export default function FeedbackWalk<R = unknown>({
       if (opener?.key === "clearer" && moment.clearer) {
         const tried = plan.find((x) => x.key === "practise" && x.moment === s.of);
         if (!tried) return null;
-        if (tried.kind === "keep") return own(moment, moment.clearer.said);
+        // Their own sentence, without the hesitations it opens with (N435 item 5).
+        if (tried.kind === "keep") return own(moment, withoutOpeningFillers(moment.clearer.said));
         const sentence = moment.clearer.say.trim();
         const practice = practise.practiceOf(moment.index);
         if (!sentence || !practice) return null;
@@ -855,7 +861,8 @@ export default function FeedbackWalk<R = unknown>({
     accept: (s, moment) => {
       if (s.replay) return forward();
       if (blocked(s) || !moment.clearer) return;
-      if (s.one) onAcceptClearer?.(moment.clearer.item, ONE_THING_COPY.tryIt);
+      // The One thing walk's tap is no message, in the walk or the chat (N452).
+      if (s.one) onAcceptClearer?.(moment.clearer.item, null);
       else onAcceptClearer?.(moment.clearer.item);
       answer(s, "accept");
       // "Accept and practise" opens the recorder on the new words; it
@@ -867,7 +874,7 @@ export default function FeedbackWalk<R = unknown>({
     keep: (s, moment) => {
       if (s.replay) return forward();
       if (blocked(s) || !moment.clearer) return;
-      if (s.one) onKeepWords?.(moment.clearer.item, ONE_THING_COPY.keepMine);
+      if (s.one) onKeepWords?.(moment.clearer.item, null);
       else onKeepWords?.(moment.clearer.item);
       answer(s, "keep");
       // "Keep my words" practises the speaker's own sentence with Line A
@@ -914,6 +921,7 @@ export default function FeedbackWalk<R = unknown>({
     tempo,
     tempoSaid,
     onTempo,
+    tempoSlide,
     othersLevel,
     fixWords: (s) => fixWords(s),
     saveWords: (s, words) => {
@@ -1069,6 +1077,8 @@ type ScreenCtx<R = unknown> = {
   tempo: TempoStretch | null;
   tempoSaid: readonly WalkTempoLine[];
   onTempo?: (event: TempoEvent, one?: boolean) => void;
+  /** The Sniper's slide for the bar (backend N435 item 7). */
+  tempoSlide: string | null;
   /** The One thing walk's one judged moment's level (N309 item 2). */
   othersLevel: OthersLevel | null;
   /** The One thing walk's helper words after its fix (N309 item 3). */
@@ -1819,6 +1829,7 @@ function Tempo(ctx: ScreenCtx, step: WalkStep) {
         onClose={ctx.close}
         onEvent={(event) => ctx.onTempo?.(event, step.one === true)}
         one={step.one === true}
+        mark={tempoMark(ctx, step)}
       />
     </TempoOrKept>
   );
@@ -1904,12 +1915,18 @@ function partLabel(ctx: ScreenCtx, step: WalkStep): string | null {
   if (step.key === "words") {
     const of = step.of == null ? undefined : ctx.walk.moments[step.of];
     if (of) return slideName(of);
-    return ctx.walk.plan.some((s) => s.key === "tempo") ? TEMPO_COPY.mark : null;
+    return ctx.walk.plan.some((s) => s.key === "tempo") ? tempoMark(ctx, step) : null;
   }
   if (step.key === "others" || step.key === "done") return null;
-  if (step.key === "tempo") return TEMPO_COPY.mark;
+  if (step.key === "tempo") return tempoMark(ctx, step);
   const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];
   return moment ? (stepNav(ctx, step, moment).position ?? null) : null;
+}
+
+/** The Sniper's name in the bar: as the One thing walk's fix, its slide
+ *  (backend N435 item 7); otherwise, or with no slide found, "Tempo". */
+function tempoMark(ctx: ScreenCtx, step: WalkStep): string {
+  return (step.one && ctx.tempoSlide) || TEMPO_COPY.mark;
 }
 
 /** Helper words picked again in this Take: their answer, in place, says
@@ -1978,19 +1995,23 @@ function renderThread<R>(
   const standing = parts.findIndex((p) => p.at >= at);
   const now = standing >= 0 ? standing : parts.length - 1;
   let last: string | null = null;
+  // The One thing walk: the bar names the slide, the thread does not, and
+  // the speaker's taps add no bubble (backend N435 items 1 and 2).
+  const oneWalk = ctx.walk.plan.some((s) => s.one);
   return parts.map((part, i) => {
     const step = ctx.walk.plan[part.at];
     const label = partLabel(ctx, step);
-    const mark = label && label !== last ? <WalkThreadMark label={label} /> : null;
+    const mark = label && label !== last ? <WalkThreadMark label={label} quiet={oneWalk} /> : null;
     last = step.key === "others" ? null : (label ?? last);
     const start = threadStart(ctx.walk.plan, part.at);
     // A practise thread is drawn at its last step, which can be a try only
     // planned (after "Close. Once more."): the speaker's answer is the
     // thread's latest one, so a Skip given there still shows (N405).
     const by = answeredIn(ctx, start, part.at);
-    const said = answerSaid(ctx, by);
+    // The One thing walk adds no bubble for the speaker's tap (N435 item 2).
+    const said = by.one ? null : answerSaid(ctx, by);
     // The walk's answer to Skip on the One thing walk's fix (N405).
-    const reply = said ? skipReply(by, ctx.answered(by)) : null;
+    const reply = skipReply(by, ctx.answered(by));
     const lead = momentLead(ctx.walk.plan, start >= 0 ? start : part.at);
     const opener = ctx.walk.plan[start >= 0 ? start : part.at];
     // "And now, one thing to improve:" above the One thing walk's fix (N309).

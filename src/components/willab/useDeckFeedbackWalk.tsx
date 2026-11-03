@@ -74,7 +74,7 @@ import { useRingState } from "@/hooks/useRingState";
 import { postTempoGame } from "@/services/api/reviewTempo";
 import { askWalkQuote, replayWalkQuote, setWalkQuote, walkQuoteShown } from "@/services/api/walkQuote";
 import type { WalkQuoteIO } from "./walk/useWalkQuote";
-import { TEMPO_COPY, TEMPO_STEP_FEATURE, afterTry, oneThingTempoLines, type TempoEvent } from "@/lib/willab/tempoStep";
+import { TEMPO_COPY, TEMPO_STEP_FEATURE, afterTry, oneThingTempoLines, tempoOpening, type TempoEvent } from "@/lib/willab/tempoStep";
 
 /* -------------------------------------------------------------------------- */
 /*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
@@ -845,6 +845,14 @@ export function useDeckFeedbackWalk(args: {
     const words = text && chunk ? sniperWords(chunk.part.text, text) : null;
     return chunk && words ? { partId: chunk.part.id, paragraphText: chunk.part.text, text: words.text, span: words.span } : null;
   }, [tempo, chunks]);
+  /* The Sniper's slide, for the walk's bar (N435 item 7): the slide of the
+     paragraph that says its stretch, by its title from the deck (N397). */
+  const tempoSlide = useMemo<string | null>(() => {
+    const text = tempo?.said.stretch.trim();
+    const chunk = text ? chunks.find((c) => c.part.text.includes(text)) : undefined;
+    if (!chunk) return null;
+    return slideTitle?.(chunk.part.id)?.trim() || slideLabel(chunk.part.id) || null;
+  }, [tempo, chunks, slideTitle, slideLabel]);
   /* WHY THE GREEN MOMENT LANDED (founder 2026-10-18): a green clip that
      reached the page before its reason was written is asked for here, and
      the walk draws it once it is in. */
@@ -893,7 +901,9 @@ export function useDeckFeedbackWalk(args: {
         post({ key, moment: null, attempt, author, body, extra });
       if (event.kind === "opened") {
         const words = one ? tempoWords : null;
-        say("tempo:open", "app", [TEMPO_COPY.game[tempo.reading], TEMPO_COPY.task(tempo.topic), TEMPO_COPY.room].join("\n"), null, words ? { fix_tip: ONE_THING_COPY.paceTip(words.text) } : undefined);
+        // As the walk opens it (N435 item 6): a rushed Sniper's one line.
+        const opening = tempoOpening(tempo, one);
+        say("tempo:open", "app", [...opening.lines, ...(opening.withScale ? [opening.withScale] : [])].join("\n"), null, words ? { fix_tip: ONE_THING_COPY.paceTip(words.text) } : undefined);
       } else if (event.kind === "try") {
         say("tempo:try", "speaker", TEMPO_COPY.tryLabel(event.n), event.n, { path: event.path.slice(0, 300).map((v) => Math.round(v * 1000) / 1000) });
         // The Sniper as the One thing walk's fix says its own words (N309).
@@ -904,8 +914,9 @@ export function useDeckFeedbackWalk(args: {
         // too, as the walk draws it (#1183). The Sniper then answers Skip
         // (N405).
         if (!event.close || (one && event.skipped)) {
-          say("tempo:skip", "speaker", TEMPO_COPY.skip);
+          // As the One thing walk's fix, the walk's answer alone (N452 item 1).
           if (one) say("tempo:skipped", "app", ONE_THING_COPY.skipped);
+          else say("tempo:skip", "speaker", TEMPO_COPY.skip);
         }
         else if (!one && !event.tries.some((t) => t.landed)) say("tempo:close", "app", TEMPO_COPY.close[event.close]);
         const arcId = args.arcId ?? null;
@@ -1299,15 +1310,17 @@ export function useDeckFeedbackWalk(args: {
       CHUNK_SHEET_COPY.failWordsBehind,
     );
   }, [post]);
-  const acceptClearer = useCallback((item: DocumentSuggestion, label?: string) => {
-    post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: label ?? CHUNK_SHEET_COPY.pillAcceptPractise });
+  const acceptClearer = useCallback((item: DocumentSuggestion, label?: string | null) => {
+    // The One thing walk's "Try it" and "Keep mine" post nothing (N452 item 1).
+    if (label !== null) post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: label ?? CHUNK_SHEET_COPY.pillAcceptPractise });
     // The coach's version is practised, never written on the text.
     if (coachVersionOf(item)) return;
     const { onAccept, saveBehind } = live.current;
     saveBehind(() => acceptRewriteBehind(onAccept, item), CHUNK_SHEET_COPY.failApply);
   }, [post]);
-  const keepWords = useCallback((item: DocumentSuggestion, label?: string) => {
-    post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: label ?? CHUNK_SHEET_COPY.linkKeepMyWords });
+  const keepWords = useCallback((item: DocumentSuggestion, label?: string | null) => {
+    // The One thing walk's "Try it" and "Keep mine" post nothing (N452 item 1).
+    if (label !== null) post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: label ?? CHUNK_SHEET_COPY.linkKeepMyWords });
     if (coachVersionOf(item)) return;
     const { onKeepMine, saveBehind } = live.current;
     saveBehind(() => keepWordsBehind(onKeepMine, item), CHUNK_SHEET_COPY.failKeep);
@@ -1544,8 +1557,9 @@ export function useDeckFeedbackWalk(args: {
       const body = answerBody(step, value);
       const part_id = step.moment != null ? (walkModel.moments[step.moment]?.partId ?? null) : null;
       if (body) post({ key: `answer:${step.key}`, moment: step.moment ?? null, attempt: step.attempt ?? null, author: "speaker", body, extra: { part_id } });
-      // The walk's answer to Skip on the One thing walk's fix (N405).
-      const reply = body ? skipReply(step, value) : null;
+      // The walk's answer to Skip on the One thing walk's fix (N405), with
+      // no "Skip" of the speaker's above it (N452 item 1).
+      const reply = skipReply(step, value);
       if (reply) post({ key: `skipped:${step.key}`, moment: step.moment ?? null, attempt: step.attempt ?? null, author: "app", body: reply });
       // Continue on the coach's word: the one "watched" (N80, D4), in the
       // live walk, the coach-only walk (WhatsApp, email, the dot card) and
@@ -1608,6 +1622,7 @@ export function useDeckFeedbackWalk(args: {
           lastTime={lastTime}
           othersLevel={othersLevel}
           tempoWords={tempoWords}
+          tempoSlide={tempoSlide}
           helperWordsOf={helperWordsOf ?? null}
           onLessonDone={onLessonDone}
         />
@@ -1647,6 +1662,7 @@ export function useDeckFeedbackWalk(args: {
       lastTime,
       othersLevel,
       tempoWords,
+      tempoSlide,
       helperWordsOf,
       onLessonDone,
     ],

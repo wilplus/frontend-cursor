@@ -508,17 +508,9 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     expect(screen()).toBe("walk-screen-clearer");
     await click(live()!.querySelector("[data-testid='walk-keep']"));
     expect(p.onKeepMine).toHaveBeenCalled();
-    // Their own sentence, on the recorder, which has no Skip (founder
-    // 2026-11-03): two tries nothing answers, then Next.
+    // Their own sentence, on the recorder; its trash is the Skip (N435 item 3).
     expect(screen()).toBe("walk-screen-practise");
-    expect(live()!.querySelector("[data-testid='walk-skip']")).toBeNull();
-    const stop = () => click(live()!.querySelector("[data-walk-dock] button[aria-label='Stop']"));
-    await stop();
-    await act(async () => undefined);
-    await click(live()!.querySelector("[data-testid='walk-again']"));
-    await stop();
-    await act(async () => undefined);
-    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    await click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
     await act(async () => undefined);
     // The helper words, on their own: "retention went up", their own words,
     // through the deck's save (the lock, then the words), no picker.
@@ -566,10 +558,12 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     expect(opening?.fix_tip).toBe(ONE_THING_COPY.paceTip(stretch));
     // Its scale names its three zones, left to right (N405).
     expect([...live()!.querySelectorAll("[data-walk-scale-ends] span")].map((n) => n.textContent)).toEqual([...TEMPO_COPY.ends]);
-    // Skip: their "Skip", then the walk's answer to it, in the walk and in the chat (N405).
+    // Skip: the walk's answer to it, in the walk and in the chat (N405), with
+    // no "Skip" of the speaker's in either (N435 item 2, N452 item 1).
     await click(live()!.querySelector("[data-testid='walk-tempo-skip']"));
     expect(live()!.querySelector("[data-walk-skip-reply]")!.textContent).toBe(ONE_THING_COPY.skipped);
     const told = append.mock.calls.map(([draft]) => draft as { body: string; metadata: Record<string, unknown> });
     expect(told.find((d) => d.metadata.step === "tempo:skipped")?.body).toBe(ONE_THING_COPY.skipped);
+    expect(told.find((d) => d.metadata.step === "tempo:skip")).toBeUndefined();
   });
 });

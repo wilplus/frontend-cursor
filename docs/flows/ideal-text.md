@@ -463,6 +463,8 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N452 · `idealEditCopy.ts` gains the slow Sniper's signed line (`ONE_THING_COPY.keepItMoving`, "You slowed down here. Keep it moving."); nothing on the Ideal Text page changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) §6 · FE (this PR)
+- 2026-11-03 · N435 · `idealEditCopy.ts` gains the One thing walk's two signed lines (`ONE_THING_COPY.keepWords`, "Your words it is."; `letItBreathe`, "You rushed here. Let it breathe."); nothing on the Ideal Text page changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) §6 · FE (#1209)
 - 2026-11-03 · N440 · the helper-words card's Edit chip (`ParagraphSheet.tsx`) and the overlay's Delete (`HelperWordsSheet.tsx`) answer a tap 44 px tall; was the 26 px chip and the 20 px word. They look the same · FE (this PR)
 - 2026-11-03 · N401 · a deckless deck in its own words draws its slide tile from the slide's own title, as the recording screen draws it (`DeckSlidePreview` `slideTitle`, `DeckSlideThumb`, `TranscriptReviewDeck`): the first Take's five questions show as its slides, each with its small title, instead of the stand-in deck's pictures; the stand-in deck's titles still draw its pictures · BE N401, FE (this PR)
 - 2026-11-03 · N397 · the page hands the Feedback walk each paragraph's slide title from the deck's `slideTitles` (`TranscriptReviewDeck.tsx`, `partTitle`), so the walk's bar names a slide by its title; the page itself is unchanged · BE N397 log (#1653), FE (this PR; the walk's page B6)

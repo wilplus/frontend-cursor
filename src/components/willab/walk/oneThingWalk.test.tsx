@@ -8,7 +8,8 @@ OUTCOME
   O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after "Try it", my own after "Keep mine"; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
   O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, my answer as my own reply with a tick, then "Got it."; after it the bar names my fix's slide again for the helper words and "Lesson done."; on Take 1 I judge no one.
   O6  My best's clip and the AI clip's fix show my own words above the player, as the prototype draws them; my best played again inside the fix shows none.
-  O7  Skip on the fix gets the walk's answer under my "Skip": "Okay, we'll skip this one.", then it goes on (backend N405).
+  O7  Skip on the fix gets the walk's answer: "Okay, we'll skip this one.", then it goes on (backend N405); while I record, the trash is the Skip, and my taps add no bubble of mine (backend N435 items 2 and 3).
+  O8  The thread shows no slide names, the bar does; after "Keep mine" the walk says "Your words it is." and my helper words leave out the hesitations my sentence opens with; the Sniper opens with "You rushed here. Let it breathe." in the scale's bubble and the bar names its slide (backend N435).
 PROVES   O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
          O2 -> the helper words come on their own and are saved without a pick,
                the Clearer version's sentence is saved from its practice,
@@ -16,13 +17,16 @@ PROVES   O1 -> walks hello, their best and why it worked, then one thing to impr
                with no fix, my best's own words are my helper words, saved without a pick (N374)
                the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does
          O3 -> Lesson done and Close end the review, back to the chat
-         O7 -> the helper words come on their own and are saved without a pick
+         O7 -> the helper words come on their own and are saved without a pick,
+               the Clearer version's sentence is saved from its practice
+         O8 -> the helper words come on their own and are saved without a pick,
+               the Sniper opens with one line in the scale's bubble, its slide in the bar
          O5 -> a try is my clip with the words I was asked to say, and nothing shows in the thread while I record
          O4 -> from Take 2, one moment of another speaker, of the Take's level, answered as my own reply,
                then the bar names the fix's slide again for the helper words and Lesson done,
                Take 1 judges no one
          O6 -> my best's clip and the AI clip's fix show my own words, my best played again shows none
-WHY      Founder 2026-10-31 (backend N309: "apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take"; "ok, this finally good"); 2026-11-02 ("please implement"; backend N323: "you can allow helper words to be longer than 8 words"); 2026-11-03 (backend N374: a walk with no fix left no helper words; "go with the recommendations"); 2026-11-03 ("so it really matches the design and the prototype": the clips' words, prototype X4gDmGfHH7ivuoRZ9ufiy9).
+WHY      Founder 2026-10-31 (backend N309: "apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take"; "ok, this finally good"); 2026-11-02 ("please implement"; backend N323: "you can allow helper words to be longer than 8 words"); 2026-11-03 (backend N374: a walk with no fix left no helper words; "go with the recommendations"); 2026-11-03 ("so it really matches the design and the prototype": the clips' words, prototype X4gDmGfHH7ivuoRZ9ufiy9); 2026-11-03 (backend N435, on the prototype beside the app: "remove the skip - cause trash acts like a skip", "rest is fien do it").
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -71,7 +75,7 @@ const OPENS = {
 } as never;
 
 const CUE = "Smooth and steady, no stumbling. That sounded confident!";
-const SAID = "So I think we're seeing traction.";
+const SAID = "So, um, I think we're seeing traction.";
 const CLEARER = "We're already seeing real traction.";
 const ITEMS: FeedbackWalkItem<string>[] = [
   {
@@ -115,8 +119,8 @@ function draw(request: FeedbackWalkRequest | null, over: Over = {}) {
     onEnd: vi.fn<() => void>(),
     onClose: vi.fn<() => void>(),
     onLessonDone: vi.fn<() => void>(),
-    onKeepWords: vi.fn<(item: string, label?: string) => void>(),
-    onAcceptClearer: vi.fn<(item: string, label?: string) => void>(),
+    onKeepWords: vi.fn<(item: string, label?: string | null) => void>(),
+    onAcceptClearer: vi.fn<(item: string, label?: string | null) => void>(),
     ...rest,
   };
   act(() => root.render(<FeedbackWalk<string> {...props} />));
@@ -174,34 +178,39 @@ describe("the One thing walk (N309)", () => {
   it("the helper words come on their own and are saved without a pick", async () => {
     const props = draw({ seq: 1, at: at("clearer") });
     click(testId("walk-keep"));
-    expect(props.onKeepWords).toHaveBeenCalledWith("s-rewrite", ONE_THING_COPY.keepMine);
-    expect(said()).toContain(ONE_THING_COPY.keepMine);
-    // No Skip on the recorder (founder 2026-11-03).
+    // Their choice is saved, with no message of theirs in the walk or the chat (N435 item 2, N452 item 1).
+    expect(props.onKeepWords).toHaveBeenCalledWith("s-rewrite", null);
+    expect(said()).toEqual([]);
+    expect(text()).toContain(ONE_THING_COPY.keepWords);
+    expect(text()).not.toContain(WALK_COPY.keepWords);
+    // While it records: the bar alone, no Skip; its trash is the Skip (N435 item 3).
     expect(screen()).toBe("walk-screen-practise");
     expect(testId("walk-skip")).toBeNull();
-    // A try that misses: "Close. Once more." with Try it and Skip (C7);
-    // Skip there gets their "Skip" and the walk's answer (N405).
-    answer = "again";
-    click(live()!.querySelector("[data-walk-dock] button[aria-label='Stop']"));
+    click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
     await settle();
-    await settle();
-    click(testId("walk-skip"));
-    await settle();
-    expect(said()).toContain(WALK_COPY.skip);
+    // The walk's answer to it (N405), and they still leave with their own
+    // words, without the hesitations they open with (N435 item 5).
+    expect(said()).toEqual([]);
     expect(live()!.querySelector("[data-walk-skip-reply]")!.textContent).toBe(ONE_THING_COPY.skipped);
     expect(props.onSaveHelperWords).toHaveBeenCalledTimes(1);
-    expect(props.onSaveHelperWords).toHaveBeenCalledWith(expect.objectContaining({ partId: "p2", auto: true, span: expect.objectContaining({ text: SAID }) }));
+    expect(props.onSaveHelperWords).toHaveBeenCalledWith(
+      expect.objectContaining({ partId: "p2", auto: true, span: expect.objectContaining({ text: "I think we're seeing traction." }) }),
+    );
     expect(text()).toContain(ONE_THING_COPY.helperWords);
-    expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe("So I think we're seeing traction");
+    expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe("I think we're seeing traction");
     expect(screen()).toBe("walk-screen-done");
+    // No slide name in the thread: the bar has it (N435 item 1).
+    expect([...live()!.querySelectorAll("[data-walk-mark]")].map((m) => m.textContent)).toEqual(["", ""]);
+    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Slide 2");
   });
 
   it("the Clearer version's sentence is saved from its practice", async () => {
     const props = draw({ seq: 1, at: at("clearer") });
     click(testId("walk-forward"));
-    expect(props.onAcceptClearer).toHaveBeenCalledWith("s-rewrite", ONE_THING_COPY.tryIt);
+    expect(props.onAcceptClearer).toHaveBeenCalledWith("s-rewrite", null);
     await settle();
-    await landTry();
+    click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
+    await settle();
     expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe(CLEARER);
     expect(props.onSaveHelperWords).toHaveBeenCalledWith(
       expect.objectContaining({ partId: "p2", auto: true, practiceId: "pr-1", span: { text: CLEARER, start: null, end: null } }),
@@ -243,7 +252,8 @@ describe("the One thing walk (N309)", () => {
     const props = draw({ seq: 1, at: model.plan.findIndex((s) => s.key === "clearer") }, { model });
     click(testId("walk-forward"));
     await settle();
-    await landTry();
+    click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
+    await settle();
     expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe(twelve);
     expect(props.onSaveHelperWords).toHaveBeenCalledWith(
       expect.objectContaining({ partId: "p2", auto: true, practiceId: "pr-1", span: { text: twelve, start: null, end: null } }),
@@ -265,8 +275,17 @@ describe("the One thing walk (N309)", () => {
   it("the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does", async () => {
     const model = buildFeedbackWalk<string>({ items: [ITEMS[0]], coachNote: false, practiceOn: true, guest: false, judge: false, interventions: ["tempo"] });
     const onTempo = vi.fn();
-    draw({ seq: 1, at: model.plan.findIndex((s) => s.key === "tempo") }, { model, tempo: TEMPO_STAND_IN, onTempo });
+    draw({ seq: 1, at: model.plan.findIndex((s) => s.key === "tempo") }, { model, tempo: TEMPO_STAND_IN, onTempo, tempoSlide: "The cost" });
     expect(screen()).toBe("walk-screen-tempo");
+    // One line, in the scale's bubble, and its slide in the bar (N435 items 6 and 7).
+    expect([...now()!.querySelectorAll("[data-walk-tempo-lead]")].map((n) => n.textContent)).toEqual([ONE_THING_COPY.letItBreathe]);
+    expect(now()!.querySelector("[data-walk-tempo-lead]")!.parentElement!.querySelector("[data-walk-scale-ends]")).not.toBeNull();
+    expect(text()).not.toContain(TEMPO_COPY.room);
+    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("The cost");
+    // A slow stretch opens with its own one line (N452 item 2).
+    draw({ seq: 2, at: model.plan.findIndex((s) => s.key === "tempo") }, { model, tempo: { ...TEMPO_STAND_IN, reading: "slow" }, onTempo: vi.fn() });
+    expect([...now()!.querySelectorAll("[data-walk-tempo-lead]")].map((n) => n.textContent)).toEqual([ONE_THING_COPY.keepItMoving]);
+    draw({ seq: 3, at: model.plan.findIndex((s) => s.key === "tempo") }, { model, tempo: TEMPO_STAND_IN, onTempo, tempoSlide: "The cost" });
     // One try that misses, then Skip: no Next to press, the walk goes on.
     click(testId("walk-tempo-ready"));
     await settle();
@@ -275,6 +294,9 @@ describe("the One thing walk (N309)", () => {
     click(testId("walk-tempo-skip"));
     await settle();
     expect(screen()).not.toBe("walk-screen-tempo");
+    // The walk's answer, no "Skip" of theirs (N435 item 2).
+    expect(said()).not.toContain(TEMPO_COPY.skip);
+    expect(live()!.querySelector("[data-walk-skip-reply]")!.textContent).toBe(ONE_THING_COPY.skipped);
     // What the game was is still Will's: the try, then its end.
     const ended = onTempo.mock.calls.map(([event]) => event).find((event) => event.kind === "ended");
     expect(ended?.tries).toHaveLength(1);
