@@ -512,7 +512,12 @@ praised moment:
   stay; once the first try has begun, a clip not yet seen is never shown
   above it (a walk played again shows what is there). Was: the dots stood
   in the player's place as long as the clip took, up to about two and a
-  half minutes, and a clip could land above a try in progress. Was (2026-10-31 to 2026-11-03): with no clip the tip
+  half minutes, and a clip could land above a try in progress. The words
+  land with the walk's bubble motion, once per wording, never swapping in
+  place; and "Say this one like your confident moment:" is said only with
+  their best's clip after it, in the walk and the chat (N377). Was: the AI
+  bubble changed into the words with no motion, and the line could end on
+  a colon with nothing after it. Was (2026-10-31 to 2026-11-03): with no clip the tip
   went with it, and the exercise's video was never drawn in this walk. Was (N289 item 2, below): **The weakest**
   (founder, 2026-10-30, N289 item 2). It is never
   called weak. Its bubbles: "Here's one with more in it." (signed, N289 item
@@ -1929,6 +1934,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-03 · N374 · built (C0a, C2, C3, H1): a short Take keeps its one fix: when the between's Clearer version does not pass and no paragraph is left for the weakest (a Take of two), that moment takes the AI clip itself (8 words or more and a sound read), for Takes recorded from 3 November 2026, 11:00 UTC (backend `VOICE_FALLBACK_FROM`); and every walk leaves helper words: when the fix gives none (no fix, a tip that quotes no phrase, a stretch past eight words), their best's own words, whole, with the same line. Was: the between was praised as a next best and left out, so a new speaker's first Take showed their best alone, with no fix and no helper words · BE (the pick), FE (this PR)
+- 2026-11-03 · N377 · built (C4): the fix's no-clip words land with `walk-bubble-in`, once per wording (`FixWords`, `useLandsOnce`); "Say this one like your confident moment:" only when their best's clip follows, in the walk and the chat (`fixBest`; the chat's body now comes whole from the walk). Was: a swap with no motion, and a colon that could point at nothing · FE (this PR)
 - 2026-11-03 · N373 · built (C4): the fix waits ten seconds on a clip still being made, then says its tip in words (N370's bubble), a clip that comes later joining as its player alone; once the first try began, a clip not yet seen never lands above it (`AI_CLIP_WAIT_MS`, `useClipWait`, `useClipBeforeTry`). Was: the dots as long as the clip took, and a late clip above the try · FE (this PR)
 - 2026-11-03 · N370 · built (C4): the One thing walk's fix with no AI clip (its check failed, the provider or the limits refused, no voice) keeps its tip in words, the exercise's video and instruction when one is served, and "Your turn.", in the walk and the chat; "Last time" keeps the tip; the backend sends what the clip would fix with an unavailable clip once it was chosen. Was: the bubble, and the tip with it, went with the clip · BE #1621, FE (this PR)
 - 2026-11-03 · N371 · E1: suggested answers, one rule for the whole app (`TapRow`): above the bar on the right, at least 44px high, 15px; the most likely last, nearest the thumb, filled orange (Will's question lists it first from the backend, so it is drawn last); two side by side, three or four stacked one per line, more than four the last three and "Show more"; a quiet "Not now" never the filled one. While Will's question waits and typing is allowed, the bar's middle is "Something else", shaped like the box, and a tap opens the box with "Type your answer"; the mic beside it answers by voice as before. Was: small outlined taps in one wrapping row, and "Type here" while Will asked · FE (this PR)

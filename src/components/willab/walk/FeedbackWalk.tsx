@@ -23,7 +23,7 @@ import WalkSummary, { type WalkStoredSummary } from "./WalkSummary";
 import WalkTempo from "./WalkTempo";
 import WalkTempoSaid from "./WalkTempoSaid";
 import { TEMPO_COPY, type TempoEvent, type TempoStretch } from "@/lib/willab/tempoStep";
-import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, AI_CLIP_WAIT_MS, useClipBeforeTry, useClipWait, type AiVoiceLines } from "./WalkAiVoice";
+import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, AI_CLIP_WAIT_MS, useClipBeforeTry, useClipWait, useLandsOnce, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
@@ -534,8 +534,10 @@ export default function FeedbackWalk<R = unknown>({
     const lines = practiceId
       ? aiVoiceComing(plan, i, practise.aiVoiceOf(s.moment), (bank) => sayLine(s, bank), ownLine(s))
       : null;
-    // The One thing walk's fix says its line above the bubble (N309).
-    return lines && practiceId ? { ...lines, ...(s.one ? { lead: ONE_THING_COPY.likeConfident } : {}), practiceId } : null;
+    // The One thing walk's fix says its line above the bubble (N309), only
+    // when their best's clip follows it (N377 item 2).
+    const lead = s.one && fixBest(walk.moments, s.moment) ? { lead: ONE_THING_COPY.likeConfident } : {};
+    return lines && practiceId ? { ...lines, ...lead, practiceId } : null;
   };
   /** A voice correction with nothing to offer (founder 2026-10-21, N108):
    *  no exercise served and no AI clip, live once its ask came back without
@@ -664,7 +666,10 @@ export default function FeedbackWalk<R = unknown>({
       // walk drew, and "Last time" keeps its tip (N370). With a clip on its
       // way, the same lines are the chat's words should it never come.
       const noClip = s.one ? oneThingNoClip(say, practise.aiVoiceOf(s.moment)?.clip, moment?.exercise) : null;
-      shownRef.current?.(s, moment, say, ai, noClip?.lines.join("\n") ?? null, ai ? null : (noClip?.tip ?? null));
+      // The line above it only with their best's clip after it (N377 item 2).
+      const like = s.one && fixBest(walk.moments, s.moment) ? [ONE_THING_COPY.likeConfident] : [];
+      const body = s.one ? [...like, ...(noClip?.lines ?? [])].join("\n") || null : null;
+      shownRef.current?.(s, moment, say, ai, body, ai ? null : (noClip?.tip ?? null));
     });
   });
   // The bare correction's Exercise and practise leave the live walk once its
@@ -1536,16 +1541,21 @@ function useFixClip<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
  *  this:", the clip, "Your turn.". With no AI clip coming, the rest stands
  *  and the try is still theirs. */
 function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkStep; moment: FeedbackWalkMoment<R> }) {
-  const best = ctx.walk.moments.find((m) => m.slot === "strongest" && m.clip && m.index !== moment.index);
+  const best = fixBest(ctx.walk.moments, moment.index);
   const { state, seed, lines, latePlayer, noClip } = useFixClip(ctx, step, moment);
   return (
     <>
       <LevelHere moment={moment} />
       <Clip moment={moment} />
-      <WalkMessage>
-        <span data-walk-like>{ONE_THING_COPY.likeConfident}</span>
-      </WalkMessage>
-      {best ? <Clip moment={best} replay={best.slideLabel ?? COPY.pagerMoment} /> : null}
+      {/* The line ends on a colon: only with their best's clip after it (N377 item 2). */}
+      {best ? (
+        <>
+          <WalkMessage>
+            <span data-walk-like>{ONE_THING_COPY.likeConfident}</span>
+          </WalkMessage>
+          <Clip moment={best} replay={best.slideLabel ?? COPY.pagerMoment} />
+        </>
+      ) : null}
       {lines ? (
         <WalkAiVoice
           seed={seed}
@@ -1555,26 +1565,41 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
           onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
         />
       ) : null}
-      {noClip ? (
-        <WalkMessage coach={noClip.byCoach} wide={Boolean(noClip.video)}>
-          {noClip.video ? (
-            <CoachVideo
-              src={noClip.video}
-              className="mb-2 w-full max-h-[300px] flex-none [&>video]:aspect-[4/5] [&>video]:max-h-[300px] [&>video]:object-cover"
-            />
-          ) : null}
-          {noClip.lines.map((l, i) => (
-            <span key={i} data-walk-no-clip>
-              {l}
-            </span>
-          ))}
-        </WalkMessage>
-      ) : null}
+      {noClip ? <FixWords seed={`${seed}-words:${noClip.video ?? ""}:${noClip.lines.join("|")}`} words={noClip} /> : null}
       {latePlayer ? (
         <WalkAiVoice seed={`${seed}-late`} state={state} line="" arrive onPlay={() => ctx.practise.aiVoicePlayed(moment.index)} />
       ) : null}
       <CoachAnswerBubble moment={moment} />
     </>
+  );
+}
+
+/** Their best's clip, the fix's example (N309): the Take's strongest with a
+ *  clip, never the fix itself; none when there is no such clip. Pure. */
+function fixBest<R>(moments: readonly FeedbackWalkMoment<R>[], fix: number): FeedbackWalkMoment<R> | undefined {
+  return moments.find((m) => m.slot === "strongest" && m.clip && m.index !== fix);
+}
+
+/** The fix's words with no AI clip (N370): the exercise's video, the tip,
+ *  the instruction, "Your turn.". They land with the walk's bubble motion,
+ *  never swapping in place: once per wording in the page's life, so new
+ *  words land and the same words drawn again do not (N377 item 1). */
+function FixWords({ seed, words }: { seed: string; words: NonNullable<ReturnType<typeof oneThingNoClip>> }) {
+  const lands = useLandsOnce(seed);
+  return (
+    <WalkMessage coach={words.byCoach} wide={Boolean(words.video)} className={lands ? "walk-bubble-in" : undefined}>
+      {words.video ? (
+        <CoachVideo
+          src={words.video}
+          className="mb-2 w-full max-h-[300px] flex-none [&>video]:aspect-[4/5] [&>video]:max-h-[300px] [&>video]:object-cover"
+        />
+      ) : null}
+      {words.lines.map((l, i) => (
+        <span key={i} data-walk-no-clip>
+          {l}
+        </span>
+      ))}
+    </WalkMessage>
   );
 }
 
