@@ -200,7 +200,7 @@ export default function WalkOthers({
           <WalkLoading />
         ) : (
           <>
-            <WalkThreadMark label={from ?? WALK_COPY.othersTitle} />
+            <WalkThreadMark label={from ?? WALK_COPY.othersTitle} quiet />
             <WalkMessage>
               <span data-walk-judge-intro>{ONE_THING_COPY.judgeIntro}</span>
             </WalkMessage>

@@ -508,17 +508,9 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     expect(screen()).toBe("walk-screen-clearer");
     await click(live()!.querySelector("[data-testid='walk-keep']"));
     expect(p.onKeepMine).toHaveBeenCalled();
-    // Their own sentence, on the recorder, which has no Skip (founder
-    // 2026-11-03): two tries nothing answers, then Next.
+    // Their own sentence, on the recorder; its trash is the Skip (N435 item 3).
     expect(screen()).toBe("walk-screen-practise");
-    expect(live()!.querySelector("[data-testid='walk-skip']")).toBeNull();
-    const stop = () => click(live()!.querySelector("[data-walk-dock] button[aria-label='Stop']"));
-    await stop();
-    await act(async () => undefined);
-    await click(live()!.querySelector("[data-testid='walk-again']"));
-    await stop();
-    await act(async () => undefined);
-    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    await click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
     await act(async () => undefined);
     // The helper words, on their own: "retention went up", their own words,
     // through the deck's save (the lock, then the words), no picker.

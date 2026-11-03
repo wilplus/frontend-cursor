@@ -74,7 +74,7 @@ import { useRingState } from "@/hooks/useRingState";
 import { postTempoGame } from "@/services/api/reviewTempo";
 import { askWalkQuote, replayWalkQuote, setWalkQuote, walkQuoteShown } from "@/services/api/walkQuote";
 import type { WalkQuoteIO } from "./walk/useWalkQuote";
-import { TEMPO_COPY, TEMPO_STEP_FEATURE, afterTry, oneThingTempoLines, type TempoEvent } from "@/lib/willab/tempoStep";
+import { TEMPO_COPY, TEMPO_STEP_FEATURE, afterTry, oneThingTempoLines, tempoOpening, type TempoEvent } from "@/lib/willab/tempoStep";
 
 /* -------------------------------------------------------------------------- */
 /*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
@@ -845,6 +845,14 @@ export function useDeckFeedbackWalk(args: {
     const words = text && chunk ? sniperWords(chunk.part.text, text) : null;
     return chunk && words ? { partId: chunk.part.id, paragraphText: chunk.part.text, text: words.text, span: words.span } : null;
   }, [tempo, chunks]);
+  /* The Sniper's slide, for the walk's bar (N435 item 7): the slide of the
+     paragraph that says its stretch, by its title from the deck (N397). */
+  const tempoSlide = useMemo<string | null>(() => {
+    const text = tempo?.said.stretch.trim();
+    const chunk = text ? chunks.find((c) => c.part.text.includes(text)) : undefined;
+    if (!chunk) return null;
+    return slideTitle?.(chunk.part.id)?.trim() || slideLabel(chunk.part.id) || null;
+  }, [tempo, chunks, slideTitle, slideLabel]);
   /* WHY THE GREEN MOMENT LANDED (founder 2026-10-18): a green clip that
      reached the page before its reason was written is asked for here, and
      the walk draws it once it is in. */
@@ -893,7 +901,9 @@ export function useDeckFeedbackWalk(args: {
         post({ key, moment: null, attempt, author, body, extra });
       if (event.kind === "opened") {
         const words = one ? tempoWords : null;
-        say("tempo:open", "app", [TEMPO_COPY.game[tempo.reading], TEMPO_COPY.task(tempo.topic), TEMPO_COPY.room].join("\n"), null, words ? { fix_tip: ONE_THING_COPY.paceTip(words.text) } : undefined);
+        // As the walk opens it (N435 item 6): a rushed Sniper's one line.
+        const opening = tempoOpening(tempo, one);
+        say("tempo:open", "app", [...opening.lines, ...(opening.withScale ? [opening.withScale] : [])].join("\n"), null, words ? { fix_tip: ONE_THING_COPY.paceTip(words.text) } : undefined);
       } else if (event.kind === "try") {
         say("tempo:try", "speaker", TEMPO_COPY.tryLabel(event.n), event.n, { path: event.path.slice(0, 300).map((v) => Math.round(v * 1000) / 1000) });
         // The Sniper as the One thing walk's fix says its own words (N309).
@@ -1608,6 +1618,7 @@ export function useDeckFeedbackWalk(args: {
           lastTime={lastTime}
           othersLevel={othersLevel}
           tempoWords={tempoWords}
+          tempoSlide={tempoSlide}
           helperWordsOf={helperWordsOf ?? null}
           onLessonDone={onLessonDone}
         />
@@ -1647,6 +1658,7 @@ export function useDeckFeedbackWalk(args: {
       lastTime,
       othersLevel,
       tempoWords,
+      tempoSlide,
       helperWordsOf,
       onLessonDone,
     ],

@@ -154,7 +154,7 @@ export default function WalkOverlay({
   if (part) {
     return (
       <>
-        <div data-walk-part data-testid={part.now ? testId : undefined} className="flex flex-col gap-4">
+        <div data-walk-part data-testid={part.now ? testId : undefined} className="flex flex-col gap-4 empty:hidden">
           <WalkLanding on={lands && part.now} onSettled={setSettled}>
             {children}
           </WalkLanding>

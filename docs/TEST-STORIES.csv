@@ -1278,19 +1278,23 @@ O3  The walk ends on ""Lesson done."" with Close, which ends the review and take
 O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after ""Try it"", my own after ""Keep mine""; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
 O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, my answer as my own reply with a tick, then ""Got it.""; after it the bar names my fix's slide again for the helper words and ""Lesson done.""; on Take 1 I judge no one.
 O6  My best's clip and the AI clip's fix show my own words above the player, as the prototype draws them; my best played again inside the fix shows none.
-O7  Skip on the fix gets the walk's answer under my ""Skip"": ""Okay, we'll skip this one."", then it goes on (backend N405).","O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
+O7  Skip on the fix gets the walk's answer: ""Okay, we'll skip this one."", then it goes on (backend N405); while I record, the trash is the Skip, and my taps add no bubble of mine (backend N435 items 2 and 3).
+O8  The thread shows no slide names, the bar does; after ""Keep mine"" the walk says ""Your words it is."" and my helper words leave out the hesitations my sentence opens with; the Sniper opens with ""You rushed here. Let it breathe."" in the scale's bubble and the bar names its slide (backend N435).","O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
 O2 -> the helper words come on their own and are saved without a pick,
 the Clearer version's sentence is saved from its practice,
 a Clearer version past eight words is saved whole as my helper words (N323 item 2),
 with no fix, my best's own words are my helper words, saved without a pick (N374)
 the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does
 O3 -> Lesson done and Close end the review, back to the chat
-O7 -> the helper words come on their own and are saved without a pick
+O7 -> the helper words come on their own and are saved without a pick,
+the Clearer version's sentence is saved from its practice
+O8 -> the helper words come on their own and are saved without a pick,
+the Sniper opens with one line in the scale's bubble, its slide in the bar
 O5 -> a try is my clip with the words I was asked to say, and nothing shows in the thread while I record
 O4 -> from Take 2, one moment of another speaker, of the Take's level, answered as my own reply,
 then the bar names the fix's slide again for the helper words and Lesson done,
 Take 1 judges no one
-O6 -> my best's clip and the AI clip's fix show my own words, my best played again shows none","Founder 2026-10-31 (backend N309: ""apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take""; ""ok, this finally good""); 2026-11-02 (""please implement""; backend N323: ""you can allow helper words to be longer than 8 words""); 2026-11-03 (backend N374: a walk with no fix left no helper words; ""go with the recommendations""); 2026-11-03 (""so it really matches the design and the prototype"": the clips' words, prototype X4gDmGfHH7ivuoRZ9ufiy9)."
+O6 -> my best's clip and the AI clip's fix show my own words, my best played again shows none","Founder 2026-10-31 (backend N309: ""apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take""; ""ok, this finally good""); 2026-11-02 (""please implement""; backend N323: ""you can allow helper words to be longer than 8 words""); 2026-11-03 (backend N374: a walk with no fix left no helper words; ""go with the recommendations""); 2026-11-03 (""so it really matches the design and the prototype"": the clips' words, prototype X4gDmGfHH7ivuoRZ9ufiy9); 2026-11-03 (backend N435, on the prototype beside the app: ""remove the skip - cause trash acts like a skip"", ""rest is fien do it"")."
 src/components/willab/walk/walkCopy.test.ts,Guard,"Every word the walk can show comes from the signed copy, and no signed walk line carries a digit.","Never 4: a literal word typed into a walk/*.tsx primitive (JSX text,
 a string child, an accessible name, title, placeholder) that is not in
 WALK_COPY or CHUNK_SHEET_COPY. Never 1: a digit in a signed walk line
