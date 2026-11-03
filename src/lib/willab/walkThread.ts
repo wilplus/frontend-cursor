@@ -12,7 +12,7 @@
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "@/components/willab/idealEditCopy";
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import type { RootPhraseSpan } from "@/services/api/partLock";
-import type { FeedbackWalkMoment, WalkStepTarget } from "./feedbackWalkModel";
+import type { FeedbackWalkMoment, ReplayFixClip, WalkStepTarget } from "./feedbackWalkModel";
 import { shareChoiceOf, ticksOf, type ShareChoiceMeta } from "./nextTakeShare";
 import { HELPER_WORDS_MAX, quoteSpan } from "./phraseTokens";
 import { isFiller } from "./liveNoteWords";
@@ -318,6 +318,23 @@ export function lastFixTip(
     if (!found || index >= found.index) found = { index, tip: meta.fix_tip };
   }
   return found && found.index === takeIndex - 1 ? found.tip : null;
+}
+
+/** The One thing walk's fix as `take`'s chat kept it, by the moment's
+ *  paragraph: the practice whose AI clip it showed (`ai_voice.practice_id`)
+ *  and the tip it said (`fix_tip`). A walk played again reads the clip by
+ *  it, or says the tip in words (N373 item 2). Pure. */
+export function fixClipsIn(messages: readonly LoungeMessage[], take: string): ReadonlyMap<string, ReplayFixClip> {
+  const out = new Map<string, ReplayFixClip>();
+  for (const m of messages) {
+    const meta = m.metadata ?? {};
+    if (m.kind !== "walk_step" || meta.take_session_id !== take || meta.step !== "exVideo" || typeof meta.part_id !== "string") continue;
+    const ai = meta.ai_voice && typeof meta.ai_voice === "object" ? (meta.ai_voice as Record<string, unknown>) : null;
+    const practiceId = typeof ai?.practice_id === "string" && ai.practice_id ? ai.practice_id : null;
+    const tip = typeof meta.fix_tip === "string" && meta.fix_tip.trim() ? meta.fix_tip.trim() : null;
+    if (practiceId || tip) out.set(meta.part_id, { practiceId, tip });
+  }
+  return out;
 }
 
 /** How many of other speakers' moments the speaker judged in `take`'s walk:

@@ -71,7 +71,7 @@ WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12);
 */
 import { describe, expect, it } from "vitest";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "@/components/willab/idealEditCopy";
-import { aiVoiceChat, answerBody, chatDrawsStep, chatWalks, coachNoteToChat, feedbackWalkDoor, inPairs, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, shareChat, shareLines, shownStep, sniperWords, stableUuid, storedSummaryOf, walkPairs, walkStepDraft, wordsEditedIn } from "./walkThread";
+import { aiVoiceChat, answerBody, chatDrawsStep, chatWalks, coachNoteToChat, feedbackWalkDoor, fixClipsIn, inPairs, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, shareChat, shareLines, shownStep, sniperWords, stableUuid, storedSummaryOf, walkPairs, walkStepDraft, wordsEditedIn } from "./walkThread";
 import { tipSaid } from "./walkLines";
 import { readLastFix } from "@/services/api/reviewLastFix";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -131,6 +131,26 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
       "Last time: give “Above ninety percent, every week” more room. You did.",
     );
     expect(readLastFix({ kind: "tempo", clip: { url: "https://media/t5.wav" } })?.kind).toBe("tempo");
+  });
+
+  it("a walk played again finds its fix's AI clip and tip as the chat kept them (N373 item 2)", () => {
+    const ai = aiVoiceChat({ line: "Pause before “ten”, like this:", practiceId: "pr-fix" });
+    const row = (extra: Record<string, unknown>, step = "exVideo"): LoungeMessage => ({
+      ...walkStepDraft({ take: "t2", arcId: "arc-1", key: step, moment: 1, attempt: null, author: "app", body: ai.body, extra }),
+      client_id: `${step}-${String(extra.part_id)}`,
+      client_created_at: "2026-11-03T10:00:00Z",
+    }) as LoungeMessage;
+    const thread = [
+      row({ ...ai.extra, part_id: "p2", fix_tip: "Pause before “ten”" }),
+      row({ part_id: "p3", fix_tip: "Lean on “ninety”" }),
+      row({ part_id: "p4" }),
+      row({ part_id: "p5", fix_tip: "Say it straight" }, "clearer"),
+    ];
+    const kept = fixClipsIn(thread, "t2");
+    expect(kept.get("p2")).toEqual({ practiceId: "pr-fix", tip: "Pause before “ten”" });
+    expect(kept.get("p3")).toEqual({ practiceId: null, tip: "Lean on “ninety”" });
+    expect([...kept.keys()]).toEqual(["p2", "p3"]);
+    expect(fixClipsIn(thread, "t3").size).toBe(0);
   });
 
   it("counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles", () => {

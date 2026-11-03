@@ -122,6 +122,17 @@ function replayClipPractice(plan: readonly WalkStep[], at: number, replayOf: (mo
   return (start >= 0 && plan[start].key === "exVideo") || clearerLane ? replayOf(here.moment) ?? null : null;
 }
 
+/** The moments of the One thing walk's fixes a walk played again draws:
+ *  each one's clip is read once, wherever the walk opens (N373 item 2: "a
+ *  walk played again shows what is there"). */
+const replayedFixes = (plan: readonly WalkStep[]): number[] =>
+  plan.flatMap((s) => (s.one && s.replay && !s.readOnly && s.key === "exVideo" && s.moment != null ? [s.moment] : []));
+
+/** A clip read for a walk played again is kept when it plays, or, on the
+ *  One thing walk's fix, when it names the problem its tip is for. */
+const keptOnReplay = (clip: AiVoiceState["clip"], fix: boolean): boolean =>
+  clip?.state === "ready" || (fix && clip?.state === "unavailable" && Boolean(clip.problem));
+
 /** The practise kind the AI clip is asked for on this screen, or null. The
  *  voice Exercise, with or without an exercise attached (the moment said
  *  again asks too, founder 2026-10-14), and a clearer version's practise of
@@ -243,29 +254,35 @@ export function useWalkPractise<R>(args: {
   useEffect(() => {
     const { io: practiseIO, plan: p, at: i, moments: ms, blocked: guestOnly, replayPracticeOf: replayOf } = live.current;
     const here = p[i];
-    if (here?.moment == null || guestOnly(here)) return;
-    // A replayed exercise only reads the clip it already has (founder
-    // 2026-10-15: an exercise already done plays its tries); nothing is
-    // made, and a play is not counted. A read-only walk asks nothing.
-    if (here.replay || here.readOnly) {
-      // Any screen of the exercise's thread: a try tapped in the chat opens
-      // on its last answer, with the Exercise above it.
-      const practiceId = replayClipPractice(p, i, replayOf);
-      if (!practiceId || aiAsked.current.has(here.moment)) return;
-      const index = here.moment;
+    /** The clip a screen played again already has, read once per moment;
+     *  nothing is made, and a play is not counted. */
+    const readOnce = (index: number, practiceId: string | null | undefined, fix: boolean) => {
+      if (!practiceId || aiAsked.current.has(index)) return;
       aiAsked.current.add(index);
       // Asking until the read is back, so the chat writes the bubble the
       // replay shows (founder 2026-10-20).
       aiWaiting.current.add(index);
       void readAiVoice(practiceId).then((read) => {
         aiWaiting.current.delete(index);
-        if (read.ok && read.data.clip?.state === "ready") {
-          aiPractice.current.set(index, practiceId);
+        if (read.ok && keptOnReplay(read.data.clip, fix)) {
+          if (read.data.clip?.state === "ready") aiPractice.current.set(index, practiceId);
           setAiVoice((v) => ({ ...v, [index]: read.data }));
         } else {
           setAiVoice((v) => ({ ...v }));
         }
       });
+    };
+    // Every One thing fix played again, wherever the open walk stands: its
+    // part is drawn above or below the step opened on (N373 item 2).
+    if (here && here.overlay !== false) for (const index of replayedFixes(p)) readOnce(index, replayOf(index), true);
+    if (here?.moment == null || guestOnly(here)) return;
+    // A replayed exercise only reads the clip it already has (founder
+    // 2026-10-15: an exercise already done plays its tries). A read-only
+    // walk asks nothing.
+    if (here.replay || here.readOnly) {
+      // Any screen of the exercise's thread: a try tapped in the chat opens
+      // on its last answer, with the Exercise above it.
+      readOnce(here.moment, replayClipPractice(p, i, replayOf), false);
       return;
     }
     if (!practiseIO) return;

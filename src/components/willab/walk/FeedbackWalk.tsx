@@ -511,7 +511,8 @@ export default function FeedbackWalk<R = unknown>({
     blocked,
     relay,
     readLimitMs,
-    replayPracticeOf: (moment) => replayTries?.[moment]?.practiceId,
+    // Its tries' practice, else the One thing fix's as the chat kept it.
+    replayPracticeOf: (moment) => replayTries?.[moment]?.practiceId ?? walk.replay?.clips?.[moment]?.practiceId,
   });
   // What the speaker now sees, for the host (D-FW-19): only once the walk
   // was asked open, and only an overlay screen; with its AI bubble, once
@@ -1575,7 +1576,9 @@ function useFixClip<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
   // No AI clip coming (its check failed, the provider or the limits
   // refused, no voice yet), or one waited out: the tip in words, and the
   // exercise's video and instruction when one is served (N370).
-  const noClip = lines || ctx.practise.aiVoiceAsking(moment.index) ? null : oneThingNoClip(say, state?.clip, moment.exercise);
+  // Played again with no clip naming a tip: the tip the chat kept (N373 item 2).
+  const kept = step.replay ? (ctx.walk.replay?.clips?.[moment.index]?.tip ?? null) : null;
+  const noClip = lines || ctx.practise.aiVoiceAsking(moment.index) ? null : oneThingNoClip(say, state?.clip, moment.exercise, kept);
   return { state, seed, lines, latePlayer, noClip };
 }
 

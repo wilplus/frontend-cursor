@@ -5,6 +5,7 @@ import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
 import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, praiseChat, shownStep, skipReply, sniperWords, storedSummaryOf, tempoSaidIn, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { fixClipsIn } from "@/lib/willab/walkThread";
 import type { WalkIntervention, WalkStep } from "@/lib/willab/walkPlan";
 import { tipSaid, type WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
@@ -1021,6 +1022,9 @@ export function useDeckFeedbackWalk(args: {
       ),
     [storedSummary, othersJudged],
   );
+  // The One thing walk's fix as the chat kept it: its AI clip's practice and
+  // its tip, so a walk played again shows them (N373 item 2).
+  const fixKept = useMemo(() => (threadMessages && take ? fixClipsIn(threadMessages, take) : null), [threadMessages, take]);
   const [triedByPractice, setTriedByPractice] = useState<Readonly<Record<string, ReplayTries | null>>>({});
   const askedPractices = useRef(new Set<string>());
   useEffect(() => {
@@ -1067,10 +1071,16 @@ export function useDeckFeedbackWalk(args: {
           const practiceId = momentPracticeId(moment);
           return practiceId ? (triedByPractice[practiceId] ?? null) : null;
         },
+        // The fix's clip by the moment's own practice, else the one the chat kept.
+        clipOf: (moment) => {
+          const kept = fixKept?.get(moment.partId);
+          const practiceId = momentPracticeId(moment) ?? kept?.practiceId ?? null;
+          return practiceId || kept?.tip ? { practiceId, tip: kept?.tip ?? null } : null;
+        },
         interventions: replayInterventions,
         judge: judgesOne,
       }),
-    [replayItems, replayReady, coachMessage, practiceOn, helperWordsOf, triedByPart, triedByPractice, args.coachOnly, args.coachWordOnly, replayInterventions, judgesOne],
+    [replayItems, replayReady, coachMessage, practiceOn, helperWordsOf, triedByPart, triedByPractice, fixKept, args.coachOnly, args.coachWordOnly, replayInterventions, judgesOne],
   );
   /* THE WHOLE TAKE'S WALK AS IT STANDS (founder 2026-10-21, B10: every door
      opens the whole walk, "live while that step waits"): what is answered as
