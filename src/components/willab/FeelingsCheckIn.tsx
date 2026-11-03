@@ -14,6 +14,10 @@ import { clearFeeling, recordFeeling, type Feeling } from "./willabFeelings";
 /*  feelings and a faded Skip under Calm. Naming the state is the point — it   */
 /*  takes the edge off the mic. The pick is kept for the coach; nothing is     */
 /*  said back. Only a signed-in speaker is asked; a guest goes straight on.    */
+/*                                                                            */
+/*  Before a later Take, whose set-up is restored, only the Take follows: the  */
+/*  bar has two marks, this screen and then the Take (founder 2026-11-03,      */
+/*  backend N392). Was the ✕ alone.                                            */
 /* -------------------------------------------------------------------------- */
 
 const FEELINGS: { key: Feeling; label: string }[] = [
@@ -22,6 +26,9 @@ const FEELINGS: { key: Feeling; label: string }[] = [
   { key: "calm", label: "Calm" },
   { key: "unsure", label: "Not sure" },
 ];
+
+/** The marks when the set-up is restored: this screen, then the Take (N392). */
+const MARKS_BEFORE_TAKE = 2;
 
 /** The pick shows for a beat, then the set-up opens. Short enough to stay
  *  inside the tap's activation window, which the mic start after it needs. */
@@ -36,7 +43,7 @@ export default function FeelingsCheckIn({
   /** Signed in. A guest is never asked (backend N272). */
   ask: boolean;
   /** The set-up's steps that follow this one; 0 when the project's setup is
-   *  restored, and the bar then holds the ✕ alone. */
+   *  restored, and the bar then holds two marks, this one and the Take. */
   setupSteps: number;
   /** `shown`: the screen was on screen (a feeling or Skip), so the set-up
    *  counts it as its first step. */
@@ -76,7 +83,7 @@ export default function FeelingsCheckIn({
   return (
     <div className="flex flex-1 flex-col">
       <WizardProgress
-        count={setupSteps > 0 ? setupSteps + 1 : 0}
+        count={setupSteps > 0 ? setupSteps + 1 : MARKS_BEFORE_TAKE}
         current={0}
         trailing={<WizardCancel onClick={onCancel} ariaLabel="Close" />}
       />
