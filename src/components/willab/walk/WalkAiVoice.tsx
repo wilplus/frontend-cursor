@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { phrasePieces } from "@/lib/willab/walkLines";
 import { WALK_COPY } from "../idealEditCopy";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "../TypingDots";
 import WalkMessage from "./WalkMessage";
@@ -215,6 +216,7 @@ export default function WalkAiVoice({
   lead,
   line,
   then,
+  bold = null,
   arrive = false,
   onPlay,
 }: {
@@ -225,6 +227,8 @@ export default function WalkAiVoice({
   state: AiVoiceState | undefined;
   line: string;
   then?: string;
+  /** The One thing walk's fix: the phrase bold in `line` (founder 2026-11-03). */
+  bold?: string | null;
   /** The Exercise screen: the typing dots first, then the bubble lands. */
   arrive?: boolean;
   onPlay?: () => void;
@@ -246,7 +250,7 @@ export default function WalkAiVoice({
     <WalkMessage wide className={arrive ? "walk-bubble-in" : undefined}>
       {title ? <span>{title}</span> : null}
       {lead ? <span>{lead}</span> : null}
-      {line ? <span>{line}</span> : null}
+      {line ? <span>{phrasePieces(line, bold).map((p, i) => (p.bold ? <strong key={i} data-walk-phrase>{p.text}</strong> : p.text))}</span> : null}
       <span data-walk-ai-voice aria-hidden={ready ? undefined : true} className="mt-2 flex items-center gap-[7px] text-[14px] font-semibold">
         <span
           aria-hidden

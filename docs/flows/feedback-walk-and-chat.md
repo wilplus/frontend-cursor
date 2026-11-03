@@ -180,6 +180,11 @@ step; the loop never waits for a coach.
 - **B6** Each step opens with its name as a small line ("Slide 2", "Slide 2
   · helper words", "Take 2", "Your coach"). The bar shows the step in view;
   ‹ › scroll to the step before or after, within this opening of the walk.
+  A slide is named by its title in the speaker's deck ("Traction",
+  "Traction · helper words"), as the locked prototype's bar does; a slide
+  with no title keeps "Slide N", a talk with no deck "Your talk" (backend
+  N397). The clip's own label and the words posted to the Lounge keep
+  "Slide N".
   In the One thing walk the helper words (C3) and "Lesson done." (C9) keep
   the fix's step's name, the slide of the moment whose paragraph takes the
   words (their best's with no fix, N374), "Tempo" with the Sniper; never
@@ -373,7 +378,7 @@ step; the loop never waits for a coach.
   pass through").
 - **C2 Their best, and one fix** (founder 2026-10-31, N309 item 1). The
   picker still chooses (N289, N293; H1): its strongest is **their best**:
-  the clip, then one bubble, "This was your most confident moment." and
+  the clip with its words, then one bubble, "This was your most confident moment." and
   "Why it worked: {the moment's signed cue line}" (B01–B09 or the cue's
   sentence, lower-cased after the colon), then Next; nothing to practise,
   no level line (W1–W10) and no reason bubble. Then **one thing to
@@ -501,8 +506,9 @@ praised moment:
   screen on its own; only a paragraph with no moment opens on its own
   words (F5; 2026-10-20).
 - **C4 The AI clip after their best** (N309 item 1): the fix moment's
-  clip, "Say this one like your confident moment:", their best's clip
-  played again, then the AI bubble: the tip ending ", like this:", the AI
+  clip with its words, the phrase the AI clip leans on bold in them and in
+  the tip (founder 2026-11-03), "Say this one like your confident moment:", their
+  best's clip played again (without words), then the AI bubble: the tip ending ", like this:", the AI
   clip with its label (no opener; no "Your turn.": the "Try it" under it
   says it, N379 item 3). With no AI clip coming,
   the rest stands and the try is still theirs (never walked as good, never
@@ -602,7 +608,10 @@ praised moment:
 - **C7 Practise.** The One thing walk's fix (N309 item 1): the recorder
   is the one recording bar in the dock as below; two tries. A try that
   lands: "Yes. That's it." and Next; one miss: "Close. Once more." with
-  "Try it" and Skip; two: "Good try. Take it with you." and Next. A try not
+  "Try it" and Skip; two: "Good try. Take it with you." and Next. Skip on
+  the fix (in the dock or under the recorder, and the Sniper's) is the
+  speaker's "Skip", then the walk's "Okay, we'll skip this one.", and the
+  walk goes on; the chat says both (N405; was: nothing said). A try not
   heard says so as below. While it records, nothing is added to the thread:
   the recording bar in the dock is the only sign. After Stop the try is the
   speaker's orange clip with the words they were asked to say: the Clearer
@@ -894,11 +903,21 @@ praised moment:
   ends them. **The key line** (N294 item 2) is the plan's signed question,
   "If {who} remembers one sentence from you, what is it? Say it the way
   you'll say it." with who the talk is for in it ("your audience" when it
-  is not known; after a just-answered who, the answer), opened on the
+  is not known, or the talk is for themself; after a just-answered who,
+  the answer, from their side), opened on the
   moment as the others ("We just worked on “…”. "), said as signed, with no
   tap answers: it is answered by voice (E3). Will says
-  back who the talk is for, "{who}. I'll keep them in mind." (N294 item 5);
-  every other answer keeps "Got it, thanks 🙏". Will may say the signed questions with light
+  back who the talk is for, "{who}. I'll keep them in mind." (N294 item 5),
+  from the speaker's side: "my team" comes back as "Your team. I'll keep
+  them in mind.", and a talk to themself ("Myself", "me", "just me") as
+  "I'll keep you in mind." (N406 item 3; was the words as typed, "Myself.
+  I'll keep them in mind."). For a talk to themself, what they should do
+  is "When you finish, what do you want to do? Or feel? 🤔", with no taps
+  (N406 item 4). The goodbye (D4) waits under Will's question until it is
+  answered, however it is answered: nothing lets it go past an open
+  question (N406 item 1; was: after a typed answer the goodbye came under
+  his next question and cut it off).
+  Every other answer keeps "Got it, thanks 🙏". Will may say the signed questions with light
   variation, the same meaning in slightly different words; the tap answers
   and the no-numbers rule stay (founder, 2026-10-20); when the variation
   fails a check he says them as signed.
@@ -906,8 +925,10 @@ praised moment:
   (N297 item 2): this Take's own words, then what the speaker said for an
   earlier talk, then the signed answers for their field, for who the talk
   is for and what they should do alike; orange on the right. Who the talk
-  is for ends on "Someone else", which opens "Who is it for, then? 👀",
-  answered in their own words (N319 item 8). No Skip under Will's
+  is for has no "Someone else": their own words go into "Something else"
+  in the bar (N371), so Will asks once (N406 item 2; was "Someone else"
+  last, opening "Who is it for, then? 👀", N319 item 8). The check
+  ("Right?") keeps "Someone else" and its follow-up. No Skip under Will's
   questions (N296 item 2): not answering is allowed, and the "+" still
   opens the projects; their own words in the message box answer too, and
   so does **a voice answer** (N294 items 2 and 3, N319 item 1): while Will
@@ -1517,7 +1538,8 @@ October (backend N111).
   confident moment.", "Why it worked: {the moment's signed cue line}",
   "And now, one thing to improve:", "Say it straight:", "Say this one like
   your confident moment:", the tip ending ", like this:", "Your
-  confident moment" (the chip, N379), "Try it", "Keep mine", "Skip", "Yes. That's it.", "Close. Once more.",
+  confident moment" (the chip, N379), "Try it", "Keep mine", "Skip",
+  "Okay, we'll skip this one." (N405), "Yes. That's it.", "Close. Once more.",
   "Good try. Take it with you.", "Let's see how you find this voice. It
   helps us understand you and serve you better.", "Does this sound
   confident to you?", "{face} {answer} ✓", "Got it.", "These are your helper
@@ -1665,6 +1687,8 @@ October (backend N111).
   "When you said “…”, " or "We just worked on “…”. " (signed 2026-10-31,
   N294 item 1): "Who were you talking to? 🎯" (signed 2026-11-02, N347
   item 1); "When you finish, what do you want them to do? Or feel? 🤔";
+  for a talk to themself "When you finish, what do you want to do? Or
+  feel? 🤔" (signed 2026-11-03, N406 item 4);
   "Last time we practised “…”. It didn't make it into this Take. On purpose?
   😏" (Yes, on purpose · I forgot · It didn't feel like me); "You've put real
   work into this one 💪 Need a breather, or does something feel missing?" (A
@@ -1675,9 +1699,10 @@ October (backend N111).
   follow-ups "Who is it for, then? 👀", "Tell me more 👀 What's missing?",
   "What would feel more like you?", "What would make it a yes?", "Where do
   you want it to take you?"; "Got it, thanks 🙏"; "{who}. I'll keep them in
-  mind." (signed 2026-10-31, N294 item 5); "Sounds like this one's for {the
-  board}. Right? 🎯" (Yes · Someone else); "Someone else" also last under
-  who the talk is for (N319 item 8); the answers by field
+  mind." (signed 2026-10-31, N294 item 5), {who} from the speaker's side,
+  "your" for "my" (signed 2026-11-03, N406 item 3); "I'll keep you in
+  mind." (signed 2026-11-03, N406 item 3); "Sounds like this one's for {the
+  board}. Right? 🎯" (Yes · Someone else); the answers by field
   (business: My team · Leadership · A client; public speaking: A big room ·
   Colleagues · Friends and family; sales: A buyer · Their team · The decision
   maker; customer service: A customer · A caller · My team; interviews: The
@@ -1741,7 +1766,8 @@ while a dot on a scale follows their pace live.
 
 **The scale.** A dot on a horizontal line. It moves right while you talk
 and left while you pause. Green in the middle, orange towards the ends,
-red at the edges. No number, ever (Never 1). How the dot moves is settled:
+red at the edges. Under it, left to right: "too slow", "just right", "too
+fast" (N405; was: no labels). No number, ever (Never 1). How the dot moves is settled:
 backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
 
 **The step, in order** (as drawn in [Tempo in the Walk](https://claude.ai/artifact/VJd5MeFGgZy7e3Q8M1EQXV)):
@@ -1982,6 +2008,11 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N406 · E2, E3, K: who the talk is for, fixed from the founder's screenshot (prototype <https://claude.ai/artifact/NxE1pMJmngj8Q7ZTj9PQDp>, Option A): the goodbye waits under Will's question until it is answered, however it is answered; no "Someone else" under "Who were you talking to? 🎯", their own words go into "Something else" in the bar; Will says who from the speaker's side, "Your team. I'll keep them in mind.", and "I'll keep you in mind." for a talk to themself, then "When you finish, what do you want to do? Or feel? 🤔" with no taps, the key line keeping "your audience". No frontend code. Was: after a typed answer the goodbye came under the next question and cut it off; "Someone else" last, opening "Who is it for, then? 👀"; the words said back as typed, "Myself. I'll keep them in mind." · BE (next PR), docs (this PR)
+- 2026-11-03 · N397 · B6: the walk's bar and each part's name call a slide by its title in the speaker's deck (`slideTitle` on the walk's moment, from the deck's `slideTitles`), "Slide N" when the slide has none. Was: always "Slide N" · BE N397 log (#1653), FE (this PR)
+- 2026-11-03 · N405 · built (C7, T, K): Skip on the One thing walk's fix (the dock's, the recorder's, the Sniper's) gets the walk's answer under the speaker's "Skip", "Okay, we'll skip this one.", in the walk and the chat; the pace scale names its zones under it, "too slow", "just right", "too fast". Both lines signed 2026-11-03, the prototype's "Okay." and "slow · just right · fast" rewritten. Was: nothing said after Skip, and a scale without labels · FE (this PR)
+- 2026-11-03 · C4: the phrase the AI clip names (its served `phrase`) is bold where it stands in the fix's own words above the clip and in the tip ("Lean on “**above ninety percent**”, like this:", or the tip in words with no clip), and in the chat's copy of the fix's words, so the speaker sees where to lean (founder, Claude Code chat 2026-11-03: "yes, bold the phrase"; backend log entry to follow). Was: the words and the tip plain · FE (this PR)
+- 2026-11-03 · C2, C4: their best's clip and the AI clip's fix show the moment's own words above the player (its served `said`), as the locked prototype draws them (`clip(u.best.text)`, `clip(f.text)`), in the walk and the chat alike; "Last time" and their best played again inside the fix stay without words. Was: both clips drawn without words · FE (this PR)
 - 2026-11-03 · N395 · Record buttons; after the goodbye: the chat's one "Record Take N" stands 24 px under the last bubble (was 8) with a grey ✕ on its right, no background and no outline; the ✕ closes it and the bar comes back ("+", "Type here", the mic) for that Take, until the chat is opened again or a newer Take's goodbye offers the next. No new words. Was: alone, with no way to close it but recording · BE #1647, FE (this PR)
 - 2026-11-03 · N391 · E1: notifications come in a bar at the top of the chat, never in the buttons under it: the next visit's WhatsApp ask and the CEO panel's WhatsApp, consent, promo (web only) and lesson asks, one at a time, ✕ for Not now, WhatsApp and consent opening their form as a sheet from the top; the home-screen ask is deleted everywhere. Was: WhatsApp and the home screen written in the chat at the next visit with their form in the footer (N294 item 8, N295); the CEO panel's asks the Take's one ask from Take 2, in the footer · BE (next PR), FE (this PR)
 - 2026-11-03 · N309, N374 · B6, C3, C9: in the One thing walk the bar names the fix's slide again during the helper words and "Lesson done." (their best's slide with no fix, "Tempo" with the Sniper), as the locked prototype's `carry()` does (`dots(3)`; X4gDmGfHH7ivuoRZ9ufiy9). Was: the helper words had no name, so the bar kept the last one, "Other speakers" from Take 2 · FE (this PR)

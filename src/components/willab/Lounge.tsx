@@ -3563,7 +3563,7 @@ type WalkChatClip = {
   src: string | null;
   start_ms: number | null;
   duration_ms: number | null;
-  words: { text: string; cut?: boolean }[] | null;
+  words: { text: string; cut?: boolean; bold?: boolean }[] | null;
 };
 
 /** The speaker's clip a walk step carries; null when none. */
@@ -3614,7 +3614,7 @@ function ClipBubble({
         ) : null}
         {clip.words ? (
           <span className="text-[13px] leading-[1.45] opacity-[0.92] [&_s]:text-white/[0.72] [&_s]:decoration-[1.5px]">
-            {clip.words.map((p, i) => (p.cut ? <s key={i}>{p.text}</s> : <span key={i}>{p.text}</span>))}
+            {clip.words.map((p, i) => (p.cut ? <s key={i}>{p.text}</s> : p.bold ? <strong key={i}>{p.text}</strong> : <span key={i}>{p.text}</span>))}
           </span>
         ) : null}
         {clip.src ? (

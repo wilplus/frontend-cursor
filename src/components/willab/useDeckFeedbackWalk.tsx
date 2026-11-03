@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, praiseChat, shownStep, sniperWords, storedSummaryOf, tempoSaidIn, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, praiseChat, shownStep, skipReply, sniperWords, storedSummaryOf, tempoSaidIn, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkIntervention, WalkStep } from "@/lib/willab/walkPlan";
 import { tipSaid, type WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
@@ -162,6 +162,7 @@ export function deckWalkItems(
   waiting: (chunk: DeckChunk) => boolean,
   pendingOf: (chunk: DeckChunk) => readonly DocumentSuggestion[],
   slideLabel: (partId: string) => string | null,
+  slideTitle?: (partId: string) => string | null,
 ): FeedbackWalkItem<DocumentSuggestion>[] {
   const seen = new Set<string>();
   const out: FeedbackWalkItem<DocumentSuggestion>[] = [];
@@ -170,7 +171,7 @@ export function deckWalkItems(
     if (seen.has(partId) || !waiting(chunk)) continue;
     seen.add(partId);
     const slide = slideOf(groups, partId) ?? 0;
-    for (const item of pendingOf(chunk)) out.push(walkItemOf(item, chunk, slide, slideLabel(partId)));
+    for (const item of pendingOf(chunk)) out.push(walkItemOf(item, chunk, slide, slideLabel(partId), slideTitle?.(partId) ?? null));
   }
   return out;
 }
@@ -184,6 +185,7 @@ export function deckReplayItems(
   groups: readonly SlideGroup[],
   itemsOf: (chunk: DeckChunk) => readonly DocumentSuggestion[],
   slideLabel: (partId: string) => string | null,
+  slideTitle?: (partId: string) => string | null,
 ): FeedbackWalkItem<DocumentSuggestion>[] {
   const seenParts = new Set<string>();
   const seenItems = new Set<string>();
@@ -196,7 +198,7 @@ export function deckReplayItems(
     for (const item of itemsOf(chunk)) {
       if (seenItems.has(item.id)) continue;
       seenItems.add(item.id);
-      out.push(walkItemOf(item, chunk, slide, slideLabel(partId)));
+      out.push(walkItemOf(item, chunk, slide, slideLabel(partId), slideTitle?.(partId) ?? null));
     }
   }
   return out;
@@ -278,6 +280,7 @@ function walkItemOf(
   chunk: DeckChunk,
   slide: number,
   label: string | null,
+  title: string | null = null,
 ): FeedbackWalkItem<DocumentSuggestion> {
   const tiered = item.bookmarkTier != null;
   const green = item.bookmarkTier === "confident";
@@ -310,6 +313,7 @@ function walkItemOf(
     partId: chunk.part.id,
     paragraphText: chunk.part.text,
     slideLabel: label,
+    slideTitle: title,
     praiseWords: praise ? praiseWordsOf(item) : null,
     praiseTitle: praise ? praiseTitleFor(item.levelKey, item.id) : null,
     highest: item.highestMoment === true,
@@ -704,6 +708,9 @@ export function useDeckFeedbackWalk(args: {
   pendingOf: (chunk: DeckChunk) => readonly DocumentSuggestion[];
   /** Where a paragraph sits ("Slide 2"), in the deck's own words. */
   slideLabel: (partId: string) => string | null;
+  /** Its slide's title in the speaker's deck, for the walk's bar (backend
+   *  N397); none or empty: the bar says `slideLabel`. */
+  slideTitle?: (partId: string) => string | null;
   coachMessage: CoachMessage | null;
   /** Marks the coach's word for the Take as seen (useCoachStep). */
   coachSeen: () => void;
@@ -780,7 +787,7 @@ export function useDeckFeedbackWalk(args: {
   replaySettled: boolean;
   element: ReactNode;
 } {
-  const { chunks, groups, waiting, pendingOf, slideLabel, coachMessage, coachSeen, firstTake } = args;
+  const { chunks, groups, waiting, pendingOf, slideLabel, slideTitle, coachMessage, coachSeen, firstTake } = args;
   const { answeredOf, helperWordsOf, finished = false } = args;
   const coachOnly = args.coachOnly === true;
   const practiceOn = usePracticeOn();
@@ -794,8 +801,8 @@ export function useDeckFeedbackWalk(args: {
   const pageTake = args.takeSessionId ?? null;
 
   const items = useMemo(
-    () => deckWalkItems(chunks, groups, waiting, pendingOf, slideLabel),
-    [chunks, groups, waiting, pendingOf, slideLabel],
+    () => deckWalkItems(chunks, groups, waiting, pendingOf, slideLabel, slideTitle),
+    [chunks, groups, waiting, pendingOf, slideLabel, slideTitle],
   );
   const take = useMemo(() => reviewedTake(items, pageTake), [items, pageTake]);
   const tempo = useReviewTempo(tempoOn && !coachOnly ? (args.arcId ?? null) : null, take);
@@ -893,7 +900,13 @@ export function useDeckFeedbackWalk(args: {
         const lines = one ? oneThingTempoLines(event.landed, event.n) : afterTry(event.result, event.landed, event.n);
         say("tempo:comment", "app", lines.join("\n"), event.n);
       } else {
-        if (!event.close) say("tempo:skip", "speaker", TEMPO_COPY.skip);
+        // Skipped: before a try, or, as the One thing walk's fix, after one
+        // too, as the walk draws it (#1183). The Sniper then answers Skip
+        // (N405).
+        if (!event.close || (one && event.skipped)) {
+          say("tempo:skip", "speaker", TEMPO_COPY.skip);
+          if (one) say("tempo:skipped", "app", ONE_THING_COPY.skipped);
+        }
         else if (!one && !event.tries.some((t) => t.landed)) say("tempo:close", "app", TEMPO_COPY.close[event.close]);
         const arcId = args.arcId ?? null;
         if (arcId && take) void postTempoGame(arcId, take, tempo.reading, event);
@@ -948,9 +961,9 @@ export function useDeckFeedbackWalk(args: {
   const replayItems = useMemo(
     () =>
       replayReady && answeredOf
-        ? deckReplayItems(chunks, groups, (c) => [...pendingOf(c), ...answeredOf(c)], slideLabel)
+        ? deckReplayItems(chunks, groups, (c) => [...pendingOf(c), ...answeredOf(c)], slideLabel, slideTitle)
         : [],
-    [replayReady, answeredOf, chunks, groups, pendingOf, slideLabel],
+    [replayReady, answeredOf, chunks, groups, pendingOf, slideLabel, slideTitle],
   );
   /* THE TRIES ALREADY HAD (walk first, 2026-10-14): read from the Take's
      thread (each "Practise N" and the answer it got); where the thread has
@@ -1474,6 +1487,7 @@ export function useDeckFeedbackWalk(args: {
       ai?: WalkAiShown | null,
       line?: string | null,
       fixTip?: string | null,
+      phrase?: string | null,
     ) => {
       const { coachMessage: coach } = live.current;
       const at = { moment: step.moment ?? null, attempt: step.attempt ?? null };
@@ -1494,7 +1508,7 @@ export function useDeckFeedbackWalk(args: {
       if (step.key === "coachnote") said = coachNoteOnce(said, coach, threadRef.current, Boolean(step.replay || walkModel.replay));
       said = withLateReason(said, step, moment, reasonsRef.current);
       // The label above a moment, and the speaker's clip before its bubble.
-      const chat = said ? momentChat(walkModel.plan, step, moment) : null;
+      const chat = said ? momentChat(walkModel.plan, step, moment, phrase ?? null) : null;
       // The moment's paragraph: a tap in the chat finds the step by it.
       const part = chatPartOf(step, moment, ai, fixTip ?? null);
       postLevel(post, step, moment, Boolean(said), { ...at, extra: { ...part } });
@@ -1530,6 +1544,9 @@ export function useDeckFeedbackWalk(args: {
       const body = answerBody(step, value);
       const part_id = step.moment != null ? (walkModel.moments[step.moment]?.partId ?? null) : null;
       if (body) post({ key: `answer:${step.key}`, moment: step.moment ?? null, attempt: step.attempt ?? null, author: "speaker", body, extra: { part_id } });
+      // The walk's answer to Skip on the One thing walk's fix (N405).
+      const reply = body ? skipReply(step, value) : null;
+      if (reply) post({ key: `skipped:${step.key}`, moment: step.moment ?? null, attempt: step.attempt ?? null, author: "app", body: reply });
       // Continue on the coach's word: the one "watched" (N80, D4), in the
       // live walk, the coach-only walk (WhatsApp, email, the dot card) and
       // a replay alike (the replay leaves this step live).

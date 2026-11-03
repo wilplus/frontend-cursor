@@ -7,6 +7,8 @@ OUTCOME
   O3  The walk ends on "Lesson done." with Close, which ends the review and takes me back to the chat; no "Record Take N" in the walk.
   O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after "Try it", my own after "Keep mine"; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
   O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, my answer as my own reply with a tick, then "Got it."; after it the bar names my fix's slide again for the helper words and "Lesson done."; on Take 1 I judge no one.
+  O6  My best's clip and the AI clip's fix show my own words above the player, as the prototype draws them; my best played again inside the fix shows none.
+  O7  Skip on the fix gets the walk's answer under my "Skip": "Okay, we'll skip this one.", then it goes on (backend N405).
 PROVES   O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
          O2 -> the helper words come on their own and are saved without a pick,
                the Clearer version's sentence is saved from its practice,
@@ -14,11 +16,13 @@ PROVES   O1 -> walks hello, their best and why it worked, then one thing to impr
                with no fix, my best's own words are my helper words, saved without a pick (N374)
                the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does
          O3 -> Lesson done and Close end the review, back to the chat
+         O7 -> the helper words come on their own and are saved without a pick
          O5 -> a try is my clip with the words I was asked to say, and nothing shows in the thread while I record
          O4 -> from Take 2, one moment of another speaker, of the Take's level, answered as my own reply,
                then the bar names the fix's slide again for the helper words and Lesson done,
                Take 1 judges no one
-WHY      Founder 2026-10-31 (backend N309: "apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take"; "ok, this finally good"); 2026-11-02 ("please implement"; backend N323: "you can allow helper words to be longer than 8 words"); 2026-11-03 (backend N374: a walk with no fix left no helper words; "go with the recommendations").
+         O6 -> my best's clip and the AI clip's fix show my own words, my best played again shows none
+WHY      Founder 2026-10-31 (backend N309: "apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take"; "ok, this finally good"); 2026-11-02 ("please implement"; backend N323: "you can allow helper words to be longer than 8 words"); 2026-11-03 (backend N374: a walk with no fix left no helper words; "go with the recommendations"); 2026-11-03 ("so it really matches the design and the prototype": the clips' words, prototype X4gDmGfHH7ivuoRZ9ufiy9).
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -159,6 +163,9 @@ describe("the One thing walk (N309)", () => {
     expect(screen()).toBe("walk-screen-practise");
     click(testId("walk-skip"));
     await settle();
+    // Their "Skip", and the walk's answer to it (N405).
+    expect(said()).toContain(WALK_COPY.skip);
+    expect(live()!.querySelector("[data-walk-skip-reply]")!.textContent).toBe(ONE_THING_COPY.skipped);
     expect(props.onSaveHelperWords).toHaveBeenCalledTimes(1);
     expect(props.onSaveHelperWords).toHaveBeenCalledWith(expect.objectContaining({ partId: "p2", auto: true, span: expect.objectContaining({ text: SAID }) }));
     expect(text()).toContain(ONE_THING_COPY.helperWords);
@@ -250,6 +257,30 @@ describe("the One thing walk (N309)", () => {
     // What the game was is still Will's: the try, then its end.
     const ended = onTempo.mock.calls.map(([event]) => event).find((event) => event.kind === "ended");
     expect(ended?.tries).toHaveLength(1);
+  });
+
+  it("my best's clip and the AI clip's fix show my own words, my best played again shows none", async () => {
+    const best = "Ledgerly matches every transaction";
+    const weak = "So, um, the market is big.";
+    const items: FeedbackWalkItem<string>[] = [
+      { ...ITEMS[0], said: best },
+      {
+        partId: "p3", start: 200, slide: 2, blockId: "b3", tiered: true, practicePrompt: true, walkSlot: "weakest",
+        openCard: "exercise", hasExercise: true, paragraphText: `${weak} Really big.`, slideLabel: "Slide 3", said: weak,
+        clip: { src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 4000 },
+        exercise: { video: null, byCoach: false, instruction: "Pause before the number.", say: weak, item: "s-ex" },
+      },
+    ];
+    const model = buildFeedbackWalk<string>({ items, coachNote: false, practiceOn: true, guest: false, judge: false });
+    const clipWords = () => [...now()!.querySelectorAll(".bg-primary > div:first-child:not(:last-child)")].map((n) => n.textContent);
+    draw({ seq: 1, at: model.plan.findIndex((s) => s.key === "praise") }, { model });
+    expect(clipWords()).toEqual([best]);
+    draw({ seq: 2, at: model.plan.findIndex((s) => s.key === "exVideo") }, { model });
+    await settle();
+    expect(screen()).toBe("walk-screen-exVideo");
+    // The fix's own clip has its words; their best played again has none.
+    expect(clipWords()).toEqual([weak]);
+    expect(now()!.textContent).not.toContain(best);
   });
 
   it("Lesson done and Close end the review, back to the chat", async () => {

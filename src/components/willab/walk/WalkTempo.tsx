@@ -99,10 +99,10 @@ export default function WalkTempo({
     if (!past) tell.current?.({ kind: "opened" });
   }, [past]);
   // The game ends once: a landed try, the closing line, or a Skip.
-  const end = useCallback((played: TempoPlayed[]) => {
+  const end = useCallback((played: TempoPlayed[], skipped = false) => {
     if (ended.current) return;
     ended.current = true;
-    tell.current?.({ kind: "ended", tries: played, close: played.length ? closeOf(played.map((t) => t.result)) : null });
+    tell.current?.({ kind: "ended", tries: played, close: played.length ? closeOf(played.map((t) => t.result)) : null, skipped });
   }, []);
 
   const halt = useCallback(() => {
@@ -172,7 +172,7 @@ export default function WalkTempo({
   // the game closed on Next.
   const skip = useCallback(() => {
     halt();
-    end(tries);
+    end(tries, true);
     if (tries.length > 0 && !one) setPhase("closed");
     else {
       setPhase("skipped");
@@ -231,6 +231,12 @@ export default function WalkTempo({
             label={W.scale}
             className="h-[clamp(120px,30vw,200px)]"
           />
+          {/* Its three zones named, left to right (N405). */}
+          <span data-walk-scale-ends className="mt-1 flex justify-between gap-2 text-[13px] leading-snug text-muted-foreground">
+            {W.ends.map((end) => (
+              <span key={end}>{end}</span>
+            ))}
+          </span>
         </WalkMessage>
       ) : null}
       {phase === "blocked" ? (
@@ -244,6 +250,12 @@ export default function WalkTempo({
         </WalkMessage>
       ) : null}
       {phase === "skipped" ? <WalkSpeakerBubble>{W.skip}</WalkSpeakerBubble> : null}
+      {/* The Sniper as the One thing walk's fix answers Skip (N405). */}
+      {phase === "skipped" && one ? (
+        <WalkMessage>
+          <span data-walk-skip-reply>{ONE_THING_COPY.skipped}</span>
+        </WalkMessage>
+      ) : null}
     </WalkOverlay>
   );
 

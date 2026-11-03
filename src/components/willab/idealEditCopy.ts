@@ -533,6 +533,9 @@ export const ONE_THING_COPY = {
   /** The dock. */
   tryIt: "Try it",
   keepMine: "Keep mine",
+  /** The walk's answer to Skip on the fix, then it goes on (backend N405,
+   *  signed 2026-11-03; the prototype's "Okay." rewritten). */
+  skipped: "Okay, we'll skip this one.",
   /** A try that lands; one miss; two misses. */
   landed: "Yes. That's it.",
   onceMore: "Close. Once more.",

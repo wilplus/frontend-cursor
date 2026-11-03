@@ -3,7 +3,7 @@
 import { reasonRuns, type PraiseReason, type WalkPraiseReasons } from "@/lib/willab/praiseReason";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { answerBody, helperWordsSaid, type OthersLevel, type WalkTempoLine } from "@/lib/willab/walkThread";
+import { answerBody, helperWordsSaid, skipReply, type OthersLevel, type WalkTempoLine } from "@/lib/willab/walkThread";
 import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
@@ -27,7 +27,7 @@ import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, AI_CLIP_WAIT_MS, 
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
-import { MOMENT_LEAD_LINES, aiClipLines, aiTip, bestBubble, clearerOpening, oneThingAiLines, oneThingNoClip, praiseBubble, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
+import { MOMENT_LEAD_LINES, aiClipLines, aiTip, bestBubble, clearerOpening, oneThingAiLines, oneThingNoClip, praiseBubble, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO, phrasePieces } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import { goodJobHelpers, maxTries, momentLead, type WalkStep } from "@/lib/willab/walkPlan";
 import {
@@ -223,6 +223,9 @@ type Props<R> = {
     /** The One thing walk's fix with no AI clip: its tip, for "Last
      *  time" (N370). */
     fixTip?: string | null,
+    /** The One thing walk's fix: the AI clip's phrase, bold in the chat's
+     *  copy of the speaker's words as in the walk (founder 2026-11-03). */
+    phrase?: string | null,
   ) => void;
   /** A screen reached the speaker: the host tells the server at once (the
    *  coach's queue, N48.2), before the chat hears what it showed. */
@@ -669,7 +672,7 @@ export default function FeedbackWalk<R = unknown>({
       // The line above it only with their best's clip after it (N377 item 2).
       const like = s.one && fixBest(walk.moments, s.moment) ? [ONE_THING_COPY.likeConfident] : [];
       const body = s.one ? [...like, ...(noClip?.lines ?? [])].join("\n") || null : null;
-      shownRef.current?.(s, moment, say, ai, body, ai ? null : (noClip?.tip ?? null));
+      shownRef.current?.(s, moment, say, ai, body, ai ? null : (noClip?.tip ?? null), s.one ? (practise.aiVoiceOf(s.moment)?.clip?.phrase ?? null) : null);
     });
   });
   // The bare correction's Exercise and practise leave the live walk once its
@@ -1084,7 +1087,7 @@ const noop = () => undefined;
  *  · helper words" on the helper words. The thread's mark and bar say it;
  *  ‹ › are the thread's own (WalkThread). */
 function stepNav(_ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment): WalkNav {
-  const label = moment.slideLabel;
+  const label = slideName(moment);
   const position =
     step.key === "helpers"
       ? label
@@ -1103,6 +1106,13 @@ function stepNav(_ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment): W
   };
 }
 
+/** The slide as the bar names it: its title in the speaker's deck, else
+ *  "Slide N" (backend N397; the locked prototype's `dots()` says the
+ *  slide's title). Until 2026-11-03 the bar always said "Slide N". */
+function slideName(moment: FeedbackWalkMoment): string | null {
+  return moment.slideTitle?.trim() || moment.slideLabel;
+}
+
 /** A step reopened: its answer as a line over a black Next. */
 function Answered({ ctx, line }: { ctx: ScreenCtx; line: string | null }) {
   return (
@@ -1113,6 +1123,23 @@ function Answered({ ctx, line }: { ctx: ScreenCtx; line: string | null }) {
 }
 
 /** The speaker's own clip: the orange bubble on the right. */
+/** The moment's own words in its clip's bubble (the walk's prototype,
+ *  `clip(u.best.text)` and `clip(f.text)`): their best and the AI clip's
+ *  fix, the fix with its phrase bold (founder 2026-11-03). Null when none
+ *  was served. */
+function saidWords(moment: FeedbackWalkMoment, phrase?: string | null): ReactNode {
+  return moment.said ? <Bolded text={moment.said} phrase={phrase} /> : null;
+}
+
+/** A line with the AI clip's phrase bold (founder 2026-11-03). */
+function Bolded({ text, phrase }: { text: string; phrase?: string | null }) {
+  return (
+    <span>
+      {phrasePieces(text, phrase).map((p, i) => (p.bold ? <strong key={i} data-walk-phrase>{p.text}</strong> : <span key={i}>{p.text}</span>))}
+    </span>
+  );
+}
+
 function Clip({ moment, words, replay, chip = false }: { moment: FeedbackWalkMoment; words?: ReactNode; replay?: string; chip?: boolean }) {
   if (!moment.clip && !words) return null;
   return (
@@ -1246,7 +1273,7 @@ function Best(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
       onClose={ctx.close}
       footer={<WalkFooter pill={{ label: COPY.pagerNext, onClick: ok, testId: "walk-forward" }} />}
     >
-      <Clip moment={moment} />
+      <Clip moment={moment} words={saidWords(moment)} />
       <WalkMessage>
         {bestBubble(moment).map((line, i) => (
           <span key={i} data-walk-best={i === 0 ? "" : "why"}>
@@ -1543,10 +1570,11 @@ function useFixClip<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
 function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkStep; moment: FeedbackWalkMoment<R> }) {
   const best = fixBest(ctx.walk.moments, moment.index);
   const { state, seed, lines, latePlayer, noClip } = useFixClip(ctx, step, moment);
+  const phrase = state?.clip?.phrase ?? null;
   return (
     <>
       <LevelHere moment={moment} />
-      <Clip moment={moment} />
+      <Clip moment={moment} words={saidWords(moment, phrase)} />
       {/* The line ends on a colon: only with their best's clip after it (N377 item 2). */}
       {best ? (
         <>
@@ -1569,11 +1597,12 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
             seed={seed}
             state={state}
             {...lines}
+            bold={phrase}
             arrive
             onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
           />
         ) : null}
-        {noClip ? <FixWords seed={`${seed}-words:${noClip.video ?? ""}:${noClip.lines.join("|")}`} words={noClip} /> : null}
+        {noClip ? <FixWords seed={`${seed}-words:${noClip.video ?? ""}:${noClip.lines.join("|")}`} words={noClip} phrase={phrase} /> : null}
         {latePlayer ? (
           <WalkAiVoice seed={`${seed}-late`} state={state} line="" arrive onPlay={() => ctx.practise.aiVoicePlayed(moment.index)} />
         ) : null}
@@ -1593,7 +1622,7 @@ function fixBest<R>(moments: readonly FeedbackWalkMoment<R>[], fix: number): Fee
  *  the instruction, "Your turn.". They land with the walk's bubble motion,
  *  never swapping in place: once per wording in the page's life, so new
  *  words land and the same words drawn again do not (N377 item 1). */
-function FixWords({ seed, words }: { seed: string; words: NonNullable<ReturnType<typeof oneThingNoClip>> }) {
+function FixWords({ seed, words, phrase }: { seed: string; words: NonNullable<ReturnType<typeof oneThingNoClip>>; phrase?: string | null }) {
   const lands = useLandsOnce(seed);
   return (
     <WalkMessage coach={words.byCoach} wide={Boolean(words.video)} className={lands ? "walk-bubble-in" : undefined}>
@@ -1605,7 +1634,7 @@ function FixWords({ seed, words }: { seed: string; words: NonNullable<ReturnType
       ) : null}
       {words.lines.map((l, i) => (
         <span key={i} data-walk-no-clip>
-          {l}
+          <Bolded text={l} phrase={phrase} />
         </span>
       ))}
     </WalkMessage>
@@ -1874,7 +1903,7 @@ function partLabel(ctx: ScreenCtx, step: WalkStep): string | null {
   if (step.key === "summary") return ctx.takeIndex != null ? `${COPY.historyTake} ${ctx.takeIndex}` : COPY.historyTake;
   if (step.key === "words") {
     const of = step.of == null ? undefined : ctx.walk.moments[step.of];
-    if (of) return of.slideLabel ?? null;
+    if (of) return slideName(of);
     return ctx.walk.plan.some((s) => s.key === "tempo") ? TEMPO_COPY.mark : null;
   }
   if (step.key === "others" || step.key === "done") return null;
@@ -1945,6 +1974,8 @@ function renderThread<R>(
     const mark = label && label !== last ? <WalkThreadMark label={label} /> : null;
     last = step.key === "others" ? null : (label ?? last);
     const said = answerSaid(ctx, step);
+    // The walk's answer to Skip on the One thing walk's fix (N405).
+    const reply = said ? skipReply(step, ctx.answered(step)) : null;
     const start = threadStart(ctx.walk.plan, part.at);
     const lead = momentLead(ctx.walk.plan, start >= 0 ? start : part.at);
     const opener = ctx.walk.plan[start >= 0 ? start : part.at];
@@ -1971,6 +2002,11 @@ function renderThread<R>(
           {renderScreen(ctx, step, backFromPractise)}
         </WalkPart>
         {said ? <WalkSpeakerBubble edited={wordsEdited(ctx, step)}>{said}</WalkSpeakerBubble> : null}
+        {reply ? (
+          <WalkMessage>
+            <span data-walk-skip-reply>{reply}</span>
+          </WalkMessage>
+        ) : null}
       </div>
     );
   });

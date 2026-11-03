@@ -787,12 +787,21 @@ export default function TranscriptReviewDeck({
   const answeredOf = useCallback((c: DeckChunk) => stateOf(c).decided, [stateOf]);
   const helperWordsOf = useCallback((partId: string) => headlines.get(partId) ?? null, [headlines]);
   const partLabel = useCallback((partId: string) => slideLabelOf(groups, partId), [groups]);
+  // The walk's bar names a slide by its title (backend N397).
+  const partTitle = useCallback(
+    (partId: string) => {
+      const group = groups.find((g) => g.chunks.some((c) => c.part.id === partId));
+      return group?.slideIndex == null ? null : (slideTitles?.[group.slideIndex] ?? null);
+    },
+    [groups, slideTitles],
+  );
   const feedbackWalk = useDeckFeedbackWalk({
     chunks,
     groups,
     waiting: barWaiting,
     pendingOf,
     slideLabel: partLabel,
+    slideTitle: partTitle,
     coachMessage: walkCoachMessage,
     coachSeen: coachStep.seen,
     firstTake: takeCount === 1,

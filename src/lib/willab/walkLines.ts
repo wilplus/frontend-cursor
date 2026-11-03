@@ -110,6 +110,18 @@ export function oneThingNoClip(
   return { tip, lines, video, byCoach: exercise?.byCoach === true };
 }
 
+/** `text` in pieces with the AI clip's phrase marked bold where it stands
+ *  (founder 2026-11-03: "bold the phrase"), so the speaker sees where to
+ *  lean. Matched without regard to case or the quotes around it; the first
+ *  match only. No phrase, or none found: the text whole. Pure. */
+export function phrasePieces(text: string, phrase: string | null | undefined): { text: string; bold?: boolean }[] {
+  const want = phrase?.replace(/[“”"]/g, "").trim();
+  const at = want ? text.toLowerCase().indexOf(want.toLowerCase()) : -1;
+  if (!want || at < 0) return [{ text }];
+  const end = at + want.length;
+  return [{ text: text.slice(0, at) }, { text: text.slice(at, end), bold: true }, { text: text.slice(end) }].filter((p) => p.text);
+}
+
 /** The tip as "Last time: {the tip}." says it next Take: its first letter
  *  lower-cased, as the prototype shows ("Last time: let “fourteen shades”
  *  wait a beat. You did."). Pure. */
