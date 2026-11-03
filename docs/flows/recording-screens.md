@@ -193,6 +193,15 @@ green); the app shows the speaker's own slides, unchanged.
   cannot lock itself on a long slide and cut the mic off; it asks again when
   the page is back in view and lets go when the Take ends. Nothing on screen
   changes. Lives in `src/hooks/useDualCaptureMic.ts`.
+- **2026-11-03 · a phone call pauses the Take (N437 item 2).** When iOS takes
+  the mic for a call (or another app's audio), the recorder pauses, and it
+  carries on from where it stopped when the mic comes back; the clock stops
+  and goes on with it, and a slide tapped after it keeps its time in the
+  voice, so the call is not in the Take. Nothing new on screen. A mic that
+  never comes back leaves the Take paused: Finish still hands over what was
+  said (a prototype comes to the founder before anything is built for that
+  case). Lives in `src/hooks/useDualCaptureMic.ts` (`getPausedMs`) and the
+  clock and slide taps in `LabOverlay.tsx`.
 - **2026-10-29 · new slides inside the project (N257).** A project's deck
   can be added or changed inside the project (the Ideal Text page's ⋯, or
   the chat). The line under **Getting your mic ready** says **New slides**
@@ -289,6 +298,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N437 · a phone call during a Take pauses it, its clock and its slide timing, and it carries on after the call; nothing new on screen. Was: the Take ran on through the call, recording silence · FE (this PR)
 - 2026-11-03 · N392 · "How do you feel?" before a later Take (the project's setup restored) draws two marks in its bar beside the ✕: this screen first and current, the Take second (`FeelingsCheckIn.tsx`). Prototype <https://claude.ai/artifact/ChbCQzEKiTNtxofatBKZ3o>. No new words. Was (N272): the ✕ alone, an empty space above the question · BE #1646, FE (this PR)
 - 2026-11-03 · N372 · the earbuds line under "Getting your mic ready" when the last Take was recorded through a Bluetooth mic; opening the mic pauses any voice message that plays (`useDualCaptureMic.ts`, `recordingCopy.ts`, `LabOverlay.tsx`, `LoadingState.tsx`, `lib/willab/oneVoice.ts`). Was: no word on earbuds · BE #1622, FE (this PR)
 - 2026-11-03 · N372 · the mic records the voice as it is: the browser's call processing (automatic gain, noise suppression, echo cancellation) is asked off, mono, on every browser and the iPhone app, for a Take and the walk's practise (`TAKE_MIC_AUDIO` in `src/hooks/useDualCaptureMic.ts`), as the pace mic already did. Nothing on screen changes. Was: `audio: true`, which turns all three on · FE #1167

@@ -15,12 +15,16 @@ OUTCOME
   O6  A Take recorded through earbuds is remembered, so "Getting your mic
       ready" before the next one can say the built-in mic sounds better
       (N372); the built-in mic clears it.
+  O7  A phone call during a Take (iOS takes the mic) pauses it, and it
+      carries on from where it stopped when the call ends; the call is not in
+      the Take's length, nor in the clock the slides are timed on (N437).
 PROVES   O1 -> records at once on start
          O2 -> hands over a real take on stop and releases the stream
          O3 -> hands over the take at once when the audio comes late and Finish is tapped twice
          O4 -> keeps the screen awake while recording and lets it lock after
          O5 -> a stop while the mic is opening leaves the mic off
          O6 -> remembers a Take recorded through earbuds
+         O7 -> a phone call pauses the Take, which carries on after, the call not in its length
 WHY      Never-rule 3 (never break record → process → Ideal Text).
 */
 import { act, createElement } from "react";
@@ -63,6 +67,12 @@ class FakeRecorder {
     if (deliverAfterMs > 0) setTimeout(deliver, deliverAfterMs);
     else deliver();
   });
+  pause = vi.fn(() => {
+    this.state = "paused";
+  });
+  resume = vi.fn(() => {
+    this.state = "recording";
+  });
   onstart: (() => void) | null = null;
   onstop: (() => void) | null = null;
   ondataavailable: ((e: { data: Blob }) => void) | null = null;
@@ -82,7 +92,7 @@ beforeEach(() => {
   tracks = [];
   deliverAfterMs = 0;
   getUserMedia = vi.fn(async () => {
-    const track = { readyState: "live", stop: vi.fn() };
+    const track = Object.assign(new EventTarget(), { readyState: "live", stop: vi.fn() });
     tracks.push(track);
     return { getTracks: () => [track] };
   });
@@ -128,6 +138,29 @@ describe("the Lab's mic", () => {
       await mic.start();
     });
     expect(lastMicWasEarbuds()).toBe(false);
+  });
+
+  it("a phone call pauses the Take, which carries on after, the call not in its length", async () => {
+    let clock = 1_000;
+    vi.spyOn(performance, "now").mockImplementation(() => clock);
+    await act(async () => {
+      await mic.start();
+    });
+    const track = tracks[0] as unknown as EventTarget;
+    clock = 3_000;
+    act(() => void track.dispatchEvent(new Event("mute")));
+    expect(recorders[0].pause).toHaveBeenCalledTimes(1);
+    clock = 8_000;
+    expect(mic.getPausedMs()).toBe(5_000);
+    act(() => void track.dispatchEvent(new Event("unmute")));
+    expect(recorders[0].resume).toHaveBeenCalledTimes(1);
+    clock = 10_000;
+    expect(mic.getPausedMs()).toBe(5_000);
+    await act(async () => {
+      await mic.stop();
+    });
+    expect(mic.state.status === "stopped" && mic.state.durationSec).toBe(4);
+    vi.restoreAllMocks();
   });
 
   it("records at once on start", async () => {
