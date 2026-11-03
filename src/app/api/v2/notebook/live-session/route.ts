@@ -6,7 +6,7 @@ import { callBackend, failure, getAccessToken, relayLenient, type Failures } fro
  * POST /api/v2/notebook/live-session: a short-lived key to stream a voice
  * note being said to the transcription provider, relayed to
  * `POST /v2/notebook/live-session`. The backend issues it under the caller's
- * processing authorization and keeps nothing (backend N393).
+ * processing authorization and keeps nothing (backend N396).
  */
 export const runtime = "nodejs";
 export const maxDuration = 15;

@@ -1,6 +1,6 @@
 /* -------------------------------------------------------------------------- */
 /*  liveStream — the words of a voice note as it is said, streamed (backend   */
-/*  N393; amends N199 item 2).                                                */
+/*  N396; amends N199 item 2).                                                */
 /*                                                                            */
 /*  The backend gives a short-lived key, under the caller's processing        */
 /*  authorization; with it the phone streams the voice to the transcription  */

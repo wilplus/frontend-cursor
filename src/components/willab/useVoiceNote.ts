@@ -27,7 +27,7 @@ import { hushVoices } from "@/lib/willab/oneVoice";
 /*  sent to be heard every second and a half, and each finished piece once   */
 /*  more, whole. They come back 2 to 4 seconds behind the voice and replace   */
 /*  the wave they cover; the piece still being heard is lighter. Streamed     */
-/*  (backend N393, liveStream), the words come well under a second behind;   */
+/*  (backend N396, liveStream), the words come well under a second behind;   */
 /*  the pieces are the fallback when the stream cannot open. They are a      */
 /*  preview: the whole recording is what the backend transcribes and keeps.  */
 /*                                                                            */
@@ -140,7 +140,7 @@ export function useVoiceNote({
   const hearingRef = useRef(false);
   const liveRef = useRef(false);
   const heardAtRef = useRef(0);
-  /** The streamed words (N393), once the stream is open. */
+  /** The streamed words (N396), once the stream is open. */
   const streamRef = useRef<LiveStream | null>(null);
   const liveMsRef = useRef(0);
   // The wave, and how far into the note the words reach.
@@ -342,7 +342,7 @@ export function useVoiceNote({
     liveRef.current = notebook;
     liveMsRef.current = 0;
     if (notebook) {
-      // The words streamed (N393); where the stream cannot open, in pieces.
+      // The words streamed (N396); where the stream cannot open, in pieces.
       void openLiveStream(stream, (finished, current) => {
         if (!liveRef.current) return;
         finishedRef.current = finished;

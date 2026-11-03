@@ -8,7 +8,7 @@ OUTCOME
   O2  The voice is sent at the rate the provider's key names.
 PROVES   O1 -> "keeps phrases in the order said and the unheard ones current"
          O2 -> "sends the voice at the provider's rate"
-WHY      Backend N393 (amends N199 item 2): the words stream, well under a
+WHY      Backend N396 (amends N199 item 2): the words stream, well under a
          second behind the voice.
 */
 import { describe, expect, it } from "vitest";

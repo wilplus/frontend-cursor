@@ -77,7 +77,7 @@ export async function sendVoiceNote(
   form.append("audio", audio, audioName(audio, "note"));
   form.append("duration_ms", String(Math.round(durationMs)));
   form.append("key", key);
-  // How long its live words were streamed, for the cost table (backend N393).
+  // How long its live words were streamed, for the cost table (backend N396).
   if (liveMs) form.append("live_ms", String(Math.round(liveMs)));
   try {
     const result = await bffFetch("/api/v2/notebook/notes", { method: "POST", cache: "no-store", body: form });
@@ -110,7 +110,7 @@ export async function hearPiece(audio: Blob): Promise<string | null> {
 }
 
 /** A short-lived key to stream a note being said to the transcription
- *  provider (backend N393): issued under the caller's processing
+ *  provider (backend N396): issued under the caller's processing
  *  authorization, nothing kept. null when it cannot be had: the note is
  *  then heard in pieces, as before. */
 export async function openLiveSession(): Promise<{ value: string; rate: number } | null> {
