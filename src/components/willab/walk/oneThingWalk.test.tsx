@@ -253,6 +253,47 @@ describe("the One thing walk (N309)", () => {
     }
   });
 
+  it("Try it and Keep mine each record against their own sentence, after ✕ on the recorder too (N309 item 1, N435 item 4)", async () => {
+    const opened: string[] = [];
+    const uploads: string[] = [];
+    const practise = {
+      open: async (_item: string, passage: { kind: string }) => {
+        opened.push(passage.kind);
+        return `pr-${passage.kind}`;
+      },
+      upload: async (practiceId: string) => {
+        uploads.push(practiceId);
+        return { attemptId: "a1", attempt: 1, audio: null };
+      },
+      check: async () => null,
+    } as never;
+    // Try it, ✕, then Keep mine: their own sentence goes to a practice on it.
+    draw({ seq: 1, at: at("clearer") }, { practise });
+    click(testId("walk-forward"));
+    await settle();
+    click(live()!.querySelector("button[aria-label='Close']"));
+    expect(screen()).toBe("walk-screen-clearer");
+    click(testId("walk-keep"));
+    await settle();
+    click(live()!.querySelector("[data-walk-dock] button[aria-label='Stop']"));
+    await settle();
+    expect(opened).toEqual(["rewrite", "plain"]);
+    expect(uploads).toEqual(["pr-plain"]);
+    // Keep mine, ✕, then Try it: the Clearer sentence is saved from the
+    // practice opened on it.
+    opened.length = 0;
+    const props = draw({ seq: 2, at: at("clearer") }, { practise });
+    click(testId("walk-keep"));
+    await settle();
+    click(live()!.querySelector("button[aria-label='Close']"));
+    click(testId("walk-forward"));
+    await settle();
+    click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
+    await settle();
+    expect(opened).toEqual(["plain", "rewrite"]);
+    expect(props.onSaveHelperWords).toHaveBeenCalledWith(expect.objectContaining({ partId: "p2", practiceId: "pr-rewrite" }));
+  });
+
   it("a Clearer version past eight words is saved whole as my helper words (N323 item 2)", async () => {
     const twelve = "We're already seeing real traction with three paying customers this quarter alone.";
     const items = ITEMS.map((i) => (i.rewrite ? { ...i, rewrite: { ...i.rewrite, proposedText: twelve } } : i));

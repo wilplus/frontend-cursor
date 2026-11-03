@@ -83,6 +83,14 @@ function within<T>(promise: Promise<T | null>, ms: number): Promise<T | null> {
   });
 }
 
+/** A practice opened for a moment, and what it was opened on: the Clearer
+ *  sentence (`rewrite:{say}`), their own words (`plain`) or the exercise.
+ *  "Try it" and "Keep mine" each record against their own sentence (N309
+ *  item 1, N435 item 4), so a moment opens again when that changes. */
+type Opened = { on: string; practice: Promise<string | null> };
+
+const openedOn = (passage: WalkPractisePassage): string => (passage.kind === "rewrite" ? `rewrite:${passage.say}` : passage.kind);
+
 function passageOf<R>(step: WalkStep, moment: FeedbackWalkMoment<R>): { item: R; passage: WalkPractisePassage } | null {
   // After an exercise's video (or straight away with none, Q-B15 A): the
   // same loop, on the exercise the moment carries (D-FW-17).
@@ -187,7 +195,14 @@ export function useWalkPractise<R>(args: {
   live.current = { io, plan, at, moments, blocked, relay, readLimit, replayPracticeOf };
   const micOn = useRef(false);
   const run = useRef(0);
-  const opened = useRef(new Map<number, Promise<string | null>>());
+  const opened = useRef(new Map<number, Opened>());
+  /** The moment's practice on `what`: the one already opened on it, else a
+   *  new one (after ✕, "Keep mine" in place of "Try it" or back). */
+  const openOn = (practiseIO: WalkPractiseIO<R>, index: number, what: { item: R; passage: WalkPractisePassage }) => {
+    const on = openedOn(what.passage);
+    if (opened.current.get(index)?.on === on) return;
+    opened.current.set(index, { on, practice: practiseIO.open(what.item, what.passage).catch(() => null) });
+  };
   const pending = useRef<{ at: number; step: WalkStep; run: number } | null>(null);
   const urls = useRef<string[]>([]);
   const [aiVoice, setAiVoice] = useState<Record<number, AiVoiceState>>({});
@@ -212,9 +227,7 @@ export function useWalkPractise<R>(args: {
     const moment = ms[here.moment];
     const what = moment ? passageOf(here, moment) : null;
     if (!what) return;
-    if (!opened.current.has(here.moment)) {
-      opened.current.set(here.moment, practiseIO.open(what.item, what.passage).catch(() => null));
-    }
+    openOn(practiseIO, here.moment, what);
     micOn.current = true;
     setElapsed(0);
     void mic.start();
@@ -263,9 +276,7 @@ export function useWalkPractise<R>(args: {
     aiAsked.current.add(index);
     const what = passageOf({ ...here, kind }, moment);
     if (!what) return;
-    if (!opened.current.has(index)) {
-      opened.current.set(index, practiseIO.open(what.item, what.passage).catch(() => null));
-    }
+    openOn(practiseIO, index, what);
     let tries = 0;
     aiWaiting.current.add(index);
     // The bubble is on screen from here, the typing dots in it.
@@ -293,7 +304,7 @@ export function useWalkPractise<R>(args: {
       }, tries < AI_VOICE_POLL_TRIES ? AI_VOICE_POLL_MS : AI_VOICE_SLOW_POLL_MS);
       aiTimers.current.add(timer);
     };
-    void (opened.current.get(index) ?? Promise.resolve(null)).then(async (practiceId) => {
+    void (opened.current.get(index)?.practice ?? Promise.resolve(null)).then(async (practiceId) => {
       if (!practiceId) return keep(none);
       aiPractice.current.set(index, practiceId);
       // A start that did not get through is asked again a few times before
@@ -372,7 +383,7 @@ export function useWalkPractise<R>(args: {
           audios: { ...t[moment]?.audios, [attempt]: { url, durationMs: Math.round(durationSec * 1000) } },
         },
       }));
-      const practiceId = practiseIO ? await (opened.current.get(moment) ?? Promise.resolve(null)) : null;
+      const practiceId = practiseIO ? await (opened.current.get(moment)?.practice ?? Promise.resolve(null)) : null;
       // A try the server did not count is still a try on screen: the next
       // one is numbered after it, so each keeps its own "Practise N" and its
       // own voice (founder 2026-10-21, C7: "number it anyway, 1, 2, 3").
@@ -488,6 +499,6 @@ export function useWalkPractise<R>(args: {
   const aiVoicePracticeOf = useCallback((moment: number) => aiPractice.current.get(moment), []);
   const aiVoiceAsking = useCallback((moment: number) => aiWaiting.current.has(moment), []);
 
-  const practiceOf = useCallback((moment: number) => opened.current.get(moment) ?? null, []);
+  const practiceOf = useCallback((moment: number) => opened.current.get(moment)?.practice ?? null, []);
   return { elapsed, capturing, stop, skip, again, tryOf, cancel, reset, aiVoiceOf, aiVoicePlayed, aiVoicePracticeOf, aiVoiceAsking, practiceOf };
 }
