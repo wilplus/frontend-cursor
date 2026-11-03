@@ -210,6 +210,12 @@ order it is built in.
      away to the left and closes as it comes back (none with less motion).
      Back on the list, it is where you left it, the row you came from lit
      grey for a moment (N378).
+   - **Forward** (the iPhone app's swipe from the right edge of the list,
+     the browser's Forward on the web) opens the chat you just came back
+     from again, Will's or a person's, after the finger and sliding as when
+     it opens; let go early and it slides back. Before you have left a
+     chat, and over a screen opened on the list, it does nothing. The list
+     keeps the WillpowerLab bar, the logo and ☰ (N436).
    - **Record an answer** (N321 item 4, N336, N342, N345, N361, N363):
      when the question waiting for your answer is one Will marked as about
      a product or a treatment (`meta.record_answer`), the middle of the bar
@@ -705,6 +711,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N436 · C1: Forward: on the list, a swipe from the right edge (the iPhone app) or the browser's Forward (the web) opens the chat you just came back from again, after the finger; let go early and it slides back; nothing before you have left a chat. A chat being pulled in, or sliding out, no longer holds a history entry of its own. Was: no way forward; Forward on the web landed on a dead entry · BE N436 log, FE (this PR)
 - 2026-11-03 · N401 · C1, §2: no demo chats for a newcomer: an empty list is Will and "Add someone to chat with", on the web as in the iPhone app (the list opens with Will alone everywhere); the list no longer asks for the two demo chats, "Sarah" and "Ariel", and the route that seeded them is gone. Was: on the web, an empty list got the two demo chats the first time · FE (this PR)
 - 2026-11-03 · N372 · one voice at a time: playing a voice message pauses the one already playing, and recording a voice note pauses any that plays (`lib/willab/oneVoice.ts`, `plan/VoicePlayer.tsx`, `useVoiceNote.ts`). Was: two could play over each other, and over the mic · BE #1622, FE (this PR)
 - 2026-11-03 · N441 · C1: Record an answer, the audit's fixes: the answer goes to the backend as soon as its Take is up and waits out its 5 seconds there (hidden, no push), so leaving the app no longer stops it; Undo takes it back there and Will says so in his chat ("You took this one back, so {name} didn't hear it. Here's what I noticed, for practice."); a refused send stays as "Not sent" with "Send again"; "Sent to {name}" for everyone until WhatsApp delivery exists. Was: the 5 seconds counted in the phone, a refused send vanished, Undo said nothing, "Sent to {name} on WhatsApp" for a customer · BE (N441 PR), FE (this PR)

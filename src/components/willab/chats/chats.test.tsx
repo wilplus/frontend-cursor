@@ -67,7 +67,13 @@ OUTCOME
       reads "Sending to {name}… {n}" with Undo while the answer, already
       with the backend, waits out its 5 seconds there (N441 item 3); then
       "Sent to {name}" stands under it, a customer's too (N345, N441 item 4).
-  O17 An answer the backend refused stays in the bar's middle, "Not sent"
+  O17 Back (the iPhone's swipe from the left edge in the app, the browser's
+      Back on the web) goes back by one, from a chat to the list, and never
+      off the list; back on the list, it is where I left it, the row I came
+      from lit. Forward (the swipe from the list's right edge in the app,
+      the browser's Forward on the web) opens the chat I just left again;
+      before I have left one, it does nothing (N378, N436).
+  O18 An answer the backend refused stays in the bar's middle, "Not sent"
       with "Send again", which sends the same Take (N441 item 1).
 PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O2 -> "with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back"
@@ -85,7 +91,9 @@ PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O14 -> "the other person's photo or file waits for my voice, and each opens from the chat's file route"
          O15 -> "an answer sent to me plays with its slides following the voice, its words behind Read it"
          O16 -> "a marked question takes Record an answer, and my answer goes with Sending, Undo and Sent"
-         O17 -> "a refused answer stays as Not sent, and Send again sends the same Take"
+         O17 -> "the device's Back goes back by one, to the list, never off it, and Forward opens the chat I just left"
+         O17 -> "in the app, a swipe from the left edge goes back to the list where I left it, and one from the right edge forward to the chat I just left"
+         O18 -> "a refused answer stays as Not sent, and Send again sends the same Take"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -279,7 +287,7 @@ describe("the chats in front of the Lounge", () => {
     expect(loungeMounts).toBe(1);
   });
 
-  it("the iPhone's back swipe goes back by one, to the list, and never off the list", async () => {
+  it("the device's Back goes back by one, to the list, never off it, and Forward opens the chat I just left", async () => {
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, ARIEL] }));
     routes.set("GET /api/v2/chats/c-sarah/messages", () => ({ messages: [] }));
@@ -299,6 +307,19 @@ describe("the chats in front of the Lounge", () => {
     await swipe(1);
     expect(onList()).toEqual(["will", "c-ariel", "c-sarah"]);
 
+    // The browser's Forward opens it again (N436 item 3), and Back goes back.
+    await act(async () => {
+      const popped = () => new Promise((done) => window.addEventListener("popstate", done, { once: true }));
+      const forward = popped();
+      window.history.go(1);
+      await forward;
+      await popped();
+      for (let i = 0; i < 12; i += 1) await Promise.resolve();
+    });
+    expect(container.querySelector("[data-chat-header]")?.textContent).toBe("Will");
+    await swipe(1);
+    expect(onList()).toEqual(["will", "c-ariel", "c-sarah"]);
+
     // A person's chat, swiped abruptly (two steps at once): still the list.
     await tap(rows()[2]);
     expect(container.querySelector("[data-chat-header]")).not.toBeNull();
@@ -311,30 +332,55 @@ describe("the chats in front of the Lounge", () => {
     expect((window.history.state as Record<string, unknown>).__willabBackStop).toBe(true);
   });
 
-  it("back from a chat, the list is where you left it, the row you came from lit; in the app, a swipe from the left edge goes back", async () => {
+  it("in the app, a swipe from the left edge goes back to the list where I left it, and one from the right edge forward to the chat I just left", async () => {
     native.on = true;
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, ARIEL] }));
     routes.set("GET /api/v2/chats/c-sarah/messages", () => ({ messages: [] }));
     await render();
     const list = () => container.querySelector("[data-chat-list]") as HTMLElement;
+    const header = () => container.querySelector("[data-chat-header]");
     list().scrollTop = 120;
+    // A swipe across the screen, from one edge to the other; `to` short of
+    // the far edge lets go early.
+    const swipe = (from: number, to: number) =>
+      act(async () => {
+        const at = (x: number) => ({ touches: [{ clientX: x, clientY: 300 }] });
+        window.dispatchEvent(Object.assign(new Event("touchstart"), at(from)));
+        window.dispatchEvent(Object.assign(new Event("touchmove", { cancelable: true }), at(from + Math.sign(to - from) * 60)));
+        window.dispatchEvent(Object.assign(new Event("touchmove", { cancelable: true }), at(to)));
+        window.dispatchEvent(Object.assign(new Event("touchend"), { touches: [] }));
+      });
+    const right = window.innerWidth - 5;
+
+    // Before any chat was left, the right edge does nothing.
+    await swipe(right, 0);
+    await flush();
+    expect(header()).toBeNull();
 
     await tap(rows()[2]);
-    expect(container.querySelector("[data-chat-header]")).not.toBeNull();
-    // The swipe from the left edge, right across the screen.
+    expect(header()).not.toBeNull();
+    await swipe(5, window.innerWidth);
+    await flush();
+    expect(header()).toBeNull();
+    expect(list().scrollTop).toBe(120);
+    expect(container.querySelector("[data-chat-came-from]")?.getAttribute("data-chat-row")).toBe("c-sarah");
+
+    // From the right edge, let go early: still the list.
     await act(async () => {
       const at = (x: number) => ({ touches: [{ clientX: x, clientY: 300 }] });
-      window.dispatchEvent(Object.assign(new Event("touchstart"), at(5)));
-      window.dispatchEvent(Object.assign(new Event("touchmove", { cancelable: true }), at(60)));
-      window.dispatchEvent(Object.assign(new Event("touchmove", { cancelable: true }), at(window.innerWidth)));
+      window.dispatchEvent(Object.assign(new Event("touchstart"), at(right)));
+      window.dispatchEvent(Object.assign(new Event("touchmove", { cancelable: true }), at(right - 12)));
+      window.dispatchEvent(Object.assign(new Event("touchmove", { cancelable: true }), at(right - 20)));
+      await new Promise((done) => setTimeout(done, 80));
       window.dispatchEvent(Object.assign(new Event("touchend"), { touches: [] }));
     });
     await flush();
-
-    expect(container.querySelector("[data-chat-header]")).toBeNull();
-    expect(list().scrollTop).toBe(120);
-    expect(container.querySelector("[data-chat-came-from]")?.getAttribute("data-chat-row")).toBe("c-sarah");
+    expect(header()).toBeNull();
+    // All the way: the chat I just left, again.
+    await swipe(right, 0);
+    await flush();
+    expect(header()?.textContent).toContain("Sarah");
   });
 
   it("an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question", async () => {
