@@ -11,6 +11,7 @@
 /*  Words only, never a number (Never 1).                                     */
 /* -------------------------------------------------------------------------- */
 
+import type { WalkClip } from "./feedbackWalkModel";
 import { ONE_THING_COPY } from "@/components/willab/idealEditCopy";
 import { zoneLevel } from "./pace/paceSignal";
 
@@ -46,6 +47,10 @@ export type TempoStretch = {
    *  8): the step opens with "This week's level: {level}. Here's where it
    *  shows:". */
   planLevel?: string | null;
+  /** The speaker's own voice for the stretch, signed as the walk's moments'
+   *  are (backend `tempo_stretch.with_clip`); none without audio, and the
+   *  bubble is then the words only. */
+  clip?: WalkClip | null;
 };
 
 /** One try, as the step reads it from the dot's path. */

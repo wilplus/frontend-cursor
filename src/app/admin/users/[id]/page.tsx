@@ -243,7 +243,8 @@ function PersonProfile({ id }: { id: string }) {
           <div className={row3}>
             <span className="text-muted-foreground">On home screen</span>
             <span>{p.home_screen_at ? `Yes, since ${day(p.home_screen_at)}` : <span className="text-muted-foreground">Not seen yet</span>}</span>
-            {p.home_screen_at ? <span /> : askBtn("home_screen")}
+            {/* The home-screen ask is deleted (backend N391): nothing to send. */}
+            <span />
           </div>
         </div>
       </section>

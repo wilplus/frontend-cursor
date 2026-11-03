@@ -32,7 +32,7 @@ WHY      Founder 2026-10-20: "You cannot have two actions at a time, like
 */
 import { describe, expect, it } from "vitest";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
-import { afterGoodbye, afterTakeOrder, askShowing, askToOpen, heldMessage, recordedPast, wantsToPractise } from "./afterTake";
+import { afterGoodbye, afterTakeOrder, askShowing, heldMessage, recordedPast, wantsToPractise } from "./afterTake";
 
 const at = (n: number) => `2026-10-20T10:00:0${n}.000Z`;
 const row = (id: string, n: number, kind: LoungeMessage["kind"], metadata: Record<string, unknown>, body = id): LoungeMessage =>
@@ -71,12 +71,6 @@ describe("after a Take", () => {
     const question = row("question", 2, "text", { offer: "consent", after_take: "summary" });
     const held = row("summary", 1, "cadence", { summary: true, take_index: 2, ...take, held_for: "admin" });
     expect(ids([held, question, card])).toEqual(["card", "question"]);
-  });
-
-  it("opens the Take's WhatsApp ask by itself", () => {
-    const drawn = afterTakeOrder(items([summary(true, 1), ask, card])).map((i) => i.message);
-    expect(askToOpen(drawn)).toEqual({ id: "ask", type: "whatsapp" });
-    expect(askToOpen([...drawn, row("reply", 4, "text", {})])).toBeNull();
   });
 
   it("the last Take's Record button goes once the next Take is recorded", () => {

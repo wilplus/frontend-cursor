@@ -98,17 +98,6 @@ export function afterTakeOrder<T extends { message: Pick<LoungeMessage, "kind" |
   return out;
 }
 
-/** The ask of a Take's batch the chat opens by itself: the newest drawn
- *  bubble when it is WhatsApp or the home screen asked after a Take. */
-export function askToOpen(
-  drawn: readonly Pick<LoungeMessage, "client_id" | "metadata">[],
-): { id: string; type: Extract<OfferType, "whatsapp" | "install"> } | null {
-  const last = drawn[drawn.length - 1];
-  const meta = last?.metadata ?? {};
-  if (typeof meta.take_session_id !== "string") return null;
-  return meta.offer === "whatsapp" || meta.offer === "install" ? { id: last.client_id, type: meta.offer } : null;
-}
-
 /** Is an ask still in front of the speaker? A form is open in the footer,
  *  or the newest drawn bubble is an ask (an offer, or "What would help?").
  *  A message held back while none is would never show, so it is let go. */

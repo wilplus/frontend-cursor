@@ -22,6 +22,7 @@ import { ONE_THING_COPY } from "../idealEditCopy";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
 import WalkFooter from "./WalkFooter";
+import WalkPlayer from "./WalkPlayer";
 import RecordingBar from "../RecordingBar";
 import { WalkSpeakerBubble, useMountedAsPast, useWalkPart } from "./WalkThread";
 
@@ -268,15 +269,31 @@ export default function WalkTempo({
   }
 }
 
-/** The speaker's sentence with the stretch they rushed or dragged marked. */
+/** The speaker's sentence with the stretch they rushed or dragged marked:
+ *  their own clip, the words above its player (the locked prototype's
+ *  `clip(f.text)`), as the walk's moments are; the words alone without audio. */
 export function TempoStretchBubble({ stretch }: { stretch: TempoStretch }) {
-  return (
-    <WalkSpeakerBubble>
+  const words = (
+    <>
       {stretch.said.before}{" "}
       <mark className="rounded bg-white/25 px-0.5 text-inherit">{stretch.said.stretch}</mark>{" "}
       {stretch.said.after}
-    </WalkSpeakerBubble>
+    </>
   );
+  if (stretch.clip) {
+    return (
+      <WalkPlayer
+        look="me"
+        seed="tempo-stretch"
+        src={stretch.clip.src}
+        startOffsetMs={stretch.clip.startOffsetMs}
+        durationMs={stretch.clip.durationMs}
+        label={W.mark}
+        words={words}
+      />
+    );
+  }
+  return <WalkSpeakerBubble>{words}</WalkSpeakerBubble>;
 }
 
 /** "Try N" in the speaker's bubble, with the line the dot drew. */

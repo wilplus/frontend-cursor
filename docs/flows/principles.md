@@ -80,11 +80,14 @@ The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
    the red Stop inside it; Stop sends. Was: delete, the running time in a
    pill, send (founder 2026-10-20). The life goals lens's small mic records
    with the same bar.
-2. The words follow the wave about 2 to 4 seconds behind the voice (the
-   path: Vercel, Railway, the processing-authorization permit, Whisper)
-   and replace the stretch of wave they cover, a phrase at a time. The
-   phrase still being heard is lighter until its whole piece has been heard
-   (N199).
+2. The words follow the wave well under a second behind the voice and
+   replace the stretch of wave they cover, as they are said. The phone
+   streams the voice to the transcription provider with a short-lived key
+   the backend issues under the processing-authorization permit; nothing
+   streamed is kept. The phrase still being heard is lighter until its
+   whole has been heard. Where the stream cannot open, the words come as
+   before, a phrase at a time, about 2 to 4 seconds behind (the path:
+   Vercel, Railway, the permit, Whisper) (N199, N396).
 3. On send, the note stays where it is: the wave the words have not reached
    shimmers while Will's typing dots show. When the backend has kept it,
    the hesitations fade out with a line through them, and the kept note
@@ -541,6 +544,7 @@ Nothing in flight.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N396 · B2: the words stream, well under a second behind the voice, with a short-lived key the backend issues under the permit; the pieces stay as the fallback; no new words on screen. Was: 2 to 4 seconds behind, every piece sent through Vercel and Railway to Whisper · BE (backend PR), FE (this PR)
 - 2026-11-02 · N350 item 2 · S3: the verbal read waits after the Take is flipped ready, before the walk's marks are baked, so "ready" never waits for it; the rule is the walk's H1. Was: "the Take waits for it" · docs (this PR)
 - 2026-11-02 · — · S3: the wait for the verbal read and the rule against repeating the notes are the walk's H1 only; S3 points there. No rule changes · docs (this PR)
 - 2026-11-02 · N326 · A3, S: the walk's pick and its Clearer version read what the speaker noted themselves (principles, kept strengths, life goals, Your why, # notes of the last 60 days), each where its own ring row and consent reach, behind the ring row `walk_inner_context` at ring 6; never shown, never to a coach; Will's private note is not read. Was: the walk never read or showed them except R's quote (N182 item 3) · BE N326 (the decision, the code), FE (this PR)

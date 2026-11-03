@@ -382,6 +382,12 @@ O2  The line under my latest Take opens the screen with my choice ticked
 now chose, stamped with the words I saw, and its line says the new
 choice; ""Only me"" takes it back from every community.","O1 -> ""starts with nothing ticked; Continue waits for a choice, Only me counts""
 O2 -> ""the latest Take's line opens the screen ticked as it stands, and a change re-stamps that Take""","Founder 2026-10-15 (Privacy 3.6 section 4d). O2: founder 2026-10-31, backend N309 item 5; G4 (each Take stamped and revocable)."
+src/components/willab/NoticeBar.test.tsx,Story,"As a speaker, I want a question or a price the founder sent me, and the WhatsApp ask, to come as a bar at the top of the chat, one at a time, never in the buttons I record with, so that it never competes with my next Take.","O1  The ask comes in the bar with its own words (the WhatsApp ask under
+its opener), once a visit, and is reported shown.
+O2  ✕ closes the bar.
+O3  The promo price never shows in the iPhone app (it has no buying).","O1 -> ""shows the ask in the bar once a visit""
+O2 -> ""closes on Not now""
+O3 -> ""never shows the promo in the iPhone app""","Founder 2026-11-03 (backend N391): ""do not mix notifications ... with the main screen buttons. The notifications should come as notifications at the top as a separate bar."""
 src/components/willab/OtherAccountLink.test.tsx,Story,"As a speaker who opens my coach's WhatsApp or email link while signed in to my other account, I want to be told so and taken to log in with the right one, so that I reach my coach's feedback instead of a wait that never ends.","O1  The server's ""arc not found"" (the project is not in this account)
 reads as another account's link, never as a text still being built;
 any other 404 still reads as pending.
@@ -1177,11 +1183,6 @@ Will's line ""New slides ready for Take 5."" and the message box comes
 back. Cancel brings the message box back with nothing sent.","O1 -> ""the ⋯ item says Add slides without a deck and Update slides with one""
 O2 -> ""a chosen PDF becomes the project's deck and the next Take's""
 O3 -> ""the chat's card stands in for the message box until the upload or Cancel""","Founder 2026-10-29, backend N257; prototype https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A."
-src/components/willab/useAdminAsk.test.tsx,Story,"As a speaker, I want a question the founder sent me from the CEO panel to come at the end of a Take, as that Take's one ask, and only once per Take, so that it never competes with recording again.","O1  It shows when a Take's message waits for it, and not before.
-O2  After a reload it is not posted again: its form opens again.
-O3  With no ask left to show, the Take's message comes at once.","O1 -> ""shows at the end of a Take whose message waits for it""
-O2 -> ""is not posted again after a reload""
-O3 -> ""lets the Take's message go when there is nothing to ask""","Founder 2026-10-18: the admin's ask was not shown in the chat; founder 2026-10-20: at the end of a Take, from Take 2, one action at a time (it no longer shows when the chat opens)."
 src/components/willab/useFailedTakeRecheck.test.ts,Story,"As a speaker, I want a ""failed"" note under my Take cleared when the server says the Take actually finished, and never a failure claimed without asking the server, so that I am not told a done Take failed and can go on to my Ideal Text and the next Take.","O1  While a failed note is on screen the hook asks the server at once and
 reports ""recovered"" when the Take is done.
 O2  The server cannot be reached: ""unknown"", never a verdict.
@@ -1591,6 +1592,11 @@ O4  The ladder shows each step with its date, leaves out what I skipped, and sho
 O2 -> applies the four-week rule
 O3 -> aims the quarter at the step above
 O4 -> draws the ladder with dates, changes and gaps",
+src/lib/willab/liveStream.test.ts,Story,"As someone saying a voice note, I want its words to appear as I say them, so that I see at once that I am heard.","O1  Phrases show in the order they were said; a phrase stays lighter
+until its whole is heard, even when the provider finishes a later
+one first.
+O2  The voice is sent at the rate the provider's key names.","O1 -> ""keeps phrases in the order said and the unheard ones current""
+O2 -> ""sends the voice at the provider's rate""","Backend N396 (amends N199 item 2): the words stream, well under a second behind the voice."
 src/lib/willab/markedEditorSerialize.test.ts,Story,"As a speaker, I want opening and saving my Ideal Text without changes to send back exactly the text I received, so that my document is never silently rewritten.","O1  The real editor paints the document, and reading it back gives the same
 bytes, for every marker grammar (bold, underline, italic, accent,
 moment, paragraphs). Never-5: the Ideal Text stays what the speaker
@@ -1644,14 +1650,16 @@ O4  The step closes ""dynamic"" once a try was better and the last was not rushe
 O5  The step runs on the backend's stretch only when its answer is whole; anything else means no tempo step. On a plan it names this week's pace level (N289).
 O6  A try lands only when it runs 20 s from the first word with the ball four fifths in the green; then Will says so and the game ends (N245).
 O7  A try that came closer gets a push for one more while a try is left; otherwise its comment alone (N245).
-O8  As the One thing walk's fix, the Sniper has two tries and says the walk's own words (N309).","O1 -> ""comes right after the practise moments, before other speakers"", ""leaves the walk unchanged when the Take has no intervention""
+O8  As the One thing walk's fix, the Sniper has two tries and says the walk's own words (N309).
+O9  The stretch plays as the speaker's own clip, the words marked above its player, as the locked prototype draws it; with no audio, the words alone.","O1 -> ""comes right after the practise moments, before other speakers"", ""leaves the walk unchanged when the Take has no intervention""
 O2 -> ""is never in the coach-only walk or a guest's""
 O3 -> ""reads a try from where the ball stayed""
 O4 -> ""closes on one line from the tries""
 O5 -> ""takes the backend's stretch only when it is whole""
 O6 -> ""lands a try only when it is long and green""
 O7 -> ""pushes for one more only when a try came closer and one is left""
-O8 -> ""as the one fix, two tries in the walk's own words""","Founder 2026-10-26 (backend N162: ""in the feedback walk only""; N166: ""go with the defaults""); founder 2026-10-28 (backend N245: ""If it was really better, you let me go to the next step""); founder 2026-10-30 (backend N289 item 8); Never-rule 1."
+O8 -> ""as the one fix, two tries in the walk's own words""
+O9 -> ""plays the stretch as the speaker's own clip""","Founder 2026-10-26 (backend N162: ""in the feedback walk only""; N166: ""go with the defaults""); founder 2026-10-28 (backend N245: ""If it was really better, you let me go to the next step""); founder 2026-10-30 (backend N289 item 8); Never-rule 1."
 src/lib/willab/trackedChanges.test.ts,Story,"As a speaker, I want a suggestion whose words have moved to be dropped rather than painted on the wrong words, so that strike-throughs always mark what I said.","O1  A suggestion whose span still holds its quote is kept.
 O2  A stale span is dropped, never re-anchored by searching for the quote.","O1 -> ""KEEPS a span whose words are still there""
 O2 -> ""DROPS a stale span rather than re-anchoring by search (FE-5)""",FE-5: re-finding a moved quote struck the wrong words.
