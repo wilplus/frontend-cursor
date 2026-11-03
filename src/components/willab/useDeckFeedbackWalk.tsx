@@ -1474,6 +1474,7 @@ export function useDeckFeedbackWalk(args: {
       ai?: WalkAiShown | null,
       line?: string | null,
       fixTip?: string | null,
+      phrase?: string | null,
     ) => {
       const { coachMessage: coach } = live.current;
       const at = { moment: step.moment ?? null, attempt: step.attempt ?? null };
@@ -1494,7 +1495,7 @@ export function useDeckFeedbackWalk(args: {
       if (step.key === "coachnote") said = coachNoteOnce(said, coach, threadRef.current, Boolean(step.replay || walkModel.replay));
       said = withLateReason(said, step, moment, reasonsRef.current);
       // The label above a moment, and the speaker's clip before its bubble.
-      const chat = said ? momentChat(walkModel.plan, step, moment) : null;
+      const chat = said ? momentChat(walkModel.plan, step, moment, phrase ?? null) : null;
       // The moment's paragraph: a tap in the chat finds the step by it.
       const part = chatPartOf(step, moment, ai, fixTip ?? null);
       postLevel(post, step, moment, Boolean(said), { ...at, extra: { ...part } });

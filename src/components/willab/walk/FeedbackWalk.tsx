@@ -27,7 +27,7 @@ import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, AI_CLIP_WAIT_MS, 
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
-import { MOMENT_LEAD_LINES, aiClipLines, aiTip, bestBubble, clearerOpening, oneThingAiLines, oneThingNoClip, praiseBubble, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO } from "@/lib/willab/walkLines";
+import { MOMENT_LEAD_LINES, aiClipLines, aiTip, bestBubble, clearerOpening, oneThingAiLines, oneThingNoClip, praiseBubble, topMomentLine, type SayLine, type WalkBankKey, type WalkLinesIO, phrasePieces } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import { goodJobHelpers, maxTries, momentLead, type WalkStep } from "@/lib/willab/walkPlan";
 import {
@@ -223,6 +223,9 @@ type Props<R> = {
     /** The One thing walk's fix with no AI clip: its tip, for "Last
      *  time" (N370). */
     fixTip?: string | null,
+    /** The One thing walk's fix: the AI clip's phrase, bold in the chat's
+     *  copy of the speaker's words as in the walk (founder 2026-11-03). */
+    phrase?: string | null,
   ) => void;
   /** A screen reached the speaker: the host tells the server at once (the
    *  coach's queue, N48.2), before the chat hears what it showed. */
@@ -669,7 +672,7 @@ export default function FeedbackWalk<R = unknown>({
       // The line above it only with their best's clip after it (N377 item 2).
       const like = s.one && fixBest(walk.moments, s.moment) ? [ONE_THING_COPY.likeConfident] : [];
       const body = s.one ? [...like, ...(noClip?.lines ?? [])].join("\n") || null : null;
-      shownRef.current?.(s, moment, say, ai, body, ai ? null : (noClip?.tip ?? null));
+      shownRef.current?.(s, moment, say, ai, body, ai ? null : (noClip?.tip ?? null), s.one ? (practise.aiVoiceOf(s.moment)?.clip?.phrase ?? null) : null);
     });
   });
   // The bare correction's Exercise and practise leave the live walk once its
@@ -1115,9 +1118,19 @@ function Answered({ ctx, line }: { ctx: ScreenCtx; line: string | null }) {
 /** The speaker's own clip: the orange bubble on the right. */
 /** The moment's own words in its clip's bubble (the walk's prototype,
  *  `clip(u.best.text)` and `clip(f.text)`): their best and the AI clip's
- *  fix. Null when none was served. */
-function saidWords(moment: FeedbackWalkMoment): ReactNode {
-  return moment.said ? <span>{moment.said}</span> : null;
+ *  fix, the fix with its phrase bold (founder 2026-11-03). Null when none
+ *  was served. */
+function saidWords(moment: FeedbackWalkMoment, phrase?: string | null): ReactNode {
+  return moment.said ? <Bolded text={moment.said} phrase={phrase} /> : null;
+}
+
+/** A line with the AI clip's phrase bold (founder 2026-11-03). */
+function Bolded({ text, phrase }: { text: string; phrase?: string | null }) {
+  return (
+    <span>
+      {phrasePieces(text, phrase).map((p, i) => (p.bold ? <strong key={i} data-walk-phrase>{p.text}</strong> : <span key={i}>{p.text}</span>))}
+    </span>
+  );
 }
 
 function Clip({ moment, words, replay, chip = false }: { moment: FeedbackWalkMoment; words?: ReactNode; replay?: string; chip?: boolean }) {
@@ -1550,10 +1563,11 @@ function useFixClip<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
 function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkStep; moment: FeedbackWalkMoment<R> }) {
   const best = fixBest(ctx.walk.moments, moment.index);
   const { state, seed, lines, latePlayer, noClip } = useFixClip(ctx, step, moment);
+  const phrase = state?.clip?.phrase ?? null;
   return (
     <>
       <LevelHere moment={moment} />
-      <Clip moment={moment} words={saidWords(moment)} />
+      <Clip moment={moment} words={saidWords(moment, phrase)} />
       {/* The line ends on a colon: only with their best's clip after it (N377 item 2). */}
       {best ? (
         <>
@@ -1576,11 +1590,12 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
             seed={seed}
             state={state}
             {...lines}
+            bold={phrase}
             arrive
             onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
           />
         ) : null}
-        {noClip ? <FixWords seed={`${seed}-words:${noClip.video ?? ""}:${noClip.lines.join("|")}`} words={noClip} /> : null}
+        {noClip ? <FixWords seed={`${seed}-words:${noClip.video ?? ""}:${noClip.lines.join("|")}`} words={noClip} phrase={phrase} /> : null}
         {latePlayer ? (
           <WalkAiVoice seed={`${seed}-late`} state={state} line="" arrive onPlay={() => ctx.practise.aiVoicePlayed(moment.index)} />
         ) : null}
@@ -1600,7 +1615,7 @@ function fixBest<R>(moments: readonly FeedbackWalkMoment<R>[], fix: number): Fee
  *  the instruction, "Your turn.". They land with the walk's bubble motion,
  *  never swapping in place: once per wording in the page's life, so new
  *  words land and the same words drawn again do not (N377 item 1). */
-function FixWords({ seed, words }: { seed: string; words: NonNullable<ReturnType<typeof oneThingNoClip>> }) {
+function FixWords({ seed, words, phrase }: { seed: string; words: NonNullable<ReturnType<typeof oneThingNoClip>>; phrase?: string | null }) {
   const lands = useLandsOnce(seed);
   return (
     <WalkMessage coach={words.byCoach} wide={Boolean(words.video)} className={lands ? "walk-bubble-in" : undefined}>
@@ -1612,7 +1627,7 @@ function FixWords({ seed, words }: { seed: string; words: NonNullable<ReturnType
       ) : null}
       {words.lines.map((l, i) => (
         <span key={i} data-walk-no-clip>
-          {l}
+          <Bolded text={l} phrase={phrase} />
         </span>
       ))}
     </WalkMessage>
