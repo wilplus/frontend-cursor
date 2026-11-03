@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUp, Check, Clock, Mic, X } from "lucide-react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import SymmetricPair from "./SymmetricPair";
+import { TapRow } from "./WillQuestion";
 import {
   answerNotebook,
   answerSalesStep,
@@ -251,22 +252,20 @@ export function salesAskOf(messages: readonly Pick<LoungeMessage, "metadata">[])
   return null;
 }
 
-/** The four steps in place of the message box, two by two, as the
- *  prototype draws them (backend N241 P2, N258). */
+/** The four steps in place of the record button, in order, as N371's
+ *  suggested answers with none filled: no step is likelier than another
+ *  (backend N241 P2, N258, N417). */
 export function SalesSteps({ onPick }: { onPick: (step: SalesStep) => void }) {
   return (
-    <div className="grid grid-cols-2 gap-2" data-testid="sales-steps">
-      {SALES_STEPS.map(({ step, label }) => (
-        <button
-          key={step}
-          type="button"
-          onClick={() => onPick(step)}
-          className="flex h-11 items-center justify-center rounded-full border border-border text-[15px] text-foreground transition-colors hover:border-primary/50"
-        >
-          {label}
-        </button>
-      ))}
-    </div>
+    <TapRow
+      labels={SALES_STEPS.map((s) => s.label)}
+      even
+      onTap={(label) => {
+        const picked = SALES_STEPS.find((s) => s.label === label);
+        if (picked) onPick(picked.step);
+      }}
+      dataAttr={{ "data-testid": "sales-steps" }}
+    />
   );
 }
 
