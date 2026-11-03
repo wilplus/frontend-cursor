@@ -676,7 +676,10 @@ O9  The done imports sit at the bottom of the list; opening one starts the
 judging, mixed across imports from a clip of it, and the list comes
 back when nothing is left to judge (founder 2026-10-21, N101).
 O10 The list comes in steps (N100): reaching its bottom reads the next
-step, the loader showing until it lands.","O1 -> ""a saved set-up goes straight to judging, with its count""
+step, the loader showing until it lands.
+O11 The corpus is the founder's, in the CEO panel (N407): the coach's
+pinned row has no Training corpus button; the CEO panel's opens the
+imports.","O1 -> ""a saved set-up goes straight to judging, with its count""
 O2 -> ""a set-up with nothing to judge goes back to the imports, never to judging""
 O3 -> ""a new import lands on the imports with its count""
 O4 -> ""the panel's queue read carries no words of a piece""
@@ -685,7 +688,8 @@ O6 -> ""only the founder's ⋯ carries Delete; confirming it erases the import a
 O7 -> ""several files import one at a time, each its own import named by its file""
 O8 -> ""a choice over the upload limit is refused, and a refusal for the hour stops the batch""
 O9 -> ""the done imports sit at the bottom; judging starts from the opened one and comes back to the list""
-O10 -> ""reaching the bottom of the list reads its next step""","Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files in one Import, the list in steps and the corpus judged mixed, founder 2026-10-21."
+O10 -> ""reaching the bottom of the list reads its next step""
+O11 -> ""the corpus opens from the CEO panel, never from the coach's pinned row""","Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files in one Import, the list in steps and the corpus judged mixed, founder 2026-10-21. Moved to the CEO panel, founder 2026-11-03 (backend N407)."
 src/components/willab/coachpanel/coachPlan.test.tsx,Story,"As a coach, I want a speaker's plan in my queue when it needs me, so that I pick their level blind, or send my video for a level that hasn't moved, and their plan follows my answer.","O1  A plan that waits comes first in my queue, on its speaker's card (""New
 plan"", ""Asked about their level"", ""Three Takes without moving""), and
 as ""Their plan"" above their Takes; the Lounge bubble counts it.

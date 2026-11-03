@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, ChevronRight, Coins, Home, Link as LinkIcon, LogOut, Menu, Settings, Sparkles } from "lucide-react";
+import { ChevronRight, Coins, Home, Link as LinkIcon, LogOut, Menu, Settings, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { LifeMenuEntry } from "@/lib/life/types";
@@ -92,10 +92,6 @@ export interface AppMenuProps {
   /** Where "Lab" goes. The blog links into the product; the lab itself is
    *  already there, so its mount passes null and the row is omitted. */
   labHref?: string | null;
-  /** The training-corpus workbench. COACH ONLY (N4): the host passes this
-   *  only when the signed-in user is a coach, so the row does not exist for
-   *  anyone else — not greyed out, not present. */
-  corpusHref?: string | null;
   /** Signed-in privacy/consent management surface. */
   dataConsentHref?: string | null;
   /** The account's name, when it has one; the email is shown under it. */
@@ -117,7 +113,6 @@ export default function AppMenu({
   onLogout,
   loggingOut = false,
   labHref = null,
-  corpusHref = null,
   dataConsentHref = null,
   userName = null,
   onCopyLink = null,
@@ -298,17 +293,10 @@ export default function AppMenu({
                   </Link>
                 )
               ) : null}
-              {/* Kept from before, for the few who have them: the coach's
-                  corpus (N4), discovered products and the Life Panel's
-                  server-sent entries. */}
-              {corpusHref ? (
-                <Link ref={firstRef()} href={corpusHref} {...row(corpusHref)} onClick={() => setOpen(false)}>
-                  <MenuIcon tone="grey">
-                    <BookOpen className="h-[18px] w-[18px]" />
-                  </MenuIcon>
-                  <span className="flex-1">Training corpus</span>
-                </Link>
-              ) : null}
+              {/* Kept from before, for the few who have them: discovered
+                  products and the Life Panel's server-sent entries. The
+                  training corpus left the coach's menu for the CEO panel
+                  (backend N407). */}
               {productMenu.map((entry) => (
                 <Link key={entry.product} ref={firstRef()} href={entry.href} {...row(entry.href)} onClick={() => setOpen(false)}>
                   <MenuIcon tone="grey">

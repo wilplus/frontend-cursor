@@ -24,6 +24,9 @@ OUTCOME
       back when nothing is left to judge (founder 2026-10-21, N101).
   O10 The list comes in steps (N100): reaching its bottom reads the next
       step, the loader showing until it lands.
+  O11 The corpus is the founder's, in the CEO panel (N407): the coach's
+      pinned row has no Training corpus button; the CEO panel's opens the
+      imports.
 PROVES   O1 -> "a saved set-up goes straight to judging, with its count"
          O2 -> "a set-up with nothing to judge goes back to the imports, never to judging"
          O3 -> "a new import lands on the imports with its count"
@@ -34,9 +37,11 @@ PROVES   O1 -> "a saved set-up goes straight to judging, with its count"
          O8 -> "a choice over the upload limit is refused, and a refusal for the hour stops the batch"
          O9 -> "the done imports sit at the bottom; judging starts from the opened one and comes back to the list"
          O10 -> "reaching the bottom of the list reads its next step"
+         O11 -> "the corpus opens from the CEO panel, never from the coach's pinned row"
 WHY      Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files
          in one Import, the list in steps and the corpus judged mixed,
-         founder 2026-10-21.
+         founder 2026-10-21. Moved to the CEO panel, founder 2026-11-03
+         (backend N407).
 */
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -71,6 +76,8 @@ vi.mock("./CoachCorpusJudge", () => ({
 }));
 import { blindPiece, type QueuePiece, type TrainingImport } from "@/services/api/trainingCorpus";
 import CoachPanel from "./CoachPanel";
+import { CoachPanelPinned } from "./CoachPanelDoor";
+import { useCeoCorpus } from "@/components/ceo/CeoCorpus";
 import { PANEL_START, panelReducer, type PanelAction, type PanelState } from "@/lib/willab/coachPanel";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -306,6 +313,25 @@ describe("the training corpus in the panel", () => {
     await flush();
     expect(eraseTrainingImport).toHaveBeenCalledWith("i1");
     expect(fetchTrainingImports.mock.calls.length).toBeGreaterThan(reads);
+  });
+});
+
+describe("where the corpus opens (N407)", () => {
+  it("the corpus opens from the CEO panel, never from the coach's pinned row", async () => {
+    act(() => root.render(<CoachPanelPinned onSpeakers={() => undefined} />));
+    expect(document.querySelector("[data-testid='coach-panel-speakers-button']")).not.toBeNull();
+    expect(document.body.textContent).not.toContain("Training corpus");
+
+    function Ceo() {
+      const corpus = useCeoCorpus();
+      return <><button type="button" data-testid="ceo-corpus-button" onClick={corpus.open} />{corpus.panel}</>;
+    }
+    act(() => root.render(<Ceo />));
+    expect(onImports()).toBeNull();
+    click(document.querySelector("[data-testid='ceo-corpus-button']"));
+    await flush();
+    expect(onImports()).not.toBeNull();
+    expect(fetchTrainingImportsPage).toHaveBeenCalled();
   });
 });
 
