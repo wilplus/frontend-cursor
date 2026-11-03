@@ -40,13 +40,16 @@ OUTCOME
       the one who invited me as its first row, above Will's, marked new with
       the joined line, and the address is clean again; opened, it is a chat
       like the rest (N357; was N348 item 1).
-  O11 The "+" in a chat swaps the bar for four tiles with their names,
+  O11 In the iPhone app the Lounge never shows for a moment before the list
+      covers it: the rings and the chats are asked together at boot, and
+      the loader stands in front until both have answered (N354).
+  O12 The "+" in a chat swaps the bar for four tiles with their names,
       Photos, Camera, Files and Someone else; Someone else opens the add
       sheet with my link; Cancel brings the bar back (N351).
-  O12 A photo I pick is posted to the chat's photo route and joins the
+  O13 A photo I pick is posted to the chat's photo route and joins the
       thread as my image; the mic then shows, so I can say what I need, and
       goes once my voice note is sent (N337, N341 item 2, N351).
-  O13 The other person's photo or file waits for my voice: the mic shows. A
+  O14 The other person's photo or file waits for my voice: the mic shows. A
       file shows a tile with its extension and its own name, and downloads
       from the chat's file route; a photo opens full size with a close and
       no words; the list's line is "📷", or "📄" and the file's name (N351).
@@ -60,17 +63,21 @@ PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O8 -> "the + opens my own link and copies it"
          O9 -> "a chat joined through a link says whose link it was"
          O10 -> "after joining, the list opens with the one who invited me on top, marked new"
-         O11 -> "the + shows the four tiles, Someone else opens my link, and Cancel brings the bar back"
-         O12 -> "a photo I send joins the thread and the mic shows until my voice note says what I need"
-         O13 -> "the other person's photo or file waits for my voice, and each opens from the chat's file route"
+         O11 -> "in the app, the loader, not the Lounge, waits for the list; both reads start together"
+         O12 -> "the + shows the four tiles, Someone else opens my link, and Cancel brings the bar back"
+         O13 -> "a photo I send joins the thread and the mic shows until my voice note says what I need"
+         O14 -> "the other person's photo or file waits for my voice, and each opens from the chat's file route"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }));
+const native = vi.hoisted(() => ({ on: false }));
+vi.mock("@/lib/auth/nativeSignIn", () => ({ isNativeApp: () => native.on }));
 
 import { resetRingStateCache } from "@/services/api/rings";
+import { __resetBootPrefetchForTests, prefetchChatsDoor } from "@/services/api/bootPrefetch";
 import { useChatsDoor } from "./useChatsDoor";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -158,6 +165,8 @@ class FakeRecorder {
 
 beforeEach(async () => {
   resetRingStateCache();
+  __resetBootPrefetchForTests();
+  native.on = false;
   window.localStorage.clear();
   routes.clear();
   fetchMock.mockReset();
@@ -568,5 +577,32 @@ describe("the chats in front of the Lounge", () => {
     expect(full.textContent).toBe("");
     await tap(full.querySelector('button[aria-label="Close"]'));
     expect(screen.querySelector("[data-chat-photo-full]")).toBeNull();
+  });
+
+  it("in the app, the loader, not the Lounge, waits for the list; both reads start together", async () => {
+    native.on = true;
+    let answerRings: () => void = () => {};
+    const rings = new Promise<void>((resolve) => (answerRings = resolve));
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url) === "/api/v2/user/rings") {
+        await rings;
+        return reply({ ring: 6, features_on: ["chats"], pending_announcements: [] });
+      }
+      if (String(url) === "/api/v2/chats") return reply({ chats: [SARAH] });
+      return reply({ error: "not found" }, 404);
+    });
+    prefetchChatsDoor();
+    await render();
+    // The rings have not answered, yet the chats were already asked.
+    expect(calls("GET /api/v2/chats")).toHaveLength(1);
+    expect(container.querySelector("[data-chats-waiting]")).not.toBeNull();
+    expect(rows()).toHaveLength(0);
+
+    await act(async () => answerRings());
+    await flush();
+    expect(container.querySelector("[data-chats-waiting]")).toBeNull();
+    expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-sarah"]);
+    // The list is the one read at boot, not a second one.
+    expect(calls("GET /api/v2/chats")).toHaveLength(1);
   });
 });
