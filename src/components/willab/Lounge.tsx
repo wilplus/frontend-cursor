@@ -170,7 +170,8 @@ import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
 import { useWaitScreen } from "./useWaitScreen";
 import { usePinThreadBottom } from "./usePinThreadBottom";
 import { clearerPieces, type ClearerPiece } from "@/lib/willab/clearerPieces";
-import { usePlanLounge } from "./plan/usePlanLounge";
+import { usePlanLounge, type PlanStart } from "./plan/usePlanLounge";
+import { isFirstTakeArc } from "@/lib/willab/firstTake";
 import { planRowFor, type PlanRowCtx } from "./plan/PlanRows";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { afterChatBoot } from "@/lib/chatBoot";
@@ -336,8 +337,10 @@ export default function Lounge({
    *  opens straight onto the prefilled setup. */
   onStartInProject?: () => void;
   /** The plan's "Start your first recording" (the-plan.md E5): the set-up
-   *  with the topic filled in from the voice message, no feelings check. */
-  onStartPlanRecording?: (topic: string | null) => void;
+   *  with the topic filled in from the voice message, no feelings check; or,
+   *  on a first-Take plan, the five questions at once (backend N401), and
+   *  after that Take the real talk's set-up (`afterFirstTake`). */
+  onStartPlanRecording?: (topic: string | null, start?: PlanStart) => void;
   /** What happened; useWillabFlow's table decides the state. */
   dispatch: (event: WillabEvent) => void;
   /** C — when set (from /chat?arc=<arc_id>), open the BestPresentationOverlay
@@ -2082,7 +2085,14 @@ export default function Lounge({
       <RecordTakeButton
         next={recordTake.next}
         held={takeInFlight}
-        onRecord={(arc) => openIdealText(arc, "share")}
+        onRecord={(arc) =>
+          // After the first Take (backend N401 item 4): "Record Take 2" is the
+          // real talk, its own set-up with the plan's topic, never the five
+          // questions again.
+          isFirstTakeArc(userId, arc) && onStartPlanRecording
+            ? onStartPlanRecording(plan.topic, { afterFirstTake: true })
+            : openIdealText(arc, "share")
+        }
         onClose={recordTake.close}
       />
       {/* Hidden whole while the plan's footer, or the next Take's button,

@@ -20,6 +20,7 @@ import {
   type PlanState,
 } from "@/services/api/plan";
 import { fmtWhen, PLAN_COPY } from "@/lib/willab/planCopy";
+import type { FirstTakeSlide } from "@/lib/willab/firstTake";
 import PlanDock, { dockFor, PlanAsk, planAsks, usePlanVoice, type PlanActions } from "./PlanDock";
 import { newestOneOf, PendingBooked, PendingVoice, type PlanRowCtx } from "./PlanRows";
 import { followNewest } from "@/components/willab/usePinThreadBottom";
@@ -69,7 +70,14 @@ export type PlanLounge = {
   /** The principles wait while the speaker is onboarded (backend N243): until
    *  the plan is read, then while it says so. */
   holdsPrinciples: boolean;
+  /** The plan's topic, read from what was said: the real talk's set-up after
+   *  the first Take (backend N401 item 4). */
+  topic: string | null;
 };
+
+/** How the plan's one button starts a recording: the first Take's five
+ *  questions (backend N401), or the real talk's set-up after that Take. */
+export type PlanStart = { firstTake?: FirstTakeSlide[] | null; afterFirstTake?: boolean };
 
 /** The Lounge's mic while someone waits for a spoken answer: its tap. */
 type MicWaits = { onTap: () => void } | null;
@@ -140,7 +148,7 @@ export function usePlanLounge({
   signedIn: boolean;
   thread: Thread;
   setThinking: (on: boolean) => void;
-  onStartRecording?: (topic: string | null) => void;
+  onStartRecording?: (topic: string | null, start?: PlanStart) => void;
   recordHeld: boolean;
 }): PlanLounge {
   const [state, setState] = useState<PlanState | null>(null);
@@ -236,12 +244,16 @@ export function usePlanLounge({
         void run(async () => (await bookCall(which, start))?.state ?? null, !!start).finally(() => setBookedLine(null));
       },
       saveDeadline: (day) => void run(() => changePlan({ deadline: day })),
-      startFirst: () => onStartRecording?.(plan?.topic ?? null),
+      startFirst: () => {
+        const topic = plan?.topic ?? null;
+        if (plan?.first_take) onStartRecording?.(topic, { firstTake: plan.first_take_slides ?? null });
+        else onStartRecording?.(topic);
+      },
       next: (choice) => void run(() => nextPlan(choice)),
       sameEvent: (yes) => void run(() => sameEvent(yes)),
       consent: (yes) => void run(() => answerConsent(yes)),
     }),
-    [run, onStartRecording, plan?.topic],
+    [run, onStartRecording, plan?.topic, plan?.first_take, plan?.first_take_slides],
   );
 
   const kind = dockFor(plan, booking);
@@ -338,5 +350,6 @@ export function usePlanLounge({
     oneHoldsRecord: newestOne !== null,
     one,
     holdsPrinciples: signedIn && (state === null || plan?.onboarding === true),
+    topic: plan?.topic ?? null,
   };
 }
