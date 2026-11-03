@@ -180,6 +180,22 @@ order it is built in.
      shows on the list only. Was (N322 item 4): the WillpowerLab bar with
      "‹ Will" under it. On a computer, the list and a person's chat sit in
      a phone-wide column in the middle.
+   - **Record an answer** (N321 item 4, N336, N342, N345, N361, N363):
+     when the question waiting for your answer is one Will marked as about
+     a product or a treatment (`meta.record_answer`), the bar is one black
+     button with the red dot, "Record an answer". It makes the question a
+     project of its own, one slide holding the asker's words, and opens
+     the recording screens on it at once, the person named above "Take 1 ·
+     Slide 1 of 1", no feelings check
+     ([recording-screens.md](recording-screens.md) step 6). Finish take
+     brings you back to the chat: "Sending to {name}…" with "Undo" for 5
+     seconds, then the answer goes (`POST /v2/chats/<id>/answer`, a voice
+     message that plays the Take itself; up to five minutes). Under it,
+     "Sent to {name} on WhatsApp" for a customer, "Sent to {name}" for a
+     colleague, with a check. The person gets just the answer, never its
+     Take. Undo, a Take that does not upload, or a refused send shows
+     nothing new. Not yet: "Practise with Will" (N344), "Consult with
+     someone first" (N343).
    - **The join link** (N308, N328, N335; built 2026-11-02 behind the same
      ring): the "+" at the bottom right of the list opens the add sheet:
      "Add someone to chat with", "Send them your link, in any email or
@@ -638,6 +654,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N321, N336, N342, N345, N361, N363 · C1: Record an answer: a question Will marked takes the black "Record an answer"; the recording screens on one slide, the question, no feelings check; back in the chat "Sending to {name}…" with Undo for 5 seconds, then the answer (a voice message playing the Take, up to five minutes) with "Sent to {name}" or "Sent to {name} on WhatsApp" under it. Was: the emoji and the mic only · BE #1611, #1612, FE (this PR)
 - 2026-11-03 · N355 · C1: an answer as the one who asked meets it: one message, the voice, the slides in a strip under the player that marks the one being heard as it plays, and its Take's words behind "Read it"; no Take number. The backend's read carries an answer's `words` and `slides` (each slide's start). Not yet: the picks, the WhatsApp link · BE (the answer's words and slides), FE (this PR)
 - 2026-11-02 · N351, N341 item 2, N337 · C1, K, §2, §4: the "+" on the left of a person's chat bar, in every chat but Will's: a tap swaps the bar for four tiles, Photos, Camera, Files and Someone else, with Cancel under them, which brings the bar back. Photos and Camera send images and Files any file, through the browser's own pickers, each its own message up to 10 MB (a photo: an image bubble that opens full size with a close ✕; a file: a bubble with its extension and its own name that downloads); Someone else opens the add sheet. The list's line is "📷" or "📄 {file name}". Each photo or file is a question for the other person (`meta.question`), and so is the sender's voice note straight after it; the mic shows while the newest message is the other person's question or your own photo or file. The prototype's own pickers and their words are not built (not signed). Was (N341): the bar was the three emoji and the mic, the mic only while the newest message was the other person's question; no "+" · BE #1606, FE (this PR)
 - 2026-11-02 · N360 · C1: Will is always the first row of the list; just joined through a link, the inviter's chat is the row right under Will, still marked new with its last message or the joined line. Was (N357 item 1): the inviter's chat above Will · FE (this PR)

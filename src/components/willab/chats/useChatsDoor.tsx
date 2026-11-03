@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import type { Chat } from "@/services/api/chats";
+import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import ChatList from "./ChatList";
 import ChatThread, { WillTopBar } from "./ChatThread";
 import { useChatList, useChatsDecided } from "./useChats";
@@ -57,8 +58,9 @@ function chatJustJoined(): string | null {
 }
 
 /** `willFirst`: a link that opens something in the Lounge (the coach's
- *  feedback) opens on Will's chat, not the list. */
-export function useChatsDoor(willFirst: boolean): ChatsDoor {
+ *  feedback) opens on Will's chat, not the list. `onRecordAnswer`: a chat's
+ *  "Record an answer" (backend N363), handed to the recording screens. */
+export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: AnswerFor) => void): ChatsDoor {
   const decided = useChatsDecided();
   const on = decided === true;
   const { chats, reload } = useChatList(on);
@@ -89,7 +91,7 @@ export function useChatsDoor(willFirst: boolean): ChatsDoor {
       <div data-chats-front className="absolute inset-0 z-20 flex flex-col bg-background">
         <div className="mx-auto flex min-h-0 w-full max-w-[480px] flex-1 flex-col">
           {view.at === "chat" ? (
-            <ChatThread key={view.chat.id} chat={view.chat} onBack={toList} />
+            <ChatThread key={view.chat.id} chat={view.chat} onBack={toList} onRecordAnswer={onRecordAnswer} />
           ) : (
             <ChatList
               chats={chats}

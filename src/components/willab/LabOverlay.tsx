@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { applyNextTakeShare } from "@/lib/willab/nextTakeShare";
+import { answerRecorded, answerTake, answering, type AnswerFor } from "@/lib/willab/chatAnswer";
 import { useRouter } from "next/navigation";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
@@ -163,6 +164,13 @@ export default function LabOverlay({
     p: import("@/services/api/recordingProgress").RecordingProgress | null,
   ) => void;
 }) {
+  // AN ANSWER IN A CHAT (backend N363, founder-approved for this lock): the
+  // screens opened from "Record an answer" record it as any Take, with the
+  // person's name above "Take 1 · Slide 1 of 1" (N334 item 2); Finish take
+  // brings the speaker straight back to the chat (no wait, no walk; the walk
+  // waits in Will's chat), the answer's project is never the current one,
+  // and no community share applies to it. Read once, as the screens open.
+  const [answer] = useState(answering);
   // D-3 — back-gesture / Back exits the Lab instead of routing away. During the
   // readout phase, Back first steps the readout's own layout (collapse a moment,
   // page back) before it exits the Lab.
@@ -292,8 +300,9 @@ export default function LabOverlay({
     takeArcId: string | null | undefined = null,
     uploadArcId: string | null = null,
   ) => {
-    // The share chosen before this Take was recorded (lock 2026-10-12, §5).
-    applyNextTakeShare(sessionId);
+    // The share chosen before this Take was recorded (lock 2026-10-12, §5);
+    // never an answer's (N363 item 4).
+    if (!answer) applyNextTakeShare(sessionId);
     if (reportedRef.current || !context) return;
     reportedRef.current = true;
     summaryAppendRef.current = appendToThread(
@@ -595,6 +604,7 @@ export default function LabOverlay({
       durationRef.current = s.durationSec;
       setBlob(s.audioBlob);
       dispatch("recording_stopped");
+      if (answer) answerRecorded(s.durationSec * 1000);
     }
   }, [mic.state, state, dispatch]);
 
@@ -614,6 +624,22 @@ export default function LabOverlay({
       cancelMic();
     }
   }, [micHot, state, cancelMic]);
+
+  // An answer's Take (N363): no wait marker (the Lounge's wait would cover the
+  // chat), no readout poll on these screens, back to the chat once uploaded,
+  // and a rejected Take is not sent. Any other Take: as always.
+  const markWaiting = (marker: Parameters<typeof writeProcessingTake>[1]) => {
+    if (!answer) writeProcessingTake(userId, marker);
+  };
+  const pollTake = (takeSessionId: string) => {
+    if (!answer) setPollSessionId(takeSessionId);
+  };
+  const answerLeaves = (takeSessionId: string | null) => {
+    if (answer) leaveToChatRef.current(true, takeSessionId);
+  };
+  const answerRejected = () => {
+    if (answer) answerTake(null);
+  };
 
   // seam ③ — fire the synchronous upload once on entering processing.
   useEffect(() => {
@@ -652,7 +678,8 @@ export default function LabOverlay({
       // next LabOverlay session picks the arc up.
       const carryArc = (rArcId: string | null, rTakeIdx: number | null) => {
         const returnedArcId = rArcId ?? arcId;
-        if (!returnedArcId) return;
+        // An answer's project is never carried as the current one (N363).
+        if (!returnedArcId || answer) return;
         const nextIdx =
           (typeof rTakeIdx === "number" && rTakeIdx > 0
             ? rTakeIdx
@@ -817,7 +844,7 @@ export default function LabOverlay({
           // initial document; Take 2+ proves 2.0/3.0 without rewriting its
           // canonical words. The served API must show that identity before the
           // blocking screen releases.
-          writeProcessingTake(userId, {
+          markWaiting({
             sessionId: result.sessionId,
             arcId: completedTake.arcId,
             takeIndex: completedTake.takeIndex,
@@ -844,6 +871,7 @@ export default function LabOverlay({
           sessionId: result.sessionId,
           arcId: result.arcId,
         });
+        answerLeaves(result.sessionId);
       } else if (result.kind === "processing") {
         // Async analysis (delivery layer): the BE accepted the upload (202)
         // and finishes the analysis in a background daemon — it now SURVIVES a
@@ -862,14 +890,14 @@ export default function LabOverlay({
         setUploadStillProcessing(false);
         setProcessingProgress({ stage: "processing_recording", percent: 5 });
         setProcessingReady(false);
-        writeProcessingTake(userId, {
+        markWaiting({
           sessionId: result.sessionId,
           arcId: result.arcId ?? arcId,
           takeIndex: result.takeIndex ?? arcTakeIndex,
           startedAt: waitStartedAt,
           progress: { stage: "processing_recording", percent: 5 },
         });
-        setPollSessionId(result.sessionId);
+        pollTake(result.sessionId);
         leaveToChatRef.current(true, result.sessionId);
       } else if (result.kind === "rejected") {
         // R4-5 — the min-content gate (422) used to send the user back to the
@@ -880,6 +908,7 @@ export default function LabOverlay({
         cancelMic();
         setRejectedMsg(result.message);
         dispatch("upload_rejected");
+        answerRejected();
       } else {
         setUploadError(result.message);
         // Branch on `code`, never on the copy (§A1/C4). A timeout is not a
@@ -1354,6 +1383,12 @@ export default function LabOverlay({
     (go: boolean, takeSessionId: string | null) => void
   >(() => undefined);
   leaveToChatRef.current = (go, takeSessionId) => {
+    if (answer) {
+      answerTake(takeSessionId);
+      mic.cancel();
+      onClose();
+      return;
+    }
     if (!go || !takeSessionId || signedIn !== true) return;
     mic.cancel();
     onWaitHandedOver?.(takeSessionId);
@@ -1425,10 +1460,11 @@ export default function LabOverlay({
   };
   retryProcessingRef.current = () => void retryProcessing();
 
+  const look = answerLook(answer, state, uploadError);
   return (
     // A soft 0.4 s fade into the white screens (Q-B14 A, D-RC-7): the class
     // is paint only; see labFade.tsx.
-    <div className={`${LAB_FADE_IN_CLASS} fixed inset-0 z-30 flex flex-col bg-background`}>
+    <div className={`${LAB_FADE_IN_CLASS} fixed inset-0 z-30 flex flex-col bg-background${look.hidden}`}>
       {/* Unified X-only header, on every step. The manual "Same as last time"
           re-fill was removed (FE-2): continuing a project still prefills from
           the server, so the button only duplicated that with a worse guess.
@@ -1451,7 +1487,7 @@ export default function LabOverlay({
           nothing in it is not neutral — it is the dead space the founder
           circled on both screens. */}
       {drawsOwnTopBar(state) ? null : (
-        <header className="flex h-12 shrink-0 items-center justify-between px-4">
+        <header className={`flex ${look.header} shrink-0 items-center justify-between px-4`}>
           {/* The recording screen says where you are: "Take N · Slide n of
               m" on the left, in place of the old "Recording" label (founder
               lock 2026-10-07, the recording screens: "Recording" crossed out,
@@ -1462,6 +1498,7 @@ export default function LabOverlay({
           <RecordingWhere
             show={state === "lab_recording"}
             micStatus={mic.state.status}
+            who={look.who}
             takeNumber={arcTakeIndex}
             slide={currentSlide}
             slideCount={recordingSlides.length}
@@ -2072,12 +2109,15 @@ export function labColumnClass(
 export function RecordingWhere({
   show,
   micStatus,
+  who = null,
   takeNumber,
   slide,
   slideCount,
 }: {
   show: boolean;
   micStatus: ReturnType<typeof useDualCaptureMic>["state"]["status"];
+  /** An answer's person, named above the line (backend N334 item 2). */
+  who?: string | null;
   takeNumber: number | null;
   slide: number;
   slideCount: number;
@@ -2090,12 +2130,29 @@ export function RecordingWhere({
       data-testid="recording-where"
       className="m-0 text-[13px] font-semibold tabular-nums text-muted-foreground"
     >
+      {who ? (
+        <span data-recording-who className="mb-0.5 block text-[16px] text-foreground">
+          {who}
+        </span>
+      ) : null}
       {recordingWhere(takeNumber, slide, slideCount)}
     </p>
   );
 }
 
 /* ----------------------- BE seam ③ + tail stubs -------------------------- */
+
+/** An answer's look on these screens (backend N363, N334 item 2): hidden
+ *  while its Take uploads, the chat showing "Sending to {name}…" (its error,
+ *  if any, shows here as for any Take); a taller top bar with the person's
+ *  name above the Take's line. Any other Take: as always. */
+function answerLook(answer: AnswerFor | null, state: WillabState, uploadError: unknown) {
+  return {
+    hidden: answer && state === "lab_processing" && !uploadError ? " hidden" : "",
+    header: answer ? "h-16" : "h-12",
+    who: answer ? answer.name : null,
+  };
+}
 
 /** Exported for tests, on the same grounds as RecordingPhase above: this
  *  screen is otherwise reachable only by driving a live mic through a real

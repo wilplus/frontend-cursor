@@ -529,7 +529,13 @@ from the chat's file route; a photo opens full size with a close and
 no words; the list's line is ""📷"", or ""📄"" and the file's name (N351).
 O15 An answer sent to me is one message (N355): its voice, the slides it
 was said over in a strip that marks the one being heard as it plays,
-and its words closed behind ""Read it""; no Take number.","O1 -> ""with chats off, the Lounge is all there is and no chat is read""
+and its words closed behind ""Read it""; no Take number.
+O16 A question Will marked as about a product or a treatment takes one
+black ""Record an answer"" in the bar's place (N321 item 4, N361); it
+hands the recording screens the chat, the person and the question.
+Back from them, my answer reads ""Sending to {name}…"" with Undo, then
+it goes and ""Sent to {name} on WhatsApp"" (a customer) stands under it
+(N345, N342).","O1 -> ""with chats off, the Lounge is all there is and no chat is read""
 O2 -> ""with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back""
 O3 -> ""an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question""
 O4 -> ""the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's""
@@ -543,7 +549,8 @@ O11 -> ""in the app, the loader, not the Lounge, waits for the list; both reads 
 O12 -> ""the + shows the four tiles, Someone else opens my link, and Cancel brings the bar back""
 O13 -> ""a photo I send joins the thread and the mic shows until my voice note says what I need""
 O14 -> ""the other person's photo or file waits for my voice, and each opens from the chat's file route""
-O15 -> ""an answer sent to me plays with its slides following the voice, its words behind Read it""",
+O15 -> ""an answer sent to me plays with its slides following the voice, its words behind Read it""
+O16 -> ""a marked question takes Record an answer, and my answer goes with Sending, Undo and Sent""",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.
@@ -1427,6 +1434,11 @@ O3  Confident: green (""confident"").
 O4  One mark per paragraph: orange wins over green on the same paragraph.","O1 -> ""a weak read with nothing to practise draws no bar""
 O2, O3 -> ""a weak read with a practise is orange, a confident read is green""
 O4 -> ""a paragraph with both reads wears one mark, the orange one""","Founder 2026-09-18 ""There are no green bookmarks""; lock 2026-09-30 B7."
+src/lib/willab/chatAnswer.test.ts,Story,"As a speaker answering someone in a chat, I want my recorded answer to go to them by itself after 5 seconds, with Undo until then, and my own project left as it was, so that the person waiting gets just my answer and nothing of mine moves.","O1  ""Record an answer"" makes the question a project of its own, one slide holding the asker's words, opens the recording screens on it, and the project I had is mine again when they close.
+O2  Finish take: ""Sending to {name}…"" with Undo for 5 seconds; the answer is sent once the 5 seconds have passed and its Take is uploaded, whichever comes last, and only once.
+O3  Undo within the 5 seconds, a Take that never uploads, or screens closed before the Take arrived: nothing is sent.","O1 -> the question becomes its own one-slide project and mine comes back
+O2 -> the answer goes after 5 seconds once its Take is up, once
+O3 -> undo, a failed upload or closing early sends nothing",
 src/lib/willab/chunkSteps.test.ts,Story,"As a speaker, I want No, Not sure and Audio unclear to take away Lock, so that I am not asked to lock in something I am unsure of.","O1  No, Not sure and Audio unclear close the lock step.
 O2  Yes and In-between keep it.","O1 -> ""No, Not sure and Audio unclear end the ladder early""
 O2 -> ""Yes and In-between keep their Lock""",Founder 2026-09-24 and lock 2026-09-30 (B2).
