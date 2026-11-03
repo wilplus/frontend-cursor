@@ -19,6 +19,7 @@ import {
 } from "@/lib/productDiscovery";
 import { fetchProductDiscoveries } from "@/services/api/productDiscoveries";
 import { useAfterChatBoot } from "@/lib/chatBoot";
+import { forgetPushDevice } from "@/lib/nativePush";
 
 /* -------------------------------------------------------------------------- */
 /*  useAppMenuData (FE-3) — everything AppMenu renders, loaded once            */
@@ -179,6 +180,9 @@ export function useAppMenuData(): AppMenuData {
     setLoggingOut(true);
     void (async () => {
       try {
+        // The iPhone stops getting this account's pushes (backend N385),
+        // asked while the session can still say whose phone it is.
+        await forgetPushDevice().catch(() => undefined);
         await supabase.auth.signOut();
         router.push("/login");
       } catch (err) {
