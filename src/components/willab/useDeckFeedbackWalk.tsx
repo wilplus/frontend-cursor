@@ -1340,11 +1340,13 @@ export function useDeckFeedbackWalk(args: {
       }
       return practiceId;
     };
-    // Each try, once uploaded, is the speaker's orange bubble "Practise N"
-    // with its voice (prototype v31 `try`); the practice and attempt ids
-    // find the signed link again.
-    const upload: typeof io.upload = async (practiceId, ...rest) => {
-      const sent = await io.upload(practiceId, ...rest);
+    // Each try, once uploaded, is the speaker's orange bubble with its voice
+    // (prototype v31 `try`): in the One thing walk the words of the try, as
+    // the walk draws it (`oneThingTryWords`), else "Practise N" (a Take
+    // served before N289, C7). The practice and attempt ids find the signed
+    // link again.
+    const upload: typeof io.upload = async (practiceId, audio, durationSec, stoppedAtMs, words) => {
+      const sent = await io.upload(practiceId, audio, durationSec, stoppedAtMs, words);
       // A try the server could not hear is no try: nothing in the chat.
       if (sent && !("unheard" in sent)) {
         const on = openedOn.get(practiceId) ?? { moment: null, part_id: null };
@@ -1353,7 +1355,7 @@ export function useDeckFeedbackWalk(args: {
           moment: on.moment,
           attempt: sent.attempt,
           author: "speaker",
-          body: WALK_COPY.practiseN(sent.attempt),
+          body: words || WALK_COPY.practiseN(sent.attempt),
           extra: {
             part_id: on.part_id,
             ...(sent.audio
