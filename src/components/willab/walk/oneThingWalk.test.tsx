@@ -62,8 +62,13 @@ import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackW
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-/** A practise whose practice opens: nothing is recorded or checked. */
-const OPENS = { open: async () => "pr-1", upload: async () => null, check: async () => null } as never;
+/** A practise whose practice opens and whose try lands. */
+let answer: "praise" | "again" = "praise";
+const OPENS = {
+  open: async () => "pr-1",
+  upload: async () => ({ attemptId: "a1", attempt: 1, audio: null }),
+  check: async () => ({ check: { next: answer, key: answer === "praise" ? "cue:landed_ending" : "effort" }, attemptWords: null }),
+} as never;
 
 const CUE = "Smooth and steady, no stumbling. That sounded confident!";
 const SAID = "So I think we're seeing traction.";
@@ -86,6 +91,7 @@ const ITEMS: FeedbackWalkItem<string>[] = [
 let host: HTMLDivElement;
 let root: Root;
 beforeEach(() => {
+  answer = "praise";
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
@@ -127,6 +133,16 @@ const said = () => [...(live()?.querySelectorAll("[data-walk-said]") ?? [])].map
 const click = (el: Element | null | undefined) => act(() => (el as HTMLElement).click());
 const testId = (id: string) => live()?.querySelector<HTMLElement>(`[data-testid='${id}']`) ?? null;
 const settle = () => act(async () => {});
+/** Stop the try; it lands, then Next. The recorder has no Skip: its trash is
+ *  the way out (founder 2026-11-03). */
+async function landTry() {
+  expect(testId("walk-skip")).toBeNull();
+  click(live()!.querySelector("[data-walk-dock] button[aria-label='Stop']"));
+  await settle();
+  await settle();
+  click(testId("walk-forward"));
+  await settle();
+}
 
 describe("the One thing walk (N309)", () => {
   it("walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary", () => {
@@ -160,11 +176,17 @@ describe("the One thing walk (N309)", () => {
     click(testId("walk-keep"));
     expect(props.onKeepWords).toHaveBeenCalledWith("s-rewrite", ONE_THING_COPY.keepMine);
     expect(said()).toContain(ONE_THING_COPY.keepMine);
-    // Skip on the recorder: they still leave with their own words.
+    // No Skip on the recorder (founder 2026-11-03).
     expect(screen()).toBe("walk-screen-practise");
+    expect(testId("walk-skip")).toBeNull();
+    // A try that misses: "Close. Once more." with Try it and Skip (C7);
+    // Skip there gets their "Skip" and the walk's answer (N405).
+    answer = "again";
+    click(live()!.querySelector("[data-walk-dock] button[aria-label='Stop']"));
+    await settle();
+    await settle();
     click(testId("walk-skip"));
     await settle();
-    // Their "Skip", and the walk's answer to it (N405).
     expect(said()).toContain(WALK_COPY.skip);
     expect(live()!.querySelector("[data-walk-skip-reply]")!.textContent).toBe(ONE_THING_COPY.skipped);
     expect(props.onSaveHelperWords).toHaveBeenCalledTimes(1);
@@ -179,8 +201,7 @@ describe("the One thing walk (N309)", () => {
     click(testId("walk-forward"));
     expect(props.onAcceptClearer).toHaveBeenCalledWith("s-rewrite", ONE_THING_COPY.tryIt);
     await settle();
-    click(testId("walk-skip"));
-    await settle();
+    await landTry();
     expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe(CLEARER);
     expect(props.onSaveHelperWords).toHaveBeenCalledWith(
       expect.objectContaining({ partId: "p2", auto: true, practiceId: "pr-1", span: { text: CLEARER, start: null, end: null } }),
@@ -222,8 +243,7 @@ describe("the One thing walk (N309)", () => {
     const props = draw({ seq: 1, at: model.plan.findIndex((s) => s.key === "clearer") }, { model });
     click(testId("walk-forward"));
     await settle();
-    click(testId("walk-skip"));
-    await settle();
+    await landTry();
     expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe(twelve);
     expect(props.onSaveHelperWords).toHaveBeenCalledWith(
       expect.objectContaining({ partId: "p2", auto: true, practiceId: "pr-1", span: { text: twelve, start: null, end: null } }),
