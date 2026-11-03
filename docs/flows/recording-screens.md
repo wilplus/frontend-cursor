@@ -86,7 +86,8 @@ for the screens below.
      (black). On the last slide **Next slide** becomes **Finish take**,
      red, with the stop square. Finish take is reached only from the last
      slide; closing asks **Discard this take?** (founder, 2026-10-12: "that's
-     what i want").
+     what i want"). With one slide there is no Back: Finish take alone fills
+     the row (backend N441 item 6).
 4. **Close:** **Discard this take?** / "This recording has not been saved."
    / **Keep recording** / **Discard take**, as today.
 5. **Finish take:** the processing wait, one narrow centred column (the
@@ -97,11 +98,16 @@ for the screens below.
    lifts only when the walk's first step is on screen; then the walk, and
    the Ideal Text page after it (founder 2026-10-21, N110; the walk's page,
    [A1 and A2](feedback-walk-and-chat.md)).
-6. **An answer in a chat** (backend N363, approved for this lock; N334
-   item 2): the screens opened from a chat's "Record an answer" record it
-   as any Take, on one slide holding the question (N361 item 3), with no
-   "How do you feel?" before it. The top bar names the person above
-   **Take 1 · Slide 1 of 1**. Finish take brings the speaker straight back
+6. **An answer in a chat** (backend N363, N441, approved for this lock):
+   the screens opened from a chat's "Record an answer" record it as any
+   Take, on one slide holding the question (N361 item 3), with no "How do
+   you feel?" before it. The top bar is the person's name alone; the slide
+   reads a small **{name} asks** with the question under it in body size,
+   not as a heading (N441 item 7). The clock counts down from 5:00, an
+   answer's longest, and at 0:00 the Take finishes by itself, as Finish
+   take would (N441 item 2). Was (N363, N334 item 2): the name above
+   **Take 1 · Slide 1 of 1**, the question as the slide's heading, a clock
+   counting up. Finish take brings the speaker straight back
    to that chat, where the answer reads "Sending to {name}…" with Undo
    (N345): no processing wait and no walk in between; the Take processes
    on its own, its walk waiting in Will's chat. An upload that fails shows
@@ -289,6 +295,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N441 · an answer's top bar is the person's name alone and its slide reads "{name} asks" over the question in body size; its clock counts down from 5:00 and finishes the Take by itself at 0:00; with one slide, Finish take alone fills the row, no Back (`LabOverlay.tsx`, `RecordingRoadmap.tsx`, `SlideStage.tsx`, `pdfSlides.tsx`). Was: the name above "Take 1 · Slide 1 of 1", the question as the heading, a clock counting up past 5:00, a greyed Back · BE (N441 PR), FE (this PR)
 - 2026-11-03 · N392 · "How do you feel?" before a later Take (the project's setup restored) draws two marks in its bar beside the ✕: this screen first and current, the Take second (`FeelingsCheckIn.tsx`). Prototype <https://claude.ai/artifact/ChbCQzEKiTNtxofatBKZ3o>. No new words. Was (N272): the ✕ alone, an empty space above the question · BE #1646, FE (this PR)
 - 2026-11-03 · N372 · the earbuds line under "Getting your mic ready" when the last Take was recorded through a Bluetooth mic; opening the mic pauses any voice message that plays (`useDualCaptureMic.ts`, `recordingCopy.ts`, `LabOverlay.tsx`, `LoadingState.tsx`, `lib/willab/oneVoice.ts`). Was: no word on earbuds · BE #1622, FE (this PR)
 - 2026-11-03 · N372 · the mic records the voice as it is: the browser's call processing (automatic gain, noise suppression, echo cancellation) is asked off, mono, on every browser and the iPhone app, for a Take and the walk's practise (`TAKE_MIC_AUDIO` in `src/hooks/useDualCaptureMic.ts`), as the pace mic already did. Nothing on screen changes. Was: `audio: true`, which turns all three on · FE #1167

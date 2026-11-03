@@ -216,18 +216,28 @@ order it is built in.
      is the black button with the red dot, "Record an answer" (N368). It
      makes the question a
      project of its own, one slide holding the asker's words, and opens
-     the recording screens on it at once, the person named above "Take 1 ·
-     Slide 1 of 1", no feelings check
+     the recording screens on it at once, the person's name alone at the
+     top and "{name} asks" over the question, the clock counting down from
+     5:00, no feelings check
      ([recording-screens.md](recording-screens.md) step 6). Finish take
      brings you back to the chat: in the middle of the bar, "Sending to
-     {name}… {n}" counting down 5 seconds with "Undo" (N368), then the
-     answer goes (`POST /v2/chats/<id>/answer`, a voice
-     message that plays the Take itself; up to five minutes). Under it,
-     "Sent to {name} on WhatsApp" for a customer, "Sent to {name}" for a
-     colleague, with a check. The person gets just the answer, never its
-     Take. Undo, a Take that does not upload, or a refused send shows
-     nothing new. Not yet: "Practise with Will" (N344), "Consult with
-     someone first" (N343).
+     {name}… {n}" counting down 5 seconds with "Undo" (N368). As soon as
+     the Take is uploaded the answer goes to the backend
+     (`POST /v2/chats/<id>/answer`, a voice message that plays the Take
+     itself; up to five minutes), which holds it for what is left of the
+     5 seconds: until then the person does not see it, the list does not
+     show it and no push goes, and leaving the app no longer stops it
+     (N441 item 3). Under it, "Sent to {name}" with a check, a customer's
+     too, until answers are delivered on WhatsApp (N441 item 4; then "Sent
+     to {name} on WhatsApp", N342). The person gets just the answer, never
+     its Take. A refused send stays in the bar, "Not sent" with "Send
+     again", which sends the same Take at once (N441 item 1). Undo takes it
+     back on the backend (`POST /v2/chats/<id>/answer/undo`); the Take
+     stays the speaker's practice, and Will says first in their chat with
+     him: "You took this one back, so {name} didn't hear it. Here's what I
+     noticed, for practice." (N441 item 5). A Take that does not upload
+     shows its error on the recording screens. Not yet: "Practise with
+     Will" (N344), "Consult with someone first" (N343).
    - **The join link** (N308, N328, N335; built 2026-11-02 behind the same
      ring): the "+" at the bottom right of the list opens the add sheet, as
      redesigned (N367 item 3, the locked prototype "One bar" v12): a
@@ -697,6 +707,7 @@ One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-03 · N401 · C1, §2: no demo chats for a newcomer: an empty list is Will and "Add someone to chat with", on the web as in the iPhone app (the list opens with Will alone everywhere); the list no longer asks for the two demo chats, "Sarah" and "Ariel", and the route that seeded them is gone. Was: on the web, an empty list got the two demo chats the first time · FE (this PR)
 - 2026-11-03 · N372 · one voice at a time: playing a voice message pauses the one already playing, and recording a voice note pauses any that plays (`lib/willab/oneVoice.ts`, `plan/VoicePlayer.tsx`, `useVoiceNote.ts`). Was: two could play over each other, and over the mic · BE #1622, FE (this PR)
+- 2026-11-03 · N441 · C1: Record an answer, the audit's fixes: the answer goes to the backend as soon as its Take is up and waits out its 5 seconds there (hidden, no push), so leaving the app no longer stops it; Undo takes it back there and Will says so in his chat ("You took this one back, so {name} didn't hear it. Here's what I noticed, for practice."); a refused send stays as "Not sent" with "Send again"; "Sent to {name}" for everyone until WhatsApp delivery exists. Was: the 5 seconds counted in the phone, a refused send vanished, Undo said nothing, "Sent to {name} on WhatsApp" for a customer · BE (N441 PR), FE (this PR)
 - 2026-11-03 · N361, N363, N368 · C1, §2: the page caught up: "Record an answer" stands in the middle of the bar and "Sending to {name}… {n}" with Undo there too (N368), and §2 no longer lists Record an answer as not yet built · docs (this PR)
 - 2026-11-03 · N372 · a voice note records the voice as it is: the browser's automatic gain and noise suppression are asked off, mono, on every browser and the iPhone app (`useVoiceNote.ts`, with `TAKE_MIC_AUDIO` from `src/hooks/useDualCaptureMic.ts`); echo cancelling stays on, since another voice note can be playing out loud. Nothing on screen changes. Was: `audio: true`, which turns all of them on · FE #1167
 - 2026-11-03 · N369 · C1: Will's chat keeps its own bar (the "+", "Type here", the voice notebook's mic); the one bar is for chats with a person. Was (N368 items 1 and 2): Will's chat with the same bar · docs (this PR)

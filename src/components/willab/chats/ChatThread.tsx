@@ -8,7 +8,7 @@ import TypingDots from "@/components/willab/TypingDots";
 import { VoicePlayer } from "@/components/willab/plan/VoicePlayer";
 import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { useVoiceNote } from "@/components/willab/useVoiceNote";
-import { UNDO_MS, onAnswerSent, undoAnswer, usePendingAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
+import { UNDO_MS, onAnswerSent, sendAgain, undoAnswer, usePendingAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
 import {
   CHAT_EMOJI,
   chatFileSrc,
@@ -126,12 +126,16 @@ export function WillTopBar({ onBack }: { onBack: () => void }) {
 }
 
 /** The two words under a voice note's player (backend N331, signed). */
-/** Signed: N321 item 4, N345 item 3, N342 item 3, N361 item 2. */
+/** Signed: N321 item 4, N345 item 3, N342 item 3, N361 item 2, N441 items
+ *  1 and 4. "Sent to {name}" for everyone until answers are delivered on
+ *  WhatsApp; a customer's line then goes back to "Sent to {name} on
+ *  WhatsApp" (N342). */
 export const RECORD_AN_ANSWER = "Record an answer";
 export const UNDO = "Undo";
+export const NOT_SENT = "Not sent";
+export const SEND_AGAIN = "Send again";
 export const sendingTo = (name: string) => `Sending to ${name}…`;
-export const sentTo = (name: string, customer: boolean) =>
-  customer ? `Sent to ${name} on WhatsApp` : `Sent to ${name}`;
+export const sentTo = (name: string) => `Sent to ${name}`;
 
 export const READ_IT = "Read it";
 export const HIDE_WORDS = "Hide";
@@ -537,15 +541,26 @@ export function sendTick(): void {
 }
 
 /** "Sending to {name}… {n}" with Undo, in the middle of the bar while an
- *  answer goes (backend N368 item 1, N345). */
-function SendingPill({ name, startedAt, waited }: { name: string; startedAt: number; waited: boolean }) {
+ *  answer goes (backend N368 item 1, N345); "Not sent" with "Send again"
+ *  when it was refused (N441 item 1). */
+function SendingPill({ name, startedAt, waited, failed }: { name: string; startedAt: number; waited: boolean; failed: boolean }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (waited) return;
+    if (waited || failed) return;
     const id = window.setInterval(() => setNow(Date.now()), 250);
     return () => window.clearInterval(id);
-  }, [waited]);
+  }, [waited, failed]);
   const left = Math.max(0, Math.ceil((startedAt + UNDO_MS - now) / 1000));
+  if (failed) {
+    return (
+      <div data-chat-sending="failed" className="flex h-12 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-muted pl-[18px] pr-1.5 text-[14.5px]">
+        <span className="min-w-0 truncate text-foreground">{NOT_SENT}</span>
+        <button type="button" onClick={sendAgain} data-chat-send-again="" className="h-9 shrink-0 rounded-full bg-background px-4 text-[14.5px] font-semibold text-foreground">
+          {SEND_AGAIN}
+        </button>
+      </div>
+    );
+  }
   return (
     <div data-chat-sending="" className="flex h-12 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-muted pl-[18px] pr-1.5 text-[14.5px]">
       <span className="min-w-0 truncate tabular-nums text-foreground">
@@ -776,7 +791,7 @@ export default function ChatThread({
                 chatId={chat.id}
                 message={message}
                 onPhoto={setFullPhoto}
-                sentLine={sentTo(chat.title, customer)}
+                sentLine={sentTo(chat.title)}
               />,
             ])
           )}
@@ -798,7 +813,7 @@ export default function ChatThread({
             hot={micShows(messages) && !pending}
             middle={
               pending ? (
-                <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited} />
+                <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited} failed={pending.failed} />
               ) : question && onRecordAnswer ? (
                 <RecordAnswerButton onClick={() => onRecordAnswer({ chatId: chat.id, name: chat.title, question, customer })} />
               ) : null

@@ -36,6 +36,7 @@ export default function RecordingRoadmap({
   onSlideChange,
   strip,
   onFinish,
+  asks = null,
 }: {
   slides: PresentationSlide[];
   presentationRef: string | null;
@@ -45,6 +46,8 @@ export default function RecordingRoadmap({
   /** The clock and its bar, drawn above the buttons. */
   strip: ReactNode;
   onFinish: () => void;
+  /** An answer's person: "{name} asks" over the question (backend N441 item 7). */
+  asks?: string | null;
 }) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const slideBoxRef = useRef<HTMLDivElement | null>(null);
@@ -135,6 +138,7 @@ export default function RecordingRoadmap({
           slides={slides}
           presentationRef={presentationRef}
           current={currentSlide}
+          asks={asks}
         />
       </div>
 
@@ -170,16 +174,20 @@ export default function RecordingRoadmap({
         className="relative z-10 -mx-1 shrink-0 bg-background px-1 pt-4 pb-[env(safe-area-inset-bottom)]"
       >
         {strip}
-        {/* The coach panel's pair: equal halves, 48px, 16px corners. */}
+        {/* The coach panel's pair: equal halves, 48px, 16px corners. With
+            one slide there is nothing to go back to: Finish take alone, the
+            full row (backend N441 item 6). */}
         <div className="mt-2.5 flex gap-2.5">
-          <button
-            type="button"
-            onClick={press(currentSlide - 1)}
-            disabled={currentSlide === 0}
-            className="flex h-12 flex-1 items-center justify-center rounded-2xl border-[1.5px] border-border bg-background text-[15px] font-semibold text-foreground disabled:opacity-35"
-          >
-            {RECORDING_COPY.back}
-          </button>
+          {slides.length > 1 ? (
+            <button
+              type="button"
+              onClick={press(currentSlide - 1)}
+              disabled={currentSlide === 0}
+              className="flex h-12 flex-1 items-center justify-center rounded-2xl border-[1.5px] border-border bg-background text-[15px] font-semibold text-foreground disabled:opacity-35"
+            >
+              {RECORDING_COPY.back}
+            </button>
+          ) : null}
           {last ? (
             <FinishTakeButton onClick={onFinish} className="h-12 flex-1 rounded-2xl text-[15px]" />
           ) : (

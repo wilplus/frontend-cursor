@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { applyNextTakeShare } from "@/lib/willab/nextTakeShare";
-import { answerRecorded, answerTake, answering, type AnswerFor } from "@/lib/willab/chatAnswer";
+import { ANSWER_SECONDS, answerRecorded, answerTake, answering, type AnswerFor } from "@/lib/willab/chatAnswer";
 import { useRouter } from "next/navigation";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
@@ -1460,7 +1460,8 @@ export default function LabOverlay({
   };
   retryProcessingRef.current = () => void retryProcessing();
 
-  const look = answerLook(answer, state, uploadError);
+  const look = answerLook(answer, state, uploadError, context?.target_length_seconds);
+  useAnswerEnds(answer, state, mic.state.status, elapsed, mic.stop);
   return (
     // A soft 0.4 s fade into the white screens (Q-B14 A, D-RC-7): the class
     // is paint only; see labFade.tsx.
@@ -1639,7 +1640,8 @@ export default function LabOverlay({
             micState={mic.state}
             micWaitShownByHost
             elapsed={elapsed}
-            targetSec={context?.target_length_seconds ?? null}
+            targetSec={look.target}
+            asks={look.who}
             rejectedMsg={rejectedMsg}
             onStop={() => void mic.stop()}
             onRecordAgain={() => {
@@ -1803,6 +1805,7 @@ export function RecordingPhase({
   currentSlide,
   roots,
   onSlideChange,
+  asks = null,
 }: {
   micState: ReturnType<typeof useDualCaptureMic>["state"];
   /** The host draws "Getting your mic ready" itself, as one element across
@@ -1827,6 +1830,9 @@ export function RecordingPhase({
   /** Static roadmap for every slide; never synchronized to audio. */
   roots: RecordingRoot[];
   onSlideChange: (slideIndex: number) => void;
+  /** An answer's person: the slide reads "{name} asks" over the question
+   *  (backend N441 item 7). */
+  asks?: string | null;
 }) {
   const retryFileRef = useRef<HTMLInputElement | null>(null);
   // R4-5 — the BE rejected the last take (too short / no clear speech). Keep the
@@ -1999,6 +2005,7 @@ export function RecordingPhase({
     <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col">
       <RecordingRoadmap
         slides={slides}
+        asks={asks}
         presentationRef={presentationRef}
         currentSlide={currentSlide}
         roots={roots}
@@ -2119,7 +2126,7 @@ export function RecordingWhere({
 }: {
   show: boolean;
   micStatus: ReturnType<typeof useDualCaptureMic>["state"]["status"];
-  /** An answer's person, named above the line (backend N334 item 2). */
+  /** An answer's person, named alone in the top bar (backend N441 item 7). */
   who?: string | null;
   takeNumber: number | null;
   slide: number;
@@ -2128,16 +2135,19 @@ export function RecordingWhere({
   if (!show || micStatus !== "recording" || slideCount === 0) {
     return <span />;
   }
+  // An answer: the person's name alone (N441 item 7).
+  if (who) {
+    return (
+      <p data-testid="recording-where" data-recording-who="" className="m-0 text-[16px] font-semibold text-foreground">
+        {who}
+      </p>
+    );
+  }
   return (
     <p
       data-testid="recording-where"
       className="m-0 text-[13px] font-semibold tabular-nums text-muted-foreground"
     >
-      {who ? (
-        <span data-recording-who className="mb-0.5 block text-[16px] text-foreground">
-          {who}
-        </span>
-      ) : null}
       {recordingWhere(takeNumber, slide, slideCount)}
     </p>
   );
@@ -2145,16 +2155,37 @@ export function RecordingWhere({
 
 /* ----------------------- BE seam ③ + tail stubs -------------------------- */
 
-/** An answer's look on these screens (backend N363, N334 item 2): hidden
- *  while its Take uploads, the chat showing "Sending to {name}…" (its error,
- *  if any, shows here as for any Take); a taller top bar with the person's
- *  name above the Take's line. Any other Take: as always. */
-function answerLook(answer: AnswerFor | null, state: WillabState, uploadError: unknown) {
+/** An answer's look on these screens (backend N363, N441): hidden while its
+ *  Take uploads, the chat showing "Sending to {name}…" (its error, if any,
+ *  shows here as for any Take); a taller top bar with the person's name
+ *  alone, and "{name} asks" over the question on the slide (N441 item 7);
+ *  the clock counting down from 5:00 (N441 item 2). Any other Take: as
+ *  always, its clock counting down from its planned length. */
+function answerLook(answer: AnswerFor | null, state: WillabState, uploadError: unknown, plannedSec: number | string | null | undefined) {
   return {
     hidden: answer && state === "lab_processing" && !uploadError ? " hidden" : "",
     header: answer ? "h-16" : "h-12",
     who: answer ? answer.name : null,
+    target: answer ? ANSWER_SECONDS : (plannedSec ?? null),
   };
+}
+
+/** An answer finishes by itself at 0:00, five minutes in, as Finish take
+ *  would (N441 item 2), the way a voice note stops at 2:00. Exported for
+ *  tests, as RecordingPhase is. */
+export function useAnswerEnds(
+  answer: AnswerFor | null,
+  state: WillabState,
+  micStatus: ReturnType<typeof useDualCaptureMic>["state"]["status"],
+  elapsed: number,
+  stop: () => unknown,
+) {
+  const stopRef = useRef(stop);
+  stopRef.current = stop;
+  const over = answer !== null && state === "lab_recording" && micStatus === "recording" && elapsed >= ANSWER_SECONDS;
+  useEffect(() => {
+    if (over) void stopRef.current();
+  }, [over]);
 }
 
 /** Exported for tests, on the same grounds as RecordingPhase above: this

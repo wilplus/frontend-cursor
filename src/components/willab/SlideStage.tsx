@@ -23,10 +23,13 @@ export default function SlideStage({
   slides,
   presentationRef,
   current,
+  asks = null,
 }: {
   slides: PresentationSlide[];
   presentationRef: string | null;
   current: number;
+  /** An answer's person: "{name} asks" over the question (backend N441 item 7). */
+  asks?: string | null;
 }) {
   const total = slides.length;
   if (total === 0) return null;
@@ -42,6 +45,7 @@ export default function SlideStage({
           title={slide.title}
           body={slide.body}
           artworkSrc={slide.artworkSrc}
+          asks={asks}
           className="h-full w-full"
           fit
           showRetry={false}
