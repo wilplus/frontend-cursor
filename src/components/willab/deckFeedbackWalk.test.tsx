@@ -30,6 +30,7 @@ OUTCOME
       through the deck's own save (the lock, then the words), marked whole
       (N323 item 2), both moments lose their black line, and Close under
       "Lesson done." asks the summary once and goes back to the chat (N309);
+      other speakers' moment is asked as the walk opens (N309 item 2);
       ✕ on the finished walk asks it once too, so the chat after the walk
       always comes (C9, B11).
   O10 With no moment to fix, the pace game is the One thing walk's fix,
@@ -506,6 +507,10 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     await render(p);
     await render({ ...p, reviewRequest: 1 });
     expect(screen()).toBe("walk-screen-praise");
+    // Other speakers' moment is asked as the walk opens, so it is there
+    // when the walk gets to it (N309 item 2): Take 2's level is high.
+    const queued = vi.mocked(fetch).mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/communities/queue"));
+    expect(queued).toEqual([expect.stringContaining("take=take-2&level=high")]);
     expect(live()!.textContent).toContain("Why it worked: smooth and steady, no stumbling.");
     await click(live()!.querySelector("[data-testid='walk-forward']"));
     expect(screen()).toBe("walk-screen-clearer");

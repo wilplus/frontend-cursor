@@ -14,6 +14,7 @@ import type { WalkJudgementSave } from "./walk/useWalkJudging";
 import { useWalkJournalPost } from "./useWalkJournalPost";
 import { noteOwnAnswer, ownAnswersOf } from "./paragraphSheetData";
 import { recordedSince } from "./afterTake";
+import { prefetchOtherClips } from "@/services/api/otherSpeakers";
 import type { OwnerAnswer } from "@/services/api/bookmarkHistory";
 import { CHUNK_SHEET_COPY, ONE_THING_COPY, WALK_COPY } from "./idealEditCopy";
 import {
@@ -1565,6 +1566,17 @@ export function useDeckFeedbackWalk(args: {
     },
     [walkModel, post, onReached],
   );
+
+  /* OTHER SPEAKERS' MOMENT IS THERE WHEN THE WALK GETS THERE (C8, N309 item
+     2): the One thing walk's one moment, from Take 2, asked as the walk
+     opens, while the speaker walks the steps before it; not once the
+     chat holds their answer to it. */
+  useEffect(() => {
+    if (!request || !take || !othersLevel || coachOnly || othersJudged > 0) return;
+    const plan = walkModelRef.current.plan;
+    const at = plan.findIndex((s) => s.key === "others" && s.one === true && !s.replay && !s.readOnly);
+    if (at >= request.at) prefetchOtherClips(take, othersLevel);
+  }, [request, take, othersLevel, coachOnly, othersJudged]);
 
   /** Another speaker's moment, shown or answered: in the chat. */
   const onOthers = useCallback(
