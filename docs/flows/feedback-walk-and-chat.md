@@ -177,6 +177,10 @@ step; the loop never waits for a coach.
 - **B6** Each step opens with its name as a small line ("Slide 2", "Slide 2
   · helper words", "Take 2", "Your coach"). The bar shows the step in view;
   ‹ › scroll to the step before or after, within this opening of the walk.
+  In the One thing walk the helper words (C3) and "Lesson done." (C9) keep
+  the fix's step's name, the slide of the moment whose paragraph takes the
+  words (their best's with no fix, N374), "Tempo" with the Sniper; never
+  "Other speakers" (the prototype's `carry()`, 2026-11-03).
 - **B7** The step's buttons are a dock under the thread. A choice lands as
   the speaker's orange bubble, in the words the Lounge stores (helper words
   without the sentence's punctuation at either end, "growth doubled" not
@@ -1956,6 +1960,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N309, N374 · B6, C3, C9: in the One thing walk the bar names the fix's slide again during the helper words and "Lesson done." (their best's slide with no fix, "Tempo" with the Sniper), as the locked prototype's `carry()` does (`dots(3)`; X4gDmGfHH7ivuoRZ9ufiy9). Was: the helper words had no name, so the bar kept the last one, "Other speakers" from Take 2 · FE (this PR)
 - 2026-11-03 · — · T: in the One thing walk, the Sniper's Skip moves the walk on at once, after a try too, as the locked prototype's `skip()` does (founder, the Claude Code chat, 2026-11-03: "so it really matches the design and the prototype"). Was: Skip after a try closed the game on a Next · FE (this PR)
 - 2026-11-03 · — · C7: the One thing walk's try is the speaker's orange clip with the words they were asked to say (the Clearer version's sentence, their own after "Keep mine", the moment's own words after the AI clip), in the walk and the chat; nothing in the thread while it records, the recording bar alone, as the locked prototype X4gDmGfHH7ivuoRZ9ufiy9 draws it. A Take served before N289 keeps "Practise N". Was: "Practise N" in place of the words and an orange "● Practise N" pill while recording · FE (this PR)
 - 2026-11-03 · N381 · C2, H1: N374 item 1 withdrawn: a between whose Clearer version does not pass is praised as a next best again and left out of the One thing walk; the AI clip is the weakest's alone. Was (N374 item 1, Takes recorded from 11:00 UTC that day): that between took the AI clip when no paragraph was left for the weakest, and the clip coached the voice on a fragment whose trouble was its words. N374 item 2 (their best's own words as the helper words) is unchanged · BE (the revert of #1629), docs (this PR)

@@ -6,7 +6,7 @@ OUTCOME
   O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2); with no fix, my best moment's own words are my helper words, saved the same way (backend N374). With the Sniper as the fix, Skip moves the walk on at once, after a try too.
   O3  The walk ends on "Lesson done." with Close, which ends the review and takes me back to the chat; no "Record Take N" in the walk.
   O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after "Try it", my own after "Keep mine"; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
-  O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, my answer as my own reply with a tick, then "Got it."; on Take 1 I judge no one.
+  O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, my answer as my own reply with a tick, then "Got it."; after it the bar names my fix's slide again for the helper words and "Lesson done."; on Take 1 I judge no one.
 PROVES   O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
          O2 -> the helper words come on their own and are saved without a pick,
                the Clearer version's sentence is saved from its practice,
@@ -16,6 +16,7 @@ PROVES   O1 -> walks hello, their best and why it worked, then one thing to impr
          O3 -> Lesson done and Close end the review, back to the chat
          O5 -> a try is my clip with the words I was asked to say, and nothing shows in the thread while I record
          O4 -> from Take 2, one moment of another speaker, of the Take's level, answered as my own reply,
+               then the bar names the fix's slide again for the helper words and Lesson done,
                Take 1 judges no one
 WHY      Founder 2026-10-31 (backend N309: "apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take"; "ok, this finally good"); 2026-11-02 ("please implement"; backend N323: "you can allow helper words to be longer than 8 words"); 2026-11-03 (backend N374: a walk with no fix left no helper words; "go with the recommendations").
 */
@@ -288,6 +289,8 @@ describe("the One thing walk (N309)", () => {
     });
     // On to the helper words and the end.
     expect(screen()).toBe("walk-screen-done");
+    // The bar names the fix's slide again, not "Other speakers" (prototype carry(), dots(3)).
+    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Slide 2");
   });
 
   it("Take 1 judges no one", () => {
