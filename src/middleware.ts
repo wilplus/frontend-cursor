@@ -73,7 +73,7 @@ export function getCspDirectives(nonce: string): string {
     // the bucket settings recommend for production) would be covered by the
     // apiUrl/explicit-origin lines instead.
     "https://*.r2.dev",
-    // The voice notebook's live words (backend N392): the phone streams a
+    // The voice notebook's live words (backend N393): the phone streams a
     // note being said to the transcription provider with a short-lived key
     // the backend issues under the processing authorization.
     "wss://api.openai.com",

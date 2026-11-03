@@ -24,7 +24,7 @@ export interface OutboxNote {
   /** Still being said in this page; a note left open by a closed app is not. */
   open: boolean;
   at: number;
-  /** How long its live words were streamed (backend N392), if they were. */
+  /** How long its live words were streamed (backend N393), if they were. */
   liveMs?: number;
 }
 
