@@ -170,10 +170,11 @@ type Props<R> = {
    *  on a clearer version: the host writes the speaker's decision through
    *  the accept lane. The walk moves on at once; it never waits on the
    *  write. `label`: the words the speaker tapped, for their bubble. */
-  onAcceptClearer?: (item: R, label?: string) => void;
+  onAcceptClearer?: (item: R, label?: string | null) => void;
   /** "Keep my words" (the One thing walk's "Keep mine"): the host records
    *  the decline; the speaker's own sentence is practised. */
-  onKeepWords?: (item: R, label?: string) => void;
+  /** `label` null: the One thing walk's tap, no message (backend N452). */
+  onKeepWords?: (item: R, label?: string | null) => void;
   /** The practise's calls (open, upload, check). Without them a practise
    *  screen is never reached: "Accept and practise" goes past it. */
   practise?: WalkPractiseIO<R> | null;
@@ -860,7 +861,8 @@ export default function FeedbackWalk<R = unknown>({
     accept: (s, moment) => {
       if (s.replay) return forward();
       if (blocked(s) || !moment.clearer) return;
-      if (s.one) onAcceptClearer?.(moment.clearer.item, ONE_THING_COPY.tryIt);
+      // The One thing walk's tap is no message, in the walk or the chat (N452).
+      if (s.one) onAcceptClearer?.(moment.clearer.item, null);
       else onAcceptClearer?.(moment.clearer.item);
       answer(s, "accept");
       // "Accept and practise" opens the recorder on the new words; it
@@ -872,7 +874,7 @@ export default function FeedbackWalk<R = unknown>({
     keep: (s, moment) => {
       if (s.replay) return forward();
       if (blocked(s) || !moment.clearer) return;
-      if (s.one) onKeepWords?.(moment.clearer.item, ONE_THING_COPY.keepMine);
+      if (s.one) onKeepWords?.(moment.clearer.item, null);
       else onKeepWords?.(moment.clearer.item);
       answer(s, "keep");
       // "Keep my words" practises the speaker's own sentence with Line A

@@ -914,8 +914,9 @@ export function useDeckFeedbackWalk(args: {
         // too, as the walk draws it (#1183). The Sniper then answers Skip
         // (N405).
         if (!event.close || (one && event.skipped)) {
-          say("tempo:skip", "speaker", TEMPO_COPY.skip);
+          // As the One thing walk's fix, the walk's answer alone (N452 item 1).
           if (one) say("tempo:skipped", "app", ONE_THING_COPY.skipped);
+          else say("tempo:skip", "speaker", TEMPO_COPY.skip);
         }
         else if (!one && !event.tries.some((t) => t.landed)) say("tempo:close", "app", TEMPO_COPY.close[event.close]);
         const arcId = args.arcId ?? null;
@@ -1309,15 +1310,17 @@ export function useDeckFeedbackWalk(args: {
       CHUNK_SHEET_COPY.failWordsBehind,
     );
   }, [post]);
-  const acceptClearer = useCallback((item: DocumentSuggestion, label?: string) => {
-    post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: label ?? CHUNK_SHEET_COPY.pillAcceptPractise });
+  const acceptClearer = useCallback((item: DocumentSuggestion, label?: string | null) => {
+    // The One thing walk's "Try it" and "Keep mine" post nothing (N452 item 1).
+    if (label !== null) post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: label ?? CHUNK_SHEET_COPY.pillAcceptPractise });
     // The coach's version is practised, never written on the text.
     if (coachVersionOf(item)) return;
     const { onAccept, saveBehind } = live.current;
     saveBehind(() => acceptRewriteBehind(onAccept, item), CHUNK_SHEET_COPY.failApply);
   }, [post]);
-  const keepWords = useCallback((item: DocumentSuggestion, label?: string) => {
-    post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: label ?? CHUNK_SHEET_COPY.linkKeepMyWords });
+  const keepWords = useCallback((item: DocumentSuggestion, label?: string | null) => {
+    // The One thing walk's "Try it" and "Keep mine" post nothing (N452 item 1).
+    if (label !== null) post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: label ?? CHUNK_SHEET_COPY.linkKeepMyWords });
     if (coachVersionOf(item)) return;
     const { onKeepMine, saveBehind } = live.current;
     saveBehind(() => keepWordsBehind(onKeepMine, item), CHUNK_SHEET_COPY.failKeep);
@@ -1554,8 +1557,9 @@ export function useDeckFeedbackWalk(args: {
       const body = answerBody(step, value);
       const part_id = step.moment != null ? (walkModel.moments[step.moment]?.partId ?? null) : null;
       if (body) post({ key: `answer:${step.key}`, moment: step.moment ?? null, attempt: step.attempt ?? null, author: "speaker", body, extra: { part_id } });
-      // The walk's answer to Skip on the One thing walk's fix (N405).
-      const reply = body ? skipReply(step, value) : null;
+      // The walk's answer to Skip on the One thing walk's fix (N405), with
+      // no "Skip" of the speaker's above it (N452 item 1).
+      const reply = skipReply(step, value);
       if (reply) post({ key: `skipped:${step.key}`, moment: step.moment ?? null, attempt: step.attempt ?? null, author: "app", body: reply });
       // Continue on the coach's word: the one "watched" (N80, D4), in the
       // live walk, the coach-only walk (WhatsApp, email, the dot card) and

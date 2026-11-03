@@ -400,9 +400,10 @@ export function oneThingTryWords(step: WalkStep, moment: FeedbackWalkMoment<unkn
 }
 
 export function answerBody(step: WalkStep, value: string): string | null {
+  // The One thing walk's taps are not the speaker's messages, in the walk
+  // (N435 item 2) or the chat (backend N452 item 1).
+  if (step.one) return null;
   if (value === "skip" && ["helpers", "exVideo", "encourage"].includes(step.key)) return WALK_COPY.skip;
-  // The One thing walk's recorder: its trash is Skip on the fix (N435 item 3).
-  if (value === "skip" && step.one && step.key === "practise") return WALK_COPY.skip;
   return null;
 }
 

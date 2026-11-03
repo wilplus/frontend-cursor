@@ -558,10 +558,12 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     expect(opening?.fix_tip).toBe(ONE_THING_COPY.paceTip(stretch));
     // Its scale names its three zones, left to right (N405).
     expect([...live()!.querySelectorAll("[data-walk-scale-ends] span")].map((n) => n.textContent)).toEqual([...TEMPO_COPY.ends]);
-    // Skip: their "Skip", then the walk's answer to it, in the walk and in the chat (N405).
+    // Skip: the walk's answer to it, in the walk and in the chat (N405), with
+    // no "Skip" of the speaker's in either (N435 item 2, N452 item 1).
     await click(live()!.querySelector("[data-testid='walk-tempo-skip']"));
     expect(live()!.querySelector("[data-walk-skip-reply]")!.textContent).toBe(ONE_THING_COPY.skipped);
     const told = append.mock.calls.map(([draft]) => draft as { body: string; metadata: Record<string, unknown> });
     expect(told.find((d) => d.metadata.step === "tempo:skipped")?.body).toBe(ONE_THING_COPY.skipped);
+    expect(told.find((d) => d.metadata.step === "tempo:skip")).toBeUndefined();
   });
 });

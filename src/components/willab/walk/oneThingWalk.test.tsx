@@ -119,8 +119,8 @@ function draw(request: FeedbackWalkRequest | null, over: Over = {}) {
     onEnd: vi.fn<() => void>(),
     onClose: vi.fn<() => void>(),
     onLessonDone: vi.fn<() => void>(),
-    onKeepWords: vi.fn<(item: string, label?: string) => void>(),
-    onAcceptClearer: vi.fn<(item: string, label?: string) => void>(),
+    onKeepWords: vi.fn<(item: string, label?: string | null) => void>(),
+    onAcceptClearer: vi.fn<(item: string, label?: string | null) => void>(),
     ...rest,
   };
   act(() => root.render(<FeedbackWalk<string> {...props} />));
@@ -178,8 +178,8 @@ describe("the One thing walk (N309)", () => {
   it("the helper words come on their own and are saved without a pick", async () => {
     const props = draw({ seq: 1, at: at("clearer") });
     click(testId("walk-keep"));
-    // The chat keeps their choice; the walk adds no bubble of theirs (N435 item 2).
-    expect(props.onKeepWords).toHaveBeenCalledWith("s-rewrite", ONE_THING_COPY.keepMine);
+    // Their choice is saved, with no message of theirs in the walk or the chat (N435 item 2, N452 item 1).
+    expect(props.onKeepWords).toHaveBeenCalledWith("s-rewrite", null);
     expect(said()).toEqual([]);
     expect(text()).toContain(ONE_THING_COPY.keepWords);
     expect(text()).not.toContain(WALK_COPY.keepWords);
@@ -207,7 +207,7 @@ describe("the One thing walk (N309)", () => {
   it("the Clearer version's sentence is saved from its practice", async () => {
     const props = draw({ seq: 1, at: at("clearer") });
     click(testId("walk-forward"));
-    expect(props.onAcceptClearer).toHaveBeenCalledWith("s-rewrite", ONE_THING_COPY.tryIt);
+    expect(props.onAcceptClearer).toHaveBeenCalledWith("s-rewrite", null);
     await settle();
     click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
     await settle();
@@ -282,6 +282,10 @@ describe("the One thing walk (N309)", () => {
     expect(now()!.querySelector("[data-walk-tempo-lead]")!.parentElement!.querySelector("[data-walk-scale-ends]")).not.toBeNull();
     expect(text()).not.toContain(TEMPO_COPY.room);
     expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("The cost");
+    // A slow stretch opens with its own one line (N452 item 2).
+    draw({ seq: 2, at: model.plan.findIndex((s) => s.key === "tempo") }, { model, tempo: { ...TEMPO_STAND_IN, reading: "slow" }, onTempo: vi.fn() });
+    expect([...now()!.querySelectorAll("[data-walk-tempo-lead]")].map((n) => n.textContent)).toEqual([ONE_THING_COPY.keepItMoving]);
+    draw({ seq: 3, at: model.plan.findIndex((s) => s.key === "tempo") }, { model, tempo: TEMPO_STAND_IN, onTempo, tempoSlide: "The cost" });
     // One try that misses, then Skip: no Next to press, the walk goes on.
     click(testId("walk-tempo-ready"));
     await settle();
