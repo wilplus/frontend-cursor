@@ -1,5 +1,4 @@
 import { bffFetch } from "@/lib/api/bffFetch";
-import { installableNow } from "@/lib/willab/installable";
 import type { ReviewSummaryAsk } from "./reviewSummary";
 
 /** Ask for the Take's closing summary and read its words back, for the
@@ -16,8 +15,6 @@ export async function postReviewSummaryText(arcId: string, ask: ReviewSummaryAsk
         practice: ask.practice,
         helper_words: ask.helperWords.slice(0, 2),
         coach_note: ask.coachNote,
-        // The home screen may be this Take's one ask (founder 2026-10-20).
-        can_install: installableNow(),
       },
     });
     if (result.kind !== "response" || !result.ok) return null;

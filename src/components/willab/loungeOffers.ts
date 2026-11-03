@@ -3,16 +3,19 @@ import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMes
 /* -------------------------------------------------------------------------- */
 /*  loungeOffers — the Lounge's actionable "offers" as durable thread entries  */
 /*                                                                            */
-/*  Install (F2) and the legacy bad-joke offer (F7) are no                      */
-/*  longer transient footer popups: each is appended to the Lounge thread as a  */
+/*  Will's asks and the legacy bad-joke offer (F7) are no longer transient      */
+/*  footer popups: each is appended to the Lounge thread as a                   */
 /*  real, persisted bubble (kind "text" + a metadata discriminator, so it rides */
 /*  the existing lounge_messages contract with no new BE kind). The bubble is   */
 /*  clickable — re-opening it re-arms its action pair in the footer — and its    */
 /*  resolution is registered in the thread like any other turn.                 */
 /*                                                                            */
 /*  The action buttons themselves live in the footer (replacing the record CTA  */
-/*  while an offer is open); button labels stay with that UI because install's  */
-/*  vary by platform. Here we own only the persisted shape + the prompt copy.   */
+/*  while an offer is open); button labels stay with that UI. Here we own only  */
+/*  the persisted shape + the prompt copy. Notifications (the next visit's      */
+/*  WhatsApp ask, the CEO panel's asks) are never offers: they come in the bar  */
+/*  at the top (NoticeBar.tsx, backend N391). An old thread's install,          */
+/*  consent, promo or lesson bubble is plain text now, as "credit" is.          */
 /* -------------------------------------------------------------------------- */
 
 /** The credit gate ("credit") is GONE with the credits system (founder
@@ -21,12 +24,8 @@ import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMes
  *  gate could not fire. Legacy `offer: "credit"` bubbles in old threads still
  *  render as ordinary bot text, which is exactly what the fallback was for. */
 export type OfferType =
-  | "install"
   | "whatsapp"
   | "joke"
-  | "consent"
-  | "promo"
-  | "lesson"
   | "feedback_check"
   | "voice_notebook"
   | "sunday_note"
@@ -38,12 +37,8 @@ export type OfferType =
   | "strengths";
 
 const OFFER_TYPES: readonly OfferType[] = [
-  "install",
   "whatsapp",
   "joke",
-  "consent",
-  "promo",
-  "lesson",
   "feedback_check",
   "voice_notebook",
   "sunday_note",
@@ -57,22 +52,11 @@ const OFFER_TYPES: readonly OfferType[] = [
 
 /** The bubble prompt persisted as the message body. No em-dashes (house style). */
 export const OFFER_PROMPT: Record<OfferType, string> = {
-  // Simplified by the founder in chat, 2026-10-20. Mirrored verbatim in the
-  // backend's services/chat_app_context.py OFFER_PROMPTS.
-  install: "Add WillpowerLab to your home screen? Your coach is one tap away.",
-  // WhatsApp (founder 2026-10-12): the second offer, after install.
+  // WhatsApp (founder 2026-10-12): the form Will opens when asked in the chat;
+  // the same words head the bar's WhatsApp ask (NoticeBar.tsx, N391).
   // Simplified by the founder in chat, 2026-10-20. Mirrored verbatim in the
   // backend's services/chat_app_context.py OFFER_PROMPTS.
   whatsapp: "Want a WhatsApp when your coach replies? Add your number.",
-  // Consent (founder 2026-10-13, step 2): sent by the admin to one person; it
-  // points to the Data & consent page, where they answer on the locked screen.
-  consent:
-    "One question about how we use your data is still open. You can look at it and answer yes or no.",
-  // Promo / lesson (founder 2026-10-14, step 3): sent by the admin to one
-  // person. The bubble carries the exact price (useAdminAsk builds it); these
-  // are only the fallback if that body is ever missing.
-  promo: "Artur set a price for you. See it on the pricing screen.",
-  lesson: "Artur set a price for you for a 1-on-1 lesson.",
   // "Did this feedback help you?" (WIL-74, founder 2026-10-19): written by
   // the backend after a Take's closing summary; this is only the fallback.
   // Simplified by the founder in chat, 2026-10-20 (backend COPY["ask"]).
