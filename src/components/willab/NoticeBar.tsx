@@ -92,18 +92,17 @@ export default function NoticeBar({ signedIn, whatsapp }: { signedIn: boolean; w
   const [ask, setAsk] = useState<BarAsk | null>(null);
   const [sheet, setSheet] = useState(false);
 
+  // No cleanup that drops the answer: the visit is spent the moment it is
+  // asked for, so a remount (React's dev double effect, a quick re-render)
+  // must still show what it brought. A set after unmount does nothing.
   useEffect(() => {
     if (!signedIn || !newVisit()) return;
-    let live = true;
     void bffFetch("/api/v2/user/lounge/visit", { method: "POST", cache: "no-store", json: {} }).then((r) => {
       const next = r.kind === "response" && r.ok ? ((r.body as { ask?: BarAsk | null } | null)?.ask ?? null) : null;
-      if (!live || !next || !barText(next) || (next.kind === "promo" && isNativeApp())) return;
+      if (!next || !barText(next) || (next.kind === "promo" && isNativeApp())) return;
       setAsk(next);
       report(next.id, "shown");
     });
-    return () => {
-      live = false;
-    };
   }, [signedIn]);
 
   if (!ask) return null;
