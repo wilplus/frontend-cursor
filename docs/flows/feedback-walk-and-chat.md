@@ -180,6 +180,8 @@ step; the loop never waits for a coach.
 - **B6** Each step opens with its name as a small line ("Slide 2", "Slide 2
   · helper words", "Take 2", "Your coach"). The bar shows the step in view;
   ‹ › scroll to the step before or after, within this opening of the walk.
+  The bar's ‹ › (36 px) and ✕ (28 px) each answer a tap 44 px wide; they
+  look the same (N440).
   A slide is named by its title in the speaker's deck ("Traction",
   "Traction · helper words"), as the locked prototype's bar does; a slide
   with no title keeps "Slide N", a talk with no deck "Your talk" (backend
@@ -541,7 +543,9 @@ praised moment:
   a colon with nothing after it. One example to copy (N379): when the fix
   has its own (the AI clip, the exercise's video), their best's clip is a
   small chip, "Your confident moment" (N289 item 7); with none, it stays
-  full, as it is the example. The bubbles after their best are a polite
+  full, as it is the example. The chip draws the prototype's 24 bars, so
+  its waveform never runs under the time on any phone (N440; was 44 bars,
+  under the time below a 400 px screen). The bubbles after their best are a polite
   live region, read aloud as they land; the AI bubble's typing dots and its
   label are not read while no clip is ready. Was: their best full beside
   the AI clip, two examples to copy; the dots read as "AI version of your
@@ -1539,7 +1543,9 @@ October (backend N111).
   bubble meets the next one of the same side is drawn in to 6px; the top of
   a run's first bubble and the bottom of its last stay round, so a bubble
   alone is round all round (`globals.css`, `data-row` and `data-bubble`). In
-  the walk every bubble stands apart, so each is round all round.
+  the walk every bubble stands apart, so each is round all round, two of
+  the speaker's tries in a row included (`[data-walk-thread]`, N440; was:
+  the corners between two tries drawn in to 6px).
   Was: every corner round and a small tail on the last bubble of a run
   (2026-10-14).
 
@@ -2023,6 +2029,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N440 · built, first part (B6, C4, J6): the chip's waveform is the prototype's 24 bars, sampled from the clip's 44, and never runs under the time (`SnippetWavePlayer` `barCount`); two of the speaker's tries in a row are round all round, as every walk bubble is (`globals.css`); the bar's ‹ › and ✕ answer a 44 px tap. Items 1, 2, 3, 5, 6 and 9 of the run-through follow on top of N435's build · FE (this PR)
 - 2026-11-03 · N425 · C2, C4, H1: the walk's AI clip goes only to a moment whose own clip shows a voice problem it can teach (pace, pauses, loudness range, fillers, against the speaker's own usual on this Take), the strongest such moment, and it teaches that strongest problem, never the runner-up; with none, no AI clip and no "Lean on …" default. Was: the lowest S × W whatever its voice showed, the clip choosing what to teach, stress on the main point when nothing was measured, the runner-up about 15 times in 100 · BE N425 log (#1664), BE #1669, FE (this PR)
 - 2026-11-03 · N417 · E1: the sale's four steps ("Which step did it stall at?") take N371's suggested answers stacked on the right in their order, all four outlined orange and none filled (`TapRow` `even`), since no step is likelier than another; N415 item 2's "the one that goes on filled" does not apply to them. Was: four grey pills, two by two · FE (this PR)
 - 2026-11-03 · N415 · Suggested answers: a lone one ("I want to continue my practice") is outlined, never filled, so it is not taken for a sent message; every ask in Will's chat (the offers' "Not now" and action, the top-up card) takes N371's suggested answers, the one that goes on filled on the right. Was: one filled orange pill; the asks as two equal pills, grey outline and black. Not changed: the consent and policy screens, "Update slides", the one-project question, the WhatsApp number's Save · FE (this PR)

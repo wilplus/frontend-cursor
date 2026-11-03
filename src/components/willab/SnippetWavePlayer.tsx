@@ -49,6 +49,13 @@ function barsFor(seed: string): number[] {
   return out;
 }
 
+/** `count` bars taken evenly from the 44, first and last kept; all of them
+ *  when no count, or one not smaller, is asked for. */
+function sampled(all: number[], count?: number): number[] {
+  if (!count || count < 2 || count >= all.length) return all;
+  return Array.from({ length: count }, (_, i) => all[Math.round((i * (all.length - 1)) / (count - 1))]);
+}
+
 function clock(seconds: number): string {
   const whole = Math.max(0, Math.floor(seconds));
   const mins = Math.floor(whole / 60);
@@ -64,6 +71,7 @@ export default function SnippetWavePlayer({
   tone = "accent",
   label,
   onError,
+  barCount,
 }: {
   /** Stable identity for the waveform — the moment key, or an attempt id. */
   seed: string;
@@ -84,6 +92,10 @@ export default function SnippetWavePlayer({
    *  MediaPlayer's is. A fresh link from the host is asked for on its own
    *  (useRecoverableSrc); this is for a host that manages its own. */
   onError?: () => void;
+  /** Fewer bars for a narrow player (the walk's chip, backend N440): the
+   *  same silhouette, its 44 bars sampled evenly, and the row clipped to
+   *  its own width so a bar never runs under the time. */
+  barCount?: number;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -92,7 +104,7 @@ export default function SnippetWavePlayer({
   const { src, errored, recovering, handleError, handleLoaded } =
     useRecoverableSrc(rawSrc, onError);
 
-  const bars = useMemo(() => barsFor(seed), [seed]);
+  const bars = useMemo(() => sampled(barsFor(seed), barCount), [seed, barCount]);
   const seekSec = (startOffsetMs ?? 0) / 1000;
   const clipDuration =
     typeof durationMs === "number" && durationMs > 0 ? durationMs / 1000 : mediaDuration;
@@ -177,6 +189,7 @@ export default function SnippetWavePlayer({
         className={cn(
           "flex min-w-0 flex-1 items-center gap-[2px]",
           compact ? "h-[22px]" : me ? "h-[30px]" : "h-[34px]",
+          barCount && "overflow-x-clip",
         )}
         aria-hidden
       >
