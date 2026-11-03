@@ -12,6 +12,7 @@ OUTCOME
   O8  A voice correction with nothing to offer (no exercise, no AI clip coming) is skipped: no "Say this one like your confident moment." on its own, in the walk or the chat; it still reaches the coach's queue. The Take's most confident moment is not skipped: it says its own line and is said again (N109).
   O9  A praised moment is practised too: after its praise the short bubble with my AI voice and "Your turn.", up to three tries, a Good job ends it, then its helper words; with no AI clip the praise goes straight to its helper words (N122).
   O10 In the One thing walk, when no AI clip comes for my fix, I still get the tip in words, the exercise's instruction and "Your turn.", and the chat says the same (N370).
+  O11 I never wait long on the AI clip: after ten seconds the tip is in words, and a clip that comes later joins them as its player; once I have started my try, a clip that arrives late does not appear above it (N373).
 PROVES   O1 -> Stop shows once the mic is live, uploads through the attempts route, returns to the walk at once ... and posts /check,
                the trash throws the try away: nothing is sent, no try counted, back on the step that opened it (N314)
          O2 -> praise on try 1: the line for the reading that moved, then Next opens its helper words (N220)
@@ -23,6 +24,7 @@ PROVES   O1 -> Stop shows once the mic is live, uploads through the attempts rou
          O8 -> with no exercise and no AI clip coming, it is walked as a good moment, never skipped: its helper words, no Line A alone, and the coach's queue still hears it; the Take's most confident moment with nothing to offer says its own line and is said again
          O9 -> a praised moment is practised with its AI clip, a Good job ends it, then its helper words (N122), with no AI clip the praise goes straight to its helper words (N122)
          O10 -> says the tip in words, the exercise's instruction and “Your turn.”, in the walk and the chat alike
+         O11 -> a clip still being made after the wait gives way to the tip in words ..., a clip that comes once the try has begun never lands above it (N373 item 2)
 WHY      Never-rule 1 (no scores to speakers); founder 2026-10-31 (N314, "Can you make it locked everywhere?"); 2026-11-02 (N350 item 5, "Stop once the mic is live, in both"); founder 2026-10-21 (N108, "Skip that moment"); 2026-10-23 (N120, "make it shorter focused on one only thing"; N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N284, "Treat as good").
 */
 import { act } from "react";
@@ -115,7 +117,9 @@ let answers: Answer[];
 let uploadFails: boolean;
 /** The AI clip's ask: on its way (then ready), none coming, or none
  *  coming though the server chose what it would fix (N370). */
-let aiClip: "coming" | "none" | "chosen";
+let aiClip: "coming" | "none" | "chosen" | "late";
+/** "late": the clip stays on its way, its fix named, until this is true. */
+let aiLateReady: boolean;
 let calls: { method: string; url: string; body: unknown }[];
 
 function practiceJson(tries: number) {
@@ -163,6 +167,16 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
   // with the server's one sentence on what changed and why (WIL-82).
   if (url.endsWith("/ai-voice")) {
     if (aiClip === "none") return Promise.resolve(json({ demo: "ai_voice", clip: { state: "unavailable", url: null } }));
+    if (aiClip === "late") {
+      return Promise.resolve(
+        json({
+          demo: "ai_voice",
+          clip: aiLateReady
+            ? { state: "ready", url: "https://media.example/ai.mp3", duration_ms: 3000, problem: "pause", phrase: AI_PHRASE }
+            : { state: "pending", url: null, problem: "pause", phrase: AI_PHRASE },
+        }),
+      );
+    }
     if (aiClip === "chosen") return Promise.resolve(json({ demo: "none", clip: { state: "unavailable", url: null, problem: "pause", phrase: AI_PHRASE } }));
     const ready = method === "GET";
     return Promise.resolve(
@@ -228,6 +242,7 @@ beforeEach(() => {
   answers = [];
   uploadFails = false;
   aiClip = "coming";
+  aiLateReady = false;
   calls = [];
   ended = 0;
   vi.stubGlobal("fetch", vi.fn(fakeFetch));
@@ -254,6 +269,8 @@ function draw(
     onShown?: (...args: unknown[]) => void;
     onReached?: (...args: unknown[]) => void;
     quotes?: WalkQuoteIO | null;
+    clipWaitMs?: number;
+    takeId?: string;
   } = {},
 ) {
   const model = buildFeedbackWalk({ items: over.items ?? ITEMS, coachNote: false, practiceOn: over.practiceOn ?? true, guest: false });
@@ -270,6 +287,8 @@ function draw(
     guest: over.guest,
     onGuest: over.onGuest,
     readLimitMs: over.readLimitMs ?? 1000,
+    clipWaitMs: over.clipWaitMs,
+    takeId: over.takeId,
     practise: io,
     onShown: over.onShown,
     onReached: over.onReached,
@@ -663,6 +682,37 @@ describe("the One thing walk's fix with no AI clip (founder 2026-11-03, N370)", 
     expect(told[0][3]).toBeNull();
     expect(told[0][4]).toBe([tip, ...rest].join("\n"));
     expect(told[0][5]).toBe(tip!.replace(/\.$/, ""));
+  });
+
+  it("a clip still being made after the wait gives way to the tip in words, and joins them as its player when it comes (N373 item 1)", async () => {
+    aiClip = "late";
+    draw({ items: ONE_ITEMS, at: fixAt(ONE_ITEMS), clipWaitMs: 200, takeId: "take-late" });
+    await settle(10);
+    // Waiting: the typing dots, the AI bubble on its way.
+    expect(live()!.querySelector("[data-walk-ai-typing], [data-walk-ai-waiting]")).not.toBeNull();
+    await settle(60);
+    // Waited out: the words, no dots.
+    expect(live()!.querySelector("[data-walk-ai-typing], [data-walk-ai-waiting]")).toBeNull();
+    const words = [...live()!.querySelectorAll("[data-walk-no-clip]")].map((n) => n.textContent);
+    expect(PAUSE_SAID).toContain(words[0]);
+    // The clip comes: its player under the words, which stay as they were.
+    aiLateReady = true;
+    await settle(150);
+    expect([...live()!.querySelectorAll("[data-walk-no-clip]")].map((n) => n.textContent)).toEqual(words);
+    expect(live()!.querySelector("[data-walk-ai-voice]")).not.toBeNull();
+    expect(live()!.querySelector("audio[src='https://media.example/ai.mp3']")).not.toBeNull();
+    expect(aiSpans().some((t) => t?.includes("like this:"))).toBe(false);
+  });
+
+  it("a clip that comes once the try has begun never lands above it (N373 item 2)", async () => {
+    aiClip = "late";
+    draw({ items: ONE_ITEMS, at: fixAt(ONE_ITEMS), clipWaitMs: 60_000, takeId: "take-tried" });
+    await settle(10);
+    click(live()!.querySelector("[data-testid='walk-practise']"));
+    aiLateReady = true;
+    await settle(150);
+    expect(host.querySelector("audio[src='https://media.example/ai.mp3']")).toBeNull();
+    expect(PAUSE_SAID).toContain(host.querySelector("[data-walk-no-clip]")?.textContent);
   });
 });
 

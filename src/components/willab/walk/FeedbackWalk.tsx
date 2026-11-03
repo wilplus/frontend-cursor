@@ -23,7 +23,7 @@ import WalkSummary, { type WalkStoredSummary } from "./WalkSummary";
 import WalkTempo from "./WalkTempo";
 import WalkTempoSaid from "./WalkTempoSaid";
 import { TEMPO_COPY, type TempoEvent, type TempoStretch } from "@/lib/willab/tempoStep";
-import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
+import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, AI_CLIP_WAIT_MS, useClipBeforeTry, useClipWait, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
@@ -179,6 +179,9 @@ type Props<R> = {
   practise?: WalkPractiseIO<R> | null;
   /** O5's limit on the machine's read; tests shorten it. */
   readLimitMs?: number;
+  /** How long the fix waits on its AI clip before the words (N373);
+   *  tests shorten it. */
+  clipWaitMs?: number;
   /** Judging one's own moments is gone from the walk (lock 2026-10-12,
    *  section 2); these are kept for callers that still pass them. */
   onJudge?: (save: WalkJudgementSave<R>) => void;
@@ -343,6 +346,7 @@ export default function FeedbackWalk<R = unknown>({
   onKeepWords,
   practise: practiseIO = null,
   readLimitMs,
+  clipWaitMs = AI_CLIP_WAIT_MS,
   summary = null,
   storedSummary = null,
   editedWords = NO_EDITS,
@@ -787,6 +791,7 @@ export default function FeedbackWalk<R = unknown>({
     at: (s) => plan.indexOf(s),
     bare: (s) => bare(s, plan.indexOf(s)),
     head: at,
+    clipWaitMs,
     coachNote,
     takeIndex,
     takeId,
@@ -1007,6 +1012,8 @@ type ScreenCtx<R = unknown> = {
   bare: (step: WalkStep) => boolean;
   /** The newest step reached: the live part of the thread. */
   head: number;
+  /** How long the fix waits on its AI clip before the words (N373). */
+  clipWaitMs: number;
   coachNote: FeedbackWalkCoachNote | null;
   takeIndex: number | null;
   /** The Take the walk is about: other speakers' set for it (N119). */
@@ -1489,6 +1496,34 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
   );
 }
 
+/** What the One thing walk's fix shows of its AI clip (N370, N373): the
+ *  AI bubble (`lines`), or the words with no clip (`noClip`), and under
+ *  them the late clip's player alone (`latePlayer`). */
+function useFixClip<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
+  const state = ctx.practise.aiVoiceOf(moment.index);
+  const say = (bank: WalkBankKey) => ctx.say(step, bank);
+  const ai = aiVoiceShown(ctx.walk.plan, ctx.at(step), state, say);
+  const seed = `ai-ex-${ctx.takeId ?? ""}-${moment.index}`;
+  // Ten seconds on a clip still being made, then the tip in words; a clip
+  // that comes later joins them as its player alone (N373 item 1). Once
+  // the first try began, a clip not yet seen never lands above it (N373
+  // item 2). A walk played again shows what is there.
+  const live = !step.replay && !step.readOnly;
+  const waited = useClipWait(seed, live && ai === "pending", ctx.clipWaitMs);
+  const tried =
+    Boolean(ctx.practise.tryOf(moment.index)) ||
+    ctx.walk.plan.some((s, i) => s.key === "practise" && s.moment === moment.index && i <= ctx.head);
+  const allowed = useClipBeforeTry(seed, Boolean(ai && ai !== "pending"), live && tried);
+  const shown = ai && (!live || (allowed && !(ai === "pending" && (waited || tried)))) ? ai : null;
+  const lines = shown === "pending" ? oneThingAiLines(say, state?.clip) : waited && shown ? null : shown;
+  const latePlayer = waited && shown && shown !== "pending";
+  // No AI clip coming (its check failed, the provider or the limits
+  // refused, no voice yet), or one waited out: the tip in words, and the
+  // exercise's video and instruction when one is served (N370).
+  const noClip = lines || ctx.practise.aiVoiceAsking(moment.index) ? null : oneThingNoClip(say, state?.clip, moment.exercise);
+  return { state, seed, lines, latePlayer, noClip };
+}
+
 /** The AI clip after their best, as the One thing walk's fix (N309 item
  *  1): the speaker's clip, "Say this one like your confident moment:",
  *  their best played again, then the AI bubble: the tip ending ", like
@@ -1496,14 +1531,7 @@ function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkS
  *  and the try is still theirs. */
 function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkStep; moment: FeedbackWalkMoment<R> }) {
   const best = ctx.walk.moments.find((m) => m.slot === "strongest" && m.clip && m.index !== moment.index);
-  const state = ctx.practise.aiVoiceOf(moment.index);
-  const say = (bank: WalkBankKey) => ctx.say(step, bank);
-  const ai = aiVoiceShown(ctx.walk.plan, ctx.at(step), state, say);
-  const lines = ai === "pending" ? oneThingAiLines(say, state?.clip) : ai;
-  // No AI clip coming (its check failed, the provider or the limits
-  // refused, no voice yet): the tip in words, and the exercise's video
-  // and instruction when one is served (N370).
-  const noClip = lines || ctx.practise.aiVoiceAsking(moment.index) ? null : oneThingNoClip(say, state?.clip, moment.exercise);
+  const { state, seed, lines, latePlayer, noClip } = useFixClip(ctx, step, moment);
   return (
     <>
       <LevelHere moment={moment} />
@@ -1514,7 +1542,7 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
       {best ? <Clip moment={best} replay={best.slideLabel ?? COPY.pagerMoment} /> : null}
       {lines ? (
         <WalkAiVoice
-          seed={`ai-ex-${moment.index}`}
+          seed={seed}
           state={state}
           {...lines}
           arrive
@@ -1535,6 +1563,9 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
             </span>
           ))}
         </WalkMessage>
+      ) : null}
+      {latePlayer ? (
+        <WalkAiVoice seed={`${seed}-late`} state={state} line="" arrive onPlay={() => ctx.practise.aiVoicePlayed(moment.index)} />
       ) : null}
       <CoachAnswerBubble moment={moment} />
     </>

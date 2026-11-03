@@ -135,6 +135,49 @@ export function aiVoiceComing(
 export const aiTipKnown = (state: AiVoiceState | undefined): boolean =>
   state?.clip?.state !== "pending" || Boolean(state.clip.problem);
 
+/** How long the One thing walk's fix waits on a clip still being made
+ *  before it says the tip in words (N373 item 1). */
+export const AI_CLIP_WAIT_MS = 10_000;
+
+/** When each fix began waiting, and the ones that waited out, in this
+ *  page's life: a screen drawn again keeps the wait it had. */
+const waitStarted = new Map<string, number>();
+const waitedOut = new Set<string>();
+
+/** The fix's clip took longer than AI_CLIP_WAIT_MS (N373 item 1): true
+ *  once the wait ran out while the clip was still `pending`, and from then
+ *  on, so a clip that comes later joins the words and never replaces
+ *  them. A clip ready in time never waits out. */
+export function useClipWait(seed: string, pending: boolean, waitMs: number = AI_CLIP_WAIT_MS): boolean {
+  const [out, setOut] = useState(() => waitedOut.has(seed));
+  useEffect(() => {
+    if (out || !pending) return;
+    const started = waitStarted.get(seed) ?? Date.now();
+    waitStarted.set(seed, started);
+    const timer = setTimeout(() => {
+      waitedOut.add(seed);
+      setOut(true);
+    }, Math.max(0, started + waitMs - Date.now()));
+    return () => clearTimeout(timer);
+  }, [seed, pending, out, waitMs]);
+  return out;
+}
+
+/** The fix's clips the speaker saw before their first try, in this page's
+ *  life (N373 item 2): only those stay once the try has begun. */
+const seenBeforeTry = new Set<string>();
+
+/** The fix's clip may show: always before the first try, and after it only
+ *  when it was already there (N373 item 2: a clip that comes late would
+ *  land above the try, out of sight). */
+export function useClipBeforeTry(seed: string, ready: boolean, tried: boolean): boolean {
+  const seen = ready && !tried;
+  useEffect(() => {
+    if (seen) seenBeforeTry.add(seed);
+  }, [seen, seed]);
+  return !tried || seenBeforeTry.has(seed);
+}
+
 /** The bubbles that already landed in this page's life: a screen drawn
  *  again (the stage's leaving copy, ‹ and ›) shows its bubble at once. */
 const landed = new Set<string>();
