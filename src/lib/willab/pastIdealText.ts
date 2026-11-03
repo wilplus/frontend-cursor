@@ -1,6 +1,7 @@
 /* An older Take's Ideal Text card (founder 2026-11-03, backend N375): which
    version it opens, read before the page is drawn, and its paragraphs slide
    by slide. The page itself is IdealTextPastVersion. */
+import { PAST_TAKE_COPY } from "@/components/willab/idealEditCopy";
 import {
   fetchIdealTextRevisions,
   type IdealTextRevision,
@@ -47,17 +48,43 @@ export function warmPastIdealText(arcId: string | null): void {
   warmed.set(arcId, { at: Date.now(), read: fetchIdealTextRevisions(arcId) });
 }
 
-/** The older version the card opens, or null for the live page. */
+/** What a card opens: its older version (with the latest Take, for "Go to
+ *  Take M"), or the live page, with the line that says so when the card's
+ *  version was not kept (N380). */
+export type PastOpen =
+  | { kind: "past"; revision: IdealTextRevision; latestTake: number | null }
+  | { kind: "live"; notice: string | null };
+
 export async function resolvePastIdealText(
   arcId: string,
   past: IdealTextPast,
-): Promise<IdealTextRevision | null> {
+): Promise<PastOpen> {
   warmPastIdealText(arcId);
   const read = warmed.get(arcId)!.read;
   // Used once: the next open reads afresh (a new Take may have landed).
   warmed.delete(arcId);
   const rv = await read;
-  return rv.kind === "ready" ? pastRevisionOf(rv.revisions, past) : null;
+  if (rv.kind !== "ready") return { kind: "live", notice: null };
+  const latestTake = rv.revisions.find((r) => r.isHead)?.takeIndex ?? null;
+  const revision = pastRevisionOf(rv.revisions, past);
+  if (revision) return { kind: "past", revision, latestTake };
+  // The card's version is the newest: the page, as it is. Not kept: say so.
+  const isLatest = rv.revisions.some((r) =>
+    r.isHead && (past.by === "version" ? r.revision === past.n : r.takeIndex === past.n),
+  );
+  const notice =
+    !isLatest && latestTake !== null && latestTake !== past.n
+      ? PAST_TAKE_COPY.notSaved(past.n, latestTake)
+      : null;
+  return { kind: "live", notice };
+}
+
+/** The helper words a slide had while the version was the latest, joined
+ *  as the page joins a headline (" · "). */
+export function helperHeadlineOf(revision: Pick<IdealTextRevision, "helperWords">, slideIndex: number | null): string | null {
+  if (slideIndex === null) return null;
+  const hit = revision.helperWords.find((h) => h.slideIndex === slideIndex);
+  return hit ? hit.phrases.join(" · ") : null;
 }
 
 /** The version's paragraphs, slide by slide as the live page groups them:

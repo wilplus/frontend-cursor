@@ -119,6 +119,7 @@ export default function IdealTextOverlay({
   analysisPending = false,
   initialMode = "notebook",
   coachTake,
+  notice = null,
   reviewAt = null,
   onClose,
   onReadAloud,
@@ -140,6 +141,9 @@ export default function IdealTextOverlay({
    *  2026-10-21, backend N77): the journey is read for that Take, and the
    *  coach-only walk opens on its word. */
   coachTake?: string | null;
+  /** One line at the top of the page: an older card's words were not kept,
+   *  so this is the latest Take (backend N380). */
+  notice?: string | null;
   onClose: () => void;
   /** The host closes this overlay into the record flow for the NEXT official
    *  take of this presentation. Receives the current version as a take-count
@@ -955,6 +959,7 @@ export default function IdealTextOverlay({
         </div>
       </div>
       <FeedbackLoadingLine active={shownStatus === "ready" && feedbackPending} />
+      <PageNotice notice={notice} />
       {updateSlides.layer}
       {archivedReturn.layer}
 
@@ -1294,6 +1299,17 @@ function LensFrame({ on, onClose }: { on: boolean; onClose: () => void }) {
 }
 
 /** The Ideal Text's own layer: out of sight while the lens screen is on. */
+/** One line at the top of the page (backend N380): an older card's words
+ *  were not kept, so this is the latest Take. */
+function PageNotice({ notice }: { notice: string | null }) {
+  if (!notice) return null;
+  return (
+    <p data-ideal-text-notice className="mx-auto w-full max-w-3xl px-5 pt-3 text-[13px] leading-relaxed text-muted-foreground">
+      {notice}
+    </p>
+  );
+}
+
 function lensHides(on: boolean): string {
   return `fixed inset-0 z-40 flex flex-col overscroll-none bg-background${on ? " invisible" : ""}`;
 }

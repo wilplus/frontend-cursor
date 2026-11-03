@@ -206,13 +206,15 @@ const IdealTextPastVersion = dynamic(() => import("./IdealTextPastVersion"), { s
 function IdealTextPastOr({
   shown,
   onClose,
+  onLatest,
   children,
 }: {
-  shown: { revision: IdealTextRevision; past: IdealTextPast } | null;
+  shown: { revision: IdealTextRevision; past: IdealTextPast; latestTake: number | null } | null;
   onClose: () => void;
+  onLatest: () => void;
   children: ReactNode;
 }) {
-  return shown ? <IdealTextPastVersion {...shown} onClose={onClose} /> : <>{children}</>;
+  return shown ? <IdealTextPastVersion {...shown} onClose={onClose} onLatest={onLatest} /> : <>{children}</>;
 }
 const LifeChatCard = dynamic(
   () => import("@/components/life/LifeChatLayer").then((m) => m.LifeChatCard),
@@ -586,10 +588,15 @@ export default function Lounge({
    *  2026-11-03, backend N375). The newest version opens the live page. */
   function openPastIdealText(arcId: string, past: IdealTextPast): void {
     // Which page opens is known before either is drawn: one screen per tap.
-    void resolvePastIdealText(arcId, past).then((revision) => {
-      if (!revision) return openIdealText(arcId);
-      setIdealTextPast({ revision, past });
-      setIdealTextArcId(arcId);
+    void resolvePastIdealText(arcId, past).then((opened) => {
+      if (opened.kind === "past") {
+        setIdealTextPast({ revision: opened.revision, past, latestTake: opened.latestTake });
+        setIdealTextArcId(arcId);
+        return;
+      }
+      openIdealText(arcId);
+      // Its words were not kept: the page says so (N380).
+      setIdealTextNotice(opened.notice);
     });
   }
 
@@ -599,6 +606,7 @@ export default function Lounge({
     at: WalkStepTarget | null = null,
   ): void {
     setIdealTextPast(null);
+    setIdealTextNotice(null);
     startOpenTrace(at?.step ? `${mode}, step ${at.step}` : mode);
     setIdealTextReviewAt(at);
     openedNewCoachFeedback(arcId);
@@ -711,7 +719,8 @@ export default function Lounge({
   const [idealTextReviewAt, setIdealTextReviewAt] = useState<WalkStepTarget | null>(null);
   const [idealTextLaunchMode, setIdealTextLaunchMode] =
     useState<IdealTextLaunchMode>("notebook");
-  const [idealTextPast, setIdealTextPast] = useState<{ revision: IdealTextRevision; past: IdealTextPast } | null>(null);
+  const [idealTextPast, setIdealTextPast] = useState<{ revision: IdealTextRevision; past: IdealTextPast; latestTake: number | null } | null>(null);
+  const [idealTextNotice, setIdealTextNotice] = useState<string | null>(null);
   const [idealTextCoachTake, setIdealTextCoachTake] = useState<string | null>(null);
   const [confidencePracticeId, setConfidencePracticeId] = useState<
     string | null
@@ -2286,10 +2295,12 @@ export default function Lounge({
             setIdealTextPast(null);
             setIdealTextArcId(null);
           }}
+          onLatest={() => openIdealText(idealTextArcId)}
         >
         <IdealTextOverlay
           arcId={idealTextArcId}
           initialMode={idealTextLaunchMode}
+          notice={idealTextNotice}
           coachTake={idealTextCoachTake}
           reviewAt={idealTextReviewAt}
           // W4/W5 — while a take is in flight (EITHER phase: analysing, or
@@ -2308,6 +2319,7 @@ export default function Lounge({
             setIdealTextArcId(null);
             setIdealTextLaunchMode("notebook");
             setIdealTextCoachTake(null);
+            setIdealTextNotice(null);
           }}
           // SD — "Read it aloud": the re-read is just another recording. Seed
           // THIS presentation (only when the cache holds a different arc; the

@@ -1832,7 +1832,7 @@ function headlineOfChunk(
 /** Helper words the latest Take no longer says, before the paragraph: the
  *  orange HELPERS label and the words (founder 2026-10-14, scenarios B/C).
  *  Not the speaker's text; a tap on the paragraph opens them. */
-function HelpersLabel({ phrases }: { phrases: string[] }) {
+export function HelpersLabel({ phrases }: { phrases: string[] }) {
   if (phrases.length === 0) return null;
   return (
     <span data-helpers-label>

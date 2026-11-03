@@ -902,9 +902,12 @@ praised moment:
   Feedback walk opens its walk (B10). Only the project's newest card opens
   the page; an older Take's card (1.0 when the project is at 3.0) opens the
   words that Take made, as they were, read only: the project's name, "AI-generated
-  text · Take N", the paragraphs, ✕ and "Close"; a version with no saved
-  words opens the page (founder 2026-11-03, backend N375: "it opens the text
-  that was recorded for that time"; was: every card opened the page).
+  text · Take N", "This is what you said in Take N." with "Go to Take M"
+  (the page), the paragraphs slide by slide with the helper words of that
+  time orange, ✕ and "Close"; a version with no saved words opens the page
+  with "Take N's words weren't saved. This is Take M." at its top (founder
+  2026-11-03, backend N375, N376, N380: "it opens the text that was recorded
+  for that time"; was: every card opened the page).
 - **F2** The text never shows before the walk (A2).
 - **F3** Helper words are orange in the text; no pencil. The black margin
   line means something still waits: only a paragraph with a step still to
@@ -1935,6 +1938,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-03 · N381 · C2, H1: N374 item 1 withdrawn: a between whose Clearer version does not pass is praised as a next best again and left out of the One thing walk; the AI clip is the weakest's alone. Was (N374 item 1, Takes recorded from 11:00 UTC that day): that between took the AI clip when no paragraph was left for the weakest, and the clip coached the voice on a fragment whose trouble was its words. N374 item 2 (their best's own words as the helper words) is unchanged · BE (the revert of #1629), docs (this PR)
+- 2026-11-03 · N380 · F1: an older version says "This is what you said in Take N." with an outlined "Go to Take M" that opens the page, and shows the helper words its slides had while it was the latest (the last set picked before the next version), orange in the words and with the HELPERS label for words it no longer says, as the page draws them; a card whose version was not kept opens the page with "Take N's words weren't saved. This is Take M." at its top (`PAST_TAKE_COPY` in `idealEditCopy.ts`, signed). Was: no line, no way to the latest, no helper words, the page opened in silence · BE N380 log and the History's helper words (BE, next PR), FE (this PR)
 - 2026-11-03 · N376 · F1: which page an Ideal Text card opens is known before either is drawn, and a press on an older card starts its read (`src/lib/willab/pastIdealText.ts`); an older version shows its paragraphs slide by slide, each slide's picture and kicker on the deck that Take was said on. Was: a loader first, then sometimes the live page; plain paragraphs · BE N376 log and the History's slides (BE, next PR), FE (this PR)
 - 2026-11-03 · N375 · F1: only the project's newest Ideal Text card opens the page; an older Take's card (the walk's own card or a version card) opens that Take's words as they were, read only, from the versions the History under ⋯ keeps (`IdealTextPastVersion.tsx`); a version with no saved words, or still the newest, opens the page; B10's older Take's walk now ends on that Take's card, which opens those words. Was: every card opened the live page, and the older walk ended with no card · BE N375 log, FE (this PR)
 - 2026-11-03 · N374 · built (C0a, C2, C3, H1): a short Take keeps its one fix: when the between's Clearer version does not pass and no paragraph is left for the weakest (a Take of two), that moment takes the AI clip itself (8 words or more and a sound read), for Takes recorded from 3 November 2026, 11:00 UTC (backend `VOICE_FALLBACK_FROM`); and every walk leaves helper words: when the fix gives none (no fix, a tip that quotes no phrase, a stretch past eight words), their best's own words, whole, with the same line. Was: the between was praised as a next best and left out, so a new speaker's first Take showed their best alone, with no fix and no helper words · BE (the pick), FE (this PR)

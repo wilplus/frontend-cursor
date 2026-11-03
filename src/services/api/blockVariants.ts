@@ -173,6 +173,9 @@ export interface IdealTextRevision {
   slides: (number | null)[] | null;
   /** The deck this version's Take was said on; null: none, or unknown. */
   presentationRef: string | null;
+  /** The helper words each slide had while this version was the latest
+   *  (backend N380); empty when none, or not served. */
+  helperWords: { slideIndex: number; phrases: string[] }[];
   createdAt: string | null;
   isHead: boolean;
 }
@@ -184,6 +187,20 @@ export type RevisionsResult =
 
 /** The revision timeline, newest first as served. An EMPTY list is a real
  *  state (pre-migration arc): the caller hides the timeline entirely. */
+/** A version's helper words by slide, as served (N380); a row without a
+ *  slide or words is dropped. */
+function helperWordsOf(raw: unknown): { slideIndex: number; phrases: string[] }[] {
+  if (!Array.isArray(raw)) return [];
+  const out: { slideIndex: number; phrases: string[] }[] = [];
+  for (const item of raw) {
+    const r = item && typeof item === "object" ? (item as Record<string, unknown>) : null;
+    const slideIndex = r ? intOrNull(r.slide_index) : null;
+    const phrases = r && Array.isArray(r.phrases) ? r.phrases.filter((p): p is string => typeof p === "string" && p.trim() !== "") : [];
+    if (slideIndex !== null && phrases.length > 0) out.push({ slideIndex, phrases });
+  }
+  return out;
+}
+
 export async function fetchIdealTextRevisions(
   arcId: string
 ): Promise<RevisionsResult> {
@@ -212,6 +229,7 @@ export async function fetchIdealTextRevisions(
         ? r.slides.map((v) => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null))
         : null,
       presentationRef: str(r.presentation_ref) || null,
+      helperWords: helperWordsOf(r.helper_words),
       createdAt: str(r.created_at) || null,
       isHead: r.is_head === true,
     });

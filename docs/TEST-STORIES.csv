@@ -834,9 +834,13 @@ Take's walk too; the newest card opens the live page, as before.
 O2  The older version's page shows that Take's words slide by slide and
 names its Take, never the latest Take's words.
 O3  A version that is the newest, or has no saved words, opens the live
-page, decided before any page is drawn (one screen per tap).","O1 -> ""an older card opens its own version, the newest the live page""
+page, decided before any page is drawn (one screen per tap); one not
+kept says so on the page, the newest says nothing.
+O4  The older page says which Take it is, leads to the latest, and shows
+the helper words of its time orange (N380).","O1 -> ""an older card opens its own version, the newest the live page""
 O2 -> ""shows that Take's words""
-O3 -> ""falls back to the live page""","Founder 2026-11-03, backend N375; rule 5."
+O3 -> ""falls back to the live page""
+O4 -> ""says which Take, leads to the latest, keeps its helper words""","Founder 2026-11-03, backend N375, N376, N380; rule 5."
 src/components/willab/instantParagraphSheet.test.tsx,Story,"As a speaker, I want a paragraph sheet to open complete and my chosen helper words to show at once, so that I never see a half-drawn sheet or wait for my own choice.","O1  Not read ahead, the sheet's data is nothing until both reads land,
 then everything at once.
 O2  A read that never lands holds the sheet for OPEN_WAIT_MS at most,
