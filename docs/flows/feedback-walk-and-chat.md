@@ -373,12 +373,10 @@ step; the loop never waits for a coach.
   improve**: "And now, one thing to improve:" and ONE fix, the slot whose
   tool fits: this week's level's moment on a plan (N289 item 8), else the
   between with its Clearer version (words come first, C5), else the
-  weakest with the AI clip after their best (C4); with no paragraph left
-  for the weakest (a Take of two), a between whose Clearer version does
-  not pass takes the AI clip itself, when it has 8 words or more and a
-  sound read (N374; a Take recorded before 3 November 2026, 11:00 UTC,
-  keeps the walk it had; was: praised as a next best and left out, so the
-  walk was their best alone, with no helper words); the Sniper (T) and no
+  weakest with the AI clip after their best (C4). The AI clip is the
+  weakest's alone: a between whose Clearer version does not pass is left
+  out, so a Take of two paragraphs can end with their best alone (N381);
+  the Sniper (T) and no
   moment on a pace or pause week whose Take has a stretch, and for
   everyone, with or without a plan, at any level, when rushing is the
   Take's biggest issue (T, N323 item 6). A fix the last walk gave that
@@ -1021,10 +1019,8 @@ praised moment:
     between   = from another block, the clip whose words need help most
               (H3; lowest W, then lowest S × W), picked before the
               weakest; the Clearer version when a rewrite passes the gate,
-              else a next best, or, with no block left for the weakest,
-              the weakest itself with the AI clip when it has 8 words or
-              more and a sound read (N374; Takes recorded from 3 November
-              2026, 11:00 UTC, `VOICE_FALLBACK_FROM`)
+              else a next best; never the AI clip, which is the
+              weakest's alone (N381)
     weakest   = from a block left, the lowest S × W with 8 words or more
               and a sound read, never one holding its helper words; Line
               A, the strongest's clip again, the AI clip
@@ -1938,6 +1934,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N381 · C2, H1: N374 item 1 withdrawn: a between whose Clearer version does not pass is praised as a next best again and left out of the One thing walk; the AI clip is the weakest's alone. Was (N374 item 1, Takes recorded from 11:00 UTC that day): that between took the AI clip when no paragraph was left for the weakest, and the clip coached the voice on a fragment whose trouble was its words. N374 item 2 (their best's own words as the helper words) is unchanged · BE (the revert of #1629), docs (this PR)
 - 2026-11-03 · N376 · F1: which page an Ideal Text card opens is known before either is drawn, and a press on an older card starts its read (`src/lib/willab/pastIdealText.ts`); an older version shows its paragraphs slide by slide, each slide's picture and kicker on the deck that Take was said on. Was: a loader first, then sometimes the live page; plain paragraphs · BE N376 log and the History's slides (BE, next PR), FE (this PR)
 - 2026-11-03 · N375 · F1: only the project's newest Ideal Text card opens the page; an older Take's card (the walk's own card or a version card) opens that Take's words as they were, read only, from the versions the History under ⋯ keeps (`IdealTextPastVersion.tsx`); a version with no saved words, or still the newest, opens the page; B10's older Take's walk now ends on that Take's card, which opens those words. Was: every card opened the live page, and the older walk ended with no card · BE N375 log, FE (this PR)
 - 2026-11-03 · N374 · built (C0a, C2, C3, H1): a short Take keeps its one fix: when the between's Clearer version does not pass and no paragraph is left for the weakest (a Take of two), that moment takes the AI clip itself (8 words or more and a sound read), for Takes recorded from 3 November 2026, 11:00 UTC (backend `VOICE_FALLBACK_FROM`); and every walk leaves helper words: when the fix gives none (no fix, a tip that quotes no phrase, a stretch past eight words), their best's own words, whole, with the same line. Was: the between was praised as a next best and left out, so a new speaker's first Take showed their best alone, with no fix and no helper words · BE (the pick), FE (this PR)
