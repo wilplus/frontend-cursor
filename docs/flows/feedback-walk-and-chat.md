@@ -896,7 +896,12 @@ praised moment:
 
 - **F1** It opens from its card, or after the summary. It is not the landing
   screen. The card opens the page on the text, from the top; the Take's
-  Feedback walk opens its walk (B10).
+  Feedback walk opens its walk (B10). Only the project's newest card opens
+  the page; an older Take's card (1.0 when the project is at 3.0) opens the
+  words that Take made, as they were, read only: the project's name, "AI-generated
+  text · Take N", the paragraphs, ✕ and "Close"; a version with no saved
+  words opens the page (founder 2026-11-03, backend N375: "it opens the text
+  that was recorded for that time"; was: every card opened the page).
 - **F2** The text never shows before the walk (A2).
 - **F3** Helper words are orange in the text; no pencil. The black margin
   line means something still waits: only a paragraph with a step still to
@@ -1928,6 +1933,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N376 · F1: which page an Ideal Text card opens is known before either is drawn, and a press on an older card starts its read (`src/lib/willab/pastIdealText.ts`); an older version shows its paragraphs slide by slide, each slide's picture and kicker on the deck that Take was said on. Was: a loader first, then sometimes the live page; plain paragraphs · BE N376 log and the History's slides (BE, next PR), FE (this PR)
+- 2026-11-03 · N375 · F1: only the project's newest Ideal Text card opens the page; an older Take's card (the walk's own card or a version card) opens that Take's words as they were, read only, from the versions the History under ⋯ keeps (`IdealTextPastVersion.tsx`); a version with no saved words, or still the newest, opens the page; B10's older Take's walk now ends on that Take's card, which opens those words. Was: every card opened the live page, and the older walk ended with no card · BE N375 log, FE (this PR)
 - 2026-11-03 · N374 · built (C0a, C2, C3, H1): a short Take keeps its one fix: when the between's Clearer version does not pass and no paragraph is left for the weakest (a Take of two), that moment takes the AI clip itself (8 words or more and a sound read), for Takes recorded from 3 November 2026, 11:00 UTC (backend `VOICE_FALLBACK_FROM`); and every walk leaves helper words: when the fix gives none (no fix, a tip that quotes no phrase, a stretch past eight words), their best's own words, whole, with the same line. Was: the between was praised as a next best and left out, so a new speaker's first Take showed their best alone, with no fix and no helper words · BE (the pick), FE (this PR)
 - 2026-11-03 · N373 · built (C4): the fix waits ten seconds on a clip still being made, then says its tip in words (N370's bubble), a clip that comes later joining as its player alone; once the first try began, a clip not yet seen never lands above it (`AI_CLIP_WAIT_MS`, `useClipWait`, `useClipBeforeTry`). Was: the dots as long as the clip took, and a late clip above the try · FE (this PR)
 - 2026-11-03 · N370 · built (C4): the One thing walk's fix with no AI clip (its check failed, the provider or the limits refused, no voice) keeps its tip in words, the exercise's video and instruction when one is served, and "Your turn.", in the walk and the chat; "Last time" keeps the tip; the backend sends what the clip would fix with an unavailable clip once it was chosen. Was: the bubble, and the tip with it, went with the clip · BE #1621, FE (this PR)

@@ -408,6 +408,8 @@ doing it fills its line in its PR and deletes the line when the work is merged (
 Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 
 - `src/components/willab/IdealTextOverlay.tsx`
+- `src/components/willab/IdealTextPastVersion.tsx` — an older Take's card, its own words read only (N375).
+- `src/lib/willab/pastIdealText.ts` — which version an older card opens, read before the page is drawn, and its slides (N376).
 - `src/components/willab/IdealTextHeading.tsx`
 - `src/components/willab/IdealTextMenu.tsx`
 - `src/components/willab/IdealTextActions.tsx`
@@ -440,6 +442,8 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N376 · an older Take's version shows its paragraphs as this page groups them, slide by slide with the slide's tile and kicker ("Slide N", "Your talk") on that Take's own deck, read only with no pencil; a version with no proven slide map shows its words alone; one screen per tap, the choice made before the page is drawn (`pastIdealText.ts`). Was: plain paragraphs, and a loader that could turn into this page · BE N376 log, FE (this PR)
+- 2026-11-03 · N375 · an older Take's Ideal Text card opens that Take's words, read only, in this page's frame: the heading, "AI-generated text · Take N", the paragraphs, ✕ and "Close"; no helper words, marks, edits, ⋯ or "Record Take N" (`IdealTextPastVersion.tsx`); the newest card opens this page as before. Rule 5 stands. Was: every card opened this page ([`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) F1) · BE N375 log, FE (this PR)
 - 2026-11-02 · N323 item 2 · B3: a line says the walk's own helper words, saved whole past eight words, are shown whole in Recording Mode, as a phrase saved before the limit is; nothing on screen changes · docs (this PR)
 - 2026-11-02 · N347 items 3 and 4 · no change to this page's screens: the shared copy file (`idealEditCopy.ts`) gains the pace game's signed tip, "give “{words}” more room", for the walk's "Last time: give “{words}” more room." (`ONE_THING_COPY.paceTip`; the walk's page, C0a and K); one set of helper words per slide, the newest wins, as built: when two moments on one slide both give helper words, the later pick is the one the recording screen shows and this page marks ([`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C3) · BE n347, FE (this PR)
 - 2026-11-02 · N338 · §3: the app's own words ("rewrite", "Take", "Ideal Text") are not added to every Take's word hint; the open item on "route ride" is closed, not built · docs (this PR)

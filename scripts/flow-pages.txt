@@ -83,6 +83,8 @@ docs/flows/consent-screens.md
 
 docs/flows/ideal-text.md
   src/components/willab/IdealTextOverlay.tsx
+  src/components/willab/IdealTextPastVersion.tsx
+  src/lib/willab/pastIdealText.ts
   src/components/willab/IdealTextHeading.tsx
   src/components/willab/IdealTextMenu.tsx
   src/components/willab/IdealTextActions.tsx

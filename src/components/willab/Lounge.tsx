@@ -61,6 +61,8 @@ import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports"
 import { FLOW_COPY } from "./flowCopy";
 import { PROCESSING_STAGES } from "./ProcessingWait";
 import type { IdealTextLaunchMode } from "./IdealTextOverlay";
+import { resolvePastIdealText, type IdealTextPast } from "@/lib/willab/pastIdealText";
+import type { IdealTextRevision } from "@/services/api/blockVariants";
 import { lensAddress } from "@/lib/willab/lensScreen";
 import { startOpenTrace } from "@/lib/willab/openTrace";
 import { chatDrawsStep, chatWalks, doorOf, feedbackWalkDoor, inPairs, latestShareLine, shareLines, walkPairs, type ChatWalk, type ShareLineChange } from "@/lib/willab/walkThread";
@@ -196,6 +198,22 @@ const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOver
 // their chunks once the thread is in, so a tap finds them ready.
 const IdealTextOverlay = dynamic(() => import("./IdealTextOverlay"), { ssr: false });
 const WalkOverlay = dynamic(() => import("./walk/WalkOverlay"), { ssr: false });
+// An older Take's card (N375); a press on one warms it (pastIdealText).
+const IdealTextPastVersion = dynamic(() => import("./IdealTextPastVersion"), { ssr: false });
+
+/** The page a card opened: an older Take's own version, or (none) the live
+ *  page given as children (backend N375). */
+function IdealTextPastOr({
+  shown,
+  onClose,
+  children,
+}: {
+  shown: { revision: IdealTextRevision; past: IdealTextPast } | null;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return shown ? <IdealTextPastVersion {...shown} onClose={onClose} /> : <>{children}</>;
+}
 const LifeChatCard = dynamic(
   () => import("@/components/life/LifeChatLayer").then((m) => m.LifeChatCard),
   { ssr: false },
@@ -291,7 +309,7 @@ function IdealTextForReader({
   askFirst: boolean;
   onSignUp: () => void;
   onNotNow: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   // The wall's one moment (backend N273 item 5): the Take's most confident.
   const moment = useWallMoment(arcId, askFirst);
@@ -564,11 +582,23 @@ export default function Lounge({
     setLibraryOpen(true);
   }
 
+  /** An older Ideal Text card: its own version, read only (founder
+   *  2026-11-03, backend N375). The newest version opens the live page. */
+  function openPastIdealText(arcId: string, past: IdealTextPast): void {
+    // Which page opens is known before either is drawn: one screen per tap.
+    void resolvePastIdealText(arcId, past).then((revision) => {
+      if (!revision) return openIdealText(arcId);
+      setIdealTextPast({ revision, past });
+      setIdealTextArcId(arcId);
+    });
+  }
+
   function openIdealText(
     arcId: string,
     mode: IdealTextLaunchMode = "notebook",
     at: WalkStepTarget | null = null,
   ): void {
+    setIdealTextPast(null);
     startOpenTrace(at?.step ? `${mode}, step ${at.step}` : mode);
     setIdealTextReviewAt(at);
     openedNewCoachFeedback(arcId);
@@ -681,6 +711,7 @@ export default function Lounge({
   const [idealTextReviewAt, setIdealTextReviewAt] = useState<WalkStepTarget | null>(null);
   const [idealTextLaunchMode, setIdealTextLaunchMode] =
     useState<IdealTextLaunchMode>("notebook");
+  const [idealTextPast, setIdealTextPast] = useState<{ revision: IdealTextRevision; past: IdealTextPast } | null>(null);
   const [idealTextCoachTake, setIdealTextCoachTake] = useState<string | null>(null);
   const [confidencePracticeId, setConfidencePracticeId] = useState<
     string | null
@@ -1758,6 +1789,7 @@ export default function Lounge({
         onOpenOlder={setOlderReview}
         onOpened={() => setSeenUpdates(keepSeenUpdate(item.message))}
         onOpenIdealText={openIdealText}
+        onOpenPastIdealText={openPastIdealText}
       />
     ) : isSummaryLike(item.message.metadata) ? (
       <SummaryBubble key={item.reactKey} message={item.message} />
@@ -1785,6 +1817,7 @@ export default function Lounge({
             : (target) => openIdealText(target.arcId)
         }
         onOpenIdealText={openIdealText}
+        onOpenPastIdealText={openPastIdealText}
         planRows={plan.rows}
         latestForArc={latestIdealIds.has(item.message.client_id)}
         onRetryIdealText={retryIdealTextFromCard}
@@ -1961,6 +1994,10 @@ export default function Lounge({
         replaced={replacedWords}
         newWords={olderNewWords}
         onClose={() => setOlderReview(null)}
+        onOpenPastIdealText={(arc, past) => {
+          setOlderReview(null);
+          openPastIdealText(arc, past);
+        }}
       />
       {processingResume?.status === "failed" ? (
         <p className="mb-1.5 flex items-center justify-center gap-2 rounded-full bg-destructive/10 px-4 py-1.5 text-center text-[13px] text-destructive">
@@ -2243,6 +2280,13 @@ export default function Lounge({
           onSignUp={() => signUpForIdealText(idealTextArcId)}
           onNotNow={() => setIdealTextArcId(null)}
         >
+        <IdealTextPastOr
+          shown={idealTextPast}
+          onClose={() => {
+            setIdealTextPast(null);
+            setIdealTextArcId(null);
+          }}
+        >
         <IdealTextOverlay
           arcId={idealTextArcId}
           initialMode={idealTextLaunchMode}
@@ -2287,6 +2331,7 @@ export default function Lounge({
             (onStartInProject ?? onStart)();
           }}
         />
+        </IdealTextPastOr>
         </IdealTextForReader>
       )}
       {confidencePracticeId && (
@@ -2749,8 +2794,11 @@ function Bubble({
   latestForArc = false,
   shareLine = null,
   shareChange = null,
+  onOpenPastIdealText,
 }: {
   message: LoungeMessage;
+  /** An older Ideal Text card opens its own version, read only (backend N375). */
+  onOpenPastIdealText?: (arcId: string, past: IdealTextPast) => void;
   /** A recording's line: who heard the Take (G1, N192). */
   shareLine?: string | null;
   /** The latest Take's line opens the sharing screen (N309 item 5). */
@@ -2814,6 +2862,7 @@ function Bubble({
         onOpenTranscripts={onOpenTranscripts}
         onOpenFeedback={onOpenFeedback}
         onOpenIdealText={onOpenIdealText}
+        onOpenPastIdealText={onOpenPastIdealText}
         onRetryIdealText={onRetryIdealText}
         latestForArc={latestForArc}
         shareLine={shareLine}
@@ -3375,8 +3424,11 @@ export function WalkStepBubble({
   onOpenOlder,
   onOpened,
   onOpenIdealText,
+  onOpenPastIdealText,
 }: {
   message: LoungeMessage;
+  /** An older Take's Ideal Text card opens that Take's words (backend N375). */
+  onOpenPastIdealText?: (arcId: string, past: IdealTextPast) => void;
   /** The review's end: its Ideal Text card's words; null otherwise. */
   card: { title: string; take: number | null } | null;
   /** The project's newest Ideal Text card: it carries the coach's "new" dot. */
@@ -3398,11 +3450,8 @@ export function WalkStepBubble({
   const meta = message.metadata ?? {};
   const arc = typeof meta.arc_id === "string" ? meta.arc_id : null;
   if (meta.step === "end") {
-    // The project's first slide on the card; no `deck` from the server keeps the plain tile.
-    const deck = meta.deck && typeof meta.deck === "object" ? (meta.deck as { presentation_ref?: unknown }) : null;
-    const slideRef = deck ? (typeof deck.presentation_ref === "string" ? deck.presentation_ref : null) : undefined;
     return arc && card ? (
-      <IdealTextCard title={card.title} version={card.take} slideRef={slideRef} arcId={arc} latest={latest} onOpen={() => onOpenIdealText?.(arc)} onOpenFeedback={() => onOpenIdealText?.(arc, "feedback")} />
+      <WalkEndCard meta={meta} arc={arc} card={card} latest={latest} onOpenIdealText={onOpenIdealText} onOpenPastIdealText={onOpenPastIdealText} />
     ) : null;
   }
   const clip = walkClipOf(meta.clip);
@@ -3453,6 +3502,36 @@ export function WalkStepBubble({
 }
 
 
+/** A review's end: its Ideal Text card. The newest opens the page; an
+ *  older Take's opens that Take's words (backend N375). */
+function WalkEndCard({
+  meta,
+  arc,
+  card,
+  latest,
+  onOpenIdealText,
+  onOpenPastIdealText,
+}: {
+  meta: Record<string, unknown>;
+  arc: string;
+  card: { title: string; take: number | null };
+  latest: boolean;
+  onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode) => void;
+  onOpenPastIdealText?: (arcId: string, past: IdealTextPast) => void;
+}) {
+  // The project's first slide on the card; no `deck` from the server keeps the plain tile.
+  const deck = meta.deck && typeof meta.deck === "object" ? (meta.deck as { presentation_ref?: unknown }) : null;
+  const slideRef = deck ? (typeof deck.presentation_ref === "string" ? deck.presentation_ref : null) : undefined;
+  const take = card.take;
+  const open =
+    !latest && take !== null && onOpenPastIdealText
+      ? () => onOpenPastIdealText(arc, { by: "take", n: take, title: card.title })
+      : () => onOpenIdealText?.(arc);
+  return (
+    <IdealTextCard title={card.title} version={take} slideRef={slideRef} arcId={arc} latest={latest} onOpen={open} onOpenFeedback={() => onOpenIdealText?.(arc, "feedback")} />
+  );
+}
+
 /** What a step's tap opens: that Take's step, found by its paragraph,
  *  answered or not. An older Take's steps are history, with no ›
  *  (prototype v31); an old judging bubble opens Other speakers afresh
@@ -3481,12 +3560,15 @@ function OlderTakeReview({
   replaced,
   newWords,
   onClose,
+  onOpenPastIdealText,
 }: {
   older: { take: number; session: string } | null;
   items: readonly ThreadItem[];
   replaced: ReadonlySet<string>;
   newWords: ReadonlyMap<string, ClearerPiece[]>;
   onClose: () => void;
+  /** The review ends on that Take's Ideal Text card (B10, backend N375). */
+  onOpenPastIdealText: (arcId: string, past: IdealTextPast) => void;
 }) {
   if (!older) return null;
   // Helper words picked again show once, their latest, marked Edited (B13,
@@ -3506,7 +3588,8 @@ function OlderTakeReview({
             <WalkStepBubble
               key={item.reactKey}
               message={item.message}
-              card={null}
+              card={reviewCardOf(item.message, items)}
+              onOpenPastIdealText={onOpenPastIdealText}
               edited={typeof item.message.metadata?.words_of === "string" && repicked.has(item.message.metadata.words_of)}
               newWords={newWords.get(item.message.client_id)}
               lockedTake={older.take}

@@ -168,6 +168,11 @@ export interface IdealTextRevision {
   /** The Take whose words this version holds; null when unknown. */
   takeIndex: number | null;
   text: string;
+  /** Each paragraph's slide, in text order (null: on no slide); null when
+   *  the server could not prove the slide map (backend N375). */
+  slides: (number | null)[] | null;
+  /** The deck this version's Take was said on; null: none, or unknown. */
+  presentationRef: string | null;
   createdAt: string | null;
   isHead: boolean;
 }
@@ -203,6 +208,10 @@ export async function fetchIdealTextRevisions(
       revision,
       takeIndex: intOrNull(r.take_index),
       text: str(r.text),
+      slides: Array.isArray(r.slides)
+        ? r.slides.map((v) => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null))
+        : null,
+      presentationRef: str(r.presentation_ref) || null,
       createdAt: str(r.created_at) || null,
       isHead: r.is_head === true,
     });

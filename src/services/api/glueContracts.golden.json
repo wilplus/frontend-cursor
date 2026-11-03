@@ -885,7 +885,9 @@
             "takeIndex": 1,
             "text": "Hello.",
             "createdAt": "2026-10-12T10:00:00Z",
-            "isHead": true
+            "isHead": true,
+            "slides": null,
+            "presentationRef": null
           }
         ]
       }
@@ -910,7 +912,9 @@
             "takeIndex": 1,
             "text": "Hello.",
             "createdAt": "2026-10-12T10:00:00Z",
-            "isHead": true
+            "isHead": true,
+            "slides": null,
+            "presentationRef": null
           }
         ]
       }
