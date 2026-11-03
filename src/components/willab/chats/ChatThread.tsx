@@ -115,6 +115,9 @@ function ChatTopBar({ chat, onBack, onOpen }: { chat: Chat; onBack: () => void; 
  *  WillpowerLab bar is on the list only (backend N334 item 1). It spans the
  *  Lounge's column, across its side padding. */
 export function WillTopBar({ onBack }: { onBack: () => void }) {
+  // The device's Back (the iPhone's swipe) is this bar's back: one step, to
+  // the list, as in a person's chat. Without it the swipe walked off /chat.
+  useBackDismiss(onBack);
   return (
     <div className="-mx-4">
       <TopBar circle={<WillMark size={36} />} title={WILL_ROW_TITLE} onBack={onBack} />

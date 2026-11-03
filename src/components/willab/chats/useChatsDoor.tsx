@@ -8,6 +8,7 @@ import ChatThread, { WillTopBar } from "./ChatThread";
 import { useChatList, useChatsDecided } from "./useChats";
 import LoadingState from "../LoadingState";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
+import { useBackStop } from "../useBackDismiss";
 
 /* -------------------------------------------------------------------------- */
 /*  The chats in front of the Lounge (ring 6, feature `chats`; backend N274,   */
@@ -74,6 +75,11 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
   // In the iPhone app the list opens even with Will's chat alone, with the
   // way to add someone under him (founder 2026-11-02); on the web, as before.
   const waiting = decided === null || (on && !chats);
+  // The list of chats is the bottom of /chat: Back from a chat comes to it,
+  // Back from it goes nowhere, never past it to the sign-in page (founder
+  // 2026-11-03). Will's chat and a person's chat each take one Back.
+  const doorOpen = on && !!chats && (chats.length > 0 || isNativeApp());
+  useBackStop(doorOpen);
   // A link into the Lounge opens on Will's chat: nothing would cover it.
   if (waiting && isNativeApp() && view.at !== "will") return WAITING;
   if (!on || !chats || (chats.length === 0 && !isNativeApp())) return CLOSED;

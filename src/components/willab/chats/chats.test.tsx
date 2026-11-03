@@ -274,6 +274,38 @@ describe("the chats in front of the Lounge", () => {
     expect(loungeMounts).toBe(1);
   });
 
+  it("the iPhone's back swipe goes back by one, to the list, and never off the list", async () => {
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, ARIEL] }));
+    routes.set("GET /api/v2/chats/c-sarah/messages", () => ({ messages: [] }));
+    await render();
+    const swipe = (steps: number) =>
+      act(async () => {
+        const popped = new Promise((done) => window.addEventListener("popstate", done, { once: true }));
+        window.history.go(-steps);
+        await popped;
+        for (let i = 0; i < 12; i += 1) await Promise.resolve();
+      });
+    const onList = () => rows().map((r) => r.getAttribute("data-chat-row"));
+
+    // Will's chat: one swipe, the list.
+    await tap(rows()[0]);
+    expect(container.querySelector("[data-chat-header]")?.textContent).toBe("Will");
+    await swipe(1);
+    expect(onList()).toEqual(["will", "c-ariel", "c-sarah"]);
+
+    // A person's chat, swiped abruptly (two steps at once): still the list.
+    await tap(rows()[2]);
+    expect(container.querySelector("[data-chat-header]")).not.toBeNull();
+    await swipe(2);
+    expect(onList()).toEqual(["will", "c-ariel", "c-sarah"]);
+
+    // From the list, Back goes nowhere.
+    await swipe(1);
+    expect(onList()).toEqual(["will", "c-ariel", "c-sarah"]);
+    expect((window.history.state as Record<string, unknown>).__willabBackStop).toBe(true);
+  });
+
   it("an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question", async () => {
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
