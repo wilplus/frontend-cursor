@@ -164,7 +164,7 @@ import {
 } from "./LoungeStrengths";
 import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
-import WillQuestionBubble, { TapRow, willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
+import WillQuestionBubble, { TapRow, useSomethingElse, willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
 import { isWillVoice, useWillVoice, WillVoiceBubble } from "./WillVoiceAnswer";
 import { RecordTakeButton } from "./plan/PlanDock";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
@@ -1512,6 +1512,8 @@ export default function Lounge({
   // mic orange while he waits, the one recording bar, the answer's bubble.
   const shownMessages = useMemo(() => shownItems.map((item) => item.message), [shownItems]);
   const willVoice = useWillVoice({ shown: shownMessages, reload, onAnswered: followAnswer });
+  // "Something else" in the bar's middle while Will asks (backend N371).
+  const somethingElse = useSomethingElse(shownMessages, plan.typingOff, draftText, composerRef);
 
   // U3 — capture the historical baseline once the thread first loads, so only
   // messages that arrive AFTER it (new bot replies) animate.
@@ -2154,8 +2156,10 @@ export default function Lounge({
           <Plus className="h-5 w-5" aria-hidden />
         </button>
         <div className="relative flex-1">
+          {somethingElse.button}
           <textarea
             ref={composerRef}
+            hidden={somethingElse.hidesBox}
             rows={1}
             value={draftText}
             onChange={(e) => setDraftText(e.target.value)}
@@ -2171,7 +2175,7 @@ export default function Lounge({
             // Founder 2026-07-27. Short by design: it sits on one line at the
             // narrowest supported width, where the original copy wrapped to
             // two and made a chat field read as a text area.
-            placeholder="Type here"
+            placeholder={somethingElse.placeholder}
             // While the plan asks (N319 item 3): in the bar, faded, not
             // focusable; Will needs to hear the answer. A tap on it shows
             // the plan's short note above the bar (`plan.typingWait`, N323

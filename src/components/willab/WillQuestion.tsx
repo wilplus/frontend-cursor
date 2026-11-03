@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import Linkified from "./Linkified";
 
 /* -------------------------------------------------------------------------- */
@@ -80,17 +80,29 @@ export default function WillQuestionBubble({
         </div>
       </div>
       {open && chips.length > 0 ? (
-        <TapRow labels={chips} disabled={busy} onTap={tap} dataAttr={{ "data-will-answers": "" }} />
+        // The backend lists the most likely first; the rule puts it nearest the thumb (N371).
+        <TapRow labels={[...chips].reverse()} disabled={busy} onTap={tap} dataAttr={{ "data-will-answers": "" }} />
       ) : null}
     </>
   );
 }
 
-/** Orange outlined taps on the right of the thread, where the speaker's own
- *  messages go: Will's tap answers, "I want to continue my practice" under
- *  the goodbye after a Take (N294 item 6), and the plan's answers before
- *  the walk (N319 item 1). A `quiet` label keeps the shape, grey and
- *  quieter: the plan's "Not now". */
+/** Suggested answers, one rule for the whole app (backend N371): above the
+ *  bar on the right, where the speaker's own messages go; each at least 44px
+ *  high, 15px, the whole answer readable. The LAST label is the most likely
+ *  and sits nearest the thumb, bottom right, filled orange; the others are
+ *  outlined, above it or to its left. Two sit side by side (the one that goes
+ *  on on the right, N334 item 3); three or four stack, one per line; more
+ *  than four show the last three and "Show more" above them. A `quiet` label
+ *  (the plan's "Not now") stays grey and is never the filled one. Used by
+ *  Will's tap answers, "I want to continue my practice" (N294 item 6) and
+ *  the plan's answers (N319 item 1). */
+export const SHOW_MORE = "Show more";
+/** The bar's middle while Will's question waits, and the box it opens
+ *  (backend N371, signed). */
+export const SOMETHING_ELSE = "Something else";
+export const TYPE_YOUR_ANSWER = "Type your answer";
+
 export function TapRow({
   labels,
   quiet = [],
@@ -104,24 +116,81 @@ export function TapRow({
   onTap: (label: string) => void;
   dataAttr: Record<string, string>;
 }) {
+  const [all, setAll] = useState(false);
+  const shown = labels.length > 4 && !all ? labels.slice(-3) : labels;
+  const goes = [...shown].reverse().find((l) => !quiet.includes(l));
+  const stacked = shown.length > 2;
+  const tap = (label: string) => (
+    <button
+      key={label}
+      type="button"
+      disabled={disabled}
+      onClick={() => onTap(label)}
+      data-quiet={quiet.includes(label) ? "" : undefined}
+      data-goes={label === goes ? "" : undefined}
+      className={`min-h-[44px] max-w-full rounded-[22px] border-[1.5px] px-4 py-2.5 text-left text-[15px] leading-snug disabled:opacity-60 ${
+        quiet.includes(label)
+          ? "border-[#E2E2E2] bg-background font-medium text-[#737373] opacity-70"
+          : label === goes
+            ? "border-primary bg-primary font-semibold text-primary-foreground"
+            : "border-primary bg-background font-semibold text-primary"
+      }`}
+    >
+      {label}
+    </button>
+  );
   return (
-    <div {...dataAttr} className="ml-auto flex max-w-[90%] flex-wrap justify-end gap-1.5 pt-0.5">
-      {labels.map((label) => (
+    <div
+      {...dataAttr}
+      className={`ml-auto flex max-w-[86%] gap-2 pt-0.5 ${stacked ? "flex-col items-end" : "flex-wrap justify-end"}`}
+    >
+      {shown.length < labels.length ? (
         <button
-          key={label}
           type="button"
-          disabled={disabled}
-          onClick={() => onTap(label)}
-          data-quiet={quiet.includes(label) ? "" : undefined}
-          className={`rounded-full border-[1.5px] bg-background px-3 py-1.5 text-[14.5px] disabled:opacity-60 ${
-            quiet.includes(label)
-              ? "border-[#E2E2E2] font-medium text-[#737373] opacity-70"
-              : "border-primary font-semibold text-primary"
-          }`}
+          data-show-more=""
+          onClick={() => setAll(true)}
+          className="min-h-[44px] rounded-[22px] border-[1.5px] border-dashed border-primary bg-background px-4 py-2.5 text-[15px] font-semibold text-primary"
         >
-          {label}
+          {SHOW_MORE}
         </button>
-      ))}
+      ) : null}
+      {shown.map(tap)}
     </div>
   );
+}
+
+/** "Something else" (backend N371): while Will's question waits with its
+ *  answers and typing is allowed, the Lounge bar's middle is a button shaped
+ *  like the box; a tap opens the box, "Type your answer", focused. Anything
+ *  already typed keeps the box open. The plan's questions keep typing off
+ *  (N319, N323), so they never show it. */
+export function useSomethingElse(
+  shown: readonly { metadata?: Record<string, unknown> | null }[],
+  typingOff: boolean,
+  draft: string,
+  box: RefObject<HTMLTextAreaElement | null>,
+): { button: ReactNode; hidesBox: boolean; placeholder: string } {
+  const asks = willWaiting(shown) !== null && !typingOff;
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!asks) setOpen(false);
+  }, [asks]);
+  const closed = asks && !open && !draft;
+  return {
+    hidesBox: closed,
+    placeholder: asks && open ? TYPE_YOUR_ANSWER : "Type here",
+    button: closed ? (
+      <button
+        type="button"
+        data-something-else=""
+        onClick={() => {
+          setOpen(true);
+          requestAnimationFrame(() => box.current?.focus());
+        }}
+        className="flex min-h-[40px] w-full items-center rounded-3xl border border-border bg-background px-4 text-left text-[15px] text-muted-foreground"
+      >
+        {SOMETHING_ELSE}
+      </button>
+    ) : null,
+  };
 }
