@@ -19,6 +19,7 @@ import { stripRichMarkers } from "./richMarkers";
 import type { PraiseReason } from "./praiseReason";
 import { bestBubble, clearerOpening, praiseBubble, topMomentLine, withoutRepeats, type WalkBankKey } from "./walkLines";
 import type { WalkStep } from "./walkPlan";
+import { phrasePieces } from "./walkLines";
 import { encourageLine, improvedLine, thanksLine } from "./walkPractise";
 
 export type WalkAuthor = "app" | "coach" | "speaker";
@@ -104,6 +105,8 @@ export function momentChat(
   plan: readonly WalkStep[],
   step: WalkStep,
   moment: FeedbackWalkMoment<unknown> | null,
+  /** The AI clip's phrase, bold in the fix's words as the walk draws it. */
+  phrase: string | null = null,
 ): { label: Record<string, unknown>; clip: Record<string, unknown> | null } | null {
   if (!moment || !CHAT_MOMENT_STEPS.has(step.key)) return null;
   // A praised moment's practise follows its praise (N122): its clip and
@@ -115,7 +118,14 @@ export function momentChat(
     step.key === "praise"
       ? { slide_label: slide, green_n: greens.indexOf(moment.index) + 1, green_of: greens.length }
       : { slide_label: slide };
-  const words = step.key === "clearer" ? (moment.clearer?.before ?? null) : null;
+  // The One thing walk's best and its AI clip's fix carry the moment's own
+  // words, as the walk draws them (its prototype's `clip(text)`).
+  const words =
+    step.key === "clearer"
+      ? (moment.clearer?.before ?? null)
+      : step.one && moment.said
+        ? phrasePieces(moment.said, step.key === "exVideo" ? phrase : null).map((p) => ({ ...p, cut: false }))
+        : null;
   const clip =
     moment.clip || words
       ? {
