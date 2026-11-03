@@ -1,12 +1,14 @@
 import { bffFetch } from "@/lib/api/bffFetch";
 
-/* The chats between users (backend N298, N302, N306, N311, N321; rules:
+/* The chats between users (backend N298, N302, N306, N311, N321, N351; rules:
    docs/flows/customer-requests.md §1 C1). Ring 6, feature `chats`: the
    backend answers 404 for anyone else, read here as nothing. Every read
    and write answers null on any failure; the caller keeps what it has. */
 
 export type ChatKind = "team" | "customer";
-export type ChatMessageKind = "emoji" | "text" | "voice";
+/** A photo or a file comes from the "+" (N351): a file's body is its own
+ *  name; a photo's is empty. */
+export type ChatMessageKind = "emoji" | "text" | "voice" | "photo" | "file";
 
 export type ChatLast = { kind: ChatMessageKind; body: string; created_at: string };
 export type Chat = { id: string; kind: ChatKind; title: string; subtitle: string; last: ChatLast | null };
@@ -118,6 +120,32 @@ export async function sendChatVoice(chatId: string, audio: Blob, durationMs: num
   });
   const message = body?.message;
   return message && typeof message === "object" ? (message as ChatMessage) : null;
+}
+
+/** A photo or a file sent from the "+" (N351), as multipart `file` under
+ *  its own name. The backend marks it as a question for the other person
+ *  (`meta.question`); any refusal (not a member, not a photo, too big)
+ *  answers null. */
+export async function sendChatUpload(
+  chatId: string,
+  kind: "photo" | "file",
+  file: Blob,
+  name: string,
+): Promise<ChatMessage | null> {
+  const form = new FormData();
+  form.append("file", file, name);
+  const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/${kind}`, {
+    method: "POST",
+    timeoutMs: 60_000,
+    body: form,
+  });
+  const message = body?.message;
+  return message && typeof message === "object" ? (message as ChatMessage) : null;
+}
+
+/** Where a photo or a file in the chat opens from (N351). */
+export function chatFileSrc(chatId: string, messageId: string): string {
+  return `/api/v2/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}/file`;
 }
 
 /** An answer recorded with "Record an answer" (backend N363), sent once its
