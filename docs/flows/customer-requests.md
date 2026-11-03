@@ -141,6 +141,23 @@ order it is built in.
      shows on the list only. Was (N322 item 4): the WillpowerLab bar with
      "‹ Will" under it. On a computer, the list and a person's chat sit in
      a phone-wide column in the middle.
+   - **Record an answer** (N321 item 4, N336, N342, N345, N361, N363):
+     when the question waiting for your answer is one Will marked as about
+     a product or a treatment (`meta.record_answer`), the bar is one black
+     button with the red dot, "Record an answer". It makes the question a
+     project of its own, one slide holding the asker's words, and opens
+     the recording screens on it at once, the person named above "Take 1 ·
+     Slide 1 of 1", no feelings check
+     ([recording-screens.md](recording-screens.md) step 6). Finish take
+     brings you back to the chat: "Sending to {name}…" with "Undo" for 5
+     seconds, then the answer goes (`POST /v2/chats/<id>/answer`, a voice
+     message that plays the Take itself; up to five minutes). Under it,
+     "Sent to {name} on WhatsApp" for a customer, "Sent to {name}" for a
+     colleague, with a check. The person gets just the answer, never its
+     Take. Undo, a Take that does not upload, or a refused send shows
+     nothing new. Not yet: Will marking a question (until then no question
+     carries the mark), "Practise with Will" (N344), "Consult with someone
+     first" (N343).
    - **The join link** (N308, N328, N335; built 2026-11-02 behind the same
      ring): the "+" at the bottom right of the list opens the add sheet:
      "Add someone to chat with", "Send them your link, in any email or
@@ -587,6 +604,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N321, N336, N342, N345, N361, N363 · C1: Record an answer: a question Will marked takes the black "Record an answer"; the recording screens on one slide, the question, no feelings check; back in the chat "Sending to {name}…" with Undo for 5 seconds, then the answer (a voice message playing the Take, up to five minutes) with "Sent to {name}" or "Sent to {name} on WhatsApp" under it. Was: the emoji and the mic only · BE #1611, FE (this PR)
 - 2026-11-02 · N360 · C1: Will is always the first row of the list; just joined through a link, the inviter's chat is the row right under Will, still marked new with its last message or the joined line. Was (N357 item 1): the inviter's chat above Will · FE (this PR)
 - 2026-11-02 · N354 · C1: in the iPhone app, no glimpse of Will's chat before the list: the rings and the chats are now read together at the chat boot, after the Lounge's own reads (they were one after the other), and the loader covers the Lounge until the list is known. Was: the Lounge for a moment, then the list over it. The website is unchanged: off, or with no chats, /chat is the Lounge at once · FE (this PR)
 - 2026-11-02 · N331 · C1, K: a voice note's words, once ready, behind "Read it" under its player, inside the bubble; "Hide" closes them; closed by default for both people; none shown when there are no words; the list keeps "🎤 Voice message". The backend's read and the voice note's answer carry `words`. Was (N324): the words kept, shown nowhere · BE #1604, FE (this PR)

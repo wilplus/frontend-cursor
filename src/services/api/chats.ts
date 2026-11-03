@@ -120,6 +120,18 @@ export async function sendChatVoice(chatId: string, audio: Blob, durationMs: num
   return message && typeof message === "object" ? (message as ChatMessage) : null;
 }
 
+/** An answer recorded with "Record an answer" (backend N363), sent once its
+ *  Undo has passed: a voice message that plays the speaker's own Take, up to
+ *  five minutes. Any refusal answers null. */
+export async function sendChatAnswer(chatId: string, take: string, durationMs: number): Promise<ChatMessage | null> {
+  const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/answer`, {
+    method: "POST",
+    json: { take, duration_ms: Math.round(durationMs) },
+  });
+  const message = body?.message;
+  return message && typeof message === "object" ? (message as ChatMessage) : null;
+}
+
 /** Where a voice message in the chat plays from. */
 export function chatVoiceSrc(chatId: string, messageId: string): string {
   return `/api/v2/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}/audio`;

@@ -202,6 +202,8 @@ export interface UseWillabFlowReturn {
   /** Continue a known project. The one emotion check already happened before
    *  Take 1, so later takes do not repeat it. */
   startRecordingSetup: () => void;
+  /** An answer in a chat: straight to its recording, no feelings check. */
+  startAnswerSetup: () => void;
   /** Enter the Lab for a brand-new project through the one pre-Take-1 check. */
   startNewTopicSetup: () => void;
   closeLab: () => void;
@@ -268,6 +270,12 @@ export function useWillabFlow(): UseWillabFlowReturn {
     // project's stored setup as before.
     setState(feelingsDue() ? "lab_feelings" : "lab_prerecord");
   }, []);
+  /** "Record an answer" in a chat (backend N363 item 2): someone is waiting,
+   *  so no "How do you feel?"; the answer's one slide is already set up. */
+  const startAnswerSetup = useCallback(() => {
+    clearReviewPending();
+    setState("lab_prerecord");
+  }, []);
   /** A brand-new project gets the existing emotion check exactly once, before
    *  Take 1. Subsequent takes use startRecordingSetup above and skip it. */
   const startNewTopicSetup = useCallback(() => {
@@ -286,6 +294,7 @@ export function useWillabFlow(): UseWillabFlowReturn {
     acceptConsent,
     startRecording,
     startRecordingSetup,
+    startAnswerSetup,
     startNewTopicSetup,
     closeLab,
   };

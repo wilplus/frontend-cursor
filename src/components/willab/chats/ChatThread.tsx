@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronLeft, Mic } from "lucide-react";
+import { Check, ChevronLeft, Mic } from "lucide-react";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 import RecordingBar from "@/components/willab/RecordingBar";
 import TypingDots from "@/components/willab/TypingDots";
 import { VoicePlayer } from "@/components/willab/plan/VoicePlayer";
 import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { useVoiceNote } from "@/components/willab/useVoiceNote";
+import { onAnswerSent, undoAnswer, usePendingAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
 import {
   CHAT_EMOJI,
   chatVoiceSrc,
@@ -33,6 +34,10 @@ import { clockTime, dayKey, dayLabel } from "./chatTime";
 /*  bar, under the day ("Today"). The locked bar's shape with the three emoji */
 /*  in the box where Will's chat has "Type here" (N306), and the mic beside   */
 /*  it only while a question waits for your answer (N341; was N321 item 2).   */
+/*  A question about a product or a treatment (Will marks it, N361 item 1)    */
+/*  takes one black "Record an answer" in the bar's place (N321 item 4): the  */
+/*  recording screens, then "Sending to {name}…" with Undo for 5 seconds      */
+/*  (N345), then the answer, with "Sent to {name}" under it (N342, N361).     */
 /*  Only the conversation shows here; no asks (N305).                         */
 /* -------------------------------------------------------------------------- */
 
@@ -85,6 +90,13 @@ export function WillTopBar({ onBack }: { onBack: () => void }) {
 }
 
 /** The two words under a voice note's player (backend N331, signed). */
+/** Signed: N321 item 4, N345 item 3, N342 item 3, N361 item 2. */
+export const RECORD_AN_ANSWER = "Record an answer";
+export const UNDO = "Undo";
+export const sendingTo = (name: string) => `Sending to ${name}…`;
+export const sentTo = (name: string, customer: boolean) =>
+  customer ? `Sent to ${name} on WhatsApp` : `Sent to ${name}`;
+
 export const READ_IT = "Read it";
 export const HIDE_WORDS = "Hide";
 
@@ -163,9 +175,21 @@ function ChatVoice({ chatId, message, time }: { chatId: string; message: ChatMes
 /** One message, as the Lounge draws it: theirs grey on the left, mine orange
  *  on the right, its time inside, bottom right; an emoji large, with its
  *  meaning and time under it; a voice note with its player. */
-function ChatRow({ chatId, message }: { chatId: string; message: ChatMessage }) {
+function ChatRow({ chatId, message, sentLine = null }: { chatId: string; message: ChatMessage; sentLine?: string | null }) {
   const time = clockTime(message.created_at);
-  if (message.kind === "voice") return <ChatVoice chatId={chatId} message={message} time={time} />;
+  if (message.kind === "voice") {
+    const voice = <ChatVoice chatId={chatId} message={message} time={time} />;
+    if (!(message.mine && message.meta?.answer === true && sentLine)) return voice;
+    return (
+      <div className="flex flex-col gap-1">
+        {voice}
+        <SentLine>
+          <Check className="h-3.5 w-3.5 text-primary" strokeWidth={2.6} aria-hidden />
+          {sentLine}
+        </SentLine>
+      </div>
+    );
+  }
   if (message.kind === "emoji") {
     const caption = [meaningOf(message.body), time].filter(Boolean).join(" · ");
     return (
@@ -243,6 +267,45 @@ export function questionWaits(messages: readonly ChatMessage[] | null): boolean 
   return newest.kind === "text" || newest.meta?.question === true;
 }
 
+/** The question "Record an answer" answers, when one waits and Will marked
+ *  it as about a product or a treatment (`meta.record_answer`, backend N361
+ *  item 1): its words, the answer's one slide (N361 item 3). Else null. */
+export function answerWaits(messages: readonly ChatMessage[] | null): string | null {
+  if (!questionWaits(messages)) return null;
+  const newest = messages!.at(-1)!;
+  if (newest.meta?.record_answer !== true) return null;
+  const words = newest.kind === "text" ? newest.body : typeof newest.words === "string" ? newest.words : "";
+  return words.trim() || null;
+}
+
+/** The small line under my answer, right-aligned: "Sending to {name}…" with
+ *  Undo, then "Sent to {name}" with a check (the prototype's `sentok`). */
+function SentLine({ children, pending = false }: { children: ReactNode; pending?: boolean }) {
+  return (
+    <div
+      data-chat-sent-line={pending ? "sending" : "sent"}
+      className={`flex items-center gap-1.5 self-end text-[12.5px] ${pending ? "text-muted-foreground" : "text-foreground/80"}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** The plan's black button with the red dot, in the bar's place. */
+function RecordAnswerButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-chat-record-answer=""
+      className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-foreground text-[15px] font-medium text-background"
+    >
+      <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
+      {RECORD_AN_ANSWER}
+    </button>
+  );
+}
+
 /** The locked bar's shape (the Lounge's composer): the rounded box, with the
  *  three emoji as round buttons in it, and on its right the Lounge's mic,
  *  40px and plain, only while a question waits (N341; the prototype's
@@ -280,8 +343,26 @@ function EmojiBar({ onPick, onMic }: { onPick: (emoji: ChatEmoji) => void; onMic
 
 let localSeq = 0;
 
-export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () => void }) {
+export default function ChatThread({
+  chat,
+  onBack,
+  onRecordAnswer,
+}: {
+  chat: Chat;
+  onBack: () => void;
+  onRecordAnswer?: (answer: AnswerFor) => void;
+}) {
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
+  const pending = usePendingAnswer(chat.id);
+  const customer = chat.kind === "customer";
+  // An answer the backend has kept joins this chat (N363).
+  useEffect(
+    () =>
+      onAnswerSent((chatId, message) => {
+        if (chatId === chat.id) setMessages((list) => [...(list ?? []), message]);
+      }),
+    [chat.id],
+  );
   const [through, setThrough] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   useBackDismiss(onBack);
@@ -346,6 +427,8 @@ export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () =>
     setMessages((list) => (list ?? []).flatMap((m) => (m.id !== local.id ? [m] : sent ? [sent] : [])));
   };
 
+  const question = answerWaits(messages);
+
   return (
     <div data-chat-screen className="flex min-h-0 flex-1 flex-col">
       <ChatTopBar chat={chat} onBack={onBack} />
@@ -362,9 +445,24 @@ export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () =>
           ) : (
             withDays(messages).flatMap(({ day, message }) => [
               ...(day ? [<ChatDay key={`day-${message.id}`} label={day} />] : []),
-              <ChatRow key={message.id} chatId={chat.id} message={message} />,
+              <ChatRow key={message.id} chatId={chat.id} message={message} sentLine={sentTo(chat.title, customer)} />,
             ])
           )}
+          {pending ? (
+            <SentLine pending>
+              {sendingTo(chat.title)}
+              {pending.waited ? null : (
+                <button
+                  type="button"
+                  onClick={undoAnswer}
+                  data-chat-undo=""
+                  className="px-1 py-1.5 text-[13px] font-semibold text-foreground underline underline-offset-[3px]"
+                >
+                  {UNDO}
+                </button>
+              )}
+            </SentLine>
+          ) : null}
         </div>
       </div>
       <div data-chat-bar className="flex shrink-0 items-end gap-1 px-4 pb-2">
@@ -372,8 +470,15 @@ export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () =>
           <div className="min-w-0 flex-1">
             <RecordingBar elapsedMs={note.elapsedMs} onTrash={note.cancel} onStop={note.send} />
           </div>
+        ) : question && onRecordAnswer && !pending ? (
+          <RecordAnswerButton
+            onClick={() => onRecordAnswer({ chatId: chat.id, name: chat.title, question, customer })}
+          />
         ) : (
-          <EmojiBar onPick={(emoji) => void send(emoji)} onMic={questionWaits(messages) ? () => void note.start() : null} />
+          <EmojiBar
+            onPick={(emoji) => void send(emoji)}
+            onMic={questionWaits(messages) && !pending ? () => void note.start() : null}
+          />
         )}
       </div>
     </div>

@@ -36,6 +36,7 @@ import {
 import { readParked } from "./willabParked";
 import { LoungeThreadProvider } from "./LoungeThreadContext";
 import { useChatsDoor } from "./chats/useChatsDoor";
+import { endAnswer, startAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { afterChatBoot } from "@/lib/chatBoot";
 import {
@@ -186,7 +187,14 @@ export default function WillabSurface({
   // The list of chats in front of the Lounge, ring 6 only (feature `chats`;
   // docs/flows/customer-requests.md C1). Off, it draws nothing: the Lounge
   // as it is. A link into the Lounge opens on Will's chat.
-  const chats = useChatsDoor(idealTextArcId !== null || bestPresentationArcId !== null);
+  // "Record an answer" in a chat (backend N363): the question's own project,
+  // then the recording screens at once, no feelings check.
+  const startAnswerSetup = flow.startAnswerSetup;
+  const recordAnswer = useCallback(
+    (answer: AnswerFor) => void startAnswer(answer, userId, startAnswerSetup),
+    [userId, startAnswerSetup],
+  );
+  const chats = useChatsDoor(idealTextArcId !== null || bestPresentationArcId !== null, recordAnswer);
 
   // A2 — `flush` drops the TOP padding so the chat sits flush under the navbar
   // (no gap). Scoped to the home/Lounge call only; welcome keeps py-6.
@@ -392,7 +400,11 @@ export default function WillabSurface({
           state={flow.state}
           sessionId={sessionId}
           dispatch={flow.dispatch}
-          onClose={flow.closeLab}
+          onClose={() => {
+            flow.closeLab();
+            // An answer's project was never the speaker's current one.
+            endAnswer();
+          }}
           onWaitHandedOver={setWaitHandedOver}
           onRecordingProgress={setRecordingProgress}
         />

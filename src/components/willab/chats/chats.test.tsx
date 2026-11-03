@@ -43,6 +43,12 @@ OUTCOME
   O11 In the iPhone app the Lounge never shows for a moment before the list
       covers it: the rings and the chats are asked together at boot, and
       the loader stands in front until both have answered (N354).
+  O12 A question Will marked as about a product or a treatment takes one
+      black "Record an answer" in the bar's place (N321 item 4, N361); it
+      hands the recording screens the chat, the person and the question.
+      Back from them, my answer reads "Sending to {name}…" with Undo, then
+      it goes and "Sent to {name} on WhatsApp" (a customer) stands under it
+      (N345, N342).
 PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O2 -> "with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back"
          O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question"
@@ -54,6 +60,7 @@ PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O9 -> "a chat joined through a link says whose link it was"
          O10 -> "after joining, the list opens with Will first and the one who invited me under him, marked new"
          O11 -> "in the app, the loader, not the Lounge, waits for the list; both reads start together"
+         O12 -> "a marked question takes Record an answer, and my answer goes with Sending, Undo and Sent"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -66,6 +73,7 @@ vi.mock("@/lib/auth/nativeSignIn", () => ({ isNativeApp: () => native.on }));
 import { resetRingStateCache } from "@/services/api/rings";
 import { __resetBootPrefetchForTests, prefetchChatsDoor } from "@/services/api/bootPrefetch";
 import { useChatsDoor } from "./useChatsDoor";
+import { UNDO_MS, answerRecorded, answerTake, forgetAnswers, startAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -118,8 +126,9 @@ function Lounge() {
 
 /** As WillabSurface draws it: the WillpowerLab bar (hidden as the door
  *  says), then back, the Lounge, the front. */
+const recordedAnswers: AnswerFor[] = [];
 function Surface() {
-  const chats = useChatsDoor(false);
+  const chats = useChatsDoor(false, (answer) => recordedAnswers.push(answer));
   return createElement(
     "div",
     null,
@@ -476,5 +485,57 @@ describe("the chats in front of the Lounge", () => {
     expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-sarah"]);
     // The list is the one read at boot, not a second one.
     expect(calls("GET /api/v2/chats")).toHaveLength(1);
+  });
+
+  it("a marked question takes Record an answer, and my answer goes with Sending, Undo and Sent", async () => {
+    forgetAnswers();
+    recordedAnswers.length = 0;
+    backend(["chats"]);
+    const question = "Would the Deep Scalp Treatment help? I wash every day.";
+    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
+    routes.set("GET /api/v2/chats/c-sarah/messages", () => ({
+      messages: [
+        { id: "q", mine: false, author: "Sarah", kind: "text", body: question,
+          meta: { record_answer: true }, created_at: "2026-11-03T06:00:00Z" },
+      ],
+      joined_through: null,
+    }));
+    routes.set("POST /api/v2/projects", () => ({ project_id: "p-answer" }));
+    routes.set("POST /api/v2/chats/c-sarah/answer", () => ({
+      message: { id: "a", mine: true, author: "", kind: "voice", body: "",
+                 meta: { duration_ms: 52000, answer: true, take: "take-1" }, created_at: "2026-11-03T06:05:00Z" },
+    }));
+    await render();
+    await tap(row("c-sarah"));
+    const button = container.querySelector("[data-chat-record-answer]");
+    expect(button?.textContent).toBe("Record an answer");
+    expect(container.querySelector("[data-chat-emoji-box]")).toBeNull();
+    await tap(button);
+    expect(recordedAnswers).toEqual([{ chatId: "c-sarah", name: "Sarah", question, customer: true }]);
+
+    // The recording screens, as they hand it back: the Take is up, Finish take.
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        await startAnswer(recordedAnswers[0]!, null, () => {});
+        answerRecorded(52_000);
+        answerTake("take-1");
+      });
+      const sending = container.querySelector("[data-chat-sent-line='sending']");
+      expect(sending?.textContent).toBe("Sending to Sarah…Undo");
+      expect(container.querySelector("[data-chat-record-answer]")).toBeNull();
+      expect(calls("POST /api/v2/chats/c-sarah/answer")).toHaveLength(0);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(UNDO_MS);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    await flush();
+    const posted = calls("POST /api/v2/chats/c-sarah/answer");
+    expect(posted).toHaveLength(1);
+    expect(JSON.parse(String(posted[0]![1]!.body))).toEqual({ take: "take-1", duration_ms: 52000 });
+    expect(container.querySelector("[data-chat-sent-line='sending']")).toBeNull();
+    expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent to Sarah on WhatsApp");
   });
 });
