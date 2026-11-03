@@ -40,7 +40,9 @@
  *       gives it up once a newer Take is recorded, in any project (N244,
  *       N251). It is "Record Take N" in the bar, between the "+" and the
  *       mic, in the typing box's place, never inside the bubble, and a tap
- *       starts that Take (N294 item 7, N296 state 4, N453 item 9).
+ *       starts that Take (N294 item 7, N296 state 4, N453 item 9). Where
+ *       the bar has no mic, its grey ✕ stays and brings the typing box back
+ *       (N395); "Start your first recording" has none.
  *   O8  "How do you feel?" comes before a Take only once the plan's first
  *       Take is recorded (D4).
  *   O9  Will's ask for the plan's own yes is drawn as his bubble with Read
@@ -81,18 +83,18 @@
  *          carries a button, backend N294 item 7; docs/flows/the-plan.md
  *          §1.
  */
-import { act } from "react";
+import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { Plan } from "@/services/api/plan";
 import { feelingsDue, rememberPlan } from "@/services/api/plan";
 import { loadRingState, resetRingStateCache } from "@/services/api/rings";
-import { PlanAsk, RecordTakeButton, useRecordTake, type PlanActions } from "./PlanDock";
+import { BarRecord, PlanAsk, useRecordTake, type PlanActions } from "./PlanDock";
 import { planRowFor, type PlanRowCtx } from "./PlanRows";
 import { SeePlanSheet } from "./PlanSheet";
 import { TYPE_HERE_NOTE_MS, usePlanLounge } from "./usePlanLounge";
-import { useVoiceNotebook, VoiceNoteMic } from "../useVoiceNotebook";
+import { micShows, useVoiceNotebook, VoiceNoteMic } from "../useVoiceNotebook";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -229,12 +231,19 @@ function Lounge({
       {plan.dock}
       <form data-bar="" className={plan.composerDisplay("flex")}>
         <button type="button" aria-label="Your projects" />
-        {plan.record ?? (recordTake.next ? <RecordTakeButton next={recordTake.next} held={false} onRecord={onRecordNext} /> : null) ?? (
+        <BarRecord
+          record={plan.record}
+          next={recordTake.next}
+          held={false}
+          onRecord={onRecordNext}
+          micShown={micShows(notebook, plan.mic(null))}
+          onClose={recordTake.close}
+        >
           <div className="relative">
             <textarea placeholder="Type here" disabled={plan.typingOff} />
             {plan.typingWait}
           </div>
-        )}
+        </BarRecord>
         <VoiceNoteMic notebook={notebook} draft={plan.draft("")} waiting={plan.mic(null)} />
       </form>
     </>
@@ -561,6 +570,23 @@ it("a practice day's Record Take N stands in the bar, between the + and the mic"
   await showLounge([closing, one, recorded], undefined, record);
   expect(host.querySelector("[data-record-next]")).toBeNull();
   expect(typeHere()).not.toBeNull(); // the typing box is back
+
+  // Where the bar has no mic (the notebook off, or before the first Take),
+  // "Record Take N" keeps its grey ✕, so typing to Will is one tap away
+  // (N395); "Start your first recording" never has one.
+  const close = vi.fn();
+  const middle = (startButton: ReactNode) => (
+    <form data-bar="">
+      <BarRecord record={startButton} next={{ arcId: "arc-1", takeIndex: 1 }} held={false} onRecord={vi.fn()} micShown={false} onClose={close}>
+        <textarea placeholder="Type here" />
+      </BarRecord>
+    </form>
+  );
+  act(() => root.render(middle(null)));
+  await act(async () => (host.querySelector("[data-record-next-close]") as HTMLButtonElement).click());
+  expect(close).toHaveBeenCalledOnce();
+  act(() => root.render(middle(<button type="button" data-plan-dock="start">Start your first recording</button>)));
+  expect(host.querySelector("[data-record-next-close]")).toBeNull();
 });
 
 it("the feelings before a Take", () => {

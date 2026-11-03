@@ -299,7 +299,7 @@ export function VoiceNoteMic({
   /** Will's question waits: the mic records the answer. */
   waiting?: { onTap: () => void } | null;
 }) {
-  if (draft.trim() || (!waiting && (!notebook.enabled || notebook.held))) return null;
+  if (draft.trim() || !micShows(notebook, waiting)) return null;
   return (
     <button
       type="button"
@@ -314,6 +314,12 @@ export function VoiceNoteMic({
       <Mic className="h-5 w-5" aria-hidden />
     </button>
   );
+}
+
+/** Whether the bar has its mic: Will waits for an answer, or the notebook
+ *  is on and the speaker is past the onboarding (N243). */
+export function micShows(notebook: VoiceNotebook, waiting: { onTap: () => void } | null): boolean {
+  return waiting !== null || (notebook.enabled && !notebook.held);
 }
 
 /** What the message box keeps when "# note" is tapped: "#", to write on. */

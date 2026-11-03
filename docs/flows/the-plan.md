@@ -364,7 +364,9 @@ built and what is still to come.
    its left and the mic on its right, as the prototype draws the bar (N296
    state 4, N453 item 9); a tap starts that Take as the old button did, and
    it waits (greyed) while a Take is still landing. The mic talks to Will;
-   the Take's card opens its Ideal Text, with its own "Record Take N".
+   where the bar has no mic (the notebook off, or before the first Take,
+   N243), N395's grey ✕ stays on its right and brings the typing box back.
+   The Take's card opens its Ideal Text, with its own "Record Take N".
    "Start your first recording" stands in the bar the same way. Was: alone
    in the box's place with a grey ✕ that brought the bar back (N395). While the plan asks a
    question, or a call's calendar is open, that stands there instead. The
@@ -787,7 +789,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-11-03 · N453 · E5, G6: "Start your first recording" and "Record Take N" stand in the bar between the "+" and the mic, in the typing box's place, as the prototype draws it (`usePlanLounge` `record`, `RecordTakeButton`, `Lounge.tsx`); N395's ✕ is gone. Was: alone in the box's place, the "+" and the mic gone · BE #1681, FE (this PR)
+- 2026-11-03 · N453 · E5, G6: "Start your first recording" and "Record Take N" stand in the bar between the "+" and the mic, in the typing box's place, as the prototype draws it (`usePlanLounge` `record`, `PlanDock.tsx` `BarRecord`, `Lounge.tsx`); N395's ✕ stays only where the bar has no mic. Was: alone in the box's place, the "+" and the mic gone · BE #1681, FE (this PR)
 - 2026-11-03 · N449 · §2: "Record Take 2" on the first Take's Ideal Text page, while the project has only that Take, also opens the real talk's set-up (`Lounge.tsx` `onReadAloud`, through `isFirstTakeArc`). Was: it recorded the five questions again; only the chat's goodbye led to the real talk · FE (this PR)
 - 2026-11-03 · N449 · §2: after the first Take, as the prototype "The way in" draws it: "Record Take 2" at once under its goodbye (`afterTake.ts` `afterGoodbye`'s `noTap`, `Lounge.tsx`); the real talk is that project's Take 2, set up afresh with the plan's topic (`lib/willab/firstTake.ts` `startRealTalk`, `WillabSurface.tsx`), its slides stored as the project's new slides before its Take is sent (`keepRealTalkSlides`, N257); only Take 1's goodbye leads to the real talk (`isFirstTakeArc`). Was: the real talk was a project of its own, its screen said "Take 1", and the goodbye asked "I want to continue my practice" first · BE #1679, FE (this PR)
 - 2026-11-03 · N401 · C5, §2: the first Take's voice message and key line reach the coach's blind pick: kept with their voice at the end of that Take's processing (backend `plan_flow.after_processing`, cut from the recording the pipeline downloaded through the processing authorization, nothing new sent to a provider); the walk's end reads the answers and keeps nothing twice, and keeps them itself, without the voice, when processing could not. Was: a first-Take plan reached the coach with nothing to play. No new words · BE #1672, FE (this PR)

@@ -1071,7 +1071,9 @@ it until a newer Take's closing message takes it back (N167), and
 gives it up once a newer Take is recorded, in any project (N244,
 N251). It is ""Record Take N"" in the bar, between the ""+"" and the
 mic, in the typing box's place, never inside the bubble, and a tap
-starts that Take (N294 item 7, N296 state 4, N453 item 9).
+starts that Take (N294 item 7, N296 state 4, N453 item 9). Where
+the bar has no mic, its grey ✕ stays and brings the typing box back
+(N395); ""Start your first recording"" has none.
 O8  ""How do you feel?"" comes before a Take only once the plan's first
 Take is recorded (D4).
 O9  Will's ask for the plan's own yes is drawn as his bubble with Read

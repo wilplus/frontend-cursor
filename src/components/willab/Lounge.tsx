@@ -134,6 +134,7 @@ import {
   VoiceNoteBubble,
   VoiceNoteFixBar,
   VoiceNoteMic,
+  micShows,
   VoiceNotePicker,
   VoiceNoteThread,
   SalesSteps,
@@ -158,7 +159,7 @@ import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import WillQuestionBubble, { AnswerPair, TapRow, useSomethingElse, willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
 import { isWillVoice, useWillVoice, WillVoiceBubble } from "./WillVoiceAnswer";
-import { RecordTakeButton, useRecordTake } from "./plan/PlanDock";
+import { BarRecord, useRecordTake } from "./plan/PlanDock";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -2110,10 +2111,12 @@ export default function Lounge({
             "Start your first recording", or the chat's one "Record Take N"
             (N294 item 7, N296 state 4), the next Take after the goodbye or a
             practice day's (the-plan.md G6). */}
-        <BarMiddle
+        <BarRecord
           record={plan.record}
           next={recordTake.next}
           held={takeInFlight}
+          micShown={micShows(notebook, plan.mic(willVoice.waiting))}
+          onClose={recordTake.close}
           // After the first Take, "Record Take 2" is the real talk, its own
           // set-up with the plan's topic, never the five questions again
           // (N401 item 4, N449 item 1).
@@ -2179,7 +2182,7 @@ export default function Lounge({
             </button>
           ) : null}
         </div>
-        </BarMiddle>
+        </BarRecord>
         {/* The voice notebook's mic, right of the input (founder 2026-10-20);
             orange while Will waits, and then it records the answer (N296
             state 2): his question after the walk, or the plan's voice
@@ -3159,31 +3162,6 @@ function useGoodbye({
       return true;
     },
   };
-}
-
-/** The bar's middle (N453 item 9): its one record button, in the typing
- *  box's place, between the "+" and the mic: the plan's "Start your first
- *  recording", else the chat's one "Record Take N"; else the typing box. */
-function BarMiddle({
-  record,
-  next,
-  held,
-  onRecord,
-  children,
-}: {
-  record: ReactNode;
-  next: { arcId: string; takeIndex: number } | null;
-  held: boolean;
-  onRecord: (arcId: string) => void;
-  children: ReactNode;
-}) {
-  const button = record ?? (next ? <RecordTakeButton next={next} held={held} onRecord={onRecord} /> : null);
-  if (!button) return <>{children}</>;
-  return (
-    <div className="min-w-0 flex-1" data-bar-record="">
-      {button}
-    </div>
-  );
 }
 
 /** "I want to continue my practice", on the right, as Will's tap answers. */

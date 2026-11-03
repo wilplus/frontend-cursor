@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { X } from "lucide-react";
 import RecordingBar from "@/components/willab/RecordingBar";
 import { useVoiceNote } from "@/components/willab/useVoiceNote";
 import { TapRow } from "@/components/willab/WillQuestion";
@@ -268,6 +269,49 @@ export function RecordTakeButton({
 }
 
 type NextTake = { arcId: string; takeIndex: number };
+
+/** The bar's middle (backend N453 item 9): its one record button, in the
+ *  typing box's place, between the "+" and the mic, as the prototype draws
+ *  the bar: the plan's "Start your first recording", else the chat's one
+ *  "Record Take N"; else the typing box (`children`). Where the bar has no
+ *  mic (the notebook off, or before the first Take, N243), "Record Take N"
+ *  keeps N395's grey ✕ on its right, so typing to Will stays one tap away. */
+export function BarRecord({
+  record,
+  next,
+  held,
+  onRecord,
+  micShown,
+  onClose,
+  children,
+}: {
+  record: ReactNode;
+  next: NextTake | null;
+  held: boolean;
+  onRecord: (arcId: string) => void;
+  micShown: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const button = record ?? (next ? <RecordTakeButton next={next} held={held} onRecord={onRecord} /> : null);
+  if (!button) return <>{children}</>;
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-1.5" data-bar-record="">
+      <div className="min-w-0 flex-1">{button}</div>
+      {!record && !micShown ? (
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+          data-record-next-close=""
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground"
+        >
+          <X className="h-5 w-5" aria-hidden />
+        </button>
+      ) : null}
+    </div>
+  );
+}
 
 /** The chat's "Record Take N" as it shows now. `close` gives its place back
  *  to the typing box until the chat is opened again, or until a newer
