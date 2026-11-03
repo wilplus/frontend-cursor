@@ -40,6 +40,8 @@ export interface AppMenuData {
    *  non-coach is the same leak as one that stays. */
   isCoach: boolean;
   userEmail: string | null;
+  /** The account's name from sign-up or Google (its full name), or null. */
+  userName: string | null;
   /** The token wallet (token pricing, Phase 1). Lives here for the same reason
    *  credits do: BOTH headers mount the same AppMenu, and a second copy of
    *  this effect in SiteHeader is exactly the duplication that let the two
@@ -65,6 +67,7 @@ export function useAppMenuData(): AppMenuData {
   const supabase = createClient();
   const [authState, setAuthState] = useState<AuthState>("unknown");
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
   // The Life Panel's entries, straight from `GET /v2/life/state`. Empty for
   // everyone the panel is not on for, which is the normal case: that endpoint
@@ -98,10 +101,14 @@ export function useAppMenuData(): AppMenuData {
       if (!user) {
         setAuthState("anonymous");
         setUserEmail(null);
+        setUserName(null);
         return;
       }
       setAuthState("signed_in");
       setUserEmail(user.email ?? null);
+      const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+      const name = [meta.full_name, meta.name].find((x) => typeof x === "string" && x.trim());
+      setUserName(typeof name === "string" ? name.trim() : null);
     }
 
     void load();
@@ -201,6 +208,7 @@ export function useAppMenuData(): AppMenuData {
     authState,
     isCoach,
     userEmail,
+    userName,
     wallet,
     tokensLabel,
     lifeMenu: ordinaryLifeMenu,
