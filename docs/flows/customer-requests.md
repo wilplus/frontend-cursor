@@ -209,7 +209,7 @@ order it is built in.
      out to the right over the list; Will's chat opens as the list slides
      away to the left and closes as it comes back (none with less motion).
      Back on the list, it is where you left it, the row you came from lit
-     grey for a moment (N377).
+     grey for a moment (N378).
    - **Record an answer** (N321 item 4, N336, N342, N345, N361, N363):
      when the question waiting for your answer is one Will marked as about
      a product or a treatment (`meta.record_answer`), the middle of the bar

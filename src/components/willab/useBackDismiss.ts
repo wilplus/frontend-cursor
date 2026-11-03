@@ -47,7 +47,7 @@ const dismissStack: symbol[] = [];
 let outstandingEntries = 0;
 
 /** How many overlays are open, one over another. A chat's own swipe acts
- *  only when the chat is the top one (backend N377 item 3). */
+ *  only when the chat is the top one (backend N378 item 3). */
 export function backDismissDepth(): number {
   return dismissStack.length;
 }
@@ -147,7 +147,7 @@ export function useBackDismiss(
 }
 
 /* -------------------------------------------------------------------------- */
-/*  useBackStop — Back goes no further than this screen (backend N377)         */
+/*  useBackStop — Back goes no further than this screen (backend N378)         */
 /*                                                                            */
 /*  The list of chats is the bottom of /chat: Back from a chat comes to it,    */
 /*  and Back from it goes nowhere. Behind /chat in the history there can be    */

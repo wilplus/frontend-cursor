@@ -127,7 +127,7 @@ function ChatListRow({
   preview?: string;
   isNew?: boolean;
   pinned?: boolean;
-  /** Just come back from this chat: lit for a moment (backend N377 item 5). */
+  /** Just come back from this chat: lit for a moment (backend N378 item 5). */
   cameFrom?: boolean;
   onOpen: () => void;
 }) {
