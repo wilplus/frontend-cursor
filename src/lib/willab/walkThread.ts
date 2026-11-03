@@ -115,7 +115,14 @@ export function momentChat(
     step.key === "praise"
       ? { slide_label: slide, green_n: greens.indexOf(moment.index) + 1, green_of: greens.length }
       : { slide_label: slide };
-  const words = step.key === "clearer" ? (moment.clearer?.before ?? null) : null;
+  // The One thing walk's best and its AI clip's fix carry the moment's own
+  // words, as the walk draws them (its prototype's `clip(text)`).
+  const words =
+    step.key === "clearer"
+      ? (moment.clearer?.before ?? null)
+      : step.one && moment.said
+        ? [{ text: moment.said, cut: false }]
+        : null;
   const clip =
     moment.clip || words
       ? {

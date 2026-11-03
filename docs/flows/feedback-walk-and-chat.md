@@ -373,7 +373,7 @@ step; the loop never waits for a coach.
   pass through").
 - **C2 Their best, and one fix** (founder 2026-10-31, N309 item 1). The
   picker still chooses (N289, N293; H1): its strongest is **their best**:
-  the clip, then one bubble, "This was your most confident moment." and
+  the clip with its words, then one bubble, "This was your most confident moment." and
   "Why it worked: {the moment's signed cue line}" (B01–B09 or the cue's
   sentence, lower-cased after the colon), then Next; nothing to practise,
   no level line (W1–W10) and no reason bubble. Then **one thing to
@@ -501,8 +501,8 @@ praised moment:
   screen on its own; only a paragraph with no moment opens on its own
   words (F5; 2026-10-20).
 - **C4 The AI clip after their best** (N309 item 1): the fix moment's
-  clip, "Say this one like your confident moment:", their best's clip
-  played again, then the AI bubble: the tip ending ", like this:", the AI
+  clip with its words, "Say this one like your confident moment:", their
+  best's clip played again (without words), then the AI bubble: the tip ending ", like this:", the AI
   clip with its label (no opener; no "Your turn.": the "Try it" under it
   says it, N379 item 3). With no AI clip coming,
   the rest stands and the try is still theirs (never walked as good, never
@@ -1982,6 +1982,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · C2, C4: their best's clip and the AI clip's fix show the moment's own words above the player (its served `said`), as the locked prototype draws them (`clip(u.best.text)`, `clip(f.text)`), in the walk and the chat alike; "Last time" and their best played again inside the fix stay without words. Was: both clips drawn without words · FE (this PR)
 - 2026-11-03 · N395 · Record buttons; after the goodbye: the chat's one "Record Take N" stands 24 px under the last bubble (was 8) with a grey ✕ on its right, no background and no outline; the ✕ closes it and the bar comes back ("+", "Type here", the mic) for that Take, until the chat is opened again or a newer Take's goodbye offers the next. No new words. Was: alone, with no way to close it but recording · BE #1647, FE (this PR)
 - 2026-11-03 · N391 · E1: notifications come in a bar at the top of the chat, never in the buttons under it: the next visit's WhatsApp ask and the CEO panel's WhatsApp, consent, promo (web only) and lesson asks, one at a time, ✕ for Not now, WhatsApp and consent opening their form as a sheet from the top; the home-screen ask is deleted everywhere. Was: WhatsApp and the home screen written in the chat at the next visit with their form in the footer (N294 item 8, N295); the CEO panel's asks the Take's one ask from Take 2, in the footer · BE (next PR), FE (this PR)
 - 2026-11-03 · N309, N374 · B6, C3, C9: in the One thing walk the bar names the fix's slide again during the helper words and "Lesson done." (their best's slide with no fix, "Tempo" with the Sniper), as the locked prototype's `carry()` does (`dots(3)`; X4gDmGfHH7ivuoRZ9ufiy9). Was: the helper words had no name, so the bar kept the last one, "Other speakers" from Take 2 · FE (this PR)

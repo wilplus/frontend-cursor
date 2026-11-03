@@ -1113,6 +1113,13 @@ function Answered({ ctx, line }: { ctx: ScreenCtx; line: string | null }) {
 }
 
 /** The speaker's own clip: the orange bubble on the right. */
+/** The moment's own words in its clip's bubble (the walk's prototype,
+ *  `clip(u.best.text)` and `clip(f.text)`): their best and the AI clip's
+ *  fix. Null when none was served. */
+function saidWords(moment: FeedbackWalkMoment): ReactNode {
+  return moment.said ? <span>{moment.said}</span> : null;
+}
+
 function Clip({ moment, words, replay, chip = false }: { moment: FeedbackWalkMoment; words?: ReactNode; replay?: string; chip?: boolean }) {
   if (!moment.clip && !words) return null;
   return (
@@ -1246,7 +1253,7 @@ function Best(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
       onClose={ctx.close}
       footer={<WalkFooter pill={{ label: COPY.pagerNext, onClick: ok, testId: "walk-forward" }} />}
     >
-      <Clip moment={moment} />
+      <Clip moment={moment} words={saidWords(moment)} />
       <WalkMessage>
         {bestBubble(moment).map((line, i) => (
           <span key={i} data-walk-best={i === 0 ? "" : "why"}>
@@ -1546,7 +1553,7 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
   return (
     <>
       <LevelHere moment={moment} />
-      <Clip moment={moment} />
+      <Clip moment={moment} words={saidWords(moment)} />
       {/* The line ends on a colon: only with their best's clip after it (N377 item 2). */}
       {best ? (
         <>
