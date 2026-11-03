@@ -75,6 +75,8 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
   /** Why the green moment landed, as served (services/praise_reason). */
   praiseReason?: PraiseReason | null;
   clip?: WalkClip | null;
+  /** The speaker's words the item anchors on, as served (`quote`). */
+  said?: string | null;
   /** On a served rewrite: the speaker's words it anchors on (`quote`), the
    *  words offered in their place (`proposedText`), and the item itself for
    *  the decision. Only from the served item; never made up. `move` is the
@@ -181,6 +183,10 @@ export type FeedbackWalkMoment<R = unknown> = {
   /** Why the green moment landed, when it reached the page with the row. */
   praiseReason?: PraiseReason | null;
   clip: WalkClip | null;
+  /** The moment's own words on the page: its green clip's, else its first
+   *  row's. Their best's are the helper words when the fix gives none
+   *  (backend N374). */
+  said?: string | null;
   /** The clearer version, when the moment has a served rewrite. */
   clearer: FeedbackWalkClearer<R> | null;
   /** The item the moment's practise is opened on: its served rewrite, or
@@ -333,6 +339,7 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     praiseLead: praise?.praiseLead ?? praise?.praiseWords ?? [],
     praiseReason: group.find((i) => i.praiseReason)?.praiseReason ?? null,
     clip,
+    said: (group.find((i) => i.green === true && i.said?.trim()) ?? group.find((i) => i.said?.trim()))?.said?.trim() ?? null,
     clearer: clearerOf(group),
     // The item a practise opens on: the clearer version's or the coach
     // request's where there is one, else any row of the moment. A corrected

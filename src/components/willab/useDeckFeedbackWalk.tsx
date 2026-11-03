@@ -320,6 +320,7 @@ function walkItemOf(
     clip: item.snippetAudioRef
       ? { src: item.snippetAudioRef, startOffsetMs: item.startOffsetMs, durationMs: item.durationMs, snippetId: item.snippetId }
       : null,
+    said: item.quote,
     rewrite,
     item: suggestionSource(item) ? item : null,
     exercise,

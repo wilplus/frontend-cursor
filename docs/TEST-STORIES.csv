@@ -1223,15 +1223,16 @@ with nobody to judge, the step leaves nothing in the thread
 O9 -> on a plan, the level's moment says where this week's level shows, above the clip (G7, N209)
 O10 -> the tempo game and other speakers stay in the thread as the walk moves on to the summary (B5; the trash, N314)","Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, ""add the name at the start""; N122, ""the 3 dots loading should be at the bottom""; N119, ""3 clips (high, middle, low willfidence) from 3 different speakers""); founder 2026-10-28 (""I click next and it's gone ... should be in the walk, so that there is a continuity"")."
 src/components/willab/walk/oneThingWalk.test.tsx,Story,"As a speaker, I want the walk after each Take to show me my best moment and why it worked, then one thing to improve with the tool it needs, so that I leave every Take with one clear thing to carry into the next.","O1  The walk goes in order: ""Hi {name}."", my best with ""This was your most confident moment."" and why it worked, then ""And now, one thing to improve:"" and one fix; the Clearer version says ""Say it straight:"" and the sentence, with ""Try it"" and ""Keep mine""; no helper-word picker, no second moment and no summary in the walk.
-O2  After the fix my helper words come on their own: ""These are your helper words. …"" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2).
+O2  After the fix my helper words come on their own: ""These are your helper words. …"" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2); with no fix, my best moment's own words are my helper words, saved the same way (backend N374).
 O3  The walk ends on ""Lesson done."" with Close, which ends the review and takes me back to the chat; no ""Record Take N"" in the walk.
 O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, my answer as my own reply with a tick, then ""Got it.""; on Take 1 I judge no one.","O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
 O2 -> the helper words come on their own and are saved without a pick,
 the Clearer version's sentence is saved from its practice,
-a Clearer version past eight words is saved whole as my helper words (N323 item 2)
+a Clearer version past eight words is saved whole as my helper words (N323 item 2),
+with no fix, my best's own words are my helper words, saved without a pick (N374)
 O3 -> Lesson done and Close end the review, back to the chat
 O4 -> from Take 2, one moment of another speaker, of the Take's level, answered as my own reply,
-Take 1 judges no one","Founder 2026-10-31 (backend N309: ""apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take""; ""ok, this finally good""); 2026-11-02 (""please implement""; backend N323: ""you can allow helper words to be longer than 8 words"")."
+Take 1 judges no one","Founder 2026-10-31 (backend N309: ""apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take""; ""ok, this finally good""); 2026-11-02 (""please implement""; backend N323: ""you can allow helper words to be longer than 8 words""); 2026-11-03 (backend N374: a walk with no fix left no helper words; ""go with the recommendations"")."
 src/components/willab/walk/walkCopy.test.ts,Guard,"Every word the walk can show comes from the signed copy, and no signed walk line carries a digit.","Never 4: a literal word typed into a walk/*.tsx primitive (JSX text,
 a string child, an accessible name, title, placeholder) that is not in
 WALK_COPY or CHUNK_SHEET_COPY. Never 1: a digit in a signed walk line
@@ -1645,7 +1646,7 @@ O3  Every moment has a practice step, even with nothing attached.
 O4  A praised moment the server does not mark for practice, or with practice off, goes straight to its helper words (N122).
 O5  Each moment after the first opens with ""let's look at your next key moment"", and the first step after the last moment with ""These were some real good moments of yours""; never in the coach's own walk (N285).
 O6  A Take served with slots is the One thing walk: their best (praise, nothing to practise), one fix with the tool it needs (the Clearer version first, else the AI clip on the weakest), from Take 2 one moment of another speaker, the helper words on their own, then ""Lesson done.""; no picker, no second moment, no summary; a Take served before them keeps praise first (N309).
-O7  With no moment to fix and the tempo step there, the Sniper is the one fix; with a moment to fix, no tempo step (N309).
+O7  With no moment to fix and the tempo step there, the Sniper is the one fix; with a moment to fix, no tempo step (N309); with neither, my best still leaves its helper words (N374).
 O8  The One thing walk's fix allows two tries: a second miss ends it (N309).","O1 -> carries no number, read or score
 O2 -> praises each strong moment, practises each corrected one, and never asks the speaker to judge
 O3 -> a moment with nothing attached is the moment said again
@@ -1653,7 +1654,7 @@ O4 -> a praised moment not marked for practice, or with practice off, goes strai
 O5 -> the next moment and the end of the moments each get their line, once
 O6 -> their best, one fix with its tool, one judged moment from Take 2, the helper words, then Lesson done
 O7 -> with no moment to fix, the Sniper on this week's level is the one fix
-O8 -> a second miss ends the fix","Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, ""do we practice the confident moments? I think yes we should!""); 2026-10-30 (N285, ""let's look at your next key moment we spotted""; N289, ""First, show the strongest, then the weakest, and then the average""); 2026-10-31 (N309, ""apply to it the one thing walk"")."
+O8 -> a second miss ends the fix","Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, ""do we practice the confident moments? I think yes we should!""); 2026-10-30 (N285, ""let's look at your next key moment we spotted""; N289, ""First, show the strongest, then the weakest, and then the average""); 2026-10-31 (N309, ""apply to it the one thing walk""); 2026-11-03 (N374, ""go with the recommendations"")."
 src/lib/willab/walkPractise.test.ts,Story,"As a speaker practising, I want each try answered with a line in words for what changed, never a number, so that I hear progress without a score.","O1  The ""not yet"", ""better"" and ""thanks"" lines come from the approved wording and contain no digits.
 O2  A try the server could not hear is a step that says so, in place of the machine's answer (founder, signed 2026-10-21).
 O3  The One thing walk's fix: a try that lands says ""Yes. That's it.""; one miss ""Close. Once more."" with a try left; a second miss ""Good try. Take it with you."" and no third try (N309).","O1 -> each try's line is the one for the reading that moved, never a number
