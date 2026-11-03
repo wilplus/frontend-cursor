@@ -941,6 +941,11 @@ src/components/willab/noStarsOnUserSurfaces.test.ts,Guard,No component in src/co
 `Star` import in any .tsx, user lane or coach lane. A source scan on
 purpose: the star rating once lived in six separate renderers, and a
 render test only covers the surface it mounts.","star drawn -> ""NO component draws a star icon""",If removed: A star rating (a verdict) can quietly come back on any screen.
+src/components/willab/notebookPrivacy.test.tsx,Story,"As a speaker with the voice notebook, I want a short reminder to keep names and fragile things out whenever Will spots something, so that my notes stay about patterns, not secrets (backend N411).","O1  The notebook's ask comes with the mic line and the three privacy lines above it.
+O2  Under a message where Will spots something, the short line ""🔒 Security disclaimer ›""; a tap shows the three lines.
+O3  Other messages get no line; the backend's own line row (every fifth named note) is drawn as the line alone.","O1 -> introduces the notebook with the rules
+O2 -> reminds under every spotted message
+O3 -> stays quiet elsewhere",
 src/components/willab/oneProject.test.tsx,Story,"As a speaker, I want to work on one project at a time and be asked before I leave the current one, so that starting or going back to a project never mixes two presentations, and nothing is lost.","O1  ""Start a new project"" asks ""One project at a time"", naming the project
 with my newest Take; Continue archives that one, then starts the new
 project; Cancel leaves me on the list with nothing archived.
