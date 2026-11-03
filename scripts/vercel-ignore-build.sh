@@ -24,6 +24,7 @@
 # which .github/workflows/release-to-production.yml moves to the newest green
 # `main` every two hours, so one build carries every merge since the last.
 # This script still skips a batch that changed only docs, Markdown or tests.
+# `main` itself no longer deploys at all (vercel.json deploymentEnabled).
 #
 # A skipped build shows as Canceled and still counts toward the deployments a
 # day, but it stores no Function bundles.
