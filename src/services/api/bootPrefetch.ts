@@ -70,12 +70,11 @@ export function prefetchChatBoot(): void {
   });
 }
 
-/** The chats door's two reads (useChatsDoor): the ring decision and the list,
- *  together, not the list only after the rings answer. Fired AFTER the
- *  Lounge's own boot reads (session state, authorization, the thread) so
- *  they never queue behind the chats. The backend answers /v2/chats with a
- *  404 for anyone without the feature, so asking early is safe; that answer
- *  is simply never used. */
+/** The chats door's read (useChatsDoor): the list, early, for every
+ *  signed-in person (backend N456). Fired AFTER the Lounge's own boot reads
+ *  (session state, authorization, the thread) so they never queue behind
+ *  the chats. The rings are still read early here for the features they do
+ *  decide; the chats no longer wait on them. */
 export function prefetchChatsDoor(): void {
   void loadRingState(); // the one shared read per page load (rings.ts)
   remember(CHATS, async () => {
