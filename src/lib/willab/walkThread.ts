@@ -401,6 +401,8 @@ export function oneThingTryWords(step: WalkStep, moment: FeedbackWalkMoment<unkn
 
 export function answerBody(step: WalkStep, value: string): string | null {
   if (value === "skip" && ["helpers", "exVideo", "encourage"].includes(step.key)) return WALK_COPY.skip;
+  // The One thing walk's recorder: its trash is Skip on the fix (N435 item 3).
+  if (value === "skip" && step.one && step.key === "practise") return WALK_COPY.skip;
   return null;
 }
 
@@ -410,7 +412,7 @@ export function answerBody(step: WalkStep, value: string): string | null {
  *  the same. Pure. */
 export function skipReply(step: WalkStep, value: string | null): string | null {
   if (value !== "skip" || !step.one) return null;
-  return ["exVideo", "encourage"].includes(step.key) ? ONE_THING_COPY.skipped : null;
+  return ["exVideo", "encourage", "practise"].includes(step.key) ? ONE_THING_COPY.skipped : null;
 }
 
 /** The AI bubble a step showed (N71), as the chat stores it: its lines, and
