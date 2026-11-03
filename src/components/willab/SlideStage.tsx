@@ -24,12 +24,16 @@ export default function SlideStage({
   presentationRef,
   current,
   asks = null,
+  tall = false,
 }: {
   slides: PresentationSlide[];
   presentationRef: string | null;
   current: number;
   /** An answer's person: "{name} asks" over the question (backend N441 item 7). */
   asks?: string | null;
+  /** The first Take's questions: the slide fills the space it is given, not
+   *  a 16:9 box (backend N449 item 4). */
+  tall?: boolean;
 }) {
   const total = slides.length;
   if (total === 0) return null;
@@ -37,8 +41,10 @@ export default function SlideStage({
   const slide = slides[idx];
 
   return (
-    <div className="flex w-full justify-center">
-      <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border bg-card">
+    <div className={`flex w-full justify-center ${tall ? "h-full" : ""}`}>
+      <div
+        className={`${tall ? "h-full" : "aspect-video"} w-full overflow-hidden rounded-2xl border border-border bg-card`}
+      >
         <SlideRender
           presentationRef={presentationRef}
           pageIndex={idx}
@@ -46,6 +52,7 @@ export default function SlideStage({
           body={slide.body}
           artworkSrc={slide.artworkSrc}
           asks={asks}
+          tall={tall}
           className="h-full w-full"
           fit
           showRetry={false}

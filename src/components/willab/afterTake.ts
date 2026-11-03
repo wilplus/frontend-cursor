@@ -137,16 +137,24 @@ export function goodbyeTake(meta: Record<string, unknown> | null | undefined): N
  *  once the speaker chose to continue, so "Record Take N" stands alone under
  *  the chat; null otherwise: the goodbye still held behind an ask, anything
  *  said since, or a newer Take recorded in any project (N244, N251). The
- *  walk's own rows (a coach's later word) never count as said since. */
+ *  walk's own rows (a coach's later word) never count as said since.
+ *  `noTap`: the Takes whose goodbye brings "Record Take N" at once, with no
+ *  tap first (the first Take's, backend N449 item 2). */
 export function afterGoodbye<T extends Pick<LoungeMessage, "client_id" | "kind" | "metadata">>(
   messages: readonly T[],
+  noTap: (take: NextTake) => boolean = () => false,
 ): { step: "tap" | "record"; next: NextTake; message: T } | null {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const m = messages[i];
     const meta = m.metadata ?? {};
     if (m.kind === "walk_step" || meta.plan_progress === true) continue;
-    const step = meta.continue_practice === true ? "record" : meta.next_take === true && heldFor(m) === null ? "tap" : null;
-    const next = step ? goodbyeTake(meta) : null;
+    const said = goodbyeTake(meta);
+    const step = meta.continue_practice === true
+      ? "record"
+      : meta.next_take === true && heldFor(m) === null
+        ? said && noTap(said) ? "record" : "tap"
+        : null;
+    const next = step ? said : null;
     if (!step || !next || recordedPast(messages).has(m.client_id)) return null;
     return { step, next, message: m };
   }

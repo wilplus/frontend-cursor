@@ -1,7 +1,9 @@
 "use client";
 
 import { createProject } from "@/services/api/projects";
+import { updateProjectDeck } from "@/services/api/projectDeck";
 import { writeExploreArc, type ExploreArcDeck } from "./exploreArc";
+import { beginSetupDraftWithTopic } from "./setupDraft";
 
 /* -------------------------------------------------------------------------- */
 /*  The first Take is the onboarding (backend N401; rules:                    */
@@ -14,9 +16,13 @@ import { writeExploreArc, type ExploreArcDeck } from "./exploreArc";
 /*             opens on its one slide (chatAnswer.ts).                        */
 /*    after    the backend reads the Take slide by slide after its walk and  */
 /*             writes the plan (services/plan_flow.py); "Record Take 2" from */
-/*             this project's goodbye goes to the set-up for the real talk,   */
-/*             its topic the plan's, with the feelings check first (N401     */
-/*             item 4), never to these five questions again.                  */
+/*             this project's goodbye, at once (N449 item 2), goes to the     */
+/*             set-up for the real talk, its topic the plan's, with the       */
+/*             feelings check first (N401 item 4), never to these five        */
+/*             questions again.                                               */
+/*    take 2   the real talk is Take 2 of this same project (N449 item 1):   */
+/*             its set-up runs in full, and its slides become the project's   */
+/*             new slides from Take 2 (N257) before the Take is sent.         */
 /* -------------------------------------------------------------------------- */
 
 /** One of the first Take's slides, as the plan sends it. */
@@ -47,6 +53,12 @@ export function firstTakeKicker(title: string | null | undefined): string | null
   return (title && KICKERS[title.trim()]) || null;
 }
 
+/** A deck made of the first Take's questions: its recording screen draws
+ *  each one tall, with a mark for each question (N449 item 4). */
+export function isFirstTakeDeck(slides: readonly { title: string }[]): boolean {
+  return slides.length > 0 && slides.every((s) => firstTakeKicker(s.title) !== null);
+}
+
 const ARC_KEY = "willab.first_take_arc";
 
 function arcKey(ownerId: string | null): string {
@@ -64,9 +76,62 @@ export function firstTakeArc(ownerId: string | null): string | null {
 
 /** Whether a goodbye's "Record Take 2" belongs to the first Take: it then
  *  starts the real talk's set-up, never the five questions again (N401
- *  item 4). */
-export function isFirstTakeArc(ownerId: string | null, arcId: string): boolean {
-  return !!arcId && firstTakeArc(ownerId) === arcId;
+ *  item 4). Only Take 1's goodbye: from Take 2 on, the project goes on as
+ *  any project does. */
+export function isFirstTakeArc(ownerId: string | null, arcId: string, takeIndex = 1): boolean {
+  return !!arcId && takeIndex === 1 && firstTakeArc(ownerId) === arcId;
+}
+
+const REAL_TALK_KEY = "willab.first_take_real_talk";
+
+function realTalkKey(ownerId: string | null): string {
+  return `${REAL_TALK_KEY}:${ownerId ?? "guest"}`;
+}
+
+/** Whether the next Take of `arcId` is the real talk, set up afresh. */
+export function realTalkPending(ownerId: string | null, arcId: string | null | undefined): boolean {
+  if (!arcId) return false;
+  try {
+    return window.localStorage.getItem(realTalkKey(ownerId)) === arcId;
+  } catch {
+    return false;
+  }
+}
+
+/** "Record Take 2" after the first Take (N449 item 1): Take 2 of the first
+ *  Take's project, its set-up from the start, the topic the plan's. False
+ *  when this device made no first Take (the real talk then starts a project
+ *  of its own, as before). */
+export function startRealTalk(ownerId: string | null, topic: string | null, open: () => void): boolean {
+  const arc = firstTakeArc(ownerId);
+  if (!arc) return false;
+  writeExploreArc(ownerId, arc, 2);
+  try {
+    window.localStorage.setItem(realTalkKey(ownerId), arc);
+  } catch {
+    return false;
+  }
+  beginSetupDraftWithTopic(ownerId, topic);
+  open();
+  return true;
+}
+
+/** Before the real talk's Take is sent: its slides become the project's
+ *  new slides from this Take (N257), so the Take is kept on them. Nothing
+ *  for any other Take. A refused update leaves the Take to go as it is. */
+export async function keepRealTalkSlides(
+  ownerId: string | null,
+  projectId: string,
+  deck: { slides: { title: string; body: string }[]; presentationRef: string | null },
+): Promise<void> {
+  if (!realTalkPending(ownerId, projectId)) return;
+  const stored = await updateProjectDeck(projectId, deck);
+  if (!stored.ok) return;
+  try {
+    window.localStorage.removeItem(realTalkKey(ownerId));
+  } catch {
+    /* the next Take then sets up again, on the same project */
+  }
 }
 
 function deckOf(slides: readonly FirstTakeSlide[]): ExploreArcDeck {

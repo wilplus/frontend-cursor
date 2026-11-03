@@ -5,6 +5,7 @@ import { ENTER_OFFSET_PX, type Dir } from "@/lib/willab/recordingGesture";
 import type { PresentationSlide } from "./presentation";
 import SlideStage from "./SlideStage";
 import FinishTakeButton from "./FinishTakeButton";
+import { isFirstTakeDeck } from "@/lib/willab/firstTake";
 import { RECORDING_COPY } from "./recordingCopy";
 import { useRecordingGestures } from "./useRecordingGestures";
 
@@ -129,20 +130,44 @@ export default function RecordingRoadmap({
   }, []);
 
   const last = currentSlide >= slides.length - 1;
+  // The first Take's questions (backend N449 item 4; the prototype "The
+  // first Take", v1): each one tall, down to the strip, with a mark for each
+  // question under it, this one orange, the ones done dark. Take 1 has no
+  // helper words, so their band gives its room to the slide.
+  const tall = !presentationRef && isFirstTakeDeck(slides);
 
   return (
     <>
     <div ref={stageRef} className="flex min-h-0 flex-1 flex-col">
-      <div ref={slideBoxRef} className="shrink-0 pb-4 will-change-transform">
-        <SlideStage
-          slides={slides}
-          presentationRef={presentationRef}
-          current={currentSlide}
-          asks={asks}
-        />
+      <div
+        ref={slideBoxRef}
+        className={tall ? "flex min-h-0 flex-1 flex-col gap-3 pb-1 will-change-transform" : "shrink-0 pb-4 will-change-transform"}
+      >
+        <div className={tall ? "min-h-0 flex-1" : undefined}>
+          <SlideStage
+            slides={slides}
+            presentationRef={presentationRef}
+            current={currentSlide}
+            asks={asks}
+            tall={tall}
+          />
+        </div>
+        {tall ? (
+          <div data-testid="question-marks" className="flex shrink-0 gap-1" aria-hidden="true">
+            {slides.map((slide, i) => (
+              <span
+                key={`${i}-${slide.title}`}
+                data-mark={i === currentSlide ? "on" : i < currentSlide ? "done" : "to-come"}
+                className={`h-[5px] flex-1 rounded-full ${
+                  i === currentSlide ? "bg-primary" : i < currentSlide ? "bg-foreground" : "bg-muted"
+                }`}
+              />
+            ))}
+          </div>
+        ) : null}
       </div>
 
-      <div className="relative min-h-0 flex-1">
+      <div className={tall ? "relative h-0 min-h-0 flex-none overflow-hidden" : "relative min-h-0 flex-1"}>
         <div
           ref={scrollRef}
           tabIndex={-1}

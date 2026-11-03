@@ -20,12 +20,16 @@ OUTCOME
       my practice"; once I tap it, or type that I want to practise, "Record
       Take N" stands alone under the chat; while an ask waits, once I said
       anything else, or once a newer Take is recorded, neither shows.
+  O7  After the first Take, "Record Take 2" comes at once under its
+      goodbye, with no tap first; every other Take keeps the tap (N449
+      item 2).
 PROVES   O1 -> "draws the card, the ask, and the message only once it is let go"
          O2 -> "opens the Take's WhatsApp ask by itself"
          O3 -> "knows when no ask is in front of the speaker"
          O4 -> "keeps the card above the admin's ask, stamped with the message it waits for alone"
          O5 -> "the last Take's Record button goes once the next Take is recorded"
          O6 -> "after the goodbye, the tap, then Record Take N alone"
+         O7 -> "after the first Take, Record Take 2 at once"
 WHY      Founder 2026-10-20: "You cannot have two actions at a time, like
          feedback and record" (backend services/after_take.py); 2026-10-31
          (N294): "No call to action means that there is no push".
@@ -106,6 +110,22 @@ describe("after a Take", () => {
     expect(wantsToPractise("let's record again")).toBe(true);
     expect(wantsToPractise("not now, later")).toBe(false);
     expect(wantsToPractise("How do I sound calmer?")).toBe(false);
+  });
+
+  it("after the first Take, Record Take 2 at once", () => {
+    const first = { take_session_id: "t1", arc_id: "first" };
+    const goodbye = row("goodbye", 1, "text", { next_take: true, take_index: 1, ...first });
+    const progress = row("progress", 2, "text", { plan: "p1", plan_progress: true, done: 1, total: 12 });
+    const firstTake = (t: { arcId: string; takeIndex: number }) => t.arcId === "first" && t.takeIndex === 1;
+    expect(afterGoodbye([goodbye, progress], firstTake)).toMatchObject({
+      step: "record",
+      next: { arcId: "first", takeIndex: 1, takeSessionId: "t1" },
+    });
+    // Another Take's goodbye keeps its tap.
+    const later = row("later", 1, "text", { next_take: true, take_index: 2, ...take });
+    expect(afterGoodbye([later, progress], firstTake)?.step).toBe("tap");
+    // Held behind an ask, it waits as any goodbye does.
+    expect(afterGoodbye([{ ...goodbye, metadata: { ...goodbye.metadata, held_for: "will_question" } }], firstTake)).toBeNull();
   });
 
   it("knows when no ask is in front of the speaker", () => {

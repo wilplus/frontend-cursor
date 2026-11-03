@@ -304,10 +304,12 @@ export default function RecordingSetup({
     }
   }
 
-  const primaryLabel = isLast
-    ? "Start recording"
-    : current === "slides" && !hasSlides
-      ? "Skip for now"
+  // The slides step with none added says "Skip for now", the last step
+  // included, where it starts the recording (backend N449 item 3).
+  const primaryLabel = current === "slides" && !hasSlides
+    ? "Skip for now"
+    : isLast
+      ? "Start recording"
       : "Next";
 
   return (

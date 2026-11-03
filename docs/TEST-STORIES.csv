@@ -484,12 +484,16 @@ O6  Nothing pushes the next Take (N294 items 6 and 7): under the goodbye,
 with the plan's progress under it, the one tap ""I want to continue
 my practice""; once I tap it, or type that I want to practise, ""Record
 Take N"" stands alone under the chat; while an ask waits, once I said
-anything else, or once a newer Take is recorded, neither shows.","O1 -> ""draws the card, the ask, and the message only once it is let go""
+anything else, or once a newer Take is recorded, neither shows.
+O7  After the first Take, ""Record Take 2"" comes at once under its
+goodbye, with no tap first; every other Take keeps the tap (N449
+item 2).","O1 -> ""draws the card, the ask, and the message only once it is let go""
 O2 -> ""opens the Take's WhatsApp ask by itself""
 O3 -> ""knows when no ask is in front of the speaker""
 O4 -> ""keeps the card above the admin's ask, stamped with the message it waits for alone""
 O5 -> ""the last Take's Record button goes once the next Take is recorded""
-O6 -> ""after the goodbye, the tap, then Record Take N alone""","Founder 2026-10-20: ""You cannot have two actions at a time, like feedback and record"" (backend services/after_take.py); 2026-10-31 (N294): ""No call to action means that there is no push""."
+O6 -> ""after the goodbye, the tap, then Record Take N alone""
+O7 -> ""after the first Take, Record Take 2 at once""","Founder 2026-10-20: ""You cannot have two actions at a time, like feedback and record"" (backend services/after_take.py); 2026-10-31 (N294): ""No call to action means that there is no push""."
 src/components/willab/audioUploadValidation.test.ts,Story,"As a speaker uploading a recording instead of recording live, I want a too-large or video file refused before upload with a plain reason, so that I do not wait for a failure (record step of the loop).","O1  A file over the upload limit is refused with a ""too large"" reason.
 O2  A video file (by MIME type, or by extension when the type is missing)
 is refused with an ""audio only"" reason.
@@ -1150,7 +1154,10 @@ O3  A pull down on the mic wait and the processing screen is cancelled;
 on other screens a pull works as normal.","O1 -> ""cancels a pull down from the slide on slide 1 with the scroller at its top""
 O2 -> ""sets overscroll-behavior none on lab_prerecord and keeps it into the recording""
 O3 -> ""cancels a pull down on the mic wait and the processing screen""",Founder 2026-10-06: a pull reloaded the recording screen and lost the Take. Never 3.
-src/components/willab/recordingSetup.test.tsx,Story,"As a speaker, I want setup to ask my topic, then the length, then slides, then start, so that starting a Take is quick.","O1  The questions come in that order, and starting carries my topic.","O1 -> ""asks topic, length, slides, then starts""",Founder 2026-10-12.
+src/components/willab/recordingSetup.test.tsx,Story,"As a speaker, I want setup to ask my topic, then the length, then slides, then start, so that starting a Take is quick.","O1  The questions come in that order, and starting carries my topic.
+O2  With no slides added, the slides step's button is ""Skip for now"", the
+last step included, and it starts the Take.","O1 -> ""asks topic, length, slides, then starts""
+O2 -> ""asks topic, length, slides, then starts""","Founder 2026-10-12; ""Skip for now"", backend N449 item 3."
 src/components/willab/recordingStillFrame.test.tsx,Story,"As a speaker recording, I want the top bar to read ""Take N · Slide n of m"", Back and Next slide to move slides, Finish take on the last slide to be the only way to end, and only the slide to move, so that recording feels steady and I never end a Take by accident.","O1  The top bar reads ""Take 2 · Slide 1 of 3"", once.
 O2  On the last slide Next slide becomes the red Finish take, which ends
 the Take.
@@ -1626,10 +1633,12 @@ O3 -> a corrected moment with nothing attached is said again, not dropped
 O4 -> two moments on one long slide are two moments, each named with that slide",Never-rule 3 (coaches are never in the way of the next Take).
 src/lib/willab/firstTake.test.ts,Story,"As a new speaker whose onboarding is my first Take, I want ""Start your first recording"" to open the recording screens on the five questions at once, and my next Take to be my real talk, so that I practise from the first minute.","O1  The first Take is its own project, ""Your first Take"": its deck the plan's five questions, no length, no PDF; the recording screens open on it at Take 1. If the project can't be made, nothing opens.
 O2  Each question shows its small title above it, found by the question's own words; any other slide has none.
-O3  ""Record Take 2"" from the first Take's project is the real talk: only that project, for that speaker, is the first Take's.","O1 -> ""the first Take is its own project with the five questions as its deck""
+O3  ""Record Take 2"" from the first Take's goodbye is the real talk: only that project's Take 1, for that speaker.
+O4  The real talk is Take 2 of the first Take's project: its set-up runs afresh with the plan's topic, and its slides are stored on the project as its new slides before its Take is sent; any other Take stores nothing. Without a first Take on this device, nothing changes.","O1 -> ""the first Take is its own project with the five questions as its deck""
 O1 -> ""a project that can't be made opens nothing""
 O2 -> ""each question shows its small title""
-O3 -> ""only the first Take's project leads to the real talk""","Backend N401 items 2 and 4 (the first Take is the onboarding, locked with the prototypes ""The way in"" and ""The first Take""); the rules are docs/flows/the-plan.md."
+O3 -> ""only the first Take's project leads to the real talk""
+O4 -> ""the real talk is Take 2 of the same project, on its new slides""","Backend N401 items 2 and 4 (the first Take is the onboarding, locked with the prototypes ""The way in"" and ""The first Take""); the real talk as Take 2, N449 item 1 (with N257's new slides); the rules are docs/flows/the-plan.md."
 src/lib/willab/idealTextDecisions.test.ts,Story,"As a speaker, I want accepting or keeping a suggestion on my Ideal Text saved to the right place for its kind, so that my decision sticks and a suggestion with missing ids sends nothing broken.","O1  A new-take block upgrade goes to blocks/decide, and nowhere else.
 O2  A prior-take change goes to its own route, and nowhere else.
 O3  Every other source rides the per-snippet feedback POST; a coach
