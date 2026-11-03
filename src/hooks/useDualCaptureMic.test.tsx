@@ -109,6 +109,10 @@ describe("the Lab's mic", () => {
       await mic.start();
     });
     expect(getUserMedia).toHaveBeenCalledTimes(1);
+    // The voice as it is: no call processing (gain, suppression, echo).
+    expect(getUserMedia).toHaveBeenCalledWith({
+      audio: expect.objectContaining({ autoGainControl: false, noiseSuppression: false, echoCancellation: false }),
+    });
     expect(recorders[0].start).toHaveBeenCalledTimes(1);
     expect(mic.state.status).toBe("recording");
     expect(mic.getAudioStartedAt()).not.toBeNull();

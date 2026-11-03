@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowDown, PlusSquare, Share } from "lucide-react";
 import { usePwaInstall, type InstallPath } from "@/hooks/usePwaInstall";
 import SymmetricPair from "./SymmetricPair";
+import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /* -------------------------------------------------------------------------- */
 /*  WillabInstallPrompt — F2: "Add to home screen" as a thread offer.          */
@@ -62,7 +63,8 @@ export function useInstallOffer(): InstallOffer {
   return {
     installPath: pwa.installPath,
     ready: pwa.ready,
-    canOffer: pwa.ready && !dismissed && pwa.installPath !== "none",
+    // Never in the iPhone app: it is installed already (backend N365).
+    canOffer: pwa.ready && !dismissed && pwa.installPath !== "none" && !isNativeApp(),
     promptInstall: pwa.promptInstall,
     persistDismiss,
     softDismiss,

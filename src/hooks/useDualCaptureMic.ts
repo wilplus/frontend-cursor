@@ -124,6 +124,23 @@ function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
 }
 
 /**
+ * The mic as the speaker sounds, not as a phone call. With `audio: true` every
+ * browser (and the iPhone app's web view) turns on its call processing: echo
+ * cancellation, noise suppression and automatic gain. Gain rides the voice's
+ * loudness up and down and suppression thins it, so playback sounds like a bad
+ * call and the loudness the feedback reads is flattened. Nothing plays through
+ * the speaker while a Take records, so there is no echo to cancel. These are
+ * preferences, never requirements: a browser that cannot honour one still
+ * opens the mic. Same settings as the pace mic (`lib/willab/pace/paceMic.ts`).
+ */
+export const TAKE_MIC_AUDIO: MediaTrackConstraints = {
+  echoCancellation: false,
+  noiseSuppression: false,
+  autoGainControl: false,
+  channelCount: 1,
+};
+
+/**
  * Pick the MediaRecorder mimeType the backend's ffmpeg pipeline expects
  * (per the prompt's C3 — `services/audio_metrics.py` accepts webm/opus
  * cleanly). Prefer the explicit opus codec; fall back to plain audio/webm
@@ -320,7 +337,7 @@ export function useDualCaptureMic(opts?: {
 
       let stream: MediaStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({ audio: TAKE_MIC_AUDIO });
       } catch (err) {
         // Stopped or closed before the mic answered: that already set the
         // state, so a refusal that comes after says nothing.
