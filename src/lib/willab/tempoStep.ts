@@ -118,10 +118,10 @@ export const ONE_THING_TEMPO_TRIES = 2;
 /** The step's opening, before the scale: its lines, and the line drawn in
  *  the scale's own bubble. Pure. */
 export function tempoOpening(stretch: Pick<TempoStretch, "reading" | "topic">, one: boolean): { lines: string[]; withScale: string | null } {
-  // As the One thing walk's fix, a rushed stretch opens with one bubble,
-  // the pace scale in it (backend N435 item 6, the locked prototype's
-  // scale()); a slow one, which the prototype does not draw, keeps T's.
-  if (one && stretch.reading === "rushed") return { lines: [], withScale: ONE_THING_COPY.letItBreathe };
+  // As the One thing walk's fix, the stretch opens with one bubble, the
+  // pace scale in it (backend N435 item 6, the locked prototype's scale();
+  // the slow one's line, N452 item 2).
+  if (one) return { lines: [], withScale: stretch.reading === "rushed" ? ONE_THING_COPY.letItBreathe : ONE_THING_COPY.keepItMoving };
   return { lines: [TEMPO_COPY.game[stretch.reading], TEMPO_COPY.task(stretch.topic), TEMPO_COPY.room], withScale: null };
 }
 
