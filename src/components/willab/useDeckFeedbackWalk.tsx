@@ -13,6 +13,7 @@ import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkLastTime, 
 import type { WalkJudgementSave } from "./walk/useWalkJudging";
 import { useWalkJournalPost } from "./useWalkJournalPost";
 import { noteOwnAnswer, ownAnswersOf } from "./paragraphSheetData";
+import { recordedSince } from "./afterTake";
 import type { OwnerAnswer } from "@/services/api/bookmarkHistory";
 import { CHUNK_SHEET_COPY, ONE_THING_COPY, WALK_COPY } from "./idealEditCopy";
 import {
@@ -1406,19 +1407,28 @@ export function useDeckFeedbackWalk(args: {
   // The closing summary, the walk's last step (lock 2026-10-12, sections
   // 2.7 and 3): written once per Take and read back for the bubble, then
   // the thread reloads so it shows in the Lounge too. Null: the step is
-  // skipped.
+  // skipped. The thread reads again whatever the answer: the backend may
+  // have written the chain after it (Will's question, the goodbye) even
+  // when the answer came back too late. Asked once per Take; a failed ask
+  // is asked again at the walk's next end.
+  const summaryAsked = useRef<string | null>(null);
   const summary = useCallback(async (): Promise<string | null> => {
     const { thread: to, take: on, arcId } = threadRef.current;
     if (!on || !arcId) return null;
+    summaryAsked.current = on;
     const heard = heardRef.current;
-    const text = await postReviewSummaryText(arcId, {
-      takeSessionId: on,
-      practice: heard.practice,
-      helperWords: heard.words,
-      coachNote: live.current.coachMessage?.text ?? null,
-    });
-    if (text) void to?.reload();
-    return text;
+    try {
+      const text = await postReviewSummaryText(arcId, {
+        takeSessionId: on,
+        practice: heard.practice,
+        helperWords: heard.words,
+        coachNote: live.current.coachMessage?.text ?? null,
+      });
+      if (text === null && summaryAsked.current === on) summaryAsked.current = null;
+      return text;
+    } finally {
+      await to?.reload?.().catch(() => undefined);
+    }
   }, []);
   // A paragraph's practise ends on the page quietly; the review's end tells
   // the Lounge ("Continue review" leaves it) and lands on the Ideal Text.
@@ -1434,10 +1444,25 @@ export function useDeckFeedbackWalk(args: {
     );
     if (!written) post({ key: "end", moment: null, attempt: null, author: "app", body: "" });
   }, [post]);
+  /* THE CHAT AFTER THE WALK, HOWEVER IT ENDS (C9, D4, B11): the summary is
+     asked once per Take as the review's end is written, by the Close pill,
+     by ✕ on a finished walk, or as a finished Take's page opens, so the
+     chain after it (Will's question, the goodbye) always comes. Not for a
+     paragraph's own practise, nor the coach-only walk. */
+  const askSummary = useCallback(() => {
+    if (practisingRef.current || live.current.coachOnly) return;
+    const { take: on } = threadRef.current;
+    if (!on || summaryAsked.current === on || storedSummaryRef.current !== null) return;
+    void summary();
+  }, [summary]);
   const ended = finished && !args.feedbackPending && thread !== null && !thread.loading;
   useEffect(() => {
-    if (ended && request === null) postEnd();
-  }, [ended, request, postEnd]);
+    if (!ended || request !== null) return;
+    postEnd();
+    // A newer Take recorded since: this Take's chain would land under it
+    // (D4, between two Takes).
+    if (!recordedSince(threadRef.current.thread?.messages ?? [], threadRef.current.take ?? "")) askSummary();
+  }, [ended, request, postEnd, askSummary]);
   const onEnd = useCallback(() => {
     // A paragraph's own practise or helper words end nothing either, but
     // the page still hears it: a lens opened on them shows the text then.
@@ -1446,26 +1471,27 @@ export function useDeckFeedbackWalk(args: {
     live.current.onEnd?.();
   }, [postEnd]);
   const onClose = useCallback(() => {
-    if (!practisingRef.current && live.current.finished && !live.current.feedbackPending) postEnd();
+    // ✕ on a finished walk ends the review as Close does (B11, C9). The
+    // coach-only walk is not the review: it ends nothing.
+    const { finished: done, feedbackPending, coachOnly: coachDoor } = live.current;
+    if (!practisingRef.current && !coachDoor && done && !feedbackPending) {
+      postEnd();
+      askSummary();
+    }
     if (lensRef.current) live.current.onLensClose?.();
     live.current.onWalkClose?.();
-  }, [postEnd]);
+  }, [postEnd, askSummary]);
   /* "LESSON DONE." AND CLOSE (founder 2026-10-31, N309 item 4): the review's
      end is written, so "Continue review" goes and the Take's card lands
      under its Feedback walk; the walk closes back to the chat. The summary
      is no longer a step of the walk, and is still written once per Take as
      the walk ends, so the chat's chain after the review (its card, the one
      ask, the closing message with "Record Take N") runs as before. */
-  const summaryAsked = useRef<string | null>(null);
   const onLessonDone = useCallback(() => {
     if (practisingRef.current || live.current.coachOnly) return;
     postEnd();
-    const { take: on } = threadRef.current;
-    if (on && summaryAsked.current !== on && storedSummaryRef.current === null) {
-      summaryAsked.current = on;
-      void summary();
-    }
-  }, [postEnd, summary]);
+    askSummary();
+  }, [postEnd, askSummary]);
   // NEXT GOES TO WHAT STILL WAITS (founder 2026-10-14, walk first): on a
   // step played again, while a moment of this Take still waits, Next goes
   // to the live walk's first waiting step; with nothing waiting it plays on.

@@ -29,7 +29,9 @@ OUTCOME
       "Keep mine" and a skipped try, the helper words come on their own
       through the deck's own save (the lock, then the words), marked whole
       (N323 item 2), both moments lose their black line, and Close under
-      "Lesson done." asks the summary once and goes back to the chat (N309).
+      "Lesson done." asks the summary once and goes back to the chat (N309);
+      ✕ on the finished walk asks it once too, so the chat after the walk
+      always comes (C9, B11).
   O10 With no moment to fix, the pace game is the One thing walk's fix,
       and its opening keeps its tip, "give “{words}” more room" with the
       Sniper's helper words, in the chat for "Last time" next Take (N347
@@ -50,7 +52,8 @@ PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's 
                 given, never its practise again (founder 2026-10-21)"
          O8 -> "a confident voice whose words are reworded gets its helper
                 words after the rewording (founder 2026-10-22, N113)"
-         O9 -> "the One thing walk saves its helper words without a pick, settles both moments and asks the summary once at Close (N309)"
+         O9 -> "the One thing walk saves its helper words without a pick, settles both moments and asks the summary once at Close (N309)",
+               "✕ on the finished walk asks the summary once, as Close does, so the chat after the walk comes (C9, B11)"
          O10 -> "the pace game as the walk's fix keeps its tip in the chat, for Last time next Take (N347 item 3)"
 WHY      Feedback walk lock 2026-10-06/2026-10-12; founder 2026-10-21 ("the
          black lines on the ideal text are still there even though I walked
@@ -530,6 +533,23 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     const fetched = () => vi.mocked(fetch).mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/review/summary"));
     expect(fetched()).toEqual([]);
     await click(live()!.querySelector("[data-testid='walk-close']"));
+    expect(fetched()).toHaveLength(1);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("✕ on the finished walk asks the summary once, as Close does, so the chat after the walk comes (C9, B11)", async () => {
+    const onClose = vi.fn();
+    const p = props({ suggestions: [best], onLensClose: onClose });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    expect(screen()).toBe("walk-screen-praise");
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    await act(async () => undefined);
+    expect(screen()).toBe("walk-screen-done");
+    const fetched = () => vi.mocked(fetch).mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/review/summary"));
+    expect(fetched()).toEqual([]);
+    await click(live()!.querySelector("button[aria-label='Close']"));
+    await act(async () => undefined);
     expect(fetched()).toHaveLength(1);
     expect(onClose).toHaveBeenCalled();
   });

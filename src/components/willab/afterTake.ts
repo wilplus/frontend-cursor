@@ -115,6 +115,13 @@ export function recordedPast(messages: readonly Pick<LoungeMessage, "client_id" 
   return new Set(messages.slice(0, Math.max(newest, 0)).map((m) => m.client_id));
 }
 
+/** A Take recorded after `take`, in any project (messages oldest first):
+ *  the chat's newest recording is another Take's (N244, N251). */
+export function recordedSince(messages: readonly Pick<LoungeMessage, "kind" | "metadata">[], take: string): boolean {
+  const on = messages.findLast((m) => m.kind === "recording_summary")?.metadata?.session_id;
+  return typeof on === "string" && on !== take;
+}
+
 /** The tap under the goodbye after a Take (founder 2026-10-31, N294 item 6,
  *  signed). */
 export const CONTINUE_PRACTICE = "I want to continue my practice";

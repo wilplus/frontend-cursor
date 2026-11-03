@@ -781,7 +781,9 @@ O9  The One thing walk on the deck: their best, then the one fix; after
 ""Keep mine"" and a skipped try, the helper words come on their own
 through the deck's own save (the lock, then the words), marked whole
 (N323 item 2), both moments lose their black line, and Close under
-""Lesson done."" asks the summary once and goes back to the chat (N309).
+""Lesson done."" asks the summary once and goes back to the chat (N309);
+✕ on the finished walk asks it once too, so the chat after the walk
+always comes (C9, B11).
 O10 With no moment to fix, the pace game is the One thing walk's fix,
 and its opening keeps its tip, ""give “{words}” more room"" with the
 Sniper's helper words, in the chat for ""Last time"" next Take (N347
@@ -801,7 +803,8 @@ O7 -> ""a moment walked through loses its black line and opens as
 given, never its practise again (founder 2026-10-21)""
 O8 -> ""a confident voice whose words are reworded gets its helper
 words after the rewording (founder 2026-10-22, N113)""
-O9 -> ""the One thing walk saves its helper words without a pick, settles both moments and asks the summary once at Close (N309)""
+O9 -> ""the One thing walk saves its helper words without a pick, settles both moments and asks the summary once at Close (N309)"",
+""✕ on the finished walk asks the summary once, as Close does, so the chat after the walk comes (C9, B11)""
 O10 -> ""the pace game as the walk's fix keeps its tip in the chat, for Last time next Take (N347 item 3)""","Feedback walk lock 2026-10-06/2026-10-12; founder 2026-10-21 (""the black lines on the ideal text are still there even though I walked through them""); 2026-10-22 (N113, ""After the rewording""). The paragraph sheet's accept lane is in acceptRewrite.test.tsx."
 src/components/willab/exerciseRenderedAck.test.tsx,Story,"As the founder, I want an exercise counted as shown only once the speaker actually saw it, once per view, silently, so that exercise data is honest.","O1  Nothing goes out on data load; the ack goes out once the card is
 about half visible.
