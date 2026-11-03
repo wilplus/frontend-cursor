@@ -71,7 +71,7 @@ WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12);
 */
 import { describe, expect, it } from "vitest";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "@/components/willab/idealEditCopy";
-import { aiVoiceChat, answerBody, chatDrawsStep, chatWalks, coachNoteToChat, feedbackWalkDoor, fixClipsIn, inPairs, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, shareChat, shareLines, shownStep, sniperWords, stableUuid, storedSummaryOf, walkPairs, walkStepDraft, wordsEditedIn } from "./walkThread";
+import { aiVoiceChat, answerBody, chatDrawsStep, chatWalks, coachNoteToChat, feedbackWalkDoor, fixClipsIn, inPairs, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, shareChat, shareLines, shownStep, sniperWords, stableUuid, storedSummaryOf, walkPairs, walkStepDraft, withoutOpeningFillers, wordsEditedIn } from "./walkThread";
 import { tipSaid } from "./walkLines";
 import { readLastFix } from "@/services/api/reviewLastFix";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -151,6 +151,14 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
     expect(kept.get("p3")).toEqual({ practiceId: null, tip: "Lean on “ninety”" });
     expect([...kept.keys()]).toEqual(["p2", "p3"]);
     expect(fixClipsIn(thread, "t3").size).toBe(0);
+  });
+
+  it("Keep mine's helper words leave out the hesitations the sentence opens with, never its first words (N435 item 5)", () => {
+    expect(withoutOpeningFillers("So, um, I think we're seeing traction.")).toBe("I think we're seeing traction.");
+    expect(withoutOpeningFillers("Well — okay, we grew.")).toBe("we grew.");
+    for (const whole of ["Right now we cover three cities.", "Well over half of them signed.", "So far we have two.", "Like many teams, we grew."]) {
+      expect(withoutOpeningFillers(whole)).toBe(whole);
+    }
   });
 
   it("counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles", () => {

@@ -372,22 +372,37 @@ export function helperWordsSaid(words: string): string {
   return words.replace(/^[\p{P}\s]+|[\p{P}\s]+$/gu, "") || words;
 }
 
-/** Hesitations a sentence can open with: the note's fillers, and the
+/** Hesitations a sentence can open with besides the note's fillers: the
  *  words people start on while they find the sentence. */
-const OPENERS = new Set(["so", "well", "okay", "ok", "like", "yeah", "right"]);
+const OPENERS = new Set(["okay", "ok", "yeah"]);
+
+/** Openers that are a hesitation only when a pause follows them ("So,",
+ *  "Well —", "So um"); run straight into the sentence they are its words
+ *  ("Right now", "Well over", "So far", "Like many"). */
+const PAUSED_OPENERS = new Set(["so", "well", "like", "right"]);
+
+/** Ends on punctuation ("So,"), or is punctuation alone ("—"). */
+const pauses = (word: string | undefined): boolean => word !== undefined && /[^\p{L}\p{N}]$/u.test(word);
+
+/** `words[i]` is a hesitation the sentence opens with. Pure. */
+function hesitation(words: readonly string[], i: number): boolean {
+  const word = words[i];
+  if (word === undefined) return false;
+  const bare = word.toLowerCase().replace(/[^a-z]/g, "");
+  if (isFiller(word) || OPENERS.has(bare)) return true;
+  if (!PAUSED_OPENERS.has(bare)) return false;
+  return pauses(word) || (i + 1 < words.length && !/[\p{L}\p{N}]/u.test(words[i + 1])) || hesitation(words, i + 1);
+}
 
 /** `sentence` without the hesitations it opens with ("So, um, I think…"
  *  gives "I think…"): the helper words after "Keep mine" (backend N435 item
- *  5). The rest is kept whole; a sentence of nothing else stays as it is.
- *  Pure. */
+ *  5). The rest is kept whole ("Right now…", "Well over…" stay as they
+ *  are); a sentence of nothing else stays as it is. Pure. */
 export function withoutOpeningFillers(sentence: string): string {
   const words = sentence.trim().split(/\s+/);
   let i = 0;
-  while (i < words.length - 1) {
-    const bare = words[i].toLowerCase().replace(/[^a-z]/g, "");
-    if (!isFiller(words[i]) && !OPENERS.has(bare)) break;
-    i += 1;
-  }
+  // A dash or other mark between hesitations goes with them.
+  while (i < words.length - 1 && (hesitation(words, i) || (i > 0 && !/[\p{L}\p{N}]/u.test(words[i])))) i += 1;
   return i === 0 ? sentence.trim() : words.slice(i).join(" ");
 }
 
