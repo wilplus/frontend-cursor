@@ -7,11 +7,13 @@ OUTCOME
   O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).
   O4  Typing "#" offers one option, "# note", and tapping it leaves "#" to write on: a typed "#" is one note, as the mic's (N253).
   O5  Under "Which step did it stall at?" the sale's four steps take the message box's place, and a tap answers for that note with that step (N241 P2).
+  O6  Before I said Yes, opening the Lounge asks once whether Will spotted a strength in my Takes, and the thread is read again when he wrote; after Yes, it never asks (backend N411 items 1, 5).
 PROVES   O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
          O1b -> buzzes and shows the recording at the tap, before the mic opens
          O2 -> keeps a note that cannot go and sends it once when back online
          O4 -> offers only "# note" after "#", and leaves "#" to write on
          O5 -> opens the four steps under the sales question and answers with the one tapped
+         O6 -> asks once for the introduction from my Takes, only before Yes
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -19,6 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({
   getNotebookState: vi.fn(),
+  introFromTakes: vi.fn(async () => false),
   askNotebook: vi.fn(),
   answerNotebook: vi.fn(),
   answerSunday: vi.fn(),
@@ -238,6 +241,23 @@ describe("the sales question (N241 P2)", () => {
     });
     await settle();
     expect(api.answerSalesStep).toHaveBeenCalledWith("n7", "offer");
+    expect(reload).toHaveBeenCalled();
+  });
+
+  it("asks once for the introduction from my Takes, only before Yes", async () => {
+    // Opened with the notebook already on (beforeEach): never asked.
+    expect(api.introFromTakes).not.toHaveBeenCalled();
+
+    act(() => root.unmount());
+    root = createRoot(container);
+    api.getNotebookState.mockResolvedValue({ enabled: true, consented: false, max_seconds: 300 });
+    api.introFromTakes.mockResolvedValueOnce(true);
+    reload.mockClear();
+    await act(async () => root.render(createElement(Harness)));
+    await settle();
+    await act(async () => root.render(createElement(Harness)));
+    await settle();
+    expect(api.introFromTakes).toHaveBeenCalledTimes(1);
     expect(reload).toHaveBeenCalled();
   });
 });

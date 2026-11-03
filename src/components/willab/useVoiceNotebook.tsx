@@ -11,6 +11,7 @@ import {
   askNotebook,
   fixVoiceNote,
   getNotebookState,
+  introFromTakes,
   sendVoiceNote,
   type NotebookState,
   type SalesStep,
@@ -89,6 +90,19 @@ export function useVoiceNotebook({
   const currentKeyRef = useRef<() => string>(() => "");
   const reloadRef = useRef(reload);
   reloadRef.current = reload;
+
+  // Before any note: once a visit, Will may open the notebook with a
+  // strength he spots in the last Takes (backend N411 items 1, 5); the
+  // backend decides whether it is due, and the thread is read again when
+  // it wrote. Not while the speaker is onboarded (N243).
+  const introRef = useRef(false);
+  useEffect(() => {
+    if (introRef.current || threadLoading || held || !state?.enabled || state.consented) return;
+    introRef.current = true;
+    void introFromTakes().then((wrote) => {
+      if (wrote) void reloadRef.current();
+    });
+  }, [threadLoading, held, state?.enabled, state?.consented]);
 
   const againRef = useRef(false);
   const flush = useCallback(async () => {

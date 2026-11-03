@@ -52,9 +52,17 @@ Life Panel.
    time and say what's on your mind. It helps you catch negative thinking
    and self-sabotage. One privacy rule first:", then one grey bubble with
    the three privacy lines (K), then "Do you understand the rules and want
-   this feature on?" with Yes | Not now. Until Will can spot something in
-   the Takes (N411 item 5, not built yet), the introduction comes at the
-   first tap on the mic and the first typed "#". After that, the short line
+   this feature on?" with Yes | Not now. Before any note, the spotted
+   message comes from the Takes (N411 item 5): once three Takes have their
+   summaries, the first time the Lounge opens Will reads those three
+   summaries and, when one strength shows in two of them, writes "We spotted
+   a strength!" and the strength in one sentence ("In your last three Takes
+   you …"; words only, a sentence with a number is dropped), then the intro
+   and the ask. Nothing shows, no ask waits and nothing after a Take is held
+   back; not while onboarded (A6). Will reads once per new Take; with no
+   strength he writes nothing. After Not now, again only after three more
+   Takes; after Yes, never. The first tap on the mic and the first typed "#"
+   still ask as before. After that, the short line
    "🔒 Security disclaimer ›" sits under every message where Will spots
    something (the Sunday note's case, a strength, a strength again, a
    suggested principle) and under every fifth # note that names someone; a
@@ -558,6 +566,7 @@ Nothing in flight.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N411 item 5 · A5: before any note, the introduction opens with a strength Will spots in the last three Takes' summaries, on the first Lounge open after the third, once; after Not now, again after three more Takes; after Yes, never · BE (the code), FE (this PR)
 - 2026-11-03 · N411 · A5, K: the security disclaimer: the mic line and three grey privacy lines above the new ask ("Do you understand the rules and want this feature on?"); the short line "🔒 Security disclaimer ›" under every spotted message and every fifth # note that names someone, a tap shows the three lines; the first spotted message from the Takes is not built yet. Was: N195's three bubbles (never built) and the ask "Your notes are private… Keep a voice notebook?" · BE #1634 (the decision), BE (the code), FE (this PR)
 - 2026-11-03 · N396 · B2: the words stream, well under a second behind the voice, with a short-lived key the backend issues under the permit; the pieces stay as the fallback; no new words on screen. Was: 2 to 4 seconds behind, every piece sent through Vercel and Railway to Whisper · BE (backend PR), FE (this PR)
 - 2026-11-02 · N350 item 2 · S3: the verbal read waits after the Take is flipped ready, before the walk's marks are baked, so "ready" never waits for it; the rule is the walk's H1. Was: "the Take waits for it" · docs (this PR)
