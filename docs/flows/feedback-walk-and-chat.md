@@ -180,6 +180,11 @@ step; the loop never waits for a coach.
 - **B6** Each step opens with its name as a small line ("Slide 2", "Slide 2
   · helper words", "Take 2", "Your coach"). The bar shows the step in view;
   ‹ › scroll to the step before or after, within this opening of the walk.
+  A slide is named by its title in the speaker's deck ("Traction",
+  "Traction · helper words"), as the locked prototype's bar does; a slide
+  with no title keeps "Slide N", a talk with no deck "Your talk" (backend
+  N397). The clip's own label and the words posted to the Lounge keep
+  "Slide N".
   In the One thing walk the helper words (C3) and "Lesson done." (C9) keep
   the fix's step's name, the slide of the moment whose paragraph takes the
   words (their best's with no fix, N374), "Tempo" with the Sniper; never
@@ -2004,6 +2009,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-03 · N406 · E2, E3, K: who the talk is for, fixed from the founder's screenshot (prototype <https://claude.ai/artifact/NxE1pMJmngj8Q7ZTj9PQDp>, Option A): the goodbye waits under Will's question until it is answered, however it is answered; no "Someone else" under "Who were you talking to? 🎯", their own words go into "Something else" in the bar; Will says who from the speaker's side, "Your team. I'll keep them in mind.", and "I'll keep you in mind." for a talk to themself, then "When you finish, what do you want to do? Or feel? 🤔" with no taps, the key line keeping "your audience". No frontend code. Was: after a typed answer the goodbye came under the next question and cut it off; "Someone else" last, opening "Who is it for, then? 👀"; the words said back as typed, "Myself. I'll keep them in mind." · BE (next PR), docs (this PR)
+- 2026-11-03 · N397 · B6: the walk's bar and each part's name call a slide by its title in the speaker's deck (`slideTitle` on the walk's moment, from the deck's `slideTitles`), "Slide N" when the slide has none. Was: always "Slide N" · BE N397 log (#1653), FE (this PR)
 - 2026-11-03 · N405 · built (C7, T, K): Skip on the One thing walk's fix (the dock's, the recorder's, the Sniper's) gets the walk's answer under the speaker's "Skip", "Okay, we'll skip this one.", in the walk and the chat; the pace scale names its zones under it, "too slow", "just right", "too fast". Both lines signed 2026-11-03, the prototype's "Okay." and "slow · just right · fast" rewritten. Was: nothing said after Skip, and a scale without labels · FE (this PR)
 - 2026-11-03 · C4: the phrase the AI clip names (its served `phrase`) is bold where it stands in the fix's own words above the clip and in the tip ("Lean on “**above ninety percent**”, like this:", or the tip in words with no clip), and in the chat's copy of the fix's words, so the speaker sees where to lean (founder, Claude Code chat 2026-11-03: "yes, bold the phrase"; backend log entry to follow). Was: the words and the tip plain · FE (this PR)
 - 2026-11-03 · C2, C4: their best's clip and the AI clip's fix show the moment's own words above the player (its served `said`), as the locked prototype draws them (`clip(u.best.text)`, `clip(f.text)`), in the walk and the chat alike; "Last time" and their best played again inside the fix stay without words. Was: both clips drawn without words · FE (this PR)

@@ -1087,7 +1087,7 @@ const noop = () => undefined;
  *  · helper words" on the helper words. The thread's mark and bar say it;
  *  ‹ › are the thread's own (WalkThread). */
 function stepNav(_ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment): WalkNav {
-  const label = moment.slideLabel;
+  const label = slideName(moment);
   const position =
     step.key === "helpers"
       ? label
@@ -1104,6 +1104,13 @@ function stepNav(_ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment): W
     backDisabled: true,
     nextDisabled: true,
   };
+}
+
+/** The slide as the bar names it: its title in the speaker's deck, else
+ *  "Slide N" (backend N397; the locked prototype's `dots()` says the
+ *  slide's title). Until 2026-11-03 the bar always said "Slide N". */
+function slideName(moment: FeedbackWalkMoment): string | null {
+  return moment.slideTitle?.trim() || moment.slideLabel;
 }
 
 /** A step reopened: its answer as a line over a black Next. */
@@ -1896,7 +1903,7 @@ function partLabel(ctx: ScreenCtx, step: WalkStep): string | null {
   if (step.key === "summary") return ctx.takeIndex != null ? `${COPY.historyTake} ${ctx.takeIndex}` : COPY.historyTake;
   if (step.key === "words") {
     const of = step.of == null ? undefined : ctx.walk.moments[step.of];
-    if (of) return of.slideLabel ?? null;
+    if (of) return slideName(of);
     return ctx.walk.plan.some((s) => s.key === "tempo") ? TEMPO_COPY.mark : null;
   }
   if (step.key === "others" || step.key === "done") return null;

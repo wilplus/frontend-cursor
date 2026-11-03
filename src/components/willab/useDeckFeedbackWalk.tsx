@@ -162,6 +162,7 @@ export function deckWalkItems(
   waiting: (chunk: DeckChunk) => boolean,
   pendingOf: (chunk: DeckChunk) => readonly DocumentSuggestion[],
   slideLabel: (partId: string) => string | null,
+  slideTitle?: (partId: string) => string | null,
 ): FeedbackWalkItem<DocumentSuggestion>[] {
   const seen = new Set<string>();
   const out: FeedbackWalkItem<DocumentSuggestion>[] = [];
@@ -170,7 +171,7 @@ export function deckWalkItems(
     if (seen.has(partId) || !waiting(chunk)) continue;
     seen.add(partId);
     const slide = slideOf(groups, partId) ?? 0;
-    for (const item of pendingOf(chunk)) out.push(walkItemOf(item, chunk, slide, slideLabel(partId)));
+    for (const item of pendingOf(chunk)) out.push(walkItemOf(item, chunk, slide, slideLabel(partId), slideTitle?.(partId) ?? null));
   }
   return out;
 }
@@ -184,6 +185,7 @@ export function deckReplayItems(
   groups: readonly SlideGroup[],
   itemsOf: (chunk: DeckChunk) => readonly DocumentSuggestion[],
   slideLabel: (partId: string) => string | null,
+  slideTitle?: (partId: string) => string | null,
 ): FeedbackWalkItem<DocumentSuggestion>[] {
   const seenParts = new Set<string>();
   const seenItems = new Set<string>();
@@ -196,7 +198,7 @@ export function deckReplayItems(
     for (const item of itemsOf(chunk)) {
       if (seenItems.has(item.id)) continue;
       seenItems.add(item.id);
-      out.push(walkItemOf(item, chunk, slide, slideLabel(partId)));
+      out.push(walkItemOf(item, chunk, slide, slideLabel(partId), slideTitle?.(partId) ?? null));
     }
   }
   return out;
@@ -278,6 +280,7 @@ function walkItemOf(
   chunk: DeckChunk,
   slide: number,
   label: string | null,
+  title: string | null = null,
 ): FeedbackWalkItem<DocumentSuggestion> {
   const tiered = item.bookmarkTier != null;
   const green = item.bookmarkTier === "confident";
@@ -310,6 +313,7 @@ function walkItemOf(
     partId: chunk.part.id,
     paragraphText: chunk.part.text,
     slideLabel: label,
+    slideTitle: title,
     praiseWords: praise ? praiseWordsOf(item) : null,
     praiseTitle: praise ? praiseTitleFor(item.levelKey, item.id) : null,
     highest: item.highestMoment === true,
@@ -704,6 +708,9 @@ export function useDeckFeedbackWalk(args: {
   pendingOf: (chunk: DeckChunk) => readonly DocumentSuggestion[];
   /** Where a paragraph sits ("Slide 2"), in the deck's own words. */
   slideLabel: (partId: string) => string | null;
+  /** Its slide's title in the speaker's deck, for the walk's bar (backend
+   *  N397); none or empty: the bar says `slideLabel`. */
+  slideTitle?: (partId: string) => string | null;
   coachMessage: CoachMessage | null;
   /** Marks the coach's word for the Take as seen (useCoachStep). */
   coachSeen: () => void;
@@ -780,7 +787,7 @@ export function useDeckFeedbackWalk(args: {
   replaySettled: boolean;
   element: ReactNode;
 } {
-  const { chunks, groups, waiting, pendingOf, slideLabel, coachMessage, coachSeen, firstTake } = args;
+  const { chunks, groups, waiting, pendingOf, slideLabel, slideTitle, coachMessage, coachSeen, firstTake } = args;
   const { answeredOf, helperWordsOf, finished = false } = args;
   const coachOnly = args.coachOnly === true;
   const practiceOn = usePracticeOn();
@@ -794,8 +801,8 @@ export function useDeckFeedbackWalk(args: {
   const pageTake = args.takeSessionId ?? null;
 
   const items = useMemo(
-    () => deckWalkItems(chunks, groups, waiting, pendingOf, slideLabel),
-    [chunks, groups, waiting, pendingOf, slideLabel],
+    () => deckWalkItems(chunks, groups, waiting, pendingOf, slideLabel, slideTitle),
+    [chunks, groups, waiting, pendingOf, slideLabel, slideTitle],
   );
   const take = useMemo(() => reviewedTake(items, pageTake), [items, pageTake]);
   const tempo = useReviewTempo(tempoOn && !coachOnly ? (args.arcId ?? null) : null, take);
@@ -954,9 +961,9 @@ export function useDeckFeedbackWalk(args: {
   const replayItems = useMemo(
     () =>
       replayReady && answeredOf
-        ? deckReplayItems(chunks, groups, (c) => [...pendingOf(c), ...answeredOf(c)], slideLabel)
+        ? deckReplayItems(chunks, groups, (c) => [...pendingOf(c), ...answeredOf(c)], slideLabel, slideTitle)
         : [],
-    [replayReady, answeredOf, chunks, groups, pendingOf, slideLabel],
+    [replayReady, answeredOf, chunks, groups, pendingOf, slideLabel, slideTitle],
   );
   /* THE TRIES ALREADY HAD (walk first, 2026-10-14): read from the Take's
      thread (each "Practise N" and the answer it got); where the thread has

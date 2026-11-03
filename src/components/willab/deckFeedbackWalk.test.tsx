@@ -5,7 +5,8 @@ STORY    As a speaker reviewing feedback, I want the walk to open on my
          helper words through the deck, and ask a guest to sign up, so that
          feedback flows into my next Take.
 OUTCOME
-  O1  Review feedback opens the walk on the first praise.
+  O1  Review feedback opens the walk on the first praise; the bar names
+      its slide by the slide's title in my deck (backend N397).
   O2  The arrows move through the walk's chat, step by step, without
       answering anything or closing it.
   O3  A tap on a paragraph, with or without its black line, opens the same walk at what it asks (its
@@ -228,7 +229,8 @@ describe("the walk on the deck", () => {
     expect(live()!.querySelector("[data-walk-part] [data-walk-message]")!.textContent).toBe(
       [COPY.titlePraise, [PRAISE_LEAD, PRAISE_CUE_COPY.landed_ending].join(" ")].join(""),
     );
-    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Slide 2");
+    // The bar names the slide by its title in the deck, not "Slide 2" (backend N397).
+    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Results");
   });
 
   it("‹ › move through the walk's chat, never answering and never closing it (founder 2026-10-20)", async () => {
@@ -255,14 +257,14 @@ describe("the walk on the deck", () => {
     const next = () => click(arrow(COPY.pagerNext));
     const back = () => click(arrow(COPY.pagerBack));
     expect(screen()).toBe("walk-screen-praise");
-    expect(bar().getAttribute("aria-label")).toBe("Slide 2");
+    expect(bar().getAttribute("aria-label")).toBe("Results");
     // The newest step is the last in the chat: › is off, and so is ‹ on the
     // first step.
     expect(arrow(COPY.pagerBack).disabled).toBe(true);
     expect(arrow(COPY.pagerNext).disabled).toBe(true);
     await click(live()!.querySelector("[data-testid='walk-forward']"));
     expect(screen()).toBe("walk-screen-helpers");
-    expect(bar().getAttribute("aria-label")).toBe(`Slide 2 · ${WALK_COPY.navHelperWords}`);
+    expect(bar().getAttribute("aria-label")).toBe(`Results · ${WALK_COPY.navHelperWords}`);
     // ‹ goes up the chat; it answers nothing and closes nothing.
     expect(arrow(COPY.pagerBack).disabled).toBe(false);
     await back();
