@@ -18,6 +18,7 @@ import WalkAiVoice, { aiVoiceShown } from "./WalkAiVoice";
 import { WalkSpeakerBubble } from "./WalkThread";
 import type { WalkQuotes } from "./useWalkQuote";
 import type { WalkQuote } from "@/services/api/walkQuote";
+import { oneThingTryWords } from "@/lib/willab/walkThread";
 
 /* -------------------------------------------------------------------------- */
 /*  The practise loop's bubbles (build plan D-FW-16; founder lock 2026-10-12,  */
@@ -73,14 +74,20 @@ export type PractiseScreenCtx = {
   quotes?: WalkQuotes;
 };
 
-/** The try's own voice as the speaker's orange bubble, "Practise N" above it
- *  (lock 2026-10-12, section 2.5); the moment's voice until the try is kept. */
+/** The try's own voice as the speaker's orange bubble (lock 2026-10-12,
+ *  section 2.5); the moment's voice until the try is kept. In the One thing
+ *  walk its words are the words of the try (the locked prototype
+ *  X4gDmGfHH7ivuoRZ9ufiy9, `record()`); in a Take served before N289,
+ *  "Practise N" (C7). Either way the player is named "Practise N", so each
+ *  try keeps its number (C7, 2026-10-21). */
 function TryBubble({
   ctx,
+  step,
   moment,
   attempt,
 }: {
   ctx: PractiseScreenCtx;
+  step: WalkStep;
   moment: FeedbackWalkMoment<unknown>;
   attempt?: number;
 }) {
@@ -93,6 +100,7 @@ function TryBubble({
       ? { src: moment.clip.src, startOffsetMs: moment.clip.startOffsetMs, durationMs: moment.clip.durationMs }
       : null;
   const label = WALK_COPY.practiseN(attempt ?? 1);
+  const said = oneThingTryWords(step, moment);
   return (
     <WalkPlayer
       look="me"
@@ -101,7 +109,7 @@ function TryBubble({
       startOffsetMs={clip?.startOffsetMs}
       durationMs={clip?.durationMs}
       label={label}
-      words={<span>{label}</span>}
+      words={said ? <span data-walk-try-words>{said}</span> : <span>{label}</span>}
     />
   );
 }
@@ -312,7 +320,9 @@ export function practiseThreadItem(
   switch (step.key) {
     case "practise":
       // The One thing walk's fix already said what to say (N309): before
-      // its first try only "Your words it is…" after "Keep mine".
+      // its first try only "Your words it is…" after "Keep mine". While it
+      // records, nothing in the thread: the recording bar in the dock is
+      // the only sign (the locked prototype's `record()`).
       if (step.one) {
         return (
           <>
@@ -321,7 +331,7 @@ export function practiseThreadItem(
                 <span>{WALK_COPY.keepWords}</span>
               </WalkMessage>
             ) : null}
-            {current ? <LiveTry attempt={step.attempt} /> : <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />}
+            {current ? null : <TryBubble ctx={ctx} step={step} moment={moment} attempt={step.attempt} />}
           </>
         );
       }
@@ -336,7 +346,7 @@ export function practiseThreadItem(
               </span>
             </WalkMessage>
           ) : null}
-          {current ? <LiveTry attempt={step.attempt} /> : <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />}
+          {current ? <LiveTry attempt={step.attempt} /> : <TryBubble ctx={ctx} step={step} moment={moment} attempt={step.attempt} />}
         </>
       );
     case "processing":

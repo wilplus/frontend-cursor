@@ -5,6 +5,7 @@ OUTCOME
   O1  The walk goes in order: "Hi {name}.", my best with "This was your most confident moment." and why it worked, then "And now, one thing to improve:" and one fix; the Clearer version says "Say it straight:" and the sentence, with "Try it" and "Keep mine"; no helper-word picker, no second moment and no summary in the walk.
   O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2); with no fix, my best moment's own words are my helper words, saved the same way (backend N374).
   O3  The walk ends on "Lesson done." with Close, which ends the review and takes me back to the chat; no "Record Take N" in the walk.
+  O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after "Try it", my own after "Keep mine"; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
   O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, my answer as my own reply with a tick, then "Got it."; on Take 1 I judge no one.
 PROVES   O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
          O2 -> the helper words come on their own and are saved without a pick,
@@ -12,6 +13,7 @@ PROVES   O1 -> walks hello, their best and why it worked, then one thing to impr
                a Clearer version past eight words is saved whole as my helper words (N323 item 2),
                with no fix, my best's own words are my helper words, saved without a pick (N374)
          O3 -> Lesson done and Close end the review, back to the chat
+         O5 -> a try is my clip with the words I was asked to say, and nothing shows in the thread while I record
          O4 -> from Take 2, one moment of another speaker, of the Take's level, answered as my own reply,
                Take 1 judges no one
 WHY      Founder 2026-10-31 (backend N309: "apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take"; "ok, this finally good"); 2026-11-02 ("please implement"; backend N323: "you can allow helper words to be longer than 8 words"); 2026-11-03 (backend N374: a walk with no fix left no helper words; "go with the recommendations").
@@ -26,15 +28,22 @@ vi.mock("@/services/api/otherSpeakers", () => ({
   answerOtherClip: vi.fn(),
 }));
 import { fetchOtherClips } from "@/services/api/otherSpeakers";
-vi.mock("@/hooks/useDualCaptureMic", () => ({
-  useDualCaptureMic: () => ({
-    state: { status: "idle" },
-    start: async () => undefined,
-    stop: async () => undefined,
-    cancel: () => undefined,
-    getAudioStartedAt: () => null,
-  }),
-}));
+vi.mock("@/hooks/useDualCaptureMic", async () => {
+  const React = await import("react");
+  type State = { status: "idle" } | { status: "recording"; partialText: string } | { status: "stopped"; finalText: string; audioBlob: Blob; durationSec: number };
+  return {
+    useDualCaptureMic: () => {
+      const [state, setState] = React.useState<State>({ status: "idle" });
+      return {
+        state,
+        start: async () => setState({ status: "recording", partialText: "" }),
+        stop: async () => setState({ status: "stopped", finalText: "", audioBlob: new Blob(["x".repeat(2000)]), durationSec: 4 }),
+        cancel: () => setState({ status: "idle" }),
+        getAudioStartedAt: () => null,
+      };
+    },
+  };
+});
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
 import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkRequest } from "./FeedbackWalk";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
@@ -161,6 +170,34 @@ describe("the One thing walk (N309)", () => {
     expect(props.onSaveHelperWords).toHaveBeenCalledWith(
       expect.objectContaining({ partId: "p2", auto: true, practiceId: "pr-1", span: { text: CLEARER, start: null, end: null } }),
     );
+  });
+
+  it("a try is my clip with the words I was asked to say, and nothing shows in the thread while I record (locked prototype, record())", async () => {
+    for (const [choice, words] of [["walk-forward", CLEARER], ["walk-keep", SAID]] as const) {
+      const sent: unknown[] = [];
+      const practise = {
+        open: async () => "pr-1",
+        upload: async (...args: unknown[]) => {
+          sent.push(args[4]);
+          return { attemptId: "a1", attempt: 1, audio: null };
+        },
+        check: async () => null,
+      } as never;
+      draw({ seq: choice === "walk-forward" ? 1 : 2, at: at("clearer") }, { practise });
+      click(testId(choice));
+      await settle();
+      expect(screen()).toBe("walk-screen-practise");
+      // Recording: the recording bar in the dock is the only sign.
+      expect(live()!.querySelector("[data-walk-live-try]")).toBeNull();
+      expect(now()!.textContent).not.toContain(WALK_COPY.practiseN(1));
+      click(live()!.querySelector("[data-walk-dock] button[aria-label='Stop']"));
+      await settle();
+      const bubble = [...live()!.querySelectorAll("[data-walk-player][data-walk-me]")].at(-1)!;
+      expect(bubble.querySelector("[data-walk-try-words]")!.textContent).toBe(words);
+      expect(bubble.textContent).not.toContain(WALK_COPY.practiseN(1));
+      // The chat writes the same words.
+      expect(sent).toEqual([words]);
+    }
   });
 
   it("a Clearer version past eight words is saved whole as my helper words (N323 item 2)", async () => {
