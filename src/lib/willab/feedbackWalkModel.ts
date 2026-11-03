@@ -423,10 +423,22 @@ export function buildFeedbackWalk<R = unknown>(input: {
     );
   });
   return {
-    plan: withoutLoneOthers(withoutLoneIntro(plan)),
+    // Built after "Keep mine" (played again, as it stands, or resumed), the
+    // practise says their own sentence; a replay's tries keep it.
+    plan: withKeptWords(withoutLoneOthers(withoutLoneIntro(plan)), moments),
     moments,
     partsOf: groups.map((group) => [...new Set(group.map((i) => i.partId))]),
   };
+}
+
+/** The One thing walk's practise of a Clearer version the speaker answered
+ *  "Keep mine": on their own sentence (C5, C7, `oneThingTryWords`), with
+ *  "Your words it is." above its first try. Nothing decided yet (a fresh
+ *  Take): unchanged; the live taps set it themselves. Pure. */
+export function withKeptWords<R>(plan: readonly WalkStep[], moments: readonly FeedbackWalkMoment<R>[]): WalkStep[] {
+  return plan.map((s) =>
+    s.one && s.key === "practise" && s.moment != null && moments[s.moment]?.clearer?.decided === "keep" ? { ...s, kind: "keep" } : s,
+  );
 }
 
 /** The signed line for the `turn`-th screen of its kind in the walk: the
@@ -686,6 +698,7 @@ export function buildFeedbackReplay<R = unknown>(input: {
   const items = input.items.map((i) =>
     i.judge != null && input.answerOf(i.judge) === null ? { ...i, judge: null } : i,
   );
+  // Its plan already says their own sentence after "Keep mine" (withKeptWords).
   const base = buildFeedbackWalk({ items, coachNote: input.coachNote, practiceOn: input.practiceOn, guest: false, coachOnly: input.coachOnly, coachWordOnly: input.coachWordOnly, interventions: input.interventions, judge: input.judge });
   const tries: Record<number, ReplayTries> = {};
   const outcomes: Record<number, readonly TryOutcome[]> = {};

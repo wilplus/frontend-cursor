@@ -16,7 +16,7 @@ PROVES   O1 -> opened again, the whole walk is one scroll: every part answered, 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEditCopy";
 import FeedbackWalk from "./FeedbackWalk";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import { buildFeedbackReplay, walkAsItStands, walkLastStep, walkStart, walkStepAt, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
@@ -335,6 +335,26 @@ describe("the One thing walk played again shows what is there (N373 item 2)", ()
     act(() => vi.advanceTimersByTime(1000));
     expect(aiReads).toEqual(["pr-fix"]);
     expect(live()!.querySelector("audio[src='blob:ai']")).not.toBeNull();
+  });
+
+  it("after Keep mine, each try is labelled with my own sentence, under “Your words it is.” (C7, B10)", () => {
+    const items: FeedbackWalkItem<string>[] = [
+      ONE[0],
+      {
+        ...ONE[1], hasRewrite: true, walkSlot: "between",
+        rewrite: { quote: "Two hires by March.", proposedText: "We hire two by March.", item: "rw-fix", decided: "keep" }, item: "rw-fix",
+      },
+    ];
+    const model = buildFeedbackReplay<string>({
+      items, coachNote: false, practiceOn: true, answerOf: () => null, helperWordsOf: () => null,
+      triesOf: (moment) => (moment.partId === "q2" ? { practiceId: null, outcomes: ["again", "praise"], audios: {} } : null),
+    });
+    const props = { model, coachNote: null, firstTake: false, practise: PRACTISE, onSaveHelperWords: () => undefined, onEnd: () => undefined };
+    act(() => root.render(<FeedbackWalk {...props} request={null} />));
+    act(() => root.render(<FeedbackWalk {...props} request={{ seq: 1, at: walkLastStep(model)! }} />));
+    const words = [...live()!.querySelectorAll("[data-walk-try-words]")].map((n) => n.textContent);
+    expect(words).toEqual(["Two hires by March.", "Two hires by March."]);
+    expect(live()!.textContent).toContain(ONE_THING_COPY.keepWords);
   });
 
   it("with no clip to read, the tip the chat kept, in words", async () => {
