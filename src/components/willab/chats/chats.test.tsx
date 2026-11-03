@@ -26,7 +26,9 @@ OUTCOME
       (multipart audio and duration_ms) and the voice note joins the
       thread as my bubble; the bar comes back (N321 item 2, N314).
   O7  A voice note from the other person is their grey bubble with a play
-      control that plays it from the chat's audio route (N321 item 2).
+      control that plays it from the chat's audio route (N321 item 2); its
+      words, once ready, are closed behind "Read it" under the player, and
+      "Hide" closes them again (N331).
   O8  The + on the list opens my own link, with the add sheet's signed
       words, and Copy my link puts the whole link on the clipboard (N308,
       N310).
@@ -38,24 +40,31 @@ OUTCOME
       me, marked new with the joined line; the address is clean again;
       opened, it is a chat like the rest (N357, N360; was N348 item 1, and
       N357's inviter above Will).
+  O11 In the iPhone app the Lounge never shows for a moment before the list
+      covers it: the rings and the chats are asked together at boot, and
+      the loader stands in front until both have answered (N354).
 PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O2 -> "with chats on, Will is pinned over the demo chats, and his row opens the Lounge with a way back"
          O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question"
          O4 -> "the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's"
          O5 -> "a chat with a message newer than its last opening shows as new until it is opened"
          O6 -> "the mic records a voice note, Stop posts it and it joins the thread"
-         O7 -> "a voice note from the other person plays from the chat's audio route"
+         O7 -> "a voice note from the other person plays from the chat's audio route, its words behind Read it"
          O8 -> "the + opens my own link and copies it"
          O9 -> "a chat joined through a link says whose link it was"
          O10 -> "after joining, the list opens with Will first and the one who invited me under him, marked new"
+         O11 -> "in the app, the loader, not the Lounge, waits for the list; both reads start together"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }));
+const native = vi.hoisted(() => ({ on: false }));
+vi.mock("@/lib/auth/nativeSignIn", () => ({ isNativeApp: () => native.on }));
 
 import { resetRingStateCache } from "@/services/api/rings";
+import { __resetBootPrefetchForTests, prefetchChatsDoor } from "@/services/api/bootPrefetch";
 import { useChatsDoor } from "./useChatsDoor";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -143,6 +152,8 @@ class FakeRecorder {
 
 beforeEach(async () => {
   resetRingStateCache();
+  __resetBootPrefetchForTests();
+  native.on = false;
   window.localStorage.clear();
   routes.clear();
   fetchMock.mockReset();
@@ -344,7 +355,7 @@ describe("the chats in front of the Lounge", () => {
     expect(voice?.textContent).toMatch(/^0:04\d\d:\d\d$/);
   });
 
-  it("a voice note from the other person plays from the chat's audio route", async () => {
+  it("a voice note from the other person plays from the chat's audio route, its words behind Read it", async () => {
     const played: string[] = [];
     vi.stubGlobal(
       "Audio",
@@ -361,13 +372,26 @@ describe("the chats in front of the Lounge", () => {
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
     routes.set("GET /api/v2/chats/c-ariel/messages", () => ({
-      messages: [{ id: "m9", mine: false, author: "Ariel", kind: "voice", body: "", meta: { duration_ms: 65_000 }, created_at: ARIEL.last.created_at }],
+      messages: [
+        { id: "m9", mine: false, author: "Ariel", kind: "voice", body: "", meta: { duration_ms: 65_000 }, created_at: ARIEL.last.created_at, words: "Name the treatment first." },
+        { id: "m10", mine: true, author: "Me", kind: "voice", body: "", meta: { duration_ms: 3_000 }, created_at: ARIEL.last.created_at, words: null },
+      ],
     }));
     await render();
     await tap(row("c-ariel"));
 
     const theirs = container.querySelector('[data-chat-thread] [data-row="app"] [data-bubble][data-chat-voice]');
-    expect(theirs?.textContent).toMatch(/^1:05\d\d:\d\d$/);
+    expect(theirs?.textContent).toMatch(/^1:05\d\d:\d\dRead it$/);
+    // The words, closed by default; Read it opens them in the bubble, Hide closes them (N331).
+    expect(theirs?.querySelector("[data-chat-words]")).toBeNull();
+    await tap(theirs?.querySelector("[data-chat-read]"));
+    expect(theirs?.querySelector("[data-chat-words]")?.textContent).toBe("Name the treatment first.");
+    expect(theirs?.querySelector("[data-chat-read]")?.textContent).toBe("Hide");
+    await tap(theirs?.querySelector("[data-chat-read]"));
+    expect(theirs?.querySelector("[data-chat-words]")).toBeNull();
+    // A voice note with no words shows none.
+    expect(container.querySelector('[data-row="me"][data-chat-voice] [data-chat-read]')).toBeNull();
+
     await tap(theirs?.querySelector('button[aria-label="Play"]'));
     expect(played).toEqual(["/api/v2/chats/c-ariel/messages/m9/audio"]);
     expect(theirs?.querySelector('button[aria-label="Pause"]')).not.toBeNull();
@@ -425,5 +449,32 @@ describe("the chats in front of the Lounge", () => {
     expect(window.location.search).toBe("");
     await act(async () => (top as HTMLElement).click());
     expect(container.querySelector("[data-chat-name]")?.textContent).toBe("Ariel");
+  });
+
+  it("in the app, the loader, not the Lounge, waits for the list; both reads start together", async () => {
+    native.on = true;
+    let answerRings: () => void = () => {};
+    const rings = new Promise<void>((resolve) => (answerRings = resolve));
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url) === "/api/v2/user/rings") {
+        await rings;
+        return reply({ ring: 6, features_on: ["chats"], pending_announcements: [] });
+      }
+      if (String(url) === "/api/v2/chats") return reply({ chats: [SARAH] });
+      return reply({ error: "not found" }, 404);
+    });
+    prefetchChatsDoor();
+    await render();
+    // The rings have not answered, yet the chats were already asked.
+    expect(calls("GET /api/v2/chats")).toHaveLength(1);
+    expect(container.querySelector("[data-chats-waiting]")).not.toBeNull();
+    expect(rows()).toHaveLength(0);
+
+    await act(async () => answerRings());
+    await flush();
+    expect(container.querySelector("[data-chats-waiting]")).toBeNull();
+    expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-sarah"]);
+    // The list is the one read at boot, not a second one.
+    expect(calls("GET /api/v2/chats")).toHaveLength(1);
   });
 });

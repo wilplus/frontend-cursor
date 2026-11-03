@@ -4,6 +4,8 @@ import {
   type AuthorizationStatus,
 } from "./processingAuthorization";
 import { fetchLoungeHistory, type LoungeHistoryPage } from "./loungeMessages";
+import { loadRingState } from "./rings";
+import { getChats, type Chat } from "./chats";
 
 /* -------------------------------------------------------------------------- */
 /*  bootPrefetch — start /chat's boot reads together, not one gate at a time   */
@@ -54,6 +56,7 @@ async function take<T>(key: string): Promise<T | undefined> {
 
 const AUTHORIZATION = "processing-authorization";
 const LOUNGE_HISTORY = "lounge-history";
+const CHATS = "chats";
 
 /** Fire the boot reads. Idempotent while entries are pending. */
 export function prefetchChatBoot(): void {
@@ -65,6 +68,26 @@ export function prefetchChatBoot(): void {
     if (!(await getAuthToken())) return undefined;
     return fetchLoungeHistory();
   });
+}
+
+/** The chats door's two reads (useChatsDoor): the ring decision and the list,
+ *  together, not the list only after the rings answer. Fired AFTER the
+ *  Lounge's own boot reads (session state, authorization, the thread) so
+ *  they never queue behind the chats. The backend answers /v2/chats with a
+ *  404 for anyone without the feature, so asking early is safe; that answer
+ *  is simply never used. */
+export function prefetchChatsDoor(): void {
+  void loadRingState(); // the one shared read per page load (rings.ts)
+  remember(CHATS, async () => {
+    // Signed out, the read would fail for a reason that is not the answer.
+    if (!(await getAuthToken())) return undefined;
+    return (await getChats()) ?? undefined;
+  });
+}
+
+/** useChatList's first read: the prefetched list or a fresh one. */
+export async function takeChats(): Promise<Chat[] | null> {
+  return (await take<Chat[]>(CHATS)) ?? getChats();
 }
 
 /** Phase1AcceptanceGate's first check: the prefetched status or a fresh one. */

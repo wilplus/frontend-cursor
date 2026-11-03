@@ -132,7 +132,10 @@ order it is built in.
      too) brings the bar back and shows nothing new. A voice note is a
      bubble like the others, mine orange on the right, theirs grey on the
      left: the plan's small player (play, the drawn bars, the length) and
-     the time bottom right.
+     the time bottom right. Under the player, once its words are ready,
+     "Read it" opens them inside the bubble and "Hide" closes them; closed
+     by default, for both people, so the voice is heard; a voice note with
+     no words shows none, and the list keeps "🎤 Voice message" (N331).
    - **Will's chat** has its own top bar too, as every chat (N334 item
      1): back, his mark and "Will", over the Lounge; the WillpowerLab bar
      shows on the list only. Was (N322 item 4): the WillpowerLab bar with
@@ -413,6 +416,7 @@ them:
   "You", "Customer · Invita", "Your colleague · Invita", Sarah's and
   Ariel's lines, "Will", "Only 👍, 👀 or 🙏 for now.", "Today", "🎤 Voice
   message", the dates and the clock times.
+- Under a voice note's player (N331): "Read it", "Hide".
 
 ---
 
@@ -584,6 +588,8 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-02 · N360 · C1: Will is always the first row of the list; just joined through a link, the inviter's chat is the row right under Will, still marked new with its last message or the joined line. Was (N357 item 1): the inviter's chat above Will · FE (this PR)
+- 2026-11-02 · N354 · C1: in the iPhone app, no glimpse of Will's chat before the list: the rings and the chats are now read together at the chat boot, after the Lounge's own reads (they were one after the other), and the loader covers the Lounge until the list is known. Was: the Lounge for a moment, then the list over it. The website is unchanged: off, or with no chats, /chat is the Lounge at once · FE (this PR)
+- 2026-11-02 · N331 · C1, K: a voice note's words, once ready, behind "Read it" under its player, inside the bubble; "Hide" closes them; closed by default for both people; none shown when there are no words; the list keeps "🎤 Voice message". The backend's read and the voice note's answer carry `words`. Was (N324): the words kept, shown nowhere · BE #1604, FE (this PR)
 - 2026-11-02 · N341 · C1: in a chat with a person, the mic shows only while a question waits for your answer (the newest message is theirs and is a question: their words, or a message marked as one); answered with an emoji or a voice note, it goes. Was (N321 item 2): the mic always beside the emoji. The "+" comes with N351 · FE (this PR)
 - 2026-11-02 · N357 · C1: after joining through a link, /chat opens on the list of chats, the inviter's chat its first row, above Will, marked new with its last message or the joined line, until it is opened. Was (N348 item 1): that chat opened · FE (this PR)
 - 2026-11-02 · N354 · C1: in the iPhone app only, sign-in first, then the chats: the app opens on /login (no landing, no welcome; consent unchanged, sign-up's Terms box and Phase1AcceptanceGate); with the chats on, it opens on the list even when Will's chat is the only one, and the row under Will is then "Add someone to chat with", opening the add sheet as the + does. Was: the landing and the welcome, and no list with Will's chat alone. The website is unchanged · FE (this PR)

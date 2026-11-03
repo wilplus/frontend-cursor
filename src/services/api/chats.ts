@@ -18,6 +18,9 @@ export type ChatMessage = {
   body: string;
   meta: Record<string, unknown> | null;
   created_at: string;
+  /** A voice note's words, once ready (backend N324, N331); null or absent
+   *  until then, and for a voice note with none. */
+  words?: string | null;
 };
 
 /** The three emoji, each with one meaning everywhere (N311 item 1). */
