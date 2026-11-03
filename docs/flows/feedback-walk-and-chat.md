@@ -143,12 +143,12 @@ step; the loop never waits for a coach.
 
   **Record buttons:** under the thread the Lounge has only the message box.
   No bubble carries a button (N294 item 7): once the speaker chooses to
-  continue after the goodbye, "Record Take N" stands alone in the message
-  box's place, the plan's black button with the red dot ("Start your first
-  recording"'s shape), the message box and the mic gone (N296 state 4, D4),
-  24 px under the last bubble with a grey ✕ on its right, no background and
-  no outline. The ✕ closes it and the bar comes back for that Take, until
-  the chat is opened again or a newer Take's goodbye offers the next (N395).
+  continue after the goodbye, "Record Take N" stands in the bar, in the
+  typing box's place, the plan's black button with the red dot ("Start your
+  first recording"'s shape), the "+" on its left and the mic on its right,
+  as the prototype draws the bar (N296 state 4, D4, N453 item 9); the mic
+  talks to Will. Was: alone in the box's place, 24 px under the last bubble,
+  with a grey ✕ that brought the bar back (N395).
   With a plan, under the plan card, in place of "Type here", there is only
   "Start your first recording" (N161), the one button before the first
   Take, under no question (N319 item 2; [`the-plan.md`](the-plan.md) E5).
@@ -818,11 +818,11 @@ praised moment:
      tomorrow named by its weekday. Under the last of them, on the right, the one tap,
      orange outlined as Will's tap answers: "I want to continue my
      practice". Tapping it, or typing that they want to practise, lands as
-     the speaker's own bubble and brings "Record Take N" under the chat,
-     alone (B3, N294 item 7, N296 state 4), which opens the text as its
-     own button does (the sharing question first from Take 2, G). The
-     speaker may simply close the app, or close the button with its grey ✕
-     and have the bar back (N395); the "+" still opens the projects, and
+     the speaker's own bubble and brings "Record Take N" into the bar,
+     between the "+" and the mic (B3, N294 item 7, N296 state 4, N453 item
+     9), which opens the text as its own button does (the sharing question
+     first from Take 2, G). The speaker may simply close the app, or talk
+     to Will with the mic; the "+" still opens the projects, and
      the Take's card still opens its Ideal Text with its own "Record Take N".
      A practice day's one thing, newer than the goodbye, holds the chat's
      one record button: [`the-plan.md`](the-plan.md) G6.
@@ -2073,6 +2073,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N453 · B3, D4: the bar as the prototype draws it: every record button ("Start your first recording", "Record Take N") stands in the bar between the "+" and the mic, in the typing box's place (`Lounge.tsx` `barRecord`, `usePlanLounge` `record`, `PlanDock.tsx` `RecordTakeButton`); N395's grey ✕ is gone and the mic talks to Will. Was: the record button alone in the box's place, the "+" and the mic gone, with a ✕ that brought the bar back · BE #1681, FE (this PR)
 - 2026-11-03 · N440 · built, second part (B5, B7, B9, C3, C7): what opens a part (the walk's answer to Skip, "And now, one thing to improve:") lands first, then the step's bubbles one at a time, the AI clip's fix's too (`WalkPart` `opening`, a landing inside the fix), and its buttons last; the helper words land before the walk moves on (`WalkOverlay` `onLanded`); moving on glides; the walk's answer to Skip on the AI clip's fix shows in the walk, as the chat already said it; scrolled away, Next keeps the step's Skip under it, the step measured by its bubbles (away under 48 px in view, back at 96); with practice off Next posts nothing; a try that could not be checked keeps "Try it" and Skip; the Clearer version's sentence as helper words without its end punctuation · FE (this PR)
 - 2026-11-03 · N452 · B7, C7, T, K: the chat writes no "Try it", "Keep mine" or "Skip" of the speaker's for the One thing walk's fix and the Sniper, as the walk draws none (`answerBody` null for a One thing step; `onAcceptClearer`/`onKeepWords` with a null label post nothing; the Sniper's Skip posts only "Okay, we'll skip this one."); a slow stretch's Sniper opens with one bubble, "You slowed down here. Keep it moving.", the scale in it (`tempoOpening`). Was: the chat kept the taps; a slow Sniper opened with T's three lines · BE N452 log, FE (this PR)
 - 2026-11-03 · N449 · B3: after the first Take's goodbye, "Record Take 2" at once, with no "I want to continue my practice" first (`afterTake.ts`, `Lounge.tsx`); every other Take keeps the tap. Was: the tap after every Take · BE #1679, FE (this PR)

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
 import RecordingBar from "@/components/willab/RecordingBar";
 import { useVoiceNote } from "@/components/willab/useVoiceNote";
 import { TapRow } from "@/components/willab/WillQuestion";
@@ -215,7 +214,7 @@ export function usePlanVoice({
 
 /** The plan's black button with the red dot, "Start your first recording";
  *  the same piece carries the chat's "Record Take N" (`RecordTakeButton`). */
-function RecordDockButton({
+export function RecordDockButton({
   label,
   onClick,
   disabled = false,
@@ -232,7 +231,7 @@ function RecordDockButton({
       onClick={onClick}
       disabled={disabled}
       {...dataAttr}
-      className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-foreground text-[15px] font-medium text-background disabled:opacity-50"
+      className="flex h-11 w-full items-center justify-center gap-2.5 rounded-full bg-foreground text-[15px] font-medium text-background disabled:opacity-50"
     >
       <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
       {label}
@@ -240,56 +239,41 @@ function RecordDockButton({
   );
 }
 
-/** The chat's one "Record Take N", alone under the chat, the plan's black
- *  button with the red dot (backend N294 item 7, N296 state 4): the next
- *  Take after a Take's goodbye, or a practice day's while today's one thing
- *  is the newest (`usePlanLounge` `one`). Held, greyed, while a Take is
+/** The chat's one "Record Take N", the plan's black button with the red
+ *  dot (backend N294 item 7, N296 state 4): the next Take after a Take's
+ *  goodbye, or a practice day's while today's one thing is the newest
+ *  (`usePlanLounge` `one`). It stands in the bar, between the "+" and the
+ *  mic, in the typing box's place (N453 item 9, the prototype's bar); N395's
+ *  grey ✕ is gone and the mic talks to Will. Held, greyed, while a Take is
  *  still landing, as the "+" is; a tap opens that Take's text the way its
- *  own button does (from Take 2 on, the sharing question first). 24 px
- *  under the last bubble, with a grey ✕ on its right, no background and no
- *  outline, that closes it (N395, `useRecordTake`). */
+ *  own button does (from Take 2 on, the sharing question first). */
 export function RecordTakeButton({
   next,
   held,
   onRecord,
-  onClose,
 }: {
   next: NextTake | null;
   held: boolean;
   onRecord: (arcId: string) => void;
-  onClose: () => void;
 }) {
   if (!next) return null;
   return (
-    <div className="flex items-center gap-1.5 pt-4">
-      <div className="min-w-0 flex-1">
-        <RecordDockButton
-          label={PLAN_COPY.recordTake(next.takeIndex + 1)}
-          onClick={() => onRecord(next.arcId)}
-          disabled={held}
-          dataAttr={{ "data-record-next": "" }}
-        />
-      </div>
-      <button
-        type="button"
-        aria-label="Close"
-        onClick={onClose}
-        data-record-next-close=""
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground"
-      >
-        <X className="h-5 w-5" aria-hidden />
-      </button>
-    </div>
+    <RecordDockButton
+      label={PLAN_COPY.recordTake(next.takeIndex + 1)}
+      onClick={() => onRecord(next.arcId)}
+      disabled={held}
+      dataAttr={{ "data-record-next": "" }}
+    />
   );
 }
 
 type NextTake = { arcId: string; takeIndex: number };
 
-/** The chat's "Record Take N" as it shows now, and its ✕ (backend N395).
- *  Closed, that Take's button gives its place back to the bar ("+", "Type
- *  here", the mic) until the chat is opened again, or until a newer Take's
- *  goodbye offers the next one. Only the open chat remembers it; nothing
- *  goes to the backend, and the plan and the goodbye are unchanged. */
+/** The chat's "Record Take N" as it shows now. `close` gives its place back
+ *  to the typing box until the chat is opened again, or until a newer
+ *  Take's goodbye offers the next one (N395); nothing on screen calls it
+ *  since the button stands in the bar with the mic beside it (N453 item 9).
+ *  Only the open chat remembers it; nothing goes to the backend. */
 export function useRecordTake<T extends NextTake>(next: T | null): { next: T | null; close: () => void } {
   const [closed, setClosed] = useState<string | null>(null);
   const key = next ? `${next.arcId}:${next.takeIndex}` : null;
@@ -357,9 +341,6 @@ export default function PlanDock({
         }}
         onSaveDeadline={actions.saveDeadline}
       />
-      {kind === "start" && !busy ? (
-        <RecordDockButton label={PLAN_COPY.startFirst} onClick={actions.startFirst} dataAttr={{ "data-plan-dock": "start" }} />
-      ) : null}
     </>
   );
 }

@@ -357,17 +357,16 @@ built and what is still to come.
    your key line"; a speaker's own case: "give your key line a little more
    room"), the key line in the speaker's words and their recording ("How you
    said it"). No bubble carries a button (N294 item 7): while this bubble is
-   the newest one thing, "Record Take N" stands under the chat, alone, the
-   plan's black button with the red dot ("Start your first recording"'s
-   shape; the chat's one `RecordTakeButton`, drawn from one place for this
-   Take and for the goodbye's next, N350 item 1), the message box, the "+" and the mic gone
-   (N296 state 4; kept so, N325 item 1); a tap starts that Take as the old button did, and it
-   waits (greyed) while a Take is still landing. It stands 24 px under the
-   last bubble, with a grey ✕ on its right, no background and no outline
-   (N395): the ✕ closes it and the bar comes back ("+", "Type here", the
-   mic) for that Take, until the chat is opened again or a newer Take's
-   goodbye offers the next; meanwhile the Take's card opens its Ideal Text,
-   with its own "Record Take N". "Start your first recording" has no ✕. While the plan asks a
+   the newest one thing, "Record Take N" stands in the bar, in the typing
+   box's place, the plan's black button with the red dot ("Start your first
+   recording"'s shape; the chat's one `RecordTakeButton`, drawn from one
+   place for this Take and for the goodbye's next, N350 item 1), the "+" on
+   its left and the mic on its right, as the prototype draws the bar (N296
+   state 4, N453 item 9); a tap starts that Take as the old button did, and
+   it waits (greyed) while a Take is still landing. The mic talks to Will;
+   the Take's card opens its Ideal Text, with its own "Record Take N".
+   "Start your first recording" stands in the bar the same way. Was: alone
+   in the box's place with a grey ✕ that brought the bar back (N395). While the plan asks a
    question, or a call's calendar is open, that stands there instead. The
    chat has one record button: the previous Take's goodbye keeps its words
    and gives its tap and button up. Once a newer Take is recorded, in any
@@ -721,9 +720,9 @@ The plan's own code, guarded by this page (`scripts/flow-pages.txt`):
   the orange mic's recording; `PlanDock`, "Start your first recording" and
   the calls' calendar in the footer; `RecordDockButton`, the plan's black
   button with the red dot; `RecordTakeButton`, the chat's one "Record Take
-  N" on it with its ✕, which the Lounge draws for the goodbye's next Take or a
-  practice day's, `usePlanLounge` `one` from `PlanRows` `newestOneOf`, G6;
-  `useRecordTake`, which Take's button the ✕ closed, N395), the
+  N", which the Lounge puts in the bar's middle for the goodbye's next Take
+  or a practice day's, `usePlanLounge` `one` from `PlanRows` `newestOneOf`,
+  G6; `useRecordTake`, which Take's button stands now), the
   calls' calendar (`PlanCalendar.tsx`), the card (`PlanCard.tsx`, which
   reads the calls' ring row `plan_calls`, N315), the rows in
   the thread (`PlanRows.tsx`), the two sheets (`PlanSheet.tsx`), the voice
@@ -743,10 +742,10 @@ It touches these places, each with its own page for what it owns:
 - The Lounge (`Lounge.tsx`): one hook call, the plan's rows drawn from the ask
   bubbles, its answers at the thread's end, its say over the bar (the mic
   orange, "Type here" waiting, and its note on a tap, `typingWait`), its
-  footer in place of the message box only
-  for "Start your first recording", a call's calendar and the recording
-  bar, and the chat's one "Record Take N" (`RecordTakeButton`, which hides
-  the bar itself until its ✕ closes it, `useRecordTake`) for a
+  footer in place of the whole bar only for a call's calendar and the
+  recording bar; "Start your first recording" (`usePlanLounge` `record`)
+  and the chat's one "Record Take N" (`RecordTakeButton`, `useRecordTake`)
+  stand in the bar's middle, between the "+" and the mic (N453 item 9), for a
   practice day's Take as for the goodbye's,
   and the empty Lounge's button held while the plan asks. The plan's taps
   are Will's (`WillQuestion.tsx`, `TapRow`, with "Not now" quiet). The
@@ -788,6 +787,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N453 · E5, G6: "Start your first recording" and "Record Take N" stand in the bar between the "+" and the mic, in the typing box's place, as the prototype draws it (`usePlanLounge` `record`, `RecordTakeButton`, `Lounge.tsx`); N395's ✕ is gone. Was: alone in the box's place, the "+" and the mic gone · BE #1681, FE (this PR)
 - 2026-11-03 · N449 · §2: "Record Take 2" on the first Take's Ideal Text page, while the project has only that Take, also opens the real talk's set-up (`Lounge.tsx` `onReadAloud`, through `isFirstTakeArc`). Was: it recorded the five questions again; only the chat's goodbye led to the real talk · FE (this PR)
 - 2026-11-03 · N449 · §2: after the first Take, as the prototype "The way in" draws it: "Record Take 2" at once under its goodbye (`afterTake.ts` `afterGoodbye`'s `noTap`, `Lounge.tsx`); the real talk is that project's Take 2, set up afresh with the plan's topic (`lib/willab/firstTake.ts` `startRealTalk`, `WillabSurface.tsx`), its slides stored as the project's new slides before its Take is sent (`keepRealTalkSlides`, N257); only Take 1's goodbye leads to the real talk (`isFirstTakeArc`). Was: the real talk was a project of its own, its screen said "Take 1", and the goodbye asked "I want to continue my practice" first · BE #1679, FE (this PR)
 - 2026-11-03 · N401 · C5, §2: the first Take's voice message and key line reach the coach's blind pick: kept with their voice at the end of that Take's processing (backend `plan_flow.after_processing`, cut from the recording the pipeline downloaded through the processing authorization, nothing new sent to a provider); the walk's end reads the answers and keeps nothing twice, and keeps them itself, without the voice, when processing could not. Was: a first-Take plan reached the coach with nothing to play. No new words · BE #1672, FE (this PR)
