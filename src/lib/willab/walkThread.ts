@@ -444,13 +444,14 @@ function oneThingSaid(
     case "clearer":
       return moment?.clearer?.say ? app(`${ONE_THING_COPY.sayStraight}\n${moment.clearer.say}`) : null;
     case "exVideo": {
-      // No AI clip came (N370): `line` is the tip in words; with it, or
-      // with the served exercise, the walk's bubble and "Your turn.".
-      const ex = moment?.exercise;
-      const rest = [line, ex?.instruction?.trim()].filter((x): x is string => Boolean(x && x.trim()));
-      if (!rest.length && !ex?.video) return app(ONE_THING_COPY.likeConfident);
-      const said = app([ONE_THING_COPY.likeConfident, ...rest, ONE_THING_COPY.yourTurn].join("\n"));
-      return said && ex?.video ? { ...said, extra: { video: ex.video } } : said;
+      // No AI clip (N370): `line` is the bubble the walk draws in its
+      // place (the tip, the exercise's instruction, "Your turn."), its
+      // video with it; with a clip on its way, the AI bubble's words should
+      // it never come.
+      if (!line) return app(ONE_THING_COPY.likeConfident);
+      const said = app(`${ONE_THING_COPY.likeConfident}\n${line}`);
+      const video = moment?.exercise?.video;
+      return said && video ? { ...said, extra: { video } } : said;
     }
     case "improved":
       return app(line ?? improvedLine(one, 0));

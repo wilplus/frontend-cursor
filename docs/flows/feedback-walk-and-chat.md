@@ -495,8 +495,8 @@ praised moment:
   one bubble with the same tip as its own sentence ("Pause before
   “{phrase}”."), when the server named what the clip would fix, the served
   exercise's video and instruction when there is one, then "Your turn.";
-  the chat says the same, and "Last time" keeps that tip. With none of
-  these, as before. Was (2026-10-31 to 2026-11-03): with no clip the tip
+  the chat says the same (also when a clip it posted as coming never
+  comes), and "Last time" keeps that tip. With none of these, as before. Was (2026-10-31 to 2026-11-03): with no clip the tip
   went with it, and the exercise's video was never drawn in this walk. Was (N289 item 2, below): **The weakest**
   (founder, 2026-10-30, N289 item 2). It is never
   called weak. Its bubbles: "Here's one with more in it." (signed, N289 item

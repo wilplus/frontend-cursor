@@ -1470,6 +1470,7 @@ export function useDeckFeedbackWalk(args: {
       say: (bank: WalkBankKey) => string,
       ai?: WalkAiShown | null,
       line?: string | null,
+      fixTip?: string | null,
     ) => {
       const { coachMessage: coach } = live.current;
       const at = { moment: step.moment ?? null, attempt: step.attempt ?? null };
@@ -1492,7 +1493,7 @@ export function useDeckFeedbackWalk(args: {
       // The label above a moment, and the speaker's clip before its bubble.
       const chat = said ? momentChat(walkModel.plan, step, moment) : null;
       // The moment's paragraph: a tap in the chat finds the step by it.
-      const part = chatPartOf(step, moment, ai, line ?? null);
+      const part = chatPartOf(step, moment, ai, fixTip ?? null);
       postLevel(post, step, moment, Boolean(said), { ...at, extra: { ...part } });
       if (chat?.clip) post({ key: `clip:${step.key}`, ...at, author: "speaker", body: "", extra: { ...chat.label, clip: chat.clip, ...part } });
       if (said) post({ key: step.key, ...at, ...said, extra: { ...(chat?.clip ? {} : chat?.label), ...said.extra, ...part } });
@@ -1644,11 +1645,10 @@ function chatPartOf(
   step: WalkStep,
   moment: { partId: string } | null,
   ai: { line: string } | null | undefined,
-  line: string | null = null,
+  noClipTip: string | null = null,
 ): { part_id: string | null; fix_tip?: string } {
   // With no AI clip, the tip the fix said in words (N370).
-  const noClip = step.one && step.key === "exVideo" && !ai && line ? line.trim().replace(/\.$/, "") || null : null;
-  const tip = step.one ? (fixTipOf(step, ai ?? null) ?? noClip) : null;
+  const tip = step.one ? (fixTipOf(step, ai ?? null) ?? noClipTip) : null;
   return tip ? { part_id: moment?.partId ?? null, fix_tip: tip } : { part_id: moment?.partId ?? null };
 }
 

@@ -650,17 +650,19 @@ describe("the One thing walk's fix with no AI clip (founder 2026-11-03, N370)", 
     draw({ items: ONE_ITEMS, at: fixAt(ONE_ITEMS), onShown });
     await settle(60);
     expect(screen()).toBe("walk-screen-exVideo");
-    const tip = live()!.querySelector("[data-walk-no-clip]")?.textContent;
+    const [tip, ...rest] = [...live()!.querySelectorAll("[data-walk-no-clip]")].map((n) => n.textContent);
     expect(PAUSE_SAID).toContain(tip);
-    expect(message()).toBe(`${tip}${EXERCISE_OFFER.instruction}${ONE_THING_COPY.yourTurn}`);
+    expect(rest).toEqual([EXERCISE_OFFER.instruction, ONE_THING_COPY.yourTurn]);
     // No AI bubble and no player: nothing to wait for.
     expect(live()!.querySelector("[data-walk-ai-voice], [data-walk-ai-waiting]")).toBeNull();
     // The try is still theirs.
     expect(live()!.querySelector("[data-testid='walk-practise']")).not.toBeNull();
     const told = onShown.mock.calls.filter(([s]) => (s as { key: string }).key === "exVideo");
     expect(told).toHaveLength(1);
+    // The chat: no AI bubble, the same lines, and the bare tip for "Last time".
     expect(told[0][3]).toBeNull();
-    expect(told[0][4]).toBe(tip);
+    expect(told[0][4]).toBe([tip, ...rest].join("\n"));
+    expect(told[0][5]).toBe(tip!.replace(/\.$/, ""));
   });
 });
 
