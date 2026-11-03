@@ -46,6 +46,12 @@ const dismissStack: symbol[] = [];
  *  rather than one dead Back press per stray. */
 let outstandingEntries = 0;
 
+/** How many overlays are open, one over another. A chat's own swipe acts
+ *  only when the chat is the top one (backend N378 item 3). */
+export function backDismissDepth(): number {
+  return dismissStack.length;
+}
+
 function removeFromStack(token: symbol): void {
   const i = dismissStack.lastIndexOf(token);
   if (i >= 0) dismissStack.splice(i, 1);
@@ -138,4 +144,40 @@ export function useBackDismiss(
   return () => {
     navigatingAwayRef.current = true;
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/*  useBackStop — Back goes no further than this screen (backend N378)         */
+/*                                                                            */
+/*  The list of chats is the bottom of /chat: Back from a chat comes to it,    */
+/*  and Back from it goes nowhere. Behind /chat in the history there can be    */
+/*  the sign-in page, and an abrupt swipe on the iPhone can pop more than one  */
+/*  entry, so without a stop the swipe walked off /chat onto it.              */
+/*                                                                            */
+/*  While active, one entry marked as the stop sits on top of /chat's own,     */
+/*  under every overlay's throwaway entry. A Back that lands below it (on     */
+/*  /chat's own entry) is pushed straight back onto the stop: nothing moves.  */
+/*  A Back that lands on the stop or on an overlay's entry is the overlays'    */
+/*  business (useBackDismiss above), so a swipe from a chat goes back by one.  */
+/* -------------------------------------------------------------------------- */
+
+const STOP_KEY = "__willabBackStop";
+
+function onStopOrAbove(): boolean {
+  const state = window.history.state as Record<string, unknown> | null;
+  return !!state && (state[STOP_KEY] === true || state.__willabOverlay === true);
+}
+
+export function useBackStop(active: boolean): void {
+  useEffect(() => {
+    if (!active || typeof window === "undefined") return;
+    const arm = () => {
+      if (!onStopOrAbove()) window.history.pushState({ [STOP_KEY]: true }, "");
+    };
+    arm();
+    window.addEventListener("popstate", arm);
+    // Left in place on the way out: it is /chat's own, and popping it here
+    // would fire every other listener for nothing.
+    return () => window.removeEventListener("popstate", arm);
+  }, [active]);
 }

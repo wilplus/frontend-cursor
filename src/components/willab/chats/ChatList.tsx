@@ -116,6 +116,7 @@ function ChatListRow({
   preview = "",
   isNew = false,
   pinned = false,
+  cameFrom = false,
   onOpen,
 }: {
   id: string;
@@ -126,6 +127,8 @@ function ChatListRow({
   preview?: string;
   isNew?: boolean;
   pinned?: boolean;
+  /** Just come back from this chat: lit for a moment (backend N378 item 5). */
+  cameFrom?: boolean;
   onOpen: () => void;
 }) {
   return (
@@ -133,9 +136,15 @@ function ChatListRow({
       type="button"
       data-chat-row={id}
       data-chat-new={isNew ? "" : undefined}
+      data-chat-came-from={cameFrom ? "" : undefined}
       onClick={onOpen}
-      className="flex h-[76px] w-full shrink-0 items-center gap-3 pl-4 text-left transition-colors hover:bg-muted/50"
+      className="relative isolate flex h-[76px] w-full shrink-0 items-center gap-3 pl-4 text-left transition-colors hover:bg-muted/50"
     >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 bg-muted transition-opacity duration-700"
+        style={{ opacity: cameFrom ? 1 : 0 }}
+      />
       {circle}
       <span className="flex h-full min-w-0 flex-1 flex-col justify-center gap-[3px] border-b border-[#F0F0F0] pr-4">
         <span className="flex min-w-0 items-baseline gap-2">
@@ -263,10 +272,13 @@ function newestFirst(chats: readonly Chat[]): Chat[] {
 export default function ChatList({
   chats,
   joined = null,
+  cameFrom = null,
   onOpenWill,
   onOpen,
 }: {
   chats: readonly Chat[];
+  /** The row you just came back from, lit for a moment ("will" for Will's). */
+  cameFrom?: string | null;
   /** The chat just joined through someone's link: the row right under
    *  Will's, marked new until it is opened (backend N357, N360). */
   joined?: string | null;
@@ -286,13 +298,14 @@ export default function ChatList({
       time={listTime(chat.last?.created_at, now)}
       preview={chat.last ? lastLine(chat.last) : justJoined ? joinedThrough(chat.title) : ""}
       isNew={justJoined || chatIsNew(chat)}
+      cameFrom={cameFrom === chat.id}
       onOpen={() => onOpen(chat)}
     />
   );
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       <div data-chat-list className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
-      <ChatListRow id="will" circle={<WillMark />} title={WILL_ROW_TITLE} pinned onOpen={onOpenWill} />
+      <ChatListRow id="will" circle={<WillMark />} title={WILL_ROW_TITLE} pinned cameFrom={cameFrom === "will"} onOpen={onOpenWill} />
       {first ? row(first, true) : null}
       {chats.length === 0 ? (
         /* Nobody else yet (the iPhone app shows the list with Will alone,

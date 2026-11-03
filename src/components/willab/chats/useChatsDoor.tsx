@@ -8,6 +8,8 @@ import ChatThread, { WillTopBar } from "./ChatThread";
 import { useChatList, useChatsDecided } from "./useChats";
 import LoadingState from "../LoadingState";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
+import { backDismissDepth, useBackStop } from "../useBackDismiss";
+import { useEdgeSwipe } from "./useEdgeSwipe";
 
 /* -------------------------------------------------------------------------- */
 /*  The chats in front of the Lounge (ring 6, feature `chats`; backend N274,   */
@@ -57,6 +59,54 @@ function chatJustJoined(): string | null {
   return new URLSearchParams(window.location.search).get("with");
 }
 
+/** The slide between the list and a chat (backend N378 item 4): iOS's own
+ *  timing. None when the phone asks for less motion. */
+const SLIDE_MS = 300;
+const SLIDE_EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
+/** How long the row you came back from stays lit (N378 item 5). */
+const CAME_FROM_MS = 900;
+
+function moves(): boolean {
+  return typeof window !== "undefined" && typeof window.matchMedia === "function" &&
+    !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+/** Out of reach while a chat covers it: no focus, no taps, hidden from a
+ *  screen reader. React 18 has no `inert` prop of its own. */
+const away = (yes: boolean) => (yes ? ({ inert: "", "aria-hidden": true } as Record<string, unknown>) : {});
+
+/** A person's chat over the list: in from the right, out to the right on
+ *  Back, following the finger while the edge swipe drags it. */
+function ChatSlide({ leaving, drag, children }: { leaving: boolean; drag: number | null; children: ReactNode }) {
+  const [entered, setEntered] = useState(() => !moves());
+  useEffect(() => {
+    if (entered) return;
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setEntered(true));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
+  }, [entered]);
+  const x = drag !== null ? `${drag}px` : leaving || !entered ? "100%" : "0px";
+  return (
+    <div
+      data-chat-slide=""
+      className="absolute inset-0 flex flex-col bg-background shadow-[-8px_0_24px_rgba(0,0,0,0.08)]"
+      style={{
+        // No transform at rest: it would hold the full-screen photo (fixed)
+        // inside the chat instead of over the whole screen.
+        transform: x === "0px" ? "none" : `translateX(${x})`,
+        transition: drag !== null || !moves() ? "none" : `transform ${SLIDE_MS}ms ${SLIDE_EASE}`,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 /** `willFirst`: a link that opens something in the Lounge (the coach's
  *  feedback) opens on Will's chat, not the list. `onRecordAnswer`: a chat's
  *  "Record an answer" (backend N363), handed to the recording screens. */
@@ -74,37 +124,118 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
   // In the iPhone app the list opens even with Will's chat alone, with the
   // way to add someone under him (founder 2026-11-02); on the web, as before.
   const waiting = decided === null || (on && !chats);
-  // A link into the Lounge opens on Will's chat: nothing would cover it.
-  if (waiting && isNativeApp() && view.at !== "will") return WAITING;
-  if (!on || !chats || (chats.length === 0 && !isNativeApp())) return CLOSED;
+  const closed = !on || !chats || (chats.length === 0 && !isNativeApp());
+  // Open, the list is the bottom of /chat: Back never goes past it (N378).
+  useBackStop(!closed);
+  // A chat going out to the right after Back, still drawn while it slides.
+  const [leaving, setLeaving] = useState<Chat | null>(null);
+  // The row you came back from, lit for a moment (N378 item 5).
+  const [cameFrom, setCameFrom] = useState<string | null>(null);
+  // How far the edge swipe has dragged the chat, while it does.
+  const [drag, setDrag] = useState<number | null>(null);
+  useEffect(() => {
+    if (!leaving) return;
+    const t = window.setTimeout(() => setLeaving(null), moves() ? SLIDE_MS : 0);
+    return () => window.clearTimeout(t);
+  }, [leaving]);
+  useEffect(() => {
+    if (!cameFrom) return;
+    const t = window.setTimeout(() => setCameFrom(null), CAME_FROM_MS);
+    return () => window.clearTimeout(t);
+  }, [cameFrom]);
   const toList = () => {
+    setDrag(null);
+    if (view.at === "chat") setLeaving(view.chat);
+    if (view.at !== "list") setCameFrom(view.at === "chat" ? view.chat.id : "will");
     setView({ at: "list" });
     reload();
   };
-  if (view.at === "will") {
-    return { back: <WillTopBar onBack={toList} />, front: null, navbar: false };
-  }
+  // The iPhone app's swipe from the left edge (N378 item 3): only from a chat
+  // that is the top screen, never from the list or over an overlay.
+  useEdgeSwipe(
+    !closed && view.at !== "list" && isNativeApp(),
+    (dx) => {
+      if (backDismissDepth() === 1) setDrag(dx);
+    },
+    (back) => (back && backDismissDepth() === 1 ? toList() : setDrag(null)),
+  );
+  // A link into the Lounge opens on Will's chat: nothing would cover it.
+  if (waiting && isNativeApp() && view.at !== "will") return WAITING;
+  if (closed || !chats) return CLOSED;
+  const atWill = view.at === "will";
   return {
-    back: null,
-    navbar: view.at !== "chat",
+    back: atWill ? <WillTopBar onBack={toList} /> : null,
+    navbar: view.at === "list",
     front: (
-      <div data-chats-front className="absolute inset-0 z-20 flex flex-col bg-background">
-        <div className="mx-auto flex min-h-0 w-full max-w-[480px] flex-1 flex-col">
-          {view.at === "chat" ? (
-            <ChatThread key={view.chat.id} chat={view.chat} onBack={toList} onRecordAnswer={onRecordAnswer} />
-          ) : (
-            <ChatList
-              chats={chats}
-              joined={joined}
-              onOpenWill={() => setView({ at: "will" })}
-              onOpen={(chat) => {
-                if (chat.id === joined) setJoined(null);
-                setView({ at: "chat", chat });
-              }}
-            />
-          )}
-        </div>
-      </div>
+      <ChatsFront
+        atWill={atWill}
+        drag={drag}
+        shown={view.at === "chat" ? view.chat : leaving}
+        chatOpen={view.at === "chat"}
+        list={
+          <ChatList
+            chats={chats}
+            joined={joined}
+            cameFrom={cameFrom}
+            onOpenWill={() => setView({ at: "will" })}
+            onOpen={(chat) => {
+              if (chat.id === joined) setJoined(null);
+              setCameFrom(null);
+              setView({ at: "chat", chat });
+            }}
+          />
+        }
+        thread={(chat) => <ChatThread chat={chat} onBack={toList} onRecordAnswer={onRecordAnswer} />}
+      />
     ),
   };
+}
+
+/** The list, and a person's chat over it. Will's chat is the Lounge
+ *  underneath: the list slides away to the left to open it and comes back
+ *  from the left on Back, after the finger as it drags (N378 item 4). */
+function ChatsFront({
+  atWill,
+  drag,
+  shown,
+  chatOpen,
+  list,
+  thread,
+}: {
+  atWill: boolean;
+  drag: number | null;
+  /** The chat drawn over the list: the open one, or one sliding out. */
+  shown: Chat | null;
+  chatOpen: boolean;
+  list: ReactNode;
+  thread: (chat: Chat) => ReactNode;
+}) {
+  const parked = atWill && drag === null;
+  const listX = atWill ? (drag !== null ? `calc(-100% + ${drag}px)` : "-100%") : "0px";
+  return (
+    <div
+      data-chats-front
+      data-chats-away={parked ? "" : undefined}
+      {...away(atWill)}
+      className="absolute inset-0 z-20 overflow-hidden"
+      style={{
+        transform: listX === "0px" ? "none" : `translateX(${listX})`,
+        visibility: parked ? "hidden" : "visible",
+        transition:
+          drag === null && moves()
+            ? `transform ${SLIDE_MS}ms ${SLIDE_EASE}, visibility 0s linear ${atWill ? SLIDE_MS : 0}ms`
+            : "none",
+      }}
+    >
+      {/* The list stays drawn under a chat, so it keeps its place (item 5). */}
+      <div className="absolute inset-0 flex flex-col bg-background" {...away(!!shown)}>
+        <div className="mx-auto flex min-h-0 w-full max-w-[480px] flex-1 flex-col">{list}</div>
+      </div>
+      {shown ? (
+        <ChatSlide key={shown.id} leaving={!chatOpen} drag={chatOpen ? drag : null}>
+          <div className="mx-auto flex min-h-0 w-full max-w-[480px] flex-1 flex-col">{thread(shown)}</div>
+        </ChatSlide>
+      ) : null}
+    </div>
+  );
 }

@@ -201,6 +201,15 @@ order it is built in.
      shows on the list only. Was (N322 item 4): the WillpowerLab bar with
      "‹ Will" under it. On a computer, the list and a person's chat sit in
      a phone-wide column in the middle.
+   - **Back** (the iPhone's swipe, the browser's Back) from Will's chat or
+     a person's chat goes back by one, to the list, however abrupt the
+     swipe; from the list it goes nowhere, never off /chat to the sign-in
+     page. In the iPhone app a swipe from the left edge goes back from a
+     chat, after the finger. A person's chat slides in from the right and
+     out to the right over the list; Will's chat opens as the list slides
+     away to the left and closes as it comes back (none with less motion).
+     Back on the list, it is where you left it, the row you came from lit
+     grey for a moment (N378).
    - **Record an answer** (N321 item 4, N336, N342, N345, N361, N363):
      when the question waiting for your answer is one Will marked as about
      a product or a treatment (`meta.record_answer`), the middle of the bar
