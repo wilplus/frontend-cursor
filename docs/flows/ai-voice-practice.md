@@ -308,6 +308,21 @@ Over a limit the walk shows the video or nothing, as when a clip fails, and
 the Take is never held. This amends section 5's limits line; the month's
 credit stop is unchanged.
 
+### Decided after the lock (2026-11-03, N425, the walk's one fix)
+
+**The clip only where the voice shows the problem.** The founder (Claude
+Code chat, 2026-11-03, after "the wrong AI audio for the wrong fragment":
+"go for A, B and C"): the One thing walk's AI clip goes only to a moment
+whose own clip shows a problem it can teach (pace, pause, stress as a
+flatter loudness range, fillers, against the speaker's own usual on this
+Take, at the line the clip already uses), and it teaches the strongest of
+these, never the runner-up (the walk's page, C4 and H1). With none, the
+walk's fix is not the AI clip: no default clip, so the "nothing off" tips
+are no longer said in the walk's one fix. This amends "always a
+better version to copy" (2026-10-15, A) for that clip alone: the Clearer
+version's example clip still has the default, and on a plan the week's
+level still picks its problem (G7).
+
 ### 7. Order of work
 
 Build end to end, test with the founder's own voice, then counsel (L12,
@@ -359,6 +374,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N425 · the One thing walk's AI clip only on a moment whose own clip shows a problem it can teach, the strongest problem, never the runner-up; with none, no clip and no default ("Lean on …") in the walk's fix; the Clearer version's example keeps the default · BE N425 log (#1664), BE #1669, FE (this PR)
 - 2026-11-03 · N379 · in the One thing walk's fix: no "Your turn." under the clip; the dots and the label L1 are not read aloud until the clip is ready · FE (this PR)
 - 2026-11-03 · N373 · the One thing walk's fix waits ten seconds on a clip being made, then the words; a late clip joins as its player alone, never above a try · FE (this PR)
 - 2026-11-03 · N370 · with no clip, the One thing walk's fix keeps its tip in words and the exercise's video; an unavailable clip carries what it would have fixed once chosen · BE #1621, FE (this PR)
