@@ -701,6 +701,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N368, N365 · C1: in the iPhone app the buzz on every send (N368 item 3) is the iPhone's own light tap (`@capacitor/haptics`); the web's vibration, which an iPhone ignores, stays for the web. Was: no buzz in the app · FE (this PR)
 - 2026-11-03 · N436 · C1: Forward: on the list, a swipe from the right edge (the iPhone app) or the browser's Forward (the web) opens the chat you just came back from again, after the finger; let go early and it slides back; nothing before you have left a chat. A chat being pulled in, or sliding out, no longer holds a history entry of its own. Was: no way forward; Forward on the web landed on a dead entry · BE N436 log, FE (this PR)
 - 2026-11-03 · N401 · C1, §2: no demo chats for a newcomer: an empty list is Will and "Add someone to chat with", on the web as in the iPhone app (the list opens with Will alone everywhere); the list no longer asks for the two demo chats, "Sarah" and "Ariel", and the route that seeded them is gone. Was: on the web, an empty list got the two demo chats the first time · FE (this PR)
 - 2026-11-03 · N372 · one voice at a time: playing a voice message pauses the one already playing, and recording a voice note pauses any that plays (`lib/willab/oneVoice.ts`, `plan/VoicePlayer.tsx`, `useVoiceNote.ts`). Was: two could play over each other, and over the mic · BE #1622, FE (this PR)
