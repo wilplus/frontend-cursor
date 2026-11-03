@@ -56,6 +56,8 @@ export interface PendingAnswer {
   durationMs: number;
   /** The 5 seconds have passed: no more Undo, it goes as soon as it can. */
   waited: boolean;
+  /** When the 5 seconds started (ms), for the bar's countdown (N368). */
+  startedAt: number;
 }
 
 type Answering = AnswerFor & { ownerId: string | null; before: ExploreArc | null };
@@ -124,6 +126,7 @@ export function answerRecorded(durationMs: number): void {
     chatId: answering_.chatId,
     name: answering_.name,
     durationMs: Math.max(1, Math.round(durationMs)),
+    startedAt: Date.now(),
     take: null,
     waited: false,
     posting: false,

@@ -13,12 +13,12 @@ OUTCOME
       and last message (an emoji with its meaning); an empty list asks for
       the demo once. Will's row uncovers the Lounge, never remounted, with
       a back to the list (customer-requests.md C1; N274, N298, N322).
-  O3  In a chat, the bar holds the "+", the three emoji in the box, no
-      typing, and the mic beside it only while a question waits for my
-      answer; a tap on
+  O3  In a chat, one bar: the "+" left, the three emoji in the box, no
+      typing, and the mic always on the right, orange while a question waits
+      for my answer (N368; was N341: only then); a tap on
       an emoji posts {"kind":"emoji","body":…} and shows the emoji at once,
-      large, with its meaning and time under it, and the mic goes (N306,
-      N311, N322, N341).
+      large, with its meaning and time under it, and the mic is plain again
+      (N306, N311, N322, N368).
   O4  The WillpowerLab bar shows on the list only: in a person's chat and
       in Will's, the chat's own top bar takes its place (N321 item 1, N334).
   O5  A chat whose last message is newer than the last time it was opened
@@ -48,9 +48,10 @@ OUTCOME
       Photos, Camera, Files and Someone else; Someone else opens the add
       sheet with my link; Cancel brings the bar back (N351).
   O13 A photo I pick is posted to the chat's photo route and joins the
-      thread as my image; the mic then shows, so I can say what I need, and
-      goes once my voice note is sent (N337, N341 item 2, N351).
-  O14 The other person's photo or file waits for my voice: the mic shows. A
+      thread as my image; the mic then turns orange, so I can say what I
+      need, and is plain once my voice note is sent (N337, N341 item 2,
+      N351, N368).
+  O14 The other person's photo or file waits for my voice: the mic is orange. A
       file shows a tile with its extension and its own name, and downloads
       from the chat's file route; a photo opens full size with a close and
       no words; the list's line is "📷", or "📄" and the file's name (N351).
@@ -58,9 +59,10 @@ OUTCOME
       was said over in a strip that marks the one being heard as it plays,
       and its words closed behind "Read it"; no Take number.
   O16 A question Will marked as about a product or a treatment takes one
-      black "Record an answer" in the bar's place (N321 item 4, N361); it
-      hands the recording screens the chat, the person and the question.
-      Back from them, my answer reads "Sending to {name}…" with Undo, then
+      black "Record an answer" in the bar's middle, the "+" and the mic on its
+      sides (N321 item 4, N361, N368); it hands the recording screens the
+      chat, the person and the question. Back from them, the bar's middle
+      reads "Sending to {name}… {n}" with Undo, then
       it goes and "Sent to {name} on WhatsApp" (a customer) stands under it
       (N345, N342).
 PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
@@ -286,7 +288,7 @@ describe("the chats in front of the Lounge", () => {
     const screen = container.querySelector("[data-chat-screen]")!;
     expect(screen.querySelector("[data-chat-header]")?.textContent).toContain("SarahInvita customer");
     expect(screen.querySelector("[data-chat-thread] [data-bubble]")?.textContent).toContain(SARAH.last.body);
-    // Sarah's question waits: the "+", the three emoji in the box, the mic beside it, no typing.
+    // Sarah's question waits: the "+", the three emoji in the box, the mic orange beside it, no typing.
     const bar = screen.querySelector("[data-chat-bar]")!;
     expect([...bar.querySelectorAll("button")].map((b) => b.textContent || b.getAttribute("aria-label"))).toEqual([
       "Add to your chat with Sarah",
@@ -296,6 +298,7 @@ describe("the chats in front of the Lounge", () => {
       "Voice note",
     ]);
     expect(screen.querySelector("textarea, input:not([type=file])")).toBeNull();
+    expect(bar.querySelector("[data-chat-mic-hot]")).not.toBeNull();
 
     fetchMock.mockImplementationOnce(async (url: string, init?: RequestInit) => {
       await posted;
@@ -312,8 +315,9 @@ describe("the chats in front of the Lounge", () => {
     expect(post[1].method).toBe("POST");
     expect(JSON.parse(String(post[1].body))).toEqual({ kind: "emoji", body: "👍" });
 
-    // Answered: nothing waits, so the mic goes (N341).
-    expect(bar.querySelector('button[aria-label="Voice note"]')).toBeNull();
+    // Answered: nothing waits, so the mic stays, no longer orange (N368).
+    expect(bar.querySelector('button[aria-label="Voice note"]')).not.toBeNull();
+    expect(bar.querySelector("[data-chat-mic-hot]")).toBeNull();
 
     release();
     await flush();
@@ -387,11 +391,11 @@ describe("the chats in front of the Lounge", () => {
     expect((form.get("audio") as Blob).type).toBe("audio/webm");
     expect(form.get("duration_ms")).toMatch(/^\d+$/);
 
-    // The bar is back, without the mic: answered; the voice note is mine,
-    // orange on the right, with its length.
+    // The bar is back, the mic no longer orange: answered; the voice note is
+    // mine, orange on the right, with its length.
     expect(screen.querySelector("[data-recording-bar]")).toBeNull();
     expect(screen.querySelector("[data-chat-emoji-box]")).not.toBeNull();
-    expect(screen.querySelector("[data-chat-mic]")).toBeNull();
+    expect(screen.querySelector("[data-chat-mic-hot]")).toBeNull();
     const voice = screen.querySelector('[data-chat-thread] [data-row="me"][data-chat-voice]');
     expect(voice?.textContent).toMatch(/^0:04\d\d:\d\d$/);
   });
@@ -524,7 +528,7 @@ describe("the chats in front of the Lounge", () => {
     micGranted();
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
-    // Ariel's 👍: nothing waits, so no mic.
+    // Ariel's 👍: nothing waits, so the mic is plain.
     routes.set("GET /api/v2/chats/c-ariel/messages", () => ({
       messages: [{ id: "m1", mine: false, author: "Ariel", kind: "emoji", body: "👍", meta: { label: "good" }, created_at: ARIEL.last.created_at }],
     }));
@@ -537,7 +541,7 @@ describe("the chats in front of the Lounge", () => {
     await render();
     await tap(row("c-ariel"));
     const screen = container.querySelector("[data-chat-screen]")!;
-    expect(screen.querySelector("[data-chat-mic]")).toBeNull();
+    expect(screen.querySelector("[data-chat-mic-hot]")).toBeNull();
 
     await tap(screen.querySelector("[data-chat-plus]"));
     await tap(screen.querySelector('[data-chat-tile="photos"]'));
@@ -549,15 +553,15 @@ describe("the chats in front of the Lounge", () => {
     expect(posts).toHaveLength(1);
     expect(((posts[0][1].body as FormData).get("file") as File).name).toBe("Screenshot 1.png");
     expect(screen.querySelector('[data-row="me"] [data-chat-photo] img')?.getAttribute("src")).toBe("/api/v2/chats/c-ariel/messages/p1/file");
-    // My photo waits for what I need: the mic shows.
-    expect(screen.querySelector("[data-chat-mic]")).not.toBeNull();
+    // My photo waits for what I need: the mic is orange.
+    expect(screen.querySelector("[data-chat-mic-hot]")).not.toBeNull();
 
     await tap(screen.querySelector("[data-chat-mic]"));
     await tap(screen.querySelector('[data-recording-bar] button[aria-label="Stop"]'));
     await flush();
     expect(calls("POST /api/v2/chats/c-ariel/voice")).toHaveLength(1);
     expect(screen.querySelector("[data-chat-emoji-box]")).not.toBeNull();
-    expect(screen.querySelector("[data-chat-mic]")).toBeNull();
+    expect(screen.querySelector("[data-chat-mic-hot]")).toBeNull();
   });
 
   it("the other person's photo or file waits for my voice, and each opens from the chat's file route", async () => {
@@ -580,7 +584,7 @@ describe("the chats in front of the Lounge", () => {
 
     await tap(row("c-ariel"));
     const screen = container.querySelector("[data-chat-screen]")!;
-    expect(screen.querySelector("[data-chat-mic]")).not.toBeNull();
+    expect(screen.querySelector("[data-chat-mic-hot]")).not.toBeNull();
     const file = screen.querySelector<HTMLAnchorElement>('[data-row="app"] a[data-chat-file]')!;
     expect(file.textContent).toBe("PDFNewsroom AI guidelines.pdf");
     expect([file.getAttribute("href"), file.getAttribute("download")]).toEqual([
@@ -707,7 +711,10 @@ describe("the chats in front of the Lounge", () => {
     await tap(row("c-sarah"));
     const button = container.querySelector("[data-chat-record-answer]");
     expect(button?.textContent).toBe("Record an answer");
+    // One bar: the "+" left, Record an answer in the middle, the mic right (N368).
     expect(container.querySelector("[data-chat-emoji-box]")).toBeNull();
+    expect(container.querySelector("[data-chat-bar] [data-chat-plus]")).not.toBeNull();
+    expect(container.querySelector("[data-chat-bar] [data-chat-mic]")).not.toBeNull();
     await tap(button);
     expect(recordedAnswers).toEqual([{ chatId: "c-sarah", name: "Sarah", question, customer: true }]);
 
@@ -719,8 +726,9 @@ describe("the chats in front of the Lounge", () => {
         answerRecorded(52_000);
         answerTake("take-1");
       });
-      const sending = container.querySelector("[data-chat-sent-line='sending']");
-      expect(sending?.textContent).toBe("Sending to Sarah…Undo");
+      // In the bar's middle, with the countdown and Undo (N368).
+      const sending = container.querySelector("[data-chat-bar] [data-chat-sending]");
+      expect(sending?.textContent).toBe("Sending to Sarah… 5Undo");
       expect(container.querySelector("[data-chat-record-answer]")).toBeNull();
       expect(calls("POST /api/v2/chats/c-sarah/answer")).toHaveLength(0);
       await act(async () => {
@@ -733,7 +741,7 @@ describe("the chats in front of the Lounge", () => {
     const posted = calls("POST /api/v2/chats/c-sarah/answer");
     expect(posted).toHaveLength(1);
     expect(JSON.parse(String(posted[0]![1]!.body))).toEqual({ take: "take-1", duration_ms: 52000 });
-    expect(container.querySelector("[data-chat-sent-line='sending']")).toBeNull();
+    expect(container.querySelector("[data-chat-sending]")).toBeNull();
     expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent to Sarah on WhatsApp");
   });
 });
