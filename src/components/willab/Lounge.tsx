@@ -102,6 +102,7 @@ import {
 } from "./afterTake";
 import { postAfterTake } from "@/services/api/afterTake";
 import OfferBubble from "./OfferBubble";
+import { NotebookIntro, PrivacyLine, isNotebookAsk, isPrivacyLineRow, isSpotted } from "./NotebookPrivacy";
 import {
   PolicyUpdateBubble,
   PolicyUpdateComposer,
@@ -2629,7 +2630,26 @@ function isOwnVoiceNote(message: LoungeMessage, notebook: VoiceNotebook): boolea
   return message.role === "user" && notebook.enabled && typeof message.metadata?.voice_note === "string";
 }
 
-function Bubble({
+/** A message where Will spots something carries the short privacy line
+ *  under it, and the notebook's ask its intro above it (backend N411,
+ *  NotebookPrivacy.tsx); the backend's own line row is drawn as the line. */
+function Bubble(props: Parameters<typeof BubbleBody>[0]) {
+  const { message } = props;
+  if (message.role !== "bot") return <BubbleBody {...props} />;
+  if (isPrivacyLineRow(message.metadata)) return <PrivacyLine />;
+  const intro = isNotebookAsk(message);
+  const spotted = isSpotted(message.metadata);
+  if (!intro && !spotted) return <BubbleBody {...props} />;
+  return (
+    <>
+      {intro ? <NotebookIntro /> : null}
+      <BubbleBody {...props} />
+      {spotted ? <PrivacyLine /> : null}
+    </>
+  );
+}
+
+function BubbleBody({
   message,
   onViewInsights,
   onOpenBestPresentation,
