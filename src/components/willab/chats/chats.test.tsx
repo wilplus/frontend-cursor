@@ -48,12 +48,14 @@ OUTCOME
   O11 On the web and in the iPhone app, Will's chat never shows for a moment
       before the list covers it: the loader stands in front until the list
       has answered, and it never waits on the rings (N354, N456).
-  O12 The "+" in a chat swaps the bar for four tiles with their names,
-      Photos, Camera, Files and Someone else; Someone else opens the add
-      sheet with my link; a ✕ where the "+" was brings the bar back (N351,
-      N460 item 4).
-  O13 A photo I pick is posted to the chat's photo route and joins the
-      thread as my image (N337, N351).
+  O12 The "+" in a chat asks them (N483 item 4, N498): "Ask {name}", with
+      no line, the black "Record your question" and Cancel, and the three
+      steps only before my first question; "Record your question" opens the
+      recording screens on the default presentation (a project with no
+      slides of its own, named "To {name}"), and the question goes to the
+      question route with "Sending to {name}… {n}" and Undo, then "Sent to
+      {name}". Until I first tap it the "+" is orange; then it is plain.
+      Photos, Camera, Files and Someone else are off (N483 item 4).
   O14 The other person's file shows a tile with its extension and its own
       name, and downloads
       from the chat's file route; a photo opens full size with a close and
@@ -108,8 +110,7 @@ PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is 
          O9 -> "a chat joined through a link says whose link it was"
          O10 -> "after joining, the list opens with Will first and the one who invited me under him, marked new"
          O11 -> "as a user, the loader, not Will's chat, waits for my list, on the web and in the app, and never for the rings"
-         O12 -> "the + shows the four tiles, Someone else opens my link, and the ✕ in its place brings the bar back"
-         O13 -> "a photo I send joins the thread as my image"
+         O12 -> "the + asks them: the default presentation, and the question goes with Sending, Undo and Sent"
          O14 -> "the other person's photo or file opens from the chat's file route"
          O15 -> "an answer sent to me plays with its slides following the voice, its words behind Read it"
          O16 -> "a marked question takes Record your answer, Not now leaves it, and my answer goes with Sending, Undo and Sent"
@@ -245,14 +246,6 @@ const lastLineOf = (id: string) => row(id)?.querySelector("[data-chat-last]")?.t
 async function tap(el: Element | null | undefined) {
   if (!el) throw new Error(`nothing to tap in: ${container.innerHTML}`);
   await act(async () => (el as HTMLElement).click());
-  await flush();
-}
-
-/** The browser's own picker answering with these files. */
-async function pick(input: Element | null, files: File[]) {
-  if (!input) throw new Error(`no picker in: ${container.innerHTML}`);
-  Object.defineProperty(input, "files", { value: files, configurable: true });
-  await act(async () => void input.dispatchEvent(new Event("change", { bubbles: true })));
   await flush();
 }
 
@@ -434,7 +427,7 @@ describe("the chats in front of the Lounge", () => {
     // One bar: the "+", the three emoji in the box; no mic, no typing (N483 item 3).
     const bar = screen.querySelector("[data-chat-bar]")!;
     expect([...bar.querySelectorAll("button")].map((b) => b.textContent || b.getAttribute("aria-label"))).toEqual([
-      "Add to your chat with Sarah",
+      "Ask Sarah",
       "👍",
       "👀",
       "🙏",
@@ -668,55 +661,63 @@ describe("the chats in front of the Lounge", () => {
     expect(container.querySelector("[data-chat-name]")?.textContent).toBe("Ariel");
   });
 
-  it("the + shows the four tiles, Someone else opens my link, and the ✕ in its place brings the bar back", async () => {
+  it("the + asks them: the default presentation, and the question goes with Sending, Undo and Sent", async () => {
+    forgetAnswers();
+    recordedAnswers.length = 0;
+    window.localStorage.clear();
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
     routes.set("GET /api/v2/chats/c-ariel/messages", () => ({ messages: [] }));
-    routes.set("GET /api/v2/chats/link", () => ({ token: "AbCdEfGhIjKlMnOpQrStUvWx", path: "/c/AbCdEfGhIjKlMnOpQrStUvWx" }));
-    await render();
-    await tap(row("c-ariel"));
-    const bar = () => container.querySelector("[data-chat-bar]")!;
-
-    await tap(bar().querySelector('button[aria-label="Add to your chat with Ariel"]'));
-    expect(bar().querySelector("[data-chat-emoji-box]")).toBeNull();
-    expect([...bar().querySelectorAll("[data-chat-tile]")].map((t) => t.textContent)).toEqual(["Photos", "Camera", "Files", "Someone else"]);
-    expect(bar().textContent).not.toContain("Cancel");
-    await tap(bar().querySelector('[data-chat-tiles-close][aria-label="Close"]'));
-    expect(bar().querySelector("[data-chat-tile]")).toBeNull();
-    expect(bar().querySelector("[data-chat-emoji-box]")).not.toBeNull();
-
-    // Someone else: the bar is back, and the add sheet opens with my link.
-    await tap(bar().querySelector("[data-chat-plus]"));
-    await tap(bar().querySelector('[data-chat-tile="someone"]'));
-    expect(bar().querySelector("[data-chat-emoji-box]")).not.toBeNull();
-    expect(container.querySelector("[data-chat-screen] [data-add-sheet] [data-my-link]")?.textContent).toBe(
-      `${window.location.origin}/c/AbCdEfGhIjKlMnOpQrStUvWx`,
-    );
-  });
-
-  it("a photo I send joins the thread as my image", async () => {
-    backend(["chats"]);
-    routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
-    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({
-      messages: [{ id: "m1", mine: false, author: "Ariel", kind: "emoji", body: "👍", meta: { label: "good" }, created_at: ARIEL.last.created_at }],
-    }));
-    routes.set("POST /api/v2/chats/c-ariel/photo", () => ({
-      message: { id: "p1", mine: true, author: "Me", kind: "photo", body: "", meta: { question: true }, created_at: "2026-11-02T08:00:00Z" },
+    routes.set("POST /api/v2/projects", () => ({ project_id: "p-question" }));
+    routes.set("POST /api/v2/chats/c-ariel/question", () => ({
+      message: { id: "q", mine: true, author: "", kind: "voice", body: "",
+                 meta: { duration_ms: 30000, answer: true, asked: true, take: "take-q" }, created_at: "2026-11-04T16:00:00Z" },
     }));
     await render();
     await tap(row("c-ariel"));
-    const screen = container.querySelector("[data-chat-screen]")!;
+    const plus = () => container.querySelector("[data-chat-bar] [data-chat-plus]")!;
+    const sheet = () => container.querySelector("[data-ask-sheet]");
 
-    await tap(screen.querySelector("[data-chat-plus]"));
-    await tap(screen.querySelector('[data-chat-tile="photos"]'));
-    const picker = screen.querySelector<HTMLInputElement>('input[type=file][data-chat-pick="photos"]')!;
-    expect([picker.accept, picker.multiple]).toEqual(["image/*", true]);
-    await pick(picker, [new File(["png"], "Screenshot 1.png", { type: "image/png" })]);
+    // Orange until first tapped; it opens "Ask Ariel", no tiles.
+    expect([plus().getAttribute("aria-label"), plus().hasAttribute("data-plus-new")]).toEqual(["Ask Ariel", true]);
+    await tap(plus());
+    expect(plus().hasAttribute("data-plus-new")).toBe(false);
+    expect(container.querySelector("[data-chat-tile]")).toBeNull();
+    expect(sheet()?.querySelector("[role=dialog] p")?.textContent).toBe("Ask Ariel");
+    expect([...sheet()!.querySelectorAll("[data-ask-steps] b")].map((b) => b.textContent)).toEqual([
+      "1. Ask one thing",
+      "2. Ariel answers",
+      "3. It stays here",
+    ]);
+    await tap(sheet()!.querySelector("[data-record-question]"));
+    expect(sheet()).toBeNull();
+    expect(recordedAnswers).toEqual([{ chatId: "c-ariel", name: "Ariel", question: "", customer: false, asks: true }]);
 
-    const posts = calls("POST /api/v2/chats/c-ariel/photo");
-    expect(posts).toHaveLength(1);
-    expect(((posts[0][1].body as FormData).get("file") as File).name).toBe("Screenshot 1.png");
-    expect(screen.querySelector('[data-row="me"] [data-chat-photo] img')?.getAttribute("src")).toBe("/api/v2/chats/c-ariel/messages/p1/file");
+    // The default presentation: a project with no slides of its own.
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        await startAnswer(recordedAnswers[0]!, null, () => {});
+        answerRecorded(30_000);
+        answerTake("take-q");
+      });
+      const made = JSON.parse(String(calls("POST /api/v2/projects")[0]![1]!.body));
+      expect([made.display_name, made.setup.slides]).toEqual(["To Ariel", []]);
+      expect(container.querySelector("[data-chat-bar] [data-chat-sending]")?.textContent).toBe("Sending to Ariel… 5Undo");
+      const posted = calls("POST /api/v2/chats/c-ariel/question");
+      expect(JSON.parse(String(posted[0]![1]!.body))).toEqual({ take: "take-q", duration_ms: 30000, hold_ms: 5000 });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(UNDO_MS);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    await flush();
+    expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent to Ariel");
+
+    // After the first question the sheet is short.
+    await tap(plus());
+    expect(sheet()?.querySelector("[data-ask-steps]")).toBeNull();
   });
 
   it("the other person's photo or file opens from the chat's file route", async () => {

@@ -301,16 +301,17 @@ step; the loop never waits for a coach.
   cause it is not!")
 - **B14** **The bar under the chat** has one logic in every chat
   (founder 2026-11-04, N483, locked on "The Bar, Clickable"
-  <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2>, version 8). The left
+  <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2>, version 12, N498). The left
   holds your things: in Will's chat the stack, Your projects (N460 item 5).
   The middle holds the one thing to do now, the first of these that holds
   (`Lounge.tsx`; `WillBarMiddle` in `plan/PlanDock.tsx`; `useWordsBox` in
   `WillQuestion.tsx`):
-  1. Will asks for words (a setup's name or code, "What was missing?", his
-     follow-up with no answers to tap, or "Something else", the first of his
-     answers, tapped): the box "Type your answer". Empty, a box opened from
+  1. Will asks for your own words ("What was missing?", his follow-up with
+     no answers to tap, or "Something else", the first of his answers,
+     tapped): the box "Type your answer". Empty, a box opened from
      "Something else" closes when you tap away; one Will asks for stays
-     until you send. You type at no other time;
+     until you send. You type at no other time, and your name is never
+     asked here: it comes from sign-up (N498 item 2);
   2. Will needs to hear you (the plan's spoken questions,
      [`the-plan.md`](the-plan.md) B10): "Record your answer", with "Not
      now" a grey word under his question; "Not now" leaves it until the
@@ -2237,6 +2238,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-04 · N505 · J9: one space around every bottom bar, 8px above, on each side and below, as on WhatsApp; the thread stops 8px above the chat's bar; the walk's footer goes from 20px sides and 30px under to 8px (`globals.css` `bar-space`, `Lounge.tsx`, `LoungeLifeGoals.tsx`, `walk/WalkFooter.tsx`, `walk/WalkSheetFrame.tsx`) · BE, FE (this PR)
+- 2026-11-04 · N498 item 2 · B14: Will's chat never asks for your name (it comes from sign-up); the box "Type your answer" comes only for your own words ("Something else", his follow-up with no answers, "What was missing?"); the bar's prototype is version 12 · BE N498 (#1733), FE (this PR)
 - 2026-11-04 · N122, N499 · B5, B8: the walk loads with the typing dots at the bottom, where its first bubble lands, and only once it is still loading after 0.3 s (`LENS_DOTS_AFTER_MS`); a thread shorter than the screen sits at the bottom, right above the buttons, as in the chat (`IdealTextOverlay` `LensFrame`, `WalkThread`). Prototype: <https://claude.ai/artifact/1KxNrA1Yw1QDPEK1zRFBAe>. Was: the dots at the top left of an empty screen from the first frame, and the first bubbles at the top until the thread filled · BE #1738, FE (this PR)
 
 - 2026-11-04 · N483 · B3, B10, B14, D4, E1, E3, K: the bar has one logic in every chat. In Will's chat the stack on the left, and in the middle the one thing to do now: the box "Type your answer" only when Will asks for words ("Something else", now the first of his answers, opens it; empty, it closes when you tap away); "Record your answer" for the plan's spoken questions, with "Not now" under the question; "Continue review"; else "Record Take N" for the newest Take, faded while one is processed, or "Start your first recording" before any (`WillBarMiddle`, `useWordsBox`, `Lounge.tsx`, `afterTake.ts`). What stops: the mic and voice notes to Will, the "#" note, "Keep a voice notebook?" and Will opening the notebook from your Takes (the note rests; kept notes stay, notes left on the phone still go); typing when Will has not asked; a spoken answer to Will's question; the tap "I want to continue my practice"; the ✕ beside "Record Take N"; "Continue review" above the bar; the faded "Type here" and its note · BE N483 (#1718), FE (this PR)

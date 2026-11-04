@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
-import { Camera, Check, ChevronLeft, File as FileIcon, ImageIcon, Mic, Plus, UserPlus, X, type LucideIcon } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Check, ChevronLeft, Plus, X } from "lucide-react";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 import TypingDots from "@/components/willab/TypingDots";
 import { VoicePlayer } from "@/components/willab/plan/VoicePlayer";
@@ -10,7 +10,18 @@ import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { TapRow } from "@/components/willab/WillQuestion";
 import { NOT_NOW } from "@/lib/willab/leaveWords";
 import { PLAN_COPY, fmtShort, isoDay } from "@/lib/willab/planCopy";
-import { UNDO_MS, onAnswerSent, sendAgain, undoAnswer, usePendingAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
+import {
+  UNDO_MS,
+  askedBefore,
+  markPlusSeen,
+  onAnswerSent,
+  plusSeen,
+  sendAgain,
+  undoAnswer,
+  usePendingAnswer,
+  type AnswerFor,
+} from "@/lib/willab/chatAnswer";
+import AskSheet, { askName } from "./AskSheet";
 import {
   CHAT_EMOJI,
   answerChatSetup,
@@ -19,7 +30,6 @@ import {
   getChatThread,
   setupOf,
   sendChatEmoji,
-  sendChatUpload,
   type Chat,
   type ChatEmoji,
   type ChatMessage,
@@ -27,10 +37,9 @@ import {
 } from "@/services/api/chats";
 import Profile from "./Profile";
 import { BlockedBar, useBlocking } from "./BlockReport";
-import { AddSomeoneSheet, EMOJI_MEANING, LetterCircle, OPEN_TAKE, WILL_ROW_TITLE, WillMark, firstName, meaningOf, takeSentYou } from "./ChatList";
+import { EMOJI_MEANING, LetterCircle, OPEN_TAKE, WILL_ROW_TITLE, WillMark, firstName, meaningOf, takeSentYou } from "./ChatList";
 import { fetchChatTake, type ChatTake } from "@/services/api/takeSends";
 import { fmtClock } from "@/components/willab/willabHelpers";
-import { photoForUpload } from "./photoForUpload";
 import { markChatOpened } from "./chatOpened";
 import { SEND_PICKED, answersOf, joinedAsks, joinedThanks, joinedYourLink } from "./joinCopy";
 import { MonthGrid } from "../plan/PlanCalendar";
@@ -43,14 +52,14 @@ import { clockTime, dayKey, dayLabel } from "./chatTime";
 /*  the circle with the first letter, the name and who they are. Then the     */
 /*  Lounge's own chat design (N301): its grey and orange bubbles, no picture  */
 /*  beside them, each with its time; the messages start at the bottom, by the */
-/*  bar, under the day ("Today"). The locked bar's shape with the three emoji */
-/*  in the box where Will's chat has "Type here" (N306), the "+" on its left  */
-/*  (N351: Photos, Camera, Files, Someone else), and the mic beside it only   */
-/*  while a question waits for a voice (N341; was N321 item 2). A question    */
-/*  about a product or a treatment (Will marks it, N361 item 1) takes one     */
-/*  black "Record an answer" in the bar's place (N321 item 4): the recording  */
-/*  screens, then "Sending to {name}…" with Undo for 5 seconds (N345), then   */
-/*  the answer, with "Sent to {name}" under it (N342, N361).                  */
+/*  bar, under the day ("Today"). The locked bar (N483): the "+" on the left, */
+/*  which opens "Ask {name}" (a question recorded over the default           */
+/*  presentation, N498), and the three emoji in the middle. A question about  */
+/*  a product or a treatment (Will marks it, N361 item 1), or one they asked  */
+/*  you, takes one black "Record your answer" in the middle (N483 items 3     */
+/*  and 5), "Not now" under it: the recording screens, then "Sending to       */
+/*  {name}…" with Undo for 5 seconds (N345), then the answer or the question, */
+/*  with "Sent to {name}" under it (N342, N361). No mic, no typing.           */
 /*  Only the conversation shows here; no asks (N305). Blocked from their      */
 /*  profile, the bar is one grey pill with Unblock; the messages stay (N466). */
 /* -------------------------------------------------------------------------- */
@@ -158,15 +167,6 @@ export const sentTo = (name: string) => `Sent to ${name}`;
 export const READ_IT = "Read it";
 export const HIDE_WORDS = "Hide";
 
-/** The "+" (backend N337, N351, signed): its name for a screen reader and
- *  its four tiles; a ✕ in its place closes them (N460 item 4; was "Cancel"). */
-export const addToChatWith = (name: string) => `Add to your chat with ${name}`;
-export const PLUS_TILES: readonly { id: "photos" | "camera" | "files" | "someone"; label: string; color: string; Icon: LucideIcon }[] = [
-  { id: "photos", label: "Photos", color: "#7C5CFF", Icon: ImageIcon },
-  { id: "camera", label: "Camera", color: "#E5484D", Icon: Camera },
-  { id: "files", label: "Files", color: "#2F7CF6", Icon: FileIcon },
-  { id: "someone", label: "Someone else", color: "#1F9D55", Icon: UserPlus },
-];
 /** A voice note's words, closed under its player (backend N331): "Read it"
  *  opens them inside the bubble, "Hide" closes them. Closed by default, for
  *  both people, so the voice is heard; shown only once there are words. */
@@ -693,43 +693,6 @@ function RecordAnswerButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-/** The "+"'s four tiles in the bar's place, each a round colour with its
- *  name under it (N351; the prototype's `attachSheet`), and a ✕ where the
- *  "+" was, which brings the bar back (N460 item 4; was "Cancel" under the
- *  row). */
-function PlusTiles({ onTile, onCancel }: { onTile: (id: (typeof PLUS_TILES)[number]["id"]) => void; onCancel: () => void }) {
-  return (
-    <div data-chat-tiles="" className="flex min-w-0 flex-1 items-start gap-1 pt-2">
-      {/* The "+" turned into ✕, in its place: it closes the tiles (N460 item 4). */}
-      <button
-        type="button"
-        onClick={onCancel}
-        aria-label={CHUNK_SHEET_COPY.pillClose}
-        data-chat-tiles-close=""
-        className="mt-4 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
-      >
-        <X className="h-5 w-5" aria-hidden />
-      </button>
-      <div className="grid min-w-0 flex-1 grid-cols-4 gap-x-1.5 gap-y-2.5 px-0.5 pb-0.5 pt-1.5">
-        {PLUS_TILES.map(({ id, label, color, Icon }) => (
-          <button
-            key={id}
-            type="button"
-            data-chat-tile={id}
-            onClick={() => onTile(id)}
-            className="flex flex-col items-center gap-1.5 py-1 text-[12.5px] font-medium text-foreground"
-          >
-            <i aria-hidden className="flex h-[52px] w-[52px] items-center justify-center rounded-full text-white" style={{ background: color }}>
-              <Icon className="h-6 w-6" strokeWidth={2} />
-            </i>
-            {label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /** A short sound and, where the device allows it, a small buzz on every
  *  send (backend N368 item 3). Quiet when the browser refuses either. */
 let audio: AudioContext | null = null;
@@ -801,19 +764,26 @@ function SendingPill({ name, startedAt, waited, failed }: { name: string; starte
 }
 
 /** The bar in a chat with a person (backend N483, the locked prototype "The
- *  Bar, Clickable" v8): the "+" on the left, the one thing to do now in the
- *  middle (the three emoji, "Record your answer", or "Sending to {name}…").
- *  No mic and no typing: no voice notes between people. Was (N368, N460
- *  items 1 and 2): the mic on the right, orange while their words waited. */
+ *  Bar, Clickable" v12): the "+" on the left, which asks them ("Ask
+ *  {name}"), the one thing to do now in the middle (the three emoji,
+ *  "Record your answer", or "Sending to {name}…"). No mic and no typing: no
+ *  voice notes between people. Until it is first tapped, while nothing else
+ *  is asked of you and before your first question, the "+" is a filled
+ *  orange circle, still: the one orange thing in the bar (N483 item 4). Was
+ *  (N368, N460 items 1 and 2): the mic on the right, orange while their
+ *  words waited; the "+" opened four tiles (N351). */
 function EmojiBar({
   name,
   onPlus,
   onPick,
+  plusNew = false,
   middle = null,
 }: {
   name: string;
   onPlus: () => void;
   onPick: (emoji: ChatEmoji) => void;
+  /** The "+" orange: not tapped yet, nothing asked of you. */
+  plusNew?: boolean;
   /** What stands in the middle instead of the emoji. */
   middle?: ReactNode;
 }) {
@@ -822,9 +792,12 @@ function EmojiBar({
       <button
         type="button"
         onClick={onPlus}
-        aria-label={addToChatWith(name)}
+        aria-label={askName(name)}
         data-chat-plus=""
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
+        data-plus-new={plusNew ? "" : undefined}
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${
+          plusNew ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
+        }`}
       >
         <Plus className="h-5 w-5" aria-hidden />
       </button>
@@ -928,16 +901,14 @@ export default function ChatThread({
   const [through, setThrough] = useState<string | null>(null);
   const [joinedAsksFirst, setJoinedAsksFirst] = useState(false);
   const [joinedBy, setJoinedBy] = useState<string | null>(null);
-
-  // The "+" (N351): its tiles in the bar's place, the add sheet, a photo full size.
-  const [tiles, setTiles] = useState(false);
-  const [inviting, setInviting] = useState(false);
+  // The "+" asks them (N483 item 4): "Ask {name}"; orange until first tapped.
+  const [asking, setAsking] = useState(false);
+  const [plusNew, setPlusNew] = useState(() => !plusSeen() && !askedBefore());
   const [fullPhoto, setFullPhoto] = useState<string | null>(null);
   const [profile, setProfile] = useState(false);
   // Block and Report (N466): from their profile; blocked, the bar says so.
   const { setBlocked, toast, ...safety } = useBlocking(chat);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const pickers = { photos: useRef<HTMLInputElement>(null), camera: useRef<HTMLInputElement>(null), files: useRef<HTMLInputElement>(null) };
 
 
   // Opened: on arrival, as its messages land, and on leaving. The list then
@@ -972,31 +943,6 @@ export default function ChatThread({
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
-
-  // A tile: the bar comes back at once, and the browser's own picker opens
-  // (Photos, Camera, Files), or the add sheet (Someone else). We draw no
-  // picker of our own.
-  const tile = (id: (typeof PLUS_TILES)[number]["id"]) => {
-    setTiles(false);
-    if (id === "someone") setInviting(true);
-    else pickers[id].current?.click();
-  };
-
-  // What was picked goes, one by one, in order; each joins the thread once
-  // the backend has kept it. A refused picker, a failed send or a file too
-  // big shows nothing new.
-  const upload = (kind: "photo" | "file") => async (e: ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(e.target.files ?? []);
-    e.target.value = "";
-    for (const file of picked) {
-      const { blob, name } = kind === "photo" ? await photoForUpload(file) : { blob: file, name: file.name };
-      const sent = await sendChatUpload(chat.id, kind, blob, name);
-      if (sent) {
-        sendTick();
-        setMessages((list) => [...(list ?? []), sent]);
-      }
-    }
-  };
 
   // Drawn at once; the backend's copy replaces it, a failed send takes it away.
   const send = async (emoji: ChatEmoji) => {
@@ -1070,12 +1016,15 @@ export default function ChatThread({
       <div data-chat-bar className="flex shrink-0 items-end gap-1 px-4 pb-2">
         {safety.blocked ? (
           <BlockedBar name={chat.title} onUnblock={safety.unblock} />
-        ) : tiles ? (
-          <PlusTiles onTile={tile} onCancel={() => setTiles(false)} />
         ) : (
           <EmojiBar
             name={chat.title}
-            onPlus={() => setTiles(true)}
+            onPlus={() => {
+              markPlusSeen();
+              setPlusNew(false);
+              setAsking(true);
+            }}
+            plusNew={plusNew && !pending && !question && !setup.answers}
             onPick={(emoji) => void send(emoji)}
             middle={
               setup.send ?? (pending ? (
@@ -1087,11 +1036,18 @@ export default function ChatThread({
           />
         )}
       </div>
-      {/* The browser's own pickers (N351), kept mounted while the bar is back. */}
-      <input ref={pickers.photos} type="file" accept="image/*" multiple hidden data-chat-pick="photos" onChange={(e) => void upload("photo")(e)} />
-      <input ref={pickers.camera} type="file" accept="image/*" capture="environment" hidden data-chat-pick="camera" onChange={(e) => void upload("photo")(e)} />
-      <input ref={pickers.files} type="file" hidden data-chat-pick="files" onChange={(e) => void upload("file")(e)} />
-      {inviting ? <AddSomeoneSheet onClose={() => setInviting(false)} /> : null}
+      {asking ? (
+        <AskSheet
+          name={chat.title}
+          firstTime={!askedBefore()}
+          onClose={() => setAsking(false)}
+          onRecord={() => {
+            // Always the default presentation (N483 item 4).
+            setAsking(false);
+            onRecordAnswer?.({ chatId: chat.id, name: chat.title, question: "", customer, asks: true });
+          }}
+        />
+      ) : null}
       {fullPhoto ? <PhotoFull src={fullPhoto} onClose={() => setFullPhoto(null)} /> : null}
       {setup.sheet}
       {toast}
