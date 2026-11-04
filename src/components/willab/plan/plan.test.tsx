@@ -420,7 +420,7 @@ it("a first-Take plan: the bar's button at once, and it starts the five slides",
   ];
   backend(() => ({ ...PLAN, status: "asking", step: "deadline", first_take: true, first_take_slides: slides }));
   const start = vi.fn();
-  await showLounge([row({}, "Your first Take is about what you know. Five questions, one slide each. Answer out loud, as you'd tell a friend.")], start);
+  await showLounge([row({}, "Your first Take is a short introduction: five questions, one slide each. Answer out loud, as you'd explain it to a friend. At the end, you'll get a few words on how you came across.")], start);
   const button = host.querySelector("[data-start-first]") as HTMLButtonElement;
   expect(button.textContent).toBe("Start your first recording");
   expect(taps()).toEqual([]); // no deadline asked in the chat
