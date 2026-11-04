@@ -2168,8 +2168,11 @@ export default function Lounge({
             /* `scrollbar-none` + `overflow-x-hidden`: past the 160px cap the
                field does scroll, but a bar inside a rounded chat input reads as
                a broken control, and a textarea has no business scrolling
-               sideways at all — it soft-wraps. */
-            className={`scrollbar-none block max-h-40 min-h-[40px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-2 pl-3.5 text-[15px] leading-snug outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-45 ${
+               sideways at all — it soft-wraps.
+               `hidden`, not just the attribute, while "Something else" stands
+               in its place (N371 item 3): Tailwind's `[hidden]` rule loses to
+               `block`, and both boxes showed. */
+            className={`scrollbar-none ${somethingElse.hidesBox ? "hidden" : "block"} max-h-40 min-h-[40px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-2 pl-3.5 text-[15px] leading-snug outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-45 ${
               draftText.trim() ? "pr-12" : "pr-4"
             }`}
             aria-label="Message Will"
