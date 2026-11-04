@@ -144,7 +144,7 @@ it("the box opens only when Will asks for words; the plan's questions never open
   // His follow-up has nothing to tap: the box is there by itself.
   act(() => root.render(<Bar shown={[{ metadata: { ...META, will_question_step: "follow", chips: [] } }]} typingOff={false} />));
   expect(box()).not.toBeNull();
-  // Words wait with no question of his (a setup's name, "What was missing?").
+  // Words wait with no question of his ("What was missing?").
   act(() => root.render(<Bar shown={[]} typingOff={false} wordsWait />));
   expect(box()).not.toBeNull();
   // Nothing asked: the middle is the record button, no box.
