@@ -13,7 +13,7 @@ OUTCOME
   O3  With sending off, it is asked again when the server says so (a
       community added since) or when my choice was given under other words
       than the screen's.
-  O4  With sending on (N470, N472): "Record Take 3" records at once to the
+  O4  With sending on (N470, N479): "Record Take 3" records at once to the
       people I chose, the line naming them and the upload sent to them; a
       person who joined since my chosen people asks once, while "Everyone
       in my list" takes them in; nobody in my list records with nothing
@@ -26,7 +26,7 @@ PROVES   O1 -> "is ● Record Take N and a grey Close, the one way out"
 WHY      Founder lock 2026-10-12, sections 4 and 9; locked Ideal Text screen.
          O2, O3: founder 2026-10-31, backend N309 item 5 (sharing is asked
          once; replaces G1's ask before every Take). O4: founder
-         2026-11-04, backend N470 (#1702), N472 (#1704) items 5 and 7, R1, R3.
+         2026-11-04, backend N470 (#1702), N479 (#1704) items 5 and 7, R1, R3.
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";

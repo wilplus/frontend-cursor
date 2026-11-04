@@ -352,11 +352,11 @@ function TakeTile({ meta }: { meta: Record<string, unknown> | null }) {
   );
 }
 
-/** A Take sent in the chat (backend N470, N472). Mine: the tile, with
+/** A Take sent in the chat (backend N470, N479). Mine: the tile, with
  *  "Sent to {name}" under it. Theirs: "{name} sent you Take {n}", the tile,
  *  and "Open Take", which plays its recording and shows its words slide by
  *  slide, as an answer does; never its Ideal Text, feedback, moments or
- *  levels (N472 item 8). Nothing opens on a failure; the button stays. */
+ *  levels (N479 item 8). Nothing opens on a failure; the button stays. */
 function ChatTakeBubble({
   chatId,
   message,

@@ -8,7 +8,7 @@ import { bffFetch } from "@/lib/api/bffFetch";
 export type ChatKind = "team" | "customer";
 /** A photo or a file comes from the "+" (N351): a file's body is its own
  *  name; a photo's is empty. A Take is one the other person sent you, or
- *  you them, with its tile (N470, N472). */
+ *  you them, with its tile (N470, N479). */
 export type ChatMessageKind = "emoji" | "text" | "voice" | "photo" | "file" | "take";
 
 /** `mine` and `meta` say whose a sent Take is and its number (N470). */

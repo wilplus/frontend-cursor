@@ -15,10 +15,10 @@ OUTCOME
       person, all ticked, "Last sent" under the one sent to last; Select
       all unticked unticks everyone and Continue waits; with one person
       ticked, Continue writes the line naming them and keeps them for the
-      next upload, which is sent to them once, after it is up (N470, N472).
+      next upload, which is sent to them once, after it is up (N470, N479).
   O4  With sending on, the line of a Take sent to people opens the screen
       with them ticked and fixed; adding someone sends the Take to everyone
-      ticked and the line names them all; nothing is unsent (N472 item 3).
+      ticked and the line names them all; nothing is unsent (N479 item 3).
   O1  With sending off (the backend's switch, or its read fails), today's
       screen: nothing starts ticked, Continue is off, and choosing "Only me" turns
       it on.
@@ -30,7 +30,7 @@ PROVES   O3 -> "with sending on, everyone is ticked, Select all unticks all, and
          O4 -> "with sending on, a sent Take's line opens the screen to add people, never to unsend"
          O1 -> "starts with nothing ticked; Continue waits for a choice, Only me counts"
          O2 -> "the latest Take's line opens the screen ticked as it stands, and a change re-stamps that Take"
-WHY      O3, O4: founder 2026-11-04, backend N470 (#1702) and N472
+WHY      O3, O4: founder 2026-11-04, backend N470 (#1702) and N479
          (#1704), the prototype "Specialist Side" tab 1. O1, O2 (sending
          off): founder 2026-10-15 (Privacy 3.6 section 4d). O2: founder
          2026-10-31, backend N309 item 5; G4 (each Take stamped and

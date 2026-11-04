@@ -162,7 +162,7 @@ async function nextChoice(): Promise<NextChoice> {
  *  upload and stored as the line under its recording, and the recording
  *  starts at once; anything else asks (`ask`). One tap at a time. The tap
  *  waits for the read 1.5 s at most, then asks (R1). With the switch on
- *  (N470, N472) the choice is people: nobody in the list records with
+ *  (N470, N479) the choice is people: nobody in the list records with
  *  nothing sent (R3); a choice kept goes as the line and, after the
  *  upload, as the send. */
 function useRememberedShare(

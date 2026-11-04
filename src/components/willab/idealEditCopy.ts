@@ -443,7 +443,7 @@ export const WALK_COPY = {
   sharePasscode: "Passcode",
   shareAdd: "Add",
   /* Who hears this Take, the people you tick (backend N470 item 6, signed;
-     N472; prototype "Specialist Side" tab 1). */
+     N479; prototype "Specialist Side" tab 1). */
   sendBubbles: [
     "Your knowledge is worth sharing, and so are your questions.",
     "The people below are the ones you trust.",

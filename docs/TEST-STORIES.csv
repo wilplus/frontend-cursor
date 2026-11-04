@@ -384,10 +384,10 @@ src/components/willab/NextTakeShareScreen.test.tsx,Story,"As a speaker before my
 person, all ticked, ""Last sent"" under the one sent to last; Select
 all unticked unticks everyone and Continue waits; with one person
 ticked, Continue writes the line naming them and keeps them for the
-next upload, which is sent to them once, after it is up (N470, N472).
+next upload, which is sent to them once, after it is up (N470, N479).
 O4  With sending on, the line of a Take sent to people opens the screen
 with them ticked and fixed; adding someone sends the Take to everyone
-ticked and the line names them all; nothing is unsent (N472 item 3).
+ticked and the line names them all; nothing is unsent (N479 item 3).
 O1  With sending off (the backend's switch, or its read fails), today's
 screen: nothing starts ticked, Continue is off, and choosing ""Only me"" turns
 it on.
@@ -397,7 +397,7 @@ now chose, stamped with the words I saw, and its line says the new
 choice; ""Only me"" takes it back from every community.","O3 -> ""with sending on, everyone is ticked, Select all unticks all, and the one ticked gets the next Take once""
 O4 -> ""with sending on, a sent Take's line opens the screen to add people, never to unsend""
 O1 -> ""starts with nothing ticked; Continue waits for a choice, Only me counts""
-O2 -> ""the latest Take's line opens the screen ticked as it stands, and a change re-stamps that Take""","O3, O4: founder 2026-11-04, backend N470 (#1702) and N472 (#1704), the prototype ""Specialist Side"" tab 1. O1, O2 (sending off): founder 2026-10-15 (Privacy 3.6 section 4d). O2: founder 2026-10-31, backend N309 item 5; G4 (each Take stamped and revocable)."
+O2 -> ""the latest Take's line opens the screen ticked as it stands, and a change re-stamps that Take""","O3, O4: founder 2026-11-04, backend N470 (#1702) and N479 (#1704), the prototype ""Specialist Side"" tab 1. O1, O2 (sending off): founder 2026-10-15 (Privacy 3.6 section 4d). O2: founder 2026-10-31, backend N309 item 5; G4 (each Take stamped and revocable)."
 src/components/willab/NoticeBar.test.tsx,Story,"As a speaker, I want a question or a price the founder sent me, and the WhatsApp ask, to come as a bar at the top of the chat, one at a time, never in the buttons I record with, so that it never competes with my next Take.","O1  The ask comes in the bar with its own words (the WhatsApp ask under
 its opener), once a visit, and is reported shown.
 O2  ✕ closes the bar.
@@ -610,7 +610,7 @@ the browser's Forward on the web) opens the chat I just left again;
 before I have left one, it does nothing (N378, N436).
 O18 An answer the backend refused stays in the bar's middle, ""Not sent""
 with ""Send again"", which sends the same Take (N441 item 1).
-O22 A Take someone sent me (N470, N472) is their message: ""{name} sent
+O22 A Take someone sent me (N470, N479) is their message: ""{name} sent
 you Take {n}"" with the Take's tile, and ""Open Take"" under it, which
 plays its recording and shows its words slide by slide behind ""Read
 it"", nothing else of it; the list's line says ""{name} sent you Take
@@ -914,7 +914,7 @@ words I saw) and stored as the line under its recording.
 O3  With sending off, it is asked again when the server says so (a
 community added since) or when my choice was given under other words
 than the screen's.
-O4  With sending on (N470, N472): ""Record Take 3"" records at once to the
+O4  With sending on (N470, N479): ""Record Take 3"" records at once to the
 people I chose, the line naming them and the upload sent to them; a
 person who joined since my chosen people asks once, while ""Everyone
 in my list"" takes them in; nobody in my list records with nothing
@@ -922,7 +922,7 @@ sent; a read that does not answer asks within 1.5 s, never holding
 the recording longer.","O1 -> ""is ● Record Take N and a grey Close, the one way out""
 O2 -> ""asks at Take 2, then records Take 3 at once with the remembered choice""
 O3 -> ""asks again after a community is added or when the words changed""
-O4 -> ""with sending on, Take 3 goes at once to the people chosen; someone new asks once; nobody records anyway; a slow read asks""","Founder lock 2026-10-12, sections 4 and 9; locked Ideal Text screen. O2, O3: founder 2026-10-31, backend N309 item 5 (sharing is asked once; replaces G1's ask before every Take). O4: founder 2026-11-04, backend N470 (#1702), N472 (#1704) items 5 and 7, R1, R3."
+O4 -> ""with sending on, Take 3 goes at once to the people chosen; someone new asks once; nobody records anyway; a slow read asks""","Founder lock 2026-10-12, sections 4 and 9; locked Ideal Text screen. O2, O3: founder 2026-10-31, backend N309 item 5 (sharing is asked once; replaces G1's ask before every Take). O4: founder 2026-11-04, backend N470 (#1702), N479 (#1704) items 5 and 7, R1, R3."
 src/components/willab/idealTextLoad.test.ts,Story,"As a speaker, I want my Ideal Text page to show the coach's note as soon as it arrives and keep the feedback shown while a new read loads, so that the page never goes blank or flickers.","O1  The coach's message is shown before the slower feedback arrives, and
 both are on the page once it does.
 O2  When the page re-reads, the feedback bars, style changes, additions

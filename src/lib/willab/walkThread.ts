@@ -902,7 +902,7 @@ export type ShareLineChange = {
   ticks: string[];
   communityIds: string[] | null;
   /** A Take sent to people (N470): who it went to; the line opens the
-   *  screen to add people only (N472 item 3). */
+   *  screen to add people only (N479 item 3). */
   people?: PeopleShareMeta | null;
 };
 

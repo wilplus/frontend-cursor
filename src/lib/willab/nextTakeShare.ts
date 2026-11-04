@@ -129,7 +129,7 @@ export function applyNextTakeShare(takeSessionId: string | null | undefined): vo
 }
 
 /* -------------------------------------------------------------------------- */
-/*  WHO HEARS THIS TAKE (backend N470, N472; rules page G). Behind the        */
+/*  WHO HEARS THIS TAKE (backend N470, N479; rules page G). Behind the        */
 /*  backend's switch: while it is off, or when its reads fail, everything     */
 /*  above stays exactly as it is (today's G1). On, the screen lists the       */
 /*  people in your chats; the choice is kept like the community one and the  */
@@ -138,7 +138,7 @@ export function applyNextTakeShare(takeSessionId: string | null | undefined): vo
 /* -------------------------------------------------------------------------- */
 
 /** The choice as the line under a Take's recording carries it
- *  (`metadata.share`), the shape the backend reads back (N472). */
+ *  (`metadata.share`), the shape the backend reads back (N479). */
 export type PeopleShareMeta = { kind: "people"; all: boolean; user_ids: string[]; names: string[] };
 
 /** The people choice kept for the next upload. */
@@ -191,7 +191,7 @@ export function within<T, F>(promise: Promise<T>, ms: number, fallback: F): Prom
 }
 
 /** The people shown when the speaker last chose (per device; asking once
- *  when someone new joins a choice of chosen people, N472 item 5). */
+ *  when someone new joins a choice of chosen people, N479 item 5). */
 export function rememberSeen(userIds: readonly string[]): void {
   try {
     localStorage.setItem(SEEN_KEY, JSON.stringify(userIds));
@@ -212,7 +212,7 @@ function seenIds(): Set<string> | null {
 /** What "Record Take N" does with the switch on: record with nothing sent
  *  (nobody in the list, R3), ask (no choice yet; nobody of the choice left;
  *  someone new joined a choice of chosen people), or send as chosen.
- *  "Everyone in my list" takes in someone new silently (N472 item 5). */
+ *  "Everyone in my list" takes in someone new silently (N479 item 5). */
 export function sendDecision(read: { people: SendPerson[]; choice: SendChoice | null }):
   | { go: "record" }
   | { go: "ask" }

@@ -82,7 +82,7 @@ OUTCOME
       before I have left one, it does nothing (N378, N436).
   O18 An answer the backend refused stays in the bar's middle, "Not sent"
       with "Send again", which sends the same Take (N441 item 1).
-  O22 A Take someone sent me (N470, N472) is their message: "{name} sent
+  O22 A Take someone sent me (N470, N479) is their message: "{name} sent
       you Take {n}" with the Take's tile, and "Open Take" under it, which
       plays its recording and shows its words slide by slide behind "Read
       it", nothing else of it; the list's line says "{name} sent you Take

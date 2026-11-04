@@ -30,7 +30,7 @@ import { useLoungeThreadMaybe } from "./LoungeThreadContext";
 
 /* -------------------------------------------------------------------------- */
 /*  NextTakeShareScreen — who hears the next Take (flow page G). Two screens  */
-/*  behind the backend's switch (N470, N472): with it on, the people you      */
+/*  behind the backend's switch (N470, N479): with it on, the people you      */
 /*  tick (`PeopleSendScreen`, the prototype "Specialist Side" tab 1); with    */
 /*  it off, or when its reads fail or are slow, today's community screen     */
 /*  exactly (`CommunityShareScreen`, G1 as it was; R3, R6).                   */
@@ -112,7 +112,7 @@ function firstTicks(people: readonly SendPerson[], choice: SendChoice | null, se
 }
 
 /* -------------------------------------------------------------------------- */
-/*  PeopleSendScreen — who hears this Take (backend N470, N472; rules page G; */
+/*  PeopleSendScreen — who hears this Take (backend N470, N479; rules page G; */
 /*  the prototype "Specialist Side" tab 1, one to one). The three grey        */
 /*  bubbles, "Select all", then one row per person in your chats, the tick    */
 /*  box on the left, the one sent to last on top with "Last sent". Everyone   */
@@ -121,7 +121,7 @@ function firstTicks(people: readonly SendPerson[], choice: SendChoice | null, se
 /*  Before a Take the choice is kept for the Take about to be recorded and    */
 /*  sent once its upload names it, never waited on (R2); it is stored as the  */
 /*  line under its recording. From that line the people it went to stay      */
-/*  ticked and fixed: people can be added, never removed (N472 item 3).       */
+/*  ticked and fixed: people can be added, never removed (N479 item 3).       */
 /*  ✕ records nothing.                                                        */
 /* -------------------------------------------------------------------------- */
 

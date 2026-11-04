@@ -1,7 +1,7 @@
 import { outcomeCall as call } from "@/lib/api/bffCall";
 
 /* -------------------------------------------------------------------------- */
-/*  Sending a Take to the people you tick (backend N470, N472; rules:         */
+/*  Sending a Take to the people you tick (backend N470, N479; rules:         */
 /*  docs/flows/feedback-walk-and-chat.md G). Behind the backend's switch      */
 /*  (`TAKE_SEND_ENABLED`): while it is off every read answers               */
 /*  `{enabled: false}` and a send 409 `SENDING_OFF`. Every call here answers  */
@@ -28,7 +28,7 @@ export type SentTake = { userId: string; chatId: string; messageId: string };
 
 /** What "Open Take" plays and shows to the person it was sent to: its
  *  recording and its words, slide by slide (never its Ideal Text, feedback,
- *  moments or levels, N472 item 8). */
+ *  moments or levels, N479 item 8). */
 export type ChatTake = {
   audioUrl: string;
   durationMs: number | null;
@@ -73,7 +73,7 @@ export async function fetchLastSend(): Promise<{ enabled: boolean; choice: SendC
 }
 
 /** Send your Take, once per person (the backend keeps it idempotent; a
- *  second call only adds people, N472 item 3); null on any refusal. */
+ *  second call only adds people, N479 item 3); null on any refusal. */
 export async function sendTake(takeSessionId: string, choice: SendChoice): Promise<SentTake[] | null> {
   const res = await call(
     `/api/v2/user/takes/${encodeURIComponent(takeSessionId)}/send`,

@@ -760,7 +760,7 @@ praised moment:
   1 of N" or "Invita · 1 of N". Who you judge follows who you share with
   (G3 as it was; with sending on, no new Take joins the crowd's judging,
   and the step runs on the training corpus and on Takes shared before,
-  N472 item 2). **Opened again** once the walk is done, it shows the moments the
+  N479 item 2). **Opened again** once the walk is done, it shows the moments the
   speaker judged, each with their answer, and no buttons (N259). Nothing is asked or sent
   again; with none judged the step is left out (N247; was "no read-only
   replay", 2026-10-13). No other speaker's recording is ever stored in a
@@ -1075,9 +1075,9 @@ praised moment:
 ### G · Who hears this Take, before the next recording
 
 Built behind the backend's switch for sending (`TAKE_SEND_ENABLED`, off
-until the Privacy text for it is signed, N472 item 1). While the switch is
+until the Privacy text for it is signed, N479 item 1). While the switch is
 off, or when its reads fail, today's G1 to G4 hold exactly, as written
-under "Was:" below (R3, R6). On (founder 2026-11-04, N470 (#1702), N472
+under "Was:" below (R3, R6). On (founder 2026-11-04, N470 (#1702), N479
 (#1704); the prototype "Specialist Side"
 <https://claude.ai/artifact/CXHqV7paTVT4iVSA5uiyrV> tab 1, locked):
 
@@ -1091,38 +1091,38 @@ under "Was:" below (R3, R6). On (founder 2026-11-04, N470 (#1702), N472
   left, the person sent to last on top with "Last sent" under the name,
   then the list's order; Continue. The list is real people only: no demo
   or guest accounts, nobody blocked either way; a speaker with no chat with
-  a person has one with Artur, speaking coach (N470 item 3, N472 item 7).
+  a person has one with Artur, speaking coach (N470 item 3, N479 item 7).
   ✕ records nothing. The choice is remembered: every later "Record Take N"
   records at once with it. Asked again only when someone joined your list
   since a choice of chosen people (once; "Everyone in my list" takes them
-  in silently), or when nobody of the choice is left (N472 item 5; never
+  in silently), or when nobody of the choice is left (N479 item 5; never
   before every Take, Never 3). "Record Take N" waits for the people and the
   last choice 1.5 s at most, then asks (R1); with nobody in the list it
   records with nothing sent (R3).
 - **G2** Ticked by default: everyone (Select all), or the last choice
   (`GET /v2/user/takes/send/last`). Unticking all leaves Continue waiting;
   it is the only time it waits. There is no "Everyone on WillpowerLab" and
-  no "Only me" (N470 item 2, N472 item 1).
+  no "Only me" (N470 item 2, N479 item 1).
 - **G3** Each ticked person gets the Take as your own message in your chat
   with them, by name, not blind, with the Take attached and "Open Take",
   which plays its recording and shows its words slide by slide, never its
-  Ideal Text, feedback, moments or levels (N470 item 4, N472 item 8;
+  Ideal Text, feedback, moments or levels (N470 item 4, N479 item 8;
   customer-requests.md C1). The Take is sent after its upload, never waited
   on, and never for an answer (R2, R5; `applyNextTakeShare` sends it,
   `POST /v2/user/takes/<take>/send`). The crowd stops for new Takes: no
   new Take is shared with other speakers to judge; C8 keeps running on the
   training corpus and on Takes shared before, which stay shared until the
-  speaker stops them (N472 item 2).
+  speaker stops them (N479 item 2).
 - **G4** The line under the Take's recording names who it went to
   ("Artur", "Artur, Maya Lindqvist", or "Everyone in my list"), stored as
   the speaker's share line (`metadata.share`: `{kind: "people", all,
   user_ids, names}`), which is the remembered choice. On the speaker's
   latest Take the line opens the same screen with the people it went to
   ticked and fixed: people can be added, and Continue sends it to them; it
-  is never unsent (N470 item 5, N472 item 3). A line of a Take shared with
+  is never unsent (N470 item 5, N479 item 3). A line of a Take shared with
   communities before opens today's screen, as it was.
 
-Was (until N470 and N472, and still while the switch is off): "Sharing,
+Was (until N470 and N479, and still while the switch is off): "Sharing,
 before the next recording":
 
   - **G1** Asked once, the first time "Record Take 2" is tapped, never before
@@ -2207,7 +2207,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-11-04 · N470, N472 · G: who hears this Take: at "Record Take 2" the three signed bubbles, "Select all" and one row per person in your chats, everyone ticked or the last choice, "Last sent" on the one sent to last; Continue keeps the people and the line naming them ("Artur, Maya Lindqvist", "Everyone in my list"), and the Take is sent to each, as your message in your chat with them, once its upload is up; the line opens the screen to add people, never to unsend; asked again only when someone joins a choice of chosen people; "Record Take N" waits 1.5 s at most for the choice, then asks; nobody in the list records with nothing sent (`NextTakeShareScreen.tsx`, `nextTakeShare.ts`, `walkThread.ts`, `IdealTextActions.tsx`, `takeSends.ts`). Behind the backend's switch, off until the Privacy text is signed; off, or when its reads fail, today's screen exactly. What stops once on: General community and Only me, the crowd judging new Takes, taking a sent Take back, the passcode (N471 item 2, N472 item 4), the question asked again when a community is added. Was: G1 to G4, "How big you want your audience?" · BE N470 (#1702), N472 (#1704), BE (send PR), FE (this PR)
+- 2026-11-04 · N470, N479 · G: who hears this Take: at "Record Take 2" the three signed bubbles, "Select all" and one row per person in your chats, everyone ticked or the last choice, "Last sent" on the one sent to last; Continue keeps the people and the line naming them ("Artur, Maya Lindqvist", "Everyone in my list"), and the Take is sent to each, as your message in your chat with them, once its upload is up; the line opens the screen to add people, never to unsend; asked again only when someone joins a choice of chosen people; "Record Take N" waits 1.5 s at most for the choice, then asks; nobody in the list records with nothing sent (`NextTakeShareScreen.tsx`, `nextTakeShare.ts`, `walkThread.ts`, `IdealTextActions.tsx`, `takeSends.ts`). Behind the backend's switch, off until the Privacy text is signed; off, or when its reads fail, today's screen exactly. What stops once on: General community and Only me, the crowd judging new Takes, taking a sent Take back, the passcode (N471 item 2, N479 item 4), the question asked again when a community is added. Was: G1 to G4, "How big you want your audience?" · BE N470 (#1702), N479 (#1704), BE (send PR), FE (this PR)
 - 2026-11-04 · N469 · J8: the rhythm of a run, as on WhatsApp: in Will's chat and every chat with a person, two rows of the same side sit 2px apart and 12px where the side changes; anything else keeps 8px (`globals.css`, `Lounge.tsx`, `chats/ChatThread.tsx`). The walk keeps its own spacing. Was: 8px between every row · BE #1700, FE (this PR)
 
 - 2026-11-04 · — · simplification of the N458/N459 code, no behaviour change · FE (this PR)
