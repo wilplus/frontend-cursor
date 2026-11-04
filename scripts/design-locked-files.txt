@@ -32,6 +32,10 @@ src/components/willab/idealEditCopy.ts
 src/components/willab/walk/
 src/components/willab/WalkEnd.tsx
 src/lib/willab/walkMotion.ts
+# Who hears this Take, the people you tick (founder 2026-11-04, backend N470, N479;
+# https://claude.ai/artifact/CXHqV7paTVT4iVSA5uiyrV tab 1)
+src/components/willab/NextTakeShareScreen.tsx
+src/lib/willab/nextTakeShare.ts
 # The one recording bar: the trash, then the walk's strip (founder 2026-10-31, backend N314)
 src/components/willab/RecordingBar.tsx
 

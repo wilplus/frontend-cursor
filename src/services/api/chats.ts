@@ -7,10 +7,12 @@ import { bffFetch } from "@/lib/api/bffFetch";
 
 export type ChatKind = "team" | "customer";
 /** A photo or a file comes from the "+" (N351): a file's body is its own
- *  name; a photo's is empty. */
-export type ChatMessageKind = "emoji" | "text" | "voice" | "photo" | "file";
+ *  name; a photo's is empty. A Take is one the other person sent you, or
+ *  you them, with its tile (N470, N479). */
+export type ChatMessageKind = "emoji" | "text" | "voice" | "photo" | "file" | "take";
 
-export type ChatLast = { kind: ChatMessageKind; body: string; created_at: string };
+/** `mine` and `meta` say whose a sent Take is and its number (N470). */
+export type ChatLast = { kind: ChatMessageKind; body: string; created_at: string; mine?: boolean; meta?: Record<string, unknown> | null };
 export type Chat = {
   id: string;
   kind: ChatKind;

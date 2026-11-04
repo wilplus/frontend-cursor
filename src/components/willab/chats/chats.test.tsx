@@ -82,6 +82,11 @@ OUTCOME
       before I have left one, it does nothing (N378, N436).
   O18 An answer the backend refused stays in the bar's middle, "Not sent"
       with "Send again", which sends the same Take (N441 item 1).
+  O22 A Take someone sent me (N470, N479) is their message: "{name} sent
+      you Take {n}" with the Take's tile, and "Open Take" under it, which
+      plays its recording and shows its words slide by slide behind "Read
+      it", nothing else of it; the list's line says "{name} sent you Take
+      {n}"; a Take I sent is my tile with "Sent to {name}".
   O21 At the foot of the other person's profile, "Block {name}" asks first
       and then blocks them: the backend is told, "{name} is blocked." shows,
       and back in the chat the bar is one pill, "You blocked {name}." with
@@ -109,6 +114,7 @@ PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is 
          O17 -> "the device's Back goes back by one, to the list, never off it, and Forward opens the chat I just left"
          O17 -> "in the app, a swipe from the left edge goes back to the list where I left it, and one from the right edge forward to the chat I just left"
          O18 -> "a refused answer stays as Not sent, and Send again sends the same Take"
+         O22 -> "a Take sent to me opens with its recording and words, and the list says who sent it"
          O21 -> "from their profile I block them, the bar says so with Unblock, and Report and block reports with the block"
 */
 import { act, createElement, useRef } from "react";
@@ -1023,5 +1029,59 @@ describe("the chats in front of the Lounge", () => {
     expect(posted).toEqual([{ take: "take-1", duration_ms: 30000, hold_ms: 5000 }, { take: "take-1", duration_ms: 30000, hold_ms: 0 }]);
     expect(container.querySelector("[data-chat-sending]")).toBeNull();
     expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent to Sarah");
+  });
+
+  it("a Take sent to me opens with its recording and words, and the list says who sent it", async () => {
+    const played: string[] = [];
+    vi.stubGlobal(
+      "Audio",
+      class {
+        constructor(src: string) {
+          played.push(src);
+        }
+        play() {
+          return Promise.resolve();
+        }
+        pause() {}
+      },
+    );
+    const AMIRA = {
+      id: "c-amira",
+      kind: "team",
+      title: "Amira Haddad",
+      subtitle: "Account executive",
+      last: { kind: "take", body: "", mine: false, meta: { take_index: 3 }, created_at: "2026-11-04T11:02:00Z" },
+    };
+    const meta = { take_index: 3, project_title: "Q3 board pitch", duration_ms: 134_000 };
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [AMIRA] }));
+    routes.set("GET /api/v2/chats/c-amira/messages", () => ({
+      messages: [
+        { id: "t1", mine: false, author: "Amira Haddad", kind: "take", body: "", meta, created_at: AMIRA.last.created_at },
+        { id: "t2", mine: true, author: "Me", kind: "take", body: "", meta: { ...meta, take_index: 4 }, created_at: AMIRA.last.created_at },
+      ],
+    }));
+    routes.set("GET /api/v2/chats/c-amira/messages/t1/take", () => ({
+      audio_url: "https://store.example/take-3.webm?sig=1",
+      duration_ms: 134_000,
+      slides: [{ index: 0, title: "Hook", words: "We grew in Q3." }, { index: 1, title: null, words: "Next, the cities." }],
+    }));
+    await render();
+    expect(lastLineOf("c-amira")).toBe("Amira sent you Take 3");
+    await tap(row("c-amira"));
+
+    const theirs = container.querySelector("[data-chat-take]")!;
+    expect(theirs.textContent).toContain("Amira sent you Take 3");
+    expect(theirs.querySelector("[data-take-tile]")?.textContent).toBe("2:14Take 3Q3 board pitch");
+    await tap(theirs.querySelector("[data-chat-open-take]"));
+    expect(theirs.querySelector("[data-chat-open-take]")).toBeNull();
+    await tap(theirs.querySelector('button[aria-label="Play"]'));
+    expect(played).toEqual(["https://store.example/take-3.webm?sig=1"]);
+    await tap(theirs.querySelector("[data-chat-read]"));
+    expect(theirs.querySelector("[data-chat-words]")?.textContent).toBe("We grew in Q3.\n\nNext, the cities.");
+
+    const mine = container.querySelector('[data-row="me"] [data-take-tile]');
+    expect(mine?.textContent).toContain("Take 4");
+    expect(container.textContent).toContain("Sent to Amira Haddad");
   });
 });

@@ -24,7 +24,9 @@ import {
 } from "@/services/api/chats";
 import Profile from "./Profile";
 import { BlockedBar, useBlocking } from "./BlockReport";
-import { AddSomeoneSheet, EMOJI_MEANING, LetterCircle, WILL_ROW_TITLE, WillMark, meaningOf } from "./ChatList";
+import { AddSomeoneSheet, EMOJI_MEANING, LetterCircle, OPEN_TAKE, WILL_ROW_TITLE, WillMark, firstName, meaningOf, takeSentYou } from "./ChatList";
+import { fetchChatTake, type ChatTake } from "@/services/api/takeSends";
+import { fmtClock } from "@/components/willab/willabHelpers";
 import { photoForUpload } from "./photoForUpload";
 import { markChatOpened } from "./chatOpened";
 import { joinedThrough } from "./joinCopy";
@@ -328,6 +330,98 @@ function ChatFile({ src, message, time }: { src: string; message: ChatMessage; t
   );
 }
 
+/** A Take's tile (backend N470, the prototype's flow 4): the dark frame
+ *  with its play mark and length, "Take {n}" and the project's title. */
+function TakeTile({ meta }: { meta: Record<string, unknown> | null }) {
+  const n = typeof meta?.take_index === "number" ? meta.take_index : null;
+  const ms = typeof meta?.duration_ms === "number" ? meta.duration_ms : null;
+  const project = typeof meta?.project_title === "string" ? meta.project_title : "";
+  return (
+    <span data-take-tile="" className="flex items-center gap-2.5 rounded-[10px] bg-black/[0.12] px-2 py-2">
+      <span aria-hidden className="relative flex aspect-video w-[96px] shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br from-[#30343c] to-[#17191e]">
+        <span className="relative h-[26px] w-[26px] rounded-full bg-white/[0.94]">
+          <span className="absolute left-[10px] top-[7px] border-y-[6px] border-l-[9px] border-y-transparent border-l-[#121212]" />
+        </span>
+        {ms !== null ? <span className="absolute bottom-1 right-1.5 text-[10px] text-white">{fmtClock(ms / 1000)}</span> : null}
+      </span>
+      <span className="flex min-w-0 flex-col">
+        {n !== null ? <span className="break-words text-[14px] font-semibold leading-snug">{`${CHUNK_SHEET_COPY.historyTake} ${n}`}</span> : null}
+        {project ? <span className="text-[12.5px] leading-snug opacity-80">{project}</span> : null}
+      </span>
+    </span>
+  );
+}
+
+/** A Take sent in the chat (backend N470, N479). Mine: the tile, with
+ *  "Sent to {name}" under it. Theirs: "{name} sent you Take {n}", the tile,
+ *  and "Open Take", which plays its recording and shows its words slide by
+ *  slide, as an answer does; never its Ideal Text, feedback, moments or
+ *  levels (N479 item 8). Nothing opens on a failure; the button stays. */
+function ChatTakeBubble({
+  chatId,
+  message,
+  time,
+  name,
+  sentLine,
+}: {
+  chatId: string;
+  message: ChatMessage;
+  time: string;
+  name: string;
+  sentLine: string;
+}) {
+  const [take, setTake] = useState<ChatTake | null>(null);
+  const [opening, setOpening] = useState(false);
+  const meta = message.meta;
+  if (message.mine) {
+    return (
+      <div className="flex flex-col gap-1">
+        <FileBubble mine time={time}>
+          <TakeTile meta={meta} />
+        </FileBubble>
+        <SentLine>
+          <Check className="h-3.5 w-3.5 text-primary" strokeWidth={2.6} aria-hidden />
+          {sentLine}
+        </SentLine>
+      </div>
+    );
+  }
+  const n = typeof meta?.take_index === "number" ? meta.take_index : null;
+  const open = async () => {
+    if (opening) return;
+    setOpening(true);
+    setTake(await fetchChatTake(chatId, message.id));
+    setOpening(false);
+  };
+  const words = take ? take.slides.map((slide) => slide.words.trim()).filter(Boolean).join("\n\n") : "";
+  return (
+    <div data-chat-take="" className="flex flex-col gap-2">
+      <FileBubble mine={false} time={time}>
+        {n !== null ? <span className="px-1.5 pt-0.5 text-[15px] leading-[1.45]">{takeSentYou(firstName(message.author || name), n)}</span> : null}
+        <TakeTile meta={meta} />
+        {take ? (
+          <span data-chat-take-open="" className="flex flex-col px-1 pt-1">
+            <VoicePlayer src={take.audioUrl} tone="grey" durationMs={take.durationMs} />
+            {words ? <VoiceWords words={words} mine={false} /> : null}
+          </span>
+        ) : null}
+      </FileBubble>
+      {take ? null : (
+        <div className="mr-auto flex max-w-[90%] flex-wrap gap-2 pt-1">
+          <button
+            type="button"
+            data-chat-open-take=""
+            onClick={() => void open()}
+            className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-full border border-input bg-background px-4 text-[13px] font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            {OPEN_TAKE}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** A photo full size, over everything, with a close ✕ and no words (N351). */
 function PhotoFull({ src, onClose }: { src: string; onClose: () => void }) {
   return (
@@ -355,13 +449,17 @@ function ChatRow({
   message,
   onPhoto,
   sentLine,
+  name = "",
 }: {
   chatId: string;
   message: ChatMessage;
   onPhoto: (src: string) => void;
   sentLine: string;
+  /** The other person, for a Take they sent ("{name} sent you Take {n}"). */
+  name?: string;
 }) {
   const time = clockTime(message.created_at);
+  if (message.kind === "take") return <ChatTakeBubble chatId={chatId} message={message} time={time} name={name} sentLine={sentLine} />;
   if (message.kind === "voice") {
     const voice = <ChatVoice chatId={chatId} message={message} time={time} />;
     if (!(message.mine && message.meta?.answer === true)) return voice;
@@ -834,6 +932,7 @@ export default function ChatThread({
                 message={message}
                 onPhoto={setFullPhoto}
                 sentLine={sentTo(chat.title)}
+                name={chat.title}
               />,
             ])
           )}

@@ -5,8 +5,18 @@ import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import { WalkLink, WalkPill } from "./walk/WalkFooter";
 import NextTakeShareScreen from "./NextTakeShareScreen";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { keepNextTakeShare, rememberedChoice, ticksOf } from "@/lib/willab/nextTakeShare";
-import { shareLineDraft, shareLineText } from "@/lib/willab/walkThread";
+import {
+  keepNextTakeShare,
+  keptSendOf,
+  readSend,
+  rememberedChoice,
+  SEND_READ_CAP_MS,
+  sendDecision,
+  ticksOf,
+  within,
+  type SendRead,
+} from "@/lib/willab/nextTakeShare";
+import { peopleLine, shareLineDraft, shareLineText } from "@/lib/willab/walkThread";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextActions — the bottom of the text page.                           */
@@ -92,8 +102,9 @@ export default function IdealTextActions({
      once, and the screen asks again only when the words change or a
      community is added (backend N309 item 5). */
   const asksShare = typeof takeCount === "number" && takeCount >= 1;
-  const [asking, setAsking] = useState(false);
-  const next = useRememberedShare(asksShare, arcId, onNewTake, () => setAsking(true));
+  // The screen opens with what was read, so it never reads twice (N470).
+  const [asking, setAsking] = useState<false | { send?: SendRead }>(false);
+  const next = useRememberedShare(asksShare, arcId, onNewTake, (send) => setAsking({ send }));
   const start = asksShare ? next : onNewTake;
   useEffect(() => {
     if (shareFirst && asksShare) next();
@@ -122,6 +133,7 @@ export default function IdealTextActions({
         <NextTakeShareScreen
           takeCount={takeCount}
           arcId={arcId}
+          send={asking.send}
           onDone={() => {
             setAsking(false);
             onNewTake();
@@ -133,31 +145,60 @@ export default function IdealTextActions({
   );
 }
 
+/** What "Record Take N" found: with the backend's switch on (N470), the
+ *  people and their last choice; else today's remembered community choice. */
+type NextChoice =
+  | { kind: "send"; send: Extract<SendRead, { enabled: true }> }
+  | { kind: "community"; kept: Awaited<ReturnType<typeof rememberedChoice>> };
+
+async function nextChoice(): Promise<NextChoice> {
+  const send = await readSend();
+  if (send.enabled) return { kind: "send", send };
+  return { kind: "community", kept: await rememberedChoice() };
+}
+
 /** "Record Take N" from Take 2 on (backend N309 item 5): the remembered
  *  choice, read as the page opens, goes with the next Take, kept for its
  *  upload and stored as the line under its recording, and the recording
- *  starts at once; anything else asks (`ask`). One tap at a time. */
+ *  starts at once; anything else asks (`ask`). One tap at a time. The tap
+ *  waits for the read 1.5 s at most, then asks (R1). With the switch on
+ *  (N470, N479) the choice is people: nobody in the list records with
+ *  nothing sent (R3); a choice kept goes as the line and, after the
+ *  upload, as the send. */
 function useRememberedShare(
   asksShare: boolean,
   arcId: string | null,
   record: () => void,
-  ask: () => void,
+  ask: (send?: SendRead) => void,
 ): () => void {
   const thread = useLoungeThreadMaybe();
-  const read = useRef<ReturnType<typeof rememberedChoice> | null>(null);
+  const read = useRef<Promise<NextChoice> | null>(null);
   const busy = useRef(false);
   useEffect(() => {
-    if (asksShare && !read.current) read.current = rememberedChoice();
+    if (asksShare && !read.current) read.current = nextChoice();
   }, [asksShare]);
   return () => {
     if (busy.current) return;
     busy.current = true;
-    const pending = read.current ?? rememberedChoice();
+    const pending = read.current ?? nextChoice();
     // The next tap reads again: the choice may change in between.
     read.current = null;
-    void pending.then((kept) => {
+    void within(pending, SEND_READ_CAP_MS, null).then((found) => {
       busy.current = false;
-      if (!kept) return ask();
+      if (!found) return ask();
+      if (found.kind === "send") {
+        const decision = sendDecision(found.send);
+        if (decision.go === "ask") return ask(found.send);
+        if (decision.go === "record") {
+          keepNextTakeShare(null);
+          return record();
+        }
+        keepNextTakeShare(keptSendOf(decision.share));
+        void thread?.append(shareLineDraft(peopleLine(decision.share), decision.share, arcId)).catch(() => undefined);
+        return record();
+      }
+      const kept = found.kept;
+      if (!kept) return ask({ enabled: false });
       const { share, names } = kept;
       keepNextTakeShare(share.none ? null : { general: share.general, communityIds: share.community_ids });
       void thread?.append(shareLineDraft(shareLineText(ticksOf(share), names), share, arcId)).catch(() => undefined);

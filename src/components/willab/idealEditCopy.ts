@@ -442,6 +442,16 @@ export const WALK_COPY = {
   shareAddCommunity: "+ Add a community with a passcode",
   sharePasscode: "Passcode",
   shareAdd: "Add",
+  /* Who hears this Take, the people you tick (backend N470 item 6, signed;
+     N479; prototype "Specialist Side" tab 1). */
+  sendBubbles: [
+    "Your knowledge is worth sharing, and so are your questions.",
+    "The people below are the ones you trust.",
+    "Choose who can answer you best, or send it to all of them and practise speaking.",
+  ],
+  sendSelectAll: "Select all",
+  sendLastSent: "Last sent",
+  sendEveryone: "Everyone in my list",
   /* The practise (founder lock 2026-10-12, sections 2.5 and 8). */
   lineA: "Say this one like your confident moment.",
   /* The weakest moment (founder 2026-10-30, backend N289 item 7, signed in

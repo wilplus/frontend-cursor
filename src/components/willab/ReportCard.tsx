@@ -574,7 +574,8 @@ const SHARE_LINE_CLASS = "text-[12.5px] leading-snug text-primary-foreground/90"
 
 /** The recording's line; on the speaker's latest Take, the same line opens
  *  the sharing screen, ticked as it stands, to change the choice for this
- *  Take and the ones after it (backend N309 item 5). The screen sits on the
+ *  Take and the ones after it (backend N309 item 5); a Take sent to people
+ *  opens it to add people only (N470, N479 item 3). The screen sits on the
  *  page, not in the bubble, and no tap or key in it reaches the bubble. */
 function ShareLine({ line, change }: { line: string; change: ShareLineChange | null }) {
   const [open, setOpen] = useState(false);
@@ -600,7 +601,7 @@ function ShareLine({ line, change }: { line: string; change: ShareLineChange | n
               <NextTakeShareScreen
                 takeCount={change.takeIndex}
                 arcId={change.arcId}
-                initial={{ ticks: change.ticks, communityIds: change.communityIds }}
+                initial={{ ticks: change.ticks, communityIds: change.communityIds, people: change.people ?? null }}
                 takeSessionId={change.takeSessionId}
                 onDone={() => setOpen(false)}
                 onClose={() => setOpen(false)}
