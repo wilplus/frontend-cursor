@@ -1932,6 +1932,46 @@ The four lines above were filled from main's history by the page's keeper on
 
 ## 3. Still open
 
+- **From the walk's audit (2026-11-04, N458), for the founder:**
+  - **The plan's question after a Take** ("When is your deadline?" after
+    Take 1, "Is this for {date}?", the ratings and the consent ask) lands
+    right above the goodbye, so "Record Take 2" shows next to an open
+    question and the plan's taps sit under the goodbye (D4 item 2). Holding
+    the goodbye under it was tried and taken back: it could stay held for
+    good. N453 moves Take 1's question into the processing wait; the
+    others wait on a rule.
+  - **A slow Sniper's Last time** keeps the rushed tip "give “{words}” more
+    room" (N347 item 3 was written for a rushed stretch). Sign a slow tip,
+    or rule that a slow Sniper keeps none (C0a).
+  - **A weakest of 37 words or more** never gets its AI example: the clip
+    is at most 17 s, so only the tip in words shows. Pick only moments the
+    clip can say, or let the clip say the sentence with the phrase.
+  - **No tip when the AI voice is off,** deleted, or practice consent is
+    off: C4 and N370 list only a failed check, refused limits and no voice
+    yet; the AI voice page says the tip stays.
+  - **Switching sentence after a try:** a Clearer practice that already
+    has a try on one sentence stays on it when the speaker taps the other.
+  - **"Did the fix work" reads the dark frame,** which picks by rank, not by
+    what could be served, so for a sentence kept with "Keep my words" and
+    said again it can name a fix the walk never gave. Storing the served
+    fix needs a migration.
+  - **A non-answer under Will's question** (a "#" note, a typed message
+    that is not an answer) still lets the goodbye go: E1 ("a typed message
+    passes the ask in front") against N406 item 1 ("nothing lets it go past
+    an open question").
+  - **The deeper question** now waits for the key line (E2, "with all
+    three known"); a key line asked once and left unanswered means no
+    deeper question for that talk.
+  - **Take 2 of the first project** (the real talk on new slides, N449)
+    compares Last time and what worked with Take 1's five questions, slide
+    by slide.
+  - **The summary is drawn nowhere** (C9 has no summary step; D4 hides it
+    in the chat), yet the chat after the walk waits on its model call.
+  - **N103 is not built:** below three approved exercise videos for a
+    mistake, the coach's queue asking Artur to record one. It waits on
+    backend #1127 (draft) and the founder's words for the coach panel line.
+    Until then the speaker gets the AI clip or its tip at once.
+
 - **The One thing walk, built as closest to N309 (2026-11-02):** "Since
   it was last worked on" is read as "the fix the last walk gave". The
   founder decides.
@@ -2073,6 +2113,13 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N458 · C9, D4, E1, E2, B3, B8: the chat after the walk comes however the walk ends: Close, ✕ on the finished walk, or opening a finished Take that has none yet. ✕ and the page's own open ask only when the chat's newest recording is this Take's own, so an older Take's chain never lands under a newer one; the summary is asked once per Take whichever page asks, asked again if it failed, and the chat reloads either way; a coach's late word closed with ✕ ends nothing (`askSummary`). While the summary and the chain are written the chat shows the typing dots, a tapped answer to Will too; a failed read of the chat keeps it on screen. The first Take's goodbye says it is the first Take's (`metadata.first_take`), so "Record Take 2" comes at once and records the real talk on any device. A "#" note under Will's question no longer brings his next question (`answered_first`); from Take 3 the deeper question waits until who, what and the key line are all known. Was: only the Close pill brought the chain, ✕ ended the review with nothing after it; the chat sat still with no dots for the summary's model call; the first Take's goodbye was known only on the device that started it; a note brought the next question; the deeper question came after an unanswered key line · BE #1687, FE (this PR)
+- 2026-11-04 · N458 · C8, B7: another speaker's moment lands one bubble at a time; the chosen face holds 0.28 s, then the answer and "Got it." land, then the walk moves on (`WalkOverlay` `onSettled`), and the faces leave the dock once the answer shows; "Audio unclear" answers at once; their clip is asked for as the walk opens on Take 2 or later, so it is ready when the walk gets there (`prefetchOtherClips`, kept 10 minutes, under the signed link's 15). Was: the intro and the clip, then the answer and "Got it.", popped in together; the clip was asked for only on reaching the step · FE (this PR)
+- 2026-11-04 · N458 · A2, B5, B7, C0, C0a: the walk opens whole behind the wait cover: it waits for the speaker's name, the last walk's fix and, when the Sniper may be the fix, the tempo answer, at most 2.5 s after its moments are there (`walkOpens`, `WALK_OPEN_WAIT_MS`); the hello and Last time are the first part's opening and land in order, the hello behind the typing dots like every grey bubble (N440 item 1); Last time's tip comes from the server (`tip` beside `last`), the chat's loaded messages only as the fallback. Was: "Hi." could change to "Hi Maya." in place and the chat kept "Hi."; Last time popped in above their best; its tip was lost once the last fix step was older than the chat's last 50 messages · BE #1687, FE (this PR)
+- 2026-11-04 · N458 · C2, T, H1: the walk's Sniper is the server's choice: the frame says which one fix it kept (`one_fix` on the strongest block: "tempo", "moment" or "none"), and the walk shows the Sniper exactly then; its step waits for the stretch with the typing dots at most as long as the fix waits on its clip (`AI_CLIP_WAIT_MS`, N373), then the walk goes on, and with no Sniper to show there is no "And now, one thing to improve:": their best, their best's helper words, "Lesson done.". With no `one_fix` (older payloads), only a rushed stretch or a pace or pause week's makes the Sniper. "The fix the last walk gave" (Last time, N359, the founder's Takes table) follows the same rule (`take_progress.walk_gave`). The tempo answer is asked at once, not after the rings read, retried when it fails, and for the One thing walk comes without a topic model call; its words are the Ideal Text's smoothed words, with the stretch's slide (`slide_index`). Was: the walk guessed the Sniper from a second request that often lost the race, and then had no fix at all; a slow stretch off a pace week showed the Sniper the server had not chosen; the Takes table listed a pace fix beside every moment fix; the tempo answer waited up to 8 s on a topic the walk never says, and "um" reached the screen above its player · BE #1687, FE (this PR)
+- 2026-11-04 · N458 · T, B1, B7, B10: the Sniper as the locked prototype draws it: one bubble with its line and the scale stays in its place above the tries while the walk stands on the step, the dot moving in it; each try lands, then Will's line after the dots; the chat says "And now, one thing to improve:" before the Sniper's line; the stretch's clip is in the chat (`clip:tempo`), so Will's question after the walk quotes the stretch; a Skip after a try reaches Will's note as skipped, and ✕ mid-game keeps the game for Will and says nothing (`skipped`, `left`); a walk opened from a paragraph or a step before the Sniper was played plays it live; a reopened Sniper walk shows its helper words. Was: the scale vanished after each try and its line jumped above and below; the try and Will's line landed together; Will's question quoted their best; a skip read as a game played out; a door could skip the Sniper and save its words · BE #1687, FE (this PR)
+- 2026-11-04 · N458 · C4, H1: the walk's AI clip teaches the moment's strongest measured problem on a plan week too, with no runner-up, no "Lean on …" and no hold-back reordering (`ai_voice_clip._choose`, `select(hold_back=False)`); the level's problem still wins where the clip shows it. When the fix's example is a served video, the video and its instruction show at once; one server error on the clip's start no longer ends the clip; the tip in words stays when the clip never comes; a walk played again shows the fix's AI clip, or its tip in words, wherever it opens. Was: on a plan week the walk's clip could teach the runner-up or "Lean on …"; a problem not improved twice was ranked down, so the clip could teach another problem than the one its moment was picked for; dots for up to 10 s before a video; the tip could vanish; "Review feedback" drew the fix bare · BE #1687, FE (this PR)
+- 2026-11-04 · N458 · C3, C5, C7, H1: the helper words the walk saves (the Clearer version's sentence, Keep mine's own, the AI clip's phrase, their best's) are saved locked, so they show under the slide in the next Take and on the Ideal Text, and in the paragraph's history; a pick on that paragraph in a later Take replaces them (`slide_helper_words.record_pick(locked=…)`). After ✕ on the recorder, "Try it" and "Keep mine" each record against the sentence they ask for (the moment's practice moves to it while it has no try, `start_practice`); the chat says "Your words it is." above the first try, never as the walk's door; Keep mine's helper words drop "So, um," but keep "Right now…", "Well over…" whole; a reopened walk after Keep mine labels each try with the speaker's own sentence; the helper words wait for the Clearer practice to open (at most 1.5 s, the typing dots) and are their best's when it never opened, shown, saved and posted alike; a between with no Clearer version is never the AI clip's fix (N381), and a walk closed during the Clearer version's try opens on it again. Was: the walk's helper words were saved unlocked and never showed on the next Take; tries were heard as "not heard" and the Clearer sentence's save refused after a switch; "now we cover three cities" under the slide · BE #1687, FE (this PR)
 - 2026-11-03 · N440 · built, second part (B5, B7, B9, C3, C7): what opens a part (the walk's answer to Skip, "And now, one thing to improve:") lands first, then the step's bubbles one at a time, the AI clip's fix's too (`WalkPart` `opening`, a landing inside the fix), and its buttons last; the helper words land before the walk moves on (`WalkOverlay` `onLanded`); moving on glides; the walk's answer to Skip on the AI clip's fix shows in the walk, as the chat already said it; scrolled away, Next keeps the step's Skip under it, the step measured by its bubbles (away under 48 px in view, back at 96); with practice off Next posts nothing; a try that could not be checked keeps "Try it" and Skip; the Clearer version's sentence as helper words without its end punctuation · FE (this PR)
 - 2026-11-03 · N452 · B7, C7, T, K: the chat writes no "Try it", "Keep mine" or "Skip" of the speaker's for the One thing walk's fix and the Sniper, as the walk draws none (`answerBody` null for a One thing step; `onAcceptClearer`/`onKeepWords` with a null label post nothing; the Sniper's Skip posts only "Okay, we'll skip this one."); a slow stretch's Sniper opens with one bubble, "You slowed down here. Keep it moving.", the scale in it (`tempoOpening`). Was: the chat kept the taps; a slow Sniper opened with T's three lines · BE N452 log, FE (this PR)
 - 2026-11-03 · N449 · B3: after the first Take's goodbye, "Record Take 2" at once, with no "I want to continue my practice" first (`afterTake.ts`, `Lounge.tsx`); every other Take keeps the tap. Was: the tap after every Take · BE #1679, FE (this PR)
