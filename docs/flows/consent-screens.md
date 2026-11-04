@@ -361,7 +361,7 @@ the only way in.
   something is typed. A link that opens goes to the join page (`/c/<token>`); anything else shows **This link
   doesn’t work. Ask whoever sent it for a new one.** under the field.
 - **The waitlist** (`/signup?waitlist=1`): **Join the waitlist with:** and one button per way, named by its
-  brand: WhatsApp, LinkedIn, Google, Email; in the iPhone app Apple's own button comes first, with Apple's own
+  brand, in the signed order: Google, LinkedIn, WhatsApp, Email; in the iPhone app Apple's own button comes first, with Apple's own
   words, as Apple's rules ask (on the web there is no Sign in with Apple).
 - **You’re on the waitlist** (`WaitingScreen.tsx`), every time a waiting account opens the app: the line
   **If we say yes, we’ll email a link to {email}.** and the link field.

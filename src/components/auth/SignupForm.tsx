@@ -207,14 +207,14 @@ export default function SignupForm({ onSuccess, skipProviderPicker, waitlist = f
         <p className="mb-4 text-center text-[15px] text-foreground">{INVITE_COPY.waitlistWith}</p>
         <div className="flex flex-col gap-3">
           <AppleAuthButton />
+          <GoogleAuthButton mode="signup" compact className={row} />
+          <LinkedInAuthButton mode="signup" compact className={row} />
           {WHATSAPP_SIGNIN ? (
             <Button type="button" variant="outline" className={`gap-2 ${row}`} onClick={() => setShowWhatsApp(true)}>
               <WhatsAppIcon className="h-5 w-5 shrink-0" />
               <span>WhatsApp</span>
             </Button>
           ) : null}
-          <LinkedInAuthButton mode="signup" compact className={row} />
-          <GoogleAuthButton mode="signup" compact className={row} />
           <Button type="button" variant="outline" className={row} onClick={() => setShowEmailForm(true)}>
             {OTHER_WAYS_COPY.email}
           </Button>
