@@ -25,6 +25,7 @@ import AskSheet, { askName } from "./AskSheet";
 import {
   CHAT_EMOJI,
   answerChatSetup,
+  declineInChat,
   chatFileSrc,
   chatVoiceSrc,
   getChatThread,
@@ -37,7 +38,7 @@ import {
 } from "@/services/api/chats";
 import Profile from "./Profile";
 import { BlockedBar, useBlocking } from "./BlockReport";
-import { EMOJI_MEANING, LetterCircle, OPEN_TAKE, WILL_ROW_TITLE, WillMark, firstName, meaningOf, takeSentYou } from "./ChatList";
+import { EMOJI_MEANING, LetterCircle, WILL_ROW_TITLE, WillMark, firstName, meaningOf, takeSentYou } from "./ChatList";
 import { fetchChatTake, type ChatTake } from "@/services/api/takeSends";
 import { fmtClock } from "@/components/willab/willabHelpers";
 import { markChatOpened } from "./chatOpened";
@@ -163,6 +164,9 @@ export const NOT_SENT = "Not sent";
 export const SEND_AGAIN = "Send again";
 export const sendingTo = (name: string) => `Sending to ${name}…`;
 export const sentTo = (name: string) => `Sent to ${name}`;
+/** Under my own sent Take or answer: the chat already names the person
+ *  (backend N504 item 3, signed; was "Sent to {name}"). */
+export const SENT = "Sent";
 
 export const READ_IT = "Read it";
 export const HIDE_WORDS = "Hide";
@@ -336,19 +340,53 @@ function ChatFile({ src, message, time }: { src: string; message: ChatMessage; t
   );
 }
 
-/** A Take's tile (backend N470, the prototype's flow 4): the dark frame
- *  with its play mark and length, "Take {n}" and the project's title. */
-function TakeTile({ meta }: { meta: Record<string, unknown> | null }) {
+/** A Take sent in a chat, loaded once per message and shared by the bubble
+ *  and the bar (its slides are the answer's, backend N493 item 1). A failed
+ *  load is forgotten, so the next look tries again. */
+const takes = new Map<string, Promise<ChatTake | null>>();
+export function loadChatTake(chatId: string, messageId: string): Promise<ChatTake | null> {
+  const key = `${chatId}/${messageId}`;
+  let pending = takes.get(key);
+  if (!pending) {
+    pending = fetchChatTake(chatId, messageId).then((take) => {
+      if (!take) takes.delete(key);
+      return take;
+    });
+    takes.set(key, pending);
+  }
+  return pending;
+}
+
+function useChatTake(chatId: string, messageId: string | null): ChatTake | null {
+  const [take, setTake] = useState<ChatTake | null>(null);
+  useEffect(() => {
+    setTake(null);
+    if (!messageId) return;
+    let live = true;
+    void loadChatTake(chatId, messageId).then((loaded) => {
+      if (live) setTake(loaded);
+    });
+    return () => {
+      live = false;
+    };
+  }, [chatId, messageId]);
+  return take;
+}
+
+/** A Take's tile (backend N470): its first slide, small, with its length,
+ *  "Take {n}" and the project's title. No play mark: WillpowerLab has no
+ *  video, and the recording plays in the voice player (N493 item 6; was a
+ *  dark frame with a white play mark). */
+function TakeTile({ meta, first }: { meta: Record<string, unknown> | null; first: string | null }) {
   const n = typeof meta?.take_index === "number" ? meta.take_index : null;
   const ms = typeof meta?.duration_ms === "number" ? meta.duration_ms : null;
   const project = typeof meta?.project_title === "string" ? meta.project_title : "";
   return (
     <span data-take-tile="" className="flex items-center gap-2.5 rounded-[10px] bg-black/[0.12] px-2 py-2">
-      <span aria-hidden className="relative flex aspect-video w-[96px] shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br from-[#30343c] to-[#17191e]">
-        <span className="relative h-[26px] w-[26px] rounded-full bg-white/[0.94]">
-          <span className="absolute left-[10px] top-[7px] border-y-[6px] border-l-[9px] border-y-transparent border-l-[#121212]" />
-        </span>
-        {ms !== null ? <span className="absolute bottom-1 right-1.5 text-[10px] text-white">{fmtClock(ms / 1000)}</span> : null}
+      <span aria-hidden data-take-tile-slide="" className="relative aspect-video w-[96px] shrink-0 overflow-hidden rounded-[8px] bg-[#061a3a] text-white">
+        <span className="absolute left-2 top-[9px] h-[3px] w-3 rounded-full bg-primary" />
+        {first ? <span className="absolute left-2 right-2 top-4 line-clamp-2 text-[9px] font-semibold leading-tight">{first}</span> : null}
+        {ms !== null ? <span className="absolute bottom-1 right-1.5 text-[10px]">{fmtClock(ms / 1000)}</span> : null}
       </span>
       <span className="flex min-w-0 flex-col">
         {n !== null ? <span className="break-words text-[14px] font-semibold leading-snug">{`${CHUNK_SHEET_COPY.historyTake} ${n}`}</span> : null}
@@ -358,11 +396,11 @@ function TakeTile({ meta }: { meta: Record<string, unknown> | null }) {
   );
 }
 
-/** A Take sent in the chat (backend N470, N479). Mine: the tile, with
- *  "Sent to {name}" under it. Theirs: "{name} sent you Take {n}", the tile,
- *  and "Open Take", which plays its recording and shows its words slide by
- *  slide, as an answer does; never its Ideal Text, feedback, moments or
- *  levels (N479 item 8). Nothing opens on a failure; the button stays. */
+/** A Take sent in the chat (backend N470, N479). Mine: the tile, with "Sent"
+ *  under it (N504 item 3). Theirs: "{name} sent you Take {n}", the tile, and
+ *  already open, its recording and its words slide by slide; never its Ideal
+ *  Text, feedback, moments or levels (N479 item 8; N504 item 1: no "Open
+ *  Take" in a chat you already have). The bar asks for the answer. */
 function ChatTakeBubble({
   chatId,
   message,
@@ -376,14 +414,14 @@ function ChatTakeBubble({
   name: string;
   sentLine: string;
 }) {
-  const [take, setTake] = useState<ChatTake | null>(null);
-  const [opening, setOpening] = useState(false);
+  const take = useChatTake(chatId, message.id);
   const meta = message.meta;
+  const first = take?.slides.find((slide) => slide.title)?.title ?? null;
   if (message.mine) {
     return (
       <div className="flex flex-col gap-1">
         <FileBubble mine time={time}>
-          <TakeTile meta={meta} />
+          <TakeTile meta={meta} first={first} />
         </FileBubble>
         <SentLine>
           <Check className="h-3.5 w-3.5 text-primary" strokeWidth={2.6} aria-hidden />
@@ -393,18 +431,12 @@ function ChatTakeBubble({
     );
   }
   const n = typeof meta?.take_index === "number" ? meta.take_index : null;
-  const open = async () => {
-    if (opening) return;
-    setOpening(true);
-    setTake(await fetchChatTake(chatId, message.id));
-    setOpening(false);
-  };
   const words = take ? take.slides.map((slide) => slide.words.trim()).filter(Boolean).join("\n\n") : "";
   return (
     <div data-chat-take="" className="flex flex-col gap-2">
       <FileBubble mine={false} time={time}>
         {n !== null ? <span className="px-1.5 pt-0.5 text-[15px] leading-[1.45]">{takeSentYou(firstName(message.author || name), n)}</span> : null}
-        <TakeTile meta={meta} />
+        <TakeTile meta={meta} first={first} />
         {take ? (
           <span data-chat-take-open="" className="flex flex-col px-1 pt-1">
             <VoicePlayer src={take.audioUrl} tone="grey" durationMs={take.durationMs} />
@@ -412,18 +444,6 @@ function ChatTakeBubble({
           </span>
         ) : null}
       </FileBubble>
-      {take ? null : (
-        <div className="mr-auto flex max-w-[90%] flex-wrap gap-2 pt-1">
-          <button
-            type="button"
-            data-chat-open-take=""
-            onClick={() => void open()}
-            className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-full border border-input bg-background px-4 text-[13px] font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground"
-          >
-            {OPEN_TAKE}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -655,6 +675,21 @@ function withDays(messages: readonly ChatMessage[]): { day: string | null; messa
   });
 }
 
+/** Their Take, when it is the newest message: it asks for an answer
+ *  (backend N493 item 3). Else null. */
+export function takeWaits(messages: readonly ChatMessage[] | null): ChatMessage | null {
+  const newest = messages?.at(-1);
+  return newest && !newest.mine && newest.kind === "take" ? newest : null;
+}
+
+/** What a Take is about, the answer's topic: its project's title, else
+ *  "Take {n}". */
+function takeTopic(message: ChatMessage): string {
+  const project = typeof message.meta?.project_title === "string" ? message.meta.project_title.trim() : "";
+  const n = typeof message.meta?.take_index === "number" ? message.meta.take_index : null;
+  return project || (n !== null ? `${CHUNK_SHEET_COPY.historyTake} ${n}` : CHUNK_SHEET_COPY.historyTake);
+}
+
 /** The question "Record your answer" answers, when the other person's
  *  question is the newest message (their words, or a message the backend
  *  marks as one, N341) and Will marked it as about a product or a treatment
@@ -666,6 +701,30 @@ export function answerWaits(messages: readonly ChatMessage[] | null): string | n
   if (newest.kind !== "text" && newest.meta?.question !== true) return null;
   const words = newest.kind === "text" ? newest.body : typeof newest.words === "string" ? newest.words : "";
   return words.trim() || null;
+}
+
+/** What waits for my spoken answer in this chat (N361, N483 item 3, N493
+ *  item 3): their marked question, or their Take, when it is the newest
+ *  message, until "Not now" leaves it (the emoji come back until the chat is
+ *  opened again, and they are told nothing). A Take is answered over its
+ *  own slides, by their titles, once its words have been read. */
+function useAnswerWait(chatId: string, messages: readonly ChatMessage[] | null, canAnswer: boolean) {
+  const newest = messages?.at(-1) ?? null;
+  const [left, setLeft] = useState<string | null>(null);
+  const waiting = canAnswer && newest?.id !== left ? answerWaits(messages) : null;
+  const theirTake = takeWaits(messages);
+  const takeAsks = canAnswer && theirTake && theirTake.id !== left ? theirTake : null;
+  const take = useChatTake(chatId, takeAsks?.id ?? null);
+  const topic = takeAsks ? takeTopic(takeAsks) : null;
+  return {
+    question: waiting ?? topic,
+    slides: topic && take?.slides.length ? take.slides.map((slide) => slide.title || topic) : undefined,
+    leave: () => {
+      if (!newest) return;
+      setLeft(newest.id);
+      void declineInChat(chatId, newest.id);
+    },
+  };
 }
 
 /** The small line under my sent answer, right-aligned: "Sent to {name}"
@@ -962,13 +1021,9 @@ export default function ChatThread({
     setMessages((list) => (list ?? []).flatMap((m) => (m.id !== local.id ? [m] : sent ? [sent] : [])));
   };
 
-  // Their question to answer properly (N361): "Record your answer" in the
-  // middle, "Not now" under it, a grey word they aren't told about; the
-  // emoji come back until the chat is opened again (N483 item 3).
-  const newest = messages?.at(-1) ?? null;
-  const [leftQuestion, setLeftQuestion] = useState<string | null>(null);
-  const waiting = answerWaits(messages);
-  const question = waiting && onRecordAnswer && newest?.id !== leftQuestion ? waiting : null;
+  // Their question, or their Take, to answer properly: "Record your answer"
+  // in the middle, "Not now" under it (N361, N483 item 3, N493 item 3).
+  const answer = useAnswerWait(chat.id, messages, !!onRecordAnswer);
   const setup = useSetupQuestion(chat.id, messages, (sent) => setMessages((list) => [...(list ?? []), ...sent]));
 
   return (
@@ -999,7 +1054,7 @@ export default function ChatThread({
                 chatId={chat.id}
                 message={message}
                 onPhoto={setFullPhoto}
-                sentLine={sentTo(chat.title)}
+                sentLine={SENT}
                 name={chat.title}
               />,
               ...(typeof (message.meta?.setup_answer as { deadline?: unknown } | undefined)?.deadline === "string"
@@ -1008,8 +1063,8 @@ export default function ChatThread({
             ])
           )}
           {setup.answers}
-          {question && !pending ? (
-            <TapRow labels={[NOT_NOW]} onTap={() => setLeftQuestion(newest?.id ?? null)} dataAttr={{ "data-chat-not-now": "" }} />
+          {answer.question && !pending ? (
+            <TapRow labels={[NOT_NOW]} onTap={answer.leave} dataAttr={{ "data-chat-not-now": "" }} />
           ) : null}
         </div>
       </div>
@@ -1024,13 +1079,15 @@ export default function ChatThread({
               setPlusNew(false);
               setAsking(true);
             }}
-            plusNew={plusNew && !pending && !question && !setup.answers}
+            plusNew={plusNew && !pending && !answer.question && !setup.answers}
             onPick={(emoji) => void send(emoji)}
             middle={
               setup.send ?? (pending ? (
                 <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited} failed={pending.failed} />
-              ) : question && onRecordAnswer ? (
-                <RecordAnswerButton onClick={() => onRecordAnswer({ chatId: chat.id, name: chat.title, question, customer })} />
+              ) : answer.question && onRecordAnswer ? (
+                <RecordAnswerButton
+                  onClick={() => onRecordAnswer({ chatId: chat.id, name: chat.title, question: answer.question!, customer, slides: answer.slides })}
+                />
               ) : null)
             }
           />

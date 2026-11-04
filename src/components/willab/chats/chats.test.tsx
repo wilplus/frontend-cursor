@@ -71,7 +71,7 @@ OUTCOME
       chat, the person and the question. Back from them, the bar's middle
       reads "Sending to {name}… {n}" with Undo while the answer, already
       with the backend, waits out its 5 seconds there (N441 item 3); then
-      "Sent to {name}" stands under it, a customer's too (N345, N441 item 4).
+      "Sent" stands under it, a customer's too (N345, N441 item 4, N504 item 3).
   O17 Back (the iPhone's swipe from the left edge in the app, the browser's
       Back on the web) goes back by one, from a chat to the list, and never
       off the list; back on the list, it is where I left it, the row I came
@@ -81,10 +81,14 @@ OUTCOME
   O18 An answer the backend refused stays in the bar's middle, "Not sent"
       with "Send again", which sends the same Take (N441 item 1).
   O22 A Take someone sent me (N470, N479) is their message: "{name} sent
-      you Take {n}" with the Take's tile, and "Open Take" under it, which
-      plays its recording and shows its words slide by slide behind "Read
-      it", nothing else of it; the list's line says "{name} sent you Take
-      {n}"; a Take I sent is my tile with "Sent to {name}".
+      you Take {n}" with the Take's tile, its first slide and no play mark
+      (N493 item 6), already open: its recording, and its words slide by
+      slide behind "Read it", nothing else of it (N504 item 1); the list's
+      line says "{name} sent you Take {n}"; a Take I sent is my tile with
+      "Sent" (N504 item 3). Newest, it asks for an answer: "Record your
+      answer" in the bar with "Not now" under it, which tells them nothing
+      and is kept for the system (N504 item 2), and the answer is recorded
+      over the Take's own slides (N493 items 1 and 3).
   O21 At the foot of the other person's profile, "Block {name}" asks first
       and then blocks them: the backend is told, "{name} is blocked." shows,
       and back in the chat the bar is one pill, "You blocked {name}." with
@@ -723,7 +727,7 @@ describe("the chats in front of the Lounge", () => {
       vi.useRealTimers();
     }
     await flush();
-    expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent to Ariel");
+    expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent");
 
     // After the first question the sheet is short.
     await tap(plus());
@@ -889,7 +893,13 @@ describe("the chats in front of the Lounge", () => {
     await tap(notNow);
     expect(button()).toBeNull();
     expect(container.querySelector("[data-chat-emoji-box]")).not.toBeNull();
-    expect(fetchMock.mock.calls.slice(before).filter(([, init]) => (init as RequestInit | undefined)?.method === "POST")).toEqual([]);
+    // The only thing sent is the decline the system keeps (N504 item 2).
+    expect(
+      fetchMock.mock.calls
+        .slice(before)
+        .filter(([, init]) => (init as RequestInit | undefined)?.method === "POST")
+        .map(([url]) => url),
+    ).toEqual(["/api/v2/chats/c-sarah/messages/q/not-now"]);
     await tap(container.querySelector('[data-chat-header] button[aria-label="Back"]'));
     await tap(row("c-sarah"));
     await tap(button());
@@ -921,7 +931,7 @@ describe("the chats in front of the Lounge", () => {
     await flush();
     expect(calls("POST /api/v2/chats/c-sarah/answer")).toHaveLength(1);
     expect(container.querySelector("[data-chat-sending]")).toBeNull();
-    expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent to Sarah");
+    expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent");
   });
 
   it("from their profile I block them, the bar says so with Unblock, and Report and block reports with the block", async () => {
@@ -1023,7 +1033,7 @@ describe("the chats in front of the Lounge", () => {
     const posted = calls("POST /api/v2/chats/c-sarah/answer").map(([, init]) => JSON.parse(String(init!.body)));
     expect(posted).toEqual([{ take: "take-1", duration_ms: 30000, hold_ms: 5000 }, { take: "take-1", duration_ms: 30000, hold_ms: 0 }]);
     expect(container.querySelector("[data-chat-sending]")).toBeNull();
-    expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent to Sarah");
+    expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent");
   });
 
   it("a Take sent to me opens with its recording and words, and the list says who sent it", async () => {
@@ -1067,8 +1077,7 @@ describe("the chats in front of the Lounge", () => {
 
     const theirs = container.querySelector("[data-chat-take]")!;
     expect(theirs.textContent).toContain("Amira sent you Take 3");
-    expect(theirs.querySelector("[data-take-tile]")?.textContent).toBe("2:14Take 3Q3 board pitch");
-    await tap(theirs.querySelector("[data-chat-open-take]"));
+    expect(theirs.querySelector("[data-take-tile]")?.textContent).toBe("Hook2:14Take 3Q3 board pitch");
     expect(theirs.querySelector("[data-chat-open-take]")).toBeNull();
     await tap(theirs.querySelector('button[aria-label="Play"]'));
     expect(played).toEqual(["https://store.example/take-3.webm?sig=1"]);
@@ -1077,7 +1086,45 @@ describe("the chats in front of the Lounge", () => {
 
     const mine = container.querySelector('[data-row="me"] [data-take-tile]');
     expect(mine?.textContent).toContain("Take 4");
-    expect(container.textContent).toContain("Sent to Amira Haddad");
+    expect(container.textContent).not.toContain("Sent to Amira Haddad");
+  });
+
+  it("their newest Take asks for an answer over its own slides, and Not now leaves it", async () => {
+    const AMIRA = {
+      id: "c-amira",
+      kind: "team",
+      title: "Amira Haddad",
+      subtitle: "Account executive",
+      last: { kind: "take", body: "", mine: false, meta: { take_index: 3 }, created_at: "2026-11-04T11:02:00Z" },
+    };
+    const meta = { take_index: 3, project_title: "Q3 board pitch", duration_ms: 134_000 };
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [AMIRA] }));
+    routes.set("GET /api/v2/chats/c-amira/messages", () => ({
+      messages: [{ id: "t1", mine: false, author: "Amira Haddad", kind: "take", body: "", meta, created_at: AMIRA.last.created_at }],
+    }));
+    routes.set("GET /api/v2/chats/c-amira/messages/t1/take", () => ({
+      audio_url: "https://store.example/take-3.webm?sig=1",
+      duration_ms: 134_000,
+      slides: [{ index: 0, title: "Hook", words: "We grew in Q3." }, { index: 1, title: null, words: "Next, the cities." }],
+    }));
+    recordedAnswers.length = 0;
+    await render();
+    await tap(row("c-amira"));
+    await tap(container.querySelector("[data-chat-record-answer]"));
+    expect(recordedAnswers).toEqual([
+      { chatId: "c-amira", name: "Amira Haddad", question: "Q3 board pitch", customer: false, slides: ["Hook", "Q3 board pitch"] },
+    ]);
+    const declined: string[] = [];
+    routes.set("POST /api/v2/chats/c-amira/messages/t1/not-now", () => {
+      declined.push("t1");
+      return { kept: true };
+    });
+    await tap(container.querySelector("[data-chat-not-now] button"));
+    expect(container.querySelector("[data-chat-record-answer]")).toBeNull();
+    expect(container.querySelector("[data-chat-emoji-box]")).not.toBeNull();
+    // Nobody is told, and the system keeps it (N504 item 2).
+    expect(declined).toEqual(["t1"]);
   });
 
   it("the first time I add someone, Will's chat opens on his setup, answered by tapping", async () => {

@@ -41,3 +41,9 @@ export function recordingWhere(
   if (to) return `To ${to} · ${slide}`;
   return take ? `Take ${take} · ${slide}` : slide;
 }
+
+/** An answer to someone's Take, over the Take's own slides (backend N493
+ *  item 1): "{name} · Slide n of m". */
+export function answerWhere(name: string, slideIndex: number, slideCount: number): string {
+  return `${name} · Slide ${slideIndex + 1} of ${slideCount}`;
+}

@@ -87,6 +87,10 @@ export interface AnswerFor {
   /** A question to them, not an answer ("Record your question", N483 item
    *  4): no slide of theirs, the default presentation instead. */
   asks?: boolean;
+  /** An answer to their Take: its slides' titles, in order, so the answer
+   *  follows the Take slide by slide (backend N493 item 1). Absent for a
+   *  question, which keeps its one slide. */
+  slides?: string[];
 }
 
 /** An answer recorded and on its way: "Sending to {name}…" with Undo. */
@@ -128,10 +132,12 @@ function changed() {
   listeners.forEach((listener) => listener());
 }
 
-/** The deck of an answer: one slide, the asker's words (N361 item 3). A
- *  question has none: the recording screens draw the default presentation. */
+/** The deck of an answer: one slide, the asker's words (N361 item 3); an
+ *  answer to their Take, the Take's own slides (N493 item 1). A question has
+ *  none: the recording screens draw the default presentation. */
 function answerDeck(answer: AnswerFor): ExploreArcDeck {
-  const slides = answer.asks ? [] : [{ title: answer.question, body: "" }];
+  const titles = answer.slides?.filter((title) => title.trim()) ?? [];
+  const slides = answer.asks ? [] : titles.length ? titles.map((title) => ({ title, body: "" })) : [{ title: answer.question, body: "" }];
   return { topic: answer.question, audience: null, presentationRef: null, slides, targetLengthSeconds: null };
 }
 
@@ -142,8 +148,8 @@ const projectName = (answer: AnswerFor) => (answer.asks ? `To ${answer.name}` : 
 /** The answer the recording screens are opening for, else null. */
 export function answering(): AnswerFor | null {
   if (!current) return null;
-  const { chatId, name, question, customer, asks } = current;
-  return { chatId, name, question, customer, asks };
+  const { chatId, name, question, customer, asks, slides } = current;
+  return { chatId, name, question, customer, asks, slides };
 }
 
 /** "Record an answer": the question's own project, then `open` opens the

@@ -237,4 +237,34 @@ describe("an answer (N441)", () => {
     expect(button("Finish take")).toBeDefined();
     expect(stops).toBe(0);
   });
+
+  it("an answer to their Take: the name and Slide n of m, the Take's own slides, no asker on them (N493 item 1)", () => {
+    const slides = [{ title: "Hook", body: "" }, { title: "The cities", body: "" }] as never[];
+    function Answer() {
+      return createElement(
+        Fragment,
+        null,
+        createElement(RecordingWhere, { show: true, micStatus: "recording", of: "Amira", takeNumber: 1, slide: 0, slideCount: 2 }),
+        createElement(RecordingPhase, {
+          micState: { status: "recording", partialText: "" },
+          elapsed: 12,
+          targetSec: null,
+          rejectedMsg: null,
+          uploadRetry: null,
+          onStop: () => undefined,
+          onRecordAgain: () => undefined,
+          slides,
+          presentationRef: null,
+          currentSlide: 0,
+          roots: [],
+          onSlideChange: () => undefined,
+          asks: null,
+        } as never),
+      );
+    }
+    act(() => root.render(createElement(Answer)));
+    expect(where().textContent).toBe("Amira · Slide 1 of 2");
+    expect(host.querySelector('[data-testid="slide"]')?.getAttribute("data-asks") ?? "").toBe("");
+    expect(button("Next slide")).toBeDefined();
+  });
 });

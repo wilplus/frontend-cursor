@@ -222,7 +222,7 @@ rest is built in.
      back to the chat with "Sending to {name}… {n}" and Undo, as an answer
      goes (below): the question goes to the backend once its Take is up
      (`POST /v2/chats/<id>/question`), held for what is left of the 5
-     seconds, taken back by Undo, then "Sent to {name}" under it. It
+     seconds, taken back by Undo, then "Sent" under it (N504 item 3). It
      reaches them as your voice message, with its words behind "Read it",
      marked for them to answer: their bar's middle is "Record your answer"
      with "Not now". Until you first tap it, while nothing else is asked of
@@ -319,7 +319,8 @@ rest is built in.
      itself; any length, N486 item 4), which holds it for what is left of the
      5 seconds: until then the person does not see it, the list does not
      show it and no push goes, and leaving the app no longer stops it
-     (N441 item 3). Under it, "Sent to {name}" with a check, a customer's
+     (N441 item 3). Under it, "Sent" with a check (N504 item 3; was "Sent to
+     {name}"), a customer's
      too, until answers are delivered on WhatsApp (N441 item 4; then "Sent
      to {name} on WhatsApp", N342). The person gets just the answer, never
      its Take. A refused send stays in the bar, "Not sent" with "Send
@@ -657,7 +658,7 @@ you is the sender's message in your chat with them, "{name} sent you Take
 Take" under it, which plays its recording and shows its words slide by
 slide behind "Read it", as an answer does, and never its Ideal Text,
 feedback, moments or levels; the list's line says "{name} sent you Take
-{n}"; the sender's own is the tile with "Sent to {name}" (C1, N470 item
+{n}"; the sender's own is the tile with "Sent" (N504 item 3) (C1, N470 item
 4, N479 item 8; the prototype "Specialist Side" flow 4).
 There is no typing outside Will's chat (N298 item 4).
 
@@ -836,6 +837,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N493, N504 · C1: a Take someone sends you arrives open in your chat with them: its tile, its recording and its words slide by slide behind "Read it", with no "Open Take" (`ChatThread.tsx` `ChatTakeBubble`, one load per message shared with the bar, `loadChatTake`). Newest, it asks for an answer: "Record your answer" in the bar's middle with "Not now" under it, and the answer is recorded over the Take's own slides, by their titles ([the recording screens](recording-screens.md), amendment of 4 November). A Take's tile is its first slide, small, with its length and no play mark: no video. Under your own sent Take or answer the line is "Sent" (was "Sent to {name}"). "Not now", under a Take or a question, still tells nobody; the system keeps it once as behavioural data (`declineInChat`, `POST /api/v2/chats/{id}/messages/{message}/not-now`), and the founder reads how often and the newest on the person's admin page, under their Takes (`NotNowHistory.tsx`, BE N504 item 2, #1744). What stops: "Open Take" in a chat you already have; the dark tile with the white play mark; the name in the sent line · BE N493 (#1728), N504 (#1740), BE (#1744), FE (this PR)
 - 2026-11-04 · N487, N503 · C1: the first time "Add someone to chat with" opens, Will's chat opens on his setup of the questions everyone who joins is asked, one at a time, answered by tapping or typing after "Something else"; the summary with "Change it" and "That's right"; "You're set." with "Copy my link ›" and "Your questions for people who join ›" (`JoinSetup.tsx`, `Lounge.tsx`, `ChatList.tsx`). Nothing stops: after the setup the "+" opens the add sheet as before · BE (wilplus/backend-cursor#1742), FE (this PR)
 - 2026-11-04 · N483 item 4, N498 · C1, §2, §4: the "+" asks them: "Ask {name}", a sheet built like "Add someone to chat with", with no line, the black "Record your question", the three steps before your first question only, and Cancel; the question is recorded over the default presentation ("To {name} · Slide {n} of 3") and sent as an answer is, with Sending, Undo and "Sent to {name}", marked for them to answer ("Record your answer"); the "+" orange until first tapped (`AskSheet.tsx`, `ChatThread.tsx`, `chatAnswer.ts`, BFF `[chatId]/question/`). What stops: the four tiles, sending photos and files, and Someone else from a chat (the list's "+" still opens the add sheet); photos and files already sent still show · BE N498 (#1733), BE (question route PR), FE (this PR)
 - 2026-11-04 · N487, N496, N502 · C1: a chat made through the link of someone who set questions asks them, answered by tapping (TapRow; several, then "Send" in the bar's middle; "Yes" to the hurry opens the date sheet), with "Your deadline: {date}" under the answer; the owner sees "{name} joined through your link." and one card, "{name}'s answers", also on their row. The joined line is now N496's, in the chat and on the row. What stops: the line "You joined through {name}'s link. Only the two of you are in this chat." · BE N487 (#1717), N496 (#1732), N502 (#1734), BE #1739, FE (this PR)
