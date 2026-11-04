@@ -412,6 +412,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · — · §6: the rules text brought in line with N79's PRs: the N79 line says BE #1133–#1138 are not merged (only #1135 is; the rest are drafts); no rule changes · docs (this PR)
 - 2026-11-03 · N416 · the training corpus moves to the CEO panel while its infrastructure is rebuilt: the Lounge's pinned Training corpus button and the ☰ menu's row are gone for coaches, `/coach/corpus` goes to `/admin/ceo` (B1, H0, J) · BE (N416 log), FE (this PR)
 - 2026-11-02 · N192 · §3: the open line on a later change of the coach's word is closed: it shows in place with "Edited" on the speaker's side (the walk's page D5), built with N192 · docs (this PR)
 - 2026-11-02 · N301 · the coach's grey-blue picture is gone from beside the coach's words (F1), as from every bubble in the app; `WalkAvatar` draws nothing. Was: the grey-blue avatar (N80) · BE (N301 log), FE (this PR)
@@ -434,7 +435,7 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-10-20 · on a computer, closing slides the grey and the panel off together (A2) · FE #838
 - 2026-10-20 · the delete confirmation opens as a full sheet in the corpus list (H1) · FE #869
 - 2026-10-19 · N80 · coming back to a sent Take word: the saved video, Record again, Remove the video; the coach's grey-blue avatar (F1, G3) · FE #861
-- 2026-10-19 · N79 · a coach's exercise video is turned into words only with the speaker's training yes; every Take-word version kept, the newest teaches (F5, G3) · BE #1133–#1138
+- 2026-10-19 · N79 · a coach's exercise video is turned into words only with the speaker's training yes; every Take-word version kept, the newest teaches (F5, G3) · BE #1133–#1138, not merged: only #1135 is; #1133, #1134, #1136, #1137 and #1138 are drafts
 - 2026-10-18 · the queue puts the speaker who sent last on top; an answered speaker drops out; the speakers' goals from one batched read (B2, C2)
 - 2026-10-12 · the Judge's answers become 👍 😐 👎 and "Audio unclear"; "Not sure" goes (D1; the walk's lock, section 7)
 - 2026-10-07 · N57 · the coach panel's design locked to the prototype

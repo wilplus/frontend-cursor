@@ -312,8 +312,9 @@ rest is built in.
      above the messages, the one who joined reads "You joined through
      {name}'s link. Only the two of you are in this chat." A wrong or
      replaced link is the site's not-found page; your own link, or a link
-     that stops working on the way, lands on /chat. Both people need the
-     ring for now. Not yet: "Invite by email" (N307), "Join with your
+     that stops working on the way, lands on /chat. Anyone signed in can
+     join: the chats are everyone's, with no ring (backend N456 item 3, N457
+     item 1; was: both people needed the ring). Not yet: "Invite by email" (N307), "Join with your
      {company} account" (it waits for a company to name; the button is
      "Join"), the ask link (N312).
 2. **The customer's chat**: the request is the customer's bubble, with the
@@ -770,6 +771,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · — · C1: the rules text brought in line with N456 and N457: anyone signed in can join through a link, no ring; no rule changes · docs (this PR)
 - 2026-11-04 · N466 · C1, K, §2, §4: Block and Report: at the foot of a person's profile (never yours, never Will's), "Block {name}" and "Report {name}" in red; Block asks in a sheet ("Block {name}?", a red "Block", "Cancel"), then "{name} is blocked." and, in that chat, the bar is one grey pill "You blocked {name}." with "Unblock", which needs no sheet ("{name} is unblocked."); Report asks in a sheet ("Report {name}?", a red "Report", an outlined red "Report and block", "Cancel"), then "Reported. Thank you." or "Reported and blocked."; the founder reads the reports, newest first, with the five messages and "Mark as read", in the CEO panel's Reports (`BlockReport.tsx`, `Profile.tsx`, `ChatThread.tsx`, `CeoReports.tsx`). Was: no way to block or report someone · BE (next PR), FE (this PR)
 - 2026-11-04 · N460 · C1: the bar made calmer: in a person's chat the mic is a bare icon at rest and orange without pulsing when your words are awaited, quiet beside "Record an answer"; Undo and Send again are bold words in their pill; the "+" turns into a ✕ in its place to close the tiles, and "Cancel" goes; in Will's chat, Your projects is a stack icon. Was: the mic in a grey circle, orange and pulsing beside Record an answer too; Undo and Send again white pills; Cancel under the tiles; a "+" for Your projects (`ChatThread.tsx`, `Lounge.tsx`) · BE (N460 PR), FE (this PR)
 - 2026-11-03 · N457 · C1: Will's row shows his chat's newest line, read from the Lounge's thread underneath (words only: a card, a walk step or a status is not a line), new with the bold name and orange dot while it is his and newer than the last time his chat was open on this device; just joined through a link, it is "Your first Take is five questions…" above the inviter's chat. Joining works for anyone since the chats are everyone's (N456). Was: Will's row had no line · FE (this PR)

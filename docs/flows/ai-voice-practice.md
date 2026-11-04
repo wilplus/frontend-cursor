@@ -254,7 +254,9 @@ this sentence"; every line signed in the chat) amends section 2's Exercise
 screen and "not yet": the AI clip comes in one bubble, a one-word opener
 ("Nice." / "Close." / "Good."), one tip for the problem the clip fixes ending
 ", like this:", the clip, then "Your turn." (the Exercise screen) or "Try
-again." (a try not yet better). The tip quotes the speaker's own phrase where
+again." (a try not yet better). In the One thing walk's fix there is no
+"Your turn.": the "Try it" under the clip says it (N379 item 3, the walk's
+page C4). The tip quotes the speaker's own phrase where
 the problem has one. L3, L4, L5 and L14 to L18 are no longer said in the walk;
 L1 stays as the clip's label. The tips, signed:
 
@@ -294,10 +296,13 @@ October that the server marked `confident_practice` keeps its praise's clip.
 
 ### Decided after the lock (2026-10-23, N123, said fresh)
 
-The bubble's opener, tip and closer are said fresh around their signed lines
-(the walk's page, K, N123), checked, the signed line the fallback; the tip
+Replaced by N338 item 2 (2026-11-02, the signed words stay): the bubble's
+opener, tip and closer are the signed lines, each bank rotating, never the
+same line twice in a row (the walk's page, K); nothing is said fresh. The tip
 always quotes the speaker's phrase where its problem has one. The clip's label
-L1 "AI version of your voice" is never varied.
+L1 "AI version of your voice" is never varied. Was (N123, withdrawn by N338
+item 2): the opener, tip and closer said fresh around their signed lines,
+checked, the signed line the fallback.
 
 ### Decided after the lock (2026-10-26, N188, the limits)
 
@@ -374,6 +379,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · — · §1 (N120, N123): the rules text brought in line with N379 and N338: no "Your turn." in the One thing walk's fix; N123's said fresh marked as replaced by the signed lines, rotating; no rule changes · docs (this PR)
 - 2026-11-04 · N459 · the walk's AI clip on a moment too long for it (17 s at the slow reading) says the part around what it teaches (`fit_to_clip`), whole sentences where they fit; the practice is re-pointed to those words before any try and the answer serves them as `clip.passage`, so the try asks for the same words. Was: the clip failed and only the tip in words showed · BE N459 log (#1689), BE (next PR), FE (this PR)
 - 2026-11-03 · N425 · the One thing walk's AI clip only on a moment whose own clip shows a problem it can teach, the strongest problem, never the runner-up; with none, no clip and no default ("Lean on …") in the walk's fix; the Clearer version's example keeps the default · BE N425 log (#1664), BE #1669, FE (this PR)
 - 2026-11-03 · N379 · in the One thing walk's fix: no "Your turn." under the clip; the dots and the label L1 are not read aloud until the clip is ready · FE (this PR)
