@@ -520,7 +520,9 @@ The prototypes: <https://claude.ai/artifact/RY5gT9bg8xSpGvKiLVScsW>,
   haptic tick, then "Kept" over the chat.
 - **T3 · The first time (N507 item 1).** Before it first listens, A5's
   introduction once, on the screen: Yes is the notebook's consent; Not now
-  closes it and turns the switch off.
+  closes it and turns the switch off. That Yes writes "Yes" and "Noted." in
+  Will's chat and asks nothing more (N514); a Yes in the chat still gets
+  "What's on your mind today?".
 - **T4 · When it opens (N506 item 4, N507 item 2).** Only when "Open to the
   dump screen" is on in Settings (Data & consent; off by default; kept on
   the device), only on a plain open of /chat, never from a link to a Take,
@@ -614,6 +616,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N514 · T3: a Yes given on the dump screen writes "Yes" and "Noted." in Will's chat, without "What's on your mind today?" · BE #1753, FE (this PR)
 - 2026-11-04 · N506, N507 · T: the dump screen, built on the web: one screen that only listens, tap, tap, double tap; the notebook's way in, with A5's introduction the first time; "Open to the dump screen" in Settings, off by default; ring 2 · BE #1743, #1745, #1746, FE (this PR)
 - 2026-11-04 · N483 item 7 · A0: the note rests: no mic and no "#" in Will's chat, so no new # notes; no introduction from the Takes and no "Keep a voice notebook?" (`useVoiceNotebook.tsx`; the client calls `askNotebook` and `introFromTakes` and their BFF routes `notebook/ask` and `notebook/intro` are gone). Kept notes stay; notes left on the phone still go · BE N483 (#1718), FE (this PR)
 - 2026-11-03 · N411 item 5 · A5: before any note, the introduction opens with a strength Will spots in the last three Takes' summaries, on the first Lounge open after the third, once; after Not now, again after three more Takes; after Yes, never · BE (the code), FE (this PR)

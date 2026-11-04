@@ -116,11 +116,11 @@ export default function DumpScreen({
 
   async function answer(choice: "yes" | "not_now") {
     if (choice === "not_now") {
-      void answerNotebook("not_now");
+      void answerNotebook("not_now", "dump_screen");
       onDecline();
       return;
     }
-    if (await answerNotebook("yes")) setAsking(false);
+    if (await answerNotebook("yes", "dump_screen")) setAsking(false);
   }
 
   if (asking) {
