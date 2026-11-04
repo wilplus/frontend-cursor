@@ -463,6 +463,8 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N122 · `IdealTextOverlay.tsx` `LensFrame`, the walk's loading screen over this page, draws the typing dots at the bottom, where the walk's first bubble lands (was: at the top left); nothing on the Ideal Text page itself changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) B5 · FE (this PR)
+
 - 2026-11-04 · N470, N479 · "Record Take N" (`IdealTextActions.tsx`), with the backend's switch for sending on, reads the people in your chats and your last choice, 1.5 s at most, then records at once with it, asks with the new screen, or, with nobody in the list, records with nothing sent; off, or failing, it is today's sharing exactly; `idealEditCopy.ts` gains the screen's signed words (`WALK_COPY.sendBubbles`, `sendSelectAll`, `sendLastSent`, `sendEveryone`); the page itself does not change. The rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) G and §6 · FE (this PR)
 - 2026-11-04 · N459 · `idealEditCopy.ts` gains the slow Sniper's signed tip (`ONE_THING_COPY.slowTip`, "keep “{words}” moving"); nothing on the Ideal Text page changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) §6 · FE (this PR)
 - 2026-11-04 · N458 · `TranscriptReviewDeck.tsx` opens the Feedback walk once its reads are in (the speaker's name, the last walk's fix, the Sniper's stretch), at most 2.5 s after its moments are there; nothing on the Ideal Text page changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) §6 · FE (this PR)
