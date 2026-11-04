@@ -16,7 +16,7 @@ export function useChatsDecided(): boolean | null {
   return useSignedIn();
 }
 
-/** How often the open list reads the chats again (N499). */
+/** How often the open list reads the chats again (N500). */
 const READ_AGAIN_MS = 20_000;
 
 /** The person's chats, read while `on`; `null` until the first read lands.
@@ -43,7 +43,7 @@ export function useChatList(on: boolean): { chats: Chat[] | null; reload: () => 
     if (!on) return;
     void load();
     // Read again while the list is open and on coming back to it, so a
-    // message that arrives while you look shows as new (N499).
+    // message that arrives while you look shows as new (N500).
     const again = () => {
       if (document.visibilityState === "visible") void load();
     };

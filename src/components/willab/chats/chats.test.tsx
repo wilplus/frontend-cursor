@@ -476,7 +476,7 @@ describe("the chats in front of the Lounge", () => {
     expect(navbar().hidden).toBe(false);
   });
 
-  it("a chat with a message newer than its last opening shows as new until it is opened, an emoji included, never your own (N499)", async () => {
+  it("a chat with a message newer than its last opening shows as new until it is opened, an emoji included, never your own (N500)", async () => {
     backend(["chats"]);
     const DANA = { ...ARIEL, id: "c-dana", title: "Dana" };
     const MINE = { ...ARIEL, id: "c-mine", title: "Noa", last: { ...ARIEL.last, mine: true } };

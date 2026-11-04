@@ -17,7 +17,7 @@ import { isNativeApp } from "@/lib/auth/nativeSignIn";
 /*  letter of the name in a circle (no photo, N301, N322 item 1), the name and */
 /*  who they are, the time, and the last message on one line. A new message,  */
 /*  an emoji from the other person included, has the look locked for the      */
-/*  whole app (N499): the name bold, the time orange, the line bold and       */
+/*  whole app (N500): the name bold, the time orange, the line bold and       */
 /*  orange, the orange dot; no number, ever. Will is always the first  */
 /*  row (N360). Just joined through a link, the chat with the one who invited */
 /*  you is right under Will, new until opened, its line theirs or "You joined */
