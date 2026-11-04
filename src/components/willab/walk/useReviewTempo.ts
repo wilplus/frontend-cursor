@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchReviewTempo } from "@/services/api/reviewTempo";
 import type { TempoStretch } from "@/lib/willab/tempoStep";
 
@@ -14,23 +14,18 @@ const RETRY_MS = [600, 1_500] as const;
  *  rings panel's row reaches (step 6), so nothing waits on the rings here.
  *  Three answers: undefined while asking (a failed read is asked again,
  *  twice, shortly); null with no stretch, once the reads failed, or with no
- *  arc or Take; else the stretch. `one`: the One thing walk asks, which says
- *  no topic (C-TEMPO); a stretch already in is kept when it turns on. */
-export function useReviewTempo(arcId: string | null, take: string | null, one = false): TempoStretch | null | undefined {
+ *  arc or Take; else the stretch. */
+export function useReviewTempo(arcId: string | null, take: string | null): TempoStretch | null | undefined {
   const [tempo, setTempo] = useState<{ key: string; stretch: TempoStretch | null } | null>(null);
   const key = arcId && take ? `${arcId}:${take}` : null;
-  const answered = useRef<string | null>(null);
   useEffect(() => {
-    if (!arcId || !take || answered.current === `${arcId}:${take}`) return;
+    if (!arcId || !take) return;
     const asked = `${arcId}:${take}`;
     let live = true;
     let timer: number | null = null;
-    const settle = (stretch: TempoStretch | null) => {
-      answered.current = asked;
-      setTempo({ key: asked, stretch });
-    };
+    const settle = (stretch: TempoStretch | null) => setTempo({ key: asked, stretch });
     const ask = (tried: number) => {
-      void fetchReviewTempo(arcId, take, one).then((stretch) => {
+      void fetchReviewTempo(arcId, take).then((stretch) => {
         if (!live) return;
         if (stretch !== "failed") settle(stretch);
         else if (tried >= RETRY_MS.length) settle(null);
@@ -42,7 +37,7 @@ export function useReviewTempo(arcId: string | null, take: string | null, one = 
       live = false;
       if (timer !== null) window.clearTimeout(timer);
     };
-  }, [arcId, take, one]);
+  }, [arcId, take]);
   if (!key) return null;
   return tempo?.key === key ? tempo.stretch : undefined;
 }

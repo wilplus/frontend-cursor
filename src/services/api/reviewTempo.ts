@@ -5,14 +5,14 @@ import type { WalkClip } from "@/lib/willab/feedbackWalkModel";
 
 /** The Take's stretch for the walk's tempo step (backend N162, N166): the
  *  clip the pace scale reads furthest from the green, fast or slow, and what
- *  it was about. Null when no clip left the green; "failed" when the read
- *  failed, which is not "no stretch" (T): the caller asks again. `one`: the
- *  One thing walk asks, whose opening says no topic, so the backend makes
- *  no topic call (C-TEMPO). */
-export async function fetchReviewTempo(arcId: string, takeId: string, one = false): Promise<TempoStretch | null | "failed"> {
+ *  it was about (for the One thing walk, whose opening says no topic, the
+ *  backend makes no topic call: C-TEMPO). Null when no clip left the green;
+ *  "failed" when the read failed, which is not "no stretch" (T): the caller
+ *  asks again. */
+export async function fetchReviewTempo(arcId: string, takeId: string): Promise<TempoStretch | null | "failed"> {
   try {
     const result = await bffFetch(
-      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/review/tempo/${encodeURIComponent(takeId)}${one ? "?one=1" : ""}`,
+      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/review/tempo/${encodeURIComponent(takeId)}`,
       { cache: "no-store" },
     );
     if (result.kind !== "response" || !result.ok) return "failed";

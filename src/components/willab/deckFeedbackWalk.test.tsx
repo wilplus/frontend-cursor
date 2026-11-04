@@ -66,6 +66,7 @@ import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
+import { WALK_OPEN_WAIT_MS } from "./useDeckFeedbackWalk";
 import { GuestGateContext } from "./GuestSignUpDialog";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "./idealEditCopy";
 import { TEMPO_COPY } from "@/lib/willab/tempoStep";
@@ -75,6 +76,7 @@ import { PRAISE_CUE_COPY, PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
 import type { Part } from "@/lib/willab/documentParts";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import { FOUNDER_EMAIL } from "@/lib/founder";
+import { forgetSharedUserProfile } from "@/services/api/userProfile";
 
 vi.mock("@/services/api/takeFeedback", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/api/takeFeedback")>()),
@@ -203,7 +205,13 @@ beforeEach(() => {
   vi.mocked(saveTakeFeedbackResponse).mockClear();
   vi.mocked(reportMomentEvent).mockClear();
   window.localStorage.clear();
-  vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 404 })));
+  // Nothing served but the tempo route's "no stretch", which the walk's
+  // opening waits for (`walkReady`); a failed read would be asked again.
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) =>
+    String(input).includes("/review/tempo/")
+      ? new Response(JSON.stringify({ tempo: null }), { status: 200, headers: { "Content-Type": "application/json" } })
+      : new Response("{}", { status: 404 }),
+  ));
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -564,6 +572,59 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("the walk opens whole, behind the wait: my name in the hello and Last time from the server's tip, before my best (C0, C0a)", async () => {
+    // The profile answers late; the walk waits for it, never saying "Hi."
+    // first and swapping it in place.
+    let named: (r: Response) => void = () => undefined;
+    const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/user/profile")) return new Promise<Response>((done) => (named = done));
+      if (url.includes("/review/last-fix/take-2")) {
+        return json({ last: { kind: "voice", slide_index: 0, clip: { url: "https://media/last.wav", snippet_id: "snip-best" } }, tip: "Lean on “today”" });
+      }
+      if (url.includes("/review/tempo/")) return json({ tempo: null });
+      return new Response("{}", { status: 404 });
+    }));
+    forgetSharedUserProfile();
+    try {
+      const p = props({ suggestions: [best] });
+      await render(p);
+      await render({ ...p, reviewRequest: 1 });
+      expect(live()).toBeNull();
+      await act(async () => named(json({ first_name: "Maya" })));
+      expect(screen()).toBe("walk-screen-praise");
+      expect(live()!.querySelector("[data-walk-hello]")!.textContent).toBe("Hi Maya.");
+      // The tip the server read from the last walk's fix step: the chat need
+      // not hold it (C-LASTFIX).
+      expect(live()!.querySelector("[data-walk-last]")!.textContent).toBe(ONE_THING_COPY.lastTime("lean on “today”"));
+    } finally {
+      forgetSharedUserProfile();
+    }
+  });
+
+  it("the walk never waits on its reads past its bound: a profile that never answers opens it with \"Hi.\"", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) =>
+      String(input).includes("/user/profile") ? new Promise<Response>(() => undefined) : new Response("{}", { status: 404 }),
+    ));
+    forgetSharedUserProfile();
+    try {
+      const p = props({ suggestions: [best] });
+      await render(p);
+      await render({ ...p, reviewRequest: 1 });
+      expect(live()).toBeNull();
+      await act(async () => {
+        vi.advanceTimersByTime(WALK_OPEN_WAIT_MS);
+      });
+      expect(screen()).toBe("walk-screen-praise");
+      expect(live()!.querySelector("[data-walk-hello]")!.textContent).toBe(ONE_THING_COPY.hello(null));
+    } finally {
+      vi.useRealTimers();
+      forgetSharedUserProfile();
+    }
+  });
+
   it("a walk closed during its Clearer version's try opens again on the Clearer version, never the AI clip (N381)", async () => {
     // "Keep mine" was tapped: the rewrite is decided, the moment still waits.
     const kept = {
@@ -600,11 +661,7 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     expect(screen()).toBe("walk-screen-praise");
     await click(live()!.querySelector("[data-testid='walk-forward']"));
     expect(screen()).toBe("walk-screen-tempo");
-    // The One thing walk asks for the stretch with no topic (C-TEMPO); the
-    // bar names the stretch's slide (N435 item 7).
-    expect(vi.mocked(fetch).mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/review/tempo/"))).toEqual([
-      expect.stringContaining("?one=1"),
-    ]);
+    // The bar names the stretch's slide (N435 item 7).
     expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Results");
     const opening = append.mock.calls
       .map(([draft]) => (draft as { metadata: Record<string, unknown> }).metadata)

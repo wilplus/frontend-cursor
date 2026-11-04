@@ -582,9 +582,13 @@ export default function FeedbackWalk<R = unknown>({
   const helloSeq = useRef<number | null>(null);
   if (seq !== null && helloSeq.current === null) helloSeq.current = seq;
   const helloTold = useRef(false);
+  // The words the chat was told: the walk keeps them, so the hello never
+  // changes in place once said (B5), whatever arrives after.
+  const [helloSaid, setHelloSaid] = useState<string | null>(null);
   useEffect(() => {
     if (seq === null || helloTold.current || !step || step.overlay === false) return;
     helloTold.current = true;
+    setHelloSaid(hello);
     const greet: WalkStep = { key: "hello" };
     shownRef.current?.(greet, null, (bank) => sayLine(greet, bank), null, hello);
     // Once per walk: the words are fixed when it opens.
@@ -977,9 +981,7 @@ export default function FeedbackWalk<R = unknown>({
             buttons={!scroll || editing !== null}
             onClose={close}
           >
-            {s.seq !== null && s.seq === helloSeq.current ? <WalkHello text={hello} /> : null}
-            {s.seq !== null && s.seq === helloSeq.current && last ? <WalkLastTime last={last} /> : null}
-            {renderThread(ctx, s.head, s.seq, backFromPractise, s.at)}
+            {renderThread(ctx, s.head, s.seq, backFromPractise, s.at, s.seq !== null && s.seq === helloSeq.current ? walkTop(helloSaid ?? hello, last) : [])}
           </WalkThread>
         )}
       />
@@ -990,36 +992,38 @@ export default function FeedbackWalk<R = unknown>({
 /** The line between moments, or after the last (founder 2026-10-30, N285). */
 const leadLine = (lead: "next" | "done") => MOMENT_LEAD_LINES[lead];
 
-/** The walk's hello, the first bubble of its chat (founder 2026-10-23,
- *  N120). */
-function WalkHello({ text }: { text: string }) {
-  return (
-    <div data-walk-hello className="contents">
+/** What the walk's first opening says above its first step, landing
+ *  first, in order, one bubble at a time (B7, N440; the prototype's
+ *  start()): the hello (founder 2026-10-23, N120), then "Last time: {the
+ *  tip}. You did." and this Take's clip on that slide, as the speaker's own
+ *  orange bubble (founder 2026-10-31, N309 item 1). */
+function walkTop(hello: string, last: FeedbackWalkLastTime | null): ReactNode[] {
+  return [
+    <div key="hello" data-walk-hello className="contents">
       <WalkMessage>
-        <span>{text}</span>
+        <span>{hello}</span>
       </WalkMessage>
-    </div>
-  );
-}
-
-/** "Last time: {the tip}. You did." and this Take's clip on that slide, as
- *  the speaker's own orange bubble (founder 2026-10-31, N309 item 1). */
-function WalkLastTime({ last }: { last: FeedbackWalkLastTime }) {
-  return (
-    <div data-walk-last className="contents">
-      <WalkMessage>
-        <span>{ONE_THING_COPY.lastTime(last.tip)}</span>
-      </WalkMessage>
-      <WalkPlayer
-        look="me"
-        seed="last-time"
-        src={last.clip.src}
-        startOffsetMs={last.clip.startOffsetMs}
-        durationMs={last.clip.durationMs}
-        label={COPY.pagerMoment}
-      />
-    </div>
-  );
+    </div>,
+    ...(last
+      ? [
+          <div key="last" data-walk-last className="contents">
+            <WalkMessage>
+              <span>{ONE_THING_COPY.lastTime(last.tip)}</span>
+            </WalkMessage>
+          </div>,
+          <div key="last-clip" data-walk-last className="contents">
+            <WalkPlayer
+              look="me"
+              seed="last-time"
+              src={last.clip.src}
+              startOffsetMs={last.clip.startOffsetMs}
+              durationMs={last.clip.durationMs}
+              label={COPY.pagerMoment}
+            />
+          </div>,
+        ]
+      : []),
+  ];
 }
 
 /** Helper words are picked once per screen kind and moment: after a praise
@@ -2039,6 +2043,9 @@ function renderThread<R>(
   seq: number | null,
   backFromPractise: () => void,
   at: number,
+  /** What the first part opens with, before anything of its own: the
+   *  walk's hello and Last time (walkTop). */
+  top: readonly ReactNode[] = [],
 ): ReactNode {
   const parts = walkThreadParts(ctx.walk.plan, head);
   const standing = parts.findIndex((p) => p.at >= at);
@@ -2091,6 +2098,7 @@ function renderThread<R>(
     // "And now, one thing to improve:" above the One thing walk's fix (N309).
     const one = opener?.one === true && FIX_OPENERS.has(opener.key);
     const opening = [
+      ...(i === 0 ? top : []),
       ...(i > 0 ? answers[i - 1] : []),
       lead ? (
         <div key="lead" data-walk-lead={lead} className="contents">
