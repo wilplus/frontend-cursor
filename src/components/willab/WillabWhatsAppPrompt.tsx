@@ -116,8 +116,8 @@ export function useWhatsAppOffer(inputs: {
 }
 
 /** The footer while the WhatsApp offer is open: the number field in a grey
- *  card, then Not now | Save, as the install offer; after Save, the code
- *  WhatsApp brings, then Not now | Continue (backend N230: the number is
+ *  card, then "Not now" as a grey word and Save as the answer (backend N467
+ *  item 7); after Save, the code WhatsApp brings, then Not now and Continue (backend N230: the number is
  *  checked once, then it gets the messages and signs in). `onResolve`
  *  returns the record button. */
 export function WhatsAppOfferActions({

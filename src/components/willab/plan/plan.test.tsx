@@ -7,7 +7,7 @@
  * OUTCOME
  *   O1  A choice (the deadline, the plan's own yes, a new project's
  *       question) is tap answers on the right of the thread, Will's orange
- *       pills, the plan's "Not now" grey and quieter; the Lounge's bar
+ *       pills, the plan's "Not now" a grey word (N467); the Lounge's bar
  *       stays under it, and a tap sends that answer (N319 item 1).
  *   O2  A voice question turns the bar's mic orange; a tap records with the
  *       one recording bar in the message box's place, the trash throws it

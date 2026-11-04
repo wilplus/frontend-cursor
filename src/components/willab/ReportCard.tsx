@@ -233,19 +233,6 @@ function IdealTextUnconfirmedCard({
   const cardTakeIndex = takeIndexOfCard(message.metadata?.take_index);
   const canRetry = !!(arcId && takeSessionId && onRetryIdealText);
   const canOpenFeedback = !!(arcId && takeSessionId && onOpenFeedback);
-  const card = (
-    <div className="my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3">
-      <div className="flex items-start gap-2">
-        <ShieldAlert
-          className="mt-0.5 h-4 w-4 shrink-0 text-primary"
-          aria-hidden
-        />
-        <p className="text-[15px] leading-relaxed text-foreground">
-          {message.body}
-        </p>
-      </div>
-    </div>
-  );
   // Your answers on your side under the card, the likely one filled
   // (backend N467 item 6; was two buttons inside the card).
   const answers = [canOpenFeedback ? VIEW_FEEDBACK : null, canRetry ? TRY_AGAIN : null].filter(
@@ -253,7 +240,17 @@ function IdealTextUnconfirmedCard({
   );
   return (
     <>
-      {card}
+      <div className="my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3">
+        <div className="flex items-start gap-2">
+          <ShieldAlert
+            className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+            aria-hidden
+          />
+          <p className="text-[15px] leading-relaxed text-foreground">
+            {message.body}
+          </p>
+        </div>
+      </div>
       {answers.length > 0 ? (
         <TapRow
           labels={answers}

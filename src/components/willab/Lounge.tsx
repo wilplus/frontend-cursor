@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import Link from "next/link";
 import { Layers, Send, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
@@ -2555,32 +2554,30 @@ function BotWays({
       : null;
   // B-1 — the persisted actions: the pair if there is one, else the one.
   const many = onChip ? coerceSuggestedActions(metadata?.suggested_actions) : [];
-  const one = onChip && many.length === 0 ? coerceSuggestedAction(metadata?.suggested_action) : null;
+  const one = onChip ? coerceSuggestedAction(metadata?.suggested_action) : null;
   const actions = many.length > 0 ? many : one ? [one] : [];
   const ways = actions.filter((action) => action !== "feedback_skip");
   return (
     <>
       {/* Ways to go are links on Will's side, one per line; "Skip" is a
           grey word on the right (N467 items 4 and 5). */}
-      {productDestination || confidenceCorrection || sharedPracticeId || goalCardSpeaker || ways.length > 0 ? (
-        <ChatLinks>
-          {productDestination ? (
-            <ChatLink label={productDestination.actionLabel} href={productDestination.href} />
-          ) : null}
-          {confidenceCorrection ? (
-            <ChatLink label="Review coach feedback" onClick={() => onOpenFeedback?.(confidenceCorrection)} />
-          ) : null}
-          {sharedPracticeId ? (
-            <ChatLink label="Open exercise" onClick={() => onOpenConfidencePractice?.(sharedPracticeId)} />
-          ) : null}
-          {goalCardSpeaker ? (
-            <ChatLink label="Open speaker" onClick={() => requestOpenSpeaker(goalCardSpeaker)} />
-          ) : null}
-          {ways.map((action) => (
-            <ChatLink key={action} label={CHIP_LABEL[action]} onClick={() => onChip!(action)} />
-          ))}
-        </ChatLinks>
-      ) : null}
+      <ChatLinks>
+        {productDestination ? (
+          <ChatLink label={productDestination.actionLabel} href={productDestination.href} />
+        ) : null}
+        {confidenceCorrection ? (
+          <ChatLink label="Review coach feedback" onClick={() => onOpenFeedback?.(confidenceCorrection)} />
+        ) : null}
+        {sharedPracticeId ? (
+          <ChatLink label="Open exercise" onClick={() => onOpenConfidencePractice?.(sharedPracticeId)} />
+        ) : null}
+        {goalCardSpeaker ? (
+          <ChatLink label="Open speaker" onClick={() => requestOpenSpeaker(goalCardSpeaker)} />
+        ) : null}
+        {ways.map((action) => (
+          <ChatLink key={action} label={CHIP_LABEL[action]} onClick={() => onChip!(action)} />
+        ))}
+      </ChatLinks>
       {actions.includes("feedback_skip") ? (
         <TapRow labels={[CHIP_LABEL.feedback_skip]} onTap={() => onChip!("feedback_skip")} dataAttr={{ "data-chip-skip": "" }} />
       ) : null}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Children, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import Link from "next/link";
 import Linkified from "./Linkified";
 
@@ -225,8 +225,10 @@ export function ChatLink({
   );
 }
 
-/** Links under one bubble: one per line, on Will's side. */
+/** Links under one bubble: one per line, on Will's side; nothing when
+ *  there are none. */
 export function ChatLinks({ children }: { children: ReactNode }) {
+  if (Children.toArray(children).length === 0) return null;
   return <div className="mr-auto flex max-w-[90%] flex-col items-start gap-0.5 pt-0.5">{children}</div>;
 }
 

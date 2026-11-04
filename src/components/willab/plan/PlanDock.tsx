@@ -14,10 +14,11 @@ import PlanCalendar, { MonthGrid } from "./PlanCalendar";
    While the plan asks, the Lounge's bar stays ("+", "Type here", the mic):
    - a choice (the deadline, the plan's own yes, a call, what's next, a new
      project's question) is tap answers on the right of the thread, drawn as
-     Will's after the walk (orange outlined pills); the plan's "Not now" is
-     grey and quieter (`PlanAsk`);
-   - the 1 to 10 scale keeps its shape, in the thread under its question
-     (`PlanAsk`);
+     Will's after the walk (orange pills, the likely one filled); the plan's
+     "Not now" and "Skip" are grey words, and "Yes" comes last (`PlanAsk`,
+     N467);
+   - the 1 to 10 scale keeps its shape, in the thread under its question,
+     the picked number orange (`PlanAsk`);
    - a voice question (why it matters, the key line, the follow-ups, "How
      did it go?") turns the Lounge's mic orange; a tap records with the one
      recording bar (backend N314), Stop sends the answer (`usePlanVoice`).
