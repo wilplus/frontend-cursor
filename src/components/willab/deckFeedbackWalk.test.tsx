@@ -40,7 +40,7 @@ OUTCOME
   O10 With no moment to fix, the pace game is the One thing walk's fix,
       and its opening keeps its tip, "give “{words}” more room" with the
       Sniper's helper words, in the chat for "Last time" next Take (N347
-      item 3); its scale names its zones "too slow", "just right", "too
+      item 3), a slow stretch's "keep “{words}” moving" (N459 item 2); its scale names its zones "too slow", "just right", "too
       fast", and Skip gets "Okay, we'll skip this one." in the walk and the
       chat (N405). The chat says "And now, one thing to improve:", the
       stretch's clip and the Sniper's line in the walk's order (E2).
@@ -71,7 +71,8 @@ PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's 
                "an older Take's finished walk, played again and closed with ✕ under a newer Take, asks no summary (D4, between two Takes)",
                "a page opened again while the summary is still written asks it no second time, the dots on until it ends (C9, D4)",
                "a finished Take's page opened later asks the summary with the try and the helper words its chat kept (D2, E1)"
-         O10 -> "the pace game as the walk's fix keeps its tip in the chat, for Last time next Take (N347 item 3)"
+         O10 -> "the pace game as the walk's fix keeps its tip in the chat, for Last time next Take (N347 item 3)",
+                "a slow stretch as the walk's fix keeps its own tip, for Last time next Take (N459 item 2)"
          O11 -> "the walk opens whole, behind the wait: my name in the hello and Last time from the server's tip, before my best (C0, C0a)",
                 "the walk never waits on its reads past its bound: a profile that never answers opens it with \"Hi.\""
          O12 -> "a walk closed during its Clearer version's try opens again on the Clearer version, never the AI clip (N381)"
@@ -90,6 +91,7 @@ import { WALK_OPEN_WAIT_MS } from "./useDeckFeedbackWalk";
 import { GuestGateContext } from "./GuestSignUpDialog";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "./idealEditCopy";
 import { TEMPO_COPY } from "@/lib/willab/tempoStep";
+import { tipSaid } from "@/lib/willab/walkLines";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { reportMomentEvent } from "@/services/api/momentEvents";
 import { PRAISE_CUE_COPY, PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
@@ -792,6 +794,27 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     const told = append.mock.calls.map(([draft]) => draft as { body: string; metadata: Record<string, unknown> });
     expect(told.find((d) => d.metadata.step === "tempo:skipped")?.body).toBe(ONE_THING_COPY.skipped);
     expect(told.find((d) => d.metadata.step === "tempo:skip")).toBeUndefined();
+  });
+
+  it("a slow stretch as the walk's fix keeps its own tip, for Last time next Take (N459 item 2)", async () => {
+    who.email = FOUNDER_EMAIL;
+    const append = vi.fn(async (draft: unknown) => draft);
+    chat.thread = { messages: [], loading: false, append, reload: vi.fn(async () => undefined) };
+    const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) =>
+      String(input).includes("/review/tempo/take-2")
+        ? json({ tempo: { reading: "slow", topic: "that part", slide_index: 1, snippet_id: "snip-stretch", said: { before: "Three things stood out: ", stretch: "retention went up, churn went down", after: "" } } })
+        : new Response("{}", { status: 404 }),
+    ));
+    const p = props({ suggestions: [{ ...best, oneFix: "tempo" } as DocumentSuggestion] });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    expect(screen()).toBe("walk-screen-tempo");
+    const opening = append.mock.calls
+      .map(([draft]) => (draft as { metadata: Record<string, unknown> }).metadata)
+      .find((m) => m.step === "tempo:open");
+    expect(ONE_THING_COPY.lastTime(tipSaid(String(opening?.fix_tip)))).toBe("Last time: keep “retention went up, churn went down” moving. You did.");
   });
 
   it("a Sniper opened, then left with ✕ before a try, is played live from a door while the Take still waits (B10, T)", async () => {
