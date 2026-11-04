@@ -351,6 +351,8 @@ export function useWalkPractise<R>(args: {
         if (read.ok && read.data.clip) state = read.data;
       }
       keep(state);
+      // The ensure, or its one read, can name the tip already: kept too.
+      if (state.clip?.problem) named = state.clip;
       if (state.clip?.state === "pending") poll(practiceId);
     });
     // The clip keeps being asked after while the walk moves on (Exercise →
