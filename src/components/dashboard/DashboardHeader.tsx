@@ -6,7 +6,6 @@ import AppMenu from "@/components/AppMenu";
 import { useAppMenuData } from "@/hooks/useAppMenuData";
 import { useChatsOn } from "@/components/willab/chats/useChats";
 import { getMyChatLink } from "@/services/api/chats";
-import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /** The full link to copy: the backend gives its path (/c/<token>). */
 async function myLink(): Promise<string | null> {
@@ -63,7 +62,6 @@ export default function DashboardHeader() {
             // Copy my link takes Lab's place at the top (backend N367):
             // for every signed-in person, as the chats are (N456).
             onCopyLink={chatsOn ? myLink : null}
-            tokensOpenNothing={isNativeApp()}
             tokensLabel={menu.tokensLabel}
             lifeMenu={menu.lifeMenu}
             productMenu={menu.productMenu}
