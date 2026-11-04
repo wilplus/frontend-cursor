@@ -801,7 +801,10 @@ function LiveThread({
         }}
         className="scrollbar-none relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5 py-3.5"
       >
-        <div ref={content} className="flex flex-col gap-4">
+        {/* A thread shorter than the screen sits at the bottom, right above
+            the buttons, so the first bubble lands where the loading dots
+            were (N122, 2026-11-04: it began at the top). */}
+        <div ref={content} className="mt-auto flex flex-col gap-4">
           {kept.html ? (
             <div
               data-walk-kept

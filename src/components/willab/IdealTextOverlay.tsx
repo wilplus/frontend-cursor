@@ -1281,8 +1281,9 @@ function walkStepOnScreen(): boolean {
 }
 
 /** The lens screen's own frame while the walk loads: the lens's one wait,
- *  the typing dots where its first bubble will land (founder 2026-10-20),
- *  and its ✕, never the text. */
+ *  the typing dots where its first bubble will land, at the bottom as in the
+ *  walk's thread (founder 2026-10-20; N122: "the 3 dots loading should be at
+ *  the bottom", 2026-11-04: were at the top), and its ✕, never the text. */
 function LensFrame({ on, onClose }: { on: boolean; onClose: () => void }) {
   if (!on || typeof document === "undefined") return null;
   return createPortal(
@@ -1290,7 +1291,7 @@ function LensFrame({ on, onClose }: { on: boolean; onClose: () => void }) {
       <div className="flex min-h-[44px] w-full items-center justify-end px-2.5 pt-2">
         <OverlayCloseButton onClick={onClose} className="mr-2.5" />
       </div>
-      <div className="mx-auto w-full max-w-3xl px-5 py-3.5">
+      <div data-lens-wait className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-end px-5 py-3.5">
         <WalkLoading />
       </div>
     </div>,
