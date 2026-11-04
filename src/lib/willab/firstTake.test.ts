@@ -34,11 +34,11 @@ import {
 import { readActiveSetupDraft } from "./setupDraft";
 
 const SLIDES = [
-  { kicker: "About you", title: "What do you do, and what do you know best?", body: "So I can send you the right questions." },
-  { kicker: "Your talk", title: "What are you practising for, and why does it matter?", body: "" },
-  { kicker: "The room", title: "When is it, and who will be in the room?", body: "" },
-  { kicker: "Your one sentence", title: "If they remember one sentence from you, what is it?", body: "Say it the way you'll say it." },
-  { kicker: "Your opening", title: "How will you open? Say your first sentence.", body: "" },
+  { kicker: "Your field", title: "What do you know better than most people you meet?", body: "The thing people come to you for." },
+  { kicker: "Worth sharing", title: "What could you teach someone in five minutes that would save them a year?", body: "Something you learned the hard way." },
+  { kicker: "Who it's for", title: "Who would be glad you told them?", body: "Picture one person: a colleague, a customer, a friend." },
+  { kicker: "A moment", title: "When did it make a difference? Take us to that day.", body: "Where you were, what happened, what changed." },
+  { kicker: "Your one thing", title: "If they remember one sentence from you, what should it be?", body: "Say it the way you'll say it." },
 ];
 
 beforeEach(() => {

@@ -432,12 +432,12 @@ it("Start your first recording only after the plan card", async () => {
 
 it("a first-Take plan: the one button at once, and it starts the five slides", async () => {
   const slides = [
-    { kicker: "About you", title: "What do you do, and what do you know best?", body: "So I can send you the right questions." },
-    { kicker: "Your talk", title: "What are you practising for, and why does it matter?", body: "" },
+    { kicker: "Your field", title: "What do you know better than most people you meet?", body: "The thing people come to you for." },
+    { kicker: "Worth sharing", title: "What could you teach someone in five minutes that would save them a year?", body: "Something you learned the hard way." },
   ];
   backend(() => ({ ...PLAN, status: "asking", step: "deadline", first_take: true, first_take_slides: slides }));
   const start = vi.fn();
-  await showLounge([row({}, "Your first Take is five questions. Answer each one out loud, one slide at a time.")], start);
+  await showLounge([row({}, "Your first Take is about what you know. Five questions, one slide each. Answer out loud, as you'd tell a friend.")], start);
   const button = host.querySelector("[data-plan-dock='start']") as HTMLButtonElement;
   expect(button.textContent).toBe("Start your first recording");
   expect(taps()).toEqual([]); // no deadline asked in the chat

@@ -36,11 +36,17 @@ export interface FirstTakeSlide {
  *  prototype "The first Take", N401). */
 export const FIRST_TAKE_TOPIC = "Your first Take";
 
-/** The small title above each question (N401 item 2, signed), by the
- *  question on the slide. The deck itself stays `{title, body}`, the wire
+/** The small title above each question (N462, signed; was N401 item 2), by
+ *  the question on the slide. The deck itself stays `{title, body}`, the wire
  *  contract, so the small title is found by the slide's own words, as the
- *  stand-in deck is (defaultDeck.ts). */
+ *  stand-in deck is (defaultDeck.ts). The five N401 questions stay below, for
+ *  a first Take whose project was made before N462. */
 const KICKERS: Readonly<Record<string, string>> = {
+  "What do you know better than most people you meet?": "Your field",
+  "What could you teach someone in five minutes that would save them a year?": "Worth sharing",
+  "Who would be glad you told them?": "Who it's for",
+  "When did it make a difference? Take us to that day.": "A moment",
+  "If they remember one sentence from you, what should it be?": "Your one thing",
   "What do you do, and what do you know best?": "About you",
   "What are you practising for, and why does it matter?": "Your talk",
   "When is it, and who will be in the room?": "The room",

@@ -78,6 +78,18 @@ for the screens below.
    - The slide, sitting close under the top bar, then the speaker's helper
      words below it, every one of them orange (none on Take 1), using the
      full width. No slide dots (removed 2026-10-12, N70).
+   - **The poster** (backend N462, the prototype "Your one thing"
+     <https://claude.ai/artifact/6L2C5Uj7AiJbRaES4cxzb1>): with no uploaded
+     deck, the first Take's questions, the default presentation (Opening,
+     Main points with its 1 2 3 as tiles, Summary) and an answer's question
+     are drawn as one idea in the middle of the dark slide: the label in
+     small spaced capitals, quiet; the question large and heavy, centered a
+     little above the middle; the hint quiet under it; no orange line. It
+     fills the slide's space down to the strip, a mark for each slide under
+     it, when the Take has no helper words; with helper words it keeps the
+     16:9 box, so they keep their place. An uploaded deck is drawn as
+     itself. Was: the question at the bottom with the orange line (N449),
+     the default deck on its colour artwork, an answer's small line.
    - The strip at the bottom: the recording dot, the clock, the bar. No
      line above the strip, and no Finish take in it (2026-10-12, N70).
    - Under the strip, two buttons side by side, equal width, in the coach
@@ -102,8 +114,9 @@ for the screens below.
    the screens opened from a chat's "Record an answer" record it as any
    Take, on one slide holding the question (N361 item 3), with no "How do
    you feel?" before it. The top bar is the person's name alone; the slide
-   reads a small **{name} asks** with the question under it in body size,
-   not as a heading (N441 item 7). The clock counts down from 5:00, an
+   is the poster, **{name} asks** as its label and the question as its
+   heading (N462; was N441 item 7: a small line, the question in body
+   size). The clock counts down from 5:00, an
    answer's longest, and at 0:00 the Take finishes by itself, as Finish
    take would (N441 item 2). Was (N363, N334 item 2): the name above
    **Take 1 · Slide 1 of 1**, the question as the slide's heading, a clock
@@ -299,10 +312,13 @@ Every prototype link in §1, in the order it first appears:
 - <https://claude.ai/artifact/Ta5hMGw8EbA6ewUssUugMK>
 - <https://claude.ai/artifact/S66ZsrqTQZ4se74caoCj2J>
 - <https://claude.ai/artifact/6AVcGS1ksx86KzvUPyKEes>
+- <https://claude.ai/artifact/6L2C5Uj7AiJbRaES4cxzb1>
 
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-11-04 · N462 · the slide is the poster: the first Take's new questions, the default presentation and an answer's question are drawn centered, the label small and spaced, the question large and heavy, the hint quiet, no orange line (`pdfSlides.tsx` `PosterSlide`, `RecordingRoadmap.tsx` `stageLook`, `SlideStage.tsx`); tall when the Take has no helper words, the 16:9 box with them; an uploaded deck as itself; the Ideal Text, present mode and the walk unchanged. The first Take's five questions are the new ones, the old five still drawn for a project made before (`firstTake.ts`). Was: the question at the bottom with the orange line, the default deck on its colour artwork, "{name} asks" in a small line · BE #1694, FE (this PR)
 
 - 2026-11-03 · N449 · the first Take's questions fill the slide's space down to the strip, their words at the bottom (small title, mark, question at 27px, the line under it), with five marks under the slide: this question orange, the ones done dark, the rest grey (`RecordingRoadmap.tsx`, `SlideStage.tsx` `tall`, `pdfSlides.tsx`), as the prototype "The first Take" v1 draws them; the real talk after it is that project's Take 2, "Take 2 · Slide 1 of 3": its set-up runs afresh instead of the five questions' setup, "New slides" under "Getting your mic ready", and its slides become the project's from that Take before it is sent (`LabOverlay.tsx`, N257); the set-up's slides step says "Skip for now" whenever no slides were added, the last step included (`RecordingSetup.tsx`). Was: the question in the 16:9 box at the top; the real talk a new project at "Take 1"; "Start recording" on that step when it was the last. Every other Take unchanged · BE #1679, FE (this PR)
 - 2026-11-03 · N441 · an answer's top bar is the person's name alone and its slide reads "{name} asks" over the question in body size; its clock counts down from 5:00 and finishes the Take by itself at 0:00; with one slide, Finish take alone fills the row, no Back (`LabOverlay.tsx`, `RecordingRoadmap.tsx`, `SlideStage.tsx`, `pdfSlides.tsx`). Was: the name above "Take 1 · Slide 1 of 1", the question as the heading, a clock counting up past 5:00, a greyed Back · BE (N441 PR), FE (this PR)

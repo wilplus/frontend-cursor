@@ -6,6 +6,7 @@ import type { PresentationSlide } from "./presentation";
 import SlideStage from "./SlideStage";
 import FinishTakeButton from "./FinishTakeButton";
 import { isFirstTakeDeck } from "@/lib/willab/firstTake";
+import { isDefaultDeckText } from "@/lib/willab/defaultDeck";
 import { RECORDING_COPY } from "./recordingCopy";
 import { useRecordingGestures } from "./useRecordingGestures";
 
@@ -29,6 +30,24 @@ export interface RecordingRoot {
  * change reaches the overlay's setter, which timestamps it into the timeline
  * the backend buckets words with. Nothing here follows audio.
  */
+/** How the slide is drawn (backend N462; the prototype "Your one thing").
+ *  The poster for the first Take's questions, the default presentation and
+ *  an answer's question; an uploaded deck is drawn as itself. Tall, down to
+ *  the strip with a mark for each slide under it (backend N449 item 4), when
+ *  the Take has no helper words: the first Take never has any; with helper
+ *  words the slide keeps its 16:9 box, so they keep their place (Never 5). */
+export function stageLook(
+  slides: readonly { title: string; body: string }[],
+  presentationRef: string | null,
+  asks: string | null,
+  roots: readonly unknown[],
+): { poster: boolean; tall: boolean } {
+  if (presentationRef) return { poster: false, tall: false };
+  const firstTake = isFirstTakeDeck(slides);
+  const poster = firstTake || isDefaultDeckText(slides) || !!asks;
+  return { poster, tall: firstTake || (poster && roots.length === 0) };
+}
+
 export default function RecordingRoadmap({
   slides,
   presentationRef,
@@ -130,11 +149,7 @@ export default function RecordingRoadmap({
   }, []);
 
   const last = currentSlide >= slides.length - 1;
-  // The first Take's questions (backend N449 item 4; the prototype "The
-  // first Take", v1): each one tall, down to the strip, with a mark for each
-  // question under it, this one orange, the ones done dark. Take 1 has no
-  // helper words, so their band gives its room to the slide.
-  const tall = !presentationRef && isFirstTakeDeck(slides);
+  const { poster, tall } = stageLook(slides, presentationRef, asks, roots);
 
   return (
     <>
@@ -150,6 +165,7 @@ export default function RecordingRoadmap({
             current={currentSlide}
             asks={asks}
             tall={tall}
+            poster={poster}
           />
         </div>
         {tall ? (
