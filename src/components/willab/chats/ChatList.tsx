@@ -7,7 +7,7 @@ import type { LoungeKind, LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadMaybe } from "../LoungeThreadContext";
 import { chatIsNew, isNewSince, markChatOpened } from "./chatOpened";
 import { listTime, timeOf } from "./chatTime";
-import { ADD_SHEET_LINE, ADD_SHEET_TITLE, ADD_STEPS, CANCEL, COPIED, COPY_MY_LINK, answersOf, joinedThanks } from "./joinCopy";
+import { ADD_SHEET_LINE, ADD_SHEET_TITLE, ADD_STEPS, CANCEL, COPIED, COPY_MY_LINK, answersOf, asksYouAbout, joinedThanks } from "./joinCopy";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /* -------------------------------------------------------------------------- */
@@ -375,8 +375,16 @@ export default function ChatList({
       title={chat.title}
       subtitle={chat.subtitle}
       time={listTime(chat.last?.created_at, now)}
-      preview={chat.last ? lastLine(chat.last, chat.title) : chat.joined_through || justJoined ? joinedThanks(chat.joined_through || chat.title) : ""}
-      isNew={justJoined || chatIsNew(chat)}
+      preview={
+        chat.inquiry
+          ? asksYouAbout(chat.inquiry.about)
+          : chat.last
+            ? lastLine(chat.last, chat.title)
+            : chat.joined_through || justJoined
+              ? joinedThanks(chat.joined_through || chat.title)
+              : ""
+      }
+      isNew={chat.inquiry ? chat.inquiry.state === "new" : justJoined || chatIsNew(chat)}
       cameFrom={cameFrom === chat.id}
       onOpen={() => onOpen(chat)}
     />
@@ -394,8 +402,9 @@ export default function ChatList({
         cameFrom={cameFrom === WILL_CHAT}
         onOpen={onOpenWill}
       />
+      {chats.filter((chat) => chat.inquiry).map((chat) => row(chat))}
       {first ? row(first, true) : null}
-      {chats.length === 0 ? (
+      {chats.filter((chat) => !chat.inquiry).length === 0 ? (
         /* Nobody else yet (the iPhone app shows the list with Will alone,
            founder 2026-11-02): adding someone is the next row, as the + does. */
         <ChatListRow
@@ -409,7 +418,7 @@ export default function ChatList({
           onOpen={openAdd}
         />
       ) : null}
-      {newestFirst(chats.filter((chat) => chat !== first)).map((chat) => row(chat))}
+      {newestFirst(chats.filter((chat) => chat !== first && !chat.inquiry)).map((chat) => row(chat))}
       </div>
       <button
         type="button"

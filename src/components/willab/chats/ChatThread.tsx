@@ -119,13 +119,13 @@ function TopBar({
 
 /** The device's Back (the iPhone's swipe, the browser's Back) closes the
  *  chat while it is the screen: one step, to the list (N378). */
-function BackIsThisChats({ onBack }: { onBack: () => void }) {
+export function BackIsThisChats({ onBack }: { onBack: () => void }) {
   useBackDismiss(onBack);
   return null;
 }
 
 /** A person's chat's top bar: the letter circle, the name, who they are. */
-function ChatTopBar({ chat, onBack, onOpen }: { chat: Chat; onBack: () => void; onOpen: () => void }) {
+export function ChatTopBar({ chat, onBack, onOpen }: { chat: Chat; onBack: () => void; onOpen: () => void }) {
   return (
     <TopBar
       circle={<LetterCircle id={chat.id} name={chat.title} size={36} />}
@@ -174,7 +174,7 @@ export const HIDE_WORDS = "Hide";
 /** A voice note's words, closed under its player (backend N331): "Read it"
  *  opens them inside the bubble, "Hide" closes them. Closed by default, for
  *  both people, so the voice is heard; shown only once there are words. */
-function VoiceWords({ words, mine }: { words: string; mine: boolean }) {
+export function VoiceWords({ words, mine }: { words: string; mine: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -278,7 +278,7 @@ function ChatVoice({ chatId, message, time }: { chatId: string; message: ChatMes
 
 /** A photo's or a file's bubble (N351): mine orange on the right, theirs
  *  grey on the left, its time under it on the right. */
-function FileBubble({ mine, time, children }: { mine: boolean; time: string; children: ReactNode }) {
+export function FileBubble({ mine, time, children }: { mine: boolean; time: string; children: ReactNode }) {
   const body = (
     <>
       {children}
@@ -377,7 +377,7 @@ function useChatTake(chatId: string, messageId: string | null): ChatTake | null 
  *  "Take {n}" and the project's title. No play mark: WillpowerLab has no
  *  video, and the recording plays in the voice player (N493 item 6; was a
  *  dark frame with a white play mark). */
-function TakeTile({ meta, first }: { meta: Record<string, unknown> | null; first: string | null }) {
+export function TakeTile({ meta, first }: { meta: Record<string, unknown> | null; first: string | null }) {
   const n = typeof meta?.take_index === "number" ? meta.take_index : null;
   const ms = typeof meta?.duration_ms === "number" ? meta.duration_ms : null;
   const project = typeof meta?.project_title === "string" ? meta.project_title : "";
@@ -553,7 +553,7 @@ function ChatDay({ label }: { label: string }) {
  *  connected: for the one who joined, with a few of the owner's questions
  *  first or none (backend N496, replacing N335 item 2's line); for the
  *  owner, who joined through their link (N502 item 5). */
-function JoinedLine({ text }: { text: string }) {
+export function JoinedLine({ text }: { text: string }) {
   return (
     <div data-chat-joined className="max-w-[86%] self-center rounded-xl bg-muted px-3 py-2 text-center text-[13.5px] leading-snug text-foreground">
       {text}
@@ -738,7 +738,7 @@ function SentLine({ children }: { children: ReactNode }) {
 }
 
 /** The plan's black button with the red dot, in the bar's place. */
-function RecordAnswerButton({ onClick }: { onClick: () => void }) {
+export function RecordAnswerButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
@@ -789,7 +789,7 @@ export function sendTick(): void {
  *  answer goes (backend N368 item 1, N345); "Not sent" with "Send again"
  *  when it was refused (N441 item 1). The action is a bold word in the
  *  pill, not a pill of its own (N460 item 3). */
-function SendingPill({ name, startedAt, waited, failed }: { name: string; startedAt: number; waited: boolean; failed: boolean }) {
+export function SendingPill({ name, startedAt, waited, failed }: { name: string; startedAt: number; waited: boolean; failed: boolean }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (waited || failed) return;
