@@ -611,7 +611,15 @@ status and the filters. Built since: the join link, the add sheet and the join p
 Camera, Files and Someone else (C1, N351); "Record an answer", a marked
 question answered with a Take that goes back to the chat (C1, N361,
 N363); Block and Report from a person's profile, the reports in the CEO
-panel (C1, N466).
+panel (C1, N466). Built behind the backend's switch for sending (`TAKE_SEND_ENABLED`,
+off until the Privacy text for it is signed, N472 item 1): a Take sent to
+you is the sender's message in your chat with them, "{name} sent you Take
+{n}" with the Take's tile (its length, "Take {n}", the project) and "Open
+Take" under it, which plays its recording and shows its words slide by
+slide behind "Read it", as an answer does, and never its Ideal Text,
+feedback, moments or levels; the list's line says "{name} sent you Take
+{n}"; the sender's own is the tile with "Sent to {name}" (C1, N470 item
+4, N472 item 8; the prototype "Specialist Side" flow 4).
 There is no typing outside Will's chat (N298 item 4).
 
 Nothing else built. The order of the build, each slice proving one thing (N223
@@ -779,6 +787,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N470, N472 · C1: a Take someone sends you is their message in your chat with them, "{name} sent you Take {n}" with the Take's tile and "Open Take", which plays its recording and shows its words slide by slide behind "Read it", nothing else of it; the list's line says "{name} sent you Take {n}"; your own sent Take is its tile with "Sent to {name}" (`ChatThread.tsx` `ChatTakeBubble`, `ChatList.tsx` `lastLine`, `takeSends.ts`). No passcode in the list of chats: a person's link is the only way in (N471 item 2, N472 item 4). Behind the backend's switch, off until the Privacy text is signed. Was: a chat had no Take messages · BE N470 (#1702), N472 (#1704), BE (send PR), FE (this PR)
 - 2026-11-04 · N469 · C1: the bubbles keep WhatsApp's rhythm in every chat, Will's included: 2px between two of the same side, 12px where the side changes ([the chat's page](feedback-walk-and-chat.md) J8). Was: 8px between every row · BE #1700, FE (this PR)
 
 - 2026-11-04 · N467 · C1: every choice in a chat, a person's included, follows the chat page's J7, locked for the whole app; Will's chat starts at the bottom, as the chats with people do · BE N467 log (#1695), FE (this PR)

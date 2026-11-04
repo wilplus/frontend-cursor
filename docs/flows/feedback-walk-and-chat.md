@@ -758,7 +758,9 @@ praised moment:
   An answer moves on by itself after 0.28 s and stays locked. Each lands
   with its name ("Other speakers · 2 of 3"); the bar reads "Other speakers ·
   1 of N" or "Invita · 1 of N". Who you judge follows who you share with
-  (G3). **Opened again** once the walk is done, it shows the moments the
+  (G3 as it was; with sending on, no new Take joins the crowd's judging,
+  and the step runs on the training corpus and on Takes shared before,
+  N472 item 2). **Opened again** once the walk is done, it shows the moments the
   speaker judged, each with their answer, and no buttons (N259). Nothing is asked or sent
   again; with none judged the step is left out (N247; was "no read-only
   replay", 2026-10-13). No other speaker's recording is ever stored in a
@@ -1070,60 +1072,111 @@ praised moment:
 - **F8** Everything else on the page (how helper words look, the sheets,
   Presentation Mode, export): backend [`FOUNDER-LOCK-helper-words-2026-09-30.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-helper-words-2026-09-30.md).
 
-### G · Sharing, before the next recording
+### G · Who hears this Take, before the next recording
+
+Built behind the backend's switch for sending (`TAKE_SEND_ENABLED`, off
+until the Privacy text for it is signed, N472 item 1). While the switch is
+off, or when its reads fail, today's G1 to G4 hold exactly, as written
+under "Was:" below (R3, R6). On (founder 2026-11-04, N470 (#1702), N472
+(#1704); the prototype "Specialist Side"
+<https://claude.ai/artifact/CXHqV7paTVT4iVSA5uiyrV> tab 1, locked):
 
 - **G1** Asked once, the first time "Record Take 2" is tapped, never before
-  Take 1, on the app's own screen: "Before we start the new take!", "After
-  all, it's about speaking publicly!" (regular weight) and "How big you want
-  your audience?" (founder 2026-10-21: the app's words, "Do you agree to
-  share your next take with others?" is history). The choice applies to the
-  Take about to be recorded and is remembered: every later "Record Take N"
-  starts the recording at once with it, applied to the new Take as Continue
-  applies it (stamped with the words version, G4). Asked again only when
-  the screen's words change (a new words version) or a community is added
-  (a private community joined after the choice); a choice none of whose
-  communities is left open asks too (founder 2026-10-31, N309 item 5; until
-  then asked before every Take from Take 2, the choice kept six hours for
-  that Take alone). The remembered choice is the newest line under a Take's
-  recording, which carries what it says and the words version
-  (`metadata.share`, "Only me" included); the server reads it back
-  (`GET /v2/user/takes/share/last`). A line stored before N309 item 5
-  carries none, so the first "Record Take N" after it asks once more. In
-  the Lounge the question leaves no bubbles: the choice, in its own words
-  ("Only my community (Invita)", "General community", "Only me"), is one
-  small line under that Take's recording, also when the Take kept it
-  without asking, and "Record Take N" posts no bubble of its own (founder
-  2026-10-26, N192, question 3; until then "Record Take N", the question as
-  one bubble and the choice as the speaker's bubble, #847). On the
-  speaker's latest Take the line, drawn the same, opens the same screen to
-  change the choice for that Take and the ones after it: Continue shares
-  that Take as now chosen or takes it back from every community (G4), and
-  its line says the new choice; ✕ changes nothing (N309 item 5). Open
-  (N309): whether the consent words must say the choice covers later Takes
-  (a lawyer's check; Never 4).
-- **G2** The options: **General community.** **Only my community**, with the
-  speaker's saved communities inside (a passcode entered once; one is ticked;
-  several are all ticked and any can be unticked; "+ Add a community with a
-  passcode" at the bottom). **Only me**, which stands alone. Nothing is
-  ticked when the screen asks, and Continue waits for a choice, "Only me"
-  counting (founder 2026-10-15, Privacy 3.6 §4d); opened from the line, the
-  choice as it stands is ticked (N309 item 5).
-- **G3** Who you judge follows who you share with, the choice each Take
-  carries (asked, remembered or changed from its line): only my community →
-  that community first, the general community fills in; general community →
-  the general community, and its members may hear your Take; only me →
-  nobody but the coach hears you, and you still judge general-community
-  moments.
-- **G4** Consent is per Take, revocable, stamped with the version of the
-  words the speaker saw; taking it back removes the Take from every community
-  queue. Only the voices of people who agreed reach others; the training
-  clips mixed into judging are the training corpus: the imported clips the
-  coaches judge, under the corpus basis (CO2), and the licensed corpus
-  (founder 2026-10-23, N119; until then the licensed corpus alone, which
-  was empty). A speaker's answer on a training clip is never a label.
-  Community answers are
-  peer ratings, kept apart from the coach's, the speaker's own and the
-  machine's (L3).
+  Take 1, on the walk's own screen (`NextTakeShareScreen`): the top bar
+  names the Take; three grey bubbles, "Your knowledge is worth sharing, and
+  so are your questions.", "The people below are the ones you trust.",
+  "Choose who can answer you best, or send it to all of them and practise
+  speaking."; then "Select all" and one row per person in your list of
+  chats (the letter circle, the name, who they are), the tick box on the
+  left, the person sent to last on top with "Last sent" under the name,
+  then the list's order; Continue. The list is real people only: no demo
+  or guest accounts, nobody blocked either way; a speaker with no chat with
+  a person has one with Artur, speaking coach (N470 item 3, N472 item 7).
+  ✕ records nothing. The choice is remembered: every later "Record Take N"
+  records at once with it. Asked again only when someone joined your list
+  since a choice of chosen people (once; "Everyone in my list" takes them
+  in silently), or when nobody of the choice is left (N472 item 5; never
+  before every Take, Never 3). "Record Take N" waits for the people and the
+  last choice 1.5 s at most, then asks (R1); with nobody in the list it
+  records with nothing sent (R3).
+- **G2** Ticked by default: everyone (Select all), or the last choice
+  (`GET /v2/user/takes/send/last`). Unticking all leaves Continue waiting;
+  it is the only time it waits. There is no "Everyone on WillpowerLab" and
+  no "Only me" (N470 item 2, N472 item 1).
+- **G3** Each ticked person gets the Take as your own message in your chat
+  with them, by name, not blind, with the Take attached and "Open Take",
+  which plays its recording and shows its words slide by slide, never its
+  Ideal Text, feedback, moments or levels (N470 item 4, N472 item 8;
+  customer-requests.md C1). The Take is sent after its upload, never waited
+  on, and never for an answer (R2, R5; `applyNextTakeShare` sends it,
+  `POST /v2/user/takes/<take>/send`). The crowd stops for new Takes: no
+  new Take is shared with other speakers to judge; C8 keeps running on the
+  training corpus and on Takes shared before, which stay shared until the
+  speaker stops them (N472 item 2).
+- **G4** The line under the Take's recording names who it went to
+  ("Artur", "Artur, Maya Lindqvist", or "Everyone in my list"), stored as
+  the speaker's share line (`metadata.share`: `{kind: "people", all,
+  user_ids, names}`), which is the remembered choice. On the speaker's
+  latest Take the line opens the same screen with the people it went to
+  ticked and fixed: people can be added, and Continue sends it to them; it
+  is never unsent (N470 item 5, N472 item 3). A line of a Take shared with
+  communities before opens today's screen, as it was.
+
+Was (until N470 and N472, and still while the switch is off): "Sharing,
+before the next recording":
+
+  - **G1** Asked once, the first time "Record Take 2" is tapped, never before
+    Take 1, on the app's own screen: "Before we start the new take!", "After
+    all, it's about speaking publicly!" (regular weight) and "How big you want
+    your audience?" (founder 2026-10-21: the app's words, "Do you agree to
+    share your next take with others?" is history). The choice applies to the
+    Take about to be recorded and is remembered: every later "Record Take N"
+    starts the recording at once with it, applied to the new Take as Continue
+    applies it (stamped with the words version, G4). Asked again only when
+    the screen's words change (a new words version) or a community is added
+    (a private community joined after the choice); a choice none of whose
+    communities is left open asks too (founder 2026-10-31, N309 item 5; until
+    then asked before every Take from Take 2, the choice kept six hours for
+    that Take alone). The remembered choice is the newest line under a Take's
+    recording, which carries what it says and the words version
+    (`metadata.share`, "Only me" included); the server reads it back
+    (`GET /v2/user/takes/share/last`). A line stored before N309 item 5
+    carries none, so the first "Record Take N" after it asks once more. In
+    the Lounge the question leaves no bubbles: the choice, in its own words
+    ("Only my community (Invita)", "General community", "Only me"), is one
+    small line under that Take's recording, also when the Take kept it
+    without asking, and "Record Take N" posts no bubble of its own (founder
+    2026-10-26, N192, question 3; until then "Record Take N", the question as
+    one bubble and the choice as the speaker's bubble, #847). On the
+    speaker's latest Take the line, drawn the same, opens the same screen to
+    change the choice for that Take and the ones after it: Continue shares
+    that Take as now chosen or takes it back from every community (G4), and
+    its line says the new choice; ✕ changes nothing (N309 item 5). Open
+    (N309): whether the consent words must say the choice covers later Takes
+    (a lawyer's check; Never 4).
+  - **G2** The options: **General community.** **Only my community**, with the
+    speaker's saved communities inside (a passcode entered once; one is ticked;
+    several are all ticked and any can be unticked; "+ Add a community with a
+    passcode" at the bottom). **Only me**, which stands alone. Nothing is
+    ticked when the screen asks, and Continue waits for a choice, "Only me"
+    counting (founder 2026-10-15, Privacy 3.6 §4d); opened from the line, the
+    choice as it stands is ticked (N309 item 5).
+  - **G3** Who you judge follows who you share with, the choice each Take
+    carries (asked, remembered or changed from its line): only my community →
+    that community first, the general community fills in; general community →
+    the general community, and its members may hear your Take; only me →
+    nobody but the coach hears you, and you still judge general-community
+    moments.
+  - **G4** Consent is per Take, revocable, stamped with the version of the
+    words the speaker saw; taking it back removes the Take from every community
+    queue. Only the voices of people who agreed reach others; the training
+    clips mixed into judging are the training corpus: the imported clips the
+    coaches judge, under the corpus basis (CO2), and the licensed corpus
+    (founder 2026-10-23, N119; until then the licensed corpus alone, which
+    was empty). A speaker's answer on a training clip is never a label.
+    Community answers are
+    peer ratings, kept apart from the coach's, the speaker's own and the
+    machine's (L3).
 
 ### H · How a moment is picked (backend)
 
@@ -2154,6 +2207,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N470, N472 · G: who hears this Take: at "Record Take 2" the three signed bubbles, "Select all" and one row per person in your chats, everyone ticked or the last choice, "Last sent" on the one sent to last; Continue keeps the people and the line naming them ("Artur, Maya Lindqvist", "Everyone in my list"), and the Take is sent to each, as your message in your chat with them, once its upload is up; the line opens the screen to add people, never to unsend; asked again only when someone joins a choice of chosen people; "Record Take N" waits 1.5 s at most for the choice, then asks; nobody in the list records with nothing sent (`NextTakeShareScreen.tsx`, `nextTakeShare.ts`, `walkThread.ts`, `IdealTextActions.tsx`, `takeSends.ts`). Behind the backend's switch, off until the Privacy text is signed; off, or when its reads fail, today's screen exactly. What stops once on: General community and Only me, the crowd judging new Takes, taking a sent Take back, the passcode (N471 item 2, N472 item 4), the question asked again when a community is added. Was: G1 to G4, "How big you want your audience?" · BE N470 (#1702), N472 (#1704), BE (send PR), FE (this PR)
 - 2026-11-04 · N469 · J8: the rhythm of a run, as on WhatsApp: in Will's chat and every chat with a person, two rows of the same side sit 2px apart and 12px where the side changes; anything else keeps 8px (`globals.css`, `Lounge.tsx`, `chats/ChatThread.tsx`). The walk keeps its own spacing. Was: 8px between every row · BE #1700, FE (this PR)
 
 - 2026-11-04 · — · simplification of the N458/N459 code, no behaviour change · FE (this PR)

@@ -104,6 +104,8 @@ Promises that must never break:
 
 - Every moment a speaker meets reaches a coach (alarm:
   `coach_moments_queue.reach_alarm`, backend).
+- Every Take a speaker sends reaches the people they chose (backend N470
+  item 8). Both promises stand until N461 is built (N472 item 6).
 - The coach's link opens the coach's feedback, whatever else is processing.
 - Will learns about each speaker: every answer and every Take's outcome is
   kept, and Will reads the speaker's private note (backend
