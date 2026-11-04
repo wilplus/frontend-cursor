@@ -619,7 +619,7 @@ function Times({ times, time, onPick }: { times: string[]; time: string | null; 
 /** The one button at the bottom, pale until there is something to send. */
 function ActButton({ label, can, onAct }: { label: string; can: boolean; onAct: () => void }) {
   return (
-    <div className="flex-none px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-2.5">
+    <div className="bar-space flex-none">
       <button
         type="button"
         onClick={onAct}

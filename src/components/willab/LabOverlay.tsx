@@ -58,7 +58,7 @@ import FinishTakeButton from "./FinishTakeButton";
 import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
 import { continuedTakeDeck, deckOf } from "@/lib/willab/labEntryHandover";
 import { keepRealTalkSlides, realTalkPending } from "@/lib/willab/firstTake";
-import { RECORDING_COPY, recordingWhere } from "./recordingCopy";
+import { RECORDING_COPY, answerWhere, recordingWhere } from "./recordingCopy";
 import {
   clearExploreArc,
   readExploreArc,
@@ -1516,6 +1516,8 @@ export default function LabOverlay({
             show={state === "lab_recording"}
             micStatus={mic.state.status}
             who={look.who}
+            of={look.of}
+            to={look.to}
             takeNumber={arcTakeIndex}
             slide={currentSlide}
             slideCount={recordingSlides.length}
@@ -1657,7 +1659,7 @@ export default function LabOverlay({
             micWaitShownByHost
             elapsed={elapsed}
             targetSec={look.target}
-            asks={look.who}
+            asks={look.asks}
             rejectedMsg={rejectedMsg}
             onStop={() => void mic.stop()}
             onRecordAgain={() => {
@@ -2136,6 +2138,8 @@ export function RecordingWhere({
   show,
   micStatus,
   who = null,
+  of = null,
+  to = null,
   takeNumber,
   slide,
   slideCount,
@@ -2144,6 +2148,11 @@ export function RecordingWhere({
   micStatus: ReturnType<typeof useDualCaptureMic>["state"]["status"];
   /** An answer's person, named alone in the top bar (backend N441 item 7). */
   who?: string | null;
+  /** An answer to their Take: "{name} · Slide n of m", the Take's own slides
+   *  (backend N493 item 1). */
+  of?: string | null;
+  /** A question's person: "To {name} · Slide n of m" (backend N483 item 6). */
+  to?: string | null;
   takeNumber: number | null;
   slide: number;
   slideCount: number;
@@ -2151,7 +2160,15 @@ export function RecordingWhere({
   if (!show || micStatus !== "recording" || slideCount === 0) {
     return <span />;
   }
-  // An answer: the person's name alone (N441 item 7).
+  // An answer to their Take, over its own slides (N493 item 1).
+  if (of) {
+    return (
+      <p data-testid="recording-where" data-recording-of="" className="m-0 text-[13px] font-semibold tabular-nums text-muted-foreground">
+        {answerWhere(of, slide, slideCount)}
+      </p>
+    );
+  }
+  // An answer to a question: the person's name alone (N441 item 7).
   if (who) {
     return (
       <p data-testid="recording-where" data-recording-who="" className="m-0 text-[16px] font-semibold text-foreground">
@@ -2164,7 +2181,7 @@ export function RecordingWhere({
       data-testid="recording-where"
       className="m-0 text-[13px] font-semibold tabular-nums text-muted-foreground"
     >
-      {recordingWhere(takeNumber, slide, slideCount)}
+      {recordingWhere(takeNumber, slide, slideCount, to)}
     </p>
   );
 }
@@ -2174,15 +2191,23 @@ export function RecordingWhere({
 /** An answer's look on these screens (backend N363, N441): hidden while its
  *  Take uploads, the chat showing "Sending to {name}…" (its error, if any,
  *  shows here as for any Take); a taller top bar with the person's name
- *  alone, and "{name} asks" over the question on the slide (N441 item 7).
+ *  alone, and "{name} asks" over the question on the slide (N441 item 7). A
+ *  question to someone (N483 item 4) is hidden the same way; its top bar is
+ *  any Take's, "To {name} · Slide n of 3", over the default presentation.
  *  Its clock is any Take's: an answer has no five-minute cap (backend N486
  *  item 4), and its project has no planned length, so it counts up and the
  *  answer ends only at Finish take. */
 function answerLook(answer: AnswerFor | null, state: WillabState, uploadError: unknown, plannedSec: number | string | null | undefined) {
+  // An answer to their Take follows its own slides (backend N493 item 1):
+  // the usual top line with the person's name, and the slides as they are.
+  const overTake = !!answer?.slides?.some((title) => title.trim());
   return {
     hidden: answer && state === "lab_processing" && !uploadError ? " hidden" : "",
-    header: answer ? "h-16" : "h-12",
-    who: answer ? answer.name : null,
+    header: answer && !answer.asks && !overTake ? "h-16" : "h-12",
+    who: answer && !answer.asks && !overTake ? answer.name : null,
+    to: answer?.asks ? answer.name : null,
+    of: answer && !answer.asks && overTake ? answer.name : null,
+    asks: answer && !answer.asks && !overTake ? answer.name : null,
     target: plannedSec ?? null,
   };
 }

@@ -169,12 +169,13 @@ How a coach's blind answer counts, on a speaker's Take (D) or an import
 (H), and every other source the app learns from, is one backend page:
 [`docs/LEARNING-AND-QUORUM.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/LEARNING-AND-QUORUM.md) (N102).
 
-- **H0** The training corpus is the founder's, in the CEO panel (N416,
-  2026-11-03, while its infrastructure is rebuilt): a **Training corpus**
-  button beside Bugs and Tasks at `/admin/ceo` opens these same screens over
-  the panel, and ✕ comes back. No coach sees it: not the Lounge's pinned
-  button, not the ☰ menu's row; `/coach/corpus` goes to `/admin/ceo`. The
-  backend's corpus endpoints are unchanged.
+- **H0** The training corpus is the founder's (N416, 2026-11-03, while its
+  infrastructure is rebuilt): a **Training corpus** row in the admin menu,
+  under Data (N511, 2026-11-04; it replaces the CEO panel's button beside
+  Bugs and Tasks), opens these same screens at `/admin/training-corpus`, and
+  ✕ goes to the CEO panel. No coach sees it: not the Lounge's pinned
+  button, not the ☰ menu's row; `/coach/corpus` goes to
+  `/admin/training-corpus`. The backend's corpus endpoints are unchanged.
 - **H1** From its button: the list of imports ("{n} imports", "{n}
   moments to judge"); **Import audio** ("Choose a file", "Audio or video, up
   to 30 minutes", "One recording · it is cut into moments you judge blind");
@@ -229,7 +230,7 @@ How a coach's blind answer counts, on a speaker's Take (D) or an import
 
 - Queue: "Your speakers · {n} moments waiting"; "Your queue"; "Nobody is
   waiting for you."; "Open your queue"; "Speakers"; "Also waiting · blind";
-  "Training corpus" (the CEO panel's button, N416).
+  "Training corpus" (the admin menu's row, N511).
 - A speaker: "Goal: …"; "Who it's for: …"; "What they should do: …" (the
   labels from N83, in this place from N87); "{n} of {m} moments waiting";
   "All moments answered"; "Answered"; "Answered · {n} moments"; "Waiting for
@@ -364,10 +365,11 @@ page):
   and Speaking errors pages (I).
 - `src/lib/willab/coachWalkCopy.ts` — the coach walk's words (guarded since N111).
 - `src/lib/willab/coachPanel.ts` — the panel's state (guarded since N111).
-- `src/app/coach/corpus/` — goes to the CEO panel (H0, N416); its old
+- `src/app/coach/corpus/` — goes to `/admin/training-corpus` (H0, N416, N511); its old
   workbench is kept for the dev harness only (guarded since N111).
-- `src/components/ceo/CeoCorpus.tsx` — the corpus's screens over the CEO
-  panel (H0, N416).
+- `src/components/ceo/CeoCorpus.tsx` and `src/app/admin/training-corpus/` —
+  the corpus's screens for the founder, from the admin menu's row
+  (`src/components/admin/AdminMenu.tsx`) (H0, N416, N511).
 - `src/app/admin/corpus/` — the training corpus for the founder (H) (guarded since N111).
 
 Frontend, shared (not guarded): `src/components/willab/walk/WalkOverlay.tsx`
@@ -413,6 +415,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N511 · H0, J: the training corpus is a row in the admin ☰ menu, under Data, at `/admin/training-corpus`; ✕ goes to the CEO panel; `/coach/corpus` goes there. Was: a button beside Bugs and Tasks in the CEO panel (N416) · BE (N511 log), FE (this PR)
 - 2026-11-04 · N497 · K1: the speaker's "Ask your coach" is gone from the plan, so "Asked about their level" gets no new cards; one already waiting shows until answered. New plan and a stuck level as before · BE N497 log, FE (this PR)
 - 2026-11-04 · — · §6: the rules text brought in line with N79's PRs: the N79 line says BE #1133–#1138 are not merged (only #1135 is; the rest are drafts); no rule changes · docs (this PR)
 - 2026-11-03 · N416 · the training corpus moves to the CEO panel while its infrastructure is rebuilt: the Lounge's pinned Training corpus button and the ☰ menu's row are gone for coaches, `/coach/corpus` goes to `/admin/ceo` (B1, H0, J) · BE (N416 log), FE (this PR)

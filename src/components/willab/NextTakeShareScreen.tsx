@@ -198,9 +198,14 @@ function PeopleSendScreen({
           <WalkFooter pill={{ label: COPY.pillContinue, onClick: submit, disabled: !ready, testId: "share-continue" }} />
         }
       >
-        {WALK_COPY.sendBubbles.map((line) => (
-          <WalkMessage key={line}>{line}</WalkMessage>
-        ))}
+        {/* Will's three bubbles are one run, in the chats' rhythm (backend
+            N513, N469 J8): 2px apart, their corners drawn in where they meet;
+            the walk elsewhere keeps its 16px (J6). */}
+        <div data-rhythm className="flex flex-col">
+          {WALK_COPY.sendBubbles.map((line) => (
+            <WalkMessage key={line}>{line}</WalkMessage>
+          ))}
+        </div>
         <div data-walk-options role="group" className="flex flex-col gap-2">
           <button
             type="button"

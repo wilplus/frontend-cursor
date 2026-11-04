@@ -197,6 +197,11 @@ The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
   the clock. Read by screen readers only: "Fix this note", "Close", "Kept",
   "Waiting to send".
 
+- **The dump screen (T; signed 2026-11-04, N506, N507):** "Say it.", "Tap
+  anywhere", "Listening", "Tap to stop", "Kept", "Tap to say more", "Double
+  tap to close"; in Settings "Open to the dump screen" and "First thing when
+  you open the app, at most once an hour."; the first time, A5's words above.
+
 ### L · The Sunday note (backend `services/sunday_note.py`; locked 2026-10-26, N158)
 
 The prototype is the design: <https://claude.ai/artifact/Bt2YEZLKhu9fLTA1deWTvo> (§5). Built 2026-10-26: the lens is `SundayLens.tsx`, every question and answer a row of the one thread written by the backend (`/v2/notebook/sunday/<id>`, `/answer`).
@@ -495,6 +500,39 @@ reads of this feature.
   of it reaches the plan, the coach panel, the coach's queue or a Take's
   summary (Never 1, Never 2).
 
+### T · The dump screen (decided 2026-11-04, N506, N507)
+
+The prototypes: <https://claude.ai/artifact/RY5gT9bg8xSpGvKiLVScsW>,
+<https://claude.ai/artifact/Mwm8temUQSdoGp763TULct> and
+<https://claude.ai/artifact/CBtfMKH7QUvJUbQ6Sf5Db4>.
+
+- **T1 · One screen that only listens; the notebook's way in (N507 item 1).**
+  The whole screen listens: tap anywhere to start, tap to stop and keep,
+  double tap to close. What is said is a voice note (B): the same recorder,
+  outbox and upload, the same "Noted." in Will's chat. The mic and the "#"
+  note in the chat stay stopped (N483 item 7).
+- **T2 · The taps (N506 item 2).** A tap acts at once. A second tap within
+  0.3 s and 60 px is a double tap: it undoes the first tap and closes, so a
+  start under 0.3 s is thrown away and a double tap while talking stops,
+  keeps and closes. Ignored: the first 0.5 s after the screen appears, a
+  palm, two fingers, a tap that moved. × , a swipe down and Escape close.
+  "Double tap to close" shows for the first three dumps. Closing: a double
+  haptic tick, then "Kept" over the chat.
+- **T3 · The first time (N507 item 1).** Before it first listens, A5's
+  introduction once, on the screen: Yes is the notebook's consent; Not now
+  closes it and turns the switch off. That Yes writes "Yes" and "Noted." in
+  Will's chat and asks nothing more (N514); a Yes in the chat still gets
+  "What's on your mind today?".
+- **T4 · When it opens (N506 item 4, N507 item 2).** Only when "Open to the
+  dump screen" is on in Settings (Data & consent; off by default; kept on
+  the device), only on a plain open of /chat, never from a link to a Take,
+  a walk or an Ideal Text, and at most once an hour, also on coming back to
+  the app. Will's chat is underneath, untouched (Never 3). No menu line.
+- **T5 · Who has it (N507 item 3).** Ring rows `dump_screen` and
+  `voice_notebook`, both at ring 2 (backend migration 0511).
+- **T6 · The iPhone app (N506 item 5).** The capture screen becomes native
+  there; the web owns the switch. Until then the app shows this web screen.
+
 ---
 
 ## 2. In flight
@@ -503,7 +541,7 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-Nothing in flight.
+- T6 · the native capture screen in the iPhone app · N506 item 5 · the app chat, not started · —
 
 ## 3. Still open
 
@@ -551,6 +589,10 @@ Nothing in flight.
 - How Will learns from all of it: backend
   [`docs/WILL-LEARNING-PLAN.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/WILL-LEARNING-PLAN.md).
 
+- The dump screen (T): frontend `src/components/willab/DumpScreen.tsx`,
+  `DumpScreenHost.tsx` (on /chat), `src/lib/willab/dumpScreen.ts` (its
+  rules and words), the Settings row `src/components/account/DumpScreenCard.tsx`.
+
 ## 5. Prototypes
 
 - The security disclaimer <https://claude.ai/artifact/5X4M3cnSBxX8YcuKFEFY3a>
@@ -574,6 +616,8 @@ Nothing in flight.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N514 · T3: a Yes given on the dump screen writes "Yes" and "Noted." in Will's chat, without "What's on your mind today?" · BE #1753, FE (this PR)
+- 2026-11-04 · N506, N507 · T: the dump screen, built on the web: one screen that only listens, tap, tap, double tap; the notebook's way in, with A5's introduction the first time; "Open to the dump screen" in Settings, off by default; ring 2 · BE #1743, #1745, #1746, FE (this PR)
 - 2026-11-04 · N483 item 7 · A0: the note rests: no mic and no "#" in Will's chat, so no new # notes; no introduction from the Takes and no "Keep a voice notebook?" (`useVoiceNotebook.tsx`; the client calls `askNotebook` and `introFromTakes` and their BFF routes `notebook/ask` and `notebook/intro` are gone). Kept notes stay; notes left on the phone still go · BE N483 (#1718), FE (this PR)
 - 2026-11-03 · N411 item 5 · A5: before any note, the introduction opens with a strength Will spots in the last three Takes' summaries, on the first Lounge open after the third, once; after Not now, again after three more Takes; after Yes, never · BE (the code), FE (this PR)
 - 2026-11-03 · N411 · A5, K: the security disclaimer: the mic line and three grey privacy lines above the new ask ("Do you understand the rules and want this feature on?"); the short line "🔒 Security disclaimer ›" under every spotted message and every fifth # note that names someone, a tap shows the three lines; the first spotted message from the Takes is not built yet. Was: N195's three bubbles (never built) and the ask "Your notes are private… Keep a voice notebook?" · BE #1634 (the decision), BE (the code), FE (this PR)

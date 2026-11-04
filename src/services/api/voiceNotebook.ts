@@ -40,8 +40,10 @@ async function post(path: string, init: { json?: unknown; body?: BodyInit }): Pr
   }
 }
 
-export function answerNotebook(choice: "yes" | "not_now"): Promise<boolean> {
-  return post("/api/v2/notebook/consent", { json: { choice } });
+/** `source` "dump_screen": the Yes given on the dump screen, after which
+ *  Will's chat asks nothing (backend N514). */
+export function answerNotebook(choice: "yes" | "not_now", source: "chat" | "dump_screen" = "chat"): Promise<boolean> {
+  return post("/api/v2/notebook/consent", { json: { choice, source } });
 }
 
 /** The sale's step under "Which step did it stall at?" (backend N241 P2). */

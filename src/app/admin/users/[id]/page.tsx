@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import AdminGate from "@/components/admin/AdminGate";
 import TakesExplorer from "./TakesExplorer";
+import NotNowHistory from "./NotNowHistory";
 import ExerciseEffects from "./ExerciseEffects";
 import SpeakerMemory from "./SpeakerMemory";
 import { planLabel } from "@/components/tokens/copy";
@@ -296,6 +297,8 @@ function PersonProfile({ id }: { id: string }) {
       <SpeakerMemory id={id} />
 
       <TakesExplorer id={id} />
+
+      <NotNowHistory id={id} />
 
       <DeleteSection id={id} email={p.email} deletion={p.deletion} reload={load} />
     </main>

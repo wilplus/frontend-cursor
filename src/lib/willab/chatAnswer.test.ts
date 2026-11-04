@@ -76,6 +76,24 @@ describe("an answer recorded in a chat", () => {
     expect(readExploreArc("me")).toMatchObject({ arcId: "p-mine", nextTakeIndex: 3 });
   });
 
+  it("an answer to their Take follows the Take's own slides (N493 item 1)", async () => {
+    const take = { chatId: "c-amira", name: "Amira", question: "Q3 board pitch", customer: false, slides: ["Hook", "The cities", "Ask"] };
+    expect(await startAnswer(take, "me", vi.fn())).toBe(true);
+    expect(api.created).toEqual([
+      expect.objectContaining({
+        setup: expect.objectContaining({
+          topic: "Q3 board pitch",
+          slides: [
+            { title: "Hook", body: "" },
+            { title: "The cities", body: "" },
+            { title: "Ask", body: "" },
+          ],
+        }),
+      }),
+    ]);
+    endAnswer();
+  });
+
   it("the answer goes as soon as its Take is up, held for the rest of the 5 seconds, once", async () => {
     const shown: string[] = [];
     onAnswerSent((_chatId, message) => shown.push(message.id));
@@ -85,7 +103,7 @@ describe("an answer recorded in a chat", () => {
     await vi.advanceTimersByTimeAsync(2000);
     answerTake("take-1");
     await vi.advanceTimersByTimeAsync(0);
-    expect(api.sent).toEqual([["c-sarah", "take-1", 52_000, 3000]]);
+    expect(api.sent).toEqual([["c-sarah", "take-1", 52_000, 3000, false]]);
     expect(shown).toEqual([]);
     await vi.advanceTimersByTimeAsync(3000);
     expect(shown).toEqual(["m-1"]);
@@ -96,7 +114,7 @@ describe("an answer recorded in a chat", () => {
     answerTake("take-2");
     answerTake("take-2");
     await vi.advanceTimersByTimeAsync(0);
-    expect(api.sent).toEqual([["c-sarah", "take-1", 52_000, 3000], ["c-sarah", "take-2", 40_000, 0]]);
+    expect(api.sent).toEqual([["c-sarah", "take-1", 52_000, 3000, false], ["c-sarah", "take-2", 40_000, 0, false]]);
     expect(shown).toEqual(["m-1", "m-2"]);
   });
 

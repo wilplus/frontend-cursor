@@ -36,9 +36,9 @@ OUTCOME
       words and its three steps, and Copy my link puts the whole link on
       the clipboard and says "✓ Copied" (N308, N310, N367).
   O9  In a chat I joined through someone's link, one line above the
-      messages says whose link it was (N335 item 2), and its row in the
-      list keeps that line until the first message (N488); a chat without
-      it has no such line.
+      messages says whose link it was (N496, replacing N335 item 2's), and
+      its row in the list keeps that line until the first message (N488); a
+      chat without it has no such line.
   O10 Just joined (/chat?with=<chat>), the list opens with Will's row
       first, as always, and right under it the chat with the one who invited
       me, marked new with the joined line; the address is clean again;
@@ -48,12 +48,14 @@ OUTCOME
   O11 On the web and in the iPhone app, Will's chat never shows for a moment
       before the list covers it: the loader stands in front until the list
       has answered, and it never waits on the rings (N354, N456).
-  O12 The "+" in a chat swaps the bar for four tiles with their names,
-      Photos, Camera, Files and Someone else; Someone else opens the add
-      sheet with my link; a ✕ where the "+" was brings the bar back (N351,
-      N460 item 4).
-  O13 A photo I pick is posted to the chat's photo route and joins the
-      thread as my image (N337, N351).
+  O12 The "+" in a chat asks them (N483 item 4, N498): "Ask {name}", with
+      no line, the black "Record your question" and Cancel, and the three
+      steps only before my first question; "Record your question" opens the
+      recording screens on the default presentation (a project with no
+      slides of its own, named "To {name}"), and the question goes to the
+      question route with "Sending to {name}… {n}" and Undo, then "Sent to
+      {name}". Until I first tap it the "+" is orange; then it is plain.
+      Photos, Camera, Files and Someone else are off (N483 item 4).
   O14 The other person's file shows a tile with its extension and its own
       name, and downloads
       from the chat's file route; a photo opens full size with a close and
@@ -69,7 +71,7 @@ OUTCOME
       chat, the person and the question. Back from them, the bar's middle
       reads "Sending to {name}… {n}" with Undo while the answer, already
       with the backend, waits out its 5 seconds there (N441 item 3); then
-      "Sent to {name}" stands under it, a customer's too (N345, N441 item 4).
+      "Sent" stands under it, a customer's too (N345, N441 item 4, N504 item 3).
   O17 Back (the iPhone's swipe from the left edge in the app, the browser's
       Back on the web) goes back by one, from a chat to the list, and never
       off the list; back on the list, it is where I left it, the row I came
@@ -78,17 +80,41 @@ OUTCOME
       before I have left one, it does nothing (N378, N436).
   O18 An answer the backend refused stays in the bar's middle, "Not sent"
       with "Send again", which sends the same Take (N441 item 1).
+  O23 A matched Take that reached me (N485, N486, N493) is its own row in
+      the list under the pseudonym, "Asks you about {topic}", new; opened,
+      it shows who asks and what about, never a name, with "Open Take" in
+      the bar; Open Take shows the name and the Take with "Record your
+      answer", which answers it over its slides as an inquiry; "Not now"
+      removes it and tells nobody.
   O22 A Take someone sent me (N470, N479) is their message: "{name} sent
-      you Take {n}" with the Take's tile, and "Open Take" under it, which
-      plays its recording and shows its words slide by slide behind "Read
-      it", nothing else of it; the list's line says "{name} sent you Take
-      {n}"; a Take I sent is my tile with "Sent to {name}".
+      you Take {n}" with the Take's tile, its first slide and no play mark
+      (N493 item 6), already open: its recording, and its words slide by
+      slide behind "Read it", nothing else of it (N504 item 1); the list's
+      line says "{name} sent you Take {n}"; a Take I sent is my tile with
+      "Sent" (N504 item 3). Newest, it asks for an answer: "Record your
+      answer" in the bar with "Not now" under it, which tells them nothing
+      and is kept for the system (N504 item 2), and the answer is recorded
+      over the Take's own slides (N493 items 1 and 3).
   O21 At the foot of the other person's profile, "Block {name}" asks first
       and then blocks them: the backend is told, "{name} is blocked." shows,
       and back in the chat the bar is one pill, "You blocked {name}." with
       Unblock, the earlier messages still there; Unblock unblocks at once.
       "Report {name}" asks first too, and "Report and block" reports them
       with the block (N466).
+  O23 Joining someone who set questions (N487): the line at the top says a
+      few questions come first; their question waits with its answers on my
+      side; "No" is sent at once and its deadline shows under it; a question
+      that takes more than one answer fills each one I tap, and Send in the
+      bar's middle sends them. The link's owner reads one card of my
+      answers, under "{name} joined through your link.", and their list
+      says "{name}'s answers".
+  O24 The first time I add someone (N503), Will's chat opens on his setup,
+      not my link; his question waits with its answers on my side,
+      "Something else" first, and a tap goes to the backend; the summary
+      shows what someone new will see, my name in its top line, with
+      "Change it" and "That's right"; "You're set." ends with "Copy my
+      link ›" and "Your questions for people who join ›". After the setup,
+      the + opens my link as before (O8).
 PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read"
          O19 -> "as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar"
          O20 -> "as a developer, a chats row in the rings, on or off, changes nothing"
@@ -101,8 +127,7 @@ PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is 
          O9 -> "a chat joined through a link says whose link it was"
          O10 -> "after joining, the list opens with Will first and the one who invited me under him, marked new"
          O11 -> "as a user, the loader, not Will's chat, waits for my list, on the web and in the app, and never for the rings"
-         O12 -> "the + shows the four tiles, Someone else opens my link, and the ✕ in its place brings the bar back"
-         O13 -> "a photo I send joins the thread as my image"
+         O12 -> "the + asks them: the default presentation, and the question goes with Sending, Undo and Sent"
          O14 -> "the other person's photo or file opens from the chat's file route"
          O15 -> "an answer sent to me plays with its slides following the voice, its words behind Read it"
          O16 -> "a marked question takes Record your answer, Not now leaves it, and my answer goes with Sending, Undo and Sent"
@@ -111,6 +136,8 @@ PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is 
          O18 -> "a refused answer stays as Not sent, and Send again sends the same Take"
          O22 -> "a Take sent to me opens with its recording and words, and the list says who sent it"
          O21 -> "from their profile I block them, the bar says so with Unblock, and Report and block reports with the block"
+         O23 -> "the questions of the one who invited me are answered by tapping, and they read one card"
+         O24 -> "the first time I add someone, Will's chat opens on his setup, answered by tapping"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -120,7 +147,7 @@ vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }
 const native = vi.hoisted(() => ({ on: false }));
 vi.mock("@/lib/auth/nativeSignIn", () => ({ isNativeApp: () => native.on }));
 // Will's chat, the Lounge's thread the list reads his row's line from.
-const loungeThread = vi.hoisted(() => ({ messages: [] as Array<Record<string, unknown>> }));
+const loungeThread = vi.hoisted(() => ({ messages: [] as Array<Record<string, unknown>>, reload: async () => {} }));
 vi.mock("../LoungeThreadContext", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../LoungeThreadContext")>()),
   useLoungeThreadMaybe: () => loungeThread,
@@ -134,6 +161,8 @@ import { __resetBootPrefetchForTests, prefetchChatsDoor } from "@/services/api/b
 import { useChatsDoor } from "./useChatsDoor";
 import { getAuthToken } from "@/lib/api/auth-client";
 import { UNDO_MS, answerRecorded, answerTake, forgetAnswers, startAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
+import { JoinSetupBubble, joinSetupOf, useJoinSetup } from "./JoinSetup";
+import type { LoungeMessage } from "@/services/api/loungeMessages";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -238,14 +267,6 @@ const lastLineOf = (id: string) => row(id)?.querySelector("[data-chat-last]")?.t
 async function tap(el: Element | null | undefined) {
   if (!el) throw new Error(`nothing to tap in: ${container.innerHTML}`);
   await act(async () => (el as HTMLElement).click());
-  await flush();
-}
-
-/** The browser's own picker answering with these files. */
-async function pick(input: Element | null, files: File[]) {
-  if (!input) throw new Error(`no picker in: ${container.innerHTML}`);
-  Object.defineProperty(input, "files", { value: files, configurable: true });
-  await act(async () => void input.dispatchEvent(new Event("change", { bubbles: true })));
   await flush();
 }
 
@@ -427,7 +448,7 @@ describe("the chats in front of the Lounge", () => {
     // One bar: the "+", the three emoji in the box; no mic, no typing (N483 item 3).
     const bar = screen.querySelector("[data-chat-bar]")!;
     expect([...bar.querySelectorAll("button")].map((b) => b.textContent || b.getAttribute("aria-label"))).toEqual([
-      "Add to your chat with Sarah",
+      "Ask Sarah",
       "👍",
       "👀",
       "🙏",
@@ -477,16 +498,21 @@ describe("the chats in front of the Lounge", () => {
     expect(navbar().hidden).toBe(false);
   });
 
-  it("a chat with a message newer than its last opening shows as new until it is opened", async () => {
+  it("a chat with a message newer than its last opening shows as new until it is opened, an emoji included, never your own (N500)", async () => {
     backend(["chats"]);
-    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, ARIEL] }));
+    const DANA = { ...ARIEL, id: "c-dana", title: "Dana" };
+    const MINE = { ...ARIEL, id: "c-mine", title: "Noa", last: { ...ARIEL.last, mine: true } };
+    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, ARIEL, DANA, MINE] }));
     routes.set("GET /api/v2/chats/c-sarah/messages", () => ({ messages: [] }));
-    // Ariel's chat was opened after her last message; Sarah's before hers.
+    // Ariel's chat was opened after her last message; the others before theirs.
     window.localStorage.setItem("willab.chats.opened.c-ariel", String(Date.parse(ARIEL.last.created_at) + 60_000));
-    window.localStorage.setItem("willab.chats.opened.c-sarah", String(Date.parse(SARAH.last.created_at) - 60_000));
+    for (const id of ["c-sarah", "c-dana", "c-mine"])
+      window.localStorage.setItem(`willab.chats.opened.${id}`, String(Date.parse(SARAH.last.created_at) - 60_000));
     await render();
     expect(row("c-sarah")?.hasAttribute("data-chat-new")).toBe(true);
     expect(row("c-ariel")?.hasAttribute("data-chat-new")).toBe(false);
+    expect(row("c-dana")?.hasAttribute("data-chat-new")).toBe(true);
+    expect(row("c-mine")?.hasAttribute("data-chat-new")).toBe(false);
 
     await tap(row("c-sarah"));
     await tap(container.querySelector("[data-chat-header] button"));
@@ -565,13 +591,63 @@ describe("the chats in front of the Lounge", () => {
 
     await tap(row("c-ariel"));
     expect(container.querySelector("[data-chat-joined]")?.textContent).toBe(
-      "You joined through Ariel's link. Only the two of you are in this chat.",
+      "You joined thanks to Ariel. Your first question starts the knowledge base you build together.",
     );
     await tap(container.querySelector("[data-chat-screen] button"));
     // Opened, the row keeps the line until the first message (N488).
-    expect(lastLineOf("c-ariel")).toBe("You joined through Ariel's link. Only the two of you are in this chat.");
+    expect(lastLineOf("c-ariel")).toBe("You joined thanks to Ariel. Your first question starts the knowledge base you build together.");
     await tap(row("c-sarah"));
     expect(container.querySelector("[data-chat-joined]")).toBeNull();
+  });
+
+  it("the questions of the one who invited me are answered by tapping, and they read one card", async () => {
+    backend(["chats"]);
+    const at = "2026-11-04T10:00:00Z";
+    const hurry = { id: "q1", mine: false, author: "Ariel", kind: "text", body: "Are you in a hurry?", created_at: at,
+      meta: { setup: { i: 1, kind: "hurry", answers: ["No", "Yes"], multi: false } } };
+    const plan = { id: "q0", mine: false, author: "Ariel", kind: "text", body: "Let's build our knowledge base a month at a time.",
+      created_at: at, meta: { setup: { i: 0, kind: "say", answers: [], multi: false } } };
+    routes.set("GET /api/v2/chats", () => ({ chats: [{ ...ARIEL, last: { kind: "text", body: "Are you in a hurry?", created_at: at } }] }));
+    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({ messages: [plan, hurry], joined_through: "Ariel", joined_asks: true }));
+    routes.set("POST /api/v2/chats/c-ariel/setup/q1", () => ({ messages: [
+      { id: "a1", mine: true, author: "", kind: "text", body: "No", created_at: at, meta: { setup_answer: { to: "q1", i: 1, picked: ["No"], deadline: "2026-12-04" } } },
+      { id: "q2", mine: false, author: "Ariel", kind: "text", body: "Which languages can we use?", created_at: at,
+        meta: { setup: { i: 2, kind: "languages", answers: ["Polish", "English"], multi: true } } },
+    ] }));
+    routes.set("POST /api/v2/chats/c-ariel/setup/q2", () => ({ messages: [
+      { id: "a2", mine: true, author: "", kind: "text", body: "Polish, English", created_at: at, meta: { setup_answer: { to: "q2", i: 2, picked: ["Polish", "English"] } } },
+    ] }));
+    await render();
+    await tap(row("c-ariel"));
+    expect(container.querySelector("[data-chat-joined]")?.textContent).toBe(
+      "You joined thanks to Ariel. A few questions first, then you build a knowledge base together.",
+    );
+    const answers = container.querySelector("[data-chat-setup]");
+    expect([...answers!.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["No", "Yes"]);
+    await tap([...answers!.querySelectorAll("button")].find((b) => b.textContent === "No"));
+    expect(JSON.parse(String(calls("POST /api/v2/chats/c-ariel/setup/q1")[0]![1]!.body))).toEqual({ picked: ["No"] });
+    expect(container.querySelector("[data-chat-deadline]")?.textContent).toBe("Your deadline: Fri 4 Dec");
+    // Several answers: each tap fills one; Send stands in the bar's middle.
+    expect(container.querySelector("[data-chat-send-picked]")).toBeNull();
+    const picks = container.querySelector("[data-chat-setup-picks]")!;
+    for (const label of ["English", "Polish"]) await tap([...picks.querySelectorAll("button")].find((b) => b.textContent === label));
+    await tap(container.querySelector("[data-chat-send-picked]"));
+    expect(JSON.parse(String(calls("POST /api/v2/chats/c-ariel/setup/q2")[0]![1]!.body))).toEqual({ picked: ["Polish", "English"] });
+    expect(container.querySelector("[data-chat-setup-picks]")).toBeNull();
+  });
+
+  it("the one whose link it was reads one card of the answers", async () => {
+    backend(["chats"]);
+    const at = "2026-11-04T10:05:00Z";
+    const card = { id: "card", mine: false, author: "Ariel", kind: "text", body: "", created_at: at,
+      meta: { setup_card: { rows: [{ k: "Deadline", v: "4 December" }, { k: "Languages", v: "Polish, English" }] } } };
+    routes.set("GET /api/v2/chats", () => ({ chats: [{ ...ARIEL, last: { kind: "text", body: "", created_at: at, meta: { setup_card: true } } }] }));
+    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({ messages: [card], joined_through: null, joined_by: "Ariel" }));
+    await render();
+    expect(lastLineOf("c-ariel")).toBe("Ariel's answers");
+    await tap(row("c-ariel"));
+    expect(container.querySelector("[data-chat-joined]")?.textContent).toBe("Ariel joined through your link.");
+    expect(container.querySelector("[data-chat-setup-card]")?.textContent).toBe("Ariel's answersDeadline 4 DecemberLanguages Polish, English");
   });
 
   it("after joining, the list opens with Will first and the one who invited me under him, marked new", async () => {
@@ -599,62 +675,70 @@ describe("the chats in front of the Lounge", () => {
     const top = container.querySelector('[data-chat-row="c-ariel"]')!;
     expect(top.hasAttribute("data-chat-new")).toBe(true);
     expect(top.querySelector("[data-chat-last]")?.textContent).toBe(
-      "You joined through Ariel's link. Only the two of you are in this chat.",
+      "You joined thanks to Ariel. Your first question starts the knowledge base you build together.",
     );
     expect(window.location.search).toBe("");
     await act(async () => (top as HTMLElement).click());
     expect(container.querySelector("[data-chat-name]")?.textContent).toBe("Ariel");
   });
 
-  it("the + shows the four tiles, Someone else opens my link, and the ✕ in its place brings the bar back", async () => {
+  it("the + asks them: the default presentation, and the question goes with Sending, Undo and Sent", async () => {
+    forgetAnswers();
+    recordedAnswers.length = 0;
+    window.localStorage.clear();
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
     routes.set("GET /api/v2/chats/c-ariel/messages", () => ({ messages: [] }));
-    routes.set("GET /api/v2/chats/link", () => ({ token: "AbCdEfGhIjKlMnOpQrStUvWx", path: "/c/AbCdEfGhIjKlMnOpQrStUvWx" }));
-    await render();
-    await tap(row("c-ariel"));
-    const bar = () => container.querySelector("[data-chat-bar]")!;
-
-    await tap(bar().querySelector('button[aria-label="Add to your chat with Ariel"]'));
-    expect(bar().querySelector("[data-chat-emoji-box]")).toBeNull();
-    expect([...bar().querySelectorAll("[data-chat-tile]")].map((t) => t.textContent)).toEqual(["Photos", "Camera", "Files", "Someone else"]);
-    expect(bar().textContent).not.toContain("Cancel");
-    await tap(bar().querySelector('[data-chat-tiles-close][aria-label="Close"]'));
-    expect(bar().querySelector("[data-chat-tile]")).toBeNull();
-    expect(bar().querySelector("[data-chat-emoji-box]")).not.toBeNull();
-
-    // Someone else: the bar is back, and the add sheet opens with my link.
-    await tap(bar().querySelector("[data-chat-plus]"));
-    await tap(bar().querySelector('[data-chat-tile="someone"]'));
-    expect(bar().querySelector("[data-chat-emoji-box]")).not.toBeNull();
-    expect(container.querySelector("[data-chat-screen] [data-add-sheet] [data-my-link]")?.textContent).toBe(
-      `${window.location.origin}/c/AbCdEfGhIjKlMnOpQrStUvWx`,
-    );
-  });
-
-  it("a photo I send joins the thread as my image", async () => {
-    backend(["chats"]);
-    routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
-    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({
-      messages: [{ id: "m1", mine: false, author: "Ariel", kind: "emoji", body: "👍", meta: { label: "good" }, created_at: ARIEL.last.created_at }],
-    }));
-    routes.set("POST /api/v2/chats/c-ariel/photo", () => ({
-      message: { id: "p1", mine: true, author: "Me", kind: "photo", body: "", meta: { question: true }, created_at: "2026-11-02T08:00:00Z" },
+    routes.set("POST /api/v2/projects", () => ({ project_id: "p-question" }));
+    routes.set("POST /api/v2/chats/c-ariel/question", () => ({
+      message: { id: "q", mine: true, author: "", kind: "voice", body: "",
+                 meta: { duration_ms: 30000, answer: true, asked: true, take: "take-q" }, created_at: "2026-11-04T16:00:00Z" },
     }));
     await render();
     await tap(row("c-ariel"));
-    const screen = container.querySelector("[data-chat-screen]")!;
+    const plus = () => container.querySelector("[data-chat-bar] [data-chat-plus]")!;
+    const sheet = () => container.querySelector("[data-ask-sheet]");
 
-    await tap(screen.querySelector("[data-chat-plus]"));
-    await tap(screen.querySelector('[data-chat-tile="photos"]'));
-    const picker = screen.querySelector<HTMLInputElement>('input[type=file][data-chat-pick="photos"]')!;
-    expect([picker.accept, picker.multiple]).toEqual(["image/*", true]);
-    await pick(picker, [new File(["png"], "Screenshot 1.png", { type: "image/png" })]);
+    // Orange until first tapped; it opens "Ask Ariel", no tiles.
+    expect([plus().getAttribute("aria-label"), plus().hasAttribute("data-plus-new")]).toEqual(["Ask Ariel", true]);
+    await tap(plus());
+    expect(plus().hasAttribute("data-plus-new")).toBe(false);
+    expect(container.querySelector("[data-chat-tile]")).toBeNull();
+    expect(sheet()?.querySelector("[role=dialog] p")?.textContent).toBe("Ask Ariel");
+    expect([...sheet()!.querySelectorAll("[data-ask-steps] b")].map((b) => b.textContent)).toEqual([
+      "1. Ask one thing",
+      "2. Ariel answers",
+      "3. It stays here",
+    ]);
+    await tap(sheet()!.querySelector("[data-record-question]"));
+    expect(sheet()).toBeNull();
+    expect(recordedAnswers).toEqual([{ chatId: "c-ariel", name: "Ariel", question: "", customer: false, asks: true }]);
 
-    const posts = calls("POST /api/v2/chats/c-ariel/photo");
-    expect(posts).toHaveLength(1);
-    expect(((posts[0][1].body as FormData).get("file") as File).name).toBe("Screenshot 1.png");
-    expect(screen.querySelector('[data-row="me"] [data-chat-photo] img')?.getAttribute("src")).toBe("/api/v2/chats/c-ariel/messages/p1/file");
+    // The default presentation: a project with no slides of its own.
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        await startAnswer(recordedAnswers[0]!, null, () => {});
+        answerRecorded(30_000);
+        answerTake("take-q");
+      });
+      const made = JSON.parse(String(calls("POST /api/v2/projects")[0]![1]!.body));
+      expect([made.display_name, made.setup.slides]).toEqual(["To Ariel", []]);
+      expect(container.querySelector("[data-chat-bar] [data-chat-sending]")?.textContent).toBe("Sending to Ariel… 5Undo");
+      const posted = calls("POST /api/v2/chats/c-ariel/question");
+      expect(JSON.parse(String(posted[0]![1]!.body))).toEqual({ take: "take-q", duration_ms: 30000, hold_ms: 5000 });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(UNDO_MS);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    await flush();
+    expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent");
+
+    // After the first question the sheet is short.
+    await tap(plus());
+    expect(sheet()?.querySelector("[data-ask-steps]")).toBeNull();
   });
 
   it("the other person's photo or file opens from the chat's file route", async () => {
@@ -862,7 +946,13 @@ describe("the chats in front of the Lounge", () => {
     await tap(notNow);
     expect(button()).toBeNull();
     expect(container.querySelector("[data-chat-emoji-box]")).not.toBeNull();
-    expect(fetchMock.mock.calls.slice(before).filter(([, init]) => (init as RequestInit | undefined)?.method === "POST")).toEqual([]);
+    // The only thing sent is the decline the system keeps (N504 item 2).
+    expect(
+      fetchMock.mock.calls
+        .slice(before)
+        .filter(([, init]) => (init as RequestInit | undefined)?.method === "POST")
+        .map(([url]) => url),
+    ).toEqual(["/api/v2/chats/c-sarah/messages/q/not-now"]);
     await tap(container.querySelector('[data-chat-header] button[aria-label="Back"]'));
     await tap(row("c-sarah"));
     await tap(button());
@@ -894,7 +984,7 @@ describe("the chats in front of the Lounge", () => {
     await flush();
     expect(calls("POST /api/v2/chats/c-sarah/answer")).toHaveLength(1);
     expect(container.querySelector("[data-chat-sending]")).toBeNull();
-    expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent to Sarah");
+    expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent");
   });
 
   it("from their profile I block them, the bar says so with Unblock, and Report and block reports with the block", async () => {
@@ -996,7 +1086,7 @@ describe("the chats in front of the Lounge", () => {
     const posted = calls("POST /api/v2/chats/c-sarah/answer").map(([, init]) => JSON.parse(String(init!.body)));
     expect(posted).toEqual([{ take: "take-1", duration_ms: 30000, hold_ms: 5000 }, { take: "take-1", duration_ms: 30000, hold_ms: 0 }]);
     expect(container.querySelector("[data-chat-sending]")).toBeNull();
-    expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent to Sarah");
+    expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent");
   });
 
   it("a Take sent to me opens with its recording and words, and the list says who sent it", async () => {
@@ -1040,8 +1130,7 @@ describe("the chats in front of the Lounge", () => {
 
     const theirs = container.querySelector("[data-chat-take]")!;
     expect(theirs.textContent).toContain("Amira sent you Take 3");
-    expect(theirs.querySelector("[data-take-tile]")?.textContent).toBe("2:14Take 3Q3 board pitch");
-    await tap(theirs.querySelector("[data-chat-open-take]"));
+    expect(theirs.querySelector("[data-take-tile]")?.textContent).toBe("Hook2:14Take 3Q3 board pitch");
     expect(theirs.querySelector("[data-chat-open-take]")).toBeNull();
     await tap(theirs.querySelector('button[aria-label="Play"]'));
     expect(played).toEqual(["https://store.example/take-3.webm?sig=1"]);
@@ -1050,6 +1139,140 @@ describe("the chats in front of the Lounge", () => {
 
     const mine = container.querySelector('[data-row="me"] [data-take-tile]');
     expect(mine?.textContent).toContain("Take 4");
-    expect(container.textContent).toContain("Sent to Amira Haddad");
+    expect(container.textContent).not.toContain("Sent to Amira Haddad");
+  });
+
+  it("a matched Take knocks as its own chat: Open Take shows who, Not now removes it", async () => {
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
+    const outside = { id: "m1", state: "new", pseudonym: "Bright Finch", role: "Sales lead", about: "opening an investor pitch", sent_at: "2026-11-04T11:05:00Z" };
+    let inside: Record<string, unknown> = outside;
+    routes.set("GET /api/v2/take-matches/inquiries", () => ({ inquiries: [inside] }));
+    routes.set("GET /api/v2/take-matches/m1", () => ({ match: inside }));
+    routes.set("POST /api/v2/take-matches/m1/accept", () => {
+      inside = { ...outside, state: "opened", name: "Amira", words: "Why now.\n\nThe first number.", slide_titles: ["Why now", "The first number"], duration_ms: 161_000 };
+      return { match: inside };
+    });
+    const declined: string[] = [];
+    routes.set("POST /api/v2/take-matches/m1/decline", () => {
+      declined.push("m1");
+      return { match: { id: "m1", status: "declined" } };
+    });
+    recordedAnswers.length = 0;
+    await render();
+
+    const knock = row("inquiry:m1");
+    expect(knock?.textContent).toContain("Bright Finch");
+    expect(lastLineOf("inquiry:m1")).toBe("Asks you about opening an investor pitch");
+    expect(knock?.hasAttribute("data-chat-new")).toBe(true);
+    await tap(knock);
+    const screen = () => container.querySelector("[data-inquiry]")!;
+    expect(screen().textContent).toContain("Bright Finch is asking for what you know. Your answer starts a knowledge base you build together.");
+    expect(screen().textContent).toContain("It's about opening an investor pitch.");
+    expect(screen().textContent).not.toContain("Amira");
+    expect(screen().querySelector("[data-chat-record-answer]")).toBeNull();
+
+    await tap(screen().querySelector("[data-inquiry-open-take]"));
+    await flush();
+    expect(screen().textContent).toContain("Amira");
+    expect(screen().querySelector("[data-chat-take-open]")).not.toBeNull();
+    await tap(screen().querySelector("[data-chat-record-answer]"));
+    expect(recordedAnswers).toEqual([
+      { chatId: "inquiry:m1", name: "Amira", question: "opening an investor pitch", customer: false, slides: ["Why now", "The first number"], inquiry: "m1" },
+    ]);
+
+    inside = { ...inside, state: "declined" };
+    routes.set("GET /api/v2/take-matches/inquiries", () => ({ inquiries: [] }));
+    await tap(screen().querySelector("[data-chat-not-now] button"));
+    await flush();
+    expect(declined).toEqual(["m1"]);
+    expect(row("inquiry:m1")).toBeNull();
+  });
+
+  it("their newest Take asks for an answer over its own slides, and Not now leaves it", async () => {
+    const AMIRA = {
+      id: "c-amira",
+      kind: "team",
+      title: "Amira Haddad",
+      subtitle: "Account executive",
+      last: { kind: "take", body: "", mine: false, meta: { take_index: 3 }, created_at: "2026-11-04T11:02:00Z" },
+    };
+    const meta = { take_index: 3, project_title: "Q3 board pitch", duration_ms: 134_000 };
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [AMIRA] }));
+    routes.set("GET /api/v2/chats/c-amira/messages", () => ({
+      messages: [{ id: "t1", mine: false, author: "Amira Haddad", kind: "take", body: "", meta, created_at: AMIRA.last.created_at }],
+    }));
+    routes.set("GET /api/v2/chats/c-amira/messages/t1/take", () => ({
+      audio_url: "https://store.example/take-3.webm?sig=1",
+      duration_ms: 134_000,
+      slides: [{ index: 0, title: "Hook", words: "We grew in Q3." }, { index: 1, title: null, words: "Next, the cities." }],
+    }));
+    recordedAnswers.length = 0;
+    await render();
+    await tap(row("c-amira"));
+    await tap(container.querySelector("[data-chat-record-answer]"));
+    expect(recordedAnswers).toEqual([
+      { chatId: "c-amira", name: "Amira Haddad", question: "Q3 board pitch", customer: false, slides: ["Hook", "Q3 board pitch"] },
+    ]);
+    const declined: string[] = [];
+    routes.set("POST /api/v2/chats/c-amira/messages/t1/not-now", () => {
+      declined.push("t1");
+      return { kept: true };
+    });
+    await tap(container.querySelector("[data-chat-not-now] button"));
+    expect(container.querySelector("[data-chat-record-answer]")).toBeNull();
+    expect(container.querySelector("[data-chat-emoji-box]")).not.toBeNull();
+    // Nobody is told, and the system keeps it (N504 item 2).
+    expect(declined).toEqual(["t1"]);
+  });
+
+  it("the first time I add someone, Will's chat opens on his setup, answered by tapping", async () => {
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [] }));
+    routes.set("POST /api/v2/chats/join-questions/setup", () => ({ started: true }));
+    const reload = vi.spyOn(loungeThread, "reload");
+    await render();
+    await tap(container.querySelector("[data-add-someone]"));
+    expect(calls("POST /api/v2/chats/join-questions/setup")).toHaveLength(1);
+    expect(reload).toHaveBeenCalled();
+    expect(container.querySelector("[data-add-sheet]")).toBeNull();
+    expect(container.querySelector("[data-chat-header]")?.textContent).toBe("Will");
+
+    // Will's rows, as the Lounge draws them.
+    routes.set("GET /api/v2/profile", () => ({ name: "Artur Willonski" }));
+    routes.set("POST /api/v2/chats/join-questions/setup/answer", () => ({ messages: [] }));
+    const said = (client_id: string, body: string, setup: Record<string, unknown>) =>
+      ({ client_id, role: "bot", kind: "text", body, metadata: { join_setup: setup }, client_created_at: "2026-11-04T10:00:00Z" }) as LoungeMessage;
+    const words = vi.fn();
+    function Row({ message }: { message: LoungeMessage }) {
+      const setup = useJoinSetup(async () => {}, () => {});
+      return createElement(JoinSetupBubble, {
+        message, setup: joinSetupOf(message)!, open: true, onWords: words,
+        onTap: (picked: string) => setup.tap(message.client_id, picked), onAgain: setup.again,
+      });
+    }
+    const draw = async (message: LoungeMessage) => {
+      await act(async () => root.render(createElement(Row, { message })));
+      await flush();
+    };
+    const answers = () => [...container.querySelectorAll("[data-join-setup-answers] button")].map((b) => b.textContent);
+    await draw(said("q-lang", "Should I ask which languages to use: Polish, English or both?", { step: "languages", chips: ["Yes", "No"] }));
+    expect(answers()).toEqual(["Something else", "No", "Yes"]);
+    await tap([...container.querySelectorAll("[data-join-setup-answers] button")].find((b) => b.textContent === "Something else"));
+    expect(words).toHaveBeenCalled();
+
+    const lines = [{ q: "Let's build our knowledge base a month at a time.", answers: [] }, { q: "Are you in a hurry?", answers: ["No", "Yes"] }];
+    await draw(said("q-peek", "This is what someone new will see when they open your chat:", { step: "peek", chips: ["That's right", "Change it"], lines }));
+    expect(container.querySelector("[data-join-summary]")?.textContent).toBe(
+      "You joined thanks to Artur. A few questions first, then you build a knowledge base together." +
+      "Let's build our knowledge base a month at a time.Are you in a hurry?NoYes",
+    );
+    expect(answers()).toEqual(["Change it", "That's right"]);
+    await tap([...container.querySelectorAll("[data-join-setup-answers] button")].find((b) => b.textContent === "That's right"));
+    expect(JSON.parse(String(calls("POST /api/v2/chats/join-questions/setup/answer")[0]![1]!.body))).toEqual({ to: "q-peek", picked: "That's right" });
+
+    await draw(said("q-set", "You're set. Each question that comes to your chats, and each answer you give, builds a knowledge base you share.", { step: "set" }));
+    expect([...container.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Copy my link›", "Your questions for people who join›"]);
   });
 });

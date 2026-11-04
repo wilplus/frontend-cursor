@@ -5,6 +5,20 @@ import { useSignedIn } from "../useSignedIn";
 import { getChats, type Chat } from "@/services/api/chats";
 import { takeChats } from "@/services/api/bootPrefetch";
 import { forgetChats, keepChats, keptChats, whoseChats } from "./chatsKept";
+import { getInquiries, type Inquiry } from "@/services/api/takeMatches";
+
+/** An asking chat in the list (backend N485): its own row, under its
+ *  pseudonym until Open Take, then the asker's name. */
+function inquiryChat(inquiry: Inquiry): Chat {
+  return {
+    id: `inquiry:${inquiry.id}`,
+    kind: "team",
+    title: inquiry.state === "new" ? inquiry.pseudonym : inquiry.name || inquiry.pseudonym,
+    subtitle: inquiry.role ?? "",
+    last: null,
+    inquiry,
+  };
+}
 
 /** Whether the chats are on: for every signed-in person, everywhere
  *  (backend N456; was ring 6, feature `chats`). No ring is read. */
@@ -16,6 +30,9 @@ export function useChatsOn(): boolean {
 export function useChatsDecided(): boolean | null {
   return useSignedIn();
 }
+
+/** How often the open list reads the chats again (N500). */
+const READ_AGAIN_MS = 20_000;
 
 /** The person's chats, read while `on`; `null` until the first list is known.
  *  An empty list stays empty: no demo chats for a newcomer (backend N401;
@@ -37,17 +54,36 @@ export function useChatList(on: boolean): { chats: Chat[] | null; reload: () => 
     const isFirst = first.current;
     first.current = false;
     const read = (isFirst ? takeChats : getChats)();
+    const asking = getInquiries();
     const who = await whoseChats();
     if (isFirst) {
       const kept = keptChats(who);
       if (kept && alive.current) setChats((now) => now ?? kept);
     }
-    const list = await read;
-    if (list) keepChats(who, list);
-    if (alive.current) setChats((now) => list ?? now ?? []);
+    const [list, inquiries] = await Promise.all([read, asking]);
+    const askingRows = inquiries.map(inquiryChat);
+    if (list) {
+      const shown = [...askingRows, ...list];
+      keepChats(who, shown);
+      if (alive.current) setChats(shown);
+    } else if (alive.current) {
+      setChats((now) => now ?? askingRows);
+    }
   }, []);
   useEffect(() => {
-    if (on) void load();
+    if (!on) return;
+    void load();
+    // Read again while the list is open and on coming back to it, so a
+    // message that arrives while you look shows as new (N500).
+    const again = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    const timer = window.setInterval(again, READ_AGAIN_MS);
+    document.addEventListener("visibilitychange", again);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", again);
+    };
   }, [on, load]);
   return { chats, reload: () => void load() };
 }

@@ -1730,8 +1730,10 @@ export function SlideEditor({
           ) : null}
         </div>
       </div>
-      <div className="shrink-0 border-t border-border pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-0.5 px-5">
+      {/* 8px above, on each side and below (N505); "Cancel" adds nothing
+          under it. */}
+      <div className="bar-space shrink-0 border-t border-border">
+        <div className="mx-auto flex w-full max-w-2xl flex-col gap-0.5">
           <button
             type="button"
             disabled={saving || drafts.some((draft) => !draft.trim())}
@@ -1744,6 +1746,7 @@ export function SlideEditor({
             type="button"
             onClick={onCancel}
             disabled={saving}
+            data-bar-word
             className="flex min-h-[48px] w-full items-center justify-center text-[16px] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
           >
             Cancel

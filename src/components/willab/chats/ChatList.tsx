@@ -2,12 +2,12 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Link as LinkIcon, Pin, Plus, Share } from "lucide-react";
-import { getMyChatLink, type Chat, type ChatEmoji, type ChatLast } from "@/services/api/chats";
+import { beginJoinSetup, getMyChatLink, type Chat, type ChatEmoji, type ChatLast } from "@/services/api/chats";
 import type { LoungeKind, LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadMaybe } from "../LoungeThreadContext";
 import { chatIsNew, isNewSince, markChatOpened } from "./chatOpened";
 import { listTime, timeOf } from "./chatTime";
-import { ADD_SHEET_LINE, ADD_SHEET_TITLE, ADD_STEPS, CANCEL, COPIED, COPY_MY_LINK, joinedThrough } from "./joinCopy";
+import { ADD_SHEET_LINE, ADD_SHEET_TITLE, ADD_STEPS, CANCEL, COPIED, COPY_MY_LINK, answersOf, asksYouAbout, joinedThanks } from "./joinCopy";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /* -------------------------------------------------------------------------- */
@@ -15,8 +15,10 @@ import { isNativeApp } from "@/lib/auth/nativeSignIn";
 /*  docs/flows/customer-requests.md §1 C1), one WhatsApp row each: Will        */
 /*  pinned on top with his mark, then each chat, newest first, with the first */
 /*  letter of the name in a circle (no photo, N301, N322 item 1), the name and */
-/*  who they are, the time, and the last message on one line. A new message   */
-/*  shows bold with an orange dot; no number, ever. Will is always the first  */
+/*  who they are, the time, and the last message on one line. A new message,  */
+/*  an emoji from the other person included, has the look locked for the      */
+/*  whole app (N500): the name bold, the time orange, the line bold and       */
+/*  orange, the orange dot; no number, ever. Will is always the first  */
 /*  row (N360). Just joined through a link, the chat with the one who invited */
 /*  you is right under Will, new until opened, its line theirs or "You joined */
 /*  through…" (N357), kept until the chat's first message (N488). Will's row shows his newest line, bold with the dot     */
@@ -110,6 +112,8 @@ export function WillMark({ size = 48 }: { size?: number }) {
  *  the voice note's, the photo's or the file's line. */
 export function lastLine(last: ChatLast | null, name = ""): string {
   if (!last) return "";
+  // The owner's card once the joiner is done (backend N487 item 7).
+  if (last.meta?.setup_card) return answersOf(firstName(name));
   if (last.kind === "take") {
     // A Take sent to you: "{name} sent you Take {n}" (N470); yours: "Take {n}".
     const n = typeof last.meta?.take_index === "number" ? last.meta.take_index : null;
@@ -178,7 +182,7 @@ function ChatListRow({
           ) : null}
         </span>
         <span className="flex min-h-[20px] min-w-0 items-center gap-2">
-          <span data-chat-last className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${isNew ? "text-foreground" : "text-muted-foreground"}`}>
+          <span data-chat-last className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${isNew ? "font-bold text-[#C2410C]" : "text-muted-foreground"}`}>
             {preview}
           </span>
           {isNew ? (
@@ -190,6 +194,23 @@ function ChatListRow({
       </span>
     </button>
   );
+}
+
+/** "Add someone to chat with": the first time, Will's chat opens on his
+ *  setup, the questions everyone who joins through your link is asked
+ *  (backend N487, N503); after it, or before it can be kept, the add sheet
+ *  opens as before. */
+function useAddSomeone(setAdding: (open: boolean) => void, onOpenWill: () => void): () => void {
+  const thread = useLoungeThreadMaybe();
+  return () => {
+    if (!thread) return setAdding(true);
+    void beginJoinSetup().then((started) => {
+      if (!started) return setAdding(true);
+      // Will's chat reads its thread again, his first lines at the bottom.
+      void thread.reload().catch(() => undefined);
+      onOpenWill();
+    });
+  };
 }
 
 /** Add someone (backend N308, N310, N328): your own link, to paste into any
@@ -343,6 +364,7 @@ export default function ChatList({
 }) {
   const now = new Date();
   const [adding, setAdding] = useState(false);
+  const openAdd = useAddSomeone(setAdding, onOpenWill);
   const first = joined ? chats.find((chat) => chat.id === joined) ?? null : null;
   const will = useWillRow(willOpen, cameFrom === WILL_CHAT);
   const row = (chat: Chat, justJoined = false) => (
@@ -353,8 +375,16 @@ export default function ChatList({
       title={chat.title}
       subtitle={chat.subtitle}
       time={listTime(chat.last?.created_at, now)}
-      preview={chat.last ? lastLine(chat.last, chat.title) : chat.joined_through || justJoined ? joinedThrough(chat.joined_through || chat.title) : ""}
-      isNew={justJoined || chatIsNew(chat)}
+      preview={
+        chat.inquiry
+          ? asksYouAbout(chat.inquiry.about)
+          : chat.last
+            ? lastLine(chat.last, chat.title)
+            : chat.joined_through || justJoined
+              ? joinedThanks(chat.joined_through || chat.title)
+              : ""
+      }
+      isNew={chat.inquiry ? chat.inquiry.state === "new" : justJoined || chatIsNew(chat)}
       cameFrom={cameFrom === chat.id}
       onOpen={() => onOpen(chat)}
     />
@@ -372,8 +402,9 @@ export default function ChatList({
         cameFrom={cameFrom === WILL_CHAT}
         onOpen={onOpenWill}
       />
+      {chats.filter((chat) => chat.inquiry).map((chat) => row(chat))}
       {first ? row(first, true) : null}
-      {chats.length === 0 ? (
+      {chats.filter((chat) => !chat.inquiry).length === 0 ? (
         /* Nobody else yet (the iPhone app shows the list with Will alone,
            founder 2026-11-02): adding someone is the next row, as the + does. */
         <ChatListRow
@@ -384,16 +415,16 @@ export default function ChatList({
             </span>
           }
           title={ADD_SHEET_TITLE}
-          onOpen={() => setAdding(true)}
+          onOpen={openAdd}
         />
       ) : null}
-      {newestFirst(chats.filter((chat) => chat !== first)).map((chat) => row(chat))}
+      {newestFirst(chats.filter((chat) => chat !== first && !chat.inquiry)).map((chat) => row(chat))}
       </div>
       <button
         type="button"
         data-add-someone=""
         aria-label={ADD_SHEET_TITLE}
-        onClick={() => setAdding(true)}
+        onClick={openAdd}
         className="absolute bottom-5 right-4 flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background shadow-lg"
       >
         <Plus className="h-5 w-5" aria-hidden />

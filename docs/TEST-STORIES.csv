@@ -163,15 +163,16 @@ O5  A re-review piece still says so on its write.","O1, O2 -> ""opens on the Jud
 O3     -> ""an answer writes the ternary body only, then moves on in payload order""
 O4     -> ""after the last unlabelled piece the sheet closes, back on the workbench""
 O5     -> ""a re-review piece says so on its write""","Never-2; founder 2026-09-30 B9 / P2-16 (""one instrument in the product; the workbench's own chrome is deleted"")."
-src/components/AppMenu.test.tsx,Story,"As someone signed in, I want the ☰ menu to hold only what I need, with my own link at the top, so that bringing someone in is one tap (backend N367, N196, N365).","O1  Signed in, the menu reads: my name and email (opening my profile),
+src/components/AppMenu.test.tsx,Story,"As someone signed in, I want the ☰ menu to hold only what I need, with my own link at the top, so that bringing someone in is one tap (backend N367, N196, N365, N495).","O1  Signed in, the menu reads: my name and email (opening my profile),
 Copy my link, Settings, Tokens with the balance, then Sign out. No
 Lab, no Log out.
 O2  Copy my link copies the whole link and says ""✓ Copied"".
-O3  In the iPhone app, Tokens shows the balance and is not a link (no link
-to buy in the app, N365 item 1); on the web it opens the pricing page.
+O3  Tokens shows the balance and opens the Tokens page, on the web and in
+the iPhone app alike (N495; in the app that page has no way to buy,
+N365 item 1).
 O4  Signed out (the blog), the menu is Lab and Log in, as before.","O1 -> ""signed in, the menu is me, Copy my link, Settings, Tokens and Sign out""
 O2 -> ""Copy my link copies the whole link""
-O3 -> ""in the iPhone app Tokens is not a link; on the web it is""
+O3 -> ""Tokens shows the balance and opens the Tokens page""
 O4 -> ""signed out, the menu is Lab and Log in""",
 src/components/account/AccountSignInCard.test.tsx,Story,"As a speaker, I want to change my email and my password on Data & consent, and get a link when I forgot the password, so that I keep my account when I lose an address or a password (backend N190).","O1  Change email sends the new address and my current password; the card
 then says the link went and the email changes when I open it. A wrong
@@ -456,6 +457,14 @@ O4  A project with an open deletion request is locked, with no menu.","O1 -> ""o
 O2 -> ""archives at once and the row leaves the list""
 O3 -> ""a failed archive says so and keeps the row""
 O4 -> ""is locked and has no menu""",Founder 2026-09-26 (N14): deleting moved to Data & consent.
+src/components/willab/TakeMatchSuggestion.test.tsx,Story,"As a speaker after my Take, I want to be offered, once, someone new who fits it, by a pseudonym and their role and never a name, so that I can send it to them too or say Not now, and I never want it to stand in front of my walk.","O1  With a suggestion for my Take and no walk screen up, the page opens:
+""Someone new might be a good match for this Take."", ""{Pseudonym}
+works on what you're practising. You could learn from each other.
+Send it to them too?"", the pseudonym, the role and ""Not in your chats
+yet""; Send sends it and closes the page (N477, N478 item 1, N512).
+O2  Not now closes it on the backend and the page; it is not asked again
+for that Take. While a walk screen is up, it waits.","O1 -> ""a suggestion opens once the walk is gone, and Send sends it""
+O2 -> ""Not now closes it, and the same Take is not asked again""","Founder 2026-11-04, backend N476 item 2, N477, N478, N512 (the words, ""Use the prototype's""); the prototype ""The Official Inquiry""."
 src/components/willab/TranscriptReviewDeck.test.tsx,Story,"As a speaker, I want my own words shown per slide, each paragraph its own block, and no scores, so that the Ideal Text is mine and judged in words.","O1  Every slide's words are shown unchanged, one paragraph block per
 slide, holding exactly that slide's words.
 O2  Never-1: a paragraph with feedback waiting paints no number or badge
@@ -564,9 +573,9 @@ O8  The + on the list opens my own link, with the add sheet's signed
 words and its three steps, and Copy my link puts the whole link on
 the clipboard and says ""✓ Copied"" (N308, N310, N367).
 O9  In a chat I joined through someone's link, one line above the
-messages says whose link it was (N335 item 2), and its row in the
-list keeps that line until the first message (N488); a chat without
-it has no such line.
+messages says whose link it was (N496, replacing N335 item 2's), and
+its row in the list keeps that line until the first message (N488); a
+chat without it has no such line.
 O10 Just joined (/chat?with=<chat>), the list opens with Will's row
 first, as always, and right under it the chat with the one who invited
 me, marked new with the joined line; the address is clean again;
@@ -576,12 +585,14 @@ the dot, until his chat is open (N457 item 2).
 O11 On the web and in the iPhone app, Will's chat never shows for a moment
 before the list covers it: the loader stands in front until the list
 has answered, and it never waits on the rings (N354, N456).
-O12 The ""+"" in a chat swaps the bar for four tiles with their names,
-Photos, Camera, Files and Someone else; Someone else opens the add
-sheet with my link; a ✕ where the ""+"" was brings the bar back (N351,
-N460 item 4).
-O13 A photo I pick is posted to the chat's photo route and joins the
-thread as my image (N337, N351).
+O12 The ""+"" in a chat asks them (N483 item 4, N498): ""Ask {name}"", with
+no line, the black ""Record your question"" and Cancel, and the three
+steps only before my first question; ""Record your question"" opens the
+recording screens on the default presentation (a project with no
+slides of its own, named ""To {name}""), and the question goes to the
+question route with ""Sending to {name}… {n}"" and Undo, then ""Sent to
+{name}"". Until I first tap it the ""+"" is orange; then it is plain.
+Photos, Camera, Files and Someone else are off (N483 item 4).
 O14 The other person's file shows a tile with its extension and its own
 name, and downloads
 from the chat's file route; a photo opens full size with a close and
@@ -597,7 +608,7 @@ until the chat is opened again; the answer hands the recording screens the
 chat, the person and the question. Back from them, the bar's middle
 reads ""Sending to {name}… {n}"" with Undo while the answer, already
 with the backend, waits out its 5 seconds there (N441 item 3); then
-""Sent to {name}"" stands under it, a customer's too (N345, N441 item 4).
+""Sent"" stands under it, a customer's too (N345, N441 item 4, N504 item 3).
 O17 Back (the iPhone's swipe from the left edge in the app, the browser's
 Back on the web) goes back by one, from a chat to the list, and never
 off the list; back on the list, it is where I left it, the row I came
@@ -606,17 +617,41 @@ the browser's Forward on the web) opens the chat I just left again;
 before I have left one, it does nothing (N378, N436).
 O18 An answer the backend refused stays in the bar's middle, ""Not sent""
 with ""Send again"", which sends the same Take (N441 item 1).
+O23 A matched Take that reached me (N485, N486, N493) is its own row in
+the list under the pseudonym, ""Asks you about {topic}"", new; opened,
+it shows who asks and what about, never a name, with ""Open Take"" in
+the bar; Open Take shows the name and the Take with ""Record your
+answer"", which answers it over its slides as an inquiry; ""Not now""
+removes it and tells nobody.
 O22 A Take someone sent me (N470, N479) is their message: ""{name} sent
-you Take {n}"" with the Take's tile, and ""Open Take"" under it, which
-plays its recording and shows its words slide by slide behind ""Read
-it"", nothing else of it; the list's line says ""{name} sent you Take
-{n}""; a Take I sent is my tile with ""Sent to {name}"".
+you Take {n}"" with the Take's tile, its first slide and no play mark
+(N493 item 6), already open: its recording, and its words slide by
+slide behind ""Read it"", nothing else of it (N504 item 1); the list's
+line says ""{name} sent you Take {n}""; a Take I sent is my tile with
+""Sent"" (N504 item 3). Newest, it asks for an answer: ""Record your
+answer"" in the bar with ""Not now"" under it, which tells them nothing
+and is kept for the system (N504 item 2), and the answer is recorded
+over the Take's own slides (N493 items 1 and 3).
 O21 At the foot of the other person's profile, ""Block {name}"" asks first
 and then blocks them: the backend is told, ""{name} is blocked."" shows,
 and back in the chat the bar is one pill, ""You blocked {name}."" with
 Unblock, the earlier messages still there; Unblock unblocks at once.
 ""Report {name}"" asks first too, and ""Report and block"" reports them
-with the block (N466).","O1 -> ""as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read""
+with the block (N466).
+O23 Joining someone who set questions (N487): the line at the top says a
+few questions come first; their question waits with its answers on my
+side; ""No"" is sent at once and its deadline shows under it; a question
+that takes more than one answer fills each one I tap, and Send in the
+bar's middle sends them. The link's owner reads one card of my
+answers, under ""{name} joined through your link."", and their list
+says ""{name}'s answers"".
+O24 The first time I add someone (N503), Will's chat opens on his setup,
+not my link; his question waits with its answers on my side,
+""Something else"" first, and a tap goes to the backend; the summary
+shows what someone new will see, my name in its top line, with
+""Change it"" and ""That's right""; ""You're set."" ends with ""Copy my
+link ›"" and ""Your questions for people who join ›"". After the setup,
+the + opens my link as before (O8).","O1 -> ""as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read""
 O19 -> ""as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar""
 O20 -> ""as a developer, a chats row in the rings, on or off, changes nothing""
 O2 -> ""with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back""
@@ -628,8 +663,7 @@ O8 -> ""the + opens my own link and copies it""
 O9 -> ""a chat joined through a link says whose link it was""
 O10 -> ""after joining, the list opens with Will first and the one who invited me under him, marked new""
 O11 -> ""as a user, the loader, not Will's chat, waits for my list, on the web and in the app, and never for the rings""
-O12 -> ""the + shows the four tiles, Someone else opens my link, and the ✕ in its place brings the bar back""
-O13 -> ""a photo I send joins the thread as my image""
+O12 -> ""the + asks them: the default presentation, and the question goes with Sending, Undo and Sent""
 O14 -> ""the other person's photo or file opens from the chat's file route""
 O15 -> ""an answer sent to me plays with its slides following the voice, its words behind Read it""
 O16 -> ""a marked question takes Record your answer, Not now leaves it, and my answer goes with Sending, Undo and Sent""
@@ -637,7 +671,9 @@ O17 -> ""the device's Back goes back by one, to the list, never off it, and Forw
 O17 -> ""in the app, a swipe from the left edge goes back to the list where I left it, and one from the right edge forward to the chat I just left""
 O18 -> ""a refused answer stays as Not sent, and Send again sends the same Take""
 O22 -> ""a Take sent to me opens with its recording and words, and the list says who sent it""
-O21 -> ""from their profile I block them, the bar says so with Unblock, and Report and block reports with the block""",
+O21 -> ""from their profile I block them, the bar says so with Unblock, and Report and block reports with the block""
+O23 -> ""the questions of the one who invited me are answered by tapping, and they read one card""
+O24 -> ""the first time I add someone, Will's chat opens on his setup, answered by tapping""",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.
@@ -726,9 +762,9 @@ judging, mixed across imports from a clip of it, and the list comes
 back when nothing is left to judge (founder 2026-10-21, N101).
 O10 The list comes in steps (N100): reaching its bottom reads the next
 step, the loader showing until it lands.
-O11 The corpus is the founder's, in the CEO panel (N416): the coach's
-pinned row has no Training corpus button; the CEO panel's opens the
-imports.","O1 -> ""a saved set-up goes straight to judging, with its count""
+O11 The corpus is the founder's, a row in the admin menu (N416, N511):
+the coach's pinned row has no Training corpus button; the admin
+menu's page opens on the imports, and ✕ goes back.","O1 -> ""a saved set-up goes straight to judging, with its count""
 O2 -> ""a set-up with nothing to judge goes back to the imports, never to judging""
 O3 -> ""a new import lands on the imports with its count""
 O4 -> ""the panel's queue read carries no words of a piece""
@@ -738,7 +774,7 @@ O7 -> ""several files import one at a time, each its own import named by its fil
 O8 -> ""a choice over the upload limit is refused, and a refusal for the hour stops the batch""
 O9 -> ""the done imports sit at the bottom; judging starts from the opened one and comes back to the list""
 O10 -> ""reaching the bottom of the list reads its next step""
-O11 -> ""the corpus opens from the CEO panel, never from the coach's pinned row""","Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files in one Import, the list in steps and the corpus judged mixed, founder 2026-10-21. Moved to the CEO panel, founder 2026-11-03 (backend N416)."
+O11 -> ""the corpus opens from the admin menu's page, never from the coach's pinned row; ✕ goes back""","Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files in one Import, the list in steps and the corpus judged mixed, founder 2026-10-21. Moved to the CEO panel, founder 2026-11-03 (backend N416); to the admin menu, founder 2026-11-04 (N511)."
 src/components/willab/coachpanel/coachPlan.test.tsx,Story,"As a coach, I want a speaker's plan in my queue when it needs me, so that I pick their level blind, or send my video for a level that hasn't moved, and their plan follows my answer.","O1  A plan that waits comes first in my queue, on its speaker's card (""New
 plan"", ""Asked about their level"", ""Three Takes without moving""), and
 as ""Their plan"" above their Takes; the Lounge bubble counts it.
@@ -1226,7 +1262,8 @@ src/components/willab/recordingSetup.test.tsx,Story,"As a speaker, I want setup 
 O2  With no slides added, the slides step's button is ""Skip for now"", the
 last step included, and it starts the Take.","O1 -> ""asks topic, length, slides, then starts""
 O2 -> ""asks topic, length, slides, then starts""","Founder 2026-10-12; ""Skip for now"", backend N449 item 3."
-src/components/willab/recordingStillFrame.test.tsx,Story,"As a speaker recording, I want the top bar to read ""Take N · Slide n of m"", Back and Next slide to move slides, Finish take on the last slide to be the only way to end, and only the slide to move, so that recording feels steady and I never end a Take by accident.","O1  The top bar reads ""Take 2 · Slide 1 of 3"", once.
+src/components/willab/recordingStillFrame.test.tsx,Story,"As a speaker recording, I want the top bar to read ""Take N · Slide n of m"", Back and Next slide to move slides, Finish take on the last slide to be the only way to end, and only the slide to move, so that recording feels steady and I never end a Take by accident.","O1  The top bar reads ""Take 2 · Slide 1 of 3"", once; a question to
+someone (N483 item 4) reads ""To Sarah · Slide 1 of 3"".
 O2  On the last slide Next slide becomes the red Finish take, which ends
 the Take.
 O3  Space after clicking Back goes forward, not Back again.
@@ -1677,6 +1714,15 @@ comes down (founder 2026-10-20, flow page A2).","O1 -> ""holds the block while t
 O2 -> ""releases on the new Take's version or a piece from the new Take""
 O3 -> ""expires past the cap; a stuck block is worse than a stale read""
 O4 -> ""keeps the bubble up until the marks are in, or the marks cap""",SPEC-lockin-loop §1; handoff §6.4 S3: clearing at readout_ready showed the PREVIOUS document as current.
+src/lib/willab/dumpScreen.test.ts,Story,"As a speaker, I want to open the app, tap anywhere and say what is on my mind, then close it with a double tap, so that a thought is kept without getting in the way of my next Take.","D1  A tap starts at once; the next tap stops and keeps.
+D2  A double tap on a fresh start closes and throws the start away.
+D3  A double tap while talking stops, keeps and closes.
+D4  The tap that opened the screen, a palm and a swipe do nothing.
+D5  It opens first only when switched on, and at most once an hour.","D1 -> ""starts at once, then stops and keeps""
+D2 -> ""a double tap on a fresh start closes and undoes the start""
+D3 -> ""a double tap while talking stops, keeps and closes""
+D4 -> ""ignores the opening tap, a palm and a swipe""
+D5 -> ""only when switched on, and at most once an hour""","Founder 2026-11-04 (backend N506, N507): taps act at once and a double tap undoes the first, so no tap waits; it never opens from a link and never more than once an hour (Never 3)."
 src/lib/willab/enrichmentSettle.test.ts,Story,"As a speaker, I want a feedback placeholder to close when there is nothing to report, so that I don't wait forever on an empty slot.","O1  An empty feedback answer counts as ""nothing more coming"".
 O2  The page keeps asking for late marks until its ninety seconds are up,
 not for a handful of asks (founder 2026-10-20, WIL-76).","O1 -> is false with nothing to report, so an honest empty lane closes

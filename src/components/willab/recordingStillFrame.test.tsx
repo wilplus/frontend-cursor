@@ -5,7 +5,8 @@ STORY    As a speaker recording, I want the top bar to read "Take N · Slide n
          slide to be the only way to end, and only the slide to move, so
          that recording feels steady and I never end a Take by accident.
 OUTCOME
-  O1  The top bar reads "Take 2 · Slide 1 of 3", once.
+  O1  The top bar reads "Take 2 · Slide 1 of 3", once; a question to
+      someone (N483 item 4) reads "To Sarah · Slide 1 of 3".
   O2  On the last slide Next slide becomes the red Finish take, which ends
       the Take.
   O3  Space after clicking Back goes forward, not Back again.
@@ -147,6 +148,9 @@ describe("the top bar", () => {
     expect(where().textContent).toBe("Take 2 · Slide 1 of 3");
     expect(host.querySelectorAll('[data-testid="recording-where"]').length).toBe(1);
     expect(host.textContent).not.toMatch(/Recording/);
+    // A question to someone names them in its place.
+    act(() => root.render(createElement(RecordingWhere, { show: true, micStatus: "recording", to: "Sarah", takeNumber: 1, slide: 0, slideCount: 3 })));
+    expect(where().textContent).toBe("To Sarah · Slide 1 of 3");
   });
 });
 
@@ -232,5 +236,35 @@ describe("an answer (N441)", () => {
     expect(button("Back")).toBeUndefined();
     expect(button("Finish take")).toBeDefined();
     expect(stops).toBe(0);
+  });
+
+  it("an answer to their Take: the name and Slide n of m, the Take's own slides, no asker on them (N493 item 1)", () => {
+    const slides = [{ title: "Hook", body: "" }, { title: "The cities", body: "" }] as never[];
+    function Answer() {
+      return createElement(
+        Fragment,
+        null,
+        createElement(RecordingWhere, { show: true, micStatus: "recording", of: "Amira", takeNumber: 1, slide: 0, slideCount: 2 }),
+        createElement(RecordingPhase, {
+          micState: { status: "recording", partialText: "" },
+          elapsed: 12,
+          targetSec: null,
+          rejectedMsg: null,
+          uploadRetry: null,
+          onStop: () => undefined,
+          onRecordAgain: () => undefined,
+          slides,
+          presentationRef: null,
+          currentSlide: 0,
+          roots: [],
+          onSlideChange: () => undefined,
+          asks: null,
+        } as never),
+      );
+    }
+    act(() => root.render(createElement(Answer)));
+    expect(where().textContent).toBe("Amira · Slide 1 of 2");
+    expect(host.querySelector('[data-testid="slide"]')?.getAttribute("data-asks") ?? "").toBe("");
+    expect(button("Next slide")).toBeDefined();
   });
 });

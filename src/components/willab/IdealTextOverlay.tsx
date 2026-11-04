@@ -59,7 +59,7 @@ import {
   type IdealTextSd,
 } from "./idealTextLoad";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { LENS_IDLE_MS, LENS_WATCHDOG_MS, WALK_STEP_SELECTOR, lensAddress, lensIdle, lensStillLoading, walkDoorReady, type LensPage } from "@/lib/willab/lensScreen";
+import { LENS_DOTS_AFTER_MS, LENS_IDLE_MS, LENS_WATCHDOG_MS, WALK_STEP_SELECTOR, lensAddress, lensIdle, lensStillLoading, walkDoorReady, type LensPage } from "@/lib/willab/lensScreen";
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
 import IdealTextMenu, { FeedbackLoadingLine } from "./IdealTextMenu";
@@ -1151,9 +1151,10 @@ export default function IdealTextOverlay({
           brought no value to the coach or the user). What remains is one lane:
           take after take, each an official recording. */}
       {shownStatus === "ready" && sd && onReadAloud ? (
-        <div className="shrink-0 bg-background px-4">
-          {/* No space under "Close" (founder 2026-10-30, backend N280): the
-              phone's own home-bar strip is the only margin below it. */}
+        <div className="shrink-0 bg-background bar-space">
+          {/* 8px above, on each side and below (founder 2026-11-04, N505):
+              the text stops 8px above "Record Take N"; "Close" adds nothing
+              under it, its own row holds the 8px (N280). */}
           {/* MASTER DOCUMENT — Save, then the next official take. On a
               computer in the Lounge's column, as the lens is (founder
               2026-10-20: the three views share one column). */}
@@ -1281,8 +1282,11 @@ function walkStepOnScreen(): boolean {
 }
 
 /** The lens screen's own frame while the walk loads: the lens's one wait,
- *  the typing dots where its first bubble will land (founder 2026-10-20),
- *  and its ✕, never the text. */
+ *  the typing dots where its first bubble will land, at the bottom as in the
+ *  walk's thread (founder 2026-10-20; N122: "the 3 dots loading should be at
+ *  the bottom", 2026-11-04: were at the top), and its ✕, never the text.
+ *  The dots come only once the walk is still loading after a moment, so a
+ *  quick load opens on the walk with no flash of them (N499). */
 function LensFrame({ on, onClose }: { on: boolean; onClose: () => void }) {
   if (!on || typeof document === "undefined") return null;
   return createPortal(
@@ -1290,12 +1294,23 @@ function LensFrame({ on, onClose }: { on: boolean; onClose: () => void }) {
       <div className="flex min-h-[44px] w-full items-center justify-end px-2.5 pt-2">
         <OverlayCloseButton onClick={onClose} className="mr-2.5" />
       </div>
-      <div className="mx-auto w-full max-w-3xl px-5 py-3.5">
-        <WalkLoading />
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-end px-5 py-3.5">
+        <LateDots />
       </div>
     </div>,
     document.body,
   );
+}
+
+/** The typing dots, once the screen has been up LENS_DOTS_AFTER_MS (N499).
+ *  Mounted with each opening, so each opening waits afresh. */
+function LateDots() {
+  const [late, setLate] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setLate(true), LENS_DOTS_AFTER_MS);
+    return () => clearTimeout(t);
+  }, []);
+  return late ? <WalkLoading /> : null;
 }
 
 /** The Ideal Text's own layer: out of sight while the lens screen is on. */

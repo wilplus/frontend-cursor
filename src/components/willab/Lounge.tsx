@@ -163,6 +163,7 @@ import WillQuestionBubble, {
 } from "./WillQuestion";
 import { isWillVoice, WillVoiceBubble } from "./WillVoiceAnswer";
 import { WillBarMiddle } from "./plan/PlanDock";
+import { JoinSetupBubble, joinSetupOf, joinSetupWaiting, useJoinSetup, type JoinSetup } from "./chats/JoinSetup";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -1465,7 +1466,17 @@ export default function Lounge({
   const shownMessages = useMemo(() => shownItems.map((item) => item.message), [shownItems]);
   // The box only when Will asks for words (N483 item 2): "Something else",
   // his follow-up with no answers to tap, or "What was missing?".
-  const words = useWordsBox(shownMessages, plan.typingOff, draftText, composerRef, feedbackCheckTarget([...shownMessages], "missing") !== null);
+  // Will's setup question that waits (backend N503): typed words answer it,
+  // and "What should change?" keeps the box open.
+  const setupWaits = joinSetupWaiting(shownMessages);
+  const joinSetup = useJoinSetup(reload, setBotThinking);
+  const words = useWordsBox(
+    shownMessages,
+    plan.typingOff,
+    draftText,
+    composerRef,
+    feedbackCheckTarget([...shownMessages], "missing") !== null || setupWaits?.words === true,
+  );
 
   // U3 — capture the historical baseline once the thread first loads, so only
   // messages that arrive AFTER it (new bot replies) animate.
@@ -1521,6 +1532,11 @@ export default function Lounge({
     if (!q || botThinking) return;
     setDraftText("");
     words.close();
+    if (setupWaits) {
+      await joinSetup.say(setupWaits.to, q);
+      followAnswer();
+      return;
+    }
     await runSend(q);
   }
 
@@ -1724,9 +1740,25 @@ export default function Lounge({
     }
   }
 
-  // One drawn item of the thread: a walk step (the review's end card), a
-  // summary, or any other bubble.
-  const drawItem = (item: ThreadItem, i: number) =>
+  // One drawn item of the thread: Will's setup for the one who shares
+  // (backend N503), a walk step (the review's end card), a summary, or any
+  // other bubble.
+  const drawSetup = (item: ThreadItem, i: number, setup: JoinSetup) => (
+    <JoinSetupBubble
+      key={item.reactKey}
+      message={item.message}
+      setup={setup}
+      open={i === shownItems.length - 1}
+      onTap={(picked) => joinSetup.tap(item.message.client_id, picked).then(followAnswer)}
+      onAgain={() => joinSetup.again().then(followAnswer)}
+      onWords={words.start}
+    />
+  );
+  const drawItem = (item: ThreadItem, i: number) => {
+    const setup = joinSetupOf(item.message);
+    return setup ? drawSetup(item, i, setup) : drawThreadItem(item, i);
+  };
+  const drawThreadItem = (item: ThreadItem, i: number) =>
     item.message.kind === "walk_step" ? (
       <WalkStepBubble
         key={item.reactKey}
@@ -1793,8 +1825,9 @@ export default function Lounge({
   return (
     /* Like WhatsApp (founder 2026-10-30): the thread runs down to the
        composer. An empty slot takes no room (hidden; never the thread, which
-       is empty while it loads), the thread's -mb-3 cancels the gap under it,
-       and its pb-2 keeps the last message off the composer at the bottom. */
+       is empty while it loads), and the thread's -mb-1 leaves 8px of the
+       gap under it: what scrolls stops 8px above the bar, as the bar keeps
+       8px from the sides and the bottom (N505). */
     <div className="flex flex-1 flex-col gap-3 overflow-hidden [&>:empty:not([data-thread])]:hidden">
       {/* The lenses open as fixed overlays (WalkStage); closed, each is still
           an empty <div>. Out of the column's flow, so their four gaps no
@@ -1836,7 +1869,7 @@ export default function Lounge({
            bar, as the chats with people do (N321 item 3, N467 item 1).
            `data-rhythm`: the rows' spacing, close within a side and wider
            where the side changes (globals.css, N469). */
-        className="scrollbar-none -mb-3 flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain pb-2 [&>:first-child]:mt-auto"
+        className="scrollbar-none -mb-1 flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain [&>:first-child]:mt-auto"
       >
         {thread.hasMore && (
           <button
@@ -2078,7 +2111,8 @@ export default function Lounge({
       <VoiceNoteFixBar notebook={notebook} />
       <form
         onSubmit={handleSend}
-        className={`${plan.composerDisplay(notebook.composerDisplay)} items-end gap-1`}
+        // 8px from the sides (N505): out of the shell's 16px.
+        className={`${plan.composerDisplay(notebook.composerDisplay)} -mx-2 items-end gap-1`}
       >
         {/* THE "+" (founder 2026-10-12, WhatsApp-like): it opens the
             projects, where "Start a new project" starts one. It replaced the

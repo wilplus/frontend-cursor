@@ -6,6 +6,7 @@ import { TOKENS_COPY } from "@/components/tokens/copy";
 import { Button } from "@/components/ui/button";
 import { SectionLoadingState } from "@/components/willab/LoadingState";
 import { useTokenWallet } from "@/hooks/useTokenWallet";
+import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /* -------------------------------------------------------------------------- */
 /*  TokenWalletScreen — the wallet page (/dashboard/pricing)                   */
@@ -38,6 +39,11 @@ export default function TokenWalletScreen() {
   /** Back from Stripe. Read off `window` rather than useSearchParams so this
    *  needs no Suspense boundary for one query param. */
   const [planReturn, setPlanReturn] = useState<"success" | "cancelled" | null>(null);
+  /** The iPhone app has no plans (backend N365 item 1): the page is "Tokens",
+   *  the menu row's own word (N495). Read after mount, so the server's HTML
+   *  and the first client render agree. */
+  const [app, setApp] = useState(false);
+  useEffect(() => setApp(isNativeApp()), []);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const v = new URLSearchParams(window.location.search).get("plan");
@@ -54,7 +60,7 @@ export default function TokenWalletScreen() {
     <div className="w-full max-w-2xl">
       <div className="space-y-1 pb-6">
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          {TOKENS_COPY.walletPageTitle}
+          {app ? TOKENS_COPY.menuRowLabel : TOKENS_COPY.walletPageTitle}
         </h1>
         <p className="text-sm text-muted-foreground">{TOKENS_COPY.walletPageIntro}</p>
       </div>

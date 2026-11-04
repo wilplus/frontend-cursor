@@ -333,9 +333,11 @@ Approved on the clickable prototype <https://claude.ai/artifact/MVyWmdoWUqisttfk
 Signed in, the menu is a card under the ☰ with, top to bottom: your circle,
 name and email; **Copy my link** ("Whoever opens it joins you here"; it
 copies at once and says "✓ Copied"; only where the chats are on);
-**Settings**; **Tokens** with the balance and its date (the pricing page on
-the web; in the iPhone app the row shows the balance and opens nothing,
-backend N365 item 1); discovered products and Life Panel rows for the few
+**Settings**; **Tokens** with the balance and its date, opening the Tokens
+page on the web and in the iPhone app alike (backend N495; in the app that
+page is titled "Tokens", shows what things cost and the recent activity at
+once, and has no plans and no way to buy, backend N365 item 1; no button
+asks for prices or a way to buy); discovered products and Life Panel rows for the few
 who have them (the coach's Training corpus row left for the CEO panel,
 backend N416); a thin line; **Sign out** in red.
 Each row has a 36px icon in the iPhone Settings style. Lab is gone from the
@@ -370,6 +372,15 @@ the only way in.
   gets the app as before. There is no guest path.
 - **The in-app welcome** (`WelcomeConsent.tsx`), the first step of the consent screens for a new member, stays
   as it is, with its two paragraphs and **Enter the lab**, which opens the acceptance screen.
+
+### Amended 2026-11-04: "Open to the dump screen" (backend N507 item 2)
+
+- **One row on the Data & consent page** (`DumpScreenCard.tsx`), after
+  WhatsApp: **Open to the dump screen**, the line **First thing when you open
+  the app, at most once an hour.** and a switch. Off by default; kept on the
+  device. Shown only while the ring row `dump_screen` is on for the person.
+  N507 item 2 is the founder's OK for this one row. The screen it opens:
+  [`principles.md`](principles.md) T.
 
 ## 2. In flight
 
@@ -427,6 +438,9 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N495 · §1: in the iPhone app, Tokens opens the Tokens page (balance, what things cost, recent activity; no plans, no way to buy, no button to ask for prices). Was: the row showed the balance and opened nothing (N367 item 2) · FE (this PR)
+- 2026-11-04 · N507 · §1: one row, "Open to the dump screen" with its line and a switch, off by default, after WhatsApp (`DumpScreenCard.tsx`) · FE (this PR)
+- 2026-11-04 · N505 · "See an example": the button at the bottom keeps 8px above and below (the Feedback walk page's J9); was 12px above and 20px below (`WelcomeExample.tsx`) · BE, FE (this PR)
 - 2026-11-04 · N471 · §1: by invitation. The first page is design B on the web and in the iPhone app (Sign in, the mark, the name, See an example, the link field, No link yet? Join the waitlist; Enter the lab and the two paragraphs leave this page); the waitlist page; You’re on the waitlist; members only around `/chat`, no guest path. The in-app welcome stays · BE (membership), FE (this PR)
 - 2026-11-03 · N416 · §1: the coach's Training corpus row leaves the ☰ menu; the corpus opens from the CEO panel ([`coach-panel.md`](coach-panel.md) H1). Was: a coach-only row to /coach/corpus · FE (this PR)
 - 2026-11-03 · N367, N196, N365 · §1: the ☰ menu, signed in: you, Copy my link, Settings, Tokens, Sign out (was: the email, Lab, Settings, Tokens, Log out); iPhone-Settings icons; Tokens opens nothing in the iPhone app; "Sign out" replaces "Log out" · FE (this PR)

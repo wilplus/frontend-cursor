@@ -20,6 +20,10 @@
  *  a step that may still be opening before it shows the text. One paint. */
 export const LENS_IDLE_MS = 300;
 
+/** The lens screen's typing dots wait this long before they show, so a
+ *  quick load never flashes them (founder 2026-11-04, backend N499). */
+export const LENS_DOTS_AFTER_MS = 300;
+
 /** The last resort: a lens with no walk and no settle by now shows the text.
  *  Past anything the page should take to say so itself. It counts only
  *  while the page could say so: not while it loads, its marks may still

@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  AlertTriangle, BookOpen, CalendarDays, FlaskConical, Home,
-  Map as MapIcon, Menu, PanelLeft, Target, Trash2, TrendingUp, Users, X,
+  AlertTriangle, AudioLines, BookOpen, CalendarDays, FlaskConical, Home,
+  Menu, PanelLeft, Target, Trash2, TrendingUp, Users, X,
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import { probeAdmin, rememberedAdmin } from "@/components/admin/AdminGate";
@@ -24,7 +24,9 @@ type Item = [href: string, label: string, Icon: typeof Home];
 const GROUPS: [string, Item[]][] = [
   ["Overview", [
     ["/admin/ceo", "CEO", Home],
-    ["/admin/roadmap", "Roadmap", MapIcon],
+    // The training corpus, from the CEO panel's button (backend N511). It
+    // took the Roadmap's place in the menu (founder, 2026-11-04).
+    ["/admin/training-corpus", "Training corpus", AudioLines],
   ]],
   ["People", [
     ["/admin/users", "Users", Users],
@@ -39,7 +41,9 @@ const GROUPS: [string, Item[]][] = [
     ["/admin/library", "Exercise library", BookOpen],
     ["/admin/errors", "Speaking errors", AlertTriangle],
   ]],
-  ["Data", [["/admin/project-deletions", "Project deletions", Trash2]]],
+  ["Data", [
+    ["/admin/project-deletions", "Project deletions", Trash2],
+  ]],
 ];
 
 const COLLAPSED_KEY = "willab:admin-menu-collapsed";

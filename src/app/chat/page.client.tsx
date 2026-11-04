@@ -2,6 +2,7 @@
 
 import WillabSurface from "@/components/willab/WillabSurface";
 import MembersOnly from "@/components/invite/MembersOnly";
+import DumpScreenHost from "@/components/willab/DumpScreenHost";
 
 /**
  * /chat — the willab product surface.
@@ -37,6 +38,11 @@ export default function ChatPageClient({
         idealTextArcId={idealTextArcId}
         idealTextMode={idealTextMode}
         idealTextTake={idealTextTake}
+      />
+      {/* The dump screen opens first only on a plain open, never from a
+          link to a Take, a walk or an Ideal Text (backend N506, N507). */}
+      <DumpScreenHost
+        plain={!sessionId && !insightSessionId && !bestPresentationArcId && !idealTextArcId && !idealTextTake}
       />
     </MembersOnly>
   );

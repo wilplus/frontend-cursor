@@ -167,7 +167,11 @@ step; the loop never waits for a coach.
   earlier steps stay above to scroll back to; nothing leaves the thread while
   the lens is open. Each new bubble, and the typing dots before it, land at
   the bottom, right above the buttons, as in the Lounge; the thread follows
-  them down until the speaker scrolls up by hand. What opens a part (the
+  them down until the speaker scrolls up by hand. A thread shorter than the
+  screen sits at the bottom too, and the lens screen's own wait while the
+  walk loads is the typing dots there, so the first bubble lands where the
+  dots were; they show only once the walk is still loading 0.3 s after the
+  screen opens, so a quick load never flashes them (N122, N499). What opens a part (the
   walk's answer to the step before, "And now, one thing to improve:", a
   lead) lands first, then the step's own bubbles one at a time, the AI
   clip's fix's too; moving on, the thread glides down to them (N440; was:
@@ -297,16 +301,17 @@ step; the loop never waits for a coach.
   cause it is not!")
 - **B14** **The bar under the chat** has one logic in every chat
   (founder 2026-11-04, N483, locked on "The Bar, Clickable"
-  <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2>, version 8). The left
+  <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2>, version 12, N498). The left
   holds your things: in Will's chat the stack, Your projects (N460 item 5).
   The middle holds the one thing to do now, the first of these that holds
   (`Lounge.tsx`; `WillBarMiddle` in `plan/PlanDock.tsx`; `useWordsBox` in
   `WillQuestion.tsx`):
-  1. Will asks for words (a setup's name or code, "What was missing?", his
-     follow-up with no answers to tap, or "Something else", the first of his
-     answers, tapped): the box "Type your answer". Empty, a box opened from
+  1. Will asks for your own words ("What was missing?", his follow-up with
+     no answers to tap, or "Something else", the first of his answers,
+     tapped): the box "Type your answer". Empty, a box opened from
      "Something else" closes when you tap away; one Will asks for stays
-     until you send. You type at no other time;
+     until you send. You type at no other time, and your name is never
+     asked here: it comes from sign-up (N498 item 2);
   2. Will needs to hear you (the plan's spoken questions,
      [`the-plan.md`](the-plan.md) B10): "Record your answer", with "Not
      now" a grey word under his question; "Not now" leaves it until the
@@ -1106,10 +1111,11 @@ under "Was:" below (R3, R6). On (founder 2026-11-04, N470 (#1702), N479
   it is the only time it waits. There is no "Everyone on WillpowerLab" and
   no "Only me" (N470 item 2, N479 item 1).
 - **G3** Each ticked person gets the Take as your own message in your chat
-  with them, by name, not blind, with the Take attached and "Open Take",
-  which plays its recording and shows its words slide by slide, never its
-  Ideal Text, feedback, moments or levels (N470 item 4, N479 item 8;
-  customer-requests.md C1). The Take is sent after its upload, never waited
+  with them, by name, not blind, with the Take attached, already open: its
+  recording and its words slide by slide, never its Ideal Text, feedback,
+  moments or levels (N470 item 4, N479 item 8, N504 item 1; was "Open Take");
+  newest, it asks for an answer, recorded over its own slides (N493 items 1
+  and 3; customer-requests.md C1). The Take is sent after its upload, never waited
   on, and never for an answer (R2, R5; `applyNextTakeShare` sends it,
   `POST /v2/user/takes/<take>/send`). The crowd stops for new Takes: no
   new Take is shared with other speakers to judge; C8 keeps running on the
@@ -1690,6 +1696,27 @@ October (backend N111).
   RHYTHM OF A RUN", on `data-rhythm` and `data-row`; `Lounge.tsx`,
   `chats/ChatThread.tsx`). The walk keeps its own spacing: every bubble
   there stands apart (J6). Was: 8px between every row.
+- **J9** One space around every bottom bar (founder 2026-11-04, N505, as
+  on WhatsApp, on the prototype "Bottom Bar Spacing"
+  <https://claude.ai/artifact/2riV2BjMgYdESpBv7piuhi>, version 3), everywhere
+  in the app: a bar at the bottom of a screen keeps 8px from the bottom edge,
+  8px from each side, and what scrolls above it stops 8px above it. 8px is
+  the space the bottom already measured. A bar that ends in a grey word
+  ("Close", "Cancel") adds nothing under it: the word's row holds its 8px
+  (N280). A phone's home-bar strip stays the space below where it is bigger;
+  on a computer the 8px is inside the page's column. One rule, `bar-space`
+  in `globals.css`; inside the app's shell a bar pulls out of the shell's
+  16px sides (`-mx-2`). The bars: Will's chat and every chat's bar
+  (`Lounge.tsx`), "Record Take N" and "Close" (`IdealTextOverlay.tsx`,
+  `IdealTextReadout.tsx`), the walk's footer here and in the coach panel
+  (`WalkFooter.tsx`, `WalkSheetFrame.tsx`), the plan's answers and button
+  (`LoungeLifeGoals.tsx`, `plan/PlanCalendar.tsx`), the recording screen's
+  buttons (`RecordingRoadmap.tsx`), the transcript's Save
+  (`TranscriptReviewDeck.tsx`) and the welcome example's button
+  (`WelcomeExample.tsx`). Sizes, words and the gaps inside a bar do not
+  change; a slide-up sheet is a card and keeps its own padding. Was: 16px
+  sides; 0px above the chat's bar and "Record Take N"; the walk's footer and
+  the plan's answers 20px sides and 30px under.
 
 ### K · Words on screen (all signed)
 
@@ -2210,6 +2237,11 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-11-04 · N513 · G, J8: on the "Who hears this Take" screen Will's three bubbles are one run in the chats' rhythm, 2px apart with their corners drawn in where they meet (`data-rhythm`), then the list; the Feedback walk keeps its own 16px (J6, N469 item 2). Was: the three bubbles 16px apart, as walk bubbles · BE N513 log, FE (this PR)
+- 2026-11-04 · N505 · J9: one space around every bottom bar, 8px above, on each side and below, as on WhatsApp; the thread stops 8px above the chat's bar; the walk's footer goes from 20px sides and 30px under to 8px (`globals.css` `bar-space`, `Lounge.tsx`, `LoungeLifeGoals.tsx`, `walk/WalkFooter.tsx`, `walk/WalkSheetFrame.tsx`) · BE, FE (this PR)
+- 2026-11-04 · N498 item 2 · B14: Will's chat never asks for your name (it comes from sign-up); the box "Type your answer" comes only for your own words ("Something else", his follow-up with no answers, "What was missing?"); the bar's prototype is version 12 · BE N498 (#1733), FE (this PR)
+- 2026-11-04 · N122, N499 · B5, B8: the walk loads with the typing dots at the bottom, where its first bubble lands, and only once it is still loading after 0.3 s (`LENS_DOTS_AFTER_MS`); a thread shorter than the screen sits at the bottom, right above the buttons, as in the chat (`IdealTextOverlay` `LensFrame`, `WalkThread`). Prototype: <https://claude.ai/artifact/1KxNrA1Yw1QDPEK1zRFBAe>. Was: the dots at the top left of an empty screen from the first frame, and the first bubbles at the top until the thread filled · BE #1738, FE (this PR)
 
 - 2026-11-04 · N483 · B3, B10, B14, D4, E1, E3, K: the bar has one logic in every chat. In Will's chat the stack on the left, and in the middle the one thing to do now: the box "Type your answer" only when Will asks for words ("Something else", now the first of his answers, opens it; empty, it closes when you tap away); "Record your answer" for the plan's spoken questions, with "Not now" under the question; "Continue review"; else "Record Take N" for the newest Take, faded while one is processed, or "Start your first recording" before any (`WillBarMiddle`, `useWordsBox`, `Lounge.tsx`, `afterTake.ts`). What stops: the mic and voice notes to Will, the "#" note, "Keep a voice notebook?" and Will opening the notebook from your Takes (the note rests; kept notes stay, notes left on the phone still go); typing when Will has not asked; a spoken answer to Will's question; the tap "I want to continue my practice"; the ✕ beside "Record Take N"; "Continue review" above the bar; the faded "Type here" and its note · BE N483 (#1718), FE (this PR)
 - 2026-11-04 · N470, N479 · G: who hears this Take: at "Record Take 2" the three signed bubbles, "Select all" and one row per person in your chats, everyone ticked or the last choice, "Last sent" on the one sent to last; Continue keeps the people and the line naming them ("Artur, Maya Lindqvist", "Everyone in my list"), and the Take is sent to each, as your message in your chat with them, once its upload is up; the line opens the screen to add people, never to unsend; asked again only when someone joins a choice of chosen people; "Record Take N" waits 1.5 s at most for the choice, then asks; nobody in the list records with nothing sent (`NextTakeShareScreen.tsx`, `nextTakeShare.ts`, `walkThread.ts`, `IdealTextActions.tsx`, `takeSends.ts`). Behind the backend's switch, off until the Privacy text is signed; off, or when its reads fail, today's screen exactly. What stops once on: General community and Only me, the crowd judging new Takes, taking a sent Take back, the passcode (N471 item 2, N479 item 4), the question asked again when a community is added. Was: G1 to G4, "How big you want your audience?" · BE N470 (#1702), N479 (#1704), BE (send PR), FE (this PR)
