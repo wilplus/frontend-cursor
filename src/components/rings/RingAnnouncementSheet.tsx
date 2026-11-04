@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { useRingState } from "@/hooks/useRingState";
+import { ANNOUNCEMENT_COPY, UNSIGNED } from "./announcementCopy";
 import {
   recordAnnouncementDecision,
   refreshRingState,
@@ -24,18 +25,22 @@ import {
 /*                                                                            */
 /*  EVERY VISIBLE STRING HERE IS A PLACEHOLDER. The title and body come from    */
 /*  the founder's panel (seeded as "[founder copy] …"); the button labels are   */
-/*  placeholders too. Nothing ships as user-facing copy without sign-off.      */
+/*  placeholders too (announcementCopy.ts). Nothing ships as user-facing copy  */
+/*  without sign-off: an item whose words are not all signed is never shown.   */
 /*  Nothing here shows a score, a ring number or anyone else's data.           */
 /* -------------------------------------------------------------------------- */
 
-const COPY = {
-  notNow: "[founder copy] Not now",
-  yes: "[founder copy] Yes",
-  yesToDataChoices: "[founder copy] Turn on in my data choices",
-  policyMissing:
-    "[founder copy] This choice will be available once the policy is in place.",
-  dismiss: "[founder copy] Close",
-} as const;
+const COPY = ANNOUNCEMENT_COPY;
+
+/** Every word the sheet would show for this item. A placeholder among them
+ *  ("[founder copy] …", unsigned) keeps the whole sheet off the screen: no
+ *  new words without the founder's OK (Never 4). The founder saw one in the
+ *  iPhone app on 2026-11-04. */
+function signed(item: PendingAnnouncement): boolean {
+  const words = [item.title, item.body, COPY.notNow, yesLabel(item)];
+  if (!yesIsAvailable(item)) words.push(COPY.policyMissing);
+  return words.every((w) => !String(w ?? "").trimStart().startsWith(UNSIGNED));
+}
 
 const DATA_CHOICES_PATH = "/account/data-consent";
 
@@ -65,7 +70,9 @@ export default function RingAnnouncementSheet() {
   const [answered, setAnswered] = useState<Set<string>>(() => new Set());
   const [busy, setBusy] = useState<string | null>(null);
 
-  const pending = (state?.pendingAnnouncements ?? []).filter((a) => !answered.has(a.feature));
+  const pending = (state?.pendingAnnouncements ?? []).filter(
+    (a) => !answered.has(a.feature) && signed(a)
+  );
   const item = pending[0];
 
   const answer = useCallback(
