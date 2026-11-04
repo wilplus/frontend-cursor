@@ -576,12 +576,14 @@ the dot, until his chat is open (N457 item 2).
 O11 On the web and in the iPhone app, Will's chat never shows for a moment
 before the list covers it: the loader stands in front until the list
 has answered, and it never waits on the rings (N354, N456).
-O12 The ""+"" in a chat swaps the bar for four tiles with their names,
-Photos, Camera, Files and Someone else; Someone else opens the add
-sheet with my link; a ✕ where the ""+"" was brings the bar back (N351,
-N460 item 4).
-O13 A photo I pick is posted to the chat's photo route and joins the
-thread as my image (N337, N351).
+O12 The ""+"" in a chat asks them (N483 item 4, N498): ""Ask {name}"", with
+no line, the black ""Record your question"" and Cancel, and the three
+steps only before my first question; ""Record your question"" opens the
+recording screens on the default presentation (a project with no
+slides of its own, named ""To {name}""), and the question goes to the
+question route with ""Sending to {name}… {n}"" and Undo, then ""Sent to
+{name}"". Until I first tap it the ""+"" is orange; then it is plain.
+Photos, Camera, Files and Someone else are off (N483 item 4).
 O14 The other person's file shows a tile with its extension and its own
 name, and downloads
 from the chat's file route; a photo opens full size with a close and
@@ -635,8 +637,7 @@ O8 -> ""the + opens my own link and copies it""
 O9 -> ""a chat joined through a link says whose link it was""
 O10 -> ""after joining, the list opens with Will first and the one who invited me under him, marked new""
 O11 -> ""as a user, the loader, not Will's chat, waits for my list, on the web and in the app, and never for the rings""
-O12 -> ""the + shows the four tiles, Someone else opens my link, and the ✕ in its place brings the bar back""
-O13 -> ""a photo I send joins the thread as my image""
+O12 -> ""the + asks them: the default presentation, and the question goes with Sending, Undo and Sent""
 O14 -> ""the other person's photo or file opens from the chat's file route""
 O15 -> ""an answer sent to me plays with its slides following the voice, its words behind Read it""
 O16 -> ""a marked question takes Record your answer, Not now leaves it, and my answer goes with Sending, Undo and Sent""
@@ -1234,7 +1235,8 @@ src/components/willab/recordingSetup.test.tsx,Story,"As a speaker, I want setup 
 O2  With no slides added, the slides step's button is ""Skip for now"", the
 last step included, and it starts the Take.","O1 -> ""asks topic, length, slides, then starts""
 O2 -> ""asks topic, length, slides, then starts""","Founder 2026-10-12; ""Skip for now"", backend N449 item 3."
-src/components/willab/recordingStillFrame.test.tsx,Story,"As a speaker recording, I want the top bar to read ""Take N · Slide n of m"", Back and Next slide to move slides, Finish take on the last slide to be the only way to end, and only the slide to move, so that recording feels steady and I never end a Take by accident.","O1  The top bar reads ""Take 2 · Slide 1 of 3"", once.
+src/components/willab/recordingStillFrame.test.tsx,Story,"As a speaker recording, I want the top bar to read ""Take N · Slide n of m"", Back and Next slide to move slides, Finish take on the last slide to be the only way to end, and only the slide to move, so that recording feels steady and I never end a Take by accident.","O1  The top bar reads ""Take 2 · Slide 1 of 3"", once; a question to
+someone (N483 item 4) reads ""To Sarah · Slide 1 of 3"".
 O2  On the last slide Next slide becomes the red Finish take, which ends
 the Take.
 O3  Space after clicking Back goes forward, not Back again.

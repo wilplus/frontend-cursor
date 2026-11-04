@@ -233,11 +233,12 @@ export function ChatLinks({ children }: { children: ReactNode }) {
   return <div className="mr-auto flex max-w-[90%] flex-col items-start gap-0.5 pt-0.5">{children}</div>;
 }
 
-/** The box in Will's bar (backend N483 item 2): you type to Will only when
- *  he asks for words. It opens when you tap "Something else", the first of
- *  his answers (`start`), and by itself while words are what waits: his
- *  follow-up with no answers to tap, or `wordsWait` (a setup's name or code,
- *  "What was missing?"). Anything typed keeps it; empty, the box you opened
+/** The box in Will's bar (backend N483 item 2, N498 item 2): you type to
+ *  Will only when he asks for your own words. It opens when you tap
+ *  "Something else", the first of his answers (`start`), and by itself
+ *  while words are what waits: his follow-up with no answers to tap, or
+ *  `wordsWait` ("What was missing?"). Your name is never asked here: it
+ *  comes from sign-up. Anything typed keeps it; empty, the box you opened
  *  closes when you tap away (`close`). The plan's questions keep typing off
  *  (N319, N323), so they never show it, and words typed before wait. */
 export function useWordsBox(

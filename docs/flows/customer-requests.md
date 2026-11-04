@@ -146,14 +146,14 @@ rest is built in.
      each bubble, bottom right; under a big emoji, its meaning and time
      ("It's good · 06:12"). The bubbles stay the Lounge's. **The bar**
      has one logic in every chat (N483, locked on "The Bar, Clickable"
-     <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2>, version 8): your
-     things on the left, the one thing to do now in the middle. Here the
-     left is the "+" (N351, below); the middle is the three emoji in the
+     <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2>, version 12, N498):
+     your things on the left, the one thing to do now in the middle. Here
+     the left is the "+", which asks them (below); the middle is the three emoji in the
      box; "Record your answer" when a marked question waits (below), with
      "Not now" a grey word under their question, which gives the emoji
      back until the chat is opened again and tells them nothing; or
      "Sending to {name}… {n}" with Undo, a bold word in the pill, while an
-     answer goes. No mic and no box: no voice notes and no typing (N483
+     answer or a question goes. No mic and no box: no voice notes and no typing (N483
      item 3; people never type, N335 item 4). Every send gives a short
      sound, and a small buzz where the device allows it. Was: the mic on
      the right, orange while your voice was awaited (N368, N460 items 1 to
@@ -192,32 +192,38 @@ rest is built in.
      first as the one black button, the others as quiet rows), which wait
      for the picker (D1); the link to it from WhatsApp, which waits for the
      WhatsApp notice.
-   - **The "+"** (N351, N335 item 3, N337; built 2026-11-02 behind the
-     same ring), in every chat but Will's (Will's chat keeps the Lounge's
-     bar): a tap swaps the bar for a row of four round coloured tiles, each
-     with its name under it, Photos, Camera, Files and Someone else, and a
-     ✕ where the "+" was, which brings the bar back (the prototype's
-     `attachSheet`; N460 item 4, was "Cancel" under the row). Photos opens the browser's own picker for
-     images, several at once; Camera the same, to the camera on a phone (on
-     a computer, the browser's file picker); Files the picker for any file.
-     We draw no picker of our own. Each one picked is sent on its own, up
-     to 10 MB (a photo over 4 MB is redrawn smaller in the browser first:
-     the platform refuses a body over about 4.5 MB), and joins the thread
-     once the backend has kept it. A photo is a bubble with the image, mine
-     orange on the right, theirs grey on the left, its time under it;
-     tapped, it opens full size, with a close ✕ and no words. A file is a
-     bubble with a small red tile holding its extension, from its own name
-     ("PDF"), and its name; no size, no other words; tapped, it downloads
-     through the backend. The backend marks each photo or file as a
-     question for the other person (N341 item 2); since N483 that changes
-     nothing in the bar. N483 item 4 turns these tiles off and makes the
-     "+" ask the person ("Ask {name}", §2, in flight).
-     Someone else opens the add sheet the list's "+" opens (the join link,
-     below). The list's line is "📷" after a photo and "📄 {file name}"
-     after a file. A refused picker, a failed send or a file too big brings
-     the bar back and shows nothing new. Not built: the prototype's own
-     pickers and their words ("Photos and screenshots", "For {name} only.",
-     "Send {n}", "Back"), not signed (N351 item 2).
+   - **The "+" asks them** (N483 item 4, N498; the locked prototype "The
+     Bar, Clickable" v12). In every chat but Will's, a tap opens "Ask
+     {name}", a sheet from the bottom built like "Add someone to chat
+     with": the title, the black "Record your question" with the red dot,
+     the three steps before your first question only ("1. Ask one thing ·
+     A clear question gets a clear answer", "2. {name} answers · Out loud,
+     when they have a moment", "3. It stays here · Play it again whenever
+     you need it"), and Cancel; no line (N498 item 1). "Record your
+     question" always opens the recording screens on the default
+     presentation (Opening, Main points, Summary): a project of its own
+     with no slides, named "To {name}", that never becomes your current
+     one, the top line "To {name} · Slide {n} of 3"
+     ([recording-screens.md](recording-screens.md)). Finish take brings you
+     back to the chat with "Sending to {name}… {n}" and Undo, as an answer
+     goes (below): the question goes to the backend once its Take is up
+     (`POST /v2/chats/<id>/question`), held for what is left of the 5
+     seconds, taken back by Undo, then "Sent to {name}" under it. It
+     reaches them as your voice message, with its words behind "Read it",
+     marked for them to answer: their bar's middle is "Record your answer"
+     with "Not now". Until you first tap it, while nothing else is asked of
+     you and before you have asked anyone, the "+" is a filled orange
+     circle, still: the one orange thing in the bar; once tapped it is
+     plain (both kept on this device), and never while a question asked
+     when you join waits for your tap ("Asked when they join", above). Was
+     (N351, N460 item 4): the "+" swapped the
+     bar for four tiles, Photos, Camera, Files and Someone else; they are
+     off for now (N483 item 4). Photos and files already sent still show: a
+     photo is a bubble with the image, mine orange on the right, theirs
+     grey on the left, its time under it, and opens full size with a close
+     ✕ and no words; a file is a bubble with a small red tile holding its
+     extension ("PDF") and its name, and downloads through the backend. The
+     list's line is "📷" after a photo and "📄 {file name}" after a file.
    - **A person's profile** (N366, the locked prototype "One bar" v12):
      in a person's chat, a tap on their circle or name in the top bar
      opens their profile, sliding over the chat, with back to it; your
@@ -611,7 +617,6 @@ them:
 
 ## 2. In flight
 
-- **N483** · the "+" asks the person (locked 2026-11-04; the bar itself is built, C1): the "+" opens "Ask {name}", a sheet built like "Add someone to chat with", whose "Record your question" always opens the recording screens with the default presentation ("To {name} · Slide {n} of 3"), sent with "Sending to {name}… {n}" and Undo; the "+" a filled orange circle until your first question; a setup asks closed questions only; Photos, Camera, Files and Someone else off for now · replaces, when built: C1's "+" tiles · prototype "The Bar, Clickable" <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2> (version 8; files in the backend's `docs/design/customer-requests-2026-10-28/the-bar/` and `11-the-bar-clickable.pdf`) · locked, waiting to be built · BE #1718
 
 Built for every signed-in person (backend N456, 2026-11-03; was ring 6,
 feature `chats`, the founder only, 2026-11-02): the
@@ -626,8 +631,9 @@ WillpowerLab bar's place, with the day and each message's time, the
 three emoji in the locked bar (N298, N302, N305, N306, N311, N321, N322;
 the mic and its voice notes went with N483, the older ones still play). Off, /chat is the Lounge as it is. Not yet: passing on, the
 status and the filters. Built since: the join link, the add sheet and the join page
-(C1, N308, N328, N335); the "+" in a chat with a person, with Photos,
-Camera, Files and Someone else (C1, N351); "Record your answer", a marked
+(C1, N308, N328, N335); the "+" in a chat with a person, which asks them
+("Ask {name}", C1, N483 item 4, N498; was Photos, Camera, Files and Someone
+else, N351); "Record your answer", a marked
 question answered with a Take that goes back to the chat (C1, N361,
 N363); Block and Report from a person's profile, the reports in the CEO
 panel (C1, N466). Built behind the backend's switch for sending (`TAKE_SEND_ENABLED`,
@@ -726,13 +732,15 @@ the day, `chatOpened.ts` what is new; a voice note plays with
 `[chatId]/messages/[messageId]/audio/`, in byte ranges); the backend's
 `/v2/chats` routes and `GET /v2/chats/<id>/messages/<messageId>/audio`
 (`POST /v2/chats/<id>/voice` is no longer called, N483 item 3). The "+"
-(N351): its tiles and the photo and file bubbles in
-`ChatThread.tsx`, a big photo made smaller in `photoForUpload.ts`, the add
-sheet reused from `ChatList.tsx`; the BFF routes `[chatId]/photo/` and
-`[chatId]/file/` (both through `chatUpload.ts`) and
-`[chatId]/messages/[messageId]/file/`; the backend's
-`POST /v2/chats/<id>/photo`, `POST /v2/chats/<id>/file` and
-`GET /v2/chats/<id>/messages/<messageId>/file` (table `chat_message_files`).
+asking them (N483 item 4): the sheet in `AskSheet.tsx`, the orange "+" in
+`ChatThread.tsx` (`EmojiBar`), the question's project, sending and Undo in
+`src/lib/willab/chatAnswer.ts` (`asks`, `askedBefore`, `plusSeen`), the BFF
+route `[chatId]/question/` and the backend's `POST /v2/chats/<id>/question`.
+Photos and files already sent: their bubbles in `ChatThread.tsx`, the BFF
+route `[chatId]/messages/[messageId]/file/` (through `chatUpload.ts`) and
+the backend's `GET /v2/chats/<id>/messages/<messageId>/file` (table
+`chat_message_files`); sending them stopped with N483 item 4 (the BFF
+routes `[chatId]/photo/` and `[chatId]/file/` are gone).
 Block and Report (N466): the rows, the sheets, the blocked bar and the toast
 in `BlockReport.tsx` (the profile's foot in `Profile.tsx`, the bar in
 `ChatThread.tsx`); the BFF routes `[chatId]/block/` and `[chatId]/report/`;
@@ -814,6 +822,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N483 item 4, N498 · C1, §2, §4: the "+" asks them: "Ask {name}", a sheet built like "Add someone to chat with", with no line, the black "Record your question", the three steps before your first question only, and Cancel; the question is recorded over the default presentation ("To {name} · Slide {n} of 3") and sent as an answer is, with Sending, Undo and "Sent to {name}", marked for them to answer ("Record your answer"); the "+" orange until first tapped (`AskSheet.tsx`, `ChatThread.tsx`, `chatAnswer.ts`, BFF `[chatId]/question/`). What stops: the four tiles, sending photos and files, and Someone else from a chat (the list's "+" still opens the add sheet); photos and files already sent still show · BE N498 (#1733), BE (question route PR), FE (this PR)
 - 2026-11-04 · N487, N496, N502 · C1: a chat made through the link of someone who set questions asks them, answered by tapping (TapRow; several, then "Send" in the bar's middle; "Yes" to the hurry opens the date sheet), with "Your deadline: {date}" under the answer; the owner sees "{name} joined through your link." and one card, "{name}'s answers", also on their row. The joined line is now N496's, in the chat and on the row. What stops: the line "You joined through {name}'s link. Only the two of you are in this chat." · BE N487 (#1717), N496 (#1732), N502 (#1734), BE #1739, FE (this PR)
 - 2026-11-04 · N500 · C1: an emoji from the other person lights up their row like any new message, your own message never does, and every new row, Will's included, has the look locked for the whole app: the name bold, the time orange, the last line bold and orange, the orange dot; the open list reads the chats again every 20 seconds and on coming back to it (`ChatList.tsx`, `chatOpened.ts`, `useChats.ts`). Was: the line dark and not bold, your own message could read as new, and the list read the chats only when it first loaded · BE N500 (wilplus/backend-cursor#1737), FE (this PR)
 - 2026-11-04 · N488 · C1: the row of a chat you joined through someone's link keeps "You joined through {name}'s link. Only the two of you are in this chat." until the chat's first message, read from the list's `joined_through` (`ChatList.tsx`); only the one who joined sees it. Was: the row went blank once the chat was opened · BE N488 log (#1724), BE (#1729), FE (this PR)
