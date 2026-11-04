@@ -612,6 +612,8 @@ Waiting for the founder's OK:
 
 ## 2. In flight
 
+- **N483** · the plan in the bottom bar (locked 2026-11-04, not built): a spoken question takes "Record your answer" in the bar's middle, with "Not now" under it; no mic, no faded "Type here" and no note on it; "Record Take N" at rest with no tap before it and no ✕ · replaces, when built: B10's orange mic and faded box, E's line in place of "Type here", G's tap "I want to continue my practice" and the ✕ beside "Record Take N" (N395), K's note on the faded box · prototype "The Bar, Clickable" <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2> (version 8; files in the backend's `docs/design/customer-requests-2026-10-28/the-bar/` and `11-the-bar-clickable.pdf`) · locked, waiting to be built · BE #1718
+
 - **The first Take is the onboarding** · backend N401 (locked with the
   prototypes "The way in" and "The first Take"), the only way in wherever
   the plan is on, with no ring row needed (N457 item 3); a `first_take` row
