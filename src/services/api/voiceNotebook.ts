@@ -40,25 +40,6 @@ async function post(path: string, init: { json?: unknown; body?: BodyInit }): Pr
   }
 }
 
-/** Writes "Keep a voice notebook?" at the bottom of the thread. */
-export function askNotebook(): Promise<boolean> {
-  return post("/api/v2/notebook/ask", { json: {} });
-}
-
-/** The Lounge opened: when due, Will's spotted strength from the last Takes
- *  and the notebook's ask are written (backend N411 items 1, 5). True when
- *  anything was written, so the thread is read again. */
-export async function introFromTakes(): Promise<boolean> {
-  try {
-    const result = await bffFetch("/api/v2/notebook/intro", { method: "POST", cache: "no-store", json: {} });
-    if (result.kind !== "response" || !result.ok) return false;
-    const messages = (result.body as { messages?: unknown[] } | null)?.messages;
-    return Array.isArray(messages) && messages.length > 0;
-  } catch {
-    return false;
-  }
-}
-
 export function answerNotebook(choice: "yes" | "not_now"): Promise<boolean> {
   return post("/api/v2/notebook/consent", { json: { choice } });
 }

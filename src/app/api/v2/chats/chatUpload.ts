@@ -4,8 +4,7 @@ import { callBackend, failure, getAccessToken, relayAudio, relayLenient, type Fa
 
 /**
  * A photo or a file sent from the "+" in a chat with a person (N351):
- * multipart `file`, relayed to `POST /v2/chats/<chatId>/photo` or `/file`
- * as the voice note's upload is relayed (`[chatId]/voice`). The backend
+ * multipart `file`, relayed to `POST /v2/chats/<chatId>/photo` or `/file`. The backend
  * checks the chat, the type and the size (10 MB) and answers the message.
  * The platform's own body limit (about 4.5 MB) refuses anything larger
  * first; the app makes a big photo smaller before it is sent.

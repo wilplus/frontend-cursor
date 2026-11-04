@@ -15,28 +15,24 @@ OUTCOME
       the new Take's closing message, after its walk's summary (founder
       2026-10-28, N244, N251: it came back as processing ended, beside the
       new Take's walk).
-  O6  Nothing pushes the next Take (N294 items 6 and 7): under the goodbye,
-      with the plan's progress under it, the one tap "I want to continue
-      my practice"; once I tap it, or type that I want to practise, "Record
-      Take N" stands alone under the chat; while an ask waits, once I said
-      anything else, or once a newer Take is recorded, neither shows.
-  O7  After the first Take, "Record Take 2" comes at once under its
-      goodbye, with no tap first, on any device (the backend marks that
-      goodbye); every other Take keeps the tap (N449 item 2).
+  O6  After the goodbye the bar's middle is "Record Take N" for the next
+      Take, with nothing to tap first (N483 item 2; was the tap "I want to
+      continue my practice", N294 item 6); while an ask waits, once I said
+      anything else, or once a newer Take is recorded, the goodbye names no
+      Take. An older thread ending with that tap still counts.
 PROVES   O1 -> "draws the card, the ask, and the message only once it is let go"
          O2 -> "opens the Take's WhatsApp ask by itself"
          O3 -> "knows when no ask is in front of the speaker"
          O4 -> "keeps the card above the admin's ask, stamped with the message it waits for alone"
          O5 -> "the last Take's Record button goes once the next Take is recorded"
-         O6 -> "after the goodbye, the tap, then Record Take N alone"
-         O7 -> "after the first Take, Record Take 2 at once"
+         O6 -> "after the goodbye, Record Take N at once"
 WHY      Founder 2026-10-20: "You cannot have two actions at a time, like
          feedback and record" (backend services/after_take.py); 2026-10-31
          (N294): "No call to action means that there is no push".
 */
 import { describe, expect, it } from "vitest";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
-import { afterGoodbye, afterTakeOrder, askShowing, heldMessage, recordedPast, wantsToPractise } from "./afterTake";
+import { afterGoodbye, afterTakeOrder, askShowing, heldMessage, recordedPast } from "./afterTake";
 
 const at = (n: number) => `2026-10-20T10:00:0${n}.000Z`;
 const row = (id: string, n: number, kind: LoungeMessage["kind"], metadata: Record<string, unknown>, body = id): LoungeMessage =>
@@ -89,47 +85,22 @@ describe("after a Take", () => {
     expect(recordedPast([closing, other, next]).has("closing-b")).toBe(false);
   });
 
-  it("after the goodbye, the tap, then Record Take N alone", () => {
+  it("after the goodbye, Record Take N at once", () => {
     const goodbye = row("goodbye", 1, "text", { next_take: true, take_index: 2, ...take });
     const progress = row("progress", 2, "text", { plan: "p1", plan_progress: true, done: 2, total: 9 });
     const coach = row("coach", 3, "walk_step", { step: "coachnote", ...take });
     expect(afterGoodbye([goodbye, progress, coach])).toMatchObject({
-      step: "tap",
       next: { arcId: "a", takeIndex: 2, takeSessionId: "t2" },
     });
     // Held behind an ask, or with anything said since: nothing.
     expect(afterGoodbye([{ ...goodbye, metadata: { ...goodbye.metadata, held_for: "will_question" } }])).toBeNull();
     expect(afterGoodbye([goodbye, row("reply", 4, "text", {}, "How do I sound calmer?")])).toBeNull();
-    // They chose to continue: Record Take N, until the next Take is recorded.
+    // An older thread that ends with the tap to continue: the same Take.
     const chose = row("chose", 4, "text", { continue_practice: true, take_index: 2, ...take });
-    expect(afterGoodbye([goodbye, progress, chose])?.step).toBe("record");
+    expect(afterGoodbye([goodbye, progress, chose])?.next.takeIndex).toBe(2);
+    // Once the next Take is recorded, in any project, it goes.
     const recorded = row("rec", 5, "recording_summary", { arc_id: "a", take_index: 3, session_id: "t3" });
     expect(afterGoodbye([goodbye, progress, chose, recorded])).toBeNull();
-
-    expect(wantsToPractise("I want to practise more")).toBe(true);
-    expect(wantsToPractise("let's record again")).toBe(true);
-    expect(wantsToPractise("not now, later")).toBe(false);
-    expect(wantsToPractise("How do I sound calmer?")).toBe(false);
-  });
-
-  it("after the first Take, Record Take 2 at once", () => {
-    const first = { take_session_id: "t1", arc_id: "first" };
-    const goodbye = row("goodbye", 1, "text", { next_take: true, take_index: 1, ...first });
-    const progress = row("progress", 2, "text", { plan: "p1", plan_progress: true, done: 1, total: 12 });
-    const firstTake = (t: { arcId: string; takeIndex: number }) => t.arcId === "first" && t.takeIndex === 1;
-    expect(afterGoodbye([goodbye, progress], firstTake)).toMatchObject({
-      step: "record",
-      next: { arcId: "first", takeIndex: 1, takeSessionId: "t1" },
-    });
-    // The backend marks the first Take's goodbye: on any device, Record
-    // Take 2 at once, with nothing kept on this one.
-    const marked = row("goodbye", 1, "text", { next_take: true, take_index: 1, first_take: true, ...first });
-    expect(afterGoodbye([marked, progress])?.step).toBe("record");
-    // Another Take's goodbye keeps its tap.
-    const later = row("later", 1, "text", { next_take: true, take_index: 2, ...take });
-    expect(afterGoodbye([later, progress], firstTake)?.step).toBe("tap");
-    // Held behind an ask, it waits as any goodbye does.
-    expect(afterGoodbye([{ ...goodbye, metadata: { ...goodbye.metadata, held_for: "will_question" } }], firstTake)).toBeNull();
   });
 
   it("knows when no ask is in front of the speaker", () => {

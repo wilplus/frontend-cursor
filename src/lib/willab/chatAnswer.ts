@@ -42,10 +42,6 @@ import {
 /** How long an answer can still be taken back (N345 item 2). */
 export const UNDO_MS = 5000;
 
-/** The longest answer (N363 item 3): the recording screens count down from
- *  it and finish by themselves at 0:00 (N441 item 2). */
-export const ANSWER_SECONDS = 300;
-
 /** Who the answer is for, and to what. */
 export interface AnswerFor {
   chatId: string;

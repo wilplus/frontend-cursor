@@ -29,6 +29,14 @@ Life Panel.
 
 ### A · What it is, and who has it
 
+0. **The note rests** (backend N483 item 7, founder 2026-11-04: "I am ready
+   to give up the option to record short messages in the chat and find for
+   it another place"). Will's chat has no mic and no "#" note, so no new #
+   note is made; Will no longer introduces the notebook from the Takes
+   (5) or asks "Keep a voice notebook?". Everything already kept stays,
+   and notes left on the phone still go. Its new place is decided with the
+   walk and the way knowledge spreads. The rules below describe it as it
+   was, for when it comes back.
 1. One feature: the voice notebook's # notes (backend
    [`docs/WILL-LEARNING-PLAN.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/WILL-LEARNING-PLAN.md) step 1), the Sunday note (L), life
    goals (M), and the principles in the Life Panel (`/panel/principles`)
@@ -566,6 +574,7 @@ Nothing in flight.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N483 item 7 · A0: the note rests: no mic and no "#" in Will's chat, so no new # notes; no introduction from the Takes and no "Keep a voice notebook?" (`useVoiceNotebook.tsx`; the client calls `askNotebook` and `introFromTakes` and their BFF routes `notebook/ask` and `notebook/intro` are gone). Kept notes stay; notes left on the phone still go · BE N483 (#1718), FE (this PR)
 - 2026-11-03 · N411 item 5 · A5: before any note, the introduction opens with a strength Will spots in the last three Takes' summaries, on the first Lounge open after the third, once; after Not now, again after three more Takes; after Yes, never · BE (the code), FE (this PR)
 - 2026-11-03 · N411 · A5, K: the security disclaimer: the mic line and three grey privacy lines above the new ask ("Do you understand the rules and want this feature on?"); the short line "🔒 Security disclaimer ›" under every spotted message and every fifth # note that names someone, a tap shows the three lines; the first spotted message from the Takes is not built yet. Was: N195's three bubbles (never built) and the ask "Your notes are private… Keep a voice notebook?" · BE #1634 (the decision), BE (the code), FE (this PR)
 - 2026-11-03 · N396 · B2: the words stream, well under a second behind the voice, with a short-lived key the backend issues under the permit; the pieces stay as the fallback; no new words on screen. Was: 2 to 4 seconds behind, every piece sent through Vercel and Railway to Whisper · BE (backend PR), FE (this PR)

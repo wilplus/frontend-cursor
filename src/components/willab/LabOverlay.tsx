@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { applyNextTakeShare } from "@/lib/willab/nextTakeShare";
-import { ANSWER_SECONDS, answerRecorded, answerTake, answering, type AnswerFor } from "@/lib/willab/chatAnswer";
+import { answerRecorded, answerTake, answering, type AnswerFor } from "@/lib/willab/chatAnswer";
 import { useRouter } from "next/navigation";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
@@ -1478,7 +1478,6 @@ export default function LabOverlay({
   retryProcessingRef.current = () => void retryProcessing();
 
   const look = answerLook(answer, state, uploadError, context?.target_length_seconds);
-  useAnswerEnds(answer, state, mic.state.status, elapsed, mic.stop);
   return (
     // A soft 0.4 s fade into the white screens (Q-B14 A, D-RC-7): the class
     // is paint only; see labFade.tsx.
@@ -2175,34 +2174,17 @@ export function RecordingWhere({
 /** An answer's look on these screens (backend N363, N441): hidden while its
  *  Take uploads, the chat showing "Sending to {name}…" (its error, if any,
  *  shows here as for any Take); a taller top bar with the person's name
- *  alone, and "{name} asks" over the question on the slide (N441 item 7);
- *  the clock counting down from 5:00 (N441 item 2). Any other Take: as
- *  always, its clock counting down from its planned length. */
+ *  alone, and "{name} asks" over the question on the slide (N441 item 7).
+ *  Its clock is any Take's: an answer has no five-minute cap (backend N486
+ *  item 4), and its project has no planned length, so it counts up and the
+ *  answer ends only at Finish take. */
 function answerLook(answer: AnswerFor | null, state: WillabState, uploadError: unknown, plannedSec: number | string | null | undefined) {
   return {
     hidden: answer && state === "lab_processing" && !uploadError ? " hidden" : "",
     header: answer ? "h-16" : "h-12",
     who: answer ? answer.name : null,
-    target: answer ? ANSWER_SECONDS : (plannedSec ?? null),
+    target: plannedSec ?? null,
   };
-}
-
-/** An answer finishes by itself at 0:00, five minutes in, as Finish take
- *  would (N441 item 2), the way a voice note stops at 2:00. Exported for
- *  tests, as RecordingPhase is. */
-export function useAnswerEnds(
-  answer: AnswerFor | null,
-  state: WillabState,
-  micStatus: ReturnType<typeof useDualCaptureMic>["state"]["status"],
-  elapsed: number,
-  stop: () => unknown,
-) {
-  const stopRef = useRef(stop);
-  stopRef.current = stop;
-  const over = answer !== null && state === "lab_recording" && micStatus === "recording" && elapsed >= ANSWER_SECONDS;
-  useEffect(() => {
-    if (over) void stopRef.current();
-  }, [over]);
 }
 
 /** Exported for tests, on the same grounds as RecordingPhase above: this
