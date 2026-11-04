@@ -148,6 +148,11 @@ rest is built in.
      Will's chat is the exception: it keeps its own bar, with "Type here"
      (N369); its left button, which opens Your projects, is a stack icon,
      not a "+", so "+" means add in every chat (N460 item 5).
+     Every choice offered in a chat, a person's or Will's, follows the
+     four rules of [the chat's page](feedback-walk-and-chat.md) J7 (N467,
+     locked for the whole app): your answers on your side under the
+     question, one orange answer look, "Not now", "Skip", "Cancel" and
+     "Close" a grey word, a way to go a link with ›.
      Will deciding what is a question (N322 item 5) is not built. The mic records with the one recording bar (the trash, the
      strip with Stop inside, N314), up to two minutes; Stop sends, the
      trash throws it away, and the bar comes back. The voice note joins
@@ -771,6 +776,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N467 · C1: every choice in a chat, a person's included, follows the chat page's J7, locked for the whole app; Will's chat starts at the bottom, as the chats with people do · BE N467 log (#1695), FE (this PR)
 - 2026-11-04 · — · C1: the rules text brought in line with N456 and N457: anyone signed in can join through a link, no ring; no rule changes · docs (this PR)
 - 2026-11-04 · N466 · C1, K, §2, §4: Block and Report: at the foot of a person's profile (never yours, never Will's), "Block {name}" and "Report {name}" in red; Block asks in a sheet ("Block {name}?", a red "Block", "Cancel"), then "{name} is blocked." and, in that chat, the bar is one grey pill "You blocked {name}." with "Unblock", which needs no sheet ("{name} is unblocked."); Report asks in a sheet ("Report {name}?", a red "Report", an outlined red "Report and block", "Cancel"), then "Reported. Thank you." or "Reported and blocked."; the founder reads the reports, newest first, with the five messages and "Mark as read", in the CEO panel's Reports (`BlockReport.tsx`, `Profile.tsx`, `ChatThread.tsx`, `CeoReports.tsx`). Was: no way to block or report someone · BE (next PR), FE (this PR)
 - 2026-11-04 · N460 · C1: the bar made calmer: in a person's chat the mic is a bare icon at rest and orange without pulsing when your words are awaited, quiet beside "Record an answer"; Undo and Send again are bold words in their pill; the "+" turns into a ✕ in its place to close the tiles, and "Cancel" goes; in Will's chat, Your projects is a stack icon. Was: the mic in a grey circle, orange and pulsing beside Record an answer too; Undo and Send again white pills; Cancel under the tiles; a "+" for Your projects (`ChatThread.tsx`, `Lounge.tsx`) · BE (N460 PR), FE (this PR)

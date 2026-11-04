@@ -453,13 +453,14 @@ O2  The message after the Take waits while Will's question (or its
 follow-up) is the newest bubble.
 O3  Suggested answers keep one shape everywhere (N371): two side by
 side, three or four stacked, more than four the last three and
-""Show more"", which shows the rest; a quiet ""Not now"" is never the
-filled one, and a lone answer is outlined, never filled (N415).
+""Show more"", which shows the rest; ""Not now"", ""Skip"", ""Cancel"" and
+""Close"" are a grey word, never the filled one (N467), and a lone
+answer is outlined, never filled (N415).
 O4  While Will's question waits and typing is allowed, the bar's middle
 is ""Something else""; a tap opens the box with ""Type your answer"".
 While typing is off (the plan asks), it never shows (N371).","O1 -> ""the newest question shows its answers, no Skip, and a tap
 goes to the backend once""
-O3 -> ""suggested answers: two in a row, three stacked, a lone one outlined, more than four behind Show more""
+O3 -> ""suggested answers: two in a row, three stacked, a lone one outlined, saying no a grey word, more than four behind Show more""
 O4 -> ""while Will asks, Something else opens the box; the plan's questions never show it""
 O2 -> ""the message after the Take waits under Will's question""","Founder 2026-10-20 (N82): ""only buttons"" in the walk, Will's questions in the Lounge, tap answers plus my own words; 2026-10-31 (N296): ""maybe we should not give them the option to skip; let's try that""."
 src/components/willab/acceptRewrite.test.tsx,Story,"As a speaker accepting a clearer version in the paragraph sheet, I want my answer saved and my text unchanged until I say it in my next Take, so that the Ideal Text is only what I said.","O1  The answer is saved once, as apply_suggestion.
@@ -1066,8 +1067,8 @@ O3  A cancelled render is not reported as a failed slide.","O1 -> ""a parent re-
 O2 -> ""a page change cancels the old render and redraws""
 O3 -> ""does not report a cancellation as a failed slide""","Founder 2026-09-19 ""the slides are gone"": an inline onError restarted the render on a busy canvas and latched the slide off. The fake below enforces pdf.js's one-render-per-canvas rule."
 src/components/willab/plan/PlanCalendar.test.tsx,Story,"As a speaker on a plan, I want Will to ask before I book my calls with my coach, then a big calendar I can swipe through that goes as soon as I book, so that booking takes a few taps and never stands between me and my first Take.","O1  Will's ask for a call has ""Skip"" and ""Book now"" under it, tap
-answers in the thread (N319 item 1), ""Skip"" grey and quieter on the
-left, ""Book now"" orange on the right (N325 item 2); the calendar
+answers in the thread (N319 item 1), ""Skip"" a grey word on the
+left, ""Book now"" orange on the right (N325 item 2, N467); the calendar
 does not open by itself (N281).
 O2  ""Book now"" opens it full screen: the call's name, ""0 of 2 booked""
 and the deadline; only a day with an open time can be picked, and
@@ -1076,10 +1077,10 @@ O3  Edit moves the deadline from the same screen (N168).
 O4  A day, then a time, then Book sends exactly that time, and the
 calendar is gone at once.
 O5  ""Skip"" passes the call on without booking it.","O1 to O4 -> ""Book now, a day, a time, then Book""
-O5 -> ""Skip passes the call on""","The calls' calendar, full screen and asked for first (founder 2026-10-28 and 2026-10-30, backend N248, N281; Skip quieter, backend N325 item 2); docs/flows/the-plan.md §1 F."
+O5 -> ""Skip passes the call on""","The calls' calendar, full screen and asked for first (founder 2026-10-28 and 2026-10-30, backend N248, N281; Skip quieter, backend N325 item 2, a grey word, N467); docs/flows/the-plan.md §1 F."
 src/components/willab/plan/plan.test.tsx,Story,"As a new speaker on the plan's ring, I want Will to ask me my questions one at a time the way he asks after the walk, and to show my plan as it was drawn, so that I reach my first Take without a form.","O1  A choice (the deadline, the plan's own yes, a new project's
 question) is tap answers on the right of the thread, Will's orange
-pills, the plan's ""Not now"" grey and quieter; the Lounge's bar
+pills, the plan's ""Not now"" a grey word (N467); the Lounge's bar
 stays under it, and a tap sends that answer (N319 item 1).
 O2  A voice question turns the bar's mic orange; a tap records with the
 one recording bar in the message box's place, the trash throws it

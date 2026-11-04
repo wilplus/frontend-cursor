@@ -1,3 +1,5 @@
+import { NOT_NOW } from "@/lib/willab/leaveWords";
+
 /* -------------------------------------------------------------------------- */
 /*  ⚠️  PLACEHOLDER COPY — EVERY STRING IN THIS FILE AWAITS FOUNDER SIGN-OFF   */
 /*                                                                            */
@@ -147,7 +149,7 @@ export const TOKENS_COPY = {
   topUpNoDate: "Pick a package and keep going now.",
   topUpChip: (tier: string, tokens: string) => `${tier} · ${tokens} tokens`,
   topUpChipPrice: (usd: number) => `$${usd}`,
-  topUpDismiss: "Not now",
+  topUpDismiss: NOT_NOW,
   /** The ask's black button (founder 2026-10-15, unified asks). */
   topUpSeePrices: "See prices",
   topUpFailed: "Couldn't start checkout. Try again.",

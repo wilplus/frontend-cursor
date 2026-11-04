@@ -6,8 +6,8 @@
  *          stands between me and my first Take.
  * OUTCOME
  *   O1  Will's ask for a call has "Skip" and "Book now" under it, tap
- *       answers in the thread (N319 item 1), "Skip" grey and quieter on the
- *       left, "Book now" orange on the right (N325 item 2); the calendar
+ *       answers in the thread (N319 item 1), "Skip" a grey word on the
+ *       left, "Book now" orange on the right (N325 item 2, N467); the calendar
  *       does not open by itself (N281).
  *   O2  "Book now" opens it full screen: the call's name, "0 of 2 booked"
  *       and the deadline; only a day with an open time can be picked, and
@@ -20,7 +20,7 @@
  *          O5 -> "Skip passes the call on"
  * WHY      The calls' calendar, full screen and asked for first (founder
  *          2026-10-28 and 2026-10-30, backend N248, N281; Skip quieter,
- *          backend N325 item 2);
+ *          backend N325 item 2, a grey word, N467);
  *          docs/flows/the-plan.md §1 F.
  */
 import { act, useState } from "react";

@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * SymmetricPair — the two-button choice row used across the Lounge's post-send
- * beats (legacy joke offer F7, install prompt F2). Equal-width pills
- * that mirror the overlay Back | Next nav (see SnippetScreenShell): a grey
- * outline pill on the left (the "Back"/close affordance) and the solid black
- * pill on the right (the forward action; black, founder 2026-10-12). Same h-11 rounded-full pill at
- * text-[15px] so it reads as one family with the rest of the app's navigation.
+ * SymmetricPair — equal-width pills that mirror the overlay Back | Next nav
+ * (see SnippetScreenShell): a grey outline pill on the left (the close) and
+ * the solid black pill on the right (the forward action; black, founder
+ * 2026-10-12). Kept only where backend N467 item 7 keeps it: the consent ask,
+ * the policy update and the one-project sheet. Every other choice in a chat
+ * is an answer (`AnswerPair`, WillQuestion.tsx).
  */
 export default function SymmetricPair({
   closeLabel,

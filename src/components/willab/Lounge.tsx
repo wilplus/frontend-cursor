@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import Link from "next/link";
 import { Layers, Send, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
@@ -156,7 +155,15 @@ import {
 } from "./LoungeStrengths";
 import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
-import WillQuestionBubble, { AnswerPair, TapRow, useSomethingElse, willQuestionOf, type WillQuestionTarget } from "./WillQuestion";
+import WillQuestionBubble, {
+  AnswerPair,
+  ChatLink,
+  ChatLinks,
+  TapRow,
+  useSomethingElse,
+  willQuestionOf,
+  type WillQuestionTarget,
+} from "./WillQuestion";
 import { isWillVoice, useWillVoice, WillVoiceBubble } from "./WillVoiceAnswer";
 import { RecordTakeButton, useRecordTake } from "./plan/PlanDock";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
@@ -176,6 +183,7 @@ import { planRowFor, type PlanRowCtx } from "./plan/PlanRows";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { afterChatBoot } from "@/lib/chatBoot";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
+import { CLOSE, NOT_NOW } from "@/lib/willab/leaveWords";
 
 // Opened on a tap, never on first paint: loaded then, off the boot bundle.
 const CoachWalkEntry = dynamic(() => import("./coachwalk/CoachWalkEntry"), { ssr: false });
@@ -1806,8 +1814,10 @@ export default function Lounge({
         /* `overflow-x-hidden` is load-bearing: `overflow-y-auto` alone computes
            overflow-x to auto, so any bubble content wider than the column (a
            long unbroken token, a wide card) makes the WHOLE thread pan
-           sideways — every bubble slides off the left edge of the screen. */
-        className="scrollbar-none -mb-3 flex flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain pb-2"
+           sideways — every bubble slides off the left edge of the screen.
+           `[&>:first-child]:mt-auto`: the chat starts at the bottom, by the
+           bar, as the chats with people do (N321 item 3, N467 item 1). */
+        className="scrollbar-none -mb-3 flex flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain pb-2 [&>:first-child]:mt-auto"
       >
         {thread.hasMore && (
           <button
@@ -2343,34 +2353,6 @@ export default function Lounge({
   );
 }
 
-/** B-1 — a single intent-driven quick-action button (from the BE's
- *  suggested_action, S1). Lives inside the bot bubble it came with, persists
- *  in thread history, and is always clickable (action is idempotent).
- *  Drawn like a walk step's card (founder 2026-10-16: "Your presentations"
- *  in the shape of "Choose your helper words"): the grey bubble with the
- *  chevron, so every tappable card in the chat looks the same. */
-function ActionButton({
-  action,
-  onClick,
-}: {
-  action: ChipAction;
-  onClick: () => void;
-}) {
-  return (
-    <div className="mr-auto flex max-w-[85%]">
-      <button
-        type="button"
-        onClick={onClick}
-        className="relative self-start rounded-[16px] bg-muted py-2 pl-3 pr-[30px] text-left text-[15px] leading-[1.45] text-foreground"
-      >
-        {CHIP_LABEL[action]}
-        <span aria-hidden="true" className="absolute right-[11px] top-1/2 -translate-y-1/2 text-[20px] text-muted-foreground">
-          ›
-        </span>
-      </button>
-    </div>
-  );
-}
 
 /** The footer action pair for the currently-armed offer — it replaces the
  *  record button. The matching prompt bubble already lives in the thread; here
@@ -2423,7 +2405,7 @@ function OfferActions({
     };
     return (
       <AnswerPair
-        closeLabel="Not now"
+        closeLabel={NOT_NOW}
         onClose={() => pick("not_now")}
         actionLabel={yes === "start" ? "Start" : "Look"}
         onAction={() => pick("yes")}
@@ -2443,7 +2425,7 @@ function OfferActions({
   if (type === "sunday_note") {
     return (
       <AnswerPair
-        closeLabel="Not now"
+        closeLabel={NOT_NOW}
         onClose={() => {
           onSundayNote("not_now");
           onResolve();
@@ -2459,7 +2441,7 @@ function OfferActions({
   if (type === "life_goals_change") {
     return (
       <AnswerPair
-        closeLabel="Not now"
+        closeLabel={NOT_NOW}
         onClose={() => {
           onLifeGoalsChange("not_now");
           onResolve();
@@ -2476,7 +2458,7 @@ function OfferActions({
     const pick = type === "life_goals" ? onLifeGoals : onLifeGoalsQuarter;
     return (
       <AnswerPair
-        closeLabel="Not now"
+        closeLabel={NOT_NOW}
         onClose={() => {
           pick("not_now");
           onResolve();
@@ -2492,7 +2474,7 @@ function OfferActions({
   if (type === "voice_notebook") {
     return (
       <AnswerPair
-        closeLabel="Not now"
+        closeLabel={NOT_NOW}
         onClose={() => {
           onNotebook("not_now");
           onResolve();
@@ -2527,9 +2509,82 @@ function OfferActions({
   // The legacy joke offer is the only other type. Its onboarding was deleted
   // (SD/FE-4) and openOffer already refuses to arm it, so this is a dismiss-only
   // fallback for an old thread bubble rather than a live action pair.
-  return <TapRow labels={["Close"]} onTap={onResolve} dataAttr={{ "data-answer-pair": "" }} />;
+  return <TapRow labels={[CLOSE]} onTap={onResolve} dataAttr={{ "data-answer-pair": "" }} />;
 }
 
+
+/** What a bot message offers under it (backend N467 items 4 and 5): ways
+ *  to go as links on Will's side, one per line, and "Skip" as a grey word
+ *  on the right. Each comes from the message's metadata, so it survives a
+ *  reload. */
+function BotWays({
+  metadata,
+  onChip,
+  onOpenFeedback,
+  onOpenConfidencePractice,
+}: {
+  metadata: LoungeMessage["metadata"];
+  onChip?: (action: ChipAction) => void;
+  onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
+  onOpenConfidencePractice?: (practiceId: string) => void;
+}) {
+  const productAction = productActionFromMetadata(metadata);
+  const productDestination = productAction
+    ? productSpec(productAction.product)
+    : null;
+  const confidenceCorrection =
+    metadata?.confidence_material_correction === true &&
+    typeof metadata?.arc_id === "string" &&
+    typeof metadata?.take_session_id === "string"
+      ? {
+          arcId: metadata.arc_id,
+          takeSessionId: metadata.take_session_id,
+          takeIndex: null,
+        }
+      : null;
+  const sharedPracticeId =
+    metadata?.note === "confidence_practice_shared" &&
+    typeof metadata?.practice_id === "string"
+      ? metadata.practice_id
+      : null;
+  // WIL-74 — a coach's card about a speaker's new goal opens that speaker.
+  const goalCardSpeaker =
+    metadata?.card === "goal_change" &&
+    typeof metadata?.speaker === "string"
+      ? metadata.speaker
+      : null;
+  // B-1 — the persisted actions: the pair if there is one, else the one.
+  const many = onChip ? coerceSuggestedActions(metadata?.suggested_actions) : [];
+  const one = onChip ? coerceSuggestedAction(metadata?.suggested_action) : null;
+  const actions = many.length > 0 ? many : one ? [one] : [];
+  const ways = actions.filter((action) => action !== "feedback_skip");
+  return (
+    <>
+      {/* Ways to go are links on Will's side, one per line; "Skip" is a
+          grey word on the right (N467 items 4 and 5). */}
+      <ChatLinks>
+        {productDestination ? (
+          <ChatLink label={productDestination.actionLabel} href={productDestination.href} />
+        ) : null}
+        {confidenceCorrection ? (
+          <ChatLink label="Review coach feedback" onClick={() => onOpenFeedback?.(confidenceCorrection)} />
+        ) : null}
+        {sharedPracticeId ? (
+          <ChatLink label="Open exercise" onClick={() => onOpenConfidencePractice?.(sharedPracticeId)} />
+        ) : null}
+        {goalCardSpeaker ? (
+          <ChatLink label="Open speaker" onClick={() => requestOpenSpeaker(goalCardSpeaker)} />
+        ) : null}
+        {ways.map((action) => (
+          <ChatLink key={action} label={CHIP_LABEL[action]} onClick={() => onChip!(action)} />
+        ))}
+      </ChatLinks>
+      {actions.includes("feedback_skip") ? (
+        <TapRow labels={[CHIP_LABEL.feedback_skip]} onTap={() => onChip!("feedback_skip")} dataAttr={{ "data-chip-skip": "" }} />
+      ) : null}
+    </>
+  );
+}
 
 /** U3 — render a bot message's split chunks. A freshly-arrived reply
  *  (`animate`) reveals them one at a time with a typing indicator between, so
@@ -2782,45 +2837,6 @@ function BubbleBody({
     );
   }
   if (message.role === "bot") {
-    const productAction = productActionFromMetadata(message.metadata);
-    const productDestination = productAction
-      ? productSpec(productAction.product)
-      : null;
-    const confidenceCorrection =
-      message.metadata?.confidence_material_correction === true &&
-      typeof message.metadata?.arc_id === "string" &&
-      typeof message.metadata?.take_session_id === "string"
-        ? {
-            arcId: message.metadata.arc_id,
-            takeSessionId: message.metadata.take_session_id,
-            takeIndex: null,
-          }
-        : null;
-    const sharedPracticeId =
-      message.metadata?.note === "confidence_practice_shared" &&
-      typeof message.metadata?.practice_id === "string"
-        ? message.metadata.practice_id
-        : null;
-    // WIL-74 — a coach's card about a speaker's new goal opens that speaker.
-    const goalCardSpeaker =
-      message.metadata?.card === "goal_change" &&
-      typeof message.metadata?.speaker === "string"
-        ? message.metadata.speaker
-        : null;
-    // B-1 — read the persisted action from metadata; render below the bubbles.
-    const actions =
-      onChip && message.metadata
-        ? (() => {
-            const many = coerceSuggestedActions(
-              message.metadata.suggested_actions,
-            );
-            if (many.length > 0) return many;
-            const one = coerceSuggestedAction(
-              message.metadata.suggested_action,
-            );
-            return one ? [one] : [];
-          })()
-        : [];
     return (
       <>
         {/* U3 (bubble-split): multi-paragraph answers reveal sequentially. */}
@@ -2828,66 +2844,12 @@ function BubbleBody({
           chunks={splitBotMessage(message.body)}
           animate={animate}
         />
-        {productDestination ? (
-          <div className="mr-auto pt-1">
-            <Button
-              asChild
-              variant="outline"
-              className="h-9 rounded-full px-4 text-[13px]"
-            >
-              <Link href={productDestination.href}>
-                {productDestination.actionLabel}
-              </Link>
-            </Button>
-          </div>
-        ) : null}
-        {confidenceCorrection ? (
-          <div className="mr-auto pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-9 rounded-full px-4 text-[13px]"
-              onClick={() => onOpenFeedback?.(confidenceCorrection)}
-            >
-              Review coach feedback
-            </Button>
-          </div>
-        ) : null}
-        {sharedPracticeId ? (
-          <div className="mr-auto pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-9 rounded-full px-4 text-[13px]"
-              onClick={() => onOpenConfidencePractice?.(sharedPracticeId)}
-            >
-              Open exercise
-            </Button>
-          </div>
-        ) : null}
-        {goalCardSpeaker ? (
-          <div className="mr-auto pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-9 rounded-full px-4 text-[13px]"
-              onClick={() => requestOpenSpeaker(goalCardSpeaker)}
-            >
-              Open speaker
-            </Button>
-          </div>
-        ) : null}
-        {actions.length > 0 ? (
-          <div className="mr-auto flex max-w-[90%] flex-wrap gap-2 pt-1">
-            {actions.map((action) => (
-              <ActionButton
-                key={action}
-                action={action}
-                onClick={() => onChip!(action)}
-              />
-            ))}
-          </div>
-        ) : null}
+        <BotWays
+          metadata={message.metadata}
+          onChip={onChip}
+          onOpenFeedback={onOpenFeedback}
+          onOpenConfidencePractice={onOpenConfidencePractice}
+        />
         {/* FE-5 — the life card rides in metadata exactly like the B-1 chip
             above, so it survives reload and scroll-back without a second write
             path. A turn that carried none passes undefined and renders null,

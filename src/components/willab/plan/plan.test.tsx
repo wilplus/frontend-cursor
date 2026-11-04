@@ -7,7 +7,7 @@
  * OUTCOME
  *   O1  A choice (the deadline, the plan's own yes, a new project's
  *       question) is tap answers on the right of the thread, Will's orange
- *       pills, the plan's "Not now" grey and quieter; the Lounge's bar
+ *       pills, the plan's "Not now" a grey word (N467); the Lounge's bar
  *       stays under it, and a tap sends that answer (N319 item 1).
  *   O2  A voice question turns the bar's mic orange; a tap records with the
  *       one recording bar in the message box's place, the trash throws it
@@ -282,8 +282,8 @@ it("a choice is taps in the thread, the bar stays and typing waits", async () =>
   await tapOn("No date yet");
   expect(posted("/api/v2/plan/deadline")[0][1]).toMatchObject({ json: { date: null } });
 
-  // The plan's own yes: "Yes, ask me" orange outlined, "Not now" grey and
-  // quieter, the same shape.
+  // The plan's own yes: "Not now" a grey word, "Yes, ask me" the answer
+  // (backend N467 item 4).
   now = { ...PLAN, step: "consent" };
   await showLounge([row({}, "a"), row({}, "b")]);
   expect(taps()).toEqual(["Not now", "Yes, ask me"]);
@@ -297,7 +297,9 @@ it("a choice is taps in the thread, the bar stays and typing waits", async () =>
   // A new project's question, after a Take: the same taps, the same bar.
   now = { ...PLAN, status: "active", step: "same_event", first_take_done: true };
   await showLounge([row({}, "c")]);
-  expect(taps()).toEqual(["Yes", "No"]);
+  // "Yes" last, so the filled answer is the likely one (backend N467 item 7).
+  expect(taps()).toEqual(["No", "Yes"]);
+  expect(host.querySelector("[data-thread] [data-goes]")?.textContent).toBe("Yes");
   await tapOn("No");
   expect(posted("/api/v2/plan/same-event")[0][1]).toMatchObject({ json: { yes: false } });
 

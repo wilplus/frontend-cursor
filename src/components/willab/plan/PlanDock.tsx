@@ -14,10 +14,11 @@ import PlanCalendar, { MonthGrid } from "./PlanCalendar";
    While the plan asks, the Lounge's bar stays ("+", "Type here", the mic):
    - a choice (the deadline, the plan's own yes, a call, what's next, a new
      project's question) is tap answers on the right of the thread, drawn as
-     Will's after the walk (orange outlined pills); the plan's "Not now" is
-     grey and quieter (`PlanAsk`);
-   - the 1 to 10 scale keeps its shape, in the thread under its question
-     (`PlanAsk`);
+     Will's after the walk (orange pills, the likely one filled); the plan's
+     "Not now" and "Skip" are grey words, and "Yes" comes last (`PlanAsk`,
+     N467);
+   - the 1 to 10 scale keeps its shape, in the thread under its question,
+     the picked number orange (`PlanAsk`);
    - a voice question (why it matters, the key line, the follow-ups, "How
      did it go?") turns the Lounge's mic orange; a tap records with the one
      recording bar (backend N314), Stop sends the answer (`usePlanVoice`).
@@ -91,7 +92,7 @@ function Scale({ lo, hi, onPick }: { lo: string; hi: string; onPick: (v: number)
             }}
             className={`h-8 w-8 rounded-full border-[1.5px] p-0 text-[13.5px] font-semibold ${
               picked === n
-                ? "border-[#121212] bg-[#121212] text-white"
+                ? "border-primary bg-primary text-primary-foreground"
                 : `border-[#DCDCDC] bg-white text-[#121212] ${picked !== null ? "opacity-45" : ""}`
             }`}
           >
@@ -131,8 +132,8 @@ export function PlanAsk({
   const kind = dockFor(plan, booking);
   const [picking, setPicking] = useState(false);
   if (busy || !kind) return null;
-  const taps = (labels: string[], onTap: (label: string) => void, quiet?: string[]) => (
-    <TapRow labels={labels} quiet={quiet} onTap={onTap} dataAttr={{ "data-plan-ask": kind }} />
+  const taps = (labels: string[], onTap: (label: string) => void) => (
+    <TapRow labels={labels} onTap={onTap} dataAttr={{ "data-plan-ask": kind }} />
   );
   if (kind === "deadline") {
     // "Pick a date" opens the date sheet; a day picked answers at once.
@@ -154,26 +155,23 @@ export function PlanAsk({
     );
   }
   if (kind === "consent") {
-    // "Yes, ask me" orange outlined; "Not now" grey and quieter (N319 item 1).
-    return taps([PLAN_COPY.consentNo, PLAN_COPY.consentYes], (label) => actions.consent(label === PLAN_COPY.consentYes), [
-      PLAN_COPY.consentNo,
-    ]);
+    // "Not now" a grey word, "Yes, ask me" filled orange (N467 item 4).
+    return taps([PLAN_COPY.consentNo, PLAN_COPY.consentYes], (label) => actions.consent(label === PLAN_COPY.consentYes));
   }
   if (kind === "call") {
     const asked: CallWhich = plan.step === "kickoff" ? "kickoff" : "summary";
-    // "Skip" on the left, grey and quieter; "Book now" on the right, orange
-    // outlined (N325 item 2).
-    return taps(
-      [PLAN_COPY.skip, PLAN_COPY.bookNow],
-      (label) => (label === PLAN_COPY.bookNow ? onBookNow(asked) : actions.book(asked, null)),
-      [PLAN_COPY.skip],
+    // "Skip" a grey word on the left, "Book now" on the right (N325 item 2,
+    // N467 item 4).
+    return taps([PLAN_COPY.skip, PLAN_COPY.bookNow], (label) =>
+      label === PLAN_COPY.bookNow ? onBookNow(asked) : actions.book(asked, null),
     );
   }
   if (kind === "next") {
     const labels = newEventHeld ? [PLAN_COPY.keepPractising] : [PLAN_COPY.keepPractising, PLAN_COPY.newEvent];
     return taps(labels, (label) => actions.next(label === PLAN_COPY.newEvent ? "new_event" : "keep_practising"));
   }
-  if (kind === "same_event") return taps([PLAN_COPY.yes, PLAN_COPY.no], (label) => actions.sameEvent(label === PLAN_COPY.yes));
+  // "Yes" last, so the filled answer is the likely one (N467 item 7).
+  if (kind === "same_event") return taps([PLAN_COPY.no, PLAN_COPY.yes], (label) => actions.sameEvent(label === PLAN_COPY.yes));
   if (kind === "stress" || kind === "ready") {
     const [lo, hi] = kind === "stress" ? [PLAN_COPY.stressLo, PLAN_COPY.stressHi] : [PLAN_COPY.readyLo, PLAN_COPY.readyHi];
     return (

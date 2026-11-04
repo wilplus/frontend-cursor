@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import SymmetricPair from "./SymmetricPair";
+import { AnswerPair } from "./WillQuestion";
 import { ONE_PROJECT_COPY } from "@/lib/willab/deckUpdateCopy";
 import { PROJECT_ARCHIVE_COPY } from "@/lib/willab/projectArchiveCopy";
 import { currentProjectOf } from "@/lib/willab/oneProject";
@@ -194,7 +195,8 @@ export function NewProjectAskSlot({ ask, children }: { ask: ReturnType<typeof us
           </p>
         ) : null}
       </div>
-      <SymmetricPair
+      {/* "Cancel" a grey word, "Continue" the answer on your side (N467 item 7). */}
+      <AnswerPair
         closeLabel={ONE_PROJECT_COPY.cancel}
         onClose={() => {
           if (busy) return;
