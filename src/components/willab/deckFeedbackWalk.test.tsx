@@ -32,7 +32,8 @@ OUTCOME
       "Lesson done." asks the summary once and goes back to the chat (N309);
       other speakers' moment is asked as the walk opens (N309 item 2);
       ✕ on the finished walk asks it once too, so the chat after the walk
-      always comes (C9, B11).
+      always comes (C9, B11), but not for an older Take played again under
+      a newer Take, nor when the chat cannot tell (D4, between two Takes).
   O10 With no moment to fix, the pace game is the One thing walk's fix,
       and its opening keeps its tip, "give “{words}” more room" with the
       Sniper's helper words, in the chat for "Last time" next Take (N347
@@ -60,7 +61,8 @@ PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's 
          O8 -> "a confident voice whose words are reworded gets its helper
                 words after the rewording (founder 2026-10-22, N113)"
          O9 -> "the One thing walk saves its helper words without a pick, settles both moments and asks the summary once at Close (N309)",
-               "✕ on the finished walk asks the summary once, as Close does, so the chat after the walk comes (C9, B11)"
+               "✕ on the finished walk asks the summary once, as Close does, so the chat after the walk comes (C9, B11)",
+               "an older Take's finished walk, played again and closed with ✕ under a newer Take, asks no summary (D4, between two Takes)"
          O10 -> "the pace game as the walk's fix keeps its tip in the chat, for Last time next Take (N347 item 3)"
          O11 -> "the walk opens whole, behind the wait: my name in the hello and Last time from the server's tip, before my best (C0, C0a)",
                 "the walk never waits on its reads past its bound: a profile that never answers opens it with \"Hi.\""
@@ -566,6 +568,19 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
 
   it("✕ on the finished walk asks the summary once, as Close does, so the chat after the walk comes (C9, B11)", async () => {
     const onClose = vi.fn();
+    // The chat's newest recording is this Take's own (D4, between two
+    // Takes), and the chat keeps what the walk posts.
+    const recorded = { client_id: "rec-2", role: "system", kind: "recording_summary", body: "", metadata: { session_id: "take-2", arc_id: "arc-1", take_index: 2 }, client_created_at: "" };
+    const thread = {
+      messages: [recorded] as unknown[],
+      loading: false,
+      append: vi.fn(async (d: { clientId: string; role: string; kind: string; body: string; metadata: Record<string, unknown> }) => {
+        thread.messages = [...thread.messages, { client_id: d.clientId, role: d.role, kind: d.kind, body: d.body, metadata: d.metadata, client_created_at: "" }];
+        return d;
+      }),
+      reload: vi.fn(async () => undefined),
+    };
+    chat.thread = thread;
     const p = props({ suggestions: [best], onLensClose: onClose });
     await render(p);
     await render({ ...p, reviewRequest: 1 });
@@ -579,6 +594,30 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     await act(async () => undefined);
     expect(fetched()).toHaveLength(1);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("an older Take's finished walk, played again and closed with ✕ under a newer Take, asks no summary (D4, between two Takes)", async () => {
+    // Take 2 of this project ended with no summary; a Take of another
+    // project was recorded since, so the chat's newest recording is its.
+    const row = (client_id: string, kind: string, metadata: Record<string, unknown>, role = "bot") => ({ client_id, role, kind, body: "", metadata, client_created_at: "" });
+    const messages = [
+      row("rec-2", "recording_summary", { session_id: "take-2", arc_id: "arc-1", take_index: 2 }, "system"),
+      row("end-2", "walk_step", { step: "end", take_session_id: "take-2", arc_id: "arc-1", take_index: 2 }),
+      row("rec-b1", "recording_summary", { session_id: "take-b1", arc_id: "arc-b", take_index: 1 }, "system"),
+    ];
+    chat.thread = { messages, loading: false, append: vi.fn(async (draft: unknown) => draft), reload: vi.fn(async () => undefined), setWriting: vi.fn() };
+    const p = props({ suggestions: [{ ...best, status: "approved" } as DocumentSuggestion] });
+    await render(p);
+    await act(async () => undefined);
+    const fetched = () => vi.mocked(fetch).mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/review/summary"));
+    // The page opening asks nothing either.
+    expect(fetched()).toEqual([]);
+    await render({ ...p, replayRequest: 1 } as typeof p);
+    await act(async () => undefined);
+    expect(screen()).toBe("walk-screen-praise");
+    await click(live()!.querySelector("button[aria-label='Close']"));
+    await act(async () => undefined);
+    expect(fetched()).toEqual([]);
   });
 
   it("the walk opens whole, behind the wait: my name in the hello and Last time from the server's tip, before my best (C0, C0a)", async () => {

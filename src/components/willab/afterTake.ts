@@ -115,11 +115,13 @@ export function recordedPast(messages: readonly Pick<LoungeMessage, "client_id" 
   return new Set(messages.slice(0, Math.max(newest, 0)).map((m) => m.client_id));
 }
 
-/** A Take recorded after `take`, in any project (messages oldest first):
- *  the chat's newest recording is another Take's (N244, N251). */
+/** A Take recorded after `take`, in any project (messages oldest first),
+ *  or no way to tell: the chat's newest recording is another Take's, names
+ *  no Take, or is not in the loaded window (N244, N251). Not knowing counts
+ *  as a newer Take, so an older Take's chain never lands under it. */
 export function recordedSince(messages: readonly Pick<LoungeMessage, "kind" | "metadata">[], take: string): boolean {
   const on = messages.findLast((m) => m.kind === "recording_summary")?.metadata?.session_id;
-  return typeof on === "string" && on !== take;
+  return on !== take;
 }
 
 /** The tap under the goodbye after a Take (founder 2026-10-31, N294 item 6,

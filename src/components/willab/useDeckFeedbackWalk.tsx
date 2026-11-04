@@ -1568,14 +1568,21 @@ export function useDeckFeedbackWalk(args: {
     if (!on || summaryAsked.current === on || storedSummaryRef.current !== null) return;
     void summary();
   }, [summary]);
+  /* BETWEEN TWO TAKES (D4, N244, N251): ✕ and a finished Take's page as it
+     opens ask only when the loaded chat's newest recording is this Take's
+     own. Not knowing counts as a newer Take, so an older Take's chain never
+     lands under the newest one. The Close pill on a live walk asks as
+     before. */
+  const askSummaryAsNewest = useCallback(() => {
+    const { thread: to, take: on } = threadRef.current;
+    if (on && !recordedSince(to?.messages ?? [], on)) askSummary();
+  }, [askSummary]);
   const ended = finished && !args.feedbackPending && thread !== null && !thread.loading;
   useEffect(() => {
     if (!ended || request !== null) return;
     postEnd();
-    // A newer Take recorded since: this Take's chain would land under it
-    // (D4, between two Takes).
-    if (!recordedSince(threadRef.current.thread?.messages ?? [], threadRef.current.take ?? "")) askSummary();
-  }, [ended, request, postEnd, askSummary]);
+    askSummaryAsNewest();
+  }, [ended, request, postEnd, askSummaryAsNewest]);
   const onEnd = useCallback(() => {
     // A paragraph's own practise or helper words end nothing either, but
     // the page still hears it: a lens opened on them shows the text then.
@@ -1589,11 +1596,11 @@ export function useDeckFeedbackWalk(args: {
     const { finished: done, feedbackPending, coachOnly: coachDoor } = live.current;
     if (!practisingRef.current && !coachDoor && done && !feedbackPending) {
       postEnd();
-      askSummary();
+      askSummaryAsNewest();
     }
     if (lensRef.current) live.current.onLensClose?.();
     live.current.onWalkClose?.();
-  }, [postEnd, askSummary]);
+  }, [postEnd, askSummaryAsNewest]);
   /* "LESSON DONE." AND CLOSE (founder 2026-10-31, N309 item 4): the review's
      end is written, so "Continue review" goes and the Take's card lands
      under its Feedback walk; the walk closes back to the chat. The summary
