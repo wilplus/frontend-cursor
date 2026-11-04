@@ -84,7 +84,8 @@ OUTCOME
       slide behind "Read it", nothing else of it (N504 item 1); the list's
       line says "{name} sent you Take {n}"; a Take I sent is my tile with
       "Sent" (N504 item 3). Newest, it asks for an answer: "Record your
-      answer" in the bar with "Not now" under it, and the answer is recorded
+      answer" in the bar with "Not now" under it, which tells them nothing
+      and is kept for the system (N504 item 2), and the answer is recorded
       over the Take's own slides (N493 items 1 and 3).
   O21 At the foot of the other person's profile, "Block {name}" asks first
       and then blocks them: the backend is told, "{name} is blocked." shows,
@@ -881,7 +882,13 @@ describe("the chats in front of the Lounge", () => {
     await tap(notNow);
     expect(button()).toBeNull();
     expect(container.querySelector("[data-chat-emoji-box]")).not.toBeNull();
-    expect(fetchMock.mock.calls.slice(before).filter(([, init]) => (init as RequestInit | undefined)?.method === "POST")).toEqual([]);
+    // The only thing sent is the decline the system keeps (N504 item 2).
+    expect(
+      fetchMock.mock.calls
+        .slice(before)
+        .filter(([, init]) => (init as RequestInit | undefined)?.method === "POST")
+        .map(([url]) => url),
+    ).toEqual(["/api/v2/chats/c-sarah/messages/q/not-now"]);
     await tap(container.querySelector('[data-chat-header] button[aria-label="Back"]'));
     await tap(row("c-sarah"));
     await tap(button());
@@ -1097,8 +1104,15 @@ describe("the chats in front of the Lounge", () => {
     expect(recordedAnswers).toEqual([
       { chatId: "c-amira", name: "Amira Haddad", question: "Q3 board pitch", customer: false, slides: ["Hook", "Q3 board pitch"] },
     ]);
+    const declined: string[] = [];
+    routes.set("POST /api/v2/chats/c-amira/messages/t1/not-now", () => {
+      declined.push("t1");
+      return { kept: true };
+    });
     await tap(container.querySelector("[data-chat-not-now] button"));
     expect(container.querySelector("[data-chat-record-answer]")).toBeNull();
     expect(container.querySelector("[data-chat-emoji-box]")).not.toBeNull();
+    // Nobody is told, and the system keeps it (N504 item 2).
+    expect(declined).toEqual(["t1"]);
   });
 });

@@ -14,6 +14,7 @@ import { UNDO_MS, onAnswerSent, sendAgain, undoAnswer, usePendingAnswer, type An
 import {
   CHAT_EMOJI,
   answerChatSetup,
+  declineInChat,
   chatFileSrc,
   chatVoiceSrc,
   getChatThread,
@@ -718,7 +719,11 @@ function useAnswerWait(chatId: string, messages: readonly ChatMessage[] | null, 
   return {
     question: waiting ?? topic,
     slides: topic && take?.slides.length ? take.slides.map((slide) => slide.title || topic) : undefined,
-    leave: () => setLeft(newest?.id ?? null),
+    leave: () => {
+      if (!newest) return;
+      setLeft(newest.id);
+      void declineInChat(chatId, newest.id);
+    },
   };
 }
 

@@ -128,6 +128,17 @@ export async function setChatBlocked(chatId: string, blocked: boolean): Promise<
   return body?.blocked === blocked;
 }
 
+/** "Not now" under what someone asked me (backend N483 item 3, N493 item 3):
+ *  nobody is told; the system keeps it once as behavioural data (N504 item
+ *  2). Best effort: the bar gives the emoji back whatever it answers. */
+export async function declineInChat(chatId: string, messageId: string): Promise<boolean> {
+  const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}/not-now`, {
+    method: "POST",
+    json: {},
+  });
+  return body?.kept === true;
+}
+
 /** Report the other person (backend N466): the chat's last five messages
  *  go to WillpowerLab; `block` blocks them too. Whether they are now
  *  blocked, or null when the report was refused. */

@@ -612,7 +612,8 @@ you Take {n}"" with the Take's tile, its first slide and no play mark
 slide behind ""Read it"", nothing else of it (N504 item 1); the list's
 line says ""{name} sent you Take {n}""; a Take I sent is my tile with
 ""Sent"" (N504 item 3). Newest, it asks for an answer: ""Record your
-answer"" in the bar with ""Not now"" under it, and the answer is recorded
+answer"" in the bar with ""Not now"" under it, which tells them nothing
+and is kept for the system (N504 item 2), and the answer is recorded
 over the Take's own slides (N493 items 1 and 3).
 O21 At the foot of the other person's profile, ""Block {name}"" asks first
 and then blocks them: the backend is told, ""{name} is blocked."" shows,
