@@ -572,8 +572,9 @@ O8  The + on the list opens my own link, with the add sheet's signed
 words and its three steps, and Copy my link puts the whole link on
 the clipboard and says ""✓ Copied"" (N308, N310, N367).
 O9  In a chat I joined through someone's link, one line above the
-messages says whose link it was (N335 item 2); a chat without it has
-no such line.
+messages says whose link it was (N335 item 2), and its row in the
+list keeps that line until the first message (N488); a chat without
+it has no such line.
 O10 Just joined (/chat?with=<chat>), the list opens with Will's row
 first, as always, and right under it the chat with the one who invited
 me, marked new with the joined line; the address is clean again;

@@ -41,8 +41,9 @@ OUTCOME
       words and its three steps, and Copy my link puts the whole link on
       the clipboard and says "✓ Copied" (N308, N310, N367).
   O9  In a chat I joined through someone's link, one line above the
-      messages says whose link it was (N335 item 2); a chat without it has
-      no such line.
+      messages says whose link it was (N335 item 2), and its row in the
+      list keeps that line until the first message (N488); a chat without
+      it has no such line.
   O10 Just joined (/chat?with=<chat>), the list opens with Will's row
       first, as always, and right under it the chat with the one who invited
       me, marked new with the joined line; the address is clean again;
@@ -631,7 +632,7 @@ describe("the chats in front of the Lounge", () => {
 
   it("a chat joined through a link says whose link it was", async () => {
     backend(["chats"]);
-    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, ARIEL] }));
+    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, { ...ARIEL, last: null, joined_through: "Ariel" }] }));
     routes.set("GET /api/v2/chats/c-ariel/messages", () => ({ messages: [], joined_through: "Ariel" }));
     routes.set("GET /api/v2/chats/c-sarah/messages", () => ({ messages: [], joined_through: null }));
     await render();
@@ -641,6 +642,8 @@ describe("the chats in front of the Lounge", () => {
       "You joined through Ariel's link. Only the two of you are in this chat.",
     );
     await tap(container.querySelector("[data-chat-screen] button"));
+    // Opened, the row keeps the line until the first message (N488).
+    expect(lastLineOf("c-ariel")).toBe("You joined through Ariel's link. Only the two of you are in this chat.");
     await tap(row("c-sarah"));
     expect(container.querySelector("[data-chat-joined]")).toBeNull();
   });

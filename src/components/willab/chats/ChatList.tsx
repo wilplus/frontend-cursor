@@ -19,7 +19,7 @@ import { isNativeApp } from "@/lib/auth/nativeSignIn";
 /*  shows bold with an orange dot; no number, ever. Will is always the first  */
 /*  row (N360). Just joined through a link, the chat with the one who invited */
 /*  you is right under Will, new until opened, its line theirs or "You joined */
-/*  through…" (N357). Will's row shows his newest line, bold with the dot     */
+/*  through…" (N357), kept until the chat's first message (N488). Will's row shows his newest line, bold with the dot     */
 /*  until his chat is open (N457 item 2).                                     */
 /* -------------------------------------------------------------------------- */
 
@@ -353,7 +353,7 @@ export default function ChatList({
       title={chat.title}
       subtitle={chat.subtitle}
       time={listTime(chat.last?.created_at, now)}
-      preview={chat.last ? lastLine(chat.last, chat.title) : justJoined ? joinedThrough(chat.title) : ""}
+      preview={chat.last ? lastLine(chat.last, chat.title) : chat.joined_through || justJoined ? joinedThrough(chat.joined_through || chat.title) : ""}
       isNew={justJoined || chatIsNew(chat)}
       cameFrom={cameFrom === chat.id}
       onOpen={() => onOpen(chat)}
