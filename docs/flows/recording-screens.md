@@ -116,9 +116,11 @@ for the screens below.
    you feel?" before it. The top bar is the person's name alone; the slide
    is the poster, **{name} asks** as its label and the question as its
    heading (N462; was N441 item 7: a small line, the question in body
-   size). The clock counts down from 5:00, an
-   answer's longest, and at 0:00 the Take finishes by itself, as Finish
-   take would (N441 item 2). Was (N363, N334 item 2): the name above
+   size). The clock is any Take's: an answer has no five-minute cap
+   (N486 item 4), its project has no planned length, so the clock counts
+   up and the answer ends at Finish take. Was (N441 item 2): the clock
+   counted down from 5:00 and at 0:00 the Take finished by itself. Was
+   (N363, N334 item 2): the name above
    **Take 1 · Slide 1 of 1**, the question as the slide's heading, a clock
    counting up. Finish take brings the speaker straight back
    to that chat, where the answer reads "Sending to {name}…" with Undo
@@ -318,6 +320,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N486 · an answer has no five-minute cap: its clock is any Take's, counting up with no planned length, and it ends only at Finish take (`LabOverlay.tsx`, `chatAnswer.ts`). Was (N441 item 2): the clock counted down from 5:00 and finished the Take by itself at 0:00 · BE (cap PR), FE (this PR)
 - 2026-11-04 · N462 · the slide is the poster: the first Take's new questions, the default presentation and an answer's question are drawn centered, the label small and spaced, the question large and heavy, the hint quiet, no orange line (`pdfSlides.tsx` `PosterSlide`, `RecordingRoadmap.tsx` `stageLook`, `SlideStage.tsx`); tall when the Take has no helper words, the 16:9 box with them; an uploaded deck as itself; the Ideal Text, present mode and the walk unchanged. The first Take's five questions are the new ones, the old five still drawn for a project made before (`firstTake.ts`). Was: the question at the bottom with the orange line, the default deck on its colour artwork, "{name} asks" in a small line · BE #1694, FE (this PR)
 
 - 2026-11-03 · N449 · the first Take's questions fill the slide's space down to the strip, their words at the bottom (small title, mark, question at 27px, the line under it), with five marks under the slide: this question orange, the ones done dark, the rest grey (`RecordingRoadmap.tsx`, `SlideStage.tsx` `tall`, `pdfSlides.tsx`), as the prototype "The first Take" v1 draws them; the real talk after it is that project's Take 2, "Take 2 · Slide 1 of 3": its set-up runs afresh instead of the five questions' setup, "New slides" under "Getting your mic ready", and its slides become the project's from that Take before it is sent (`LabOverlay.tsx`, N257); the set-up's slides step says "Skip for now" whenever no slides were added, the last step included (`RecordingSetup.tsx`). Was: the question in the 16:9 box at the top; the real talk a new project at "Take 1"; "Start recording" on that step when it was the last. Every other Take unchanged · BE #1679, FE (this PR)

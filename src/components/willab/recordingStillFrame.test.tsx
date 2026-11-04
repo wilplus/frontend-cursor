@@ -12,13 +12,14 @@ OUTCOME
   O4  The top bar, the strip and the buttons stay put when the slide
       changes; only the slide and its helper words change.
   O5  An answer (N441): the top bar is the person's name alone, its one
-      slide is drawn as "{name} asks" over the question, Finish take stands
-      alone in the row, and at 5:00 the Take finishes by itself, once.
+      slide is drawn as "{name} asks" over the question, and Finish take
+      stands alone in the row; it has no five-minute cap (N486 item 4), so
+      half an hour in, it is still recording until Finish take.
 PROVES   O1 -> "reads Take N · Slide n of m, and nothing above the slide repeats it"
          O2 -> "turns Next slide into the red Finish take on the last slide, which ends the Take"
          O3 -> "goes forward, never presses the clicked Back again"
          O4 -> "keeps the top bar, the strip and the buttons through a slide change"
-         O5 -> "an answer: the name alone, the asker on its one slide, Finish take alone, done by itself at 5:00"
+         O5 -> "an answer: the name alone, the asker on its one slide, Finish take alone, no five-minute cap"
 WHY      Founder lock 2026-10-12 (N70); locked recording screen.
 */
 import { act, createElement, Fragment, useState } from "react";
@@ -32,7 +33,7 @@ vi.mock("./pdfSlides", () => ({
     createElement("div", { "data-testid": "slide", "data-asks": asks ?? "" }, `page ${pageIndex + 1}`),
 }));
 
-import { RecordingPhase, RecordingWhere, useAnswerEnds } from "./LabOverlay";
+import { RecordingPhase, RecordingWhere } from "./LabOverlay";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -200,14 +201,10 @@ describe("the still frame", () => {
 });
 
 describe("an answer (N441)", () => {
-  it("an answer: the name alone, the asker on its one slide, Finish take alone, done by itself at 5:00", () => {
+  it("an answer: the name alone, the asker on its one slide, Finish take alone, no five-minute cap", () => {
     const question = [{ title: "Would the scalp treatment help?", body: "" }] as never[];
-    let elapsed = 299;
-    const answer = { chatId: "c", name: "Sarah", question: "Would the scalp treatment help?", customer: true };
+    const elapsed = 1800;
     function Answer() {
-      useAnswerEnds(answer, "lab_recording", "recording", elapsed, () => {
-        stops += 1;
-      });
       return createElement(
         Fragment,
         null,
@@ -215,7 +212,7 @@ describe("an answer (N441)", () => {
         createElement(RecordingPhase, {
           micState: { status: "recording", partialText: "" },
           elapsed,
-          targetSec: 300,
+          targetSec: null,
           rejectedMsg: null,
           uploadRetry: null,
           onStop: () => undefined,
@@ -235,10 +232,5 @@ describe("an answer (N441)", () => {
     expect(button("Back")).toBeUndefined();
     expect(button("Finish take")).toBeDefined();
     expect(stops).toBe(0);
-    elapsed = 300;
-    act(() => root.render(createElement(Answer)));
-    elapsed = 301;
-    act(() => root.render(createElement(Answer)));
-    expect(stops).toBe(1);
   });
 });
