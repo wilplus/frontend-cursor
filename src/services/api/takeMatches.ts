@@ -118,3 +118,25 @@ export async function undoInquiry(id: string): Promise<"undone" | "sent"> {
 export function inquiryAudioSrc(id: string): string {
   return path(id, "/recording");
 }
+
+/** After a Take, the one person suggested for it (N477): a pseudonym and
+ *  their role, never a name. */
+export type MatchOffer = { id: string; pseudonym: string; role: string | null };
+
+/** The suggestion for this Take, or null (none, off, or a failure). */
+export async function getTakeMatch(sessionId: string): Promise<MatchOffer | null> {
+  const body = await call(`/api/v2/takes/${encodeURIComponent(sessionId)}/match`, { method: "GET" });
+  const row = rec(body?.match);
+  const id = str(row.id);
+  return id ? { id, pseudonym: str(row.pseudonym) ?? "", role: str(row.role) } : null;
+}
+
+/** Send: whether it went. It reads "sent" even if they later say Not now. */
+export async function sendTakeMatch(id: string): Promise<boolean> {
+  return (await call(path(id, "/send"), { method: "POST", json: {} })) !== null;
+}
+
+/** Not now, from the speaker: the suggestion closes. */
+export async function closeTakeMatch(id: string): Promise<boolean> {
+  return (await call(path(id, "/close"), { method: "POST", json: {} })) !== null;
+}
