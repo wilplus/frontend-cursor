@@ -800,7 +800,10 @@ O11 The walk opens whole, behind the wait: my name in the hello and Last
 time from the server's tip before my best, never longer than its
 bound (C0, C0a, A2).
 O12 A walk closed during its Clearer version's try opens again on the
-Clearer version, never the AI clip (N381).","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
+Clearer version, never the AI clip (N381).
+O13 A Sniper only opened, then left with ✕ before a try, is still to
+play: a door opened while the Take still waits plays it live, with
+its Try it and Skip (B10, T).","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
 O2 -> ""‹ › move through the walk's chat, never answering and never
 closing it (founder 2026-10-20)""
 O3 -> ""a paragraph with or without the line opens the same walk at
@@ -822,7 +825,8 @@ O9 -> ""the One thing walk saves its helper words without a pick, settles both m
 O10 -> ""the pace game as the walk's fix keeps its tip in the chat, for Last time next Take (N347 item 3)""
 O11 -> ""the walk opens whole, behind the wait: my name in the hello and Last time from the server's tip, before my best (C0, C0a)"",
 ""the walk never waits on its reads past its bound: a profile that never answers opens it with \""Hi.\""""
-O12 -> ""a walk closed during its Clearer version's try opens again on the Clearer version, never the AI clip (N381)""","Feedback walk lock 2026-10-06/2026-10-12; founder 2026-10-21 (""the black lines on the ideal text are still there even though I walked through them""); 2026-10-22 (N113, ""After the rewording""). The paragraph sheet's accept lane is in acceptRewrite.test.tsx."
+O12 -> ""a walk closed during its Clearer version's try opens again on the Clearer version, never the AI clip (N381)""
+O13 -> ""a Sniper opened, then left with ✕ before a try, is played live from a door while the Take still waits (B10, T)""","Feedback walk lock 2026-10-06/2026-10-12; founder 2026-10-21 (""the black lines on the ideal text are still there even though I walked through them""); 2026-10-22 (N113, ""After the rewording""). The paragraph sheet's accept lane is in acceptRewrite.test.tsx."
 src/components/willab/exerciseRenderedAck.test.tsx,Story,"As the founder, I want an exercise counted as shown only once the speaker actually saw it, once per view, silently, so that exercise data is honest.","O1  Nothing goes out on data load; the ack goes out once the card is
 about half visible.
 O2  Once per card per page view, even when the sheet is opened again.

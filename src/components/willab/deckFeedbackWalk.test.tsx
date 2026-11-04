@@ -49,6 +49,9 @@ OUTCOME
       bound (C0, C0a, A2).
   O12 A walk closed during its Clearer version's try opens again on the
       Clearer version, never the AI clip (N381).
+  O13 A Sniper only opened, then left with ✕ before a try, is still to
+      play: a door opened while the Take still waits plays it live, with
+      its Try it and Skip (B10, T).
 PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's sheet"
          O2 -> "‹ › move through the walk's chat, never answering and never
                 closing it (founder 2026-10-20)"
@@ -72,6 +75,7 @@ PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's 
          O11 -> "the walk opens whole, behind the wait: my name in the hello and Last time from the server's tip, before my best (C0, C0a)",
                 "the walk never waits on its reads past its bound: a profile that never answers opens it with \"Hi.\""
          O12 -> "a walk closed during its Clearer version's try opens again on the Clearer version, never the AI clip (N381)"
+         O13 -> "a Sniper opened, then left with ✕ before a try, is played live from a door while the Take still waits (B10, T)"
 WHY      Feedback walk lock 2026-10-06/2026-10-12; founder 2026-10-21 ("the
          black lines on the ideal text are still there even though I walked
          through them"); 2026-10-22 (N113, "After the rewording"). The
@@ -788,5 +792,44 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     const told = append.mock.calls.map(([draft]) => draft as { body: string; metadata: Record<string, unknown> });
     expect(told.find((d) => d.metadata.step === "tempo:skipped")?.body).toBe(ONE_THING_COPY.skipped);
     expect(told.find((d) => d.metadata.step === "tempo:skip")).toBeUndefined();
+  });
+
+  it("a Sniper opened, then left with ✕ before a try, is played live from a door while the Take still waits (B10, T)", async () => {
+    // The server chose the Sniper; the chat keeps what the walk posts.
+    type Draft = { clientId: string; role: string; kind: string; body: string; metadata: Record<string, unknown> };
+    const thread = {
+      messages: [] as unknown[],
+      loading: false,
+      append: vi.fn(async (d: Draft) => {
+        thread.messages = [...thread.messages, { client_id: d.clientId, role: d.role, kind: d.kind, body: d.body, metadata: d.metadata, client_created_at: "" }];
+        return d;
+      }),
+      reload: vi.fn(async () => undefined),
+    };
+    chat.thread = thread;
+    const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) =>
+      String(input).includes("/review/tempo/take-2")
+        ? json({ tempo: { reading: "rushed", topic: "that part", slide_index: 1, snippet_id: "snip-stretch", said: { before: "Three things stood out: ", stretch: "retention went up, churn went down", after: "" } } })
+        : new Response("{}", { status: 404 }),
+    ));
+    // Their best still waits here, as another moment of the Take would.
+    const p = props({ suggestions: [{ ...best, oneFix: "tempo" } as DocumentSuggestion] });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    expect(screen()).toBe("walk-screen-tempo");
+    // ✕ before a try: only the Sniper's opening is in the chat.
+    await click(live()!.querySelector("button[aria-label='Close']"));
+    const steps = () => thread.messages.map((m) => (m as { metadata: { step: string } }).metadata.step);
+    expect(steps()).toContain("tempo:open");
+    expect(steps().filter((s) => /^tempo:(try|skip|skipped|close)$/.test(s))).toEqual([]);
+    chat.thread = { ...thread, messages: [...thread.messages] };
+    await render({ ...p });
+    await click(paragraph("Today I want"));
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    expect(screen()).toBe("walk-screen-tempo");
+    expect(live()!.querySelector("[data-testid='walk-tempo-ready']")).not.toBeNull();
+    expect(live()!.querySelector("[data-testid='walk-tempo-skip']")).not.toBeNull();
   });
 });

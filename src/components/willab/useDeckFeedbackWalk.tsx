@@ -348,6 +348,11 @@ function postLevel(
 /** The machine's answers on a try, posted as the try is made. */
 const TRY_ANSWER_STEPS: ReadonlySet<string> = new Set(["improved", "encourage", "thanks"]);
 
+/** The Sniper's rows in the chat that say it was played: a try, a Skip
+ *  (the speaker's, or the One thing walk's answer to it), its closing line.
+ *  Its opening line alone is posted as the game opens, before any of them. */
+const TEMPO_PLAYED_STEPS: ReadonlySet<string> = new Set(["tempo:try", "tempo:skip", "tempo:skipped", "tempo:close"]);
+
 /** Each Take's summary ask, while it is written and once it is (C9, D4):
  *  one per Take for every deck on the page, so a page opened again while
  *  the first ask still writes never asks a second time. A failed ask is
@@ -1226,8 +1231,17 @@ export function useDeckFeedbackWalk(args: {
     (moment: FeedbackWalkMoment<DocumentSuggestion>) => walkStepForPart(model, moment.partId) !== null,
     [model],
   );
-  // The chat holds the Sniper as it was played: a door keeps it as given.
-  const tempoKept = tempoSaid.length > 0;
+  // The chat holds the Sniper as it was played (a try, a Skip or its
+  // closing line): a door keeps it as given. One only opened, then left
+  // with ✕ before a try, is still to play, live (B10, T, N458).
+  const tempoKept = useMemo(
+    () =>
+      Boolean(take) &&
+      (threadMessages ?? []).some(
+        (m) => m.kind === "walk_step" && m.metadata?.take_session_id === take && TEMPO_PLAYED_STEPS.has(String(m.metadata?.step ?? "")),
+      ),
+    [threadMessages, take],
+  );
   const buildWhole = useCallback(
     (answers: readonly OwnerAnswer[]) => {
       const done = buildReplay(answers);
