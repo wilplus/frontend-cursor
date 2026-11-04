@@ -177,23 +177,6 @@ export async function sendChatEmoji(chatId: string, emoji: ChatEmoji): Promise<C
   return messageOf(body);
 }
 
-/** A voice note sent in the chat (N321 item 2): the recording, up to two
- *  minutes, with its length. The backend keeps it under the caller's
- *  processing authorization; any refusal (not a member, too long, no
- *  authorization) answers null. */
-export async function sendChatVoice(chatId: string, audio: Blob, durationMs: number): Promise<ChatMessage | null> {
-  const form = new FormData();
-  const ext = audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm";
-  form.append("audio", audio, `voice.${ext}`);
-  form.append("duration_ms", String(Math.round(durationMs)));
-  const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/voice`, {
-    method: "POST",
-    timeoutMs: 60_000,
-    body: form,
-  });
-  return messageOf(body);
-}
-
 /** A photo or a file sent from the "+" (N351), as multipart `file` under
  *  its own name. The backend marks it as a question for the other person
  *  (`meta.question`); any refusal (not a member, not a photo, too big)

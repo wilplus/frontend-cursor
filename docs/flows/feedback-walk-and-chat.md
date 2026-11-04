@@ -105,17 +105,17 @@ step; the loop never waits for a coach.
   2. **the pair:** the Take's "Feedback walk" bubble and, right under it, the
      Take's Ideal Text card (D4);
   3. the chain after the Take, ending with the goodbye, "Good job. See you
-     next time.", and the tap "I want to continue my practice" (D4); after
-     the first Take, "Record Take 2" at once, with no tap (N449 item 2).
+     next time." (D4); under it the bar's middle is "Record Take N" (B14).
 
   **Before the first Take** the empty Lounge opens with Will's hello, "Hi,
   I'm Will. 👋 Record your first take, and I will help you with your
-  presentation." (N270), as a grey bubble; under it the one button, "Start
-  your first recording", and under that one small grey line, "About 2
-  minutes to record. Your feedback comes about a minute later." (founder
-  2026-10-29, N273 item 2, on the prototype
-  <https://claude.ai/artifact/H2CwSoSWXF7wttNEXsPMYb>). With the plan, its
-  questions come first and none of this shows (the-plan.md B1).
+  presentation." (N270), as a grey bubble, and under it one small grey line,
+  "About 2 minutes to record. Your feedback comes about a minute later."
+  (founder 2026-10-29, N273 item 2, on the prototype
+  <https://claude.ai/artifact/H2CwSoSWXF7wttNEXsPMYb>). The one button,
+  "Start your first recording", is the bar's middle (B14, N483 item 2;
+  was under the hello). With the plan, its questions come first and the
+  hello and the line don't show (the-plan.md B1).
 
   **The Feedback walk bubble:** light grey, on the left. It reads "Feedback
   walk"; under it one small grey line: "🔒 Take N" at its start for an older
@@ -141,19 +141,14 @@ step; the loop never waits for a coach.
   their answers, other speakers and the answers, and the summary (D4).
   Opening a walk posts nothing in the chat.
 
-  **Record buttons:** under the thread the Lounge has only the message box.
-  No bubble carries a button (N294 item 7): once the speaker chooses to
-  continue after the goodbye, "Record Take N" stands alone in the message
-  box's place, the plan's black button with the red dot ("Start your first
-  recording"'s shape), the message box and the mic gone (N296 state 4, D4),
-  24 px under the last bubble with a grey ✕ on its right, no background and
-  no outline. The ✕ closes it and the bar comes back for that Take, until
-  the chat is opened again or a newer Take's goodbye offers the next (N395).
-  With a plan, under the plan card, in place of "Type here", there is only
-  "Start your first recording" (N161), the one button before the first
-  Take, under no question (N319 item 2; [`the-plan.md`](the-plan.md) E5).
-  A practice day's "Record Take N" is the plan's:
-  [`the-plan.md`](the-plan.md) G6.
+  **Record buttons:** no bubble carries a button (N294 item 7). The chat's
+  one record button is the bar's middle (B14): "Record Take N" for the
+  newest Take, "Start your first recording" before any, the black button
+  with the red dot. A practice day's "Record Take N" is the plan's:
+  [`the-plan.md`](the-plan.md) G6. Was: "Record Take N" alone in the
+  message box's place once the speaker tapped to continue, with a grey ✕
+  beside it (N296 state 4, N395); with a plan, "Start your first
+  recording" in place of the bar under the plan card (N161, N319 item 2).
 
   (Founder 2026-10-26, N192: "there should be just the ideal text after the
   take and the feedback walk above it", "make sure that all of these are in
@@ -246,9 +241,10 @@ step; the loop never waits for a coach.
     - never on the Ideal Text in the walk's place: it always names where to
       open (fixed 2026-10-26, after a walk paused on its summary, or with no
       part to stand on, had opened the text).
-  - **"Continue review"** shows above the message box until every step is
-    answered. It opens the live walk on what waits, through the same door as
-    the Feedback walk.
+  - **"Continue review"** is the bar's middle (B14) until every step is
+    answered, the black button with no red dot. It opens the live walk on
+    what waits, through the same door as the Feedback walk (N483 item 2;
+    was above the message box).
   - **The orange outline:** the Feedback walk of a Take whose walk still
     waits, or whose coach's word changed and is not yet seen, has a full 2px
     orange stroke all the way round, nothing cutting it (J6).
@@ -299,29 +295,39 @@ step; the loop never waits for a coach.
   (Founder 2026-10-26, N192: "it should show on the feedback walk as edited
   like on the whatsapp; but it should not go at the bttom like a new message
   cause it is not!")
-- **B14** **The bottom of the chat** is one design from the app's own
-  pieces, which keep their shape and only come or go (N296, N297 item 3;
-  N306 item 1 for Will's chat):
-  1. nothing asked: the Lounge's bar, "+", "Type here", the mic (the mic
-     where the voice notebook is on);
-  2. Will waits for an answer (his question or its follow-up is the
-     newest bubble, or the plan's voice question before the first Take,
-     [`the-plan.md`](the-plan.md) B10, N319 item 1): the same bar, and the
-     same mic fills orange, colour only, for every speaker; it records the
-     answer (E3). No Skip. The plan's choices are tap answers on the right,
-     as Will's (E3), with the same bar under them; while the plan asks
-     before the first Take, "Type here" stays in the bar, faded and not
-     focusable (N319 item 3);
-  3. recording: **the one recording bar** (N314, locked; N304): the trash
-     on the left, then the walk's strip (the pulsing dot, the clock, the
-     track) with the red Stop inside it. Stop sends, the trash throws it
-     away. The same bar for the voice note, an answer to Will, the
-     plan's voice answers ([`the-plan.md`](the-plan.md) B3), the walk's
-     practice (C7) and the tempo step (T); a Take keeps
-     its locked recording screen, whose strip is the same (N70, N303). Was:
-     the voice note's WhatsApp-style bar, the time in a bordered pill and a
-     black send (founder 2026-10-20);
-  4. the next Take offered: "Record Take N" alone (B3, D4).
+- **B14** **The bar under the chat** has one logic in every chat
+  (founder 2026-11-04, N483, locked on "The Bar, Clickable"
+  <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2>, version 8). The left
+  holds your things: in Will's chat the stack, Your projects (N460 item 5).
+  The middle holds the one thing to do now, the first of these that holds
+  (`Lounge.tsx`; `WillBarMiddle` in `plan/PlanDock.tsx`; `useWordsBox` in
+  `WillQuestion.tsx`):
+  1. Will asks for words (a setup's name or code, "What was missing?", his
+     follow-up with no answers to tap, or "Something else", the first of his
+     answers, tapped): the box "Type your answer". Empty, a box opened from
+     "Something else" closes when you tap away; one Will asks for stays
+     until you send. You type at no other time;
+  2. Will needs to hear you (the plan's spoken questions,
+     [`the-plan.md`](the-plan.md) B10): "Record your answer", with "Not
+     now" a grey word under his question; "Not now" leaves it until the
+     chat is opened again;
+  3. a review is unfinished: "Continue review", with no red dot (B10);
+  4. otherwise "Record Take N" for the newest Take (the goodbye's, a
+     practice day's, else the thread's newest Take), faded while a Take is
+     processed; "Start your first recording" before any Take.
+
+  One black button; the red dot means a tap starts a recording. No mic, and
+  no ✕ beside the button or the box. While an answer is said, **the one
+  recording bar** (N314, locked; N304) takes the bar's place: the trash on
+  the left, then the walk's strip (the pulsing dot, the clock, the track)
+  with the red Stop inside it. Stop sends, the trash throws it away. The
+  same bar for the plan's spoken answers ([`the-plan.md`](the-plan.md) B3),
+  the walk's practice (C7) and the tempo step (T); a Take keeps its locked
+  recording screen, whose strip is the same (N70, N303). Was: "+", "Type
+  here" and the mic always (N369); the mic orange while Will waited (N296,
+  N319 item 1); "Type here" faded while the plan asked, with its note (N319
+  item 3, N323, N325); "Something else" in the bar's middle (N371 item 3);
+  voice notes to Will and the "#" note (N253).
 - **B15** **The chat follows the newest bubble after an answer** (founder
   2026-11-01, N319 item 9): after a tap, a typed message, a voice answer,
   the continue tap or an answer to the plan's question, the Lounge lands on
@@ -820,25 +826,24 @@ praised moment:
      "next"; `plan.next_day_text`); then Will's grey bubble with the plan's
      bar and "{n} of {total} practices done." (N319 item 7; it replaced the
      bar on the walk's end sheet). Was: "Good job. See you next {day}.",
-     tomorrow named by its weekday. Under the last of them, on the right, the one tap,
-     orange outlined as Will's tap answers: "I want to continue my
-     practice". Tapping it, or typing that they want to practise, lands as
-     the speaker's own bubble and brings "Record Take N" under the chat,
-     alone (B3, N294 item 7, N296 state 4), which opens the text as its
-     own button does (the sharing question first from Take 2, G). The
-     speaker may simply close the app, or close the button with its grey ✕
-     and have the bar back (N395); the "+" still opens the projects, and
-     the Take's card still opens its Ideal Text with its own "Record Take N".
+     tomorrow named by its weekday. Under them the bar's middle is "Record
+     Take N" (B14), which opens the text as its own button does (the
+     sharing question first from Take 2, G); after the first Take it
+     records the real talk (N449 item 1). The speaker may simply close the
+     app; the stack still opens the projects, and the Take's card still
+     opens its Ideal Text with its own "Record Take N". Was: the tap "I
+     want to continue my practice" first, then "Record Take N" alone with a
+     grey ✕ (N294 item 6, N296 state 4, N395; N483 item 7).
      A practice day's one thing, newer than the goodbye, holds the chat's
      one record button: [`the-plan.md`](the-plan.md) G6.
 
   **Between two Takes** (N244, N251). From the moment the next Take is
-  recorded, in any project, until its walk reaches its summary, the chat
-  shows no "Record Take N" and no tap under a goodbye. Every goodbye above
-  it keeps its words and loses its tap for good. The new Take's goodbye
-  brings the tap back. So the chat has one record
-  button, the newest Take's; another project is reached through the "+".
-  The "+" and the Ideal Text page's own "Record Take N" are unchanged
+  recorded, in any project, the bar's "Record Take N" is the new Take's:
+  faded while it is processed, then "Continue review" until its walk is
+  done (B14). So the chat has one record button, the newest Take's;
+  another project is reached through the stack. The stack is held while a
+  Take is processed, and the Ideal Text page's own "Record Take N" is
+  unchanged
   (founder 2026-10-28: "disable the new event while the processing is
   happening, so that it is only possible once it's finished"; then "One
   record button in the chat, the newest Take's; other projects through the
@@ -885,8 +890,9 @@ praised moment:
   may follow, E2), "Did this help?" when the Take looks off. The CEO
   panel's asks are not among them since N391: they come in the bar at the
   top. One question or ask is on screen at a time
-  (N294 item 4). While Will's question waits, the bar under the chat is
-  B14's second state: the mic orange, answering by voice (E3).
+  (N294 item 4). While Will's question waits, his answers sit under it,
+  "Something else" first, and the bar's middle stays the record button: his
+  question never stands in front of the next Take (B14, N483 item 2).
 
   **Notifications come in a bar at the top of the chat, never in the
   buttons under it** (founder 2026-11-03, N391; prototype
@@ -985,22 +991,18 @@ praised moment:
   (N297 item 2): this Take's own words, then what the speaker said for an
   earlier talk, then the signed answers for their field, for who the talk
   is for and what they should do alike; orange on the right. Who the talk
-  is for has no "Someone else": their own words go into "Something else"
-  in the bar (N371), so Will asks once (N406 item 2; was "Someone else"
+  is for has no "Someone else": their own words go into "Something else",
+  the first of his answers, which opens the box (N483 item 2; was in the
+  bar's middle, N371), so Will asks once (N406 item 2; was "Someone else"
   last, opening "Who is it for, then? 👀", N319 item 8). The check
   ("Right?") keeps "Someone else" and its follow-up. No Skip under Will's
-  questions (N296 item 2): not answering is allowed, and the "+" still
-  opens the projects; their own words in the message box answer too, and
-  so does **a voice answer** (N294 items 2 and 3, N319 item 1): while Will
-  waits the mic is orange (B14); a tap records with the one recording bar,
-  Stop sends, and the answer shows at once as the speaker's voice bubble,
-  playing from the phone, with the typing dots where its words will be.
-  The backend hears it under the processing authorization (the plan's own
-  transcriber call, `POST /v2/explore/arc/<arc>/will-question/voice`), its
-  words are the answer as typed words are (a tap answer said is that tap),
-  and the bubble then carries the words heard (N275). The recording itself
-  is not kept (the Lounge thread is text only): it plays back in that
-  sitting, and the words stay. Nothing heard keeps the question open. One
+  questions (N296 item 2): not answering is allowed, and the stack still
+  opens the projects; their own words in the box answer too. A spoken
+  answer is no longer made (N483 item 7); one already given stays as the
+  speaker's bubble with the words Will heard (N275, `WillVoiceAnswer.tsx`).
+  Was: while Will waited the mic was orange, and a spoken answer was heard
+  under the processing authorization and answered as typed words (N294
+  items 2 and 3, N319 item 1). One
   follow-up at most, with no tap answers (N294 item 3). A Take that names its audience twice is checked instead
   ("Sounds like this one's for {the board}. Right? 🎯"; the guess becomes
   the audience only on Yes). How Will knows: one gpt-4o-mini call per Take
@@ -1830,8 +1832,8 @@ October (backend N111).
 - **The goodbye after a Take** (signed 2026-10-31, N294 item 6; N319 item
   7; N347 item 2): "Good job. See you next time." · on a plan "Good job.
   See you tomorrow." or "Good job. See you {weekday}." (signed 2026-11-02,
-  N347 item 2) · "{n} of {total} practices done." · the tap "I want to
-  continue my practice", then "Record Take N".
+  N347 item 2) · "{n} of {total} practices done." · then "Record Take N"
+  in the bar (N483; was the tap "I want to continue my practice" first).
 - **The bar at the top** (N295, N391): "It seems you enjoy using
   WillpowerLab." over the WhatsApp ask; the CEO panel's lines as written
   (E1). The home screen's ("Well, I can see you're doing pretty good.") is
@@ -1995,7 +1997,6 @@ where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
 
-- **N483** · the bottom bar, one logic in every chat (locked 2026-11-04, not built): no mic; the middle is the one thing to do now; in Will's chat "Record Take N" at rest (faded while a Take is processed, "Start your first recording" before any), "Continue review" in the bar's middle, "Record your answer" when he needs to hear you, the box "Type your answer" only when he asks for words; "Not now" under a question; no ✕ beside a record button or the box · replaces, when built: A item 2's and D4's tap "I want to continue my practice", D4's ✕ beside "Record Take N" (N395), B10's "Continue review" above the message box, B14's bar ("+", "Type here", the mic), J7's "Something else" in the bar's middle (it becomes the first of Will's answers) · prototype "The Bar, Clickable" <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2> (version 8; files in the backend's `docs/design/customer-requests-2026-10-28/the-bar/` and `11-the-bar-clickable.pdf`) · locked, waiting to be built · BE #1718
 
 - **The plan** (backend N129 onward) · the diagnosis, the plan card, the practice days and the plan's end have their own page, [`the-plan.md`](the-plan.md); it meets this page in the Lounge, in the walk's level moment (C, N134 item 2), the bar on the end sheet (N140 item 11) and the pace practice in a pace week (the tempo step), and in the chat's day line before each day's first message (N169, the-plan.md G3) · decided, not built · its rules live there, not here (backend N160). Built, on for ring 5 since 27 October 2026 (N203, N204, backend #1394): the plan in the Lounge, and the bar with "{n} of {total} practices done. Next: {day}." on the walk's end card (`WalkEnd.tsx`, `PlanProgress`); and since 27 October the level's moment in the walk (H1, N209: "This week's level: {level}. Here's where it shows:" above the clip, `LevelHere` in `FeedbackWalk.tsx`)
 
@@ -2135,9 +2136,10 @@ Frontend, shared with other flows (not guarded): `src/components/willab/Lounge.t
 `src/components/willab/TranscriptReviewDeck.tsx` (the black line and the
 paragraph tap), `src/components/willab/IdealTextOverlay.tsx` and
 `idealTextLoad.ts` (the page and its loading), `src/components/willab/loungeReports.ts`,
-`src/components/willab/WillVoiceAnswer.tsx` (the orange mic and the voice
-answer, B14, E3), `src/components/willab/WillQuestion.tsx` (Will's
-question and its taps, E2, E3).
+`src/components/willab/WillVoiceAnswer.tsx` (a spoken answer already
+given, E3), `src/components/willab/WillQuestion.tsx` (Will's question, its
+taps and the box, B14, E2, E3), `src/components/willab/plan/PlanDock.tsx`
+(`WillBarMiddle`, the bar's middle, B14).
 The Ideal Text's own files are in `scripts/design-locked-files.txt`. So is
 `src/components/willab/RecordingBar.tsx` (the one recording bar, B14, C7,
 T), locked by backend N314: a change to it needs the `Founder-Approved:`
@@ -2147,8 +2149,8 @@ Backend (`wilplus/backend-cursor`): `services/moment_pick.py`,
 `services/take_feedback_policy_v3.py` (the marks), `services/willfidence.py`,
 `services/rewrite_gate.py` (H);
 `services/take_summary.py` (D); `services/after_take.py`,
-`services/will_question.py`, `services/feedback_check.py` (E; a voice
-answer: `routes/v2/explore_ideal_text.py`, `/will-question/voice`);
+`services/will_question.py`, `services/feedback_check.py` (E; the spoken
+answer's route, `/will-question/voice`, is no longer called, N483 item 7);
 `services/take_context.py` (the key line, E4, H1);
 `services/inner_context.py`, `services/verbal_read.py`,
 `services/prompts/verbal_read.py` (the notes, H1);
@@ -2209,6 +2211,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N483 · B3, B10, B14, D4, E1, E3, K: the bar has one logic in every chat. In Will's chat the stack on the left, and in the middle the one thing to do now: the box "Type your answer" only when Will asks for words ("Something else", now the first of his answers, opens it; empty, it closes when you tap away); "Record your answer" for the plan's spoken questions, with "Not now" under the question; "Continue review"; else "Record Take N" for the newest Take, faded while one is processed, or "Start your first recording" before any (`WillBarMiddle`, `useWordsBox`, `Lounge.tsx`, `afterTake.ts`). What stops: the mic and voice notes to Will, the "#" note, "Keep a voice notebook?" and Will opening the notebook from your Takes (the note rests; kept notes stay, notes left on the phone still go); typing when Will has not asked; a spoken answer to Will's question; the tap "I want to continue my practice"; the ✕ beside "Record Take N"; "Continue review" above the bar; the faded "Type here" and its note · BE N483 (#1718), FE (this PR)
 - 2026-11-04 · N470, N479 · G: who hears this Take: at "Record Take 2" the three signed bubbles, "Select all" and one row per person in your chats, everyone ticked or the last choice, "Last sent" on the one sent to last; Continue keeps the people and the line naming them ("Artur, Maya Lindqvist", "Everyone in my list"), and the Take is sent to each, as your message in your chat with them, once its upload is up; the line opens the screen to add people, never to unsend; asked again only when someone joins a choice of chosen people; "Record Take N" waits 1.5 s at most for the choice, then asks; nobody in the list records with nothing sent (`NextTakeShareScreen.tsx`, `nextTakeShare.ts`, `walkThread.ts`, `IdealTextActions.tsx`, `takeSends.ts`). Behind the backend's switch, off until the Privacy text is signed; off, or when its reads fail, today's screen exactly. What stops once on: General community and Only me, the crowd judging new Takes, taking a sent Take back, the passcode (N471 item 2, N479 item 4), the question asked again when a community is added. Was: G1 to G4, "How big you want your audience?" · BE N470 (#1702), N479 (#1704), BE (send PR), FE (this PR)
 - 2026-11-04 · N469 · J8: the rhythm of a run, as on WhatsApp: in Will's chat and every chat with a person, two rows of the same side sit 2px apart and 12px where the side changes; anything else keeps 8px (`globals.css`, `Lounge.tsx`, `chats/ChatThread.tsx`). The walk keeps its own spacing. Was: 8px between every row · BE #1700, FE (this PR)
 

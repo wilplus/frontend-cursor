@@ -2,9 +2,9 @@
 /*
 STORY    As a user, I want to land on my list of chats, with Will first,
          on the web and in the iPhone app, so that I can open Will's chat or
-         a colleague's or a customer's, answer with an emoji or a voice note,
-         and start something new with a photo or a file (backend N456: the
-         default for everyone, everywhere; was ring 6 only).
+         a colleague's or a customer's, answer with an emoji or by recording
+         my answer, and start something new with a photo or a file (backend
+         N456: the default for everyone, everywhere; was ring 6 only).
 OUTCOME
   O1  As a visitor who is not signed in, nothing is drawn around the Lounge
       and no chat is read (Never 3).
@@ -21,18 +21,13 @@ OUTCOME
       never remounted, with a back to the list (customer-requests.md C1;
       N274, N298, N322).
   O3  In a chat, one bar: the "+" left, the three emoji in the box, no
-      typing, and the mic always on the right, orange while a question waits
-      for my answer (N368; was N341: only then); a tap on
-      an emoji posts {"kind":"emoji","body":…} and shows the emoji at once,
-      large, with its meaning and time under it, and the mic is plain again
-      (N306, N311, N322, N368).
+      typing and no mic (N483 item 3; was the mic, N368); a tap on an emoji
+      posts {"kind":"emoji","body":…} and shows the emoji at once, large,
+      with its meaning and time under it (N306, N311, N322).
   O4  The WillpowerLab bar shows on the list only: in a person's chat and
       in Will's, the chat's own top bar takes its place (N321 item 1, N334).
   O5  A chat whose last message is newer than the last time it was opened
       on this device shows as new, and stops being new once opened (N322).
-  O6  The mic records with the one recording bar; Stop posts the recording
-      (multipart audio and duration_ms) and the voice note joins the
-      thread as my bubble; the bar comes back (N321 item 2, N314).
   O7  A voice note from the other person is their grey bubble with a play
       control that plays it from the chat's audio route (N321 item 2); its
       words, once ready, are closed behind "Read it" under the player, and
@@ -57,19 +52,19 @@ OUTCOME
       sheet with my link; a ✕ where the "+" was brings the bar back (N351,
       N460 item 4).
   O13 A photo I pick is posted to the chat's photo route and joins the
-      thread as my image; the mic then turns orange, so I can say what I
-      need, and is plain once my voice note is sent (N337, N341 item 2,
-      N351, N368).
-  O14 The other person's photo or file waits for my voice: the mic is orange. A
-      file shows a tile with its extension and its own name, and downloads
+      thread as my image (N337, N351).
+  O14 The other person's file shows a tile with its extension and its own
+      name, and downloads
       from the chat's file route; a photo opens full size with a close and
       no words; the list's line is "📷", or "📄" and the file's name (N351).
   O15 An answer sent to me is one message (N355): its voice, the slides it
       was said over in a strip that marks the one being heard as it plays,
       and its words closed behind "Read it"; no Take number.
   O16 A question Will marked as about a product or a treatment takes one
-      black "Record an answer" in the bar's middle, the "+" and the mic on its
-      sides, the mic quiet beside it (N321 item 4, N361, N368, N460 item 2); it hands the recording screens the
+      black "Record your answer" in the bar's middle, the "+" on its left and
+      no mic (N321 item 4, N361, N483 items 3 and 5), and "Not now", a grey
+      word under the question, brings the emoji back, telling them nothing,
+      until the chat is opened again; the answer hands the recording screens the
       chat, the person and the question. Back from them, the bar's middle
       reads "Sending to {name}… {n}" with Undo while the answer, already
       with the backend, waits out its 5 seconds there (N441 item 3); then
@@ -97,20 +92,19 @@ PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is 
          O19 -> "as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar"
          O20 -> "as a developer, a chats row in the rings, on or off, changes nothing"
          O2 -> "with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back"
-         O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question"
+         O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning, and the bar has no mic"
          O4 -> "the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's"
          O5 -> "a chat with a message newer than its last opening shows as new until it is opened"
-         O6 -> "the mic records a voice note, Stop posts it and it joins the thread"
          O7 -> "a voice note from the other person plays from the chat's audio route, its words behind Read it"
          O8 -> "the + opens my own link and copies it"
          O9 -> "a chat joined through a link says whose link it was"
          O10 -> "after joining, the list opens with Will first and the one who invited me under him, marked new"
          O11 -> "as a user, the loader, not Will's chat, waits for my list, on the web and in the app, and never for the rings"
          O12 -> "the + shows the four tiles, Someone else opens my link, and the ✕ in its place brings the bar back"
-         O13 -> "a photo I send joins the thread and the mic shows until my voice note says what I need"
-         O14 -> "the other person's photo or file waits for my voice, and each opens from the chat's file route"
+         O13 -> "a photo I send joins the thread as my image"
+         O14 -> "the other person's photo or file opens from the chat's file route"
          O15 -> "an answer sent to me plays with its slides following the voice, its words behind Read it"
-         O16 -> "a marked question takes Record an answer, and my answer goes with Sending, Undo and Sent"
+         O16 -> "a marked question takes Record your answer, Not now leaves it, and my answer goes with Sending, Undo and Sent"
          O17 -> "the device's Back goes back by one, to the list, never off it, and Forward opens the chat I just left"
          O17 -> "in the app, a swipe from the left edge goes back to the list where I left it, and one from the right edge forward to the chat I just left"
          O18 -> "a refused answer stays as Not sent, and Send again sends the same Take"
@@ -206,23 +200,6 @@ const flush = () =>
     for (let i = 0; i < 12; i += 1) await Promise.resolve();
   });
 
-/** The phone's recorder, as the other tests of the voice note fake it. */
-class FakeRecorder {
-  state: "inactive" | "recording" = "inactive";
-  mimeType = "audio/webm";
-  ondataavailable: ((e: { data: Blob }) => void) | null = null;
-  onstop: (() => void) | null = null;
-  static isTypeSupported = () => true;
-  start() {
-    this.state = "recording";
-    this.ondataavailable?.({ data: new Blob(["voice"], { type: "audio/webm" }) });
-  }
-  stop() {
-    this.state = "inactive";
-    queueMicrotask(() => this.onstop?.());
-  }
-}
-
 beforeEach(async () => {
   resetRingStateCache();
   __resetBootPrefetchForTests();
@@ -268,15 +245,6 @@ async function pick(input: Element | null, files: File[]) {
   Object.defineProperty(input, "files", { value: files, configurable: true });
   await act(async () => void input.dispatchEvent(new Event("change", { bubbles: true })));
   await flush();
-}
-
-/** The phone's microphone, granted, recording with the FakeRecorder. */
-function micGranted() {
-  vi.stubGlobal("MediaRecorder", FakeRecorder);
-  Object.defineProperty(navigator, "mediaDevices", {
-    value: { getUserMedia: vi.fn(async () => ({ getTracks: () => [{ stop: vi.fn() }] })) },
-    configurable: true,
-  });
 }
 
 describe("the chats in front of the Lounge", () => {
@@ -440,7 +408,7 @@ describe("the chats in front of the Lounge", () => {
     expect(header()?.textContent).toContain("Sarah");
   });
 
-  it("an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question", async () => {
+  it("an emoji tapped in a chat is posted and shown at once with its meaning, and the bar has no mic", async () => {
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
     routes.set("GET /api/v2/chats/c-sarah/messages", () => ({
@@ -454,17 +422,15 @@ describe("the chats in front of the Lounge", () => {
     const screen = container.querySelector("[data-chat-screen]")!;
     expect(screen.querySelector("[data-chat-header]")?.textContent).toContain("SarahInvita customer");
     expect(screen.querySelector("[data-chat-thread] [data-bubble]")?.textContent).toContain(SARAH.last.body);
-    // Sarah's question waits: the "+", the three emoji in the box, the mic orange beside it, no typing.
+    // One bar: the "+", the three emoji in the box; no mic, no typing (N483 item 3).
     const bar = screen.querySelector("[data-chat-bar]")!;
     expect([...bar.querySelectorAll("button")].map((b) => b.textContent || b.getAttribute("aria-label"))).toEqual([
       "Add to your chat with Sarah",
       "👍",
       "👀",
       "🙏",
-      "Voice note",
     ]);
     expect(screen.querySelector("textarea, input:not([type=file])")).toBeNull();
-    expect(bar.querySelector("[data-chat-mic-hot]")).not.toBeNull();
 
     fetchMock.mockImplementationOnce(async (url: string, init?: RequestInit) => {
       await posted;
@@ -480,10 +446,6 @@ describe("the chats in front of the Lounge", () => {
     expect(post[0]).toBe("/api/v2/chats/c-sarah/messages");
     expect(post[1].method).toBe("POST");
     expect(JSON.parse(String(post[1].body))).toEqual({ kind: "emoji", body: "👍" });
-
-    // Answered: nothing waits, so the mic stays, no longer orange (N368).
-    expect(bar.querySelector('button[aria-label="Voice note"]')).not.toBeNull();
-    expect(bar.querySelector("[data-chat-mic-hot]")).toBeNull();
 
     release();
     await flush();
@@ -527,43 +489,6 @@ describe("the chats in front of the Lounge", () => {
     await tap(row("c-sarah"));
     await tap(container.querySelector("[data-chat-header] button"));
     expect(row("c-sarah")?.hasAttribute("data-chat-new")).toBe(false);
-  });
-
-  it("the mic records a voice note, Stop posts it and it joins the thread", async () => {
-    micGranted();
-    backend(["chats"]);
-    routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
-    // Ariel's question waits for my answer, so the mic shows (N341).
-    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({
-      messages: [{ id: "q1", mine: false, author: "Ariel", kind: "voice", body: "", meta: { question: true }, created_at: ARIEL.last.created_at }],
-    }));
-    routes.set("POST /api/v2/chats/c-ariel/voice", () => ({
-      message: { id: "v1", mine: true, author: "Me", kind: "voice", body: "", meta: { duration_ms: 4200 }, created_at: "2026-11-02T08:00:00Z" },
-    }));
-    await render();
-    await tap(row("c-ariel"));
-    const screen = container.querySelector("[data-chat-screen]")!;
-
-    await tap(screen.querySelector('[data-chat-bar] button[aria-label="Voice note"]'));
-    // Recording: the one recording bar in the bar's place.
-    expect(screen.querySelector("[data-chat-bar] [data-recording-bar] [data-walk-recording-strip]")).not.toBeNull();
-    expect(screen.querySelector("[data-chat-emoji-box]")).toBeNull();
-
-    await tap(screen.querySelector('[data-recording-bar] button[aria-label="Stop"]'));
-    await flush();
-    const posts = calls("POST /api/v2/chats/c-ariel/voice");
-    expect(posts).toHaveLength(1);
-    const form = posts[0][1].body as FormData;
-    expect((form.get("audio") as Blob).type).toBe("audio/webm");
-    expect(form.get("duration_ms")).toMatch(/^\d+$/);
-
-    // The bar is back, the mic no longer orange: answered; the voice note is
-    // mine, orange on the right, with its length.
-    expect(screen.querySelector("[data-recording-bar]")).toBeNull();
-    expect(screen.querySelector("[data-chat-emoji-box]")).not.toBeNull();
-    expect(screen.querySelector("[data-chat-mic-hot]")).toBeNull();
-    const voice = screen.querySelector('[data-chat-thread] [data-row="me"][data-chat-voice]');
-    expect(voice?.textContent).toMatch(/^0:04\d\d:\d\d$/);
   });
 
   it("a voice note from the other person plays from the chat's audio route, its words behind Read it", async () => {
@@ -703,24 +628,18 @@ describe("the chats in front of the Lounge", () => {
     );
   });
 
-  it("a photo I send joins the thread and the mic shows until my voice note says what I need", async () => {
-    micGranted();
+  it("a photo I send joins the thread as my image", async () => {
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
-    // Ariel's 👍: nothing waits, so the mic is plain.
     routes.set("GET /api/v2/chats/c-ariel/messages", () => ({
       messages: [{ id: "m1", mine: false, author: "Ariel", kind: "emoji", body: "👍", meta: { label: "good" }, created_at: ARIEL.last.created_at }],
     }));
     routes.set("POST /api/v2/chats/c-ariel/photo", () => ({
       message: { id: "p1", mine: true, author: "Me", kind: "photo", body: "", meta: { question: true }, created_at: "2026-11-02T08:00:00Z" },
     }));
-    routes.set("POST /api/v2/chats/c-ariel/voice", () => ({
-      message: { id: "v1", mine: true, author: "Me", kind: "voice", body: "", meta: { duration_ms: 4200, question: true }, created_at: "2026-11-02T08:01:00Z" },
-    }));
     await render();
     await tap(row("c-ariel"));
     const screen = container.querySelector("[data-chat-screen]")!;
-    expect(screen.querySelector("[data-chat-mic-hot]")).toBeNull();
 
     await tap(screen.querySelector("[data-chat-plus]"));
     await tap(screen.querySelector('[data-chat-tile="photos"]'));
@@ -732,18 +651,9 @@ describe("the chats in front of the Lounge", () => {
     expect(posts).toHaveLength(1);
     expect(((posts[0][1].body as FormData).get("file") as File).name).toBe("Screenshot 1.png");
     expect(screen.querySelector('[data-row="me"] [data-chat-photo] img')?.getAttribute("src")).toBe("/api/v2/chats/c-ariel/messages/p1/file");
-    // My photo waits for what I need: the mic is orange.
-    expect(screen.querySelector("[data-chat-mic-hot]")).not.toBeNull();
-
-    await tap(screen.querySelector("[data-chat-mic]"));
-    await tap(screen.querySelector('[data-recording-bar] button[aria-label="Stop"]'));
-    await flush();
-    expect(calls("POST /api/v2/chats/c-ariel/voice")).toHaveLength(1);
-    expect(screen.querySelector("[data-chat-emoji-box]")).not.toBeNull();
-    expect(screen.querySelector("[data-chat-mic-hot]")).toBeNull();
   });
 
-  it("the other person's photo or file waits for my voice, and each opens from the chat's file route", async () => {
+  it("the other person's photo or file opens from the chat's file route", async () => {
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({
       chats: [
@@ -763,7 +673,6 @@ describe("the chats in front of the Lounge", () => {
 
     await tap(row("c-ariel"));
     const screen = container.querySelector("[data-chat-screen]")!;
-    expect(screen.querySelector("[data-chat-mic-hot]")).not.toBeNull();
     const file = screen.querySelector<HTMLAnchorElement>('[data-row="app"] a[data-chat-file]')!;
     expect(file.textContent).toBe("PDFNewsroom AI guidelines.pdf");
     expect([file.getAttribute("href"), file.getAttribute("download")]).toEqual([
@@ -869,7 +778,7 @@ describe("the chats in front of the Lounge", () => {
     expect(answer.querySelector("[data-chat-words]")?.textContent).toBe("Yes, it can pick them.\n\nAlways check the quote.");
   });
 
-  it("a marked question takes Record an answer, and my answer goes with Sending, Undo and Sent", async () => {
+  it("a marked question takes Record your answer, Not now leaves it, and my answer goes with Sending, Undo and Sent", async () => {
     forgetAnswers();
     recordedAnswers.length = 0;
     backend(["chats"]);
@@ -889,15 +798,24 @@ describe("the chats in front of the Lounge", () => {
     }));
     await render();
     await tap(row("c-sarah"));
-    const button = container.querySelector("[data-chat-record-answer]");
-    expect(button?.textContent).toBe("Record an answer");
-    // One bar: the "+" left, Record an answer in the middle, the mic right (N368).
+    const button = () => container.querySelector("[data-chat-record-answer]");
+    expect(button()?.textContent).toBe("Record your answer");
+    // One bar: the "+" left, Record your answer in the middle, no mic (N483).
     expect(container.querySelector("[data-chat-emoji-box]")).toBeNull();
     expect(container.querySelector("[data-chat-bar] [data-chat-plus]")).not.toBeNull();
-    expect(container.querySelector("[data-chat-bar] [data-chat-mic]")).not.toBeNull();
-    // One loud thing at a time: the mic stays quiet beside it (N460 item 2).
-    expect(container.querySelector("[data-chat-bar] [data-chat-mic-hot]")).toBeNull();
-    await tap(button);
+    expect(container.querySelector("[data-chat-bar] [data-chat-mic]")).toBeNull();
+    // "Not now", a grey word under the question, gives the emoji back and
+    // tells Sarah nothing; opened again, the question takes the bar again.
+    const notNow = container.querySelector("[data-chat-not-now] button");
+    expect(notNow?.textContent).toBe("Not now");
+    const before = fetchMock.mock.calls.length;
+    await tap(notNow);
+    expect(button()).toBeNull();
+    expect(container.querySelector("[data-chat-emoji-box]")).not.toBeNull();
+    expect(fetchMock.mock.calls.slice(before).filter(([, init]) => (init as RequestInit | undefined)?.method === "POST")).toEqual([]);
+    await tap(container.querySelector('[data-chat-header] button[aria-label="Back"]'));
+    await tap(row("c-sarah"));
+    await tap(button());
     expect(recordedAnswers).toEqual([{ chatId: "c-sarah", name: "Sarah", question, customer: true }]);
 
     // The recording screens, as they hand it back: the Take is up, Finish take.

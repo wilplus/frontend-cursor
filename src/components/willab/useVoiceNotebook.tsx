@@ -1,16 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUp, Check, Clock, Mic, X } from "lucide-react";
+import { ArrowUp, Check, Clock, X } from "lucide-react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { TapRow } from "./WillQuestion";
 import {
   answerNotebook,
   answerSalesStep,
-  askNotebook,
   fixVoiceNote,
   getNotebookState,
-  introFromTakes,
   sendVoiceNote,
   type NotebookState,
   type SalesStep,
@@ -25,10 +23,12 @@ import TypingDots, { TypingGlyph } from "./TypingDots";
 /* -------------------------------------------------------------------------- */
 /*  useVoiceNotebook — the founder's voice notebook in the Lounge (Will        */
 /*  learning plan, step 1; founder 2026-10-20). Only for whom the backend      */
-/*  says it is on (ring 6). The mic sits right of the message box while it is */
-/*  empty; before the first note "Keep a voice notebook?" opens Yes | Not now */
-/*  while it is the newest message. Backend: services/voice_notebook.py.      */
-/*  While the speaker is onboarded (backend N243), the mic and the asks wait. */
+/*  says it is on (ring 6). Since backend N483 item 7 the note rests: no mic */
+/*  and no "#" start one, and Will no longer opens it or asks "Keep a voice  */
+/*  notebook?"; the notes already kept stay, and notes left on the phone     */
+/*  still go. Its new place is decided with the walk. Backend:               */
+/*  services/voice_notebook.py. While the speaker is onboarded (N243), the   */
+/*  asks wait.                                                               */
 /*                                                                            */
 /*  Written as it is said (backend N194): the note grows in the thread while  */
 /*  it is said; on send it settles, then a tick under it and "Noted.". A note */
@@ -63,9 +63,10 @@ export function useVoiceNotebook({
     };
   }, [signedIn]);
 
-  // "Keep a voice notebook?", and the Sunday note's two asks (step 2), open
-  // their pair while they are the newest message, once each; not while the
-  // speaker is onboarded (N243), and still newest after it, then.
+  // The Sunday note's asks (step 2) and the notebook's own open their pair
+  // while they are the newest message, once each; not while the speaker is
+  // onboarded (N243), and still newest after it, then. "Keep a voice
+  // notebook?" no longer opens (N483 item 7).
   const askRef = useRef<string | null>(null);
   useEffect(() => {
     if (threadLoading || held) return;
@@ -89,19 +90,6 @@ export function useVoiceNotebook({
   const currentKeyRef = useRef<() => string>(() => "");
   const reloadRef = useRef(reload);
   reloadRef.current = reload;
-
-  // Before any note: once a visit, Will may open the notebook with a
-  // strength he spots in the last Takes (backend N411 items 1, 5); the
-  // backend decides whether it is due, and the thread is read again when
-  // it wrote. Not while the speaker is onboarded (N243).
-  const introRef = useRef(false);
-  useEffect(() => {
-    if (introRef.current || threadLoading || held || !state?.enabled || state.consented) return;
-    introRef.current = true;
-    void introFromTakes().then((wrote) => {
-      if (wrote) void reloadRef.current();
-    });
-  }, [threadLoading, held, state?.enabled, state?.consented]);
 
   const againRef = useRef(false);
   const flush = useCallback(async () => {
@@ -190,14 +178,7 @@ export function useVoiceNotebook({
     }
   }
 
-  async function tapMic(): Promise<void> {
-    if (state?.consented) {
-      void note.start();
-      return;
-    }
-    if (await askNotebook()) await reload();
-    openOffer("voice_notebook");
-  }
+
 
   async function answer(choice: "yes" | "not_now"): Promise<void> {
     if (!(await answerNotebook(choice))) return;
@@ -231,7 +212,6 @@ export function useVoiceNotebook({
     editFix: (draft: string) => setFixing((now) => (now ? { ...now, draft } : now)),
     closeFix: () => setFixing(null),
     saveFix: () => void saveFix(),
-    tapMic: () => void tapMic(),
     answer: (choice: "yes" | "not_now") => void answer(choice),
     /** A tap on one of the sale's four steps (backend N241 P2). */
     answerSales: (noteId: string | null, step: SalesStep) => void answerSales(noteId, step),
@@ -244,7 +224,7 @@ export type VoiceNotebook = ReturnType<typeof useVoiceNotebook>;
 const SETTLE_MS = 700;
 
 const OWN_ASKS: readonly OfferType[] = [
-  "voice_notebook", "sunday_note", "life_goals", "life_goals_quarter", "life_goals_change", "sales_step",
+  "sunday_note", "life_goals", "life_goals_quarter", "life_goals_change", "sales_step",
   "your_why", "strengths",
 ];
 
@@ -282,66 +262,6 @@ export function SalesSteps({ onPick }: { onPick: (step: SalesStep) => void }) {
   );
 }
 
-/** The mic, right of the message box: only where the notebook is on, the
- *  speaker is not being onboarded (N243) and the box is empty. A note on its
- *  way never holds it: the outbox sends notes one after another (N194).
- *  While Will waits for an answer (backend N296 state 2, N306 item 1) the
- *  same mic fills orange, colour only, for everyone, and records the answer
- *  (`waiting`). */
-export function VoiceNoteMic({
-  notebook,
-  draft,
-  waiting = null,
-}: {
-  notebook: VoiceNotebook;
-  draft: string;
-  /** Will's question waits: the mic records the answer. */
-  waiting?: { onTap: () => void } | null;
-}) {
-  if (draft.trim() || (!waiting && (!notebook.enabled || notebook.held))) return null;
-  return (
-    <button
-      type="button"
-      onClick={waiting ? waiting.onTap : notebook.tapMic}
-      aria-label="Voice note"
-      data-testid="voice-note-mic"
-      data-will-waits={waiting ? "" : undefined}
-      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${
-        waiting ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
-      }`}
-    >
-      <Mic className="h-5 w-5" aria-hidden />
-    </button>
-  );
-}
-
-/** What the message box keeps when "# note" is tapped: "#", to write on. */
-export const NOTE_START = "# ";
-
-/** Typing "#" offers one option, "# note" (backend N253): a typed "#"
- *  message is one note, the same as the mic's. Shown while the draft is a
- *  leading "#" still being typed, alone or as the start of "note". */
-export function VoiceNotePicker({ notebook, draft, onPick }: { notebook: VoiceNotebook; draft: string; onPick: () => void }) {
-  const typed = /^\s*#(\p{L}*)$/u.exec(draft);
-  if (!notebook.enabled || notebook.held || !typed || !"note".startsWith(typed[1].toLowerCase())) return null;
-  return (
-    <div role="listbox" aria-label="Tags" className="mb-2 overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
-      <button
-        type="button"
-        role="option"
-        aria-selected={false}
-        // onMouseDown, not onClick: the box keeps focus, so the keyboard stays up.
-        onMouseDown={(e) => {
-          e.preventDefault();
-          onPick();
-        }}
-        className="block w-full px-4 py-2.5 text-left text-[15px] font-medium text-foreground hover:bg-muted"
-      >
-        # note
-      </button>
-    </div>
-  );
-}
 
 /** The note on its way: the one recording bar (backend N314, N304), the
  *  trash, then the walk's strip with Stop inside it; Stop sends. Was the

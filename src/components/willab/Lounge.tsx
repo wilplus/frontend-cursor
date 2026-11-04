@@ -93,10 +93,8 @@ import {
   afterGoodbye,
   afterTakeOrder,
   askShowing,
-  CONTINUE_PRACTICE,
   heldFor,
   heldMessage,
-  wantsToPractise,
 } from "./afterTake";
 import { postAfterTake } from "@/services/api/afterTake";
 import OfferBubble from "./OfferBubble";
@@ -132,12 +130,9 @@ import {
   VoiceNoteBar,
   VoiceNoteBubble,
   VoiceNoteFixBar,
-  VoiceNoteMic,
-  VoiceNotePicker,
   VoiceNoteThread,
   SalesSteps,
   salesAskOf,
-  NOTE_START,
   type VoiceNotebook,
 } from "./useVoiceNotebook";
 import SundayLens, { SundayHeadBubble } from "./SundayLens";
@@ -160,12 +155,14 @@ import WillQuestionBubble, {
   ChatLink,
   ChatLinks,
   TapRow,
-  useSomethingElse,
+  SOMETHING_ELSE,
+  TYPE_YOUR_ANSWER,
+  useWordsBox,
   willQuestionOf,
   type WillQuestionTarget,
 } from "./WillQuestion";
-import { isWillVoice, useWillVoice, WillVoiceBubble } from "./WillVoiceAnswer";
-import { RecordTakeButton, useRecordTake } from "./plan/PlanDock";
+import { isWillVoice, WillVoiceBubble } from "./WillVoiceAnswer";
+import { WillBarMiddle } from "./plan/PlanDock";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -1147,12 +1144,9 @@ export default function Lounge({
     onStartRecording: onStartPlanRecording,
     recordHeld: takeInFlight,
   });
-  // AFTER THE GOODBYE (founder 2026-10-31, N294 items 6 and 7, N296 state
-  // 4): no push to the next Take; the tap under the goodbye, then "Record
-  // Take N" alone under the chat (`useGoodbye`).
-  const goodbye = useGoodbye({ messages, oneHoldsRecord: plan.oneHoldsRecord, planOne: plan.one, olderTake, append: thread.append, ownerId: userId });
-  // Its ✕ gives the bar back for that Take (N395).
-  const recordTake = useRecordTake(goodbye.recordNext);
+  // AFTER THE GOODBYE (N296 state 4, N483 item 2): the bar's middle is
+  // "Record Take N" for the goodbye's Take, with no tap first (`useGoodbye`).
+  const goodbye = useGoodbye({ messages, oneHoldsRecord: plan.oneHoldsRecord, planOne: plan.one, olderTake });
 
   const closeProcessingOverlay = useCallback(() => {
     setOpenedProcessingSessionId(null);
@@ -1468,12 +1462,10 @@ export default function Lounge({
     atBottomRef.current = true;
     pinBottom();
   }, [pinBottom]);
-  // Answering Will by voice (N294 items 2 and 3, N296 states 2 and 3): the
-  // mic orange while he waits, the one recording bar, the answer's bubble.
   const shownMessages = useMemo(() => shownItems.map((item) => item.message), [shownItems]);
-  const willVoice = useWillVoice({ shown: shownMessages, reload, onAnswered: followAnswer });
-  // "Something else" in the bar's middle while Will asks (backend N371).
-  const somethingElse = useSomethingElse(shownMessages, plan.typingOff, draftText, composerRef);
+  // The box only when Will asks for words (N483 item 2): "Something else",
+  // his follow-up with no answers to tap, or "What was missing?".
+  const words = useWordsBox(shownMessages, plan.typingOff, draftText, composerRef, feedbackCheckTarget([...shownMessages], "missing") !== null);
 
   // U3 — capture the historical baseline once the thread first loads, so only
   // messages that arrive AFTER it (new bot replies) animate.
@@ -1498,6 +1490,29 @@ export default function Lounge({
     if (state === "insights_ready") void reload();
   }, [state, reload]);
 
+  /** "Continue review": the same door as the waiting Feedback walk's (B10, N192). */
+  function continueReview(arcId: string): void {
+    const walk = walks.filter((w) => w.arcId === arcId).at(-1);
+    openIdealText(arcId, "review", walk ? feedbackWalkDoor(walk, walkWaits(walk), arcId) : null);
+  }
+
+  /** "Start your first recording": the plan's first Take when there is a
+   *  plan, else a new project (N483 item 2). */
+  function startFirst(): void {
+    (plan.startFirst ?? onStartNewProject ?? onStart)();
+  }
+
+  /** "Record Take N": after the first Take (backend N401 item 4) the real
+   *  talk, its own set-up with the plan's topic, never the five questions
+   *  again; otherwise that Take's text, the sharing question first. */
+  function recordNext(arcId: string, takeIndex: number): void {
+    if ((goodbye.afterFirstTake || isFirstTakeArc(userId, arcId, takeIndex)) && onStartPlanRecording) {
+      onStartPlanRecording(plan.topic, { afterFirstTake: true });
+      return;
+    }
+    openIdealText(arcId, "share");
+  }
+
   async function handleSend(e?: React.FormEvent) {
     e?.preventDefault();
     const q = draftText.trim();
@@ -1505,8 +1520,7 @@ export default function Lounge({
     // user's text rather than silently dropping it.
     if (!q || botThinking) return;
     setDraftText("");
-    // Under the goodbye, saying they want to practise is the tap (N294 item 6).
-    if (goodbye.typed(q)) return followAnswer();
+    words.close();
     await runSend(q);
   }
 
@@ -1532,6 +1546,8 @@ export default function Lounge({
   // writes it with the reply, then the thread reads it back. The typing
   // dots while it does, as for a typed answer (B8).
   async function answerWillQuestion(target: WillQuestionTarget, choice: string): Promise<void> {
+    // "Something else", the first of his answers, opens the box (N483 item 2).
+    if (choice === SOMETHING_ELSE) return words.start();
     setBotThinking(true);
     try {
       if (await postWillQuestion(target.arcId, target.takeSessionId, choice)) await reload();
@@ -1838,7 +1854,7 @@ export default function Lounge({
         {thread.loading ? (
           <TypingDots label="Loading" />
         ) : threadItems.length === 0 ? (
-          <LoungeEmptyState onStart={onStartNewProject ?? onStart} hidden={plan.holdsEmpty} />
+          <LoungeEmptyState hidden={plan.holdsEmpty} />
         ) : (
           shownItems.map((item, i) => {
             const id = item.message.client_id;
@@ -1877,16 +1893,6 @@ export default function Lounge({
             (N319 item 1): tap answers on the right, or the 1 to 10 scale. */}
         {plan.asks}
 
-        {/* Under the goodbye after a Take, the one tap (N294 item 6): it
-            stays the speaker's own answer in the thread. */}
-        <ContinueTap
-          shown={goodbye.tap && !thread.loading}
-          onTap={(said) => {
-            goodbye.choose(said);
-            followAnswer();
-          }}
-        />
-
         {/* While a Take processes (founder lock 2026-10-12, section 1): a
             bubble in the chat with the typing dots (founder 2026-10-20, in
             place of the breathing mark); its tap opens the processing view. */}
@@ -1919,7 +1925,6 @@ export default function Lounge({
 
         <VoiceNoteThread notebook={notebook} />
         {plan.pending}
-        {willVoice.pending}
         <ThreadDots thinking={botThinking} writing={thread.writing} />
       </div>
 
@@ -2061,73 +2066,19 @@ export default function Lounge({
       {/* A5 — the send button lives INSIDE the input (right edge): grey when the
           field is empty, black once there's text. A4 — the input height (h-12)
           matches the record CTA. B3 — "Will" persona in the placeholder + aria. */}
-      {/* Typing "#" offers one option, "# note" (backend N253). */}
-      <VoiceNotePicker
-        notebook={notebook}
-        draft={draftText}
-        onPick={() => {
-          setDraftText(NOTE_START);
-          composerRef.current?.focus();
-        }}
-      />
-
-      {/* FE-2 (founder 2026-07-27, revised) — the record control is its own
-          bordered button NEXT TO the text input, not inside it. Two controls
-          on one row, and everything fits on a single line at every width:
-          the input flexes and the button takes only what it needs.
-
-          Send lives inside the input and only exists once there is something
-          to send. That is where the input's width comes back — an empty field
-          pays nothing for a button that could not be pressed anyway, which is
-          the "measurably wider input" the original story wanted and could not
-          get by removing a "+" this composer never had. */}
-      {reviewToContinue ? (
-        <button
-          type="button"
-          data-testid="continue-review"
-          // The same door as the waiting Feedback walk's (B10, N192).
-          onClick={() => {
-            const walk = walks.filter((w) => w.arcId === reviewToContinue).at(-1);
-            openIdealText(reviewToContinue, "review", walk ? feedbackWalkDoor(walk, walkWaits(walk), reviewToContinue) : null);
-          }}
-          className="mb-2 flex h-[46px] w-full items-center justify-center rounded-full bg-foreground text-[15px] font-semibold text-background"
-        >
-          Continue review
-        </button>
-      ) : null}
       {plan.dock}
       {plan.sheets}
-      {/* The chat's one "Record Take N" (N294 item 7, N296 state 4): the
-          next Take after the goodbye, or a practice day's (the-plan.md G6);
-          the plan's black button with the red dot, alone, the message box
-          and the mic gone, until its grey ✕ closes it (N395). */}
-      <RecordTakeButton
-        next={recordTake.next}
-        held={takeInFlight}
-        onRecord={(arc) =>
-          // After the first Take (backend N401 item 4): "Record Take 2" is the
-          // real talk, its own set-up with the plan's topic, never the five
-          // questions again. The goodbye says so; this device's own record of
-          // the first Take is the fallback.
-          (goodbye.afterFirstTake || isFirstTakeArc(userId, arc, recordTake.next?.takeIndex)) && onStartPlanRecording
-            ? onStartPlanRecording(plan.topic, { afterFirstTake: true })
-            : openIdealText(arc, "share")
-        }
-        onClose={recordTake.close}
-      />
-      {/* Hidden whole while the plan's footer, or the next Take's button,
-          stands in for it, so its empty wrapper adds no gap under it
-          (founder 2026-10-30). */}
-      <div className={hiddenWhile(recordTake.next, plan.composerDisplay("contents"))}>
+      {/* Hidden whole while the plan's footer stands in for it, so its empty
+          wrapper adds no gap under it (founder 2026-10-30). */}
+      <div className={plan.composerDisplay("contents")}>
       <NewProjectAskComposer ask={newProjectAsk}>
       <SlidesAskComposer ask={slidesAsk}>
       <PolicyUpdateComposer>
       <VoiceNoteBar notebook={notebook} />
-      {willVoice.bar}
       <VoiceNoteFixBar notebook={notebook} />
       <form
         onSubmit={handleSend}
-        className={`${plan.composerDisplay(willVoice.composerDisplay(notebook.composerDisplay))} items-end gap-1`}
+        className={`${plan.composerDisplay(notebook.composerDisplay)} items-end gap-1`}
       >
         {/* THE "+" (founder 2026-10-12, WhatsApp-like): it opens the
             projects, where "Start a new project" starts one. It replaced the
@@ -2145,11 +2096,10 @@ export default function Lounge({
               (backend N460 item 5). */}
           <Layers className="h-5 w-5" aria-hidden />
         </button>
+        {words.show ? (
         <div className="relative flex-1">
-          {somethingElse.button}
           <textarea
             ref={composerRef}
-            hidden={somethingElse.hidesBox}
             rows={1}
             value={draftText}
             onChange={(e) => setDraftText(e.target.value)}
@@ -2165,12 +2115,11 @@ export default function Lounge({
             // Founder 2026-07-27. Short by design: it sits on one line at the
             // narrowest supported width, where the original copy wrapped to
             // two and made a chat field read as a text area.
-            placeholder={somethingElse.placeholder}
-            // While the plan asks (N319 item 3): in the bar, faded, not
-            // focusable; Will needs to hear the answer. A tap on it shows
-            // the plan's short note above the bar (`plan.typingWait`, N323
-            // item 1; the-plan.md B10).
-            disabled={plan.typingOff}
+            placeholder={TYPE_YOUR_ANSWER}
+            // Empty, the box you opened closes when you tap away (N483).
+            onBlur={() => {
+              if (!draftText.trim()) words.close();
+            }}
             /* B9 — kill any autofill / password-manager overlay that can ghost
                a second line of placeholder text over a chat composer. R4-12 —
                autocorrect ON now (this is prose, not a password field). */
@@ -2181,19 +2130,15 @@ export default function Lounge({
             /* `scrollbar-none` + `overflow-x-hidden`: past the 160px cap the
                field does scroll, but a bar inside a rounded chat input reads as
                a broken control, and a textarea has no business scrolling
-               sideways at all — it soft-wraps.
-               `hidden`, not just the attribute, while "Something else" stands
-               in its place (N371 item 3): Tailwind's `[hidden]` rule loses to
-               `block`, and both boxes showed. */
-            className={`scrollbar-none ${somethingElse.hidesBox ? "hidden" : "block"} max-h-40 min-h-[40px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-2 pl-3.5 text-[15px] leading-snug outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-45 ${
+               sideways at all — it soft-wraps. */
+            className={`scrollbar-none block max-h-40 min-h-[40px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-2 pl-3.5 text-[15px] leading-snug outline-none focus:border-primary ${
               draftText.trim() ? "pr-12" : "pr-4"
             }`}
             aria-label="Message Will"
           />
-          {plan.typingWait}
           {/* Only once there is text: an always-present grey Send is a button
               that cannot be pressed, and it costs the field 32px to say so. */}
-          {plan.draft(draftText).trim() ? (
+          {draftText.trim() ? (
             <button
               type="submit"
               disabled={botThinking}
@@ -2204,11 +2149,16 @@ export default function Lounge({
             </button>
           ) : null}
         </div>
-        {/* The voice notebook's mic, right of the input (founder 2026-10-20);
-            orange while Will waits, and then it records the answer (N296
-            state 2): his question after the walk, or the plan's voice
-            question before it (N319 item 1). */}
-        <VoiceNoteMic notebook={notebook} draft={plan.draft(draftText)} waiting={plan.mic(willVoice.waiting)} />
+        ) : (
+          <WillBarMiddle
+            hear={plan.hear}
+            review={reviewToContinue ? () => continueReview(reviewToContinue) : null}
+            next={goodbye.recordNext ?? restingTake(messages, userId)}
+            held={takeInFlight}
+            onRecord={recordNext}
+            onFirst={startFirst}
+          />
+        )}
       </form>
       </PolicyUpdateComposer>
       </SlidesAskComposer>
@@ -2875,30 +2825,32 @@ function BubbleBody({
  *  wait's percent does (Never 1, founder 2026-10-19). */
 const FIRST_TAKE_TIME = "About 2 minutes to record. Your feedback comes about a minute later.";
 
-function LoungeEmptyState({ onStart, hidden }: { onStart: () => void; hidden: boolean }) {
+/** The last Take at rest, so the bar's middle is "Record Take N" for the
+ *  one after it (N483 item 2): the newest Take in the thread, else this
+ *  device's record of the project; none before the first Take. */
+function restingTake(
+  messages: readonly Pick<LoungeMessage, "kind" | "metadata">[],
+  ownerId: string | null,
+): { arcId: string; takeIndex: number } | null {
+  const meta = messages.findLast((m) => m.kind === "recording_summary")?.metadata;
+  if (typeof meta?.arc_id === "string" && typeof meta.take_index === "number") return { arcId: meta.arc_id, takeIndex: meta.take_index };
+  const project = readExploreArc(ownerId);
+  const done = project ? project.nextTakeIndex - 1 : 0;
+  return project && done > 0 ? { arcId: project.arcId, takeIndex: done } : null;
+}
+
+function LoungeEmptyState({ hidden }: { hidden: boolean }) {
   // WILL SAYS HELLO FIRST (founder 2026-10-29, N273 item 2, on its
-  // prototype). The empty Lounge opens with N270's signed hello, the one
-  // button under it, and one quiet line on how long the first Take takes.
-  // Until then Will said it only after the visitor typed. With no project yet
-  // there is nothing to choose between, so the button goes straight to the
-  // new project's onboarding; the "+" beside the message box opens the
-  // projects. With the plan (the-plan.md B1) its questions come first, so all
-  // of it waits while the plan is read and stays away while it asks.
+  // prototype). The empty Lounge opens with N270's signed hello and one quiet
+  // line on how long the first Take takes; "Start your first recording" is
+  // the bar's middle, the one black button (N483 item 2). With the plan
+  // (the-plan.md B1) its questions come first, so all of it waits while the
+  // plan is read and stays away while it asks.
   if (hidden) return null;
   return (
     <div className="flex flex-1 flex-col justify-end gap-3.5">
       <div className="mr-auto max-w-[88%] whitespace-pre-wrap break-words rounded-[16px] bg-muted px-3 py-2 text-left text-[15px] leading-[1.45] text-foreground">
         {FLOW_COPY.firstTakeHello}
-      </div>
-      <div className="mt-1.5 flex justify-center">
-        <button
-          type="button"
-          onClick={onStart}
-          className="flex h-12 items-center justify-center gap-2.5 whitespace-nowrap rounded-full bg-foreground px-6 text-[15px] font-medium text-background transition-colors hover:bg-foreground/90 active:scale-[0.99]"
-        >
-          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" aria-hidden />
-          Start your first recording
-        </button>
       </div>
       <p className="mx-auto max-w-[18rem] text-center text-[13px] leading-normal text-muted-foreground">
         {FIRST_TAKE_TIME}
@@ -3082,19 +3034,16 @@ export function useCoachUpdates(messages: readonly LoungeMessage[]): {
   return { waits };
 }
 
-/** After a Take's goodbye (founder 2026-10-31, N294 items 6 and 7, N296
- *  state 4): no push to the next Take. Under the newest Take's goodbye the
- *  tap "I want to continue my practice"; once chosen, or typed, "Record Take
- *  N" stands alone under the chat. Only the newest Take's goodbye, whatever
- *  the project (N244, N251); a practice day's one thing, newer, holds the
- *  chat's one record button (N167). */
+/** After a Take's goodbye (N296 state 4, backend N483 item 2): the bar's
+ *  middle is "Record Take N" for the Take after it, with nothing to tap
+ *  first (was the tap "I want to continue my practice", N294 item 6). Only
+ *  the newest Take's goodbye, whatever the project (N244, N251); a practice
+ *  day's one thing, newer, holds the chat's one record button (N167). */
 function useGoodbye({
   messages,
   oneHoldsRecord,
   planOne,
   olderTake,
-  append,
-  ownerId,
 }: {
   messages: readonly LoungeMessage[];
   oneHoldsRecord: boolean;
@@ -3102,42 +3051,19 @@ function useGoodbye({
    *  button (`usePlanLounge` `one`). */
   planOne: { arcId: string; takeIndex: number } | null;
   olderTake: (meta?: Record<string, unknown> | null) => number | null;
-  append: (draft: LoungeMessageDraft) => Promise<LoungeMessage>;
-  /** Whose first Take's goodbye brings "Record Take 2" at once (N449 item 2). */
-  ownerId: string | null;
 }) {
   const goodbye = useMemo(() => {
-    const at = afterGoodbye(messages, (take) => isFirstTakeArc(ownerId, take.arcId, take.takeIndex));
+    const at = afterGoodbye(messages);
     return at && !oneHoldsRecord && olderTake(at.message.metadata) === null ? at : null;
-  }, [messages, oneHoldsRecord, olderTake, ownerId]);
-  /** They chose to continue: their own bubble, naming the Take it follows. */
-  const choose = (said: string): void => {
-    if (!goodbye) return;
-    const { arcId, takeIndex, takeSessionId } = goodbye.next;
-    void append({
-      role: "user",
-      kind: "text",
-      body: said,
-      metadata: { continue_practice: true, arc_id: arcId, take_index: takeIndex, take_session_id: takeSessionId },
-    });
-  };
+  }, [messages, oneHoldsRecord, olderTake]);
   return {
-    tap: goodbye?.step === "tap",
-    /** The chat's one "Record Take N": the next Take once they chose to
-     *  continue, else a practice day's (the-plan.md G6); never both, as the
-     *  practice day's one thing holds the button. */
-    recordNext: goodbye?.step === "record" ? goodbye.next : planOne,
+    /** The Take "Record Take N" follows: the goodbye's, else a practice
+     *  day's (the-plan.md G6); never both, as the practice day's one thing
+     *  holds the button. */
+    recordNext: goodbye ? goodbye.next : planOne,
     /** That "Record Take N" follows the first Take, as its goodbye says
      *  (backend N449 item 1): the real talk. */
-    afterFirstTake: goodbye?.step === "record" && goodbye.message.metadata?.first_take === true,
-    choose,
-    /** Typed words under the goodbye that say they want to practise are the
-     *  tap; true when taken so. */
-    typed: (said: string): boolean => {
-      if (goodbye?.step !== "tap" || !wantsToPractise(said)) return false;
-      choose(said);
-      return true;
-    },
+    afterFirstTake: goodbye?.message.metadata?.first_take === true,
   };
 }
 
@@ -3147,16 +3073,7 @@ function ThreadDots({ thinking, writing }: { thinking: boolean; writing: boolean
   return thinking || writing ? <TypingDots /> : null;
 }
 
-/** "I want to continue my practice", on the right, as Will's tap answers. */
-function ContinueTap({ shown, onTap }: { shown: boolean; onTap: (said: string) => void }) {
-  if (!shown) return null;
-  return <TapRow labels={[CONTINUE_PRACTICE]} onTap={onTap} dataAttr={{ "data-continue-practice": "" }} />;
-}
 
-/** A wrapper's class: hidden while `standIn` takes its place. */
-function hiddenWhile(standIn: unknown, shown: string): string {
-  return standIn ? "hidden" : shown;
-}
 
 /** The Take's summary and, since N89, its closing message (since N294 the
  *  goodbye, "Good job. See you next time."): both drawn as the plain

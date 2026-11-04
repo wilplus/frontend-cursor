@@ -127,27 +127,24 @@ rest is built in.
      name and who they are. The messages start at the bottom, by the bar,
      with the day above them ("Today", otherwise the date) and the time in
      each bubble, bottom right; under a big emoji, its meaning and time
-     ("It's good · 06:12"). The bubbles stay the Lounge's. One bar
-     (N368, the locked prototype "One bar" v12), three places that never
-     move: the "+" on the left (N351, below); the one thing to do now in
-     the middle (the three emoji in the box; "Record an answer" when a
-     marked question waits; "Sending to {name}… {n}" with Undo, a bold
-     word in the pill, while an answer goes); and on the right the mic,
-     40px, always there: a bare icon at rest, orange and still while the
-     newest message waits for a voice (N460 items 1 to 3; was a grey circle,
-     orange and pulsing, Undo a white pill of its own): the other person's
-     question, their words (people never type, N335 item 4, so words come
-     only from a customer's request) or a message the backend marks as one
-     (each photo or file, and the voice note sent straight after it), or
-     your own photo or file, until your voice note says what you need
-     (N337). Once you answer, with an emoji or a voice note, it is plain
-     again. While "Record an answer" stands in the middle, the mic beside it
-     stays quiet: one loud thing at a time (N460 item 2). Every send gives
-     a short sound, and a small buzz where the device allows it. Was
-     (N341): the mic only while a voice waited.
-     Will's chat is the exception: it keeps its own bar, with "Type here"
-     (N369); its left button, which opens Your projects, is a stack icon,
-     not a "+", so "+" means add in every chat (N460 item 5).
+     ("It's good · 06:12"). The bubbles stay the Lounge's. **The bar**
+     has one logic in every chat (N483, locked on "The Bar, Clickable"
+     <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2>, version 8): your
+     things on the left, the one thing to do now in the middle. Here the
+     left is the "+" (N351, below); the middle is the three emoji in the
+     box; "Record your answer" when a marked question waits (below), with
+     "Not now" a grey word under their question, which gives the emoji
+     back until the chat is opened again and tells them nothing; or
+     "Sending to {name}… {n}" with Undo, a bold word in the pill, while an
+     answer goes. No mic and no box: no voice notes and no typing (N483
+     item 3; people never type, N335 item 4). Every send gives a short
+     sound, and a small buzz where the device allows it. Was: the mic on
+     the right, orange while your voice was awaited (N368, N460 items 1 to
+     3; before that N341, the mic only then).
+     Will's chat follows the same logic with its own left and middle: the
+     stack, Your projects (a stack, not a "+", so "+" means add in every
+     chat, N460 item 5), and the record button or, only when Will asks for
+     words, the box ([the chat's page](feedback-walk-and-chat.md) B14).
      Every choice offered in a chat, a person's or Will's, follows the
      four rules of [the chat's page](feedback-walk-and-chat.md) J7 (N467,
      locked for the whole app): your answers on your side under the
@@ -156,18 +153,16 @@ rest is built in.
      In every chat the bubbles keep WhatsApp's rhythm (N469, [the chat's
      page](feedback-walk-and-chat.md) J8): two of the same side in a row
      2px apart, 12px where the side changes.
-     Will deciding what is a question (N322 item 5) is not built. The mic records with the one recording bar (the trash, the
-     strip with Stop inside, N314), up to two minutes; Stop sends, the
-     trash throws it away, and the bar comes back. The voice note joins
-     the thread once the backend has kept it; a refused mic, a failed
-     recording or a failed send (any refusal, the processing authorization's
-     too) brings the bar back and shows nothing new. A voice note is a
-     bubble like the others, mine orange on the right, theirs grey on the
-     left: the plan's small player (play, the drawn bars, the length) and
-     the time bottom right. Under the player, once its words are ready,
-     "Read it" opens them inside the bubble and "Hide" closes them; closed
-     by default, for both people, so the voice is heard; a voice note with
-     no words shows none, and the list keeps "🎤 Voice message" (N331).
+     Will deciding what is a question (N322 item 5) is not built. No new
+     voice notes are made (N483 item 3); the ones already sent still play.
+     A voice note is a bubble like the others, mine orange on the right,
+     theirs grey on the left: the plan's small player (play, the drawn
+     bars, the length) and the time bottom right. Under the player, once
+     its words are ready, "Read it" opens them inside the bubble and "Hide"
+     closes them; closed by default, for both people, so the voice is
+     heard; a voice note with no words shows none, and the list keeps "🎤
+     Voice message" (N331). Was: the mic recorded one with the one
+     recording bar, up to two minutes (N321 item 2).
    - **An answer, as the one who asked meets it** (N355, N336 item 2,
      N333; built 2026-11-03 behind the same ring): their question first,
      as the thread already has it; then one message from the person who
@@ -196,8 +191,10 @@ rest is built in.
      tapped, it opens full size, with a close ✕ and no words. A file is a
      bubble with a small red tile holding its extension, from its own name
      ("PDF"), and its name; no size, no other words; tapped, it downloads
-     through the backend. Each photo or file opens a new question for the
-     other person, for that person only (N341 item 2): the mic rule above.
+     through the backend. The backend marks each photo or file as a
+     question for the other person (N341 item 2); since N483 that changes
+     nothing in the bar. N483 item 4 turns these tiles off and makes the
+     "+" ask the person ("Ask {name}", §2, in flight).
      Someone else opens the add sheet the list's "+" opens (the join link,
      below). The list's line is "📷" after a photo and "📄 {file name}"
      after a file. A refused picker, a failed send or a file too big brings
@@ -229,8 +226,8 @@ rest is built in.
      buttons): "Block {name}?", "{name} can't send you messages or
      answers. {name} isn't told.", a filled red "Block", "Cancel"; then
      the toast "{name} is blocked." (a small black pill near the top,
-     about two seconds). In that chat the bar (the "+", the
-     middle, the mic) is one grey pill, "You blocked {name}." with a white
+     about two seconds). In that chat the bar (the "+" and the
+     middle) is one grey pill, "You blocked {name}." with a white
      "Unblock" on its right; the earlier messages stay. Unblock, from the
      pill or the profile's row, asks nothing: "{name} is unblocked."
      "Report {name}" opens the same sheet: "Report {name}?", "The last five
@@ -266,10 +263,12 @@ rest is built in.
      it opens; let go early and it slides back. Before you have left a
      chat, and over a screen opened on the list, it does nothing. The list
      keeps the WillpowerLab bar, the logo and ☰ (N436).
-   - **Record an answer** (N321 item 4, N336, N342, N345, N361, N363):
+   - **Record your answer** (N321 item 4, N336, N342, N345, N361, N363):
      when the question waiting for your answer is one Will marked as about
      a product or a treatment (`meta.record_answer`), the middle of the bar
-     is the black button with the red dot, "Record an answer" (N368). It
+     is the black button with the red dot, "Record your answer", with "Not
+     now" under the question (N483 items 3 and 5; was "Record an answer",
+     N368). It
      makes the question a
      project of its own, one slide holding the asker's words, and opens
      the recording screens on it at once, the person's name alone at the
@@ -595,7 +594,7 @@ them:
 
 ## 2. In flight
 
-- **N483** · the bottom bar in a chat with a person (locked 2026-11-04, not built): the "+" and 👍 👀 🙏; no mic, no voice notes, no typing; "Record your answer" when they asked you something, with "Not now" under their question; the "+" opens "Ask {name}", a sheet built like "Add someone to chat with", whose "Record your question" always opens the recording screens with the default presentation ("To {name} · Slide {n} of 3"); the "+" orange until your first question; a setup asks closed questions only; Photos, Camera, Files and Someone else off for now · replaces, when built: C1's bar (the mic and its orange, the "+" tiles, "Record an answer") · prototype "The Bar, Clickable" <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2> (version 8; files in the backend's `docs/design/customer-requests-2026-10-28/the-bar/` and `11-the-bar-clickable.pdf`) · locked, waiting to be built · BE #1718
+- **N483** · the "+" asks the person (locked 2026-11-04; the bar itself is built, C1): the "+" opens "Ask {name}", a sheet built like "Add someone to chat with", whose "Record your question" always opens the recording screens with the default presentation ("To {name} · Slide {n} of 3"), sent with "Sending to {name}… {n}" and Undo; the "+" a filled orange circle until your first question; a setup asks closed questions only; Photos, Camera, Files and Someone else off for now · replaces, when built: C1's "+" tiles · prototype "The Bar, Clickable" <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2> (version 8; files in the backend's `docs/design/customer-requests-2026-10-28/the-bar/` and `11-the-bar-clickable.pdf`) · locked, waiting to be built · BE #1718
 
 Built for every signed-in person (backend N456, 2026-11-03; was ring 6,
 feature `chats`, the founder only, 2026-11-02): the
@@ -605,12 +604,11 @@ message bold with an orange dot; with nobody yet, Will and "Add someone to
 chat with", on the web as in the iPhone app, N401) and a
 chat's screen, the conversation only, under its own top bar in the
 WillpowerLab bar's place, with the day and each message's time, the
-three emoji in the locked bar and the mic beside them for a voice note of
-up to two minutes, played in its bubble (N298, N302, N305, N306, N311,
-N321, N322). Off, /chat is the Lounge as it is. Not yet: passing on, the
+three emoji in the locked bar (N298, N302, N305, N306, N311, N321, N322;
+the mic and its voice notes went with N483, the older ones still play). Off, /chat is the Lounge as it is. Not yet: passing on, the
 status and the filters. Built since: the join link, the add sheet and the join page
 (C1, N308, N328, N335); the "+" in a chat with a person, with Photos,
-Camera, Files and Someone else (C1, N351); "Record an answer", a marked
+Camera, Files and Someone else (C1, N351); "Record your answer", a marked
 question answered with a Take that goes back to the chat (C1, N361,
 N363); Block and Report from a person's profile, the reports in the CEO
 panel (C1, N466). Built behind the backend's switch for sending (`TAKE_SEND_ENABLED`,
@@ -703,14 +701,13 @@ The list of chats and a chat's screen (§2): frontend
 `src/components/willab/chats/` (mounted by `WillabSurface.tsx` around the
 Lounge, which it leaves as it is; the door's `navbar` tells it to hide the
 WillpowerLab bar while any chat is open, Will's included (N334); `chatTime.ts` the times and
-the day, `chatOpened.ts` what is new; the voice note records with
-`useVoiceNote.ts` and the locked `RecordingBar.tsx`, and plays with
+the day, `chatOpened.ts` what is new; a voice note plays with
 `plan/VoicePlayer.tsx`), `src/services/api/chats.ts` and the BFF routes
-`src/app/api/v2/chats/` (the voice note's upload `[chatId]/voice/` and its
-playback `[chatId]/messages/[messageId]/audio/`, in byte ranges); the
-backend's `/v2/chats` routes, `POST /v2/chats/<id>/voice` and
-`GET /v2/chats/<id>/messages/<messageId>/audio`. The "+" (N351): its
-tiles, the photo and file bubbles and the mic rule (`micShows`) in
+`src/app/api/v2/chats/` (a voice note's playback
+`[chatId]/messages/[messageId]/audio/`, in byte ranges); the backend's
+`/v2/chats` routes and `GET /v2/chats/<id>/messages/<messageId>/audio`
+(`POST /v2/chats/<id>/voice` is no longer called, N483 item 3). The "+"
+(N351): its tiles and the photo and file bubbles in
 `ChatThread.tsx`, a big photo made smaller in `photoForUpload.ts`, the add
 sheet reused from `ChatList.tsx`; the BFF routes `[chatId]/photo/` and
 `[chatId]/file/` (both through `chatUpload.ts`) and
@@ -798,6 +795,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N483 · C1, §2, §4: the bar in a chat with a person has one logic, as in every chat: the "+" on the left; in the middle the three emoji, "Record your answer" when a marked question waits, with "Not now" a grey word under their question (it gives the emoji back until the chat is opened again and tells them nothing), or Sending with Undo. What stops: the mic and new voice notes (older ones still play; `sendChatVoice` and the BFF route `[chatId]/voice` are gone), the mic's orange, "Record an answer" (now "Record your answer"). Still in flight: the "+" asking the person ("Ask {name}") · BE N483 (#1718), FE (this PR)
 - 2026-11-04 · N486 · C1: an answer has no five-minute cap: the recording screens time it as any Take, counting up, and the backend takes an answer of any length. Was (N363 item 3, N441 item 2): up to five minutes, the clock counting down from 5:00 and finishing by itself · BE (cap PR), FE (this PR)
 - 2026-11-04 · N470, N479 · C1: a Take someone sends you is their message in your chat with them, "{name} sent you Take {n}" with the Take's tile and "Open Take", which plays its recording and shows its words slide by slide behind "Read it", nothing else of it; the list's line says "{name} sent you Take {n}"; your own sent Take is its tile with "Sent to {name}" (`ChatThread.tsx` `ChatTakeBubble`, `ChatList.tsx` `lastLine`, `takeSends.ts`). No passcode in the list of chats: a person's link is the only way in (N471 item 2, N479 item 4). Behind the backend's switch, off until the Privacy text is signed. Was: a chat had no Take messages · BE N470 (#1702), N479 (#1704), BE (send PR), FE (this PR)
 - 2026-11-04 · N469 · C1: the bubbles keep WhatsApp's rhythm in every chat, Will's included: 2px between two of the same side, 12px where the side changes ([the chat's page](feedback-walk-and-chat.md) J8). Was: 8px between every row · BE #1700, FE (this PR)

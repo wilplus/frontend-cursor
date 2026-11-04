@@ -17,13 +17,14 @@
  *       "Show more", which shows the rest; "Not now", "Skip", "Cancel" and
  *       "Close" are a grey word, never the filled one (N467), and a lone
  *       answer is outlined, never filled (N415).
- *   O4  While Will's question waits and typing is allowed, the bar's middle
- *       is "Something else"; a tap opens the box with "Type your answer".
- *       While typing is off (the plan asks), it never shows (N371).
+ *   O4  You type to Will only when he asks for words (N483 item 2): the box
+ *       "Type your answer" opens when you tap "Something else", the first of
+ *       his answers, and by itself for his follow-up with no answers or when
+ *       words are what waits; while the plan asks it never opens (N371).
  * PROVES   O1 -> "the newest question shows its answers, no Skip, and a tap
  *                 goes to the backend once"
  *          O3 -> "suggested answers: two in a row, three stacked, a lone one outlined, saying no a grey word, more than four behind Show more"
- *          O4 -> "while Will asks, Something else opens the box; the plan's questions never show it"
+ *          O4 -> "the box opens only when Will asks for words; the plan's questions never open it"
  *          O2 -> "the message after the Take waits under Will's question"
  * WHY      Founder 2026-10-20 (N82): "only buttons" in the walk, Will's
  *          questions in the Lounge, tap answers plus my own words;
@@ -34,7 +35,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useRef } from "react";
-import WillQuestionBubble, { TapRow, useSomethingElse, willQuestionOf } from "./WillQuestion";
+import WillQuestionBubble, { SOMETHING_ELSE, TapRow, TYPE_YOUR_ANSWER, useWordsBox, willQuestionOf } from "./WillQuestion";
 import { askShowing } from "./afterTake";
 import { postWillQuestion } from "@/services/api/willQuestion";
 
@@ -71,9 +72,10 @@ it("the newest question shows its answers, no Skip, and a tap goes to the backen
   const onAnswer = vi.fn((choice: string) => postWillQuestion(will.arcId, will.takeSessionId, choice).then(() => {}));
   const body = "Who were you talking to? 🎯";
   act(() => root.render(<WillQuestionBubble body={body} chips={will.chips} open onAnswer={onAnswer} />));
-  // The most likely (the backend's first) sits last, nearest the thumb, filled (N371).
+  // The most likely (the backend's first) sits last, nearest the thumb, filled
+  // (N371); "Something else" is first, at the top (N483 item 2).
   const buttons = [...host.querySelectorAll("[data-will-answers] button")].map((b) => b.textContent);
-  expect(buttons).toEqual(["A buyer", "My team", "The board"]);
+  expect(buttons).toEqual([SOMETHING_ELSE, "A buyer", "My team", "The board"]);
   expect(host.querySelector("[data-will-answers] [data-goes]")?.textContent).toBe("The board");
   await act(async () => {
     (host.querySelector("[data-will-answers] [data-goes]") as HTMLButtonElement).click();
@@ -121,26 +123,35 @@ it("suggested answers: two in a row, three stacked, a lone one outlined, saying 
   expect(shown()).toEqual(["F", "E", "D", "C", "B", "A"]);
 });
 
-function Bar({ typingOff }: { typingOff: boolean }) {
+function Bar({ shown, typingOff, wordsWait = false }: { shown: { metadata: Record<string, unknown> }[]; typingOff: boolean; wordsWait?: boolean }) {
   const box = useRef<HTMLTextAreaElement>(null);
-  const ask = useSomethingElse([{ metadata: META }], typingOff, "", box);
+  const words = useWordsBox(shown, typingOff, "", box, wordsWait);
   return (
     <div>
-      {ask.button}
-      <textarea ref={box} hidden={ask.hidesBox} placeholder={ask.placeholder} />
+      <button type="button" data-open onClick={words.start} />
+      {words.show ? <textarea ref={box} placeholder={TYPE_YOUR_ANSWER} /> : <span data-middle="" />}
     </div>
   );
 }
 
-it("while Will asks, Something else opens the box; the plan's questions never show it", async () => {
-  act(() => root.render(<Bar typingOff={false} />));
-  const button = host.querySelector("[data-something-else]") as HTMLButtonElement;
-  expect(button.textContent).toBe("Something else");
-  expect((host.querySelector("textarea") as HTMLTextAreaElement).hidden).toBe(true);
-  await act(async () => button.click());
-  expect(host.querySelector("[data-something-else]")).toBeNull();
-  const box = host.querySelector("textarea") as HTMLTextAreaElement;
-  expect([box.hidden, box.placeholder]).toEqual([false, "Type your answer"]);
-  act(() => root.render(<Bar typingOff />));
-  expect(host.querySelector("[data-something-else]")).toBeNull();
+it("the box opens only when Will asks for words; the plan's questions never open it", async () => {
+  const box = () => host.querySelector("textarea");
+  // His question with answers: the box waits for "Something else".
+  act(() => root.render(<Bar shown={[{ metadata: META }]} typingOff={false} />));
+  expect(box()).toBeNull();
+  await act(async () => (host.querySelector("[data-open]") as HTMLButtonElement).click());
+  expect(box()?.placeholder).toBe(TYPE_YOUR_ANSWER);
+  // His follow-up has nothing to tap: the box is there by itself.
+  act(() => root.render(<Bar shown={[{ metadata: { ...META, will_question_step: "follow", chips: [] } }]} typingOff={false} />));
+  expect(box()).not.toBeNull();
+  // Words wait with no question of his (a setup's name, "What was missing?").
+  act(() => root.render(<Bar shown={[]} typingOff={false} wordsWait />));
+  expect(box()).not.toBeNull();
+  // Nothing asked: the middle is the record button, no box.
+  act(() => root.render(<Bar shown={[]} typingOff={false} />));
+  expect(box()).toBeNull();
+  // The plan asks: typing is off, even "Something else" opens nothing.
+  act(() => root.render(<Bar shown={[{ metadata: META }]} typingOff />));
+  await act(async () => (host.querySelector("[data-open]") as HTMLButtonElement).click());
+  expect(box()).toBeNull();
 });
