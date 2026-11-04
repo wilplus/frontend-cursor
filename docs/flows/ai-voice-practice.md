@@ -374,6 +374,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N459 · the walk's AI clip on a moment too long for it (17 s at the slow reading) says the part around what it teaches (`fit_to_clip`), whole sentences where they fit; the practice is re-pointed to those words before any try and the answer serves them as `clip.passage`, so the try asks for the same words. Was: the clip failed and only the tip in words showed · BE N459 log (#1689), BE (next PR), FE (this PR)
 - 2026-11-03 · N425 · the One thing walk's AI clip only on a moment whose own clip shows a problem it can teach, the strongest problem, never the runner-up; with none, no clip and no default ("Lean on …") in the walk's fix; the Clearer version's example keeps the default · BE N425 log (#1664), BE #1669, FE (this PR)
 - 2026-11-03 · N379 · in the One thing walk's fix: no "Your turn." under the clip; the dots and the label L1 are not read aloud until the clip is ready · FE (this PR)
 - 2026-11-03 · N373 · the One thing walk's fix waits ten seconds on a clip being made, then the words; a late clip joins as its player alone, never above a try · FE (this PR)
