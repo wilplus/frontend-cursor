@@ -273,14 +273,14 @@ rest is built in.
      makes the question a
      project of its own, one slide holding the asker's words, and opens
      the recording screens on it at once, the person's name alone at the
-     top and "{name} asks" over the question, the clock counting down from
-     5:00, no feelings check
+     top and "{name} asks" over the question, the clock counting up as any
+     Take's (no five-minute cap, N486 item 4), no feelings check
      ([recording-screens.md](recording-screens.md) step 6). Finish take
      brings you back to the chat: in the middle of the bar, "Sending to
      {name}… {n}" counting down 5 seconds with "Undo" (N368). As soon as
      the Take is uploaded the answer goes to the backend
      (`POST /v2/chats/<id>/answer`, a voice message that plays the Take
-     itself; up to five minutes), which holds it for what is left of the
+     itself; any length, N486 item 4), which holds it for what is left of the
      5 seconds: until then the person does not see it, the list does not
      show it and no push goes, and leaving the app no longer stops it
      (N441 item 3). Under it, "Sent to {name}" with a check, a customer's
@@ -787,6 +787,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N486 · C1: an answer has no five-minute cap: the recording screens time it as any Take, counting up, and the backend takes an answer of any length. Was (N363 item 3, N441 item 2): up to five minutes, the clock counting down from 5:00 and finishing by itself · BE (cap PR), FE (this PR)
 - 2026-11-04 · N470, N479 · C1: a Take someone sends you is their message in your chat with them, "{name} sent you Take {n}" with the Take's tile and "Open Take", which plays its recording and shows its words slide by slide behind "Read it", nothing else of it; the list's line says "{name} sent you Take {n}"; your own sent Take is its tile with "Sent to {name}" (`ChatThread.tsx` `ChatTakeBubble`, `ChatList.tsx` `lastLine`, `takeSends.ts`). No passcode in the list of chats: a person's link is the only way in (N471 item 2, N479 item 4). Behind the backend's switch, off until the Privacy text is signed. Was: a chat had no Take messages · BE N470 (#1702), N479 (#1704), BE (send PR), FE (this PR)
 - 2026-11-04 · N469 · C1: the bubbles keep WhatsApp's rhythm in every chat, Will's included: 2px between two of the same side, 12px where the side changes ([the chat's page](feedback-walk-and-chat.md) J8). Was: 8px between every row · BE #1700, FE (this PR)
 
