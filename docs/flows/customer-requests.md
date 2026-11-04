@@ -118,11 +118,27 @@ rest is built in.
      message first. **Just joined through a link**
      (`/chat?with=<chat>`), the list opens, not a chat: the chat with the one
      who invited you is the row right under Will, marked new, its line their
-     last message or, with none yet, "You joined through {name}'s link. Only
-     the two of you are in this chat." (N335 item 2), kept on the row until
-     the chat's first message (N488; was: blank once opened); opened, it
-     takes its place with the rest (N357; was N348 item 1: that chat opened;
-     was N357 item 1: above Will).
+     last message or, with none yet, "You joined thanks to {name}. Your
+     first question starts the knowledge base you build together." (N496
+     item 2; was N335 item 2's "You joined through {name}'s link. Only the
+     two of you are in this chat."), kept on the row until the chat's first
+     message (N488; was: blank once opened); opened, it takes its place with
+     the rest (N357; was N348 item 1: that chat opened; was N357 item 1:
+     above Will).
+   - **Asked when they join** (N487, words signed in N491, N496, N502):
+     when the one whose link it was set questions, the chat opens with the
+     line "You joined thanks to {name}. A few questions first, then you
+     build a knowledge base together." (N496 item 1) and their lines, one
+     at a time, as their messages; the question waiting has its answers on
+     your side (TapRow, N467), and a tap sends at once. "Yes" to "Are you in
+     a hurry?" opens the date sheet ("When do you need to be ready?",
+     Done); "Your deadline: {date}" shows under the answer. A question that
+     takes more than one answer fills each one tapped, and "Send" stands in
+     the bar's middle (N483 item 3). An emoji sent meanwhile leaves the
+     question waiting, its answers under the newest message. The one whose
+     link it was sees "{name} joined through your link." and, once the
+     answers are in, one card, "{name}'s answers", which is also their
+     row's line; never their own questions one by one (N487 item 7).
    - **A person's chat**: the WillpowerLab bar goes; the chat's own top bar
      takes the top, full width: back, a 36px circle with the letter, the
      name and who they are. The messages start at the bottom, by the bar,
@@ -798,6 +814,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N487, N496, N502 · C1: a chat made through the link of someone who set questions asks them, answered by tapping (TapRow; several, then "Send" in the bar's middle; "Yes" to the hurry opens the date sheet), with "Your deadline: {date}" under the answer; the owner sees "{name} joined through your link." and one card, "{name}'s answers", also on their row. The joined line is now N496's, in the chat and on the row. What stops: the line "You joined through {name}'s link. Only the two of you are in this chat." · BE N487 (#1717), N496 (#1732), N502 (#1734), BE #1739, FE (this PR)
 - 2026-11-04 · N500 · C1: an emoji from the other person lights up their row like any new message, your own message never does, and every new row, Will's included, has the look locked for the whole app: the name bold, the time orange, the last line bold and orange, the orange dot; the open list reads the chats again every 20 seconds and on coming back to it (`ChatList.tsx`, `chatOpened.ts`, `useChats.ts`). Was: the line dark and not bold, your own message could read as new, and the list read the chats only when it first loaded · BE N500 (wilplus/backend-cursor#1737), FE (this PR)
 - 2026-11-04 · N488 · C1: the row of a chat you joined through someone's link keeps "You joined through {name}'s link. Only the two of you are in this chat." until the chat's first message, read from the list's `joined_through` (`ChatList.tsx`); only the one who joined sees it. Was: the row went blank once the chat was opened · BE N488 log (#1724), BE (#1729), FE (this PR)
 - 2026-11-04 · N483 · C1, §2, §4: the bar in a chat with a person has one logic, as in every chat: the "+" on the left; in the middle the three emoji, "Record your answer" when a marked question waits, with "Not now" a grey word under their question (it gives the emoji back until the chat is opened again and tells them nothing), or Sending with Undo. What stops: the mic and new voice notes (older ones still play; `sendChatVoice` and the BFF route `[chatId]/voice` are gone), the mic's orange, "Record an answer" (now "Record your answer"). Still in flight: the "+" asking the person ("Ask {name}") · BE N483 (#1718), FE (this PR)

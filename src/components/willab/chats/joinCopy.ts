@@ -26,3 +26,16 @@ export const JOIN_BUTTON = "Join";
 export const JOIN_NOTHING_TO_INSTALL = "Opens in your browser. Nothing to install.";
 
 export const joinedThrough = (name: string) => `You joined through ${name}'s link. Only the two of you are in this chat.`;
+
+/* The lines at the top of a chat made through a link, once its owner's
+ * questions are built (backend N487; signed in N496 and N502). */
+/** The one who joined, when the link's owner set questions (N496 item 1). */
+export const joinedAsks = (name: string) => `You joined thanks to ${name}. A few questions first, then you build a knowledge base together.`;
+/** The one who joined, when the owner set none (N496 item 2). */
+export const joinedThanks = (name: string) => `You joined thanks to ${name}. Your first question starts the knowledge base you build together.`;
+/** The link's owner (N502 item 5). */
+export const joinedYourLink = (name: string) => `${name} joined through your link.`;
+/** The card the owner reads once the joiner is done (N502 item 5). */
+export const answersOf = (name: string) => `${name}'s answers`;
+/** In the bar's middle, once a question that takes more than one answer has one picked (N502 item 3). */
+export const SEND_PICKED = "Send";

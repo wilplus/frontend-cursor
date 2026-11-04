@@ -7,7 +7,7 @@ import type { LoungeKind, LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadMaybe } from "../LoungeThreadContext";
 import { chatIsNew, isNewSince, markChatOpened } from "./chatOpened";
 import { listTime, timeOf } from "./chatTime";
-import { ADD_SHEET_LINE, ADD_SHEET_TITLE, ADD_STEPS, CANCEL, COPIED, COPY_MY_LINK, joinedThrough } from "./joinCopy";
+import { ADD_SHEET_LINE, ADD_SHEET_TITLE, ADD_STEPS, CANCEL, COPIED, COPY_MY_LINK, answersOf, joinedThanks } from "./joinCopy";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /* -------------------------------------------------------------------------- */
@@ -112,6 +112,8 @@ export function WillMark({ size = 48 }: { size?: number }) {
  *  the voice note's, the photo's or the file's line. */
 export function lastLine(last: ChatLast | null, name = ""): string {
   if (!last) return "";
+  // The owner's card once the joiner is done (backend N487 item 7).
+  if (last.meta?.setup_card) return answersOf(firstName(name));
   if (last.kind === "take") {
     // A Take sent to you: "{name} sent you Take {n}" (N470); yours: "Take {n}".
     const n = typeof last.meta?.take_index === "number" ? last.meta.take_index : null;
@@ -355,7 +357,7 @@ export default function ChatList({
       title={chat.title}
       subtitle={chat.subtitle}
       time={listTime(chat.last?.created_at, now)}
-      preview={chat.last ? lastLine(chat.last, chat.title) : chat.joined_through || justJoined ? joinedThrough(chat.joined_through || chat.title) : ""}
+      preview={chat.last ? lastLine(chat.last, chat.title) : chat.joined_through || justJoined ? joinedThanks(chat.joined_through || chat.title) : ""}
       isNew={justJoined || chatIsNew(chat)}
       cameFrom={cameFrom === chat.id}
       onOpen={() => onOpen(chat)}

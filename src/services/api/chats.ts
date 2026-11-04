@@ -75,15 +75,48 @@ export async function getChatMessages(chatId: string): Promise<ChatMessage[] | n
 }
 
 /** A chat's messages, oldest first, and, for the one who joined it through
- *  someone's link, that person's first name (backend N308, N335 item 2);
+ *  someone's link, that person's first name (backend N308, N335 item 2) and
+ *  whether a few of their questions come first (`joinedAsks`, N496); for
+ *  the link's owner, the first name of who joined (`joinedBy`, N502 item 5);
  *  `blocked`, whether you have blocked the other person (N466). */
-export async function getChatThread(
-  chatId: string,
-): Promise<{ messages: ChatMessage[]; joinedThrough: string | null; blocked: boolean } | null> {
+export async function getChatThread(chatId: string): Promise<{
+  messages: ChatMessage[];
+  joinedThrough: string | null;
+  joinedAsks: boolean;
+  joinedBy: string | null;
+  blocked: boolean;
+} | null> {
   const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/messages`, { method: "GET" });
   if (!body || !Array.isArray(body.messages)) return null;
-  const through = typeof body.joined_through === "string" && body.joined_through ? body.joined_through : null;
-  return { messages: body.messages as ChatMessage[], joinedThrough: through, blocked: body.blocked === true };
+  const name = (value: unknown) => (typeof value === "string" && value ? value : null);
+  return {
+    messages: body.messages as ChatMessage[],
+    joinedThrough: name(body.joined_through),
+    joinedAsks: body.joined_asks === true,
+    joinedBy: name(body.joined_by),
+    blocked: body.blocked === true,
+  };
+}
+
+/** One of the link owner's questions, as its message carries it (backend
+ *  N487): the answers to tap, and whether it takes more than one. */
+export type SetupQuestion = { i: number; kind: string; answers: string[]; multi: boolean };
+
+export function setupOf(message: ChatMessage): SetupQuestion | null {
+  const setup = message.meta?.setup as Partial<SetupQuestion> | undefined;
+  if (!setup || !Array.isArray(setup.answers) || setup.answers.length === 0 || setup.kind === "say") return null;
+  return { i: Number(setup.i ?? 0), kind: String(setup.kind ?? "tap"), answers: setup.answers.map(String), multi: setup.multi === true };
+}
+
+/** The joiner's tap (N487 item 4): the answers picked, and for "Yes" to
+ *  "Are you in a hurry?" the day from the date picker. What the joiner now
+ *  sees comes back: their answer, then what follows; null on a refusal. */
+export async function answerChatSetup(chatId: string, messageId: string, picked: string[], date?: string): Promise<ChatMessage[] | null> {
+  const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/setup/${encodeURIComponent(messageId)}`, {
+    method: "POST",
+    json: date ? { picked, date } : { picked },
+  });
+  return body && Array.isArray(body.messages) ? (body.messages as ChatMessage[]) : null;
 }
 
 /** Block (`true`) or unblock (`false`) the other person in a chat (backend
