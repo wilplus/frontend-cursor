@@ -9,18 +9,21 @@ import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { TapRow } from "@/components/willab/WillQuestion";
 import { NOT_NOW } from "@/lib/willab/leaveWords";
-import { PLAN_COPY } from "@/lib/willab/planCopy";
+import { PLAN_COPY, fmtShort, isoDay } from "@/lib/willab/planCopy";
 import { UNDO_MS, onAnswerSent, sendAgain, undoAnswer, usePendingAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
 import {
   CHAT_EMOJI,
+  answerChatSetup,
   chatFileSrc,
   chatVoiceSrc,
   getChatThread,
+  setupOf,
   sendChatEmoji,
   sendChatUpload,
   type Chat,
   type ChatEmoji,
   type ChatMessage,
+  type SetupQuestion,
 } from "@/services/api/chats";
 import Profile from "./Profile";
 import { BlockedBar, useBlocking } from "./BlockReport";
@@ -29,7 +32,8 @@ import { fetchChatTake, type ChatTake } from "@/services/api/takeSends";
 import { fmtClock } from "@/components/willab/willabHelpers";
 import { photoForUpload } from "./photoForUpload";
 import { markChatOpened } from "./chatOpened";
-import { joinedThrough } from "./joinCopy";
+import { SEND_PICKED, answersOf, joinedAsks, joinedThanks, joinedYourLink } from "./joinCopy";
+import { MonthGrid } from "../plan/PlanCalendar";
 import { clockTime, dayKey, dayLabel } from "./chatTime";
 
 /* -------------------------------------------------------------------------- */
@@ -461,6 +465,8 @@ function ChatRow({
   name?: string;
 }) {
   const time = clockTime(message.created_at);
+  const card = message.meta?.setup_card as { rows?: { k: string; v: string }[] } | undefined;
+  if (card) return <SetupCard name={firstName(name)} rows={card.rows ?? []} />;
   if (message.kind === "take") return <ChatTakeBubble chatId={chatId} message={message} time={time} name={name} sentLine={sentLine} />;
   if (message.kind === "voice") {
     const voice = <ChatVoice chatId={chatId} message={message} time={time} />;
@@ -523,12 +529,118 @@ function ChatDay({ label }: { label: string }) {
   );
 }
 
-/** For the one who joined through someone's link, above the messages: how
- *  the two are connected (N335 item 2, signed). */
-function JoinedLine({ name }: { name: string }) {
+/** Above the messages of a chat made through a link, how the two are
+ *  connected: for the one who joined, with a few of the owner's questions
+ *  first or none (backend N496, replacing N335 item 2's line); for the
+ *  owner, who joined through their link (N502 item 5). */
+function JoinedLine({ text }: { text: string }) {
   return (
     <div data-chat-joined className="max-w-[86%] self-center rounded-xl bg-muted px-3 py-2 text-center text-[13.5px] leading-snug text-foreground">
-      {joinedThrough(name)}
+      {text}
+    </div>
+  );
+}
+
+/** The owner's one card once the joiner is done (backend N487 item 7):
+ *  "{name}'s answers", each answer under its label. */
+function SetupCard({ name, rows }: { name: string; rows: { k: string; v: string }[] }) {
+  return (
+    <div data-chat-setup-card="" data-row="app" className="mr-auto flex max-w-[88%] flex-col gap-1 rounded-[16px] border border-border bg-background px-3.5 py-3 text-[14.5px]">
+      <span className="text-[15px] font-semibold">{answersOf(name)}</span>
+      {rows.map((row) => (
+        <span key={row.k}>
+          <span className="font-semibold text-muted-foreground">{row.k}</span> {row.v}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** The owner's question still waiting for the joiner's tap (backend N487
+ *  item 4): the newest of their questions, unless an answer came after it.
+ *  An emoji sent meanwhile leaves it waiting, its answers under the newest
+ *  message (N502, the founder's pick J8). */
+export function setupWaits(messages: readonly ChatMessage[] | null): { message: ChatMessage; question: SetupQuestion } | null {
+  for (let i = (messages?.length ?? 0) - 1; i >= 0; i -= 1) {
+    const message = messages![i];
+    if (message.meta?.setup_answer) return null;
+    const question = message.mine ? null : setupOf(message);
+    if (question) return { message, question };
+  }
+  return null;
+}
+
+/** A question that takes more than one answer (N502 item 3): each tap fills
+ *  an answer or empties it, in TapRow's own look; Send is in the bar. */
+function PickRow({ labels, picked, onToggle }: { labels: string[]; picked: string[]; onToggle: (label: string) => void }) {
+  return (
+    <div data-chat-setup-picks="" className="ml-auto flex max-w-[86%] flex-wrap justify-end gap-2 pt-0.5">
+      {labels.map((label) => {
+        const on = picked.includes(label);
+        return (
+          <button
+            key={label}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onToggle(label)}
+            className={`min-h-[44px] max-w-full rounded-[22px] border-[1.5px] border-primary px-4 py-2.5 text-left text-[15px] font-semibold leading-snug ${
+              on ? "bg-primary text-primary-foreground" : "bg-background text-primary"
+            }`}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** "When do you need to be ready?": the plan's month grid in a sheet, then
+ *  Done (N502 item 4), for "Yes" to "Are you in a hurry?". */
+function ReadyBySheet({ onDone, onClose }: { onDone: (day: string) => void; onClose: () => void }) {
+  const today = new Date();
+  const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [picked, setPicked] = useState<Date | null>(null);
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return (
+    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={READY_BY}>
+      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/30" />
+      <div className="absolute inset-x-0 bottom-0 mx-auto flex max-w-md flex-col gap-3 rounded-t-[22px] bg-white px-[18px] pb-[26px] pt-2.5">
+        <div className="mx-auto h-1 w-[38px] rounded bg-[#D9D9D9]" />
+        <p className="text-center text-[16px] font-semibold">{READY_BY}</p>
+        <MonthGrid
+          large
+          month={month}
+          enabled={(day) => day > start}
+          picked={picked}
+          onPick={setPicked}
+          onMonth={(step) => setMonth(new Date(month.getFullYear(), month.getMonth() + step, 1))}
+        />
+        <button
+          type="button"
+          disabled={!picked}
+          onClick={() => picked && onDone(isoDay(picked))}
+          className="flex h-12 items-center justify-center rounded-full bg-foreground text-[15px] font-medium text-background disabled:opacity-30"
+        >
+          {DONE}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** The date sheet's words (signed, N502 item 4). */
+const READY_BY = "When do you need to be ready?";
+const DONE = "Done";
+
+/** Under the joiner's answer to "Are you in a hurry?": the deadline it set
+ *  ("Your deadline: {date}", signed with the plan). */
+function DeadlineLine({ iso }: { iso: string }) {
+  const day = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(day.getTime())) return null;
+  return (
+    <div data-chat-deadline="" className="max-w-[86%] self-center rounded-xl bg-muted px-3 py-1.5 text-center text-[13px] text-foreground">
+      {`${PLAN_COPY.yourDeadline}: ${fmtShort(day)}`}
     </div>
   );
 }
@@ -737,6 +849,55 @@ function EmojiBar({
 
 let localSeq = 0;
 
+/** The link owner's question waiting in this chat (backend N487 item 4):
+ *  its answers under the newest message, "Send" for the bar's middle when
+ *  it takes several, and the date sheet for "Yes" to the hurry. A tap
+ *  answers at once; what follows comes back and joins the thread. */
+function useSetupQuestion(chatId: string, messages: ChatMessage[] | null, onSent: (sent: ChatMessage[]) => void) {
+  const [picked, setPicked] = useState<string[]>([]);
+  const [readyBy, setReadyBy] = useState(false);
+  const setup = setupWaits(messages);
+  if (!setup) return { answers: null, send: null, sheet: null };
+  const { question } = setup;
+  const answer = async (answers: string[], date?: string) => {
+    const sent = await answerChatSetup(chatId, setup.message.id, answers, date);
+    if (!sent) return;
+    sendTick();
+    setPicked([]);
+    onSent(sent);
+  };
+  const yes = question.answers.at(-1) ?? "";
+  const tap = (label: string) => (question.kind === "hurry" && label === yes ? setReadyBy(true) : void answer([label]));
+  const toggle = (label: string) => setPicked((now) => (now.includes(label) ? now.filter((p) => p !== label) : [...now, label]));
+  return {
+    answers: question.multi ? (
+      <PickRow labels={question.answers} picked={picked} onToggle={toggle} />
+    ) : (
+      <TapRow labels={question.answers} onTap={tap} dataAttr={{ "data-chat-setup": "" }} />
+    ),
+    send:
+      question.multi && picked.length > 0 ? (
+        <button
+          type="button"
+          data-chat-send-picked=""
+          onClick={() => void answer(question.answers.filter((a) => picked.includes(a)))}
+          className="flex h-12 min-w-0 flex-1 items-center justify-center rounded-full bg-foreground text-[15px] font-medium text-background"
+        >
+          {SEND_PICKED}
+        </button>
+      ) : null,
+    sheet: readyBy ? (
+      <ReadyBySheet
+        onClose={() => setReadyBy(false)}
+        onDone={(day) => {
+          setReadyBy(false);
+          void answer([yes], day);
+        }}
+      />
+    ) : null,
+  };
+}
+
 export default function ChatThread({
   chat,
   open = true,
@@ -765,6 +926,9 @@ export default function ChatThread({
     [chat.id],
   );
   const [through, setThrough] = useState<string | null>(null);
+  const [joinedAsksFirst, setJoinedAsksFirst] = useState(false);
+  const [joinedBy, setJoinedBy] = useState<string | null>(null);
+
   // The "+" (N351): its tiles in the bar's place, the add sheet, a photo full size.
   const [tiles, setTiles] = useState(false);
   const [inviting, setInviting] = useState(false);
@@ -794,6 +958,8 @@ export default function ChatThread({
       if (cancelled) return;
       setMessages(thread?.messages ?? []);
       setThrough(thread?.joinedThrough ?? null);
+      setJoinedAsksFirst(thread?.joinedAsks ?? false);
+      setJoinedBy(thread?.joinedBy ?? null);
       if (thread) setBlocked(thread.blocked);
     });
     return () => {
@@ -857,6 +1023,7 @@ export default function ChatThread({
   const [leftQuestion, setLeftQuestion] = useState<string | null>(null);
   const waiting = answerWaits(messages);
   const question = waiting && onRecordAnswer && newest?.id !== leftQuestion ? waiting : null;
+  const setup = useSetupQuestion(chat.id, messages, (sent) => setMessages((list) => [...(list ?? []), ...sent]));
 
   return (
     <div data-chat-screen className="relative flex min-h-0 flex-1 flex-col">
@@ -871,7 +1038,11 @@ export default function ChatThread({
         {/* The messages start at the bottom, by the bar (N321 item 3), close
             within a side and wider where the side changes (N469). */}
         <div data-rhythm className="mt-auto flex flex-col">
-          {through ? <JoinedLine name={through} /> : null}
+          {through ? (
+            <JoinedLine text={joinedAsksFirst ? joinedAsks(through) : joinedThanks(through)} />
+          ) : joinedBy ? (
+            <JoinedLine text={joinedYourLink(joinedBy)} />
+          ) : null}
           {messages === null ? (
             <TypingDots label="Loading" />
           ) : (
@@ -885,8 +1056,12 @@ export default function ChatThread({
                 sentLine={sentTo(chat.title)}
                 name={chat.title}
               />,
+              ...(typeof (message.meta?.setup_answer as { deadline?: unknown } | undefined)?.deadline === "string"
+                ? [<DeadlineLine key={`deadline-${message.id}`} iso={(message.meta!.setup_answer as { deadline: string }).deadline} />]
+                : []),
             ])
           )}
+          {setup.answers}
           {question && !pending ? (
             <TapRow labels={[NOT_NOW]} onTap={() => setLeftQuestion(newest?.id ?? null)} dataAttr={{ "data-chat-not-now": "" }} />
           ) : null}
@@ -903,11 +1078,11 @@ export default function ChatThread({
             onPlus={() => setTiles(true)}
             onPick={(emoji) => void send(emoji)}
             middle={
-              pending ? (
+              setup.send ?? (pending ? (
                 <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited} failed={pending.failed} />
               ) : question && onRecordAnswer ? (
                 <RecordAnswerButton onClick={() => onRecordAnswer({ chatId: chat.id, name: chat.title, question, customer })} />
-              ) : null
+              ) : null)
             }
           />
         )}
@@ -918,6 +1093,7 @@ export default function ChatThread({
       <input ref={pickers.files} type="file" hidden data-chat-pick="files" onChange={(e) => void upload("file")(e)} />
       {inviting ? <AddSomeoneSheet onClose={() => setInviting(false)} /> : null}
       {fullPhoto ? <PhotoFull src={fullPhoto} onClose={() => setFullPhoto(null)} /> : null}
+      {setup.sheet}
       {toast}
     </div>
   );

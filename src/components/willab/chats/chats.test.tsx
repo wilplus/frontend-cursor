@@ -36,9 +36,9 @@ OUTCOME
       words and its three steps, and Copy my link puts the whole link on
       the clipboard and says "✓ Copied" (N308, N310, N367).
   O9  In a chat I joined through someone's link, one line above the
-      messages says whose link it was (N335 item 2), and its row in the
-      list keeps that line until the first message (N488); a chat without
-      it has no such line.
+      messages says whose link it was (N496, replacing N335 item 2's), and
+      its row in the list keeps that line until the first message (N488); a
+      chat without it has no such line.
   O10 Just joined (/chat?with=<chat>), the list opens with Will's row
       first, as always, and right under it the chat with the one who invited
       me, marked new with the joined line; the address is clean again;
@@ -89,6 +89,13 @@ OUTCOME
       Unblock, the earlier messages still there; Unblock unblocks at once.
       "Report {name}" asks first too, and "Report and block" reports them
       with the block (N466).
+  O23 Joining someone who set questions (N487): the line at the top says a
+      few questions come first; their question waits with its answers on my
+      side; "No" is sent at once and its deadline shows under it; a question
+      that takes more than one answer fills each one I tap, and Send in the
+      bar's middle sends them. The link's owner reads one card of my
+      answers, under "{name} joined through your link.", and their list
+      says "{name}'s answers".
 PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read"
          O19 -> "as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar"
          O20 -> "as a developer, a chats row in the rings, on or off, changes nothing"
@@ -111,6 +118,7 @@ PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is 
          O18 -> "a refused answer stays as Not sent, and Send again sends the same Take"
          O22 -> "a Take sent to me opens with its recording and words, and the list says who sent it"
          O21 -> "from their profile I block them, the bar says so with Unblock, and Report and block reports with the block"
+         O23 -> "the questions of the one who invited me are answered by tapping, and they read one card"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -564,13 +572,63 @@ describe("the chats in front of the Lounge", () => {
 
     await tap(row("c-ariel"));
     expect(container.querySelector("[data-chat-joined]")?.textContent).toBe(
-      "You joined through Ariel's link. Only the two of you are in this chat.",
+      "You joined thanks to Ariel. Your first question starts the knowledge base you build together.",
     );
     await tap(container.querySelector("[data-chat-screen] button"));
     // Opened, the row keeps the line until the first message (N488).
-    expect(lastLineOf("c-ariel")).toBe("You joined through Ariel's link. Only the two of you are in this chat.");
+    expect(lastLineOf("c-ariel")).toBe("You joined thanks to Ariel. Your first question starts the knowledge base you build together.");
     await tap(row("c-sarah"));
     expect(container.querySelector("[data-chat-joined]")).toBeNull();
+  });
+
+  it("the questions of the one who invited me are answered by tapping, and they read one card", async () => {
+    backend(["chats"]);
+    const at = "2026-11-04T10:00:00Z";
+    const hurry = { id: "q1", mine: false, author: "Ariel", kind: "text", body: "Are you in a hurry?", created_at: at,
+      meta: { setup: { i: 1, kind: "hurry", answers: ["No", "Yes"], multi: false } } };
+    const plan = { id: "q0", mine: false, author: "Ariel", kind: "text", body: "Let's build our knowledge base a month at a time.",
+      created_at: at, meta: { setup: { i: 0, kind: "say", answers: [], multi: false } } };
+    routes.set("GET /api/v2/chats", () => ({ chats: [{ ...ARIEL, last: { kind: "text", body: "Are you in a hurry?", created_at: at } }] }));
+    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({ messages: [plan, hurry], joined_through: "Ariel", joined_asks: true }));
+    routes.set("POST /api/v2/chats/c-ariel/setup/q1", () => ({ messages: [
+      { id: "a1", mine: true, author: "", kind: "text", body: "No", created_at: at, meta: { setup_answer: { to: "q1", i: 1, picked: ["No"], deadline: "2026-12-04" } } },
+      { id: "q2", mine: false, author: "Ariel", kind: "text", body: "Which languages can we use?", created_at: at,
+        meta: { setup: { i: 2, kind: "languages", answers: ["Polish", "English"], multi: true } } },
+    ] }));
+    routes.set("POST /api/v2/chats/c-ariel/setup/q2", () => ({ messages: [
+      { id: "a2", mine: true, author: "", kind: "text", body: "Polish, English", created_at: at, meta: { setup_answer: { to: "q2", i: 2, picked: ["Polish", "English"] } } },
+    ] }));
+    await render();
+    await tap(row("c-ariel"));
+    expect(container.querySelector("[data-chat-joined]")?.textContent).toBe(
+      "You joined thanks to Ariel. A few questions first, then you build a knowledge base together.",
+    );
+    const answers = container.querySelector("[data-chat-setup]");
+    expect([...answers!.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["No", "Yes"]);
+    await tap([...answers!.querySelectorAll("button")].find((b) => b.textContent === "No"));
+    expect(JSON.parse(String(calls("POST /api/v2/chats/c-ariel/setup/q1")[0]![1]!.body))).toEqual({ picked: ["No"] });
+    expect(container.querySelector("[data-chat-deadline]")?.textContent).toBe("Your deadline: Fri 4 Dec");
+    // Several answers: each tap fills one; Send stands in the bar's middle.
+    expect(container.querySelector("[data-chat-send-picked]")).toBeNull();
+    const picks = container.querySelector("[data-chat-setup-picks]")!;
+    for (const label of ["English", "Polish"]) await tap([...picks.querySelectorAll("button")].find((b) => b.textContent === label));
+    await tap(container.querySelector("[data-chat-send-picked]"));
+    expect(JSON.parse(String(calls("POST /api/v2/chats/c-ariel/setup/q2")[0]![1]!.body))).toEqual({ picked: ["Polish", "English"] });
+    expect(container.querySelector("[data-chat-setup-picks]")).toBeNull();
+  });
+
+  it("the one whose link it was reads one card of the answers", async () => {
+    backend(["chats"]);
+    const at = "2026-11-04T10:05:00Z";
+    const card = { id: "card", mine: false, author: "Ariel", kind: "text", body: "", created_at: at,
+      meta: { setup_card: { rows: [{ k: "Deadline", v: "4 December" }, { k: "Languages", v: "Polish, English" }] } } };
+    routes.set("GET /api/v2/chats", () => ({ chats: [{ ...ARIEL, last: { kind: "text", body: "", created_at: at, meta: { setup_card: true } } }] }));
+    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({ messages: [card], joined_through: null, joined_by: "Ariel" }));
+    await render();
+    expect(lastLineOf("c-ariel")).toBe("Ariel's answers");
+    await tap(row("c-ariel"));
+    expect(container.querySelector("[data-chat-joined]")?.textContent).toBe("Ariel joined through your link.");
+    expect(container.querySelector("[data-chat-setup-card]")?.textContent).toBe("Ariel's answersDeadline 4 DecemberLanguages Polish, English");
   });
 
   it("after joining, the list opens with Will first and the one who invited me under him, marked new", async () => {
@@ -598,7 +656,7 @@ describe("the chats in front of the Lounge", () => {
     const top = container.querySelector('[data-chat-row="c-ariel"]')!;
     expect(top.hasAttribute("data-chat-new")).toBe(true);
     expect(top.querySelector("[data-chat-last]")?.textContent).toBe(
-      "You joined through Ariel's link. Only the two of you are in this chat.",
+      "You joined thanks to Ariel. Your first question starts the knowledge base you build together.",
     );
     expect(window.location.search).toBe("");
     await act(async () => (top as HTMLElement).click());
