@@ -1255,6 +1255,9 @@ O4  An answer with no known state and no content: ""unknown"", not recovered.","
 O2 -> ""is unknown, never a verdict, when the server cannot be reached""
 O3 -> ""keeps a Take failed when the server says it failed""
 O4 -> ""is unknown when the answer has no known state and no content""",Founder 2026-09-21 (a red note stayed 9 min over a done Take) and 2026-09-24 (a failure card written without asking the server).
+src/components/willab/useLoungeThread.test.tsx,Story,"As a speaker, I want my chat to stay on screen when the app cannot reach the server for a moment, so that a weak signal after my walk never blanks my Takes, my Feedback walk or my history.","O1  The chat read again with no answer (the network down, a server
+error) keeps every message on screen; read again with an answer, it
+shows the server's thread.","O1 -> ""a failed read again keeps the chat on screen, an answered one replaces it""","The walk's end reads the chat again whatever the summary's answer (C9, D4, B8), and on a dropped connection that read fails too."
 src/components/willab/useReadoutPartHandlers.test.ts,Story,"As a speaker, I want Delete on the landing text to lift the paragraph's lock, and words from an earlier Take to save there too, so that the landing copy acts like the main page.","O1  Delete lifts the lock on that paragraph and the text is read again.
 O2  Never 5 (helper words stay until the speaker picks new ones): words
 picked from an earlier Take are saved on that paragraph, and its old

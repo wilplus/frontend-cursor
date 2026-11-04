@@ -181,6 +181,8 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     // Insight pings are server-written; the local thread has nothing new to pull.
     if (!signedIn) return;
     const page = await fetchLoungeHistory();
+    // A failed read never wipes the chat: what is on screen stays.
+    if (page.failed) return;
     announceDiscoveriesFromPersistedMessages(page.messages);
     setMessages(page.messages);
     setHasMore(page.has_more);
@@ -204,6 +206,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     await mergeLocalLoungeThreadToServer();
     // Rehydrate from the now-merged server thread (single source of truth).
     const page = await fetchLoungeHistory();
+    if (page.failed) return;
     announceDiscoveriesFromPersistedMessages(page.messages);
     setMessages(page.messages);
     setHasMore(page.has_more);

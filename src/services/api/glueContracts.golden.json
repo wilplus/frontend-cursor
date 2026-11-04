@@ -1312,7 +1312,8 @@
       "result": {
         "messages": [],
         "has_more": false,
-        "oldest_cursor": null
+        "oldest_cursor": null,
+        "failed": true
       }
     }
   },
