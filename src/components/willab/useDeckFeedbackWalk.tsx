@@ -1744,14 +1744,18 @@ export function useDeckFeedbackWalk(args: {
      speaker's name and Last time are read, and the tempo answer where the
      Sniper may be the walk's fix (the server chose it, or served no choice),
      so the hello never swaps, Last time is there before their best, and the
-     Sniper is never lost to a race. Never longer than WALK_OPEN_WAIT_MS,
-     well inside the wait's own patience (waitHandover LENS_APPEAR_MS, the
-     lens's LENS_WATCHDOG_MS). The coach's door waits for none of it. */
+     Sniper is never lost to a race. Never longer than WALK_OPEN_WAIT_MS
+     from when the walk has its moments (marks that land late start it
+     again), well inside the wait's own patience (waitHandover
+     LENS_APPEAR_MS, the lens's LENS_WATCHDOG_MS). The coach's door waits
+     for none of it. */
   const [openWaited, setOpenWaited] = useState(false);
+  const hasItems = items.length > 0;
   useEffect(() => {
+    setOpenWaited(false);
     const timer = setTimeout(() => setOpenWaited(true), WALK_OPEN_WAIT_MS);
     return () => clearTimeout(timer);
-  }, []);
+  }, [hasItems]);
   const walkReady = coachOnly || openWaited || walkOpens({ items, tempo, nameRead, lastAnswered, lastFix, thread });
   const element = useMemo(
     () => (
