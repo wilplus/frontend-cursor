@@ -613,8 +613,10 @@ Waiting for the founder's OK:
   can still hold it back, and then B and E5 stand as written · building in
   slices:
   - Built (backend #1665, FE this PR): a new speaker's plan begins with
-    "Hi {name}!" and "Your first Take is five questions. Answer each one out
-    loud, one slide at a time." and no question in the chat; "Start your
+    "Hi {name}!" and "Your first Take is about what you know. Five
+    questions, one slide each. Answer out loud, as you'd tell a friend."
+    (N462; was "Your first Take is five questions. Answer each one out
+    loud, one slide at a time.") and no question in the chat; "Start your
     first recording" opens the recording screens at once on the five
     questions (no set-up, no feelings check, the strip counting up), each
     with its small title; after that Take's walk Will reads it slide by
@@ -792,6 +794,7 @@ One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-04 · N459 · after the first Take's walk the plan asks no "When is your deadline?": with no day heard on the first Take's slides it takes the two-month default, as "No date yet", and its card comes above the goodbye. The deadline asked before the first Take, "Change your plan" and a new event's questions are as before. Was: the deadline and its taps above the goodbye after Take 1 · BE N459 log (#1689), BE (next PR)
 - 2026-11-03 · N457 · §2: the first Take is the only way in: with no `first_take` ring row a new speaker's plan begins with the first Take (backend `plan_flow.first_take_on`); a row can still hold it back. A plan already partway through the chat's questions keeps them. Was: with no row (production), the plan asked its questions by mic in Will's chat · BE #1685, FE (this PR)
+- 2026-11-04 · N462 · §2: the first Take is your one thing: Will's line "Your first Take is about what you know. Five questions, one slide each. Answer out loud, as you'd tell a friend." and five new slides, Your field, Worth sharing, Who it's for, A moment, Your one thing (backend `plan.FIRST_TAKE_SLIDES`); slide 2 is the voice message the coach hears, slide 3 the audience, slide 5 the key line (found by its kind), slides 1 and 4 in Will's notes and slide 4 the story among the plan's facts; drawn as the poster (recording-screens.md §1). Was: About you, Your talk, The room, Your one sentence, Your opening · BE #1694, FE (this PR)
 - 2026-11-03 · N449 · §2: "Record Take 2" on the first Take's Ideal Text page, while the project has only that Take, also opens the real talk's set-up (`Lounge.tsx` `onReadAloud`, through `isFirstTakeArc`). Was: it recorded the five questions again; only the chat's goodbye led to the real talk · FE (this PR)
 - 2026-11-03 · N449 · §2: after the first Take, as the prototype "The way in" draws it: "Record Take 2" at once under its goodbye (`afterTake.ts` `afterGoodbye`'s `noTap`, `Lounge.tsx`); the real talk is that project's Take 2, set up afresh with the plan's topic (`lib/willab/firstTake.ts` `startRealTalk`, `WillabSurface.tsx`), its slides stored as the project's new slides before its Take is sent (`keepRealTalkSlides`, N257); only Take 1's goodbye leads to the real talk (`isFirstTakeArc`). Was: the real talk was a project of its own, its screen said "Take 1", and the goodbye asked "I want to continue my practice" first · BE #1679, FE (this PR)
 - 2026-11-03 · N401 · C5, §2: the first Take's voice message and key line reach the coach's blind pick: kept with their voice at the end of that Take's processing (backend `plan_flow.after_processing`, cut from the recording the pipeline downloaded through the processing authorization, nothing new sent to a provider); the walk's end reads the answers and keeps nothing twice, and keeps them itself, without the voice, when processing could not. Was: a first-Take plan reached the coach with nothing to play. No new words · BE #1672, FE (this PR)

@@ -322,21 +322,74 @@ export function SlideTextCard({
   );
 }
 
-/** A first Take's question, tall (backend N449 item 4; the prototype "The
- *  first Take", v1): its small title, the short mark, the question, and the
- *  line under it, at the bottom of the slide. */
+/** A first Take's question, tall (backend N449 item 4), as the poster
+ *  (N462). */
 function TallQuestionSlide({ title, body }: { title: string; body: string }) {
-  const kicker = firstTakeKicker(title);
+  return <PosterSlide label={firstTakeKicker(title)} title={title} body={body} tall />;
+}
+
+/** The poster (backend N462; the prototype "Your one thing"): one idea in the
+ *  middle. The label in small spaced capitals, the question large and heavy,
+ *  centered a little above the middle, the hint quiet under it; no mark. The
+ *  first Take's questions, the default presentation and an answer's question
+ *  on the recording screen. Tall, it fills the slide's space; otherwise it is
+ *  drawn to the 16:9 box, its type sized to the slide (cqw). Lines that are
+ *  all numbers ("1 2 3", the default deck's Main points) are tiles. */
+export function PosterSlide({
+  label,
+  title,
+  body,
+  tall = false,
+}: {
+  label: string | null;
+  title: string;
+  body: string;
+  tall?: boolean;
+}) {
+  const lines = bulletLines(body);
+  const tiles = lines.length > 1 && lines.every((line) => /^\d+$/.test(line));
   return (
-    <div data-slide-tall="" className="flex h-full w-full flex-col justify-end gap-2 bg-[#14213d] p-[22px] text-white">
-      {kicker ? (
-        <span data-slide-kicker="" className="text-[12px] font-bold uppercase tracking-[0.08em] text-[#FFB58A]">
-          {kicker}
-        </span>
-      ) : null}
-      <span className="h-1 w-[26px] rounded-full bg-primary" />
-      <h3 className="text-[27px] font-semibold leading-[1.18] tracking-[-0.02em]">{title}</h3>
-      {body.trim() ? <p className="text-[15px] leading-[1.4] text-white/90">{body}</p> : null}
+    <div
+      data-slide-poster=""
+      data-slide-tall={tall ? "" : undefined}
+      className={`flex h-full w-full flex-col items-center justify-center bg-[#14213d] text-center text-white ${
+        tall ? "px-[30px] pb-[64px] pt-[28px]" : "px-[8%] pb-[6%] pt-[4%]"
+      }`}
+      style={tall ? undefined : { containerType: "inline-size" }}
+    >
+      <div className="flex w-full flex-col items-center">
+        {label ? (
+          <span
+            data-slide-kicker=""
+            className={`${tall ? "mb-[22px] text-[11px]" : "mb-[3cqw] text-[2.4cqw]"} font-bold uppercase tracking-[0.24em] text-white/[0.58]`}
+          >
+            {label}
+          </span>
+        ) : null}
+        <h3
+          className={`${tall ? "max-w-[11.5em] text-[34px]" : "max-w-[16em] text-[6.2cqw]"} text-balance font-extrabold leading-[1.07] tracking-[-0.032em]`}
+        >
+          {title}
+        </h3>
+        {tiles ? (
+          <div className={`${tall ? "mt-[22px] gap-2" : "mt-[3cqw] gap-[1.6cqw]"} flex`}>
+            {lines.map((line) => (
+              <span
+                key={line}
+                className={`${tall ? "size-11 text-[18px]" : "size-[8cqw] text-[3.6cqw]"} flex items-center justify-center rounded-[22%] bg-white/[0.12] font-bold text-white/80`}
+              >
+                {line}
+              </span>
+            ))}
+          </div>
+        ) : lines.length > 0 ? (
+          <p
+            className={`${tall ? "mt-[22px] max-w-[24em] text-[15px]" : "mt-[3cqw] max-w-[30em] text-[2.8cqw]"} text-balance leading-[1.45] text-white/[0.62]`}
+          >
+            {lines.join(" ")}
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -374,6 +427,7 @@ export function SlideRender({
   fit = false,
   asks = null,
   tall = false,
+  poster = false,
 }: {
   presentationRef: string | null;
   pageIndex: number;
@@ -384,6 +438,9 @@ export function SlideRender({
   asks?: string | null;
   /** A first Take's question, drawn tall (backend N449 item 4). */
   tall?: boolean;
+  /** The recording screen's poster (backend N462): the first Take, the
+   *  default presentation and an answer's question, with no deck. */
+  poster?: boolean;
   className?: string;
   showRetry?: boolean;
   fit?: boolean;
@@ -402,6 +459,13 @@ export function SlideRender({
         className={className}
         fit={fit}
       />
+    );
+  }
+  if (!presentationRef && poster && (title.trim() || body.trim())) {
+    return (
+      <div className={className}>
+        <PosterSlide label={asks ? nameAsks(asks) : firstTakeKicker(title)} title={title} body={body} tall={tall} />
+      </div>
     );
   }
   if (!presentationRef && artworkSrc) {

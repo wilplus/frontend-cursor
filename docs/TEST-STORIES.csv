@@ -1188,6 +1188,17 @@ O3  A pull down on the mic wait and the processing screen is cancelled;
 on other screens a pull works as normal.","O1 -> ""cancels a pull down from the slide on slide 1 with the scroller at its top""
 O2 -> ""sets overscroll-behavior none on lab_prerecord and keeps it into the recording""
 O3 -> ""cancels a pull down on the mic wait and the processing screen""",Founder 2026-10-06: a pull reloaded the recording screen and lost the Take. Never 3.
+src/components/willab/recordingPoster.test.tsx,Story,"As a speaker, I want each slide I speak to drawn as one clear idea, and my helper words never pushed off the screen by it, so that I know what to say and still see my own words.","O1  The first Take's questions are posters that fill the slide's space,
+each with its small label (backend N462).
+O2  The default presentation is the same poster: it fills the space when
+the Take has no helper words; with helper words it keeps its 16:9 box
+and the helper words are there under it (Never 5).
+O3  An answer to someone's question is the poster, ""{name} asks"" as its
+label (backend N441 item 7, N462).
+O4  An uploaded deck is drawn as itself, never as the poster.","O1 -> ""the first Take's questions are tall posters with their labels""
+O2 -> ""the default presentation is the poster and gives way to helper words""
+O3 -> ""an answer's question is the poster with whose question it is""
+O4 -> ""an uploaded deck is never the poster""","Founder 2026-11-04: ""the slides are perfect lock them"", ""update the default presentation and keep this formating for any presentation that comes from the questions to the specialist"" (backend N462)."
 src/components/willab/recordingSetup.test.tsx,Story,"As a speaker, I want setup to ask my topic, then the length, then slides, then start, so that starting a Take is quick.","O1  The questions come in that order, and starting carries my topic.
 O2  With no slides added, the slides step's button is ""Skip for now"", the
 last step included, and it starts the Take.","O1 -> ""asks topic, length, slides, then starts""

@@ -25,6 +25,7 @@ export default function SlideStage({
   current,
   asks = null,
   tall = false,
+  poster = false,
 }: {
   slides: PresentationSlide[];
   presentationRef: string | null;
@@ -34,6 +35,9 @@ export default function SlideStage({
   /** The first Take's questions: the slide fills the space it is given, not
    *  a 16:9 box (backend N449 item 4). */
   tall?: boolean;
+  /** The poster (backend N462): the first Take, the default presentation and
+   *  an answer's question. */
+  poster?: boolean;
 }) {
   const total = slides.length;
   if (total === 0) return null;
@@ -53,6 +57,7 @@ export default function SlideStage({
           artworkSrc={slide.artworkSrc}
           asks={asks}
           tall={tall}
+          poster={poster}
           className="h-full w-full"
           fit
           showRetry={false}
