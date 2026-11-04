@@ -235,13 +235,19 @@ export type ReplayTries = {
   audios: Readonly<Record<number, { url: string; durationMs: number | null }>>;
 };
 
+/** The One thing walk's fix as the chat kept it (N373 item 2: "a walk
+ *  played again shows what is there"): the practice its AI clip is read
+ *  by, and the tip it said, the words-only line when no clip names one. */
+export type ReplayFixClip = { practiceId: string | null; tip: string | null };
+
 /** What the replayed walk draws as given, by moment index: the helper words
- *  saved on the moment's paragraph, the speaker's own judgement (L3), and
- *  the tries of each practise. */
+ *  saved on the moment's paragraph, the speaker's own judgement (L3), the
+ *  tries of each practise, and the One thing walk's fix as it was said. */
 export type FeedbackWalkReplay = {
   picks: Readonly<Record<number, PhraseSelection>>;
   answers: Readonly<Record<number, ConfidenceRatingValue>>;
   tries?: Readonly<Record<number, ReplayTries>>;
+  clips?: Readonly<Record<number, ReplayFixClip>>;
 };
 
 /** The screens this phase draws (D-FW-14 to D-FW-18, sharing D-FW-20).
@@ -417,10 +423,22 @@ export function buildFeedbackWalk<R = unknown>(input: {
     );
   });
   return {
-    plan: withoutLoneOthers(withoutLoneIntro(plan)),
+    // Built after "Keep mine" (played again, as it stands, or resumed), the
+    // practise says their own sentence; a replay's tries keep it.
+    plan: withKeptWords(withoutLoneOthers(withoutLoneIntro(plan)), moments),
     moments,
     partsOf: groups.map((group) => [...new Set(group.map((i) => i.partId))]),
   };
+}
+
+/** The One thing walk's practise of a Clearer version the speaker answered
+ *  "Keep mine": on their own sentence (C5, C7, `oneThingTryWords`), with
+ *  "Your words it is." above its first try. Nothing decided yet (a fresh
+ *  Take): unchanged; the live taps set it themselves. Pure. */
+export function withKeptWords<R>(plan: readonly WalkStep[], moments: readonly FeedbackWalkMoment<R>[]): WalkStep[] {
+  return plan.map((s) =>
+    s.one && s.key === "practise" && s.moment != null && moments[s.moment]?.clearer?.decided === "keep" ? { ...s, kind: "keep" } : s,
+  );
 }
 
 /** The signed line for the `turn`-th screen of its kind in the walk: the
@@ -537,11 +555,14 @@ export function walkActionForPart(model: FeedbackWalkModel<unknown>, partId: str
  *  as given, with each moment that still waits drawn live, its own steps
  *  from `live`. Both are built from the same items, so a moment keeps the
  *  number the Take's walk gave it, and the chat hears a step it already
- *  holds as the same message. Pure. */
+ *  holds as the same message. `tempoKept`: the chat holds the Sniper as it
+ *  was played; without it, the Sniper is not played yet and is live too.
+ *  Pure. */
 export function walkAsItStands<R>(
   replay: FeedbackWalkModel<R>,
   live: FeedbackWalkModel<R>,
   waits: (moment: FeedbackWalkMoment<R>) => boolean,
+  tempoKept = false,
 ): FeedbackWalkModel<R> {
   const plan: WalkStep[] = [];
   const drawn = new Set<number>();
@@ -558,8 +579,10 @@ export function walkAsItStands<R>(
   }
   // While a moment still waits, the One thing walk's tail is live too: its
   // judged moment, its helper words and "Lesson done." with Close (N309),
-  // never the finished walk's read-only copies.
-  const tail = drawn.size > 0 ? plan.map((s) => (LIVE_TAIL.has(s.key) ? (live.plan.find((l) => l.key === s.key) ?? s) : s)) : plan;
+  // never the finished walk's read-only copies; so is a Sniper not played
+  // yet (B10, T).
+  const liveTail = (k: WalkStepKey) => LIVE_TAIL.has(k) || (k === "tempo" && !tempoKept);
+  const tail = drawn.size > 0 ? plan.map((s) => (liveTail(s.key) ? (live.plan.find((l) => l.key === s.key) ?? s) : s)) : plan;
   return { ...replay, plan: tail, asItStands: true, scroll: false };
 }
 
@@ -670,6 +693,8 @@ export function buildFeedbackReplay<R = unknown>(input: {
   helperWordsOf: (partId: string) => string | null;
   /** The tries a moment's practise already had; null: none. */
   triesOf?: (moment: FeedbackWalkMoment<R>) => ReplayTries | null;
+  /** The One thing walk's fix as the chat kept it; null: nothing kept. */
+  clipOf?: (moment: FeedbackWalkMoment<R>) => ReplayFixClip | null;
   /** The interventions the walk had, as the chat kept them (N247). */
   interventions?: readonly WalkIntervention[];
   /** The One thing walk judged one moment (from Take 2, N309 item 2). */
@@ -678,6 +703,7 @@ export function buildFeedbackReplay<R = unknown>(input: {
   const items = input.items.map((i) =>
     i.judge != null && input.answerOf(i.judge) === null ? { ...i, judge: null } : i,
   );
+  // Its plan already says their own sentence after "Keep mine" (withKeptWords).
   const base = buildFeedbackWalk({ items, coachNote: input.coachNote, practiceOn: input.practiceOn, guest: false, coachOnly: input.coachOnly, coachWordOnly: input.coachWordOnly, interventions: input.interventions, judge: input.judge });
   const tries: Record<number, ReplayTries> = {};
   const outcomes: Record<number, readonly TryOutcome[]> = {};
@@ -700,5 +726,21 @@ export function buildFeedbackReplay<R = unknown>(input: {
     const answer = moment.judgeItem != null ? input.answerOf(moment.judgeItem) : null;
     if (answer) answers[moment.index] = answer;
   }
-  return { ...base, plan, replay: { picks, answers, tries }, scroll: true };
+  return { ...base, plan, replay: { picks, answers, tries, clips: fixClips(plan, base.moments, input.clipOf) }, scroll: true };
+}
+
+/** The One thing walk's fixes played again, as the chat kept each one, by
+ *  moment index. Pure. */
+function fixClips<R>(
+  plan: readonly WalkStep[],
+  moments: readonly FeedbackWalkMoment<R>[],
+  clipOf: ((moment: FeedbackWalkMoment<R>) => ReplayFixClip | null) | undefined,
+): Record<number, ReplayFixClip> {
+  const out: Record<number, ReplayFixClip> = {};
+  for (const s of plan) {
+    const moment = s.one && s.key === "exVideo" && s.moment != null ? moments[s.moment] : undefined;
+    const kept = moment ? clipOf?.(moment) : null;
+    if (moment && kept) out[moment.index] = kept;
+  }
+  return out;
 }

@@ -241,7 +241,7 @@ const WALK_OWN_MS = 200;
 
 /** Bubbles land one by one only where the page can tell motion is welcome:
  *  a browser that answers the reduce-motion question with no. */
-const landingWelcome = () =>
+export const landingWelcome = () =>
   typeof window !== "undefined" &&
   typeof window.matchMedia === "function" &&
   !window.matchMedia("(prefers-reduced-motion: reduce)").matches;

@@ -65,7 +65,7 @@ import { resolvePastIdealText, type IdealTextPast } from "@/lib/willab/pastIdeal
 import type { IdealTextRevision } from "@/services/api/blockVariants";
 import { lensAddress } from "@/lib/willab/lensScreen";
 import { startOpenTrace } from "@/lib/willab/openTrace";
-import { chatDrawsStep, chatWalks, doorOf, feedbackWalkDoor, inPairs, latestShareLine, shareLines, walkPairs, type ChatWalk, type ShareLineChange } from "@/lib/willab/walkThread";
+import { chatDrawsStep, chatWalks, doorOf, feedbackWalkDoor, inPairs, latestShareLine, shareLines, walkAnswerRow, walkPairs, type ChatWalk, type ShareLineChange } from "@/lib/willab/walkThread";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import {
   clearExploreArc,
@@ -1446,7 +1446,7 @@ export default function Lounge({
     if (!atBottomRef.current) return;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, botThinking, activeOffer]);
+  }, [messages.length, botThinking, thread.writing, activeOffer]);
 
   // A NEW BUBBLE IS ALWAYS SHOWN (founder 2026-09-28), even when the thread
   // was scrolled up, and See next steps lands on the newest one. Only a new
@@ -1521,9 +1521,15 @@ export default function Lounge({
   }
 
   // N82 — Will's one question after a Take: the backend keeps the tap and
-  // writes it with the reply, then the thread reads it back.
+  // writes it with the reply, then the thread reads it back. The typing
+  // dots while it does, as for a typed answer (B8).
   async function answerWillQuestion(target: WillQuestionTarget, choice: string): Promise<void> {
-    if (await postWillQuestion(target.arcId, target.takeSessionId, choice)) await reload();
+    setBotThinking(true);
+    try {
+      if (await postWillQuestion(target.arcId, target.takeSessionId, choice)) await reload();
+    } finally {
+      setBotThinking(false);
+    }
     followAnswer();
   }
 
@@ -1901,7 +1907,7 @@ export default function Lounge({
         <VoiceNoteThread notebook={notebook} />
         {plan.pending}
         {willVoice.pending}
-        {botThinking && <TypingDots />}
+        <ThreadDots thinking={botThinking} writing={thread.writing} />
       </div>
 
       {/* The coach's one door (founder 2026-09-30, A1): the walk. Coaches can
@@ -2088,8 +2094,9 @@ export default function Lounge({
         onRecord={(arc) =>
           // After the first Take (backend N401 item 4): "Record Take 2" is the
           // real talk, its own set-up with the plan's topic, never the five
-          // questions again.
-          isFirstTakeArc(userId, arc, recordTake.next?.takeIndex) && onStartPlanRecording
+          // questions again. The goodbye says so; this device's own record of
+          // the first Take is the fallback.
+          (goodbye.afterFirstTake || isFirstTakeArc(userId, arc, recordTake.next?.takeIndex)) && onStartPlanRecording
             ? onStartPlanRecording(plan.topic, { afterFirstTake: true })
             : openIdealText(arc, "share")
         }
@@ -2976,7 +2983,8 @@ export function waitingStepId(items: readonly ThreadItem[], arc: string | null):
     const m = items[i].message;
     const meta = m.metadata ?? {};
     if (movedOn(m)) return null;
-    if (m.kind !== "walk_step" || meta.coach_update === true) continue;
+    // "Your words it is." waits on nothing: the Clearer version above it does.
+    if (m.kind !== "walk_step" || meta.coach_update === true || walkAnswerRow(m)) continue;
     return m.role === "bot" && meta.arc_id === arc ? m.client_id : null;
   }
   return null;
@@ -3149,6 +3157,9 @@ function useGoodbye({
      *  continue, else a practice day's (the-plan.md G6); never both, as the
      *  practice day's one thing holds the button. */
     recordNext: goodbye?.step === "record" ? goodbye.next : planOne,
+    /** That "Record Take N" follows the first Take, as its goodbye says
+     *  (backend N449 item 1): the real talk. */
+    afterFirstTake: goodbye?.step === "record" && goodbye.message.metadata?.first_take === true,
     choose,
     /** Typed words under the goodbye that say they want to practise are the
      *  tap; true when taken so. */
@@ -3158,6 +3169,12 @@ function useGoodbye({
       return true;
     },
   };
+}
+
+/** The Lounge's one wait under the thread (B8): a reply being written, or
+ *  the walk's summary and the chain after it. */
+function ThreadDots({ thinking, writing }: { thinking: boolean; writing: boolean }) {
+  return thinking || writing ? <TypingDots /> : null;
 }
 
 /** "I want to continue my practice", on the right, as Will's tap answers. */

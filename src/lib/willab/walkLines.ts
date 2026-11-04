@@ -95,14 +95,16 @@ export function oneThingAiLines(
  *  own sentence ("Pause before “{phrase}”.") when the server named what the
  *  clip would fix, the served exercise's video and instruction (no "Your
  *  turn.", N379 item 3); null when there is none of these. `tip`, bare, is what "Last
- *  time" keeps. The walk draws `lines` and the chat says them. Pure apart
- *  from `say`. */
+ *  time" keeps. The walk draws `lines` and the chat says them. `kept`: the
+ *  tip the chat kept with the fix, said when the clip names none (a walk
+ *  played again, N373 item 2). Pure apart from `say`. */
 export function oneThingNoClip(
   say: (bank: WalkBankKey) => string,
   clip: { problem?: AiClipProblem | null; phrase?: string | null } | null | undefined,
   exercise: { video?: string | null; instruction?: string | null; byCoach?: boolean } | null | undefined,
+  kept: string | null = null,
 ): { tip: string | null; lines: string[]; video: string | null; byCoach: boolean } | null {
-  const tip = aiTip(say, clip);
+  const tip = aiTip(say, clip) ?? (kept?.trim() || null);
   const instruction = exercise?.instruction?.trim() || null;
   const video = exercise?.video || null;
   if (!tip && !instruction && !video) return null;

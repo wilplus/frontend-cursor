@@ -1,14 +1,19 @@
 // @vitest-environment jsdom
 /*
-STORY    As the founder testing the chats between users (ring 6), I want my
-         chats in front of the Lounge, with Will first, so that I can open a
-         colleague's or a customer's chat, answer with an emoji or a voice
-         note, and start something new with a photo or a file; and as every
-         other speaker, I want /chat to stay the Lounge as it is.
+STORY    As a user, I want to land on my list of chats, with Will first,
+         on the web and in the iPhone app, so that I can open Will's chat or
+         a colleague's or a customer's, answer with an emoji or a voice note,
+         and start something new with a photo or a file (backend N456: the
+         default for everyone, everywhere; was ring 6 only).
 OUTCOME
-  O1  Off (no `chats` in the ring's features_on): nothing is drawn around
-      the Lounge and no chat is read (Never 3).
-  O2  On: the list stands in front of the Lounge, Will pinned first, then
+  O1  As a visitor who is not signed in, nothing is drawn around the Lounge
+      and no chat is read (Never 3).
+  O19 As a user with no ring at all, signed in, I land on the list of
+      chats, Will first, under the WillpowerLab bar; the rings never decide
+      it, and a rings read that fails changes nothing (N456).
+  O20 As a developer, I cannot switch the chats off with a ring: a `chats`
+      row in the rings panel, on or off, lands everyone on the same list.
+  O2  Signed in: the list stands in front of the Lounge, Will pinned first, then
       the chats, newest last message first, each with its title, subtitle
       and last message (an emoji with its meaning); an empty list is Will
       and "Add someone to chat with", on the web as in the iPhone app, and
@@ -44,9 +49,9 @@ OUTCOME
       opened, it is a chat like the rest (N357, N360; was N348 item 1, and
       N357's inviter above Will). Will's row has his newest line, bold with
       the dot, until his chat is open (N457 item 2).
-  O11 In the iPhone app the Lounge never shows for a moment before the list
-      covers it: the rings and the chats are asked together at boot, and
-      the loader stands in front until both have answered (N354).
+  O11 On the web and in the iPhone app, Will's chat never shows for a moment
+      before the list covers it: the loader stands in front until the list
+      has answered, and it never waits on the rings (N354, N456).
   O12 The "+" in a chat swaps the bar for four tiles with their names,
       Photos, Camera, Files and Someone else; Someone else opens the add
       sheet with my link; Cancel brings the bar back (N351).
@@ -76,7 +81,9 @@ OUTCOME
       before I have left one, it does nothing (N378, N436).
   O18 An answer the backend refused stays in the bar's middle, "Not sent"
       with "Send again", which sends the same Take (N441 item 1).
-PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
+PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read"
+         O19 -> "as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar"
+         O20 -> "as a developer, a chats row in the rings, on or off, changes nothing"
          O2 -> "with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back"
          O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question"
          O4 -> "the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's"
@@ -86,7 +93,7 @@ PROVES   O1 -> "with chats off, the Lounge is all there is and no chat is read"
          O8 -> "the + opens my own link and copies it"
          O9 -> "a chat joined through a link says whose link it was"
          O10 -> "after joining, the list opens with Will first and the one who invited me under him, marked new"
-         O11 -> "in the app, the loader, not the Lounge, waits for the list; both reads start together"
+         O11 -> "as a user, the loader, not Will's chat, waits for my list, on the web and in the app, and never for the rings"
          O12 -> "the + shows the four tiles, Someone else opens my link, and Cancel brings the bar back"
          O13 -> "a photo I send joins the thread and the mic shows until my voice note says what I need"
          O14 -> "the other person's photo or file waits for my voice, and each opens from the chat's file route"
@@ -109,6 +116,9 @@ vi.mock("../LoungeThreadContext", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../LoungeThreadContext")>()),
   useLoungeThreadMaybe: () => loungeThread,
 }));
+/** Whether the person is signed in: `null` while the session is read. */
+const session = vi.hoisted(() => ({ signedIn: true as boolean | null }));
+vi.mock("../useSignedIn", () => ({ useSignedIn: () => session.signedIn }));
 
 import { resetRingStateCache } from "@/services/api/rings";
 import { __resetBootPrefetchForTests, prefetchChatsDoor } from "@/services/api/bootPrefetch";
@@ -203,6 +213,7 @@ beforeEach(async () => {
   resetRingStateCache();
   __resetBootPrefetchForTests();
   native.on = false;
+  session.signedIn = true;
   window.localStorage.clear();
   routes.clear();
   fetchMock.mockReset();
@@ -255,16 +266,40 @@ function micGranted() {
 }
 
 describe("the chats in front of the Lounge", () => {
-  it("with chats off, the Lounge is all there is and no chat is read", async () => {
-    backend(["tempo_step"]);
+  it("as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read", async () => {
+    session.signedIn = false;
+    backend([]);
     routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
     await render();
-    // The ring was read, and said no.
-    expect(calls("GET /api/v2/user/rings")).toHaveLength(1);
     expect(surface().children).toHaveLength(1);
     expect(surface().firstElementChild?.getAttribute("data-testid")).toBe("lounge");
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/v2/chats"))).toBe(false);
     expect(loungeMounts).toBe(1);
+  });
+
+  it("as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar", async () => {
+    // No ring row, and a rings read that fails: the list opens all the same.
+    fetchMock.mockImplementation((url: string) =>
+      String(url) === "/api/v2/chats" ? reply({ chats: [SARAH] }) : reply({ error: "down" }, 500),
+    );
+    await render();
+    expect(container.querySelector("[data-chats-front]")).not.toBeNull();
+    expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-sarah"]);
+    expect(navbar().hidden).toBe(false);
+  });
+
+  it("as a developer, a chats row in the rings, on or off, changes nothing", async () => {
+    const landing: string[][] = [];
+    for (const featuresOn of [["chats"], []]) {
+      resetRingStateCache();
+      backend(featuresOn);
+      routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
+      await render();
+      landing.push(rows().map((r) => r.getAttribute("data-chat-row") ?? ""));
+      act(() => root.unmount());
+      root = createRoot(container);
+    }
+    expect(landing).toEqual([["will", "c-sarah"], ["will", "c-sarah"]]);
   });
 
   it("with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back", async () => {
@@ -729,32 +764,33 @@ describe("the chats in front of the Lounge", () => {
     expect(screen.querySelector("[data-chat-photo-full]")).toBeNull();
   });
 
-  it("in the app, the loader, not the Lounge, waits for the list; both reads start together", async () => {
-    native.on = true;
-    let answerRings: () => void = () => {};
-    const rings = new Promise<void>((resolve) => (answerRings = resolve));
-    fetchMock.mockImplementation(async (url: string) => {
-      if (String(url) === "/api/v2/user/rings") {
-        await rings;
-        return reply({ ring: 6, features_on: ["chats"], pending_announcements: [] });
-      }
-      if (String(url) === "/api/v2/chats") return reply({ chats: [SARAH] });
-      return reply({ error: "not found" }, 404);
-    });
-    prefetchChatsDoor();
-    await render();
-    // The rings have not answered, yet the chats were already asked.
-    expect(calls("GET /api/v2/chats")).toHaveLength(1);
-    expect(container.querySelector("[data-chats-waiting]")).not.toBeNull();
-    expect(rows()).toHaveLength(0);
+  for (const where of ["on the web", "in the app"] as const) {
+    it(`as a user, the loader, not Will's chat, waits for my list ${where}, and never for the rings`, async () => {
+      native.on = where === "in the app";
+      let answerChats: () => void = () => {};
+      const list = new Promise<void>((resolve) => (answerChats = resolve));
+      fetchMock.mockImplementation(async (url: string) => {
+        // The rings never answer: the list must not wait on them.
+        if (String(url) === "/api/v2/user/rings") return new Promise(() => {});
+        if (String(url) === "/api/v2/chats") {
+          await list;
+          return reply({ chats: [SARAH] });
+        }
+        return reply({ error: "not found" }, 404);
+      });
+      prefetchChatsDoor();
+      await render();
+      expect(container.querySelector("[data-chats-waiting]")).not.toBeNull();
+      expect(rows()).toHaveLength(0);
 
-    await act(async () => answerRings());
-    await flush();
-    expect(container.querySelector("[data-chats-waiting]")).toBeNull();
-    expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-sarah"]);
-    // The list is the one read at boot, not a second one.
-    expect(calls("GET /api/v2/chats")).toHaveLength(1);
-  });
+      await act(async () => answerChats());
+      await flush();
+      expect(container.querySelector("[data-chats-waiting]")).toBeNull();
+      expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-sarah"]);
+      // The list is the one read at boot, not a second one.
+      expect(calls("GET /api/v2/chats")).toHaveLength(1);
+    });
+  }
 
   it("an answer sent to me plays with its slides following the voice, its words behind Read it", async () => {
     const players: { currentTime: number; ontimeupdate: (() => void) | null; onended: (() => void) | null }[] = [];

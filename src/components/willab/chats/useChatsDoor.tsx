@@ -12,19 +12,19 @@ import { backDismissDepth, useBackStop } from "../useBackDismiss";
 import { useEdgeSwipe } from "./useEdgeSwipe";
 
 /* -------------------------------------------------------------------------- */
-/*  The chats in front of the Lounge (ring 6, feature `chats`; backend N274,   */
-/*  N298, N321, N322, N334; rules: docs/flows/customer-requests.md §1 C1).    */
+/*  The chats in front of the Lounge, for every signed-in person (backend     */
+/*  N456; was ring 6; N274, N298, N321, N322, N334; rules:                    */
+/*  docs/flows/customer-requests.md §1 C1).                                   */
 /*  The Lounge stays mounted and unchanged underneath: the list, or a chat,   */
 /*  covers it; Will's row uncovers it, with his own top bar above it. In      */
 /*  every chat, Will's included, the WillpowerLab bar goes and the chat's own */
 /*  top bar takes its place; it shows on the list only (N321 item 1, N334     */
 /*  item 1; was N322 item 4). On a computer, the list and a person's chat sit */
-/*  in a phone-wide column in the middle. Off, or with no chat but Will's,    */
-/*  nothing is drawn and /chat is the Lounge as it is (Never 3); in the       */
-/*  iPhone app, on, the list opens even with Will's chat alone; there, until  */
-/*  the rings and the list have answered, the loader covers the Lounge, so it */
-/*  never shows for a moment before the list draws over it. On the web the    */
-/*  Lounge paints at once, as most accounts have no chats.                    */
+/*  in a phone-wide column in the middle. The list opens even with Will's    */
+/*  chat alone, on the web and in the iPhone app (N456): until the session   */
+/*  and the list have answered, the loader covers the Lounge, so Will's chat */
+/*  never shows for a moment before the list draws over it. Signed out,      */
+/*  nothing is drawn and /chat is the Lounge as it is.                        */
 /* -------------------------------------------------------------------------- */
 
 type View = { at: "list" } | { at: "will" } | { at: "chat"; chat: Chat };
@@ -42,7 +42,7 @@ export type ChatsDoor = {
 
 const CLOSED: ChatsDoor = { back: null, front: null, navbar: true };
 
-/** The iPhone app, while the door is not yet known: the loader over the Lounge. */
+/** While the door is not yet known: the loader over the Lounge. */
 const WAITING: ChatsDoor = {
   back: null,
   navbar: true,
@@ -244,7 +244,9 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
     return () => window.removeEventListener("popstate", onPop);
   }, [atList]);
   // A link into the Lounge opens on Will's chat: nothing would cover it.
-  if (waiting && isNativeApp() && view.at !== "will") return WAITING;
+  // Everywhere, so the list is where everyone lands (N456; was the iPhone
+  // app only).
+  if (waiting && view.at !== "will") return WAITING;
   if (closed || !chats) return CLOSED;
   const atWill = view.at === "will";
   return {

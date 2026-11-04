@@ -463,6 +463,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N458 · `TranscriptReviewDeck.tsx` opens the Feedback walk once its reads are in (the speaker's name, the last walk's fix, the Sniper's stretch), at most 2.5 s after its moments are there; nothing on the Ideal Text page changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) §6 · FE (this PR)
 - 2026-11-03 · N452 · `idealEditCopy.ts` gains the slow Sniper's signed line (`ONE_THING_COPY.keepItMoving`, "You slowed down here. Keep it moving."); nothing on the Ideal Text page changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) §6 · FE (this PR)
 - 2026-11-03 · N435 · `idealEditCopy.ts` gains the One thing walk's two signed lines (`ONE_THING_COPY.keepWords`, "Your words it is."; `letItBreathe`, "You rushed here. Let it breathe."); nothing on the Ideal Text page changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) §6 · FE (#1209)
 - 2026-11-03 · N440 · the helper-words card's Edit chip (`ParagraphSheet.tsx`) and the overlay's Delete (`HelperWordsSheet.tsx`) answer a tap 44 px tall; was the 26 px chip and the 20 px word. They look the same · FE (this PR)
