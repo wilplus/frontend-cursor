@@ -615,10 +615,18 @@ Waiting for the founder's OK:
   can still hold it back, and then B and E5 stand as written · building in
   slices:
   - Built (backend #1665, FE this PR): a new speaker's plan begins with
-    "Hi {name}!" and "Your first Take is about what you know. Five
-    questions, one slide each. Answer out loud, as you'd tell a friend."
-    (N462; was "Your first Take is five questions. Answer each one out
-    loud, one slide at a time.") and no question in the chat; "Start your
+    Will's welcome in four bubbles (N492): "Hi {name}, and welcome. We'd
+    like to learn what you know and what you could teach others."; "Your
+    first Take is a short introduction: five questions, one slide each.
+    Answer out loud, as you'd explain it to a friend. At the end, you'll
+    get a few words on how you came across."; "Wozniak built the computer;
+    Jobs made the world want it. You're probably a Wozniak. We want you to
+    be heard the way Jobs was."; "Record somewhere quiet, where you'd
+    usually take a call and no one will interrupt you. Passing knowledge
+    from one mind to another is, after all, what civilization is made of."
+    (was N462: "Hi {name}!" and "Your first Take is about what you know.
+    Five questions, one slide each. Answer out loud, as you'd tell a
+    friend.") and no question in the chat; "Start your
     first recording" opens the recording screens at once on the five
     questions (no set-up, no feelings check, the strip counting up), each
     with its small title; after that Take's walk Will reads it slide by
@@ -785,6 +793,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N492 · §2: Will's welcome before the first Take is four bubbles, "Hi {name}, and welcome. ...", the short introduction and the few words at the end, the two Steves, and where to record (backend `plan.COPY`, the `first_take*` lines); the five slides and the button unchanged. Was: "Hi {name}!" and N462's one line · BE N492 log (#1725), BE #1730, FE (this PR)
 - 2026-11-04 · N483 · B3, B10, E5, G6, K, §3, §4: the plan in the one bar: a spoken question makes the bar's middle "Record your answer", with "Not now" a grey word under the question, which leaves it until the chat is opened again; "Start your first recording" is the bar's middle beside the stack, never in place of the bar, and the plan's questions never cover it; a practice day's "Record Take N" is the bar's middle too, with no ✕ (`WillBarMiddle`, `usePlanLounge` `hear` and `startFirst`). What stops: the orange mic, the faded "Type here" and its two notes (their words, `typeHereNote` and `tapAnswerNote`, removed), the ✕ beside "Record Take N", the start button in place of the bar · BE N483 (#1718), FE (this PR)
 - 2026-11-04 · N467 items 4 and 7 · B10, D5, F1: the plan's "Not now" and "Skip" are grey words, never a pill; "Are you preparing for the same event?" has "No", then "Yes", so the filled answer is the likely one; the 1 to 10 scale's picked number turns orange. Was: faded grey pills, "Yes" first with "No" filled, the picked number black · BE N467 log (#1695), FE (this PR)
 
