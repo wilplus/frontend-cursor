@@ -288,7 +288,7 @@ How a coach's blind answer counts, on a speaker's Take (D) or an import
   a coach, with the dot, before the speakers waiting on moments: "New plan"
   (the machine picked a level from the questions and no coach has answered
   it), "Asked about their level" (their "Ask your coach",
-  [the plan](the-plan.md) H1; gone from the plan, N491, so only one already
+  [the plan](the-plan.md) H1; gone from the plan, N494, so only one already
   waiting still shows), "Three Takes without moving" (a stuck level,
   the plan's G10). With moments waiting too: "{line} · {n} moments
   waiting". A speaker with no Take yet gets a card of their own. Who may see
@@ -413,7 +413,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-11-04 · N491 · K1: the speaker's "Ask your coach" is gone from the plan, so "Asked about their level" gets no new cards; one already waiting shows until answered. New plan and a stuck level as before · BE N491 log, FE (this PR)
+- 2026-11-04 · N494 · K1: the speaker's "Ask your coach" is gone from the plan, so "Asked about their level" gets no new cards; one already waiting shows until answered. New plan and a stuck level as before · BE N494 log, FE (this PR)
 - 2026-11-04 · — · §6: the rules text brought in line with N79's PRs: the N79 line says BE #1133–#1138 are not merged (only #1135 is; the rest are drafts); no rule changes · docs (this PR)
 - 2026-11-03 · N416 · the training corpus moves to the CEO panel while its infrastructure is rebuilt: the Lounge's pinned Training corpus button and the ☰ menu's row are gone for coaches, `/coach/corpus` goes to `/admin/ceo` (B1, H0, J) · BE (N416 log), FE (this PR)
 - 2026-11-02 · N192 · §3: the open line on a later change of the coach's word is closed: it shows in place with "Edited" on the speaker's side (the walk's page D5), built with N192 · docs (this PR)

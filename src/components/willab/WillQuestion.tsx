@@ -82,8 +82,10 @@ export default function WillQuestionBubble({
         </div>
       </div>
       {open && chips.length > 0 ? (
-        // The backend lists the most likely first; the rule puts it nearest the thumb (N371).
-        <TapRow labels={[...chips].reverse()} disabled={busy} onTap={tap} dataAttr={{ "data-will-answers": "" }} />
+        // The backend lists the most likely first; the rule puts it nearest the
+        // thumb (N371). "Something else" is the first of them, at the top: it
+        // opens the box for your own words (N483 item 2).
+        <TapRow labels={[SOMETHING_ELSE, ...[...chips].reverse()]} disabled={busy} onTap={tap} dataAttr={{ "data-will-answers": "" }} />
       ) : null}
     </>
   );
@@ -231,38 +233,32 @@ export function ChatLinks({ children }: { children: ReactNode }) {
   return <div className="mr-auto flex max-w-[90%] flex-col items-start gap-0.5 pt-0.5">{children}</div>;
 }
 
-/** "Something else" (backend N371): while Will's question waits with its
- *  answers and typing is allowed, the Lounge bar's middle is a button shaped
- *  like the box; a tap opens the box, "Type your answer", focused. Anything
- *  already typed keeps the box open. The plan's questions keep typing off
- *  (N319, N323), so they never show it. */
-export function useSomethingElse(
+/** The box in Will's bar (backend N483 item 2): you type to Will only when
+ *  he asks for words. It opens when you tap "Something else", the first of
+ *  his answers (`start`), and by itself while words are what waits: his
+ *  follow-up with no answers to tap, or `wordsWait` (a setup's name or code,
+ *  "What was missing?"). Anything typed keeps it; empty, the box you opened
+ *  closes when you tap away (`close`). The plan's questions keep typing off
+ *  (N319, N323), so they never show it, and words typed before wait. */
+export function useWordsBox(
   shown: readonly { metadata?: Record<string, unknown> | null }[],
   typingOff: boolean,
   draft: string,
   box: RefObject<HTMLTextAreaElement | null>,
-): { button: ReactNode; hidesBox: boolean; placeholder: string } {
+  wordsWait = false,
+): { show: boolean; start: () => void; close: () => void } {
   const asks = willWaiting(shown) !== null && !typingOff;
+  const noTaps = asks && (willQuestionOf(shown[shown.length - 1]?.metadata)?.chips.length ?? 0) === 0;
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!asks) setOpen(false);
   }, [asks]);
-  const closed = asks && !open && !draft;
   return {
-    hidesBox: closed,
-    placeholder: asks && open ? TYPE_YOUR_ANSWER : "Type here",
-    button: closed ? (
-      <button
-        type="button"
-        data-something-else=""
-        onClick={() => {
-          setOpen(true);
-          requestAnimationFrame(() => box.current?.focus());
-        }}
-        className="flex min-h-[40px] w-full items-center rounded-3xl border border-border bg-background px-4 text-left text-[15px] text-muted-foreground"
-      >
-        {SOMETHING_ELSE}
-      </button>
-    ) : null,
+    show: !typingOff && (!!draft || open || noTaps || wordsWait),
+    start: () => {
+      setOpen(true);
+      requestAnimationFrame(() => box.current?.focus());
+    },
+    close: () => setOpen(false),
   };
 }

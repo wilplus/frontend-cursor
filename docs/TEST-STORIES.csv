@@ -475,12 +475,13 @@ side, three or four stacked, more than four the last three and
 ""Show more"", which shows the rest; ""Not now"", ""Skip"", ""Cancel"" and
 ""Close"" are a grey word, never the filled one (N467), and a lone
 answer is outlined, never filled (N415).
-O4  While Will's question waits and typing is allowed, the bar's middle
-is ""Something else""; a tap opens the box with ""Type your answer"".
-While typing is off (the plan asks), it never shows (N371).","O1 -> ""the newest question shows its answers, no Skip, and a tap
+O4  You type to Will only when he asks for words (N483 item 2): the box
+""Type your answer"" opens when you tap ""Something else"", the first of
+his answers, and by itself for his follow-up with no answers or when
+words are what waits; while the plan asks it never opens (N371).","O1 -> ""the newest question shows its answers, no Skip, and a tap
 goes to the backend once""
 O3 -> ""suggested answers: two in a row, three stacked, a lone one outlined, saying no a grey word, more than four behind Show more""
-O4 -> ""while Will asks, Something else opens the box; the plan's questions never show it""
+O4 -> ""the box opens only when Will asks for words; the plan's questions never open it""
 O2 -> ""the message after the Take waits under Will's question""","Founder 2026-10-20 (N82): ""only buttons"" in the walk, Will's questions in the Lounge, tap answers plus my own words; 2026-10-31 (N296): ""maybe we should not give them the option to skip; let's try that""."
 src/components/willab/acceptRewrite.test.tsx,Story,"As a speaker accepting a clearer version in the paragraph sheet, I want my answer saved and my text unchanged until I say it in my next Take, so that the Ideal Text is only what I said.","O1  The answer is saved once, as apply_suggestion.
 O2  Never-5: the host's real accept lane (postTrackedDecision) sends no
@@ -500,20 +501,16 @@ Take N"" goes for good; the chat's one record button comes back under
 the new Take's closing message, after its walk's summary (founder
 2026-10-28, N244, N251: it came back as processing ended, beside the
 new Take's walk).
-O6  Nothing pushes the next Take (N294 items 6 and 7): under the goodbye,
-with the plan's progress under it, the one tap ""I want to continue
-my practice""; once I tap it, or type that I want to practise, ""Record
-Take N"" stands alone under the chat; while an ask waits, once I said
-anything else, or once a newer Take is recorded, neither shows.
-O7  After the first Take, ""Record Take 2"" comes at once under its
-goodbye, with no tap first, on any device (the backend marks that
-goodbye); every other Take keeps the tap (N449 item 2).","O1 -> ""draws the card, the ask, and the message only once it is let go""
+O6  After the goodbye the bar's middle is ""Record Take N"" for the next
+Take, with nothing to tap first (N483 item 2; was the tap ""I want to
+continue my practice"", N294 item 6); while an ask waits, once I said
+anything else, or once a newer Take is recorded, the goodbye names no
+Take. An older thread ending with that tap still counts.","O1 -> ""draws the card, the ask, and the message only once it is let go""
 O2 -> ""opens the Take's WhatsApp ask by itself""
 O3 -> ""knows when no ask is in front of the speaker""
 O4 -> ""keeps the card above the admin's ask, stamped with the message it waits for alone""
 O5 -> ""the last Take's Record button goes once the next Take is recorded""
-O6 -> ""after the goodbye, the tap, then Record Take N alone""
-O7 -> ""after the first Take, Record Take 2 at once""","Founder 2026-10-20: ""You cannot have two actions at a time, like feedback and record"" (backend services/after_take.py); 2026-10-31 (N294): ""No call to action means that there is no push""."
+O6 -> ""after the goodbye, Record Take N at once""","Founder 2026-10-20: ""You cannot have two actions at a time, like feedback and record"" (backend services/after_take.py); 2026-10-31 (N294): ""No call to action means that there is no push""."
 src/components/willab/audioUploadValidation.test.ts,Story,"As a speaker uploading a recording instead of recording live, I want a too-large or video file refused before upload with a plain reason, so that I do not wait for a failure (record step of the loop).","O1  A file over the upload limit is refused with a ""too large"" reason.
 O2  A video file (by MIME type, or by extension when the type is missing)
 is refused with an ""audio only"" reason.
@@ -537,7 +534,7 @@ O2  On mine, the pencil opens my About to type in; Save keeps it and says
 O3  On mine, Edit turns my name and who I am into fields; Done keeps them.","O1 -> ""their profile shows who they are and what we shared, and cannot be edited""
 O2 -> ""the pencil edits my About and Save keeps it""
 O3 -> ""Edit changes my name and role, Done keeps them""",
-src/components/willab/chats/chats.test.tsx,Story,"As a user, I want to land on my list of chats, with Will first, on the web and in the iPhone app, so that I can open Will's chat or a colleague's or a customer's, answer with an emoji or a voice note, and start something new with a photo or a file (backend N456: the default for everyone, everywhere; was ring 6 only).","O1  As a visitor who is not signed in, nothing is drawn around the Lounge
+src/components/willab/chats/chats.test.tsx,Story,"As a user, I want to land on my list of chats, with Will first, on the web and in the iPhone app, so that I can open Will's chat or a colleague's or a customer's, answer with an emoji or by recording my answer, and start something new with a photo or a file (backend N456: the default for everyone, everywhere; was ring 6 only).","O1  As a visitor who is not signed in, nothing is drawn around the Lounge
 and no chat is read (Never 3).
 O19 As a user with no ring at all, signed in, I land on the list of
 chats, Will first, under the WillpowerLab bar; the rings never decide
@@ -552,18 +549,13 @@ no demo chats are asked for (N401). Will's row uncovers the Lounge,
 never remounted, with a back to the list (customer-requests.md C1;
 N274, N298, N322).
 O3  In a chat, one bar: the ""+"" left, the three emoji in the box, no
-typing, and the mic always on the right, orange while a question waits
-for my answer (N368; was N341: only then); a tap on
-an emoji posts {""kind"":""emoji"",""body"":…} and shows the emoji at once,
-large, with its meaning and time under it, and the mic is plain again
-(N306, N311, N322, N368).
+typing and no mic (N483 item 3; was the mic, N368); a tap on an emoji
+posts {""kind"":""emoji"",""body"":…} and shows the emoji at once, large,
+with its meaning and time under it (N306, N311, N322).
 O4  The WillpowerLab bar shows on the list only: in a person's chat and
 in Will's, the chat's own top bar takes its place (N321 item 1, N334).
 O5  A chat whose last message is newer than the last time it was opened
 on this device shows as new, and stops being new once opened (N322).
-O6  The mic records with the one recording bar; Stop posts the recording
-(multipart audio and duration_ms) and the voice note joins the
-thread as my bubble; the bar comes back (N321 item 2, N314).
 O7  A voice note from the other person is their grey bubble with a play
 control that plays it from the chat's audio route (N321 item 2); its
 words, once ready, are closed behind ""Read it"" under the player, and
@@ -572,8 +564,9 @@ O8  The + on the list opens my own link, with the add sheet's signed
 words and its three steps, and Copy my link puts the whole link on
 the clipboard and says ""✓ Copied"" (N308, N310, N367).
 O9  In a chat I joined through someone's link, one line above the
-messages says whose link it was (N335 item 2); a chat without it has
-no such line.
+messages says whose link it was (N335 item 2), and its row in the
+list keeps that line until the first message (N488); a chat without
+it has no such line.
 O10 Just joined (/chat?with=<chat>), the list opens with Will's row
 first, as always, and right under it the chat with the one who invited
 me, marked new with the joined line; the address is clean again;
@@ -588,19 +581,19 @@ Photos, Camera, Files and Someone else; Someone else opens the add
 sheet with my link; a ✕ where the ""+"" was brings the bar back (N351,
 N460 item 4).
 O13 A photo I pick is posted to the chat's photo route and joins the
-thread as my image; the mic then turns orange, so I can say what I
-need, and is plain once my voice note is sent (N337, N341 item 2,
-N351, N368).
-O14 The other person's photo or file waits for my voice: the mic is orange. A
-file shows a tile with its extension and its own name, and downloads
+thread as my image (N337, N351).
+O14 The other person's file shows a tile with its extension and its own
+name, and downloads
 from the chat's file route; a photo opens full size with a close and
 no words; the list's line is ""📷"", or ""📄"" and the file's name (N351).
 O15 An answer sent to me is one message (N355): its voice, the slides it
 was said over in a strip that marks the one being heard as it plays,
 and its words closed behind ""Read it""; no Take number.
 O16 A question Will marked as about a product or a treatment takes one
-black ""Record an answer"" in the bar's middle, the ""+"" and the mic on its
-sides, the mic quiet beside it (N321 item 4, N361, N368, N460 item 2); it hands the recording screens the
+black ""Record your answer"" in the bar's middle, the ""+"" on its left and
+no mic (N321 item 4, N361, N483 items 3 and 5), and ""Not now"", a grey
+word under the question, brings the emoji back, telling them nothing,
+until the chat is opened again; the answer hands the recording screens the
 chat, the person and the question. Back from them, the bar's middle
 reads ""Sending to {name}… {n}"" with Undo while the answer, already
 with the backend, waits out its 5 seconds there (N441 item 3); then
@@ -627,20 +620,19 @@ with the block (N466).","O1 -> ""as a visitor who is not signed in, /chat is the
 O19 -> ""as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar""
 O20 -> ""as a developer, a chats row in the rings, on or off, changes nothing""
 O2 -> ""with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back""
-O3 -> ""an emoji tapped in a chat is posted and shown at once with its meaning, and the mic goes with the question""
+O3 -> ""an emoji tapped in a chat is posted and shown at once with its meaning, and the bar has no mic""
 O4 -> ""the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's""
 O5 -> ""a chat with a message newer than its last opening shows as new until it is opened""
-O6 -> ""the mic records a voice note, Stop posts it and it joins the thread""
 O7 -> ""a voice note from the other person plays from the chat's audio route, its words behind Read it""
 O8 -> ""the + opens my own link and copies it""
 O9 -> ""a chat joined through a link says whose link it was""
 O10 -> ""after joining, the list opens with Will first and the one who invited me under him, marked new""
 O11 -> ""as a user, the loader, not Will's chat, waits for my list, on the web and in the app, and never for the rings""
 O12 -> ""the + shows the four tiles, Someone else opens my link, and the ✕ in its place brings the bar back""
-O13 -> ""a photo I send joins the thread and the mic shows until my voice note says what I need""
-O14 -> ""the other person's photo or file waits for my voice, and each opens from the chat's file route""
+O13 -> ""a photo I send joins the thread as my image""
+O14 -> ""the other person's photo or file opens from the chat's file route""
 O15 -> ""an answer sent to me plays with its slides following the voice, its words behind Read it""
-O16 -> ""a marked question takes Record an answer, and my answer goes with Sending, Undo and Sent""
+O16 -> ""a marked question takes Record your answer, Not now leaves it, and my answer goes with Sending, Undo and Sent""
 O17 -> ""the device's Back goes back by one, to the list, never off it, and Forward opens the chat I just left""
 O17 -> ""in the app, a swipe from the left edge goes back to the list where I left it, and one from the right edge forward to the chat I just left""
 O18 -> ""a refused answer stays as Not sent, and Send again sends the same Take""
@@ -1114,25 +1106,26 @@ O5 -> ""Skip passes the call on""","The calls' calendar, full screen and asked f
 src/components/willab/plan/plan.test.tsx,Story,"As a new speaker on the plan's ring, I want Will to ask me my questions one at a time the way he asks after the walk, and to show my plan as it was drawn, so that I reach my first Take without a form.","O1  A choice (the deadline, the plan's own yes, a new project's
 question) is tap answers on the right of the thread, Will's orange
 pills, the plan's ""Not now"" a grey word (N467); the Lounge's bar
-stays under it, and a tap sends that answer (N319 item 1).
-O2  A voice question turns the bar's mic orange; a tap records with the
-one recording bar in the message box's place, the trash throws it
-away, and Stop sends the answer to the plan (N319 item 1, N314).
+stays under it, the stack and its one black button, and a tap sends
+that answer (N319 item 1, N483 item 2).
+O2  A spoken question makes the bar's middle ""Record your answer"", with
+""Not now"" under the question (N483 item 2); a tap records with the
+one recording bar in the bar's place (the trash on the left, Stop
+inside the strip, no send), the trash throws it away, and Stop sends
+the answer to the plan (N319 item 1, N314). ""Not now"" leaves it: the
+middle goes back to the record button until the chat is opened
+again.
 O3  The 1 to 10 scale sits in the thread under its question; a tap is
 sent once, and the number is never written back into the chat
 (N178): the tap comes back as my turn, a lock and ""Answered""
 (N339).
-O4  One action a step: ""Start your first recording"" is never under a
-question; it is the one button after the plan card, in the message
-box's place, and opens the first Take (N319 item 2). A Take
-recorded first: its walk comes before the questions (N262).
-O5  While the plan asks, ""Type here"" stays in the bar, faded and not
-focusable (N319 item 3); wherever it is faded, before my first Take
-and after it (N350 item 4), while the orange mic waits for my
-answer, a tap on it shows ""We need to hear this in your voice. Tap
-the mic."" above the bar, one note at a time, gone after a moment
-(N323 item 1), and while a tap answer waits, ""Tap one of the answers
-above."" (N325 item 4); with nothing asked it takes words again.
+O4  One action a step: the plan's questions never cover the next Take
+(N483 item 2); before the first Take the bar's middle is ""Start your
+first recording"", which opens the plan's first Take. A Take recorded
+first: its walk comes before the questions (N262).
+O5  While the plan asks there is no box to type in: the answer is a tap
+or your voice (N319 item 3, N483 item 7: the faded ""Type here"" and
+its note are gone).
 O6  The plan's rows are drawn by their metadata: the speaker's voice
 answer as their own bubble; the card as the plan only (N319 item
 6): ""Plan"", its bar, the practice days, the deadline and ""Change
@@ -1143,38 +1136,35 @@ item 7); a plain row is left to the Lounge.
 O7  The chat has one record button: a practice day's one thing holds
 it until a newer Take's closing message takes it back (N167), and
 gives it up once a newer Take is recorded, in any project (N244,
-N251). It is ""Record Take N"" under the chat, alone, the message box
-gone, never inside the bubble, and a tap starts that Take (N294
-item 7, N296 state 4). Its grey ✕ closes it and the bar is back,
-until I open the chat again (N395).
+N251). It is ""Record Take N"", the bar's middle beside the stack,
+never inside the bubble, and a tap starts that Take (N294 item 7,
+N483 item 2: no ✕ beside it).
 O8  ""How do you feel?"" comes before a Take only once the plan's first
 Take is recorded (D4).
 O9  Will's ask for the plan's own yes is drawn as his bubble with Read
 more (N211).
 O10 Before my first Take nothing of the principles is in my way: no
-notebook mic, no ask; once my first Take lands, both are there,
-without opening the app again (N243).
+ask opens; once my first Take lands it does, without opening the app
+again (N243). The voice notebook itself rests (N483 item 7).
 O11 The plan's coach calls are hidden, not removed (N315): with the
 ring row ""plan_calls"" on, the card lists both calls, Book on one
 not booked, and the plan's end shows the summary call; off, none.
 O12 On a first-Take plan (backend N401, the ring row ""first_take""),
 nothing is asked in the chat: ""Start your first recording"" is the
-one button at once, in the message box's place, and it starts the
-first Take with the plan's five slides.","O1, O5 -> ""a choice is taps in the thread, the bar stays and
-typing waits""
-O5 -> ""a tap on the faded Type here says why, before the first
-Take and after it""
-O2 -> ""a voice question: the mic is orange and its recording
-sends the answer""
+bar's middle at once, and it starts the first Take with the plan's
+five slides.","O1, O5 -> ""a choice is taps in the thread, and the bar keeps its
+one button""
+O2 -> ""a spoken question: Record your answer records it, Not now
+leaves it""
 O3 -> ""a rating is sent once and never written back""
-O4 -> ""Start your first recording only after the plan card""
+O4 -> ""the plan's questions never cover Start your first recording""
 O3, O6 -> ""the plan's rows are drawn as the prototype draws them""
-O7 -> ""a practice day's Record Take N is the button under the chat, alone, until its ✕""
+O7 -> ""a practice day's Record Take N is the bar's middle""
 O8 -> ""the feelings before a Take""
 O9 -> ""Will asks for the plan's own yes""
 O10 -> ""nothing of the principles before my first Take""
 O11 -> ""the plan's calls show only with their ring row""
-O12 -> ""a first-Take plan: the one button at once, and it starts the five slides""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; record first, backend N262; every question the after-walk way, one action a step, typing waits before Take 1, backend N319 items 1 to 3, its note signed, backend N323 item 1, and on a choice, backend N325 item 4, wherever the box is faded, backend N350 item 4; the calls hidden, backend N315; the plan card simplified, backend N319 item 6; no bubble carries a button, backend N294 item 7; docs/flows/the-plan.md §1."
+O12 -> ""a first-Take plan: the bar's button at once, and it starts the five slides""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; record first, backend N262; every question the after-walk way, one action a step, typing waits before Take 1, backend N319 items 1 to 3, its note signed, backend N323 item 1, and on a choice, backend N325 item 4, wherever the box is faded, backend N350 item 4; the calls hidden, backend N315; the plan card simplified, backend N319 item 6; no bubble carries a button, backend N294 item 7; one bar in every chat, backend N483; docs/flows/the-plan.md §1."
 src/components/willab/plan/planNewEvent.test.tsx,Story,"As a speaker with a plan, I want ""I have a new event"" out of my way while my Take is still processing, so that I never tap something that leaves me with nothing to do.","O1  While the Take is processing, Change your plan has no ""I have a new
 event"", and the plan's end shows only ""Keep practising"".
 O2  Once the Take has landed, both show ""I have a new event"" again.","O1, O2 -> ""a new event waits for the Take being processed""","The founder, 2026-10-28 (backend N242); docs/flows/the-plan.md §1 H1 and I2."
@@ -1210,14 +1200,6 @@ src/components/willab/readySignUpMoment.test.tsx,Story,"As a guest whose first T
 the walk praises first, with ""This was your most confident moment.""
 O2  With no such moment (or no clip), the wall is exactly as before.","O1 -> ""shows the most confident moment's clip and the walk's line""
 O2 -> ""is unchanged when the Take has no praised most confident moment""","Founder 2026-10-29, backend N273 item 5."
-src/components/willab/recordingBar.test.tsx,Story,"As a speaker, I want every short recording in the app to look and work the same, so that I always know how to stop and send, or throw it away.","O1  A voice note in the Lounge records with the one bar (backend N314,
-N304): the trash on the left, then the walk's strip (the dot, the
-clock, the track) with the red Stop inside it. Stop sends the
-recording; the trash throws it away and sends nothing. The
-WhatsApp-style bar (a black send) is gone. The plan's voice answer
-records with the same bar from the Lounge's orange mic (N319 item
-1), proved with the plan's questions (plan/plan.test.tsx).","O1 -> ""a voice note records with one bar: Stop sends, the trash
-throws it away""","Founder 2026-10-31 (N304): ""unify the recording pls just like it is here""; N314: ""Can you make it locked everywhere?""."
 src/components/willab/recordingCopy.test.ts,Story,"As the founder, I want the recording screens' words fixed to the signed set with no digits or score words, so that nothing unapproved or numeric reaches the speaker.","O1  Never 4 (no new words without the founder's OK): RECORDING_COPY holds
 exactly the signed keys, typed exactly as signed.
 O2  Never 1 (no scores or numbers): no signed line carries a digit, a % or
@@ -1329,17 +1311,11 @@ O2 -> ""words from an earlier Take save on the paragraph""",F1 Repair Plan Phase
 src/components/willab/useWillabFlow.test.ts,Story,"As a speaker, I want the app always to go record, then process, then Ideal Text, then the next Take, so that the loop never breaks.","O1  Starting, stopping and finishing processing lead to the readout;
 from there the next Take, a pause, or ""sign up to send"" (and on to
 review) are expected steps.","O1 -> ""is the record → process → Ideal Text loop""",Never 3; audit Q-C4.
-src/components/willab/voiceNotebook.test.tsx,Story,"As the founder in a rush, I want to say a note and close the app, so that what I said is kept and I can see it was written as I meant it.","O1  The moment I tap, my note shows the wave of my voice; the words follow it; leaving the app sends the note, it is not thrown away (N194, N199).
-O1b The tap answers at once, as WhatsApp's: a buzz and the recording bar before the phone has opened the mic; trash in that moment records nothing.
-O2  A note that cannot leave the phone waits under a clock and goes, once, when the connection is back (N194).
-O4  Typing ""#"" offers one option, ""# note"", and tapping it leaves ""#"" to write on: a typed ""#"" is one note, as the mic's (N253).
+src/components/willab/voiceNotebook.test.tsx,Story,"As the founder, I want a note I said before the notebook rested to be kept, and the sale's question I was asked to still take my answer, so that nothing I said is lost.","O2  A note left on the phone waits under a clock and goes, once, when the connection is back (N194). Since N483 item 7 the note rests: nothing starts a new one, and the notes already said still go.
 O5  Under ""Which step did it stall at?"" the sale's four steps take the message box's place, and a tap answers for that note with that step (N241 P2).
-O6  Before I said Yes, opening the Lounge asks once whether Will spotted a strength in my Takes, and the thread is read again when he wrote; after Yes, it never asks (backend N411 items 1, 5).","O1 -> shows the wave at once, then my words, and keeps the note when I leave the app
-O1b -> buzzes and shows the recording at the tap, before the mic opens
-O2 -> keeps a note that cannot go and sends it once when back online
-O4 -> offers only ""# note"" after ""#"", and leaves ""#"" to write on
+O6  The notebook rests (N483 item 7): opening the Lounge no longer asks Will to open it from my Takes, and ""Keep a voice notebook?"" no longer opens its answers.","O2 -> keeps a note that cannot go and sends it once when back online
 O5 -> opens the four steps under the sales question and answers with the one tapped
-O6 -> asks once for the introduction from my Takes, only before Yes",
+O6 -> the notebook rests: no intro and no ask","Founder 2026-10-20: the voice notebook; 2026-11-04 (N483): ""I am ready to give up the option to record short messages in the chat and find for it another place""."
 src/components/willab/walk/coachUpdateLens.test.tsx,Story,"As a speaker, I want my coach's changed word to wait for me in the chat under ""Later · from your coach"" and open the walk at my coach's place when I tap it, the same way every bubble opens its step, so that I watch exactly what my coach sent, where it belongs.","O1  The coach's bubble rings while the server says the word is new; a tap
 opens the Take's walk at the coach's step (Step 0 for a general word),
 not a screen of its own; nothing is marked watched by the tap.
@@ -1517,20 +1493,12 @@ O3 -> Not now sends nothing and closes
 O4 -> opens with the number typed in the chat,
 a full number typed in the chat gets its code at once
 O5 -> a number another account has is refused in words",
-src/components/willab/willVoiceAnswer.test.tsx,Story,"As a speaker in the Lounge after a Take, I want to see that Will is waiting for my answer and to answer him by voice, so that I say it the way I would say it in my talk, in a second.","O1  While Will's question waits, the bar keeps ""+"", ""Type here"" and the
-mic, and the same mic fills orange, for every speaker (backend
-N296 state 2, N306 item 1); with no question waiting the mic is as
-before: there only with the voice notebook, not orange.
-O2  Tapping it records with the one bar (the trash, the strip with
-Stop inside); Stop sends the recording as the answer to that
-question, it shows at once as my voice bubble, and once Will has
-heard it, my bubble carries the words (N294 items 2 and 3, N319
-item 1).
-O3  After I answer, the chat lands on the newest bubble even when I had
-scrolled up (N319 item 9).","O1 -> ""the mic fills orange while Will waits, and only then""
-O2 -> ""a voice answer answers Will's question and lands as my
-voice bubble with the words""
-O3 -> ""after an answer the chat lands on the newest bubble""","Founder 2026-10-31 (N296): ""the mic fills orange (colour only)""; N294: ""The key line is recorded""; 2026-11-01 (N319): ""after the speaker answers, the chat moves to the new bubble""."
+src/components/willab/willVoiceAnswer.test.tsx,Story,"As a speaker in the Lounge, I want the answers I already gave Will out loud to stay in the chat, and after I answer the chat to show the newest bubble, so that I can always see where we are.","O1  A spoken answer to Will, already in the thread, shows on my side
+with the words he heard (N275). Since N483 Will's question is
+answered with a tap or written words, so no new ones are made.
+O2  After I answer, the chat lands on the newest bubble even when I had
+scrolled up (N319 item 9).","O1 -> ""a spoken answer already given stays as my bubble with its words""
+O2 -> ""after an answer the chat lands on the newest bubble""","N294 items 2 and 3 (the spoken answers kept); 2026-11-01 (N319): ""after the speaker answers, the chat moves to the new bubble""; 2026-11-04 (N483): no mic in any chat."
 src/components/willab/willabHelpers.test.ts,Story,"As a speaker, I want my slide taps lined up with the recording's clock, so that each word lands on the right slide.","O1  When the recording started later than the tap clock, the correction is positive by exactly that gap.
 O2  When the recording never reported a start, no correction is sent.","O1 -> is positive when the recorder started after the tap clock's zero
 O2 -> sends nothing when the recorder never reported a start",The backend subtracts this from every tap; the wrong sign would double the drift.
