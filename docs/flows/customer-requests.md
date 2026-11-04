@@ -595,6 +595,8 @@ them:
 
 ## 2. In flight
 
+- **N483** · the bottom bar in a chat with a person (locked 2026-11-04, not built): the "+" and 👍 👀 🙏; no mic, no voice notes, no typing; "Record your answer" when they asked you something, with "Not now" under their question; the "+" opens "Ask {name}", a sheet built like "Add someone to chat with", whose "Record your question" always opens the recording screens with the default presentation ("To {name} · Slide {n} of 3"); the "+" orange until your first question; a setup asks closed questions only; Photos, Camera, Files and Someone else off for now · replaces, when built: C1's bar (the mic and its orange, the "+" tiles, "Record an answer") · prototype "The Bar, Clickable" <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2> (version 8; files in the backend's `docs/design/customer-requests-2026-10-28/the-bar/` and `11-the-bar-clickable.pdf`) · locked, waiting to be built · BE #1718
+
 Built for every signed-in person (backend N456, 2026-11-03; was ring 6,
 feature `chats`, the founder only, 2026-11-02): the
 list of chats in front of the Lounge (C1: Will pinned, then each chat's
@@ -744,6 +746,15 @@ claude.ai link beside each is a convenience, never the only copy.
 
 The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/).
 
+- **The bottom bar, one logic in every chat** (2026-11-04, N483, locked; the
+  newest for the bar in both chats): Will's chat in every state, and a chat
+  with a person: joining with closed questions, the orange "+", "Ask
+  {name}" the first time and after, the default presentation on the
+  recording screens, sending with Undo, the answer, "Record your answer"
+  with "Not now", "Not sent" and blocked (23 pages). PDF
+  [`11-the-bar-clickable.pdf`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/11-the-bar-clickable.pdf) ·
+  HTML [`the-bar/the-bar-clickable.html`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/the-bar/the-bar-clickable.html) · link
+  <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2>.
 - **The answerer's side, in her Lounge** (2026-10-29, N236, N240, N256; the
   newest for the answerer): Ariel at Invita, from the WhatsApp message to her
   list of chats, Sarah's chat with the request, the photo, what she sees and
