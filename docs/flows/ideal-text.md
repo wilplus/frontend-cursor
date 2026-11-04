@@ -463,6 +463,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N505 · "Record Take N" and "Close" keep 8px above, on each side and below; the text stops 8px above the button, and "Close" still adds nothing under it (N280). Same for the transcript's Save and Cancel. The rule is the walk page's J9 (`IdealTextOverlay.tsx`, `IdealTextReadout.tsx`, `TranscriptReviewDeck.tsx`). Was: 16px sides, 0px above · BE, FE (this PR)
 - 2026-11-04 · N122, N499 · `IdealTextOverlay.tsx` `LensFrame`, the walk's loading screen over this page, draws the typing dots at the bottom, where the walk's first bubble lands, once it is still loading after 0.3 s (was: at the top left, at once); nothing on the Ideal Text page itself changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) B5 · BE #1738, FE (this PR)
 
 - 2026-11-04 · N470, N479 · "Record Take N" (`IdealTextActions.tsx`), with the backend's switch for sending on, reads the people in your chats and your last choice, 1.5 s at most, then records at once with it, asks with the new screen, or, with nobody in the list, records with nothing sent; off, or failing, it is today's sharing exactly; `idealEditCopy.ts` gains the screen's signed words (`WALK_COPY.sendBubbles`, `sendSelectAll`, `sendLastSent`, `sendEveryone`); the page itself does not change. The rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) G and §6 · FE (this PR)

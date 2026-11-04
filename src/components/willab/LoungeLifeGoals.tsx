@@ -139,7 +139,8 @@ export type Tap = { emoji?: string; label: string };
 export function TapsDock({ options, onPick }: { options: readonly Tap[]; onPick: (index: number) => void }) {
   const [held, setHeld] = useState<number | null>(null);
   return (
-    <div className="flex flex-col gap-2.5 px-5 pb-[max(30px,env(safe-area-inset-bottom))] pt-2">
+    // In the Lounge's shell: 8px from the sides and the bottom (N505).
+    <div className="-mx-2 flex flex-col gap-2.5">
       {options.map((option, index) => (
         <button
           key={option.label}
@@ -167,7 +168,8 @@ export function TapsDock({ options, onPick }: { options: readonly Tap[]; onPick:
 }
 
 export function DockColumn({ children }: { children: ReactNode }) {
-  return <div className="flex flex-col gap-2 px-5 pb-[max(30px,env(safe-area-inset-bottom))] pt-2">{children}</div>;
+  // In the Lounge's shell: 8px from the sides and the bottom (N505).
+  return <div className="-mx-2 flex flex-col gap-2">{children}</div>;
 }
 
 export const FIELD =

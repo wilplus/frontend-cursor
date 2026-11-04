@@ -427,6 +427,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N505 · "See an example": the button at the bottom keeps 8px above and below (the Feedback walk page's J9); was 12px above and 20px below (`WelcomeExample.tsx`) · BE, FE (this PR)
 - 2026-11-04 · N471 · §1: by invitation. The first page is design B on the web and in the iPhone app (Sign in, the mark, the name, See an example, the link field, No link yet? Join the waitlist; Enter the lab and the two paragraphs leave this page); the waitlist page; You’re on the waitlist; members only around `/chat`, no guest path. The in-app welcome stays · BE (membership), FE (this PR)
 - 2026-11-03 · N416 · §1: the coach's Training corpus row leaves the ☰ menu; the corpus opens from the CEO panel ([`coach-panel.md`](coach-panel.md) H1). Was: a coach-only row to /coach/corpus · FE (this PR)
 - 2026-11-03 · N367, N196, N365 · §1: the ☰ menu, signed in: you, Copy my link, Settings, Tokens, Sign out (was: the email, Lab, Settings, Tokens, Log out); iPhone-Settings icons; Tokens opens nothing in the iPhone app; "Sign out" replaces "Log out" · FE (this PR)
