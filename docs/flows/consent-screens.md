@@ -371,6 +371,15 @@ the only way in.
 - **The in-app welcome** (`WelcomeConsent.tsx`), the first step of the consent screens for a new member, stays
   as it is, with its two paragraphs and **Enter the lab**, which opens the acceptance screen.
 
+### Amended 2026-11-04: "Open to the dump screen" (backend N507 item 2)
+
+- **One row on the Data & consent page** (`DumpScreenCard.tsx`), after
+  WhatsApp: **Open to the dump screen**, the line **First thing when you open
+  the app, at most once an hour.** and a switch. Off by default; kept on the
+  device. Shown only while the ring row `dump_screen` is on for the person.
+  N507 item 2 is the founder's OK for this one row. The screen it opens:
+  [`principles.md`](principles.md) T.
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
@@ -427,6 +436,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N507 · §1: one row, "Open to the dump screen" with its line and a switch, off by default, after WhatsApp (`DumpScreenCard.tsx`) · FE (this PR)
 - 2026-11-04 · N505 · "See an example": the button at the bottom keeps 8px above and below (the Feedback walk page's J9); was 12px above and 20px below (`WelcomeExample.tsx`) · BE, FE (this PR)
 - 2026-11-04 · N471 · §1: by invitation. The first page is design B on the web and in the iPhone app (Sign in, the mark, the name, See an example, the link field, No link yet? Join the waitlist; Enter the lab and the two paragraphs leave this page); the waitlist page; You’re on the waitlist; members only around `/chat`, no guest path. The in-app welcome stays · BE (membership), FE (this PR)
 - 2026-11-03 · N416 · §1: the coach's Training corpus row leaves the ☰ menu; the corpus opens from the CEO panel ([`coach-panel.md`](coach-panel.md) H1). Was: a coach-only row to /coach/corpus · FE (this PR)

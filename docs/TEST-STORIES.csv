@@ -1695,6 +1695,15 @@ comes down (founder 2026-10-20, flow page A2).","O1 -> ""holds the block while t
 O2 -> ""releases on the new Take's version or a piece from the new Take""
 O3 -> ""expires past the cap; a stuck block is worse than a stale read""
 O4 -> ""keeps the bubble up until the marks are in, or the marks cap""",SPEC-lockin-loop §1; handoff §6.4 S3: clearing at readout_ready showed the PREVIOUS document as current.
+src/lib/willab/dumpScreen.test.ts,Story,"As a speaker, I want to open the app, tap anywhere and say what is on my mind, then close it with a double tap, so that a thought is kept without getting in the way of my next Take.","D1  A tap starts at once; the next tap stops and keeps.
+D2  A double tap on a fresh start closes and throws the start away.
+D3  A double tap while talking stops, keeps and closes.
+D4  The tap that opened the screen, a palm and a swipe do nothing.
+D5  It opens first only when switched on, and at most once an hour.","D1 -> ""starts at once, then stops and keeps""
+D2 -> ""a double tap on a fresh start closes and undoes the start""
+D3 -> ""a double tap while talking stops, keeps and closes""
+D4 -> ""ignores the opening tap, a palm and a swipe""
+D5 -> ""only when switched on, and at most once an hour""","Founder 2026-11-04 (backend N506, N507): taps act at once and a double tap undoes the first, so no tap waits; it never opens from a link and never more than once an hour (Never 3)."
 src/lib/willab/enrichmentSettle.test.ts,Story,"As a speaker, I want a feedback placeholder to close when there is nothing to report, so that I don't wait forever on an empty slot.","O1  An empty feedback answer counts as ""nothing more coming"".
 O2  The page keeps asking for late marks until its ninety seconds are up,
 not for a handful of asks (founder 2026-10-20, WIL-76).","O1 -> is false with nothing to report, so an honest empty lane closes

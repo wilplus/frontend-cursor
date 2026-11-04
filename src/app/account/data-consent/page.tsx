@@ -20,6 +20,7 @@ import TrainingConsentCard from "@/components/account/TrainingConsentCard";
 import AiVoiceCard from "@/components/account/AiVoiceCard";
 import PlanConsentCard from "@/components/account/PlanConsentCard";
 import WhatsAppCard from "@/components/account/WhatsAppCard";
+import DumpScreenCard from "@/components/account/DumpScreenCard";
 import ProjectsCard from "@/components/account/ProjectsCard";
 import AccountSignInCard from "@/components/account/AccountSignInCard";
 import DeleteAccountCard from "@/components/account/DeleteAccountCard";
@@ -57,6 +58,8 @@ export default function DataConsentPage() {
         <AiVoiceCard />
         <PlanConsentCard />
         <WhatsAppCard />
+        {/* The dump screen's one switch (backend N507 item 2). */}
+        <DumpScreenCard />
         <ProjectsCard />
         <AccountSignInCard />
         <SupportCard />
