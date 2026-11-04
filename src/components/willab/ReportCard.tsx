@@ -548,7 +548,7 @@ function renderInsightOrRecordingSummaryReportCard(
       onKeyDown={openKeyDown}
       data-row="me"
       data-bubble=""
-      className={`my-1 ml-auto flex max-w-[80%] flex-col gap-1 rounded-2xl bg-primary px-3 py-2 text-primary-foreground ${takeSrc ? "w-[78%]" : ""} ${openable ? "cursor-pointer" : ""}`}
+      className={`ml-auto flex max-w-[80%] flex-col gap-1 rounded-2xl bg-primary px-3 py-2 text-primary-foreground ${takeSrc ? "w-[78%]" : ""} ${openable ? "cursor-pointer" : ""}`}
     >
       <span className="flex items-center gap-2">
         <Mic className="h-4 w-4 shrink-0 opacity-90" aria-hidden />

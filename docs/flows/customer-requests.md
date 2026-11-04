@@ -153,6 +153,9 @@ rest is built in.
      locked for the whole app): your answers on your side under the
      question, one orange answer look, "Not now", "Skip", "Cancel" and
      "Close" a grey word, a way to go a link with ›.
+     In every chat the bubbles keep WhatsApp's rhythm (N469, [the chat's
+     page](feedback-walk-and-chat.md) J8): two of the same side in a row
+     2px apart, 12px where the side changes.
      Will deciding what is a question (N322 item 5) is not built. The mic records with the one recording bar (the trash, the
      strip with Stop inside, N314), up to two minutes; Stop sends, the
      trash throws it away, and the bar comes back. The voice note joins
@@ -775,6 +778,8 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-11-04 · N469 · C1: the bubbles keep WhatsApp's rhythm in every chat, Will's included: 2px between two of the same side, 12px where the side changes ([the chat's page](feedback-walk-and-chat.md) J8). Was: 8px between every row · BE #1700, FE (this PR)
 
 - 2026-11-04 · N467 · C1: every choice in a chat, a person's included, follows the chat page's J7, locked for the whole app; Will's chat starts at the bottom, as the chats with people do · BE N467 log (#1695), FE (this PR)
 - 2026-11-04 · — · C1: the rules text brought in line with N456 and N457: anyone signed in can join through a link, no ring; no rule changes · docs (this PR)

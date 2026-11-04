@@ -719,6 +719,24 @@ button,
 [data-walk-thread] [data-row] [data-bubble] {
   border-radius: 22px;
 }
+/* THE RHYTHM OF A RUN (founder 2026-11-04, N469, as on WhatsApp): in a
+   chat's thread (`data-rhythm`, Will's chat and every chat with a person),
+   two rows of the same side in a row sit 2px apart, and where the side
+   changes, 12px; anything else in the thread (a day's line, a card, the
+   answers under a question, a link) keeps 8px. With the shape above, a run
+   reads as one block. `:where` keeps it light, so a row's own margin still
+   wins. The walk keeps its own spacing: every bubble there stands apart. */
+:where([data-rhythm]) > * + * {
+  margin-top: 8px;
+}
+:where([data-rhythm] > [data-row="app"] + [data-row="app"]),
+:where([data-rhythm] > [data-row="me"] + [data-row="me"]) {
+  margin-top: 2px;
+}
+:where([data-rhythm] > [data-row="app"] + [data-row="me"]),
+:where([data-rhythm] > [data-row="me"] + [data-row="app"]) {
+  margin-top: 12px;
+}
 /* THE PAIR (founder 2026-10-26, N202): a Take's Feedback walk and its Ideal
    Text card right under it, 3px apart (Lounge.tsx), their left corners drawn
    in where they meet. */
