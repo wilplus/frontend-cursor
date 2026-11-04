@@ -57,6 +57,7 @@ import { LabEntryGate, useLabEntry } from "./LabEntryGate";
 import FinishTakeButton from "./FinishTakeButton";
 import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
 import { continuedTakeDeck, deckOf } from "@/lib/willab/labEntryHandover";
+import { keepRealTalkSlides, realTalkPending } from "@/lib/willab/firstTake";
 import { RECORDING_COPY, recordingWhere } from "./recordingCopy";
 import {
   clearExploreArc,
@@ -368,6 +369,16 @@ export default function LabOverlay({
     setArcId(cached?.arcId ?? null);
     setArcTakeIndex(cached?.nextTakeIndex ?? 1);
     setExploreEnabled(!!cached);
+    // The real talk after the first Take (backend N449 item 1): that
+    // project's Take 2, set up afresh. The five questions are not its deck,
+    // so nothing is restored; its own slides are new from this Take (N257).
+    if (realTalkPending(userId, cached?.arcId)) {
+      revalidateSetupRef.current = false;
+      setPreloadDeck(null);
+      setDeckNews({ deckChanged: true, deckSinceTake: cached?.nextTakeIndex ?? null });
+      setSetupArriving(false);
+      return;
+    }
     // The device's cached deck, else the setup the Ideal Text page just read
     // (P2): the Take starts on it at once and the read below runs behind.
     const start = continuedTakeDeck(cached, signedIn);
@@ -404,6 +415,7 @@ export default function LabOverlay({
     // 2026-10-16: the project's saved setup says which presentation every
     // Take shares, and a cached deck's PDF link does not stay signed forever).
     if (!aid || (preloadDeck && !revalidateSetupRef.current) || signedIn !== true) return;
+    if (realTalkPending(userId, aid)) return;
     revalidateSetupRef.current = false;
     let active = true;
     void fetchArcSetup(aid)
@@ -725,21 +737,19 @@ export default function LabOverlay({
         recordedTakeRef.current = 1;
         setExploreEnabled(false);
       }
+      // The default deck has no PDF behind it — never claim one.
+      const servedRef = recordingDeck.isDefault ? null : context.presentationRef;
       if (!projectId) {
         const created = await createProject({
           displayName: context.topic,
-          presentationRef: recordingDeck.isDefault
-            ? null
-            : context.presentationRef,
+          presentationRef: servedRef,
           setup: {
             topic: context.topic,
             audience: context.audience,
             target_length_seconds: context.target_length_seconds,
             domain_vocabulary: context.domain_vocabulary,
             slides: recordingSlides,
-            presentation_ref: recordingDeck.isDefault
-              ? null
-              : context.presentationRef,
+            presentation_ref: servedRef,
             strategic_context: context.strategicContext ?? null,
             presentation_mode: recordingDeck.isDefault ? "deckless" : "pdf",
           },
@@ -754,6 +764,13 @@ export default function LabOverlay({
         setArcId(projectId);
         setExploreEnabled(true);
       }
+      // The real talk's slides become the project's new slides from this
+      // Take (backend N449 item 1, N257), so the Take is kept on them.
+      await keepRealTalkSlides(userId, projectId, {
+        slides: recordingSlides,
+        presentationRef: servedRef,
+      });
+      if (!active) return;
       const abort = new AbortController();
       uploadAbortRef.current = abort;
       setUploadInFlight(true);
@@ -773,10 +790,7 @@ export default function LabOverlay({
         // ships the default deck the speaker just clicked through, which is
         // what makes 1:1 word→slide segmentation defined for every take.
         slides: recordingSlides,
-        // The default deck has no PDF behind it — never claim one.
-        presentationRef: recordingDeck.isDefault
-          ? null
-          : context.presentationRef,
+        presentationRef: servedRef,
         strategicContext: context.strategicContext,
         contextDocument: context.contextDocument,
         slideAdvances: slideAdvancesRef.current,

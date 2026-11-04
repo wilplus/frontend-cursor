@@ -89,7 +89,17 @@ export type WalkMoment = {
   confident?: boolean;
   /** Its job in the walk (N289), which orders the walk's moments. */
   slot?: WalkSlot | null;
+  /** On a plan, the moment where this week's level shows most (G7, N209):
+   *  its own tool is its fix, whatever passed (N289 item 8). */
+  level?: boolean;
+  /** The One thing walk's one fix as the server chose it (backend
+   *  `_one_thing`, on its strongest block): the Sniper when "tempo". */
+  oneFix?: OneFix | null;
 };
+
+/** The One thing walk's one fix, as the server chose it (C-SNIPER): the
+ *  Sniper, a moment, or none. A word, never a score. */
+export type OneFix = "tempo" | "moment" | "none";
 
 /** A practice the walk adds for a Take beyond its moments, chosen by the
  *  diagnosis and the plan (backend N162). Each kind is one step key with its
@@ -100,7 +110,11 @@ export type WalkIntervention = "tempo";
 export type WalkPlanInput = {
   moments: readonly WalkMoment[];
   /** The practices this Take adds, after the practise moments; none by
-   *  default. Never in the coach-only walk or for a guest. */
+   *  default. Never in the coach-only walk or for a guest. In the One thing
+   *  walk served with no `oneFix` (older payloads), "tempo" offers the
+   *  Sniper when no moment is fixed: the host offers it only where the
+   *  stretch can be the Sniper (a rushed one, or the plan's pace or pause
+   *  week; T, N323 item 6). */
   interventions?: readonly WalkIntervention[];
   /** The coach has a word for this Take (their video and/or their words). */
   coachNote: boolean;
@@ -258,20 +272,31 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
 /** The One thing walk (founder 2026-10-31, N309 items 1 to 4): their best,
  *  the picker's strongest, praised with nothing to practise; one fix, the
  *  slot whose tool fits (the between's Clearer version first, words come
- *  first, else the weakest's AI clip; the server serves one, N309); with no
- *  moment to fix and the tempo step there, the Sniper on this week's level;
- *  a coach's answer on any other moment, on its own screen; from Take 2 one
- *  moment of another speaker; the helper words, on their own (their best's
- *  own words when the fix gives none, backend N374); then "Lesson done.".
- *  Nothing to walk: nothing. */
+ *  first, else the weakest's AI clip; the server serves one, N309; a
+ *  between with no Clearer version is left out unless it is the plan
+ *  level's moment, N381); the Sniper when the server chose it (`oneFix`
+ *  "tempo", its step there before its stretch arrives), or, served with no
+ *  choice, with no moment to fix and the tempo step offered; a coach's
+ *  answer on any other moment, on its own screen; from Take 2 one moment of
+ *  another speaker; the helper words, on their own (their best's own words
+ *  when the fix gives none, backend N374); then "Lesson done.". Nothing to
+ *  walk: nothing. */
 function oneThing(moments: readonly WalkMoment[], input: WalkPlanInput): WalkStep[] {
   const out: WalkStep[] = [];
   const best = moments.find((m) => m.slot === "strongest" && m.praise);
   const fixes = [...moments]
     .filter((m) => (m.slot === "between" || m.slot === "weakest") && isPractiseMoment(m))
+    // The AI clip is the weakest's alone (N381): a between whose Clearer
+    // version did not reach the walk is no fix, unless the plan's level
+    // takes it with its own tool (G7).
+    .filter((m) => m.slot !== "between" || m.clearer || m.level)
     .sort((a, b) => SLOT_ORDER[a.slot ?? "next"] - SLOT_ORDER[b.slot ?? "next"]);
-  const fix = fixes.find((m) => m.clearer) ?? fixes[0];
-  const sniper = !fix && !input.guest && (input.interventions ?? []).includes("tempo");
+  // The server's choice of the one fix (C2, T: the Sniper and then no
+  // moment); with none served, the Sniper when no moment is fixed.
+  const served = moments.find((m) => m.oneFix)?.oneFix ?? null;
+  const found = fixes.find((m) => m.clearer) ?? fixes[0];
+  const sniper = !input.guest && (served ? served === "tempo" : !found && (input.interventions ?? []).includes("tempo"));
+  const fix = sniper ? undefined : found;
   if (best) out.push(momentStep(best, "praise", { one: true }));
   if (fix) out.push(...oneFix(fix, input.practiceOn));
   else if (sniper) out.push({ key: "tempo", one: true });
@@ -463,6 +488,10 @@ export type WalkFeedbackItem = {
   confidentPractice?: boolean;
   /** The moment's job in the walk (`walkSlot`, backend N289). */
   walkSlot?: WalkSlot | null;
+  /** On a plan, this week's level shows most here (`planLevel`, G7). */
+  planLevel?: string | null;
+  /** The One thing walk's one fix as the server chose it (`oneFix`). */
+  oneFix?: OneFix | null;
 };
 
 /** The feedback items grouped into the Take's moments, in page order: one
@@ -527,6 +556,7 @@ function lockedMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
     // A praised moment the server marks is practised with its AI clip (N122).
     const confident = praise && has((i) => Boolean(i.confidentPractice));
     const slot = group.find((i) => i.walkSlot)?.walkSlot ?? null;
+    const oneFix = group.find((i) => i.oneFix)?.oneFix ?? null;
     return {
       index,
       slide: group[0].slide,
@@ -537,6 +567,8 @@ function lockedMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
       ...(practise ? { practise } : {}),
       ...(helpers ? { helpers } : {}),
       ...(slot ? { slot } : {}),
+      ...(has((i) => Boolean(i.planLevel)) ? { level: true } : {}),
+      ...(oneFix ? { oneFix } : {}),
       judged: true,
       ...(has((i) => Boolean(i.coachAnswered)) ? { coach: true } : {}),
       ...(has((i) => Boolean(i.coachExercise)) ? { coachExercise: true } : {}),

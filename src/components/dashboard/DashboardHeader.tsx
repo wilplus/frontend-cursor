@@ -61,7 +61,7 @@ export default function DashboardHeader() {
             userEmail={menu.userEmail}
             userName={menu.userName}
             // Copy my link takes Lab's place at the top (backend N367):
-            // only where the chats are on, since the link is theirs.
+            // for every signed-in person, as the chats are (N456).
             onCopyLink={chatsOn ? myLink : null}
             tokensOpenNothing={isNativeApp()}
             tokensLabel={menu.tokensLabel}

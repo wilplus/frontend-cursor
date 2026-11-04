@@ -23,6 +23,11 @@ import SnippetWavePlayer from "../SnippetWavePlayer";
 /*  grow a second one.                                                        */
 /* -------------------------------------------------------------------------- */
 
+/** The chip's waveform: the prototype's 24 bars (`wave()`), so it fits
+ *  beside the time on a 320 px phone (backend N440; was 44, running under
+ *  the time). */
+const CHIP_BARS = 24;
+
 export default function WalkPlayer({
   seed,
   src,
@@ -55,6 +60,7 @@ export default function WalkPlayer({
       tone={look === "me" || look === "chip" ? "me" : "ink"}
       label={label}
       onError={onError}
+      barCount={look === "chip" ? CHIP_BARS : undefined}
     />
   );
   if (look === "bare") return <div data-walk-player>{player}</div>;

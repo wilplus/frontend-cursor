@@ -626,6 +626,13 @@ Waiting for the founder's OK:
     through the processing authorization, so the coach's blind pick plays
     them (C5, N213); the walk's end then reads them and keeps nothing
     twice.
+  - Built (backend #1679, FE this PR; N449): the first Take's questions
+    are drawn tall, down to the strip, with five marks under them;
+    "Record Take 2" comes at once under that Take's goodbye, with no tap
+    first; the real talk is Take 2 of the same project, its set-up afresh
+    with the plan's topic, its slides the project's new slides from Take 2
+    (N257), so its recording screen says "Take 2 · Slide 1 of 3"; the
+    set-up's slides step says "Skip for now" when no slides were added.
   - Next: Take 1's processing as a row on top of Will's chat
     with the checks during it (N401 item 3); "Here's how others will see
     you" (N400); the team's question and the agreement; the personal
@@ -781,6 +788,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-03 · N449 · §2: "Record Take 2" on the first Take's Ideal Text page, while the project has only that Take, also opens the real talk's set-up (`Lounge.tsx` `onReadAloud`, through `isFirstTakeArc`). Was: it recorded the five questions again; only the chat's goodbye led to the real talk · FE (this PR)
+- 2026-11-03 · N449 · §2: after the first Take, as the prototype "The way in" draws it: "Record Take 2" at once under its goodbye (`afterTake.ts` `afterGoodbye`'s `noTap`, `Lounge.tsx`); the real talk is that project's Take 2, set up afresh with the plan's topic (`lib/willab/firstTake.ts` `startRealTalk`, `WillabSurface.tsx`), its slides stored as the project's new slides before its Take is sent (`keepRealTalkSlides`, N257); only Take 1's goodbye leads to the real talk (`isFirstTakeArc`). Was: the real talk was a project of its own, its screen said "Take 1", and the goodbye asked "I want to continue my practice" first · BE #1679, FE (this PR)
 - 2026-11-03 · N401 · C5, §2: the first Take's voice message and key line reach the coach's blind pick: kept with their voice at the end of that Take's processing (backend `plan_flow.after_processing`, cut from the recording the pipeline downloaded through the processing authorization, nothing new sent to a provider); the walk's end reads the answers and keeps nothing twice, and keeps them itself, without the voice, when processing could not. Was: a first-Take plan reached the coach with nothing to play. No new words · BE #1672, FE (this PR)
 - 2026-11-03 · N401 · A, B, E5, §2, §4: the first Take is the onboarding, behind the ring row `first_take`: the plan's view carries `first_take` and its five slides, the dock is "Start your first recording" at once (`PlanDock.dockFor`), and the start hands the slides on (`usePlanLounge`, `PlanStart`) to `lib/willab/firstTake.ts`, which makes the first Take's project and opens the recording screens on it; "Record Take 2" from that project's goodbye starts the real talk's set-up with the plan's topic (`Lounge.tsx`, `WillabSurface.tsx`) · BE #1665, FE (this PR)
 - 2026-11-03 · N395 · G6, §4: the chat's one "Record Take N" stands 24 px under the last bubble (was 8) with a grey ✕ on its right, no background and no outline; the ✕ closes it and the bar comes back ("+", "Type here", the mic) for that Take, until the chat is opened again or a newer Take's goodbye offers the next (`useRecordTake`, kept in the open chat only); a practice day's Take no longer hides the bar through the plan (`usePlanLounge` `replaces`), the button does, as the goodbye's always has. No new words. "Start your first recording" unchanged. Was: alone until a Take was recorded, no way to close it · BE #1647, FE (this PR)

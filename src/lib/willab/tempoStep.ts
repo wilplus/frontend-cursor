@@ -14,6 +14,8 @@
 import type { WalkClip } from "./feedbackWalkModel";
 import { ONE_THING_COPY } from "@/components/willab/idealEditCopy";
 import { zoneLevel } from "./pace/paceSignal";
+import { isFiller } from "./liveNoteWords";
+import { parseRichSpans } from "./richMarkers";
 
 /** The rings panel's row for the step (backend rings.TEMPO_STEP, N166 step
  *  6): whoever it reaches has the step, besides the founder. */
@@ -51,6 +53,12 @@ export type TempoStretch = {
    *  are (backend `tempo_stretch.with_clip`); none without audio, and the
    *  bubble is then the words only. */
   clip?: WalkClip | null;
+  /** The stretch's slide, an index (C-TEMPO): its paragraph and the bar's
+   *  name are found by it. Absent when unknown. */
+  slideIndex?: number;
+  /** The stretch's recording, also when its link could not be signed: the
+   *  chat keeps it, so Will's question quotes the stretch (E2). */
+  snippetId?: string;
 };
 
 /** One try, as the step reads it from the dot's path. */
@@ -69,7 +77,16 @@ export type TempoPlayed = { result: TempoTry; path: number[]; landed: boolean };
 export type TempoEvent =
   | { kind: "opened" }
   | ({ kind: "try"; n: number } & TempoPlayed)
-  | { kind: "ended"; tries: TempoPlayed[]; close: TempoClose | null; /** Ended by the speaker's Skip, after a try too (N405). */ skipped?: boolean };
+  | {
+      kind: "ended";
+      tries: TempoPlayed[];
+      close: TempoClose | null;
+      /** Ended by the speaker: their Skip, after a try too (N405), or left. */
+      skipped?: boolean;
+      /** Left mid-game, by ✕ or the step going away, a try made: kept for
+       *  Will, nothing said in the walk or the chat. */
+      left?: boolean;
+    };
 
 /** The try from the first word on: the quiet before it is not the pace. */
 function spoken(path: readonly number[]): readonly number[] {
@@ -109,11 +126,53 @@ export function afterTry(result: TempoTry, isLanded: boolean, n: number): string
   return lines;
 }
 
+/** A text's words as compared: lower case, letters and digits only, the
+ *  hesitations and a word said twice in a row left out. */
+function comparedWords(words: readonly { text: string; at: number }[]): { word: string; at: number }[] {
+  const out: { word: string; at: number }[] = [];
+  for (const { text, at } of words) {
+    const word = text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+    if (!word || isFiller(text) || out[out.length - 1]?.word === word) continue;
+    out.push({ word, at });
+  }
+  return out;
+}
+
+/** The paragraph's own words for the stretch, as it shows them, matched
+ *  leniently: case, punctuation, hesitations and a word said twice aside,
+ *  since the Ideal Text is smoothed and the stretch may be the clip as said
+ *  (H3). Null when the paragraph does not say them all, in order. Pure. */
+export function stretchWordsIn(paragraphText: string, stretch: string): string | null {
+  const shown = parseRichSpans(paragraphText).map((span) => span.text).join("");
+  const tokens = [...shown.matchAll(/\S+/g)].map((m) => ({ text: m[0], at: m.index ?? 0 }));
+  const para = comparedWords(tokens);
+  const want = comparedWords(stretch.split(/\s+/).map((text) => ({ text, at: 0 }))).map((w) => w.word);
+  if (want.length === 0) return null;
+  for (let s = 0; s + want.length <= para.length; s += 1) {
+    if (!want.every((word, k) => para[s + k].word === word)) continue;
+    const last = tokens.find((t) => t.at === para[s + want.length - 1].at)!;
+    return shown.slice(para[s].at, last.at + last.text.length);
+  }
+  return null;
+}
+
 /** The Sniper as the One thing walk's fix (founder 2026-10-31, N309 item
  *  1): two tries; a try that lands, "Yes. That's it."; one miss, "Close.
  *  Once more."; two, "Good try. Take it with you.", with no closing line of
  *  its own. Pure. */
 export const ONE_THING_TEMPO_TRIES = 2;
+
+/** The step's opening, before the scale: its lines, and the line drawn in
+ *  the scale's own bubble. Pure. */
+export function tempoOpening(stretch: Pick<TempoStretch, "reading" | "topic">, one: boolean): { lines: string[]; withScale: string | null } {
+  // As the One thing walk's fix, the stretch opens with one bubble, the
+  // pace scale in it (backend N435 item 6, the locked prototype's scale();
+  // the slow one's line, N452 item 2).
+  if (one) return { lines: [], withScale: stretch.reading === "rushed" ? ONE_THING_COPY.letItBreathe : ONE_THING_COPY.keepItMoving };
+  return { lines: [TEMPO_COPY.game[stretch.reading], TEMPO_COPY.task(stretch.topic), TEMPO_COPY.room], withScale: null };
+}
+
+/** The Sniper's lines after a try, as the One thing walk's fix. */
 export function oneThingTempoLines(isLanded: boolean, n: number): string[] {
   if (isLanded) return [ONE_THING_COPY.landed];
   return [n < ONE_THING_TEMPO_TRIES ? ONE_THING_COPY.onceMore : ONE_THING_COPY.takeItWithYou];

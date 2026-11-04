@@ -712,6 +712,13 @@ button,
 [data-row="me"] + [data-row="me"][data-bubble] {
   border-top-right-radius: 6px;
 }
+/* In the walk every bubble stands apart (J6), so none is drawn in, two of
+   the speaker's tries in a row included; the walk's bubbles are 22px all
+   round (backend N440; was: the corners between two tries at 6px). */
+[data-walk-thread] [data-row][data-bubble],
+[data-walk-thread] [data-row] [data-bubble] {
+  border-radius: 22px;
+}
 /* THE PAIR (founder 2026-10-26, N202): a Take's Feedback walk and its Ideal
    Text card right under it, 3px apart (Lounge.tsx), their left corners drawn
    in where they meet. */

@@ -12,6 +12,7 @@ import {
   landed,
   oneThingTempoLines,
   readTry,
+  tempoOpening,
   type TempoEvent,
   type TempoPlayed,
   type TempoStretch,
@@ -53,7 +54,14 @@ import { WalkSpeakerBubble, useMountedAsPast, useWalkPart } from "./WalkThread";
 /*  2026-10-31, N309 item 1; `one`): "Try it" with Skip in I'm ready's place, */
 /*  two tries, and the walk's own words on each ("Yes. That's it.", "Close.  */
 /*  Once more.", "Good try. Take it with you."), no closing line of its own; */
-/*  Skip moves the walk on at once, after a try too.                         */
+/*  Skip moves the walk on at once, after a try too. Its line and the scale  */
+/*  share one bubble that stays in its first place, right after the stretch, */
+/*  while the walk stands on the step, the dot asleep between tries; each    */
+/*  try and each of Will's lines land under it, one at a time (the locked    */
+/*  prototype X4gDmGfHH7ivuoRZ9ufiy9's scale() and record(); B7, N440).      */
+/*                                                                            */
+/*  ✕, or the step going away, mid-game with a try made: the game ends for  */
+/*  Will's note as left, with nothing said (T build step 4).                 */
 /* -------------------------------------------------------------------------- */
 
 /** A try left running stops itself after a minute, as a practise's upload does. */
@@ -68,6 +76,7 @@ export default function WalkTempo({
   onClose,
   onEvent,
   one = false,
+  mark = W.mark,
 }: {
   testId?: string;
   stretch: TempoStretch;
@@ -77,7 +86,11 @@ export default function WalkTempo({
   onEvent?: (event: TempoEvent) => void;
   /** The One thing walk's fix (N309): its dock, two tries and its words. */
   one?: boolean;
+  /** The bar's name for the step: its slide as the One thing walk's fix
+   *  (backend N435 item 7), else "Tempo". */
+  mark?: string;
 }) {
+  const opening = tempoOpening(stretch, one);
   const most = one ? ONE_THING_TEMPO_TRIES : TEMPO_MAX_TRIES;
   const linesFor = (t: TempoPlayed, n: number) => (one ? oneThingTempoLines(t.landed, n) : afterTry(t.result, t.landed, n));
   const past = useMountedAsPast();
@@ -92,18 +105,35 @@ export default function WalkTempo({
   const tell = useRef(onEvent);
   tell.current = onEvent;
   const ended = useRef(false);
+  const played = useRef(tries);
+  played.current = tries;
   // Each start of the microphone; a halt or the trash moves it on, so a
   // microphone that opens after the try was given up is closed again.
   const run = useRef(0);
   useEffect(() => {
-    if (!past) tell.current?.({ kind: "opened" });
+    if (past) return;
+    // Told once what opens its part was told, the parent's own effect after
+    // this one: the chat says "And now, one thing to improve:" first (N309).
+    let on = true;
+    queueMicrotask(() => {
+      if (on) tell.current?.({ kind: "opened" });
+    });
+    return () => {
+      on = false;
+    };
   }, [past]);
-  // The game ends once: a landed try, the closing line, or a Skip.
-  const end = useCallback((played: TempoPlayed[], skipped = false) => {
+  // The game ends once: a landed try, the closing line, a Skip, or left.
+  const end = useCallback((tried: TempoPlayed[], skipped = false, left = false) => {
     if (ended.current) return;
     ended.current = true;
-    tell.current?.({ kind: "ended", tries: played, close: played.length ? closeOf(played.map((t) => t.result)) : null, skipped });
+    tell.current?.({ kind: "ended", tries: tried, close: tried.length ? closeOf(tried.map((t) => t.result)) : null, skipped, ...(left ? { left } : {}) });
   }, []);
+  // ✕, or the step going away, mid-game with a try made: kept for Will as
+  // left, nothing said in the walk or the chat (T build step 4).
+  const leave = useCallback(() => {
+    if (!past && played.current.length > 0) end(played.current, true, true);
+  }, [past, end]);
+  useEffect(() => leave, [leave]);
 
   const halt = useCallback(() => {
     run.current += 1;
@@ -181,7 +211,7 @@ export default function WalkTempo({
   }, [halt, tries, end, onDone, one]);
 
   const nav: WalkNav = {
-    position: W.mark,
+    position: mark,
     index: 0,
     total: 1,
     onBack: noop,
@@ -193,7 +223,31 @@ export default function WalkTempo({
   const live = phase === "listening" || phase === "starting";
   const aTryLanded = tries.some((t) => t.landed);
   const standing = part === null || part.now;
-  const scaleShown = standing && !past && (phase === "idle" || phase === "blocked" || live);
+  // As the One thing walk's fix the scale stays while the walk stands on the
+  // step, in the bubble it opened in (the prototype's scale()).
+  const scaleShown = standing && !past && (one || phase === "idle" || phase === "blocked" || live);
+  const scale = scaleShown ? (
+    <WalkMessage wide>
+      {opening.withScale ? <span data-walk-tempo-lead>{opening.withScale}</span> : null}
+      <PaceScale
+        activity={() => activity.current}
+        asleep={!live}
+        label={W.scale}
+        className="h-[clamp(120px,30vw,200px)]"
+      />
+      {/* Its three zones named, left to right (N405). */}
+      <span data-walk-scale-ends className="mt-1 flex justify-between gap-2 text-[13px] leading-snug text-muted-foreground">
+        {W.ends.map((end) => (
+          <span key={end}>{end}</span>
+        ))}
+      </span>
+    </WalkMessage>
+  ) : null;
+  const lead = opening.withScale ? (
+    <WalkMessage>
+      <span data-walk-tempo-lead>{opening.withScale}</span>
+    </WalkMessage>
+  ) : null;
 
   return (
     <WalkOverlay
@@ -201,6 +255,7 @@ export default function WalkTempo({
       nav={nav}
       onClose={() => {
         halt();
+        leave();
         onClose();
       }}
       footer={past ? null : footerFor()}
@@ -211,34 +266,26 @@ export default function WalkTempo({
         </WalkMessage>
       ) : null}
       <TempoStretchBubble stretch={stretch} />
-      <WalkMessage>
-        <span>{W.game[stretch.reading]}</span>
-      </WalkMessage>
-      <WalkMessage>
-        <span>{W.task(stretch.topic)}</span>
-      </WalkMessage>
-      <WalkMessage>
-        <span>{W.room}</span>
-      </WalkMessage>
-      {tries.map((t, i) => (
-        <TryParts key={i} n={i + 1} path={t.path} lines={linesFor(t, i + 1)} />
-      ))}
-      {scaleShown ? (
-        <WalkMessage wide>
-          <PaceScale
-            activity={() => activity.current}
-            asleep={!live}
-            label={W.scale}
-            className="h-[clamp(120px,30vw,200px)]"
-          />
-          {/* Its three zones named, left to right (N405). */}
-          <span data-walk-scale-ends className="mt-1 flex justify-between gap-2 text-[13px] leading-snug text-muted-foreground">
-            {W.ends.map((end) => (
-              <span key={end}>{end}</span>
-            ))}
-          </span>
+      {opening.lines.map((line) => (
+        <WalkMessage key={line}>
+          <span>{line}</span>
         </WalkMessage>
-      ) : null}
+      ))}
+      {/* One place for the line: with the scale while it stands (the One
+          thing walk's), alone once past; the legacy step's scale lands under
+          its tries instead. */}
+      {one ? (scale ?? lead) : scaleShown ? null : lead}
+      {/* Each try and each of Will's lines its own bubble, landing one at a
+          time (B7, N440). */}
+      {tries.flatMap((t, i) => [
+        <TempoTryBubble key={`try-${i}`} label={W.tryLabel(i + 1)} path={t.path} />,
+        ...linesFor(t, i + 1).map((said) => (
+          <WalkMessage key={`try-${i}:${said}`}>
+            <span>{said}</span>
+          </WalkMessage>
+        )),
+      ])}
+      {one ? null : scale}
       {phase === "blocked" ? (
         <WalkMessage>
           <span>{W.blocked}</span>
@@ -249,20 +296,27 @@ export default function WalkTempo({
           <span>{W.close[closeOf(tries.map((t) => t.result))]}</span>
         </WalkMessage>
       ) : null}
-      {phase === "skipped" ? <WalkSpeakerBubble>{W.skip}</WalkSpeakerBubble> : null}
-      {/* The Sniper as the One thing walk's fix answers Skip (N405). */}
-      {phase === "skipped" && one ? (
-        <WalkMessage>
-          <span data-walk-skip-reply>{ONE_THING_COPY.skipped}</span>
-        </WalkMessage>
-      ) : null}
+      {/* The One thing walk's Skip adds no bubble of the speaker's (N435 item 2). */}
+      {phase === "skipped" && !one ? <WalkSpeakerBubble>{W.skip}</WalkSpeakerBubble> : null}
+      {/* The Sniper as the One thing walk's fix answers Skip (N405): the
+          thread draws the answer at the top of what comes next, so it lands
+          there (N440). */}
     </WalkOverlay>
   );
 
   function footerFor() {
+    if (live && one) {
+      // The bar alone: its trash is the Skip (backend N435 item 3).
+      return (
+        <WalkFooter>
+          <RecordingBar elapsedMs={elapsed * 1000} onTrash={skip} onStop={phase === "listening" ? stop : undefined} />
+        </WalkFooter>
+      );
+    }
+    // Recording: the bar alone, its trash the way out (founder 2026-11-03).
     if (live) {
       return (
-        <WalkFooter links={[{ label: W.skip, onClick: skip, testId: "walk-tempo-skip" }]}>
+        <WalkFooter>
           <RecordingBar elapsedMs={elapsed * 1000} onTrash={trash} onStop={phase === "listening" ? stop : undefined} />
         </WalkFooter>
       );
@@ -320,20 +374,6 @@ export function TempoTryBubble({ label, path }: { label: string; path: readonly 
         <polyline points={line} fill="none" stroke="#fff" strokeWidth="2.2" strokeLinejoin="round" />
       </svg>
     </WalkSpeakerBubble>
-  );
-}
-
-/** A try: the dot's path in the speaker's bubble, then Will's word on it. */
-function TryParts({ n, path, lines }: { n: number; path: readonly number[]; lines: readonly string[] }) {
-  return (
-    <>
-      <TempoTryBubble label={W.tryLabel(n)} path={path} />
-      {lines.map((said) => (
-        <WalkMessage key={said}>
-          <span>{said}</span>
-        </WalkMessage>
-      ))}
-    </>
   );
 }
 

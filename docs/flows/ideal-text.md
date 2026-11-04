@@ -106,7 +106,7 @@ Done when:
 Done when:
 
 - [ ] Tapping the orange headline on the page opens it; tapping Edit on the "Helper words saved" screen opens the same overlay.
-- [ ] Top: the current words with Delete. Under it one chip per Take that has a version of this paragraph, newest first, the current one marked "now".
+- [ ] Top: the current words with Delete. Under it one chip per Take that has a version of this paragraph, newest first, the current one marked "now". Delete, like the helper-words card's Edit chip on the paragraph sheet, answers a tap 44 px tall; both look the same (N440).
 - [ ] Choosing a chip shows that Take's text as tappable words. There is no playback on this overlay.
 - [ ] Tapping updates the top card live and marks it "new"; the button lights only when the selection differs from the saved words.
 - [ ] After Delete (confirmed once): no headline on the page, the paragraph is back in the walk, the deleted set is listed in History.
@@ -463,6 +463,10 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N458 · `TranscriptReviewDeck.tsx` opens the Feedback walk once its reads are in (the speaker's name, the last walk's fix, the Sniper's stretch), at most 2.5 s after its moments are there; nothing on the Ideal Text page changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) §6 · FE (this PR)
+- 2026-11-03 · N452 · `idealEditCopy.ts` gains the slow Sniper's signed line (`ONE_THING_COPY.keepItMoving`, "You slowed down here. Keep it moving."); nothing on the Ideal Text page changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) §6 · FE (this PR)
+- 2026-11-03 · N435 · `idealEditCopy.ts` gains the One thing walk's two signed lines (`ONE_THING_COPY.keepWords`, "Your words it is."; `letItBreathe`, "You rushed here. Let it breathe."); nothing on the Ideal Text page changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) §6 · FE (#1209)
+- 2026-11-03 · N440 · the helper-words card's Edit chip (`ParagraphSheet.tsx`) and the overlay's Delete (`HelperWordsSheet.tsx`) answer a tap 44 px tall; was the 26 px chip and the 20 px word. They look the same · FE (this PR)
 - 2026-11-03 · N401 · a deckless deck in its own words draws its slide tile from the slide's own title, as the recording screen draws it (`DeckSlidePreview` `slideTitle`, `DeckSlideThumb`, `TranscriptReviewDeck`): the first Take's five questions show as its slides, each with its small title, instead of the stand-in deck's pictures; the stand-in deck's titles still draw its pictures · BE N401, FE (this PR)
 - 2026-11-03 · N397 · the page hands the Feedback walk each paragraph's slide title from the deck's `slideTitles` (`TranscriptReviewDeck.tsx`, `partTitle`), so the walk's bar names a slide by its title; the page itself is unchanged · BE N397 log (#1653), FE (this PR; the walk's page B6)
 - 2026-11-03 · N405 · —: `idealEditCopy.ts`, the copy this page shares with the walk, gains the One thing walk's signed "Okay, we'll skip this one." (the walk's page C7, K). Nothing on the Ideal Text changes · FE (this PR)

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEditCopy";
 import WalkLoading from "./WalkLoading";
 import type { WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
@@ -136,22 +136,32 @@ function lineAbove(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string 
 
 /** The recorder's footer: the one recording bar (founder 2026-10-31, backend
  *  N314, locked), the trash on the left, then the Take's strip with the red
- *  Stop inside it, and Skip under it as the walk's grey link (the tempo
- *  step's dock). Stop shows once the mic is live, as in the tempo step
- *  (N350 item 5): while the mic opens, the trash and the strip alone. Stop
- *  sends the try; the trash throws it away, nothing uploaded and no try
- *  counted, back to the step that opened the practise, as ✕ does. Was: the
- *  strip, then Skip in the Back style beside a red Stop in the Finish-take
- *  style (N70); Stop from the moment the practise opened. */
+ *  Stop inside it, nothing under it: the trash is the way out (founder
+ *  2026-11-03, "for that we have the trash button on the left"; the locked
+ *  prototype's `record()`). Stop shows once the mic is live, as in the
+ *  tempo step (N350 item 5): while the mic opens, the trash and the strip
+ *  alone. Stop sends the try; the trash throws it away, nothing uploaded
+ *  and no try counted, back to the step that opened the practise, as ✕
+ *  does. Was: Skip under it as the walk's grey link; before that the strip,
+ *  then Skip in the Back style beside a red Stop in the Finish-take style
+ *  (N70); Stop from the moment the practise opened. */
 function RecorderFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
-  // Skip here is Skip on the One thing walk's fix: the speaker's "Skip" and
-  // the walk's "Okay, we'll skip this one." (N405), then on.
-  const skip = () => {
-    if (step.one && !step.replay) ctx.answer(step, "skip");
-    ctx.skip();
-  };
+  // The One thing walk's fix: its trash is the Skip (backend N435 item 3),
+  // the try thrown away, the walk's "Okay, we'll skip this one." (N405),
+  // then on.
+  if (step.one) {
+    const skip = () => {
+      if (!step.replay) ctx.answer(step, "skip");
+      ctx.skip();
+    };
+    return (
+      <WalkFooter>
+        <RecordingBar elapsedMs={ctx.elapsed * 1000} onTrash={skip} onStop={ctx.capturing ? ctx.stop : undefined} />
+      </WalkFooter>
+    );
+  }
   return (
-    <WalkFooter links={[{ label: WALK_COPY.skip, onClick: skip, testId: "walk-skip" }]}>
+    <WalkFooter>
       <RecordingBar elapsedMs={ctx.elapsed * 1000} onTrash={ctx.back} onStop={ctx.capturing ? ctx.stop : undefined} />
     </WalkFooter>
   );
@@ -287,6 +297,22 @@ function aiInstead(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkM
 function LateFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
   const more = triesLeft(step) && triesRecorded(ctx.plan, ctx.at(step)) < maxTries(step);
   if (!more) return <WalkFooter pill={{ label: COPY.pagerNext, onClick: ctx.skip, testId: "walk-forward" }} />;
+  // The One thing walk's fix keeps its own buttons while a try is left:
+  // "Try it" and Skip, as after a miss (C7; backend N440 item 5; was the
+  // outlined "Practise again" with no Skip). Skip is Skip on the fix.
+  if (step.one) {
+    const skip = () => {
+      if (!step.replay) ctx.answer(step, "skip");
+      ctx.skip();
+    };
+    return (
+      <WalkFooter
+        dot
+        pill={{ label: ONE_THING_COPY.tryIt, onClick: ctx.again, testId: "walk-again" }}
+        links={[{ label: WALK_COPY.skip, onClick: skip, testId: "walk-skip" }]}
+      />
+    );
+  }
   return (
     <WalkFooter
       dot
@@ -334,7 +360,7 @@ export function practiseThreadItem(
           <>
             {firstTry && step.kind === "keep" ? (
               <WalkMessage>
-                <span>{WALK_COPY.keepWords}</span>
+                <span>{ONE_THING_COPY.keepWords}</span>
               </WalkMessage>
             ) : null}
             {current ? null : <TryBubble ctx={ctx} step={step} moment={moment} attempt={step.attempt} />}

@@ -6,7 +6,7 @@ OUTCOME
   O2  A done exercise shows my past tries and records nothing new.
   O3  Opening an exercise or a try from the chat shows its AI clip (read, not made again) and every try, on the last answer.
   O4  A tap on my helper words brings their buttons; saving takes them away again, and so does Keep these, which leaves the words as saved (C3, N259).
-  O5  A walk not yet done keeps its buttons: scrolled away from the step it stands on, they read Next, which brings that step back (B9).
+  O5  A walk not yet done keeps its buttons: scrolled away from the step it stands on, they read Next, which brings that step back, with the step's Skip kept under it; a link that leads elsewhere waits with the step (B9; founder 2026-11-03, backend N440: "keep the "skip" below it").
 PROVES   O1 -> opened again, the whole walk is one scroll: every part answered, no buttons and no Next, nothing written
          O2 -> opened again, the whole walk is one scroll ...
          O3 -> an exercise opened from its bubble in the chat shows its AI clip and every try, a try tapped in the chat opens its exercise on the last answer
@@ -16,7 +16,7 @@ PROVES   O1 -> opened again, the whole walk is one scroll: every part answered, 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEditCopy";
 import FeedbackWalk from "./FeedbackWalk";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import { buildFeedbackReplay, walkAsItStands, walkLastStep, walkStart, walkStepAt, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
@@ -98,6 +98,8 @@ function draw(
     head?: (model: ReturnType<typeof buildFeedbackReplay<string>>) => number;
     /** The Take not done yet: the walk as it stands, with its buttons. */
     notDone?: boolean;
+    /** No helper words saved yet: the helper words' way on is Skip. */
+    noWords?: boolean;
   } = {},
 ) {
   const done = buildFeedbackReplay<string>({
@@ -105,7 +107,7 @@ function draw(
     coachNote: true,
     practiceOn: true,
     answerOf: (item) => ({ "cv-1": "yes", "cv-2": "no" } as const)[item as "cv-1" | "cv-2"] ?? null,
-    helperWordsOf: (partId) => (partId === "p1" ? "growth doubled" : null),
+    helperWordsOf: (partId) => (partId === "p1" && !opts.noWords ? "growth doubled" : null),
     // The exercise was practised twice: "not yet", then praise.
     triesOf: (moment) =>
       moment.partId === "p3"
@@ -196,7 +198,7 @@ describe("the finished walk, played again", () => {
     expect(calls).toEqual(["helpers"]);
   });
 
-  it("a walk not yet done: scrolled away from the step it stands on, the dock reads Next, which brings that step back", () => {
+  it("a walk not yet done: scrolled away from the step it stands on, the dock reads Next, which brings that step back", async () => {
     // The thread holds more than it shows: 1000 tall, 400 in view. The
     // standing part sits at 20..120 of the thread; everything else at 500.
     const isBody = (el: Element) => el.hasAttribute("data-walk-thread-body");
@@ -228,14 +230,18 @@ describe("the finished walk, played again", () => {
     };
     try {
       draw({ at: (m) => walkStepAt(m, { step: "helpers", part: "p1" })!, head: (m) => walkLastStep(m)!, notDone: true });
+      // What the dock holds is read as it changes.
+      await act(async () => {});
       // Opened with its name at the top: its own buttons are the dock.
       expect(screen()).toBe("walk-screen-helpers");
       expect(live()!.querySelector("[data-walk-dock]")!.hasAttribute("hidden")).toBe(false);
       expect(byTestId("walk-to-newest")).toBeNull();
-      // Scrolled past it: the dock reads Next.
+      // Scrolled past it: the dock reads Next. Its link, "Keep these", is no
+      // Skip: it waits with the step (N440).
       scrolledTo(500);
       expect(live()!.querySelector("[data-walk-dock]")!.hasAttribute("hidden")).toBe(true);
       expect(byTestId("walk-to-newest")!.textContent).toBe(COPY.pagerNext);
+      expect(byTestId("walk-to-newest-skip")).toBeNull();
       // Next brings the step back, its name at the top, and its buttons return.
       tops.length = 0;
       click(byTestId("walk-to-newest"));
@@ -244,6 +250,19 @@ describe("the finished walk, played again", () => {
       expect(live()!.querySelector("[data-walk-dock]")!.hasAttribute("hidden")).toBe(false);
       expect(byTestId("walk-to-newest")).toBeNull();
       expect(byTestId("walk-forward")!.textContent).toBe(WALK_COPY.editHelperWords);
+
+      // A step whose way on is Skip keeps it under the Next, and it skips.
+      draw({ at: (m) => walkStepAt(m, { step: "helpers", part: "p1" })!, head: (m) => walkLastStep(m)!, notDone: true, noWords: true });
+      // What the dock holds is read as it changes.
+      await act(async () => {});
+      expect(byTestId("walk-skip")!.textContent).toBe(WALK_COPY.skip);
+      scrolledTo(500);
+      expect(byTestId("walk-to-newest")!.textContent).toBe(COPY.pagerNext);
+      expect(byTestId("walk-to-newest-skip")!.textContent).toBe(WALK_COPY.skip);
+      click(byTestId("walk-to-newest-skip"));
+      // The dock's own Skip: the walk answered it and went on.
+      expect(byTestId("walk-to-newest-skip")).toBeNull();
+      expect(screen()).not.toBe("walk-screen-helpers");
     } finally {
       Element.prototype.scrollTo = was;
       rect.mockRestore();
@@ -287,5 +306,61 @@ describe("the finished walk, played again", () => {
     const at = walkStepAt(model, { step: "exVideo", moment: null, part: "p3" });
     expect(at).not.toBeNull();
     expect(model.plan[at!].key).toBe("encourage");
+  });
+});
+
+describe("the One thing walk played again shows what is there (N373 item 2)", () => {
+  const ONE: FeedbackWalkItem<string>[] = [
+    {
+      partId: "q1", start: 0, slide: 0, blockId: "c1", tiered: true, green: true, walkSlot: "strongest", highest: true, openCard: "praise",
+      paragraphText: "We opened with the number.", slideLabel: "Slide 1", praiseWords: ["A signed line."], praiseLead: ["A signed line."], clip,
+    },
+    {
+      partId: "q2", start: 100, slide: 1, blockId: "c2", tiered: true, practicePrompt: true, walkSlot: "weakest",
+      paragraphText: "Two hires by March.", slideLabel: "Slide 2", said: "Two hires by March.", item: "s-fix", clip,
+    },
+  ];
+  /** The finished walk opened on their best, its fix below it, never tried. */
+  function open(kept: { practiceId: string | null; tip: string | null }) {
+    const model = buildFeedbackReplay<string>({ items: ONE, coachNote: false, practiceOn: true, answerOf: () => null, helperWordsOf: () => null, clipOf: () => kept });
+    const props = { model, coachNote: null, firstTake: false, practise: PRACTISE, onSaveHelperWords: () => undefined, onEnd: () => undefined };
+    const at = model.plan.findIndex((s) => s.key === "praise");
+    act(() => root.render(<FeedbackWalk {...props} request={null} />));
+    act(() => root.render(<FeedbackWalk {...props} request={{ seq: 1, at, head: walkLastStep(model)! }} />));
+  }
+
+  it("the fix's AI clip, read by the practice the chat kept, wherever the walk opens", async () => {
+    open({ practiceId: "pr-fix", tip: null });
+    await act(async () => {});
+    act(() => vi.advanceTimersByTime(1000));
+    expect(aiReads).toEqual(["pr-fix"]);
+    expect(live()!.querySelector("audio[src='blob:ai']")).not.toBeNull();
+  });
+
+  it("after Keep mine, each try is labelled with my own sentence, under “Your words it is.” (C7, B10)", () => {
+    const items: FeedbackWalkItem<string>[] = [
+      ONE[0],
+      {
+        ...ONE[1], hasRewrite: true, walkSlot: "between",
+        rewrite: { quote: "Two hires by March.", proposedText: "We hire two by March.", item: "rw-fix", decided: "keep" }, item: "rw-fix",
+      },
+    ];
+    const model = buildFeedbackReplay<string>({
+      items, coachNote: false, practiceOn: true, answerOf: () => null, helperWordsOf: () => null,
+      triesOf: (moment) => (moment.partId === "q2" ? { practiceId: null, outcomes: ["again", "praise"], audios: {} } : null),
+    });
+    const props = { model, coachNote: null, firstTake: false, practise: PRACTISE, onSaveHelperWords: () => undefined, onEnd: () => undefined };
+    act(() => root.render(<FeedbackWalk {...props} request={null} />));
+    act(() => root.render(<FeedbackWalk {...props} request={{ seq: 1, at: walkLastStep(model)! }} />));
+    const words = [...live()!.querySelectorAll("[data-walk-try-words]")].map((n) => n.textContent);
+    expect(words).toEqual(["Two hires by March.", "Two hires by March."]);
+    expect(live()!.textContent).toContain(ONE_THING_COPY.keepWords);
+  });
+
+  it("with no clip to read, the tip the chat kept, in words", async () => {
+    open({ practiceId: null, tip: "Pause before “by March”" });
+    await act(async () => {});
+    expect(aiReads).toEqual([]);
+    expect(live()!.querySelector("[data-walk-no-clip]")!.textContent).toBe("Pause before “by March”.");
   });
 });

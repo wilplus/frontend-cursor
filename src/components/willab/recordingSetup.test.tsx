@@ -4,8 +4,11 @@ STORY    As a speaker, I want setup to ask my topic, then the length, then
          slides, then start, so that starting a Take is quick.
 OUTCOME
   O1  The questions come in that order, and starting carries my topic.
+  O2  With no slides added, the slides step's button is "Skip for now", the
+      last step included, and it starts the Take.
 PROVES   O1 -> "asks topic, length, slides, then starts"
-WHY      Founder 2026-10-12.
+         O2 -> "asks topic, length, slides, then starts"
+WHY      Founder 2026-10-12; "Skip for now", backend N449 item 3.
 */
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
@@ -40,6 +43,7 @@ it("asks topic, length, slides, then starts", () => {
   next();
   expect(host.textContent).toContain("Have slides to go with it?");
   expect(host.textContent).not.toContain("Three is where it really lands");
+  expect([...host.querySelectorAll("button")].at(-1)!.textContent).toBe("Skip for now");
   next();
   expect(onSubmit.mock.calls[0][0]).toMatchObject({ topic: "My pitch" });
 });

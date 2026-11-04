@@ -65,7 +65,7 @@ import { resolvePastIdealText, type IdealTextPast } from "@/lib/willab/pastIdeal
 import type { IdealTextRevision } from "@/services/api/blockVariants";
 import { lensAddress } from "@/lib/willab/lensScreen";
 import { startOpenTrace } from "@/lib/willab/openTrace";
-import { chatDrawsStep, chatWalks, doorOf, feedbackWalkDoor, inPairs, latestShareLine, shareLines, walkPairs, type ChatWalk, type ShareLineChange } from "@/lib/willab/walkThread";
+import { chatDrawsStep, chatWalks, doorOf, feedbackWalkDoor, inPairs, latestShareLine, shareLines, walkAnswerRow, walkPairs, type ChatWalk, type ShareLineChange } from "@/lib/willab/walkThread";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import {
   clearExploreArc,
@@ -1142,7 +1142,7 @@ export default function Lounge({
   // AFTER THE GOODBYE (founder 2026-10-31, N294 items 6 and 7, N296 state
   // 4): no push to the next Take; the tap under the goodbye, then "Record
   // Take N" alone under the chat (`useGoodbye`).
-  const goodbye = useGoodbye({ messages, oneHoldsRecord: plan.oneHoldsRecord, planOne: plan.one, olderTake, append: thread.append });
+  const goodbye = useGoodbye({ messages, oneHoldsRecord: plan.oneHoldsRecord, planOne: plan.one, olderTake, append: thread.append, ownerId: userId });
   // Its ✕ gives the bar back for that Take (N395).
   const recordTake = useRecordTake(goodbye.recordNext);
 
@@ -1446,7 +1446,7 @@ export default function Lounge({
     if (!atBottomRef.current) return;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, botThinking, activeOffer]);
+  }, [messages.length, botThinking, thread.writing, activeOffer]);
 
   // A NEW BUBBLE IS ALWAYS SHOWN (founder 2026-09-28), even when the thread
   // was scrolled up, and See next steps lands on the newest one. Only a new
@@ -1521,9 +1521,15 @@ export default function Lounge({
   }
 
   // N82 — Will's one question after a Take: the backend keeps the tap and
-  // writes it with the reply, then the thread reads it back.
+  // writes it with the reply, then the thread reads it back. The typing
+  // dots while it does, as for a typed answer (B8).
   async function answerWillQuestion(target: WillQuestionTarget, choice: string): Promise<void> {
-    if (await postWillQuestion(target.arcId, target.takeSessionId, choice)) await reload();
+    setBotThinking(true);
+    try {
+      if (await postWillQuestion(target.arcId, target.takeSessionId, choice)) await reload();
+    } finally {
+      setBotThinking(false);
+    }
     followAnswer();
   }
 
@@ -1901,7 +1907,7 @@ export default function Lounge({
         <VoiceNoteThread notebook={notebook} />
         {plan.pending}
         {willVoice.pending}
-        {botThinking && <TypingDots />}
+        <ThreadDots thinking={botThinking} writing={thread.writing} />
       </div>
 
       {/* The coach's one door (founder 2026-09-30, A1): the walk. Coaches can
@@ -2088,8 +2094,9 @@ export default function Lounge({
         onRecord={(arc) =>
           // After the first Take (backend N401 item 4): "Record Take 2" is the
           // real talk, its own set-up with the plan's topic, never the five
-          // questions again.
-          isFirstTakeArc(userId, arc) && onStartPlanRecording
+          // questions again. The goodbye says so; this device's own record of
+          // the first Take is the fallback.
+          (goodbye.afterFirstTake || isFirstTakeArc(userId, arc, recordTake.next?.takeIndex)) && onStartPlanRecording
             ? onStartPlanRecording(plan.topic, { afterFirstTake: true })
             : openIdealText(arc, "share")
         }
@@ -2248,6 +2255,15 @@ export default function Lounge({
           onReadAloud={(version) => {
             const arcId = idealTextArcId;
             const cached = readExploreArc(userId);
+            // The first Take's page, with only that Take: "Record Take 2" is
+            // the real talk, as the chat's is (backend N449 item 1), never
+            // the five questions again.
+            const nextTake = cached?.arcId === arcId ? cached.nextTakeIndex : (version ?? 1) + 1;
+            if (isFirstTakeArc(userId, arcId, nextTake - 1) && onStartPlanRecording) {
+              setIdealTextArcId(null);
+              onStartPlanRecording(plan.topic, { afterFirstTake: true });
+              return;
+            }
             if (cached?.arcId !== arcId) {
               // Seed the next-take index from the SD version hint (≈ takes so
               // far); the BE reconciles the real take_index on upload.
@@ -2967,7 +2983,8 @@ export function waitingStepId(items: readonly ThreadItem[], arc: string | null):
     const m = items[i].message;
     const meta = m.metadata ?? {};
     if (movedOn(m)) return null;
-    if (m.kind !== "walk_step" || meta.coach_update === true) continue;
+    // "Your words it is." waits on nothing: the Clearer version above it does.
+    if (m.kind !== "walk_step" || meta.coach_update === true || walkAnswerRow(m)) continue;
     return m.role === "bot" && meta.arc_id === arc ? m.client_id : null;
   }
   return null;
@@ -3107,6 +3124,7 @@ function useGoodbye({
   planOne,
   olderTake,
   append,
+  ownerId,
 }: {
   messages: readonly LoungeMessage[];
   oneHoldsRecord: boolean;
@@ -3115,11 +3133,13 @@ function useGoodbye({
   planOne: { arcId: string; takeIndex: number } | null;
   olderTake: (meta?: Record<string, unknown> | null) => number | null;
   append: (draft: LoungeMessageDraft) => Promise<LoungeMessage>;
+  /** Whose first Take's goodbye brings "Record Take 2" at once (N449 item 2). */
+  ownerId: string | null;
 }) {
   const goodbye = useMemo(() => {
-    const at = afterGoodbye(messages);
+    const at = afterGoodbye(messages, (take) => isFirstTakeArc(ownerId, take.arcId, take.takeIndex));
     return at && !oneHoldsRecord && olderTake(at.message.metadata) === null ? at : null;
-  }, [messages, oneHoldsRecord, olderTake]);
+  }, [messages, oneHoldsRecord, olderTake, ownerId]);
   /** They chose to continue: their own bubble, naming the Take it follows. */
   const choose = (said: string): void => {
     if (!goodbye) return;
@@ -3137,6 +3157,9 @@ function useGoodbye({
      *  continue, else a practice day's (the-plan.md G6); never both, as the
      *  practice day's one thing holds the button. */
     recordNext: goodbye?.step === "record" ? goodbye.next : planOne,
+    /** That "Record Take N" follows the first Take, as its goodbye says
+     *  (backend N449 item 1): the real talk. */
+    afterFirstTake: goodbye?.step === "record" && goodbye.message.metadata?.first_take === true,
     choose,
     /** Typed words under the goodbye that say they want to practise are the
      *  tap; true when taken so. */
@@ -3146,6 +3169,12 @@ function useGoodbye({
       return true;
     },
   };
+}
+
+/** The Lounge's one wait under the thread (B8): a reply being written, or
+ *  the walk's summary and the chain after it. */
+function ThreadDots({ thinking, writing }: { thinking: boolean; writing: boolean }) {
+  return thinking || writing ? <TypingDots /> : null;
 }
 
 /** "I want to continue my practice", on the right, as Will's tap answers. */

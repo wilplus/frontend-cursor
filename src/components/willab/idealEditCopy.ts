@@ -533,6 +533,15 @@ export const ONE_THING_COPY = {
   /** The dock. */
   tryIt: "Try it",
   keepMine: "Keep mine",
+  /** After "Keep mine", before the recorder (backend N435 item 4, signed
+   *  2026-11-03; was N268's "Your words it is. Now say them like you mean
+   *  every one."). */
+  keepWords: "Your words it is.",
+  /** The Sniper's one opening bubble when the speaker rushed, the pace scale
+   *  in it (backend N435 item 6, signed 2026-11-03). */
+  letItBreathe: "You rushed here. Let it breathe.",
+  /** The same for a slow stretch (backend N452 item 2, signed 2026-11-03). */
+  keepItMoving: "You slowed down here. Keep it moving.",
   /** The walk's answer to Skip on the fix, then it goes on (backend N405,
    *  signed 2026-11-03; the prototype's "Okay." rewritten). */
   skipped: "Okay, we'll skip this one.",

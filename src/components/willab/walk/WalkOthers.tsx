@@ -10,7 +10,7 @@ import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import WalkLoading from "./WalkLoading";
 import WalkFaces, { WalkUnclear } from "./WalkFaces";
-import { WalkSpeakerBubble, WalkThreadMark, useMountedAsPast } from "./WalkThread";
+import { WalkSpeakerBubble, WalkThreadMark, landingWelcome, useMountedAsPast, useWalkPart } from "./WalkThread";
 import { answerOtherClip, fetchOtherAnswers, fetchOtherClips, type OtherClip } from "@/services/api/otherSpeakers";
 import { othersBridge, othersChat, othersOneSaid, type OthersLevel } from "@/lib/willab/walkThread";
 
@@ -54,10 +54,17 @@ import { othersBridge, othersChat, othersOneSaid, type OthersLevel } from "@/lib
 /*  you find this voice. It helps us understand you and serve you better.",  */
 /*  then the clip and "Does this sound confident to you?" in one bubble (no  */
 /*  Line B), the faces and "Audio unclear" as ever, the answer as the        */
-/*  speaker's own reply "{face} {answer} ✓", then "Got it.".                 */
+/*  speaker's own reply "{face} {answer} ✓", then "Got it.". Each lands on    */
+/*  its own, the grey ones behind the typing dots (B7, N440 item 1): the      */
+/*  chosen card fills and holds 0.28 s, then the answer and "Got it." land,   */
+/*  and the walk moves on once they have (J5, the prototype's judge()).       */
 /* -------------------------------------------------------------------------- */
 
 type Loaded = { clips: OtherClip[]; given: Record<string, ConfidenceRatingValue> };
+
+/** The One thing walk's answer and "Got it." land in well under this; a
+ *  landing that never says it has moves the walk on all the same. */
+const LANDED_WITHIN_MS = 2000;
 
 /** What the screen shows: the answers already given in this walk, oldest
  *  first (`judged` of them, at most three), else the Take's queue to judge,
@@ -120,6 +127,14 @@ export default function WalkOthers({
   // step leaves nothing in the thread, not its typing dots (B5).
   const [none, setNone] = useState(false);
   const past = useMountedAsPast();
+  // The One thing walk's answer and "Got it.", once the chosen card has
+  // held (J5); whether the part lands its bubbles one by one, as its
+  // overlay decides at its first draw; and where those two are in their
+  // landing, so the walk moves on only once they have landed.
+  const [heard, setHeard] = useState(false);
+  const part = useWalkPart();
+  const [lands] = useState(() => part?.now === true && part.fresh && landingWelcome());
+  const landing = useRef<"drawn" | "landing" | null>(null);
   const done = useRef(onDone);
   done.current = onDone;
   // As many as the chat held when the step opened, never the live count.
@@ -173,12 +188,36 @@ export default function WalkOthers({
   /** "Other speakers · 2 of 3", or the community's name. */
   const where = (i: number) => `${from ?? WALK_COPY.othersTitle} · ${i + 1} ${COPY.pagerOf} ${clips?.length ?? 1}`;
 
+  /** The One thing walk's answer and "Got it." are drawn in; they land
+   *  (the speaker's own bubble's beat, then the dots before the grey one),
+   *  then the walk moves on. Where nothing lands one by one, at once. */
+  const moveOn = () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    landing.current = null;
+    forward();
+  };
+  const land = () => {
+    setHeard(true);
+    if (!lands) return forward();
+    landing.current = "drawn";
+    timer.current = window.setTimeout(() => landing.current && moveOn(), LANDED_WITHIN_MS);
+  };
+  const settled = (landed: boolean) => {
+    if (!landed && landing.current === "drawn") landing.current = "landing";
+    else if (landed && landing.current === "landing") moveOn();
+  };
   const pick = (value: ConfidenceRatingValue) => {
     if (!clip || answered !== null) return;
     setGiven((g) => ({ ...g, [clip.id]: value }));
     void answerOtherClip(clip.id, value);
     onChat?.(at, clips?.length ?? 1, from, value, one);
-    timer.current = window.setTimeout(forward, holdMs);
+    // Only a face fills and holds (J5); "Audio unclear" has no card to
+    // hold, so its answer lands at once (the prototype's judge()).
+    if (one && value === "audio_unclear") {
+      land();
+      return;
+    }
+    timer.current = window.setTimeout(one ? land : forward, holdMs);
   };
 
   if ((past && !replay) || none) return null;
@@ -193,40 +232,42 @@ export default function WalkOthers({
     </WalkFooter>
   );
   if (one) {
-    const said = clip && answered !== null ? othersOneSaid(answered) : null;
+    // Its own keyed bubbles, so each lands on its own (B7): one Fragment
+    // was one item, drawn in at once in the dots' place.
+    const said = clip && answered !== null && (heard || reopened) ? othersOneSaid(answered) : null;
+    // Once the answer is drawn, the faces are gone from the dock until the
+    // next part's buttons come (J4: nothing blinks back).
     return (
-      <WalkOverlay testId={testId} onClose={onClose} footer={footer}>
-        {!clips || !clip ? (
-          <WalkLoading />
-        ) : (
-          <>
-            <WalkThreadMark label={from ?? WALK_COPY.othersTitle} />
-            <WalkMessage>
-              <span data-walk-judge-intro>{ONE_THING_COPY.judgeIntro}</span>
-            </WalkMessage>
-            <WalkMessage wide>
-              <div className="mb-2.5">
-                <WalkPlayer
-                  look="bare"
-                  seed={`other-${clip.id}`}
-                  src={clip.src}
-                  startOffsetMs={clip.startOffsetMs}
-                  durationMs={clip.durationMs}
-                  label={from ?? WALK_COPY.othersTitle}
-                />
-              </div>
-              <span>{COPY.confidenceQuestion}</span>
-            </WalkMessage>
-            {said ? (
-              <>
-                <WalkSpeakerBubble>{said}</WalkSpeakerBubble>
-                <WalkMessage>
-                  <span data-walk-got-it>{ONE_THING_COPY.gotIt}</span>
-                </WalkMessage>
-              </>
-            ) : null}
-          </>
-        )}
+      <WalkOverlay testId={testId} onClose={onClose} footer={heard ? null : footer} onSettled={settled}>
+        {!clips || !clip
+          ? [<WalkLoading key="loading" />]
+          : [
+              <WalkThreadMark key="mark" label={from ?? WALK_COPY.othersTitle} quiet />,
+              <WalkMessage key="intro">
+                <span data-walk-judge-intro>{ONE_THING_COPY.judgeIntro}</span>
+              </WalkMessage>,
+              <WalkMessage key="clip" wide>
+                <div className="mb-2.5">
+                  <WalkPlayer
+                    look="bare"
+                    seed={`other-${clip.id}`}
+                    src={clip.src}
+                    startOffsetMs={clip.startOffsetMs}
+                    durationMs={clip.durationMs}
+                    label={from ?? WALK_COPY.othersTitle}
+                  />
+                </div>
+                <span>{COPY.confidenceQuestion}</span>
+              </WalkMessage>,
+              ...(said
+                ? [
+                    <WalkSpeakerBubble key="answer">{said}</WalkSpeakerBubble>,
+                    <WalkMessage key="got">
+                      <span data-walk-got-it>{ONE_THING_COPY.gotIt}</span>
+                    </WalkMessage>,
+                  ]
+                : []),
+            ]}
       </WalkOverlay>
     );
   }

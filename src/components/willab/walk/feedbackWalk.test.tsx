@@ -404,11 +404,12 @@ describe("FeedbackWalk", () => {
     try {
       draw(null);
       draw({ seq: 1, at: 1 });
-      // The coach's word: the dots first, no button yet.
+      // The hello, then the coach's word: the dots first, no button yet.
       expect(live()!.querySelector("[data-walk-typing]")).not.toBeNull();
+      expect(live()!.querySelector("[data-walk-hello]")!.closest("[hidden]")).not.toBeNull();
       expect(now()!.querySelector("[data-walk-message]")!.closest("[hidden]")).not.toBeNull();
       expect(live()!.querySelector("[data-testid='walk-forward']")).toBeNull();
-      wait(600);
+      wait(1000);
       expect(live()!.querySelector("[data-walk-typing]")).toBeNull();
       expect(now()!.querySelector("[data-walk-message]")!.closest("[hidden]")).toBeNull();
       forward();
@@ -451,8 +452,8 @@ describe("FeedbackWalk", () => {
     try {
       draw(null);
       draw({ seq: 1, at: 1 });
-      wait(600);
-      // The coach's word landed at the bottom, the thread followed it there,
+      wait(1000);
+      // The hello and the coach's word landed at the bottom, the thread followed them there,
       // and no room under it pushes the step's name up to the top.
       expect(tops.at(-1)).toBe(600);
       expect(live()!.querySelector<HTMLElement>("[data-walk-room]")!.style.height).toBe("0px");

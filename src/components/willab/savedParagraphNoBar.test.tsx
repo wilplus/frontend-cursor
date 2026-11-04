@@ -119,6 +119,10 @@ function serveRoots(roots: { part_id: string; slide_index: number; text: string 
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
+      // No stretch: the walk's opening waits for the tempo answer (`walkReady`).
+      if (String(url).includes("/review/tempo/")) {
+        return new Response(JSON.stringify({ tempo: null }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
       return new Response("{}", { status: 404 });
     }),
   );

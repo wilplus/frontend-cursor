@@ -83,6 +83,14 @@ function within<T>(promise: Promise<T | null>, ms: number): Promise<T | null> {
   });
 }
 
+/** A practice opened for a moment, and what it was opened on: the Clearer
+ *  sentence (`rewrite:{say}`), their own words (`plain`) or the exercise.
+ *  "Try it" and "Keep mine" each record against their own sentence (N309
+ *  item 1, N435 item 4), so a moment opens again when that changes. */
+type Opened = { on: string; practice: Promise<string | null>; failed?: boolean; settled?: boolean };
+
+const openedOn = (passage: WalkPractisePassage): string => (passage.kind === "rewrite" ? `rewrite:${passage.say}` : passage.kind);
+
 function passageOf<R>(step: WalkStep, moment: FeedbackWalkMoment<R>): { item: R; passage: WalkPractisePassage } | null {
   // After an exercise's video (or straight away with none, Q-B15 A): the
   // same loop, on the exercise the moment carries (D-FW-17).
@@ -113,6 +121,17 @@ function replayClipPractice(plan: readonly WalkStep[], at: number, replayOf: (mo
   const clearerLane = plan.some((s) => s.moment === here.moment && s.key === "clearer");
   return (start >= 0 && plan[start].key === "exVideo") || clearerLane ? replayOf(here.moment) ?? null : null;
 }
+
+/** The moments of the One thing walk's fixes a walk played again draws:
+ *  each one's clip is read once, wherever the walk opens (N373 item 2: "a
+ *  walk played again shows what is there"). */
+const replayedFixes = (plan: readonly WalkStep[]): number[] =>
+  plan.flatMap((s) => (s.one && s.replay && !s.readOnly && s.key === "exVideo" && s.moment != null ? [s.moment] : []));
+
+/** A clip read for a walk played again is kept when it plays, or, on the
+ *  One thing walk's fix, when it names the problem its tip is for. */
+const keptOnReplay = (clip: AiVoiceState["clip"], fix: boolean): boolean =>
+  clip?.state === "ready" || (fix && clip?.state === "unavailable" && Boolean(clip.problem));
 
 /** The practise kind the AI clip is asked for on this screen, or null. The
  *  voice Exercise, with or without an exercise attached (the moment said
@@ -157,9 +176,13 @@ export type WalkPractise = {
   /** The moment's clip is being asked and not yet answered. */
   aiVoiceAsking: (moment: number) => boolean;
   /** The practice the moment's practise was opened on, once asked; null
-   *  when none was (the One thing walk's helper words after a Clearer
-   *  version are saved from it, N309 item 3). */
+   *  when none was, or it could not be opened (the One thing walk's helper
+   *  words after a Clearer version are saved from it, N309 item 3; without
+   *  it, their best's words, N374). */
   practiceOf: (moment: number) => Promise<string | null> | null;
+  /** The moment's practice is still being opened: whether it opens is not
+   *  known yet. */
+  practiceOpening: (moment: number) => boolean;
 };
 
 export function useWalkPractise<R>(args: {
@@ -187,7 +210,20 @@ export function useWalkPractise<R>(args: {
   live.current = { io, plan, at, moments, blocked, relay, readLimit, replayPracticeOf };
   const micOn = useRef(false);
   const run = useRef(0);
-  const opened = useRef(new Map<number, Promise<string | null>>());
+  const opened = useRef(new Map<number, Opened>());
+  /** The moment's practice on `what`: the one already opened on it, else a
+   *  new one (after ✕, "Keep mine" in place of "Try it" or back). */
+  const openOn = (practiseIO: WalkPractiseIO<R>, index: number, what: { item: R; passage: WalkPractisePassage }) => {
+    const on = openedOn(what.passage);
+    if (opened.current.get(index)?.on === on) return;
+    const entry: Opened = { on, practice: practiseIO.open(what.item, what.passage).catch(() => null) };
+    // Known not opened: nothing is saved from it (practiceOf).
+    void entry.practice.then((id) => {
+      entry.settled = true;
+      if (!id) entry.failed = true;
+    });
+    opened.current.set(index, entry);
+  };
   const pending = useRef<{ at: number; step: WalkStep; run: number } | null>(null);
   const urls = useRef<string[]>([]);
   const [aiVoice, setAiVoice] = useState<Record<number, AiVoiceState>>({});
@@ -212,9 +248,7 @@ export function useWalkPractise<R>(args: {
     const moment = ms[here.moment];
     const what = moment ? passageOf(here, moment) : null;
     if (!what) return;
-    if (!opened.current.has(here.moment)) {
-      opened.current.set(here.moment, practiseIO.open(what.item, what.passage).catch(() => null));
-    }
+    openOn(practiseIO, here.moment, what);
     micOn.current = true;
     setElapsed(0);
     void mic.start();
@@ -230,29 +264,35 @@ export function useWalkPractise<R>(args: {
   useEffect(() => {
     const { io: practiseIO, plan: p, at: i, moments: ms, blocked: guestOnly, replayPracticeOf: replayOf } = live.current;
     const here = p[i];
-    if (here?.moment == null || guestOnly(here)) return;
-    // A replayed exercise only reads the clip it already has (founder
-    // 2026-10-15: an exercise already done plays its tries); nothing is
-    // made, and a play is not counted. A read-only walk asks nothing.
-    if (here.replay || here.readOnly) {
-      // Any screen of the exercise's thread: a try tapped in the chat opens
-      // on its last answer, with the Exercise above it.
-      const practiceId = replayClipPractice(p, i, replayOf);
-      if (!practiceId || aiAsked.current.has(here.moment)) return;
-      const index = here.moment;
+    /** The clip a screen played again already has, read once per moment;
+     *  nothing is made, and a play is not counted. */
+    const readOnce = (index: number, practiceId: string | null | undefined, fix: boolean) => {
+      if (!practiceId || aiAsked.current.has(index)) return;
       aiAsked.current.add(index);
       // Asking until the read is back, so the chat writes the bubble the
       // replay shows (founder 2026-10-20).
       aiWaiting.current.add(index);
       void readAiVoice(practiceId).then((read) => {
         aiWaiting.current.delete(index);
-        if (read.ok && read.data.clip?.state === "ready") {
-          aiPractice.current.set(index, practiceId);
+        if (read.ok && keptOnReplay(read.data.clip, fix)) {
+          if (read.data.clip?.state === "ready") aiPractice.current.set(index, practiceId);
           setAiVoice((v) => ({ ...v, [index]: read.data }));
         } else {
           setAiVoice((v) => ({ ...v }));
         }
       });
+    };
+    // Every One thing fix played again, wherever the open walk stands: its
+    // part is drawn above or below the step opened on (N373 item 2).
+    if (here && here.overlay !== false) for (const index of replayedFixes(p)) readOnce(index, replayOf(index), true);
+    if (here?.moment == null || guestOnly(here)) return;
+    // A replayed exercise only reads the clip it already has (founder
+    // 2026-10-15: an exercise already done plays its tries). A read-only
+    // walk asks nothing.
+    if (here.replay || here.readOnly) {
+      // Any screen of the exercise's thread: a try tapped in the chat opens
+      // on its last answer, with the Exercise above it.
+      readOnce(here.moment, replayClipPractice(p, i, replayOf), false);
       return;
     }
     if (!practiseIO) return;
@@ -263,9 +303,7 @@ export function useWalkPractise<R>(args: {
     aiAsked.current.add(index);
     const what = passageOf({ ...here, kind }, moment);
     if (!what) return;
-    if (!opened.current.has(index)) {
-      opened.current.set(index, practiseIO.open(what.item, what.passage).catch(() => null));
-    }
+    openOn(practiseIO, index, what);
     let tries = 0;
     aiWaiting.current.add(index);
     // The bubble is on screen from here, the typing dots in it.
@@ -275,11 +313,15 @@ export function useWalkPractise<R>(args: {
       setAiVoice((v) => ({ ...v, [index]: state }));
     };
     const none: AiVoiceState = { demo: "none", clip: null };
+    // What the last read named the clip fixes, and the phrase: kept when the
+    // asking ends, so the tip in words stays (N370, N373 item 1).
+    let named: AiVoiceState["clip"] = null;
     const poll = (practiceId: string) => {
       const timer = setTimeout(async () => {
         aiTimers.current.delete(timer);
         tries += 1;
         const read = await readAiVoice(practiceId);
+        if (read.ok && read.data.clip?.problem) named = read.data.clip;
         // A read that fails, or answers with no clip while one is being made
         // (the server's own error answer), is the clip still on its way, not
         // the end of the wait.
@@ -288,12 +330,13 @@ export function useWalkPractise<R>(args: {
           poll(practiceId);
           return;
         }
-        // Still not made when the asking ends: no clip, the locked screen.
-        keep(read.ok && !pending ? read.data : { demo: "ai_voice", clip: { state: "unavailable", url: null, durationMs: null, why: null } });
+        // Still not made when the asking ends: no clip, the locked screen,
+        // with the tip it named.
+        keep(read.ok && !pending ? read.data : { demo: "ai_voice", clip: { ...named, state: "unavailable", url: null, durationMs: null, why: null } });
       }, tries < AI_VOICE_POLL_TRIES ? AI_VOICE_POLL_MS : AI_VOICE_SLOW_POLL_MS);
       aiTimers.current.add(timer);
     };
-    void (opened.current.get(index) ?? Promise.resolve(null)).then(async (practiceId) => {
+    void (opened.current.get(index)?.practice ?? Promise.resolve(null)).then(async (practiceId) => {
       if (!practiceId) return keep(none);
       aiPractice.current.set(index, practiceId);
       // A start that did not get through is asked again a few times before
@@ -304,8 +347,17 @@ export function useWalkPractise<R>(args: {
         asked = await ensureAiVoice(practiceId);
       }
       if (!asked.ok) return keep(none);
-      keep(asked.data);
-      if (asked.data.clip?.state === "pending") poll(practiceId);
+      // The start's own error answer has no clip: one read, for a clip the
+      // prewarm already made or is making (N370 item 2, N373 item 1).
+      let state = asked.data;
+      if (!state.clip) {
+        const read = await readAiVoice(practiceId);
+        if (read.ok && read.data.clip) state = read.data;
+      }
+      keep(state);
+      // The ensure, or its one read, can name the tip already: kept too.
+      if (state.clip?.problem) named = state.clip;
+      if (state.clip?.state === "pending") poll(practiceId);
     });
     // The clip keeps being asked after while the walk moves on (Exercise →
     // practise → not yet); the walk going away stops it (below).
@@ -372,7 +424,7 @@ export function useWalkPractise<R>(args: {
           audios: { ...t[moment]?.audios, [attempt]: { url, durationMs: Math.round(durationSec * 1000) } },
         },
       }));
-      const practiceId = practiseIO ? await (opened.current.get(moment) ?? Promise.resolve(null)) : null;
+      const practiceId = practiseIO ? await (opened.current.get(moment)?.practice ?? Promise.resolve(null)) : null;
       // A try the server did not count is still a try on screen: the next
       // one is numbered after it, so each keeps its own "Practise N" and its
       // own voice (founder 2026-10-21, C7: "number it anyway, 1, 2, 3").
@@ -488,6 +540,13 @@ export function useWalkPractise<R>(args: {
   const aiVoicePracticeOf = useCallback((moment: number) => aiPractice.current.get(moment), []);
   const aiVoiceAsking = useCallback((moment: number) => aiWaiting.current.has(moment), []);
 
-  const practiceOf = useCallback((moment: number) => opened.current.get(moment) ?? null, []);
-  return { elapsed, capturing, stop, skip, again, tryOf, cancel, reset, aiVoiceOf, aiVoicePlayed, aiVoicePracticeOf, aiVoiceAsking, practiceOf };
+  const practiceOf = useCallback((moment: number) => {
+    const entry = opened.current.get(moment);
+    return entry && !entry.failed ? entry.practice : null;
+  }, []);
+  const practiceOpening = useCallback((moment: number) => {
+    const entry = opened.current.get(moment);
+    return entry !== undefined && !entry.settled;
+  }, []);
+  return { elapsed, capturing, stop, skip, again, tryOf, cancel, reset, aiVoiceOf, aiVoicePlayed, aiVoicePracticeOf, aiVoiceAsking, practiceOf, practiceOpening };
 }

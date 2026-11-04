@@ -178,7 +178,7 @@ export default function HelperWordsSheet({
               type="button"
               data-testid="helper-words-delete"
               onClick={() => void remove()}
-              className="text-[13px] font-semibold text-primary transition-opacity hover:opacity-70"
+              className="relative text-[13px] font-semibold text-primary transition-opacity after:absolute after:-inset-x-1 after:-inset-y-3 after:content-[''] hover:opacity-70"
             >
               {COPY.helperWordsDelete}
             </button>

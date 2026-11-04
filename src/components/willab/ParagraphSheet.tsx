@@ -507,7 +507,7 @@ function HelperWordsCard({
             type="button"
             data-testid="paragraph-helper-words"
             onClick={onChoose}
-            className="shrink-0 rounded-full border border-pending/40 px-3 py-0.5 text-[13px] font-semibold text-primary transition-colors hover:bg-pending/[0.12]"
+            className="relative shrink-0 rounded-full border border-pending/40 px-3 py-0.5 text-[13px] font-semibold text-primary transition-colors after:absolute after:-inset-y-[10px] after:inset-x-0 after:content-[''] hover:bg-pending/[0.12]"
           >
             {COPY.pillChooseWords}
           </button>
