@@ -50,6 +50,10 @@ OUTCOME
       time" finds the tip my Take before kept (N309), the pace game's too:
       "Last time: give “{words}” more room. You did." with the Sniper's
       helper words, none past the cap of eight (N347 item 3).
+  O15 After "Keep mine" the chat keeps "Your words it is.", but my Feedback
+      walk and Continue review still open on the Clearer version it
+      answers, never on the live recorder with the mic on (N452 item 1,
+      B10, C7).
 PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own message, with no score"
          O2 -> "posts judging other speakers as the prototype's chat does, never their recording"
          O3 -> "counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles"
@@ -64,6 +68,7 @@ PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own
          O12 -> "draws each Take's card right under its Feedback walk, after the walk's end, what was said in between under the pair"
          O13 -> "opens the Feedback walk on the coach's word, on what waits, on its newest part, or on the Take alone, never with no door"
          O14 -> "the One thing walk's judged moment turns its level, says its words, and last time finds the tip the Take before kept"
+         O15 -> "keeps the door on the Clearer version under its Your words it is. row, never on the live recorder"
 WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12);
          founder 2026-10-19, N80 (when the coach changes their word);
          founder 2026-10-31, N309 (the One thing walk); N347 item 3 (every
@@ -76,6 +81,7 @@ import { tipSaid } from "./walkLines";
 import { readLastFix } from "@/services/api/reviewLastFix";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { WalkStep } from "./walkPlan";
+import { waitingStepId } from "@/components/willab/Lounge";
 
 describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
   it("stores a step seen twice once, as the app's or the speaker's own message, with no score", () => {
@@ -352,5 +358,22 @@ describe("the walk in the chat (founder 2026-10-26, N192)", () => {
     // No part to stand on: the Take alone, never nothing.
     const [bare] = chatWalks([step("1", { step: "hello" }), summary]);
     expect(feedbackWalkDoor(bare, [], null)).toEqual({ take: "t2" });
+  });
+
+  it("keeps the door on the Clearer version under its Your words it is. row, never on the live recorder", () => {
+    // Keep mine, the recorder, then ✕ back to the Clearer version (C7): the
+    // chat's newest step of the walk is "Your words it is.".
+    const clearer = step("2", { step: "clearer", moment: 1, part_id: "p2" });
+    const yours = step("3", { step: "practise", moment: 1, part_id: "p2" }, "bot", ONE_THING_COPY.keepWords);
+    const thread = [step("1", { step: "praise", moment: 0, part_id: "p1" }), clearer, yours];
+    const [walk] = chatWalks(thread);
+    const onClearer = { step: "clearer", moment: 1, take: "t2", part: "p2" };
+    // A tap on the Feedback walk.
+    expect(feedbackWalkDoor(walk, [], null)).toEqual(onClearer);
+    // Continue review: the step the review waits on.
+    const items = thread.map((message) => ({ kind: "message" as const, sortKey: message.client_id, reactKey: message.client_id, message }));
+    const waiting = waitingStepId(items, "a1");
+    expect(waiting).toBe("2");
+    expect(feedbackWalkDoor(walk, thread.filter((m) => m.client_id === waiting), "a1")).toEqual(onClearer);
   });
 });

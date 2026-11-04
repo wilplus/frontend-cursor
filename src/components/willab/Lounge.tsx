@@ -65,7 +65,7 @@ import { resolvePastIdealText, type IdealTextPast } from "@/lib/willab/pastIdeal
 import type { IdealTextRevision } from "@/services/api/blockVariants";
 import { lensAddress } from "@/lib/willab/lensScreen";
 import { startOpenTrace } from "@/lib/willab/openTrace";
-import { chatDrawsStep, chatWalks, doorOf, feedbackWalkDoor, inPairs, latestShareLine, shareLines, walkPairs, type ChatWalk, type ShareLineChange } from "@/lib/willab/walkThread";
+import { chatDrawsStep, chatWalks, doorOf, feedbackWalkDoor, inPairs, latestShareLine, shareLines, walkAnswerRow, walkPairs, type ChatWalk, type ShareLineChange } from "@/lib/willab/walkThread";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import {
   clearExploreArc,
@@ -2983,7 +2983,8 @@ export function waitingStepId(items: readonly ThreadItem[], arc: string | null):
     const m = items[i].message;
     const meta = m.metadata ?? {};
     if (movedOn(m)) return null;
-    if (m.kind !== "walk_step" || meta.coach_update === true) continue;
+    // "Your words it is." waits on nothing: the Clearer version above it does.
+    if (m.kind !== "walk_step" || meta.coach_update === true || walkAnswerRow(m)) continue;
     return m.role === "bot" && meta.arc_id === arc ? m.client_id : null;
   }
   return null;

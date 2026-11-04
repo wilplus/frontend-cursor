@@ -662,12 +662,20 @@ export type ChatWalk = {
 
 const takeOf = (m: LoungeMessage) => (typeof m.metadata?.take_session_id === "string" ? m.metadata.take_session_id : null);
 
+/** "Your words it is." after "Keep mine" (N452 item 1): the walk's answer
+ *  to the speaker's choice, kept in the chat, but never a part of the walk
+ *  nor the step the review waits on. A door on it would stand the walk on
+ *  the live recorder; the Clearer version it answers stays the door. */
+export function walkAnswerRow(m: LoungeMessage): boolean {
+  return m.kind === "walk_step" && m.metadata?.step === "practise";
+}
+
 /** A step that stands for a part of the walk: the app's or the coach's
  *  bubble on a moment, the coach's word, the helper words. Not Other
  *  speakers (an old judging bubble opens new moments, C8). */
 function partStep(m: LoungeMessage): boolean {
   const meta = m.metadata ?? {};
-  if (m.role !== "bot" || meta.coach_update === true) return false;
+  if (m.role !== "bot" || meta.coach_update === true || walkAnswerRow(m)) return false;
   return typeof meta.moment === "number" || meta.step === "coachnote" || meta.step === "helpers";
 }
 
