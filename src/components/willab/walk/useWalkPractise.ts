@@ -87,7 +87,7 @@ function within<T>(promise: Promise<T | null>, ms: number): Promise<T | null> {
  *  sentence (`rewrite:{say}`), their own words (`plain`) or the exercise.
  *  "Try it" and "Keep mine" each record against their own sentence (N309
  *  item 1, N435 item 4), so a moment opens again when that changes. */
-type Opened = { on: string; practice: Promise<string | null>; failed?: boolean };
+type Opened = { on: string; practice: Promise<string | null>; failed?: boolean; settled?: boolean };
 
 const openedOn = (passage: WalkPractisePassage): string => (passage.kind === "rewrite" ? `rewrite:${passage.say}` : passage.kind);
 
@@ -180,6 +180,9 @@ export type WalkPractise = {
    *  words after a Clearer version are saved from it, N309 item 3; without
    *  it, their best's words, N374). */
   practiceOf: (moment: number) => Promise<string | null> | null;
+  /** The moment's practice is still being opened: whether it opens is not
+   *  known yet. */
+  practiceOpening: (moment: number) => boolean;
 };
 
 export function useWalkPractise<R>(args: {
@@ -216,6 +219,7 @@ export function useWalkPractise<R>(args: {
     const entry: Opened = { on, practice: practiseIO.open(what.item, what.passage).catch(() => null) };
     // Known not opened: nothing is saved from it (practiceOf).
     void entry.practice.then((id) => {
+      entry.settled = true;
       if (!id) entry.failed = true;
     });
     opened.current.set(index, entry);
@@ -540,5 +544,9 @@ export function useWalkPractise<R>(args: {
     const entry = opened.current.get(moment);
     return entry && !entry.failed ? entry.practice : null;
   }, []);
-  return { elapsed, capturing, stop, skip, again, tryOf, cancel, reset, aiVoiceOf, aiVoicePlayed, aiVoicePracticeOf, aiVoiceAsking, practiceOf };
+  const practiceOpening = useCallback((moment: number) => {
+    const entry = opened.current.get(moment);
+    return entry !== undefined && !entry.settled;
+  }, []);
+  return { elapsed, capturing, stop, skip, again, tryOf, cancel, reset, aiVoiceOf, aiVoicePlayed, aiVoicePracticeOf, aiVoiceAsking, practiceOf, practiceOpening };
 }

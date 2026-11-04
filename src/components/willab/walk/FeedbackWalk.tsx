@@ -300,7 +300,11 @@ const FIX_OPENERS: ReadonlySet<string> = new Set(["clearer", "exVideo", "tempo"]
 
 /** The helper words the One thing walk gives (N309 item 3): the words, and
  *  how they are saved; none to save when they are already the saved ones. */
-type OneWords = { text: string; save: FeedbackWalkHelperWords | null; practice?: Promise<string | null> | null };
+type OneWords = { text: string; save: FeedbackWalkHelperWords | null; practice?: Promise<string | null> | null; opening?: boolean };
+
+/** How long the helper words wait for the Clearer version's practice still
+ *  being opened (a Skip in its round trip) before they are drawn. */
+const WORDS_OPEN_WAIT_MS = 1500;
 
 /** The steps whose dock is the recorder or a try being checked. */
 const RECORDER = new Set(["practise", "processing"]);
@@ -813,6 +817,7 @@ export default function FeedbackWalk<R = unknown>({
           text: sentence,
           save: { partId: moment.partId, span: { text: sentence, start: null, end: null }, paragraphText: moment.paragraphText, auto: true },
           practice,
+          opening: practise.practiceOpening(moment.index),
         };
       }
       if (opener?.key === "exVideo") return own(moment, practise.aiVoiceOf(moment.index)?.clip?.phrase);
@@ -947,7 +952,11 @@ export default function FeedbackWalk<R = unknown>({
       if (words.practice) {
         // The Clearer version's sentence: from the practice it was opened on.
         void words.practice.then((practiceId) => {
-          if (practiceId) onSaveHelperWords({ ...save, practiceId });
+          if (practiceId) return onSaveHelperWords({ ...save, practiceId });
+          // Not opened after all: their best's words, as the walk now
+          // gives them (N374).
+          const instead = fixWords(s);
+          if (instead?.save && !instead.practice) onSaveHelperWords(instead.save);
         });
       } else onSaveHelperWords(save);
     },
@@ -1359,6 +1368,35 @@ function OneClearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
  *  by itself. None to give, nothing drawn. */
 function Words({ ctx, step }: { ctx: ScreenCtx; step: WalkStep }) {
   const words = ctx.fixWords(step);
+  // The Clearer version's practice still being opened: whose words these
+  // are is known once it has (their best's if it never opens, N374), within
+  // a short bound, so what is drawn, saved and said is the same (C3).
+  const opening = words?.opening && words.practice ? words.practice : null;
+  const [waited, setWaited] = useState<Promise<string | null> | null>(null);
+  useEffect(() => {
+    if (!opening) return;
+    let on = true;
+    const done = () => {
+      if (on) setWaited(opening);
+    };
+    const bound = window.setTimeout(done, WORDS_OPEN_WAIT_MS);
+    void opening.then(() => {
+      window.clearTimeout(bound);
+      done();
+    });
+    return () => {
+      on = false;
+      window.clearTimeout(bound);
+    };
+  }, [opening]);
+  if (opening && waited !== opening) {
+    // The typing dots, the walk's one wait (B8).
+    return (
+      <WalkOverlay testId={testId(step)} onClose={ctx.close}>
+        <WalkLoading />
+      </WalkOverlay>
+    );
+  }
   if (!words) return <PassBy onPass={() => ctx.forwardFrom(step)} />;
   return <WordsShown ctx={ctx} step={step} words={words} />;
 }
