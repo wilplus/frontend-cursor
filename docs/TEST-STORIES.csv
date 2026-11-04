@@ -472,6 +472,8 @@ beside the words (its block holds the speaker's words and nothing else).
 O3  Never-1: nothing on the deck reads as a score, ratio, percentage or
 verdict, while the speaker's words are on screen.","O1, O2 -> ""shows the speaker's own words, one block per slide, unchanged""
 O3     -> ""renders no score, ratio, percentage or verdict, even with a tentative pending item""","Never-1. The per-paragraph lock button is gone from the page (lock 2026-10-12, section 4): a paragraph is the tap target and the lock lives in its sheet, so no lock-control count is pinned here."
+src/components/willab/VoiceAlbumMoment.test.tsx,Story,"As a speaker opening a moment in my Voice Album, I want to see the whole history behind it, so that I can see where it came from.","O1  Opening History loads the moment's history and shows its events;
+it never stays on the spinner once the history has arrived.","O1 -> ""opening History shows the history's events""","Founder 2026-09-18: ""I want the whole history"". An earlier build dropped the answer and spun forever."
 src/components/willab/WillQuestion.test.tsx,Story,"As a speaker in the Lounge after a Take, I want Will's one question to come with answers I can tap, or answer in my own words, so that I answer in a second and my next Take is never held up.","O1  While it is the newest bubble, the question shows its answers, the
 most likely last, nearest the thumb and filled (N371), and no Skip
 (N296: not answering is allowed); a tap goes to the backend
