@@ -49,6 +49,8 @@ docs/flows/coach-panel.md
   src/lib/willab/coachPanel.ts
   src/app/coach/corpus/
   src/app/admin/corpus/
+  src/app/admin/training-corpus/
+  src/components/ceo/CeoCorpus.tsx
 
 docs/flows/recording-screens.md
   src/components/willab/LabOverlay.tsx

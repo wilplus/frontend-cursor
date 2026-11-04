@@ -17,6 +17,8 @@ const CEO_SURFACE_PATHS = [
   // Booking page settings (founder 2026-10-13). The public /book pages stay
   // on the main host.
   "/admin/booking",
+  // The training corpus, the admin menu's row (backend N416, N511).
+  "/admin/training-corpus",
 ];
 const CEO_API_PATHS = [
   "/api/v2/admin/ceo",
@@ -41,6 +43,13 @@ const CEO_SHARED_API_PATHS = [
   "/api/v2/coach/catalogue",
   "/api/v2/coach/speaking-errors",
   "/api/v2/user/profile",
+  // The training corpus's screens (backend N416, N511): the imports, the
+  // clips, the mixed queue, an import's blind queue and the blind answers.
+  "/api/v2/coach/training-imports",
+  "/api/v2/coach/corpus",
+  "/api/v2/coach/sessions",
+  "/api/v2/coach/snippets",
+  "/api/v2/coach/mlc2",
 ];
 const CEO_HOST_API_PATHS = [...CEO_API_PATHS, ...CEO_SHARED_API_PATHS];
 
