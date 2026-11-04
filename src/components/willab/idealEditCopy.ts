@@ -520,6 +520,9 @@ export const ONE_THING_COPY = {
    *  "Last time: give “{words}” more room." (N347 item 3, signed), {words}
    *  the Sniper's helper words. */
   paceTip: (words: string) => `give “${words}” more room`,
+  /** A slow Sniper's tip, kept the same way: "Last time: keep “{words}”
+   *  moving." (N459 item 2, signed). */
+  slowTip: (words: string) => `keep “${words}” moving`,
   /** Their best: the clip, then this and why it worked. */
   best: "This was your most confident moment.",
   whyItWorked: (cue: string) => `Why it worked: ${cue}`,

@@ -227,6 +227,8 @@ export function useWalkPractise<R>(args: {
   const pending = useRef<{ at: number; step: WalkStep; run: number } | null>(null);
   const urls = useRef<string[]>([]);
   const [aiVoice, setAiVoice] = useState<Record<number, AiVoiceState>>({});
+  const aiVoiceNow = useRef(aiVoice);
+  aiVoiceNow.current = aiVoice;
   const aiAsked = useRef(new Set<number>());
   const aiPractice = useRef(new Map<number, string>());
   // Moments whose clip is being asked and not yet answered.
@@ -433,7 +435,7 @@ export function useWalkPractise<R>(args: {
         return;
       }
       const of = live.current.moments[moment];
-      const words = of ? oneThingTryWords(from.step, of) : null;
+      const words = of ? oneThingTryWords(from.step, of, aiVoiceNow.current[moment]?.clip?.passage) : null;
       const sent = await within(practiseIO.upload(practiceId, audio, durationSec, stoppedAtMs, words), UPLOAD_LIMIT_MS);
       if (!sent) {
         if (current()) late(checkingAt, from.step, attempt + 1);
