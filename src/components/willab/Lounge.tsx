@@ -1793,8 +1793,9 @@ export default function Lounge({
   return (
     /* Like WhatsApp (founder 2026-10-30): the thread runs down to the
        composer. An empty slot takes no room (hidden; never the thread, which
-       is empty while it loads), the thread's -mb-3 cancels the gap under it,
-       and its pb-2 keeps the last message off the composer at the bottom. */
+       is empty while it loads), and the thread's -mb-1 leaves 8px of the
+       gap under it: what scrolls stops 8px above the bar, as the bar keeps
+       8px from the sides and the bottom (N505). */
     <div className="flex flex-1 flex-col gap-3 overflow-hidden [&>:empty:not([data-thread])]:hidden">
       {/* The lenses open as fixed overlays (WalkStage); closed, each is still
           an empty <div>. Out of the column's flow, so their four gaps no
@@ -1836,7 +1837,7 @@ export default function Lounge({
            bar, as the chats with people do (N321 item 3, N467 item 1).
            `data-rhythm`: the rows' spacing, close within a side and wider
            where the side changes (globals.css, N469). */
-        className="scrollbar-none -mb-3 flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain pb-2 [&>:first-child]:mt-auto"
+        className="scrollbar-none -mb-1 flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain [&>:first-child]:mt-auto"
       >
         {thread.hasMore && (
           <button
@@ -2078,7 +2079,8 @@ export default function Lounge({
       <VoiceNoteFixBar notebook={notebook} />
       <form
         onSubmit={handleSend}
-        className={`${plan.composerDisplay(notebook.composerDisplay)} items-end gap-1`}
+        // 8px from the sides (N505): out of the shell's 16px.
+        className={`${plan.composerDisplay(notebook.composerDisplay)} -mx-2 items-end gap-1`}
       >
         {/* THE "+" (founder 2026-10-12, WhatsApp-like): it opens the
             projects, where "Start a new project" starts one. It replaced the

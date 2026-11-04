@@ -261,7 +261,7 @@ export function walkNavOfPager(
 /** The walk's footer box around a sheet's own buttons (WalkFooter's). */
 export function WalkSheetFooter({ children }: { children: ReactNode }) {
   return (
-    <div data-walk-footer className="flex flex-col gap-1 px-5 pb-[max(30px,env(safe-area-inset-bottom))] pt-2">
+    <div data-walk-footer className="bar-space flex flex-col gap-1">
       {children}
     </div>
   );

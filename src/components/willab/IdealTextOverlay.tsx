@@ -1151,9 +1151,10 @@ export default function IdealTextOverlay({
           brought no value to the coach or the user). What remains is one lane:
           take after take, each an official recording. */}
       {shownStatus === "ready" && sd && onReadAloud ? (
-        <div className="shrink-0 bg-background px-4">
-          {/* No space under "Close" (founder 2026-10-30, backend N280): the
-              phone's own home-bar strip is the only margin below it. */}
+        <div className="shrink-0 bg-background bar-space">
+          {/* 8px above, on each side and below (founder 2026-11-04, N505):
+              the text stops 8px above "Record Take N"; "Close" adds nothing
+              under it, its own row holds the 8px (N280). */}
           {/* MASTER DOCUMENT — Save, then the next official take. On a
               computer in the Lounge's column, as the lens is (founder
               2026-10-20: the three views share one column). */}

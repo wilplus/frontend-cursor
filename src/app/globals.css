@@ -719,6 +719,23 @@ button,
 [data-walk-thread] [data-row] [data-bubble] {
   border-radius: 22px;
 }
+/* ONE SPACE AROUND EVERY BOTTOM BAR (founder 2026-11-04, N505, as on
+   WhatsApp): a bar at the bottom of a screen keeps 8px from the bottom edge,
+   8px from each side, and what scrolls above it stops 8px above it (the
+   bar's own top padding, or the 8px gap its host leaves). 8px is what the
+   bottom already measured. A bar that ends in a grey word ("Close",
+   "Cancel") adds nothing under it: the word's own row already holds its
+   8px (N280). A phone's home-bar strip stays the space below where it is
+   bigger. A bar inside the app's shell (`px-4 pb-2`) takes the same 8px by
+   pulling out of the shell's sides instead (`-mx-2`). */
+@layer utilities {
+  .bar-space {
+    padding: 8px 8px max(8px, env(safe-area-inset-bottom, 0px));
+  }
+  .bar-space:has([data-walk-link]:last-child, [data-bar-word]:last-child) {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
 /* THE RHYTHM OF A RUN (founder 2026-11-04, N469, as on WhatsApp): in a
    chat's thread (`data-rhythm`, Will's chat and every chat with a person),
    two rows of the same side in a row sit 2px apart, and where the side
