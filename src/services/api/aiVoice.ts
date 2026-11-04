@@ -27,6 +27,9 @@ export interface AiVoiceState {
      *  once the server has chosen (N120); never a number. */
     problem?: AiClipProblem | null;
     phrase?: string | null;
+    /** The words the clip says and the try is asked for, when the moment
+     *  was too long for a clip and was trimmed (backend N459 item 3). */
+    passage?: string | null;
   } | null;
 }
 
@@ -44,6 +47,7 @@ export function mapAiVoice(data: Record<string, unknown>): AiVoiceState {
           why: typeof raw.why === "string" && raw.why.trim() ? raw.why : null,
           problem: typeof raw.problem === "string" && PROBLEMS.has(raw.problem) ? (raw.problem as AiClipProblem) : null,
           phrase: typeof raw.phrase === "string" && raw.phrase.trim() ? raw.phrase.trim() : null,
+          passage: typeof raw.passage === "string" && raw.passage.trim() ? raw.passage.trim() : null,
         }
       : null,
   };

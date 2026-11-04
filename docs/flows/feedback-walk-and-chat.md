@@ -1933,19 +1933,6 @@ The four lines above were filled from main's history by the page's keeper on
 ## 3. Still open
 
 - **From the walk's audit (2026-11-04, N458), for the founder:**
-  - **The plan's question after a Take** ("When is your deadline?" after
-    Take 1, "Is this for {date}?", the ratings and the consent ask) lands
-    right above the goodbye, so "Record Take 2" shows next to an open
-    question and the plan's taps sit under the goodbye (D4 item 2). Holding
-    the goodbye under it was tried and taken back: it could stay held for
-    good. N453 moves Take 1's question into the processing wait; the
-    others wait on a rule.
-  - **A slow Sniper's Last time** keeps the rushed tip "give “{words}” more
-    room" (N347 item 3 was written for a rushed stretch). Sign a slow tip,
-    or rule that a slow Sniper keeps none (C0a).
-  - **A weakest of 37 words or more** never gets its AI example: the clip
-    is at most 17 s, so only the tip in words shows. Pick only moments the
-    clip can say, or let the clip say the sentence with the phrase.
   - **No tip when the AI voice is off,** deleted, or practice consent is
     off: C4 and N370 list only a failed check, refused limits and no voice
     yet; the AI voice page says the tip stays.
@@ -2113,6 +2100,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N459 · C0a, C4, T, D4: no "When is your deadline?" after the walk, the deadline is set in the set-up before it; a slow Sniper's Last time says "Last time: keep “{words}” moving." (`ONE_THING_COPY.slowTip`, signed), a rushed one keeps "give “{words}” more room"; a weakest moment too long for the AI clip (17 s at the slow reading) is trimmed to the part around what the clip teaches (`ai_voice_prompt.fit_to_clip`), so its clip is always made, and the speaker's try asks for and is checked on the same trimmed words (`clip.passage`); the moment's own words above the clip stay whole. Was: the deadline asked above the goodbye after Take 1; the rushed tip after a slow Sniper; a moment of 37 words or more got only the tip in words · BE N459 log (#1689), BE (next PR), FE (this PR)
 - 2026-11-04 · N458 · C9, D4, E1, E2, B3, B8: the chat after the walk comes however the walk ends: Close, ✕ on the finished walk, or opening a finished Take that has none yet. ✕ and the page's own open ask only when the chat's newest recording is this Take's own, so an older Take's chain never lands under a newer one; the summary is asked once per Take whichever page asks, asked again if it failed, and the chat reloads either way; a coach's late word closed with ✕ ends nothing (`askSummary`). While the summary and the chain are written the chat shows the typing dots, a tapped answer to Will too; a failed read of the chat keeps it on screen. The first Take's goodbye says it is the first Take's (`metadata.first_take`), so "Record Take 2" comes at once and records the real talk on any device. A "#" note under Will's question no longer brings his next question (`answered_first`); from Take 3 the deeper question waits until who, what and the key line are all known. Was: only the Close pill brought the chain, ✕ ended the review with nothing after it; the chat sat still with no dots for the summary's model call; the first Take's goodbye was known only on the device that started it; a note brought the next question; the deeper question came after an unanswered key line · BE #1687, FE (this PR)
 - 2026-11-04 · N458 · C8, B7: another speaker's moment lands one bubble at a time; the chosen face holds 0.28 s, then the answer and "Got it." land, then the walk moves on (`WalkOverlay` `onSettled`), and the faces leave the dock once the answer shows; "Audio unclear" answers at once; their clip is asked for as the walk opens on Take 2 or later, so it is ready when the walk gets there (`prefetchOtherClips`, kept 10 minutes, under the signed link's 15). Was: the intro and the clip, then the answer and "Got it.", popped in together; the clip was asked for only on reaching the step · FE (this PR)
 - 2026-11-04 · N458 · A2, B5, B7, C0, C0a: the walk opens whole behind the wait cover: it waits for the speaker's name, the last walk's fix and, when the Sniper may be the fix, the tempo answer, at most 2.5 s after its moments are there (`walkOpens`, `WALK_OPEN_WAIT_MS`); the hello and Last time are the first part's opening and land in order, the hello behind the typing dots like every grey bubble (N440 item 1); Last time's tip comes from the server (`tip` beside `last`), the chat's loaded messages only as the fallback. Was: "Hi." could change to "Hi Maya." in place and the chat kept "Hi."; Last time popped in above their best; its tip was lost once the last fix step was older than the chat's last 50 messages · BE #1687, FE (this PR)

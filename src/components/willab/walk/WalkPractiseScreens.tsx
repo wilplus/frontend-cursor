@@ -100,7 +100,7 @@ function TryBubble({
       ? { src: moment.clip.src, startOffsetMs: moment.clip.startOffsetMs, durationMs: moment.clip.durationMs }
       : null;
   const label = WALK_COPY.practiseN(attempt ?? 1);
-  const said = oneThingTryWords(step, moment);
+  const said = oneThingTryWords(step, moment, ctx.aiVoiceOf?.(moment.index)?.clip?.passage);
   return (
     <WalkPlayer
       look="me"

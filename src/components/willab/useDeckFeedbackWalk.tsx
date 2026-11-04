@@ -1020,7 +1020,8 @@ export function useDeckFeedbackWalk(args: {
      step, so the walk opened again draws the game as it went (B5, N247);
      the game itself kept for Will's note. As the One thing walk's fix its
      opening keeps its tip, "give “{words}” more room" with the Sniper's
-     helper words, for "Last time" next Take (N347 item 3). */
+     helper words (a slow stretch's "keep “{words}” moving", N459 item 2),
+     for "Last time" next Take (N347 item 3). */
   const onTempo = useCallback(
     (event: TempoEvent, one = false) => {
       if (!tempo) return;
@@ -1035,7 +1036,7 @@ export function useDeckFeedbackWalk(args: {
         if (clip) say("clip:tempo", "speaker", "", null, { clip });
         // As the walk opens it (N435 item 6): a rushed Sniper's one line.
         const opening = tempoOpening(tempo, one);
-        say("tempo:open", "app", [...opening.lines, ...(opening.withScale ? [opening.withScale] : [])].join("\n"), null, words ? { fix_tip: ONE_THING_COPY.paceTip(words.text) } : undefined);
+        say("tempo:open", "app", [...opening.lines, ...(opening.withScale ? [opening.withScale] : [])].join("\n"), null, words ? { fix_tip: (tempo.reading === "slow" ? ONE_THING_COPY.slowTip : ONE_THING_COPY.paceTip)(words.text) } : undefined);
       } else if (event.kind === "try") {
         say("tempo:try", "speaker", TEMPO_COPY.tryLabel(event.n), event.n, { path: event.path.slice(0, 300).map((v) => Math.round(v * 1000) / 1000) });
         // The Sniper as the One thing walk's fix says its own words (N309).

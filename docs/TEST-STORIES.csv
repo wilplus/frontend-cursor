@@ -558,7 +558,8 @@ O10 Just joined (/chat?with=<chat>), the list opens with Will's row
 first, as always, and right under it the chat with the one who invited
 me, marked new with the joined line; the address is clean again;
 opened, it is a chat like the rest (N357, N360; was N348 item 1, and
-N357's inviter above Will).
+N357's inviter above Will). Will's row has his newest line, bold with
+the dot, until his chat is open (N457 item 2).
 O11 On the web and in the iPhone app, Will's chat never shows for a moment
 before the list covers it: the loader stands in front until the list
 has answered, and it never waits on the rings (N354, N456).
@@ -792,7 +793,7 @@ helper words its chat kept (D2, E1).
 O10 With no moment to fix, the pace game is the One thing walk's fix,
 and its opening keeps its tip, ""give “{words}” more room"" with the
 Sniper's helper words, in the chat for ""Last time"" next Take (N347
-item 3); its scale names its zones ""too slow"", ""just right"", ""too
+item 3), a slow stretch's ""keep “{words}” moving"" (N459 item 2); its scale names its zones ""too slow"", ""just right"", ""too
 fast"", and Skip gets ""Okay, we'll skip this one."" in the walk and the
 chat (N405). The chat says ""And now, one thing to improve:"", the
 stretch's clip and the Sniper's line in the walk's order (E2).
@@ -822,7 +823,8 @@ O9 -> ""the One thing walk saves its helper words without a pick, settles both m
 ""an older Take's finished walk, played again and closed with ✕ under a newer Take, asks no summary (D4, between two Takes)"",
 ""a page opened again while the summary is still written asks it no second time, the dots on until it ends (C9, D4)"",
 ""a finished Take's page opened later asks the summary with the try and the helper words its chat kept (D2, E1)""
-O10 -> ""the pace game as the walk's fix keeps its tip in the chat, for Last time next Take (N347 item 3)""
+O10 -> ""the pace game as the walk's fix keeps its tip in the chat, for Last time next Take (N347 item 3)"",
+""a slow stretch as the walk's fix keeps its own tip, for Last time next Take (N459 item 2)""
 O11 -> ""the walk opens whole, behind the wait: my name in the hello and Last time from the server's tip, before my best (C0, C0a)"",
 ""the walk never waits on its reads past its bound: a profile that never answers opens it with \""Hi.\""""
 O12 -> ""a walk closed during its Clearer version's try opens again on the Clearer version, never the AI clip (N381)""
@@ -1855,7 +1857,10 @@ helper words, none past the cap of eight (N347 item 3).
 O15 After ""Keep mine"" the chat keeps ""Your words it is."", but my Feedback
 walk and Continue review still open on the Clearer version it
 answers, never on the live recorder with the mic on (N452 item 1,
-B10, C7).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
+B10, C7).
+O16 After the AI clip, my try's words are the part of my moment the clip
+says when the moment was too long for a clip and was trimmed; the
+Clearer version's tries keep their own words (backend N459 item 3).","O1 -> ""stores a step seen twice once, as the app's or the speaker's own message, with no score""
 O2 -> ""posts judging other speakers as the prototype's chat does, never their recording""
 O3 -> ""counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles""
 O4 -> ""stores the sharing question and says the choice as one line on the next recording, also for a question stored as three""
@@ -1869,7 +1874,8 @@ O11 -> ""gives the walk the summary as the chat holds it, with the version a coa
 O12 -> ""draws each Take's card right under its Feedback walk, after the walk's end, what was said in between under the pair""
 O13 -> ""opens the Feedback walk on the coach's word, on what waits, on its newest part, or on the Take alone, never with no door""
 O14 -> ""the One thing walk's judged moment turns its level, says its words, and last time finds the tip the Take before kept""
-O15 -> ""keeps the door on the Clearer version under its Your words it is. row, never on the live recorder""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word); founder 2026-10-31, N309 (the One thing walk); N347 item 3 (every fix gets its Last time, the pace game too)."
+O15 -> ""keeps the door on the Clearer version under its Your words it is. row, never on the live recorder""
+O16 -> ""asks the try after the AI clip for the trimmed words the clip says""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word); founder 2026-10-31, N309 (the One thing walk); N347 item 3 (every fix gets its Last time, the pace game too)."
 src/services/api/accountDeletion.test.ts,Story,"As a speaker, I want ""delete my account"" to send one deletion request and show me how long I have to change my mind, and a refusal to change nothing, so that I can trust deletion and cancel it in time.","O1  Asking to delete sends one request with a one-time key and shows the
 pending deletion with its end date.
 O2  A refusal or no connection records nothing.

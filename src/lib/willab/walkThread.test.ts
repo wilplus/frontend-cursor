@@ -54,6 +54,9 @@ OUTCOME
       walk and Continue review still open on the Clearer version it
       answers, never on the live recorder with the mic on (N452 item 1,
       B10, C7).
+  O16 After the AI clip, my try's words are the part of my moment the clip
+      says when the moment was too long for a clip and was trimmed; the
+      Clearer version's tries keep their own words (backend N459 item 3).
 PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own message, with no score"
          O2 -> "posts judging other speakers as the prototype's chat does, never their recording"
          O3 -> "counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles"
@@ -69,6 +72,7 @@ PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own
          O13 -> "opens the Feedback walk on the coach's word, on what waits, on its newest part, or on the Take alone, never with no door"
          O14 -> "the One thing walk's judged moment turns its level, says its words, and last time finds the tip the Take before kept"
          O15 -> "keeps the door on the Clearer version under its Your words it is. row, never on the live recorder"
+         O16 -> "asks the try after the AI clip for the trimmed words the clip says"
 WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12);
          founder 2026-10-19, N80 (when the coach changes their word);
          founder 2026-10-31, N309 (the One thing walk); N347 item 3 (every
@@ -76,7 +80,7 @@ WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12);
 */
 import { describe, expect, it } from "vitest";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "@/components/willab/idealEditCopy";
-import { aiVoiceChat, answerBody, chatDrawsStep, chatWalks, coachNoteToChat, feedbackWalkDoor, fixClipsIn, inPairs, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, shareChat, shareLines, shownStep, sniperWords, stableUuid, storedSummaryOf, walkPairs, walkStepDraft, withoutOpeningFillers, wordsEditedIn } from "./walkThread";
+import { aiVoiceChat, answerBody, oneThingTryWords, chatDrawsStep, chatWalks, coachNoteToChat, feedbackWalkDoor, fixClipsIn, inPairs, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, shareChat, shareLines, shownStep, sniperWords, stableUuid, storedSummaryOf, walkPairs, walkStepDraft, withoutOpeningFillers, wordsEditedIn } from "./walkThread";
 import { tipSaid } from "./walkLines";
 import { readLastFix } from "@/services/api/reviewLastFix";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -282,6 +286,17 @@ describe("the hello and the AI clip's short bubble in the Lounge (founder 2026-1
     const practise = { key: "exVideo", moment: 0 } as WalkStep;
     expect(shownStep(practise, praised, null)).toBeNull();
     expect(momentChat([practise], practise, praised)).toBeNull();
+  });
+});
+
+describe("the try after the AI clip (backend N459 item 3)", () => {
+  it("asks the try after the AI clip for the trimmed words the clip says", () => {
+    const said = "Last year we tried three ways to grow, and none worked. We think the timing matters.";
+    const moment = { said, clearer: { say: "Timing matters.", said } } as unknown as Parameters<typeof oneThingTryWords>[1];
+    const ai = { key: "practise", one: true, moment: 0 } as WalkStep;
+    expect(oneThingTryWords(ai, moment, null)).toBe(said);
+    expect(oneThingTryWords(ai, moment, "We think the timing matters.")).toBe("We think the timing matters.");
+    expect(oneThingTryWords({ ...ai, kind: "words" } as WalkStep, moment, "We think the timing matters.")).toBe("Timing matters.");
   });
 });
 
