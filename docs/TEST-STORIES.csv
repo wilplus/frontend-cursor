@@ -593,7 +593,13 @@ from lit. Forward (the swipe from the list's right edge in the app,
 the browser's Forward on the web) opens the chat I just left again;
 before I have left one, it does nothing (N378, N436).
 O18 An answer the backend refused stays in the bar's middle, ""Not sent""
-with ""Send again"", which sends the same Take (N441 item 1).","O1 -> ""as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read""
+with ""Send again"", which sends the same Take (N441 item 1).
+O21 At the foot of the other person's profile, ""Block {name}"" asks first
+and then blocks them: the backend is told, ""{name} is blocked."" shows,
+and back in the chat the bar is one pill, ""You blocked {name}."" with
+Unblock, the earlier messages still there; Unblock unblocks at once.
+""Report {name}"" asks first too, and ""Report and block"" reports them
+with the block (N466).","O1 -> ""as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read""
 O19 -> ""as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar""
 O20 -> ""as a developer, a chats row in the rings, on or off, changes nothing""
 O2 -> ""with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back""
@@ -613,7 +619,8 @@ O15 -> ""an answer sent to me plays with its slides following the voice, its wor
 O16 -> ""a marked question takes Record an answer, and my answer goes with Sending, Undo and Sent""
 O17 -> ""the device's Back goes back by one, to the list, never off it, and Forward opens the chat I just left""
 O17 -> ""in the app, a swipe from the left edge goes back to the list where I left it, and one from the right edge forward to the chat I just left""
-O18 -> ""a refused answer stays as Not sent, and Send again sends the same Take""",
+O18 -> ""a refused answer stays as Not sent, and Send again sends the same Take""
+O21 -> ""from their profile I block them, the bar says so with Unblock, and Report and block reports with the block""",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.

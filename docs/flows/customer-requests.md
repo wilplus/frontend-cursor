@@ -216,6 +216,33 @@ rest is built in.
      them. A new name is the name your chats show. The only place in the
      app where a person types. Not yet: the About written from the setup's
      voice note (it waits for the setup).
+   - **Block and Report** (N466, the locked prototype "One bar" with its
+     Block and Report additions): at the foot of a person's profile, the
+     one their chat's top bar opens (never your own, never Will's), a
+     white box with two red rows (#B42318), "Block {name}" and "Report
+     {name}", {name} as the chat shows it; once blocked, the first reads
+     "Unblock {name}", not red. "Block {name}" opens a sheet like the add
+     sheet (a handle, the title large, the grey line, full-width round
+     buttons): "Block {name}?", "{name} can't send you messages or
+     answers. {name} isn't told.", a filled red "Block", "Cancel"; then
+     the toast "{name} is blocked." (a small black pill near the top,
+     about two seconds). In that chat the bar (the "+", the
+     middle, the mic) is one grey pill, "You blocked {name}." with a white
+     "Unblock" on its right; the earlier messages stay. Unblock, from the
+     pill or the profile's row, asks nothing: "{name} is unblocked."
+     "Report {name}" opens the same sheet: "Report {name}?", "The last five
+     messages in this chat go to WillpowerLab, where a person reads them
+     within a day. {name} isn't told.", a filled red "Report", an outlined
+     red "Report and block", "Cancel"; then "Reported. Thank you." or
+     "Reported and blocked." Each waits for the backend
+     (`POST`/`DELETE /v2/chats/<id>/block`, `POST /v2/chats/<id>/report`
+     with `{"block": …}`); a refusal changes nothing and shows nothing. The
+     list's and the thread's reads say whether you blocked them
+     (`blocked`). The founder reads each report in the CEO panel's
+     "Reports", newest first: who reported whom, when, 🚫 when they
+     blocked too, the five messages (each author with its words, an emoji,
+     a voice note's words, "📷" or "📄 {file name}"), and "Mark as read";
+     "No reports yet." when there are none (admin-only words).
    - **Will's chat** has its own top bar too, as every chat (N334 item
      1): back, his mark and "Will", over the Lounge; the WillpowerLab bar
      shows on the list only. Was (N322 item 4): the WillpowerLab bar with
@@ -551,6 +578,14 @@ them:
   "Files", "Someone else", "Cancel", and "Add to your chat with {name}" as
   its name for a screen reader. The list's "📷" and "📄 {file name}" are an
   emoji and the person's own file name.
+- Block and Report (N466): "Block {name}", "Unblock {name}", "Report
+  {name}", "Block {name}?", "{name} can't send you messages or answers.
+  {name} isn't told.", "Block", "Cancel", "{name} is blocked.", "You
+  blocked {name}.", "Unblock", "{name} is unblocked.", "Report {name}?",
+  "The last five messages in this chat go to WillpowerLab, where a person
+  reads them within a day. {name} isn't told.", "Report", "Report and
+  block", "Reported. Thank you.", "Reported and blocked."; in the CEO
+  panel only, "Reports", "Mark as read", "No reports yet.".
 
 ---
 
@@ -571,7 +606,8 @@ status and the filters. Built since: the join link, the add sheet and the join p
 (C1, N308, N328, N335); the "+" in a chat with a person, with Photos,
 Camera, Files and Someone else (C1, N351); "Record an answer", a marked
 question answered with a Take that goes back to the chat (C1, N361,
-N363).
+N363); Block and Report from a person's profile, the reports in the CEO
+panel (C1, N466).
 There is no typing outside Will's chat (N298 item 4).
 
 Nothing else built. The order of the build, each slice proving one thing (N223
@@ -667,6 +703,13 @@ sheet reused from `ChatList.tsx`; the BFF routes `[chatId]/photo/` and
 `[chatId]/messages/[messageId]/file/`; the backend's
 `POST /v2/chats/<id>/photo`, `POST /v2/chats/<id>/file` and
 `GET /v2/chats/<id>/messages/<messageId>/file` (table `chat_message_files`).
+Block and Report (N466): the rows, the sheets, the blocked bar and the toast
+in `BlockReport.tsx` (the profile's foot in `Profile.tsx`, the bar in
+`ChatThread.tsx`); the BFF routes `[chatId]/block/` and `[chatId]/report/`;
+the CEO panel's Reports in `src/components/ceo/CeoReports.tsx`, read through
+`src/app/api/v2/admin/ceo/chat-reports/` (so the CEO host serves it) from the
+backend's `GET /v2/admin/chat-reports` and
+`POST /v2/admin/chat-reports/<id>/handled`.
 
 The rest is not built. Where it will live, so §1 has a home from the first PR:
 
@@ -733,6 +776,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-04 · N467 · C1: every choice in a chat, a person's included, follows the chat page's J7, locked for the whole app; Will's chat starts at the bottom, as the chats with people do · BE N467 log (#1695), FE (this PR)
+- 2026-11-04 · N466 · C1, K, §2, §4: Block and Report: at the foot of a person's profile (never yours, never Will's), "Block {name}" and "Report {name}" in red; Block asks in a sheet ("Block {name}?", a red "Block", "Cancel"), then "{name} is blocked." and, in that chat, the bar is one grey pill "You blocked {name}." with "Unblock", which needs no sheet ("{name} is unblocked."); Report asks in a sheet ("Report {name}?", a red "Report", an outlined red "Report and block", "Cancel"), then "Reported. Thank you." or "Reported and blocked."; the founder reads the reports, newest first, with the five messages and "Mark as read", in the CEO panel's Reports (`BlockReport.tsx`, `Profile.tsx`, `ChatThread.tsx`, `CeoReports.tsx`). Was: no way to block or report someone · BE (next PR), FE (this PR)
 - 2026-11-04 · N460 · C1: the bar made calmer: in a person's chat the mic is a bare icon at rest and orange without pulsing when your words are awaited, quiet beside "Record an answer"; Undo and Send again are bold words in their pill; the "+" turns into a ✕ in its place to close the tiles, and "Cancel" goes; in Will's chat, Your projects is a stack icon. Was: the mic in a grey circle, orange and pulsing beside Record an answer too; Undo and Send again white pills; Cancel under the tiles; a "+" for Your projects (`ChatThread.tsx`, `Lounge.tsx`) · BE (N460 PR), FE (this PR)
 - 2026-11-03 · N457 · C1: Will's row shows his chat's newest line, read from the Lounge's thread underneath (words only: a card, a walk step or a status is not a line), new with the bold name and orange dot while it is his and newer than the last time his chat was open on this device; just joined through a link, it is "Your first Take is five questions…" above the inviter's chat. Joining works for anyone since the chats are everyone's (N456). Was: Will's row had no line · FE (this PR)
 - 2026-11-03 · N456 · C1, §2, K: the list of chats and every chat's own top bar are the default for every signed-in person, on the web and in the iPhone app, locked (backend docs/LOCKS.md, "The chats, all of a piece"): no ring decides them (`useChatsOn` is the session; backend `chats.enabled` every signed-in person); the loader, never Will's chat, waits for the list on the web too. Tests say it as stories: as a user, as a visitor, as a developer (`chats.test.tsx`); as a user and as a server (backend `test_chats.py`, `test_chat_links.py`, `test_people_profiles.py`). Was: ring 6 only (feature `chats`); everyone else opened Will's chat under the WillpowerLab bar · BE N456 log (#1682), BE (#1684), FE (this PR)

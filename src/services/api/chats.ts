@@ -11,7 +11,15 @@ export type ChatKind = "team" | "customer";
 export type ChatMessageKind = "emoji" | "text" | "voice" | "photo" | "file";
 
 export type ChatLast = { kind: ChatMessageKind; body: string; created_at: string };
-export type Chat = { id: string; kind: ChatKind; title: string; subtitle: string; last: ChatLast | null };
+export type Chat = {
+  id: string;
+  kind: ChatKind;
+  title: string;
+  subtitle: string;
+  last: ChatLast | null;
+  /** You have blocked the other person (backend N466). */
+  blocked?: boolean;
+};
 export type ChatMessage = {
   id: string;
   mine: boolean;
@@ -62,14 +70,57 @@ export async function getChatMessages(chatId: string): Promise<ChatMessage[] | n
 }
 
 /** A chat's messages, oldest first, and, for the one who joined it through
- *  someone's link, that person's first name (backend N308, N335 item 2). */
+ *  someone's link, that person's first name (backend N308, N335 item 2);
+ *  `blocked`, whether you have blocked the other person (N466). */
 export async function getChatThread(
   chatId: string,
-): Promise<{ messages: ChatMessage[]; joinedThrough: string | null } | null> {
+): Promise<{ messages: ChatMessage[]; joinedThrough: string | null; blocked: boolean } | null> {
   const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/messages`, { method: "GET" });
   if (!body || !Array.isArray(body.messages)) return null;
   const through = typeof body.joined_through === "string" && body.joined_through ? body.joined_through : null;
-  return { messages: body.messages as ChatMessage[], joinedThrough: through };
+  return { messages: body.messages as ChatMessage[], joinedThrough: through, blocked: body.blocked === true };
+}
+
+/** Block (`true`) or unblock (`false`) the other person in a chat (backend
+ *  N466): they can't send you messages or answers, and aren't told. True
+ *  once the backend says the chat is so; false on any refusal. */
+export async function setChatBlocked(chatId: string, blocked: boolean): Promise<boolean> {
+  const path = `/api/v2/chats/${encodeURIComponent(chatId)}/block`;
+  const body = await call(path, blocked ? { method: "POST", json: {} } : { method: "DELETE" });
+  return body?.blocked === blocked;
+}
+
+/** Report the other person (backend N466): the chat's last five messages
+ *  go to WillpowerLab; `block` blocks them too. Whether they are now
+ *  blocked, or null when the report was refused. */
+export async function reportChat(chatId: string, block: boolean): Promise<{ blocked: boolean } | null> {
+  const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/report`, { method: "POST", json: { block } });
+  return body?.reported === true ? { blocked: body.blocked === true } : null;
+}
+
+/** A report as the founder reads it in the CEO panel (backend N466): who
+ *  reported whom, when, whether they blocked too, and the five messages. */
+export type ChatReportMessage = { author: string; kind: ChatMessageKind; body: string; words: string | null; created_at: string };
+export type ChatReport = {
+  id: string;
+  created_at: string;
+  reporter: string;
+  reported: string;
+  blocked: boolean;
+  handled_at: string | null;
+  messages: ChatReportMessage[];
+};
+
+/** The reports, for the founder only; null when refused. */
+export async function getChatReports(): Promise<ChatReport[] | null> {
+  const body = await call("/api/v2/admin/ceo/chat-reports", { method: "GET" });
+  return body && Array.isArray(body.reports) ? (body.reports as ChatReport[]) : null;
+}
+
+/** "Mark as read": when it was, or null when refused. */
+export async function markChatReportHandled(reportId: string): Promise<string | null> {
+  const body = await call(`/api/v2/admin/ceo/chat-reports/${encodeURIComponent(reportId)}/handled`, { method: "POST", json: {} });
+  return typeof body?.handled_at === "string" ? body.handled_at : null;
 }
 
 /** The caller's own join link (backend N308): its path, "/c/<token>". */
