@@ -54,7 +54,8 @@ OUTCOME
       has answered, and it never waits on the rings (N354, N456).
   O12 The "+" in a chat swaps the bar for four tiles with their names,
       Photos, Camera, Files and Someone else; Someone else opens the add
-      sheet with my link; Cancel brings the bar back (N351).
+      sheet with my link; a ✕ where the "+" was brings the bar back (N351,
+      N460 item 4).
   O13 A photo I pick is posted to the chat's photo route and joins the
       thread as my image; the mic then turns orange, so I can say what I
       need, and is plain once my voice note is sent (N337, N341 item 2,
@@ -68,7 +69,7 @@ OUTCOME
       and its words closed behind "Read it"; no Take number.
   O16 A question Will marked as about a product or a treatment takes one
       black "Record an answer" in the bar's middle, the "+" and the mic on its
-      sides (N321 item 4, N361, N368); it hands the recording screens the
+      sides, the mic quiet beside it (N321 item 4, N361, N368, N460 item 2); it hands the recording screens the
       chat, the person and the question. Back from them, the bar's middle
       reads "Sending to {name}… {n}" with Undo while the answer, already
       with the backend, waits out its 5 seconds there (N441 item 3); then
@@ -94,7 +95,7 @@ PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is 
          O9 -> "a chat joined through a link says whose link it was"
          O10 -> "after joining, the list opens with Will first and the one who invited me under him, marked new"
          O11 -> "as a user, the loader, not Will's chat, waits for my list, on the web and in the app, and never for the rings"
-         O12 -> "the + shows the four tiles, Someone else opens my link, and Cancel brings the bar back"
+         O12 -> "the + shows the four tiles, Someone else opens my link, and the ✕ in its place brings the bar back"
          O13 -> "a photo I send joins the thread and the mic shows until my voice note says what I need"
          O14 -> "the other person's photo or file waits for my voice, and each opens from the chat's file route"
          O15 -> "an answer sent to me plays with its slides following the voice, its words behind Read it"
@@ -663,7 +664,7 @@ describe("the chats in front of the Lounge", () => {
     expect(container.querySelector("[data-chat-name]")?.textContent).toBe("Ariel");
   });
 
-  it("the + shows the four tiles, Someone else opens my link, and Cancel brings the bar back", async () => {
+  it("the + shows the four tiles, Someone else opens my link, and the ✕ in its place brings the bar back", async () => {
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
     routes.set("GET /api/v2/chats/c-ariel/messages", () => ({ messages: [] }));
@@ -675,7 +676,8 @@ describe("the chats in front of the Lounge", () => {
     await tap(bar().querySelector('button[aria-label="Add to your chat with Ariel"]'));
     expect(bar().querySelector("[data-chat-emoji-box]")).toBeNull();
     expect([...bar().querySelectorAll("[data-chat-tile]")].map((t) => t.textContent)).toEqual(["Photos", "Camera", "Files", "Someone else"]);
-    await tap(bar().querySelector("[data-chat-tiles-cancel]"));
+    expect(bar().textContent).not.toContain("Cancel");
+    await tap(bar().querySelector('[data-chat-tiles-close][aria-label="Close"]'));
     expect(bar().querySelector("[data-chat-tile]")).toBeNull();
     expect(bar().querySelector("[data-chat-emoji-box]")).not.toBeNull();
 
@@ -880,6 +882,8 @@ describe("the chats in front of the Lounge", () => {
     expect(container.querySelector("[data-chat-emoji-box]")).toBeNull();
     expect(container.querySelector("[data-chat-bar] [data-chat-plus]")).not.toBeNull();
     expect(container.querySelector("[data-chat-bar] [data-chat-mic]")).not.toBeNull();
+    // One loud thing at a time: the mic stays quiet beside it (N460 item 2).
+    expect(container.querySelector("[data-chat-bar] [data-chat-mic-hot]")).toBeNull();
     await tap(button);
     expect(recordedAnswers).toEqual([{ chatId: "c-sarah", name: "Sarah", question, customer: true }]);
 

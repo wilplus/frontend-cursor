@@ -148,8 +148,8 @@ export const sentTo = (name: string) => `Sent to ${name}`;
 export const READ_IT = "Read it";
 export const HIDE_WORDS = "Hide";
 
-/** The "+" (backend N337, N351, signed): its name for a screen reader, its
- *  four tiles and the quiet link that brings the bar back. */
+/** The "+" (backend N337, N351, signed): its name for a screen reader and
+ *  its four tiles; a ✕ in its place closes them (N460 item 4; was "Cancel"). */
 export const addToChatWith = (name: string) => `Add to your chat with ${name}`;
 export const PLUS_TILES: readonly { id: "photos" | "camera" | "files" | "someone"; label: string; color: string; Icon: LucideIcon }[] = [
   { id: "photos", label: "Photos", color: "#7C5CFF", Icon: ImageIcon },
@@ -157,8 +157,6 @@ export const PLUS_TILES: readonly { id: "photos" | "camera" | "files" | "someone
   { id: "files", label: "Files", color: "#2F7CF6", Icon: FileIcon },
   { id: "someone", label: "Someone else", color: "#1F9D55", Icon: UserPlus },
 ];
-export const PLUS_CANCEL = "Cancel";
-
 /** A voice note's words, closed under its player (backend N331): "Read it"
  *  opens them inside the bubble, "Hide" closes them. Closed by default, for
  *  both people, so the voice is heard; shown only once there are words. */
@@ -457,6 +455,14 @@ export function micShows(messages: readonly ChatMessage[] | null): boolean {
   return newest.kind === "text" || newest.meta?.question === true;
 }
 
+/** The mic is orange while the other person's words wait for yours; not
+ *  while an answer goes, nor beside "Record an answer", the one thing to do
+ *  then (N460 item 2: one loud thing at a time). */
+function micHot(messages: readonly ChatMessage[] | null, pending: unknown, question: string | null, onRecordAnswer: unknown): boolean {
+  if (pending || (question && onRecordAnswer)) return false;
+  return micShows(messages);
+}
+
 /** The question "Record an answer" answers, when the other person's question
  *  waits and Will marked it as about a product or a treatment
  *  (`meta.record_answer`, backend N361 item 1): its words, the answer's one
@@ -494,12 +500,23 @@ function RecordAnswerButton({ onClick }: { onClick: () => void }) {
 }
 
 /** The "+"'s four tiles in the bar's place, each a round colour with its
- *  name under it, and "Cancel" under the row, quiet, which brings the bar
- *  back (N351; the prototype's `attachSheet`). */
+ *  name under it (N351; the prototype's `attachSheet`), and a ✕ where the
+ *  "+" was, which brings the bar back (N460 item 4; was "Cancel" under the
+ *  row). */
 function PlusTiles({ onTile, onCancel }: { onTile: (id: (typeof PLUS_TILES)[number]["id"]) => void; onCancel: () => void }) {
   return (
-    <div data-chat-tiles="" className="flex min-w-0 flex-1 flex-col gap-2 pt-2">
-      <div className="grid grid-cols-4 gap-x-1.5 gap-y-2.5 px-0.5 pb-0.5 pt-1.5">
+    <div data-chat-tiles="" className="flex min-w-0 flex-1 items-start gap-1 pt-2">
+      {/* The "+" turned into ✕, in its place: it closes the tiles (N460 item 4). */}
+      <button
+        type="button"
+        onClick={onCancel}
+        aria-label={CHUNK_SHEET_COPY.pillClose}
+        data-chat-tiles-close=""
+        className="mt-4 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
+      >
+        <X className="h-5 w-5" aria-hidden />
+      </button>
+      <div className="grid min-w-0 flex-1 grid-cols-4 gap-x-1.5 gap-y-2.5 px-0.5 pb-0.5 pt-1.5">
         {PLUS_TILES.map(({ id, label, color, Icon }) => (
           <button
             key={id}
@@ -515,9 +532,6 @@ function PlusTiles({ onTile, onCancel }: { onTile: (id: (typeof PLUS_TILES)[numb
           </button>
         ))}
       </div>
-      <button type="button" data-chat-tiles-cancel="" onClick={onCancel} className="h-[34px] w-full text-[16px] text-muted-foreground">
-        {PLUS_CANCEL}
-      </button>
     </div>
   );
 }
@@ -557,7 +571,8 @@ export function sendTick(): void {
 
 /** "Sending to {name}… {n}" with Undo, in the middle of the bar while an
  *  answer goes (backend N368 item 1, N345); "Not sent" with "Send again"
- *  when it was refused (N441 item 1). */
+ *  when it was refused (N441 item 1). The action is a bold word in the
+ *  pill, not a pill of its own (N460 item 3). */
 function SendingPill({ name, startedAt, waited, failed }: { name: string; startedAt: number; waited: boolean; failed: boolean }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -570,7 +585,7 @@ function SendingPill({ name, startedAt, waited, failed }: { name: string; starte
     return (
       <div data-chat-sending="failed" className="flex h-12 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-muted pl-[18px] pr-1.5 text-[14.5px]">
         <span className="min-w-0 truncate text-foreground">{NOT_SENT}</span>
-        <button type="button" onClick={sendAgain} data-chat-send-again="" className="h-9 shrink-0 rounded-full bg-background px-4 text-[14.5px] font-semibold text-foreground">
+        <button type="button" onClick={sendAgain} data-chat-send-again="" className="h-9 shrink-0 rounded-full px-3 text-[14.5px] font-semibold text-foreground">
           {SEND_AGAIN}
         </button>
       </div>
@@ -583,7 +598,7 @@ function SendingPill({ name, startedAt, waited, failed }: { name: string; starte
         {waited ? "" : ` ${left}`}
       </span>
       {waited ? null : (
-        <button type="button" onClick={undoAnswer} data-chat-undo="" className="h-9 shrink-0 rounded-full bg-background px-4 text-[14.5px] font-semibold text-foreground">
+        <button type="button" onClick={undoAnswer} data-chat-undo="" className="h-9 shrink-0 rounded-full px-3 text-[14.5px] font-semibold text-foreground">
           {UNDO}
         </button>
       )}
@@ -594,9 +609,10 @@ function SendingPill({ name, startedAt, waited, failed }: { name: string; starte
 /** One bar in every chat (backend N368, the locked prototype "One bar" v12):
  *  three places that never move: the "+" on the left (N351), the one thing
  *  to do now in the middle (the three emoji, Record an answer, or "Sending
- *  to {name}…"), and your voice on the right, always there, orange and
- *  pulsing while someone waits for your words. No typing outside Will's
- *  chat. Was (N341): the mic only while a question waited. */
+ *  to {name}…"), and your voice on the right, always there: a bare icon at
+ *  rest, orange while someone waits for your words (N460 items 1 and 2; was
+ *  a grey circle, pulsing). No typing outside Will's chat. Was (N341): the
+ *  mic only while a question waited. */
 function EmojiBar({
   name,
   onPlus,
@@ -609,7 +625,8 @@ function EmojiBar({
   onPlus: () => void;
   onPick: (emoji: ChatEmoji) => void;
   onMic: (() => void) | null;
-  /** Someone waits for your words: the mic is orange and pulses. */
+  /** Someone waits for your words: the mic is orange, and still (N460
+   *  item 2; was pulsing). */
   hot?: boolean;
   /** What stands in the middle instead of the emoji. */
   middle?: ReactNode;
@@ -648,7 +665,7 @@ function EmojiBar({
           data-chat-mic=""
           data-chat-mic-hot={hot ? "" : undefined}
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${
-            hot ? "animate-pulse bg-[#FF640A] text-white" : "bg-muted text-foreground hover:bg-muted/70"
+            hot ? "bg-[#FF640A] text-white" : "text-foreground hover:bg-muted"
           }`}
         >
           <Mic className="h-5 w-5" aria-hidden />
@@ -829,7 +846,7 @@ export default function ChatThread({
             onPlus={() => setTiles(true)}
             onPick={(emoji) => void send(emoji)}
             onMic={pending ? null : () => void note.start()}
-            hot={micShows(messages) && !pending}
+            hot={micHot(messages, pending, question, onRecordAnswer)}
             middle={
               pending ? (
                 <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited} failed={pending.failed} />
