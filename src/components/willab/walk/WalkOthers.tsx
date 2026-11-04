@@ -211,6 +211,12 @@ export default function WalkOthers({
     setGiven((g) => ({ ...g, [clip.id]: value }));
     void answerOtherClip(clip.id, value);
     onChat?.(at, clips?.length ?? 1, from, value, one);
+    // Only a face fills and holds (J5); "Audio unclear" has no card to
+    // hold, so its answer lands at once (the prototype's judge()).
+    if (one && value === "audio_unclear") {
+      land();
+      return;
+    }
     timer.current = window.setTimeout(one ? land : forward, holdMs);
   };
 
@@ -229,8 +235,10 @@ export default function WalkOthers({
     // Its own keyed bubbles, so each lands on its own (B7): one Fragment
     // was one item, drawn in at once in the dots' place.
     const said = clip && answered !== null && (heard || reopened) ? othersOneSaid(answered) : null;
+    // Once the answer is drawn, the faces are gone from the dock until the
+    // next part's buttons come (J4: nothing blinks back).
     return (
-      <WalkOverlay testId={testId} onClose={onClose} footer={footer} onSettled={settled}>
+      <WalkOverlay testId={testId} onClose={onClose} footer={heard ? null : footer} onSettled={settled}>
         {!clips || !clip
           ? [<WalkLoading key="loading" />]
           : [

@@ -6,7 +6,7 @@ OUTCOME
   O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2), without the sentence's punctuation at either end, as after "Keep mine" (backend N440); with no fix, my best moment's own words are my helper words, saved the same way (backend N374). With the Sniper as the fix, Skip moves the walk on at once, after a try too; its line and scale stay in their one bubble above the tries; ✕ after a try keeps the game for Will and says nothing; opened again, its walk shows the helper words its stretch gave.
   O3  The walk ends on "Lesson done." with Close, which ends the review and takes me back to the chat; no "Record Take N" in the walk.
   O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after "Try it", my own after "Keep mine"; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
-  O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, each landing on its own behind the dots, the card I chose holding 0.28 s before my answer as my own reply with a tick, then "Got it.", and the walk moving on once they have landed; after it the bar names my fix's slide again for the helper words and "Lesson done."; on Take 1 I judge no one.
+  O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, each landing on its own behind the dots, the card I chose holding 0.28 s before my answer as my own reply with a tick ("Audio unclear", no card, at once), then "Got it.", and the walk moving on once they have landed; after it the bar names my fix's slide again for the helper words and "Lesson done."; on Take 1 I judge no one.
   O6  My best's clip and the AI clip's fix show my own words above the player, as the prototype draws them; my best played again inside the fix shows none.
   O7  Skip on the fix gets the walk's answer: "Okay, we'll skip this one.", then it goes on (backend N405); while I record, the trash is the Skip, and my taps add no bubble of mine (backend N435 items 2 and 3).
   O10 The fix lands one bubble at a time, the dots before each grey one, after the line that opens it; its buttons come once all have landed; after Skip the walk's answer, then my helper words, then "Lesson done." land the same way (backend N440).
@@ -27,6 +27,7 @@ PROVES   O1 -> walks hello, their best and why it worked, then one thing to impr
          O5 -> a try is my clip with the words I was asked to say, and nothing shows in the thread while I record
          O4 -> from Take 2, one moment of another speaker, of the Take's level, answered as my own reply,
                other speakers' moment lands one bubble at a time, its answer and Got it. after the chosen card holds, then on,
+               Audio unclear holds no card: its answer and Got it. come at once, then on (J5, the prototype's judge()),
                then the bar names the fix's slide again for the helper words and Lesson done,
                Take 1 judges no one
          O6 -> my best's clip and the AI clip's fix show my own words, my best played again shows none
@@ -588,6 +589,20 @@ describe("the One thing walk (N309)", () => {
     expect(screen()).toBe("walk-screen-done");
     // The bar names the fix's slide again, not "Other speakers" (prototype carry(), dots(3)).
     expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Slide 2");
+  });
+
+  it("Audio unclear holds no card: its answer and Got it. come at once, then on (J5, the prototype's judge())", async () => {
+    vi.mocked(fetchOtherClips).mockResolvedValueOnce([
+      { id: "c1", src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 3000, community: null },
+    ]);
+    const onOthers = vi.fn();
+    draw({ seq: 1, at: at("others", true) }, { judge: true, takeId: "take-7", othersLevel: "middle", onOthers });
+    await settle();
+    click(live()!.querySelector("[data-walk-answer='audio_unclear']"));
+    await settle();
+    expect(onOthers).toHaveBeenCalledWith(0, 1, null, "audio_unclear", true);
+    expect(said()).toContain(WALK_COPY.answerToast(WALK_COPY.judgeUnclear));
+    expect(screen()).toBe("walk-screen-done");
   });
 
   it("other speakers' moment lands one bubble at a time, its answer and Got it. after the chosen card holds, then on", async () => {
