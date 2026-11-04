@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  AlertTriangle, BookOpen, CalendarDays, FlaskConical, Home,
+  AlertTriangle, AudioLines, BookOpen, CalendarDays, FlaskConical, Home,
   Map as MapIcon, Menu, PanelLeft, Target, Trash2, TrendingUp, Users, X,
 } from "lucide-react";
 import Logo from "@/components/Logo";
@@ -39,7 +39,11 @@ const GROUPS: [string, Item[]][] = [
     ["/admin/library", "Exercise library", BookOpen],
     ["/admin/errors", "Speaking errors", AlertTriangle],
   ]],
-  ["Data", [["/admin/project-deletions", "Project deletions", Trash2]]],
+  ["Data", [
+    ["/admin/project-deletions", "Project deletions", Trash2],
+    // The training corpus, from the CEO panel's button (backend N511).
+    ["/admin/training-corpus", "Training corpus", AudioLines],
+  ]],
 ];
 
 const COLLAPSED_KEY = "willab:admin-menu-collapsed";
