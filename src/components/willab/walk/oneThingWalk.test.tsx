@@ -3,7 +3,7 @@
 STORY    As a speaker, I want the walk after each Take to show me my best moment and why it worked, then one thing to improve with the tool it needs, so that I leave every Take with one clear thing to carry into the next.
 OUTCOME
   O1  The walk goes in order: "Hi {name}.", my best with "This was your most confident moment." and why it worked, then "And now, one thing to improve:" and one fix; the Clearer version says "Say it straight:" and the sentence, with "Try it" and "Keep mine"; no helper-word picker, no second moment and no summary in the walk.
-  O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2), without the sentence's punctuation at either end, as after "Keep mine" (backend N440); with no fix, my best moment's own words are my helper words, saved the same way (backend N374). With the Sniper as the fix, Skip moves the walk on at once, after a try too; its line and scale stay in their one bubble above the tries; ✕ after a try keeps the game for Will and says nothing.
+  O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2), without the sentence's punctuation at either end, as after "Keep mine" (backend N440); with no fix, my best moment's own words are my helper words, saved the same way (backend N374). With the Sniper as the fix, Skip moves the walk on at once, after a try too; its line and scale stay in their one bubble above the tries; ✕ after a try keeps the game for Will and says nothing; opened again, its walk shows the helper words its stretch gave.
   O3  The walk ends on "Lesson done." with Close, which ends the review and takes me back to the chat; no "Record Take N" in the walk.
   O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after "Try it", my own after "Keep mine"; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
   O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, each landing on its own behind the dots, the card I chose holding 0.28 s before my answer as my own reply with a tick, then "Got it.", and the walk moving on once they have landed; after it the bar names my fix's slide again for the helper words and "Lesson done."; on Take 1 I judge no one.
@@ -17,7 +17,8 @@ PROVES   O1 -> walks hello, their best and why it worked, then one thing to impr
                the Clearer version's sentence is saved from its practice,
                a Clearer version past eight words is saved whole as my helper words (N323 item 2),
                with no fix, my best's own words are my helper words, saved without a pick (N374)
-               the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does
+               the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does,
+               the Sniper's walk opened again shows the helper words its stretch gave (C3, B10)
          O3 -> Lesson done and Close end the review, back to the chat
          O7 -> the helper words come on their own and are saved without a pick,
                the Clearer version's sentence is saved from its practice
@@ -69,7 +70,7 @@ vi.mock("@/hooks/useDualCaptureMic", async () => {
 });
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
 import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkRequest } from "./FeedbackWalk";
-import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
+import { buildFeedbackReplay, buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -372,6 +373,22 @@ describe("the One thing walk (N309)", () => {
     const games = left.mock.calls.map(([event]) => event).filter((event) => event.kind === "ended");
     expect(games).toEqual([expect.objectContaining({ tries: [expect.anything()], skipped: true, left: true })]);
     expect(live()?.querySelector("[data-walk-skip-reply]") ?? null).toBeNull();
+  });
+
+  it("the Sniper's walk opened again shows the helper words its stretch gave (C3, B10)", () => {
+    const stretch = "every frame, delivery is free";
+    const model = buildFeedbackReplay<string>({
+      items: [ITEMS[0]], coachNote: false, practiceOn: true, answerOf: () => null,
+      helperWordsOf: (partId) => (partId === "p9" ? stretch : null), interventions: ["tempo"],
+    });
+    const words = model.plan.findIndex((s) => s.key === "words");
+    expect(words).toBeGreaterThan(model.plan.findIndex((s) => s.key === "tempo"));
+    draw({ seq: 1, at: words }, {
+      model,
+      helperWordsOf: (partId: string) => (partId === "p9" ? stretch : null),
+      tempoWords: { partId: "p9", paragraphText: `And ${stretch}.`, text: stretch, span: { text: stretch, start: 4, end: 4 + stretch.length } },
+    });
+    expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe(stretch);
   });
 
   it("my best's clip and the AI clip's fix show my own words, my best played again shows none", async () => {

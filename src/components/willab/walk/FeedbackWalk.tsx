@@ -770,7 +770,9 @@ export default function FeedbackWalk<R = unknown>({
    *  saved. When the fix gives none (no fix at all, a tip that quotes no
    *  phrase, a stretch past eight words), their best's own words, whole,
    *  saved the same way (backend N374); none of those either, and the walk
-   *  goes on to "Lesson done.". Played again, the words as saved. */
+   *  goes on to "Lesson done.". Played again, the words as saved: the fix's
+   *  paragraph's, the Sniper's stretch's paragraph's (C3, B10), else their
+   *  best's. */
   const fixWords = (s: WalkStep): OneWords | null => {
     const bestAt = plan.find((x) => x.one && x.key === "praise")?.moment;
     const best = bestAt == null ? undefined : walk.moments[bestAt];
@@ -782,12 +784,13 @@ export default function FeedbackWalk<R = unknown>({
         ? { text: helperWordsSaid(stripRichMarkers(span.text)), save: { partId: moment.partId, span, paragraphText: moment.paragraphText, auto: true } }
         : null;
     };
-    const saved = (moment: FeedbackWalkMoment<R> | undefined): OneWords | null => {
-      const words = moment ? helperWordsOf?.(moment.partId) : null;
+    const savedOn = (partId: string | undefined): OneWords | null => {
+      const words = partId ? helperWordsOf?.(partId) : null;
       return words ? { text: helperWordsSaid(stripRichMarkers(words)), save: null } : null;
     };
+    const saved = (moment: FeedbackWalkMoment<R> | undefined) => savedOn(moment?.partId);
     const moment = s.of == null ? undefined : walk.moments[s.of];
-    if (s.replay) return moment ? saved(moment) ?? saved(best) : null;
+    if (s.replay) return (moment ? saved(moment) : savedOn(tempoWords?.partId)) ?? saved(best);
     const fixGives = (): OneWords | null => {
       if (!moment) {
         return s.of == null && tempoWords
