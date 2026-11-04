@@ -24,7 +24,7 @@ import WalkTempo from "./WalkTempo";
 import WalkTempoSaid from "./WalkTempoSaid";
 import WalkLoading from "./WalkLoading";
 import { TEMPO_COPY, type TempoEvent, type TempoStretch } from "@/lib/willab/tempoStep";
-import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, AI_CLIP_WAIT_MS, useClipBeforeTry, useClipWait, useLandsOnce, type AiVoiceLines } from "./WalkAiVoice";
+import WalkAiVoice, { aiTipKnown, aiVoiceComing, aiVoiceShown, AI_CLIP_WAIT_MS, clipWaitedOut, useClipBeforeTry, useClipWait, useLandsOnce, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
@@ -297,6 +297,19 @@ const OPENERS = new Set(["clearer", "exVideo", "encourage", "late"]);
 /** The One thing walk's fix opens on one of these, under "And now, one
  *  thing to improve:" (N309 item 1). */
 const FIX_OPENERS: ReadonlySet<string> = new Set(["clearer", "exVideo", "tempo"]);
+
+/** The served Sniper's wait on its stretch (useClipWait), one per Take. */
+const sniperSeed = (takeId: string | null): string => `tempo:${takeId ?? ""}`;
+
+/** Whether the Sniper's step draws its game, as Tempo does: played again,
+ *  what the chat kept of it; live, once its stretch is in, unless the step
+ *  waited it out first (N373's bound). With none drawn, the walk promises
+ *  no fix and names no Sniper: their best, their helper words, "Lesson
+ *  done." (C2, T, N374). */
+function sniperDraws(on: { tempo: TempoStretch | null; tempoSaid: readonly WalkTempoLine[]; takeId: string | null }, s: WalkStep): boolean {
+  if (s.replay) return on.tempoSaid.length > 0;
+  return !s.readOnly && on.tempo != null && !clipWaitedOut(sniperSeed(on.takeId));
+}
 
 /** The helper words the One thing walk gives (N309 item 3): the words, and
  *  how they are saved; none to save when they are already the saved ones. */
@@ -618,12 +631,14 @@ export default function FeedbackWalk<R = unknown>({
   const toldOne = useRef(new Set<number>());
   useEffect(() => {
     if (seq === null || !step || step.replay || !step.one || !FIX_OPENERS.has(step.key) || toldOne.current.has(seq)) return;
+    // The Sniper's line waits for its game: none drawn, none said (T).
+    if (step.key === "tempo" && !sniperDraws({ tempo, tempoSaid, takeId }, step)) return;
     toldOne.current.add(seq);
     const said: WalkStep = { key: "one", ...(step.moment != null ? { moment: step.moment } : {}) };
     shownRef.current?.(said, null, (bank) => sayLine(said, bank), null, ONE_THING_COPY.one);
     // Once per opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seq, step]);
+  }, [seq, step, tempo]);
   // The line between moments and after the last (N285): told to the chat
   // once, before the step it leads into; never for a step played again.
   const toldLead = useRef(new Set<string>());
@@ -797,7 +812,9 @@ export default function FeedbackWalk<R = unknown>({
     if (s.replay) return (moment ? saved(moment) : savedOn(tempoWords?.partId)) ?? saved(best);
     const fixGives = (): OneWords | null => {
       if (!moment) {
-        return s.of == null && tempoWords
+        // The Sniper's words only once its game was drawn (T, N374).
+        const sniper = plan.find((x) => x.key === "tempo");
+        return s.of == null && tempoWords && sniper && sniperDraws({ tempo, tempoSaid, takeId }, sniper)
           ? { text: tempoWords.text, save: { partId: tempoWords.partId, span: tempoWords.span, paragraphText: tempoWords.paragraphText, auto: true } }
           : null;
       }
@@ -1895,16 +1912,26 @@ function Tempo(ctx: ScreenCtx, step: WalkStep) {
       />
     ) : null;
   if (step.replay && kept) return kept;
-  // The Sniper the server chose, its stretch still on its way: the typing
-  // dots, the walk's one wait (B8); with none, it is passed by.
-  if (!ctx.tempo && ctx.tempoAsking && !step.readOnly && !step.replay) {
+  if (step.readOnly || step.replay) return <PassBy onPass={() => ctx.forwardFrom(step)} />;
+  return <TempoLive ctx={ctx} step={step} kept={kept} />;
+}
+
+/** The tempo step live. The Sniper the server chose, its stretch still on
+ *  its way: the typing dots, the walk's one wait (B8), at most as long as
+ *  the fix waits on its clip (N373), then passed by as with no stretch; a
+ *  stretch that comes after never draws the game in a step the walk has
+ *  left. */
+function TempoLive({ ctx, step, kept }: { ctx: ScreenCtx; step: WalkStep; kept: ReactNode }) {
+  const asking = !ctx.tempo && ctx.tempoAsking;
+  const waitedOut = useClipWait(sniperSeed(ctx.takeId), asking, ctx.clipWaitMs);
+  if (asking && !waitedOut) {
     return (
       <WalkOverlay testId={testId(step)} onClose={ctx.close}>
         <WalkLoading />
       </WalkOverlay>
     );
   }
-  if (!ctx.tempo || step.readOnly || step.replay) return <PassBy onPass={() => ctx.forwardFrom(step)} />;
+  if (!ctx.tempo || !sniperDraws(ctx, step)) return <PassBy onPass={() => ctx.forwardFrom(step)} />;
   return (
     <TempoOrKept kept={kept}>
       <WalkTempo
@@ -2010,10 +2037,16 @@ function partLabel(ctx: ScreenCtx, step: WalkStep): string | null {
   if (step.key === "words") {
     const of = step.of == null ? undefined : ctx.walk.moments[step.of];
     if (of) return slideName(of);
-    return ctx.walk.plan.some((s) => s.key === "tempo") ? tempoMark(ctx, step) : null;
+    const sniper = ctx.walk.plan.find((s) => s.key === "tempo");
+    if (!sniper) return null;
+    if (!sniper.one || sniperDraws(ctx, sniper)) return tempoMark(ctx, step);
+    // A Sniper that drew nothing: their best's slide, as with no fix (B6).
+    const best = ctx.walk.plan.find((s) => s.one && s.key === "praise");
+    const bestMoment = best?.moment == null ? undefined : ctx.walk.moments[best.moment];
+    return bestMoment ? slideName(bestMoment) : null;
   }
   if (step.key === "others" || step.key === "done") return null;
-  if (step.key === "tempo") return tempoMark(ctx, step);
+  if (step.key === "tempo") return step.one && !sniperDraws(ctx, step) ? null : tempoMark(ctx, step);
   const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];
   return moment ? (stepNav(ctx, step, moment).position ?? null) : null;
 }
@@ -2138,7 +2171,8 @@ function renderThread<R>(
     const lead = momentLead(ctx.walk.plan, start >= 0 ? start : part.at);
     const opener = ctx.walk.plan[start >= 0 ? start : part.at];
     // "And now, one thing to improve:" above the One thing walk's fix (N309).
-    const one = opener?.one === true && FIX_OPENERS.has(opener.key);
+    // Never over a Sniper that draws nothing (C2, T).
+    const one = opener?.one === true && FIX_OPENERS.has(opener.key) && (opener.key !== "tempo" || sniperDraws(ctx, opener));
     const opening = [
       ...(i === 0 ? top : []),
       ...(i > 0 ? answers[i - 1] : []),

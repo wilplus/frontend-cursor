@@ -3,6 +3,9 @@ import type { TempoEvent, TempoStretch } from "@/lib/willab/tempoStep";
 import { levelNameOf } from "@/lib/willab/planCopy";
 import type { WalkClip } from "@/lib/willab/feedbackWalkModel";
 
+/** How long one read of the stretch may take before it counts as failed. */
+const TEMPO_READ_TIMEOUT_MS = 10_000;
+
 /** The Take's stretch for the walk's tempo step (backend N162, N166): the
  *  clip the pace scale reads furthest from the green, fast or slow, and what
  *  it was about (for the One thing walk, whose opening says no topic, the
@@ -11,9 +14,11 @@ import type { WalkClip } from "@/lib/willab/feedbackWalkModel";
  *  asks again. */
 export async function fetchReviewTempo(arcId: string, takeId: string): Promise<TempoStretch | null | "failed"> {
   try {
+    // A read that hangs counts as failed and is asked again; the bound stays
+    // above the backend's own topic call (8 s) for a walk that still writes one.
     const result = await bffFetch(
       `/api/v2/explore/arc/${encodeURIComponent(arcId)}/review/tempo/${encodeURIComponent(takeId)}`,
-      { cache: "no-store" },
+      { cache: "no-store", timeoutMs: TEMPO_READ_TIMEOUT_MS },
     );
     if (result.kind !== "response" || !result.ok) return "failed";
     return readTempo((result.body as { tempo?: unknown } | null)?.tempo);

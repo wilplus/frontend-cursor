@@ -3,7 +3,7 @@
 STORY    As a speaker, I want the walk after each Take to show me my best moment and why it worked, then one thing to improve with the tool it needs, so that I leave every Take with one clear thing to carry into the next.
 OUTCOME
   O1  The walk goes in order: "Hi {name}.", my best with "This was your most confident moment." and why it worked, then "And now, one thing to improve:" and one fix; the Clearer version says "Say it straight:" and the sentence, with "Try it" and "Keep mine"; no helper-word picker, no second moment and no summary in the walk.
-  O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2), without the sentence's punctuation at either end, as after "Keep mine" (backend N440); with no fix, my best moment's own words are my helper words, saved the same way (backend N374). With the Sniper as the fix, Skip moves the walk on at once, after a try too; its line and scale stay in their one bubble above the tries; ✕ after a try keeps the game for Will and says nothing; opened again, its walk shows the helper words its stretch gave.
+  O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2), without the sentence's punctuation at either end, as after "Keep mine" (backend N440); with no fix, my best moment's own words are my helper words, saved the same way (backend N374). With the Sniper as the fix, Skip moves the walk on at once, after a try too; its line and scale stay in their one bubble above the tries; ✕ after a try keeps the game for Will and says nothing; opened again, its walk shows the helper words its stretch gave. The Sniper the server chose waits on its stretch with the typing dots at most as long as the fix waits on its clip (N373), then the walk goes on without it; with no stretch there is no "And now, one thing to improve:", in the walk or the chat: my best, my best's helper words and "Lesson done.", the bar on my best's slide.
   O3  The walk ends on "Lesson done." with Close, which ends the review and takes me back to the chat; no "Record Take N" in the walk.
   O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after "Try it", my own after "Keep mine"; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
   O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, each landing on its own behind the dots, the card I chose holding 0.28 s before my answer as my own reply with a tick ("Audio unclear", no card, at once), then "Got it.", and the walk moving on once they have landed; after it the bar names my fix's slide again for the helper words and "Lesson done."; on Take 1 I judge no one.
@@ -18,7 +18,9 @@ PROVES   O1 -> walks hello, their best and why it worked, then one thing to impr
                a Clearer version past eight words is saved whole as my helper words (N323 item 2),
                with no fix, my best's own words are my helper words, saved without a pick (N374)
                the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does,
-               the Sniper's walk opened again shows the helper words its stretch gave (C3, B10)
+               the Sniper's walk opened again shows the helper words its stretch gave (C3, B10),
+               the Sniper the server chose waits on its stretch with the dots no longer than the fix waits on its clip, then the walk goes on without it (N373),
+               a Sniper the server chose with no stretch promises no fix: their best, their helper words, Lesson done, their best's slide in the bar (C2, T, N374)
          O3 -> Lesson done and Close end the review, back to the chat
          O7 -> the helper words come on their own and are saved without a pick,
                the Clearer version's sentence is saved from its practice
@@ -71,6 +73,7 @@ vi.mock("@/hooks/useDualCaptureMic", async () => {
 });
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
 import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkRequest } from "./FeedbackWalk";
+import { AI_CLIP_WAIT_MS } from "./WalkAiVoice";
 import { buildFeedbackReplay, buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -390,6 +393,53 @@ describe("the One thing walk (N309)", () => {
     const games = left.mock.calls.map(([event]) => event).filter((event) => event.kind === "ended");
     expect(games).toEqual([expect.objectContaining({ tries: [expect.anything()], skipped: true, left: true })]);
     expect(live()?.querySelector("[data-walk-skip-reply]") ?? null).toBeNull();
+  });
+
+  it("the Sniper the server chose waits on its stretch with the dots no longer than the fix waits on its clip, then the walk goes on without it (N373)", async () => {
+    vi.useFakeTimers();
+    try {
+      const best = "Ledgerly matches every transaction";
+      const model = buildFeedbackWalk<string>({ items: [{ ...ITEMS[0], said: best, oneFix: "tempo" }], coachNote: false, practiceOn: true, guest: false, judge: false });
+      const request = { seq: 1, at: model.plan.findIndex((s) => s.key === "praise") };
+      const over = { model, takeId: "take-sniper-wait", tempoAsking: true };
+      draw(request, over);
+      click(testId("walk-forward"));
+      await settle();
+      // The typing dots, the walk's one wait, and no promise of a fix yet.
+      expect(screen()).toBe("walk-screen-tempo");
+      expect(now()!.querySelector("[data-walk-loading]")).not.toBeNull();
+      expect(live()!.querySelector("[data-walk-one]")).toBeNull();
+      await act(async () => {
+        vi.advanceTimersByTime(AI_CLIP_WAIT_MS + 50);
+      });
+      // Waited out: on to their best's helper words and "Lesson done.".
+      expect(screen()).toBe("walk-screen-done");
+      expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe(best);
+      // A stretch that comes late never draws the game the walk has left.
+      draw(request, { ...over, tempoAsking: false, tempo: TEMPO_STAND_IN });
+      await settle();
+      expect(screen()).toBe("walk-screen-done");
+      expect(live()!.querySelector("[data-walk-tempo-lead]")).toBeNull();
+      expect(live()!.querySelector("[data-walk-one]")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a Sniper the server chose with no stretch promises no fix: their best, their helper words, Lesson done, their best's slide in the bar (C2, T, N374)", async () => {
+    const best = "Ledgerly matches every transaction";
+    const model = buildFeedbackWalk<string>({ items: [{ ...ITEMS[0], said: best, oneFix: "tempo" }], coachNote: false, practiceOn: true, guest: false, judge: false });
+    const onShown = vi.fn();
+    const props = draw({ seq: 1, at: model.plan.findIndex((s) => s.key === "praise") }, { model, takeId: "take-sniper-none", tempo: null, onShown });
+    click(testId("walk-forward"));
+    await settle();
+    expect(screen()).toBe("walk-screen-done");
+    expect(live()!.querySelector("[data-walk-one]")).toBeNull();
+    expect(text()).not.toContain(ONE_THING_COPY.one);
+    expect(onShown.mock.calls.map(([step]) => (step as { key: string }).key)).not.toContain("one");
+    expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe(best);
+    expect(props.onSaveHelperWords).toHaveBeenCalledWith(expect.objectContaining({ partId: "p1", span: expect.objectContaining({ text: best }) }));
+    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Slide 1");
   });
 
   it("the Sniper's walk opened again shows the helper words its stretch gave (C3, B10)", () => {

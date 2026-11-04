@@ -148,6 +148,11 @@ export const AI_CLIP_WAIT_MS = 10_000;
 const waitStarted = new Map<string, number>();
 const waitedOut = new Set<string>();
 
+/** The wait on `seed` ran out, in this page's life (useClipWait). */
+export function clipWaitedOut(seed: string): boolean {
+  return waitedOut.has(seed);
+}
+
 /** The fix's clip took longer than AI_CLIP_WAIT_MS (N373 item 1): true
  *  once the wait ran out while the clip was still `pending`, and from then
  *  on, so a clip that comes later joins the words and never replaces
