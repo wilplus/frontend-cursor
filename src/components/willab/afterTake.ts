@@ -124,10 +124,6 @@ export function recordedSince(messages: readonly Pick<LoungeMessage, "kind" | "m
   return on !== take;
 }
 
-/** The tap under the goodbye after a Take (founder 2026-10-31, N294 item 6,
- *  signed). */
-export const CONTINUE_PRACTICE = "I want to continue my practice";
-
 /** The Take whose goodbye it is: "Record Take N" records the one after it. */
 export type NextTake = { arcId: string; takeIndex: number; takeSessionId: string };
 
@@ -140,43 +136,25 @@ export function goodbyeTake(meta: Record<string, unknown> | null | undefined): N
   return { arcId, takeIndex, takeSessionId };
 }
 
-/** Where the chat stands after a Take's goodbye (messages oldest first):
- *  "tap" while the goodbye, with the plan's progress under it, is the last
- *  thing said, so "I want to continue my practice" sits under it; "record"
- *  once the speaker chose to continue, so "Record Take N" stands alone under
- *  the chat; null otherwise: the goodbye still held behind an ask, anything
- *  said since, or a newer Take recorded in any project (N244, N251). The
- *  walk's own rows (a coach's later word) never count as said since.
- *  The first Take's goodbye brings "Record Take N" at once, with no tap
- *  first (backend N449 item 2): the backend marks it (`first_take`), and
- *  `noTap` names the Takes this device knows as first, for a goodbye
- *  written before the mark. */
+/** The Take a goodbye names while it is the last thing said (messages
+ *  oldest first): the bar's "Record Take N" records the one after it, with
+ *  nothing to tap first (backend N483 item 2; was the tap "I want to
+ *  continue my practice", N294 item 6, which an older thread may still end
+ *  with and which counts as the goodbye). Null: the goodbye still held
+ *  behind an ask, anything said since, or a newer Take recorded in any
+ *  project (N244, N251). The walk's own rows (a coach's later word) and the
+ *  plan's progress never count as said since. */
 export function afterGoodbye<T extends Pick<LoungeMessage, "client_id" | "kind" | "metadata">>(
   messages: readonly T[],
-  noTap: (take: NextTake) => boolean = () => false,
-): { step: "tap" | "record"; next: NextTake; message: T } | null {
+): { next: NextTake; message: T } | null {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const m = messages[i];
     const meta = m.metadata ?? {};
     if (m.kind === "walk_step" || meta.plan_progress === true) continue;
-    const said = goodbyeTake(meta);
-    const step = meta.continue_practice === true
-      ? "record"
-      : meta.next_take === true && heldFor(m) === null
-        ? said && (meta.first_take === true || noTap(said)) ? "record" : "tap"
-        : null;
-    const next = step ? said : null;
-    if (!step || !next || recordedPast(messages).has(m.client_id)) return null;
-    return { step, next, message: m };
+    const goodbye = meta.continue_practice === true || (meta.next_take === true && heldFor(m) === null);
+    const next = goodbye ? goodbyeTake(meta) : null;
+    if (!next || recordedPast(messages).has(m.client_id)) return null;
+    return { next, message: m };
   }
   return null;
-}
-
-const PRACTISE = /\b(practi[cs]e|practi[cs]ing|record|continue|keep going|again|next take|another take)\b/i;
-const NOT_NOW = /\b(no|not|don'?t|never|later|tomorrow|stop)\b/i;
-
-/** Typed words that say they want to practise now (N294 item 6): they bring
- *  "Record Take N" as the tap does. Pure. */
-export function wantsToPractise(text: string): boolean {
-  return PRACTISE.test(text) && !NOT_NOW.test(text);
 }

@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { Camera, Check, ChevronLeft, File as FileIcon, ImageIcon, Mic, Plus, UserPlus, X, type LucideIcon } from "lucide-react";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
-import RecordingBar from "@/components/willab/RecordingBar";
 import TypingDots from "@/components/willab/TypingDots";
 import { VoicePlayer } from "@/components/willab/plan/VoicePlayer";
 import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
-import { useVoiceNote } from "@/components/willab/useVoiceNote";
+import { TapRow } from "@/components/willab/WillQuestion";
+import { NOT_NOW } from "@/lib/willab/leaveWords";
+import { PLAN_COPY } from "@/lib/willab/planCopy";
 import { UNDO_MS, onAnswerSent, sendAgain, undoAnswer, usePendingAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
 import {
   CHAT_EMOJI,
@@ -17,7 +18,6 @@ import {
   getChatThread,
   sendChatEmoji,
   sendChatUpload,
-  sendChatVoice,
   type Chat,
   type ChatEmoji,
   type ChatMessage,
@@ -142,7 +142,9 @@ export function WillTopBar({ onBack }: { onBack: () => void }) {
  *  1 and 4. "Sent to {name}" for everyone until answers are delivered on
  *  WhatsApp; a customer's line then goes back to "Sent to {name} on
  *  WhatsApp" (N342). */
-export const RECORD_AN_ANSWER = "Record an answer";
+/** One label for answering anyone (backend N483 item 5; was "Record an
+ *  answer", N361). */
+export const RECORD_YOUR_ANSWER = PLAN_COPY.recordAnswer;
 export const UNDO = "Undo";
 export const NOT_SENT = "Not sent";
 export const SEND_AGAIN = "Send again";
@@ -541,35 +543,15 @@ function withDays(messages: readonly ChatMessage[]): { day: string | null; messa
   });
 }
 
-/** The mic shows while the newest message waits for a voice (backend N341,
- *  N351): the other person's question, that is their words (people never
- *  type, N335 item 4, so words come only from a customer's request) or a
- *  message the backend marks as one (`meta.question`: each photo or file,
- *  and the voice note sent right after it, N341 item 2); or my own photo or
- *  file, until my voice note says what I need (N337). My answer, an emoji or
- *  a voice note, is then the newest, and nothing waits. */
-export function micShows(messages: readonly ChatMessage[] | null): boolean {
-  const newest = messages?.at(-1);
-  if (!newest) return false;
-  if (newest.mine) return newest.kind === "photo" || newest.kind === "file";
-  return newest.kind === "text" || newest.meta?.question === true;
-}
-
-/** The mic is orange while the other person's words wait for yours; not
- *  while an answer goes, nor beside "Record an answer", the one thing to do
- *  then (N460 item 2: one loud thing at a time). */
-function micHot(messages: readonly ChatMessage[] | null, pending: unknown, question: string | null, onRecordAnswer: unknown): boolean {
-  if (pending || (question && onRecordAnswer)) return false;
-  return micShows(messages);
-}
-
-/** The question "Record an answer" answers, when the other person's question
- *  waits and Will marked it as about a product or a treatment
+/** The question "Record your answer" answers, when the other person's
+ *  question is the newest message (their words, or a message the backend
+ *  marks as one, N341) and Will marked it as about a product or a treatment
  *  (`meta.record_answer`, backend N361 item 1): its words, the answer's one
  *  slide (N361 item 3). Else null. */
 export function answerWaits(messages: readonly ChatMessage[] | null): string | null {
   const newest = messages?.at(-1);
-  if (!newest || newest.mine || newest.meta?.record_answer !== true || !micShows(messages)) return null;
+  if (!newest || newest.mine || newest.meta?.record_answer !== true) return null;
+  if (newest.kind !== "text" && newest.meta?.question !== true) return null;
   const words = newest.kind === "text" ? newest.body : typeof newest.words === "string" ? newest.words : "";
   return words.trim() || null;
 }
@@ -594,7 +576,7 @@ function RecordAnswerButton({ onClick }: { onClick: () => void }) {
       className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2.5 rounded-full bg-foreground text-[15px] font-medium text-background"
     >
       <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
-      {RECORD_AN_ANSWER}
+      {RECORD_YOUR_ANSWER}
     </button>
   );
 }
@@ -706,28 +688,20 @@ function SendingPill({ name, startedAt, waited, failed }: { name: string; starte
   );
 }
 
-/** One bar in every chat (backend N368, the locked prototype "One bar" v12):
- *  three places that never move: the "+" on the left (N351), the one thing
- *  to do now in the middle (the three emoji, Record an answer, or "Sending
- *  to {name}…"), and your voice on the right, always there: a bare icon at
- *  rest, orange while someone waits for your words (N460 items 1 and 2; was
- *  a grey circle, pulsing). No typing outside Will's chat. Was (N341): the
- *  mic only while a question waited. */
+/** The bar in a chat with a person (backend N483, the locked prototype "The
+ *  Bar, Clickable" v8): the "+" on the left, the one thing to do now in the
+ *  middle (the three emoji, "Record your answer", or "Sending to {name}…").
+ *  No mic and no typing: no voice notes between people. Was (N368, N460
+ *  items 1 and 2): the mic on the right, orange while their words waited. */
 function EmojiBar({
   name,
   onPlus,
   onPick,
-  onMic,
-  hot = false,
   middle = null,
 }: {
   name: string;
   onPlus: () => void;
   onPick: (emoji: ChatEmoji) => void;
-  onMic: (() => void) | null;
-  /** Someone waits for your words: the mic is orange, and still (N460
-   *  item 2; was pulsing). */
-  hot?: boolean;
   /** What stands in the middle instead of the emoji. */
   middle?: ReactNode;
 }) {
@@ -757,20 +731,6 @@ function EmojiBar({
         ))}
       </div>
       )}
-      {onMic ? (
-        <button
-          type="button"
-          onClick={onMic}
-          aria-label="Voice note"
-          data-chat-mic=""
-          data-chat-mic-hot={hot ? "" : undefined}
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${
-            hot ? "bg-[#FF640A] text-white" : "text-foreground hover:bg-muted"
-          }`}
-        >
-          <Mic className="h-5 w-5" aria-hidden />
-        </button>
-      ) : null}
     </>
   );
 }
@@ -815,21 +775,6 @@ export default function ChatThread({
   const scrollRef = useRef<HTMLDivElement>(null);
   const pickers = { photos: useRef<HTMLInputElement>(null), camera: useRef<HTMLInputElement>(null), files: useRef<HTMLInputElement>(null) };
 
-  // The voice note (N321 item 2): the mic records with the one recording
-  // bar, up to two minutes; Stop sends, the trash throws it away. The bar
-  // comes back at once; the message joins the thread when the backend has
-  // kept it. A refused mic, a failed recording or a failed send shows
-  // nothing new.
-  const note = useVoiceNote({
-    maxSeconds: 120,
-    onDone: async ({ audio, durationMs }) => {
-      const sent = await sendChatVoice(chat.id, audio, durationMs);
-      if (sent) {
-        sendTick();
-        setMessages((list) => [...(list ?? []), sent]);
-      }
-    },
-  });
 
   // Opened: on arrival, as its messages land, and on leaving. The list then
   // no longer shows it as new (N322).
@@ -905,7 +850,13 @@ export default function ChatThread({
     setMessages((list) => (list ?? []).flatMap((m) => (m.id !== local.id ? [m] : sent ? [sent] : [])));
   };
 
-  const question = answerWaits(messages);
+  // Their question to answer properly (N361): "Record your answer" in the
+  // middle, "Not now" under it, a grey word they aren't told about; the
+  // emoji come back until the chat is opened again (N483 item 3).
+  const newest = messages?.at(-1) ?? null;
+  const [leftQuestion, setLeftQuestion] = useState<string | null>(null);
+  const waiting = answerWaits(messages);
+  const question = waiting && onRecordAnswer && newest?.id !== leftQuestion ? waiting : null;
 
   return (
     <div data-chat-screen className="relative flex min-h-0 flex-1 flex-col">
@@ -936,15 +887,14 @@ export default function ChatThread({
               />,
             ])
           )}
+          {question && !pending ? (
+            <TapRow labels={[NOT_NOW]} onTap={() => setLeftQuestion(newest?.id ?? null)} dataAttr={{ "data-chat-not-now": "" }} />
+          ) : null}
         </div>
       </div>
       <div data-chat-bar className="flex shrink-0 items-end gap-1 px-4 pb-2">
         {safety.blocked ? (
           <BlockedBar name={chat.title} onUnblock={safety.unblock} />
-        ) : note.phase === "recording" ? (
-          <div className="min-w-0 flex-1">
-            <RecordingBar elapsedMs={note.elapsedMs} onTrash={note.cancel} onStop={note.send} />
-          </div>
         ) : tiles ? (
           <PlusTiles onTile={tile} onCancel={() => setTiles(false)} />
         ) : (
@@ -952,8 +902,6 @@ export default function ChatThread({
             name={chat.title}
             onPlus={() => setTiles(true)}
             onPick={(emoji) => void send(emoji)}
-            onMic={pending ? null : () => void note.start()}
-            hot={micHot(messages, pending, question, onRecordAnswer)}
             middle={
               pending ? (
                 <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited} failed={pending.failed} />

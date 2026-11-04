@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
 import RecordingBar from "@/components/willab/RecordingBar";
 import { useVoiceNote } from "@/components/willab/useVoiceNote";
 import { TapRow } from "@/components/willab/WillQuestion";
@@ -211,17 +210,55 @@ export function usePlanVoice({
   };
 }
 
-/** The plan's black button with the red dot, "Start your first recording";
- *  the same piece carries the chat's "Record Take N" (`RecordTakeButton`). */
+/** The middle of Will's bar while he asks for no words (backend N483 item
+ *  2), the first that holds: Will needs to hear you (the plan's spoken
+ *  question), "Record your answer"; a review is unfinished, "Continue
+ *  review"; otherwise the next Take, faded while the last one is processed,
+ *  or "Start your first recording" before any. One black button; the red dot
+ *  when a tap starts a recording. */
+export function WillBarMiddle({
+  hear,
+  review,
+  next,
+  held,
+  onRecord,
+  onFirst,
+}: {
+  hear: { onTap: () => void } | null;
+  review: (() => void) | null;
+  next: { arcId: string; takeIndex: number } | null;
+  held: boolean;
+  onRecord: (arcId: string, takeIndex: number) => void;
+  onFirst: () => void;
+}) {
+  const [label, onClick, dot, attr]: [string, () => void, boolean, string] = hear
+    ? [PLAN_COPY.recordAnswer, hear.onTap, true, "data-will-hear"]
+    : review
+      ? ["Continue review", review, false, "data-continue-review"]
+      : next
+        ? [PLAN_COPY.recordTake(next.takeIndex + 1), () => onRecord(next.arcId, next.takeIndex), true, "data-record-next"]
+        : [PLAN_COPY.startFirst, onFirst, true, "data-start-first"];
+  return (
+    <div className="min-w-0 flex-1">
+      <RecordDockButton label={label} onClick={onClick} dot={dot} disabled={held && !hear && !review} dataAttr={{ [attr]: "" }} />
+    </div>
+  );
+}
+
+/** The one black button in the middle of Will's bar (backend N483). The red
+ *  dot means a tap starts a recording; without it (`dot={false}`, "Continue
+ *  review") the tap opens something first. */
 function RecordDockButton({
   label,
   onClick,
   disabled = false,
+  dot = true,
   dataAttr,
 }: {
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  dot?: boolean;
   dataAttr: Record<string, string>;
 }) {
   return (
@@ -230,74 +267,19 @@ function RecordDockButton({
       onClick={onClick}
       disabled={disabled}
       {...dataAttr}
-      className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-foreground text-[15px] font-medium text-background disabled:opacity-50"
+      className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-foreground text-[15px] font-medium text-background disabled:opacity-45"
     >
-      <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
+      {dot ? <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden /> : null}
       {label}
     </button>
   );
 }
 
-/** The chat's one "Record Take N", alone under the chat, the plan's black
- *  button with the red dot (backend N294 item 7, N296 state 4): the next
- *  Take after a Take's goodbye, or a practice day's while today's one thing
- *  is the newest (`usePlanLounge` `one`). Held, greyed, while a Take is
- *  still landing, as the "+" is; a tap opens that Take's text the way its
- *  own button does (from Take 2 on, the sharing question first). 24 px
- *  under the last bubble, with a grey ✕ on its right, no background and no
- *  outline, that closes it (N395, `useRecordTake`). */
-export function RecordTakeButton({
-  next,
-  held,
-  onRecord,
-  onClose,
-}: {
-  next: NextTake | null;
-  held: boolean;
-  onRecord: (arcId: string) => void;
-  onClose: () => void;
-}) {
-  if (!next) return null;
-  return (
-    <div className="flex items-center gap-1.5 pt-4">
-      <div className="min-w-0 flex-1">
-        <RecordDockButton
-          label={PLAN_COPY.recordTake(next.takeIndex + 1)}
-          onClick={() => onRecord(next.arcId)}
-          disabled={held}
-          dataAttr={{ "data-record-next": "" }}
-        />
-      </div>
-      <button
-        type="button"
-        aria-label="Close"
-        onClick={onClose}
-        data-record-next-close=""
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground"
-      >
-        <X className="h-5 w-5" aria-hidden />
-      </button>
-    </div>
-  );
-}
-
-type NextTake = { arcId: string; takeIndex: number };
-
-/** The chat's "Record Take N" as it shows now, and its ✕ (backend N395).
- *  Closed, that Take's button gives its place back to the bar ("+", "Type
- *  here", the mic) until the chat is opened again, or until a newer Take's
- *  goodbye offers the next one. Only the open chat remembers it; nothing
- *  goes to the backend, and the plan and the goodbye are unchanged. */
-export function useRecordTake<T extends NextTake>(next: T | null): { next: T | null; close: () => void } {
-  const [closed, setClosed] = useState<string | null>(null);
-  const key = next ? `${next.arcId}:${next.takeIndex}` : null;
-  return { next: key !== null && key === closed ? null : next, close: () => setClosed(key) };
-}
 
 /** Which step of the plan is open, or null for none: a question ("deadline",
  *  "consent", "voice", "stress", "ready", "call", "next", "same_event"),
- *  "start" (the one button after the plan card) or "book" (a call's
- *  calendar). */
+ *  "start" (its first Take is next: the bar's "Start your first recording")
+ *  or "book" (a call's calendar). */
 export function dockFor(plan: Plan | null, booking: CallWhich | null): string | null {
   if (!plan || plan.waiting) return booking ? "book" : null;
   if (booking) return "book";
@@ -315,11 +297,11 @@ export function dockFor(plan: Plan | null, booking: CallWhich | null): string | 
   return null;
 }
 
-/** The plan's footer, only where it stands in for the message box: "Start
- *  your first recording" after the plan card (E5, N319 item 2) and the
- *  calls' calendar, full screen over the chat, for "Book now" under Will's
- *  ask or "Book" in the plan's list (N248, N281). A practice day's "Record
- *  Take N" is the chat's one `RecordTakeButton` (G6). */
+/** The plan's footer, only where it stands in for the bar: the calls'
+ *  calendar, full screen over the chat, for "Book now" under Will's ask or
+ *  "Book" in the plan's list (N248, N281). "Start your first recording"
+ *  and a practice day's "Record Take N" are the bar's middle
+ *  (`WillBarMiddle`, backend N483 item 2). */
 export default function PlanDock({
   plan,
   busy,
@@ -355,9 +337,6 @@ export default function PlanDock({
         }}
         onSaveDeadline={actions.saveDeadline}
       />
-      {kind === "start" && !busy ? (
-        <RecordDockButton label={PLAN_COPY.startFirst} onClick={actions.startFirst} dataAttr={{ "data-plan-dock": "start" }} />
-      ) : null}
     </>
   );
 }
