@@ -1929,6 +1929,9 @@ O13 -> ""opens the Feedback walk on the coach's word, on what waits, on its newe
 O14 -> ""the One thing walk's judged moment turns its level, says its words, and last time finds the tip the Take before kept""
 O15 -> ""keeps the door on the Clearer version under its Your words it is. row, never on the live recorder""
 O16 -> ""asks the try after the AI clip for the trimmed words the clip says""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word); founder 2026-10-31, N309 (the One thing walk); N347 item 3 (every fix gets its Last time, the pace game too)."
+src/services/api/access.test.ts,Story,"As a member, I want the app to open at once, without waiting each time to be told I am a member; as someone on the waitlist, I want to be let in the moment I join (backend N471).","O1  A member is remembered in this browser and the next open asks no one;
+a waiting account and an unclear answer are never remembered, and
+another account on the same browser is asked.","O1 -> ""a member is remembered; waiting, an outage and another account are asked""",
 src/services/api/accountDeletion.test.ts,Story,"As a speaker, I want ""delete my account"" to send one deletion request and show me how long I have to change my mind, and a refusal to change nothing, so that I can trust deletion and cancel it in time.","O1  Asking to delete sends one request with a one-time key and shows the
 pending deletion with its end date.
 O2  A refusal or no connection records nothing.
