@@ -233,6 +233,16 @@ export function stretchParagraph(
   return slide?.chunks[0] ? { chunk: slide.chunks[0], words: null } : null;
 }
 
+/** The stretch's clip as the chat keeps a moment's (momentChat): its
+ *  recording's id, so Will's question finds its words (E2), and its signed
+ *  link when there is one. Null without a recording. Pure. */
+export function stretchClipChat(tempo: TempoStretch): Record<string, unknown> | null {
+  const snippet = tempo.snippetId ?? tempo.clip?.snippetId ?? null;
+  if (!snippet) return null;
+  const clip = tempo.clip ?? null;
+  return { snippet_id: snippet, src: clip?.src ?? null, start_ms: clip?.startOffsetMs ?? null, duration_ms: clip?.durationMs ?? null, words: null };
+}
+
 /** The practices the walk adds (N166): the tempo step on the Take's
  *  stretch. The One thing walk served with no choice of its fix (older
  *  payloads) offers the Sniper only where the stretch can be it: a rushed
@@ -985,6 +995,11 @@ export function useDeckFeedbackWalk(args: {
         post({ key, moment: null, attempt, author, body, extra });
       if (event.kind === "opened") {
         const words = one ? tempoWords : null;
+        // The stretch's clip, as the speaker's, before Will's line, as the
+        // walk draws it: Will's question after the walk quotes the moment it
+        // just worked on, the stretch (E2).
+        const clip = one ? stretchClipChat(tempo) : null;
+        if (clip) say("clip:tempo", "speaker", "", null, { clip });
         // As the walk opens it (N435 item 6): a rushed Sniper's one line.
         const opening = tempoOpening(tempo, one);
         say("tempo:open", "app", [...opening.lines, ...(opening.withScale ? [opening.withScale] : [])].join("\n"), null, words ? { fix_tip: ONE_THING_COPY.paceTip(words.text) } : undefined);
@@ -994,10 +1009,12 @@ export function useDeckFeedbackWalk(args: {
         const lines = one ? oneThingTempoLines(event.landed, event.n) : afterTry(event.result, event.landed, event.n);
         say("tempo:comment", "app", lines.join("\n"), event.n);
       } else {
-        // Skipped: before a try, or, as the One thing walk's fix, after one
-        // too, as the walk draws it (#1183). The Sniper then answers Skip
-        // (N405).
-        if (!event.close || (one && event.skipped)) {
+        // Left mid-game (✕): kept for Will below, nothing said. Skipped:
+        // before a try, or, as the One thing walk's fix, after one too, as
+        // the walk draws it (#1183). The Sniper then answers Skip (N405).
+        if (event.left) {
+          // Nothing in the chat.
+        } else if (!event.close || (one && event.skipped)) {
           // As the One thing walk's fix, the walk's answer alone (N452 item 1).
           if (one) say("tempo:skipped", "app", ONE_THING_COPY.skipped);
           else say("tempo:skip", "speaker", TEMPO_COPY.skip);

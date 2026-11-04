@@ -652,7 +652,7 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) =>
       String(input).includes("/review/tempo/take-2")
-        ? json({ tempo: { reading: "rushed", topic: "the pilot", slide_index: 1, said: { before: "Three things stood out: ", stretch: "Retention went up, um, churn went down", after: "" } } })
+        ? json({ tempo: { reading: "rushed", topic: "that part", slide_index: 1, snippet_id: "snip-stretch", said: { before: "Three things stood out: ", stretch: "Retention went up, um, churn went down", after: "" } } })
         : new Response("{}", { status: 404 }),
     ));
     const p = props({ suggestions: [best] });
@@ -667,6 +667,13 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
       .map(([draft]) => (draft as { metadata: Record<string, unknown> }).metadata)
       .find((m) => m.step === "tempo:open");
     expect(opening?.fix_tip).toBe(ONE_THING_COPY.paceTip(stretch));
+    // In the chat as in the walk: "And now, one thing to improve:", the
+    // stretch's clip as the speaker's, then the Sniper's line; the clip names
+    // its recording, so Will's question after the walk quotes the stretch (E2).
+    const steps = append.mock.calls.map(([draft]) => (draft as { metadata: Record<string, unknown> }).metadata);
+    const order = ["one", "clip:tempo", "tempo:open"].map((step) => steps.findIndex((m) => m.step === step));
+    expect(order.every((i, k) => i >= 0 && (k === 0 || i > order[k - 1]))).toBe(true);
+    expect(steps.find((m) => m.step === "clip:tempo")?.clip).toMatchObject({ snippet_id: "snip-stretch" });
     // Its scale names its three zones, left to right (N405).
     expect([...live()!.querySelectorAll("[data-walk-scale-ends] span")].map((n) => n.textContent)).toEqual([...TEMPO_COPY.ends]);
     // Skip: the walk's answer to it, in the walk and in the chat (N405), with

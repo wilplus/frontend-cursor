@@ -1875,8 +1875,9 @@ function Tempo(ctx: ScreenCtx, step: WalkStep) {
           // Skip on the Sniper as the fix: the walk's answer opens what
           // comes next and lands there, as the other fixes' does (N440;
           // was drawn at once inside the game). The chat says it from the
-          // event, so the answer itself posts nothing.
-          if (step.one && event.kind === "ended" && event.skipped) ctx.answer(step, "skip");
+          // event, so the answer itself posts nothing. A game left by ✕
+          // gets no answer.
+          if (step.one && event.kind === "ended" && event.skipped && !event.left) ctx.answer(step, "skip");
           ctx.onTempo?.(event, step.one === true);
         }}
         one={step.one === true}

@@ -72,7 +72,10 @@ export async function postTempoGame(
     await bffFetch(`/api/v2/explore/arc/${encodeURIComponent(arcId)}/review/tempo/${encodeURIComponent(takeId)}`, {
       method: "POST",
       cache: "no-store",
-      json: { reading, tries: game.tries.map((t) => ({ result: t.result, path: t.path.slice(0, 300) })), close: game.close },
+      // `skipped`: the speaker ended the game, by Skip or by leaving it,
+      // after a try too, so Will's note never reads it as played out
+      // (C-TEMPO-GAME).
+      json: { reading, tries: game.tries.map((t) => ({ result: t.result, path: t.path.slice(0, 300) })), close: game.close, skipped: game.skipped === true },
     });
   } catch {
     // Will learns less from this Take; the speaker's walk goes on.

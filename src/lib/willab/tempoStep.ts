@@ -77,7 +77,16 @@ export type TempoPlayed = { result: TempoTry; path: number[]; landed: boolean };
 export type TempoEvent =
   | { kind: "opened" }
   | ({ kind: "try"; n: number } & TempoPlayed)
-  | { kind: "ended"; tries: TempoPlayed[]; close: TempoClose | null; /** Ended by the speaker's Skip, after a try too (N405). */ skipped?: boolean };
+  | {
+      kind: "ended";
+      tries: TempoPlayed[];
+      close: TempoClose | null;
+      /** Ended by the speaker: their Skip, after a try too (N405), or left. */
+      skipped?: boolean;
+      /** Left mid-game, by ✕ or the step going away, a try made: kept for
+       *  Will, nothing said in the walk or the chat. */
+      left?: boolean;
+    };
 
 /** The try from the first word on: the quiet before it is not the pace. */
 function spoken(path: readonly number[]): readonly number[] {
