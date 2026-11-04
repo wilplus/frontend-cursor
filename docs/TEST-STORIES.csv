@@ -565,7 +565,8 @@ before the list covers it: the loader stands in front until the list
 has answered, and it never waits on the rings (N354, N456).
 O12 The ""+"" in a chat swaps the bar for four tiles with their names,
 Photos, Camera, Files and Someone else; Someone else opens the add
-sheet with my link; Cancel brings the bar back (N351).
+sheet with my link; a ✕ where the ""+"" was brings the bar back (N351,
+N460 item 4).
 O13 A photo I pick is posted to the chat's photo route and joins the
 thread as my image; the mic then turns orange, so I can say what I
 need, and is plain once my voice note is sent (N337, N341 item 2,
@@ -579,7 +580,7 @@ was said over in a strip that marks the one being heard as it plays,
 and its words closed behind ""Read it""; no Take number.
 O16 A question Will marked as about a product or a treatment takes one
 black ""Record an answer"" in the bar's middle, the ""+"" and the mic on its
-sides (N321 item 4, N361, N368); it hands the recording screens the
+sides, the mic quiet beside it (N321 item 4, N361, N368, N460 item 2); it hands the recording screens the
 chat, the person and the question. Back from them, the bar's middle
 reads ""Sending to {name}… {n}"" with Undo while the answer, already
 with the backend, waits out its 5 seconds there (N441 item 3); then
@@ -604,7 +605,7 @@ O8 -> ""the + opens my own link and copies it""
 O9 -> ""a chat joined through a link says whose link it was""
 O10 -> ""after joining, the list opens with Will first and the one who invited me under him, marked new""
 O11 -> ""as a user, the loader, not Will's chat, waits for my list, on the web and in the app, and never for the rings""
-O12 -> ""the + shows the four tiles, Someone else opens my link, and Cancel brings the bar back""
+O12 -> ""the + shows the four tiles, Someone else opens my link, and the ✕ in its place brings the bar back""
 O13 -> ""a photo I send joins the thread and the mic shows until my voice note says what I need""
 O14 -> ""the other person's photo or file waits for my voice, and each opens from the chat's file route""
 O15 -> ""an answer sent to me plays with its slides following the voice, its words behind Read it""

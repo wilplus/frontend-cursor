@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Plus, Send, Upload } from "lucide-react";
+import { Layers, Send, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
 import dynamic from "next/dynamic";
@@ -2128,7 +2128,9 @@ export default function Lounge({
           title={takeInFlight ? FLOW_COPY.recordHeld : undefined}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted disabled:cursor-default disabled:text-muted-foreground/50 disabled:hover:bg-transparent"
         >
-          <Plus className="h-5 w-5" aria-hidden />
+          {/* A stack, not a "+": in every other chat "+" adds to the chat
+              (backend N460 item 5). */}
+          <Layers className="h-5 w-5" aria-hidden />
         </button>
         <div className="relative flex-1">
           {somethingElse.button}

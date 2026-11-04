@@ -131,18 +131,23 @@ rest is built in.
      (N368, the locked prototype "One bar" v12), three places that never
      move: the "+" on the left (N351, below); the one thing to do now in
      the middle (the three emoji in the box; "Record an answer" when a
-     marked question waits; "Sending to {name}… {n}" with Undo while an
-     answer goes); and on the right the mic, 40px, always there, orange and
-     pulsing while the newest message waits for a voice: the other person's
+     marked question waits; "Sending to {name}… {n}" with Undo, a bold
+     word in the pill, while an answer goes); and on the right the mic,
+     40px, always there: a bare icon at rest, orange and still while the
+     newest message waits for a voice (N460 items 1 to 3; was a grey circle,
+     orange and pulsing, Undo a white pill of its own): the other person's
      question, their words (people never type, N335 item 4, so words come
      only from a customer's request) or a message the backend marks as one
      (each photo or file, and the voice note sent straight after it), or
      your own photo or file, until your voice note says what you need
      (N337). Once you answer, with an emoji or a voice note, it is plain
-     again. Every send gives a short sound, and a small buzz where the
-     device allows it. Was (N341): the mic only while a voice waited.
+     again. While "Record an answer" stands in the middle, the mic beside it
+     stays quiet: one loud thing at a time (N460 item 2). Every send gives
+     a short sound, and a small buzz where the device allows it. Was
+     (N341): the mic only while a voice waited.
      Will's chat is the exception: it keeps its own bar, with "Type here"
-     (N369).
+     (N369); its left button, which opens Your projects, is a stack icon,
+     not a "+", so "+" means add in every chat (N460 item 5).
      Will deciding what is a question (N322 item 5) is not built. The mic records with the one recording bar (the trash, the
      strip with Stop inside, N314), up to two minutes; Stop sends, the
      trash throws it away, and the bar comes back. The voice note joins
@@ -170,9 +175,9 @@ rest is built in.
    - **The "+"** (N351, N335 item 3, N337; built 2026-11-02 behind the
      same ring), in every chat but Will's (Will's chat keeps the Lounge's
      bar): a tap swaps the bar for a row of four round coloured tiles, each
-     with its name under it, Photos, Camera, Files and Someone else, and
-     "Cancel" under the row, quiet, which brings the bar back (the
-     prototype's `attachSheet`). Photos opens the browser's own picker for
+     with its name under it, Photos, Camera, Files and Someone else, and a
+     ✕ where the "+" was, which brings the bar back (the prototype's
+     `attachSheet`; N460 item 4, was "Cancel" under the row). Photos opens the browser's own picker for
      images, several at once; Camera the same, to the camera on a phone (on
      a computer, the browser's file picker); Files the picker for any file.
      We draw no picker of our own. Each one picked is sent on its own, up
@@ -722,6 +727,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N460 · C1: the bar made calmer: in a person's chat the mic is a bare icon at rest and orange without pulsing when your words are awaited, quiet beside "Record an answer"; Undo and Send again are bold words in their pill; the "+" turns into a ✕ in its place to close the tiles, and "Cancel" goes; in Will's chat, Your projects is a stack icon. Was: the mic in a grey circle, orange and pulsing beside Record an answer too; Undo and Send again white pills; Cancel under the tiles; a "+" for Your projects (`ChatThread.tsx`, `Lounge.tsx`) · BE (N460 PR), FE (this PR)
 - 2026-11-03 · N457 · C1: Will's row shows his chat's newest line, read from the Lounge's thread underneath (words only: a card, a walk step or a status is not a line), new with the bold name and orange dot while it is his and newer than the last time his chat was open on this device; just joined through a link, it is "Your first Take is five questions…" above the inviter's chat. Joining works for anyone since the chats are everyone's (N456). Was: Will's row had no line · FE (this PR)
 - 2026-11-03 · N456 · C1, §2, K: the list of chats and every chat's own top bar are the default for every signed-in person, on the web and in the iPhone app, locked (backend docs/LOCKS.md, "The chats, all of a piece"): no ring decides them (`useChatsOn` is the session; backend `chats.enabled` every signed-in person); the loader, never Will's chat, waits for the list on the web too. Tests say it as stories: as a user, as a visitor, as a developer (`chats.test.tsx`); as a user and as a server (backend `test_chats.py`, `test_chat_links.py`, `test_people_profiles.py`). Was: ring 6 only (feature `chats`); everyone else opened Will's chat under the WillpowerLab bar · BE N456 log (#1682), BE (#1684), FE (this PR)
 - 2026-11-03 · N368, N365 · C1: in the iPhone app the buzz on every send (N368 item 3) is the iPhone's own light tap (`@capacitor/haptics`); the web's vibration, which an iPhone ignores, stays for the web. Was: no buzz in the app · FE (this PR)
