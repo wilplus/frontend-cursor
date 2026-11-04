@@ -167,7 +167,11 @@ step; the loop never waits for a coach.
   earlier steps stay above to scroll back to; nothing leaves the thread while
   the lens is open. Each new bubble, and the typing dots before it, land at
   the bottom, right above the buttons, as in the Lounge; the thread follows
-  them down until the speaker scrolls up by hand. What opens a part (the
+  them down until the speaker scrolls up by hand. A thread shorter than the
+  screen sits at the bottom too, and the lens screen's own wait while the
+  walk loads is the typing dots there, so the first bubble lands where the
+  dots were; they show only once the walk is still loading 0.3 s after the
+  screen opens, so a quick load never flashes them (N122, N499). What opens a part (the
   walk's answer to the step before, "And now, one thing to improve:", a
   lead) lands first, then the step's own bubbles one at a time, the AI
   clip's fix's too; moving on, the thread glides down to them (N440; was:
@@ -2210,6 +2214,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-11-04 · N122, N499 · B5, B8: the walk loads with the typing dots at the bottom, where its first bubble lands, and only once it is still loading after 0.3 s (`LENS_DOTS_AFTER_MS`); a thread shorter than the screen sits at the bottom, right above the buttons, as in the chat (`IdealTextOverlay` `LensFrame`, `WalkThread`). Prototype: <https://claude.ai/artifact/1KxNrA1Yw1QDPEK1zRFBAe>. Was: the dots at the top left of an empty screen from the first frame, and the first bubbles at the top until the thread filled · BE #1738, FE (this PR)
 
 - 2026-11-04 · N483 · B3, B10, B14, D4, E1, E3, K: the bar has one logic in every chat. In Will's chat the stack on the left, and in the middle the one thing to do now: the box "Type your answer" only when Will asks for words ("Something else", now the first of his answers, opens it; empty, it closes when you tap away); "Record your answer" for the plan's spoken questions, with "Not now" under the question; "Continue review"; else "Record Take N" for the newest Take, faded while one is processed, or "Start your first recording" before any (`WillBarMiddle`, `useWordsBox`, `Lounge.tsx`, `afterTake.ts`). What stops: the mic and voice notes to Will, the "#" note, "Keep a voice notebook?" and Will opening the notebook from your Takes (the note rests; kept notes stay, notes left on the phone still go); typing when Will has not asked; a spoken answer to Will's question; the tap "I want to continue my practice"; the ✕ beside "Record Take N"; "Continue review" above the bar; the faded "Type here" and its note · BE N483 (#1718), FE (this PR)
 - 2026-11-04 · N470, N479 · G: who hears this Take: at "Record Take 2" the three signed bubbles, "Select all" and one row per person in your chats, everyone ticked or the last choice, "Last sent" on the one sent to last; Continue keeps the people and the line naming them ("Artur, Maya Lindqvist", "Everyone in my list"), and the Take is sent to each, as your message in your chat with them, once its upload is up; the line opens the screen to add people, never to unsend; asked again only when someone joins a choice of chosen people; "Record Take N" waits 1.5 s at most for the choice, then asks; nobody in the list records with nothing sent (`NextTakeShareScreen.tsx`, `nextTakeShare.ts`, `walkThread.ts`, `IdealTextActions.tsx`, `takeSends.ts`). Behind the backend's switch, off until the Privacy text is signed; off, or when its reads fail, today's screen exactly. What stops once on: General community and Only me, the crowd judging new Takes, taking a sent Take back, the passcode (N471 item 2, N479 item 4), the question asked again when a community is added. Was: G1 to G4, "How big you want your audience?" · BE N470 (#1702), N479 (#1704), BE (send PR), FE (this PR)
