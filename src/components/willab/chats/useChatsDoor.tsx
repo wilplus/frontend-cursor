@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Chat } from "@/services/api/chats";
 import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import ChatList from "./ChatList";
+import InquiryThread from "./InquiryThread";
 import ChatThread, { WillTopBar } from "./ChatThread";
 import { useChatList, useChatsDecided } from "./useChats";
 import LoadingState from "../LoadingState";
@@ -274,9 +275,23 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
             }}
           />
         }
-        thread={(chat, open) => (
-          <ChatThread chat={chat} open={open} onBack={toList} onRecordAnswer={onRecordAnswer} />
-        )}
+        thread={(chat, open) =>
+          chat.inquiry ? (
+            <InquiryThread
+              chat={chat}
+              inquiry={chat.inquiry}
+              open={open}
+              onBack={toList}
+              onGone={() => {
+                toList();
+                reload();
+              }}
+              onRecordAnswer={onRecordAnswer}
+            />
+          ) : (
+            <ChatThread chat={chat} open={open} onBack={toList} onRecordAnswer={onRecordAnswer} />
+          )
+        }
       />
     ),
   };

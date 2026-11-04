@@ -608,6 +608,12 @@ the browser's Forward on the web) opens the chat I just left again;
 before I have left one, it does nothing (N378, N436).
 O18 An answer the backend refused stays in the bar's middle, ""Not sent""
 with ""Send again"", which sends the same Take (N441 item 1).
+O23 A matched Take that reached me (N485, N486, N493) is its own row in
+the list under the pseudonym, ""Asks you about {topic}"", new; opened,
+it shows who asks and what about, never a name, with ""Open Take"" in
+the bar; Open Take shows the name and the Take with ""Record your
+answer"", which answers it over its slides as an inquiry; ""Not now""
+removes it and tells nobody.
 O22 A Take someone sent me (N470, N479) is their message: ""{name} sent
 you Take {n}"" with the Take's tile, its first slide and no play mark
 (N493 item 6), already open: its recording, and its words slide by

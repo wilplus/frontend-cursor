@@ -1,4 +1,5 @@
 import { bffFetch } from "@/lib/api/bffFetch";
+import type { Inquiry } from "./takeMatches";
 
 /* The chats between users (backend N298, N302, N306, N311, N321, N351; rules:
    docs/flows/customer-requests.md §1 C1). Ring 6, feature `chats`: the
@@ -24,6 +25,9 @@ export type Chat = {
   joined_through?: string | null;
   /** You have blocked the other person (backend N466). */
   blocked?: boolean;
+  /** An asking chat: a matched Take that reached you, not yet a chat of its
+   *  own (backend N485, #1712). Drawn by InquiryThread. */
+  inquiry?: Inquiry;
 };
 export type ChatMessage = {
   id: string;

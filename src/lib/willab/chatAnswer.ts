@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { createProject } from "@/services/api/projects";
 import { sendChatAnswer, undoChatAnswer, type ChatMessage } from "@/services/api/chats";
+import { answerInquiry, undoInquiry } from "@/services/api/takeMatches";
 import {
   clearExploreArc,
   readExploreArc,
@@ -87,6 +88,10 @@ export interface AnswerFor {
   /** A question to them, not an answer ("Record your question", N483 item
    *  4): no slide of theirs, the default presentation instead. */
   asks?: boolean;
+  /** An answer to a matched Take (backend N485, #1712): the asking chat's
+   *  id. It goes to the matching's own routes, held the same 5 seconds;
+   *  the chat with the asker is made only once it counts (N486 item 1). */
+  inquiry?: string;
   /** An answer to their Take: its slides' titles, in order, so the answer
    *  follows the Take slide by slide (backend N493 item 1). Absent for a
    *  question, which keeps its one slide. */
@@ -110,6 +115,7 @@ type Answering = AnswerFor & { ownerId: string | null; before: ExploreArc | null
 type Sending = PendingAnswer & {
   project: string;
   asks: boolean;
+  inquiry: string | null;
   take: string | null;
   posting: boolean;
   message: ChatMessage | null;
@@ -189,6 +195,7 @@ export function answerRecorded(durationMs: number): void {
     name: current.name,
     project: current.project,
     asks: current.asks === true,
+    inquiry: current.inquiry ?? null,
     durationMs: Math.max(1, Math.round(durationMs)),
     startedAt: Date.now(),
     take: null,
@@ -283,7 +290,9 @@ function sent(answer: Sending) {
 async function post(answer: Sending, holdMs = Math.max(0, answer.startedAt + UNDO_MS - Date.now())) {
   if (answer.posting || answer.message || !answer.take) return;
   answer.posting = true;
-  const message = await sendChatAnswer(answer.chatId, answer.take, answer.durationMs, holdMs, answer.asks);
+  const message = answer.inquiry
+    ? await postToInquiry(answer.inquiry, answer.take, answer.durationMs, holdMs)
+    : await sendChatAnswer(answer.chatId, answer.take, answer.durationMs, holdMs, answer.asks);
   answer.posting = false;
   answer.message = message;
   if (message && answer.asks) remember(ASKED);
@@ -300,9 +309,20 @@ async function post(answer: Sending, holdMs = Math.max(0, answer.startedAt + UND
   }
 }
 
+/** An answer to a matched Take, held on the matching's route: it has no
+ *  chat message of its own until the chat is made, so a kept answer stands
+ *  for one here. */
+async function postToInquiry(inquiry: string, take: string, durationMs: number, holdMs: number): Promise<ChatMessage | null> {
+  const kept = await answerInquiry(inquiry, take, durationMs, holdMs);
+  if (!kept) return null;
+  return { id: `inquiry-${inquiry}`, mine: true, author: "", kind: "voice", body: "", meta: { answer: true }, created_at: new Date().toISOString() };
+}
+
 /** Tell the backend about an Undo; one that came too late shows as sent. */
 async function tellUndo(answer: Sending) {
-  const result = await undoChatAnswer(answer.chatId, { message: answer.message?.id ?? null, project: answer.project });
+  const result = answer.inquiry
+    ? await undoInquiry(answer.inquiry)
+    : await undoChatAnswer(answer.chatId, { message: answer.message?.id ?? null, project: answer.project });
   const message = answer.message;
   if (result === "sent" && message) sentListeners.forEach((listener) => listener(answer.chatId, message));
 }

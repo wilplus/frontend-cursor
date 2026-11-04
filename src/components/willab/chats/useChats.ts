@@ -4,6 +4,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSignedIn } from "../useSignedIn";
 import { getChats, type Chat } from "@/services/api/chats";
 import { takeChats } from "@/services/api/bootPrefetch";
+import { getInquiries, type Inquiry } from "@/services/api/takeMatches";
+
+/** An asking chat in the list (backend N485): its own row, under its
+ *  pseudonym until Open Take, then the asker's name. */
+function inquiryChat(inquiry: Inquiry): Chat {
+  return {
+    id: `inquiry:${inquiry.id}`,
+    kind: "team",
+    title: inquiry.state === "new" ? inquiry.pseudonym : inquiry.name || inquiry.pseudonym,
+    subtitle: inquiry.role ?? "",
+    last: null,
+    inquiry,
+  };
+}
 
 /** Whether the chats are on: for every signed-in person, everywhere
  *  (backend N456; was ring 6, feature `chats`). No ring is read. */
@@ -36,8 +50,8 @@ export function useChatList(on: boolean): { chats: Chat[] | null; reload: () => 
   const load = useCallback(async () => {
     const read = first.current ? takeChats : getChats;
     first.current = false;
-    const list = await read();
-    if (alive.current) setChats(list ?? []);
+    const [list, asking] = await Promise.all([read(), getInquiries()]);
+    if (alive.current) setChats([...asking.map(inquiryChat), ...(list ?? [])]);
   }, []);
   useEffect(() => {
     if (!on) return;
