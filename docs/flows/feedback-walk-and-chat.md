@@ -636,7 +636,8 @@ praised moment:
 - **C6 The voice Exercise** opens with one short bubble (founder
   2026-10-23, N120): a one-word opener ("Nice." / "Close." / "Good."), one
   tip for the problem the clip fixes, ending ", like this:" (K), the AI
-  version of their voice, then "Your turn."; until then L4 "That was good.
+  version of their voice, then "Your turn." (not in the One thing walk's
+  fix, where the "Try it" under it says it: N379 item 3, C4); until then L4 "That was good.
   But what if you said it more like this?", the clip and L3 "Now try saying
   it like that." (N82), with L14–L18 under the player. When a library video fits exactly
   and targets the chosen problem, the video and its instruction (the coach's
@@ -693,7 +694,9 @@ praised moment:
   `capturing`).
   The trash throws the try away: nothing is uploaded or checked, no try is
   counted, and the walk is back on the step that opened it ("Try it",
-  "Practise", "Practise again"), as ✕ does (N314). The
+  "Practise", "Practise again"), as ✕ does (N314); in the One thing walk's
+  fix and the Sniper the trash is the Skip instead, and moves the walk on
+  (above; backend N435 item 3, N448). The
   machine decides (H1): a Good job on the voice alone needs the margin,
   +0.05 (`after_practice.GOOD_JOB_MARGIN`, N84); a cleared problem, or a cue
   moved by at least half a within-speaker deviation, counts too; a clearer
@@ -1652,23 +1655,16 @@ October (backend N111).
   (`withoutRepeats`, `src/lib/willab/walkLines.ts`): a sentence whose gist an
   earlier sentence of the same bubble already said is dropped; the first one
   and every other word stay. Nothing is reworded and no word is added.
-- **Said fresh, from the signed meaning** (founder 2026-10-23, N123: "please
-  do not make the asks fixed all the time, please make them fairly smart
-  like there should be some flexibility"; then "both"). Each ask after the
-  Take (E1, E2, the CEO panel's included) and each of the walk's own lines
-  (the AI clip's opener, tip and closer; the Clearer version's opener and
-  question; Line A; the not-yet and move-on lines; Line B and "Does this
-  sound confident to you?") keeps its signed line below as its anchor. Will
-  says it fresh for this speaker and this Take (their name, their talk, how
-  the Take went, what was said before), one or two short sentences, never
-  the same wording twice in a row. A check keeps it only when it still
-  means the signed line, carries no number or score, keeps the speaker's
-  own words and quoted phrase, and stays short; otherwise the signed line
-  shows. The walk's lines are written once per Take while it is processed,
-  so the lens and the chat say the same and nothing waits. Never varied:
-  buttons and tap answers, the praise lines (N122), consent and sharing
-  words, the legal lines, the AI clip's label "AI version of your voice",
-  "We couldn't hear that clearly. Try again.", the safety reply.
+- **The signed words stay** (founder 2026-11-02, N338 item 2, which
+  withdrew N123): each ask after the Take (E1, E2, the CEO panel's
+  included) and each of the walk's own lines is said as the founder signed
+  it; nothing is written fresh by a model. Where a line has a signed bank
+  (the AI clip's openers and tips), the bank rotates, never the same line
+  twice in a row (the AI clip's bubble, above). Was (founder 2026-10-23,
+  N123, withdrawn by N338 item 2): **said fresh, from the
+  signed meaning**, each ask and each of the walk's lines said fresh for
+  this speaker and this Take around its signed line, checked, the signed
+  line the fallback.
 
 - **The tempo step (N179, signed 2026-10-26):** the bar "Tempo"; Will's
   opening "That part went fast. 🏃 Let's try a little game." (rushed) or
@@ -1723,7 +1719,8 @@ October (backend N111).
   time", "A bit slower"; fillers "Say it without the ums", "Straight
   through, no ums", "Drop the ums"; nothing off "Lean on “{phrase}”", "Give
   “{phrase}” more weight", "Say “{phrase}” a little stronger"; then "Your
-  turn." (the first bubble) or "Try again." (after a try that is not yet
+  turn." (the first bubble; not in the One thing walk's fix, N379 item 3)
+  or "Try again." (after a try that is not yet
   better). "Nice." or "Good." opens the first bubble and "Close." the one
   after a try that is not yet better, as the signed review page shows; each
   bank rotates, never the same line twice in a row (built 2026-10-23, the
@@ -1873,12 +1870,12 @@ backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
 2. Will's bubble, from what the stretch was: "That part went fast. 🏃 Let's try a little game." or "That part slowed down, with long pauses. 🐢 Let's try a little game."
 3. Will's bubble with the stretch's topic: "Tell me more about {topic}, and keep the ball in the green."
 4. Will's bubble: "🤫 Find a quiet spot first."
-5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar, the app's one recording bar (N314): the trash, then the strip with Stop inside it, nothing under it (founder 2026-11-03; was the Skip under it). Stop shows once the mic is live, as in the walk's practise (C7, N350 item 5). Nothing else appears until Stop. The trash throws the try away: no try is counted or kept for Will, and the step is back where it was before it (I'm ready, "Try it" or Practise again).
+5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar, the app's one recording bar (N314): the trash, then the strip with Stop inside it, nothing under it (founder 2026-11-03; was the Skip under it). Stop shows once the mic is live, as in the walk's practise (C7, N350 item 5). Nothing else appears until Stop. The trash throws the try away: no try is counted or kept for Will, and the step is back where it was before it (I'm ready, "Try it" or Practise again); in the Sniper the trash is the Skip instead, and the walk goes on with "Okay, we'll skip this one." (backend N435 item 3, N448).
 6. The try: the dot's path, then Will's word on it; Will guides, the speaker never has to choose between another try and moving on (N245):
    - **It lands** (really better): "That landed. 🎯 Really better. Let's move on.", then **Next**; the game ends there, on any try.
    - **It came closer** (more than half in the green, not enough to land): "Better. You let it breathe." and, while a try is left, "You're close. 💪 Give it one more try.", then **Practise again**.
    - **Not yet**: "Still rushed. Take a breath after each offer." / "A bit slow. Keep the words moving between the pauses.", then **Practise again**.
-7. After the third try without a landing, a one-line summary (for example "Dynamic. You paused where it mattered. 🔥"), then **Next** and the walk goes on. The Skip stays at the start and during each try (N178 item 3).
+7. After the third try without a landing, a one-line summary (for example "Dynamic. You paused where it mattered. 🔥"), then **Next** and the walk goes on. The Skip stays at the start and between tries (N178 item 3), never under the recording bar while a try records (step 5); in the Sniper the trash is the Skip, and moves the walk on (backend N435 item 3, N448). Was (N178 item 3): the Skip during each try too.
 
 Once the walk goes on, the game stays in the thread as it was played (B5): each try with the line the dot drew and Will's word on it, and the closing line (none after a try that landed), or the speaker's "Skip" as their own bubble; the scale shows only while the walk stands on the step (founder 2026-10-28). A walk opened again further on draws the game as the chat kept it, never only its opening lines (founder 2026-10-28: "It feels like the practice is gone from the feedback walk").
 
@@ -2148,6 +2145,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-04 · N467 · J7, E1: Will's chat starts at the bottom; every choice in a chat follows four rules: answers on your side under the question, one orange answer look with the likely one filled, "Not now", "Skip", "Cancel" and "Close" a grey word (`TapRow`), a way to go a link with › (`ChatLink`: "What would help?"'s ways, "Replace PDF", "Open exercise", "Review coach feedback", "Open speaker", a product's action, "See the feedback"); the Ideal Text failure card's two buttons are answers under it; the new project, slides and WhatsApp pairs are answers under their grey card; "Yes" last; the scale's pick orange. Was: the chat from the top, an outlined or faded "Not now", grey cards with ›, outlined buttons, buttons inside cards, black-and-grey pills · BE N467 log (#1695), FE (this PR)
+- 2026-11-04 · — · C6, C7, K, T: the rules text brought in line with N338, N379, N435 and N448: no "Your turn." in the One thing walk's fix (C6, K, N379 item 3); K's "said fresh" (N123) marked as replaced by the signed words, rotating (N338 item 2); T's Skip never under the recording bar, and in the fix and the Sniper the trash is the Skip, moving the walk on (C7, T step 5 and 7, N435 item 3, N448); no rule changes · docs (this PR)
 - 2026-11-04 · N371 · E1: fix: while Will's question waits, "Something else" stands alone in the bar's middle, where "Type here" stands, as N371 item 3 says; the "Type here" box underneath it is hidden (`Lounge.tsx`: the box takes `hidden` as a class, since Tailwind's `[hidden]` rule lost to its `block`). Was: both boxes stacked, "Something else" above "Type here" (founder 2026-11-04, "if it looks like this it's wrong") · FE (this PR)
 - 2026-11-04 · N459 · C0a, C4, T, D4: no "When is your deadline?" after the walk, the deadline is set in the set-up before it; a slow Sniper's Last time says "Last time: keep “{words}” moving." (`ONE_THING_COPY.slowTip`, signed), a rushed one keeps "give “{words}” more room"; a weakest moment too long for the AI clip (17 s at the slow reading) is trimmed to the part around what the clip teaches (`ai_voice_prompt.fit_to_clip`), so its clip is always made, and the speaker's try asks for and is checked on the same trimmed words (`clip.passage`); the moment's own words above the clip stay whole. Was: the deadline asked above the goodbye after Take 1; the rushed tip after a slow Sniper; a moment of 37 words or more got only the tip in words · BE N459 log (#1689), BE (next PR), FE (this PR)
 - 2026-11-04 · N458 · C9, D4, E1, E2, B3, B8: the chat after the walk comes however the walk ends: Close, ✕ on the finished walk, or opening a finished Take that has none yet. ✕ and the page's own open ask only when the chat's newest recording is this Take's own, so an older Take's chain never lands under a newer one; the summary is asked once per Take whichever page asks, asked again if it failed, and the chat reloads either way; a coach's late word closed with ✕ ends nothing (`askSummary`). While the summary and the chain are written the chat shows the typing dots, a tapped answer to Will too; a failed read of the chat keeps it on screen. The first Take's goodbye says it is the first Take's (`metadata.first_take`), so "Record Take 2" comes at once and records the real talk on any device. A "#" note under Will's question no longer brings his next question (`answered_first`); from Take 3 the deeper question waits until who, what and the key line are all known. Was: only the Close pill brought the chain, ✕ ended the review with nothing after it; the chat sat still with no dots for the summary's model call; the first Take's goodbye was known only on the device that started it; a note brought the next question; the deeper question came after an unanswered key line · BE #1687, FE (this PR)
