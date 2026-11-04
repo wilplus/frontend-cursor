@@ -1517,6 +1517,7 @@ export default function LabOverlay({
             micStatus={mic.state.status}
             who={look.who}
             of={look.of}
+            to={look.to}
             takeNumber={arcTakeIndex}
             slide={currentSlide}
             slideCount={recordingSlides.length}
@@ -2138,6 +2139,7 @@ export function RecordingWhere({
   micStatus,
   who = null,
   of = null,
+  to = null,
   takeNumber,
   slide,
   slideCount,
@@ -2149,6 +2151,8 @@ export function RecordingWhere({
   /** An answer to their Take: "{name} · Slide n of m", the Take's own slides
    *  (backend N493 item 1). */
   of?: string | null;
+  /** A question's person: "To {name} · Slide n of m" (backend N483 item 6). */
+  to?: string | null;
   takeNumber: number | null;
   slide: number;
   slideCount: number;
@@ -2177,7 +2181,7 @@ export function RecordingWhere({
       data-testid="recording-where"
       className="m-0 text-[13px] font-semibold tabular-nums text-muted-foreground"
     >
-      {recordingWhere(takeNumber, slide, slideCount)}
+      {recordingWhere(takeNumber, slide, slideCount, to)}
     </p>
   );
 }
@@ -2187,7 +2191,9 @@ export function RecordingWhere({
 /** An answer's look on these screens (backend N363, N441): hidden while its
  *  Take uploads, the chat showing "Sending to {name}…" (its error, if any,
  *  shows here as for any Take); a taller top bar with the person's name
- *  alone, and "{name} asks" over the question on the slide (N441 item 7).
+ *  alone, and "{name} asks" over the question on the slide (N441 item 7). A
+ *  question to someone (N483 item 4) is hidden the same way; its top bar is
+ *  any Take's, "To {name} · Slide n of 3", over the default presentation.
  *  Its clock is any Take's: an answer has no five-minute cap (backend N486
  *  item 4), and its project has no planned length, so it counts up and the
  *  answer ends only at Finish take. */
@@ -2197,10 +2203,11 @@ function answerLook(answer: AnswerFor | null, state: WillabState, uploadError: u
   const overTake = !!answer?.slides?.some((title) => title.trim());
   return {
     hidden: answer && state === "lab_processing" && !uploadError ? " hidden" : "",
-    header: answer && !overTake ? "h-16" : "h-12",
-    who: answer && !overTake ? answer.name : null,
-    of: answer && overTake ? answer.name : null,
-    asks: answer && !overTake ? answer.name : null,
+    header: answer && !answer.asks && !overTake ? "h-16" : "h-12",
+    who: answer && !answer.asks && !overTake ? answer.name : null,
+    to: answer?.asks ? answer.name : null,
+    of: answer && !answer.asks && overTake ? answer.name : null,
+    asks: answer && !answer.asks && !overTake ? answer.name : null,
     target: plannedSec ?? null,
   };
 }

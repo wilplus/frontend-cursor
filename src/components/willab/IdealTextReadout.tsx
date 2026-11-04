@@ -1244,7 +1244,9 @@ export default function IdealTextReadout({
         // 2026-08-05). The take nudge that sat under this went with it:
         // "not text that it really lands on the 3rd time; on the bubble
         // never" — and it was no better as a standing line on the document.
-        nextStep(reviewWaiting === true)
+        // 8px above, on each side and below (N505), out of the shell's
+        // 16px sides and 8px bottom and the column's 16px gap.
+        <div className="-mx-2 -mb-2 -mt-2">{nextStep(reviewWaiting === true)}</div>
       ) : onReRead ? (
         // Flag OFF / no SD payload — the plain small mic into the record flow.
         <div className="mt-1 flex flex-col items-center gap-2 border-t border-border pt-4">

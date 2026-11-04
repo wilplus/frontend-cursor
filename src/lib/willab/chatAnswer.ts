@@ -35,9 +35,41 @@ import {
 /*             their chat with him (N441 item 5). A Take that never uploads   */
 /*             shows its error on the recording screens, as any Take's.       */
 /*                                                                            */
-/*  One answer at a time. The recording screens read `answering()` as they   */
-/*  open; the chat reads `usePendingAnswer`.                                  */
+/*  A question (`asks`, "Record your question" in "Ask {name}", backend N483 */
+/*  item 4, N498) goes the same way: its project has no slides of its own, so */
+/*  the recording screens open on the default presentation (Opening, Main     */
+/*  points, Summary), and it is sent to the question route, which marks it    */
+/*  for the other person to answer.                                           */
+/*                                                                            */
+/*  One at a time. The recording screens read `answering()` as they open;    */
+/*  the chat reads `usePendingAnswer`.                                        */
 /* -------------------------------------------------------------------------- */
+
+/* "Ask {name}" remembers two things on this device (N483 item 4): whether
+ * the speaker has asked anyone a question yet (the sheet's three steps show
+ * only before that), and whether they have tapped the "+" (orange until
+ * then). Unreadable storage reads as not yet. */
+const ASKED = "willab.ask.asked";
+const PLUS_SEEN = "willab.ask.plusSeen";
+function remembered(key: string): boolean {
+  try {
+    return window.localStorage.getItem(key) === "1";
+  } catch {
+    return false;
+  }
+}
+function remember(key: string): void {
+  try {
+    window.localStorage.setItem(key, "1");
+  } catch {
+    // Not kept on this device: asked again next time.
+  }
+}
+/** The speaker has sent a question before, on this device. */
+export const askedBefore = (): boolean => remembered(ASKED);
+/** The "+" has been tapped before, on this device. */
+export const plusSeen = (): boolean => remembered(PLUS_SEEN);
+export const markPlusSeen = (): void => remember(PLUS_SEEN);
 
 /** How long an answer can still be taken back (N345 item 2). */
 export const UNDO_MS = 5000;
@@ -52,6 +84,9 @@ export interface AnswerFor {
   /** A customer; the answer reaches them in the app until WhatsApp delivery
    *  exists (N441 item 4). */
   customer: boolean;
+  /** A question to them, not an answer ("Record your question", N483 item
+   *  4): no slide of theirs, the default presentation instead. */
+  asks?: boolean;
   /** An answer to their Take: its slides' titles, in order, so the answer
    *  follows the Take slide by slide (backend N493 item 1). Absent for a
    *  question, which keeps its one slide. */
@@ -74,6 +109,7 @@ export interface PendingAnswer {
 type Answering = AnswerFor & { ownerId: string | null; before: ExploreArc | null; project: string };
 type Sending = PendingAnswer & {
   project: string;
+  asks: boolean;
   take: string | null;
   posting: boolean;
   message: ChatMessage | null;
@@ -96,18 +132,24 @@ function changed() {
   listeners.forEach((listener) => listener());
 }
 
-/** The deck of an answer: one slide, the asker's words (N361 item 3). */
+/** The deck of an answer: one slide, the asker's words (N361 item 3); an
+ *  answer to their Take, the Take's own slides (N493 item 1). A question has
+ *  none: the recording screens draw the default presentation. */
 function answerDeck(answer: AnswerFor): ExploreArcDeck {
   const titles = answer.slides?.filter((title) => title.trim()) ?? [];
-  const slides = titles.length ? titles.map((title) => ({ title, body: "" })) : [{ title: answer.question, body: "" }];
+  const slides = answer.asks ? [] : titles.length ? titles.map((title) => ({ title, body: "" })) : [{ title: answer.question, body: "" }];
   return { topic: answer.question, audience: null, presentationRef: null, slides, targetLengthSeconds: null };
 }
+
+/** A question's project is named for whom it is to, as its screens' top line
+ *  says (N483 item 6). */
+const projectName = (answer: AnswerFor) => (answer.asks ? `To ${answer.name}` : answer.question).slice(0, 200);
 
 /** The answer the recording screens are opening for, else null. */
 export function answering(): AnswerFor | null {
   if (!current) return null;
-  const { chatId, name, question, customer, slides } = current;
-  return { chatId, name, question, customer, slides };
+  const { chatId, name, question, customer, asks, slides } = current;
+  return { chatId, name, question, customer, asks, slides };
 }
 
 /** "Record an answer": the question's own project, then `open` opens the
@@ -118,7 +160,7 @@ export async function startAnswer(answer: AnswerFor, ownerId: string | null, ope
   starting = true;
   const deck = answerDeck(answer);
   const created = await createProject({
-    displayName: answer.question.slice(0, 200),
+    displayName: projectName(answer),
     setup: {
       topic: deck.topic,
       audience: null,
@@ -146,6 +188,7 @@ export function answerRecorded(durationMs: number): void {
     chatId: current.chatId,
     name: current.name,
     project: current.project,
+    asks: current.asks === true,
     durationMs: Math.max(1, Math.round(durationMs)),
     startedAt: Date.now(),
     take: null,
@@ -240,9 +283,10 @@ function sent(answer: Sending) {
 async function post(answer: Sending, holdMs = Math.max(0, answer.startedAt + UNDO_MS - Date.now())) {
   if (answer.posting || answer.message || !answer.take) return;
   answer.posting = true;
-  const message = await sendChatAnswer(answer.chatId, answer.take, answer.durationMs, holdMs);
+  const message = await sendChatAnswer(answer.chatId, answer.take, answer.durationMs, holdMs, answer.asks);
   answer.posting = false;
   answer.message = message;
+  if (message && answer.asks) remember(ASKED);
   if (sending !== answer) {
     // Taken back while it was on its way: take this one back too.
     if (message && answer.undone) void tellUndo(answer);

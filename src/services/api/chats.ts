@@ -119,6 +119,27 @@ export async function answerChatSetup(chatId: string, messageId: string, picked:
   return body && Array.isArray(body.messages) ? (body.messages as ChatMessage[]) : null;
 }
 
+/** The first time "Add someone to chat with" opens (backend N503): Will
+ *  asks the setup in his chat. True when he does (open his chat); false
+ *  opens the link at once, as before. */
+export async function beginJoinSetup(): Promise<boolean> {
+  const body = await call("/api/v2/chats/join-questions/setup", { method: "POST", json: {} });
+  return body?.started === true;
+}
+
+/** "Your questions for people who join ›": the summary again, in Will's chat. */
+export async function joinSetupAgain(): Promise<boolean> {
+  const body = await call("/api/v2/chats/join-questions/setup/again", { method: "POST", json: {} });
+  return body?.started === true;
+}
+
+/** A tap, or one's own words, under Will's setup question (`to`, its
+ *  client id). True once Will's next lines are written. */
+export async function answerJoinSetup(to: string, answer: { picked: string } | { said: string }): Promise<boolean> {
+  const body = await call("/api/v2/chats/join-questions/setup/answer", { method: "POST", json: { to, ...answer } });
+  return Array.isArray(body?.messages);
+}
+
 /** Block (`true`) or unblock (`false`) the other person in a chat (backend
  *  N466): they can't send you messages or answers, and aren't told. True
  *  once the backend says the chat is so; false on any refusal. */
@@ -224,26 +245,6 @@ export async function sendChatEmoji(chatId: string, emoji: ChatEmoji): Promise<C
   return messageOf(body);
 }
 
-/** A photo or a file sent from the "+" (N351), as multipart `file` under
- *  its own name. The backend marks it as a question for the other person
- *  (`meta.question`); any refusal (not a member, not a photo, too big)
- *  answers null. */
-export async function sendChatUpload(
-  chatId: string,
-  kind: "photo" | "file",
-  file: Blob,
-  name: string,
-): Promise<ChatMessage | null> {
-  const form = new FormData();
-  form.append("file", file, name);
-  const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/${kind}`, {
-    method: "POST",
-    timeoutMs: 60_000,
-    body: form,
-  });
-  return messageOf(body);
-}
-
 /** Where a photo or a file in the chat opens from (N351). */
 export function chatFileSrc(chatId: string, messageId: string): string {
   return `/api/v2/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}/file`;
@@ -254,8 +255,10 @@ export function chatFileSrc(chatId: string, messageId: string): string {
  *  Take, up to five minutes. `holdMs`, what is left of its 5 seconds, holds
  *  it on the server, where Undo can still take it back (N441 item 3). Any
  *  refusal answers null. */
-export async function sendChatAnswer(chatId: string, take: string, durationMs: number, holdMs = 0): Promise<ChatMessage | null> {
-  const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/answer`, {
+export async function sendChatAnswer(chatId: string, take: string, durationMs: number, holdMs = 0, asks = false): Promise<ChatMessage | null> {
+  // A question (N483 item 4) goes the same way to its own route, which marks
+  // it for the other person to answer.
+  const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/${asks ? "question" : "answer"}`, {
     method: "POST",
     json: { take, duration_ms: Math.round(durationMs), hold_ms: Math.max(0, Math.round(holdMs)) },
   });

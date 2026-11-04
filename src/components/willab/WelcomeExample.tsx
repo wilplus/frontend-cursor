@@ -158,7 +158,7 @@ export default function WelcomeExample({
         </div>
       </div>
 
-      <div className="flex shrink-0 justify-center px-6 pb-[max(20px,env(safe-area-inset-bottom))] pt-3">
+      <div className="bar-space flex shrink-0 justify-center">
         <button
           type="button"
           onClick={onTry}

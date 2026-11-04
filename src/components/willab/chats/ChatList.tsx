@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Link as LinkIcon, Pin, Plus, Share } from "lucide-react";
-import { getMyChatLink, type Chat, type ChatEmoji, type ChatLast } from "@/services/api/chats";
+import { beginJoinSetup, getMyChatLink, type Chat, type ChatEmoji, type ChatLast } from "@/services/api/chats";
 import type { LoungeKind, LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadMaybe } from "../LoungeThreadContext";
 import { chatIsNew, isNewSince, markChatOpened } from "./chatOpened";
@@ -196,6 +196,23 @@ function ChatListRow({
   );
 }
 
+/** "Add someone to chat with": the first time, Will's chat opens on his
+ *  setup, the questions everyone who joins through your link is asked
+ *  (backend N487, N503); after it, or before it can be kept, the add sheet
+ *  opens as before. */
+function useAddSomeone(setAdding: (open: boolean) => void, onOpenWill: () => void): () => void {
+  const thread = useLoungeThreadMaybe();
+  return () => {
+    if (!thread) return setAdding(true);
+    void beginJoinSetup().then((started) => {
+      if (!started) return setAdding(true);
+      // Will's chat reads its thread again, his first lines at the bottom.
+      void thread.reload().catch(() => undefined);
+      onOpenWill();
+    });
+  };
+}
+
 /** Add someone (backend N308, N310, N328): your own link, to paste into any
  *  email or message; whoever opens it joins you here. The only way anyone
  *  comes into your chats. "Invite by email" (N307) comes with the email
@@ -347,6 +364,7 @@ export default function ChatList({
 }) {
   const now = new Date();
   const [adding, setAdding] = useState(false);
+  const openAdd = useAddSomeone(setAdding, onOpenWill);
   const first = joined ? chats.find((chat) => chat.id === joined) ?? null : null;
   const will = useWillRow(willOpen, cameFrom === WILL_CHAT);
   const row = (chat: Chat, justJoined = false) => (
@@ -388,7 +406,7 @@ export default function ChatList({
             </span>
           }
           title={ADD_SHEET_TITLE}
-          onOpen={() => setAdding(true)}
+          onOpen={openAdd}
         />
       ) : null}
       {newestFirst(chats.filter((chat) => chat !== first)).map((chat) => row(chat))}
@@ -397,7 +415,7 @@ export default function ChatList({
         type="button"
         data-add-someone=""
         aria-label={ADD_SHEET_TITLE}
-        onClick={() => setAdding(true)}
+        onClick={openAdd}
         className="absolute bottom-5 right-4 flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background shadow-lg"
       >
         <Plus className="h-5 w-5" aria-hidden />

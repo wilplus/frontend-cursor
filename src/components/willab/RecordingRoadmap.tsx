@@ -212,7 +212,7 @@ export default function RecordingRoadmap({
 
       <div
         data-testid="recording-strip"
-        className="relative z-10 -mx-1 shrink-0 bg-background px-1 pt-4 pb-[env(safe-area-inset-bottom)]"
+        className="relative z-10 -mx-3 shrink-0 bg-background px-1 pt-2 pb-[env(safe-area-inset-bottom)]"
       >
         {strip}
         {/* The coach panel's pair: equal halves, 48px, 16px corners. With

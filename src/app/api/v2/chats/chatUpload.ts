@@ -3,11 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { callBackend, failure, getAccessToken, relayAudio, relayLenient, type Failures, type Relay } from "@/app/api/_lib/backend";
 
 /**
- * A photo or a file sent from the "+" in a chat with a person (N351):
- * multipart `file`, relayed to `POST /v2/chats/<chatId>/photo` or `/file`. The backend
- * checks the chat, the type and the size (10 MB) and answers the message.
- * The platform's own body limit (about 4.5 MB) refuses anything larger
- * first; the app makes a big photo smaller before it is sent.
+ * Uploads relayed to the backend as they came (your profile's photo), and a
+ * chat's photos and files relayed back as they were sent (N351). The
+ * platform's own body limit (about 4.5 MB) refuses anything larger first;
+ * the app makes a big photo smaller before it is sent.
  */
 const FAILURES: Failures = {
   unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
@@ -35,12 +34,9 @@ export const relayFile: Relay = async (upstream) => {
   return out;
 };
 
-export function chatUploadRoute(kind: "photo" | "file") {
-  return uploadRoute("POST", (params) => `/v2/chats/${encodeURIComponent(params.chatId ?? "")}/${kind}`);
-}
-
-/** A multipart upload relayed as it came: a chat's photo or file, or your
- *  profile's photo (N366, `PUT /v2/profile/photo`). */
+/** A multipart upload relayed as it came: your profile's photo (N366,
+ *  `PUT /v2/profile/photo`). A chat's photo or file was sent this way too,
+ *  until the "+" became "Ask {name}" (backend N483 item 4). */
 export function uploadRoute(method: "POST" | "PUT", path: (params: Record<string, string>) => string) {
   return async function upload(req: NextRequest, { params }: { params: Record<string, string> }) {
     const token = await getAccessToken();

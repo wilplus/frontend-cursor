@@ -103,7 +103,7 @@ describe("an answer recorded in a chat", () => {
     await vi.advanceTimersByTimeAsync(2000);
     answerTake("take-1");
     await vi.advanceTimersByTimeAsync(0);
-    expect(api.sent).toEqual([["c-sarah", "take-1", 52_000, 3000]]);
+    expect(api.sent).toEqual([["c-sarah", "take-1", 52_000, 3000, false]]);
     expect(shown).toEqual([]);
     await vi.advanceTimersByTimeAsync(3000);
     expect(shown).toEqual(["m-1"]);
@@ -114,7 +114,7 @@ describe("an answer recorded in a chat", () => {
     answerTake("take-2");
     answerTake("take-2");
     await vi.advanceTimersByTimeAsync(0);
-    expect(api.sent).toEqual([["c-sarah", "take-1", 52_000, 3000], ["c-sarah", "take-2", 40_000, 0]]);
+    expect(api.sent).toEqual([["c-sarah", "take-1", 52_000, 3000, false], ["c-sarah", "take-2", 40_000, 0, false]]);
     expect(shown).toEqual(["m-1", "m-2"]);
   });
 
