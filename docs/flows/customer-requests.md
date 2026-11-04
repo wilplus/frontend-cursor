@@ -139,6 +139,20 @@ rest is built in.
      link it was sees "{name} joined through your link." and, once the
      answers are in, one card, "{name}'s answers", which is also their
      row's line; never their own questions one by one (N487 item 7).
+   - **Setting them, in Will's chat** (N487 items 2 and 3, N503): the
+     first time "Add someone to chat with" opens (the list's "+" or its
+     row), Will's chat opens instead, on his setup, one question at a time:
+     "How far ahead do you like to plan?", the languages for someone who
+     speaks two, "Anything else practical you'd like to ask?". His answers
+     sit on your side ("Something else" first, which opens the box; the
+     summary's "Change it" and "That's right" have none); typed words
+     answer his question, and under "What should change?" the box stays
+     open. The summary shows what someone new will see, your name in its
+     top line, each question with its answers. "That's right" keeps them;
+     "You're set." ends with "Copy my link ›" (then "✓ Copied") and "Your
+     questions for people who join ›", which opens the summary again. After
+     the setup, or before the backend can keep questions, the "+" opens the
+     add sheet as before (`JoinSetup.tsx`, `Lounge.tsx`, `ChatList.tsx`).
    - **A person's chat**: the WillpowerLab bar goes; the chat's own top bar
      takes the top, full width: back, a 36px circle with the letter, the
      name and who they are. The messages start at the bottom, by the bar,
@@ -822,6 +836,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N487, N503 · C1: the first time "Add someone to chat with" opens, Will's chat opens on his setup of the questions everyone who joins is asked, one at a time, answered by tapping or typing after "Something else"; the summary with "Change it" and "That's right"; "You're set." with "Copy my link ›" and "Your questions for people who join ›" (`JoinSetup.tsx`, `Lounge.tsx`, `ChatList.tsx`). Nothing stops: after the setup the "+" opens the add sheet as before · BE (wilplus/backend-cursor#1742), FE (this PR)
 - 2026-11-04 · N483 item 4, N498 · C1, §2, §4: the "+" asks them: "Ask {name}", a sheet built like "Add someone to chat with", with no line, the black "Record your question", the three steps before your first question only, and Cancel; the question is recorded over the default presentation ("To {name} · Slide {n} of 3") and sent as an answer is, with Sending, Undo and "Sent to {name}", marked for them to answer ("Record your answer"); the "+" orange until first tapped (`AskSheet.tsx`, `ChatThread.tsx`, `chatAnswer.ts`, BFF `[chatId]/question/`). What stops: the four tiles, sending photos and files, and Someone else from a chat (the list's "+" still opens the add sheet); photos and files already sent still show · BE N498 (#1733), BE (question route PR), FE (this PR)
 - 2026-11-04 · N487, N496, N502 · C1: a chat made through the link of someone who set questions asks them, answered by tapping (TapRow; several, then "Send" in the bar's middle; "Yes" to the hurry opens the date sheet), with "Your deadline: {date}" under the answer; the owner sees "{name} joined through your link." and one card, "{name}'s answers", also on their row. The joined line is now N496's, in the chat and on the row. What stops: the line "You joined through {name}'s link. Only the two of you are in this chat." · BE N487 (#1717), N496 (#1732), N502 (#1734), BE #1739, FE (this PR)
 - 2026-11-04 · N500 · C1: an emoji from the other person lights up their row like any new message, your own message never does, and every new row, Will's included, has the look locked for the whole app: the name bold, the time orange, the last line bold and orange, the orange dot; the open list reads the chats again every 20 seconds and on coming back to it (`ChatList.tsx`, `chatOpened.ts`, `useChats.ts`). Was: the line dark and not bold, your own message could read as new, and the list read the chats only when it first loaded · BE N500 (wilplus/backend-cursor#1737), FE (this PR)

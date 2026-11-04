@@ -98,6 +98,13 @@ OUTCOME
       bar's middle sends them. The link's owner reads one card of my
       answers, under "{name} joined through your link.", and their list
       says "{name}'s answers".
+  O24 The first time I add someone (N503), Will's chat opens on his setup,
+      not my link; his question waits with its answers on my side,
+      "Something else" first, and a tap goes to the backend; the summary
+      shows what someone new will see, my name in its top line, with
+      "Change it" and "That's right"; "You're set." ends with "Copy my
+      link ›" and "Your questions for people who join ›". After the setup,
+      the + opens my link as before (O8).
 PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read"
          O19 -> "as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar"
          O20 -> "as a developer, a chats row in the rings, on or off, changes nothing"
@@ -120,6 +127,7 @@ PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is 
          O22 -> "a Take sent to me opens with its recording and words, and the list says who sent it"
          O21 -> "from their profile I block them, the bar says so with Unblock, and Report and block reports with the block"
          O23 -> "the questions of the one who invited me are answered by tapping, and they read one card"
+         O24 -> "the first time I add someone, Will's chat opens on his setup, answered by tapping"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -129,7 +137,7 @@ vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }
 const native = vi.hoisted(() => ({ on: false }));
 vi.mock("@/lib/auth/nativeSignIn", () => ({ isNativeApp: () => native.on }));
 // Will's chat, the Lounge's thread the list reads his row's line from.
-const loungeThread = vi.hoisted(() => ({ messages: [] as Array<Record<string, unknown>> }));
+const loungeThread = vi.hoisted(() => ({ messages: [] as Array<Record<string, unknown>>, reload: async () => {} }));
 vi.mock("../LoungeThreadContext", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../LoungeThreadContext")>()),
   useLoungeThreadMaybe: () => loungeThread,
@@ -142,6 +150,8 @@ import { resetRingStateCache } from "@/services/api/rings";
 import { __resetBootPrefetchForTests, prefetchChatsDoor } from "@/services/api/bootPrefetch";
 import { useChatsDoor } from "./useChatsDoor";
 import { UNDO_MS, answerRecorded, answerTake, forgetAnswers, startAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
+import { JoinSetupBubble, joinSetupOf, useJoinSetup } from "./JoinSetup";
+import type { LoungeMessage } from "@/services/api/loungeMessages";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -1068,5 +1078,54 @@ describe("the chats in front of the Lounge", () => {
     const mine = container.querySelector('[data-row="me"] [data-take-tile]');
     expect(mine?.textContent).toContain("Take 4");
     expect(container.textContent).toContain("Sent to Amira Haddad");
+  });
+
+  it("the first time I add someone, Will's chat opens on his setup, answered by tapping", async () => {
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [] }));
+    routes.set("POST /api/v2/chats/join-questions/setup", () => ({ started: true }));
+    const reload = vi.spyOn(loungeThread, "reload");
+    await render();
+    await tap(container.querySelector("[data-add-someone]"));
+    expect(calls("POST /api/v2/chats/join-questions/setup")).toHaveLength(1);
+    expect(reload).toHaveBeenCalled();
+    expect(container.querySelector("[data-add-sheet]")).toBeNull();
+    expect(container.querySelector("[data-chat-header]")?.textContent).toBe("Will");
+
+    // Will's rows, as the Lounge draws them.
+    routes.set("GET /api/v2/profile", () => ({ name: "Artur Willonski" }));
+    routes.set("POST /api/v2/chats/join-questions/setup/answer", () => ({ messages: [] }));
+    const said = (client_id: string, body: string, setup: Record<string, unknown>) =>
+      ({ client_id, role: "bot", kind: "text", body, metadata: { join_setup: setup }, client_created_at: "2026-11-04T10:00:00Z" }) as LoungeMessage;
+    const words = vi.fn();
+    function Row({ message }: { message: LoungeMessage }) {
+      const setup = useJoinSetup(async () => {}, () => {});
+      return createElement(JoinSetupBubble, {
+        message, setup: joinSetupOf(message)!, open: true, onWords: words,
+        onTap: (picked: string) => setup.tap(message.client_id, picked), onAgain: setup.again,
+      });
+    }
+    const draw = async (message: LoungeMessage) => {
+      await act(async () => root.render(createElement(Row, { message })));
+      await flush();
+    };
+    const answers = () => [...container.querySelectorAll("[data-join-setup-answers] button")].map((b) => b.textContent);
+    await draw(said("q-lang", "Should I ask which languages to use: Polish, English or both?", { step: "languages", chips: ["Yes", "No"] }));
+    expect(answers()).toEqual(["Something else", "No", "Yes"]);
+    await tap([...container.querySelectorAll("[data-join-setup-answers] button")].find((b) => b.textContent === "Something else"));
+    expect(words).toHaveBeenCalled();
+
+    const lines = [{ q: "Let's build our knowledge base a month at a time.", answers: [] }, { q: "Are you in a hurry?", answers: ["No", "Yes"] }];
+    await draw(said("q-peek", "This is what someone new will see when they open your chat:", { step: "peek", chips: ["That's right", "Change it"], lines }));
+    expect(container.querySelector("[data-join-summary]")?.textContent).toBe(
+      "You joined thanks to Artur. A few questions first, then you build a knowledge base together." +
+      "Let's build our knowledge base a month at a time.Are you in a hurry?NoYes",
+    );
+    expect(answers()).toEqual(["Change it", "That's right"]);
+    await tap([...container.querySelectorAll("[data-join-setup-answers] button")].find((b) => b.textContent === "That's right"));
+    expect(JSON.parse(String(calls("POST /api/v2/chats/join-questions/setup/answer")[0]![1]!.body))).toEqual({ to: "q-peek", picked: "That's right" });
+
+    await draw(said("q-set", "You're set. Each question that comes to your chats, and each answer you give, builds a knowledge base you share.", { step: "set" }));
+    expect([...container.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Copy my link›", "Your questions for people who join›"]);
   });
 });

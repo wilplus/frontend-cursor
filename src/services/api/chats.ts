@@ -119,6 +119,27 @@ export async function answerChatSetup(chatId: string, messageId: string, picked:
   return body && Array.isArray(body.messages) ? (body.messages as ChatMessage[]) : null;
 }
 
+/** The first time "Add someone to chat with" opens (backend N503): Will
+ *  asks the setup in his chat. True when he does (open his chat); false
+ *  opens the link at once, as before. */
+export async function beginJoinSetup(): Promise<boolean> {
+  const body = await call("/api/v2/chats/join-questions/setup", { method: "POST", json: {} });
+  return body?.started === true;
+}
+
+/** "Your questions for people who join ›": the summary again, in Will's chat. */
+export async function joinSetupAgain(): Promise<boolean> {
+  const body = await call("/api/v2/chats/join-questions/setup/again", { method: "POST", json: {} });
+  return body?.started === true;
+}
+
+/** A tap, or one's own words, under Will's setup question (`to`, its
+ *  client id). True once Will's next lines are written. */
+export async function answerJoinSetup(to: string, answer: { picked: string } | { said: string }): Promise<boolean> {
+  const body = await call("/api/v2/chats/join-questions/setup/answer", { method: "POST", json: { to, ...answer } });
+  return Array.isArray(body?.messages);
+}
+
 /** Block (`true`) or unblock (`false`) the other person in a chat (backend
  *  N466): they can't send you messages or answers, and aren't told. True
  *  once the backend says the chat is so; false on any refusal. */

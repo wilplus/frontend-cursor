@@ -163,6 +163,7 @@ import WillQuestionBubble, {
 } from "./WillQuestion";
 import { isWillVoice, WillVoiceBubble } from "./WillVoiceAnswer";
 import { WillBarMiddle } from "./plan/PlanDock";
+import { JoinSetupBubble, joinSetupOf, joinSetupWaiting, useJoinSetup, type JoinSetup } from "./chats/JoinSetup";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -1465,7 +1466,17 @@ export default function Lounge({
   const shownMessages = useMemo(() => shownItems.map((item) => item.message), [shownItems]);
   // The box only when Will asks for words (N483 item 2): "Something else",
   // his follow-up with no answers to tap, or "What was missing?".
-  const words = useWordsBox(shownMessages, plan.typingOff, draftText, composerRef, feedbackCheckTarget([...shownMessages], "missing") !== null);
+  // Will's setup question that waits (backend N503): typed words answer it,
+  // and "What should change?" keeps the box open.
+  const setupWaits = joinSetupWaiting(shownMessages);
+  const joinSetup = useJoinSetup(reload, setBotThinking);
+  const words = useWordsBox(
+    shownMessages,
+    plan.typingOff,
+    draftText,
+    composerRef,
+    feedbackCheckTarget([...shownMessages], "missing") !== null || setupWaits?.words === true,
+  );
 
   // U3 — capture the historical baseline once the thread first loads, so only
   // messages that arrive AFTER it (new bot replies) animate.
@@ -1521,6 +1532,11 @@ export default function Lounge({
     if (!q || botThinking) return;
     setDraftText("");
     words.close();
+    if (setupWaits) {
+      await joinSetup.say(setupWaits.to, q);
+      followAnswer();
+      return;
+    }
     await runSend(q);
   }
 
@@ -1724,9 +1740,25 @@ export default function Lounge({
     }
   }
 
-  // One drawn item of the thread: a walk step (the review's end card), a
-  // summary, or any other bubble.
-  const drawItem = (item: ThreadItem, i: number) =>
+  // One drawn item of the thread: Will's setup for the one who shares
+  // (backend N503), a walk step (the review's end card), a summary, or any
+  // other bubble.
+  const drawSetup = (item: ThreadItem, i: number, setup: JoinSetup) => (
+    <JoinSetupBubble
+      key={item.reactKey}
+      message={item.message}
+      setup={setup}
+      open={i === shownItems.length - 1}
+      onTap={(picked) => joinSetup.tap(item.message.client_id, picked).then(followAnswer)}
+      onAgain={() => joinSetup.again().then(followAnswer)}
+      onWords={words.start}
+    />
+  );
+  const drawItem = (item: ThreadItem, i: number) => {
+    const setup = joinSetupOf(item.message);
+    return setup ? drawSetup(item, i, setup) : drawThreadItem(item, i);
+  };
+  const drawThreadItem = (item: ThreadItem, i: number) =>
     item.message.kind === "walk_step" ? (
       <WalkStepBubble
         key={item.reactKey}

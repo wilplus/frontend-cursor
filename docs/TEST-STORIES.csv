@@ -625,7 +625,14 @@ side; ""No"" is sent at once and its deadline shows under it; a question
 that takes more than one answer fills each one I tap, and Send in the
 bar's middle sends them. The link's owner reads one card of my
 answers, under ""{name} joined through your link."", and their list
-says ""{name}'s answers"".","O1 -> ""as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read""
+says ""{name}'s answers"".
+O24 The first time I add someone (N503), Will's chat opens on his setup,
+not my link; his question waits with its answers on my side,
+""Something else"" first, and a tap goes to the backend; the summary
+shows what someone new will see, my name in its top line, with
+""Change it"" and ""That's right""; ""You're set."" ends with ""Copy my
+link ›"" and ""Your questions for people who join ›"". After the setup,
+the + opens my link as before (O8).","O1 -> ""as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read""
 O19 -> ""as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar""
 O20 -> ""as a developer, a chats row in the rings, on or off, changes nothing""
 O2 -> ""with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back""
@@ -646,7 +653,8 @@ O17 -> ""in the app, a swipe from the left edge goes back to the list where I le
 O18 -> ""a refused answer stays as Not sent, and Send again sends the same Take""
 O22 -> ""a Take sent to me opens with its recording and words, and the list says who sent it""
 O21 -> ""from their profile I block them, the bar says so with Unblock, and Report and block reports with the block""
-O23 -> ""the questions of the one who invited me are answered by tapping, and they read one card""",
+O23 -> ""the questions of the one who invited me are answered by tapping, and they read one card""
+O24 -> ""the first time I add someone, Will's chat opens on his setup, answered by tapping""",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.
