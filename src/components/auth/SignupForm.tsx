@@ -13,15 +13,20 @@ import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 import { claimGuestProjects } from "@/services/api/projects";
 import { sameSitePath } from "@/lib/auth/sameSitePath";
 import WhatsAppAuth, { WHATSAPP_AUTH_COPY, WHATSAPP_SIGNIN, WhatsAppIcon } from "@/components/auth/WhatsAppAuth";
-import OtherWays from "@/components/auth/OtherWays";
+import OtherWays, { OTHER_WAYS_COPY } from "@/components/auth/OtherWays";
+import AppleAuthButton from "@/components/auth/AppleAuthButton";
+import { INVITE_COPY } from "@/components/invite/inviteCopy";
 
 interface SignupFormProps {
   onSuccess?: () => void;
   /** Skip the provider picker and go straight to the email form. */
   skipProviderPicker?: boolean;
+  /** By invitation (backend N471): the waitlist's picker, "Join the waitlist
+   *  with:" and the brands' names. */
+  waitlist?: boolean;
 }
 
-export default function SignupForm({ onSuccess, skipProviderPicker }: SignupFormProps = {}) {
+export default function SignupForm({ onSuccess, skipProviderPicker, waitlist = false }: SignupFormProps = {}) {
   const router = useRouter();
   const supabase = createClient();
   const [showEmailForm, setShowEmailForm] = useState(!!skipProviderPicker);
@@ -191,6 +196,33 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
       setLoading(false);
     }
   };
+
+  // The waitlist (backend N471 item 3, signed words): "Join the waitlist
+  // with:", then one button per way, named by its brand. Apple's own button
+  // in the iPhone app keeps Apple's words, as Apple's rules ask.
+  if (waitlist && !showEmailForm && !showWhatsApp) {
+    const row = "h-12 w-full rounded-xl text-[15px] font-medium";
+    return (
+      <Card className="p-5 sm:p-6">
+        <p className="mb-4 text-center text-[15px] text-foreground">{INVITE_COPY.waitlistWith}</p>
+        <div className="flex flex-col gap-3">
+          <AppleAuthButton />
+          <GoogleAuthButton mode="signup" compact className={row} />
+          <LinkedInAuthButton mode="signup" compact className={row} />
+          {WHATSAPP_SIGNIN ? (
+            <Button type="button" variant="outline" className={`gap-2 ${row}`} onClick={() => setShowWhatsApp(true)}>
+              <WhatsAppIcon className="h-5 w-5 shrink-0" />
+              <span>WhatsApp</span>
+            </Button>
+          ) : null}
+          <Button type="button" variant="outline" className={row} onClick={() => setShowEmailForm(true)}>
+            {OTHER_WAYS_COPY.email}
+          </Button>
+        </div>
+        <LegalConsent />
+      </Card>
+    );
+  }
 
   // The page opens on the WhatsApp number (founder 2026-10-28, backend
   // N232): the number and "Sign up with WhatsApp", then the other ways.

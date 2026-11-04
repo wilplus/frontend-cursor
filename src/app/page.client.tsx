@@ -4,10 +4,9 @@ import { useEffect, useState } from "react";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import WelcomeConsent from "@/components/willab/WelcomeConsent";
+import InviteLanding from "@/components/invite/InviteLanding";
 import LoadingState from "@/components/willab/LoadingState";
 import {
-  acceptConsentLocally,
   hasAcceptedConsentLocally,
 } from "@/components/willab/useWillabFlow";
 import { useSignedIn } from "@/components/willab/useSignedIn";
@@ -18,10 +17,10 @@ import { type JournalPostSummary } from "@/services/api/journal";
 /* -------------------------------------------------------------------------- */
 /*  Landing (client half)                                                      */
 /*                                                                            */
-/*  The hero is the EXISTING WelcomeConsent composition, reused verbatim so the */
-/*  landing and the first-run screen can never drift apart. Its CTA accepts     */
-/*  consent and enters the lab, writing the same flag the Lounge reads, so the  */
-/*  welcome screen is not shown a second time on arrival.                       */
+/*  The hero is the first page by invitation (backend N471, design B):        */
+/*  InviteLanding, with the link field where "Enter the lab" was. It no longer */
+/*  reuses WelcomeConsent, the first-run welcome inside the app, which stays   */
+/*  as it is. The iPhone app shows the same page, without the journal.         */
 /*                                                                            */
 /*  Signed-in visitors are sent straight to /chat: the app is their home, and   */
 /*  marketing must never sit in front of it.                                    */
@@ -63,14 +62,14 @@ export default function LandingClient({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  // The iPhone app has no landing (founder 2026-11-02): it opens on sign-in.
+  // The iPhone app opens on this same first page, without the journal
+  // (backend N471 item 4; was: on sign-in, founder 2026-11-02).
   const app = mounted && isNativeApp();
 
   useEffect(() => {
     if (signedIn === true) router.replace("/chat");
-    else if (signedIn === false && isNativeApp()) router.replace("/login");
-    // The first step of a first visit (backend N271); the app shows no landing.
-    else if (signedIn === false) countFirstVisit("landing");
+    // The first step of a first visit (backend N271).
+    else if (signedIn === false && !isNativeApp()) countFirstVisit("landing");
   }, [signedIn, router]);
 
   // Already signed in: render nothing rather than flash marketing during the
@@ -79,7 +78,6 @@ export default function LandingClient({
   // browser (consent flag / auth token present) gets a neutral instant wait
   // instead, so the entrance animation never flashes before the redirect.
   if (signedIn === true) return null;
-  if (app) return <LoadingState placement="viewport" />;
   if (mounted && returningHint && signedIn === null) {
     return <LoadingState placement="viewport" />;
   }
@@ -92,16 +90,12 @@ export default function LandingClient({
           is a strip nobody reads; a sliver of an image is the whole invitation
           and needs no label. */}
       <section className="flex min-h-[calc(100dvh-6rem)] flex-col">
-        <WelcomeConsent
-          onAccept={() => {
-            countFirstVisit("enter");
-            acceptConsentLocally();
-            router.push("/chat");
-          }}
-        />
+        {/* By invitation (backend N471, design B): the link field, not
+            "Enter the lab". */}
+        <InviteLanding />
       </section>
 
-      {posts.length > 0 ? (
+      {posts.length > 0 && !app ? (
         /* No heading rule and no "From the journal" bar. The covers say there
            are posts; a label above them only pushed them below the fold. */
         <section id="journal" className="scroll-mt-4 pb-14 pt-3">
