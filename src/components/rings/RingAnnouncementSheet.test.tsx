@@ -7,9 +7,13 @@
  *   O1  Not now records the decision, hides the sheet, records no consent.
  *   O2  Without a policy, Yes is a disabled button (no link to the data
  *       choices), the sheet says why, and pressing it records nothing.
+ *   O3  While any word the sheet would show is an unsigned placeholder
+ *       ("[founder copy] …"), the sheet does not appear and records nothing.
  * PROVES   O1 -> "not now records the answer, hides the sheet and creates no consent"
  *          O2 -> "yes stays disabled while the policy is missing"
+ *          O3 -> "a placeholder never reaches a speaker"
  * WHY      Rings, 2026-09-29: only the data choices screen records a consent (L3).
+ *          Never 4: the founder saw "[founder copy]" in the iPhone app (2026-11-04).
  */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -18,6 +22,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import RingAnnouncementSheet from "./RingAnnouncementSheet";
 import { resetRingStateCache } from "@/services/api/rings";
 
+// The words as if signed, so the sheet's behaviour can be proved; O3 uses a
+// placeholder title, which the real words are too until the founder signs them.
+vi.mock("./announcementCopy", () => ({
+  UNSIGNED: "[founder copy]",
+  ANNOUNCEMENT_COPY: {
+    notNow: "Not now",
+    yes: "Yes",
+    yesToDataChoices: "Turn on in my data choices",
+    policyMissing: "This choice will be available once the policy is in place.",
+    dismiss: "Close",
+  },
+}));
+
 vi.mock("next/link", () => ({
   default: ({ href, children, onClick }: { href: string; children: React.ReactNode; onClick?: () => void }) =>
     createElement("a", { href, onClick }, children),
@@ -25,8 +42,8 @@ vi.mock("next/link", () => ({
 
 const PHASE1 = {
   feature: "exercise_service",
-  title: "[founder copy] Exercises matched to your moments",
-  body: "[founder copy] Explain the practice tick.",
+  title: "Exercises matched to your moments",
+  body: "The practice tick.",
   requires_consent: true,
   consent_purpose: "personalised_practice",
   consent_policy_available: true,
@@ -82,7 +99,7 @@ describe("RingAnnouncementSheet", () => {
     );
     await render();
     await act(async () => {
-      byText("[founder copy] Not now")!.click();
+      byText("Not now")!.click();
     });
     await flush();
     const decision = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/decision"));
@@ -99,12 +116,22 @@ describe("RingAnnouncementSheet", () => {
     expect(container.textContent).toContain(PHASE1.title);
     expect(container.textContent).toContain("once the policy is in place");
     expect(container.querySelector("a")).toBeNull();
-    const yes = byText("[founder copy] Turn on in my data choices") as HTMLButtonElement;
+    const yes = byText("Turn on in my data choices") as HTMLButtonElement;
     expect(yes).toBeDefined();
     expect(yes.disabled).toBe(true);
     const before = fetchMock.mock.calls.length;
     await act(async () => yes.click());
     await flush();
     expect(fetchMock.mock.calls.length).toBe(before);
+  });
+
+  it("a placeholder never reaches a speaker", async () => {
+    fetchMock.mockImplementation(() =>
+      reply(ringPayload([{ ...PHASE1, title: "[founder copy] A new way for willab to learn from your practice" }]))
+    );
+    await render();
+    expect(container.querySelector('[data-testid="ring-announcement-sheet"]')).toBeNull();
+    expect(container.textContent).not.toContain("[founder copy]");
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/decision"))).toBe(false);
   });
 });
