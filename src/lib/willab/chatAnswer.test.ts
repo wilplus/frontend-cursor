@@ -76,6 +76,24 @@ describe("an answer recorded in a chat", () => {
     expect(readExploreArc("me")).toMatchObject({ arcId: "p-mine", nextTakeIndex: 3 });
   });
 
+  it("an answer to their Take follows the Take's own slides (N493 item 1)", async () => {
+    const take = { chatId: "c-amira", name: "Amira", question: "Q3 board pitch", customer: false, slides: ["Hook", "The cities", "Ask"] };
+    expect(await startAnswer(take, "me", vi.fn())).toBe(true);
+    expect(api.created).toEqual([
+      expect.objectContaining({
+        setup: expect.objectContaining({
+          topic: "Q3 board pitch",
+          slides: [
+            { title: "Hook", body: "" },
+            { title: "The cities", body: "" },
+            { title: "Ask", body: "" },
+          ],
+        }),
+      }),
+    ]);
+    endAnswer();
+  });
+
   it("the answer goes as soon as its Take is up, held for the rest of the 5 seconds, once", async () => {
     const shown: string[] = [];
     onAnswerSent((_chatId, message) => shown.push(message.id));

@@ -597,7 +597,7 @@ until the chat is opened again; the answer hands the recording screens the
 chat, the person and the question. Back from them, the bar's middle
 reads ""Sending to {name}… {n}"" with Undo while the answer, already
 with the backend, waits out its 5 seconds there (N441 item 3); then
-""Sent to {name}"" stands under it, a customer's too (N345, N441 item 4).
+""Sent"" stands under it, a customer's too (N345, N441 item 4, N504 item 3).
 O17 Back (the iPhone's swipe from the left edge in the app, the browser's
 Back on the web) goes back by one, from a chat to the list, and never
 off the list; back on the list, it is where I left it, the row I came
@@ -607,10 +607,13 @@ before I have left one, it does nothing (N378, N436).
 O18 An answer the backend refused stays in the bar's middle, ""Not sent""
 with ""Send again"", which sends the same Take (N441 item 1).
 O22 A Take someone sent me (N470, N479) is their message: ""{name} sent
-you Take {n}"" with the Take's tile, and ""Open Take"" under it, which
-plays its recording and shows its words slide by slide behind ""Read
-it"", nothing else of it; the list's line says ""{name} sent you Take
-{n}""; a Take I sent is my tile with ""Sent to {name}"".
+you Take {n}"" with the Take's tile, its first slide and no play mark
+(N493 item 6), already open: its recording, and its words slide by
+slide behind ""Read it"", nothing else of it (N504 item 1); the list's
+line says ""{name} sent you Take {n}""; a Take I sent is my tile with
+""Sent"" (N504 item 3). Newest, it asks for an answer: ""Record your
+answer"" in the bar with ""Not now"" under it, and the answer is recorded
+over the Take's own slides (N493 items 1 and 3).
 O21 At the foot of the other person's profile, ""Block {name}"" asks first
 and then blocks them: the backend is told, ""{name} is blocked."" shows,
 and back in the chat the bar is one pill, ""You blocked {name}."" with

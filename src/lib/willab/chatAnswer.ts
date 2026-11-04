@@ -52,6 +52,10 @@ export interface AnswerFor {
   /** A customer; the answer reaches them in the app until WhatsApp delivery
    *  exists (N441 item 4). */
   customer: boolean;
+  /** An answer to their Take: its slides' titles, in order, so the answer
+   *  follows the Take slide by slide (backend N493 item 1). Absent for a
+   *  question, which keeps its one slide. */
+  slides?: string[];
 }
 
 /** An answer recorded and on its way: "Sending to {name}…" with Undo. */
@@ -93,15 +97,17 @@ function changed() {
 }
 
 /** The deck of an answer: one slide, the asker's words (N361 item 3). */
-function answerDeck(question: string): ExploreArcDeck {
-  return { topic: question, audience: null, presentationRef: null, slides: [{ title: question, body: "" }], targetLengthSeconds: null };
+function answerDeck(answer: AnswerFor): ExploreArcDeck {
+  const titles = answer.slides?.filter((title) => title.trim()) ?? [];
+  const slides = titles.length ? titles.map((title) => ({ title, body: "" })) : [{ title: answer.question, body: "" }];
+  return { topic: answer.question, audience: null, presentationRef: null, slides, targetLengthSeconds: null };
 }
 
 /** The answer the recording screens are opening for, else null. */
 export function answering(): AnswerFor | null {
   if (!current) return null;
-  const { chatId, name, question, customer } = current;
-  return { chatId, name, question, customer };
+  const { chatId, name, question, customer, slides } = current;
+  return { chatId, name, question, customer, slides };
 }
 
 /** "Record an answer": the question's own project, then `open` opens the
@@ -110,7 +116,7 @@ export function answering(): AnswerFor | null {
 export async function startAnswer(answer: AnswerFor, ownerId: string | null, open: () => void): Promise<boolean> {
   if (current || sending || starting) return false;
   starting = true;
-  const deck = answerDeck(answer.question);
+  const deck = answerDeck(answer);
   const created = await createProject({
     displayName: answer.question.slice(0, 200),
     setup: {

@@ -1110,10 +1110,11 @@ under "Was:" below (R3, R6). On (founder 2026-11-04, N470 (#1702), N479
   it is the only time it waits. There is no "Everyone on WillpowerLab" and
   no "Only me" (N470 item 2, N479 item 1).
 - **G3** Each ticked person gets the Take as your own message in your chat
-  with them, by name, not blind, with the Take attached and "Open Take",
-  which plays its recording and shows its words slide by slide, never its
-  Ideal Text, feedback, moments or levels (N470 item 4, N479 item 8;
-  customer-requests.md C1). The Take is sent after its upload, never waited
+  with them, by name, not blind, with the Take attached, already open: its
+  recording and its words slide by slide, never its Ideal Text, feedback,
+  moments or levels (N470 item 4, N479 item 8, N504 item 1; was "Open Take");
+  newest, it asks for an answer, recorded over its own slides (N493 items 1
+  and 3; customer-requests.md C1). The Take is sent after its upload, never waited
   on, and never for an answer (R2, R5; `applyNextTakeShare` sends it,
   `POST /v2/user/takes/<take>/send`). The crowd stops for new Takes: no
   new Take is shared with other speakers to judge; C8 keeps running on the

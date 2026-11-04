@@ -270,6 +270,23 @@ green); the app shows the speaker's own slides, unchanged.
   **Earbuds make you sound like a phone call. The built-in mic sounds like
   you.** Signed in the Claude Code chat, 3 November 2026. Lives in
   `src/hooks/useDualCaptureMic.ts`, `recordingCopy.ts` and `LabOverlay.tsx`.
+- **2026-11-04 · an answer to someone's Take follows the Take's own slides
+  (backend N493 item 1, N504).** Step 6 for an answer to a Take sent to you:
+  the recording screens show the Take's slides, in order, drawn by their
+  titles as the poster (N462) with no "{name} asks" over them and no helper
+  words (the sender's come from their Ideal Text, N479 item 8); Back and
+  Next slide move through them as on any Take, Finish take on the last. The
+  top line is **{name} · Slide n of m** in the usual small grey (was the
+  name alone, N441 item 7). The clock counts up, no cap (N486 item 4). An
+  answer to a customer's question keeps its one slide, **{name} asks** over
+  the question, and the name alone in the top bar. A Take whose words are
+  not processed yet has no slide titles to give, so its answer is the one
+  slide, the Take's topic. Signed by the founder in the Claude Code chat,
+  4 November 2026, on the prototype "The Official Inquiry"
+  (<https://claude.ai/artifact/R3dPycpjHvgZ8sJHKpWFau>): "Go with all your
+  recommendations". Lives in `LabOverlay.tsx` (`answerLook`,
+  `RecordingWhere`), `recordingCopy.ts` (`answerWhere`) and
+  `src/lib/willab/chatAnswer.ts` (`answerDeck`).
 
 
 ## 2. In flight
