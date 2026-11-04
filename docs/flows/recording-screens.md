@@ -129,6 +129,16 @@ for the screens below.
    its usual error here, with its retry. The answer's project never
    becomes the speaker's current one, and no community share applies to
    it. The speaker's own Takes keep step 5.
+7. **A question to someone** (backend N483 item 4, N498, approved for this
+   lock): "Record your question" in a chat's "Ask {name}" opens these
+   screens at once on the default presentation (Opening, Main points,
+   Summary, the poster slides, N462), with no "How do you feel?" before it.
+   The top bar reads **To {name} · Slide {n} of 3** in place of "Take N";
+   the clock counts up as any Take's. Finish take goes back to that chat as
+   an answer does (step 6): "Sending to {name}…" with Undo, no processing
+   wait and no walk in between, the screens hidden while the Take uploads
+   and shown again only for its error; its project, named "To {name}",
+   never becomes the speaker's current one.
 
 ### How it moves
 
@@ -320,6 +330,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N483 item 4, N498 · flow step 7, a question to someone: the default presentation, "To {name} · Slide {n} of 3" in the top bar, no feelings check, Finish take back to the chat with Sending and Undo, as an answer (`LabOverlay.tsx` `answerLook` and `RecordingWhere`, `recordingCopy.ts` `recordingWhere`, `lib/willab/chatAnswer.ts` `asks`) · BE N498 (#1733), BE (question route PR), FE (this PR)
 - 2026-11-04 · N486 · an answer has no five-minute cap: its clock is any Take's, counting up with no planned length, and it ends only at Finish take (`LabOverlay.tsx`, `chatAnswer.ts`). Was (N441 item 2): the clock counted down from 5:00 and finished the Take by itself at 0:00 · BE (cap PR), FE (this PR)
 - 2026-11-04 · N462 · the slide is the poster: the first Take's new questions, the default presentation and an answer's question are drawn centered, the label small and spaced, the question large and heavy, the hint quiet, no orange line (`pdfSlides.tsx` `PosterSlide`, `RecordingRoadmap.tsx` `stageLook`, `SlideStage.tsx`); tall when the Take has no helper words, the 16:9 box with them; an uploaded deck as itself; the Ideal Text, present mode and the walk unchanged. The first Take's five questions are the new ones, the old five still drawn for a project made before (`firstTake.ts`). Was: the question at the bottom with the orange line, the default deck on its colour artwork, "{name} asks" in a small line · BE #1694, FE (this PR)
 

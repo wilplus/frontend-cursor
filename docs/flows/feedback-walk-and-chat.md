@@ -297,16 +297,17 @@ step; the loop never waits for a coach.
   cause it is not!")
 - **B14** **The bar under the chat** has one logic in every chat
   (founder 2026-11-04, N483, locked on "The Bar, Clickable"
-  <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2>, version 8). The left
+  <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2>, version 12, N498). The left
   holds your things: in Will's chat the stack, Your projects (N460 item 5).
   The middle holds the one thing to do now, the first of these that holds
   (`Lounge.tsx`; `WillBarMiddle` in `plan/PlanDock.tsx`; `useWordsBox` in
   `WillQuestion.tsx`):
-  1. Will asks for words (a setup's name or code, "What was missing?", his
-     follow-up with no answers to tap, or "Something else", the first of his
-     answers, tapped): the box "Type your answer". Empty, a box opened from
+  1. Will asks for your own words ("What was missing?", his follow-up with
+     no answers to tap, or "Something else", the first of his answers,
+     tapped): the box "Type your answer". Empty, a box opened from
      "Something else" closes when you tap away; one Will asks for stays
-     until you send. You type at no other time;
+     until you send. You type at no other time, and your name is never
+     asked here: it comes from sign-up (N498 item 2);
   2. Will needs to hear you (the plan's spoken questions,
      [`the-plan.md`](the-plan.md) B10): "Record your answer", with "Not
      now" a grey word under his question; "Not now" leaves it until the
@@ -2211,6 +2212,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N498 item 2 · B14: Will's chat never asks for your name (it comes from sign-up); the box "Type your answer" comes only for your own words ("Something else", his follow-up with no answers, "What was missing?"); the bar's prototype is version 12 · BE N498 (#1733), FE (this PR)
 - 2026-11-04 · N483 · B3, B10, B14, D4, E1, E3, K: the bar has one logic in every chat. In Will's chat the stack on the left, and in the middle the one thing to do now: the box "Type your answer" only when Will asks for words ("Something else", now the first of his answers, opens it; empty, it closes when you tap away); "Record your answer" for the plan's spoken questions, with "Not now" under the question; "Continue review"; else "Record Take N" for the newest Take, faded while one is processed, or "Start your first recording" before any (`WillBarMiddle`, `useWordsBox`, `Lounge.tsx`, `afterTake.ts`). What stops: the mic and voice notes to Will, the "#" note, "Keep a voice notebook?" and Will opening the notebook from your Takes (the note rests; kept notes stay, notes left on the phone still go); typing when Will has not asked; a spoken answer to Will's question; the tap "I want to continue my practice"; the ✕ beside "Record Take N"; "Continue review" above the bar; the faded "Type here" and its note · BE N483 (#1718), FE (this PR)
 - 2026-11-04 · N470, N479 · G: who hears this Take: at "Record Take 2" the three signed bubbles, "Select all" and one row per person in your chats, everyone ticked or the last choice, "Last sent" on the one sent to last; Continue keeps the people and the line naming them ("Artur, Maya Lindqvist", "Everyone in my list"), and the Take is sent to each, as your message in your chat with them, once its upload is up; the line opens the screen to add people, never to unsend; asked again only when someone joins a choice of chosen people; "Record Take N" waits 1.5 s at most for the choice, then asks; nobody in the list records with nothing sent (`NextTakeShareScreen.tsx`, `nextTakeShare.ts`, `walkThread.ts`, `IdealTextActions.tsx`, `takeSends.ts`). Behind the backend's switch, off until the Privacy text is signed; off, or when its reads fail, today's screen exactly. What stops once on: General community and Only me, the crowd judging new Takes, taking a sent Take back, the passcode (N471 item 2, N479 item 4), the question asked again when a community is added. Was: G1 to G4, "How big you want your audience?" · BE N470 (#1702), N479 (#1704), BE (send PR), FE (this PR)
 - 2026-11-04 · N469 · J8: the rhythm of a run, as on WhatsApp: in Will's chat and every chat with a person, two rows of the same side sit 2px apart and 12px where the side changes; anything else keeps 8px (`globals.css`, `Lounge.tsx`, `chats/ChatThread.tsx`). The walk keeps its own spacing. Was: 8px between every row · BE #1700, FE (this PR)

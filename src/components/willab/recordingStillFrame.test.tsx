@@ -5,7 +5,8 @@ STORY    As a speaker recording, I want the top bar to read "Take N · Slide n
          slide to be the only way to end, and only the slide to move, so
          that recording feels steady and I never end a Take by accident.
 OUTCOME
-  O1  The top bar reads "Take 2 · Slide 1 of 3", once.
+  O1  The top bar reads "Take 2 · Slide 1 of 3", once; a question to
+      someone (N483 item 4) reads "To Sarah · Slide 1 of 3".
   O2  On the last slide Next slide becomes the red Finish take, which ends
       the Take.
   O3  Space after clicking Back goes forward, not Back again.
@@ -147,6 +148,9 @@ describe("the top bar", () => {
     expect(where().textContent).toBe("Take 2 · Slide 1 of 3");
     expect(host.querySelectorAll('[data-testid="recording-where"]').length).toBe(1);
     expect(host.textContent).not.toMatch(/Recording/);
+    // A question to someone names them in its place.
+    act(() => root.render(createElement(RecordingWhere, { show: true, micStatus: "recording", to: "Sarah", takeNumber: 1, slide: 0, slideCount: 3 })));
+    expect(where().textContent).toBe("To Sarah · Slide 1 of 3");
   });
 });
 
