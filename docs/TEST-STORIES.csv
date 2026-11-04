@@ -470,8 +470,7 @@ O3  The practise goes on, with the accepted words to say.","O1, O2, O3 -> ""reco
 src/components/willab/afterTake.test.ts,Story,"As a speaker, after a Take I want one thing to do at a time: the Take's card, its one ask, then the message with ""Record Take N"".","O1  The message waits, undrawn, while its ask is open; the card comes
 before the ask; once let go it comes under what closed the ask.
 O2  A WhatsApp or home-screen ask opens its form by itself.
-O3  A waiting message whose ask is no longer in front of me is let go;
-the plan's open question counts as an ask in front of me.
+O3  A waiting message whose ask is no longer in front of me is let go.
 O4  The admin's ask, stamped only with the message it waits for, is still
 the Take's: the card stays above it and the ask above its buttons
 (founder 2026-10-20: the card landed between the question and its
