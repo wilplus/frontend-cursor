@@ -38,7 +38,13 @@ OUTCOME
       Sniper's helper words, in the chat for "Last time" next Take (N347
       item 3); its scale names its zones "too slow", "just right", "too
       fast", and Skip gets "Okay, we'll skip this one." in the walk and the
-      chat (N405).
+      chat (N405). The chat says "And now, one thing to improve:", the
+      stretch's clip and the Sniper's line in the walk's order (E2).
+  O11 The walk opens whole, behind the wait: my name in the hello and Last
+      time from the server's tip before my best, never longer than its
+      bound (C0, C0a, A2).
+  O12 A walk closed during its Clearer version's try opens again on the
+      Clearer version, never the AI clip (N381).
 PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's sheet"
          O2 -> "‹ › move through the walk's chat, never answering and never
                 closing it (founder 2026-10-20)"
@@ -56,6 +62,9 @@ PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's 
          O9 -> "the One thing walk saves its helper words without a pick, settles both moments and asks the summary once at Close (N309)",
                "✕ on the finished walk asks the summary once, as Close does, so the chat after the walk comes (C9, B11)"
          O10 -> "the pace game as the walk's fix keeps its tip in the chat, for Last time next Take (N347 item 3)"
+         O11 -> "the walk opens whole, behind the wait: my name in the hello and Last time from the server's tip, before my best (C0, C0a)",
+                "the walk never waits on its reads past its bound: a profile that never answers opens it with \"Hi.\""
+         O12 -> "a walk closed during its Clearer version's try opens again on the Clearer version, never the AI clip (N381)"
 WHY      Feedback walk lock 2026-10-06/2026-10-12; founder 2026-10-21 ("the
          black lines on the ideal text are still there even though I walked
          through them"); 2026-10-22 (N113, "After the rewording"). The
