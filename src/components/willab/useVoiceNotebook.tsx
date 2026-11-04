@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUp, Check, Clock, Mic, X } from "lucide-react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
-import SymmetricPair from "./SymmetricPair";
 import { TapRow } from "./WillQuestion";
 import {
   answerNotebook,

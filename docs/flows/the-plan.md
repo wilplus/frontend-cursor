@@ -133,13 +133,17 @@ built and what is still to come.
    question is Will's bubble, and the Lounge's bar stays under it ("+",
    "Type here", the mic). A choice is tap answers on the right of the
    thread, Will's orange outlined pills: "Pick a date" (it opens the date
-   sheet) and "No date yet"; the plan's own yes, "Yes, ask me" orange
-   outlined and "Not now" grey and quieter, the same shape (D5); "Skip"
-   (grey and quieter, on the left) and "Book now" (orange outlined, on the
-   right) under a call's ask while the calls show (F1, N325 item 2). A voice
-   question turns the bar's mic orange, and its answer is recorded as in
-   B3. The 1 to 10 scale keeps its shape, in the thread under its question
-   (D2). While the plan asks, before the first Take and after it, "Type
+   sheet) and "No date yet"; the plan's own yes, "Not now" a grey word and
+   "Yes, ask me" filled orange (D5); "Skip" (a grey word, on the left) and
+   "Book now" (filled orange, on the right) under a call's ask while the
+   calls show (F1, N325 item 2); a yes-or-no ask has "Yes" last, so the
+   filled answer is the likely one: "No", then "Yes" for "Are you preparing
+   for the same event?" (N467 items 4 and 7, as every choice in a chat,
+   [the walk's page](feedback-walk-and-chat.md) J7; was: "Not now" and
+   "Skip" faded grey pills, and "Yes" first). A voice question turns the
+   bar's mic orange, and its answer is recorded as in B3. The 1 to 10 scale
+   keeps its shape, in the thread under its question (D2); the picked
+   number turns orange (N467 item 7; was black). While the plan asks, before the first Take and after it, "Type
    here" stays in the bar, faded and not focusable: Will needs to hear the
    answer. Wherever it is faded (N350 item 4; was: before the first Take
    only), while the orange mic waits for a spoken answer, a tap on it
@@ -208,9 +212,9 @@ built and what is still to come.
    answer about the event, before any personal question, in the words K
    gives (N325 item 6, in the words of Privacy section 4e; was N249's),
    with Read more, which opens Privacy section 4e in a
-   window, and under it, on the right of the thread, "Not now" (grey and
-   quieter) and "Yes, ask me" (orange outlined) (N319 item 1, B10; was in
-   the footer); nothing else is taken while Will waits. "Yes, ask me" goes on with the worry question and
+   window, and under it, on the right of the thread, "Not now" (a grey
+   word) and "Yes, ask me" (filled orange) (N319 item 1, N467 item 4, B10;
+   was in the footer, then a faded grey pill); nothing else is taken while Will waits. "Yes, ask me" goes on with the worry question and
    the ratings. "Not now" adds no line from Will: the worry question and the
    ratings are not asked or kept, the plan is built from what it has and
    goes on to the calls while they are on (F), else to the plan (E1), and
@@ -279,9 +283,10 @@ built and what is still to come.
    flow while the calls are on.
 1. After the ratings, before the plan card, Will asks "Every plan starts
    with a kickoff session with your coach. Would you like to book it now?"
-   Under it, tap answers on the right of the thread: "Skip" grey and
-   quieter on the left, "Book now" orange outlined on the right (N319 item
-   1, N325 item 2; was in place of "Type here", then both orange). The calendar never opens
+   Under it, tap answers on the right of the thread: "Skip" a grey word on
+   the left, "Book now" filled orange on the right (N319 item 1, N325 item
+   2, N467 item 4; was in place of "Type here", then both orange, then
+   "Skip" a faded grey pill). The calendar never opens
    by itself; "Book now" opens it, full screen over the chat. The kickoff
    comes before the deadline (N157, N161, N248, N281). On the screen, top
    to bottom:
@@ -791,6 +796,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-11-04 · N467 items 4 and 7 · B10, D5, F1: the plan's "Not now" and "Skip" are grey words, never a pill; "Are you preparing for the same event?" has "No", then "Yes", so the filled answer is the likely one; the 1 to 10 scale's picked number turns orange. Was: faded grey pills, "Yes" first with "No" filled, the picked number black · BE N467 log (#1695), FE (this PR)
 
 - 2026-11-04 · N459 · after the first Take's walk the plan asks no "When is your deadline?": with no day heard on the first Take's slides it takes the two-month default, as "No date yet", and its card comes above the goodbye. The deadline asked before the first Take, "Change your plan" and a new event's questions are as before. Was: the deadline and its taps above the goodbye after Take 1 · BE N459 log (#1689), BE (next PR)
 - 2026-11-03 · N457 · §2: the first Take is the only way in: with no `first_take` ring row a new speaker's plan begins with the first Take (backend `plan_flow.first_take_on`); a row can still hold it back. A plan already partway through the chat's questions keeps them. Was: with no row (production), the plan asked its questions by mic in Will's chat · BE #1685, FE (this PR)

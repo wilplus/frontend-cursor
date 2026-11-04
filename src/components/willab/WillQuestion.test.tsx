@@ -14,14 +14,15 @@
  *       follow-up) is the newest bubble.
  *   O3  Suggested answers keep one shape everywhere (N371): two side by
  *       side, three or four stacked, more than four the last three and
- *       "Show more", which shows the rest; a quiet "Not now" is never the
- *       filled one, and a lone answer is outlined, never filled (N415).
+ *       "Show more", which shows the rest; "Not now", "Skip", "Cancel" and
+ *       "Close" are a grey word, never the filled one (N467), and a lone
+ *       answer is outlined, never filled (N415).
  *   O4  While Will's question waits and typing is allowed, the bar's middle
  *       is "Something else"; a tap opens the box with "Type your answer".
  *       While typing is off (the plan asks), it never shows (N371).
  * PROVES   O1 -> "the newest question shows its answers, no Skip, and a tap
  *                 goes to the backend once"
- *          O3 -> "suggested answers: two in a row, three stacked, a lone one outlined, more than four behind Show more"
+ *          O3 -> "suggested answers: two in a row, three stacked, a lone one outlined, saying no a grey word, more than four behind Show more"
  *          O4 -> "while Will asks, Something else opens the box; the plan's questions never show it"
  *          O2 -> "the message after the Take waits under Will's question"
  * WHY      Founder 2026-10-20 (N82): "only buttons" in the walk, Will's
@@ -100,12 +101,14 @@ it("the message after the Take waits under Will's question", () => {
   expect(askShowing([{ metadata: { will_question: "audience", will_question_step: "thanks" } }], false)).toBe(false);
 });
 
-it("suggested answers: two in a row, three stacked, a lone one outlined, more than four behind Show more", async () => {
+it("suggested answers: two in a row, three stacked, a lone one outlined, saying no a grey word, more than four behind Show more", async () => {
   const row = () => host.querySelector("[data-t]") as HTMLElement;
   const shown = () => [...row().querySelectorAll("button")].map((b) => b.textContent);
-  act(() => root.render(<TapRow labels={["Not now", "Practise it"]} quiet={["Not now"]} onTap={() => {}} dataAttr={{ "data-t": "" }} />));
+  act(() => root.render(<TapRow labels={["Not now", "Practise it"]} onTap={() => {}} dataAttr={{ "data-t": "" }} />));
   expect(row().className).toContain("flex-wrap");
   expect(row().querySelector("[data-goes]")?.textContent).toBe("Practise it");
+  // "Not now", "Skip", "Cancel" and "Close" leave: a grey word, never filled (backend N467 rule 3).
+  expect(row().querySelector("[data-quiet]")?.textContent).toBe("Not now");
   act(() => root.render(<TapRow labels={["C", "B", "A"]} onTap={() => {}} dataAttr={{ "data-t": "" }} />));
   expect(row().className).toContain("flex-col");
   expect(row().querySelector("[data-goes]")?.textContent).toBe("A");

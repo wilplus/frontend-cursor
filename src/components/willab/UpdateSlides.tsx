@@ -4,7 +4,7 @@ import { useCallback, useRef, useState, type ReactNode } from "react";
 import { FileUp } from "lucide-react";
 import { ACCEPTED_DECK_ACCEPT } from "./presentation";
 import { VoiceMark } from "./LoadingState";
-import SymmetricPair from "./SymmetricPair";
+import { AnswerPair } from "./WillQuestion";
 import WalkToast from "./walk/WalkToast";
 import { useUserId } from "./useUserId";
 import { UPDATE_SLIDES_COPY } from "@/lib/willab/deckUpdateCopy";
@@ -224,7 +224,8 @@ export function offersUpdateSlides(raw: unknown): boolean {
   return Array.isArray(raw) && raw.includes("update_slides");
 }
 
-/** The grey card and Cancel | Upload PDF, in place of the message box. */
+/** The grey card, then "Cancel" as a grey word and "Upload PDF" as the
+ *  answer on your side (backend N467 item 7), in place of the message box. */
 function SlidesAskCard({
   projectId,
   onReady,
@@ -244,7 +245,7 @@ function SlidesAskCard({
         <UploadError error={upload.error} />
         {upload.input}
       </div>
-      <SymmetricPair
+      <AnswerPair
         closeLabel={UPDATE_SLIDES_COPY.cancel}
         onClose={() => {
           if (!upload.busy) onCancel();

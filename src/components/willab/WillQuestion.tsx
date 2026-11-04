@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import Link from "next/link";
 import Linkified from "./Linkified";
 
 /* -------------------------------------------------------------------------- */
@@ -93,27 +94,29 @@ export default function WillQuestionBubble({
  *  and sits nearest the thumb, bottom right, filled orange; the others are
  *  outlined, above it or to its left. Two sit side by side (the one that goes
  *  on on the right, N334 item 3); three or four stack, one per line; more
- *  than four show the last three and "Show more" above them. A `quiet` label
- *  (the plan's "Not now") stays grey and is never the filled one. Used by
- *  Will's tap answers, "I want to continue my practice" (N294 item 6) and
- *  the plan's answers (N319 item 1). `even` fills none: answers that are
- *  all as likely, the sale's four steps (N417). */
+ *  than four show the last three and "Show more" above them. Saying no is a
+ *  grey word, never a pill and never the filled one (backend N467 rule 3):
+ *  "Not now", "Skip", "Cancel" and "Close", wherever they are offered. Used
+ *  by Will's tap answers, his offers, "I want to continue my practice" (N294
+ *  item 6), the plan's answers (N319 item 1) and the asks in the chat (N467
+ *  item 7). `even` fills none: answers that are all as likely, the sale's
+ *  four steps (N417). */
 export const SHOW_MORE = "Show more";
 /** The bar's middle while Will's question waits, and the box it opens
  *  (backend N371, signed). */
 export const SOMETHING_ELSE = "Something else";
 export const TYPE_YOUR_ANSWER = "Type your answer";
+/** The words that leave rather than answer (backend N467 rule 3). */
+const LEAVE_WORDS: readonly string[] = ["Not now", "Skip", "Cancel", "Close"];
 
 export function TapRow({
   labels,
-  quiet = [],
   even = false,
   disabled = false,
   onTap,
   dataAttr,
 }: {
   labels: string[];
-  quiet?: readonly string[];
   even?: boolean;
   disabled?: boolean;
   onTap: (label: string) => void;
@@ -123,7 +126,8 @@ export function TapRow({
   const shown = labels.length > 4 && !all ? labels.slice(-3) : labels;
   // A lone button is outlined, never filled: filled orange on the right is
   // what one's own sent message looks like (backend N415 item 1).
-  const goes = !even && shown.length > 1 ? [...shown].reverse().find((l) => !quiet.includes(l)) : undefined;
+  const leaves = (label: string) => LEAVE_WORDS.includes(label);
+  const goes = !even && shown.length > 1 ? [...shown].reverse().find((l) => !leaves(l)) : undefined;
   const stacked = shown.length > 2;
   const tap = (label: string) => (
     <button
@@ -131,14 +135,14 @@ export function TapRow({
       type="button"
       disabled={disabled}
       onClick={() => onTap(label)}
-      data-quiet={quiet.includes(label) ? "" : undefined}
+      data-quiet={leaves(label) ? "" : undefined}
       data-goes={label === goes ? "" : undefined}
-      className={`min-h-[44px] max-w-full rounded-[22px] border-[1.5px] px-4 py-2.5 text-left text-[15px] leading-snug disabled:opacity-60 ${
-        quiet.includes(label)
-          ? "border-[#E2E2E2] bg-background font-medium text-[#737373] opacity-70"
-          : label === goes
-            ? "border-primary bg-primary font-semibold text-primary-foreground"
-            : "border-primary bg-background font-semibold text-primary"
+      className={`min-h-[44px] max-w-full text-left text-[15px] leading-snug disabled:opacity-60 ${
+        leaves(label)
+          ? "px-2.5 font-medium text-muted-foreground"
+          : `rounded-[22px] border-[1.5px] border-primary px-4 py-2.5 font-semibold ${
+              label === goes ? "bg-primary text-primary-foreground" : "bg-background text-primary"
+            }`
       }`}
     >
       {label}
@@ -165,8 +169,9 @@ export function TapRow({
 }
 
 /** An ask's two answers as N371's suggested answers (backend N415 item 2):
- *  the close on the left, outlined; the one that goes on on the right,
- *  filled. Replaces the equal grey and black pills in Will's chat. */
+ *  the close on the left, a grey word when it leaves ("Not now", "Cancel",
+ *  N467 rule 3), else outlined; the one that goes on on the right, filled.
+ *  Replaces the equal grey and black pills in every chat (N467 item 7). */
 export function AnswerPair({
   closeLabel,
   onClose,
@@ -185,6 +190,44 @@ export function AnswerPair({
       dataAttr={{ "data-answer-pair": "" }}
     />
   );
+}
+
+/** A way to go (backend N467 rule 4): a line of text with ›, on Will's
+ *  side, with no card around it. A button, or a link when it has `href`. */
+export function ChatLink({
+  label,
+  onClick,
+  href,
+  onPointerDown,
+}: {
+  label: string;
+  onClick?: () => void;
+  href?: string;
+  onPointerDown?: () => void;
+}) {
+  const look = "flex min-h-[40px] items-center gap-1.5 px-0.5 text-left text-[15px] font-medium leading-snug text-foreground";
+  const body = (
+    <>
+      {label}
+      <span aria-hidden="true" className="text-[19px] leading-none text-muted-foreground">
+        ›
+      </span>
+    </>
+  );
+  return href ? (
+    <Link href={href} onClick={onClick} onPointerDown={onPointerDown} className={look}>
+      {body}
+    </Link>
+  ) : (
+    <button type="button" onClick={onClick} onPointerDown={onPointerDown} className={look}>
+      {body}
+    </button>
+  );
+}
+
+/** Links under one bubble: one per line, on Will's side. */
+export function ChatLinks({ children }: { children: ReactNode }) {
+  return <div className="mr-auto flex max-w-[90%] flex-col items-start gap-0.5 pt-0.5">{children}</div>;
 }
 
 /** "Something else" (backend N371): while Will's question waits with its

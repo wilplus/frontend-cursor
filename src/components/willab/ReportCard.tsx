@@ -28,6 +28,7 @@ import {
   readoutView,
 } from "./loungeReports";
 import IdealTextCard from "./IdealTextCard";
+import { ChatLink, ChatLinks, TapRow } from "./WillQuestion";
 import type { IdealTextPast } from "@/lib/willab/pastIdealText";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 import NextTakeShareScreen from "./NextTakeShareScreen";
@@ -178,28 +179,30 @@ function CoachFeedbackPublishedCard({
   arcId: string | null;
   onOpen: (() => void) | null;
 }) {
+  // The card says what happened; the way to it is a link under the card
+  // (backend N467 rules 4 and 6).
   return (
-    <div className="my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3">
-      <div className="flex items-start gap-2">
-        <MessageSquareQuote
-          className="mt-0.5 h-4 w-4 shrink-0 text-primary"
-          aria-hidden
-        />
-        <p className="text-[15px] leading-relaxed text-foreground">{body}</p>
+    <>
+      <div className="my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3">
+        <div className="flex items-start gap-2">
+          <MessageSquareQuote
+            className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+            aria-hidden
+          />
+          <p className="text-[15px] leading-relaxed text-foreground">{body}</p>
+        </div>
       </div>
       {onOpen ? (
-        <Button
-          type="button"
-          onClick={onOpen}
-          onPointerDown={() => warmIdealTextOpen(arcId)}
-          className="mt-3 h-10 w-full rounded-full"
-        >
-          See the feedback
-        </Button>
+        <ChatLinks>
+          <ChatLink label="See the feedback" onClick={onOpen} onPointerDown={() => warmIdealTextOpen(arcId)} />
+        </ChatLinks>
       ) : null}
-    </div>
+    </>
   );
 }
+
+const VIEW_FEEDBACK = "View this take's feedback";
+const TRY_AGAIN = "Try creating it again";
 
 /** The Take whose document could not be created, with its two ways out.
  *
@@ -230,7 +233,7 @@ function IdealTextUnconfirmedCard({
   const cardTakeIndex = takeIndexOfCard(message.metadata?.take_index);
   const canRetry = !!(arcId && takeSessionId && onRetryIdealText);
   const canOpenFeedback = !!(arcId && takeSessionId && onOpenFeedback);
-  return (
+  const card = (
     <div className="my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3">
       <div className="flex items-start gap-2">
         <ShieldAlert
@@ -241,47 +244,37 @@ function IdealTextUnconfirmedCard({
           {message.body}
         </p>
       </div>
-      <div className="mt-3 flex flex-col gap-2">
-        {canRetry ? (
-          <Button
-            type="button"
-            disabled={retryingIdealText}
-            onClick={async () => {
-              if (!arcId || !takeSessionId || !onRetryIdealText) return;
-              setRetryingIdealText(true);
-              try {
-                await onRetryIdealText({
-                  arcId,
-                  takeSessionId,
-                  takeIndex: cardTakeIndex,
-                });
-              } finally {
-                setRetryingIdealText(false);
-              }
-            }}
-            className="h-10 w-full rounded-full"
-          >
-            Try creating it again
-          </Button>
-        ) : null}
-        {canOpenFeedback ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              onOpenFeedback!({
-                arcId: arcId!,
-                takeSessionId,
-                takeIndex: cardTakeIndex,
-              })
-            }
-            className="h-10 w-full rounded-full"
-          >
-            View this take&apos;s feedback
-          </Button>
-        ) : null}
-      </div>
     </div>
+  );
+  // Your answers on your side under the card, the likely one filled
+  // (backend N467 item 6; was two buttons inside the card).
+  const answers = [canOpenFeedback ? VIEW_FEEDBACK : null, canRetry ? TRY_AGAIN : null].filter(
+    (label): label is string => label !== null,
+  );
+  return (
+    <>
+      {card}
+      {answers.length > 0 ? (
+        <TapRow
+          labels={answers}
+          disabled={retryingIdealText}
+          dataAttr={{ "data-ideal-text-retry": "" }}
+          onTap={async (label) => {
+            if (label === VIEW_FEEDBACK) {
+              onOpenFeedback?.({ arcId: arcId!, takeSessionId, takeIndex: cardTakeIndex });
+              return;
+            }
+            if (!arcId || !takeSessionId || !onRetryIdealText) return;
+            setRetryingIdealText(true);
+            try {
+              await onRetryIdealText({ arcId, takeSessionId, takeIndex: cardTakeIndex });
+            } finally {
+              setRetryingIdealText(false);
+            }
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 

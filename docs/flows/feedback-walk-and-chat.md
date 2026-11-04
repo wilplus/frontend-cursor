@@ -1590,6 +1590,38 @@ October (backend N111).
   the corners between two tries drawn in to 6px).
   Was: every corner round and a small tail on the last bubble of a run
   (2026-10-14).
+- **J7** Every choice in a chat, anywhere in the app (founder 2026-11-04,
+  N467, signed and locked for the whole app on the page "Will's Chat, to
+  Sign" <https://claude.ai/artifact/74vqKTfEVgNeHfRgW2NyqL>, version 2).
+  Will's chat starts at the bottom, by the bar, as the chats with people
+  do (N321 item 3); once it fills the screen nothing changes, and there is
+  no extra room above the first message (`Lounge.tsx`, the thread's first
+  child `mt-auto`). Four rules, one component each (`WillQuestion.tsx`):
+  your answers sit on your side, on the right, right under the question;
+  one answer look, N371's orange pill with the likely answer filled,
+  whoever asks (`TapRow`, `AnswerPair`); saying no is a grey word, "Not
+  now", "Skip", "Cancel" and "Close" never get a pill (`TapRow` draws
+  those four as a word wherever they are offered); going somewhere is a
+  link on Will's side, a line of text with › and no card (`ChatLink`):
+  "What would help?"'s "Your presentations" and "Create new project",
+  "Replace PDF", "Open exercise", "Review coach feedback", "Open speaker",
+  a product's action and the coach's "See the feedback", with "Skip" a grey
+  word on the right. A card says what happened and its answers sit under
+  it on your side: under "I couldn't create your Ideal Text this time.",
+  "View this take's feedback" and "Try creating it again", filled. The
+  black-and-grey pairs in the chat are answers under their grey card: a new
+  project (Cancel, Continue), the slides (Cancel, Upload PDF), the WhatsApp
+  number (Not now, Save; then Not now, Continue). The consent ask, the
+  policy update and the one-project sheet keep their black-and-grey pair
+  (`SymmetricPair.tsx`). A yes-or-no ask has "Yes" last; the 1 to 10
+  scale's picked number is orange ([the plan's page](the-plan.md) B10).
+  Orange is what you say, grey is how you leave, black is the one thing to
+  do on a screen ("Record Take 2", "Accept and practise"). Stays: Will's
+  question chips, the walk and the lenses, the bar's one command and the
+  emoji bar. Was: Will's chat started at the top; offers' "Not now" an
+  outlined orange pill (N415) and the plan's a faded grey pill; grey cards
+  with ›, small outlined buttons and buttons inside Will's cards; black and
+  grey pills; the picked number black and "Yes" first.
 
 ### K · Words on screen (all signed)
 
@@ -2100,6 +2132,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N467 · J7, E1: Will's chat starts at the bottom; every choice in a chat follows four rules: answers on your side under the question, one orange answer look with the likely one filled, "Not now", "Skip", "Cancel" and "Close" a grey word (`TapRow`), a way to go a link with › (`ChatLink`: "What would help?"'s ways, "Replace PDF", "Open exercise", "Review coach feedback", "Open speaker", a product's action, "See the feedback"); the Ideal Text failure card's two buttons are answers under it; the new project, slides and WhatsApp pairs are answers under their grey card; "Yes" last; the scale's pick orange. Was: the chat from the top, an outlined or faded "Not now", grey cards with ›, outlined buttons, buttons inside cards, black-and-grey pills · BE N467 log (#1695), FE (this PR)
 - 2026-11-04 · N371 · E1: fix: while Will's question waits, "Something else" stands alone in the bar's middle, where "Type here" stands, as N371 item 3 says; the "Type here" box underneath it is hidden (`Lounge.tsx`: the box takes `hidden` as a class, since Tailwind's `[hidden]` rule lost to its `block`). Was: both boxes stacked, "Something else" above "Type here" (founder 2026-11-04, "if it looks like this it's wrong") · FE (this PR)
 - 2026-11-04 · N459 · C0a, C4, T, D4: no "When is your deadline?" after the walk, the deadline is set in the set-up before it; a slow Sniper's Last time says "Last time: keep “{words}” moving." (`ONE_THING_COPY.slowTip`, signed), a rushed one keeps "give “{words}” more room"; a weakest moment too long for the AI clip (17 s at the slow reading) is trimmed to the part around what the clip teaches (`ai_voice_prompt.fit_to_clip`), so its clip is always made, and the speaker's try asks for and is checked on the same trimmed words (`clip.passage`); the moment's own words above the clip stay whole. Was: the deadline asked above the goodbye after Take 1; the rushed tip after a slow Sniper; a moment of 37 words or more got only the tip in words · BE N459 log (#1689), BE (next PR), FE (this PR)
 - 2026-11-04 · N458 · C9, D4, E1, E2, B3, B8: the chat after the walk comes however the walk ends: Close, ✕ on the finished walk, or opening a finished Take that has none yet. ✕ and the page's own open ask only when the chat's newest recording is this Take's own, so an older Take's chain never lands under a newer one; the summary is asked once per Take whichever page asks, asked again if it failed, and the chat reloads either way; a coach's late word closed with ✕ ends nothing (`askSummary`). While the summary and the chain are written the chat shows the typing dots, a tapped answer to Will too; a failed read of the chat keeps it on screen. The first Take's goodbye says it is the first Take's (`metadata.first_take`), so "Record Take 2" comes at once and records the real talk on any device. A "#" note under Will's question no longer brings his next question (`answered_first`); from Take 3 the deeper question waits until who, what and the key line are all known. Was: only the Close pill brought the chain, ✕ ended the review with nothing after it; the chat sat still with no dots for the summary's model call; the first Take's goodbye was known only on the device that started it; a note brought the next question; the deeper question came after an unanswered key line · BE #1687, FE (this PR)

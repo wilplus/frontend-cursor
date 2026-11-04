@@ -148,6 +148,11 @@ rest is built in.
      Will's chat is the exception: it keeps its own bar, with "Type here"
      (N369); its left button, which opens Your projects, is a stack icon,
      not a "+", so "+" means add in every chat (N460 item 5).
+     Every choice offered in a chat, a person's or Will's, follows the
+     four rules of [the chat's page](feedback-walk-and-chat.md) J7 (N467,
+     locked for the whole app): your answers on your side under the
+     question, one orange answer look, "Not now", "Skip", "Cancel" and
+     "Close" a grey word, a way to go a link with ›.
      Will deciding what is a question (N322 item 5) is not built. The mic records with the one recording bar (the trash, the
      strip with Stop inside, N314), up to two minutes; Stop sends, the
      trash throws it away, and the bar comes back. The voice note joins
@@ -727,6 +732,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N467 · C1: every choice in a chat, a person's included, follows the chat page's J7, locked for the whole app; Will's chat starts at the bottom, as the chats with people do · BE N467 log (#1695), FE (this PR)
 - 2026-11-04 · N460 · C1: the bar made calmer: in a person's chat the mic is a bare icon at rest and orange without pulsing when your words are awaited, quiet beside "Record an answer"; Undo and Send again are bold words in their pill; the "+" turns into a ✕ in its place to close the tiles, and "Cancel" goes; in Will's chat, Your projects is a stack icon. Was: the mic in a grey circle, orange and pulsing beside Record an answer too; Undo and Send again white pills; Cancel under the tiles; a "+" for Your projects (`ChatThread.tsx`, `Lounge.tsx`) · BE (N460 PR), FE (this PR)
 - 2026-11-03 · N457 · C1: Will's row shows his chat's newest line, read from the Lounge's thread underneath (words only: a card, a walk step or a status is not a line), new with the bold name and orange dot while it is his and newer than the last time his chat was open on this device; just joined through a link, it is "Your first Take is five questions…" above the inviter's chat. Joining works for anyone since the chats are everyone's (N456). Was: Will's row had no line · FE (this PR)
 - 2026-11-03 · N456 · C1, §2, K: the list of chats and every chat's own top bar are the default for every signed-in person, on the web and in the iPhone app, locked (backend docs/LOCKS.md, "The chats, all of a piece"): no ring decides them (`useChatsOn` is the session; backend `chats.enabled` every signed-in person); the loader, never Will's chat, waits for the list on the web too. Tests say it as stories: as a user, as a visitor, as a developer (`chats.test.tsx`); as a user and as a server (backend `test_chats.py`, `test_chat_links.py`, `test_people_profiles.py`). Was: ring 6 only (feature `chats`); everyone else opened Will's chat under the WillpowerLab bar · BE N456 log (#1682), BE (#1684), FE (this PR)

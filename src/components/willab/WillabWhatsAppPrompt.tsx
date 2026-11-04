@@ -6,7 +6,7 @@ import { fetchWhatsAppPhone } from "@/services/api/whatsapp";
 import { confirmNumberCode, sendNumberCode } from "@/services/api/whatsappNumber";
 import PhoneNumberField from "@/components/phone/PhoneNumberField";
 import { WHATSAPP_AUTH_COPY } from "@/components/auth/WhatsAppAuth";
-import SymmetricPair from "./SymmetricPair";
+import { AnswerPair } from "./WillQuestion";
 
 /** Supabase asks for a pause between two codes to one number. */
 const RESEND_AFTER_MS = 60_000;
@@ -253,7 +253,7 @@ export function WhatsAppOfferActions({
             </button>
           </div>
         </form>
-        <SymmetricPair
+        <AnswerPair
           closeLabel={WHATSAPP_COPY.notNow}
           onClose={notNow}
           actionLabel={WHATSAPP_AUTH_COPY.continue}
@@ -263,8 +263,8 @@ export function WhatsAppOfferActions({
     );
   }
 
-  // Laid out like the install offer (founder 2026-10-12): the grey card on
-  // top (here the number field), then the same Not now | Save pair below.
+  // The grey card on top (here the number field), then "Not now" as a grey
+  // word and Save as the answer on your side (backend N467 item 7).
   return (
     <div className="flex flex-col gap-3">
       <form
@@ -289,7 +289,7 @@ export function WhatsAppOfferActions({
         />
         {problem}
       </form>
-      <SymmetricPair
+      <AnswerPair
         closeLabel={WHATSAPP_COPY.notNow}
         onClose={notNow}
         actionLabel={saving ? WHATSAPP_COPY.saving : WHATSAPP_COPY.save}
