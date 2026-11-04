@@ -99,9 +99,6 @@ export interface AppMenuProps {
   /** "Copy my link" (backend N308, N367): resolves to the full link to copy,
    *  or null. Passed only where the chats are on. */
   onCopyLink?: (() => Promise<string | null>) | null;
-  /** The iPhone app: the Tokens row shows the balance and opens nothing
-   *  (backend N365 item 1). */
-  tokensOpenNothing?: boolean;
 }
 
 export default function AppMenu({
@@ -116,7 +113,6 @@ export default function AppMenu({
   dataConsentHref = null,
   userName = null,
   onCopyLink = null,
-  tokensOpenNothing = false,
 }: AppMenuProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -269,29 +265,18 @@ export default function AppMenu({
                 </Link>
               ) : null}
               {tokensLabel ? (
-                tokensOpenNothing ? (
-                  // The iPhone app shows the balance and opens nothing: no
-                  // link to buy in the app (backend N365 item 1, N367 item 2).
-                  <div className={cn(ROW_CLASS, "cursor-default hover:bg-transparent")}>
-                    <MenuIcon tone="gold">
-                      <Coins className="h-[18px] w-[18px]" />
-                    </MenuIcon>
-                    <span className="flex-1">
-                      <span className="block">{TOKENS_COPY.menuRowLabel}</span>
-                      <span className="block text-[12.5px] font-normal text-muted-foreground">{tokensLabel}</span>
-                    </span>
-                  </div>
-                ) : (
-                  <Link ref={firstRef()} href="/dashboard/pricing" {...row("/dashboard/pricing")} onClick={() => setOpen(false)}>
-                    <MenuIcon tone="gold">
-                      <Coins className="h-[18px] w-[18px]" />
-                    </MenuIcon>
-                    <span className="flex-1">
-                      <span className="block">{TOKENS_COPY.menuRowLabel}</span>
-                      <span className="block text-[12.5px] font-normal text-muted-foreground">{tokensLabel}</span>
-                    </span>
-                  </Link>
-                )
+                // The Tokens page, on the web and in the iPhone app; in the
+                // app it shows no plans and no way to buy (backend N365
+                // item 1, N495).
+                <Link ref={firstRef()} href="/dashboard/pricing" {...row("/dashboard/pricing")} onClick={() => setOpen(false)}>
+                  <MenuIcon tone="gold">
+                    <Coins className="h-[18px] w-[18px]" />
+                  </MenuIcon>
+                  <span className="flex-1">
+                    <span className="block">{TOKENS_COPY.menuRowLabel}</span>
+                    <span className="block text-[12.5px] font-normal text-muted-foreground">{tokensLabel}</span>
+                  </span>
+                </Link>
               ) : null}
               {/* Kept from before, for the few who have them: discovered
                   products and the Life Panel's server-sent entries. The
