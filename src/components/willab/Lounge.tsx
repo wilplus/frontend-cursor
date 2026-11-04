@@ -1810,14 +1810,17 @@ export default function Lounge({
       <div
         ref={scrollRef}
         data-thread
+        data-rhythm
         onScroll={handleThreadScroll}
         /* `overflow-x-hidden` is load-bearing: `overflow-y-auto` alone computes
            overflow-x to auto, so any bubble content wider than the column (a
            long unbroken token, a wide card) makes the WHOLE thread pan
            sideways — every bubble slides off the left edge of the screen.
            `[&>:first-child]:mt-auto`: the chat starts at the bottom, by the
-           bar, as the chats with people do (N321 item 3, N467 item 1). */
-        className="scrollbar-none -mb-3 flex flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain pb-2 [&>:first-child]:mt-auto"
+           bar, as the chats with people do (N321 item 3, N467 item 1).
+           `data-rhythm`: the rows' spacing, close within a side and wider
+           where the side changes (globals.css, N469). */
+        className="scrollbar-none -mb-3 flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain pb-2 [&>:first-child]:mt-auto"
       >
         {thread.hasMore && (
           <button

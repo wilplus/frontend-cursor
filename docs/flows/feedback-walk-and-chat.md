@@ -1625,6 +1625,16 @@ October (backend N111).
   outlined orange pill (N415) and the plan's a faded grey pill; grey cards
   with ›, small outlined buttons and buttons inside Will's cards; black and
   grey pills; the picked number black and "Yes" first.
+- **J8** The rhythm of a run (founder 2026-11-04, N469, as on WhatsApp, on
+  the page "Getting To Know You"
+  <https://claude.ai/artifact/LD1cXKQA8t4T5B6H92FErs>, version 10), in
+  every chat: Will's and every chat with a person. Two rows of the same side
+  in a row sit 2px apart; where the side changes, 12px; anything else in
+  the thread (a day's line, a card, the answers under a question, a link)
+  keeps 8px. With J6's shape, a run reads as one block (`globals.css`, "THE
+  RHYTHM OF A RUN", on `data-rhythm` and `data-row`; `Lounge.tsx`,
+  `chats/ChatThread.tsx`). The walk keeps its own spacing: every bubble
+  there stands apart (J6). Was: 8px between every row.
 
 ### K · Words on screen (all signed)
 
@@ -2143,6 +2153,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-11-04 · N469 · J8: the rhythm of a run, as on WhatsApp: in Will's chat and every chat with a person, two rows of the same side sit 2px apart and 12px where the side changes; anything else keeps 8px (`globals.css`, `Lounge.tsx`, `chats/ChatThread.tsx`). The walk keeps its own spacing. Was: 8px between every row · BE #1700, FE (this PR)
 
 - 2026-11-04 · — · simplification of the N458/N459 code, no behaviour change · FE (this PR)
 - 2026-11-04 · N467 · J7, E1: Will's chat starts at the bottom; every choice in a chat follows four rules: answers on your side under the question, one orange answer look with the likely one filled, "Not now", "Skip", "Cancel" and "Close" a grey word (`TapRow`), a way to go a link with › (`ChatLink`: "What would help?"'s ways, "Replace PDF", "Open exercise", "Review coach feedback", "Open speaker", a product's action, "See the feedback"); the Ideal Text failure card's two buttons are answers under it; the new project, slides and WhatsApp pairs are answers under their grey card; "Yes" last; the scale's pick orange. Was: the chat from the top, an outlined or faded "Not now", grey cards with ›, outlined buttons, buttons inside cards, black-and-grey pills · BE N467 log (#1695), FE (this PR)

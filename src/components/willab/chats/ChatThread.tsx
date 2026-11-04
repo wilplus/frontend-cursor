@@ -819,8 +819,9 @@ export default function ChatThread({
         data-chat-thread
         className="scrollbar-none flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-3 pt-4"
       >
-        {/* The messages start at the bottom, by the bar (N321 item 3). */}
-        <div className="mt-auto flex flex-col gap-2">
+        {/* The messages start at the bottom, by the bar (N321 item 3), close
+            within a side and wider where the side changes (N469). */}
+        <div data-rhythm className="mt-auto flex flex-col">
           {through ? <JoinedLine name={through} /> : null}
           {messages === null ? (
             <TypingDots label="Loading" />
