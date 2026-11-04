@@ -19,6 +19,9 @@ export type Chat = {
   title: string;
   subtitle: string;
   last: ChatLast | null;
+  /** Whose link you joined this chat through, while it has no message yet
+   *  (backend N488); null or absent otherwise. */
+  joined_through?: string | null;
   /** You have blocked the other person (backend N466). */
   blocked?: boolean;
 };

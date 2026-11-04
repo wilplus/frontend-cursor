@@ -119,9 +119,10 @@ rest is built in.
      (`/chat?with=<chat>`), the list opens, not a chat: the chat with the one
      who invited you is the row right under Will, marked new, its line their
      last message or, with none yet, "You joined through {name}'s link. Only
-     the two of you are in this chat." (N335 item 2); opened, it takes its
-     place with the rest (N357; was N348 item 1: that chat opened; was N357
-     item 1: above Will).
+     the two of you are in this chat." (N335 item 2), kept on the row until
+     the chat's first message (N488; was: blank once opened); opened, it
+     takes its place with the rest (N357; was N348 item 1: that chat opened;
+     was N357 item 1: above Will).
    - **A person's chat**: the WillpowerLab bar goes; the chat's own top bar
      takes the top, full width: back, a 36px circle with the letter, the
      name and who they are. The messages start at the bottom, by the bar,
@@ -795,6 +796,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N488 · C1: the row of a chat you joined through someone's link keeps "You joined through {name}'s link. Only the two of you are in this chat." until the chat's first message, read from the list's `joined_through` (`ChatList.tsx`); only the one who joined sees it. Was: the row went blank once the chat was opened · BE N488 log (#1724), BE (#1729), FE (this PR)
 - 2026-11-04 · N483 · C1, §2, §4: the bar in a chat with a person has one logic, as in every chat: the "+" on the left; in the middle the three emoji, "Record your answer" when a marked question waits, with "Not now" a grey word under their question (it gives the emoji back until the chat is opened again and tells them nothing), or Sending with Undo. What stops: the mic and new voice notes (older ones still play; `sendChatVoice` and the BFF route `[chatId]/voice` are gone), the mic's orange, "Record an answer" (now "Record your answer"). Still in flight: the "+" asking the person ("Ask {name}") · BE N483 (#1718), FE (this PR)
 - 2026-11-04 · N486 · C1: an answer has no five-minute cap: the recording screens time it as any Take, counting up, and the backend takes an answer of any length. Was (N363 item 3, N441 item 2): up to five minutes, the clock counting down from 5:00 and finishing by itself · BE (cap PR), FE (this PR)
 - 2026-11-04 · N470, N479 · C1: a Take someone sends you is their message in your chat with them, "{name} sent you Take {n}" with the Take's tile and "Open Take", which plays its recording and shows its words slide by slide behind "Read it", nothing else of it; the list's line says "{name} sent you Take {n}"; your own sent Take is its tile with "Sent to {name}" (`ChatThread.tsx` `ChatTakeBubble`, `ChatList.tsx` `lastLine`, `takeSends.ts`). No passcode in the list of chats: a person's link is the only way in (N471 item 2, N479 item 4). Behind the backend's switch, off until the Privacy text is signed. Was: a chat had no Take messages · BE N470 (#1702), N479 (#1704), BE (send PR), FE (this PR)
