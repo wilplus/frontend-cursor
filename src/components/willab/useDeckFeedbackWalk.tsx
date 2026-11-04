@@ -4,8 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, praiseChat, shownStep, skipReply, sniperWords, storedSummaryOf, tempoSaidIn, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
-import { fixClipsIn } from "@/lib/willab/walkThread";
+import { aiVoiceChat, answerBody, coachNoteToChat, fixClipsIn, helperWordsSaid, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, praiseChat, shownStep, skipReply, sniperWords, storedSummaryOf, tempoSaidIn, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { WalkIntervention, WalkStep } from "@/lib/willab/walkPlan";
 import { tipSaid, type WalkBankKey } from "@/lib/willab/walkLines";
@@ -219,7 +218,7 @@ export function deckReplayItems(
  *  words, matched leniently (case, punctuation, hesitations), with those
  *  words as the paragraph shows them; else the slide's first paragraph,
  *  with no words. Null when neither is found. Pure. */
-export function stretchParagraph(
+function stretchParagraph(
   tempo: TempoStretch | null | undefined,
   chunks: readonly DeckChunk[],
   groups: readonly SlideGroup[],
@@ -237,7 +236,7 @@ export function stretchParagraph(
 /** The stretch's clip as the chat keeps a moment's (momentChat): its
  *  recording's id, so Will's question finds its words (E2), and its signed
  *  link when there is one. Null without a recording. Pure. */
-export function stretchClipChat(tempo: TempoStretch): Record<string, unknown> | null {
+function stretchClipChat(tempo: TempoStretch): Record<string, unknown> | null {
   const snippet = tempo.snippetId ?? tempo.clip?.snippetId ?? null;
   if (!snippet) return null;
   const clip = tempo.clip ?? null;
@@ -251,7 +250,7 @@ export function stretchClipChat(tempo: TempoStretch): Record<string, unknown> | 
  *  those); a slow stretch off such a week leaves the fix a moment (T, N323
  *  item 6). A Take served before N289 keeps its tempo step on any stretch.
  *  Pure. */
-export function tempoOffered(
+function tempoOffered(
   tempo: TempoStretch | null | undefined,
   items: readonly FeedbackWalkItem<DocumentSuggestion>[],
 ): readonly WalkIntervention[] {
@@ -264,7 +263,7 @@ export function tempoOffered(
  *  read; Last time read, its tip served or the chat that keeps it loaded;
  *  and the tempo answer in where the Sniper may be the fix (the server chose
  *  it, or served no choice). Pure. */
-export function walkOpens(at: {
+function walkOpens(at: {
   items: readonly FeedbackWalkItem<DocumentSuggestion>[];
   tempo: TempoStretch | null | undefined;
   nameRead: boolean;
@@ -350,7 +349,8 @@ const TRY_ANSWER_STEPS: ReadonlySet<string> = new Set(["improved", "encourage", 
 
 /** The Sniper's rows in the chat that say it was played: a try, a Skip
  *  (the speaker's, or the One thing walk's answer to it), its closing line.
- *  Its opening line alone is posted as the game opens, before any of them. */
+ *  Its opening (the stretch's clip and line) is posted as the game opens,
+ *  before any of them. */
 const TEMPO_PLAYED_STEPS: ReadonlySet<string> = new Set(["tempo:try", "tempo:skip", "tempo:skipped", "tempo:close"]);
 
 /** Each Take's summary ask, while it is written and once it is (C9, D4):
@@ -376,7 +376,7 @@ function hear(heard: WalkHeard, step: string, author: string, body: string): voi
 /** What the loaded chat kept of `take`'s walk for its summary, by the same
  *  rules as the walk posting it, so a summary asked by a page opened later,
  *  or by a walk played again, still hears the try and the words (D2, E1). Pure. */
-export function heardIn(messages: readonly LoungeMessage[], take: string): WalkHeard {
+function heardIn(messages: readonly LoungeMessage[], take: string): WalkHeard {
   const heard: WalkHeard = { practice: null, words: [] };
   for (const m of messages) {
     if (m.kind !== "walk_step" || m.metadata?.take_session_id !== take) continue;
@@ -1034,7 +1034,7 @@ export function useDeckFeedbackWalk(args: {
         // just worked on, the stretch (E2).
         const clip = one ? stretchClipChat(tempo) : null;
         if (clip) say("clip:tempo", "speaker", "", null, { clip });
-        // As the walk opens it (N435 item 6): a rushed Sniper's one line.
+        // As the walk opens it (N435 item 6): the Sniper's one line.
         const opening = tempoOpening(tempo, one);
         say("tempo:open", "app", [...opening.lines, ...(opening.withScale ? [opening.withScale] : [])].join("\n"), null, words ? { fix_tip: (tempo.reading === "slow" ? ONE_THING_COPY.slowTip : ONE_THING_COPY.paceTip)(words.text) } : undefined);
       } else if (event.kind === "try") {
@@ -1046,14 +1046,13 @@ export function useDeckFeedbackWalk(args: {
         // Left mid-game (✕): kept for Will below, nothing said. Skipped:
         // before a try, or, as the One thing walk's fix, after one too, as
         // the walk draws it (#1183). The Sniper then answers Skip (N405).
-        if (event.left) {
-          // Nothing in the chat.
-        } else if (!event.close || (one && event.skipped)) {
-          // As the One thing walk's fix, the walk's answer alone (N452 item 1).
-          if (one) say("tempo:skipped", "app", ONE_THING_COPY.skipped);
-          else say("tempo:skip", "speaker", TEMPO_COPY.skip);
+        if (!event.left) {
+          if (!event.close || (one && event.skipped)) {
+            // As the One thing walk's fix, the walk's answer alone (N452 item 1).
+            if (one) say("tempo:skipped", "app", ONE_THING_COPY.skipped);
+            else say("tempo:skip", "speaker", TEMPO_COPY.skip);
+          } else if (!one && !event.tries.some((t) => t.landed)) say("tempo:close", "app", TEMPO_COPY.close[event.close]);
         }
-        else if (!one && !event.tries.some((t) => t.landed)) say("tempo:close", "app", TEMPO_COPY.close[event.close]);
         const arcId = args.arcId ?? null;
         if (arcId && take) void postTempoGame(arcId, take, tempo.reading, event);
       }
@@ -1618,9 +1617,8 @@ export function useDeckFeedbackWalk(args: {
      chain after it (Will's question, the goodbye) always comes. Not for a
      paragraph's own practise, nor the coach-only walk. */
   const askSummary = useCallback(() => {
-    if (practisingRef.current || live.current.coachOnly) return;
-    const { take: on } = threadRef.current;
-    if (!on || summaryAsks.has(on) || storedSummaryRef.current !== null) return;
+    // `summary` asks once per Take itself, and nothing without a Take.
+    if (practisingRef.current || live.current.coachOnly || storedSummaryRef.current !== null) return;
     void summary();
   }, [summary]);
   /* BETWEEN TWO TAKES (D4, N244, N251): ✕ and a finished Take's page as it

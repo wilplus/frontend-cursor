@@ -1428,14 +1428,7 @@ function Words({ ctx, step }: { ctx: ScreenCtx; step: WalkStep }) {
       window.clearTimeout(bound);
     };
   }, [opening]);
-  if (opening && waited !== opening) {
-    // The typing dots, the walk's one wait (B8).
-    return (
-      <WalkOverlay testId={testId(step)} onClose={ctx.close}>
-        <WalkLoading />
-      </WalkOverlay>
-    );
-  }
+  if (opening && waited !== opening) return waitDots(ctx, step);
   if (!words) return <PassBy onPass={() => ctx.forwardFrom(step)} />;
   return <WordsShown ctx={ctx} step={step} words={words} />;
 }
@@ -1946,13 +1939,7 @@ function Tempo(ctx: ScreenCtx, step: WalkStep) {
 function TempoLive({ ctx, step, kept }: { ctx: ScreenCtx; step: WalkStep; kept: ReactNode }) {
   const asking = !ctx.tempo && ctx.tempoAsking;
   const waitedOut = useClipWait(sniperSeed(ctx.takeId), asking, ctx.clipWaitMs);
-  if (asking && !waitedOut) {
-    return (
-      <WalkOverlay testId={testId(step)} onClose={ctx.close}>
-        <WalkLoading />
-      </WalkOverlay>
-    );
-  }
+  if (asking && !waitedOut) return waitDots(ctx, step);
   if (!ctx.tempo || !sniperDraws(ctx, step)) return <PassBy onPass={() => ctx.forwardFrom(step)} />;
   return (
     <TempoOrKept kept={kept}>
@@ -1985,6 +1972,16 @@ function TempoLive({ ctx, step, kept }: { ctx: ScreenCtx; step: WalkStep; kept: 
 function TempoOrKept({ kept, children }: { kept: ReactNode; children: ReactNode }) {
   const past = useMountedAsPast();
   return <>{past && kept ? kept : children}</>;
+}
+
+/** The step's screen while what it shows is on its way: the typing dots,
+ *  the walk's one wait (B8). */
+function waitDots(ctx: ScreenCtx, step: WalkStep): ReactNode {
+  return (
+    <WalkOverlay testId={testId(step)} onClose={ctx.close}>
+      <WalkLoading />
+    </WalkOverlay>
+  );
 }
 
 /** A step with nothing to show moves the walk on once drawn. */

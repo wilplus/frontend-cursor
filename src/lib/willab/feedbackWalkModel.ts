@@ -435,7 +435,7 @@ export function buildFeedbackWalk<R = unknown>(input: {
  *  "Keep mine": on their own sentence (C5, C7, `oneThingTryWords`), with
  *  "Your words it is." above its first try. Nothing decided yet (a fresh
  *  Take): unchanged; the live taps set it themselves. Pure. */
-export function withKeptWords<R>(plan: readonly WalkStep[], moments: readonly FeedbackWalkMoment<R>[]): WalkStep[] {
+function withKeptWords<R>(plan: readonly WalkStep[], moments: readonly FeedbackWalkMoment<R>[]): WalkStep[] {
   return plan.map((s) =>
     s.one && s.key === "practise" && s.moment != null && moments[s.moment]?.clearer?.decided === "keep" ? { ...s, kind: "keep" } : s,
   );

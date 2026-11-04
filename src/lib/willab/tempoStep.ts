@@ -17,10 +17,6 @@ import { zoneLevel } from "./pace/paceSignal";
 import { isFiller } from "./liveNoteWords";
 import { parseRichSpans } from "./richMarkers";
 
-/** The rings panel's row for the step (backend rings.TEMPO_STEP, N166 step
- *  6): whoever it reaches has the step, besides the founder. */
-export const TEMPO_STEP_FEATURE = "tempo_step";
-
 /** Up to three tries (N166 item 3). */
 export const TEMPO_MAX_TRIES = 3;
 
