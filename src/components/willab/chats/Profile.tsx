@@ -13,6 +13,7 @@ import {
   type Profile as ProfileData,
 } from "@/services/api/chats";
 import { photoForUpload } from "./photoForUpload";
+import { SafetyRows, type Safety } from "./BlockReport";
 
 /* -------------------------------------------------------------------------- */
 /*  A person's profile, as on WhatsApp (backend N366; the locked prototype    */
@@ -21,7 +22,8 @@ import { photoForUpload } from "./photoForUpload";
 /*  One page: the circle, the name and who they are; About; Photos; Files.   */
 /*  On your own: tap the circle for your photo; the pencil, or Edit at the   */
 /*  top right, to change your About (and, with Edit, your name and who you   */
-/*  are). The one place in the app where a person types.                     */
+/*  are). The one place in the app where a person types. At the foot of      */
+/*  theirs, never yours nor Will's, Block and Report (N466, BlockReport.tsx). */
 /* -------------------------------------------------------------------------- */
 
 /** Signed (Never 4): backend N366 items 3, 4 and 6. */
@@ -45,7 +47,17 @@ const LIMIT = { name: 40, role: 60, about: 300 } as const;
 
 const isToday = (at: string | null) => !!at && new Date(at).toDateString() === new Date().toDateString();
 
-export default function Profile({ chatId = null, onBack }: { chatId?: string | null; onBack: () => void }) {
+export default function Profile({
+  chatId = null,
+  onBack,
+  safety,
+}: {
+  chatId?: string | null;
+  onBack: () => void;
+  /** Their profile, from a person's chat: Block and Report at its foot
+   *  (N466). Never given for your own, nor for Will, whose chat opens none. */
+  safety?: Safety | null;
+}) {
   const mine = chatId === null;
   const [p, setP] = useState<ProfileData | null>(null);
   const [failed, setFailed] = useState(false);
@@ -238,6 +250,7 @@ export default function Profile({ chatId = null, onBack }: { chatId?: string | n
               <p className="text-[14px] text-[#8A8A8A]">{W.noFiles}</p>
             )}
           </div>
+          {safety ? <SafetyRows safety={safety} /> : null}
         </div>
       ) : failed ? null : (
         <div className="flex-1" />

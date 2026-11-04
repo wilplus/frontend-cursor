@@ -23,6 +23,7 @@ import {
   type ChatMessage,
 } from "@/services/api/chats";
 import Profile from "./Profile";
+import { BlockedBar, useBlocking } from "./BlockReport";
 import { AddSomeoneSheet, EMOJI_MEANING, LetterCircle, WILL_ROW_TITLE, WillMark, meaningOf } from "./ChatList";
 import { photoForUpload } from "./photoForUpload";
 import { markChatOpened } from "./chatOpened";
@@ -44,7 +45,8 @@ import { clockTime, dayKey, dayLabel } from "./chatTime";
 /*  black "Record an answer" in the bar's place (N321 item 4): the recording  */
 /*  screens, then "Sending to {name}…" with Undo for 5 seconds (N345), then   */
 /*  the answer, with "Sent to {name}" under it (N342, N361).                  */
-/*  Only the conversation shows here; no asks (N305).                         */
+/*  Only the conversation shows here; no asks (N305). Blocked from their      */
+/*  profile, the bar is one grey pill with Unblock; the messages stay (N466). */
 /* -------------------------------------------------------------------------- */
 
 /** Will's chat, under the WillpowerLab bar: back, then his name (N322 item 4). */
@@ -710,6 +712,8 @@ export default function ChatThread({
   const [inviting, setInviting] = useState(false);
   const [fullPhoto, setFullPhoto] = useState<string | null>(null);
   const [profile, setProfile] = useState(false);
+  // Block and Report (N466): from their profile; blocked, the bar says so.
+  const { setBlocked, toast, ...safety } = useBlocking(chat);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pickers = { photos: useRef<HTMLInputElement>(null), camera: useRef<HTMLInputElement>(null), files: useRef<HTMLInputElement>(null) };
 
@@ -747,11 +751,12 @@ export default function ChatThread({
       if (cancelled) return;
       setMessages(thread?.messages ?? []);
       setThrough(thread?.joinedThrough ?? null);
+      if (thread) setBlocked(thread.blocked);
     });
     return () => {
       cancelled = true;
     };
-  }, [chat.id]);
+  }, [chat.id, setBlocked]);
 
   // The newest message in view, as in the Lounge.
   useEffect(() => {
@@ -808,7 +813,7 @@ export default function ChatThread({
     <div data-chat-screen className="relative flex min-h-0 flex-1 flex-col">
       {open ? <BackIsThisChats onBack={onBack} /> : null}
       <ChatTopBar chat={chat} onBack={onBack} onOpen={() => setProfile(true)} />
-      {profile ? <Profile chatId={chat.id} onBack={() => setProfile(false)} /> : null}
+      {profile ? <Profile chatId={chat.id} onBack={() => setProfile(false)} safety={safety} /> : null}
       <div
         ref={scrollRef}
         data-chat-thread
@@ -834,7 +839,9 @@ export default function ChatThread({
         </div>
       </div>
       <div data-chat-bar className="flex shrink-0 items-end gap-1 px-4 pb-2">
-        {note.phase === "recording" ? (
+        {safety.blocked ? (
+          <BlockedBar name={chat.title} onUnblock={safety.unblock} />
+        ) : note.phase === "recording" ? (
           <div className="min-w-0 flex-1">
             <RecordingBar elapsedMs={note.elapsedMs} onTrash={note.cancel} onStop={note.send} />
           </div>
@@ -863,6 +870,7 @@ export default function ChatThread({
       <input ref={pickers.files} type="file" hidden data-chat-pick="files" onChange={(e) => void upload("file")(e)} />
       {inviting ? <AddSomeoneSheet onClose={() => setInviting(false)} /> : null}
       {fullPhoto ? <PhotoFull src={fullPhoto} onClose={() => setFullPhoto(null)} /> : null}
+      {toast}
     </div>
   );
 }

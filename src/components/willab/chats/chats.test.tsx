@@ -82,6 +82,12 @@ OUTCOME
       before I have left one, it does nothing (N378, N436).
   O18 An answer the backend refused stays in the bar's middle, "Not sent"
       with "Send again", which sends the same Take (N441 item 1).
+  O21 At the foot of the other person's profile, "Block {name}" asks first
+      and then blocks them: the backend is told, "{name} is blocked." shows,
+      and back in the chat the bar is one pill, "You blocked {name}." with
+      Unblock, the earlier messages still there; Unblock unblocks at once.
+      "Report {name}" asks first too, and "Report and block" reports them
+      with the block (N466).
 PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read"
          O19 -> "as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar"
          O20 -> "as a developer, a chats row in the rings, on or off, changes nothing"
@@ -103,6 +109,7 @@ PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is 
          O17 -> "the device's Back goes back by one, to the list, never off it, and Forward opens the chat I just left"
          O17 -> "in the app, a swipe from the left edge goes back to the list where I left it, and one from the right edge forward to the chat I just left"
          O18 -> "a refused answer stays as Not sent, and Send again sends the same Take"
+         O21 -> "from their profile I block them, the bar says so with Unblock, and Report and block reports with the block"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -914,6 +921,64 @@ describe("the chats in front of the Lounge", () => {
     expect(calls("POST /api/v2/chats/c-sarah/answer")).toHaveLength(1);
     expect(container.querySelector("[data-chat-sending]")).toBeNull();
     expect(container.querySelector("[data-chat-sent-line='sent']")?.textContent).toBe("Sent to Sarah");
+  });
+
+  it("from their profile I block them, the bar says so with Unblock, and Report and block reports with the block", async () => {
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
+    routes.set("GET /api/v2/chats/c-ariel/messages", () => ({
+      messages: [{ id: "m1", mine: false, author: "Ariel", kind: "emoji", body: "🙏", meta: null, created_at: ARIEL.last.created_at }],
+      blocked: false,
+    }));
+    routes.set("GET /api/v2/chats/c-ariel/profile", () => ({ name: "Ariel Cohen", role: null, about: null, has_photo: false, photos: [], files: [] }));
+    routes.set("POST /api/v2/chats/c-ariel/block", () => ({ blocked: true }));
+    routes.set("DELETE /api/v2/chats/c-ariel/block", () => ({ blocked: false }));
+    routes.set("POST /api/v2/chats/c-ariel/report", () => ({ reported: true, blocked: true }));
+    await render();
+    await tap(row("c-ariel"));
+    const bar = () => container.querySelector("[data-chat-bar]")!;
+    const toast = () => container.querySelector("[data-chat-toast]")?.textContent;
+    const sheet = () => container.querySelector("[data-ask-sheet] [role=dialog]");
+    const action = (label: string) => container.querySelector(`[data-ask-sheet] [data-ask-action="${label}"]`);
+
+    // The foot of her profile: Block and Report, with her name as the chat shows it.
+    await tap(container.querySelector("[data-chat-who]"));
+    expect(container.querySelector("[data-profile-safety]")?.textContent).toBe("Block ArielReport Ariel");
+
+    // Block asks first; Cancel changes nothing.
+    await tap(container.querySelector("[data-profile-block]"));
+    expect(sheet()?.textContent).toBe("Block Ariel?Ariel can't send you messages or answers. Ariel isn't told.BlockCancel");
+    await tap([...sheet()!.querySelectorAll("button")].find((b) => b.textContent === "Cancel"));
+    expect(calls("POST /api/v2/chats/c-ariel/block")).toHaveLength(0);
+    await tap(container.querySelector("[data-profile-block]"));
+    await tap(action("Block"));
+    expect(calls("POST /api/v2/chats/c-ariel/block")).toHaveLength(1);
+    expect(toast()).toBe("Ariel is blocked.");
+    expect(container.querySelector("[data-profile-block]")?.textContent).toBe("Unblock Ariel");
+
+    // Back in the chat: one pill in the bar's place, the messages still there.
+    await tap(container.querySelector("[data-profile] button[aria-label=Back]"));
+    expect(bar().textContent).toBe("You blocked Ariel.Unblock");
+    expect(bar().querySelector("[data-chat-plus], [data-chat-emoji-box], [data-chat-mic]")).toBeNull();
+    expect(container.querySelector("[data-chat-thread] [data-chat-emoji]")?.textContent).toContain("🙏");
+
+    // Unblock needs no sheet.
+    await tap(bar().querySelector("[data-chat-unblock]"));
+    expect(calls("DELETE /api/v2/chats/c-ariel/block")).toHaveLength(1);
+    expect(toast()).toBe("Ariel is unblocked.");
+    expect(bar().querySelector("[data-chat-plus]")).not.toBeNull();
+
+    // Report asks first; Report and block sends the block with it.
+    await tap(container.querySelector("[data-chat-who]"));
+    await tap(container.querySelector("[data-profile-report]"));
+    expect(sheet()?.textContent).toBe(
+      "Report Ariel?The last five messages in this chat go to WillpowerLab, where a person reads them within a day. Ariel isn't told.ReportReport and blockCancel",
+    );
+    await tap(action("Report and block"));
+    expect(calls("POST /api/v2/chats/c-ariel/report").map(([, init]) => JSON.parse(String(init!.body)))).toEqual([{ block: true }]);
+    expect(toast()).toBe("Reported and blocked.");
+    await tap(container.querySelector("[data-profile] button[aria-label=Back]"));
+    expect(bar().querySelector("[data-chat-blocked]")).not.toBeNull();
   });
 
   it("a refused answer stays as Not sent, and Send again sends the same Take", async () => {
