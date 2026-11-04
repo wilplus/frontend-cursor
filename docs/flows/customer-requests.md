@@ -601,7 +601,9 @@ Built for every signed-in person (backend N456, 2026-11-03; was ring 6,
 feature `chats`, the founder only, 2026-11-02): the
 list of chats in front of the Lounge (C1: Will pinned, then each chat's
 letter circle, title, subtitle, time and last message, newest first, a new
-message bold with an orange dot; with nobody yet, Will and "Add someone to
+message, an emoji from the other person included and your own never, with
+the look locked for the whole app, N499: the name bold, the time orange, the
+line bold and orange, the orange dot; with nobody yet, Will and "Add someone to
 chat with", on the web as in the iPhone app, N401) and a
 chat's screen, the conversation only, under its own top bar in the
 WillpowerLab bar's place, with the day and each message's time, the
@@ -796,6 +798,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N499 · C1: an emoji from the other person lights up their row like any new message, your own message never does, and every new row, Will's included, has the look locked for the whole app: the name bold, the time orange, the last line bold and orange, the orange dot; the open list reads the chats again every 20 seconds and on coming back to it (`ChatList.tsx`, `chatOpened.ts`, `useChats.ts`). Was: the line dark and not bold, your own message could read as new, and the list read the chats only when it first loaded · BE N499 (wilplus/backend-cursor#1737), FE (this PR)
 - 2026-11-04 · N488 · C1: the row of a chat you joined through someone's link keeps "You joined through {name}'s link. Only the two of you are in this chat." until the chat's first message, read from the list's `joined_through` (`ChatList.tsx`); only the one who joined sees it. Was: the row went blank once the chat was opened · BE N488 log (#1724), BE (#1729), FE (this PR)
 - 2026-11-04 · N483 · C1, §2, §4: the bar in a chat with a person has one logic, as in every chat: the "+" on the left; in the middle the three emoji, "Record your answer" when a marked question waits, with "Not now" a grey word under their question (it gives the emoji back until the chat is opened again and tells them nothing), or Sending with Undo. What stops: the mic and new voice notes (older ones still play; `sendChatVoice` and the BFF route `[chatId]/voice` are gone), the mic's orange, "Record an answer" (now "Record your answer"). Still in flight: the "+" asking the person ("Ask {name}") · BE N483 (#1718), FE (this PR)
 - 2026-11-04 · N486 · C1: an answer has no five-minute cap: the recording screens time it as any Take, counting up, and the backend takes an answer of any length. Was (N363 item 3, N441 item 2): up to five minutes, the clock counting down from 5:00 and finishing by itself · BE (cap PR), FE (this PR)

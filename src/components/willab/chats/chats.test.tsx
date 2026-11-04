@@ -476,16 +476,21 @@ describe("the chats in front of the Lounge", () => {
     expect(navbar().hidden).toBe(false);
   });
 
-  it("a chat with a message newer than its last opening shows as new until it is opened", async () => {
+  it("a chat with a message newer than its last opening shows as new until it is opened, an emoji included, never your own (N499)", async () => {
     backend(["chats"]);
-    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, ARIEL] }));
+    const DANA = { ...ARIEL, id: "c-dana", title: "Dana" };
+    const MINE = { ...ARIEL, id: "c-mine", title: "Noa", last: { ...ARIEL.last, mine: true } };
+    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, ARIEL, DANA, MINE] }));
     routes.set("GET /api/v2/chats/c-sarah/messages", () => ({ messages: [] }));
-    // Ariel's chat was opened after her last message; Sarah's before hers.
+    // Ariel's chat was opened after her last message; the others before theirs.
     window.localStorage.setItem("willab.chats.opened.c-ariel", String(Date.parse(ARIEL.last.created_at) + 60_000));
-    window.localStorage.setItem("willab.chats.opened.c-sarah", String(Date.parse(SARAH.last.created_at) - 60_000));
+    for (const id of ["c-sarah", "c-dana", "c-mine"])
+      window.localStorage.setItem(`willab.chats.opened.${id}`, String(Date.parse(SARAH.last.created_at) - 60_000));
     await render();
     expect(row("c-sarah")?.hasAttribute("data-chat-new")).toBe(true);
     expect(row("c-ariel")?.hasAttribute("data-chat-new")).toBe(false);
+    expect(row("c-dana")?.hasAttribute("data-chat-new")).toBe(true);
+    expect(row("c-mine")?.hasAttribute("data-chat-new")).toBe(false);
 
     await tap(row("c-sarah"));
     await tap(container.querySelector("[data-chat-header] button"));

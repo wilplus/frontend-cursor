@@ -46,6 +46,8 @@ export function isNewSince(chatId: string, createdAt: string | null | undefined)
   return opened === null || last > opened;
 }
 
+/** New when the last message is the other person's, an emoji included, and
+ *  came after the chat was last opened here; your own never is (N499). */
 export function chatIsNew(chat: Chat): boolean {
-  return isNewSince(chat.id, chat.last?.created_at);
+  return chat.last?.mine !== true && isNewSince(chat.id, chat.last?.created_at);
 }
