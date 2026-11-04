@@ -1204,12 +1204,14 @@ export function useDeckFeedbackWalk(args: {
     (moment: FeedbackWalkMoment<DocumentSuggestion>) => walkStepForPart(model, moment.partId) !== null,
     [model],
   );
+  // The chat holds the Sniper as it was played: a door keeps it as given.
+  const tempoKept = tempoSaid.length > 0;
   const buildWhole = useCallback(
     (answers: readonly OwnerAnswer[]) => {
       const done = buildReplay(answers);
-      return liveAll ? walkAsItStands(done, liveAll, waitsOn) : done;
+      return liveAll ? walkAsItStands(done, liveAll, waitsOn, tempoKept) : done;
     },
-    [buildReplay, liveAll, waitsOn],
+    [buildReplay, liveAll, waitsOn, tempoKept],
   );
   const canReplay = useMemo(
     () => replayable && walkStart(buildReplay(ownAnswers)) !== null,

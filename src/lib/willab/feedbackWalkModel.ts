@@ -555,11 +555,14 @@ export function walkActionForPart(model: FeedbackWalkModel<unknown>, partId: str
  *  as given, with each moment that still waits drawn live, its own steps
  *  from `live`. Both are built from the same items, so a moment keeps the
  *  number the Take's walk gave it, and the chat hears a step it already
- *  holds as the same message. Pure. */
+ *  holds as the same message. `tempoKept`: the chat holds the Sniper as it
+ *  was played; without it, the Sniper is not played yet and is live too.
+ *  Pure. */
 export function walkAsItStands<R>(
   replay: FeedbackWalkModel<R>,
   live: FeedbackWalkModel<R>,
   waits: (moment: FeedbackWalkMoment<R>) => boolean,
+  tempoKept = false,
 ): FeedbackWalkModel<R> {
   const plan: WalkStep[] = [];
   const drawn = new Set<number>();
@@ -576,8 +579,10 @@ export function walkAsItStands<R>(
   }
   // While a moment still waits, the One thing walk's tail is live too: its
   // judged moment, its helper words and "Lesson done." with Close (N309),
-  // never the finished walk's read-only copies.
-  const tail = drawn.size > 0 ? plan.map((s) => (LIVE_TAIL.has(s.key) ? (live.plan.find((l) => l.key === s.key) ?? s) : s)) : plan;
+  // never the finished walk's read-only copies; so is a Sniper not played
+  // yet (B10, T).
+  const liveTail = (k: WalkStepKey) => LIVE_TAIL.has(k) || (k === "tempo" && !tempoKept);
+  const tail = drawn.size > 0 ? plan.map((s) => (liveTail(s.key) ? (live.plan.find((l) => l.key === s.key) ?? s) : s)) : plan;
   return { ...replay, plan: tail, asItStands: true, scroll: false };
 }
 
