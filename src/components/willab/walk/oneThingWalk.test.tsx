@@ -259,19 +259,32 @@ describe("the One thing walk (N309)", () => {
   it("Try it and Keep mine each record against their own sentence, after ✕ on the recorder too (N309 item 1, N435 item 4)", async () => {
     const opened: string[] = [];
     const uploads: string[] = [];
-    const practise = {
-      open: async (_item: string, passage: { kind: string }) => {
-        opened.push(passage.kind);
-        return `pr-${passage.kind}`;
-      },
-      upload: async (practiceId: string) => {
-        uploads.push(practiceId);
-        return { attemptId: "a1", attempt: 1, audio: null };
-      },
-      check: async () => null,
-    } as never;
-    // Try it, ✕, then Keep mine: their own sentence goes to a practice on it.
-    draw({ seq: 1, at: at("clearer") }, { practise });
+    /** The server's one practice per moment, as start_practice serves it:
+     *  the same id every time, an open on another sentence re-pointing it
+     *  while it has no try yet, and a try of a sentence it does not hold
+     *  not heard (PASSAGE_MISMATCH). */
+    const server = () => {
+      const held = { say: null as string | null, tries: 0 };
+      const practise = {
+        open: async (_item: string, passage: { kind: string; say?: string }) => {
+          opened.push(passage.kind);
+          if (held.tries === 0) held.say = passage.kind === "rewrite" ? (passage.say ?? null) : SAID;
+          return "pr-1";
+        },
+        upload: async (practiceId: string, _audio: Blob, _sec: number, _at?: number, words?: string | null) => {
+          uploads.push(`${practiceId}: ${words}`);
+          if (!words || words !== held.say) return { unheard: true };
+          held.tries += 1;
+          return { attemptId: "a1", attempt: held.tries, audio: null };
+        },
+        check: async () => null,
+      } as never;
+      return { held, practise };
+    };
+    // Try it, ✕, then Keep mine: the practice is re-pointed to their own
+    // sentence before its try, and the try is heard.
+    const first = server();
+    draw({ seq: 1, at: at("clearer") }, { practise: first.practise });
     click(testId("walk-forward"));
     await settle();
     click(live()!.querySelector("button[aria-label='Close']"));
@@ -281,11 +294,13 @@ describe("the One thing walk (N309)", () => {
     click(live()!.querySelector("[data-walk-dock] button[aria-label='Stop']"));
     await settle();
     expect(opened).toEqual(["rewrite", "plain"]);
-    expect(uploads).toEqual(["pr-plain"]);
+    expect(uploads).toEqual([`pr-1: ${SAID}`]);
+    expect(first.held).toEqual({ say: SAID, tries: 1 });
     // Keep mine, ✕, then Try it: the Clearer sentence is saved from the
-    // practice opened on it.
+    // practice, re-pointed to it.
     opened.length = 0;
-    const props = draw({ seq: 2, at: at("clearer") }, { practise });
+    const second = server();
+    const props = draw({ seq: 2, at: at("clearer") }, { practise: second.practise });
     click(testId("walk-keep"));
     await settle();
     click(live()!.querySelector("button[aria-label='Close']"));
@@ -294,7 +309,8 @@ describe("the One thing walk (N309)", () => {
     click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
     await settle();
     expect(opened).toEqual(["plain", "rewrite"]);
-    expect(props.onSaveHelperWords).toHaveBeenCalledWith(expect.objectContaining({ partId: "p2", practiceId: "pr-rewrite" }));
+    expect(second.held.say).toBe(CLEARER);
+    expect(props.onSaveHelperWords).toHaveBeenCalledWith(expect.objectContaining({ partId: "p2", practiceId: "pr-1" }));
   });
 
   it("a Clearer version past eight words is saved whole as my helper words (N323 item 2)", async () => {
