@@ -5,7 +5,7 @@ import type { Chat } from "@/services/api/chats";
 import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import ChatList from "./ChatList";
 import ChatThread, { WillTopBar } from "./ChatThread";
-import { useChatList, useChatsDecided } from "./useChats";
+import { useChatList, useChatsDecided, useForgetChatsSignedOut } from "./useChats";
 import LoadingState from "../LoadingState";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { backDismissDepth, useBackStop } from "../useBackDismiss";
@@ -137,6 +137,7 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
   const decided = useChatsDecided();
   const on = decided === true;
   const { chats, reload } = useChatList(on);
+  useForgetChatsSignedOut(decided);
   const [view, setView] = useState<View>(() => ({ at: willFirst ? "will" : "list" }));
   const [joined, setJoined] = useState<string | null>(chatJustJoined);
   // Just joined: the address is clean again; the list keeps that chat on top

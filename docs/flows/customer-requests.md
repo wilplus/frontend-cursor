@@ -91,7 +91,9 @@ rest is built in.
    chats too (backend N274). **Everyone lands on the list (locked, N456):**
    every signed-in person, on the web and in the iPhone app, opens /chat on
    the list, Will first, even when Will's is their only chat; the loader,
-   never Will's chat, stands in front until the list has answered. No ring
+   never Will's chat, stands in front until the list has answered, or, on
+   a browser that read this person's list before, that list draws at once
+   while the fresh one is read (`chats/chatsKept.ts`). No ring
    decides it. A link that opens something in Will's chat (the coach's
    feedback, the walk) still opens there, with the way back to the list;
    a join link opens the list (N357). Was: ring 6 only; everyone else, and
@@ -796,6 +798,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · — · C1: the list draws at once: the list this browser last read for the signed-in person shows while the fresh read is on its way, then the fresh one takes its place (`chats/chatsKept.ts`, kept for that person only and gone when nobody is signed in); a failed read keeps the list there is. The backend reads the list's parts side by side (BE `services/chats.py` `list_chats`). The first open on a browser still waits under the loader (N456). Was: the loader every open, about 0.65 s; a failed reload emptied the list · BE (#TBD), FE (this PR)
 - 2026-11-04 · N488 · C1: the row of a chat you joined through someone's link keeps "You joined through {name}'s link. Only the two of you are in this chat." until the chat's first message, read from the list's `joined_through` (`ChatList.tsx`); only the one who joined sees it. Was: the row went blank once the chat was opened · BE N488 log (#1724), BE (#1729), FE (this PR)
 - 2026-11-04 · N483 · C1, §2, §4: the bar in a chat with a person has one logic, as in every chat: the "+" on the left; in the middle the three emoji, "Record your answer" when a marked question waits, with "Not now" a grey word under their question (it gives the emoji back until the chat is opened again and tells them nothing), or Sending with Undo. What stops: the mic and new voice notes (older ones still play; `sendChatVoice` and the BFF route `[chatId]/voice` are gone), the mic's orange, "Record an answer" (now "Record your answer"). Still in flight: the "+" asking the person ("Ask {name}") · BE N483 (#1718), FE (this PR)
 - 2026-11-04 · N486 · C1: an answer has no five-minute cap: the recording screens time it as any Take, counting up, and the backend takes an answer of any length. Was (N363 item 3, N441 item 2): up to five minutes, the clock counting down from 5:00 and finishing by itself · BE (cap PR), FE (this PR)
