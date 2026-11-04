@@ -39,3 +39,10 @@ export const joinedYourLink = (name: string) => `${name} joined through your lin
 export const answersOf = (name: string) => `${name}'s answers`;
 /** In the bar's middle, once a question that takes more than one answer has one picked (N502 item 3). */
 export const SEND_PICKED = "Send";
+
+/* Will's setup for the one who shares (backend N487 items 2 and 3, N503;
+ * signed in N502 item 1). Will's own lines come from the backend. */
+/** The summary's line when nothing is asked. */
+export const JOIN_SETUP_NONE = "No questions, just the line above.";
+/** Opens the summary again, later. */
+export const YOUR_JOIN_QUESTIONS = "Your questions for people who join";
