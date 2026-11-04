@@ -226,9 +226,10 @@ export default function WalkTempo({
   // As the One thing walk's fix the scale stays while the walk stands on the
   // step, in the bubble it opened in (the prototype's scale()).
   const scaleShown = standing && !past && (one || phase === "idle" || phase === "blocked" || live);
+  const leadLine = opening.withScale ? <span data-walk-tempo-lead>{opening.withScale}</span> : null;
   const scale = scaleShown ? (
     <WalkMessage wide>
-      {opening.withScale ? <span data-walk-tempo-lead>{opening.withScale}</span> : null}
+      {leadLine}
       <PaceScale
         activity={() => activity.current}
         asleep={!live}
@@ -243,11 +244,7 @@ export default function WalkTempo({
       </span>
     </WalkMessage>
   ) : null;
-  const lead = opening.withScale ? (
-    <WalkMessage>
-      <span data-walk-tempo-lead>{opening.withScale}</span>
-    </WalkMessage>
-  ) : null;
+  const lead = leadLine ? <WalkMessage>{leadLine}</WalkMessage> : null;
 
   return (
     <WalkOverlay
