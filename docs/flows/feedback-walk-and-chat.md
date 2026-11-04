@@ -1964,6 +1964,21 @@ The four lines above were filled from main's history by the page's keeper on
 
 ## 3. Still open
 
+- **From N467's audit (2026-11-04), for the founder:** choices in a
+  chat that the signed page did not show, left as they are until a ruling
+  on J7:
+  - **The Ideal Text cards' own buttons:** "View Ideal Text" inside the
+    best-version card and the Ideal Text card's black button
+    (`ReportCard.tsx` `IdealTextHeroCard`, `IdealTextCard`): a button inside
+    Will's card, or "the one thing to do".
+  - **The plan's "See your plan"** (an underlined word inside Will's hello)
+    and **"Choose a date"** (a black pill in the summary call's card)
+    (`PlanRows.tsx`): a link with ›, an answer, or "the one thing to do".
+  - **"Try processing again"** (a full-width outlined pill above the bar,
+    `Lounge.tsx`): one answer, or "the one thing to do".
+  - **Will's bubbles that open a lens** with a › on them (the Sunday note,
+    life goals, your why, a strength, the AI voice, a walk): his message
+    itself, kept as it is, or a link under it.
 - **From the walk's audit (2026-11-04, N458), for the founder:**
   - **No tip when the AI voice is off,** deleted, or practice consent is
     off: C4 and N370 list only a failed check, refused limits and no voice

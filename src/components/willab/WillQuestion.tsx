@@ -3,6 +3,7 @@
 import { Children, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import Link from "next/link";
 import Linkified from "./Linkified";
+import { LEAVE_WORDS } from "@/lib/willab/leaveWords";
 
 /* -------------------------------------------------------------------------- */
 /*  WillQuestion — Will's one question after a Take (founder 2026-10-20, N82; */
@@ -106,8 +107,6 @@ export const SHOW_MORE = "Show more";
  *  (backend N371, signed). */
 export const SOMETHING_ELSE = "Something else";
 export const TYPE_YOUR_ANSWER = "Type your answer";
-/** The words that leave rather than answer (backend N467 rule 3). */
-const LEAVE_WORDS: readonly string[] = ["Not now", "Skip", "Cancel", "Close"];
 
 export function TapRow({
   labels,

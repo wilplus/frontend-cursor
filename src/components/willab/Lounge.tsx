@@ -183,6 +183,7 @@ import { planRowFor, type PlanRowCtx } from "./plan/PlanRows";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { afterChatBoot } from "@/lib/chatBoot";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
+import { CLOSE, NOT_NOW } from "@/lib/willab/leaveWords";
 
 // Opened on a tap, never on first paint: loaded then, off the boot bundle.
 const CoachWalkEntry = dynamic(() => import("./coachwalk/CoachWalkEntry"), { ssr: false });
@@ -2404,7 +2405,7 @@ function OfferActions({
     };
     return (
       <AnswerPair
-        closeLabel="Not now"
+        closeLabel={NOT_NOW}
         onClose={() => pick("not_now")}
         actionLabel={yes === "start" ? "Start" : "Look"}
         onAction={() => pick("yes")}
@@ -2424,7 +2425,7 @@ function OfferActions({
   if (type === "sunday_note") {
     return (
       <AnswerPair
-        closeLabel="Not now"
+        closeLabel={NOT_NOW}
         onClose={() => {
           onSundayNote("not_now");
           onResolve();
@@ -2440,7 +2441,7 @@ function OfferActions({
   if (type === "life_goals_change") {
     return (
       <AnswerPair
-        closeLabel="Not now"
+        closeLabel={NOT_NOW}
         onClose={() => {
           onLifeGoalsChange("not_now");
           onResolve();
@@ -2457,7 +2458,7 @@ function OfferActions({
     const pick = type === "life_goals" ? onLifeGoals : onLifeGoalsQuarter;
     return (
       <AnswerPair
-        closeLabel="Not now"
+        closeLabel={NOT_NOW}
         onClose={() => {
           pick("not_now");
           onResolve();
@@ -2473,7 +2474,7 @@ function OfferActions({
   if (type === "voice_notebook") {
     return (
       <AnswerPair
-        closeLabel="Not now"
+        closeLabel={NOT_NOW}
         onClose={() => {
           onNotebook("not_now");
           onResolve();
@@ -2508,7 +2509,7 @@ function OfferActions({
   // The legacy joke offer is the only other type. Its onboarding was deleted
   // (SD/FE-4) and openOffer already refuses to arm it, so this is a dismiss-only
   // fallback for an old thread bubble rather than a live action pair.
-  return <TapRow labels={["Close"]} onTap={onResolve} dataAttr={{ "data-answer-pair": "" }} />;
+  return <TapRow labels={[CLOSE]} onTap={onResolve} dataAttr={{ "data-answer-pair": "" }} />;
 }
 
 

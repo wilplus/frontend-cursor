@@ -9,6 +9,8 @@
 /*  no FE intent logic — the classification is BE-owned.                        */
 /* -------------------------------------------------------------------------- */
 
+import { SKIP } from "@/lib/willab/leaveWords";
+
 export type ChipAction =
   | "trainings"
   | "audit"
@@ -25,7 +27,7 @@ export const CHIP_LABEL: Record<ChipAction, string> = {
   replace_pdf: "Replace PDF",
   edit_current_slide: "Edit the text",
   // Under "What was missing?" (WIL-74, founder 2026-10-19).
-  feedback_skip: "Skip",
+  feedback_skip: SKIP,
   // Under Will's hello to a signed-out visitor before their first Take
   // (founder 2026-10-29); the empty Lounge's own button, same words.
   start_first_recording: "Start your first recording",

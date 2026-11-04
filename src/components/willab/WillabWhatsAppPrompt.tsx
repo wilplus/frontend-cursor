@@ -7,6 +7,7 @@ import { confirmNumberCode, sendNumberCode } from "@/services/api/whatsappNumber
 import PhoneNumberField from "@/components/phone/PhoneNumberField";
 import { WHATSAPP_AUTH_COPY } from "@/components/auth/WhatsAppAuth";
 import { AnswerPair } from "./WillQuestion";
+import { NOT_NOW } from "@/lib/willab/leaveWords";
 
 /** Supabase asks for a pause between two codes to one number. */
 const RESEND_AFTER_MS = 60_000;
@@ -32,7 +33,7 @@ export const WHATSAPP_COPY = {
   title: "We will only use it to let you know your coach texted you, or that your call starts soon.",
   label: "Phone number for WhatsApp",
   placeholder: "+44 7700 900123",
-  notNow: "Not now",
+  notNow: NOT_NOW,
   save: "Save",
   saving: "Saving…",
   invalid: "Enter the number with its country code, for example +44 7700 900123.",

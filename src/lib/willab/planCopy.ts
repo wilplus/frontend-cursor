@@ -1,3 +1,5 @@
+import { NOT_NOW, SKIP } from "./leaveWords";
+
 /* The plan's words on screen, as signed (docs/flows/the-plan.md §1 K; backend
    N137 to N176). Will's bubbles are written by the backend
    (services/plan.py COPY); these are the words the app draws itself: the
@@ -21,7 +23,7 @@ export const PLAN_COPY = {
   yourDeadline: "Your deadline",
   book: "Book",
   bookNow: "Book now",
-  skip: "Skip",
+  skip: SKIP,
   edit: "Edit",
   back: "Back",
   save: "Save",
@@ -62,7 +64,7 @@ export const PLAN_COPY = {
   /** Will's ask for the plan's own yes: the two buttons and Read more
    *  (founder 2026-10-27, "approved as drawn", backend N211). */
   consentYes: "Yes, ask me",
-  consentNo: "Not now",
+  consentNo: NOT_NOW,
   readMore: "Read more",
   privacyPolicy: "Privacy Policy",
   /** The Read more window's title: Privacy section 4e of the version in force. */
