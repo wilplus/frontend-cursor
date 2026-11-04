@@ -793,6 +793,10 @@ export default function FeedbackWalk<R = unknown>({
    *  goes on to "Lesson done.". Played again, the words as saved: the fix's
    *  paragraph's, the Sniper's stretch's paragraph's (C3, B10), else their
    *  best's. */
+  // The moments whose Clearer practice was still opening when the helper
+  // words' bound ran out: decided then, their best's words (N374), drawn,
+  // saved and said alike, whatever the open answers later (C3).
+  const wordsLate = useRef(new Set<number>());
   const fixWords = (s: WalkStep): OneWords | null => {
     const bestAt = plan.find((x) => x.one && x.key === "praise")?.moment;
     const best = bestAt == null ? undefined : walk.moments[bestAt];
@@ -834,7 +838,7 @@ export default function FeedbackWalk<R = unknown>({
         // opened saves nothing: their best's words instead (N374).
         const sentence = helperWordsSaid(moment.clearer.say.trim());
         const practice = practise.practiceOf(moment.index);
-        if (!sentence || !practice) return null;
+        if (!sentence || !practice || wordsLate.current.has(moment.index)) return null;
         return {
           text: sentence,
           save: { partId: moment.partId, span: { text: sentence, start: null, end: null }, paragraphText: moment.paragraphText, auto: true },
@@ -968,6 +972,10 @@ export default function FeedbackWalk<R = unknown>({
     tempoSlide,
     othersLevel,
     fixWords: (s) => fixWords(s),
+    wordsLate: (s) => {
+      const moment = s.of == null ? undefined : walk.moments[s.of];
+      if (moment) wordsLate.current.add(moment.index);
+    },
     saveWords: (s, words) => {
       if (s.replay || blocked(s) || !words.save) return;
       const save = words.save;
@@ -1133,6 +1141,9 @@ type ScreenCtx<R = unknown> = {
   othersLevel: OthersLevel | null;
   /** The One thing walk's helper words after its fix (N309 item 3). */
   fixWords: (step: WalkStep) => OneWords | null;
+  /** The bound on the Clearer practice's open ran out first: the words are
+   *  their best's from now on (N374, C3). */
+  wordsLate: (step: WalkStep) => void;
   /** Saves them, once, as the paragraph's (or the slide's) helper words. */
   saveWords: (step: WalkStep, words: OneWords) => void;
   /** "Close" under "Lesson done.": back to the chat (N309 item 4). */
@@ -1392,16 +1403,22 @@ function Words({ ctx, step }: { ctx: ScreenCtx; step: WalkStep }) {
   const words = ctx.fixWords(step);
   // The Clearer version's practice still being opened: whose words these
   // are is known once it has (their best's if it never opens, N374), within
-  // a short bound, so what is drawn, saved and said is the same (C3).
+  // a short bound, so what is drawn, saved and said is the same (C3). Still
+  // opening at the bound: decided then, their best's, never changed after.
   const opening = words?.opening && words.practice ? words.practice : null;
   const [waited, setWaited] = useState<Promise<string | null> | null>(null);
+  const late = useRef(() => ctx.wordsLate(step));
+  late.current = () => ctx.wordsLate(step);
   useEffect(() => {
     if (!opening) return;
     let on = true;
     const done = () => {
       if (on) setWaited(opening);
     };
-    const bound = window.setTimeout(done, WORDS_OPEN_WAIT_MS);
+    const bound = window.setTimeout(() => {
+      if (on) late.current();
+      done();
+    }, WORDS_OPEN_WAIT_MS);
     void opening.then(() => {
       window.clearTimeout(bound);
       done();

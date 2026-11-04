@@ -3,7 +3,7 @@
 STORY    As a speaker, I want the walk after each Take to show me my best moment and why it worked, then one thing to improve with the tool it needs, so that I leave every Take with one clear thing to carry into the next.
 OUTCOME
   O1  The walk goes in order: "Hi {name}.", my best with "This was your most confident moment." and why it worked, then "And now, one thing to improve:" and one fix; the Clearer version says "Say it straight:" and the sentence, with "Try it" and "Keep mine"; no helper-word picker, no second moment and no summary in the walk.
-  O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2), without the sentence's punctuation at either end, as after "Keep mine" (backend N440); with no fix, my best moment's own words are my helper words, saved the same way (backend N374). With the Sniper as the fix, Skip moves the walk on at once, after a try too; its line and scale stay in their one bubble above the tries; ✕ after a try keeps the game for Will and says nothing; opened again, its walk shows the helper words its stretch gave, the bar on the stretch's slide. The Sniper the server chose waits on its stretch with the typing dots at most as long as the fix waits on its clip (N373), then the walk goes on without it; with no stretch there is no "And now, one thing to improve:", in the walk or the chat: my best, my best's helper words and "Lesson done.", the bar on my best's slide.
+  O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2), without the sentence's punctuation at either end, as after "Keep mine" (backend N440); with no fix, my best moment's own words are my helper words, saved the same way (backend N374); a Clearer practice still opening when the helper words' short wait runs out gives my best's words, drawn and saved once, whatever it answers later (N374, C3). With the Sniper as the fix, Skip moves the walk on at once, after a try too; its line and scale stay in their one bubble above the tries; ✕ after a try keeps the game for Will and says nothing; opened again, its walk shows the helper words its stretch gave, the bar on the stretch's slide. The Sniper the server chose waits on its stretch with the typing dots at most as long as the fix waits on its clip (N373), then the walk goes on without it; with no stretch there is no "And now, one thing to improve:", in the walk or the chat: my best, my best's helper words and "Lesson done.", the bar on my best's slide.
   O3  The walk ends on "Lesson done." with Close, which ends the review and takes me back to the chat; no "Record Take N" in the walk.
   O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after "Try it", my own after "Keep mine"; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
   O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, each landing on its own behind the dots, the card I chose holding 0.28 s before my answer as my own reply with a tick ("Audio unclear", no card, at once), then "Got it.", and the walk moving on once they have landed; after it the bar names my fix's slide again for the helper words and "Lesson done."; on Take 1 I judge no one.
@@ -16,6 +16,7 @@ PROVES   O1 -> walks hello, their best and why it worked, then one thing to impr
          O2 -> the helper words come on their own and are saved without a pick,
                the Clearer version's sentence is saved from its practice,
                a Clearer version past eight words is saved whole as my helper words (N323 item 2),
+               a Clearer practice still opening when the helper words' wait runs out gives my best's words, drawn and saved once, whatever it answers later (N374, C3),
                with no fix, my best's own words are my helper words, saved without a pick (N374)
                the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does,
                the Sniper's walk opened again shows the helper words its stretch gave (C3, B10),
@@ -229,6 +230,38 @@ describe("the One thing walk (N309)", () => {
     expect(props.onSaveHelperWords).toHaveBeenCalledWith(
       expect.objectContaining({ partId: "p2", auto: true, practiceId: "pr-1", span: { text: words, start: null, end: null } }),
     );
+  });
+
+  it("a Clearer practice still opening when the helper words' wait runs out gives my best's words, drawn and saved once, whatever it answers later (N374, C3)", async () => {
+    vi.useFakeTimers();
+    try {
+      let opened: (id: string | null) => void = () => undefined;
+      const practise = { ...(OPENS as object), open: () => new Promise<string | null>((done) => (opened = done)) } as never;
+      const best = "Ledgerly matches every transaction";
+      const model = buildFeedbackWalk<string>({ items: [{ ...ITEMS[0], said: best }, ITEMS[1]], coachNote: false, practiceOn: true, guest: false, judge: false });
+      const props = draw({ seq: 1, at: model.plan.findIndex((s) => s.key === "clearer") }, { model, practise });
+      const wait = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
+      await wait(3000);
+      click(testId("walk-forward"));
+      await wait(50);
+      // The trash (the Skip) while the practice is still being opened.
+      click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
+      await wait(1750);
+      const helper = () => live()!.querySelector("[data-walk-helper-words]")?.textContent;
+      const saved = () => vi.mocked(props.onSaveHelperWords).mock.calls.map(([save]) => save);
+      expect(helper()).toBe(best);
+      expect(saved()).toEqual([expect.objectContaining({ partId: "p1", span: expect.objectContaining({ text: best }) })]);
+      // It opens after all: the words drawn, saved and said stay their best's.
+      await act(async () => opened("pr-9"));
+      await wait(500);
+      act(() => root.render(<FeedbackWalk<string> {...props} />));
+      await wait(250);
+      expect(helper()).toBe(best);
+      expect(saved()).toHaveLength(1);
+      expect(saved()[0].practiceId).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("a try is my clip with the words I was asked to say, and nothing shows in the thread while I record (locked prototype, record())", async () => {
