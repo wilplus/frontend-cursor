@@ -6,6 +6,7 @@ import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
 import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, praiseChat, shownStep, skipReply, sniperWords, storedSummaryOf, tempoSaidIn, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import { fixClipsIn } from "@/lib/willab/walkThread";
+import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { WalkIntervention, WalkStep } from "@/lib/willab/walkPlan";
 import { tipSaid, type WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
@@ -352,6 +353,32 @@ const TRY_ANSWER_STEPS: ReadonlySet<string> = new Set(["improved", "encourage", 
  *  the first ask still writes never asks a second time. A failed ask is
  *  dropped, so the walk's next end asks again. */
 const summaryAsks = new Map<string, Promise<string | null>>();
+
+/** What the closing summary hears (lock 2026-10-12, section 3): the try's
+ *  outcome and the last two helper words the speaker picked. */
+type WalkHeard = { practice: "better" | "not_yet" | null; words: string[] };
+
+/** One walk step heard: a try that landed is "better", and stays so; the
+ *  other answers on a try are "not_yet". Pure on `heard`. */
+function hear(heard: WalkHeard, step: string, author: string, body: string): void {
+  if (step === "improved") heard.practice = "better";
+  if ((step === "thanks" || step === "encourage") && heard.practice !== "better") heard.practice = "not_yet";
+  if (author === "speaker" && (step.startsWith("words:") || step.startsWith("try-words:")) && body.trim()) {
+    heard.words = [...heard.words.filter((w) => w !== body), body].slice(-2);
+  }
+}
+
+/** What the loaded chat kept of `take`'s walk for its summary, by the same
+ *  rules as the walk posting it, so a summary asked by a page opened later,
+ *  or by a walk played again, still hears the try and the words (D2, E1). Pure. */
+export function heardIn(messages: readonly LoungeMessage[], take: string): WalkHeard {
+  const heard: WalkHeard = { practice: null, words: [] };
+  for (const m of messages) {
+    if (m.kind !== "walk_step" || m.metadata?.take_session_id !== take) continue;
+    hear(heard, String(m.metadata?.step ?? ""), String(m.metadata?.author ?? ""), m.body);
+  }
+  return heard;
+}
 
 /** How far the thread is drawn past `at` in the whole walk as it stands:
  *  through the answered steps that follow it, up to the next step that
@@ -974,14 +1001,9 @@ export function useDeckFeedbackWalk(args: {
   const threadRef = useRef({ thread, take, arcId: args.arcId ?? null });
   threadRef.current = { thread, take, arcId: args.arcId ?? null };
   // What the closing summary hears (lock 2026-10-12, section 3).
-  const heardRef = useRef<{ practice: "better" | "not_yet" | null; words: string[] }>({ practice: null, words: [] });
+  const heardRef = useRef<WalkHeard>({ practice: null, words: [] });
   const post = useCallback((entry: Omit<WalkThreadEntry, "take" | "arcId">) => {
-    const heard = heardRef.current;
-    if (entry.key === "improved") heard.practice = "better";
-    if ((entry.key === "thanks" || entry.key === "encourage") && heard.practice !== "better") heard.practice = "not_yet";
-    if (entry.author === "speaker" && (entry.key.startsWith("words:") || entry.key.startsWith("try-words:"))) {
-      heard.words = [...heard.words.filter((w) => w !== entry.body), entry.body].slice(-2);
-    }
+    hear(heardRef.current, entry.key, entry.author, entry.body);
     const { thread: to, take: on, arcId } = threadRef.current;
     if (!to || !on || (entry.key !== "end" && !entry.extra?.clip && !entry.body.trim())) return;
     const takeIndex = live.current.takeIndex ?? null;
@@ -1536,14 +1558,19 @@ export function useDeckFeedbackWalk(args: {
     if (!on || !arcId) return Promise.resolve(null);
     const asked = summaryAsks.get(on);
     if (asked) return asked;
-    const heard = heardRef.current;
+    // What this walk heard, with what the chat kept of the Take's walk: a
+    // page opened later, or a walk played again, posts no try again.
+    const own = heardRef.current;
+    const kept = heardIn(to?.messages ?? [], on);
+    const practice = own.practice === "better" || kept.practice === "better" ? "better" : (own.practice ?? kept.practice);
+    const helperWords = [...kept.words.filter((w) => !own.words.includes(w)), ...own.words].slice(-2);
     to?.setWriting?.(true);
     const ask = (async () => {
       try {
         const text = await postReviewSummaryText(arcId, {
           takeSessionId: on,
-          practice: heard.practice,
-          helperWords: heard.words,
+          practice,
+          helperWords,
           coachNote: live.current.coachMessage?.text ?? null,
         });
         if (text === null) summaryAsks.delete(on);

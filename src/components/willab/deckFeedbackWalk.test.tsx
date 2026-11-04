@@ -34,7 +34,9 @@ OUTCOME
       ✕ on the finished walk asks it once too, so the chat after the walk
       always comes (C9, B11), but not for an older Take played again under
       a newer Take, nor when the chat cannot tell (D4, between two Takes);
-      a page opened again while it is still written never asks it twice.
+      a page opened again while it is still written never asks it twice;
+      a finished Take's page opened later asks it with the try and the
+      helper words its chat kept (D2, E1).
   O10 With no moment to fix, the pace game is the One thing walk's fix,
       and its opening keeps its tip, "give “{words}” more room" with the
       Sniper's helper words, in the chat for "Last time" next Take (N347
@@ -64,7 +66,8 @@ PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's 
          O9 -> "the One thing walk saves its helper words without a pick, settles both moments and asks the summary once at Close (N309)",
                "✕ on the finished walk asks the summary once, as Close does, so the chat after the walk comes (C9, B11)",
                "an older Take's finished walk, played again and closed with ✕ under a newer Take, asks no summary (D4, between two Takes)",
-               "a page opened again while the summary is still written asks it no second time, the dots on until it ends (C9, D4)"
+               "a page opened again while the summary is still written asks it no second time, the dots on until it ends (C9, D4)",
+               "a finished Take's page opened later asks the summary with the try and the helper words its chat kept (D2, E1)"
          O10 -> "the pace game as the walk's fix keeps its tip in the chat, for Last time next Take (N347 item 3)"
          O11 -> "the walk opens whole, behind the wait: my name in the hello and Last time from the server's tip, before my best (C0, C0a)",
                 "the walk never waits on its reads past its bound: a profile that never answers opens it with \"Hi.\""
@@ -653,6 +656,25 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     // The one ask ends (here, failed): the dots go, and a later end may ask again.
     await act(async () => answer(new Response("{}", { status: 404 })));
     expect(setWriting.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it("a finished Take's page opened later asks the summary with the try and the helper words its chat kept (D2, E1)", async () => {
+    // The walk ended at "Lesson done." with no Close: its try landed and
+    // the speaker picked their words, all kept in the chat, no summary yet.
+    const row = (client_id: string, kind: string, metadata: Record<string, unknown>, role = "bot", body = "") => ({ client_id, role, kind, body, metadata, client_created_at: "" });
+    const step = (step: string, author = "app") => ({ step, author, take_session_id: "take-2", arc_id: "arc-1", take_index: 2 });
+    const messages = [
+      row("rec-2", "recording_summary", { session_id: "take-2", arc_id: "arc-1", take_index: 2 }, "system"),
+      row("improved-2", "walk_step", step("improved"), "bot", "That sounded clearer."),
+      row("words-2", "walk_step", step("words:p2:retention went up", "speaker"), "user", "retention went up"),
+      row("end-2", "walk_step", step("end")),
+    ];
+    chat.thread = { messages, loading: false, append: vi.fn(async (draft: unknown) => draft), reload: vi.fn(async () => undefined), setWriting: vi.fn() };
+    await render(props({ suggestions: [{ ...best, status: "approved" } as DocumentSuggestion] }));
+    await act(async () => undefined);
+    const asked = vi.mocked(fetch).mock.calls.filter((c) => String(c[0]).includes("/review/summary"));
+    expect(asked).toHaveLength(1);
+    expect(JSON.parse(String((asked[0][1] as RequestInit).body))).toMatchObject({ practice: "better", helper_words: ["retention went up"] });
   });
 
   it("the walk opens whole, behind the wait: my name in the hello and Last time from the server's tip, before my best (C0, C0a)", async () => {
