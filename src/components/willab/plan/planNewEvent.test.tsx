@@ -55,7 +55,6 @@ function changeYourPlan(processing: boolean) {
         onClose={() => {}}
         onDeadline={() => {}}
         onDays={() => {}}
-        onAskCoach={() => {}}
         onNewEvent={() => {}}
         newEventHeld={processing}
       />,

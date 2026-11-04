@@ -184,10 +184,6 @@ export function changePlan(change: { deadline?: string; days?: number[] }): Prom
   return send("/api/v2/plan", { method: "PUT", json: { ...change, tz: browserZone() } });
 }
 
-export function askCoach(): Promise<PlanState | null> {
-  return send("/api/v2/plan/ask-coach", { json: {} });
-}
-
 /** "I have a new event" or "Keep practising". */
 export function nextPlan(choice: "new_event" | "keep_practising"): Promise<PlanState | null> {
   return send("/api/v2/plan/next", { json: { choice, tz: browserZone() } });
