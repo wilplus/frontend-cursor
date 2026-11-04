@@ -17,6 +17,15 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		A1B2C3D4E5F60718293A4B5C /* WillpowerLabBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* WillpowerLabBridge.swift */; };
+		D0D0D0D0D0D0D0D0D0D00002 /* DumpStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0D0D0D0D0D0D0D0D0D00001 /* DumpStrings.swift */; };
+		D0D0D0D0D0D0D0D0D0D00004 /* DumpGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0D0D0D0D0D0D0D0D0D00003 /* DumpGate.swift */; };
+		D0D0D0D0D0D0D0D0D0D00006 /* TapReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0D0D0D0D0D0D0D0D0D00005 /* TapReader.swift */; };
+		D0D0D0D0D0D0D0D0D0D00008 /* DumpRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0D0D0D0D0D0D0D0D0D00007 /* DumpRecorder.swift */; };
+		D0D0D0D0D0D0D0D0D0D0000A /* DumpOutbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0D0D0D0D0D0D0D0D0D00009 /* DumpOutbox.swift */; };
+		D0D0D0D0D0D0D0D0D0D0000C /* DumpModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0D0D0D0D0D0D0D0D0D0000B /* DumpModel.swift */; };
+		D0D0D0D0D0D0D0D0D0D0000E /* DumpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0D0D0D0D0D0D0D0D0D0000D /* DumpView.swift */; };
+		D0D0D0D0D0D0D0D0D0D00010 /* DumpScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0D0D0D0D0D0D0D0D0D0000F /* DumpScreen.swift */; };
+		D0D0D0D0D0D0D0D0D0D00012 /* DumpPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0D0D0D0D0D0D0D0D0D00011 /* DumpPresenter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +42,15 @@
 		A1B2C3D4E5F60718293A4B5D /* WillpowerLabBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WillpowerLabBridge.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B5E /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		D0D0D0D0D0D0D0D0D0D00001 /* DumpStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DumpStrings.swift; sourceTree = "<group>"; };
+		D0D0D0D0D0D0D0D0D0D00003 /* DumpGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DumpGate.swift; sourceTree = "<group>"; };
+		D0D0D0D0D0D0D0D0D0D00005 /* TapReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapReader.swift; sourceTree = "<group>"; };
+		D0D0D0D0D0D0D0D0D0D00007 /* DumpRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DumpRecorder.swift; sourceTree = "<group>"; };
+		D0D0D0D0D0D0D0D0D0D00009 /* DumpOutbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DumpOutbox.swift; sourceTree = "<group>"; };
+		D0D0D0D0D0D0D0D0D0D0000B /* DumpModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DumpModel.swift; sourceTree = "<group>"; };
+		D0D0D0D0D0D0D0D0D0D0000D /* DumpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DumpView.swift; sourceTree = "<group>"; };
+		D0D0D0D0D0D0D0D0D0D0000F /* DumpScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DumpScreen.swift; sourceTree = "<group>"; };
+		D0D0D0D0D0D0D0D0D0D00011 /* DumpPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DumpPresenter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -71,6 +89,7 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				A1B2C3D4E5F60718293A4B5D /* WillpowerLabBridge.swift */,
+				D0D0D0D0D0D0D0D0D0D0FFFF /* Dump */,
 				A1B2C3D4E5F60718293A4B5E /* App.entitlements */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
@@ -80,6 +99,22 @@
 				50B271D01FEDC1A000F3C39B /* public */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		D0D0D0D0D0D0D0D0D0D0FFFF /* Dump */ = {
+			isa = PBXGroup;
+			children = (
+				D0D0D0D0D0D0D0D0D0D00001 /* DumpStrings.swift */,
+				D0D0D0D0D0D0D0D0D0D00003 /* DumpGate.swift */,
+				D0D0D0D0D0D0D0D0D0D00005 /* TapReader.swift */,
+				D0D0D0D0D0D0D0D0D0D00007 /* DumpRecorder.swift */,
+				D0D0D0D0D0D0D0D0D0D00009 /* DumpOutbox.swift */,
+				D0D0D0D0D0D0D0D0D0D0000B /* DumpModel.swift */,
+				D0D0D0D0D0D0D0D0D0D0000D /* DumpView.swift */,
+				D0D0D0D0D0D0D0D0D0D0000F /* DumpScreen.swift */,
+				D0D0D0D0D0D0D0D0D0D00011 /* DumpPresenter.swift */,
+			);
+			path = Dump;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -166,6 +201,15 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				A1B2C3D4E5F60718293A4B5C /* WillpowerLabBridge.swift in Sources */,
+				D0D0D0D0D0D0D0D0D0D00002 /* DumpStrings.swift in Sources */,
+				D0D0D0D0D0D0D0D0D0D00004 /* DumpGate.swift in Sources */,
+				D0D0D0D0D0D0D0D0D0D00006 /* TapReader.swift in Sources */,
+				D0D0D0D0D0D0D0D0D0D00008 /* DumpRecorder.swift in Sources */,
+				D0D0D0D0D0D0D0D0D0D0000A /* DumpOutbox.swift in Sources */,
+				D0D0D0D0D0D0D0D0D0D0000C /* DumpModel.swift in Sources */,
+				D0D0D0D0D0D0D0D0D0D0000E /* DumpView.swift in Sources */,
+				D0D0D0D0D0D0D0D0D0D00010 /* DumpScreen.swift in Sources */,
+				D0D0D0D0D0D0D0D0D0D00012 /* DumpPresenter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

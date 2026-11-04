@@ -44,6 +44,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
     }
 
+    // The dump screen's uploads (Dump/DumpOutbox.swift) finished while the
+    // app was closed: iOS wakes it to hear how they ended.
+    func application(_ application: UIApplication,
+                     handleEventsForBackgroundURLSession identifier: String,
+                     completionHandler: @escaping () -> Void) {
+        guard identifier == DumpOutbox.sessionId else { completionHandler(); return }
+        DumpOutbox.shared.backgroundDone = completionHandler
+        DumpOutbox.shared.reconnect()
+    }
+
     func application(_ application: UIApplication,
                      configurationForConnecting connectingSceneSession: UISceneSession,
                      options: UIScene.ConnectionOptions) -> UISceneConfiguration {

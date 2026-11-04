@@ -528,8 +528,20 @@ The prototypes: <https://claude.ai/artifact/RY5gT9bg8xSpGvKiLVScsW>,
   the app. Will's chat is underneath, untouched (Never 3). No menu line.
 - **T5 · Who has it (N507 item 3).** Ring rows `dump_screen` and
   `voice_notebook`, both at ring 2 (backend migration 0511).
-- **T6 · The iPhone app (N506 item 5).** The capture screen becomes native
-  there; the web owns the switch. Until then the app shows this web screen.
+- **T6 · The iPhone app (N506 item 5, N507 item 1).** The capture screen is
+  native there (`ios/App/App/Dump/`): it opens on launch before the website
+  has loaded, and only for someone whose notebook has its Yes; the first
+  time, with A5's introduction, stays on this web screen. The web owns the
+  switch and tells the app (`DumpScreenPlugin.configure`: ring row and Yes,
+  and "Open to the dump screen"); the app hears nothing else. Same taps as
+  T2, same words as K, same upload as B (`POST /api/v2/notebook/notes`, its
+  `key`), saved on the phone first and sent in the background when it can;
+  nothing goes while the web says it is off. Leaving the app, a call, or
+  five minutes stops and keeps. The live words are Apple's on-device speech,
+  a preview only: no audio is sent for them, and with no on-device speech
+  there are no words. Never opened by a link or a notification (a tapped
+  notification closes it). The browser, the home-screen app and an app
+  without the plugin get this web screen.
 
 ---
 
@@ -539,7 +551,7 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- T6 · the native capture screen in the iPhone app · N506 item 5 · the app chat, not started · —
+- T6 · the native capture screen in the iPhone app · N506 item 5, N507 · built, not yet compiled or run on an iPhone; the two iPhone permission texts wait for the founder's signature · FE (this PR)
 
 ## 3. Still open
 
@@ -556,6 +568,10 @@ deletes the line when the work is merged (the change goes to §6).
   `src/services/api/voiceNotebook.ts`, `src/app/api/v2/notebook/`; written
   as it is said (B): `src/lib/willab/liveNoteWords.ts` and the phone's
   outbox `src/lib/willab/voiceNoteOutbox.ts`.
+- The dump screen (T): the web `src/lib/willab/dumpScreen.ts`,
+  `src/components/willab/DumpScreen*.tsx`; the iPhone app
+  `ios/App/App/Dump/`, `DumpScreenPlugin` in `WillpowerLabBridge.swift`,
+  `SceneDelegate.swift`; the web's side of the app `src/lib/phone/dumpScreen.ts`.
 - The Sunday note: backend `services/sunday_note.py`; frontend
   `src/app/api/v2/notebook/sunday/`.
 - What is in your control and the sales framing (O, P): backend
@@ -614,6 +630,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N506 item 5, N507 · T6: the dump screen native in the iPhone app, the capture screen only: opens on launch before the website, for someone with the notebook's Yes; on-device live words; kept on the phone and sent in the background through the notebook's own upload. Was: the web screen in the app · FE (this PR)
 - 2026-11-04 · N506, N507 · T: the dump screen, built on the web: one screen that only listens, tap, tap, double tap; the notebook's way in, with A5's introduction the first time; "Open to the dump screen" in Settings, off by default; ring 2 · BE #1743, #1745, #1746, FE (this PR)
 - 2026-11-04 · N483 item 7 · A0: the note rests: no mic and no "#" in Will's chat, so no new # notes; no introduction from the Takes and no "Keep a voice notebook?" (`useVoiceNotebook.tsx`; the client calls `askNotebook` and `introFromTakes` and their BFF routes `notebook/ask` and `notebook/intro` are gone). Kept notes stay; notes left on the phone still go · BE N483 (#1718), FE (this PR)
 - 2026-11-03 · N411 item 5 · A5: before any note, the introduction opens with a strength Will spots in the last three Takes' summaries, on the first Lounge open after the third, once; after Not now, again after three more Takes; after Yes, never · BE (the code), FE (this PR)
