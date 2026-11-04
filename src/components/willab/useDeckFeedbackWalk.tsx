@@ -347,6 +347,12 @@ function postLevel(
 /** The machine's answers on a try, posted as the try is made. */
 const TRY_ANSWER_STEPS: ReadonlySet<string> = new Set(["improved", "encourage", "thanks"]);
 
+/** Each Take's summary ask, while it is written and once it is (C9, D4):
+ *  one per Take for every deck on the page, so a page opened again while
+ *  the first ask still writes never asks a second time. A failed ask is
+ *  dropped, so the walk's next end asks again. */
+const summaryAsks = new Map<string, Promise<string | null>>();
+
 /** How far the thread is drawn past `at` in the whole walk as it stands:
  *  through the answered steps that follow it, up to the next step that
  *  still waits or the tail. Pure. */
@@ -1520,28 +1526,33 @@ export function useDeckFeedbackWalk(args: {
   // skipped. The thread reads again whatever the answer: the backend may
   // have written the chain after it (Will's question, the goodbye) even
   // when the answer came back too late. Until it has, the Lounge shows the
-  // typing dots, its one wait (B8). Asked once per Take; a failed ask is
-  // asked again at the walk's next end.
-  const summaryAsked = useRef<string | null>(null);
-  const summary = useCallback(async (): Promise<string | null> => {
+  // typing dots, its one wait (B8), until the one real ask ends. Asked
+  // once per Take (`summaryAsks`); a failed ask is asked again at the
+  // walk's next end.
+  const summary = useCallback((): Promise<string | null> => {
     const { thread: to, take: on, arcId } = threadRef.current;
-    if (!on || !arcId) return null;
-    summaryAsked.current = on;
+    if (!on || !arcId) return Promise.resolve(null);
+    const asked = summaryAsks.get(on);
+    if (asked) return asked;
     const heard = heardRef.current;
     to?.setWriting?.(true);
-    try {
-      const text = await postReviewSummaryText(arcId, {
-        takeSessionId: on,
-        practice: heard.practice,
-        helperWords: heard.words,
-        coachNote: live.current.coachMessage?.text ?? null,
-      });
-      if (text === null && summaryAsked.current === on) summaryAsked.current = null;
-      return text;
-    } finally {
-      await to?.reload?.().catch(() => undefined);
-      to?.setWriting?.(false);
-    }
+    const ask = (async () => {
+      try {
+        const text = await postReviewSummaryText(arcId, {
+          takeSessionId: on,
+          practice: heard.practice,
+          helperWords: heard.words,
+          coachNote: live.current.coachMessage?.text ?? null,
+        });
+        if (text === null) summaryAsks.delete(on);
+        return text;
+      } finally {
+        await to?.reload?.().catch(() => undefined);
+        to?.setWriting?.(false);
+      }
+    })();
+    summaryAsks.set(on, ask);
+    return ask;
   }, []);
   // A paragraph's practise ends on the page quietly; the review's end tells
   // the Lounge ("Continue review" leaves it) and lands on the Ideal Text.
@@ -1565,7 +1576,7 @@ export function useDeckFeedbackWalk(args: {
   const askSummary = useCallback(() => {
     if (practisingRef.current || live.current.coachOnly) return;
     const { take: on } = threadRef.current;
-    if (!on || summaryAsked.current === on || storedSummaryRef.current !== null) return;
+    if (!on || summaryAsks.has(on) || storedSummaryRef.current !== null) return;
     void summary();
   }, [summary]);
   /* BETWEEN TWO TAKES (D4, N244, N251): ✕ and a finished Take's page as it
