@@ -1,21 +1,38 @@
 // @vitest-environment jsdom
 /*
-STORY    As a speaker before my next Take, I want nothing ticked for me and
+STORY    As a speaker before my next Take, with sending on, I want the
+         people in my chats listed with everyone ticked, the one I sent to
+         last on top, so that one Continue sends my Take to them, and I want
+         the line under it to let me add people later but never unsend.
+         With sending off, I want nothing ticked for me and
          Continue to wait until I choose, with "Only me" counting as a
          choice, so that any sharing is my own decision; and I want the line
          under my latest Take's recording to open the same screen with my
          choice ticked, so that I can change who hears that Take and the
          ones after it.
 OUTCOME
-  O1  Nothing starts ticked, Continue is off, and choosing "Only me" turns
+  O3  With sending on: the three bubbles, Select all and one row per
+      person, all ticked, "Last sent" under the one sent to last; Select
+      all unticked unticks everyone and Continue waits; with one person
+      ticked, Continue writes the line naming them and keeps them for the
+      next upload, which is sent to them once, after it is up (N470, N472).
+  O4  With sending on, the line of a Take sent to people opens the screen
+      with them ticked and fixed; adding someone sends the Take to everyone
+      ticked and the line names them all; nothing is unsent (N472 item 3).
+  O1  With sending off (the backend's switch, or its read fails), today's
+      screen: nothing starts ticked, Continue is off, and choosing "Only me" turns
       it on.
   O2  The line under my latest Take opens the screen with my choice ticked
       (and not my recording's feedback); Continue shares that Take as I
       now chose, stamped with the words I saw, and its line says the new
       choice; "Only me" takes it back from every community.
-PROVES   O1 -> "starts with nothing ticked; Continue waits for a choice, Only me counts"
+PROVES   O3 -> "with sending on, everyone is ticked, Select all unticks all, and the one ticked gets the next Take once"
+         O4 -> "with sending on, a sent Take's line opens the screen to add people, never to unsend"
+         O1 -> "starts with nothing ticked; Continue waits for a choice, Only me counts"
          O2 -> "the latest Take's line opens the screen ticked as it stands, and a change re-stamps that Take"
-WHY      Founder 2026-10-15 (Privacy 3.6 section 4d). O2: founder
+WHY      O3, O4: founder 2026-11-04, backend N470 (#1702) and N472
+         (#1704), the prototype "Specialist Side" tab 1. O1, O2 (sending
+         off): founder 2026-10-15 (Privacy 3.6 section 4d). O2: founder
          2026-10-31, backend N309 item 5; G4 (each Take stamped and
          revocable).
 */
@@ -34,6 +51,13 @@ vi.mock("@/services/api/communities", async (importOriginal) => ({
   fetchCommunities: api.fetchCommunities,
   shareTake: api.shareTake,
 }));
+// The backend's switch for sending (N470): off unless a test turns it on.
+const send = vi.hoisted(() => ({
+  fetchSendPeople: vi.fn(async (): Promise<unknown> => ({ enabled: false, people: [] })),
+  fetchLastSend: vi.fn(async (): Promise<unknown> => ({ enabled: false, choice: null })),
+  sendTake: vi.fn(async (): Promise<unknown> => [{ userId: "u", chatId: "c", messageId: "m" }]),
+}));
+vi.mock("@/services/api/takeSends", () => send);
 const appended = vi.hoisted(() => [] as Array<{ body: string; metadata?: Record<string, unknown> | null }>);
 vi.mock("./LoungeThreadContext", () => ({
   useLoungeThreadMaybe: () => ({ append: async (draft: (typeof appended)[number]) => appended.push(draft) }),
@@ -41,7 +65,8 @@ vi.mock("./LoungeThreadContext", () => ({
 
 import NextTakeShareScreen from "./NextTakeShareScreen";
 import ReportCard from "./ReportCard";
-import { NEXT_SHARE_WORDS_VERSION } from "@/lib/willab/nextTakeShare";
+import { applyNextTakeShare, NEXT_SHARE_WORDS_VERSION } from "@/lib/willab/nextTakeShare";
+import { latestShareLine } from "@/lib/willab/walkThread";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -51,6 +76,10 @@ beforeEach(() => {
   document.body.appendChild(host);
   root = createRoot(host);
   api.shareTake.mockClear();
+  send.sendTake.mockClear();
+  send.fetchSendPeople.mockResolvedValue({ enabled: false, people: [] });
+  send.fetchLastSend.mockResolvedValue({ enabled: false, choice: null });
+  localStorage.clear();
   appended.length = 0;
 });
 afterEach(async () => {
@@ -129,4 +158,83 @@ it("the latest Take's line opens the screen ticked as it stands, and a change re
   await act(async () => (document.querySelector('[data-testid="share-continue"]') as HTMLButtonElement).click());
   expect(api.shareTake).toHaveBeenLastCalledWith("take-3", { general: false, communityIds: [], none: true });
   expect(appended.at(-1)?.body).toBe("Only me");
+});
+
+const ARTUR = { userId: "u-artur", name: "Artur", title: "Speaking coach", avatarUrl: null, chatId: "c-artur", lastSent: true };
+const MAYA = { userId: "u-maya", name: "Maya Lindqvist", title: "Head of Sales", avatarUrl: null, chatId: "c-maya", lastSent: false };
+const DANIEL = { userId: "u-daniel", name: "Daniel Okafor", title: "Speaking coach", avatarUrl: null, chatId: "c-daniel", lastSent: false };
+const continueOn = () => !(document.querySelector('[data-testid="share-continue"]') as HTMLButtonElement).disabled;
+
+it("with sending on, everyone is ticked, Select all unticks all, and the one ticked gets the next Take once", async () => {
+  const onDone = vi.fn();
+  await act(async () => {
+    root.render(
+      createElement(NextTakeShareScreen, {
+        takeCount: 1,
+        arcId: "arc-1",
+        send: { enabled: true, people: [ARTUR, MAYA, DANIEL], choice: null },
+        onDone,
+        onClose: () => {},
+      }),
+    );
+  });
+  expect(host.textContent).toContain("Your knowledge is worth sharing, and so are your questions.");
+  expect(host.textContent).toContain("Choose who can answer you best, or send it to all of them and practise speaking.");
+  expect(host.textContent).not.toContain("General community");
+  expect(host.textContent).not.toContain("Only me");
+  expect(ticked("Select all")).toBe("true");
+  expect([ticked("Artur"), ticked("Maya Lindqvist"), ticked("Daniel Okafor")]).toEqual(["true", "true", "true"]);
+  expect(option("Artur").textContent).toContain("Last sent");
+  expect(option("Maya Lindqvist").textContent).not.toContain("Last sent");
+  expect(continueOn()).toBe(true);
+
+  await act(async () => option("Select all").click());
+  expect(host.querySelectorAll('[aria-checked="true"]').length).toBe(0);
+  expect(continueOn()).toBe(false);
+
+  await act(async () => option("Artur").click());
+  expect(ticked("Select all")).toBe("false");
+  await act(async () => (host.querySelector('[data-testid="share-continue"]') as HTMLButtonElement).click());
+  expect(onDone).toHaveBeenCalledTimes(1);
+  // Nothing is sent before the Take exists (R2).
+  expect(send.sendTake).not.toHaveBeenCalled();
+  expect(appended.at(-1)?.body).toBe("Artur");
+  expect(appended.at(-1)?.metadata).toMatchObject({ step: "share", share: { kind: "people", all: false, user_ids: ["u-artur"], names: ["Artur"] } });
+
+  applyNextTakeShare("take-2");
+  applyNextTakeShare("take-3");
+  expect(send.sendTake).toHaveBeenCalledTimes(1);
+  expect(send.sendTake).toHaveBeenCalledWith("take-2", { all: false, userIds: ["u-artur"] });
+});
+
+it("with sending on, a sent Take's line opens the screen to add people, never to unsend", async () => {
+  send.fetchSendPeople.mockResolvedValue({ enabled: true, people: [ARTUR, MAYA, DANIEL] });
+  send.fetchLastSend.mockResolvedValue({ enabled: true, choice: { all: false, userIds: ["u-artur"] } });
+  const rec = {
+    client_id: "rec3", role: "user" as const, kind: "recording_summary" as const, body: "",
+    metadata: { session_id: "take-3", arc_id: "arc-1", take_index: 3 }, client_created_at: "2026-11-04T10:00:00Z",
+  };
+  const line = {
+    client_id: "l3", role: "user" as const, kind: "walk_step" as const, body: "Artur",
+    metadata: { step: "share", author: "speaker", arc_id: "arc-1", share: { kind: "people", all: false, user_ids: ["u-artur"], names: ["Artur"] } },
+    client_created_at: "2026-11-04T09:59:00Z",
+  };
+  const change = latestShareLine([line, rec]);
+  expect(change).toMatchObject({ takeSessionId: "take-3", people: { user_ids: ["u-artur"] } });
+  await act(async () => {
+    root.render(createElement(ReportCard, { message: rec, shareLine: "Artur", shareChange: change }));
+  });
+  await act(async () => button("Artur").click());
+  expect(ticked("Artur")).toBe("true");
+  expect(ticked("Maya Lindqvist")).toBe("false");
+  // Who it went to stays ticked: nothing is unsent.
+  await act(async () => option("Artur").click());
+  expect(ticked("Artur")).toBe("true");
+
+  await act(async () => option("Maya Lindqvist").click());
+  await act(async () => (document.querySelector('[data-testid="share-continue"]') as HTMLButtonElement).click());
+  expect(send.sendTake).toHaveBeenCalledWith("take-3", { all: false, userIds: ["u-artur", "u-maya"] });
+  expect(appended.at(-1)?.body).toBe("Artur, Maya Lindqvist");
+  expect(appended.at(-1)?.metadata).toMatchObject({ take_session_id: "take-3", share: { kind: "people", user_ids: ["u-artur", "u-maya"] } });
+  expect(document.querySelector('[data-testid="share-continue"]')).toBeNull();
 });

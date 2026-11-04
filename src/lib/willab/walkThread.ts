@@ -13,7 +13,7 @@ import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "@/component
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import type { FeedbackWalkMoment, ReplayFixClip, WalkStepTarget } from "./feedbackWalkModel";
-import { shareChoiceOf, ticksOf, type ShareChoiceMeta } from "./nextTakeShare";
+import { peopleChoiceOf, shareChoiceOf, ticksOf, type PeopleShareMeta, type ShareChoiceMeta } from "./nextTakeShare";
 import { HELPER_WORDS_MAX, quoteSpan } from "./phraseTokens";
 import { isFiller } from "./liveNoteWords";
 import { stripRichMarkers } from "./richMarkers";
@@ -143,6 +143,8 @@ export function momentChat(
 /** The sharing question's three lines as one bubble, a blank line between
  *  them (founder 2026-10-19). */
 const SHARE_QUESTION = [WALK_COPY.shareBefore, WALK_COPY.shareTitle, WALK_COPY.shareAudience].join("\n\n");
+/** Who hears this Take (N470): its three bubbles as one, the same way. */
+const SEND_QUESTION = WALK_COPY.sendBubbles.join("\n\n");
 
 /** The choice in its own words, the line under a Take's recording ("Only
  *  my community (Invita)", "General community", "Only me"). */
@@ -158,13 +160,19 @@ export function shareLineText(ticks: readonly string[], communities: readonly st
     .join(", ");
 }
 
+/** Who a sent Take went to, as its line: the names, or "Everyone in my
+ *  list" (N470 item 4). */
+export function peopleLine(people: PeopleShareMeta): string {
+  return people.all ? WALK_COPY.sendEveryone : people.names.join(", ");
+}
+
 /** The line under a Take's recording, stored as the speaker's share
  *  message carrying its choice (backend N309 item 5): posted when a Take
  *  keeps the remembered choice, and, naming its Take, when the line is
  *  changed. */
 export function shareLineDraft(
   line: string,
-  share: ShareChoiceMeta,
+  share: ShareChoiceMeta | PeopleShareMeta,
   arcId: string | null = null,
   takeSessionId: string | null = null,
 ): LoungeMessageDraft {
@@ -192,6 +200,7 @@ export function shareChat(
   communities: readonly string[],
   arcId: string | null = null,
   share: ShareChoiceMeta | null = null,
+  people: PeopleShareMeta | null = null,
 ): LoungeMessageDraft[] {
   const say = (role: "user" | "bot", body: string): LoungeMessageDraft => ({
     role,
@@ -199,6 +208,14 @@ export function shareChat(
     body,
     metadata: { step: "share", author: role === "user" ? "speaker" : "app", arc_id: arcId },
   });
+  if (people) {
+    // Who hears this Take (N470): the people's line, the same three writes.
+    return [
+      ...(nextTake ? [say("user", `Record Take ${nextTake}`)] : []),
+      say("bot", SEND_QUESTION),
+      shareLineDraft(peopleLine(people), people, arcId),
+    ];
+  }
   const choice = shareLineText(ticks, communities);
   return [
     ...(nextTake ? [say("user", `Record Take ${nextTake}`)] : []),
@@ -830,7 +847,7 @@ export function inPairs<T>(
 
 /** One Take's line: what it says and the choice it carries (null for a
  *  line stored before backend N309 item 5). */
-export type ShareLineEntry = { line: string; share: ShareChoiceMeta | null };
+export type ShareLineEntry = { line: string; share: ShareChoiceMeta | null; people?: PeopleShareMeta | null };
 
 /** Who heard each Take, as one line under its recording (G1, N192): the
  *  sharing choice the speaker gave or kept before it, in its own words
@@ -848,15 +865,16 @@ export function shareLineEntries(messages: readonly LoungeMessage[]): Map<string
     if (m.kind === "walk_step" && meta.step === "share") {
       const line = m.body.trim();
       const share = shareChoiceOf(meta);
+      const people = peopleChoiceOf(meta);
       if (m.role === "bot") asked = true;
-      else if (line && typeof meta.take_session_id === "string") changed.set(meta.take_session_id, { line, share });
-      else if (line && (asked || share)) choice = { line, share, arc: meta.arc_id };
+      else if (line && typeof meta.take_session_id === "string") changed.set(meta.take_session_id, { line, share, people });
+      else if (line && (asked || share || people)) choice = { line, share, people, arc: meta.arc_id };
       continue;
     }
     if (m.kind !== "recording_summary") continue;
     if (typeof meta.session_id === "string") recordingOf.set(meta.session_id, m.client_id);
     const arc = meta.arc_id;
-    if (choice && (!choice.arc || !arc || choice.arc === arc)) out.set(m.client_id, { line: choice.line, share: choice.share });
+    if (choice && (!choice.arc || !arc || choice.arc === arc)) out.set(m.client_id, { line: choice.line, share: choice.share, people: choice.people });
     asked = false;
     choice = null;
   }
@@ -883,6 +901,9 @@ export type ShareLineChange = {
   takeIndex: number | null;
   ticks: string[];
   communityIds: string[] | null;
+  /** A Take sent to people (N470): who it went to; the line opens the
+   *  screen to add people only (N472 item 3). */
+  people?: PeopleShareMeta | null;
 };
 
 /** The ticks a line stored without its choice says, from its own words. */
@@ -907,6 +928,7 @@ export function latestShareLine(messages: readonly LoungeMessage[]): ShareLineCh
     takeIndex: typeof meta.take_index === "number" ? meta.take_index : null,
     ticks: entry.share ? ticksOf(entry.share) : ticksOfLine(entry.line),
     communityIds: entry.share ? entry.share.community_ids : null,
+    people: entry.people ?? null,
   };
 }
 

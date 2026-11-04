@@ -34,6 +34,16 @@ export const VOICE_MESSAGE_LINE = "🎤 Voice message";
 export const PHOTO_LINE = "📷";
 export const fileLine = (name: string) => `📄 ${name}`;
 
+/** A Take sent in a chat (backend N470 item 6, signed): the receiver's line
+ *  in the bubble and in the list, and the bubble's button. */
+export const takeSentYou = (name: string, n: number) => `${name} sent you Take ${n}`;
+export const OPEN_TAKE = "Open Take";
+
+/** A person's first name, as "{name} sent you Take {n}" says it. */
+export function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] ?? "";
+}
+
 /** One meaning per emoji, everywhere; a sent emoji shows it under itself
  *  (N311 item 1, signed). */
 export const EMOJI_MEANING: Record<ChatEmoji, string> = {
@@ -98,8 +108,14 @@ export function WillMark({ size = 48 }: { size?: number }) {
 
 /** The last message on one line: its words, the emoji with its meaning, or
  *  the voice note's, the photo's or the file's line. */
-export function lastLine(last: ChatLast | null): string {
+export function lastLine(last: ChatLast | null, name = ""): string {
   if (!last) return "";
+  if (last.kind === "take") {
+    // A Take sent to you: "{name} sent you Take {n}" (N470); yours: "Take {n}".
+    const n = typeof last.meta?.take_index === "number" ? last.meta.take_index : null;
+    if (n === null) return last.body;
+    return last.mine === true || !name ? `Take ${n}` : takeSentYou(firstName(name), n);
+  }
   if (last.kind === "voice") return VOICE_MESSAGE_LINE;
   if (last.kind === "photo") return PHOTO_LINE;
   if (last.kind === "file") return fileLine(last.body);
@@ -337,7 +353,7 @@ export default function ChatList({
       title={chat.title}
       subtitle={chat.subtitle}
       time={listTime(chat.last?.created_at, now)}
-      preview={chat.last ? lastLine(chat.last) : justJoined ? joinedThrough(chat.title) : ""}
+      preview={chat.last ? lastLine(chat.last, chat.title) : justJoined ? joinedThrough(chat.title) : ""}
       isNew={justJoined || chatIsNew(chat)}
       cameFrom={cameFrom === chat.id}
       onOpen={() => onOpen(chat)}

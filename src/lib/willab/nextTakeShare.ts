@@ -1,4 +1,5 @@
 import { fetchRememberedShare, shareTake } from "@/services/api/communities";
+import { fetchLastSend, fetchSendPeople, sendTake, type SendChoice, type SendPerson } from "@/services/api/takeSends";
 
 /* -------------------------------------------------------------------------- */
 /*  SHARING THE NEXT TAKE (flow page G; backend N309 item 5). Sharing is      */
@@ -82,8 +83,9 @@ export async function rememberedChoice(): Promise<{ share: ShareChoiceMeta; name
   };
 }
 
-/** Keep the choice for the next Take; null keeps nothing (Only me). */
-export function keepNextTakeShare(choice: NextTakeShare | null): void {
+/** Keep the choice for the next Take; null keeps nothing (Only me). A
+ *  people choice (N470) is sent, not shared, once the Take is up. */
+export function keepNextTakeShare(choice: NextTakeShare | KeptSend | null): void {
   try {
     if (choice) localStorage.setItem(KEY, JSON.stringify({ ...choice, at: Date.now() }));
     else localStorage.removeItem(KEY);
@@ -104,8 +106,14 @@ export function applyNextTakeShare(takeSessionId: string | null | undefined): vo
   }
   if (!raw) return;
   try {
-    const kept = JSON.parse(raw) as { general?: unknown; communityIds?: unknown; at?: unknown };
+    const kept = JSON.parse(raw) as { general?: unknown; communityIds?: unknown; at?: unknown; kind?: unknown; all?: unknown; userIds?: unknown };
     if (typeof kept.at !== "number" || Date.now() - kept.at > KEEP_MS) return;
+    if (kept.kind === "people") {
+      // Sent after the upload, never waited on: a refusal leaves the Take
+      // unsent and the loop goes on (R2); a retry never posts twice.
+      void sendTake(takeSessionId, { all: kept.all === true, userIds: strings(kept.userIds) }).catch(() => null);
+      return;
+    }
     const communityIds = Array.isArray(kept.communityIds)
       ? kept.communityIds.filter((id): id is string => typeof id === "string")
       : [];
@@ -118,4 +126,111 @@ export function applyNextTakeShare(takeSessionId: string | null | undefined): vo
   } catch {
     // Unreadable: the Take stays private.
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  WHO HEARS THIS TAKE (backend N470, N472; rules page G). Behind the        */
+/*  backend's switch: while it is off, or when its reads fail, everything     */
+/*  above stays exactly as it is (today's G1). On, the screen lists the       */
+/*  people in your chats; the choice is kept like the community one and the  */
+/*  Take is sent to them once its upload names it, each as your own message  */
+/*  in your chat with them.                                                   */
+/* -------------------------------------------------------------------------- */
+
+/** The choice as the line under a Take's recording carries it
+ *  (`metadata.share`), the shape the backend reads back (N472). */
+export type PeopleShareMeta = { kind: "people"; all: boolean; user_ids: string[]; names: string[] };
+
+/** The people choice kept for the next upload. */
+export type KeptSend = { kind: "people"; all: boolean; userIds: string[] };
+
+/** The switch on, with the list and the last choice; or off (or failed). */
+export type SendRead = { enabled: true; people: SendPerson[]; choice: SendChoice | null } | { enabled: false };
+
+const SEEN_KEY = "willab.sendSeen";
+
+/** The longest "Record Take N" waits for the choice before it asks (R1). */
+export const SEND_READ_CAP_MS = 1500;
+
+function strings(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
+}
+
+/** A people choice a stored line carries; null for any other line. */
+export function peopleChoiceOf(meta: Record<string, unknown> | null | undefined): PeopleShareMeta | null {
+  const share = meta?.share;
+  if (!share || typeof share !== "object") return null;
+  const raw = share as Record<string, unknown>;
+  if (raw.kind !== "people") return null;
+  return { kind: "people", all: raw.all === true, user_ids: strings(raw.user_ids), names: strings(raw.names) };
+}
+
+/** The switch, the list and the last choice, read together; off on any
+ *  failure, so today's screen stays (R3, R6). */
+export async function readSend(): Promise<SendRead> {
+  const [people, last] = await Promise.all([fetchSendPeople(), fetchLastSend()]);
+  if (!people?.enabled || !last?.enabled) return { enabled: false };
+  return { enabled: true, people: people.people, choice: last.choice };
+}
+
+/** A promise, or `fallback` once `ms` have passed. */
+export function within<T, F>(promise: Promise<T>, ms: number, fallback: F): Promise<T | F> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(fallback);
+      },
+    );
+  });
+}
+
+/** The people shown when the speaker last chose (per device; asking once
+ *  when someone new joins a choice of chosen people, N472 item 5). */
+export function rememberSeen(userIds: readonly string[]): void {
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify(userIds));
+  } catch {
+    // No storage: someone new is asked about once more.
+  }
+}
+
+function seenIds(): Set<string> | null {
+  try {
+    const raw = localStorage.getItem(SEEN_KEY);
+    return raw ? new Set(strings(JSON.parse(raw))) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** What "Record Take N" does with the switch on: record with nothing sent
+ *  (nobody in the list, R3), ask (no choice yet; nobody of the choice left;
+ *  someone new joined a choice of chosen people), or send as chosen.
+ *  "Everyone in my list" takes in someone new silently (N472 item 5). */
+export function sendDecision(read: { people: SendPerson[]; choice: SendChoice | null }):
+  | { go: "record" }
+  | { go: "ask" }
+  | { go: "send"; share: PeopleShareMeta } {
+  const { people, choice } = read;
+  if (!people.length) return { go: "record" };
+  if (!choice) return { go: "ask" };
+  if (choice.all) {
+    return { go: "send", share: { kind: "people", all: true, user_ids: people.map((p) => p.userId), names: people.map((p) => p.name) } };
+  }
+  const chosen = people.filter((p) => choice.userIds.includes(p.userId));
+  if (!chosen.length) return { go: "ask" };
+  const seen = seenIds() ?? new Set(choice.userIds);
+  if (people.some((p) => !choice.userIds.includes(p.userId) && !seen.has(p.userId))) return { go: "ask" };
+  return { go: "send", share: { kind: "people", all: false, user_ids: chosen.map((p) => p.userId), names: chosen.map((p) => p.name) } };
+}
+
+/** The kept form of a people choice, for the upload. */
+export function keptSendOf(share: PeopleShareMeta): KeptSend {
+  return { kind: "people", all: share.all, userIds: share.user_ids };
 }
