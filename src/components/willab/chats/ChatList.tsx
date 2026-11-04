@@ -15,8 +15,10 @@ import { isNativeApp } from "@/lib/auth/nativeSignIn";
 /*  docs/flows/customer-requests.md §1 C1), one WhatsApp row each: Will        */
 /*  pinned on top with his mark, then each chat, newest first, with the first */
 /*  letter of the name in a circle (no photo, N301, N322 item 1), the name and */
-/*  who they are, the time, and the last message on one line. A new message   */
-/*  shows bold with an orange dot; no number, ever. Will is always the first  */
+/*  who they are, the time, and the last message on one line. A new message,  */
+/*  an emoji from the other person included, has the look locked for the      */
+/*  whole app (N500): the name bold, the time orange, the line bold and       */
+/*  orange, the orange dot; no number, ever. Will is always the first  */
 /*  row (N360). Just joined through a link, the chat with the one who invited */
 /*  you is right under Will, new until opened, its line theirs or "You joined */
 /*  through…" (N357), kept until the chat's first message (N488). Will's row shows his newest line, bold with the dot     */
@@ -178,7 +180,7 @@ function ChatListRow({
           ) : null}
         </span>
         <span className="flex min-h-[20px] min-w-0 items-center gap-2">
-          <span data-chat-last className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${isNew ? "text-foreground" : "text-muted-foreground"}`}>
+          <span data-chat-last className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${isNew ? "font-bold text-[#C2410C]" : "text-muted-foreground"}`}>
             {preview}
           </span>
           {isNew ? (
