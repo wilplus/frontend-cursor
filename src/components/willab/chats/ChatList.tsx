@@ -7,7 +7,7 @@ import type { LoungeKind, LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadMaybe } from "../LoungeThreadContext";
 import { chatIsNew, isNewSince, markChatOpened } from "./chatOpened";
 import { listTime, timeOf } from "./chatTime";
-import { ADD_SHEET_LINE, ADD_SHEET_TITLE, ADD_STEPS, CANCEL, COPIED, COPY_MY_LINK, joinedThrough } from "./joinCopy";
+import { ADD_SHEET_LINE, ADD_SHEET_TITLE, ADD_STEPS, CANCEL, COPIED, COPY_MY_LINK, answersOf, joinedThanks } from "./joinCopy";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /* -------------------------------------------------------------------------- */
@@ -15,8 +15,10 @@ import { isNativeApp } from "@/lib/auth/nativeSignIn";
 /*  docs/flows/customer-requests.md §1 C1), one WhatsApp row each: Will        */
 /*  pinned on top with his mark, then each chat, newest first, with the first */
 /*  letter of the name in a circle (no photo, N301, N322 item 1), the name and */
-/*  who they are, the time, and the last message on one line. A new message   */
-/*  shows bold with an orange dot; no number, ever. Will is always the first  */
+/*  who they are, the time, and the last message on one line. A new message,  */
+/*  an emoji from the other person included, has the look locked for the      */
+/*  whole app (N500): the name bold, the time orange, the line bold and       */
+/*  orange, the orange dot; no number, ever. Will is always the first  */
 /*  row (N360). Just joined through a link, the chat with the one who invited */
 /*  you is right under Will, new until opened, its line theirs or "You joined */
 /*  through…" (N357), kept until the chat's first message (N488). Will's row shows his newest line, bold with the dot     */
@@ -110,6 +112,8 @@ export function WillMark({ size = 48 }: { size?: number }) {
  *  the voice note's, the photo's or the file's line. */
 export function lastLine(last: ChatLast | null, name = ""): string {
   if (!last) return "";
+  // The owner's card once the joiner is done (backend N487 item 7).
+  if (last.meta?.setup_card) return answersOf(firstName(name));
   if (last.kind === "take") {
     // A Take sent to you: "{name} sent you Take {n}" (N470); yours: "Take {n}".
     const n = typeof last.meta?.take_index === "number" ? last.meta.take_index : null;
@@ -178,7 +182,7 @@ function ChatListRow({
           ) : null}
         </span>
         <span className="flex min-h-[20px] min-w-0 items-center gap-2">
-          <span data-chat-last className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${isNew ? "text-foreground" : "text-muted-foreground"}`}>
+          <span data-chat-last className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${isNew ? "font-bold text-[#C2410C]" : "text-muted-foreground"}`}>
             {preview}
           </span>
           {isNew ? (
@@ -353,7 +357,7 @@ export default function ChatList({
       title={chat.title}
       subtitle={chat.subtitle}
       time={listTime(chat.last?.created_at, now)}
-      preview={chat.last ? lastLine(chat.last, chat.title) : chat.joined_through || justJoined ? joinedThrough(chat.joined_through || chat.title) : ""}
+      preview={chat.last ? lastLine(chat.last, chat.title) : chat.joined_through || justJoined ? joinedThanks(chat.joined_through || chat.title) : ""}
       isNew={justJoined || chatIsNew(chat)}
       cameFrom={cameFrom === chat.id}
       onOpen={() => onOpen(chat)}
