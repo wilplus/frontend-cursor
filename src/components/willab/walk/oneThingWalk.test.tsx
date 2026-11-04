@@ -3,7 +3,7 @@
 STORY    As a speaker, I want the walk after each Take to show me my best moment and why it worked, then one thing to improve with the tool it needs, so that I leave every Take with one clear thing to carry into the next.
 OUTCOME
   O1  The walk goes in order: "Hi {name}.", my best with "This was your most confident moment." and why it worked, then "And now, one thing to improve:" and one fix; the Clearer version says "Say it straight:" and the sentence, with "Try it" and "Keep mine"; no helper-word picker, no second moment and no summary in the walk.
-  O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2), without the sentence's punctuation at either end, as after "Keep mine" (backend N440); with no fix, my best moment's own words are my helper words, saved the same way (backend N374). With the Sniper as the fix, Skip moves the walk on at once, after a try too; its line and scale stay in their one bubble above the tries; ✕ after a try keeps the game for Will and says nothing; opened again, its walk shows the helper words its stretch gave. The Sniper the server chose waits on its stretch with the typing dots at most as long as the fix waits on its clip (N373), then the walk goes on without it; with no stretch there is no "And now, one thing to improve:", in the walk or the chat: my best, my best's helper words and "Lesson done.", the bar on my best's slide.
+  O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2), without the sentence's punctuation at either end, as after "Keep mine" (backend N440); with no fix, my best moment's own words are my helper words, saved the same way (backend N374). With the Sniper as the fix, Skip moves the walk on at once, after a try too; its line and scale stay in their one bubble above the tries; ✕ after a try keeps the game for Will and says nothing; opened again, its walk shows the helper words its stretch gave, the bar on the stretch's slide. The Sniper the server chose waits on its stretch with the typing dots at most as long as the fix waits on its clip (N373), then the walk goes on without it; with no stretch there is no "And now, one thing to improve:", in the walk or the chat: my best, my best's helper words and "Lesson done.", the bar on my best's slide.
   O3  The walk ends on "Lesson done." with Close, which ends the review and takes me back to the chat; no "Record Take N" in the walk.
   O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after "Try it", my own after "Keep mine"; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
   O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, each landing on its own behind the dots, the card I chose holding 0.28 s before my answer as my own reply with a tick ("Audio unclear", no card, at once), then "Got it.", and the walk moving on once they have landed; after it the bar names my fix's slide again for the helper words and "Lesson done."; on Take 1 I judge no one.
@@ -444,9 +444,11 @@ describe("the One thing walk (N309)", () => {
 
   it("the Sniper's walk opened again shows the helper words its stretch gave (C3, B10)", () => {
     const stretch = "every frame, delivery is free";
+    // The Sniper the server chose, whose rows the chat's loaded page no
+    // longer holds: the words, and the bar, are still the stretch's (B6).
     const model = buildFeedbackReplay<string>({
-      items: [ITEMS[0]], coachNote: false, practiceOn: true, answerOf: () => null,
-      helperWordsOf: (partId) => (partId === "p9" ? stretch : null), interventions: ["tempo"],
+      items: [{ ...ITEMS[0], oneFix: "tempo" }], coachNote: false, practiceOn: true, answerOf: () => null,
+      helperWordsOf: (partId) => (partId === "p9" ? stretch : null), interventions: [],
     });
     const words = model.plan.findIndex((s) => s.key === "words");
     expect(words).toBeGreaterThan(model.plan.findIndex((s) => s.key === "tempo"));
@@ -454,8 +456,10 @@ describe("the One thing walk (N309)", () => {
       model,
       helperWordsOf: (partId: string) => (partId === "p9" ? stretch : null),
       tempoWords: { partId: "p9", paragraphText: `And ${stretch}.`, text: stretch, span: { text: stretch, start: 4, end: 4 + stretch.length } },
+      tempoSlide: "Slide 9",
     });
     expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe(stretch);
+    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Slide 9");
   });
 
   it("my best's clip and the AI clip's fix show my own words, my best played again shows none", async () => {

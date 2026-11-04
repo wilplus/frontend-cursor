@@ -312,8 +312,9 @@ function sniperDraws(on: { tempo: TempoStretch | null; tempoSaid: readonly WalkT
 }
 
 /** The helper words the One thing walk gives (N309 item 3): the words, and
- *  how they are saved; none to save when they are already the saved ones. */
-type OneWords = { text: string; save: FeedbackWalkHelperWords | null; practice?: Promise<string | null> | null; opening?: boolean };
+ *  how they are saved; none to save when they are already the saved ones.
+ *  `sniper`: the words are the Sniper's stretch's, so the bar names its slide. */
+type OneWords = { text: string; save: FeedbackWalkHelperWords | null; practice?: Promise<string | null> | null; opening?: boolean; sniper?: boolean };
 
 /** How long the helper words wait for the Clearer version's practice still
  *  being opened (a Skip in its round trip) before they are drawn. */
@@ -809,13 +810,17 @@ export default function FeedbackWalk<R = unknown>({
     };
     const saved = (moment: FeedbackWalkMoment<R> | undefined) => savedOn(moment?.partId);
     const moment = s.of == null ? undefined : walk.moments[s.of];
-    if (s.replay) return (moment ? saved(moment) : savedOn(tempoWords?.partId)) ?? saved(best);
+    if (s.replay) {
+      if (moment) return saved(moment) ?? saved(best);
+      const stretch = savedOn(tempoWords?.partId);
+      return stretch ? { ...stretch, sniper: true } : saved(best);
+    }
     const fixGives = (): OneWords | null => {
       if (!moment) {
         // The Sniper's words only once its game was drawn (T, N374).
         const sniper = plan.find((x) => x.key === "tempo");
         return s.of == null && tempoWords && sniper && sniperDraws({ tempo, tempoSaid, takeId }, sniper)
-          ? { text: tempoWords.text, save: { partId: tempoWords.partId, span: tempoWords.span, paragraphText: tempoWords.paragraphText, auto: true } }
+          ? { text: tempoWords.text, save: { partId: tempoWords.partId, span: tempoWords.span, paragraphText: tempoWords.paragraphText, auto: true }, sniper: true }
           : null;
       }
       const opener = plan.find((x) => x.moment === s.of && (x.key === "clearer" || x.key === "exVideo"));
@@ -2039,8 +2044,9 @@ function partLabel(ctx: ScreenCtx, step: WalkStep): string | null {
     if (of) return slideName(of);
     const sniper = ctx.walk.plan.find((s) => s.key === "tempo");
     if (!sniper) return null;
-    if (!sniper.one || sniperDraws(ctx, sniper)) return tempoMark(ctx, step);
-    // A Sniper that drew nothing: their best's slide, as with no fix (B6).
+    // The slide the words came from (B6): the stretch's when they are the
+    // Sniper's, live or played again; else their best's, as with no fix.
+    if (!sniper.one || ctx.fixWords(step)?.sniper) return tempoMark(ctx, step);
     const best = ctx.walk.plan.find((s) => s.one && s.key === "praise");
     const bestMoment = best?.moment == null ? undefined : ctx.walk.moments[best.moment];
     return bestMoment ? slideName(bestMoment) : null;
