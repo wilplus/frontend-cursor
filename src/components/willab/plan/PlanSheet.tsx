@@ -130,7 +130,6 @@ export function ChangePlanSheet({
   onClose,
   onDeadline,
   onDays,
-  onAskCoach,
   onNewEvent,
   newEventHeld,
 }: {
@@ -138,12 +137,11 @@ export function ChangePlanSheet({
   onClose: () => void;
   onDeadline: (day: string) => void;
   onDays: (days: number[]) => void;
-  onAskCoach: () => void;
   onNewEvent: () => void;
   /** A Take is still processing: "I have a new event" is not shown (N242). */
   newEventHeld: boolean;
 }) {
-  const [view, setView] = useState<"main" | "deadline" | "days" | "level">("main");
+  const [view, setView] = useState<"main" | "deadline" | "days">("main");
   const deadline = fromIsoDay(plan.deadline);
   if (view === "deadline") {
     return (
@@ -159,15 +157,6 @@ export function ChangePlanSheet({
       </Sheet>
     );
   }
-  if (view === "level") {
-    return (
-      <Sheet title={PLAN_COPY.yourLevel} onClose={onClose}>
-        <p className="mb-3.5 mt-2 text-[15px] leading-[1.45]">{PLAN_COPY.levelIsCoachs}</p>
-        <Pill label={PLAN_COPY.askCoach} onClick={onAskCoach} />
-        <BackLink onClick={() => setView("main")} />
-      </Sheet>
-    );
-  }
   return (
     <Sheet title={PLAN_COPY.yourPlan} onClose={onClose}>
       <Row label={PLAN_COPY.deadline} value={deadline ? fmtDay(deadline) : ""} onClick={() => setView("deadline")} />
@@ -176,7 +165,6 @@ export function ChangePlanSheet({
         value={plan.every_day ? PLAN_COPY.everyDayShort : plan.days_text}
         onClick={() => setView("days")}
       />
-      <Row label={PLAN_COPY.yourLevel} value={plan.level_name ?? ""} onClick={() => setView("level")} />
       {newEventHeld ? null : <Row label={PLAN_COPY.newEvent} value="" onClick={onNewEvent} />}
     </Sheet>
   );

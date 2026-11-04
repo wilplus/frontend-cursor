@@ -5,7 +5,6 @@ import type { LoungeMessage } from "@/services/api/loungeMessages";
 import {
   answerConsent,
   answerDeadline,
-  askCoach,
   bookCall,
   changePlan,
   getPlan,
@@ -279,10 +278,6 @@ export function usePlanLounge({
           onDays={(days) => {
             setSheet(null);
             void run(() => changePlan({ days }));
-          }}
-          onAskCoach={() => {
-            setSheet(null);
-            void run(askCoach);
           }}
           onNewEvent={() => {
             setSheet(null);

@@ -237,7 +237,7 @@ built and what is still to come.
    practice days ("15 minutes, 3 times a week: Mon, Wed, Fri", or "15
    minutes every day") and "Your deadline: {date}", the date in orange (for
    example "Sat 14 Nov"); then "Change your plan", which opens its sheet
-   (H: Deadline, Practice days, Your level, I have a new event). No "Ready
+   (H: Deadline, Practice days, I have a new event). No "Ready
    by {date}" heading (N167). Gone from the card: "Your next level" and the
    level, the key line, "How you said it", "Why this line?", the pace
    week's line and the call lines (N315, N319 item 6). The level shows
@@ -456,9 +456,11 @@ built and what is still to come.
 ### H · Changing the plan
 
 1. "Change your plan" opens the plan: the deadline and the practice days are
-   the speaker's to change, and the plan recalculates. The level is the
-   coach's: "Ask your coach", which reaches the coach's queue as "Asked about
-   their level" ([the coach panel](coach-panel.md) K1, N213). "I have a new
+   the speaker's to change, and the plan recalculates. Its rows: Deadline,
+   Practice days and "I have a new event". The level is not among them: it
+   is the coach's, and shows in each practice day's hello and in "See your
+   plan" (N497; was a "Your level" row with "Ask your coach", which reached
+   the coach's queue as "Asked about their level", N213). "I have a new
    event" starts the questions again (N140). While a Take is still
    processing, "I have a new event" is hidden until the Take has landed
    (N242).
@@ -550,12 +552,13 @@ Signed:
   on the card (N319 item 6): "Your next level" · "Why this line?" and its
   sentence ("Why this line:") · "This week your walk has a pace game"
   (N163).
-- Changing the plan: "Your plan" · "Deadline" · "Practice days" · "Your
-  level" · "Pick 3 days." · "Save" · "Your deadline is close, so you
-  practise every day." · "Your level comes from what I heard in your voice.
-  Your coach can change it." · "Ask your coach" · "Done. Your plan now runs
-  to {date}." · "Done. You'll practise on {days}." · "I've told your coach.
-  You can talk it over on your next call." · "I have a new event" (N140).
+- Changing the plan: "Your plan" · "Deadline" · "Practice days" · "Pick 3
+  days." · "Save" · "Your deadline is close, so you practise every day." ·
+  "Done. Your plan now runs to {date}." · "Done. You'll practise on
+  {days}." · "I have a new event" (N140). Signed, no longer shown (N497):
+  "Your level" · "Your level comes from what I heard in your voice. Your
+  coach can change it." · "Ask your coach" · "I've told your coach. You can
+  talk it over on your next call."
 - Practice days: "Today is practice {n} of {total}: {level}." · "This week's level: {level}. Here's where
   it shows:" · the three pace lines (G9) (N140) · "This week's level" · "See
   your plan" · "Book" (a call not booked yet) · "Today, one thing: say your
@@ -793,6 +796,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N497 · H1, K: "Change your plan" loses its "Your level" row and the sheet behind it ("Your level comes from what I heard in your voice. Your coach can change it." and "Ask your coach"); the BFF route `/api/v2/plan/ask-coach` goes, the backend's stays, unused. The level still shows in each practice day's hello and "See your plan". What stops: a speaker can no longer ask a coach about their level, so the coach queue gets no new "Asked about their level" (coach-panel.md K1). No new words. Was: the row, the sheet, and a tap that closed it and wrote "I've told your coach. You can talk it over on your next call." while the calls are off (N315) · BE N497 log, FE (this PR)
 - 2026-11-04 · N492 · §2: Will's welcome before the first Take is four bubbles, "Hi {name}, and welcome. ...", the short introduction and the few words at the end, the two Steves, and where to record (backend `plan.COPY`, the `first_take*` lines); the five slides and the button unchanged. Was: "Hi {name}!" and N462's one line · BE N492 log (#1725), BE #1730, FE (this PR)
 - 2026-11-04 · N483 · B3, B10, E5, G6, K, §3, §4: the plan in the one bar: a spoken question makes the bar's middle "Record your answer", with "Not now" a grey word under the question, which leaves it until the chat is opened again; "Start your first recording" is the bar's middle beside the stack, never in place of the bar, and the plan's questions never cover it; a practice day's "Record Take N" is the bar's middle too, with no ✕ (`WillBarMiddle`, `usePlanLounge` `hear` and `startFirst`). What stops: the orange mic, the faded "Type here" and its two notes (their words, `typeHereNote` and `tapAnswerNote`, removed), the ✕ beside "Record Take N", the start button in place of the bar · BE N483 (#1718), FE (this PR)
 - 2026-11-04 · N467 items 4 and 7 · B10, D5, F1: the plan's "Not now" and "Skip" are grey words, never a pill; "Are you preparing for the same event?" has "No", then "Yes", so the filled answer is the likely one; the 1 to 10 scale's picked number turns orange. Was: faded grey pills, "Yes" first with "No" filled, the picked number black · BE N467 log (#1695), FE (this PR)
