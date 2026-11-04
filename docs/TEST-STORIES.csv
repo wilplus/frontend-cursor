@@ -292,6 +292,11 @@ O3  A sealed set that erasure changed says so and lets me judge again;
 an intact sealed set offers no more judging.","O1 -> ""shows the passage and the coach's final, never a draft, ...""
 O2 -> ""a clip surface judges on the coach's instrument""
 O3 -> ""a sealed set erasure changed says so and opens judging again""",ML-10: the golden set replaces the engineering seeds.
+src/components/invite/invite.test.tsx,Story,"As someone a member invited, I want to paste the link they sent me on the first page and land on their join page; and as someone without a link, I want to wait on the waitlist instead of walking in (N471).","O1  A pasted link, its path, or the token alone opens the join page; a
+link that opens nothing says so in the signed words, under the field.
+O2  The app is members only: signed out it goes to the first page, a
+waiting account sees ""You’re on the waitlist"", a member gets the app.","O1 -> ""a pasted link opens the join page; a wrong one says so""
+O2 -> ""the app is for members: signed out goes home, waiting waits, a member gets in""",
 src/components/legal/PublishedPolicyText.test.tsx,Story,"As a reader of the Privacy page, I want the stored policy or a plain ""could not load"" line, never an endless spinner or an old stand-in, so that I always know what I agreed to.","O1  The stored policy text is shown with its version number.
 O2  When no stored copy can be had, the ""could not load"" line is shown.","O1 -> ""shows the stored copy once it is published""
 O2 -> ""shows the unavailable line once the record answers without a copy""","Founder 2026-09-25, F3 = A."

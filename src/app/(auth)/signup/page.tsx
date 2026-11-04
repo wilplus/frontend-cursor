@@ -7,7 +7,14 @@ export const metadata: Metadata = {
   title: "Sign Up | WillpowerLab",
 };
 
-export default function SignupPage() {
+export default function SignupPage({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
+  // "No link yet? Join the waitlist" opens this page in its waitlist mode
+  // (backend N471 item 3).
+  const waitlist = searchParams?.waitlist === "1";
   return (
     <div className="flex min-h-full items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
@@ -17,7 +24,7 @@ export default function SignupPage() {
           </h1>
           {/* No line under the logo (founder 2026-10-28, backend N232). */}
         </div>
-        <SignupForm />
+        <SignupForm waitlist={waitlist} />
         <SignupSeen />
       </div>
     </div>

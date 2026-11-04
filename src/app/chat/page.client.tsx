@@ -1,6 +1,7 @@
 "use client";
 
 import WillabSurface from "@/components/willab/WillabSurface";
+import MembersOnly from "@/components/invite/MembersOnly";
 
 /**
  * /chat — the willab product surface.
@@ -26,14 +27,17 @@ export default function ChatPageClient({
   /** `&take=<session_id>`: the Take the coach's link names. */
   idealTextTake?: string | null;
 }) {
+  // By invitation (backend N471): members only; the guest path is off.
   return (
-    <WillabSurface
-      sessionId={sessionId}
-      insightSessionId={insightSessionId}
-      bestPresentationArcId={bestPresentationArcId}
-      idealTextArcId={idealTextArcId}
-      idealTextMode={idealTextMode}
-      idealTextTake={idealTextTake}
-    />
+    <MembersOnly>
+      <WillabSurface
+        sessionId={sessionId}
+        insightSessionId={insightSessionId}
+        bestPresentationArcId={bestPresentationArcId}
+        idealTextArcId={idealTextArcId}
+        idealTextMode={idealTextMode}
+        idealTextTake={idealTextTake}
+      />
+    </MembersOnly>
   );
 }

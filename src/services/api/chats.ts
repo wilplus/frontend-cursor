@@ -129,6 +129,22 @@ export async function getMyChatLink(): Promise<string | null> {
   return typeof body?.path === "string" ? body.path : null;
 }
 
+/** Whether a join link opens anything, before anyone signs in (backend
+ *  N308): the first page's link field asks before it goes to the join page
+ *  (N471). A wrong or replaced link is 404. */
+export async function joinLinkOpens(token: string): Promise<boolean> {
+  try {
+    const result = await bffFetch(`/api/v2/chats/join/${encodeURIComponent(token)}`, {
+      method: "GET",
+      auth: "optional",
+      cache: "no-store",
+    });
+    return result.kind === "response" && result.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Joining through someone's link (backend N308, N328): the chat made, or
  *  found, for the two; "signin" when there is no session; "refused" for
  *  anything else (your own link, a link that no longer works, no ring). */

@@ -343,6 +343,34 @@ lab's menu (the logo goes home); signed out, on the blog, the menu is Lab and
 Log in as before. The top row opens your profile (backend N366, /profile). The design: the locked prototype "One bar", version 12
 (<https://claude.ai/artifact/2v8jSi91F157WFR8tjX5E1>).
 
+### Amended 2026-11-04: by invitation (backend N471)
+
+Approved on the clickable prototype "Invite-Only Entry"
+<https://claude.ai/artifact/HSELYXuS99xctnHRVBo1e4>: "go with B!", "words are signed", and the
+simplification audit of version 13 taken. WillpowerLab is for signed-in members; a person's link is
+the only way in.
+
+- **The first page, design B, on the web and in the iPhone app** (`src/components/invite/InviteLanding.tsx`):
+  **Sign in** in the top corner; the breathing mark; **WillpowerLab**; **See an example** right under the
+  name (the two paragraphs of N277 are gone from this page: "you can remove it"); the link field; and
+  **No link yet? Join the waitlist** under it. **Enter the lab** is gone from this page. The example opens
+  as N277 has it; its **Try it with your talk** comes back to the field. The iPhone app opens on this page
+  (was: on sign-in), without the journal.
+- **The link field** (`LinkField.tsx`) is drawn as the message field of Will's chat: rounded, a thin border
+  that turns orange while you type, 15px, the hint **Paste your link**, and the send arrow inside it only once
+  something is typed. A link that opens goes to the join page (`/c/<token>`); anything else shows **This link
+  doesn’t work. Ask whoever sent it for a new one.** under the field.
+- **The waitlist** (`/signup?waitlist=1`): **Join the waitlist with:** and one button per way, named by its
+  brand: WhatsApp, LinkedIn, Google, Email; in the iPhone app Apple's own button comes first, with Apple's own
+  words, as Apple's rules ask (on the web there is no Sign in with Apple).
+- **You’re on the waitlist** (`WaitingScreen.tsx`), every time a waiting account opens the app: the line
+  **If we say yes, we’ll email a link to {email}.** and the link field.
+- **Members only** (`MembersOnly.tsx`, around `/chat`): signed out, the app goes to the first page (a deep
+  link such as the coach's feedback goes to sign in and back); a waiting account sees the waitlist; a member
+  gets the app as before. There is no guest path.
+- **The in-app welcome** (`WelcomeConsent.tsx`), the first step of the consent screens for a new member, stays
+  as it is, with its two paragraphs and **Enter the lab**, which opens the acceptance screen.
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
@@ -375,6 +403,8 @@ Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 - `src/components/willab/Mlc2FounderConsentGate.tsx` — the founder's consent gate (guarded since N111).
 - `src/components/willab/ConsentAsk.tsx` — a consent ask: the training yes and the share choices (guarded since N111).
 - `src/components/legal/PublishedPolicyText.tsx` — the published policy text in its window (guarded since N111).
+- `src/components/invite/` — by invitation (N471): the first page, the link field, the waiting screen, members only and their words.
+- `src/app/page.client.tsx` — the first page's shell: signed-in visitors go to the app; the iPhone app shows the first page without the journal (N471).
 
 Backend (`wilplus/backend-cursor`): the lock file this page replaces, [`docs/FOUNDER-LOCK-consent-screens-2026-10-07.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-consent-screens-2026-10-07.md) (history).
 
@@ -391,11 +421,13 @@ Every prototype link in §1, in the order it first appears:
 - <https://claude.ai/artifact/5tNVcdnq9PjkTyHHm9hzfT>
 - <https://claude.ai/artifact/MVyWmdoWUqisttfkW8qb8D>
 - <https://claude.ai/artifact/VqrCoZ3ddRkkiSayMfnTJp>
+- <https://claude.ai/artifact/HSELYXuS99xctnHRVBo1e4>
 
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-04 · N471 · §1: by invitation. The first page is design B on the web and in the iPhone app (Sign in, the mark, the name, See an example, the link field, No link yet? Join the waitlist; Enter the lab and the two paragraphs leave this page); the waitlist page; You’re on the waitlist; members only around `/chat`, no guest path. The in-app welcome stays · BE (membership), FE (this PR)
 - 2026-11-03 · N416 · §1: the coach's Training corpus row leaves the ☰ menu; the corpus opens from the CEO panel ([`coach-panel.md`](coach-panel.md) H1). Was: a coach-only row to /coach/corpus · FE (this PR)
 - 2026-11-03 · N367, N196, N365 · §1: the ☰ menu, signed in: you, Copy my link, Settings, Tokens, Sign out (was: the email, Lab, Settings, Tokens, Log out); iPhone-Settings icons; Tokens opens nothing in the iPhone app; "Sign out" replaces "Log out" · FE (this PR)
 - 2026-11-02 · N203, N204 · §2: "The plan's questions after the acceptance" closed: built with the plan, ring 5 (since 27 October 2026). "Agree and continue" opens the Lounge, which reads the plan as it opens and begins its questions for a new speaker the ring row `plan` reaches, the empty Lounge's button held meanwhile ([`the-plan.md`](the-plan.md) A1, B1). Was: listed as decided (backend N136, N146), not built · docs (this PR)

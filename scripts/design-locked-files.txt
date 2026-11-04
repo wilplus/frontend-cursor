@@ -53,6 +53,7 @@ src/lib/willab/recordingGesture.ts
 # ── The consent screens and the Data & consent page (founder, 2026-10-07, N60; ST1 A)
 src/components/willab/Phase1AcceptanceFlow.tsx
 src/components/willab/WelcomeConsent.tsx
+src/components/invite/
 # The policy update prompt (founder 2026-10-15, https://claude.ai/artifact/GPRRXaivyrZE2UjrRZY93K)
 src/components/willab/PolicyUpdate.tsx
 src/app/account/data-consent/page.tsx

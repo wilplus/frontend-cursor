@@ -80,6 +80,8 @@ docs/flows/consent-screens.md
   src/components/willab/Mlc2FounderConsentGate.tsx
   src/components/willab/ConsentAsk.tsx
   src/components/legal/PublishedPolicyText.tsx
+  src/components/invite/
+  src/app/page.client.tsx
 
 docs/flows/ideal-text.md
   src/components/willab/IdealTextOverlay.tsx
