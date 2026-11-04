@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import CeoBugCapture from "@/components/ceo/CeoBugCapture";
 import { useCeoCorpus } from "@/components/ceo/CeoCorpus";
+import CeoReports, { REPORTS } from "@/components/ceo/CeoReports";
 import CeoTasks from "@/components/ceo/CeoTasks";
 import { cn } from "@/lib/utils";
 import { withSessionBearer } from "@/lib/api/sessionBearer";
@@ -65,6 +66,9 @@ export default function CeoWorkspace() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [state, setState] = useState<CeoViewState>(() => initialState([]));
   const [bugDraft, setBugDraft] = useState("");
+  // The chats' reports (backend N466): a tab of this page only, not a
+  // surface the backend remembers.
+  const [reports, setReports] = useState(false);
   const corpus = useCeoCorpus();
   useEffect(() => {
     setBugDraft(window.localStorage.getItem(`ceo-bug-draft-${project}`) ?? "");
@@ -174,11 +178,14 @@ export default function CeoWorkspace() {
                 <button
                   key={surface}
                   type="button"
-                  onClick={() => updateState({ surface })}
-                  aria-current={state.surface === surface ? "page" : undefined}
+                  onClick={() => {
+                    setReports(false);
+                    updateState({ surface });
+                  }}
+                  aria-current={!reports && state.surface === surface ? "page" : undefined}
                   className={cn(
                     "rounded-md px-3 py-1 text-[13px] font-medium text-muted-foreground transition-colors",
-                    state.surface === surface &&
+                    !reports && state.surface === surface &&
                       "bg-background text-foreground shadow-sm"
                   )}
                 >
@@ -186,6 +193,18 @@ export default function CeoWorkspace() {
                 </button>
               )
             )}
+            <button
+              type="button"
+              onClick={() => setReports(true)}
+              aria-current={reports ? "page" : undefined}
+              data-testid="ceo-reports-button"
+              className={cn(
+                "rounded-md px-3 py-1 text-[13px] font-medium text-muted-foreground transition-colors",
+                reports && "bg-background text-foreground shadow-sm"
+              )}
+            >
+              {REPORTS}
+            </button>
             {/* The training corpus, moved here from the coach's side
                 (backend N416): opens over the panel, ✕ comes back. */}
             <button
@@ -200,14 +219,15 @@ export default function CeoWorkspace() {
         </div>
 
         <section className="mt-6 min-h-[65vh]">
-          {state.surface === "bugs" ? (
+          {reports ? <CeoReports /> : null}
+          {!reports && state.surface === "bugs" ? (
             <CeoBugCapture
               project={project}
               value={bugDraft}
               onChange={updateBugDraft}
             />
           ) : null}
-          {state.surface === "tasks" ? (
+          {!reports && state.surface === "tasks" ? (
             <CeoTasks project={project} features={features} />
           ) : null}
         </section>
