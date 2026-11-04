@@ -81,6 +81,9 @@ export interface LoungeHistoryPage {
   has_more: boolean;
   /** Pass as `before` to fetch the next-older page; null when none. */
   oldest_cursor: string | null;
+  /** The read got no usable answer (network, a non-2xx answer, no
+   *  session): the empty page says nothing about the thread. */
+  failed?: true;
 }
 
 /**
@@ -151,7 +154,8 @@ async function authHeaders(): Promise<Record<string, string> | null> {
 /**
  * Fetch one page of history. `before` (an `oldest_cursor`) pages older.
  * Soft-fails to an empty page on any error — the Lounge mount must never
- * be blocked by a history fetch (mirrors the BE's own soft-fail).
+ * be blocked by a history fetch (mirrors the BE's own soft-fail) — marked
+ * `failed`, so a read again keeps what is on screen.
  */
 export async function fetchLoungeHistory(opts?: {
   limit?: number;
@@ -169,7 +173,7 @@ export async function fetchLoungeHistory(opts?: {
   const data = (await bffOkBody(`${ENDPOINT}?${qs.toString()}`, { cache: "no-store" })) as
     | (LoungeHistoryPage & { new_coach_feedback?: unknown })
     | null;
-  if (!data || !Array.isArray(data.messages)) return empty;
+  if (!data || !Array.isArray(data.messages)) return { ...empty, failed: true };
   // The newest page carries the Ideal Text bubble's "new", one yes/no per
   // project (D-FW-19; backend 0439). Absent or unreadable: what is known
   // stays, never a guess.

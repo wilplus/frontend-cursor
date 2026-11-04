@@ -29,13 +29,29 @@ OUTCOME
       "Keep mine" and a skipped try, the helper words come on their own
       through the deck's own save (the lock, then the words), marked whole
       (N323 item 2), both moments lose their black line, and Close under
-      "Lesson done." asks the summary once and goes back to the chat (N309).
+      "Lesson done." asks the summary once and goes back to the chat (N309);
+      other speakers' moment is asked as the walk opens (N309 item 2);
+      ✕ on the finished walk asks it once too, so the chat after the walk
+      always comes (C9, B11), but not for an older Take played again under
+      a newer Take, nor when the chat cannot tell (D4, between two Takes);
+      a page opened again while it is still written never asks it twice;
+      a finished Take's page opened later asks it with the try and the
+      helper words its chat kept (D2, E1).
   O10 With no moment to fix, the pace game is the One thing walk's fix,
       and its opening keeps its tip, "give “{words}” more room" with the
       Sniper's helper words, in the chat for "Last time" next Take (N347
       item 3); its scale names its zones "too slow", "just right", "too
       fast", and Skip gets "Okay, we'll skip this one." in the walk and the
-      chat (N405).
+      chat (N405). The chat says "And now, one thing to improve:", the
+      stretch's clip and the Sniper's line in the walk's order (E2).
+  O11 The walk opens whole, behind the wait: my name in the hello and Last
+      time from the server's tip before my best, never longer than its
+      bound (C0, C0a, A2).
+  O12 A walk closed during its Clearer version's try opens again on the
+      Clearer version, never the AI clip (N381).
+  O13 A Sniper only opened, then left with ✕ before a try, is still to
+      play: a door opened while the Take still waits plays it live, with
+      its Try it and Skip (B10, T).
 PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's sheet"
          O2 -> "‹ › move through the walk's chat, never answering and never
                 closing it (founder 2026-10-20)"
@@ -50,8 +66,16 @@ PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's 
                 given, never its practise again (founder 2026-10-21)"
          O8 -> "a confident voice whose words are reworded gets its helper
                 words after the rewording (founder 2026-10-22, N113)"
-         O9 -> "the One thing walk saves its helper words without a pick, settles both moments and asks the summary once at Close (N309)"
+         O9 -> "the One thing walk saves its helper words without a pick, settles both moments and asks the summary once at Close (N309)",
+               "✕ on the finished walk asks the summary once, as Close does, so the chat after the walk comes (C9, B11)",
+               "an older Take's finished walk, played again and closed with ✕ under a newer Take, asks no summary (D4, between two Takes)",
+               "a page opened again while the summary is still written asks it no second time, the dots on until it ends (C9, D4)",
+               "a finished Take's page opened later asks the summary with the try and the helper words its chat kept (D2, E1)"
          O10 -> "the pace game as the walk's fix keeps its tip in the chat, for Last time next Take (N347 item 3)"
+         O11 -> "the walk opens whole, behind the wait: my name in the hello and Last time from the server's tip, before my best (C0, C0a)",
+                "the walk never waits on its reads past its bound: a profile that never answers opens it with \"Hi.\""
+         O12 -> "a walk closed during its Clearer version's try opens again on the Clearer version, never the AI clip (N381)"
+         O13 -> "a Sniper opened, then left with ✕ before a try, is played live from a door while the Take still waits (B10, T)"
 WHY      Feedback walk lock 2026-10-06/2026-10-12; founder 2026-10-21 ("the
          black lines on the ideal text are still there even though I walked
          through them"); 2026-10-22 (N113, "After the rewording"). The
@@ -62,6 +86,7 @@ import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
+import { WALK_OPEN_WAIT_MS } from "./useDeckFeedbackWalk";
 import { GuestGateContext } from "./GuestSignUpDialog";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "./idealEditCopy";
 import { TEMPO_COPY } from "@/lib/willab/tempoStep";
@@ -71,6 +96,7 @@ import { PRAISE_CUE_COPY, PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
 import type { Part } from "@/lib/willab/documentParts";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import { FOUNDER_EMAIL } from "@/lib/founder";
+import { forgetSharedUserProfile } from "@/services/api/userProfile";
 
 vi.mock("@/services/api/takeFeedback", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/api/takeFeedback")>()),
@@ -199,7 +225,13 @@ beforeEach(() => {
   vi.mocked(saveTakeFeedbackResponse).mockClear();
   vi.mocked(reportMomentEvent).mockClear();
   window.localStorage.clear();
-  vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 404 })));
+  // Nothing served but the tempo route's "no stretch", which the walk's
+  // opening waits for (`walkReady`); a failed read would be asked again.
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) =>
+    String(input).includes("/review/tempo/")
+      ? new Response(JSON.stringify({ tempo: null }), { status: 200, headers: { "Content-Type": "application/json" } })
+      : new Response("{}", { status: 404 }),
+  ));
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -499,10 +531,16 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     } as unknown as DocumentSuggestion;
     const fixVoice = { ...judgement, bookmarkTier: "standard", practicePrompt: true, walkSlot: "between" } as unknown as DocumentSuggestion;
     const onClose = vi.fn();
+    const append = vi.fn(async (draft: unknown) => draft);
+    chat.thread = { messages: [], loading: false, append, reload: vi.fn(async () => undefined) };
     const p = props({ suggestions: [best, fixVoice, fix], onLensClose: onClose });
     await render(p);
     await render({ ...p, reviewRequest: 1 });
     expect(screen()).toBe("walk-screen-praise");
+    // Other speakers' moment is asked as the walk opens, so it is there
+    // when the walk gets to it (N309 item 2): Take 2's level is high.
+    const queued = vi.mocked(fetch).mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/communities/queue"));
+    expect(queued).toEqual([expect.stringContaining("take=take-2&level=high")]);
     expect(live()!.textContent).toContain("Why it worked: smooth and steady, no stumbling.");
     await click(live()!.querySelector("[data-testid='walk-forward']"));
     expect(screen()).toBe("walk-screen-clearer");
@@ -510,6 +548,9 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     expect(p.onKeepMine).toHaveBeenCalled();
     // Their own sentence, on the recorder; its trash is the Skip (N435 item 3).
     expect(screen()).toBe("walk-screen-practise");
+    // The walk's answer stays in the chat too, once (N452 item 1).
+    const drafts = () => append.mock.calls.map(([d]) => d as { body: string; metadata: Record<string, unknown> });
+    expect(drafts().filter((d) => d.metadata.step === "practise").map((d) => d.body)).toEqual([ONE_THING_COPY.keepWords]);
     await click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
     await act(async () => undefined);
     // The helper words, on their own: "retention went up", their own words,
@@ -534,16 +575,193 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("✕ on the finished walk asks the summary once, as Close does, so the chat after the walk comes (C9, B11)", async () => {
+    const onClose = vi.fn();
+    // The chat's newest recording is this Take's own (D4, between two
+    // Takes), and the chat keeps what the walk posts.
+    const recorded = { client_id: "rec-2", role: "system", kind: "recording_summary", body: "", metadata: { session_id: "take-2", arc_id: "arc-1", take_index: 2 }, client_created_at: "" };
+    const thread = {
+      messages: [recorded] as unknown[],
+      loading: false,
+      append: vi.fn(async (d: { clientId: string; role: string; kind: string; body: string; metadata: Record<string, unknown> }) => {
+        thread.messages = [...thread.messages, { client_id: d.clientId, role: d.role, kind: d.kind, body: d.body, metadata: d.metadata, client_created_at: "" }];
+        return d;
+      }),
+      reload: vi.fn(async () => undefined),
+    };
+    chat.thread = thread;
+    const p = props({ suggestions: [best], onLensClose: onClose });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    expect(screen()).toBe("walk-screen-praise");
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    await act(async () => undefined);
+    expect(screen()).toBe("walk-screen-done");
+    const fetched = () => vi.mocked(fetch).mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/review/summary"));
+    expect(fetched()).toEqual([]);
+    await click(live()!.querySelector("button[aria-label='Close']"));
+    await act(async () => undefined);
+    expect(fetched()).toHaveLength(1);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("an older Take's finished walk, played again and closed with ✕ under a newer Take, asks no summary (D4, between two Takes)", async () => {
+    // Take 2 of this project ended with no summary; a Take of another
+    // project was recorded since, so the chat's newest recording is its.
+    const row = (client_id: string, kind: string, metadata: Record<string, unknown>, role = "bot") => ({ client_id, role, kind, body: "", metadata, client_created_at: "" });
+    const messages = [
+      row("rec-2", "recording_summary", { session_id: "take-2", arc_id: "arc-1", take_index: 2 }, "system"),
+      row("end-2", "walk_step", { step: "end", take_session_id: "take-2", arc_id: "arc-1", take_index: 2 }),
+      row("rec-b1", "recording_summary", { session_id: "take-b1", arc_id: "arc-b", take_index: 1 }, "system"),
+    ];
+    chat.thread = { messages, loading: false, append: vi.fn(async (draft: unknown) => draft), reload: vi.fn(async () => undefined), setWriting: vi.fn() };
+    const p = props({ suggestions: [{ ...best, status: "approved" } as DocumentSuggestion] });
+    await render(p);
+    await act(async () => undefined);
+    const fetched = () => vi.mocked(fetch).mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/review/summary"));
+    // The page opening asks nothing either.
+    expect(fetched()).toEqual([]);
+    await render({ ...p, replayRequest: 1 } as typeof p);
+    await act(async () => undefined);
+    expect(screen()).toBe("walk-screen-praise");
+    await click(live()!.querySelector("button[aria-label='Close']"));
+    await act(async () => undefined);
+    expect(fetched()).toEqual([]);
+  });
+
+  it("a page opened again while the summary is still written asks it no second time, the dots on until it ends (C9, D4)", async () => {
+    let answer: (r: Response) => void = () => undefined;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/review/summary")) return new Promise<Response>((done) => (answer = done));
+      if (url.includes("/review/tempo/")) return new Response(JSON.stringify({ tempo: null }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response("{}", { status: 404 });
+    }));
+    const row = (client_id: string, kind: string, metadata: Record<string, unknown>, role = "bot") => ({ client_id, role, kind, body: "", metadata, client_created_at: "" });
+    const messages = [
+      row("rec-2", "recording_summary", { session_id: "take-2", arc_id: "arc-1", take_index: 2 }, "system"),
+      row("end-2", "walk_step", { step: "end", take_session_id: "take-2", arc_id: "arc-1", take_index: 2 }),
+    ];
+    const setWriting = vi.fn();
+    chat.thread = { messages, loading: false, append: vi.fn(async (draft: unknown) => draft), reload: vi.fn(async () => undefined), setWriting };
+    const p = props({ suggestions: [{ ...best, status: "approved" } as DocumentSuggestion] });
+    const fetched = () => vi.mocked(fetch).mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/review/summary"));
+    // The finished Take's page asks as it opens, then is closed and opened
+    // again while the summary is still being written.
+    await render(p);
+    await act(async () => undefined);
+    expect(fetched()).toHaveLength(1);
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await render(p);
+    await act(async () => undefined);
+    expect(fetched()).toHaveLength(1);
+    expect(setWriting.mock.calls).toEqual([[true]]);
+    // The one ask ends (here, failed): the dots go, and a later end may ask again.
+    await act(async () => answer(new Response("{}", { status: 404 })));
+    expect(setWriting.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it("a finished Take's page opened later asks the summary with the try and the helper words its chat kept (D2, E1)", async () => {
+    // The walk ended at "Lesson done." with no Close: its try landed and
+    // the speaker picked their words, all kept in the chat, no summary yet.
+    const row = (client_id: string, kind: string, metadata: Record<string, unknown>, role = "bot", body = "") => ({ client_id, role, kind, body, metadata, client_created_at: "" });
+    const step = (step: string, author = "app") => ({ step, author, take_session_id: "take-2", arc_id: "arc-1", take_index: 2 });
+    const messages = [
+      row("rec-2", "recording_summary", { session_id: "take-2", arc_id: "arc-1", take_index: 2 }, "system"),
+      row("improved-2", "walk_step", step("improved"), "bot", "That sounded clearer."),
+      row("words-2", "walk_step", step("words:p2:retention went up", "speaker"), "user", "retention went up"),
+      row("end-2", "walk_step", step("end")),
+    ];
+    chat.thread = { messages, loading: false, append: vi.fn(async (draft: unknown) => draft), reload: vi.fn(async () => undefined), setWriting: vi.fn() };
+    await render(props({ suggestions: [{ ...best, status: "approved" } as DocumentSuggestion] }));
+    await act(async () => undefined);
+    const asked = vi.mocked(fetch).mock.calls.filter((c) => String(c[0]).includes("/review/summary"));
+    expect(asked).toHaveLength(1);
+    expect(JSON.parse(String((asked[0][1] as RequestInit).body))).toMatchObject({ practice: "better", helper_words: ["retention went up"] });
+  });
+
+  it("the walk opens whole, behind the wait: my name in the hello and Last time from the server's tip, before my best (C0, C0a)", async () => {
+    // The profile answers late; the walk waits for it, never saying "Hi."
+    // first and swapping it in place.
+    let named: (r: Response) => void = () => undefined;
+    const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/user/profile")) return new Promise<Response>((done) => (named = done));
+      if (url.includes("/review/last-fix/take-2")) {
+        return json({ last: { kind: "voice", slide_index: 0, clip: { url: "https://media/last.wav", snippet_id: "snip-best" } }, tip: "Lean on “today”" });
+      }
+      if (url.includes("/review/tempo/")) return json({ tempo: null });
+      return new Response("{}", { status: 404 });
+    }));
+    forgetSharedUserProfile();
+    try {
+      const p = props({ suggestions: [best] });
+      await render(p);
+      await render({ ...p, reviewRequest: 1 });
+      expect(live()).toBeNull();
+      await act(async () => named(json({ first_name: "Maya" })));
+      expect(screen()).toBe("walk-screen-praise");
+      expect(live()!.querySelector("[data-walk-hello]")!.textContent).toBe("Hi Maya.");
+      // The tip the server read from the last walk's fix step: the chat need
+      // not hold it (C-LASTFIX).
+      expect(live()!.querySelector("[data-walk-last]")!.textContent).toBe(ONE_THING_COPY.lastTime("lean on “today”"));
+    } finally {
+      forgetSharedUserProfile();
+    }
+  });
+
+  it("the walk never waits on its reads past its bound: a profile that never answers opens it with \"Hi.\"", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) =>
+      String(input).includes("/user/profile") ? new Promise<Response>(() => undefined) : new Response("{}", { status: 404 }),
+    ));
+    forgetSharedUserProfile();
+    try {
+      const p = props({ suggestions: [best] });
+      await render(p);
+      await render({ ...p, reviewRequest: 1 });
+      expect(live()).toBeNull();
+      await act(async () => {
+        vi.advanceTimersByTime(WALK_OPEN_WAIT_MS);
+      });
+      expect(screen()).toBe("walk-screen-praise");
+      expect(live()!.querySelector("[data-walk-hello]")!.textContent).toBe(ONE_THING_COPY.hello(null));
+    } finally {
+      vi.useRealTimers();
+      forgetSharedUserProfile();
+    }
+  });
+
+  it("a walk closed during its Clearer version's try opens again on the Clearer version, never the AI clip (N381)", async () => {
+    // "Keep mine" was tapped: the rewrite is decided, the moment still waits.
+    const kept = {
+      ...base, id: "s-fix", start: at, kind: "replace", proposedText: "retention rose", status: "dismissed",
+      feedbackFamily: "rewrite_clarity", source: "new_take", blockKey: 2, bookmarkTier: "standard",
+      practicePrompt: true, walkSlot: "between",
+    } as unknown as DocumentSuggestion;
+    const fixVoice = { ...judgement, bookmarkTier: "standard", practicePrompt: true, walkSlot: "between" } as unknown as DocumentSuggestion;
+    const p = props({ suggestions: [best, fixVoice, kept] });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    expect(screen()).toBe("walk-screen-praise");
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    expect(screen()).toBe("walk-screen-clearer");
+  });
+
   it("the pace game as the walk's fix keeps its tip in the chat, for Last time next Take (N347 item 3)", async () => {
     who.email = FOUNDER_EMAIL;
     const append = vi.fn(async (draft: unknown) => draft);
     chat.thread = { messages: [], loading: false, append, reload: vi.fn(async () => undefined) };
     // No moment to fix: the Take's rushed stretch is the fix, the pace game.
+    // The stretch as said, hesitation and case and all, is found in the
+    // smoothed paragraph all the same, on the slide the answer names.
     const stretch = "retention went up, churn went down";
     const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) =>
       String(input).includes("/review/tempo/take-2")
-        ? json({ tempo: { reading: "rushed", topic: "the pilot", said: { before: "Three things stood out: ", stretch, after: "" } } })
+        ? json({ tempo: { reading: "rushed", topic: "that part", slide_index: 1, snippet_id: "snip-stretch", said: { before: "Three things stood out: ", stretch: "Retention went up, um, churn went down", after: "" } } })
         : new Response("{}", { status: 404 }),
     ));
     const p = props({ suggestions: [best] });
@@ -552,10 +770,19 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     expect(screen()).toBe("walk-screen-praise");
     await click(live()!.querySelector("[data-testid='walk-forward']"));
     expect(screen()).toBe("walk-screen-tempo");
+    // The bar names the stretch's slide (N435 item 7).
+    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Results");
     const opening = append.mock.calls
       .map(([draft]) => (draft as { metadata: Record<string, unknown> }).metadata)
       .find((m) => m.step === "tempo:open");
     expect(opening?.fix_tip).toBe(ONE_THING_COPY.paceTip(stretch));
+    // In the chat as in the walk: "And now, one thing to improve:", the
+    // stretch's clip as the speaker's, then the Sniper's line; the clip names
+    // its recording, so Will's question after the walk quotes the stretch (E2).
+    const steps = append.mock.calls.map(([draft]) => (draft as { metadata: Record<string, unknown> }).metadata);
+    const order = ["one", "clip:tempo", "tempo:open"].map((step) => steps.findIndex((m) => m.step === step));
+    expect(order.every((i, k) => i >= 0 && (k === 0 || i > order[k - 1]))).toBe(true);
+    expect(steps.find((m) => m.step === "clip:tempo")?.clip).toMatchObject({ snippet_id: "snip-stretch" });
     // Its scale names its three zones, left to right (N405).
     expect([...live()!.querySelectorAll("[data-walk-scale-ends] span")].map((n) => n.textContent)).toEqual([...TEMPO_COPY.ends]);
     // Skip: the walk's answer to it, in the walk and in the chat (N405), with
@@ -565,5 +792,44 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     const told = append.mock.calls.map(([draft]) => draft as { body: string; metadata: Record<string, unknown> });
     expect(told.find((d) => d.metadata.step === "tempo:skipped")?.body).toBe(ONE_THING_COPY.skipped);
     expect(told.find((d) => d.metadata.step === "tempo:skip")).toBeUndefined();
+  });
+
+  it("a Sniper opened, then left with ✕ before a try, is played live from a door while the Take still waits (B10, T)", async () => {
+    // The server chose the Sniper; the chat keeps what the walk posts.
+    type Draft = { clientId: string; role: string; kind: string; body: string; metadata: Record<string, unknown> };
+    const thread = {
+      messages: [] as unknown[],
+      loading: false,
+      append: vi.fn(async (d: Draft) => {
+        thread.messages = [...thread.messages, { client_id: d.clientId, role: d.role, kind: d.kind, body: d.body, metadata: d.metadata, client_created_at: "" }];
+        return d;
+      }),
+      reload: vi.fn(async () => undefined),
+    };
+    chat.thread = thread;
+    const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) =>
+      String(input).includes("/review/tempo/take-2")
+        ? json({ tempo: { reading: "rushed", topic: "that part", slide_index: 1, snippet_id: "snip-stretch", said: { before: "Three things stood out: ", stretch: "retention went up, churn went down", after: "" } } })
+        : new Response("{}", { status: 404 }),
+    ));
+    // Their best still waits here, as another moment of the Take would.
+    const p = props({ suggestions: [{ ...best, oneFix: "tempo" } as DocumentSuggestion] });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    expect(screen()).toBe("walk-screen-tempo");
+    // ✕ before a try: only the Sniper's opening is in the chat.
+    await click(live()!.querySelector("button[aria-label='Close']"));
+    const steps = () => thread.messages.map((m) => (m as { metadata: { step: string } }).metadata.step);
+    expect(steps()).toContain("tempo:open");
+    expect(steps().filter((s) => /^tempo:(try|skip|skipped|close)$/.test(s))).toEqual([]);
+    chat.thread = { ...thread, messages: [...thread.messages] };
+    await render({ ...p });
+    await click(paragraph("Today I want"));
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    expect(screen()).toBe("walk-screen-tempo");
+    expect(live()!.querySelector("[data-testid='walk-tempo-ready']")).not.toBeNull();
+    expect(live()!.querySelector("[data-testid='walk-tempo-skip']")).not.toBeNull();
   });
 });

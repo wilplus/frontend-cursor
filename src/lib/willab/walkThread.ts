@@ -12,7 +12,7 @@
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "@/components/willab/idealEditCopy";
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import type { RootPhraseSpan } from "@/services/api/partLock";
-import type { FeedbackWalkMoment, WalkStepTarget } from "./feedbackWalkModel";
+import type { FeedbackWalkMoment, ReplayFixClip, WalkStepTarget } from "./feedbackWalkModel";
 import { shareChoiceOf, ticksOf, type ShareChoiceMeta } from "./nextTakeShare";
 import { HELPER_WORDS_MAX, quoteSpan } from "./phraseTokens";
 import { isFiller } from "./liveNoteWords";
@@ -320,6 +320,23 @@ export function lastFixTip(
   return found && found.index === takeIndex - 1 ? found.tip : null;
 }
 
+/** The One thing walk's fix as `take`'s chat kept it, by the moment's
+ *  paragraph: the practice whose AI clip it showed (`ai_voice.practice_id`)
+ *  and the tip it said (`fix_tip`). A walk played again reads the clip by
+ *  it, or says the tip in words (N373 item 2). Pure. */
+export function fixClipsIn(messages: readonly LoungeMessage[], take: string): ReadonlyMap<string, ReplayFixClip> {
+  const out = new Map<string, ReplayFixClip>();
+  for (const m of messages) {
+    const meta = m.metadata ?? {};
+    if (m.kind !== "walk_step" || meta.take_session_id !== take || meta.step !== "exVideo" || typeof meta.part_id !== "string") continue;
+    const ai = meta.ai_voice && typeof meta.ai_voice === "object" ? (meta.ai_voice as Record<string, unknown>) : null;
+    const practiceId = typeof ai?.practice_id === "string" && ai.practice_id ? ai.practice_id : null;
+    const tip = typeof meta.fix_tip === "string" && meta.fix_tip.trim() ? meta.fix_tip.trim() : null;
+    if (practiceId || tip) out.set(meta.part_id, { practiceId, tip });
+  }
+  return out;
+}
+
 /** How many of other speakers' moments the speaker judged in `take`'s walk:
  *  their "👍 Yes" bubbles in the chat (`answer:others`). The judging
  *  reopened from the Lounge shows that many, answered. Pure. */
@@ -355,22 +372,37 @@ export function helperWordsSaid(words: string): string {
   return words.replace(/^[\p{P}\s]+|[\p{P}\s]+$/gu, "") || words;
 }
 
-/** Hesitations a sentence can open with: the note's fillers, and the
+/** Hesitations a sentence can open with besides the note's fillers: the
  *  words people start on while they find the sentence. */
-const OPENERS = new Set(["so", "well", "okay", "ok", "like", "yeah", "right"]);
+const OPENERS = new Set(["okay", "ok", "yeah"]);
+
+/** Openers that are a hesitation only when a pause follows them ("So,",
+ *  "Well —", "So um"); run straight into the sentence they are its words
+ *  ("Right now", "Well over", "So far", "Like many"). */
+const PAUSED_OPENERS = new Set(["so", "well", "like", "right"]);
+
+/** Ends on punctuation ("So,"), or is punctuation alone ("—"). */
+const pauses = (word: string | undefined): boolean => word !== undefined && /[^\p{L}\p{N}]$/u.test(word);
+
+/** `words[i]` is a hesitation the sentence opens with. Pure. */
+function hesitation(words: readonly string[], i: number): boolean {
+  const word = words[i];
+  if (word === undefined) return false;
+  const bare = word.toLowerCase().replace(/[^a-z]/g, "");
+  if (isFiller(word) || OPENERS.has(bare)) return true;
+  if (!PAUSED_OPENERS.has(bare)) return false;
+  return pauses(word) || (i + 1 < words.length && !/[\p{L}\p{N}]/u.test(words[i + 1])) || hesitation(words, i + 1);
+}
 
 /** `sentence` without the hesitations it opens with ("So, um, I think…"
  *  gives "I think…"): the helper words after "Keep mine" (backend N435 item
- *  5). The rest is kept whole; a sentence of nothing else stays as it is.
- *  Pure. */
+ *  5). The rest is kept whole ("Right now…", "Well over…" stay as they
+ *  are); a sentence of nothing else stays as it is. Pure. */
 export function withoutOpeningFillers(sentence: string): string {
   const words = sentence.trim().split(/\s+/);
   let i = 0;
-  while (i < words.length - 1) {
-    const bare = words[i].toLowerCase().replace(/[^a-z]/g, "");
-    if (!isFiller(words[i]) && !OPENERS.has(bare)) break;
-    i += 1;
-  }
+  // A dash or other mark between hesitations goes with them.
+  while (i < words.length - 1 && (hesitation(words, i) || (i > 0 && !/[\p{L}\p{N}]/u.test(words[i])))) i += 1;
   return i === 0 ? sentence.trim() : words.slice(i).join(" ");
 }
 
@@ -516,6 +548,10 @@ function oneThingSaid(
       return app(line ?? thanksLine(one, 0));
     case "done":
       return app(ONE_THING_COPY.lessonDone);
+    case "practise":
+      // "Your words it is." after "Keep mine", above the first try, as the
+      // walk draws it (N452 item 1: the walk's own answers stay in the chat).
+      return !step.replay && step.kind === "keep" && (step.attempt ?? 1) === 1 ? app(ONE_THING_COPY.keepWords) : null;
     default:
       return undefined;
   }
@@ -626,12 +662,20 @@ export type ChatWalk = {
 
 const takeOf = (m: LoungeMessage) => (typeof m.metadata?.take_session_id === "string" ? m.metadata.take_session_id : null);
 
+/** "Your words it is." after "Keep mine" (N452 item 1): the walk's answer
+ *  to the speaker's choice, kept in the chat, but never a part of the walk
+ *  nor the step the review waits on. A door on it would stand the walk on
+ *  the live recorder; the Clearer version it answers stays the door. */
+export function walkAnswerRow(m: LoungeMessage): boolean {
+  return m.kind === "walk_step" && m.metadata?.step === "practise";
+}
+
 /** A step that stands for a part of the walk: the app's or the coach's
  *  bubble on a moment, the coach's word, the helper words. Not Other
  *  speakers (an old judging bubble opens new moments, C8). */
 function partStep(m: LoungeMessage): boolean {
   const meta = m.metadata ?? {};
-  if (m.role !== "bot" || meta.coach_update === true) return false;
+  if (m.role !== "bot" || meta.coach_update === true || walkAnswerRow(m)) return false;
   return typeof meta.moment === "number" || meta.step === "coachnote" || meta.step === "helpers";
 }
 

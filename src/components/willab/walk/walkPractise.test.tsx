@@ -124,7 +124,7 @@ let answers: Answer[];
 let uploadFails: boolean;
 /** The AI clip's ask: on its way (then ready), none coming, or none
  *  coming though the server chose what it would fix (N370). */
-let aiClip: "coming" | "none" | "chosen" | "late";
+let aiClip: "coming" | "none" | "chosen" | "late" | "video" | "error";
 /** "late": the clip stays on its way, its fix named, until this is true. */
 let aiLateReady: boolean;
 let calls: { method: string; url: string; body: unknown }[];
@@ -185,6 +185,10 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
       );
     }
     if (aiClip === "chosen") return Promise.resolve(json({ demo: "none", clip: { state: "unavailable", url: null, problem: "pause", phrase: AI_PHRASE } }));
+    // A coach's video for the exercise: final while the clip is still made.
+    if (aiClip === "video") return Promise.resolve(json({ demo: "video", clip: { state: "pending", url: null, problem: "pause", phrase: AI_PHRASE } }));
+    // The start fails on the server (its own error answer); the prewarm's clip is there.
+    if (aiClip === "error" && method === "POST") return Promise.resolve(json({ demo: "none", clip: null }));
     const ready = method === "GET";
     return Promise.resolve(
       json({
@@ -767,6 +771,25 @@ describe("the One thing walk's fix with no AI clip (founder 2026-11-03, N370)", 
     const bubble = [...live()!.querySelectorAll("[data-walk-player][data-walk-me]")].at(-1)!;
     expect(bubble.querySelector("[data-walk-try-words]")!.textContent).toBe(EXERCISE_OFFER.passage);
     expect(bubble.textContent).not.toContain(WALK_COPY.practiseN(1));
+  });
+
+  it("a served video takes the clip's place at once, with no dots waiting on a clip it never shows (C6, N370)", async () => {
+    aiClip = "video";
+    const video = "https://media.example/coach.mp4";
+    const items = [ONE_ITEMS[0], { ...ONE_ITEMS[1], exercise: { ...ONE_ITEMS[1].exercise!, video, byCoach: true } }];
+    draw({ items, at: fixAt(items), clipWaitMs: 60_000, takeId: "take-video" });
+    await settle(10);
+    expect(screen()).toBe("walk-screen-exVideo");
+    expect(live()!.querySelector("[data-walk-ai-typing], [data-walk-ai-waiting], [data-walk-ai-voice]")).toBeNull();
+    expect(live()!.querySelector(`video[src='${video}']`)).not.toBeNull();
+    expect([...live()!.querySelectorAll("[data-walk-no-clip]")].map((n) => n.textContent)).toContain(EXERCISE_OFFER.instruction);
+  });
+
+  it("a start the server could not answer still shows the clip already made (N373 item 1)", async () => {
+    aiClip = "error";
+    draw({ items: ONE_ITEMS, at: fixAt(ONE_ITEMS), takeId: "take-error" });
+    await settle(60);
+    expect(live()!.querySelector("audio[src='https://media.example/ai.mp3']")).not.toBeNull();
   });
 
   it("a clip that comes once the try has begun never lands above it (N373 item 2)", async () => {

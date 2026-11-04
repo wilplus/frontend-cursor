@@ -7,7 +7,7 @@ OUTCOME
   O4  A praised moment the server does not mark for practice, or with practice off, goes straight to its helper words (N122).
   O5  Each moment after the first opens with "let's look at your next key moment", and the first step after the last moment with "These were some real good moments of yours"; never in the coach's own walk (N285).
   O6  A Take served with slots is the One thing walk: their best (praise, nothing to practise), one fix with the tool it needs (the Clearer version first, else the AI clip on the weakest), from Take 2 one moment of another speaker, the helper words on their own, then "Lesson done."; no picker, no second moment, no summary; a Take served before them keeps praise first (N309).
-  O7  With no moment to fix and the tempo step there, the Sniper is the one fix; with a moment to fix, no tempo step (N309); with neither, my best still leaves its helper words (N374).
+  O7  With no moment to fix and the tempo step there, the Sniper is the one fix; with a moment to fix, no tempo step (N309); with neither, my best still leaves its helper words (N374). When the server names the one fix, the walk follows it: the Sniper's step is there before its stretch arrives, and a moment or none leaves it out (T, N323 item 6). A between whose Clearer version did not reach the walk is no fix, unless it is this week's level's moment (N381).
   O8  The One thing walk's fix allows two tries: a second miss ends it (N309).
 PROVES   O1 -> carries no number, read or score
          O2 -> praises each strong moment, practises each corrected one, and never asks the speaker to judge
@@ -15,7 +15,8 @@ PROVES   O1 -> carries no number, read or score
          O4 -> a praised moment not marked for practice, or with practice off, goes straight to its helper words
          O5 -> the next moment and the end of the moments each get their line, once
          O6 -> their best, one fix with its tool, one judged moment from Take 2, the helper words, then Lesson done
-         O7 -> with no moment to fix, the Sniper on this week's level is the one fix
+         O7 -> with no moment to fix, the Sniper on this week's level is the one fix,
+               the Sniper is the server's choice, and a between with no Clearer version is no fix
          O8 -> a second miss ends the fix
 WHY      Never-rule 1 (no scores to speakers); founder 2026-10-23 (N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N285, "let's look at your next key moment we spotted"; N289, "First, show the strongest, then the weakest, and then the average"); 2026-10-31 (N309, "apply to it the one thing walk"); 2026-11-03 (N374, "go with the recommendations").
 */
@@ -140,6 +141,23 @@ describe("the One thing walk (founder 2026-10-31, N309)", () => {
     expect(plan([strongest, weakest], { interventions: ["tempo"] })).not.toContain("tempo");
     // Neither: their best, then its own words as the helper words (N374).
     expect(plan([strongest])).toEqual(["page", "praise:0", "words:of0", "done", "end"]);
+  });
+
+  it("the Sniper is the server's choice, and a between with no Clearer version is no fix", () => {
+    // The server chose the Sniper: its step is there before the stretch has
+    // arrived, and no moment is fixed.
+    expect(plan([{ ...strongest, oneFix: "tempo" as const }])).toEqual(["page", "praise:0", "tempo", "words", "done", "end"]);
+    // It chose a moment, or none: no Sniper, whatever the stretch.
+    expect(plan([{ ...strongest, oneFix: "moment" as const }, weakest], { interventions: ["tempo"] })).toEqual([
+      "page", "praise:0", "exVideo:1", "practise:1", "words:of1", "done", "end",
+    ]);
+    expect(plan([{ ...strongest, oneFix: "none" as const }], { interventions: ["tempo"] })).not.toContain("tempo");
+    // A between whose rewrite did not reach the page is never the AI clip's
+    // (N381): their best, and its own words.
+    const bare = { ...between, hasRewrite: false };
+    expect(plan([bare, strongest])).toEqual(["page", "praise:1", "words:of1", "done", "end"]);
+    // This week's level's moment keeps its fix (G7).
+    expect(plan([{ ...bare, planLevel: "Say it once" }, strongest])).toContain("exVideo:0");
   });
 
   it("a second miss ends the fix", () => {

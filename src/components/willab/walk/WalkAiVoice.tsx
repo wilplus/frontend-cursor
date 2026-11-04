@@ -99,6 +99,9 @@ export function aiVoiceShown(
   if (step.one) {
     if (step.key !== "exVideo") return null;
     if (aiOnExercise(state)) return oneThingAiLines(say, state?.clip);
+    // The served video takes the clip's place at once (C6, N370): a demo
+    // of "video" is final, so no dots wait on a clip that is never shown.
+    if (state?.demo === "video") return null;
     return aiPendingOnExercise(state) ? "pending" : null;
   }
   if (step.key === "exVideo") {
@@ -144,6 +147,11 @@ export const AI_CLIP_WAIT_MS = 10_000;
  *  page's life: a screen drawn again keeps the wait it had. */
 const waitStarted = new Map<string, number>();
 const waitedOut = new Set<string>();
+
+/** The wait on `seed` ran out, in this page's life (useClipWait). */
+export function clipWaitedOut(seed: string): boolean {
+  return waitedOut.has(seed);
+}
 
 /** The fix's clip took longer than AI_CLIP_WAIT_MS (N373 item 1): true
  *  once the wait ran out while the clip was still `pending`, and from then

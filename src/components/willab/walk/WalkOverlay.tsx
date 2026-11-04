@@ -106,6 +106,7 @@ export default function WalkOverlay({
   bare = false,
   landing = true,
   onLanded,
+  onSettled,
   testId,
   children,
 }: {
@@ -142,6 +143,10 @@ export default function WalkOverlay({
    *  that only shows its bubbles moves on from here, so they land before it
    *  does (backend N440). */
   onLanded?: () => void;
+  /** Each time its bubbles have all landed (true), or start landing again
+   *  (false: one drawn in later), as the step the walk stands on: a screen
+   *  that moves on after a later bubble waits for it to land (N440). */
+  onSettled?: (landed: boolean) => void;
   testId?: string;
   children?: ReactNode;
 }) {
@@ -181,6 +186,12 @@ export default function WalkOverlay({
     told.current = true;
     then.current?.();
   }, [landed, part]);
+  const settles = useRef(onSettled);
+  settles.current = onSettled;
+  const standsHere = !part || part.now;
+  useEffect(() => {
+    if (standsHere) settles.current?.(landed);
+  }, [landed, standsHere]);
   if (part) {
     return (
       <>

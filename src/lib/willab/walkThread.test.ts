@@ -50,6 +50,10 @@ OUTCOME
       time" finds the tip my Take before kept (N309), the pace game's too:
       "Last time: give “{words}” more room. You did." with the Sniper's
       helper words, none past the cap of eight (N347 item 3).
+  O15 After "Keep mine" the chat keeps "Your words it is.", but my Feedback
+      walk and Continue review still open on the Clearer version it
+      answers, never on the live recorder with the mic on (N452 item 1,
+      B10, C7).
 PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own message, with no score"
          O2 -> "posts judging other speakers as the prototype's chat does, never their recording"
          O3 -> "counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles"
@@ -64,6 +68,7 @@ PROVES   O1 -> "stores a step seen twice once, as the app's or the speaker's own
          O12 -> "draws each Take's card right under its Feedback walk, after the walk's end, what was said in between under the pair"
          O13 -> "opens the Feedback walk on the coach's word, on what waits, on its newest part, or on the Take alone, never with no door"
          O14 -> "the One thing walk's judged moment turns its level, says its words, and last time finds the tip the Take before kept"
+         O15 -> "keeps the door on the Clearer version under its Your words it is. row, never on the live recorder"
 WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12);
          founder 2026-10-19, N80 (when the coach changes their word);
          founder 2026-10-31, N309 (the One thing walk); N347 item 3 (every
@@ -71,11 +76,12 @@ WHY      Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12);
 */
 import { describe, expect, it } from "vitest";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, PRACTISE_LINES, TOP_MOMENT_LINES, WALK_COPY } from "@/components/willab/idealEditCopy";
-import { aiVoiceChat, answerBody, chatDrawsStep, chatWalks, coachNoteToChat, feedbackWalkDoor, inPairs, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, shareChat, shareLines, shownStep, sniperWords, stableUuid, storedSummaryOf, walkPairs, walkStepDraft, wordsEditedIn } from "./walkThread";
+import { aiVoiceChat, answerBody, chatDrawsStep, chatWalks, coachNoteToChat, feedbackWalkDoor, fixClipsIn, inPairs, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, shareChat, shareLines, shownStep, sniperWords, stableUuid, storedSummaryOf, walkPairs, walkStepDraft, withoutOpeningFillers, wordsEditedIn } from "./walkThread";
 import { tipSaid } from "./walkLines";
 import { readLastFix } from "@/services/api/reviewLastFix";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { WalkStep } from "./walkPlan";
+import { waitingStepId } from "@/components/willab/Lounge";
 
 describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
   it("stores a step seen twice once, as the app's or the speaker's own message, with no score", () => {
@@ -131,6 +137,34 @@ describe("the walk's steps in the Lounge (lock 2026-10-12, section 1)", () => {
       "Last time: give “Above ninety percent, every week” more room. You did.",
     );
     expect(readLastFix({ kind: "tempo", clip: { url: "https://media/t5.wav" } })?.kind).toBe("tempo");
+  });
+
+  it("a walk played again finds its fix's AI clip and tip as the chat kept them (N373 item 2)", () => {
+    const ai = aiVoiceChat({ line: "Pause before “ten”, like this:", practiceId: "pr-fix" });
+    const row = (extra: Record<string, unknown>, step = "exVideo"): LoungeMessage => ({
+      ...walkStepDraft({ take: "t2", arcId: "arc-1", key: step, moment: 1, attempt: null, author: "app", body: ai.body, extra }),
+      client_id: `${step}-${String(extra.part_id)}`,
+      client_created_at: "2026-11-03T10:00:00Z",
+    }) as LoungeMessage;
+    const thread = [
+      row({ ...ai.extra, part_id: "p2", fix_tip: "Pause before “ten”" }),
+      row({ part_id: "p3", fix_tip: "Lean on “ninety”" }),
+      row({ part_id: "p4" }),
+      row({ part_id: "p5", fix_tip: "Say it straight" }, "clearer"),
+    ];
+    const kept = fixClipsIn(thread, "t2");
+    expect(kept.get("p2")).toEqual({ practiceId: "pr-fix", tip: "Pause before “ten”" });
+    expect(kept.get("p3")).toEqual({ practiceId: null, tip: "Lean on “ninety”" });
+    expect([...kept.keys()]).toEqual(["p2", "p3"]);
+    expect(fixClipsIn(thread, "t3").size).toBe(0);
+  });
+
+  it("Keep mine's helper words leave out the hesitations the sentence opens with, never its first words (N435 item 5)", () => {
+    expect(withoutOpeningFillers("So, um, I think we're seeing traction.")).toBe("I think we're seeing traction.");
+    expect(withoutOpeningFillers("Well — okay, we grew.")).toBe("we grew.");
+    for (const whole of ["Right now we cover three cities.", "Well over half of them signed.", "So far we have two.", "Like many teams, we grew."]) {
+      expect(withoutOpeningFillers(whole)).toBe(whole);
+    }
   });
 
   it("counts the other speakers' moments the speaker judged in a Take, from their own answer bubbles", () => {
@@ -324,5 +358,22 @@ describe("the walk in the chat (founder 2026-10-26, N192)", () => {
     // No part to stand on: the Take alone, never nothing.
     const [bare] = chatWalks([step("1", { step: "hello" }), summary]);
     expect(feedbackWalkDoor(bare, [], null)).toEqual({ take: "t2" });
+  });
+
+  it("keeps the door on the Clearer version under its Your words it is. row, never on the live recorder", () => {
+    // Keep mine, the recorder, then ✕ back to the Clearer version (C7): the
+    // chat's newest step of the walk is "Your words it is.".
+    const clearer = step("2", { step: "clearer", moment: 1, part_id: "p2" });
+    const yours = step("3", { step: "practise", moment: 1, part_id: "p2" }, "bot", ONE_THING_COPY.keepWords);
+    const thread = [step("1", { step: "praise", moment: 0, part_id: "p1" }), clearer, yours];
+    const [walk] = chatWalks(thread);
+    const onClearer = { step: "clearer", moment: 1, take: "t2", part: "p2" };
+    // A tap on the Feedback walk.
+    expect(feedbackWalkDoor(walk, [], null)).toEqual(onClearer);
+    // Continue review: the step the review waits on.
+    const items = thread.map((message) => ({ kind: "message" as const, sortKey: message.client_id, reactKey: message.client_id, message }));
+    const waiting = waitingStepId(items, "a1");
+    expect(waiting).toBe("2");
+    expect(feedbackWalkDoor(walk, thread.filter((m) => m.client_id === waiting), "a1")).toEqual(onClearer);
   });
 });

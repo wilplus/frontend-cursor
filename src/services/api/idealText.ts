@@ -281,6 +281,11 @@ export interface DocumentSuggestion {
   /** The moment's job in the walk (backend N289): the walk orders its
    *  moments by it. A word, never a score or a rank. */
   walkSlot?: WalkSlot | null;
+  /** The One thing walk's choice of its one fix (backend
+   *  `take_feedback_policy_v3._one_thing`), on its strongest block: "tempo"
+   *  when the Sniper is the fix, "moment" when a moment is, "none" with no
+   *  fix. A word, never a score; absent on older payloads. */
+  oneFix?: OneFix | null;
   /** On a plan, the moment where this week's level shows most (backend
    *  G7, N209): the level's key, a word, never a score. */
   planLevel?: string | null;
@@ -539,6 +544,9 @@ function readBookmarkTier(value: unknown): BookmarkTierName | null {
 /** A moment's job in the walk (backend N289). */
 export type WalkSlot = "strongest" | "weakest" | "between" | "next";
 const WALK_SLOTS: readonly WalkSlot[] = ["strongest", "weakest", "between", "next"];
+/** The One thing walk's one fix, as the server chose it (C-SNIPER). */
+export type OneFix = "tempo" | "moment" | "none";
+const ONE_FIXES: readonly OneFix[] = ["tempo", "moment", "none"];
 
 const FEEDBACK_FAMILIES: readonly FeedbackFamily[] = [
   "confident_voice",
@@ -775,6 +783,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     helperWordsPrompt: record.helper_words_prompt === true,
     confidentPractice: record.confident_practice === true,
     walkSlot: readEnum(record.walk_slot, WALK_SLOTS),
+    oneFix: readEnum(record.one_fix, ONE_FIXES),
     planLevel: readNonEmptyString(record.plan_level),
     praiseReason: readPraiseReason(record.praise_reason),
     practicePrompt: record.practice_prompt === true,

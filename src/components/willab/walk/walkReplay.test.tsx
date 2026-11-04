@@ -16,7 +16,7 @@ PROVES   O1 -> opened again, the whole walk is one scroll: every part answered, 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEditCopy";
 import FeedbackWalk from "./FeedbackWalk";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import { buildFeedbackReplay, walkAsItStands, walkLastStep, walkStart, walkStepAt, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
@@ -306,5 +306,61 @@ describe("the finished walk, played again", () => {
     const at = walkStepAt(model, { step: "exVideo", moment: null, part: "p3" });
     expect(at).not.toBeNull();
     expect(model.plan[at!].key).toBe("encourage");
+  });
+});
+
+describe("the One thing walk played again shows what is there (N373 item 2)", () => {
+  const ONE: FeedbackWalkItem<string>[] = [
+    {
+      partId: "q1", start: 0, slide: 0, blockId: "c1", tiered: true, green: true, walkSlot: "strongest", highest: true, openCard: "praise",
+      paragraphText: "We opened with the number.", slideLabel: "Slide 1", praiseWords: ["A signed line."], praiseLead: ["A signed line."], clip,
+    },
+    {
+      partId: "q2", start: 100, slide: 1, blockId: "c2", tiered: true, practicePrompt: true, walkSlot: "weakest",
+      paragraphText: "Two hires by March.", slideLabel: "Slide 2", said: "Two hires by March.", item: "s-fix", clip,
+    },
+  ];
+  /** The finished walk opened on their best, its fix below it, never tried. */
+  function open(kept: { practiceId: string | null; tip: string | null }) {
+    const model = buildFeedbackReplay<string>({ items: ONE, coachNote: false, practiceOn: true, answerOf: () => null, helperWordsOf: () => null, clipOf: () => kept });
+    const props = { model, coachNote: null, firstTake: false, practise: PRACTISE, onSaveHelperWords: () => undefined, onEnd: () => undefined };
+    const at = model.plan.findIndex((s) => s.key === "praise");
+    act(() => root.render(<FeedbackWalk {...props} request={null} />));
+    act(() => root.render(<FeedbackWalk {...props} request={{ seq: 1, at, head: walkLastStep(model)! }} />));
+  }
+
+  it("the fix's AI clip, read by the practice the chat kept, wherever the walk opens", async () => {
+    open({ practiceId: "pr-fix", tip: null });
+    await act(async () => {});
+    act(() => vi.advanceTimersByTime(1000));
+    expect(aiReads).toEqual(["pr-fix"]);
+    expect(live()!.querySelector("audio[src='blob:ai']")).not.toBeNull();
+  });
+
+  it("after Keep mine, each try is labelled with my own sentence, under “Your words it is.” (C7, B10)", () => {
+    const items: FeedbackWalkItem<string>[] = [
+      ONE[0],
+      {
+        ...ONE[1], hasRewrite: true, walkSlot: "between",
+        rewrite: { quote: "Two hires by March.", proposedText: "We hire two by March.", item: "rw-fix", decided: "keep" }, item: "rw-fix",
+      },
+    ];
+    const model = buildFeedbackReplay<string>({
+      items, coachNote: false, practiceOn: true, answerOf: () => null, helperWordsOf: () => null,
+      triesOf: (moment) => (moment.partId === "q2" ? { practiceId: null, outcomes: ["again", "praise"], audios: {} } : null),
+    });
+    const props = { model, coachNote: null, firstTake: false, practise: PRACTISE, onSaveHelperWords: () => undefined, onEnd: () => undefined };
+    act(() => root.render(<FeedbackWalk {...props} request={null} />));
+    act(() => root.render(<FeedbackWalk {...props} request={{ seq: 1, at: walkLastStep(model)! }} />));
+    const words = [...live()!.querySelectorAll("[data-walk-try-words]")].map((n) => n.textContent);
+    expect(words).toEqual(["Two hires by March.", "Two hires by March."]);
+    expect(live()!.textContent).toContain(ONE_THING_COPY.keepWords);
+  });
+
+  it("with no clip to read, the tip the chat kept, in words", async () => {
+    open({ practiceId: null, tip: "Pause before “by March”" });
+    await act(async () => {});
+    expect(aiReads).toEqual([]);
+    expect(live()!.querySelector("[data-walk-no-clip]")!.textContent).toBe("Pause before “by March”.");
   });
 });

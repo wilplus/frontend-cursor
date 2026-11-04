@@ -58,6 +58,11 @@ export interface UseLoungeThreadReturn {
   idle: () => Promise<void>;
   /** Wipe the thread (server DELETE or local clear). */
   clear: () => Promise<void>;
+  /** Something is writing into the thread behind the screen (the walk's
+   *  summary and the chain after it): the Lounge shows the typing dots
+   *  while it does (B8). */
+  writing: boolean;
+  setWriting: (on: boolean) => void;
   /** Replay the local thread into the server thread on sign-up, then rehydrate. */
   mergeFromLocal: () => Promise<void>;
 }
@@ -67,6 +72,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
   const [loading, setLoading] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  const [writing, setWriting] = useState(false);
   const oldestCursorRef = useRef<string | null>(null);
   // What is on screen now: a new message is stamped under its newest bubble.
   const messagesRef = useRef<LoungeMessage[]>(messages);
@@ -175,6 +181,8 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     // Insight pings are server-written; the local thread has nothing new to pull.
     if (!signedIn) return;
     const page = await fetchLoungeHistory();
+    // A failed read never wipes the chat: what is on screen stays.
+    if (page.failed) return;
     announceDiscoveriesFromPersistedMessages(page.messages);
     setMessages(page.messages);
     setHasMore(page.has_more);
@@ -198,6 +206,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     await mergeLocalLoungeThreadToServer();
     // Rehydrate from the now-merged server thread (single source of truth).
     const page = await fetchLoungeHistory();
+    if (page.failed) return;
     announceDiscoveriesFromPersistedMessages(page.messages);
     setMessages(page.messages);
     setHasMore(page.has_more);
@@ -217,5 +226,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     idle,
     clear,
     mergeFromLocal,
+    writing,
+    setWriting,
   };
 }

@@ -5,6 +5,8 @@ import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
 import { aiVoiceChat, answerBody, coachNoteToChat, helperWordsSaid, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, praiseChat, shownStep, skipReply, sniperWords, storedSummaryOf, tempoSaidIn, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { fixClipsIn } from "@/lib/willab/walkThread";
+import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { WalkIntervention, WalkStep } from "@/lib/willab/walkPlan";
 import { tipSaid, type WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
@@ -13,6 +15,8 @@ import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkLastTime, 
 import type { WalkJudgementSave } from "./walk/useWalkJudging";
 import { useWalkJournalPost } from "./useWalkJournalPost";
 import { noteOwnAnswer, ownAnswersOf } from "./paragraphSheetData";
+import { recordedSince } from "./afterTake";
+import { prefetchOtherClips } from "@/services/api/otherSpeakers";
 import type { OwnerAnswer } from "@/services/api/bookmarkHistory";
 import { CHUNK_SHEET_COPY, ONE_THING_COPY, WALK_COPY } from "./idealEditCopy";
 import {
@@ -67,14 +71,11 @@ import { praiseTitleFor } from "@/lib/willab/praiseLevels";
 import { useGreenReasons } from "./walk/useGreenReasons";
 import { fetchUserProfileShared } from "@/services/api/userProfile";
 import type { WalkPraiseReasons } from "@/lib/willab/praiseReason";
-import { isFounderEmail } from "@/lib/founder";
-import { useUserEmail } from "./useUserEmail";
 import { useReviewTempo } from "./walk/useReviewTempo";
-import { useRingState } from "@/hooks/useRingState";
 import { postTempoGame } from "@/services/api/reviewTempo";
 import { askWalkQuote, replayWalkQuote, setWalkQuote, walkQuoteShown } from "@/services/api/walkQuote";
 import type { WalkQuoteIO } from "./walk/useWalkQuote";
-import { TEMPO_COPY, TEMPO_STEP_FEATURE, afterTry, oneThingTempoLines, tempoOpening, type TempoEvent } from "@/lib/willab/tempoStep";
+import { TEMPO_COPY, afterTry, oneThingTempoLines, stretchWordsIn, tempoOpening, type TempoEvent, type TempoStretch } from "@/lib/willab/tempoStep";
 
 /* -------------------------------------------------------------------------- */
 /*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
@@ -155,7 +156,10 @@ function slideOf(groups: readonly SlideGroup[], partId: string): number | null {
 }
 
 /** The Take's open feedback, as the walk reads it: every item still waiting
- *  on a paragraph whose bar is up. Pure. */
+ *  on a paragraph whose bar is up, and a moment's Clearer version already
+ *  decided while the moment itself still waits (the walk closed during its
+ *  try and opened again keeps its Clearer version, never the AI clip in its
+ *  place, N381). Pure. */
 export function deckWalkItems(
   chunks: readonly DeckChunk[],
   groups: readonly SlideGroup[],
@@ -163,6 +167,7 @@ export function deckWalkItems(
   pendingOf: (chunk: DeckChunk) => readonly DocumentSuggestion[],
   slideLabel: (partId: string) => string | null,
   slideTitle?: (partId: string) => string | null,
+  answeredOf?: (chunk: DeckChunk) => readonly DocumentSuggestion[],
 ): FeedbackWalkItem<DocumentSuggestion>[] {
   const seen = new Set<string>();
   const out: FeedbackWalkItem<DocumentSuggestion>[] = [];
@@ -171,7 +176,12 @@ export function deckWalkItems(
     if (seen.has(partId) || !waiting(chunk)) continue;
     seen.add(partId);
     const slide = slideOf(groups, partId) ?? 0;
-    for (const item of pendingOf(chunk)) out.push(walkItemOf(item, chunk, slide, slideLabel(partId), slideTitle?.(partId) ?? null));
+    const open = pendingOf(chunk);
+    const blocks = new Set(open.map((item) => item.blockId).filter(Boolean));
+    const decided = (answeredOf?.(chunk) ?? []).filter(
+      (item) => item.blockId && blocks.has(item.blockId) && rewriteOf(item) !== null && !open.some((o) => o.id === item.id),
+    );
+    for (const item of [...open, ...decided]) out.push(walkItemOf(item, chunk, slide, slideLabel(partId), slideTitle?.(partId) ?? null));
   }
   return out;
 }
@@ -204,6 +214,96 @@ export function deckReplayItems(
   return out;
 }
 
+/** Where the Sniper's stretch is said (N309 item 3, N435 item 7): on its
+ *  slide when the answer names it (C-TEMPO), the paragraph that says its
+ *  words, matched leniently (case, punctuation, hesitations), with those
+ *  words as the paragraph shows them; else the slide's first paragraph,
+ *  with no words. Null when neither is found. Pure. */
+export function stretchParagraph(
+  tempo: TempoStretch | null | undefined,
+  chunks: readonly DeckChunk[],
+  groups: readonly SlideGroup[],
+): { chunk: DeckChunk; words: string | null } | null {
+  const stretch = tempo?.said.stretch.trim();
+  if (!tempo || !stretch) return null;
+  const slide = tempo.slideIndex != null ? groups.find((g) => g.slideIndex === tempo.slideIndex) : undefined;
+  for (const chunk of slide ? slide.chunks : chunks) {
+    const words = stretchWordsIn(chunk.part.text, stretch);
+    if (words) return { chunk, words };
+  }
+  return slide?.chunks[0] ? { chunk: slide.chunks[0], words: null } : null;
+}
+
+/** The stretch's clip as the chat keeps a moment's (momentChat): its
+ *  recording's id, so Will's question finds its words (E2), and its signed
+ *  link when there is one. Null without a recording. Pure. */
+export function stretchClipChat(tempo: TempoStretch): Record<string, unknown> | null {
+  const snippet = tempo.snippetId ?? tempo.clip?.snippetId ?? null;
+  if (!snippet) return null;
+  const clip = tempo.clip ?? null;
+  return { snippet_id: snippet, src: clip?.src ?? null, start_ms: clip?.startOffsetMs ?? null, duration_ms: clip?.durationMs ?? null, words: null };
+}
+
+/** The practices the walk adds (N166): the tempo step on the Take's
+ *  stretch. The One thing walk served with no choice of its fix (older
+ *  payloads) offers the Sniper only where the stretch can be it: a rushed
+ *  one, or the plan's pace or pause week (`planLevel`, served only for
+ *  those); a slow stretch off such a week leaves the fix a moment (T, N323
+ *  item 6). A Take served before N289 keeps its tempo step on any stretch.
+ *  Pure. */
+export function tempoOffered(
+  tempo: TempoStretch | null | undefined,
+  items: readonly FeedbackWalkItem<DocumentSuggestion>[],
+): readonly WalkIntervention[] {
+  if (!tempo) return [];
+  const oneWalk = items.some((i) => i.walkSlot);
+  return !oneWalk || tempo.reading === "rushed" || tempo.planLevel != null ? ["tempo"] : [];
+}
+
+/** Whether the walk can open whole (A2, B5, C0, C0a, T): the speaker's name
+ *  read; Last time read, its tip served or the chat that keeps it loaded;
+ *  and the tempo answer in where the Sniper may be the fix (the server chose
+ *  it, or served no choice). Pure. */
+export function walkOpens(at: {
+  items: readonly FeedbackWalkItem<DocumentSuggestion>[];
+  tempo: TempoStretch | null | undefined;
+  nameRead: boolean;
+  lastAnswered: boolean;
+  lastFix: LastFix | null;
+  thread: { loading: boolean } | null;
+}): boolean {
+  const served = at.items.find((i) => i.oneFix)?.oneFix ?? null;
+  const tempoIn = at.tempo !== undefined || (served !== null && served !== "tempo");
+  // A tip the server did not send is looked up in the chat: once it loaded.
+  const lastIn = at.lastAnswered && (!at.lastFix || Boolean(at.lastFix.tip) || !at.thread?.loading);
+  return at.nameRead && lastIn && tempoIn;
+}
+
+/** LAST TIME (founder 2026-10-31, N309 item 1): the last Take's fix, when
+ *  it rose on this Take, read once per Take from Take 2, the speaker's own
+ *  walk only; `answered` once read, or with nothing to read. */
+function useLastFix(
+  arcId: string | null | undefined,
+  take: string | null,
+  coachOnly: boolean,
+  takeIndex: number | null | undefined,
+): { fix: LastFix | null; answered: boolean } {
+  const key = arcId && take && !coachOnly && (takeIndex ?? 0) >= 2 ? `${arcId}:${take}` : null;
+  const [read, setRead] = useState<{ key: string; fix: LastFix | null } | null>(null);
+  useEffect(() => {
+    if (!key || !arcId || !take) return;
+    let on = true;
+    void fetchLastFix(arcId, take).then((fix) => {
+      if (on) setRead({ key, fix });
+    });
+    return () => {
+      on = false;
+    };
+  }, [key, arcId, take]);
+  const answered = !key || read?.key === key;
+  return { fix: key && read?.key === key ? read.fix : null, answered };
+}
+
 /** A green moment's reason written after the page was read says in the
  *  chat what the screen says (founder 2026-10-18). Pure. */
 function withLateReason<S extends { author: WalkAuthor; body: string } | null>(
@@ -222,6 +322,10 @@ function withLateReason<S extends { author: WalkAuthor; body: string } | null>(
 /** The screens a moment's coach answer is drawn on. */
 /** How long a step tapped in the Lounge waits on the replay's reads. */
 const REPLAY_WAIT_MS = 4000;
+/** The longest the walk's opening waits on its name, Last time and the
+ *  Sniper's answer (`walkReady`): well under the wait cover's five seconds
+ *  for a lens to appear and the lens's eight-second last resort. */
+export const WALK_OPEN_WAIT_MS = 2_500;
 
 const COACH_ANSWER_STEPS: ReadonlySet<string> = new Set(["coach", "praise", "clearer", "exVideo"]);
 /** The screens a level's moment opens its practise on (G7, N209). */
@@ -243,6 +347,43 @@ function postLevel(
 
 /** The machine's answers on a try, posted as the try is made. */
 const TRY_ANSWER_STEPS: ReadonlySet<string> = new Set(["improved", "encourage", "thanks"]);
+
+/** The Sniper's rows in the chat that say it was played: a try, a Skip
+ *  (the speaker's, or the One thing walk's answer to it), its closing line.
+ *  Its opening line alone is posted as the game opens, before any of them. */
+const TEMPO_PLAYED_STEPS: ReadonlySet<string> = new Set(["tempo:try", "tempo:skip", "tempo:skipped", "tempo:close"]);
+
+/** Each Take's summary ask, while it is written and once it is (C9, D4):
+ *  one per Take for every deck on the page, so a page opened again while
+ *  the first ask still writes never asks a second time. A failed ask is
+ *  dropped, so the walk's next end asks again. */
+const summaryAsks = new Map<string, Promise<string | null>>();
+
+/** What the closing summary hears (lock 2026-10-12, section 3): the try's
+ *  outcome and the last two helper words the speaker picked. */
+type WalkHeard = { practice: "better" | "not_yet" | null; words: string[] };
+
+/** One walk step heard: a try that landed is "better", and stays so; the
+ *  other answers on a try are "not_yet". Pure on `heard`. */
+function hear(heard: WalkHeard, step: string, author: string, body: string): void {
+  if (step === "improved") heard.practice = "better";
+  if ((step === "thanks" || step === "encourage") && heard.practice !== "better") heard.practice = "not_yet";
+  if (author === "speaker" && (step.startsWith("words:") || step.startsWith("try-words:")) && body.trim()) {
+    heard.words = [...heard.words.filter((w) => w !== body), body].slice(-2);
+  }
+}
+
+/** What the loaded chat kept of `take`'s walk for its summary, by the same
+ *  rules as the walk posting it, so a summary asked by a page opened later,
+ *  or by a walk played again, still hears the try and the words (D2, E1). Pure. */
+export function heardIn(messages: readonly LoungeMessage[], take: string): WalkHeard {
+  const heard: WalkHeard = { practice: null, words: [] };
+  for (const m of messages) {
+    if (m.kind !== "walk_step" || m.metadata?.take_session_id !== take) continue;
+    hear(heard, String(m.metadata?.step ?? ""), String(m.metadata?.author ?? ""), m.body);
+  }
+  return heard;
+}
 
 /** How far the thread is drawn past `at` in the whole walk as it stands:
  *  through the answered steps that follow it, up to the next step that
@@ -305,6 +446,8 @@ function walkItemOf(
           confidentPractice: item.confidentPractice === true,
           // The moment's job in the walk (backend N289).
           walkSlot: item.walkSlot ?? null,
+          // The One thing walk's one fix, as the server chose it (C-SNIPER).
+          oneFix: item.oneFix ?? null,
         }
       : {}),
     openCard: item.openCard ?? null,
@@ -785,27 +928,30 @@ export function useDeckFeedbackWalk(args: {
   /** The replay has read the Take's answers and tries: a step tapped in
    *  the Lounge opens on it whole. */
   replaySettled: boolean;
+  /** The walk can open whole: its hello's name, Last time and the Sniper's
+   *  answer are in, or WALK_OPEN_WAIT_MS has passed. The review waits for it
+   *  behind the wait cover (A2). */
+  walkReady: boolean;
   element: ReactNode;
 } {
   const { chunks, groups, waiting, pendingOf, slideLabel, slideTitle, coachMessage, coachSeen, firstTake } = args;
   const { answeredOf, helperWordsOf, finished = false } = args;
   const coachOnly = args.coachOnly === true;
   const practiceOn = usePracticeOn();
-  /* THE TEMPO STEP (backend N162, N166): the founder, and whoever the rings
-     panel's `tempo_step` row reaches (build step 6; the plan's pace or pause
-     week once the plan is built, N147). On the Take's own stretch from the
-     backend (step 3), and only when one left the green. */
-  const ringState = useRingState();
-  const tempoOn = isFounderEmail(useUserEmail()) || ringState?.featuresOn.has(TEMPO_STEP_FEATURE) === true;
   const journal = useWalkJournalPost(true);
   const pageTake = args.takeSessionId ?? null;
 
   const items = useMemo(
-    () => deckWalkItems(chunks, groups, waiting, pendingOf, slideLabel, slideTitle),
-    [chunks, groups, waiting, pendingOf, slideLabel, slideTitle],
+    () => deckWalkItems(chunks, groups, waiting, pendingOf, slideLabel, slideTitle, answeredOf),
+    [chunks, groups, waiting, pendingOf, slideLabel, slideTitle, answeredOf],
   );
   const take = useMemo(() => reviewedTake(items, pageTake), [items, pageTake]);
-  const tempo = useReviewTempo(tempoOn && !coachOnly ? (args.arcId ?? null) : null, take);
+  /* THE TEMPO STEP (backend N162, N166): on the Take's own stretch from the
+     backend (step 3), only when one left the green, and only for whoever the
+     rings panel's `tempo_step` row reaches (step 6), the founder too: the
+     backend answers the step only to them, so it is asked as soon as the
+     Take is known, never after the rings are read. Undefined while asked. */
+  const tempo = useReviewTempo(!coachOnly ? (args.arcId ?? null) : null, take);
   /* THE WALK QUOTES YOUR NOTEBOOK (backend N268): the speaker's own walk
      only, never a coach's view of it. */
   const quotes = useMemo<WalkQuoteIO | null>(
@@ -820,39 +966,25 @@ export function useDeckFeedbackWalk(args: {
         : null,
     [take, coachOnly],
   );
-  const interventions = useMemo<readonly WalkIntervention[]>(() => (tempo ? ["tempo"] : []), [tempo]);
+  const interventions = useMemo(() => tempoOffered(tempo, items), [tempo, items]);
   /* LAST TIME (founder 2026-10-31, N309 item 1): the last Take's fix, when
-     it rose on this Take, read once per Take; the speaker's own walk only. */
-  const [lastFix, setLastFix] = useState<LastFix | null>(null);
-  useEffect(() => {
-    setLastFix(null);
-    const arcId = args.arcId ?? null;
-    if (!arcId || !take || coachOnly || (args.takeIndex ?? 0) < 2) return;
-    let on = true;
-    void fetchLastFix(arcId, take).then((fix) => {
-      if (on) setLastFix(fix);
-    });
-    return () => {
-      on = false;
-    };
-  }, [args.arcId, take, coachOnly, args.takeIndex]);
+     it rose on this Take, read once per Take; the speaker's own walk only.
+     The walk opens once it is read (`walkReady`). */
+  const { fix: lastFix, answered: lastAnswered } = useLastFix(args.arcId, take, coachOnly, args.takeIndex);
   /* The Sniper's helper words (N309 item 3): its stretch's words, on the
      paragraph that says them, within the cap of eight; read once here for
      the walk's helper words and the pace game's tip (N347 item 3). */
+  const tempoAt = useMemo(() => stretchParagraph(tempo, chunks, groups), [tempo, chunks, groups]);
   const tempoWords = useMemo<FeedbackWalkTempoWords | null>(() => {
-    const text = tempo?.said.stretch.trim();
-    const chunk = text ? chunks.find((c) => c.part.text.includes(text)) : undefined;
-    const words = text && chunk ? sniperWords(chunk.part.text, text) : null;
-    return chunk && words ? { partId: chunk.part.id, paragraphText: chunk.part.text, text: words.text, span: words.span } : null;
-  }, [tempo, chunks]);
+    const words = tempoAt?.words ? sniperWords(tempoAt.chunk.part.text, tempoAt.words) : null;
+    return tempoAt && words ? { partId: tempoAt.chunk.part.id, paragraphText: tempoAt.chunk.part.text, text: words.text, span: words.span } : null;
+  }, [tempoAt]);
   /* The Sniper's slide, for the walk's bar (N435 item 7): the slide of the
      paragraph that says its stretch, by its title from the deck (N397). */
   const tempoSlide = useMemo<string | null>(() => {
-    const text = tempo?.said.stretch.trim();
-    const chunk = text ? chunks.find((c) => c.part.text.includes(text)) : undefined;
-    if (!chunk) return null;
-    return slideTitle?.(chunk.part.id)?.trim() || slideLabel(chunk.part.id) || null;
-  }, [tempo, chunks, slideTitle, slideLabel]);
+    if (!tempoAt) return null;
+    return slideTitle?.(tempoAt.chunk.part.id)?.trim() || slideLabel(tempoAt.chunk.part.id) || null;
+  }, [tempoAt, slideTitle, slideLabel]);
   /* WHY THE GREEN MOMENT LANDED (founder 2026-10-18): a green clip that
      reached the page before its reason was written is asked for here, and
      the walk draws it once it is in. */
@@ -874,14 +1006,9 @@ export function useDeckFeedbackWalk(args: {
   const threadRef = useRef({ thread, take, arcId: args.arcId ?? null });
   threadRef.current = { thread, take, arcId: args.arcId ?? null };
   // What the closing summary hears (lock 2026-10-12, section 3).
-  const heardRef = useRef<{ practice: "better" | "not_yet" | null; words: string[] }>({ practice: null, words: [] });
+  const heardRef = useRef<WalkHeard>({ practice: null, words: [] });
   const post = useCallback((entry: Omit<WalkThreadEntry, "take" | "arcId">) => {
-    const heard = heardRef.current;
-    if (entry.key === "improved") heard.practice = "better";
-    if ((entry.key === "thanks" || entry.key === "encourage") && heard.practice !== "better") heard.practice = "not_yet";
-    if (entry.author === "speaker" && (entry.key.startsWith("words:") || entry.key.startsWith("try-words:"))) {
-      heard.words = [...heard.words.filter((w) => w !== entry.body), entry.body].slice(-2);
-    }
+    hear(heardRef.current, entry.key, entry.author, entry.body);
     const { thread: to, take: on, arcId } = threadRef.current;
     if (!to || !on || (entry.key !== "end" && !entry.extra?.clip && !entry.body.trim())) return;
     const takeIndex = live.current.takeIndex ?? null;
@@ -901,6 +1028,11 @@ export function useDeckFeedbackWalk(args: {
         post({ key, moment: null, attempt, author, body, extra });
       if (event.kind === "opened") {
         const words = one ? tempoWords : null;
+        // The stretch's clip, as the speaker's, before Will's line, as the
+        // walk draws it: Will's question after the walk quotes the moment it
+        // just worked on, the stretch (E2).
+        const clip = one ? stretchClipChat(tempo) : null;
+        if (clip) say("clip:tempo", "speaker", "", null, { clip });
         // As the walk opens it (N435 item 6): a rushed Sniper's one line.
         const opening = tempoOpening(tempo, one);
         say("tempo:open", "app", [...opening.lines, ...(opening.withScale ? [opening.withScale] : [])].join("\n"), null, words ? { fix_tip: ONE_THING_COPY.paceTip(words.text) } : undefined);
@@ -910,10 +1042,12 @@ export function useDeckFeedbackWalk(args: {
         const lines = one ? oneThingTempoLines(event.landed, event.n) : afterTry(event.result, event.landed, event.n);
         say("tempo:comment", "app", lines.join("\n"), event.n);
       } else {
-        // Skipped: before a try, or, as the One thing walk's fix, after one
-        // too, as the walk draws it (#1183). The Sniper then answers Skip
-        // (N405).
-        if (!event.close || (one && event.skipped)) {
+        // Left mid-game (✕): kept for Will below, nothing said. Skipped:
+        // before a try, or, as the One thing walk's fix, after one too, as
+        // the walk draws it (#1183). The Sniper then answers Skip (N405).
+        if (event.left) {
+          // Nothing in the chat.
+        } else if (!event.close || (one && event.skipped)) {
           // As the One thing walk's fix, the walk's answer alone (N452 item 1).
           if (one) say("tempo:skipped", "app", ONE_THING_COPY.skipped);
           else say("tempo:skip", "speaker", TEMPO_COPY.skip);
@@ -1001,12 +1135,13 @@ export function useDeckFeedbackWalk(args: {
   const tempoSaid = useMemo(() => (threadMessages && take ? tempoSaidIn(threadMessages, take) : []), [threadMessages, take]);
   const replayInterventions = useMemo<readonly WalkIntervention[]>(() => (tempoSaid.length > 0 ? ["tempo"] : []), [tempoSaid]);
   // "Last time: {the tip}. You did." (N309 item 1): the tip the last Take's
-  // walk gave, as its fix step kept it in the chat; a Clearer version's is
-  // its "Say it straight"; the pace game's "give “{words}” more room" (N347
-  // item 3). No tip kept: no line.
+  // walk gave, as its fix step kept it in the chat, read by the server
+  // (C-LASTFIX), else looked up in the chat's loaded messages; a Clearer
+  // version's is its "Say it straight"; the pace game's "give “{words}” more
+  // room" (N347 item 3). No tip kept: no line.
   const lastTime = useMemo<FeedbackWalkLastTime | null>(() => {
     if (!lastFix) return null;
-    const kept = threadMessages ? lastFixTip(threadMessages, take, args.arcId ?? null, args.takeIndex ?? null) : null;
+    const kept = lastFix.tip ?? (threadMessages ? lastFixTip(threadMessages, take, args.arcId ?? null, args.takeIndex ?? null) : null);
     const tip = kept ?? (lastFix.kind === "clearer" ? ONE_THING_COPY.sayStraight : null);
     return tip ? { tip: tipSaid(tip), clip: lastFix.clip } : null;
   }, [lastFix, threadMessages, take, args.arcId, args.takeIndex]);
@@ -1019,6 +1154,9 @@ export function useDeckFeedbackWalk(args: {
       ),
     [storedSummary, othersJudged],
   );
+  // The One thing walk's fix as the chat kept it: its AI clip's practice and
+  // its tip, so a walk played again shows them (N373 item 2).
+  const fixKept = useMemo(() => (threadMessages && take ? fixClipsIn(threadMessages, take) : null), [threadMessages, take]);
   const [triedByPractice, setTriedByPractice] = useState<Readonly<Record<string, ReplayTries | null>>>({});
   const askedPractices = useRef(new Set<string>());
   useEffect(() => {
@@ -1065,10 +1203,16 @@ export function useDeckFeedbackWalk(args: {
           const practiceId = momentPracticeId(moment);
           return practiceId ? (triedByPractice[practiceId] ?? null) : null;
         },
+        // The fix's clip by the moment's own practice, else the one the chat kept.
+        clipOf: (moment) => {
+          const kept = fixKept?.get(moment.partId);
+          const practiceId = momentPracticeId(moment) ?? kept?.practiceId ?? null;
+          return practiceId || kept?.tip ? { practiceId, tip: kept?.tip ?? null } : null;
+        },
         interventions: replayInterventions,
         judge: judgesOne,
       }),
-    [replayItems, replayReady, coachMessage, practiceOn, helperWordsOf, triedByPart, triedByPractice, args.coachOnly, args.coachWordOnly, replayInterventions, judgesOne],
+    [replayItems, replayReady, coachMessage, practiceOn, helperWordsOf, triedByPart, triedByPractice, fixKept, args.coachOnly, args.coachWordOnly, replayInterventions, judgesOne],
   );
   /* THE WHOLE TAKE'S WALK AS IT STANDS (founder 2026-10-21, B10: every door
      opens the whole walk, "live while that step waits"): what is answered as
@@ -1087,12 +1231,23 @@ export function useDeckFeedbackWalk(args: {
     (moment: FeedbackWalkMoment<DocumentSuggestion>) => walkStepForPart(model, moment.partId) !== null,
     [model],
   );
+  // The chat holds the Sniper as it was played (a try, a Skip or its
+  // closing line): a door keeps it as given. One only opened, then left
+  // with ✕ before a try, is still to play, live (B10, T, N458).
+  const tempoKept = useMemo(
+    () =>
+      Boolean(take) &&
+      (threadMessages ?? []).some(
+        (m) => m.kind === "walk_step" && m.metadata?.take_session_id === take && TEMPO_PLAYED_STEPS.has(String(m.metadata?.step ?? "")),
+      ),
+    [threadMessages, take],
+  );
   const buildWhole = useCallback(
     (answers: readonly OwnerAnswer[]) => {
       const done = buildReplay(answers);
-      return liveAll ? walkAsItStands(done, liveAll, waitsOn) : done;
+      return liveAll ? walkAsItStands(done, liveAll, waitsOn, tempoKept) : done;
     },
-    [buildReplay, liveAll, waitsOn],
+    [buildReplay, liveAll, waitsOn, tempoKept],
   );
   const canReplay = useMemo(
     () => replayable && walkStart(buildReplay(ownAnswers)) !== null,
@@ -1406,19 +1561,41 @@ export function useDeckFeedbackWalk(args: {
   // The closing summary, the walk's last step (lock 2026-10-12, sections
   // 2.7 and 3): written once per Take and read back for the bubble, then
   // the thread reloads so it shows in the Lounge too. Null: the step is
-  // skipped.
-  const summary = useCallback(async (): Promise<string | null> => {
+  // skipped. The thread reads again whatever the answer: the backend may
+  // have written the chain after it (Will's question, the goodbye) even
+  // when the answer came back too late. Until it has, the Lounge shows the
+  // typing dots, its one wait (B8), until the one real ask ends. Asked
+  // once per Take (`summaryAsks`); a failed ask is asked again at the
+  // walk's next end.
+  const summary = useCallback((): Promise<string | null> => {
     const { thread: to, take: on, arcId } = threadRef.current;
-    if (!on || !arcId) return null;
-    const heard = heardRef.current;
-    const text = await postReviewSummaryText(arcId, {
-      takeSessionId: on,
-      practice: heard.practice,
-      helperWords: heard.words,
-      coachNote: live.current.coachMessage?.text ?? null,
-    });
-    if (text) void to?.reload();
-    return text;
+    if (!on || !arcId) return Promise.resolve(null);
+    const asked = summaryAsks.get(on);
+    if (asked) return asked;
+    // What this walk heard, with what the chat kept of the Take's walk: a
+    // page opened later, or a walk played again, posts no try again.
+    const own = heardRef.current;
+    const kept = heardIn(to?.messages ?? [], on);
+    const practice = own.practice === "better" || kept.practice === "better" ? "better" : (own.practice ?? kept.practice);
+    const helperWords = [...kept.words.filter((w) => !own.words.includes(w)), ...own.words].slice(-2);
+    to?.setWriting?.(true);
+    const ask = (async () => {
+      try {
+        const text = await postReviewSummaryText(arcId, {
+          takeSessionId: on,
+          practice,
+          helperWords,
+          coachNote: live.current.coachMessage?.text ?? null,
+        });
+        if (text === null) summaryAsks.delete(on);
+        return text;
+      } finally {
+        await to?.reload?.().catch(() => undefined);
+        to?.setWriting?.(false);
+      }
+    })();
+    summaryAsks.set(on, ask);
+    return ask;
   }, []);
   // A paragraph's practise ends on the page quietly; the review's end tells
   // the Lounge ("Continue review" leaves it) and lands on the Ideal Text.
@@ -1434,10 +1611,32 @@ export function useDeckFeedbackWalk(args: {
     );
     if (!written) post({ key: "end", moment: null, attempt: null, author: "app", body: "" });
   }, [post]);
+  /* THE CHAT AFTER THE WALK, HOWEVER IT ENDS (C9, D4, B11): the summary is
+     asked once per Take as the review's end is written, by the Close pill,
+     by ✕ on a finished walk, or as a finished Take's page opens, so the
+     chain after it (Will's question, the goodbye) always comes. Not for a
+     paragraph's own practise, nor the coach-only walk. */
+  const askSummary = useCallback(() => {
+    if (practisingRef.current || live.current.coachOnly) return;
+    const { take: on } = threadRef.current;
+    if (!on || summaryAsks.has(on) || storedSummaryRef.current !== null) return;
+    void summary();
+  }, [summary]);
+  /* BETWEEN TWO TAKES (D4, N244, N251): ✕ and a finished Take's page as it
+     opens ask only when the loaded chat's newest recording is this Take's
+     own. Not knowing counts as a newer Take, so an older Take's chain never
+     lands under the newest one. The Close pill on a live walk asks as
+     before. */
+  const askSummaryAsNewest = useCallback(() => {
+    const { thread: to, take: on } = threadRef.current;
+    if (on && !recordedSince(to?.messages ?? [], on)) askSummary();
+  }, [askSummary]);
   const ended = finished && !args.feedbackPending && thread !== null && !thread.loading;
   useEffect(() => {
-    if (ended && request === null) postEnd();
-  }, [ended, request, postEnd]);
+    if (!ended || request !== null) return;
+    postEnd();
+    askSummaryAsNewest();
+  }, [ended, request, postEnd, askSummaryAsNewest]);
   const onEnd = useCallback(() => {
     // A paragraph's own practise or helper words end nothing either, but
     // the page still hears it: a lens opened on them shows the text then.
@@ -1446,26 +1645,27 @@ export function useDeckFeedbackWalk(args: {
     live.current.onEnd?.();
   }, [postEnd]);
   const onClose = useCallback(() => {
-    if (!practisingRef.current && live.current.finished && !live.current.feedbackPending) postEnd();
+    // ✕ on a finished walk ends the review as Close does (B11, C9). The
+    // coach-only walk is not the review: it ends nothing.
+    const { finished: done, feedbackPending, coachOnly: coachDoor } = live.current;
+    if (!practisingRef.current && !coachDoor && done && !feedbackPending) {
+      postEnd();
+      askSummaryAsNewest();
+    }
     if (lensRef.current) live.current.onLensClose?.();
     live.current.onWalkClose?.();
-  }, [postEnd]);
+  }, [postEnd, askSummaryAsNewest]);
   /* "LESSON DONE." AND CLOSE (founder 2026-10-31, N309 item 4): the review's
      end is written, so "Continue review" goes and the Take's card lands
      under its Feedback walk; the walk closes back to the chat. The summary
      is no longer a step of the walk, and is still written once per Take as
      the walk ends, so the chat's chain after the review (its card, the one
      ask, the closing message with "Record Take N") runs as before. */
-  const summaryAsked = useRef<string | null>(null);
   const onLessonDone = useCallback(() => {
     if (practisingRef.current || live.current.coachOnly) return;
     postEnd();
-    const { take: on } = threadRef.current;
-    if (on && summaryAsked.current !== on && storedSummaryRef.current === null) {
-      summaryAsked.current = on;
-      void summary();
-    }
-  }, [postEnd, summary]);
+    askSummary();
+  }, [postEnd, askSummary]);
   // NEXT GOES TO WHAT STILL WAITS (founder 2026-10-14, walk first): on a
   // step played again, while a moment of this Take still waits, Next goes
   // to the live walk's first waiting step; with nothing waiting it plays on.
@@ -1537,6 +1737,17 @@ export function useDeckFeedbackWalk(args: {
     [walkModel, post, onReached],
   );
 
+  /* OTHER SPEAKERS' MOMENT IS THERE WHEN THE WALK GETS THERE (C8, N309 item
+     2): the One thing walk's one moment, from Take 2, asked as the walk
+     opens, while the speaker walks the steps before it; not once the
+     chat holds their answer to it. */
+  useEffect(() => {
+    if (!request || !take || !othersLevel || coachOnly || othersJudged > 0) return;
+    const plan = walkModelRef.current.plan;
+    const at = plan.findIndex((s) => s.key === "others" && s.one === true && !s.replay && !s.readOnly);
+    if (at >= request.at) prefetchOtherClips(take, othersLevel);
+  }, [request, take, othersLevel, coachOnly, othersJudged]);
+
   /** Another speaker's moment, shown or answered: in the chat. */
   const onOthers = useCallback(
     (at: number, of: number, from: string | null, answer: string | null, one?: boolean) => {
@@ -1573,17 +1784,40 @@ export function useDeckFeedbackWalk(args: {
   // account, read once per page with the rest of the profile (a guest, or a
   // read that fails: the hello without a name).
   const [firstName, setFirstName] = useState<string | null>(null);
+  // The walk opens once the name is read (`walkReady`), so the hello never
+  // changes in place (C0, B5).
+  const [nameRead, setNameRead] = useState(false);
   useEffect(() => {
     let on = true;
     void fetchUserProfileShared()
       .then((profile) => {
         if (on) setFirstName(profile?.first_name ?? null);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (on) setNameRead(true);
+      });
     return () => {
       on = false;
     };
   }, []);
+  /* THE WALK OPENS WHOLE, BEHIND THE WAIT (A2, B5, C0, C0a, T): once the
+     speaker's name and Last time are read, and the tempo answer where the
+     Sniper may be the walk's fix (the server chose it, or served no choice),
+     so the hello never swaps, Last time is there before their best, and the
+     Sniper is never lost to a race. Never longer than WALK_OPEN_WAIT_MS
+     from when the walk has its moments (marks that land late start it
+     again), well inside the wait's own patience (waitHandover
+     LENS_APPEAR_MS, the lens's LENS_WATCHDOG_MS). The coach's door waits
+     for none of it. */
+  const [openWaited, setOpenWaited] = useState(false);
+  const hasItems = items.length > 0;
+  useEffect(() => {
+    setOpenWaited(false);
+    const timer = setTimeout(() => setOpenWaited(true), WALK_OPEN_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [hasItems]);
+  const walkReady = coachOnly || openWaited || walkOpens({ items, tempo, nameRead, lastAnswered, lastFix, thread });
   const element = useMemo(
     () => (
         <FeedbackWalk
@@ -1615,7 +1849,8 @@ export function useDeckFeedbackWalk(args: {
           onOthers={onOthers}
           reasons={greenReasons}
           othersJudged={othersJudged}
-          tempo={tempo}
+          tempo={tempo ?? null}
+          tempoAsking={tempo === undefined}
           tempoSaid={tempoSaid}
           onTempo={onTempo}
           quotes={quotes}
@@ -1669,8 +1904,8 @@ export function useDeckFeedbackWalk(args: {
   );
 
   return useMemo(
-    () => ({ review, openPart, openHelpers, hasMoment, waits, replay, canReplay, replaySettled, practisePart, element }),
-    [review, openPart, openHelpers, hasMoment, waits, replay, canReplay, replaySettled, practisePart, element],
+    () => ({ review, openPart, openHelpers, hasMoment, waits, replay, canReplay, replaySettled, walkReady, practisePart, element }),
+    [review, openPart, openHelpers, hasMoment, waits, replay, canReplay, replaySettled, walkReady, practisePart, element],
   );
 }
 

@@ -131,12 +131,19 @@ function props(over: Record<string, unknown> = {}) {
 Element.prototype.scrollTo = Element.prototype.scrollTo ?? (() => undefined);
 Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => undefined);
 
+/** What no test serves: none, but the tempo route's "no stretch", which the
+ *  walk's opening waits for (`walkReady`; a failed read is asked again). */
+const notServed = (url: string) =>
+  url.includes("/review/tempo/")
+    ? new Response(JSON.stringify({ tempo: null }), { status: 200, headers: { "Content-Type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
 let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
   chat.thread = null;
   window.localStorage.clear();
-  vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 404 })));
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => notServed(String(input))));
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -325,7 +332,7 @@ describe("B10: every door opens the whole Take's walk", () => {
       if (url.endsWith("/ai-voice")) {
         return json({ demo: "ai_voice", clip: { state: "pending", url: null, problem: "stress", phrase: "one more quarter" } });
       }
-      return new Response("{}", { status: 404 });
+      return notServed(url);
     }));
     // The Lounge's Exercise bubble: the Take's walk numbered it 1, after the
     // praise on paragraph 2.
@@ -383,7 +390,7 @@ describe("N247: a finished walk opened again holds every step as it went", () =>
       if (url.endsWith("/communities/answers")) {
         return json({ answers: [{ clip_id: "other-1", audio_ref: "https://media/other.wav", value: "yes" }] });
       }
-      return new Response("{}", { status: 404 });
+      return notServed(url);
     }));
     // The Feedback walk of the finished Take, on its newest part.
     const p = { arcId: "arc-1", coachMessage: null, reviewAt: { step: "helpers", moment: 0, take: "take-2", part: "p2" } };
