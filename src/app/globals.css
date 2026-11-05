@@ -144,8 +144,12 @@ body {
   .max-w-4xl {
     max-width: min(36rem, calc(100vw - 30px));
   }
+  /* 16px: iOS zooms the page in on any field under 16px when it is tapped,
+     and leaves it zoomed. `select` too (the country on the consent screen,
+     the time zone when booking). */
   input,
-  textarea {
+  textarea,
+  select {
     font-size: 16px !important;
     scroll-margin-top: 1.5rem;
   }
