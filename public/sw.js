@@ -54,9 +54,16 @@
  * `/chat` by the middleware, so the precache rendered the Lounge a second
  * time during boot, for an offline shell the fallback can take from the
  * last navigation the worker answered instead (see `navigateNetworkFirst`).
- * An unversioned worker that may have cached chunks drops them. */
+ * An unversioned worker that may have cached chunks drops them.
+ *
+ * v10 (2026-11-05): the pdf.js worker, `/pdf.worker.min.mjs?v=<pdfjs
+ * version>`, stands aside too. Its URL changes with pdfjs and next.config.mjs
+ * serves it immutable, so the browser's HTTP cache already keeps it; stale-
+ * while-revalidate here wrote its 1.38 MB into Cache Storage again on every
+ * load that drew a slide, and into a fresh, empty cache after every deploy.
+ * An unversioned worker that may have cached it drops it. */
 const BUILD_ID = new URL(self.location.href).searchParams.get("v");
-const CACHE_NAME = BUILD_ID ? `willab-shell-${BUILD_ID}` : "willab-shell-v9";
+const CACHE_NAME = BUILD_ID ? `willab-shell-${BUILD_ID}` : "willab-shell-v10";
 const SHELL_ASSETS = ["/manifest.webmanifest", "/icon"];
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -162,8 +169,10 @@ self.addEventListener("activate", (event) => {
                        died with every deploy and cost the first open after
                        one seconds per chunk. Standing aside is the fast
                        path. (It was cache-first from 2026-08-04 to v9.)
-     5. everything else STALE-WHILE-REVALIDATE. Icons, images, the manifest,
-                       the pdf worker: stable URLs whose content CAN change.
+                       The pdf.js worker likewise since v10: versioned by
+                       its ?v= and served immutable (next.config.mjs).
+     5. everything else STALE-WHILE-REVALIDATE. Icons, images, the manifest:
+                       stable URLs whose content CAN change.
                        Cache-first meant they were frozen until someone
                        bumped the cache name. Serve the cached copy for
                        speed, refresh it in the background, converge next
@@ -185,9 +194,10 @@ function isMediaRequest(request) {
 }
 
 /** Content-addressed build output: the hash in the filename IS the version,
- *  and the browser's HTTP cache keeps it. Never ours (v9). */
+ *  and the browser's HTTP cache keeps it. Never ours (v9). The pdf.js worker
+ *  is versioned by its ?v= and served immutable the same way (v10). */
 function isBuildAsset(url) {
-  return url.pathname.startsWith("/_next/static/");
+  return url.pathname.startsWith("/_next/static/") || url.pathname === "/pdf.worker.min.mjs";
 }
 
 /** Store a response, if it is one we are allowed to replay.
@@ -300,10 +310,10 @@ self.addEventListener("fetch", (event) => {
   // for a fresh link. The browser handles media itself.
   if (isMediaRequest(request)) return;
 
-  // (4) Build output: never intercepted (v9, founder 2026-10-18). Immutable
-  // on the server, kept by the browser's own cache across deploys; this
-  // worker's copy was emptied by every deploy and cost the first open after
-  // one seconds per chunk. The browser handles it.
+  // (4) Build output and the pdf.js worker: never intercepted (v9, founder
+  // 2026-10-18; v10). Immutable on the server, kept by the browser's own
+  // cache across deploys; this worker's copy was emptied by every deploy and
+  // cost the first open after one seconds per chunk. The browser handles it.
   if (isBuildAsset(url)) return;
 
   if (request.mode === "navigate") {

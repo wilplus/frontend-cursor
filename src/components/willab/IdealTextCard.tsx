@@ -1,11 +1,22 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import DeckSlidePreview from "./DeckSlidePreview";
+import dynamic from "next/dynamic";
 import { useAfterChatBoot } from "@/lib/chatBoot";
+import { useWillChatInView } from "./chats/willChatInView";
 import { useNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
 import { warmIdealTextOpen } from "@/services/api/idealText";
 import { warmPastIdealText } from "@/lib/willab/pastIdealText";
+
+/** The preview's own frame (its "header" size), empty: the same box the
+ *  slide lands in, so nothing moves. */
+function EmptyFrame() {
+  return <span className="block aspect-video w-full rounded-lg border border-border bg-muted" />;
+}
+
+// The slide is never on first paint (below): its code, with pdf.js's loader,
+// comes with the first slide drawn, the empty frame standing in until then.
+const DeckSlidePreview = dynamic(() => import("./DeckSlidePreview"), { ssr: false, loading: EmptyFrame });
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextCard — a Take's one Ideal Text bubble in the chat (founder        */
@@ -65,10 +76,13 @@ function CardButton({
   // The preview loads pdf.js and its worker, ~1.6 MB, once per card: drawn
   // for every card at boot it sat beside the thread's own reads. Now it is
   // drawn once the thread has painted AND the card is near the screen; until
-  // then the tile is the same-sized box the slide's frame would be.
+  // then the tile is the same-sized box the slide's frame would be. Near
+  // the screen means in Will's chat as the person sees it: while the list
+  // covers it (laid out underneath, so on screen to the browser), it waits.
   const tileRef = useRef<HTMLSpanElement>(null);
   const booted = useAfterChatBoot();
-  const near = useNearScreen(tileRef);
+  const inView = useWillChatInView();
+  const near = useNearScreen(tileRef, inView);
   const showSlide = slideRef !== undefined && booted && near;
   return (
     <button
@@ -92,9 +106,7 @@ function CardButton({
             {showSlide ? (
               <DeckSlidePreview presentationRef={slideRef} pageIndex={0} className="" size="header" />
             ) : (
-              // The preview's own frame (its "header" size), empty: the
-              // same box, so nothing moves when the slide lands in it.
-              <span className="block aspect-video w-full rounded-lg border border-border bg-muted" />
+              <EmptyFrame />
             )}
           </span>
         ) : null}
@@ -111,12 +123,12 @@ function CardButton({
 }
 
 /** True once `ref`'s element has come within a screen's reach of the viewport
- *  (and stays true). Without an IntersectionObserver — an old browser, a test
- *  — it is simply true. */
-function useNearScreen(ref: RefObject<HTMLElement | null>): boolean {
+ *  while `watching` (and stays true). Without an IntersectionObserver — an
+ *  old browser, a test — it is simply true once watching. */
+function useNearScreen(ref: RefObject<HTMLElement | null>, watching: boolean): boolean {
   const [near, setNear] = useState(false);
   useEffect(() => {
-    if (near) return;
+    if (near || !watching) return;
     const element = ref.current;
     if (!element) return;
     if (typeof IntersectionObserver === "undefined") {
@@ -134,6 +146,6 @@ function useNearScreen(ref: RefObject<HTMLElement | null>): boolean {
     );
     observer.observe(element);
     return () => observer.disconnect();
-  }, [ref, near]);
+  }, [ref, near, watching]);
   return near;
 }

@@ -337,6 +337,8 @@ describe("build output is never intercepted (v9, founder 2026-10-18, Q6)", () =>
       })
     ).toBeNull();
     expect(await request(sw, `${ORIGIN}/_next/static/css/app-def456.css`, { destination: "style" })).toBeNull();
+    // The pdf.js worker too: versioned by its ?v= and served immutable (v10).
+    expect(await request(sw, `${ORIGIN}/pdf.worker.min.mjs?v=4.10.38`, { destination: "worker" })).toBeNull();
     expect(sw.networkCalls).toHaveLength(0);
     // And nothing new is ever written for one.
     expect([...sw.store.keys()].filter((k) => k.includes("/_next/static/"))).toEqual([
