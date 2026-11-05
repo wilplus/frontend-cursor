@@ -28,6 +28,10 @@ OUTCOME
       in Will's, the chat's own top bar takes its place (N321 item 1, N334).
   O5  A chat whose last message is newer than the last time it was opened
       on this device shows as new, and stops being new once opened (N322).
+  O26 While the list is what I see, it reads the chats again every 20
+      seconds, so a message that arrives while I look shows (N500 item 3);
+      while Will's chat or a person's chat covers it, it is not read, and
+      back on the list it is read at once.
   O7  A voice note from the other person is their grey bubble with a play
       control that plays it from the chat's audio route (N321 item 2); its
       words, once ready, are closed behind "Read it" under the player, and
@@ -125,6 +129,7 @@ PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is 
          O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning, and the bar has no mic"
          O4 -> "the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's"
          O5 -> "a chat with a message newer than its last opening shows as new until it is opened"
+         O26 -> "the list reads the chats again while I look at it, rests behind Will's chat, and reads them once I am back"
          O7 -> "a voice note from the other person plays from the chat's audio route, its words behind Read it"
          O8 -> "the + opens my own link and copies it"
          O9 -> "a chat joined through a link says whose link it was"
@@ -538,6 +543,46 @@ describe("the chats in front of the Lounge", () => {
     await tap(row("c-sarah"));
     await tap(container.querySelector("[data-chat-header] button"));
     expect(row("c-sarah")?.hasAttribute("data-chat-new")).toBe(false);
+  });
+
+  it("the list reads the chats again while I look at it, rests behind Will's chat, and reads them once I am back", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    try {
+      backend(["chats"]);
+      routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
+      routes.set("GET /api/v2/chats/c-sarah/messages", () => ({ messages: [] }));
+      await render();
+      const reads = () => calls("GET /api/v2/chats").length;
+      expect(reads()).toBe(1);
+
+      // A message arrives while I look at the list: it shows.
+      routes.set("GET /api/v2/chats", () => ({ chats: [SARAH, ARIEL] }));
+      act(() => void vi.advanceTimersByTime(20_000));
+      await flush();
+      expect(reads()).toBe(2);
+      expect(row("c-ariel")).not.toBeNull();
+
+      // In Will's chat, and in a person's, the list is not read.
+      await tap(row("will"));
+      act(() => void vi.advanceTimersByTime(60_000));
+      await flush();
+      expect(reads()).toBe(2);
+      await tap(container.querySelector("[data-chat-header] button"));
+      expect(reads()).toBe(3);
+      await tap(row("c-sarah"));
+      act(() => void vi.advanceTimersByTime(60_000));
+      await flush();
+      expect(reads()).toBe(3);
+
+      // Back on the list, it is read at once, and again while I look.
+      await tap(container.querySelector("[data-chat-header] button"));
+      expect(reads()).toBe(4);
+      act(() => void vi.advanceTimersByTime(20_000));
+      await flush();
+      expect(reads()).toBe(5);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("a voice note from the other person plays from the chat's audio route, its words behind Read it", async () => {

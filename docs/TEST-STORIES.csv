@@ -570,6 +570,10 @@ O4  The WillpowerLab bar shows on the list only: in a person's chat and
 in Will's, the chat's own top bar takes its place (N321 item 1, N334).
 O5  A chat whose last message is newer than the last time it was opened
 on this device shows as new, and stops being new once opened (N322).
+O26 While the list is what I see, it reads the chats again every 20
+seconds, so a message that arrives while I look shows (N500 item 3);
+while Will's chat or a person's chat covers it, it is not read, and
+back on the list it is read at once.
 O7  A voice note from the other person is their grey bubble with a play
 control that plays it from the chat's audio route (N321 item 2); its
 words, once ready, are closed behind ""Read it"" under the player, and
@@ -666,6 +670,7 @@ O2 -> ""with chats on and nobody yet, the list is Will and Add someone to chat w
 O3 -> ""an emoji tapped in a chat is posted and shown at once with its meaning, and the bar has no mic""
 O4 -> ""the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's""
 O5 -> ""a chat with a message newer than its last opening shows as new until it is opened""
+O26 -> ""the list reads the chats again while I look at it, rests behind Will's chat, and reads them once I am back""
 O7 -> ""a voice note from the other person plays from the chat's audio route, its words behind Read it""
 O8 -> ""the + opens my own link and copies it""
 O9 -> ""a chat joined through a link says whose link it was""

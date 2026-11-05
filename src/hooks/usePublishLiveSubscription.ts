@@ -23,10 +23,12 @@ export { isPublishTransition } from "@/hooks/publishLiveTransition";
 /*       is redundant but idempotent. If Realtime is disabled (publication */
 /*       missing, env vars absent, network blocking websockets), polling   */
 /*       is the only signal — user still sees the snippet within 20s.      */
+/*       It rests while the tab is hidden and calls `onPublish` once when  */
+/*       the tab comes back, so nothing published meanwhile waits.        */
 /*                                                                            */
-/*  Cleanup contract (C4): both the channel AND the interval are released  */
-/*  in the effect's cleanup. `supabase.getChannels()` returns 0 after the  */
-/*  parent component unmounts.                                              */
+/*  Cleanup contract (C4): the channel, the interval and the tab listener  */
+/*  are all released in the effect's cleanup. `supabase.getChannels()`     */
+/*  returns 0 after the parent component unmounts.                          */
 /*                                                                            */
 /*  RLS prerequisite (C3): `v2_sessions` needs a SELECT policy where        */
 /*  auth.uid() = user_id, otherwise the Realtime filter never matches and  */
@@ -99,7 +101,13 @@ export function usePublishLiveSubscription(
         }
       });
 
-    const pollId = setInterval(onPublish, FALLBACK_POLL_MS);
+    const pollId = setInterval(() => {
+      if (document.visibilityState !== "hidden") onPublish();
+    }, FALLBACK_POLL_MS);
+    const onReturn = () => {
+      if (document.visibilityState === "visible") onPublish();
+    };
+    document.addEventListener("visibilitychange", onReturn);
 
     return () => {
       // C4: tear down BOTH the channel and the interval. Leaked
@@ -111,6 +119,7 @@ export function usePublishLiveSubscription(
         // closed — never let it surface up to the user.
       }
       clearInterval(pollId);
+      document.removeEventListener("visibilitychange", onReturn);
     };
   }, [userId, onPublish]);
 }

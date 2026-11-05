@@ -61,8 +61,9 @@ export interface TokenWallet {
   prices: TokenPrices | null;
 }
 
-/** How often the chip re-reads while the tab is open. Matches the legacy
- *  credits poll so the two never disagree about how fresh "now" is. */
+/** How often the chip re-reads while the tab is in front. Matches the legacy
+ *  credits poll so the two never disagree about how fresh "now" is. A hidden
+ *  tab skips it; coming back reads at once (`onReturn`). */
 const POLL_MS = 60_000;
 
 /** A tab switch raises `focus` AND `visibilitychange` within a few ms of
@@ -146,7 +147,9 @@ export function useTokenWallet(active: boolean): TokenWallet {
       void read();
     };
     window.addEventListener(WILLAB_TOKENS_SPENT_EVENT, onSpent);
-    const intervalId = window.setInterval(() => void read(), POLL_MS);
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState !== "hidden") void read();
+    }, POLL_MS);
 
     return () => {
       cancelled = true;

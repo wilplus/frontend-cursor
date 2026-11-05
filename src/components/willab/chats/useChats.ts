@@ -34,6 +34,15 @@ export function useChatsDecided(): boolean | null {
 /** How often the open list reads the chats again (N500). */
 const READ_AGAIN_MS = 20_000;
 
+/** Whether the list is what the person sees: the tab in front, the list
+ *  drawn, and not out of reach behind Will's chat or a person's chat (the
+ *  door hides it from a screen reader then, useChatsDoor's `away`). */
+function listInView(): boolean {
+  if (document.visibilityState !== "visible") return false;
+  const list = document.querySelector("[data-chat-list]");
+  return !!list && !list.closest('[aria-hidden="true"], [inert]');
+}
+
 /** The person's chats, read while `on`; `null` until the first list is known.
  *  An empty list stays empty: no demo chats for a newcomer (backend N401;
  *  was: two demo chats the first time). The first read takes the one the
@@ -73,10 +82,12 @@ export function useChatList(on: boolean): { chats: Chat[] | null; reload: () => 
   useEffect(() => {
     if (!on) return;
     void load();
-    // Read again while the list is open and on coming back to it, so a
-    // message that arrives while you look shows as new (N500).
+    // Read again while the list is what you see and on coming back to it, so
+    // a message that arrives while you look shows as new (N500). Behind Will's
+    // chat, a person's chat or the recording screens it rests; Back to the
+    // list reads it at once (useChatsDoor's toList).
     const again = () => {
-      if (document.visibilityState === "visible") void load();
+      if (listInView()) void load();
     };
     const timer = window.setInterval(again, READ_AGAIN_MS);
     document.addEventListener("visibilitychange", again);
