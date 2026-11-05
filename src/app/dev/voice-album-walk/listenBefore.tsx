@@ -40,9 +40,16 @@ export const PROPOSED = {
   morning: "Good luck today. Before you go on, listen to yourself at your best.",
   link: "Listen to yourself",
   bar: "Before your talk",
-  predict: "Before you listen: how do you think you sounded on Slide 2?",
+  predictTitle: "Before you listen",
+  predictWhen: "On Nov 2, in Take 3, you said:",
+  predictAsk: "How do you remember sounding?",
   end: "That is how you sound. Go and enjoy it.",
 };
+
+/** The memory cue: the speaker's own words in that clip, from the Take's
+ *  transcript (the Ideal Text holds them), so the guess has something to
+ *  recall. Fixture words, from the walk harness's Slide 2. */
+const CUE_WORDS = "The window closes once the incumbents catch up with pricing.";
 
 const FACE: Record<string, string> = { yes: "👍 Yes", in_between: "😐 In-between", no: "👎 No" };
 
@@ -126,7 +133,14 @@ export function ListenBefore({ step, src, onStep, onClose }: { step: number; src
       <WalkThreadMark label="Q3 Board pitch · Sat 14 Nov" />
       <WalkMessage>{SHIPPED.readyQ}</WalkMessage>
       {step === 0 ? <Scale onPick={next} /> : <Locked />}
-      {step >= 1 ? <WalkMessage>{PROPOSED.predict}</WalkMessage> : null}
+      {step >= 1 ? (
+        <WalkMessage>
+          <span>{PROPOSED.predictTitle}</span>
+          <span className="mt-1.5">{PROPOSED.predictWhen}</span>
+          <span className="my-1.5 italic">&ldquo;{CUE_WORDS}&rdquo;</span>
+          <span>{PROPOSED.predictAsk}</span>
+        </WalkMessage>
+      ) : null}
       {step >= 2 ? <WalkSpeakerBubble>{FACE[predicted]}</WalkSpeakerBubble> : null}
       {step >= 2 ? (
         <>
