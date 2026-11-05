@@ -154,7 +154,11 @@ export default function DumpScreen({
 
   return (
     <div
-      className="fixed inset-0 z-[80] touch-manipulation select-none bg-background"
+      // `touch-none`: the screen reads every touch itself. With panning
+      // allowed, a phone takes a downward drag for its own (the page's
+      // bounce, Safari's pull to reload) and cancels it after a few pixels,
+      // so the swipe down that closes (N506 item 2) never reached 90 px.
+      className="fixed inset-0 z-[80] touch-none select-none bg-background"
       style={{ transform: drag ? `translateY(${drag}px)` : undefined }}
       role="button"
       tabIndex={0}
