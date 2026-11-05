@@ -2127,7 +2127,9 @@ export default function Lounge({
           disabled={takeInFlight}
           aria-label="Your projects"
           title={takeInFlight ? FLOW_COPY.recordHeld : undefined}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted disabled:cursor-default disabled:text-muted-foreground/50 disabled:hover:bg-transparent"
+          // 44px to tap, 40px to see: 2px each side, within the 4px to the
+          // bar's middle.
+          className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors after:absolute after:-inset-0.5 after:content-[''] hover:bg-muted disabled:cursor-default disabled:text-muted-foreground/50 disabled:hover:bg-transparent"
         >
           {/* A stack, not a "+": in every other chat "+" adds to the chat
               (backend N460 item 5). */}
@@ -2180,7 +2182,9 @@ export default function Lounge({
               type="submit"
               disabled={botThinking}
               aria-label="Send"
-              className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-colors disabled:cursor-default disabled:text-muted-foreground"
+              // 44px to tap, 32px to see: 6px each side, within the field's
+              // right padding (pr-12), where no words are.
+              className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-colors after:absolute after:-inset-1.5 after:content-[''] disabled:cursor-default disabled:text-muted-foreground"
             >
               <Send className="h-5 w-5" />
             </button>

@@ -20,9 +20,18 @@ import { cn } from "@/lib/utils";
 /** The one style: a 28px bordered circle, grey, filling on hover. Shared
  *  with the text page's ⋯ beside it (founder 2026-10-07, Q-B14 A (1): "keep
  *  the app's one small grey X everywhere"; build plan D-RC-6), so the two
- *  can never drift apart. Position is still the caller's. */
+ *  can never drift apart. Position is still the caller's.
+ *
+ *  BIGGER TO TAP, THE SAME TO SEE: an invisible area (`after:`) makes it
+ *  44px tall, as the walk's ✕ already is (backend N440). Sideways it grows
+ *  3px only, half the 6px between the ⋯ and the ✕, so neither ever takes
+ *  the other's tap; the ✕ makes up the rest on its outer side (below). */
 export const OVERLAY_ICON_BUTTON_CLASS =
-  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:bg-muted hover:text-foreground";
+  "relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:bg-muted hover:text-foreground after:absolute after:-inset-y-2 after:-left-[3px] after:-right-[3px] after:content-['']";
+
+/** The ✕'s tap area, 44px wide: the 3px toward its neighbour (the ⋯, a
+ *  title) and the rest outward, to its right, where a close sits. */
+const CLOSE_TAP_AREA_CLASS = "after:-right-[13px]";
 
 /** The icon inside it: 16px. */
 export const OVERLAY_ICON_CLASS = "h-4 w-4";
@@ -42,7 +51,7 @@ export default function OverlayCloseButton({
       type="button"
       onClick={onClick}
       aria-label={ariaLabel}
-      className={cn(OVERLAY_ICON_BUTTON_CLASS, className)}
+      className={cn(OVERLAY_ICON_BUTTON_CLASS, CLOSE_TAP_AREA_CLASS, className)}
     >
       <X className={OVERLAY_ICON_CLASS} aria-hidden />
     </button>
