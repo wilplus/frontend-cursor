@@ -66,10 +66,18 @@ export default function VoiceAlbumMoment({
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [extraNotes, setExtraNotes] = useState<MomentEvent[]>([]);
 
+  // Opening asks for the history once.
   useEffect(() => {
-    if (!open || status !== "idle") return;
+    if (open && status === "idle") setStatus("loading");
+  }, [open, status]);
+
+  // The read itself lives in its own effect, so moving to "loading" does not
+  // cancel it: an earlier build set the status and dropped the answer in the
+  // same effect, and History spun forever. The guard only drops an answer
+  // after unmount or a change of moment.
+  useEffect(() => {
+    if (status !== "loading") return;
     let active = true;
-    setStatus("loading");
     void fetchMomentHistory(projectId, entry.momentKey).then((result) => {
       if (!active) return;
       setHistory(result);
@@ -78,7 +86,7 @@ export default function VoiceAlbumMoment({
     return () => {
       active = false;
     };
-  }, [open, status, projectId, entry.momentKey]);
+  }, [status, projectId, entry.momentKey]);
 
   const events = [...(history?.events ?? []), ...extraNotes];
   const recorded = shortDate(entry.enteredAt);
