@@ -1985,6 +1985,16 @@ O2 -> ""does not claim a spend when the endpoint failed""
 O3 -> ""still returns the feedback; the charge never gates the read""","The backend charges the insights price on this GET, silently and fail-open. Needs jsdom: notifyTokensSpent no-ops without a window, so in node this file would pass by measuring nothing."
 src/services/api/bookmarkHistory.test.ts,Story,"As a speaker, I want my paragraph history to list each Take's version and keep accepted corrections apart, so that every old version stays and I can see where each one came from.","O1  The versions list holds only my Takes; an accepted correction is
 listed separately.","O1 -> ""keeps an accepted correction apart from the Takes (N48.1)""",Never-rule 5: every old version stays in the history.
+src/services/api/bootPrefetch.test.ts,Story,"As a returning member opening the app, I want my chat to start loading while the app checks that I am a member, not after it, so that my thread is there a whole round trip sooner; and as someone on the waitlist, I want that early start to change nothing of mine.","O1  For an account this device has seen let in, /chat's open starts the
+members check, the thread, the agreement and the session state
+together, and each is read once: the screens take those reads.
+O2  For any other signed-in account only the members check and the
+thread (a read that writes nothing) start early; signed out, nothing
+starts and no guest identity is made.
+O3  The members check is one request at a time; a member is kept for the
+page, a waitlist answer is asked again.","O1 -> ""a returning member's chat starts its reads with the members check, each read once""
+O2 -> ""an account not let in here starts only its thread; signed out starts nothing""
+O3 -> ""the members check is asked once at a time; a member is kept, the waitlist asked again""",Loading time (2026-11-05): the members check (backend N471) put a whole round trip in front of every boot read.
 src/services/api/coachExercises.test.ts,Story,"As a coach, I want a new exercise video saved together with its definition at the exercise's own address, so that the exercise and its video never get out of step.","O1  The video file and the exercise definition go in one upload to that
 exercise's address, and the old video link is not sent.","O1 -> ""posts the file and the definition together, to the exercise's own address""",
 src/services/api/coachPanel.test.ts,Story,"As a coach, I want a coach-panel feature that is switched off or offline to show as empty, not as an error, so that the panel keeps working.","O1  A switched-off feature (not found) or no connection gives ""nothing"",

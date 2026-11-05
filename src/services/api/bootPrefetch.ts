@@ -6,6 +6,8 @@ import {
 import { fetchLoungeHistory, type LoungeHistoryPage } from "./loungeMessages";
 import { loadRingState } from "./rings";
 import { getChats, type Chat } from "./chats";
+import { fetchSessionState, type SessionStateValue } from "./chatSessionState";
+import { getAccess, wasMemberHere } from "./access";
 
 /* -------------------------------------------------------------------------- */
 /*  bootPrefetch — start /chat's boot reads together, not one gate at a time   */
@@ -61,10 +63,9 @@ const FIRST_PAGE_TIMEOUT_MS = 10_000;
 const AUTHORIZATION = "processing-authorization";
 const LOUNGE_HISTORY = "lounge-history";
 const CHATS = "chats";
+const SESSION_STATE = "session-state";
 
-/** Fire the boot reads. Idempotent while entries are pending. */
-export function prefetchChatBoot(): void {
-  remember(AUTHORIZATION, fetchAuthorization);
+function rememberThread(): void {
   remember(LOUNGE_HISTORY, async () => {
     // fetchLoungeHistory answers "no session" with an EMPTY page, which is
     // indistinguishable from an empty thread. Only a signed-in read may be
@@ -72,6 +73,47 @@ export function prefetchChatBoot(): void {
     if (!(await getAuthToken())) return undefined;
     return fetchLoungeHistory({ timeoutMs: FIRST_PAGE_TIMEOUT_MS });
   });
+}
+
+/** Fire the boot reads. Idempotent while entries are pending. */
+export function prefetchChatBoot(): void {
+  remember(AUTHORIZATION, fetchAuthorization);
+  rememberThread();
+}
+
+/* -------------------------------------------------------------------------- */
+/*  prefetchChatOpen — the boot reads start WITH the members check (2026-11-05) */
+/*                                                                            */
+/*  By invitation (backend N471), /chat first asks whether the account is a    */
+/*  member (MembersOnly) and draws nothing until it answers; only then did    */
+/*  useWillabFlow mount and start the reads above. One whole round trip in   */
+/*  front of every boot read. page.client.tsx now calls this as /chat opens,  */
+/*  past Welcome only (before it the flow reads nothing): the members check   */
+/*  and the boot reads go out together, and each gate still TAKES its read    */
+/*  exactly as before. Nothing about who gets in changes: MembersOnly still   */
+/*  waits for the answer, and a read nobody takes is simply dropped.          */
+/*                                                                            */
+/*  What may start before the answer is only what changes nothing for an      */
+/*  account the backend refuses (a waiting one):                              */
+/*    - signed out: nothing at all, so no guest identity is ever minted;      */
+/*    - signed in: the members check and the thread's newest page (a plain    */
+/*      read; GET /v2/user/lounge/messages writes nothing);                   */
+/*    - an account this device has seen let in before (access.ts): also the  */
+/*      agreement status and the session state. Those two pass the backend's */
+/*      processing gate, which writes the account's owner record the first   */
+/*      time it is asked, so they never go early for an account not known    */
+/*      here. A member stays a member (backend services/membership.py): for  */
+/*      one let in before, they are the reads it makes a moment later anyway. */
+/* -------------------------------------------------------------------------- */
+
+export async function prefetchChatOpen(opts: { parked: boolean }): Promise<void> {
+  if (!(await getAuthToken())) return;
+  void getAccess(); // MembersOnly shares this one request
+  rememberThread();
+  if (!(await wasMemberHere())) return;
+  remember(AUTHORIZATION, fetchAuthorization);
+  // A parked Readout opens without the session state (useWillabFlow).
+  if (!opts.parked) remember(SESSION_STATE, fetchSessionState);
 }
 
 /** The chats door's read (useChatsDoor): the list, early, for every
@@ -91,6 +133,12 @@ export function prefetchChatsDoor(): void {
 /** useChatList's first read: the prefetched list or a fresh one. */
 export async function takeChats(): Promise<Chat[] | null> {
   return (await take<Chat[]>(CHATS)) ?? getChats();
+}
+
+/** useWillabFlow's session state: the one read at /chat's open, or a fresh one. */
+export async function takeSessionState(): Promise<SessionStateValue | null> {
+  const prefetched = await take<SessionStateValue | null>(SESSION_STATE);
+  return prefetched !== undefined ? prefetched : fetchSessionState();
 }
 
 /** Phase1AcceptanceGate's first check: the prefetched status or a fresh one. */
