@@ -9,7 +9,7 @@
 /*                                                                            */
 /*    ?screen=notify            the reminder outside the app (opt-in)          */
 /*    ?screen=morning           Will's line in his chat, with its link        */
-/*    ?screen=listen&step=N     the lens, N = 0..5                             */
+/*    ?screen=listen&step=N     the lens, N = 0..3                             */
 /*    ?screen=after             the chat the next morning                     */
 /*                                                                            */
 /*  Order matters (contract 32): the speaker answers before the coach's Yes   */
@@ -45,16 +45,12 @@ export const PROPOSED = {
   link: "Listen to yourself",
   again: "Listen again",
   bar: "Before your talk",
-  predictTitle: "Before you listen",
   predictWhen: "On Nov 2, in Take 3, you said:",
-  predictAsk: "How do you remember sounding?",
-  gapLower: "You remembered it shakier than it sounds.",
-  gapSame: "You remembered it right.",
   end: "That is how you sound. Go and enjoy it.",
   another: "Hear another",
 };
 
-/** The memory cue: the speaker's own words in that clip, from the Take's
+/** The speaker's own words in that clip, shown with it, from the Take's
  *  transcript (the Ideal Text holds them). Fixture words. */
 const CUE_WORDS = "The window closes once the incumbents catch up with pricing.";
 
@@ -148,21 +144,17 @@ export function MorningLounge({ after = false }: { after?: boolean }) {
   );
 }
 
-/** The lens, `step` 0..5: ready → guess → it plays → own answer → the gap,
- *  the coach, ready again → the end. */
+/** The lens, `step` 0..3: ready → their words and their clip, which plays
+ *  as the step opens, then "Does this sound confident to you?" → their
+ *  answer, the coach's line after it, ready again → the end. */
 export function ListenBefore({ step, src }: { step: number; src: string | null }) {
-  // The guess has no "Audio unclear": nothing has played yet.
   const dock =
     step === 1 ? (
       <WalkFooter>
         <WalkFaces answered={null} onPick={() => {}} />
-      </WalkFooter>
-    ) : step === 3 ? (
-      <WalkFooter>
-        <WalkFaces answered={null} onPick={() => {}} />
         <WalkUnclear onPick={() => {}} />
       </WalkFooter>
-    ) : step === 5 ? (
+    ) : step === 3 ? (
       <WalkFooter pill={{ label: SHIPPED.close, onClick: () => {} }} links={[{ label: PROPOSED.another, onClick: () => {} }]} />
     ) : null;
   return (
@@ -174,30 +166,22 @@ export function ListenBefore({ step, src }: { step: number; src: string | null }
       </div>
       {step >= 1 ? (
         <WalkMessage>
-          <span>{PROPOSED.predictTitle}</span>
-          <span className="mt-1.5">{PROPOSED.predictWhen}</span>
-          <span className="my-1.5 italic">&ldquo;{CUE_WORDS}&rdquo;</span>
-          <span>{PROPOSED.predictAsk}</span>
+          <span>{PROPOSED.predictWhen}</span>
+          <span className="mt-1.5 italic">&ldquo;{CUE_WORDS}&rdquo;</span>
         </WalkMessage>
       ) : null}
-      {step >= 2 ? <WalkSpeakerBubble>{FACE.in_between}</WalkSpeakerBubble> : null}
-      {step >= 2 ? (
+      {step >= 1 ? (
         <div data-reveal>
           <WalkPlayer look="me" seed="s2" src={src} durationMs={7000} label="Take 3 · Slide 2 · Nov 2" />
         </div>
       ) : null}
-      {step >= 3 ? (
+      {step >= 1 ? (
         <div data-own className="flex flex-col gap-4">
           <WalkMessage>{SHIPPED.question}</WalkMessage>
-          {step >= 4 ? <WalkSpeakerBubble>{FACE.yes}</WalkSpeakerBubble> : null}
+          {step >= 2 ? <WalkSpeakerBubble>{FACE.yes}</WalkSpeakerBubble> : null}
         </div>
       ) : null}
-      {step >= 4 ? (
-        <WalkMessage>
-          <span data-gap>{PROPOSED.gapLower}</span>
-        </WalkMessage>
-      ) : null}
-      {step >= 4 ? (
+      {step >= 2 ? (
         <div data-coach>
           <WalkMessage coach>
             <span>{SHIPPED.coachLine}</span>
@@ -205,13 +189,13 @@ export function ListenBefore({ step, src }: { step: number; src: string | null }
           </WalkMessage>
         </div>
       ) : null}
-      {step >= 4 ? (
+      {step >= 2 ? (
         <div data-ready="after" className="flex flex-col gap-4">
           <WalkMessage>{SHIPPED.readyQ}</WalkMessage>
-          {step === 4 ? <Scale /> : <Locked />}
+          {step === 2 ? <Scale /> : <Locked />}
         </div>
       ) : null}
-      {step >= 5 ? <WalkMessage>{PROPOSED.end}</WalkMessage> : null}
+      {step >= 3 ? <WalkMessage>{PROPOSED.end}</WalkMessage> : null}
     </WalkOverlay>
   );
 }

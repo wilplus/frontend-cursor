@@ -7,7 +7,7 @@
 /*  WalkFooter). Nothing is fetched; the data is fixtures. Not a surface.     */
 /*                                                                            */
 /*    /dev/voice-album-walk?screen=home | moment | note | new | answered |    */
-/*            empty | notify | morning | listen&step=0..5 | after             */
+/*            empty | notify | morning | listen&step=0..3 | after             */
 /*                                                                            */
 /*  Words: only strings the app already shows (the walk's copy, today's       */
 /*  Voice Album, and the backend's "Your Voice Album is ready" message).      */
