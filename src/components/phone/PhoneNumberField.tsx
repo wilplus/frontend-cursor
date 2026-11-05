@@ -114,7 +114,9 @@ export default function PhoneNumberField({
     setState({ country: c, text: next });
     report(c, next);
     setOpen(false);
-    window.requestAnimationFrame(() => input.current?.focus());
+    // Inside the tap, not a frame later: a phone opens the number pad only
+    // for a focus made while the tap is handled.
+    input.current?.focus();
   };
 
   const sample = SAMPLES[country.iso] ?? grouped("0".repeat(country.min));

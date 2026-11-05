@@ -19,7 +19,9 @@
  *       answer is outlined, never filled (N415).
  *   O4  You type to Will only when he asks for words (N483 item 2): the box
  *       "Type your answer" opens when you tap "Something else", the first of
- *       his answers, and by itself for his follow-up with no answers or when
+ *       his answers, with the keyboard up from that one tap (the box is
+ *       focused inside the tap: a phone opens no keyboard for a focus made
+ *       later), and by itself for his follow-up with no answers or when
  *       words are what waits; while the plan asks it never opens (N371).
  * PROVES   O1 -> "the newest question shows its answers, no Skip, and a tap
  *                 goes to the backend once"
@@ -123,12 +125,22 @@ it("suggested answers: two in a row, three stacked, a lone one outlined, saying 
   expect(shown()).toEqual(["F", "E", "D", "C", "B", "A"]);
 });
 
+/** Whether the box had the focus when the tap's handler returned. */
+let focusedInTap = false;
+
 function Bar({ shown, typingOff, wordsWait = false }: { shown: { metadata: Record<string, unknown> }[]; typingOff: boolean; wordsWait?: boolean }) {
   const box = useRef<HTMLTextAreaElement>(null);
   const words = useWordsBox(shown, typingOff, "", box, wordsWait);
   return (
     <div>
-      <button type="button" data-open onClick={words.start} />
+      <button
+        type="button"
+        data-open
+        onClick={() => {
+          words.start();
+          focusedInTap = document.activeElement === box.current && box.current !== null;
+        }}
+      />
       {words.show ? <textarea ref={box} placeholder={TYPE_YOUR_ANSWER} /> : <span data-middle="" />}
     </div>
   );
@@ -141,6 +153,8 @@ it("the box opens only when Will asks for words; the plan's questions never open
   expect(box()).toBeNull();
   await act(async () => (host.querySelector("[data-open]") as HTMLButtonElement).click());
   expect(box()?.placeholder).toBe(TYPE_YOUR_ANSWER);
+  // Focused inside the tap, so the phone's keyboard comes up with it.
+  expect(focusedInTap).toBe(true);
   // His follow-up has nothing to tap: the box is there by itself.
   act(() => root.render(<Bar shown={[{ metadata: { ...META, will_question_step: "follow", chips: [] } }]} typingOff={false} />));
   expect(box()).not.toBeNull();

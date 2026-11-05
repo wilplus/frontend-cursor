@@ -6,7 +6,8 @@ OUTCOME
   O1  Poland is chosen at the start; the list opens with Poland, then the
       United States, then every country A to Z.
   O2  Searching "uk" finds the United Kingdom; picking it gives the number
-      its +44.
+      its +44, and the number field has the focus at once, so the phone's
+      number pad comes up with that tap.
   O3  A full number pasted with + picks its own country, and a leading 0 is
       dropped.
 PROVES   O1, O2 -> "Poland first, then the US, then A to Z; search finds the UK"
@@ -55,6 +56,7 @@ describe("the number field", () => {
     type(document.body.querySelector<HTMLInputElement>('input[type="search"]')!, "uk");
     act(() => options()[0].click());
     expect(countryButton().getAttribute("aria-label")).toBe(PHONE_FIELD_COPY.country("United Kingdom", "44"));
+    expect(document.activeElement).toBe(container.querySelector("#n"));
 
     type(container.querySelector<HTMLInputElement>("#n")!, "07700 900123");
     expect(got).toHaveBeenLastCalledWith("+447700900123");
