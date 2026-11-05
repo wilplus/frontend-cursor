@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronLeft, Plus, X } from "lucide-react";
+import { Check, Plus, X } from "lucide-react";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 import TypingDots from "@/components/willab/TypingDots";
 import { VoicePlayer } from "@/components/willab/plan/VoicePlayer";
@@ -38,12 +38,16 @@ import {
 } from "@/services/api/chats";
 import Profile from "./Profile";
 import { BlockedBar, useBlocking } from "./BlockReport";
-import { EMOJI_MEANING, LetterCircle, WILL_ROW_TITLE, WillMark, firstName, meaningOf, takeSentYou } from "./ChatList";
+import { EMOJI_MEANING, LetterCircle, firstName, meaningOf, takeSentYou } from "./ChatList";
+import { TopBar } from "./TopBar";
+// The top bars live in ./TopBar, so Will's draws without this chat's code;
+// the coach's queue still imports TopBar from here.
+export { TopBar, WillTopBar } from "./TopBar";
 import { fetchChatTake, type ChatTake } from "@/services/api/takeSends";
 import { fmtClock } from "@/components/willab/willabHelpers";
 import { markChatOpened } from "./chatOpened";
 import { SEND_PICKED, answersOf, joinedAsks, joinedThanks, joinedYourLink } from "./joinCopy";
-import { MonthGrid } from "../plan/PlanCalendar";
+import { MonthGrid } from "../plan/MonthGrid";
 import { clockTime, dayKey, dayLabel } from "./chatTime";
 
 /* -------------------------------------------------------------------------- */
@@ -65,59 +69,6 @@ import { clockTime, dayKey, dayLabel } from "./chatTime";
 /*  profile, the bar is one grey pill with Unblock; the messages stay (N466). */
 /* -------------------------------------------------------------------------- */
 
-/** Will's chat, under the WillpowerLab bar: back, then his name (N322 item 4). */
-/** Every chat's own top bar, full width, where the WillpowerLab bar was
- *  (backend N321 item 1, N334): back, the circle, the name, and who they are.
- *  The coach's queue wears it too, opened from its row in the list (N525). */
-export function TopBar({
-  circle,
-  title,
-  subtitle = null,
-  onBack,
-  onOpen = null,
-}: {
-  circle: ReactNode;
-  title: string;
-  subtitle?: string | null;
-  onBack: () => void;
-  /** A person's chat: their circle and name open their profile (N366). */
-  onOpen?: (() => void) | null;
-}) {
-  const who = (
-    <>
-      {circle}
-      <span className="flex min-w-0 flex-col text-left">
-        <span data-chat-name className="truncate text-[16px] font-semibold leading-tight text-foreground">
-          {title}
-        </span>
-        {subtitle ? <span className="truncate text-[12.5px] leading-tight text-muted-foreground">{subtitle}</span> : null}
-      </span>
-    </>
-  );
-  return (
-    <div
-      data-chat-header
-      className="box-content flex h-[60px] shrink-0 items-center gap-1 border-b border-border pl-1 pr-4 pt-[env(safe-area-inset-top)]"
-    >
-      <button
-        type="button"
-        onClick={onBack}
-        aria-label={CHUNK_SHEET_COPY.pagerBack}
-        className="walk-press-sm flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground"
-      >
-        <ChevronLeft className="h-6 w-6" aria-hidden />
-      </button>
-      {onOpen ? (
-        <button type="button" data-chat-who="" onClick={onOpen} className="flex min-w-0 items-center gap-2.5">
-          {who}
-        </button>
-      ) : (
-        <span className="flex min-w-0 items-center gap-2.5">{who}</span>
-      )}
-    </div>
-  );
-}
-
 /** The device's Back (the iPhone's swipe, the browser's Back) closes the
  *  chat while it is the screen: one step, to the list (N378). */
 export function BackIsThisChats({ onBack }: { onBack: () => void }) {
@@ -135,20 +86,6 @@ export function ChatTopBar({ chat, onBack, onOpen }: { chat: Chat; onBack: () =>
       onBack={onBack}
       onOpen={onOpen}
     />
-  );
-}
-
-/** Will's chat's top bar, over the Lounge: his mark and his name; the
- *  WillpowerLab bar is on the list only (backend N334 item 1). It spans the
- *  Lounge's column, across its side padding. */
-export function WillTopBar({ onBack }: { onBack: () => void }) {
-  // The device's Back (the iPhone's swipe) is this bar's back: one step, to
-  // the list, as in a person's chat (N378).
-  useBackDismiss(onBack);
-  return (
-    <div className="-mx-4">
-      <TopBar circle={<WillMark size={36} />} title={WILL_ROW_TITLE} onBack={onBack} />
-    </div>
   );
 }
 

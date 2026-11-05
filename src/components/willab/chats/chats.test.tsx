@@ -226,8 +226,10 @@ function Surface() {
   );
 }
 
+// A chat's code loads when it is first opened (useChatsDoor): wait for it too.
 const flush = () =>
   act(async () => {
+    await vi.dynamicImportSettled();
     for (let i = 0; i < 12; i += 1) await Promise.resolve();
   });
 

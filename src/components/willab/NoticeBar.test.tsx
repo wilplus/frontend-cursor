@@ -37,6 +37,8 @@ async function mount(ask: BarAsk | null) {
   await act(async () => {
     root.render(createElement(NoticeBar, { signedIn: true, whatsapp: {} as WhatsAppOffer }));
     for (let i = 0; i < 5; i += 1) await Promise.resolve();
+    // An ask fetches its sheet's code at once (NoticeBar's WARM): let it land.
+    await vi.dynamicImportSettled();
   });
 }
 

@@ -25,7 +25,8 @@ const api = vi.hoisted(() => ({ sendNumberCode: vi.fn(), confirmNumberCode: vi.f
 vi.mock("@/services/api/whatsappNumber", () => api);
 vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({ auth: {} }) }));
 
-import { WhatsAppOfferActions, WHATSAPP_COPY } from "./WillabWhatsAppPrompt";
+import { WHATSAPP_COPY } from "./WillabWhatsAppPrompt";
+import WhatsAppOfferActions from "./WillabWhatsAppForm";
 import { WHATSAPP_AUTH_COPY } from "@/components/auth/WhatsAppAuth";
 
 let container: HTMLDivElement;

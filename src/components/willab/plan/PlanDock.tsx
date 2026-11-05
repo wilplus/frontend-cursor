@@ -1,12 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import RecordingBar from "@/components/willab/RecordingBar";
 import { useVoiceNote } from "@/components/willab/useVoiceNote";
 import { TapRow } from "@/components/willab/WillQuestion";
 import type { CallWhich, Plan } from "@/services/api/plan";
 import { isoDay, PLAN_COPY } from "@/lib/willab/planCopy";
-import PlanCalendar, { MonthGrid } from "./PlanCalendar";
+import { afterChatBoot } from "@/lib/chatBoot";
+import { MonthGrid } from "./MonthGrid";
+
+// The calls' calendar opens only on "Book now" or "Book": off the boot
+// bundle, fetched once the chat has painted (afterChatBoot), so a tap still
+// finds it ready.
+const PlanCalendar = dynamic(() => import("./PlanCalendar"), { ssr: false, loading: () => null });
+const warmCalendar = () => void import("./PlanCalendar").catch(() => undefined);
 
 /* The plan's questions, asked the after-walk way (rules: the-plan.md §1 B,
    D, F, E5, I; backend N319 items 1 to 3, on the prototype version 39).
@@ -321,11 +329,17 @@ export default function PlanDock({
   // Will's ask for a call: "Skip" on its calendar moves on, as under the ask;
   // a call booked later from the plan's list just closes (N281).
   const asked: CallWhich | null = plan.step === "kickoff" || plan.step === "summary" ? plan.step : null;
+  const which = kind === "book" ? booking : null;
+  // Drawn from the first "Book" on, so it can slide away after it.
+  const [opened, setOpened] = useState(false);
+  if (which && !opened) setOpened(true);
+  useEffect(() => afterChatBoot(warmCalendar), []);
+  if (!opened) return null;
   return (
     <>
       <PlanCalendar
         plan={plan}
-        which={kind === "book" ? booking : null}
+        which={which}
         busy={busy}
         onBook={(call, start) => {
           onCloseBooking();

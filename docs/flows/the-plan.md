@@ -734,7 +734,8 @@ The plan's own code, guarded by this page (`scripts/flow-pages.txt`):
   goodbye's next Take or a practice day's (`usePlanLounge` `one` from
   `PlanRows` `newestOneOf`, G6), or "Start your first recording"
   (`usePlanLounge` `startFirst`), N483), the
-  calls' calendar (`PlanCalendar.tsx`), the card (`PlanCard.tsx`, which
+  calls' calendar (`PlanCalendar.tsx`, loaded when first opened), the
+  small month grid (`MonthGrid.tsx`), the card (`PlanCard.tsx`, which
   reads the calls' ring row `plan_calls`, N315), the rows in
   the thread (`PlanRows.tsx`), the two sheets (`PlanSheet.tsx`), the voice
   player and the hook the Lounge calls (`usePlanLounge.tsx`).
@@ -796,6 +797,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-05 · — · §4: the calls' calendar is no longer part of the chat's first download: its code is fetched once the chat has painted, and `PlanDock` draws it from the first "Book now" or "Book" on, so it opens and slides away as before. The small month grid moves to `plan/MonthGrid.tsx` (still exported by `plan/PlanCalendar.tsx`), so the deadline's sheets and a chat's ready-by sheet load without the calendar. No new words; no rule changes · FE (this PR)
 - 2026-11-04 · N505 · the plan's answers in the chat and the calendar's button keep 8px above, on each side and below (the Feedback walk page's J9); was 20px sides, 30px (answers) and 24px (button) below (`LoungeLifeGoals.tsx`, `plan/PlanCalendar.tsx`) · BE, FE (this PR)
 - 2026-11-04 · N497 · H1, K: "Change your plan" loses its "Your level" row and the sheet behind it ("Your level comes from what I heard in your voice. Your coach can change it." and "Ask your coach"); the BFF route `/api/v2/plan/ask-coach` goes, the backend's stays, unused. The level still shows in each practice day's hello and "See your plan". What stops: a speaker can no longer ask a coach about their level, so the coach queue gets no new "Asked about their level" (coach-panel.md K1). No new words. Was: the row, the sheet, and a tap that closed it and wrote "I've told your coach. You can talk it over on your next call." while the calls are off (N315) · BE N497 log, FE (this PR)
 - 2026-11-04 · N492 · §2: Will's welcome before the first Take is four bubbles, "Hi {name}, and welcome. ...", the short introduction and the few words at the end, the two Steves, and where to record (backend `plan.COPY`, the `first_take*` lines); the five slides and the button unchanged. Was: "Hi {name}!" and N462's one line · BE N492 log (#1725), BE #1730, FE (this PR)

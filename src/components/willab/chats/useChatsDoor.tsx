@@ -1,18 +1,33 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import type { Chat } from "@/services/api/chats";
 import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import ChatList from "./ChatList";
-import InquiryThread from "./InquiryThread";
-import ChatThread, { WillTopBar } from "./ChatThread";
+import { WillTopBar } from "./TopBar";
 import { useChatList, useChatsDecided, useForgetChatsSignedOut } from "./useChats";
 import LoadingState from "../LoadingState";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { backDismissDepth, useBackStop } from "../useBackDismiss";
 import { useEdgeSwipe } from "./useEdgeSwipe";
 import { useUserProfile } from "../useUserProfile";
-import CoachChatRow from "../coachwalk/CoachChatRow";
+import { afterChatBoot } from "@/lib/chatBoot";
+
+// A person's chat opens on a tap, and only a coach has the queue's row: off
+// the boot bundle. A chat's code is fetched once Will's thread has painted
+// (afterChatBoot), so a tap still opens it at once; before that, the loader.
+function ChatLoading() {
+  return <LoadingState placement="surface" />;
+}
+const ChatThread = dynamic(() => import("./ChatThread"), { ssr: false, loading: ChatLoading });
+const InquiryThread = dynamic(() => import("./InquiryThread"), { ssr: false, loading: ChatLoading });
+const CoachChatRow = dynamic(() => import("../coachwalk/CoachChatRow"), { ssr: false, loading: () => null });
+// A warm-up that fails costs nothing: the chat asks for its code again.
+function warmChats(): void {
+  void import("./ChatThread").catch(() => undefined);
+  void import("./InquiryThread").catch(() => undefined);
+}
 
 /* -------------------------------------------------------------------------- */
 /*  The chats in front of the Lounge, for every signed-in person (backend     */
@@ -143,6 +158,7 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
   // The coach's way in is a row in the list (backend N521).
   const { isCoach } = useUserProfile();
   useForgetChatsSignedOut(decided);
+  useEffect(() => afterChatBoot(warmChats), []);
   const [view, setView] = useState<View>(() => ({ at: willFirst ? "will" : "list" }));
   const [joined, setJoined] = useState<string | null>(chatJustJoined);
   // Just joined: the address is clean again; the list keeps that chat on top
