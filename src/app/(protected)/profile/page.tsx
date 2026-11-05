@@ -9,7 +9,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const back = () => (window.history.length > 1 ? router.back() : router.push("/chat"));
   return (
-    <main className="relative mx-auto h-[100dvh] w-full max-w-[480px] overflow-hidden">
+    <main className="relative mx-auto h-full w-full max-w-[480px] overflow-hidden">
       <Profile onBack={back} />
     </main>
   );
