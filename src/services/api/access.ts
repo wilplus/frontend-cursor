@@ -1,5 +1,5 @@
 import { bffFetch } from "@/lib/api/bffFetch";
-import { createClient } from "@/lib/supabase/client";
+import { readSession } from "@/lib/supabase/session";
 
 /** By invitation (backend N471): whether the signed-in account may use the
  *  app, or is on the waitlist. Anything but a clear "not a member" lets the
@@ -30,9 +30,9 @@ let memberThisPage: string | null = null;
 
 async function signedInUserId(): Promise<string | null> {
   try {
-    const {
-      data: { session },
-    } = await createClient().auth.getSession();
+    // The one shared read (lib/supabase/session.ts): /chat asks this twice
+    // as it opens, beside every screen's own read of the sign-in.
+    const session = await readSession();
     return session?.access_token ? session.user?.id ?? null : null;
   } catch {
     return null;
