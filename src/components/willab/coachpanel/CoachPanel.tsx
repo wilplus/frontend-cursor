@@ -565,6 +565,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
       return (
         <QueueScreen speakers={speakers} loading={loading} onClose={close}
           onSpeaker={(speaker) => dispatch({ type: "speaker", speaker })}
+          onSpeakers={() => dispatch({ type: "speakers" })}
           onDelete={founder ? deleteSpeaker : undefined}
           will={will.row}
           blind={{ audit: blind.audit, picks: blind.picks,

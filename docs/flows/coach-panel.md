@@ -35,10 +35,20 @@ founder's rows are the founder's alone.
 
 ### B · The door and the queue
 
-- **B1** In the Lounge the bubble "N speakers waiting · Open your queue"
-  opens the queue. One button pinned above the message box, with its icon:
-  **Speakers** (every speaker, an orange dot on those waiting). **Training
-  corpus** stood beside it until it moved to the CEO panel (N416, H1).
+- **B1** The way in is a row in the list of chats, right under Will (N521,
+  2026-11-05): a round icon (the Speakers icon), the name, one line. The
+  name is the job in the person's own profile, "Your queue" when they wrote
+  none. The line: "Open your queue" while someone waits, with the list's new
+  look (bold, orange, the dot, no number, N500); "Nobody is waiting for
+  you." when nobody does; empty until the queue is read, never "Nobody"
+  before it knows (2026-10-18). It opens the queue over the list; ✕ comes
+  back to it. **Speakers** (every speaker, an orange dot on those waiting) is
+  the queue's last card. Nothing of the coach sits at the bottom of Will's
+  chat; the panel stays mounted under the list, so a goal card's "Open
+  speaker" still opens. One row per model a person teaches, when there is
+  more than one (only the speaking coach's is built). Was: the bubble "N
+  speakers waiting · Open your queue" and the pinned Speakers button above
+  Will's message box; **Training corpus** stood beside it until N416.
 - **B2** Your queue: your speakers only, the one who sent most recently on
   top, each a card with how many moments wait and an orange dot; an answered
   speaker drops out (2026-10-18). Every card is white; the dot says
@@ -229,8 +239,10 @@ How a coach's blind answer counts, on a speaker's Take (D) or an import
 ### J · Words on screen (all signed, CP2 A)
 
 - Queue: "Your speakers · {n} moments waiting"; "Your queue"; "Nobody is
-  waiting for you."; "Open your queue"; "Speakers"; "Also waiting · blind";
-  "Training corpus" (the admin menu's row, N511).
+  waiting for you."; "Open your queue"; "Speakers" (the row in the chats and
+  the queue's last card, N521; the row's name is the person's own words); "Also waiting · blind";
+  "Training corpus" (the admin menu's row, N511). "{n} speakers waiting" and
+  "new" are signed and no longer shown (the bubble, until N521).
 - A speaker: "Goal: …"; "Who it's for: …"; "What they should do: …" (the
   labels from N83, in this place from N87); "{n} of {m} moments waiting";
   "All moments answered"; "Answered"; "Answered · {n} moments"; "Waiting for
@@ -397,7 +409,9 @@ Tests that hold the promises: `src/components/willab/coachpanel/coachPanel.test.
 
 The design is the prototype; the newest wins where two disagree.
 
-- **Current:** the speaker's plan, row "The plan"
+- **Current:** the way in, a row in the list of chats, option A
+  <https://claude.ai/artifact/NpxymPEGy3j8ZmNxVWHwU3> (N521, 2026-11-05);
+  the speaker's plan, row "The plan"
   <https://claude.ai/artifact/QznwCAgkBHAVAGDMKVUKvE> (N213, 2026-10-27);
   who the talk is for and what they should do, under the goal
   <https://claude.ai/artifact/UiZzNZs5623NkforaeR4PM> (N87, 2026-10-20);
@@ -414,6 +428,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-11-05 · N521 · B1, J: the coach's way in is a row in the list of chats under Will, named by their profile job ("Your queue" without one), "Open your queue" with the new look while someone waits; Speakers is the queue's last card. Was: the bubble and the pinned Speakers button above Will's message box · BE #1762, FE (this PR)
 
 - 2026-11-04 · N511 · H0, J: the training corpus is a row in the admin ☰ menu, under Data, at `/admin/training-corpus`; ✕ goes to the CEO panel; `/coach/corpus` goes there. Was: a button beside Bugs and Tasks in the CEO panel (N416) · BE (N511 log), FE (this PR)
 - 2026-11-04 · N497 · K1: the speaker's "Ask your coach" is gone from the plan, so "Asked about their level" gets no new cards; one already waiting shows until answered. New plan and a stuck level as before · BE N497 log, FE (this PR)

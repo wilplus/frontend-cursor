@@ -11,9 +11,10 @@
 /*                                       speakers, speaker, judge, reveal,    */
 /*                                       corpushome, corpusimport,            */
 /*                                       corpusanalyse, corpus                */
-/*    /dev/coach-panel?flow=1            the Lounge door through its real     */
-/*                                       mount (CoachWalkEntry); its own      */
-/*                                       buttons move it, ‹ goes back, ✕      */
+/*    /dev/coach-panel?flow=1            the way in, the row in the list of   */
+/*                                       chats (CoachChatRow, N521), over the */
+/*                                       door's real mount (CoachWalkEntry);  */
+/*                                       the row opens the queue, ‹ goes back, ✕ */
 /*                                       closes, and What happened's Next     */
 /*                                       hands over to today's answer flow    */
 /*                                                                            */
@@ -24,6 +25,7 @@
 import { useEffect, useState } from "react";
 import CoachWalkEntry from "@/components/willab/coachwalk/CoachWalkEntry";
 import CoachPanelDoor from "@/components/willab/coachpanel/CoachPanelDoor";
+import CoachChatRow from "@/components/willab/coachwalk/CoachChatRow";
 import { installPanelStub } from "./panelFixtures";
 import { PRE_RATED, SCREEN_NAMES, startFor, type ScreenName } from "./panelScreens";
 
@@ -49,13 +51,13 @@ function IndexList() {
   );
 }
 
-/** A plain stand-in for the Lounge: the door sits where the Lounge mounts it,
- *  above the message box. */
+/** A plain stand-in for the list of chats: the coach's row, and under it the
+ *  door, mounted as the Lounge mounts it, with nothing of its own on screen. */
 function LoungeStandIn({ children }: { children: React.ReactNode }) {
   return (
-    <main data-testid="panel-lounge" className="mx-auto flex min-h-[100dvh] max-w-lg flex-col justify-end gap-2.5 px-4 pb-8 pt-4">
+    <main data-testid="panel-lounge" className="mx-auto flex min-h-[100dvh] max-w-lg flex-col pt-4">
+      <CoachChatRow />
       {children}
-      <div aria-hidden="true" className="mt-1 h-[46px] rounded-3xl border border-border" />
     </main>
   );
 }
