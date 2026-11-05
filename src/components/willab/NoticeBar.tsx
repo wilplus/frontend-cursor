@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { MessageCircle, ShieldCheck, Tag, CalendarDays, X } from "lucide-react";
 import { bffFetch } from "@/lib/api/bffFetch";
@@ -8,9 +9,19 @@ import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { shortDate, type LessonOffer, type PlanPromotion } from "@/lib/booking/offers";
 import { money } from "@/lib/booking/time";
 import { planLabel } from "@/components/tokens/copy";
-import { ConsentAskActions } from "./ConsentAsk";
 import { OFFER_PROMPT } from "./loungeOffers";
-import { WhatsAppOfferActions, type WhatsAppOffer } from "./WillabWhatsAppPrompt";
+import { WhatsAppOfferActions, warmWhatsAppForm, type WhatsAppOffer } from "./WillabWhatsAppPrompt";
+
+// The consent ask's sheet opens on a tap of its bar: off the boot bundle,
+// fetched the moment the bar brings that ask, like the WhatsApp form.
+const ConsentAskActions = dynamic(() => import("./ConsentAsk").then((m) => m.ConsentAskActions), {
+  ssr: false,
+  loading: () => null,
+});
+const WARM: Partial<Record<BarAsk["kind"], () => void>> = {
+  whatsapp: warmWhatsAppForm,
+  consent: () => void import("./ConsentAsk").catch(() => undefined),
+};
 
 /* -------------------------------------------------------------------------- */
 /*  The bar at the top of the chat (founder 2026-11-03, backend N391; the     */
@@ -102,6 +113,7 @@ export default function NoticeBar({ signedIn, whatsapp }: { signedIn: boolean; w
       if (!next || !barText(next) || (next.kind === "promo" && isNativeApp())) return;
       setAsk(next);
       report(next.id, "shown");
+      WARM[next.kind]?.();
     });
   }, [signedIn]);
 

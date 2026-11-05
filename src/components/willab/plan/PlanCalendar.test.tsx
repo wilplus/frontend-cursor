@@ -106,6 +106,8 @@ const q = <T extends Element = HTMLButtonElement>(selector: string) => document.
 const tap = (selector: string) => act(() => q(selector).click());
 /** Time passes: Will's words are read, the calendar comes up, a month folds. */
 const wait = async (ms: number) => {
+  // The calendar's code loads when it is first opened (PlanDock).
+  await act(() => vi.dynamicImportSettled());
   await act(() => vi.advanceTimersByTimeAsync(ms));
   await act(() => vi.advanceTimersByTimeAsync(100));
 };

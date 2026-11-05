@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import type { CallWhich, Plan } from "@/services/api/plan";
 import { DAY_SHORT, fmtDay, fromIsoDay, isoDay, PLAN_COPY, WEEK_ORDER } from "@/lib/willab/planCopy";
 import PlanCard, { usePlanCallsOn } from "./PlanCard";
-import { MonthGrid } from "./PlanCalendar";
+import { MonthGrid } from "./MonthGrid";
 
 /* The plan's two sheets (rules: the-plan.md §1 G5, H; prototype version 27,
    openPlanView and openPlanSheet): "See your plan" opens the plan card with

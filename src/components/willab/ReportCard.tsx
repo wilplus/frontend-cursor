@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import dynamic from "next/dynamic";
 import { useNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
 import {
   Crown,
@@ -31,9 +32,16 @@ import IdealTextCard from "./IdealTextCard";
 import { ChatLink, ChatLinks, TapRow } from "./WillQuestion";
 import type { IdealTextPast } from "@/lib/willab/pastIdealText";
 import SnippetWavePlayer from "./SnippetWavePlayer";
-import NextTakeShareScreen from "./NextTakeShareScreen";
-import TakeMatchSuggestion from "./TakeMatchSuggestion";
 import type { ShareLineChange } from "@/lib/willab/walkThread";
+import { afterChatBoot, useAfterChatBoot } from "@/lib/chatBoot";
+
+// The sharing screen opens on a tap of the latest Take's line, and the match
+// suggestion only when one comes: off the boot bundle (with the walk's frame
+// they draw in). The sharing screen is fetched once the chat has painted, so
+// the tap still opens it at once.
+const NextTakeShareScreen = dynamic(() => import("./NextTakeShareScreen"), { ssr: false, loading: () => null });
+const TakeMatchSuggestion = dynamic(() => import("./TakeMatchSuggestion"), { ssr: false, loading: () => null });
+const warmShareScreen = () => void import("./NextTakeShareScreen").catch(() => undefined);
 
 /* -------------------------------------------------------------------------- */
 /*  ReportCard — persisted Readout / Insight / Ideal-Text cards (C2 taxonomy)   */
@@ -472,7 +480,9 @@ function renderBestPresentationReportCard(
 // draft was extended); legacy rows without arc_id stay plain history.
 /** The match suggestion for the latest Take, when it has one. */
 function TakeMatchFor({ change }: { change?: ShareLineChange | null }) {
-  if (!change?.takeSessionId) return null;
+  // Asked for once the chat has painted, not beside its first reads.
+  const booted = useAfterChatBoot();
+  if (!booted || !change?.takeSessionId) return null;
   return <TakeMatchSuggestion takeSessionId={change.takeSessionId} takeCount={change.takeIndex ?? null} />;
 }
 
@@ -589,6 +599,8 @@ const SHARE_LINE_CLASS = "text-[12.5px] leading-snug text-primary-foreground/90"
  *  page, not in the bubble, and no tap or key in it reaches the bubble. */
 function ShareLine({ line, change }: { line: string; change: ShareLineChange | null }) {
   const [open, setOpen] = useState(false);
+  const opens = !!change;
+  useEffect(() => (opens ? afterChatBoot(warmShareScreen) : undefined), [opens]);
   if (!change) return <span className={SHARE_LINE_CLASS}>{line}</span>;
   const own = { onClick: (e: React.SyntheticEvent) => e.stopPropagation(), onKeyDown: (e: React.SyntheticEvent) => e.stopPropagation() };
   return (
