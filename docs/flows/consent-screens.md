@@ -439,7 +439,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-11-05 · N522 item 3 · The Data & consent row's line: "First thing when you open the app." Was: "First thing when you open the app, at most once an hour." The dump screen now opens first on every open · BE #PRNUM, FE (this PR)
+- 2026-11-05 · N522 item 3 · The Data & consent row's line: "First thing when you open the app." Was: "First thing when you open the app, at most once an hour." The dump screen now opens first on every open · BE #1765, FE (this PR)
 - 2026-11-04 · N495 · §1: in the iPhone app, Tokens opens the Tokens page (balance, what things cost, recent activity; no plans, no way to buy, no button to ask for prices). Was: the row showed the balance and opened nothing (N367 item 2) · FE (this PR)
 - 2026-11-04 · N507 · §1: one row, "Open to the dump screen" with its line and a switch, off by default, after WhatsApp (`DumpScreenCard.tsx`) · FE (this PR)
 - 2026-11-04 · N505 · "See an example": the button at the bottom keeps 8px above and below (the Feedback walk page's J9); was 12px above and 20px below (`WelcomeExample.tsx`) · BE, FE (this PR)
