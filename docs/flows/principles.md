@@ -200,7 +200,8 @@ The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
 - **The dump screen (T; signed 2026-11-04, N506, N507):** "Say it.", "Tap
   anywhere", "Listening", "Tap to stop", "Kept", "Tap to say more", "Double
   tap to close"; in Settings "Open to the dump screen" and "First thing when
-  you open the app, at most once an hour."; the first time, A5's words above.
+  you open the app." (N522 item 3; was "…, at most once an hour."); the
+  first time, A5's words above.
 
 ### L · The Sunday note (backend `services/sunday_note.py`; locked 2026-10-26, N158)
 
@@ -523,11 +524,11 @@ The prototypes: <https://claude.ai/artifact/RY5gT9bg8xSpGvKiLVScsW>,
   closes it and turns the switch off. That Yes writes "Yes" and "Noted." in
   Will's chat and asks nothing more (N514); a Yes in the chat still gets
   "What's on your mind today?".
-- **T4 · When it opens (N506 item 4, N507 item 2).** Only when "Open to the
-  dump screen" is on in Settings (Data & consent; off by default; kept on
-  the device), only on a plain open of /chat, never from a link to a Take,
-  a walk or an Ideal Text, and at most once an hour, also on coming back to
-  the app. Will's chat is underneath, untouched (Never 3). No menu line.
+- **T4 · When it opens (N506 item 4, N507 item 2, N522).** Only when "Open
+  to the dump screen" is on in Settings (Data & consent; off by default;
+  kept on the device), only on a plain open of /chat, never from a link to
+  a Take, a walk or an Ideal Text; then on every open and every coming back
+  to the app, online or offline, with no hourly limit (N522). Will's chat is underneath, untouched (Never 3). No menu line.
   A pull down that starts on the top bar of the chat list or Will's chat
   opens it at any time (N517): the three-dot mark follows the finger, a
   release past 90 px opens it, no words. A pull in the thread still scrolls.
@@ -619,6 +620,8 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-05 · N522 · T4: the dump screen opens first on every open and every coming back to the app, online or offline. Was: at most once an hour. The Settings line is now "First thing when you open the app." (signed, N522 item 3) · BE #1765, FE (this PR)
+- 2026-11-05 · N517 · T4: the pull opens the dump screen at once: the notebook is read when the chat opens, not when the pull is let go. Was: a round trip to the server between letting go and the screen · FE (this PR)
 - 2026-11-05 · N506 item 3 · T6: a read that fails (no network, a failed request) no longer tells the iPhone app the dump screen is off; the app keeps what it last heard, so offline it still opens and keeps what is said. Was: one failed read switched it off until the next good load · FE (this PR)
 - 2026-11-05 · N517 · T4: a pull down from the top bar of the chat list or Will's chat opens the dump screen, dots only, no words; and the web's side of T6: in the iPhone app the web tells the native screen the switch (ring row, the notebook's Yes, "Open to the dump screen") and shows "Kept" when it closes; nothing changes in an app without it · BE #1757, FE (this PR)
 - 2026-11-04 · N514 · T3: a Yes given on the dump screen writes "Yes" and "Noted." in Will's chat, without "What's on your mind today?" · BE #1753, FE (this PR)
