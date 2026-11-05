@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 
 /** The confirmation for throwing a take away — one dialog, two lanes.
@@ -30,12 +31,45 @@ export default function DiscardTakeDialog({
   onKeep: () => void;
   onDiscard: () => void;
 }) {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const keepRef = useRef<HTMLButtonElement | null>(null);
+
+  /* THE DIALOG TAKES THE KEYBOARD, as ProcessingResumeOverlay does: focus
+     moves in, on the safe answer (keep the Take). It is NOT handed back to
+     the ✕ that opened it: on the recording screen Space turns the slide
+     unless a button has focus (recordingGesture.ts, N70.1), so a ✕ holding
+     focus would turn the next Space into "Discard this take?" again. Closed,
+     focus leaves with the dialog, as it always did. */
+  useEffect(() => {
+    keepRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  // Escape is the safe answer: the Take is kept. Tab goes round the two
+  // answers and never behind the dialog.
+  const keepFocusInside = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onKeep();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const answers = Array.from(dialogRef.current?.querySelectorAll<HTMLButtonElement>("button") ?? []);
+    if (answers.length === 0) return;
+    event.preventDefault();
+    const at = answers.indexOf(document.activeElement as HTMLButtonElement);
+    const step = event.shiftKey ? -1 : 1;
+    answers[(at + step + answers.length) % answers.length].focus();
+  };
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/35 p-4 sm:items-center"
+      ref={dialogRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/35 p-4 focus:outline-none sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="discard-take-title"
+      onKeyDown={keepFocusInside}
     >
       <div className="w-full max-w-sm rounded-3xl bg-background p-5 shadow-xl">
         <h2
@@ -49,6 +83,7 @@ export default function DiscardTakeDialog({
         </p>
         <div className="mt-5 grid grid-cols-2 gap-2">
           <Button
+            ref={keepRef}
             type="button"
             variant="outline"
             onClick={onKeep}
