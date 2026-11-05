@@ -16,7 +16,7 @@ PROVES   D1 -> "starts at once, then stops and keeps"
          D5 -> "only when switched on, and then on every open"
 WHY      Founder 2026-11-04 (backend N506, N507): taps act at once and a
          double tap undoes the first, so no tap waits; it never opens from a
-         link (Never 3); every open, no hourly limit (N521, 2026-11-05).
+         link (Never 3); every open, no hourly limit (N522, 2026-11-05).
 */
 import { beforeEach, describe, expect, it } from "vitest";
 import {
@@ -63,7 +63,7 @@ describe("the dump screen's taps", () => {
 describe("opening first", () => {
   beforeEach(() => window.localStorage.clear());
 
-  it("D5 only when switched on, and then on every open (N521)", () => {
+  it("D5 only when switched on, and then on every open (N522)", () => {
     expect(openFirst()).toBe(false);
     setOpenFirst(true);
     expect(openFirst()).toBe(true);

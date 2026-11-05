@@ -20,7 +20,7 @@ export const DUMP_COPY = {
   tapToSayMore: "Tap to say more",
   doubleTapToClose: "Double tap to close",
   switchLabel: "Open to the dump screen",
-  switchLine: "First thing when you open the app.", // signed, N521 item 3
+  switchLine: "First thing when you open the app.", // signed, N522 item 3
   // N411 item 1, signed: the notebook's introduction, shown once before the
   // screen first listens (N507 item 1).
   introLead:
