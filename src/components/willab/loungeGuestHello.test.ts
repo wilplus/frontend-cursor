@@ -10,13 +10,20 @@ OUTCOME
   O2  A signed-in speaker, or a real failure, still gets the lab error.
   O3  A guest who accepted chats with Will: the chat carries their guest
       identity, which holds the acceptance until they sign up.
+  O4  A signed-in speaker's chat turn carries their session token, so Will's
+      answer does not first wait on a sign-in check.
 PROVES   O1 -> "greets a signed-out visitor and points to the first recording"
          O2 -> "keeps the lab error for everyone else"
          O3 -> "sends the guest's identity with every chat turn"
+         O4 -> "sends a signed-in speaker's session token with every chat turn"
 WHY      Founder 2026-10-29: "answer something intelligible, but then push the
          user to actually record the first recording".
 */
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => null) }));
+
+import { getAuthToken } from "@/lib/api/auth-client";
 import { ChatQueryRequestError, postChatQuery } from "@/services/api/chatQuery";
 import { GUEST_OWNER_HEADER } from "@/services/api/projects";
 import { FLOW_COPY } from "./flowCopy";
@@ -57,6 +64,25 @@ describe("a guest's chat turn", () => {
     await postChatQuery({ question: "hello", audioBlob: new Blob(["x"]) });
     for (const call of fetchMock.mock.calls as unknown as [string, RequestInit][]) {
       expect(new Headers(call[1].headers).get(GUEST_OWNER_HEADER)).toBe("guest-token");
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("a signed-in speaker's chat turn", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.mocked(getAuthToken).mockResolvedValue(null);
+  });
+
+  it("sends a signed-in speaker's session token with every chat turn", async () => {
+    vi.mocked(getAuthToken).mockResolvedValue("session-token");
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ answer: "Hi" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await postChatQuery({ question: "hello" });
+    await postChatQuery({ question: "hello", audioBlob: new Blob(["x"]) });
+    for (const call of fetchMock.mock.calls as unknown as [string, RequestInit][]) {
+      expect(new Headers(call[1].headers).get("Authorization")).toBe("Bearer session-token");
     }
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });

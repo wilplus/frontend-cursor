@@ -11,6 +11,7 @@
 /*  Backend: GET/POST /v2/processing-authorization/choices, the one boundary  */
 /*  that decides. Nothing here decides anything; it reads and sends.          */
 /* -------------------------------------------------------------------------- */
+import { getAuthToken } from "@/lib/api/auth-client";
 import { GUEST_OWNER_HEADER, readGuestOwnerToken } from "./projects";
 
 export type ConsentChoice = "personalised_practice" | "sensitive_information";
@@ -30,9 +31,16 @@ export interface ConsentChoices {
   practiceOffered: boolean;
 }
 
-function headers(): Record<string, string> {
-  const token = readGuestOwnerToken();
-  return token ? { [GUEST_OWNER_HEADER]: token } : {};
+/** The guest owner token as always, and, signed in, the session's Bearer,
+ *  so the BFF need not ask Supabase Auth who this is before it forwards
+ *  (getAccessToken in api/_lib/backend.ts). */
+async function headers(): Promise<Record<string, string>> {
+  const guest = readGuestOwnerToken();
+  const session = await getAuthToken();
+  return {
+    ...(guest ? { [GUEST_OWNER_HEADER]: guest } : {}),
+    ...(session ? { Authorization: `Bearer ${session}` } : {}),
+  };
 }
 
 export function mapConsentChoices(raw: unknown): ConsentChoices | null {
@@ -56,7 +64,7 @@ export async function fetchConsentChoices(): Promise<ConsentChoices | null> {
   try {
     const res = await fetch("/api/v2/processing-authorization/choices", {
       method: "GET",
-      headers: headers(),
+      headers: await headers(),
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -82,7 +90,7 @@ export async function setConsentChoice(
   try {
     const res = await fetch("/api/v2/processing-authorization/choices", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...headers() },
+      headers: { "Content-Type": "application/json", ...(await headers()) },
       body: JSON.stringify({
         choice,
         enabled,
