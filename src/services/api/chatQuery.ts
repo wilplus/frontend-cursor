@@ -21,6 +21,7 @@
  * value silently.
  */
 
+import { getAuthToken } from "@/lib/api/auth-client";
 import { guestOwnerHeaders } from "./projects";
 
 export interface ChatHistoryEntry {
@@ -135,6 +136,16 @@ export interface ChatQueryContrastDelta {
 
 const ENDPOINT = "/api/v2/chat/query";
 
+/** Who is asking: the guest owner token as always, and, signed in, the
+ *  session's Bearer, so the BFF need not ask Supabase Auth who this is
+ *  before it forwards the turn (getAccessToken in api/_lib/backend.ts). */
+async function askerHeaders(): Promise<Record<string, string>> {
+  const token = await getAuthToken();
+  return token
+    ? { ...guestOwnerHeaders(), Authorization: `Bearer ${token}` }
+    : guestOwnerHeaders();
+}
+
 /**
  * Thrown when the BFF returns a non-2xx. Carries the HTTP status so
  * callers can distinguish a real auth/network/server failure from a
@@ -159,6 +170,7 @@ export async function postChatQuery(
   args: ChatQueryArgs,
 ): Promise<ChatQueryResponse> {
   let res: Response;
+  const asker = await askerHeaders();
   if (args.audioBlob) {
     const form = new FormData();
     form.append("question", args.question);
@@ -185,7 +197,7 @@ export async function postChatQuery(
     res = await fetch(ENDPOINT, {
       method: "POST",
       body: form,
-      headers: guestOwnerHeaders(),
+      headers: asker,
       credentials: "include",
     });
   } else {
@@ -194,7 +206,7 @@ export async function postChatQuery(
       method: "POST",
       // A guest's acceptance lives on their guest identity until they sign
       // up (projects.ts); without it the processing gate refuses the turn.
-      headers: { "Content-Type": "application/json", ...guestOwnerHeaders() },
+      headers: { "Content-Type": "application/json", ...asker },
       body: JSON.stringify({
         question: args.question,
         history: args.history,
