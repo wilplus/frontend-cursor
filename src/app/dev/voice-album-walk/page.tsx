@@ -7,7 +7,7 @@
 /*  WalkFooter). Nothing is fetched; the data is fixtures. Not a surface.     */
 /*                                                                            */
 /*    /dev/voice-album-walk?screen=home | moment | note | new | answered |    */
-/*                                 empty                                      */
+/*                                 empty | morning | listen&step=0..5         */
 /*                                                                            */
 /*  Words: only strings the app already shows (the walk's copy, today's       */
 /*  Voice Album, and the backend's "Your Voice Album is ready" message).      */
@@ -23,8 +23,9 @@ import { WalkSpeakerBubble, WalkThreadMark } from "@/components/willab/walk/Walk
 import { CHUNK_SHEET_COPY, WALK_COPY } from "@/components/willab/idealEditCopy";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import { makeToneUrl } from "../feedback-walk/walkFixtures";
+import { ListenBefore, MorningLounge } from "./listenBefore";
 
-type Screen = "home" | "moment" | "note" | "new" | "answered" | "empty";
+type Screen = "home" | "moment" | "note" | "new" | "answered" | "empty" | "morning" | "listen";
 
 /* Shipped words, gathered in one place so the study adds none of its own. */
 const SHIPPED = {
@@ -62,17 +63,26 @@ export default function VoiceAlbumWalkStudy() {
   const [src, setSrc] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>("home");
   const [answer, setAnswer] = useState<ConfidenceRatingValue | null>(null);
+  const [step, setStep] = useState(0);
   useEffect(() => {
     const url = makeToneUrl(4);
     setSrc(url);
     const q = new URLSearchParams(window.location.search).get("screen") as Screen | null;
     if (q) setScreen(q);
+    setStep(Number(new URLSearchParams(window.location.search).get("step") ?? 0) || 0);
     return () => URL.revokeObjectURL(url);
   }, []);
   if (process.env.NODE_ENV === "production") return null;
   const close = () => setScreen("home");
 
   const shell = (node: React.ReactNode) => <div className="fixed inset-0 z-50">{node}</div>;
+
+  if (screen === "morning") {
+    return shell(<MorningLounge onOpen={() => { setStep(0); setScreen("listen"); }} onClose={close} />);
+  }
+  if (screen === "listen") {
+    return shell(<ListenBefore step={step} src={src} onStep={setStep} onClose={() => setScreen("morning")} />);
+  }
 
   if (screen === "empty") {
     return shell(
