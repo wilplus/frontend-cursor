@@ -1,8 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import WillabSurface from "@/components/willab/WillabSurface";
 import MembersOnly from "@/components/invite/MembersOnly";
 import DumpScreenHost from "@/components/willab/DumpScreenHost";
+import { hasAcceptedConsentLocally } from "@/components/willab/useWillabFlow";
+import { hasParkedReadout } from "@/components/willab/willabParked";
+import { prefetchChatOpen } from "@/services/api/bootPrefetch";
 
 /**
  * /chat — the willab product surface.
@@ -28,6 +32,12 @@ export default function ChatPageClient({
   /** `&take=<session_id>`: the Take the coach's link names. */
   idealTextTake?: string | null;
 }) {
+  // The boot reads start with the members check, not after it; past
+  // Welcome only, as the flow itself reads nothing before it
+  // (bootPrefetch.ts prefetchChatOpen).
+  useEffect(() => {
+    if (hasAcceptedConsentLocally()) void prefetchChatOpen({ parked: hasParkedReadout() });
+  }, []);
   // By invitation (backend N471): members only; the guest path is off.
   return (
     <MembersOnly>

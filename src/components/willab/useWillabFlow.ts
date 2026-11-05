@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { fetchSessionState } from "@/services/api/chatSessionState";
-import { prefetchChatBoot, prefetchChatsDoor } from "@/services/api/bootPrefetch";
+import { prefetchChatBoot, prefetchChatsDoor, takeSessionState } from "@/services/api/bootPrefetch";
 import { markChatBootStarted } from "@/lib/chatBoot";
 import { hasParkedReadout } from "./willabParked";
 import { clearReviewPending } from "./sendStatus";
@@ -141,7 +140,7 @@ export function transition(
 
 /** Pure local-state derivation for the consent + parked gates (testable).
  *  Post-consent active state (review_pending / insights_ready) is BE-owned —
- *  see useWillabFlow where fetchSessionState() is called for those. */
+ *  see useWillabFlow where the session state is read for those. */
 export function initialWillabState(flags: {
   consentAccepted: boolean;
   parked?: boolean;
@@ -226,9 +225,10 @@ export function useWillabFlow(): UseWillabFlowReturn {
     markChatBootStarted();
     if (hasParkedReadout()) { setState("parked"); prefetchChatsDoor(); return; }
 
-    // Post-intake active state is BE-owned (seam 8). Fetch once on mount;
+    // Post-intake active state is BE-owned (seam 8). Fetch once on mount
+    // (or take the read /chat's open started, bootPrefetch.ts);
     // immediate transitions (Lab send → review_pending) are dispatched.
-    void fetchSessionState().then((v) => {
+    void takeSessionState().then((v) => {
       if (v === "PENDING_COACH") setState("review_pending");
       else if (v === "REVIEW_LOOP") setState("insights_ready");
       else setState("lounge_idle"); // NO_SESSION or fetch failed
