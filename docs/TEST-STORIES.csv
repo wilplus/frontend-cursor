@@ -309,7 +309,8 @@ O3 -> shows this week's level from my plan, read-only",
 src/components/phone/PhoneNumberField.test.tsx,Story,"As someone giving my WhatsApp number, I want to find my country by its flag, name or code, so that I don't have to remember the code.","O1  Poland is chosen at the start; the list opens with Poland, then the
 United States, then every country A to Z.
 O2  Searching ""uk"" finds the United Kingdom; picking it gives the number
-its +44.
+its +44, and the number field has the focus at once, so the phone's
+number pad comes up with that tap.
 O3  A full number pasted with + picks its own country, and a leading 0 is
 dropped.","O1, O2 -> ""Poland first, then the US, then A to Z; search finds the UK""
 O3 -> ""a pasted number picks its country""","Founder 2026-10-28, backend N230."
