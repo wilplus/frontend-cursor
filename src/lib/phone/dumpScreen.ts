@@ -1,5 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
-import { getNotebookState } from "@/services/api/voiceNotebook";
+import { readNotebookState } from "@/services/api/voiceNotebook";
 import { openFirst } from "@/lib/willab/dumpScreen";
 
 /* -------------------------------------------------------------------------- */
@@ -30,10 +30,14 @@ export function nativeDump(): boolean {
 }
 
 /** Tells the app what the web knows: on only with the ring row and the
- *  notebook's Yes. Answers the notebook's state, or null outside the app. */
+ *  notebook's Yes. When the notebook could not be read (no network), the
+ *  app is told nothing and keeps what it had: offline the native screen must
+ *  still open and keep what is said. Answers the notebook's state, or null
+ *  outside the app or when it could not be read. */
 export async function syncApp(ringOn: boolean): Promise<{ consented: boolean } | null> {
   if (!nativeDump()) return null;
-  const state = ringOn ? await getNotebookState() : null;
+  const state = ringOn ? await readNotebookState() : null;
+  if (ringOn && state === null) return null;
   const enabled = ringOn && state?.enabled === true && state.consented === true;
   await DumpScreen.configure({ enabled, openFirst: openFirst() }).catch(() => undefined);
   return { consented: state?.consented === true };
