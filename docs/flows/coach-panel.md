@@ -41,8 +41,9 @@ founder's rows are the founder's alone.
   none. The line: "Open your queue" while someone waits, with the list's new
   look (bold, orange, the dot, no number, N500); "Nobody is waiting for
   you." when nobody does; empty until the queue is read, never "Nobody"
-  before it knows (2026-10-18). It opens the queue over the list; ✕ comes
-  back to it. **Speakers** (every speaker, an orange dot on those waiting) is
+  before it knows (2026-10-18). It opens the queue over the list, under a
+  chat's own top bar (N525): ‹, the row's round icon, "Your queue"; ‹ comes
+  back to the list. Was: ✕ and the large title. **Speakers** (every speaker, an orange dot on those waiting) is
   the queue's last card. Nothing of the coach sits at the bottom of Will's
   chat; the panel stays mounted under the list, so a goal card's "Open
   speaker" still opens. One row per model a person teaches, when there is
@@ -52,7 +53,9 @@ founder's rows are the founder's alone.
 - **B2** Your queue: your speakers only, the one who sent most recently on
   top, each a card with how many moments wait and an orange dot; an answered
   speaker drops out (2026-10-18). Every card is white; the dot says
-  something is new (#871).
+  something is new (#871). The queue draws whole (N525): the typing dots
+  until your speakers, the blind lines and Will's questions have all been
+  read, then every section together.
 - **B3** Below: "Also waiting · blind": *Do you hear it?* and *Pick the most
   confident moment* (both built, switched off). The training corpus is not
   in the queue.
@@ -429,6 +432,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-05 · N525 · B1, B2: Your queue wears a chat's top bar (‹, the Speakers icon, "Your queue"; ‹ back to the list) and draws once every read is in. Was: ✕ and the large title; the sections arrived one after another · BE #1769, FE (this PR)
 - 2026-11-05 · N521 · B1, J: the coach's way in is a row in the list of chats under Will, named by their profile job ("Your queue" without one), "Open your queue" with the new look while someone waits; Speakers is the queue's last card. Was: the bubble and the pinned Speakers button above Will's message box · BE #1762, FE (this PR)
 
 - 2026-11-04 · N511 · H0, J: the training corpus is a row in the admin ☰ menu, under Data, at `/admin/training-corpus`; ✕ goes to the CEO panel; `/coach/corpus` goes there. Was: a button beside Bugs and Tasks in the CEO panel (N416) · BE (N511 log), FE (this PR)

@@ -27,6 +27,8 @@
 /* -------------------------------------------------------------------------- */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Users } from "lucide-react";
+import { TopBar } from "../chats/ChatThread";
 import WalkOverlay, { walkNavText, type WalkNav } from "../walk/WalkOverlay";
 import WalkPlayer from "../walk/WalkPlayer";
 import WalkFaces, { WalkUnclear } from "../walk/WalkFaces";
@@ -227,9 +229,12 @@ function WillGroup({ will }: { will: WillRow }) {
 
 export type WillRow = { questions: number; empty: number; onOpen: () => void };
 
-export function QueueScreen({ speakers, loading, blind, will = null, onSpeaker, onSpeakers, onDelete, onClose }: {
+export function QueueScreen({ speakers, loading, ready = true, blind, will = null, onSpeaker, onSpeakers, onDelete, onClose }: {
   speakers: readonly QueueSpeaker[];
   loading: boolean;
+  /** Every read the queue draws has come in once (N525): until then only the
+   *  typing dots, so the sections never arrive one after another. */
+  ready?: boolean;
   blind: BlindRows | null;
   /** The founder's row to Will's questions (N83); null for every other coach. */
   will?: WillRow | null;
@@ -243,8 +248,27 @@ export function QueueScreen({ speakers, loading, blind, will = null, onSpeaker, 
   onClose: () => void;
 }) {
   const waiting = queueOrder(speakers);
+  // A chat's own top bar (N525): ‹ back to the list, the row's round icon,
+  // "Your queue". Still while the body moves (.walk-ovtop).
   return (
-    <WalkOverlay title={COPY.queueTitle} onClose={onClose} testId="coach-panel-queue">
+    <div role="dialog" aria-modal="true" aria-label={COPY.queueTitle} data-testid="coach-panel-queue"
+      className="walk-ov flex h-full w-full flex-col bg-background text-[17px] leading-[1.55] text-foreground">
+      <div className="walk-ovtop">
+        <TopBar
+          circle={
+            <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
+              <Users className="h-[18px] w-[18px]" strokeWidth={1.8} />
+            </span>
+          }
+          title={COPY.queueTitle}
+          onBack={onClose}
+        />
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-3.5">
+      {!ready ? (
+        <WalkLoading />
+      ) : (
+      <>
       {waiting.length > 0 ? (
         <Group label={COPY.yourSpeakers} testId="coach-panel-speakers">
           <WalkChoices
@@ -268,7 +292,10 @@ export function QueueScreen({ speakers, loading, blind, will = null, onSpeaker, 
           <WalkChoices label={COPY.speakers} choices={[{ value: "speakers", label: COPY.speakers }]} onPick={onSpeakers} />
         </div>
       ) : null}
-    </WalkOverlay>
+      </>
+      )}
+      </div>
+    </div>
   );
 }
 

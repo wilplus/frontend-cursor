@@ -43,11 +43,14 @@ export function useMomentsQueue(enabled: boolean): {
   speakers: QueueSpeaker[];
   waiting: number | null;
   loading: boolean;
+  /** The queue has been read once in this mount, ok or not (N525). */
+  settled: boolean;
   refresh: () => void;
 } {
   const [speakers, setSpeakers] = useState<QueueSpeaker[]>([]);
   const [loading, setLoading] = useState(false);
   const [read, setRead] = useState(false);
+  const [settled, setSettled] = useState(false);
   const [remembered, setRemembered] = useState<number | null>(null);
   const cancelRef = useRef(false);
 
@@ -59,6 +62,7 @@ export function useMomentsQueue(enabled: boolean): {
     const next = result.ok ? result.speakers : [];
     setSpeakers(next);
     setLoading(false);
+    setSettled(true);
     if (result.ok) {
       setRead(true);
       rememberWaiting(speakersWaiting(next));
@@ -83,5 +87,5 @@ export function useMomentsQueue(enabled: boolean): {
   }, [enabled, refresh]);
 
   const waiting = read ? speakersWaiting(speakers) : remembered;
-  return { speakers, waiting, loading, refresh: () => void refresh() };
+  return { speakers, waiting, loading, settled, refresh: () => void refresh() };
 }
