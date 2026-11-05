@@ -61,6 +61,5 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard !DumpPresenter.isShowing,
               DumpGate.shouldOpenFirst(launchedByLinkOrNotification: byLink) else { return }
         DumpPresenter.present(in: scene)
-        DumpGate.markShown()
     }
 }
