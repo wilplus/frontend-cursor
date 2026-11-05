@@ -1,6 +1,7 @@
 "use client";
 
 import { Children, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 import Linkified from "./Linkified";
 import { LEAVE_WORDS } from "@/lib/willab/leaveWords";
@@ -256,9 +257,12 @@ export function useWordsBox(
   }, [asks]);
   return {
     show: !typingOff && (!!draft || open || noTaps || wordsWait),
+    // The box is drawn and focused inside the tap itself: a phone opens its
+    // keyboard only for a focus made while the tap is handled, so a focus a
+    // frame later left the box focused, keyboard down, a second tap needed.
     start: () => {
-      setOpen(true);
-      requestAnimationFrame(() => box.current?.focus());
+      flushSync(() => setOpen(true));
+      box.current?.focus();
     },
     close: () => setOpen(false),
   };

@@ -488,7 +488,9 @@ side, three or four stacked, more than four the last three and
 answer is outlined, never filled (N415).
 O4  You type to Will only when he asks for words (N483 item 2): the box
 ""Type your answer"" opens when you tap ""Something else"", the first of
-his answers, and by itself for his follow-up with no answers or when
+his answers, with the keyboard up from that one tap (the box is
+focused inside the tap: a phone opens no keyboard for a focus made
+later), and by itself for his follow-up with no answers or when
 words are what waits; while the plan asks it never opens (N371).","O1 -> ""the newest question shows its answers, no Skip, and a tap
 goes to the backend once""
 O3 -> ""suggested answers: two in a row, three stacked, a lone one outlined, saying no a grey word, more than four behind Show more""
