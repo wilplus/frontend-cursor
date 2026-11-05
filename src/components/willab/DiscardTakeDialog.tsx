@@ -35,14 +35,13 @@ export default function DiscardTakeDialog({
   const keepRef = useRef<HTMLButtonElement | null>(null);
 
   /* THE DIALOG TAKES THE KEYBOARD, as ProcessingResumeOverlay does: focus
-     moves in, on the safe answer (keep the Take), and goes back to where it
-     was when the dialog closes, unless that is gone with the screen. */
+     moves in, on the safe answer (keep the Take). It is NOT handed back to
+     the ✕ that opened it: on the recording screen Space turns the slide
+     unless a button has focus (recordingGesture.ts, N70.1), so a ✕ holding
+     focus would turn the next Space into "Discard this take?" again. Closed,
+     focus leaves with the dialog, as it always did. */
   useEffect(() => {
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     keepRef.current?.focus({ preventScroll: true });
-    return () => {
-      if (opener?.isConnected) opener.focus({ preventScroll: true });
-    };
   }, []);
 
   // Escape is the safe answer: the Take is kept. Tab goes round the two

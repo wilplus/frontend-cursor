@@ -6,7 +6,8 @@ STORY    As a speaker using a keyboard, I want "Discard this take?" to take
 OUTCOME
   O1  Focus moves onto the safe answer (keep the Take); Tab and Shift+Tab
       go round the two answers and never behind the dialog.
-  O2  Escape keeps the Take, and focus goes back to where it was.
+  O2  Escape keeps the Take, and focus is not left on the ✕ that opened
+      it, so the recording screen's next Space turns the slide (N70.1).
 PROVES   O1, O2 -> "the dialog takes the keyboard, and Escape keeps the Take"
 WHY      The dialog said it was modal (aria-modal) but focus stayed behind it,
          Tab reached the screen under it and Escape did nothing.
@@ -60,6 +61,6 @@ it("the dialog takes the keyboard, and Escape keeps the Take", () => {
   expect(onDiscard).not.toHaveBeenCalled();
 
   act(() => root.render(createElement("div")));
-  expect(document.activeElement).toBe(close);
+  expect(document.activeElement).not.toBe(close);
   close.remove();
 });
