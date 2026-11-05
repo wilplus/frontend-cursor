@@ -200,7 +200,8 @@ The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
 - **The dump screen (T; signed 2026-11-04, N506, N507):** "Say it.", "Tap
   anywhere", "Listening", "Tap to stop", "Kept", "Tap to say more", "Double
   tap to close"; in Settings "Open to the dump screen" and "First thing when
-  you open the app, at most once an hour."; the first time, A5's words above.
+  you open the app." (N521 item 3; was "…, at most once an hour."); the
+  first time, A5's words above.
 
 ### L · The Sunday note (backend `services/sunday_note.py`; locked 2026-10-26, N158)
 
@@ -619,7 +620,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-11-05 · N521 · T4: the dump screen opens first on every open and every coming back to the app, online or offline. Was: at most once an hour. The Settings line "…, at most once an hour." waits for its new words · BE #1763, FE (this PR)
+- 2026-11-05 · N521 · T4: the dump screen opens first on every open and every coming back to the app, online or offline. Was: at most once an hour. The Settings line is now "First thing when you open the app." (signed, N521 item 3) · BE #1763, FE (this PR)
 - 2026-11-05 · N517 · T4: the pull opens the dump screen at once: the notebook is read when the chat opens, not when the pull is let go. Was: a round trip to the server between letting go and the screen · FE (this PR)
 - 2026-11-05 · N506 item 3 · T6: a read that fails (no network, a failed request) no longer tells the iPhone app the dump screen is off; the app keeps what it last heard, so offline it still opens and keeps what is said. Was: one failed read switched it off until the next good load · FE (this PR)
 - 2026-11-05 · N517 · T4: a pull down from the top bar of the chat list or Will's chat opens the dump screen, dots only, no words; and the web's side of T6: in the iPhone app the web tells the native screen the switch (ring row, the notebook's Yes, "Open to the dump screen") and shows "Kept" when it closes; nothing changes in an app without it · BE #1757, FE (this PR)
