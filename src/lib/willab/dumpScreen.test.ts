@@ -9,18 +9,25 @@ OUTCOME
   D3  A double tap while talking stops, keeps and closes.
   D4  The tap that opened the screen, a palm and a swipe do nothing.
   D5  It opens first only when switched on, and then on every open.
+  D6  It never opens first over the loop: while a recording, the wait, the
+      Ideal Text or the walk is open, it waits for the next open.
 PROVES   D1 -> "starts at once, then stops and keeps"
          D2 -> "a double tap on a fresh start closes and undoes the start"
          D3 -> "a double tap while talking stops, keeps and closes"
          D4 -> "ignores the opening tap, a palm and a swipe"
          D5 -> "only when switched on, and then on every open"
+         D6 -> "never over a screen of the loop"
 WHY      Founder 2026-11-04 (backend N506, N507): taps act at once and a
          double tap undoes the first, so no tap waits; it never opens from a
          link (Never 3); every open, no hourly limit (N522, 2026-11-05).
 */
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
 import { beforeEach, describe, expect, it } from "vitest";
+import { backDismissDepth, useBackDismiss } from "@/components/willab/useBackDismiss";
 import {
   openFirst,
+  opensFirstNow,
   freshMemory,
   readTap,
   setOpenFirst,
@@ -69,5 +76,21 @@ describe("opening first", () => {
     expect(openFirst()).toBe(true);
     setOpenFirst(false);
     expect(openFirst()).toBe(false);
+  });
+
+  it("D6 never over a screen of the loop", () => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    setOpenFirst(true);
+    expect(opensFirstNow(backDismissDepth())).toBe(true);
+    // A recording (or the wait, the Ideal Text, the walk): an overlay over the chat.
+    function Recording() {
+      useBackDismiss(() => undefined);
+      return null;
+    }
+    const root = createRoot(document.createElement("div"));
+    act(() => root.render(createElement(Recording)));
+    expect(opensFirstNow(backDismissDepth())).toBe(false);
+    act(() => root.unmount());
+    expect(opensFirstNow(backDismissDepth())).toBe(true);
   });
 });
