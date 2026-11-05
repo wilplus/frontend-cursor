@@ -31,6 +31,11 @@ export function isRetiredLoungeMessage(
         message.metadata?.variant === "coach_feedback_published") ||
       (message.kind === "text" &&
         message.metadata?.note === "coach_video_shared") ||
+      // The founder's weekly note ("Feedback, the last 7 days") is retired
+      // (founder 2026-11-05, backend N516): no longer written, and the ones
+      // already in the chat hide.
+      (message.kind === "text" &&
+        message.metadata?.note === "feedback_digest") ||
       // Best Presentation is retired (L1; second plan, 2026-10-05): the
       // server no longer posts its card, and the ones already written hide.
       message.kind === "best_presentation_ready")

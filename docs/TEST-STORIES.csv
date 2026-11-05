@@ -1539,8 +1539,10 @@ O2  After I answer, the chat lands on the newest bubble even when I had
 scrolled up (N319 item 9).","O1 -> ""a spoken answer already given stays as my bubble with its words""
 O2 -> ""after an answer the chat lands on the newest bubble""","N294 items 2 and 3 (the spoken answers kept); 2026-11-01 (N319): ""after the speaker answers, the chat moves to the new bubble""; 2026-11-04 (N483): no mic in any chat."
 src/components/willab/willabHelpers.test.ts,Story,"As a speaker, I want my slide taps lined up with the recording's clock, so that each word lands on the right slide.","O1  When the recording started later than the tap clock, the correction is positive by exactly that gap.
-O2  When the recording never reported a start, no correction is sent.","O1 -> is positive when the recorder started after the tap clock's zero
-O2 -> sends nothing when the recorder never reported a start",The backend subtracts this from every tap; the wrong sign would double the drift.
+O2  When the recording never reported a start, no correction is sent.
+O3  The founder's old weekly note (""Feedback, the last 7 days"") never shows in the chat with Will; Will's own words still do (founder 2026-11-05).","O1 -> is positive when the recorder started after the tap clock's zero
+O2 -> sends nothing when the recorder never reported a start
+O3 -> hides the old weekly note and nothing else",The backend subtracts this from every tap; the wrong sign would double the drift.
 src/components/willab/willabParked.test.ts,Story,"As a speaker, I want a Take I parked to come back intact, so that I can pick up where I left off.","O1  A parked readout survives a reload with all its fields.
 O2  A readout parked by an older app (no slide fields) comes back with
 safe defaults instead of crashing the resume.
