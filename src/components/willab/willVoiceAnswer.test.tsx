@@ -51,7 +51,7 @@ it("after an answer the chat lands on the newest bubble", () => {
   function Thread() {
     const ref = useRef<HTMLDivElement | null>(null);
     const opened = useRef(true);
-    usePinThreadBottom(ref, 3, false, opened);
+    usePinThreadBottom(ref, "3", false, opened);
     return createElement("div", { ref: (el: HTMLDivElement | null) => { ref.current = el; thread = el; } });
   }
   act(() => root.render(createElement(Thread)));

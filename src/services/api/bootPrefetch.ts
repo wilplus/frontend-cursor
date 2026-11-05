@@ -54,6 +54,10 @@ async function take<T>(key: string): Promise<T | undefined> {
   return entry.promise;
 }
 
+/** The thread's first page at open: a read that hangs reaches the Lounge's
+ *  "no answer" (the typing dots, read again) instead of holding it. */
+const FIRST_PAGE_TIMEOUT_MS = 10_000;
+
 const AUTHORIZATION = "processing-authorization";
 const LOUNGE_HISTORY = "lounge-history";
 const CHATS = "chats";
@@ -66,7 +70,7 @@ export function prefetchChatBoot(): void {
     // indistinguishable from an empty thread. Only a signed-in read may be
     // reused; otherwise decline, and the signed-in load fetches for itself.
     if (!(await getAuthToken())) return undefined;
-    return fetchLoungeHistory();
+    return fetchLoungeHistory({ timeoutMs: FIRST_PAGE_TIMEOUT_MS });
   });
 }
 
@@ -96,7 +100,7 @@ export async function takeAuthorization(): Promise<AuthorizationStatus> {
 
 /** useLoungeThread's signed-in load: the prefetched page or a fresh one. */
 export async function takeLoungeHistory(): Promise<LoungeHistoryPage> {
-  return (await take<LoungeHistoryPage>(LOUNGE_HISTORY)) ?? fetchLoungeHistory();
+  return (await take<LoungeHistoryPage>(LOUNGE_HISTORY)) ?? fetchLoungeHistory({ timeoutMs: FIRST_PAGE_TIMEOUT_MS });
 }
 
 /** Test-only reset. */

@@ -160,6 +160,8 @@ async function authHeaders(): Promise<Record<string, string> | null> {
 export async function fetchLoungeHistory(opts?: {
   limit?: number;
   before?: string;
+  /** No answer within this long counts as no answer (`failed`). */
+  timeoutMs?: number;
 }): Promise<LoungeHistoryPage> {
   const empty: LoungeHistoryPage = {
     messages: [],
@@ -170,7 +172,7 @@ export async function fetchLoungeHistory(opts?: {
   qs.set("limit", String(opts?.limit ?? LOUNGE_PAGE_SIZE));
   if (opts?.before) qs.set("before", opts.before);
 
-  const data = (await bffOkBody(`${ENDPOINT}?${qs.toString()}`, { cache: "no-store" })) as
+  const data = (await bffOkBody(`${ENDPOINT}?${qs.toString()}`, { cache: "no-store", timeoutMs: opts?.timeoutMs })) as
     | (LoungeHistoryPage & { new_coach_feedback?: unknown })
     | null;
   if (!data || !Array.isArray(data.messages)) return { ...empty, failed: true };

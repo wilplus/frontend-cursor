@@ -15,9 +15,12 @@ export type SessionStateValue =
 
 export async function fetchSessionState(): Promise<SessionStateValue | null> {
   // @optional_auth: an anonymous read is valid (the answer is NO_SESSION).
+  // A read that hangs ends as a failed one (null: the Lounge, as on any
+  // failure), never as a chat that does not open.
   const result = await bffFetch("/api/v2/chat/session-state", {
     auth: "optional",
     cache: "no-store",
+    timeoutMs: 10_000,
   });
   if (result.kind !== "response" || !result.ok) return null;
   const body = result.body as Record<string, unknown> | null;

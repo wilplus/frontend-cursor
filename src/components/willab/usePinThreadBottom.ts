@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { WILLAB_THREAD_TO_LATEST_EVENT } from "@/lib/willabWindowEvents";
 
 /** How long a pin keeps following the thread as it grows. A new bubble is not
@@ -19,7 +19,9 @@ export const PIN_FOLLOW_MS = 1500;
  *  thread that is not laid out yet. */
 export function usePinThreadBottom(
   scrollRef: RefObject<HTMLDivElement | null>,
-  messageCount: number,
+  /** The newest message's client_id. Only a change here is a new bubble:
+   *  older messages loaded above it leave it as it is. */
+  newestId: string | null,
   loading: boolean,
   /** True once the thread has opened at its bottom; until then a growing
    *  count is history arriving, not a new bubble. */
@@ -54,14 +56,16 @@ export function usePinThreadBottom(
     stopRef.current = stop;
   }, [scrollRef]);
 
-  // A new bubble: land on it.
-  const seenRef = useRef<number | null>(null);
+  // A new bubble: land on it. The newest message, not the count: a page of
+  // older messages put above the thread adds to the count, and reading
+  // history stays where it is.
+  const seenRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
     if (!ready) return;
     const before = seenRef.current;
-    seenRef.current = messageCount;
-    if (before !== null && messageCount > before) pin();
-  }, [messageCount, ready, pin]);
+    seenRef.current = newestId;
+    if (before !== undefined && newestId !== null && newestId !== before) pin();
+  }, [newestId, ready, pin]);
 
   // Leaving a surface for the chat on purpose: land on the newest bubble,
   // and keep landing on it while the refreshed thread arrives.
@@ -75,6 +79,38 @@ export function usePinThreadBottom(
   }, [pin]);
 
   return pin;
+}
+
+/** OLDER MESSAGES COME IN ABOVE WHAT IS READ ("reading history otherwise
+ *  stays where it is"). `before()` notes where the first bubble sits, just
+ *  before a page of older messages is put above it; once they are drawn the
+ *  thread moves by what was put above, so that bubble stays where the reader
+ *  saw it. Safari has no scroll anchoring; where the browser anchored on its
+ *  own the bubble has not moved, and this moves nothing. */
+export function useKeepPlaceAbove(
+  scrollRef: RefObject<HTMLDivElement | null>,
+  /** The oldest message's client_id: it changes when a page is put above. */
+  oldestId: string | null,
+): () => void {
+  const markRef = useRef<{ node: Element; top: number } | null>(null);
+  const before = useCallback(() => {
+    const el = scrollRef.current;
+    const node = el?.querySelector(":scope > :not([data-load-older])") ?? null;
+    markRef.current = el && node ? { node, top: topIn(el, node) } : null;
+  }, [scrollRef]);
+  useLayoutEffect(() => {
+    const mark = markRef.current;
+    markRef.current = null;
+    const el = scrollRef.current;
+    if (!mark || !el || !mark.node.isConnected) return;
+    el.scrollTop += topIn(el, mark.node) - mark.top;
+  }, [oldestId, scrollRef]);
+  return before;
+}
+
+/** Where `node` sits in the thread's visible box, in pixels from its top. */
+function topIn(el: Element, node: Element): number {
+  return node.getBoundingClientRect().top - el.getBoundingClientRect().top;
 }
 
 /** The speaker answered (founder 2026-11-01, N319 item 9): the Lounge lands

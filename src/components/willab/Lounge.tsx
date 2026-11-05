@@ -173,7 +173,7 @@ import {
 } from "@/lib/productDiscovery";
 import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
 import { useWaitScreen } from "./useWaitScreen";
-import { usePinThreadBottom } from "./usePinThreadBottom";
+import { useKeepPlaceAbove, usePinThreadBottom } from "./usePinThreadBottom";
 import { clearerPieces, type ClearerPiece } from "@/lib/willab/clearerPieces";
 import { usePlanLounge, type PlanStart } from "./plan/usePlanLounge";
 import { isFirstTakeArc } from "@/lib/willab/firstTake";
@@ -264,6 +264,20 @@ function failedNoteSession(
  *  is never held behind it. */
 function blocksText(takeInFlight: boolean, inFlightArcId: string | null, openArcId: string): boolean {
   return takeInFlight && inFlightArcId === openArcId;
+}
+
+/** The bar's middle waits for a Take still landing, and for the history's
+ *  first answer: before it, a new device would offer "Start your first
+ *  recording" to a speaker with Takes. Never longer than that one read (its
+ *  timeout, bootPrefetch.ts): once a read went unanswered the bar is free,
+ *  and the history is read again behind the dots (useLoungeThread). */
+function recordBarHeld(takeInFlight: boolean, thread: { loading: boolean; unanswered: boolean }): boolean {
+  return takeInFlight || (thread.loading && !thread.unanswered);
+}
+
+/** The oldest and the newest message's client_id, or null for none. */
+function threadEnds(messages: readonly Pick<LoungeMessage, "client_id">[]): { oldest: string | null; newest: string | null } {
+  return { oldest: messages.at(0)?.client_id ?? null, newest: messages.at(-1)?.client_id ?? null };
 }
 
 /** Will's bubble when a chat turn fails. A signed-out visitor before their
@@ -1442,6 +1456,9 @@ export default function Lounge({
     void letGo();
   }, [threadLoading, botThinking, waiting, drawn, activeOffer, letGo]);
 
+  // The newest message, not the count: older messages put above the thread
+  // are not a new bubble (usePinThreadBottom).
+  const ends = threadEnds(messages);
   useEffect(() => {
     // Stick to bottom only if the user hasn't scrolled up. Scroll the container
     // itself (not a sentinel) so the page/viewport never moves. A form opening
@@ -1449,12 +1466,14 @@ export default function Lounge({
     if (!atBottomRef.current) return;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, botThinking, thread.writing, activeOffer]);
+  }, [ends.newest, botThinking, thread.writing, activeOffer]);
 
   // A NEW BUBBLE IS ALWAYS SHOWN (founder 2026-09-28), even when the thread
   // was scrolled up, and See next steps lands on the newest one. Only a new
-  // message moves the thread; reading history otherwise stays where it is.
-  const pinBottom = usePinThreadBottom(scrollRef, messages.length, thread.loading, didInitScrollRef);
+  // message moves the thread; reading history otherwise stays where it is:
+  // "Load earlier messages" puts them above the bubble being read.
+  const pinBottom = usePinThreadBottom(scrollRef, ends.newest, thread.loading, didInitScrollRef);
+  const keepPlace = useKeepPlaceAbove(scrollRef, ends.oldest);
   // THE CHAT FOLLOWS THE NEWEST BUBBLE AFTER AN ANSWER (founder 2026-11-01,
   // N319 item 9): a tap, a typed message, a voice answer or the continue tap
   // lands the thread on the newest bubble even when it was scrolled up;
@@ -1877,7 +1896,8 @@ export default function Lounge({
         {thread.hasMore && (
           <button
             type="button"
-            onClick={() => void thread.loadOlder()}
+            data-load-older
+            onClick={() => void thread.loadOlder(keepPlace)}
             disabled={thread.loadingOlder}
             className="mx-auto text-[12px] text-muted-foreground hover:text-foreground disabled:opacity-50"
           >
@@ -2191,7 +2211,7 @@ export default function Lounge({
             hear={plan.hear}
             review={reviewToContinue ? () => continueReview(reviewToContinue) : null}
             next={goodbye.recordNext ?? restingTake(messages, userId)}
-            held={takeInFlight}
+            held={recordBarHeld(takeInFlight, thread)}
             onRecord={recordNext}
             onFirst={startFirst}
           />
