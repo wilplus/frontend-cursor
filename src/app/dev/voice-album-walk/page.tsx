@@ -7,7 +7,7 @@
 /*  WalkFooter). Nothing is fetched; the data is fixtures. Not a surface.     */
 /*                                                                            */
 /*    /dev/voice-album-walk?screen=home | moment | note | new | answered |    */
-/*                                 empty | morning | listen&step=0..5         */
+/*            empty | notify | morning | listen&step=0..5 | after             */
 /*                                                                            */
 /*  Words: only strings the app already shows (the walk's copy, today's       */
 /*  Voice Album, and the backend's "Your Voice Album is ready" message).      */
@@ -23,9 +23,9 @@ import { WalkSpeakerBubble, WalkThreadMark } from "@/components/willab/walk/Walk
 import { CHUNK_SHEET_COPY, WALK_COPY } from "@/components/willab/idealEditCopy";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import { makeToneUrl } from "../feedback-walk/walkFixtures";
-import { ListenBefore, MorningLounge } from "./listenBefore";
+import { ListenBefore, MorningLounge, Notify } from "./listenBefore";
 
-type Screen = "home" | "moment" | "note" | "new" | "answered" | "empty" | "morning" | "listen";
+type Screen = "home" | "moment" | "note" | "new" | "answered" | "empty" | "notify" | "morning" | "listen" | "after";
 
 /* Shipped words, gathered in one place so the study adds none of its own. */
 const SHIPPED = {
@@ -77,12 +77,9 @@ export default function VoiceAlbumWalkStudy() {
 
   const shell = (node: React.ReactNode) => <div className="fixed inset-0 z-50">{node}</div>;
 
-  if (screen === "morning") {
-    return shell(<MorningLounge onOpen={() => { setStep(0); setScreen("listen"); }} onClose={close} />);
-  }
-  if (screen === "listen") {
-    return shell(<ListenBefore step={step} src={src} onStep={setStep} onClose={() => setScreen("morning")} />);
-  }
+  if (screen === "notify") return shell(<Notify />);
+  if (screen === "morning" || screen === "after") return shell(<MorningLounge after={screen === "after"} />);
+  if (screen === "listen") return shell(<ListenBefore step={step} src={src} />);
 
   if (screen === "empty") {
     return shell(
