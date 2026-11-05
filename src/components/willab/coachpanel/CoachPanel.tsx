@@ -573,12 +573,15 @@ export default function CoachPanel({ state, dispatch, speakers, loading, settled
     );
   }
 
+  // Every read the queue draws has come in once: it draws whole (N524).
+  const queueReady = settled && blind.done && (!founder || will.done);
+
   function render(s: StageScreen) {
     const panel = s.panel;
     const live = panel === screen;
     if (panel.key === "queue") {
       return (
-        <QueueScreen speakers={speakers} loading={loading} ready={settled && blind.done && (!founder || will.done)} onClose={close}
+        <QueueScreen speakers={speakers} loading={loading} ready={queueReady} onClose={close}
           onSpeaker={(speaker) => dispatch({ type: "speaker", speaker })}
           onSpeakers={() => dispatch({ type: "speakers" })}
           onDelete={founder ? deleteSpeaker : undefined}
