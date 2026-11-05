@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import DumpPullBar from "./DumpPullBar";
 import LoadingState from "./LoadingState";
 import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
 import { isLabOverlay, useWillabFlow, type WillabState } from "./useWillabFlow";
@@ -209,7 +210,10 @@ export default function WillabSurface({
         // Hidden, not unmounted, while a person's chat draws its own top bar
         // in its place (ring 6, backend N321 item 1).
         <div className="shrink-0" hidden={!chats.navbar}>
-          <DashboardHeader />
+          {/* A pull down from the top bar opens the dump screen (N517). */}
+          <DumpPullBar>
+            <DashboardHeader />
+          </DumpPullBar>
         </div>
       )}
       <div

@@ -1,6 +1,7 @@
 import { bffFetch } from "@/lib/api/bffFetch";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { sameSitePath } from "@/lib/auth/sameSitePath";
+import { closeNativeDump } from "@/lib/phone/dumpScreen";
 
 /* -------------------------------------------------------------------------- */
 /*  Push in the iPhone app (backend N385, N365 item 4): "The feedback from     */
@@ -56,6 +57,7 @@ export async function startNativePush(): Promise<() => void> {
       console.warn("[push] registration failed", err);
     }),
     PushNotifications.addListener("pushNotificationActionPerformed", ({ notification }) => {
+      closeNativeDump(); // a tapped notification never lands on the dump screen (N506 item 4)
       const path = sameSitePath(String((notification.data as { path?: unknown })?.path ?? ""));
       if (path && path !== window.location.pathname + window.location.search) {
         window.location.assign(path);

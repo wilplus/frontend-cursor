@@ -143,3 +143,22 @@ export function showHint(): boolean {
 export function countKept(): void {
   write(KEY_KEPT, String(Number(read(KEY_KEPT) ?? "0") + 1));
 }
+
+/* --------------------------- the pull down (N517) -------------------------- */
+/*  A pull down that starts on the top bar of the chat list or Will's chat    */
+/*  opens the dump screen. Only /chat registers an opener, and only where    */
+/*  the ring row is on, so the top bar on any other page does nothing.       */
+
+export const PULL_OPEN_PX = 90;
+
+let opener: (() => void) | null = null;
+
+export function setDumpOpener(fn: (() => void) | null): void {
+  opener = fn;
+}
+export function canPullDump(): boolean {
+  return opener !== null;
+}
+export function openDumpScreen(): void {
+  opener?.();
+}

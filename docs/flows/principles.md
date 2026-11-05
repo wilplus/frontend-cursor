@@ -528,6 +528,9 @@ The prototypes: <https://claude.ai/artifact/RY5gT9bg8xSpGvKiLVScsW>,
   the device), only on a plain open of /chat, never from a link to a Take,
   a walk or an Ideal Text, and at most once an hour, also on coming back to
   the app. Will's chat is underneath, untouched (Never 3). No menu line.
+  A pull down that starts on the top bar of the chat list or Will's chat
+  opens it at any time (N517): the three-dot mark follows the finger, a
+  release past 90 px opens it, no words. A pull in the thread still scrolls.
 - **T5 · Who has it (N507 item 3).** Ring rows `dump_screen` and
   `voice_notebook`, both at ring 2 (backend migration 0511).
 - **T6 · The iPhone app (N506 item 5).** The capture screen becomes native
@@ -541,7 +544,7 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- T6 · the native capture screen in the iPhone app · N506 item 5 · the app chat, not started · —
+- T6 · the native capture screen in the iPhone app · N506 item 5, N507 · the web's side ships here (the app hears the switch, "kept", a tapped notification closes it); the native screen waits in FE #1251 for the founder's build · FE #1251
 
 ## 3. Still open
 
@@ -616,6 +619,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-05 · N517 · T4: a pull down from the top bar of the chat list or Will's chat opens the dump screen, dots only, no words; and the web's side of T6: in the iPhone app the web tells the native screen the switch (ring row, the notebook's Yes, "Open to the dump screen") and shows "Kept" when it closes; nothing changes in an app without it · BE #1757, FE (this PR)
 - 2026-11-04 · N514 · T3: a Yes given on the dump screen writes "Yes" and "Noted." in Will's chat, without "What's on your mind today?" · BE #1753, FE (this PR)
 - 2026-11-04 · N506, N507 · T: the dump screen, built on the web: one screen that only listens, tap, tap, double tap; the notebook's way in, with A5's introduction the first time; "Open to the dump screen" in Settings, off by default; ring 2 · BE #1743, #1745, #1746, FE (this PR)
 - 2026-11-04 · N483 item 7 · A0: the note rests: no mic and no "#" in Will's chat, so no new # notes; no introduction from the Takes and no "Keep a voice notebook?" (`useVoiceNotebook.tsx`; the client calls `askNotebook` and `introFromTakes` and their BFF routes `notebook/ask` and `notebook/intro` are gone). Kept notes stay; notes left on the phone still go · BE N483 (#1718), FE (this PR)
