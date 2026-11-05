@@ -159,6 +159,7 @@ vi.mock("../useSignedIn", () => ({ useSignedIn: () => session.signedIn }));
 import { resetRingStateCache } from "@/services/api/rings";
 import { __resetBootPrefetchForTests, prefetchChatsDoor } from "@/services/api/bootPrefetch";
 import { useChatsDoor } from "./useChatsDoor";
+import { getAuthToken } from "@/lib/api/auth-client";
 import { UNDO_MS, answerRecorded, answerTake, forgetAnswers, startAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
 import { JoinSetupBubble, joinSetupOf, useJoinSetup } from "./JoinSetup";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -802,6 +803,52 @@ describe("the chats in front of the Lounge", () => {
       expect(calls("GET /api/v2/chats")).toHaveLength(1);
     });
   }
+
+  it("as a user, my list from last time draws at once, then the fresh one; signed out, it is gone", async () => {
+    const tokenOf = (sub: string) => `h.${btoa(JSON.stringify({ sub }))}.s`;
+    vi.mocked(getAuthToken).mockImplementation(async () => tokenOf("u-me"));
+    try {
+      // The first open: the list is read and kept.
+      backend([]);
+      routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
+      await render();
+      expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-sarah"]);
+      act(() => root.unmount());
+      root = createRoot(container);
+
+      // The next open: the kept list stands while the read has not answered.
+      let answerChats: () => void = () => {};
+      const list = new Promise<void>((resolve) => (answerChats = resolve));
+      fetchMock.mockImplementation(async (url: string) => {
+        if (String(url) !== "/api/v2/chats") return reply({ error: "not found" }, 404);
+        await list;
+        return reply({ chats: [ARIEL, SARAH] });
+      });
+      await render();
+      expect(container.querySelector("[data-chats-waiting]")).toBeNull();
+      expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-sarah"]);
+      await act(async () => answerChats());
+      await flush();
+      expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-ariel", "c-sarah"]);
+      act(() => root.unmount());
+      root = createRoot(container);
+
+      // Someone else on this browser never sees it.
+      vi.mocked(getAuthToken).mockImplementation(async () => tokenOf("u-other"));
+      fetchMock.mockImplementation(() => new Promise(() => {}));
+      await render();
+      expect(container.querySelector("[data-chats-waiting]")).not.toBeNull();
+      act(() => root.unmount());
+      root = createRoot(container);
+
+      // Signed out, nothing stays behind.
+      session.signedIn = false;
+      await render();
+      expect(window.localStorage.getItem("willab.chats.list")).toBeNull();
+    } finally {
+      vi.mocked(getAuthToken).mockImplementation(async () => "t");
+    }
+  });
 
   it("an answer sent to me plays with its slides following the voice, its words behind Read it", async () => {
     const players: { currentTime: number; ontimeupdate: (() => void) | null; onended: (() => void) | null }[] = [];
