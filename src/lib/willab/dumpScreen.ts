@@ -44,7 +44,6 @@ export const OPEN_GUARD_MS = 500;
 export const MOVE_PX = 12;
 export const PALM_PX = 60;
 export const SWIPE_CLOSE_PX = 90;
-export const OPEN_EVERY_MS = 60 * 60 * 1000;
 export const HINT_DUMPS = 3;
 
 /* ------------------------------ how a tap reads ---------------------------- */
@@ -100,7 +99,6 @@ export function readTap(memory: TapMemory, touch: Touch, listening: boolean): [T
 /*  Kept on this device: opening first is about this phone (N507 item 2).    */
 
 const KEY_ON = "willab.dump.openFirst";
-const KEY_SHOWN = "willab.dump.lastShown";
 const KEY_KEPT = "willab.dump.kept";
 
 function read(key: string): string | null {
@@ -123,17 +121,6 @@ export function openFirst(): boolean {
 }
 export function setOpenFirst(on: boolean): void {
   write(KEY_ON, on ? "1" : "0");
-  if (on) write(KEY_SHOWN, "0");
-}
-
-/** Opens first only when switched on, and at most once an hour. */
-export function dueToOpen(now: number): boolean {
-  if (!openFirst()) return false;
-  const last = Number(read(KEY_SHOWN) ?? "0");
-  return !Number.isFinite(last) || now - last >= OPEN_EVERY_MS;
-}
-export function markShown(now: number): void {
-  write(KEY_SHOWN, String(now));
 }
 
 /** "Double tap to close" shows for the first three dumps only. */

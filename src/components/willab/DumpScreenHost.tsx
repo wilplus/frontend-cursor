@@ -5,15 +5,15 @@ import DumpScreen from "./DumpScreen";
 import { useRingState } from "@/hooks/useRingState";
 import { EMPTY_RING_STATE } from "@/services/api/rings";
 import { getNotebookState, type NotebookState } from "@/services/api/voiceNotebook";
-import { DUMP_COPY, DUMP_FEATURE, dueToOpen, markShown, setDumpOpener, setOpenFirst } from "@/lib/willab/dumpScreen";
+import { DUMP_COPY, DUMP_FEATURE, openFirst, setDumpOpener, setOpenFirst } from "@/lib/willab/dumpScreen";
 import { nativeDump, onNativeKept, openNativeDump, syncApp } from "@/lib/phone/dumpScreen";
 
 /* -------------------------------------------------------------------------- */
-/*  When the dump screen opens first (backend N506 item 4, N507): only on a   */
+/*  When the dump screen opens first (backend N506 item 4, N520): only on a  */
 /*  plain open of the app (no link: `plain` is false when the address names   */
 /*  a Take, a walk or an Ideal Text), only when its ring row and the          */
 /*  notebook are on, only when the person turned "Open to the dump screen"   */
-/*  on, and at most once an hour, also on coming back to the app. Will's     */
+/*  on, and then on every open and every coming back to the app. Will's     */
 /*  chat is underneath, untouched (Never 3).                                 */
 /*                                                                            */
 /*  In the iPhone app with the native screen (N506 item 5) this tells the    */
@@ -75,12 +75,11 @@ export default function DumpScreenHost({ plain }: { plain: boolean }) {
     if (!on || !plain) return;
     let live = true;
     const consider = () => {
-      if (!dueToOpen(Date.now())) return;
+      if (!openFirst()) return;
       void getNotebookState().then((state) => {
         if (!live || !state?.enabled) return;
         if (state.consented && nativeDump()) return; // the app's own screen opens first
         setNotebook(state);
-        markShown(Date.now());
         setOpen(true);
       });
     };

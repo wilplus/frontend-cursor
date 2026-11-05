@@ -8,22 +8,20 @@ OUTCOME
   D2  A double tap on a fresh start closes and throws the start away.
   D3  A double tap while talking stops, keeps and closes.
   D4  The tap that opened the screen, a palm and a swipe do nothing.
-  D5  It opens first only when switched on, and at most once an hour.
+  D5  It opens first only when switched on, and then on every open.
 PROVES   D1 -> "starts at once, then stops and keeps"
          D2 -> "a double tap on a fresh start closes and undoes the start"
          D3 -> "a double tap while talking stops, keeps and closes"
          D4 -> "ignores the opening tap, a palm and a swipe"
-         D5 -> "only when switched on, and at most once an hour"
+         D5 -> "only when switched on, and then on every open"
 WHY      Founder 2026-11-04 (backend N506, N507): taps act at once and a
          double tap undoes the first, so no tap waits; it never opens from a
-         link and never more than once an hour (Never 3).
+         link (Never 3); every open, no hourly limit (N520, 2026-11-05).
 */
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  OPEN_EVERY_MS,
-  dueToOpen,
+  openFirst,
   freshMemory,
-  markShown,
   readTap,
   setOpenFirst,
   type Touch,
@@ -65,13 +63,11 @@ describe("the dump screen's taps", () => {
 describe("opening first", () => {
   beforeEach(() => window.localStorage.clear());
 
-  it("D5 only when switched on, and at most once an hour", () => {
-    expect(dueToOpen(Date.now())).toBe(false);
+  it("D5 only when switched on, and then on every open (N520)", () => {
+    expect(openFirst()).toBe(false);
     setOpenFirst(true);
-    const now = Date.now();
-    expect(dueToOpen(now)).toBe(true);
-    markShown(now);
-    expect(dueToOpen(now + 60_000)).toBe(false);
-    expect(dueToOpen(now + OPEN_EVERY_MS)).toBe(true);
+    expect(openFirst()).toBe(true);
+    setOpenFirst(false);
+    expect(openFirst()).toBe(false);
   });
 });
