@@ -9,7 +9,7 @@ import { DUMP_COPY, DUMP_FEATURE, openFirst, setDumpOpener, setOpenFirst } from 
 import { nativeDump, onNativeKept, openNativeDump, syncApp } from "@/lib/phone/dumpScreen";
 
 /* -------------------------------------------------------------------------- */
-/*  When the dump screen opens first (backend N506 item 4, N520): only on a  */
+/*  When the dump screen opens first (backend N506 item 4, N521): only on a  */
 /*  plain open of the app (no link: `plain` is false when the address names   */
 /*  a Take, a walk or an Ideal Text), only when its ring row and the          */
 /*  notebook are on, only when the person turned "Open to the dump screen"   */
