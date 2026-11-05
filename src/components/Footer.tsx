@@ -15,10 +15,14 @@ import Link from "next/link";
  * prefetch={false} (loading audit, 2026-11-02): the footer is on every page,
  * so viewport prefetch fetched /about, /blog and /terms on every open,
  * competing with /chat's boot reads on a phone. A click still navigates.
+ *
+ * In the iPhone app (founder 2026-11-05): 10px further in from each side
+ * than the 16px elsewhere, and nothing under the row, since the phone's
+ * home-bar strip below already gives it more than 8px from the edge.
  */
 export default function Footer() {
   return (
-    <footer className="flex flex-row justify-between items-center shrink-0 px-4 py-2 border-t border-border text-[11px] sm:text-xs text-muted-foreground gap-3 app:py-1 sm:px-6 sm:py-3">
+    <footer className="flex flex-row justify-between items-center shrink-0 px-4 py-2 border-t border-border text-[11px] sm:text-xs text-muted-foreground gap-3 app:px-[26px] app:pb-0 app:pt-1 sm:px-6 sm:py-3">
       <span>WillpowerLab 2026</span>
       <div className="flex gap-3 items-center sm:gap-4">
         <Link
