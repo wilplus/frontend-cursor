@@ -2534,6 +2534,24 @@ export function warmIdealTextOpen(arcId: string | null | undefined): void {
   }, () => undefined);
 }
 
+/** The coach's link (/chat?lens= or ?idealArc=, 2026-11-05): the page's
+ *  opening read starts as /chat opens, beside the boot reads, instead of once
+ *  the Lounge has mounted and the page's code has loaded; once its snapshot
+ *  is known, the lanes the page will ask for start too. A link that names
+ *  its Take (`&take=`, backend N77) reads the coach's lane for that Take on
+ *  its own (fetchIdealTextEnrichment never serves it from here), so only the
+ *  marks' lane is started for it. The page opens on the same read, through
+ *  the same handover; only sooner. */
+export function warmIdealTextLink(arcId: string | null | undefined, coachTake: string | null): void {
+  if (!arcId) return;
+  prefetchIdealTextDisplay(arcId);
+  void idealTextDisplayHandoffs.get(arcId)?.result.then((r) => {
+    if (r.kind !== "single" || !r.documentSnapshotId) return;
+    if (coachTake) primeIdealTextEnrichment(arcId, r.documentSnapshotId, SLOW_LANE);
+    else primeIdealTextEnrichmentLanes(arcId, r.documentSnapshotId);
+  }, () => undefined);
+}
+
 /** Take (and delete) the arc's handover when it may still paint. */
 function takeIdealTextDisplayHandoff(
   arcId: string,
