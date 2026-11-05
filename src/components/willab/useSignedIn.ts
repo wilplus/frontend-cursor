@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { readSession } from "@/lib/supabase/session";
 
 /* -------------------------------------------------------------------------- */
 /*  useSignedIn — lightweight auth probe for the Lounge                         */
@@ -21,9 +22,8 @@ export function useSignedIn(): boolean | null {
     const supabase = createClient();
     let active = true;
 
-    supabase.auth
-      .getSession()
-      .then(({ data: { session } }) => {
+    readSession()
+      .then((session) => {
         if (active) setSignedIn(Boolean(session?.access_token));
       })
       .catch(() => {

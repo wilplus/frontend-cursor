@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { readSession } from "@/lib/supabase/session";
 import { claimGuestProjects } from "@/services/api/projects";
 import { sendPendingTrainingYes } from "@/lib/legal/pendingTrainingYes";
 import { mergeClaimedLocalThread } from "@/lib/funnel/loungeLocalThread";
@@ -29,8 +30,8 @@ export default function GuestProjectClaim() {
     // this page (SIGNED_IN below) claims at once, as before.
     let cancelDeferred: (() => void) | null = null;
     let unmounted = false;
-    void supabase.auth.getSession().then(({ data }) => {
-      if (unmounted || !data.session?.access_token) return;
+    void readSession().then((session) => {
+      if (unmounted || !session?.access_token) return;
       cancelDeferred = afterChatBoot(claim);
     });
     const {

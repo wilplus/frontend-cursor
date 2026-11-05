@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { readSession } from "@/lib/supabase/session";
 
 /* -------------------------------------------------------------------------- */
 /*  useUserId — the signed-in user's id (for usePublishLiveSubscription)        */
@@ -18,9 +19,8 @@ export function useUserId(): string | null {
     const supabase = createClient();
     let active = true;
 
-    supabase.auth
-      .getSession()
-      .then(({ data: { session } }) => {
+    readSession()
+      .then((session) => {
         if (active) setUserId(session?.user?.id ?? null);
       })
       .catch(() => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { readSession } from "@/lib/supabase/session";
 
 
 export function useUserEmail(): string | null | undefined {
@@ -17,9 +18,8 @@ export function useUserEmail(): string | null | undefined {
       return;
     }
     let active = true;
-    void supabase.auth
-      .getSession()
-      .then(({ data: { session } }) => {
+    void readSession()
+      .then((session) => {
         if (active) setEmail(session?.user?.email?.trim().toLowerCase() ?? null);
       })
       .catch(() => {
