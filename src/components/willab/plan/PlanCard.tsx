@@ -30,9 +30,13 @@ function PlanList({ plan, onBook }: { plan: Plan; onBook?: (which: CallWhich) =>
       {callsOn ? (
         <CallItem name={PLAN_COPY.kickoffCall} call={plan.calls.kickoff} onBook={onBook && (() => onBook("kickoff"))} />
       ) : null}
-      <li>
-        {PLAN_COPY.yourDeadline}: <span className="font-semibold text-[#C2410C]">{plan.deadline_short}</span>
-      </li>
+      {plan.deadline_given ? null : (
+        // Only a day the speaker chose (backend N524): "No date yet"'s two
+        // months is never shown as theirs; the first new project asks for it.
+        <li>
+          {PLAN_COPY.yourDeadline}: <span className="font-semibold text-[#C2410C]">{plan.deadline_short}</span>
+        </li>
+      )}
       {callsOn ? (
         <CallItem name={PLAN_COPY.summaryCall} call={plan.calls.summary} onBook={onBook && (() => onBook("summary"))} />
       ) : null}
