@@ -457,10 +457,14 @@ it("the plan's rows are drawn as the prototype draws them", async () => {
   // The plan only (N319 item 6): no level, no key line, no "How you said
   // it", no "Why this line?", no call (N315).
   expect(card.textContent).toBe("Plan15 minutes, 3 times a week: Mon, Wed, FriYour deadline: Sat 14 NovChange your plan");
-  const parts = [...card.querySelectorAll("[data-plan-bar] i")];
+  // A day the speaker never chose is not shown as theirs (backend N524).
+  act(() => root.render(<>{planRowFor(row({ plan_card: true }), ctx({ ...c.plan!, deadline_given: true }))}</>));
+  expect(host.querySelector("[data-plan-card]")!.textContent).toBe("Plan15 minutes, 3 times a week: Mon, Wed, FriChange your plan");
+  act(() => root.render(<>{planRowFor(row({ plan_card: true }), c)}</>));
+  const parts = [...host.querySelector("[data-plan-card]")!.querySelectorAll("[data-plan-bar] i")];
   expect(parts.length).toBe(9); // one part per practice, filled with what was done
   expect(parts.filter((i) => i.className.includes("FF640A")).length).toBe(1);
-  const change = [...card.querySelectorAll("button")].find((b) => b.textContent === "Change your plan")!;
+  const change = [...host.querySelector("[data-plan-card]")!.querySelectorAll("button")].find((b) => b.textContent === "Change your plan")!;
   act(() => change.click());
   expect(c.onChangePlan).toHaveBeenCalledTimes(1);
 

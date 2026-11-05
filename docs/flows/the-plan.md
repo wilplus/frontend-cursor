@@ -236,7 +236,9 @@ built and what is still to come.
    only (N319 item 6): "Plan"; the plan's bar (3); in bullet points the
    practice days ("15 minutes, 3 times a week: Mon, Wed, Fri", or "15
    minutes every day") and "Your deadline: {date}", the date in orange (for
-   example "Sat 14 Nov"); then "Change your plan", which opens its sheet
+   example "Sat 14 Nov"), only for a day the speaker chose: "No date yet"'s
+   two months, or a first Take with no day heard, shows no deadline line
+   (backend N524); then "Change your plan", which opens its sheet
    (H: Deadline, Practice days, I have a new event). No "Ready
    by {date}" heading (N167). Gone from the card: "Your next level" and the
    level, the key line, "How you said it", "Why this line?", the pace
@@ -467,13 +469,23 @@ built and what is still to come.
 2. A new project asks "Is this for 14 November?" (the plan's deadline),
    after its first Take, not before it (N178). Yes keeps the plan; no starts
    "When is your deadline?" and the questions for a new plan. New slides or a
-   rewrite for the same event keep the plan (N149).
+   rewrite for the same event keep the plan (N149). When the speaker never
+   chose the day ("No date yet"'s two months, a first Take with no day
+   heard, a join link's "No"), the new project asks "When is your
+   deadline?" instead, with Pick a date or No date yet, and the plan goes
+   on: a day picked becomes theirs, "Done. Your plan now runs to {date}.";
+   No date yet gives two months from today, "That's fine. Let's give it two
+   months, until {date}.", and the next new project asks again (backend
+   N524). A join link's day recalculates the plan as Edit does and never
+   replaces a day the speaker chose.
 
 ### I · The plan's end
 
 1. At the last practice, the two ratings come after the Take (D1; N178).
 2. The first time the speaker opens the app on or after the deadline: "How
-   did it go?" as a voice message. Then, while the calls are on (F0), the
+   did it go?" as a voice message; with no day the speaker chose, neither
+   "Your deadline was {date}." nor "How did it go?", only the hello and
+   "What's next?" (backend N524). Then, while the calls are on (F0), the
    summary call: shown with its time if it was booked, offered if not. Then
    "What's next?": "I have a new
    event" (the questions again, a new plan) or "Keep practising" (a new
@@ -796,6 +808,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-05 · N524 · E1, H2, I2: a day the speaker never chose is never spoken of as theirs. The plan card hides "Your deadline:" for it (`plan/PlanCard.tsx`); the first new project asks "When is your deadline?" in place of "Is this for {date}?"; the plan's end skips "Your deadline was" and "How did it go?" for it; a join link's day recalculates the plan. What stops: the guessed date on the card, and questions about a date the speaker never gave. Signed words only · BE N524, FE (this PR)
 - 2026-11-04 · N505 · the plan's answers in the chat and the calendar's button keep 8px above, on each side and below (the Feedback walk page's J9); was 20px sides, 30px (answers) and 24px (button) below (`LoungeLifeGoals.tsx`, `plan/PlanCalendar.tsx`) · BE, FE (this PR)
 - 2026-11-04 · N497 · H1, K: "Change your plan" loses its "Your level" row and the sheet behind it ("Your level comes from what I heard in your voice. Your coach can change it." and "Ask your coach"); the BFF route `/api/v2/plan/ask-coach` goes, the backend's stays, unused. The level still shows in each practice day's hello and "See your plan". What stops: a speaker can no longer ask a coach about their level, so the coach queue gets no new "Asked about their level" (coach-panel.md K1). No new words. Was: the row, the sheet, and a tap that closed it and wrote "I've told your coach. You can talk it over on your next call." while the calls are off (N315) · BE N497 log, FE (this PR)
 - 2026-11-04 · N492 · §2: Will's welcome before the first Take is four bubbles, "Hi {name}, and welcome. ...", the short introduction and the few words at the end, the two Steves, and where to record (backend `plan.COPY`, the `first_take*` lines); the five slides and the button unchanged. Was: "Hi {name}!" and N462's one line · BE N492 log (#1725), BE #1730, FE (this PR)
