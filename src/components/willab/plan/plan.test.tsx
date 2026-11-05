@@ -117,7 +117,7 @@ afterEach(() => {
 /** The person's ring read (GET /v2/user/rings), answering these features on. */
 async function ringsOn(features: string[]) {
   resetRingStateCache();
-  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ring: 5, features_on: features }), { status: 200 })));
+  bffFetch.mockImplementationOnce(async () => ({ kind: "response", ok: true, body: { ring: 5, features_on: features } }));
   await loadRingState();
 }
 

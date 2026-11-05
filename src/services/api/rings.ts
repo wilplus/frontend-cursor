@@ -21,6 +21,8 @@
  * on only when the backend sees it.
  */
 
+import { bffFetch } from "@/lib/api/bffFetch";
+
 export type ConsentPurpose = "personalised_practice" | "pooled_model_improvement";
 
 export interface PendingAnnouncement {
@@ -113,20 +115,15 @@ export function mapRingState(raw: unknown): RingState {
   };
 }
 
-async function readJson(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    return null;
-  }
-}
-
-/** One read of the person's ring state. Never throws. */
+/** One read of the person's ring state. Never throws. It carries the
+ *  session's Bearer token like the other boot reads (bffFetch), so the BFF
+ *  does not ask Supabase who is calling first; signed out, it goes without
+ *  one and the cookie answers, as before. */
 export async function fetchRingState(): Promise<RingState> {
   try {
-    const response = await fetch("/api/v2/user/rings", { cache: "no-store" });
-    if (!response.ok) return EMPTY_RING_STATE;
-    return mapRingState(await readJson(response));
+    const result = await bffFetch("/api/v2/user/rings", { auth: "optional", cache: "no-store" });
+    if (result.kind !== "response" || !result.ok) return EMPTY_RING_STATE;
+    return mapRingState(result.body);
   } catch {
     return EMPTY_RING_STATE;
   }

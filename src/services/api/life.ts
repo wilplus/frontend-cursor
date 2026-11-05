@@ -50,6 +50,7 @@ import {
   mapTimelineEvents,
 } from "@/lib/life/mappers";
 import { invalidatePanelData } from "@/lib/life/panelCache";
+import { getAuthToken } from "@/lib/api/auth-client";
 import type {
   LifeBetKey,
   LifeCheck,
@@ -98,13 +99,18 @@ async function call(
   init?: { method?: string; body?: unknown }
 ): Promise<unknown> {
   const method = init?.method ?? "GET";
+  // The session's Bearer token, as every other BFF read sends it: without
+  // one the BFF first asks Supabase who is calling (a round trip on every
+  // read, the menu's gate on each /chat open among them). Signed out, the
+  // cookie answers as before.
+  const token = await getAuthToken();
+  const headers: Record<string, string> = {};
+  if (init?.body !== undefined) headers["Content-Type"] = "application/json";
+  if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, {
     method,
     credentials: "include",
-    headers:
-      init?.body === undefined
-        ? undefined
-        : { "Content-Type": "application/json" },
+    headers,
     body: init?.body === undefined ? undefined : JSON.stringify(init.body),
     cache: "no-store",
   });
