@@ -14,6 +14,10 @@ final class DumpRecorder {
     private var speech: SFSpeechAudioBufferRecognitionRequest?
     private var speechTask: SFSpeechRecognitionTask?
     private let recognizer = SFSpeechRecognizer()   // the phone's language
+    /// Apple's on-device speech starts over after a pause: what it said
+    /// before is kept here, so the words on screen never shrink to one line.
+    private var said = ""
+    private var saying = ""
 
     /// Called on the audio thread; the screen hops to the main thread.
     var onLevel: ((Float) -> Void)?
@@ -111,8 +115,16 @@ final class DumpRecorder {
         request.requiresOnDeviceRecognition = true
         request.shouldReportPartialResults = true
         lock.lock(); speech = request; lock.unlock()
+        said = ""
+        saying = ""
         speechTask = recognizer.recognitionTask(with: request) { [weak self] result, _ in
-            if let text = result?.bestTranscription.formattedString { self?.onWords?(text) }
+            guard let self, let result else { return }
+            let text = result.bestTranscription.formattedString
+            // Much shorter than before: the recognizer started a new piece.
+            if !self.saying.isEmpty && text.count < self.saying.count / 2 { self.said += self.saying + " " }
+            self.saying = text
+            if result.isFinal { self.said += text + " "; self.saying = "" }
+            self.onWords?((self.said + self.saying).trimmingCharacters(in: .whitespaces))
         }
     }
 

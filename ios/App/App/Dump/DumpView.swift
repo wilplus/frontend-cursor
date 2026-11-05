@@ -25,7 +25,7 @@ struct DumpView: View {
             .padding(.bottom, 90)
             VStack(spacing: 10) {
                 if !model.words.isEmpty {
-                    Text(model.words)
+                    Text(Self.lastWords(model.words))
                         .font(.system(size: 15))
                         .foregroundColor(DumpColor.text.opacity(0.8))
                         .lineLimit(4)
@@ -38,6 +38,15 @@ struct DumpView: View {
                     .padding(.bottom, 22)
             }
         }
+    }
+
+    /// The newest words, up to about four lines: older ones go off the top,
+    /// as in the prototype.
+    static func lastWords(_ words: String, keep: Int = 170) -> String {
+        guard words.count > keep else { return words }
+        let tail = words.suffix(keep)
+        guard let space = tail.firstIndex(of: " ") else { return String(tail) }
+        return "…" + tail[space...]
     }
 
     private var title: String {

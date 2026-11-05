@@ -113,6 +113,11 @@ public class DumpScreenPlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve()
     }
 
+    /// A dump reached the backend: the web reads Will's chat again.
+    func sent() {
+        notifyListeners("sent", data: [:])
+    }
+
     func kept() {
         // Kept until the web listens, in case it has not loaded yet.
         notifyListeners("kept", data: [:], retainUntilConsumed: true)

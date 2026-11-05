@@ -9,6 +9,12 @@ export type NotebookState = { enabled: boolean; consented: boolean; max_seconds:
 const OFF: NotebookState = { enabled: false, consented: false, max_seconds: 300 };
 
 export async function getNotebookState(): Promise<NotebookState> {
+  return (await readNotebookState()) ?? OFF;
+}
+
+/** The notebook's state, or null when it could not be read (no network, a
+ *  failed request): "unknown" is not "off". */
+export async function readNotebookState(): Promise<NotebookState | null> {
   try {
     const tz = (() => {
       try {
@@ -19,7 +25,7 @@ export async function getNotebookState(): Promise<NotebookState> {
     })();
     const query = tz ? `?${new URLSearchParams({ tz }).toString()}` : "";
     const result = await bffFetch(`/api/v2/notebook/state${query}`, { cache: "no-store" });
-    if (result.kind !== "response" || !result.ok) return OFF;
+    if (result.kind !== "response" || !result.ok) return null;
     const body = (result.body ?? {}) as Partial<NotebookState>;
     return {
       enabled: body.enabled === true,
@@ -27,7 +33,7 @@ export async function getNotebookState(): Promise<NotebookState> {
       max_seconds: typeof body.max_seconds === "number" ? body.max_seconds : OFF.max_seconds,
     };
   } catch {
-    return OFF;
+    return null;
   }
 }
 

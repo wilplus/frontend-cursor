@@ -11,6 +11,8 @@ import LoadingState from "../LoadingState";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { backDismissDepth, useBackStop } from "../useBackDismiss";
 import { useEdgeSwipe } from "./useEdgeSwipe";
+import { useUserProfile } from "../useUserProfile";
+import CoachChatRow from "../coachwalk/CoachChatRow";
 
 /* -------------------------------------------------------------------------- */
 /*  The chats in front of the Lounge, for every signed-in person (backend     */
@@ -138,6 +140,8 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
   const decided = useChatsDecided();
   const on = decided === true;
   const { chats, reload } = useChatList(on);
+  // The coach's way in is a row in the list (backend N521).
+  const { isCoach } = useUserProfile();
   useForgetChatsSignedOut(decided);
   const [view, setView] = useState<View>(() => ({ at: willFirst ? "will" : "list" }));
   const [joined, setJoined] = useState<string | null>(chatJustJoined);
@@ -268,6 +272,7 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
             joined={joined}
             cameFrom={cameFrom}
             willOpen={atWill}
+            coachRow={isCoach ? <CoachChatRow /> : null}
             onOpenWill={() => setView({ at: "will" })}
             onOpen={(chat) => {
               if (chat.id === joined) setJoined(null);

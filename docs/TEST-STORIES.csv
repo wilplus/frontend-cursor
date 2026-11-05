@@ -765,8 +765,8 @@ back when nothing is left to judge (founder 2026-10-21, N101).
 O10 The list comes in steps (N100): reaching its bottom reads the next
 step, the loader showing until it lands.
 O11 The corpus is the founder's, a row in the admin menu (N416, N511):
-the coach's pinned row has no Training corpus button; the admin
-menu's page opens on the imports, and ✕ goes back.","O1 -> ""a saved set-up goes straight to judging, with its count""
+the coach's queue has no Training corpus card; the admin menu's page
+opens on the imports, and ✕ goes back.","O1 -> ""a saved set-up goes straight to judging, with its count""
 O2 -> ""a set-up with nothing to judge goes back to the imports, never to judging""
 O3 -> ""a new import lands on the imports with its count""
 O4 -> ""the panel's queue read carries no words of a piece""
@@ -776,7 +776,7 @@ O7 -> ""several files import one at a time, each its own import named by its fil
 O8 -> ""a choice over the upload limit is refused, and a refusal for the hour stops the batch""
 O9 -> ""the done imports sit at the bottom; judging starts from the opened one and comes back to the list""
 O10 -> ""reaching the bottom of the list reads its next step""
-O11 -> ""the corpus opens from the admin menu's page, never from the coach's pinned row; ✕ goes back""","Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files in one Import, the list in steps and the corpus judged mixed, founder 2026-10-21. Moved to the CEO panel, founder 2026-11-03 (backend N416); to the admin menu, founder 2026-11-04 (N511)."
+O11 -> ""the corpus opens from the admin menu's page, never from the coach's queue; ✕ goes back""","Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files in one Import, the list in steps and the corpus judged mixed, founder 2026-10-21. Moved to the CEO panel, founder 2026-11-03 (backend N416); to the admin menu, founder 2026-11-04 (N511)."
 src/components/willab/coachpanel/coachPlan.test.tsx,Story,"As a coach, I want a speaker's plan in my queue when it needs me, so that I pick their level blind, or send my video for a level that hasn't moved, and their plan follows my answer.","O1  A plan that waits comes first in my queue, on its speaker's card (""New
 plan"", ""Asked about their level"", ""Three Takes without moving""), and
 as ""Their plan"" above their Takes; the Lounge bubble counts it.
@@ -808,6 +808,17 @@ O2  The row opens the questions in their groups; I change a question or a
 tap answer, or fill an empty slot, and Save sends only what changed;
 a refusal shows the backend's sentence and keeps my words.","O1 -> ""the founder's queue has Will's questions under the blind lists; a coach's has none""
 O2 -> ""Save sends only what changed, an empty slot takes a question, and a refusal says why""","Founder 2026-10-20 (N83): ""show me where would you add it in the coach panel … below the users""; prototype https://claude.ai/artifact/WLZ1KY6dX1RBLXiNU73F9N, ""OK""."
+src/components/willab/coachwalk/coachChatRow.test.tsx,Story,"As a coach, I want my way into the queue to be a row in my list of chats, not two buttons fixed at the bottom of Will's chat, and to tell me at once, and truly, whether someone waits.","O1  No line shows until the queue is read; then ""Open your queue"" with
+the new look, and no number.
+O2  Coming back shows the remembered state right away.
+O3  ""Nobody is waiting for you."" shows only when the queue was read empty.
+O4  The row is named by the job in my profile, ""Your queue"" without one.
+O5  Tapping the row opens Your queue; its last card opens Speakers; Will's
+chat keeps no coach button.","O1 -> ""shows no line until the queue is read, then Open your queue, new, with no number""
+O2 -> ""coming back shows the remembered state right away""
+O3 -> ""says nobody is waiting only once the queue was read empty""
+O4 -> ""is named by the profile's job, or Your queue""
+O5 -> ""the row opens Your queue, and its last card opens Speakers; the door draws nothing of its own""","Founder 2026-10-18 (never ""Nobody"" before it knows); backend N521, 5 November 2026 (the way in is a row in the list of chats)."
 src/components/willab/coachwalk/coachJudgeSheet.test.tsx,Story,"As a coach, I want the Judge sheet to show only the question and five answers and to save once on tap, so that I judge blind and move on fast.","O1  Never-2: the sheet holds the question, its caption and the five
 answers, and nothing else of the moment.
 O2  A tap saves once and hands off at once with the save in flight; the
@@ -817,11 +828,6 @@ O3  A refused save brings the sheet back with the refusal's sentence and
 reports it; the next tap saves again.","O1 -> ""shows the coach's words, the speaker's five pills, and nothing of the moment""
 O2 -> ""saves once on tap and hands off at once, the save in flight (C1)""
 O3 -> ""reports a refused save with its sentence and lets the coach answer again""",Never-2 (BLIND COACH): the passage is withheld until the rating is saved.
-src/components/willab/coachwalk/coachWalkBubble.test.tsx,Story,"As a coach entering the Lounge, I want the queue bubble never to say nobody is waiting before the queue is read, and to show the last count at once, so that I am not misled.","O1  No label shows until the queue is read; then the count shows.
-O2  Coming back to the Lounge shows the remembered count right away.
-O3  ""Nobody is waiting"" shows only when the queue was read empty.","O1 -> ""shows no label until the queue is read, then the count""
-O2 -> ""re-entering the Lounge shows the remembered count right away""
-O3 -> ""says nobody is waiting only once the queue was read empty""",Founder 2026-10-18.
 src/components/willab/deckFeedbackWalk.test.tsx,Story,"As a speaker reviewing feedback, I want the walk to open on my first praise, move through its chat with ‹ ›, save helper words through the deck, and ask a guest to sign up, so that feedback flows into my next Take.","O1  Review feedback opens the walk on the first praise; the bar names
 its slide by the slide's title in my deck (backend N397).
 O2  The arrows move through the walk's chat, step by step, without
@@ -1635,6 +1641,8 @@ O5 -> ""stops at the clip's end, but plays an unknown length to its end""","Foun
 src/lib/nativeLinks.test.ts,Story,"As a speaker with the iPhone app, I want a coach's link or an invite link tapped in Messages, WhatsApp or Mail to open in the app, on that page, so that I never land in Safari signed out.","O1  The association file Apple reads names the app (team id and bundle id) and the paths that open in it: the chat with the coach's feedback, invite links and the account pages; without the team id there is no file, and every link opens in Safari as before.
 O2  A tapped willpowerlab.com link opens its own page in the app, with its query; a link to another site, or not over https, opens nothing.","O1 -> the association file names the app and its paths, and is absent without the team id
 O2 -> a willpowerlab.com link opens its page in the app; another site's does not",
+src/lib/phone/dumpScreen.test.ts,Story,"As a speaker with the iPhone app, I want the dump screen to open and keep what I say even with no signal, so that a thought on the metro is not lost.","The app hears ""on"" with the ring row and the notebook's Yes, ""off""
+without the Yes, and nothing when a read fails (offline).",A failed read never switches the native screen off (N506 item 3).,One failed request used to switch it off until the next good load.
 src/lib/productDiscovery.test.ts,Story,"As a speaker, I want the menu to list only the products I have discovered, so that the menu stays simple.",O1  Nothing discovered means no product rows; discovering Life Panel adds its row.,O1 -> builds only the hamburger rows the user has discovered,
 src/lib/pwa/serviceWorkerPolicy.test.ts,Story,"As the founder, I want the offline helper in the browser never to stand between the app and our server, media or new builds, so that a bad saved copy can never break the app for anyone.","O1  Server calls and audio or video are never intercepted.
 O2  Installing never depends on the home page, so a fix always reaches every browser.
@@ -1722,11 +1730,11 @@ src/lib/willab/dumpScreen.test.ts,Story,"As a speaker, I want to open the app, t
 D2  A double tap on a fresh start closes and throws the start away.
 D3  A double tap while talking stops, keeps and closes.
 D4  The tap that opened the screen, a palm and a swipe do nothing.
-D5  It opens first only when switched on, and at most once an hour.","D1 -> ""starts at once, then stops and keeps""
+D5  It opens first only when switched on, and then on every open.","D1 -> ""starts at once, then stops and keeps""
 D2 -> ""a double tap on a fresh start closes and undoes the start""
 D3 -> ""a double tap while talking stops, keeps and closes""
 D4 -> ""ignores the opening tap, a palm and a swipe""
-D5 -> ""only when switched on, and at most once an hour""","Founder 2026-11-04 (backend N506, N507): taps act at once and a double tap undoes the first, so no tap waits; it never opens from a link and never more than once an hour (Never 3)."
+D5 -> ""only when switched on, and then on every open""","Founder 2026-11-04 (backend N506, N507): taps act at once and a double tap undoes the first, so no tap waits; it never opens from a link (Never 3); every open, no hourly limit (N522, 2026-11-05)."
 src/lib/willab/enrichmentSettle.test.ts,Story,"As a speaker, I want a feedback placeholder to close when there is nothing to report, so that I don't wait forever on an empty slot.","O1  An empty feedback answer counts as ""nothing more coming"".
 O2  The page keeps asking for late marks until its ninety seconds are up,
 not for a handful of asks (founder 2026-10-20, WIL-76).","O1 -> is false with nothing to report, so an honest empty lane closes

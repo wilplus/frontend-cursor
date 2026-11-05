@@ -142,6 +142,8 @@ final class DumpOutbox: NSObject, URLSessionDataDelegate {
             let store = WKWebsiteDataStore.default().httpCookieStore
             fresh.forEach { store.setCookie($0) }
             self.sending.remove(key)
+            // The backend has it and wrote "Noted.": the chat reads it now.
+            if done { DumpPresenter.plugin?.sent() }
         }
     }
 
