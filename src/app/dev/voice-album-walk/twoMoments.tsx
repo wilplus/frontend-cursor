@@ -10,12 +10,13 @@
 /*    the talk day        the deadline-morning line (§I3) with the clip inside */
 /*                        the chat, playable all day, nothing asked            */
 /*                                                                            */
-/*    ?screen=m-last&step=0..3 · m-notify · m-talk · m-after                   */
+/*    ?screen=m-last&step=0..3&ans=yes|no&which=key|opening · m-notify ·      */
+/*    m-talk&which=… · m-after&which=…                                        */
 /*                                                                            */
 /*  Built from the chat's own parts: TapRow (the plan's answers), the clip    */
 /*  bubble's markup with SnippetWavePlayer, the plan's scale and its locked   */
-/*  "Answered". Fixtures only; nothing is fetched. Words marked PROPOSED wait  */
-/*  for the founder's OK (Never 4); the rest are shipped.                      */
+/*  "Answered". Fixtures only; nothing is fetched. Every word is in WORDS,     */
+/*  for the founder's OK (Never 4).                                            */
 /* -------------------------------------------------------------------------- */
 
 import type { ReactNode } from "react";
@@ -23,32 +24,59 @@ import SnippetWavePlayer from "@/components/willab/SnippetWavePlayer";
 import { TapRow } from "@/components/willab/WillQuestion";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 
-/* Shipped words (backend services/plan.py COPY; the walk; today's album). */
-const SHIPPED = {
-  stressQ: "How stressed do you feel about it right now?",
-  stressLo: "Calm",
-  stressHi: "Very stressed",
-  readyQ: "How ready do you feel for it right now?",
-  readyLo: "Not ready",
-  readyHi: "Fully ready",
-  answered: "Answered",
+/* Every word in this flow, rewritten in classic style (Steven Pinker, "The
+ * Sense of Style"): concrete, the reader's words not ours, the thing named
+ * rather than "it", the reason said plainly. All of it waits for the
+ * founder's OK (Never 4). SIGNED_NOW keeps the signed words a line replaces,
+ * so each change can be taken or left one by one. */
+export const SIGNED_NOW: Partial<Record<keyof typeof WORDS, string>> = {
+  done: "9 of 9 practices done.",
   question: CHUNK_SHEET_COPY.confidenceQuestion,
   coach: "Your coach: heard the same thing",
-  done: "9 of 9 practices done.",
+  unclear: "Audio unclear",
+  stressQ: "How stressed do you feel about it right now?",
+  stressHi: "Very stressed",
+  readyQ: "How ready do you feel for it right now?",
+  readyHi: "Fully ready",
   howDidItGo: "How did it go? Tell me in a voice message.",
 };
 
-/* PROPOSED words: none of these is on any screen today. */
-export const PROPOSED_TWO = {
-  lastIntro: "Tomorrow is the day. Before my last two questions, listen to yourself at your best.",
-  lastEnd: "It will be here for you tomorrow.",
-  talk: "Good luck today. Listen to yourself at your best before you go on.",
+export const WORDS = {
+  done: "That was your last practice.",
+  introKey:
+    "Your talk is tomorrow. Before my last two questions, listen to the sentence you most want them to remember, the way you said it best.",
+  introOpening: "Your talk is tomorrow. Before my last two questions, listen to how you open, the way you said it best.",
+  labelKey: "The sentence to remember",
+  labelOpening: "How you open",
+  question: "Do you sound confident here?",
+  unclear: "I can't hear it well",
+  coach: "Your coach heard confidence in it too.",
+  yes: "Then hold on to it: this is how you sound. Tomorrow morning, just before you go on, you'll find it right here.",
+  notYes:
+    "It may not sound that way to you today. But your coach heard confidence in it, and so did you the first time you listened. Nerves make us harsh judges of our own voices. You're doing well. Tomorrow morning, just before you go on, you'll find it right here.",
+  stressQ: "How tense do you feel about the talk right now?",
+  stressLo: "Calm",
+  stressHi: "Very tense",
+  readyQ: "How ready do you feel for the talk right now?",
+  readyLo: "Not ready",
+  readyHi: "Completely ready",
+  answered: "Answered",
+  notify: "Good luck with your talk today.",
+  talkKey: "Good luck today. Here is the sentence you most want them to remember, as you said it best. Play it just before you go on.",
+  talkOpening: "Good luck today. Here is how you open, as you said it best. Play it just before you go on.",
+  howDidItGo: "How did the talk go? Tell me in a voice message.",
 };
 
-/** Their words in the clip and where it is from (fixtures). */
-const WORDS = "The window closes once the incumbents catch up with pricing.";
-const FROM = "Take 3 · Nov 2";
-export const FACES = ["Audio unclear", "👎 No", "😐 In-between", "👍 Yes"];
+/** Which moment plays (the mechanics): their key line, where a Take said it
+ *  (`services/plan.py` key_line_at) and both their coach and they said Yes
+ *  to it; else their opening sentence, the same way; else their newest
+ *  moment both said Yes to; else none. Fixtures for the first two. */
+export type Which = "key" | "opening";
+const MOMENTS: Record<Which, { label: string; from: string; words: string }> = {
+  key: { label: WORDS.labelKey, from: "Take 3 · Nov 2", words: "The window closes once the incumbents catch up with pricing." },
+  opening: { label: WORDS.labelOpening, from: "Take 2 · Oct 30", words: "Last quarter our growth doubled, and it came from two markets we entered in spring." },
+};
+export const FACES = [WORDS.unclear, "👎 No", "😐 In-between", "👍 Yes"];
 
 function ChatFrame({ children }: { children: ReactNode }) {
   return (
@@ -87,14 +115,18 @@ function Me({ children }: { children: ReactNode }) {
 }
 
 /** The speaker's own clip in the chat, as the Lounge's ClipBubble draws it:
- *  their words over the player. */
-function Clip({ src }: { src: string | null }) {
+ *  what it is and where it is from, their words, the player. */
+function Clip({ src, which }: { src: string | null; which: Which }) {
+  const m = MOMENTS[which];
   return (
     <div data-row="me" data-clip className="flex justify-end">
       <div data-bubble="" className="flex w-[78%] flex-col gap-1 rounded-[16px] bg-primary px-3 py-2 text-primary-foreground">
-        <span className="text-[12.5px] opacity-80">{FROM}</span>
-        <span className="text-[13px] leading-[1.45] opacity-[0.92]">{WORDS}</span>
-        <SnippetWavePlayer seed="s2" src={src} durationMs={7000} size="compact" tone="me" label={FROM} />
+        <span className="flex justify-between gap-2 text-[12.5px] opacity-80">
+          <strong className="font-semibold">{m.label}</strong>
+          <span className="whitespace-nowrap">{m.from}</span>
+        </span>
+        <span className="text-[13px] leading-[1.45] opacity-[0.92]">{m.words}</span>
+        <SnippetWavePlayer seed={which} src={src} durationMs={7000} size="compact" tone="me" label={`${m.label} · ${m.from}`} />
       </div>
     </div>
   );
@@ -127,44 +159,46 @@ function Locked() {
         <rect x="5" y="11" width="14" height="9" rx="2" />
         <path d="M8 11V8a4 4 0 0 1 8 0v3" />
       </svg>
-      {SHIPPED.answered}
+      {WORDS.answered}
     </div>
   );
 }
 
-/** The last practice, after its walk: `step` 0..3. */
-export function LastPractice({ step, src }: { step: number; src: string | null }) {
+/** The last practice, after its walk: `step` 0..3, `answer` the speaker's
+ *  (Yes, or not: In-between and No get the same reply), `which` moment. */
+export function LastPractice({ step, src, answer = "yes", which = "key" }: { step: number; src: string | null; answer?: "yes" | "no"; which?: Which }) {
+  const yes = answer === "yes";
   return (
     <ChatFrame>
       <Day text="Fri 13 Nov" />
-      <Will>{SHIPPED.done}</Will>
-      <Will>{PROPOSED_TWO.lastIntro}</Will>
-      <Clip src={src} />
-      <Will>{SHIPPED.question}</Will>
-      {step === 0 ? <TapRow labels={FACES} onTap={() => {}} dataAttr={{ "data-listen-ask": "" }} /> : <Me>{FACES[3]}</Me>}
-      {step >= 1 ? <div data-coach><Will>{SHIPPED.coach}</Will></div> : null}
-      {step >= 1 ? <Will>{SHIPPED.stressQ}</Will> : null}
-      {step === 1 ? <Scale lo={SHIPPED.stressLo} hi={SHIPPED.stressHi} /> : null}
+      <Will>{WORDS.done}</Will>
+      <Will>{which === "key" ? WORDS.introKey : WORDS.introOpening}</Will>
+      <Clip src={src} which={which} />
+      <Will>{WORDS.question}</Will>
+      {step === 0 ? <TapRow labels={FACES} onTap={() => {}} dataAttr={{ "data-listen-ask": "" }} /> : <Me>{yes ? FACES[3] : FACES[1]}</Me>}
+      {step >= 1 && yes ? <div data-coach><Will>{WORDS.coach}</Will></div> : null}
+      {step >= 1 ? <div data-reply><Will>{yes ? WORDS.yes : WORDS.notYes}</Will></div> : null}
+      {step >= 1 ? <Will>{WORDS.stressQ}</Will> : null}
+      {step === 1 ? <Scale lo={WORDS.stressLo} hi={WORDS.stressHi} /> : null}
       {step >= 2 ? <Locked /> : null}
-      {step >= 2 ? <Will>{SHIPPED.readyQ}</Will> : null}
-      {step === 2 ? <Scale lo={SHIPPED.readyLo} hi={SHIPPED.readyHi} /> : null}
+      {step >= 2 ? <Will>{WORDS.readyQ}</Will> : null}
+      {step === 2 ? <Scale lo={WORDS.readyLo} hi={WORDS.readyHi} /> : null}
       {step >= 3 ? <Locked /> : null}
-      {step >= 3 ? <Will>{PROPOSED_TWO.lastEnd}</Will> : null}
     </ChatFrame>
   );
 }
 
 /** The talk day: the line with the clip in the chat; `after`: the next day. */
-export function TalkDay({ src, after = false }: { src: string | null; after?: boolean }) {
+export function TalkDay({ src, after = false, which = "key" }: { src: string | null; after?: boolean; which?: Which }) {
   return (
     <ChatFrame>
       <Day text="Sat 14 Nov" />
-      <Will>{PROPOSED_TWO.talk}</Will>
-      <Clip src={src} />
+      <Will>{which === "key" ? WORDS.talkKey : WORDS.talkOpening}</Will>
+      <Clip src={src} which={which} />
       {after ? (
         <>
           <Day text="Sun 15 Nov" />
-          <Will>{SHIPPED.howDidItGo}</Will>
+          <Will>{WORDS.howDidItGo}</Will>
         </>
       ) : null}
     </ChatFrame>
@@ -183,7 +217,7 @@ export function TalkNotify() {
           <span className="flex-1">Will · WillpowerLab</span>
           <span>now</span>
         </div>
-        <div className="mt-1.5 text-[15px] leading-snug">{PROPOSED_TWO.talk}</div>
+        <div className="mt-1.5 text-[15px] leading-snug">{WORDS.notify}</div>
       </button>
     </div>
   );

@@ -66,12 +66,15 @@ export default function VoiceAlbumWalkStudy() {
   const [screen, setScreen] = useState<Screen>("home");
   const [answer, setAnswer] = useState<ConfidenceRatingValue | null>(null);
   const [step, setStep] = useState(0);
+  const [q, setQ] = useState<{ ans: "yes" | "no"; which: "key" | "opening" }>({ ans: "yes", which: "key" });
   useEffect(() => {
     const url = makeToneUrl(4);
     setSrc(url);
     const q = new URLSearchParams(window.location.search).get("screen") as Screen | null;
     if (q) setScreen(q);
-    setStep(Number(new URLSearchParams(window.location.search).get("step") ?? 0) || 0);
+    const qs = new URLSearchParams(window.location.search);
+    setStep(Number(qs.get("step") ?? 0) || 0);
+    setQ({ ans: qs.get("ans") === "no" ? "no" : "yes", which: qs.get("which") === "opening" ? "opening" : "key" });
     return () => URL.revokeObjectURL(url);
   }, []);
   if (process.env.NODE_ENV === "production") return null;
@@ -79,9 +82,9 @@ export default function VoiceAlbumWalkStudy() {
 
   const shell = (node: React.ReactNode) => <div className="fixed inset-0 z-50">{node}</div>;
 
-  if (screen === "m-last") return shell(<LastPractice step={step} src={src} />);
+  if (screen === "m-last") return shell(<LastPractice step={step} src={src} answer={q.ans} which={q.which} />);
   if (screen === "m-notify") return shell(<TalkNotify />);
-  if (screen === "m-talk" || screen === "m-after") return shell(<TalkDay src={src} after={screen === "m-after"} />);
+  if (screen === "m-talk" || screen === "m-after") return shell(<TalkDay src={src} after={screen === "m-after"} which={q.which} />);
   if (screen === "notify") return shell(<Notify />);
   if (screen === "morning" || screen === "after") return shell(<MorningLounge after={screen === "after"} />);
   if (screen === "listen") return shell(<ListenBefore step={step} src={src} />);
