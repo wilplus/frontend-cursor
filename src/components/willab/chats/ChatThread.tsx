@@ -68,7 +68,7 @@ import { clockTime, dayKey, dayLabel } from "./chatTime";
 /** Will's chat, under the WillpowerLab bar: back, then his name (N322 item 4). */
 /** Every chat's own top bar, full width, where the WillpowerLab bar was
  *  (backend N321 item 1, N334): back, the circle, the name, and who they are.
- *  The coach's queue wears it too, opened from its row in the list (N524). */
+ *  The coach's queue wears it too, opened from its row in the list (N525). */
 export function TopBar({
   circle,
   title,

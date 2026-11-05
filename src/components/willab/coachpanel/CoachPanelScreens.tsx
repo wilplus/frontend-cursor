@@ -232,7 +232,7 @@ export type WillRow = { questions: number; empty: number; onOpen: () => void };
 export function QueueScreen({ speakers, loading, ready = true, blind, will = null, onSpeaker, onSpeakers, onDelete, onClose }: {
   speakers: readonly QueueSpeaker[];
   loading: boolean;
-  /** Every read the queue draws has come in once (N524): until then only the
+  /** Every read the queue draws has come in once (N525): until then only the
    *  typing dots, so the sections never arrive one after another. */
   ready?: boolean;
   blind: BlindRows | null;
@@ -248,7 +248,7 @@ export function QueueScreen({ speakers, loading, ready = true, blind, will = nul
   onClose: () => void;
 }) {
   const waiting = queueOrder(speakers);
-  // A chat's own top bar (N524): ‹ back to the list, the row's round icon,
+  // A chat's own top bar (N525): ‹ back to the list, the row's round icon,
   // "Your queue". Still while the body moves (.walk-ovtop).
   return (
     <div role="dialog" aria-modal="true" aria-label={COPY.queueTitle} data-testid="coach-panel-queue"

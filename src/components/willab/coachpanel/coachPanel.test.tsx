@@ -293,7 +293,7 @@ describe("CoachPanel", () => {
     expect(q("[aria-label='More options for Quiet Heron']")).toBeNull();
   });
 
-  it("Your queue draws whole: only the dots until every read is in, then all sections; ‹ goes back to the list (N524)", () => {
+  it("Your queue draws whole: only the dots until every read is in, then all sections; ‹ goes back to the list (N525)", () => {
     const audit = { items: [{}], wording: { title: "Do you hear it?", queue_line: "Also waiting · blind" } } as unknown as BlindRows["audit"];
     const blind: BlindRows = { audit, picks: null, onOpenAudit: () => {}, onOpenPicks: () => {} };
     const onClose = vi.fn();

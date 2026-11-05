@@ -112,7 +112,7 @@ describe("the coach's side of the plan", () => {
   it("a waiting plan comes first, on its speaker's card and as Their plan on their page", async () => {
     expect(speakersWaiting(QUEUE)).toBe(3);
     act(() => root.render(<Host speakers={[QUEUE[2]!, QUEUE[0]!, QUEUE[1]!]} />));
-    await flush(); // the queue draws once every read is in (N524)
+    await flush(); // the queue draws once every read is in (N525)
     const rows = [...host.querySelectorAll<HTMLElement>("[data-testid=coach-panel-speakers] [data-walk-choice]")]
       .map((r) => r.textContent);
     expect(rows).toEqual(["Swift LarkNew plan", "Bold FinchThree Takes without moving", "Quiet Heron4 moments waiting"]);
@@ -138,7 +138,7 @@ describe("the coach's side of the plan", () => {
     } });
     const refresh = vi.fn();
     act(() => root.render(<Host speakers={[QUEUE[0]!]} refresh={refresh} />));
-    await flush(); // the queue draws once every read is in (N524)
+    await flush(); // the queue draws once every read is in (N525)
     press("Swift Lark");
     press(COPY.theirPlan);
     await flush();
@@ -174,7 +174,7 @@ describe("the coach's side of the plan", () => {
     markPlanAnswered.mockResolvedValue(true);
     const refresh = vi.fn();
     act(() => root.render(<Host speakers={[QUEUE[1]!]} refresh={refresh} />));
-    await flush(); // the queue draws once every read is in (N524)
+    await flush(); // the queue draws once every read is in (N525)
     press("Bold Finch");
     press(COPY.theirPlan);
     await flush();

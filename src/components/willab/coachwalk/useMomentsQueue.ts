@@ -43,7 +43,7 @@ export function useMomentsQueue(enabled: boolean): {
   speakers: QueueSpeaker[];
   waiting: number | null;
   loading: boolean;
-  /** The queue has been read once in this mount, ok or not (N524). */
+  /** The queue has been read once in this mount, ok or not (N525). */
   settled: boolean;
   refresh: () => void;
 } {

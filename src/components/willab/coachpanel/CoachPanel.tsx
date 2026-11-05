@@ -165,7 +165,7 @@ function useBlindLines(queueOpen: boolean) {
   const [picks, setPicks] = useState<BlockPickQueue | null>(null);
   const [v4Picks, setV4Picks] = useState<V4MomentPickQueue | null>(null);
   const [v4Surer, setV4Surer] = useState<V4SurerQueue | null>(null);
-  // Read once in so far (N524): the queue waits for all four, then draws.
+  // Read once in so far (N525): the queue waits for all four, then draws.
   const [done, setDone] = useState(false);
   useEffect(() => {
     if (!queueOpen) return;
@@ -268,7 +268,7 @@ function useImports(open: boolean) {
  *  from the editor. */
 function useWillBank(open: boolean, onOpen: () => void) {
   const [bank, setBank] = useState<WillBank | null>(null);
-  // Asked once so far (N524): the queue waits for it, then draws.
+  // Asked once so far (N525): the queue waits for it, then draws.
   const [done, setDone] = useState(false);
   useEffect(() => {
     if (!open) return;
@@ -359,7 +359,7 @@ export type CoachPanelProps = {
   dispatch: Dispatch<PanelAction>;
   speakers: readonly QueueSpeaker[];
   loading: boolean;
-  /** The queue has been read once (ok or not); the queue waits for it (N524). */
+  /** The queue has been read once (ok or not); the queue waits for it (N525). */
   settled?: boolean;
   /** Read the queue again (after the founder's Delete of a speaker's row). */
   refresh?: () => void;
@@ -573,7 +573,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading, settled
     );
   }
 
-  // Every read the queue draws has come in once: it draws whole (N524).
+  // Every read the queue draws has come in once: it draws whole (N525).
   const queueReady = settled && blind.done && (!founder || will.done);
 
   function render(s: StageScreen) {
