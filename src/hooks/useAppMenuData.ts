@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUserProfile } from "@/components/willab/useUserProfile";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { loadLifeState, subscribeLifeState } from "@/lib/life/useLifeState";
-import { hamburgerMenu, panelMenu } from "@/lib/life/menu";
-import type { LifeMenuEntry } from "@/lib/life/types";
+import type { LifeMenuEntry, LifeState } from "@/lib/life/types";
 import { useTokenWallet, type TokenWallet } from "@/hooks/useTokenWallet";
 import { TOKENS_COPY, formatTokens } from "@/components/tokens/copy";
 import {
@@ -125,23 +123,35 @@ export function useAppMenuData(): AppMenuData {
    *  panel is signed-in only and a guest read would just be a wasted 401.
    *
    *  The subscription is what makes the menu grow the moment setup completes,
-   *  without a page reload. */
+   *  without a page reload.
+   *
+   *  The read, the subscription and the menu's table (life/useLifeState.ts,
+   *  life/menu.ts, and with them the panel's mappers and every Life Panel word
+   *  in life/copy.ts) load once the thread is in, not on every page's first
+   *  load. Nothing is missed by subscribing then rather than at sign-in: the
+   *  read below returns the cached promise, which every refresh replaces
+   *  (`loadLifeState(true)`), so it carries any setup that finished before. */
   useEffect(() => {
     if (authState !== "signed_in") {
       setLifeMenu([]);
       return;
     }
+    if (!afterBoot) return;
     let cancelled = false;
-    const apply = (state: Parameters<typeof panelMenu>[0]) => {
-      // Product-owned rows are removed below and reintroduced only through
-      // the durable discovery contract. All other server menu entries retain
-      // their existing gate and ordering.
-      if (!cancelled) setLifeMenu(hamburgerMenu(state));
-    };
-    // Subscribed from sign-in (a setup finishing mid-boot must not be
-    // missed); the read itself waits for the thread.
-    if (afterBoot) void loadLifeState().then(apply);
-    const unsubscribe = subscribeLifeState(apply);
+    let unsubscribe = () => {};
+    void Promise.all([import("@/lib/life/useLifeState"), import("@/lib/life/menu")]).then(
+      ([{ loadLifeState, subscribeLifeState }, { hamburgerMenu }]) => {
+        if (cancelled) return;
+        const apply = (state: LifeState | null) => {
+          // Product-owned rows are removed below and reintroduced only through
+          // the durable discovery contract. All other server menu entries retain
+          // their existing gate and ordering.
+          if (!cancelled) setLifeMenu(hamburgerMenu(state));
+        };
+        unsubscribe = subscribeLifeState(apply);
+        void loadLifeState().then(apply);
+      },
+    );
     return () => {
       cancelled = true;
       unsubscribe();
