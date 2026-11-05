@@ -134,7 +134,7 @@ function UnsubscribeInner() {
 
 function UnsubscribeShell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="willab-chat flex min-h-[100dvh] items-center justify-center bg-background px-6 py-12">
+    <main className="willab-chat flex min-h-full items-center justify-center bg-background px-6 py-12">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
         {children}
       </div>

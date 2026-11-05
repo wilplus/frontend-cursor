@@ -151,7 +151,7 @@ function OAuthCompleteInner() {
 
   if (returnToApp) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background p-6">
+      <main className="flex min-h-full items-center justify-center bg-background p-6">
         <div className="max-w-sm text-center">
           <p className="text-base font-semibold text-foreground">
             You&apos;re signed in
@@ -167,7 +167,7 @@ function OAuthCompleteInner() {
 
   if (errorMessage) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background p-6">
+      <main className="flex min-h-full items-center justify-center bg-background p-6">
         <p
           className="max-w-sm text-center text-sm text-muted-foreground"
           role="alert"

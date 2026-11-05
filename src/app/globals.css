@@ -151,6 +151,18 @@ body {
   }
 }
 
+/* In the iPhone app (NativeAppMarker), the page itself never bounces. The
+   app is a viewport-locked column, so a drag on anything that does not
+   scroll (the composer, the footer, a top bar, the sign-in screen) pulled
+   the whole screen, top bar and all, and it sprang back: a web page's
+   bounce, which no app screen does. The panes that scroll keep their own.
+   iOS 16 and later; the recording screens already hold it while a Take is
+   live (useNoPullToRefresh). Safari is untouched. */
+html[data-app="native"],
+html[data-app="native"] body {
+  overscroll-behavior: none;
+}
+
 /* TOUCH FEEDBACK — the press must land before the network does
    (founder 2026-09-15: "each button, like emphasise, lock, discard … works on
    the touch instantly without the loading time").

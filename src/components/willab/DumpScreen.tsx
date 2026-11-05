@@ -154,7 +154,11 @@ export default function DumpScreen({
 
   return (
     <div
-      className="fixed inset-0 z-[80] touch-manipulation select-none bg-background"
+      // `touch-none`: the screen reads every touch itself. With panning
+      // allowed, a phone takes a downward drag for its own (the page's
+      // bounce, Safari's pull to reload) and cancels it after a few pixels,
+      // so the swipe down that closes (N506 item 2) never reached 90 px.
+      className="fixed inset-0 z-[80] touch-none select-none bg-background"
       style={{ transform: drag ? `translateY(${drag}px)` : undefined }}
       role="button"
       tabIndex={0}
@@ -224,7 +228,9 @@ function CloseButton({ onClose }: { onClose: () => void }) {
         e.stopPropagation();
         onClose();
       }}
-      className="absolute right-4 top-[max(20px,env(safe-area-inset-top))] z-10 flex h-[30px] w-[30px] items-center justify-center rounded-full border border-border bg-background text-foreground"
+      // Drawn 30px; its tap area is 44px (the invisible `before:`). Here a
+      // thumb that misses the × lands on the screen, which starts listening.
+      className="absolute right-4 top-[max(20px,env(safe-area-inset-top))] z-10 flex h-[30px] w-[30px] items-center justify-center rounded-full border border-border bg-background text-foreground before:absolute before:-inset-[7px] before:content-['']"
     >
       <X className="h-3.5 w-3.5" aria-hidden />
     </button>

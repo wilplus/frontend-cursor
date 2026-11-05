@@ -49,7 +49,7 @@ export default function JoinPage({ token, name, finish }: { token: string; name:
   }, [finish]);
 
   return (
-    <main data-join-page className="mx-auto flex min-h-[100dvh] w-full max-w-[480px] flex-col gap-5 bg-background px-5 pb-8 pt-12">
+    <main data-join-page className="mx-auto flex min-h-full w-full max-w-[480px] flex-col gap-5 bg-background px-5 pb-8 pt-12">
       <span
         aria-hidden
         className="flex h-16 w-16 items-center justify-center rounded-full bg-[#FFE9DB] text-[26px] font-semibold text-[#A33A00]"
