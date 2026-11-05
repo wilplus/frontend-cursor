@@ -20,7 +20,7 @@ import { isNativeApp } from "@/lib/auth/nativeSignIn";
 /*  whole app (N500): the name bold, the time orange, the line bold and       */
 /*  orange, the orange dot; no number, ever. Will is always the first  */
 /*  row (N360). Just joined through a link, the chat with the one who invited */
-/*  you is right under Will, new until opened, its line theirs or "You joined */
+/*  you is right under Will (under the coach's row when there is one, N521), new until opened, its line theirs or "You joined */
 /*  through…" (N357), kept until the chat's first message (N488). Will's row shows his newest line, bold with the dot     */
 /*  until his chat is open (N457 item 2).                                     */
 /* -------------------------------------------------------------------------- */
@@ -130,7 +130,7 @@ export function lastLine(last: ChatLast | null, name = ""): string {
   return last.body;
 }
 
-function ChatListRow({
+export function ChatListRow({
   id,
   circle,
   title,
@@ -348,10 +348,14 @@ export default function ChatList({
   joined = null,
   cameFrom = null,
   willOpen = false,
+  coachRow = null,
   onOpenWill,
   onOpen,
 }: {
   chats: readonly Chat[];
+  /** The coach's way in, right under Will's row (backend N521); null for
+   *  everyone else. */
+  coachRow?: ReactNode;
   /** Will's chat is open over the list (its row's line is then seen). */
   willOpen?: boolean;
   /** The row you just came back from, lit for a moment ("will" for Will's). */
@@ -402,6 +406,7 @@ export default function ChatList({
         cameFrom={cameFrom === WILL_CHAT}
         onOpen={onOpenWill}
       />
+      {coachRow}
       {chats.filter((chat) => chat.inquiry).map((chat) => row(chat))}
       {first ? row(first, true) : null}
       {chats.filter((chat) => !chat.inquiry).length === 0 ? (

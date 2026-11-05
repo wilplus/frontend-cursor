@@ -227,13 +227,16 @@ function WillGroup({ will }: { will: WillRow }) {
 
 export type WillRow = { questions: number; empty: number; onOpen: () => void };
 
-export function QueueScreen({ speakers, loading, blind, will = null, onSpeaker, onDelete, onClose }: {
+export function QueueScreen({ speakers, loading, blind, will = null, onSpeaker, onSpeakers, onDelete, onClose }: {
   speakers: readonly QueueSpeaker[];
   loading: boolean;
   blind: BlindRows | null;
   /** The founder's row to Will's questions (N83); null for every other coach. */
   will?: WillRow | null;
   onSpeaker: (speaker: QueueSpeaker) => void;
+  /** The last card, Speakers: every speaker this coach may hear (C5; was the
+   *  button pinned above Will's message box, backend N521). */
+  onSpeakers?: () => void;
   /** The founder's ⋯ → Delete on a waiting speaker; absent for every other
    *  coach. Resolves true once their waiting moments are closed. */
   onDelete?: (speaker: QueueSpeaker) => Promise<boolean>;
@@ -260,6 +263,11 @@ export function QueueScreen({ speakers, loading, blind, will = null, onSpeaker, 
       )}
       {blind ? <BlindGroup blind={blind} /> : null}
       {will ? <WillGroup will={will} /> : null}
+      {onSpeakers ? (
+        <div data-testid="coach-panel-speakers-card">
+          <WalkChoices label={COPY.speakers} choices={[{ value: "speakers", label: COPY.speakers }]} onPick={onSpeakers} />
+        </div>
+      ) : null}
     </WalkOverlay>
   );
 }

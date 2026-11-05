@@ -637,7 +637,8 @@ them:
 
 Built for every signed-in person (backend N456, 2026-11-03; was ring 6,
 feature `chats`, the founder only, 2026-11-02): the
-list of chats in front of the Lounge (C1: Will pinned, then each chat's
+list of chats in front of the Lounge (C1: Will pinned, for a coach their
+queue's row right under him (N521, the coach panel's B1), then each chat's
 letter circle, title, subtitle, time and last message, newest first, a new
 message, an emoji from the other person included and your own never, with
 the look locked for the whole app, N500: the name bold, the time orange, the
@@ -838,6 +839,8 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-11-05 · N521 · C1: for whoever may hear speakers, a row right under Will opens their queue; its rules are the coach panel's B1 · BE #1762, FE (this PR)
 
 - 2026-11-04 · — · C1: the list draws at once: the list this browser last read for the signed-in person shows while the fresh read is on its way, then the fresh one takes its place (`chats/chatsKept.ts`, kept for that person only and gone when nobody is signed in); a failed read keeps the list there is. The backend reads the list's parts side by side (BE `services/chats.py` `list_chats`). The first open on a browser still waits under the loader (N456). Was: the loader every open, about 0.65 s; a failed reload emptied the list · BE #1755, FE (this PR)
 - 2026-11-04 · N485, N486, N493, N504, N512 · C1: a matched Take that reached you is an asking chat in your list, under Will's row: its pseudonym and role, "Asks you about {topic}", new. Opened, it shows "{Pseudonym} is asking for what you know. Your answer starts a knowledge base you build together." and "It's about {…}.", never a name, with "Open Take" in the bar's middle (black, no dot) and "Not now" under the question. Open Take shows the asker's name and the Take, open (its recording and its words), with "Record your answer": the answer is recorded over the Take's own slides when the backend gives their titles (else its one slide, the topic), held five seconds with "Sending to {name}… {n}" and Undo on the matching's own routes, and then the chat with the asker is made and the list reads it. "Not now", before or after Open Take, removes it and tells nobody (`InquiryThread.tsx`, `takeMatches.ts`, BFF `take-matches/`, `chatAnswer.ts` `inquiry`, `useChats.ts`, `ChatList.tsx`). The speaker's side: after a Take, once, when someone new fits it, the page that picks who a Take goes to opens once more with that one person, never before the walk is over (it waits while a walk screen is up): "Someone new might be a good match for this Take.", "{Pseudonym} works on what you're practising. You could learn from each other. Send it to them too?", the pseudonym, the role and "Not in your chats yet", with Send and Not now (✕ changes nothing; asked once per Take) (`TakeMatchSuggestion.tsx` from the latest Take's card, `ReportCard.tsx`; BFF `takes/[sessionId]/match`, `take-matches/[matchId]/send`, `close`). Off until the backend's `take_match` ring is on: no asking chats and no suggestion then · BE #1712, N512 (#1750), FE (this PR)
