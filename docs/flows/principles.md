@@ -542,7 +542,9 @@ The prototypes: <https://claude.ai/artifact/RY5gT9bg8xSpGvKiLVScsW>,
   too. Same taps as T2, same words as K, same upload as B
   (`POST /api/v2/notebook/notes`, its `key`), saved on the phone first and
   sent in the background when it can; nothing goes while the web says it is
-  off. Leaving the app, a call, or five minutes stops and keeps. The live
+  off. One light haptic tick the moment it starts listening, felt while
+  recording too (N519). Leaving the app, a call, or five minutes stops and
+  keeps. The live
   words are Apple's on-device speech, a preview only: no audio is sent for
   them, and with no on-device speech there are no words. Never opened by a
   link or a notification (a tapped notification closes it). The browser, the

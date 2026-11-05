@@ -76,7 +76,8 @@ final class DumpModel: ObservableObject {
             self.seconds = 0
             self.phase = .listening
             self.startClock()
-            self.tick()
+            Self.listeningTick.impactOccurred()   // the tiny "listening" tick (N519)
+            Self.listeningTick.prepare()
         }
     }
 
@@ -119,6 +120,12 @@ final class DumpModel: ObservableObject {
             if self.seconds >= Self.maxSeconds { self.keep() }
         }
     }
+
+    private static let listeningTick: UIImpactFeedbackGenerator = {
+        let g = UIImpactFeedbackGenerator(style: .light)
+        g.prepare()
+        return g
+    }()
 
     private func tick() { Self.haptic() }
     private static func haptic() { UIImpactFeedbackGenerator(style: .light).impactOccurred() }

@@ -27,6 +27,9 @@ final class DumpRecorder {
         if #available(iOS 26.0, *) { bluetooth = .allowBluetoothHFP } else { bluetooth = .allowBluetooth }
         try? AVAudioSession.sharedInstance().setCategory(
             .playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker, bluetooth])
+        // iOS mutes haptics while recording unless allowed: the tick that
+        // says "listening" must be felt (backend N519).
+        try? AVAudioSession.sharedInstance().setAllowHapticsAndSystemSoundsDuringRecording(true)
     }
 
     /// The mic permission, asked the first time only (the app already asks it
