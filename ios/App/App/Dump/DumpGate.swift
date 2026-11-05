@@ -1,6 +1,6 @@
 import Foundation
 
-/// When the dump screen opens first (backend N506 item 4, N520).
+/// When the dump screen opens first (backend N506 item 4, N521).
 /// The web owns the switch: it calls DumpScreenPlugin.configure once it has
 /// read the ring row, the notebook's Yes and the person's choice. The app
 /// keeps the answer so a cold launch can decide before the web view loads.
@@ -21,7 +21,7 @@ enum DumpGate {
     static var enabled: Bool { store.bool(forKey: kEnabled) }
 
     /// On every fresh open and every return to the front, online or
-    /// offline (N520). Never when a link or a notification opened the app.
+    /// offline (N521). Never when a link or a notification opened the app.
     static func shouldOpenFirst(launchedByLinkOrNotification: Bool) -> Bool {
         enabled && store.bool(forKey: kOpenFirst) && !launchedByLinkOrNotification
     }

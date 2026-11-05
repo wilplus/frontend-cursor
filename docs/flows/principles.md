@@ -548,7 +548,7 @@ The prototypes: <https://claude.ai/artifact/RY5gT9bg8xSpGvKiLVScsW>,
   words are Apple's on-device speech, a preview only: no audio is sent for
   them, and with no on-device speech there are no words. Never opened by a
   link or a notification (a tapped notification closes it). It opens first
-  on every open and every return to the front, online or offline (N520). The browser, the
+  on every open and every return to the front, online or offline (N521). The browser, the
   home-screen app and an app without the plugin get this web screen.
 
 ---
