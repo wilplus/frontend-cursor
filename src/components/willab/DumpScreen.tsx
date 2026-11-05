@@ -228,7 +228,9 @@ function CloseButton({ onClose }: { onClose: () => void }) {
         e.stopPropagation();
         onClose();
       }}
-      className="absolute right-4 top-[max(20px,env(safe-area-inset-top))] z-10 flex h-[30px] w-[30px] items-center justify-center rounded-full border border-border bg-background text-foreground"
+      // Drawn 30px; its tap area is 44px (the invisible `before:`). Here a
+      // thumb that misses the × lands on the screen, which starts listening.
+      className="absolute right-4 top-[max(20px,env(safe-area-inset-top))] z-10 flex h-[30px] w-[30px] items-center justify-center rounded-full border border-border bg-background text-foreground before:absolute before:-inset-[7px] before:content-['']"
     >
       <X className="h-3.5 w-3.5" aria-hidden />
     </button>
