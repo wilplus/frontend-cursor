@@ -25,8 +25,8 @@ OUTCOME
   O10 The list comes in steps (N100): reaching its bottom reads the next
       step, the loader showing until it lands.
   O11 The corpus is the founder's, a row in the admin menu (N416, N511):
-      the coach's pinned row has no Training corpus button; the admin
-      menu's page opens on the imports, and ✕ goes back.
+      the coach's queue has no Training corpus card; the admin menu's page
+      opens on the imports, and ✕ goes back.
 PROVES   O1 -> "a saved set-up goes straight to judging, with its count"
          O2 -> "a set-up with nothing to judge goes back to the imports, never to judging"
          O3 -> "a new import lands on the imports with its count"
@@ -37,7 +37,7 @@ PROVES   O1 -> "a saved set-up goes straight to judging, with its count"
          O8 -> "a choice over the upload limit is refused, and a refusal for the hour stops the batch"
          O9 -> "the done imports sit at the bottom; judging starts from the opened one and comes back to the list"
          O10 -> "reaching the bottom of the list reads its next step"
-         O11 -> "the corpus opens from the admin menu's page, never from the coach's pinned row; ✕ goes back"
+         O11 -> "the corpus opens from the admin menu's page, never from the coach's queue; ✕ goes back"
 WHY      Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files
          in one Import, the list in steps and the corpus judged mixed,
          founder 2026-10-21. Moved to the CEO panel, founder 2026-11-03
@@ -76,7 +76,7 @@ vi.mock("./CoachCorpusJudge", () => ({
 }));
 import { blindPiece, type QueuePiece, type TrainingImport } from "@/services/api/trainingCorpus";
 import CoachPanel from "./CoachPanel";
-import { CoachPanelPinned } from "./CoachPanelDoor";
+import { QueueScreen } from "./CoachPanelScreens";
 import { CeoCorpusPage } from "@/components/ceo/CeoCorpus";
 import { PANEL_START, panelReducer, type PanelAction, type PanelState } from "@/lib/willab/coachPanel";
 
@@ -317,9 +317,10 @@ describe("the training corpus in the panel", () => {
 });
 
 describe("where the corpus opens (N416, N511)", () => {
-  it("the corpus opens from the admin menu's page, never from the coach's pinned row; ✕ goes back", async () => {
-    act(() => root.render(<CoachPanelPinned onSpeakers={() => undefined} />));
-    expect(document.querySelector("[data-testid='coach-panel-speakers-button']")).not.toBeNull();
+  it("the corpus opens from the admin menu's page, never from the coach's queue; ✕ goes back", async () => {
+    act(() => root.render(<QueueScreen speakers={[]} loading={false} blind={null} onSpeaker={() => undefined}
+      onSpeakers={() => undefined} onClose={() => undefined} />));
+    expect(document.querySelector("[data-testid='coach-panel-speakers-card']")).not.toBeNull();
     expect(document.body.textContent).not.toContain("Training corpus");
 
     const onClose = vi.fn();

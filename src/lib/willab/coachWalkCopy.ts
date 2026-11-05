@@ -17,9 +17,7 @@ export const COACH_WALK_COPY = {
   queueMoment: (index: number) => `Moment ${index}`,
   /* a Take whose bookmarks are not frozen yet (founder 2026-10-01, A1) */
   queueWaitingForText: "Waiting for the text",
-  /* the one bubble in the Lounge */
-  bubbleWaiting: (n: number) =>
-    n === 0 ? "Nobody waiting" : `${n} ${n === 1 ? "speaker" : "speakers"} waiting`,
+  /* the coach's row in the list of chats, while someone waits (N521) */
   bubbleOpen: "Open your queue",
 
   /* the state words (P2-6): where the coach is with a moment */

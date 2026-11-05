@@ -1,65 +1,52 @@
 "use client";
 
 /* -------------------------------------------------------------------------- */
-/*  The coach's Lounge door, redrawn (founder lock 2026-10-06, flow step 1;    */
-/*  build plan P1). Mounted by CoachWalkEntry, the Lounge's one door for a     */
-/*  coach; permanent since 2026-10-11 (founder, "make them permanent").       */
+/*  The coach's door (founder lock 2026-10-06; moved by backend N521,          */
+/*  5 November 2026). Mounted by CoachWalkEntry in the Lounge, with nothing   */
+/*  of its own on screen: the way in is a row in the list of chats            */
+/*  (CoachChatRow), and the bottom of Will's chat is only its bar.            */
 /*                                                                            */
-/*    the bubble        "N speakers waiting · Open your queue" opens the new   */
-/*                      queue (CoachPanel)                                    */
-/*    Speakers          Your speakers: EVERY speaker this coach may hear, an  */
-/*                      orange dot on those waiting (D-CP-12, from            */
-/*                      GET /v2/coach/speakers); a speaker opens on their     */
-/*                      goal and their Takes                                  */
-/*    (the training corpus moved to the CEO panel, backend N416: the same   */
-/*     screens, opened from /admin/ceo; no coach sees its button)           */
+/*    the row           its tap opens the queue (CoachPanel); the door        */
+/*                      publishes how many speakers wait for its line         */
+/*                      (lib/willab/coachDoor)                                */
+/*    Speakers          the last card in the queue: EVERY speaker this coach  */
+/*                      may hear, an orange dot on those waiting (C5)         */
+/*    (the training corpus is the founder's, in the admin menu, N416, N511)  */
 /*    Open speaker      a goal card in the Lounge opens that speaker          */
 /*                      (WIL-74, founder 2026-10-19; lib/willab/openSpeaker)  */
 /*                                                                            */
 /* -------------------------------------------------------------------------- */
 
 import { useEffect, useReducer, useRef } from "react";
-import { Users } from "lucide-react";
 import CoachPanel from "./CoachPanel";
-import CoachWalkBubble from "../coachwalk/CoachWalkBubble";
 import { useMomentsQueue } from "../coachwalk/useMomentsQueue";
 import { PANEL_START, panelReducer, type PanelState } from "@/lib/willab/coachPanel";
 import { OPEN_SPEAKER_EVENT, type OpenSpeakerDetail } from "@/lib/willab/openSpeaker";
 import { fetchCoachSpeakers, queueSpeakerFor } from "@/services/api/coachSpeakers";
-import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
-
-const PINNED =
-  "walk-press flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl border-[1.5px] border-border bg-background text-[15px] font-semibold text-foreground";
-
-/** The button pinned above the message box, with its icon. Training corpus
- *  stood beside it until it moved to the CEO panel (backend N416). */
-export function CoachPanelPinned({ onSpeakers }: { onSpeakers: () => void }) {
-  return (
-    <div data-testid="coach-panel-pinned" className="flex gap-2.5">
-      <button type="button" onClick={onSpeakers} data-testid="coach-panel-speakers-button" className={PINNED}>
-        <Users aria-hidden="true" className="h-5 w-5" strokeWidth={1.8} />
-        {COPY.speakers}
-      </button>
-    </div>
-  );
-}
+import { OPEN_QUEUE_EVENT, publishWaiting } from "@/lib/willab/coachDoor";
 
 export default function CoachPanelDoor({
-  bubble = true,
   initial = PANEL_START,
 }: {
-  /** The thread bubble; off where the host draws its own. */
-  bubble?: boolean;
   /** Where the panel starts (the dev harness's still screens). */
   initial?: PanelState;
 }) {
   const queue = useMomentsQueue(true);
   const [state, dispatch] = useReducer(panelReducer, initial);
   // null until the queue is read once (or remembered on this device): the
-  // bubble never says "Nobody" before it knows (founder 2026-10-18).
+  // row never says "Nobody" before it knows (founder 2026-10-18).
   const waiting = queue.waiting;
+  useEffect(() => publishWaiting(waiting), [waiting]);
+  useEffect(() => () => publishWaiting(null), []);
 
-  // Back in the Lounge after answering: the queue and the bubble read fresh.
+  // The row in the list of chats opens Your queue (N521).
+  useEffect(() => {
+    const onOpen = () => dispatch({ type: "open" });
+    window.addEventListener(OPEN_QUEUE_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_QUEUE_EVENT, onOpen);
+  }, []);
+
+  // Back from the panel after answering: the queue and the row read fresh.
   const wasOpen = useRef(false);
   const refresh = queue.refresh;
   useEffect(() => {
@@ -85,11 +72,7 @@ export default function CoachPanelDoor({
   }, [queueSpeakers]);
 
   return (
-    <>
-      {bubble ? <CoachWalkBubble waiting={waiting} onOpen={() => dispatch({ type: "open" })} /> : null}
-      <CoachPanelPinned onSpeakers={() => dispatch({ type: "speakers" })} />
-      <CoachPanel state={state} dispatch={dispatch} speakers={queue.speakers} loading={queue.loading}
-        refresh={queue.refresh} />
-    </>
+    <CoachPanel state={state} dispatch={dispatch} speakers={queue.speakers} loading={queue.loading}
+      refresh={queue.refresh} />
   );
 }

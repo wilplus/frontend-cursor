@@ -41,7 +41,6 @@ const REUSED = {
   /* the queue, the Lounge door */
   queueTitle: WALK.queueTitle,
   queueEmpty: WALK.queueEmpty,
-  bubbleWaiting: WALK.bubbleWaiting,
   bubbleOpen: WALK.bubbleOpen,
   waitingForText: WALK.queueWaitingForText,
   /** The blind lines' count (6a, 8); their titles are the backend's own. */
@@ -251,8 +250,6 @@ const PROTOTYPE = {
   } as Record<string, string>,
   /* all speakers */
   allAnsweredTakes: (n: number) => `All answered · ${count(n, "Take", "Takes")}`,
-  /* the Lounge door: speakers waiting */
-  newTag: "new",
   /* the cure's toasts and Summary's "Your answer" */
   kept: "Kept",
   swapped: "Swapped",
