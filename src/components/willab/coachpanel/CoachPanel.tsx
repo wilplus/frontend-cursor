@@ -165,13 +165,22 @@ function useBlindLines(queueOpen: boolean) {
   const [picks, setPicks] = useState<BlockPickQueue | null>(null);
   const [v4Picks, setV4Picks] = useState<V4MomentPickQueue | null>(null);
   const [v4Surer, setV4Surer] = useState<V4SurerQueue | null>(null);
+  // Read once in so far (N524): the queue waits for all four, then draws.
+  const [done, setDone] = useState(false);
   useEffect(() => {
     if (!queueOpen) return;
     let cancelled = false;
-    void fetchErrorAudit().then((next) => { if (!cancelled) setAudit(next); });
-    void fetchBlockPicks().then((next) => { if (!cancelled) setPicks(next); });
-    void fetchV4MomentPicks().then((next) => { if (!cancelled) setV4Picks(next); });
-    void fetchV4SurerPairs().then((next) => { if (!cancelled) setV4Surer(next); });
+    const quiet = <T,>(read: Promise<T | null>) => read.catch(() => null);
+    // All four land together, so the lines never draw one after another.
+    void Promise.all([quiet(fetchErrorAudit()), quiet(fetchBlockPicks()), quiet(fetchV4MomentPicks()),
+      quiet(fetchV4SurerPairs())]).then(([a, p, v4p, v4s]) => {
+      if (cancelled) return;
+      setAudit(a);
+      setPicks(p);
+      setV4Picks(v4p);
+      setV4Surer(v4s);
+      setDone(true);
+    });
     return () => { cancelled = true; };
   }, [queueOpen]);
   /** A line the founder cleared draws empty at once (it waits for next week). */
@@ -182,7 +191,7 @@ function useBlindLines(queueOpen: boolean) {
     else if (line === "v4_moment_pick") setV4Picks(none);
     else setV4Surer(none);
   }, []);
-  return { audit, picks, setAudit, setPicks, v4Picks, setV4Picks, v4Surer, setV4Surer, emptied };
+  return { audit, picks, setAudit, setPicks, v4Picks, setV4Picks, v4Surer, setV4Surer, emptied, done };
 }
 
 /** Every speaker, read each time Your speakers opens. `speakers` is null
@@ -259,11 +268,15 @@ function useImports(open: boolean) {
  *  from the editor. */
 function useWillBank(open: boolean, onOpen: () => void) {
   const [bank, setBank] = useState<WillBank | null>(null);
+  // Asked once so far (N524): the queue waits for it, then draws.
+  const [done, setDone] = useState(false);
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    void fetchWillBank().then((next) => {
-      if (!cancelled && next) setBank(next);
+    void fetchWillBank().catch(() => null).then((next) => {
+      if (cancelled) return;
+      if (next) setBank(next);
+      setDone(true);
     });
     return () => { cancelled = true; };
   }, [open]);
@@ -276,7 +289,7 @@ function useWillBank(open: boolean, onOpen: () => void) {
     return saved.error || COPY.answerFail;
   };
   const row: WillRow | null = bank ? { questions: bank.questions, empty: bank.empty, onOpen } : null;
-  return { bank, save, row };
+  return { bank, save, row, done };
 }
 
 type JudgeFail = { error: string; attempt: number };
@@ -346,6 +359,8 @@ export type CoachPanelProps = {
   dispatch: Dispatch<PanelAction>;
   speakers: readonly QueueSpeaker[];
   loading: boolean;
+  /** The queue has been read once (ok or not); the queue waits for it (N524). */
+  settled?: boolean;
   /** Read the queue again (after the founder's Delete of a speaker's row). */
   refresh?: () => void;
 };
@@ -356,7 +371,7 @@ function liveSpeaker(speakers: readonly QueueSpeaker[], snapshot: QueueSpeaker):
   return live.goal == null && snapshot.goal != null ? { ...live, goal: snapshot.goal } : live;
 }
 
-export default function CoachPanel({ state, dispatch, speakers, loading, refresh }: CoachPanelProps) {
+export default function CoachPanel({ state, dispatch, speakers, loading, settled = true, refresh }: CoachPanelProps) {
   const { screen } = state;
   const stage: StageScreen = useMemo(() => ({ ...walkScreenOf(screen), panel: screen }), [screen]);
   const takeId = momentOf(screen) && "take" in screen ? screen.take.sessionId : null;
@@ -563,7 +578,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading, refresh
     const live = panel === screen;
     if (panel.key === "queue") {
       return (
-        <QueueScreen speakers={speakers} loading={loading} onClose={close}
+        <QueueScreen speakers={speakers} loading={loading} ready={settled && blind.done && (!founder || will.done)} onClose={close}
           onSpeaker={(speaker) => dispatch({ type: "speaker", speaker })}
           onSpeakers={() => dispatch({ type: "speakers" })}
           onDelete={founder ? deleteSpeaker : undefined}

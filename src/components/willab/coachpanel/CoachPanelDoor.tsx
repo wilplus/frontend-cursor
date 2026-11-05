@@ -73,6 +73,6 @@ export default function CoachPanelDoor({
 
   return (
     <CoachPanel state={state} dispatch={dispatch} speakers={queue.speakers} loading={queue.loading}
-      refresh={queue.refresh} />
+      settled={queue.settled} refresh={queue.refresh} />
   );
 }

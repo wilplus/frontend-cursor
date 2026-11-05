@@ -293,6 +293,25 @@ describe("CoachPanel", () => {
     expect(q("[aria-label='More options for Quiet Heron']")).toBeNull();
   });
 
+  it("Your queue draws whole: only the dots until every read is in, then all sections; ‹ goes back to the list (N524)", () => {
+    const audit = { items: [{}], wording: { title: "Do you hear it?", queue_line: "Also waiting · blind" } } as unknown as BlindRows["audit"];
+    const blind: BlindRows = { audit, picks: null, onOpenAudit: () => {}, onOpenPicks: () => {} };
+    const onClose = vi.fn();
+    draw(<QueueScreen speakers={[HERON]} loading={false} ready={false} blind={blind} onSpeaker={() => {}} onClose={onClose} />);
+    expect(q("[data-walk-loading]")).not.toBeNull();
+    expect(q("[data-testid=coach-panel-queue]")!.textContent).not.toContain("Quiet Heron");
+    expect(q("[data-testid=coach-panel-queue]")!.textContent).not.toContain("Do you hear it?");
+    expect(q("[data-chat-name]")!.textContent).toBe(COPY.queueTitle);
+
+    draw(<QueueScreen speakers={[HERON]} loading={false} ready blind={blind} onSpeaker={() => {}} onClose={onClose} />);
+    expect(q("[data-walk-loading]")).toBeNull();
+    const text = q("[data-testid=coach-panel-queue]")!.textContent!;
+    expect(text).toContain("Quiet Heron");
+    expect(text).toContain("Do you hear it?");
+    act(() => q("[data-chat-header] button")!.click());
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it("the founder's ⋯ clears what waits on a blind line behind its confirmation; other coaches have none", async () => {
     const onClear = vi.fn(async () => true);
     const audit = { items: [{}], wording: { title: "Do you hear it?", queue_line: "Also waiting · blind" } } as unknown as BlindRows["audit"];
