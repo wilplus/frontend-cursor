@@ -620,6 +620,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-05 · N506 item 5 · T6: when the iPhone app's native dump screen has sent a dump, Will's chat reads the thread at once, so "Noted." shows without waiting. Was: it showed at the chat's next reload · FE (this PR)
 - 2026-11-05 · N522 · T4: the dump screen opens first on every open and every coming back to the app, online or offline. Was: at most once an hour. The Settings line is now "First thing when you open the app." (signed, N522 item 3) · BE #1765, FE (this PR)
 - 2026-11-05 · N517 · T4: the pull opens the dump screen at once: the notebook is read when the chat opens, not when the pull is let go. Was: a round trip to the server between letting go and the screen · FE (this PR)
 - 2026-11-05 · N506 item 3 · T6: a read that fails (no network, a failed request) no longer tells the iPhone app the dump screen is off; the app keeps what it last heard, so offline it still opens and keeps what is said. Was: one failed read switched it off until the next good load · FE (this PR)
