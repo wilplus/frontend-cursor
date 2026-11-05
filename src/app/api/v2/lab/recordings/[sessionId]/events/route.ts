@@ -12,7 +12,11 @@ export const dynamic = "force-dynamic";
 // a chain of ≤60s connections instead of one long one.
 export const maxDuration = 60;
 
-const POLL_MS = 2000;
+// One backend readout per second while a Take processes. It was 2s, so a
+// finished Take waited up to 2s (1s on average) on this loop before the
+// speaker saw it; 1s halves that. The cost is one small readout query per
+// second per processing Take, for the minute or two a Take processes.
+const POLL_MS = 1000;
 const HEARTBEAT_MS = 15_000;
 // Close a little before maxDuration so the stream ends as a clean EOF the
 // client treats as "reconnect", not a mid-frame kill.
@@ -43,8 +47,8 @@ const SSE_HEADERS = {
  * account token or canonical signed Guest ID. A session UUID alone is never
  * access.
  *
- * BRIDGE: poll the existing readout endpoint SERVER-side at the same 2s
- * cadence and push only CHANGES down the pipe. The browser holds one
+ * BRIDGE: poll the existing readout endpoint SERVER-side every POLL_MS (1s;
+ * the browser's own poll was 2s) and push only CHANGES down the pipe. The browser holds one
  * streaming connection instead of paying a lambda invocation per tick.
  *
  * There used to be a first attempt at a native backend stream

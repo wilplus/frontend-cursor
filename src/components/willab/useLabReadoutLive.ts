@@ -34,6 +34,11 @@ import { guestOwnerHeaders } from "@/services/api/projects";
 
 const MAX_SSE_ATTEMPTS = 2;
 const RECONNECT_DELAY_MS = 1000;
+// A stream that delivered and stayed open at least this long ended at the
+// bridge's window (~55s), so the next one opens at once: a Take that finishes
+// right then is not held back by the delay. A shorter stream is a terminal
+// close or a broken bridge, and still waits, so it can never spin.
+const WINDOW_END_MIN_MS = 10_000;
 
 export function useLabReadoutLive(
   sessionId: string | null,
@@ -76,6 +81,7 @@ export function useLabReadoutLive(
       while (active && attempts < MAX_SSE_ATTEMPTS) {
         attempts += 1;
         let gotEvent = false;
+        const openedAt = Date.now();
         try {
           const token = await getAuthToken();
           const headers: Record<string, string> = {
@@ -126,7 +132,11 @@ export function useLabReadoutLive(
         // duration cap (or a terminal close the handler is about to act on),
         // not a failure — reconnect without burning an attempt.
         if (gotEvent) attempts = 0;
-        await new Promise((r) => setTimeout(r, RECONNECT_DELAY_MS));
+        const endedAtWindow =
+          gotEvent && Date.now() - openedAt >= WINDOW_END_MIN_MS;
+        if (!endedAtWindow) {
+          await new Promise((r) => setTimeout(r, RECONNECT_DELAY_MS));
+        }
       }
       startPollingFallback();
     };
