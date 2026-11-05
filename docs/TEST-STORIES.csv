@@ -2152,6 +2152,9 @@ O2 -> ""maps the server's total and threshold""",C-2 / S2: the total is the back
 src/services/api/reviewSummaryText.test.ts,Story,"As a speaker finishing the Feedback walk, I want the closing summary to show exactly the words the server saved, and to be skipped when there is nothing to say, so that I never see invented or empty text.","O1  The summary shows the words of the message the server stored.
 O2  If the server fails or stores only blank text, there is no summary.","O1 -> ""are the stored Lounge row's body, as the backend answers""
 O2 -> ""are none when the backend fails or stores nothing to say""","Locked Feedback walk (lock 2026-10-12, sections 2.7 and 3)."
+src/services/api/rings.bearer.test.ts,Story,"As a speaker opening the app, I want each read it makes as it opens to say who I am, so that our server does not first ask the sign-in service who is calling, once per read.","O1  Signed in, the ring read and the Life panel's reads send the session's
+Bearer token; signed out, they go without one, as before (the cookie
+answers), and their answers are what they were.","O1 -> ""the ring read and the Life panel's reads carry the session's token, and go as before signed out""","Loading time (2026-11-05): without the header, the BFF asked Supabase getUser() before every one of these reads (src/app/api/_lib/backend.ts getAccessToken)."
 src/services/api/rings.test.ts,Story,"As a speaker, I want feature rollout read from the server and treated as ""off"" when it can't be read, so that a hiccup never switches on unfinished features.","O1  A readable answer maps the features the server turned on.
 O2  A 401, a 5xx or a thrown fetch is the empty state (nothing on), never
 an error.
