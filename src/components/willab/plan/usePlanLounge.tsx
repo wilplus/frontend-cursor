@@ -9,6 +9,7 @@ import {
   changePlan,
   getPlan,
   nextPlan,
+  planReadFailed,
   rememberPlan,
   sameEvent,
   sendPlanAnswer,
@@ -80,6 +81,10 @@ export type PlanStart = { firstTake?: FirstTakeSlide[] | null; afterFirstTake?: 
 
 type Thread = { messages: LoungeMessage[]; loading: boolean; reload: () => Promise<void> | void };
 
+/** Back in the app sooner than this after the plan was last read, it is not
+ *  read again: a tab switch and back is not a new day. */
+const READ_ON_RETURN_AFTER_MS = 30_000;
+
 /** The plan's spoken question (backend N483 item 2): while it waits,
  *  "Record your answer" in the bar's middle records it (`voice.waiting`),
  *  and "Not now", a grey word under the question (`notNow`, N467 rule 3),
@@ -140,20 +145,26 @@ export function usePlanLounge({
   const [sent, setSent] = useState<{ src: string; ms: number } | null>(null);
   const [bookedLine, setBookedLine] = useState<string | null>(null);
   const { reload } = thread;
+  // When the plan was last read, failed reads not counted.
+  const readAt = useRef(0);
 
   const load = useCallback(async () => {
     const got = await getPlan();
+    if (!planReadFailed(got)) readAt.current = Date.now();
     setState(got);
     if (got.wrote) await reload();
   }, [reload]);
 
   // Read when the Lounge opens, and again when the app comes back into view
-  // (a new practice day's hello is written on the first open of that day).
+  // (a new practice day's hello is written on the first open of that day),
+  // unless the plan was read in the last half minute.
   useEffect(() => {
     if (!signedIn || thread.loading) return;
     void load();
     const onShow = () => {
-      if (document.visibilityState === "visible") void load();
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - readAt.current < READ_ON_RETURN_AFTER_MS) return;
+      void load();
     };
     document.addEventListener("visibilitychange", onShow);
     return () => document.removeEventListener("visibilitychange", onShow);

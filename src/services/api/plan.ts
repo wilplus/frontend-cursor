@@ -111,6 +111,11 @@ export async function getPlan(): Promise<PlanState> {
   }
 }
 
+/** Whether `getPlan` failed to read the plan (it then answers as if off). */
+export function planReadFailed(state: PlanState): boolean {
+  return state === OFF;
+}
+
 async function send(path: string, init: { method?: "POST" | "PUT"; json?: unknown; body?: BodyInit }): Promise<PlanState | null> {
   try {
     const result = await bffFetch(path, { method: init.method ?? "POST", cache: "no-store", timeoutMs: 60_000, ...init });
