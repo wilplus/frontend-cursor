@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { ChevronLeft, ChevronRight, Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
+import { afterChatBoot } from "@/lib/chatBoot";
+import { askWhenLoungeOpens } from "./loungeOpenAsks";
 import {
   HORIZONS,
   LIFE_GOALS_COPY as COPY,
@@ -956,8 +958,15 @@ export function useLifeGoals({
     setState(await getLifeGoals());
   }, []);
   useEffect(() => {
-    if (signedIn) void refresh();
-  }, [signedIn, refresh]);
+    if (!signedIn) return;
+    // In the Lounge nothing on screen needs it before the thread has painted
+    // (a lens reads again as it opens); the Goals screen reads at once.
+    if (!lounge) {
+      void refresh();
+      return;
+    }
+    return afterChatBoot(() => void refresh());
+  }, [signedIn, refresh, lounge]);
 
   const openLens = useCallback(
     (spec: LensOpen) => {
@@ -966,10 +975,11 @@ export function useLifeGoals({
     [refresh],
   );
 
-  // The Lounge opened: the quarter comes back when one is due (N186).
+  // The Lounge opened: the quarter comes back when one is due (N186), once
+  // the thread has painted (loungeOpenAsks.ts).
   useEffect(() => {
     if (!signedIn || !lounge) return;
-    void quarterDue().then((wrote) => (wrote ? reload() : undefined));
+    return askWhenLoungeOpens(quarterDue, reload);
     // Once per opening of the Lounge.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn]);

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { dayLabel, LIFE_GOALS_COPY as LG } from "@/lib/willab/lifeGoals";
+import { afterChatBoot } from "@/lib/chatBoot";
+import { askWhenLoungeOpens } from "./loungeOpenAsks";
 import {
   answerYourWhyAsk,
   changeYourWhy,
@@ -218,13 +220,21 @@ export function useYourWhy({
     setState(await getYourWhy());
   }, []);
   useEffect(() => {
-    if (signedIn) void refresh();
-  }, [signedIn, refresh]);
+    if (!signedIn) return;
+    // In the Lounge nothing on screen needs it before the thread has painted
+    // (a lens reads again as it opens); the Goals screen reads at once.
+    if (!lounge) {
+      void refresh();
+      return;
+    }
+    return afterChatBoot(() => void refresh());
+  }, [signedIn, refresh, lounge]);
 
-  // The Lounge opened: the ask, or the day's why (Q3, Q4).
+  // The Lounge opened: the ask, or the day's why (Q3, Q4), once the thread
+  // has painted (loungeOpenAsks.ts).
   useEffect(() => {
     if (!signedIn || !lounge) return;
-    void yourWhyToday().then((wrote) => (wrote ? reload() : undefined));
+    return askWhenLoungeOpens(yourWhyToday, reload);
     // Once per opening of the Lounge.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn]);
