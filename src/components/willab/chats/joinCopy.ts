@@ -46,3 +46,10 @@ export const SEND_PICKED = "Send";
 export const JOIN_SETUP_NONE = "No questions, just the line above.";
 /** Opens the summary again, later. */
 export const YOUR_JOIN_QUESTIONS = "Your questions for people who join";
+
+/** An asking chat, a matched Take that reached you (backend N485): signed
+ *  with N493 item 7 (Never 4). */
+export const asksYouAbout = (topic: string) => `Asks you about ${topic}`;
+export const askingForWhatYouKnow = (pseudonym: string) =>
+  `${pseudonym} is asking for what you know. Your answer starts a knowledge base you build together.`;
+export const itsAbout = (topic: string) => `It's about ${topic.replace(/[.\s]+$/, "")}.`;

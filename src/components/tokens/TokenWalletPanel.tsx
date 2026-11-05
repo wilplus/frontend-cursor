@@ -74,7 +74,9 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
   }, [loadPage]);
 
   // Collapsed by default: the plans are the screen, the mechanics are reference.
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  // In the iPhone app there are no plans (backend N365 item 1), so what things
+  // cost and the recent activity are the screen, open at once (N495).
+  const [detailsOpen, setDetailsOpen] = useState(() => isNativeApp());
 
   // This person's plan promotion (step 3). Missing = none.
   const [promotion, setPromotion] = useState<MyOffers["promotion"]>(null);

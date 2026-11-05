@@ -2,18 +2,19 @@
 /*
 STORY    As someone signed in, I want the ☰ menu to hold only what I need,
          with my own link at the top, so that bringing someone in is one tap
-         (backend N367, N196, N365).
+         (backend N367, N196, N365, N495).
 OUTCOME
   O1  Signed in, the menu reads: my name and email (opening my profile),
       Copy my link, Settings, Tokens with the balance, then Sign out. No
       Lab, no Log out.
   O2  Copy my link copies the whole link and says "✓ Copied".
-  O3  In the iPhone app, Tokens shows the balance and is not a link (no link
-      to buy in the app, N365 item 1); on the web it opens the pricing page.
+  O3  Tokens shows the balance and opens the Tokens page, on the web and in
+      the iPhone app alike (N495; in the app that page has no way to buy,
+      N365 item 1).
   O4  Signed out (the blog), the menu is Lab and Log in, as before.
 PROVES   O1 -> "signed in, the menu is me, Copy my link, Settings, Tokens and Sign out"
          O2 -> "Copy my link copies the whole link"
-         O3 -> "in the iPhone app Tokens is not a link; on the web it is"
+         O3 -> "Tokens shows the balance and opens the Tokens page"
          O4 -> "signed out, the menu is Lab and Log in"
 */
 import { act, createElement } from "react";
@@ -85,14 +86,11 @@ describe("the ☰ menu", () => {
     expect(container.textContent).toContain("✓ Copied");
   });
 
-  it("in the iPhone app Tokens is not a link; on the web it is", async () => {
-    await open({ ...SIGNED_IN, tokensOpenNothing: true });
-    expect(container.querySelector('a[href="/dashboard/pricing"]')).toBeNull();
-    expect(container.textContent).toContain("12,000 · 30 Nov");
-    await act(async () => root.unmount());
-    root = createRoot(container);
+  it("Tokens shows the balance and opens the Tokens page", async () => {
     await open(SIGNED_IN);
-    expect(container.querySelector('a[href="/dashboard/pricing"]')).not.toBeNull();
+    const tokens = container.querySelector('a[href="/dashboard/pricing"]');
+    expect(tokens?.textContent).toContain("Tokens");
+    expect(tokens?.textContent).toContain("12,000 · 30 Nov");
   });
 
   it("signed out, the menu is Lab and Log in", async () => {

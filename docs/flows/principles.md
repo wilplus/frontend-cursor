@@ -520,12 +520,17 @@ The prototypes: <https://claude.ai/artifact/RY5gT9bg8xSpGvKiLVScsW>,
   haptic tick, then "Kept" over the chat.
 - **T3 · The first time (N507 item 1).** Before it first listens, A5's
   introduction once, on the screen: Yes is the notebook's consent; Not now
-  closes it and turns the switch off.
+  closes it and turns the switch off. That Yes writes "Yes" and "Noted." in
+  Will's chat and asks nothing more (N514); a Yes in the chat still gets
+  "What's on your mind today?".
 - **T4 · When it opens (N506 item 4, N507 item 2).** Only when "Open to the
   dump screen" is on in Settings (Data & consent; off by default; kept on
   the device), only on a plain open of /chat, never from a link to a Take,
   a walk or an Ideal Text, and at most once an hour, also on coming back to
   the app. Will's chat is underneath, untouched (Never 3). No menu line.
+  A pull down that starts on the top bar of the chat list or Will's chat
+  opens it at any time (N517): the three-dot mark follows the finger, a
+  release past 90 px opens it, no words. A pull in the thread still scrolls.
 - **T5 · Who has it (N507 item 3).** Ring rows `dump_screen` and
   `voice_notebook`, both at ring 2 (backend migration 0511).
 - **T6 · The iPhone app (N506 item 5, N507 item 1).** The capture screen is
@@ -533,15 +538,15 @@ The prototypes: <https://claude.ai/artifact/RY5gT9bg8xSpGvKiLVScsW>,
   has loaded, and only for someone whose notebook has its Yes; the first
   time, with A5's introduction, stays on this web screen. The web owns the
   switch and tells the app (`DumpScreenPlugin.configure`: ring row and Yes,
-  and "Open to the dump screen"); the app hears nothing else. Same taps as
-  T2, same words as K, same upload as B (`POST /api/v2/notebook/notes`, its
-  `key`), saved on the phone first and sent in the background when it can;
-  nothing goes while the web says it is off. Leaving the app, a call, or
-  five minutes stops and keeps. The live words are Apple's on-device speech,
-  a preview only: no audio is sent for them, and with no on-device speech
-  there are no words. Never opened by a link or a notification (a tapped
-  notification closes it). The browser, the home-screen app and an app
-  without the plugin get this web screen.
+  and "Open to the dump screen"); the pull down (T4) opens the app's screen
+  too. Same taps as T2, same words as K, same upload as B
+  (`POST /api/v2/notebook/notes`, its `key`), saved on the phone first and
+  sent in the background when it can; nothing goes while the web says it is
+  off. Leaving the app, a call, or five minutes stops and keeps. The live
+  words are Apple's on-device speech, a preview only: no audio is sent for
+  them, and with no on-device speech there are no words. Never opened by a
+  link or a notification (a tapped notification closes it). The browser, the
+  home-screen app and an app without the plugin get this web screen.
 
 ---
 
@@ -551,7 +556,7 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- T6 · the native capture screen in the iPhone app · N506 item 5, N507 · built, not yet compiled or run on an iPhone; the two iPhone permission texts wait for the founder's signature · FE (this PR)
+- T6 · the native capture screen in the iPhone app · N506 item 5, N507 · the web's side merged (FE #1261); the native screen built and run on the founder's iPhone, its two permission texts wait for the founder's signature · FE #1251
 
 ## 3. Still open
 
@@ -569,8 +574,8 @@ deletes the line when the work is merged (the change goes to §6).
   as it is said (B): `src/lib/willab/liveNoteWords.ts` and the phone's
   outbox `src/lib/willab/voiceNoteOutbox.ts`.
 - The dump screen (T): the web `src/lib/willab/dumpScreen.ts`,
-  `src/components/willab/DumpScreen*.tsx`; the iPhone app
-  `ios/App/App/Dump/`, `DumpScreenPlugin` in `WillpowerLabBridge.swift`,
+  `src/components/willab/DumpScreen*.tsx`, `DumpPullBar.tsx`; the iPhone
+  app `ios/App/App/Dump/`, `DumpScreenPlugin` in `WillpowerLabBridge.swift`,
   `SceneDelegate.swift`; the web's side of the app `src/lib/phone/dumpScreen.ts`.
 - The Sunday note: backend `services/sunday_note.py`; frontend
   `src/app/api/v2/notebook/sunday/`.
@@ -630,7 +635,9 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-11-04 · N506 item 5, N507 · T6: the dump screen native in the iPhone app, the capture screen only: opens on launch before the website, for someone with the notebook's Yes; on-device live words; kept on the phone and sent in the background through the notebook's own upload. Was: the web screen in the app · FE (this PR)
+- 2026-11-05 · N506 item 5, N507 · T6: the dump screen native in the iPhone app, the capture screen only: opens on launch before the website, for someone with the notebook's Yes; on-device live words; kept on the phone and sent in the background through the notebook's own upload. Was: the web screen in the app · FE (this PR)
+- 2026-11-05 · N517 · T4: a pull down from the top bar of the chat list or Will's chat opens the dump screen, dots only, no words; and the web's side of T6: in the iPhone app the web tells the native screen the switch (ring row, the notebook's Yes, "Open to the dump screen") and shows "Kept" when it closes; nothing changes in an app without it · BE #1757, FE #1261
+- 2026-11-04 · N514 · T3: a Yes given on the dump screen writes "Yes" and "Noted." in Will's chat, without "What's on your mind today?" · BE #1753, FE (this PR)
 - 2026-11-04 · N506, N507 · T: the dump screen, built on the web: one screen that only listens, tap, tap, double tap; the notebook's way in, with A5's introduction the first time; "Open to the dump screen" in Settings, off by default; ring 2 · BE #1743, #1745, #1746, FE (this PR)
 - 2026-11-04 · N483 item 7 · A0: the note rests: no mic and no "#" in Will's chat, so no new # notes; no introduction from the Takes and no "Keep a voice notebook?" (`useVoiceNotebook.tsx`; the client calls `askNotebook` and `introFromTakes` and their BFF routes `notebook/ask` and `notebook/intro` are gone). Kept notes stay; notes left on the phone still go · BE N483 (#1718), FE (this PR)
 - 2026-11-03 · N411 item 5 · A5: before any note, the introduction opens with a strength Will spots in the last three Takes' summaries, on the first Lounge open after the third, once; after Not now, again after three more Takes; after Yes, never · BE (the code), FE (this PR)

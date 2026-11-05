@@ -27,8 +27,10 @@ const dmSerifDisplay = localFont({
 
 // Honest positioning (founder 2026-07-17): metadata promises the deliverable
 // (the ideal text of your talk + your strongest moments), not "charisma now".
+// Founder 2026-11-04 (in chat): the link-preview title is now
+// "You know it. Can you explain it?".
 const SITE_URL = "https://www.willpowerlab.com";
-const SITE_TITLE = "WillpowerLab - Your best talk, in your own words";
+const SITE_TITLE = "WillpowerLab - You know it. Can you explain it?";
 const SITE_DESCRIPTION =
   "Record your talk three times. WillpowerLab gives you the ideal text of your presentation, in your own words, and shows you which moments landed best.";
 

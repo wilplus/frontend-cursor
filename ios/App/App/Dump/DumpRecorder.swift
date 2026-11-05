@@ -23,8 +23,10 @@ final class DumpRecorder {
     /// When the screen appears: makes the first tap start fast. The session
     /// is only made active on the first tap, so music isn't cut on opening.
     func prepare() {
+        let bluetooth: AVAudioSession.CategoryOptions
+        if #available(iOS 26.0, *) { bluetooth = .allowBluetoothHFP } else { bluetooth = .allowBluetooth }
         try? AVAudioSession.sharedInstance().setCategory(
-            .playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker, .allowBluetooth])
+            .playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker, bluetooth])
     }
 
     /// The mic permission, asked the first time only (the app already asks it

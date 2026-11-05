@@ -32,6 +32,7 @@ import { ChatLink, ChatLinks, TapRow } from "./WillQuestion";
 import type { IdealTextPast } from "@/lib/willab/pastIdealText";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 import NextTakeShareScreen from "./NextTakeShareScreen";
+import TakeMatchSuggestion from "./TakeMatchSuggestion";
 import type { ShareLineChange } from "@/lib/willab/walkThread";
 
 /* -------------------------------------------------------------------------- */
@@ -469,6 +470,12 @@ function renderBestPresentationReportCard(
 // insight card stays a read-only note. FE-E — the recording bubble opens its
 // OWN take's feedback page (metadata carries arc_id + session_id since the
 // draft was extended); legacy rows without arc_id stay plain history.
+/** The match suggestion for the latest Take, when it has one. */
+function TakeMatchFor({ change }: { change?: ShareLineChange | null }) {
+  if (!change?.takeSessionId) return null;
+  return <TakeMatchSuggestion takeSessionId={change.takeSessionId} takeCount={change.takeIndex ?? null} />;
+}
+
 function renderInsightOrRecordingSummaryReportCard(
   message: LoungeMessage,
   onOpenFeedback?: (target: FeedbackBubbleTarget) => void,
@@ -566,6 +573,9 @@ function renderInsightOrRecordingSummaryReportCard(
           the question asked before it leaves no bubbles of its own. On the
           latest Take it opens the sharing screen to change it (N309 item 5). */}
       {shareLine ? <ShareLine line={shareLine} change={shareChange} /> : null}
+      {/* The latest Take only: someone new who fits it, asked once after the
+          walk (N476 item 2, N477, N512). Nothing shows while it is off. */}
+      <TakeMatchFor change={shareChange} />
     </div>
   );
 }

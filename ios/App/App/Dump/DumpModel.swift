@@ -106,11 +106,10 @@ final class DumpModel: ObservableObject {
 
     private func keepInBackground() {
         guard listening else { return }
-        let app = UIApplication.shared
-        var id = UIBackgroundTaskIdentifier.invalid
-        id = app.beginBackgroundTask { app.endBackgroundTask(id) }
+        // A moment of background time to close the file and write its note.
+        let task = BackgroundTask()
         keep()
-        app.endBackgroundTask(id)
+        task.end()
     }
 
     private func startClock() {
@@ -123,4 +122,19 @@ final class DumpModel: ObservableObject {
 
     private func tick() { Self.haptic() }
     private static func haptic() { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
+}
+
+/// A short background task that ends itself if iOS runs out of time.
+private final class BackgroundTask {
+    private var id = UIBackgroundTaskIdentifier.invalid
+
+    init() {
+        id = UIApplication.shared.beginBackgroundTask { [weak self] in self?.end() }
+    }
+
+    func end() {
+        guard id != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(id)
+        id = .invalid
+    }
 }

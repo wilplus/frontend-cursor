@@ -7,7 +7,8 @@ in `wilplus/backend-cursor`. In short, the simplest thing that works:
 
 1. The next Take answers whether the feedback helped.
 2. "Did this feedback help you?" is asked only when something looks off.
-3. The founder reads the answers in a weekly note in their chat.
+3. Retired (founder, 2026-11-05): no weekly note in the founder's chat;
+   the notes already there are hidden.
 4. A goal is tracked in words in every summary; no goals screen.
 5. Notifications only when the other person must know, in the chat only.
 6. Everyone gets it; no test group.

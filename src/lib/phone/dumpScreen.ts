@@ -14,6 +14,7 @@ import { openFirst } from "@/lib/willab/dumpScreen";
 
 interface DumpScreenNative {
   configure(o: { enabled: boolean; openFirst: boolean }): Promise<void>;
+  open(): Promise<{ opened?: boolean }>;
   close(): Promise<void>;
   addListener(e: "kept", fn: () => void): Promise<{ remove: () => Promise<void> }>;
 }
@@ -36,6 +37,17 @@ export async function syncApp(ringOn: boolean): Promise<{ consented: boolean } |
   const enabled = ringOn && state?.enabled === true && state.consented === true;
   await DumpScreen.configure({ enabled, openFirst: openFirst() }).catch(() => undefined);
   return { consented: state?.consented === true };
+}
+
+/** Opens the app's own screen; false when it could not (no plugin, or the
+ *  app has not heard the screen is on), so the web screen opens instead. */
+export async function openNativeDump(): Promise<boolean> {
+  if (!nativeDump()) return false;
+  try {
+    return (await DumpScreen.open()).opened === true;
+  } catch {
+    return false;
+  }
 }
 
 /** A tapped notification opens its page: the native screen gets out of the way. */

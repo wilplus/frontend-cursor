@@ -80,6 +80,12 @@ OUTCOME
       before I have left one, it does nothing (N378, N436).
   O18 An answer the backend refused stays in the bar's middle, "Not sent"
       with "Send again", which sends the same Take (N441 item 1).
+  O23 A matched Take that reached me (N485, N486, N493) is its own row in
+      the list under the pseudonym, "Asks you about {topic}", new; opened,
+      it shows who asks and what about, never a name, with "Open Take" in
+      the bar; Open Take shows the name and the Take with "Record your
+      answer", which answers it over its slides as an inquiry; "Not now"
+      removes it and tells nobody.
   O22 A Take someone sent me (N470, N479) is their message: "{name} sent
       you Take {n}" with the Take's tile, its first slide and no play mark
       (N493 item 6), already open: its recording, and its words slide by
@@ -153,6 +159,7 @@ vi.mock("../useSignedIn", () => ({ useSignedIn: () => session.signedIn }));
 import { resetRingStateCache } from "@/services/api/rings";
 import { __resetBootPrefetchForTests, prefetchChatsDoor } from "@/services/api/bootPrefetch";
 import { useChatsDoor } from "./useChatsDoor";
+import { getAuthToken } from "@/lib/api/auth-client";
 import { UNDO_MS, answerRecorded, answerTake, forgetAnswers, startAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
 import { JoinSetupBubble, joinSetupOf, useJoinSetup } from "./JoinSetup";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -797,6 +804,52 @@ describe("the chats in front of the Lounge", () => {
     });
   }
 
+  it("as a user, my list from last time draws at once, then the fresh one; signed out, it is gone", async () => {
+    const tokenOf = (sub: string) => `h.${btoa(JSON.stringify({ sub }))}.s`;
+    vi.mocked(getAuthToken).mockImplementation(async () => tokenOf("u-me"));
+    try {
+      // The first open: the list is read and kept.
+      backend([]);
+      routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
+      await render();
+      expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-sarah"]);
+      act(() => root.unmount());
+      root = createRoot(container);
+
+      // The next open: the kept list stands while the read has not answered.
+      let answerChats: () => void = () => {};
+      const list = new Promise<void>((resolve) => (answerChats = resolve));
+      fetchMock.mockImplementation(async (url: string) => {
+        if (String(url) !== "/api/v2/chats") return reply({ error: "not found" }, 404);
+        await list;
+        return reply({ chats: [ARIEL, SARAH] });
+      });
+      await render();
+      expect(container.querySelector("[data-chats-waiting]")).toBeNull();
+      expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-sarah"]);
+      await act(async () => answerChats());
+      await flush();
+      expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "c-ariel", "c-sarah"]);
+      act(() => root.unmount());
+      root = createRoot(container);
+
+      // Someone else on this browser never sees it.
+      vi.mocked(getAuthToken).mockImplementation(async () => tokenOf("u-other"));
+      fetchMock.mockImplementation(() => new Promise(() => {}));
+      await render();
+      expect(container.querySelector("[data-chats-waiting]")).not.toBeNull();
+      act(() => root.unmount());
+      root = createRoot(container);
+
+      // Signed out, nothing stays behind.
+      session.signedIn = false;
+      await render();
+      expect(window.localStorage.getItem("willab.chats.list")).toBeNull();
+    } finally {
+      vi.mocked(getAuthToken).mockImplementation(async () => "t");
+    }
+  });
+
   it("an answer sent to me plays with its slides following the voice, its words behind Read it", async () => {
     const players: { currentTime: number; ontimeupdate: (() => void) | null; onended: (() => void) | null }[] = [];
     vi.stubGlobal(
@@ -1087,6 +1140,53 @@ describe("the chats in front of the Lounge", () => {
     const mine = container.querySelector('[data-row="me"] [data-take-tile]');
     expect(mine?.textContent).toContain("Take 4");
     expect(container.textContent).not.toContain("Sent to Amira Haddad");
+  });
+
+  it("a matched Take knocks as its own chat: Open Take shows who, Not now removes it", async () => {
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
+    const outside = { id: "m1", state: "new", pseudonym: "Bright Finch", role: "Sales lead", about: "opening an investor pitch", sent_at: "2026-11-04T11:05:00Z" };
+    let inside: Record<string, unknown> = outside;
+    routes.set("GET /api/v2/take-matches/inquiries", () => ({ inquiries: [inside] }));
+    routes.set("GET /api/v2/take-matches/m1", () => ({ match: inside }));
+    routes.set("POST /api/v2/take-matches/m1/accept", () => {
+      inside = { ...outside, state: "opened", name: "Amira", words: "Why now.\n\nThe first number.", slide_titles: ["Why now", "The first number"], duration_ms: 161_000 };
+      return { match: inside };
+    });
+    const declined: string[] = [];
+    routes.set("POST /api/v2/take-matches/m1/decline", () => {
+      declined.push("m1");
+      return { match: { id: "m1", status: "declined" } };
+    });
+    recordedAnswers.length = 0;
+    await render();
+
+    const knock = row("inquiry:m1");
+    expect(knock?.textContent).toContain("Bright Finch");
+    expect(lastLineOf("inquiry:m1")).toBe("Asks you about opening an investor pitch");
+    expect(knock?.hasAttribute("data-chat-new")).toBe(true);
+    await tap(knock);
+    const screen = () => container.querySelector("[data-inquiry]")!;
+    expect(screen().textContent).toContain("Bright Finch is asking for what you know. Your answer starts a knowledge base you build together.");
+    expect(screen().textContent).toContain("It's about opening an investor pitch.");
+    expect(screen().textContent).not.toContain("Amira");
+    expect(screen().querySelector("[data-chat-record-answer]")).toBeNull();
+
+    await tap(screen().querySelector("[data-inquiry-open-take]"));
+    await flush();
+    expect(screen().textContent).toContain("Amira");
+    expect(screen().querySelector("[data-chat-take-open]")).not.toBeNull();
+    await tap(screen().querySelector("[data-chat-record-answer]"));
+    expect(recordedAnswers).toEqual([
+      { chatId: "inquiry:m1", name: "Amira", question: "opening an investor pitch", customer: false, slides: ["Why now", "The first number"], inquiry: "m1" },
+    ]);
+
+    inside = { ...inside, state: "declined" };
+    routes.set("GET /api/v2/take-matches/inquiries", () => ({ inquiries: [] }));
+    await tap(screen().querySelector("[data-chat-not-now] button"));
+    await flush();
+    expect(declined).toEqual(["m1"]);
+    expect(row("inquiry:m1")).toBeNull();
   });
 
   it("their newest Take asks for an answer over its own slides, and Not now leaves it", async () => {

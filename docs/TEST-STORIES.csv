@@ -163,15 +163,16 @@ O5  A re-review piece still says so on its write.","O1, O2 -> ""opens on the Jud
 O3     -> ""an answer writes the ternary body only, then moves on in payload order""
 O4     -> ""after the last unlabelled piece the sheet closes, back on the workbench""
 O5     -> ""a re-review piece says so on its write""","Never-2; founder 2026-09-30 B9 / P2-16 (""one instrument in the product; the workbench's own chrome is deleted"")."
-src/components/AppMenu.test.tsx,Story,"As someone signed in, I want the ☰ menu to hold only what I need, with my own link at the top, so that bringing someone in is one tap (backend N367, N196, N365).","O1  Signed in, the menu reads: my name and email (opening my profile),
+src/components/AppMenu.test.tsx,Story,"As someone signed in, I want the ☰ menu to hold only what I need, with my own link at the top, so that bringing someone in is one tap (backend N367, N196, N365, N495).","O1  Signed in, the menu reads: my name and email (opening my profile),
 Copy my link, Settings, Tokens with the balance, then Sign out. No
 Lab, no Log out.
 O2  Copy my link copies the whole link and says ""✓ Copied"".
-O3  In the iPhone app, Tokens shows the balance and is not a link (no link
-to buy in the app, N365 item 1); on the web it opens the pricing page.
+O3  Tokens shows the balance and opens the Tokens page, on the web and in
+the iPhone app alike (N495; in the app that page has no way to buy,
+N365 item 1).
 O4  Signed out (the blog), the menu is Lab and Log in, as before.","O1 -> ""signed in, the menu is me, Copy my link, Settings, Tokens and Sign out""
 O2 -> ""Copy my link copies the whole link""
-O3 -> ""in the iPhone app Tokens is not a link; on the web it is""
+O3 -> ""Tokens shows the balance and opens the Tokens page""
 O4 -> ""signed out, the menu is Lab and Log in""",
 src/components/account/AccountSignInCard.test.tsx,Story,"As a speaker, I want to change my email and my password on Data & consent, and get a link when I forgot the password, so that I keep my account when I lose an address or a password (backend N190).","O1  Change email sends the new address and my current password; the card
 then says the link went and the email changes when I open it. A wrong
@@ -456,6 +457,14 @@ O4  A project with an open deletion request is locked, with no menu.","O1 -> ""o
 O2 -> ""archives at once and the row leaves the list""
 O3 -> ""a failed archive says so and keeps the row""
 O4 -> ""is locked and has no menu""",Founder 2026-09-26 (N14): deleting moved to Data & consent.
+src/components/willab/TakeMatchSuggestion.test.tsx,Story,"As a speaker after my Take, I want to be offered, once, someone new who fits it, by a pseudonym and their role and never a name, so that I can send it to them too or say Not now, and I never want it to stand in front of my walk.","O1  With a suggestion for my Take and no walk screen up, the page opens:
+""Someone new might be a good match for this Take."", ""{Pseudonym}
+works on what you're practising. You could learn from each other.
+Send it to them too?"", the pseudonym, the role and ""Not in your chats
+yet""; Send sends it and closes the page (N477, N478 item 1, N512).
+O2  Not now closes it on the backend and the page; it is not asked again
+for that Take. While a walk screen is up, it waits.","O1 -> ""a suggestion opens once the walk is gone, and Send sends it""
+O2 -> ""Not now closes it, and the same Take is not asked again""","Founder 2026-11-04, backend N476 item 2, N477, N478, N512 (the words, ""Use the prototype's""); the prototype ""The Official Inquiry""."
 src/components/willab/TranscriptReviewDeck.test.tsx,Story,"As a speaker, I want my own words shown per slide, each paragraph its own block, and no scores, so that the Ideal Text is mine and judged in words.","O1  Every slide's words are shown unchanged, one paragraph block per
 slide, holding exactly that slide's words.
 O2  Never-1: a paragraph with feedback waiting paints no number or badge
@@ -463,6 +472,8 @@ beside the words (its block holds the speaker's words and nothing else).
 O3  Never-1: nothing on the deck reads as a score, ratio, percentage or
 verdict, while the speaker's words are on screen.","O1, O2 -> ""shows the speaker's own words, one block per slide, unchanged""
 O3     -> ""renders no score, ratio, percentage or verdict, even with a tentative pending item""","Never-1. The per-paragraph lock button is gone from the page (lock 2026-10-12, section 4): a paragraph is the tap target and the lock lives in its sheet, so no lock-control count is pinned here."
+src/components/willab/VoiceAlbumMoment.test.tsx,Story,"As a speaker opening a moment in my Voice Album, I want to see the whole history behind it, so that I can see where it came from.","O1  Opening History loads the moment's history and shows its events;
+it never stays on the spinner once the history has arrived.","O1 -> ""opening History shows the history's events""","Founder 2026-09-18: ""I want the whole history"". An earlier build dropped the answer and spun forever."
 src/components/willab/WillQuestion.test.tsx,Story,"As a speaker in the Lounge after a Take, I want Will's one question to come with answers I can tap, or answer in my own words, so that I answer in a second and my next Take is never held up.","O1  While it is the newest bubble, the question shows its answers, the
 most likely last, nearest the thumb and filled (N371), and no Skip
 (N296: not answering is allowed); a tap goes to the backend
@@ -608,6 +619,12 @@ the browser's Forward on the web) opens the chat I just left again;
 before I have left one, it does nothing (N378, N436).
 O18 An answer the backend refused stays in the bar's middle, ""Not sent""
 with ""Send again"", which sends the same Take (N441 item 1).
+O23 A matched Take that reached me (N485, N486, N493) is its own row in
+the list under the pseudonym, ""Asks you about {topic}"", new; opened,
+it shows who asks and what about, never a name, with ""Open Take"" in
+the bar; Open Take shows the name and the Take with ""Record your
+answer"", which answers it over its slides as an inquiry; ""Not now""
+removes it and tells nobody.
 O22 A Take someone sent me (N470, N479) is their message: ""{name} sent
 you Take {n}"" with the Take's tile, its first slide and no play mark
 (N493 item 6), already open: its recording, and its words slide by
@@ -1522,8 +1539,10 @@ O2  After I answer, the chat lands on the newest bubble even when I had
 scrolled up (N319 item 9).","O1 -> ""a spoken answer already given stays as my bubble with its words""
 O2 -> ""after an answer the chat lands on the newest bubble""","N294 items 2 and 3 (the spoken answers kept); 2026-11-01 (N319): ""after the speaker answers, the chat moves to the new bubble""; 2026-11-04 (N483): no mic in any chat."
 src/components/willab/willabHelpers.test.ts,Story,"As a speaker, I want my slide taps lined up with the recording's clock, so that each word lands on the right slide.","O1  When the recording started later than the tap clock, the correction is positive by exactly that gap.
-O2  When the recording never reported a start, no correction is sent.","O1 -> is positive when the recorder started after the tap clock's zero
-O2 -> sends nothing when the recorder never reported a start",The backend subtracts this from every tap; the wrong sign would double the drift.
+O2  When the recording never reported a start, no correction is sent.
+O3  The founder's old weekly note (""Feedback, the last 7 days"") never shows in the chat with Will; Will's own words still do (founder 2026-11-05).","O1 -> is positive when the recorder started after the tap clock's zero
+O2 -> sends nothing when the recorder never reported a start
+O3 -> hides the old weekly note and nothing else",The backend subtracts this from every tap; the wrong sign would double the drift.
 src/components/willab/willabParked.test.ts,Story,"As a speaker, I want a Take I parked to come back intact, so that I can pick up where I left off.","O1  A parked readout survives a reload with all its fields.
 O2  A readout parked by an older app (no slide fields) comes back with
 safe defaults instead of crashing the resume.
