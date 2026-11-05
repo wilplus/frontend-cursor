@@ -534,8 +534,26 @@ The prototypes: <https://claude.ai/artifact/RY5gT9bg8xSpGvKiLVScsW>,
   release past 90 px opens it, no words. A pull in the thread still scrolls.
 - **T5 · Who has it (N507 item 3).** Ring rows `dump_screen` and
   `voice_notebook`, both at ring 2 (backend migration 0511).
-- **T6 · The iPhone app (N506 item 5).** The capture screen becomes native
-  there; the web owns the switch. Until then the app shows this web screen.
+- **T6 · The iPhone app (N506 item 5, N507 item 1).** The capture screen is
+  native there (`ios/App/App/Dump/`): it opens on launch before the website
+  has loaded, and only for someone whose notebook has its Yes; the first
+  time, with A5's introduction, stays on this web screen. The web owns the
+  switch and tells the app (`DumpScreenPlugin.configure`: ring row and Yes,
+  and "Open to the dump screen"); the pull down (T4) opens the app's screen
+  too. Same taps as T2, same words as K, same upload as B
+  (`POST /api/v2/notebook/notes`, its `key`), saved on the phone first and
+  sent in the background when it can; nothing goes while the web says it is
+  off. One light haptic tick the moment it starts listening, felt while
+  recording too (N519). Leaving the app, a call, or five minutes stops and
+  keeps. The live
+  words are Apple's on-device speech, a preview only: no audio is sent for
+  them, and with no on-device speech there are no words. Up to four lines
+  show, the newest at the bottom. When the backend has a dump the app tells
+  the web, and Will's chat reads it at once, so "Noted." shows without
+  waiting. Never opened by a
+  link or a notification (a tapped notification closes it). It opens first
+  on every open and every return to the front, online or offline (N522). The browser, the
+  home-screen app and an app without the plugin get this web screen.
 
 ---
 
@@ -545,7 +563,7 @@ One line per piece of work: `item · what it is · the rules it touches ·
 where it stands · PR`. The session doing it fills its line in its PR and
 deletes the line when the work is merged (the change goes to §6).
 
-- T6 · the native capture screen in the iPhone app · N506 item 5, N507 · the web's side ships here (the app hears the switch, "kept", a tapped notification closes it); the native screen waits in FE #1251 for the founder's build · FE #1251
+- T6 · the native capture screen in the iPhone app · N506 item 5, N507 · the web's side merged (FE #1261); the native screen built and run on the founder's iPhone, its two permission texts wait for the founder's signature · FE #1251
 
 ## 3. Still open
 
@@ -562,6 +580,10 @@ deletes the line when the work is merged (the change goes to §6).
   `src/services/api/voiceNotebook.ts`, `src/app/api/v2/notebook/`; written
   as it is said (B): `src/lib/willab/liveNoteWords.ts` and the phone's
   outbox `src/lib/willab/voiceNoteOutbox.ts`.
+- The dump screen (T): the web `src/lib/willab/dumpScreen.ts`,
+  `src/components/willab/DumpScreen*.tsx`, `DumpPullBar.tsx`; the iPhone
+  app `ios/App/App/Dump/`, `DumpScreenPlugin` in `WillpowerLabBridge.swift`,
+  `SceneDelegate.swift`; the web's side of the app `src/lib/phone/dumpScreen.ts`.
 - The Sunday note: backend `services/sunday_note.py`; frontend
   `src/app/api/v2/notebook/sunday/`.
 - What is in your control and the sales framing (O, P): backend
@@ -620,6 +642,8 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-05 · N506 item 5 · T6: the live words keep every piece (Apple's speech starts over after a pause), up to four lines, newest at the bottom; and when the backend has a dump, Will's chat reads it at once. Was: one line, and "Noted." waited for the chat's next reload · FE (this PR)
+- 2026-11-05 · N506 item 5, N507 · T6: the dump screen native in the iPhone app, the capture screen only: opens on launch before the website, for someone with the notebook's Yes; on-device live words; kept on the phone and sent in the background through the notebook's own upload. Was: the web screen in the app · FE (this PR)
 - 2026-11-05 · N522 · T4: the dump screen opens first on every open and every coming back to the app, online or offline. Was: at most once an hour. The Settings line is now "First thing when you open the app." (signed, N522 item 3) · BE #1765, FE (this PR)
 - 2026-11-05 · N517 · T4: the pull opens the dump screen at once: the notebook is read when the chat opens, not when the pull is let go. Was: a round trip to the server between letting go and the screen · FE (this PR)
 - 2026-11-05 · N506 item 3 · T6: a read that fails (no network, a failed request) no longer tells the iPhone app the dump screen is off; the app keeps what it last heard, so offline it still opens and keeps what is said. Was: one failed read switched it off until the next good load · FE (this PR)

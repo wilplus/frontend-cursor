@@ -8,6 +8,7 @@ import UIKit
 class WillpowerLabViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(AppleSignInPlugin())
+        bridge?.registerPluginInstance(DumpScreenPlugin())
     }
 }
 
@@ -67,5 +68,58 @@ public class AppleSignInPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationCont
         pending = nil
         let canceled = (error as? ASAuthorizationError)?.code == .canceled
         call.reject(error.localizedDescription, canceled ? "CANCELED" : "FAILED", error)
+    }
+}
+
+/// The dump screen, native (backend N506 item 5, N507). The web owns the
+/// switch: it tells the app whether the screen is on for this person (the
+/// ring row `dump_screen`, the notebook's Yes, and "Open to the dump screen")
+/// and hears "kept" to show "Kept". The screen itself: Dump/.
+@objc(DumpScreenPlugin)
+public class DumpScreenPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "DumpScreenPlugin"
+    public let jsName = "DumpScreen"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "configure", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "open", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "close", returnType: CAPPluginReturnPromise),
+    ]
+
+    override public func load() {
+        DumpPresenter.plugin = self
+    }
+
+    @objc func configure(_ call: CAPPluginCall) {
+        DumpGate.configure(enabled: call.getBool("enabled") ?? false,
+                           openFirst: call.getBool("openFirst") ?? false)
+        DumpOutbox.shared.sendAll()   // signed in now: send what waited
+        call.resolve()
+    }
+
+    @objc func open(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard DumpGate.enabled, let scene = self.bridge?.viewController?.view.window?.windowScene else {
+                call.resolve(["opened": false])
+                return
+            }
+            DumpPresenter.present(in: scene)
+            call.resolve(["opened": true])
+        }
+    }
+
+    /// The web opened a page a notification named: the screen gets out of the way.
+    @objc func close(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { DumpPresenter.closeIfShowing() }
+        call.resolve()
+    }
+
+    /// A dump reached the backend: the web reads Will's chat again.
+    func sent() {
+        notifyListeners("sent", data: [:])
+    }
+
+    func kept() {
+        // Kept until the web listens, in case it has not loaded yet.
+        notifyListeners("kept", data: [:], retainUntilConsumed: true)
     }
 }
