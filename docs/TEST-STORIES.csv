@@ -166,12 +166,15 @@ O5     -> ""a re-review piece says so on its write""","Never-2; founder 2026-09-
 src/components/AppMenu.test.tsx,Story,"As someone signed in, I want the ☰ menu to hold only what I need, with my own link at the top, so that bringing someone in is one tap (backend N367, N196, N365, N495).","O1  Signed in, the menu reads: my name and email (opening my profile),
 Copy my link, Settings, Tokens with the balance, then Sign out. No
 Lab, no Log out.
-O2  Copy my link copies the whole link and says ""✓ Copied"".
+O2  Copy my link opens ""Add someone to chat with"" (N530 item 1; was: it
+copied at once): Copy my link there copies the whole link; its small
+switch, ""Put this chat on your website"", turns it into the line of code
+for a site, with my link's token, and Copy my code copies that.
 O3  Tokens shows the balance and opens the Tokens page, on the web and in
 the iPhone app alike (N495; in the app that page has no way to buy,
 N365 item 1).
 O4  Signed out (the blog), the menu is Lab and Log in, as before.","O1 -> ""signed in, the menu is me, Copy my link, Settings, Tokens and Sign out""
-O2 -> ""Copy my link copies the whole link""
+O2 -> ""Copy my link opens the sheet, with the link or the line of code""
 O3 -> ""Tokens shows the balance and opens the Tokens page""
 O4 -> ""signed out, the menu is Lab and Log in""",
 src/components/account/AccountSignInCard.test.tsx,Story,"As a speaker, I want to change my email and my password on Data & consent, and get a link when I forgot the password, so that I keep my account when I lose an address or a password (backend N190).","O1  Change email sends the new address and my current password; the card
@@ -545,6 +548,14 @@ O2  On mine, the pencil opens my About to type in; Save keeps it and says
 O3  On mine, Edit turns my name and who I am into fields; Done keeps them.","O1 -> ""their profile shows who they are and what we shared, and cannot be edited""
 O2 -> ""the pencil edits my About and Save keeps it""
 O3 -> ""Edit changes my name and role, Done keeps them""",
+src/components/willab/chats/WidgetChat.test.tsx,Story,"As a customer on someone's website, I want to ask them with a few taps and hear their answer there, without an account (backend N530).","O1  The pill reads ""Ask {name}""; opened, nothing is sent until I tap
+""Agree and start"", and then my chat is kept in this browser.
+O2  I tap the owner's question, then one of the three questions; the
+chat then says the owner answers out loud and to come back, and the
+questions wait.
+O3  ""Keep this chat"" opens the join page in a new tab, carrying my chat.","O1 -> ""the pill asks, and nothing is sent before Agree and start""
+O2 -> ""I tap through the owner's question and ask one of three""
+O3 -> ""Keep this chat opens the join page with my chat""",
 src/components/willab/chats/chats.test.tsx,Story,"As a user, I want to land on my list of chats, with Will first, on the web and in the iPhone app, so that I can open Will's chat or a colleague's or a customer's, answer with an emoji or by recording my answer, and start something new with a photo or a file (backend N456: the default for everyone, everywhere; was ring 6 only).","O1  As a visitor who is not signed in, nothing is drawn around the Lounge
 and no chat is read (Never 3).
 O19 As a user with no ring at all, signed in, I land on the list of
@@ -572,8 +583,9 @@ control that plays it from the chat's audio route (N321 item 2); its
 words, once ready, are closed behind ""Read it"" under the player, and
 ""Hide"" closes them again (N331).
 O8  The + on the list opens my own link, with the add sheet's signed
-words and its three steps, and Copy my link puts the whole link on
-the clipboard and says ""✓ Copied"" (N308, N310, N367).
+words and ""Only the two of you are in it."" (N530 item 1; was: three
+steps), and Copy my link puts the whole link on the clipboard and says
+""✓ Copied"" (N308, N310, N367).
 O9  In a chat I joined through someone's link, one line above the
 messages says whose link it was (N496, replacing N335 item 2's), and
 its row in the list keeps that line until the first message (N488); a

@@ -30,7 +30,14 @@ function generateNonce(): string {
 /** Exported for `csp.test.ts`. The policy is the single piece of this file
  *  that can take every route down at once, so it is worth asserting directly
  *  rather than only through a running browser. */
-export function getCspDirectives(nonce: string): string {
+/** Your chat on any website (backend N530): the widget's page, `/w/<token>`,
+ *  is the one page any site may frame; every other page may be framed by
+ *  none. */
+export function framedAnywhere(pathname: string): boolean {
+  return /^\/w\/[^/]+\/?$/.test(pathname);
+}
+
+export function getCspDirectives(nonce: string, pathname = ""): string {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const isDev = process.env.NODE_ENV === "development";
@@ -143,7 +150,7 @@ export function getCspDirectives(nonce: string): string {
   return [
     "default-src 'self'",
     "base-uri 'self'",
-    "frame-ancestors 'none'",
+    framedAnywhere(pathname) ? "frame-ancestors *" : "frame-ancestors 'none'",
     "object-src 'none'",
     "form-action 'self'",
     `connect-src ${connectSrc.join(" ")}`,
@@ -252,7 +259,7 @@ export async function middleware(req: NextRequest) {
   }
 
   const nonce = generateNonce();
-  const cspDirectives = getCspDirectives(nonce);
+  const cspDirectives = getCspDirectives(nonce, pathname);
 
   // An OAuth / recovery answer that Supabase sent to its Site URL (or
   // /dashboard, /chat) instead of the redirectTo it was given — see
