@@ -1,7 +1,7 @@
 import XCTest
 @testable import App
 
-/// When the dump screen opens first (backend N506 item 4, N521): every open,
+/// When the dump screen opens first (backend N506 item 4, N522): every open,
 /// never from a link or a notification, never when the web says it is off.
 final class DumpGateTests: XCTestCase {
     override func setUp() {
