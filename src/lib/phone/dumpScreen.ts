@@ -16,7 +16,7 @@ interface DumpScreenNative {
   configure(o: { enabled: boolean; openFirst: boolean }): Promise<void>;
   open(): Promise<{ opened?: boolean }>;
   close(): Promise<void>;
-  addListener(e: "kept", fn: () => void): Promise<{ remove: () => Promise<void> }>;
+  addListener(e: "kept" | "sent", fn: () => void): Promise<{ remove: () => Promise<void> }>;
 }
 const DumpScreen = registerPlugin<DumpScreenNative>("DumpScreen");
 
@@ -61,7 +61,16 @@ export function closeNativeDump(): void {
 
 /** "Kept" from the native screen. Returns the cleanup. */
 export function onNativeKept(fn: () => void): () => void {
+  return listen("kept", fn);
+}
+
+/** A native dump reached the backend, which wrote "Noted.". Returns the cleanup. */
+export function onNativeSent(fn: () => void): () => void {
+  return listen("sent", fn);
+}
+
+function listen(event: "kept" | "sent", fn: () => void): () => void {
   if (!nativeDump()) return () => {};
-  const handle = DumpScreen.addListener("kept", fn);
+  const handle = DumpScreen.addListener(event, fn);
   return () => void handle.then((h) => h.remove()).catch(() => undefined);
 }

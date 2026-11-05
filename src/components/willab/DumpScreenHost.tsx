@@ -6,7 +6,8 @@ import { useRingState } from "@/hooks/useRingState";
 import { EMPTY_RING_STATE } from "@/services/api/rings";
 import { getNotebookState, type NotebookState } from "@/services/api/voiceNotebook";
 import { DUMP_COPY, DUMP_FEATURE, openFirst, setDumpOpener, setOpenFirst } from "@/lib/willab/dumpScreen";
-import { nativeDump, onNativeKept, openNativeDump, syncApp } from "@/lib/phone/dumpScreen";
+import { nativeDump, onNativeKept, onNativeSent, openNativeDump, syncApp } from "@/lib/phone/dumpScreen";
+import { LOUNGE_THREAD_MERGED_EVENT } from "@/lib/funnel/loungeLocalThread";
 
 /* -------------------------------------------------------------------------- */
 /*  When the dump screen opens first (backend N506 item 4, N522): only on a  */
@@ -49,6 +50,9 @@ export default function DumpScreenHost({ plain }: { plain: boolean }) {
   }, [ringKnown, on]);
 
   useEffect(() => onNativeKept(() => setKeptNote(true)), []);
+  // A native dump reached the backend: Will's chat reads it now, so its
+  // "Noted." shows without waiting for the next reload.
+  useEffect(() => onNativeSent(() => window.dispatchEvent(new Event(LOUNGE_THREAD_MERGED_EVENT))), []);
 
   useEffect(() => {
     if (!on) return;
