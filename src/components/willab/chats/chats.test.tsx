@@ -115,6 +115,9 @@ OUTCOME
       "Change it" and "That's right"; "You're set." ends with "Copy my
       link ›" and "Your questions for people who join ›". After the setup,
       the + opens my link as before (O8).
+  O25 While the list (or a chat, or the loader) covers Will's chat, the
+      slide previews on his cards wait, so pdf.js and the decks are not
+      downloaded behind the list; they draw once his chat is open.
 PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read"
          O19 -> "as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar"
          O20 -> "as a developer, a chats row in the rings, on or off, changes nothing"
@@ -138,6 +141,7 @@ PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is 
          O21 -> "from their profile I block them, the bar says so with Unblock, and Report and block reports with the block"
          O23 -> "the questions of the one who invited me are answered by tapping, and they read one card"
          O24 -> "the first time I add someone, Will's chat opens on his setup, answered by tapping"
+         O25 -> "the slides on Will's cards wait while the list covers his chat, and draw once it is open"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -162,6 +166,7 @@ import { useChatsDoor } from "./useChatsDoor";
 import { getAuthToken } from "@/lib/api/auth-client";
 import { UNDO_MS, answerRecorded, answerTake, forgetAnswers, startAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
 import { JoinSetupBubble, joinSetupOf, useJoinSetup } from "./JoinSetup";
+import { useWillChatInView } from "./willChatInView";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -210,7 +215,9 @@ function Lounge() {
     counted.current = true;
     loungeMounts += 1;
   }
-  return createElement("div", { "data-testid": "lounge" }, "The Lounge");
+  // What his cards' slide previews wait for (IdealTextCard).
+  const inView = useWillChatInView();
+  return createElement("div", { "data-testid": "lounge", "data-will-in-view": String(inView) }, "The Lounge");
 }
 
 /** As WillabSurface draws it: the WillpowerLab bar (hidden as the door
@@ -307,6 +314,18 @@ describe("the chats in front of the Lounge", () => {
       root = createRoot(container);
     }
     expect(landing).toEqual([["will", "c-sarah"], ["will", "c-sarah"]]);
+  });
+
+  it("the slides on Will's cards wait while the list covers his chat, and draw once it is open", async () => {
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
+    const inView = () => container.querySelector("[data-testid=lounge]")?.getAttribute("data-will-in-view");
+    await render();
+    expect(inView()).toBe("false");
+    await tap(row("will"));
+    expect(inView()).toBe("true");
+    await tap(container.querySelector("[data-chat-header] button"));
+    expect(inView()).toBe("false");
   });
 
   it("with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back", async () => {

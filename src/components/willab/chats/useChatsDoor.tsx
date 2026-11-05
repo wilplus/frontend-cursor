@@ -13,6 +13,7 @@ import { backDismissDepth, useBackStop } from "../useBackDismiss";
 import { useEdgeSwipe } from "./useEdgeSwipe";
 import { useUserProfile } from "../useUserProfile";
 import { afterChatBoot } from "@/lib/chatBoot";
+import { setWillChatCovered } from "./willChatInView";
 
 // A person's chat opens on a tap, and only a coach has the queue's row: off
 // the boot bundle. A chat's code is fetched once Will's thread has painted
@@ -171,6 +172,11 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
   // a newcomer gets no demo chats (backend N401).
   const waiting = decided === null || (on && !chats);
   const closed = !on || !chats;
+  // What stands in front of Will's chat (the loader, the list or a chat),
+  // for his cards' slide previews (willChatInView.ts).
+  const covering = view.at !== "will" && (waiting || !closed);
+  useEffect(() => setWillChatCovered(covering), [covering]);
+  useEffect(() => () => setWillChatCovered(false), []);
   // Open, the list is the bottom of /chat: Back never goes past it (N378).
   useBackStop(!closed);
   // A chat going out to the right after Back, still drawn while it slides.
