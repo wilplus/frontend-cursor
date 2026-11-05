@@ -316,6 +316,7 @@ export default function SignupForm({ onSuccess, skipProviderPicker, waitlist = f
           <label className="mb-2 block text-sm font-medium">Name</label>
           <Input
             type="text"
+            autoComplete="name"
             placeholder="Your name"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -327,6 +328,7 @@ export default function SignupForm({ onSuccess, skipProviderPicker, waitlist = f
           <label className="mb-2 block text-sm font-medium">Email</label>
           <Input
             type="email"
+            autoComplete="username"
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -338,6 +340,7 @@ export default function SignupForm({ onSuccess, skipProviderPicker, waitlist = f
           <label className="mb-2 block text-sm font-medium">Password</label>
           <Input
             type="password"
+            autoComplete="new-password"
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -351,6 +354,7 @@ export default function SignupForm({ onSuccess, skipProviderPicker, waitlist = f
           </label>
           <Input
             type="password"
+            autoComplete="new-password"
             placeholder="••••••••"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}

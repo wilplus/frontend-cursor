@@ -293,6 +293,7 @@ export default function UpdatePasswordForm() {
           <label className="mb-2 block text-sm font-medium">New Password</label>
           <Input
             type="password"
+            autoComplete="new-password"
             placeholder="Enter new password (min. 6 characters)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -305,6 +306,7 @@ export default function UpdatePasswordForm() {
           <label className="mb-2 block text-sm font-medium">Confirm Password</label>
           <Input
             type="password"
+            autoComplete="new-password"
             placeholder="Confirm new password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}

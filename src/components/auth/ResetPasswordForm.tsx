@@ -82,6 +82,7 @@ export default function ResetPasswordForm() {
           <label className="mb-2 block text-sm font-medium">Email</label>
           <Input
             type="email"
+            autoComplete="username"
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
