@@ -1024,6 +1024,8 @@ after the first read and two retries.
 O3  Take 1 has no helper words, does not read them, and starts at once.","O1 -> ""a good read shows the words on the first frame""
 O2 -> ""still starts within 1.5 s when the read fails every time""
 O3 -> ""Take 1 starts at once, without a read""","Build plan D-RC-4: the words used to land a moment after the first slide. The host is LabOverlay's wiring in miniature (real hook, real auto-start, real recording phase)."
+src/components/willab/loadEarlierMessages.test.tsx,Story,"As a speaker reading back through my chat, I want older messages to come in above what I am reading, so that ""Load earlier messages"" never throws me back to the bottom.","O1  Older messages put above the chat leave the bubble I was reading
+where I saw it; only a new message moves the chat to the bottom.","O1 -> ""older messages come in above what is read; a new one lands at the bottom""","Founder 2026-09-28: ""Only a new message moves the thread; reading history otherwise stays where it is."" The chat took a page of older messages for a new bubble and jumped to the bottom."
 src/components/willab/loungeGuestHello.test.ts,Story,"As a visitor who has not signed in or recorded yet, I want Will to answer my first message with a hello and a way to record, so that the chat does not look broken and I know what to do next.","O1  A refused chat turn (no processing agreement yet) for a signed-out
 visitor with no project gets Will's hello and ""Start your first
 recording"" under it, never the lab error.
@@ -1347,7 +1349,14 @@ O3 -> ""keeps a Take failed when the server says it failed""
 O4 -> ""is unknown when the answer has no known state and no content""",Founder 2026-09-21 (a red note stayed 9 min over a done Take) and 2026-09-24 (a failure card written without asking the server).
 src/components/willab/useLoungeThread.test.tsx,Story,"As a speaker, I want my chat to stay on screen when the app cannot reach the server for a moment, so that a weak signal after my walk never blanks my Takes, my Feedback walk or my history.","O1  The chat read again with no answer (the network down, a server
 error) keeps every message on screen; read again with an answer, it
-shows the server's thread.","O1 -> ""a failed read again keeps the chat on screen, an answered one replaces it""","The walk's end reads the chat again whatever the summary's answer (C9, D4, B8), and on a dropped connection that read fails too."
+shows the server's thread.
+O2  Opening the app with no answer from the server shows the wait, never
+an empty chat (a new speaker's hello), and my chat once a read again
+answers; the record bar is not held past that first read.
+O3  ""Load earlier messages"" with no answer keeps the button, so a tap
+asks again; answered, the older messages come in above.","O1 -> ""a failed read again keeps the chat on screen, an answered one replaces it""
+O2 -> ""an open with no answer waits and reads again, never an empty chat""
+O3 -> ""an older page with no answer keeps the button""","The walk's end reads the chat again whatever the summary's answer (C9, D4, B8), and on a dropped connection that read fails too. A returning speaker opening the iPhone app offline saw the new speaker's hello and thought their history was gone."
 src/components/willab/useReadoutPartHandlers.test.ts,Story,"As a speaker, I want Delete on the landing text to lift the paragraph's lock, and words from an earlier Take to save there too, so that the landing copy acts like the main page.","O1  Delete lifts the lock on that paragraph and the text is read again.
 O2  Never 5 (helper words stay until the speaker picks new ones): words
 picked from an earlier Take are saved on that paragraph, and its old

@@ -37,7 +37,15 @@ import { markChatBootSettled } from "@/lib/chatBoot";
 
 export interface UseLoungeThreadReturn {
   messages: LoungeMessage[];
+  /** True until the history's first page is in. A read with no answer
+   *  keeps it true (the typing dots), never an empty thread: an empty one
+   *  is a brand-new speaker's hello. */
   loading: boolean;
+  /** A read of the history at open went unanswered: it is read again on
+   *  its own (BOOT_RETRY_MS, then as the network or the app comes back),
+   *  and what only waits for its first answer (the record bar) waits no
+   *  longer. */
+  unanswered: boolean;
   loadingOlder: boolean;
   hasMore: boolean;
   /** Append a message (stamped here) to whichever store is active. */
@@ -49,8 +57,10 @@ export interface UseLoungeThreadReturn {
   appendLocalOnly: (draft: LoungeMessageDraft) => LoungeMessage;
   /** True → server-backed thread (BE can persist). False → localStorage only. */
   signedIn: boolean;
-  /** Page in the next-older window (server only; no-op when unsigned). */
-  loadOlder: () => Promise<void>;
+  /** Page in the next-older window (server only; no-op when unsigned).
+   *  `beforePrepend` runs just before the page is put above the thread. A
+   *  page with no answer changes nothing, so it can be asked for again. */
+  loadOlder: (beforePrepend?: () => void) => Promise<void>;
   /** Re-fetch the newest window — e.g. to pull a BE-appended insight ping (§6c). */
   reload: () => Promise<void>;
   /** Resolves once every append started so far is stored: a row the server
@@ -67,9 +77,15 @@ export interface UseLoungeThreadReturn {
   mergeFromLocal: () => Promise<void>;
 }
 
+/** The waits between reads of a history that had no answer at open; after
+ *  the last, the read is tried again at that pace while the app is in view,
+ *  and at once when the network or the app comes back. */
+export const BOOT_RETRY_MS = [2_000, 5_000, 15_000, 30_000] as const;
+
 export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
   const [messages, setMessages] = useState<LoungeMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unanswered, setUnanswered] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [writing, setWriting] = useState(false);
@@ -82,33 +98,63 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
 
   // Rehydrate on mount / auth change.
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      if (signedIn) {
-        // Usually already in flight since mount (bootPrefetch.ts).
-        const page = await takeLoungeHistory();
-        if (cancelled) return;
-        announceDiscoveriesFromPersistedMessages(page.messages);
-        setMessages(page.messages);
-        setHasMore(page.has_more);
-        oldestCursorRef.current = page.oldest_cursor;
-      } else {
-        const local = loadLocalLoungeThread();
-        if (cancelled) return;
-        setMessages(local);
-        setHasMore(false);
-        oldestCursorRef.current = null;
-      }
-      if (cancelled) return;
+    setLoading(true);
+    setUnanswered(false);
+    if (!signedIn) {
+      setMessages(loadLocalLoungeThread());
+      setHasMore(false);
+      oldestCursorRef.current = null;
       setLoading(false);
-      // The thread has painted: the reads that waited for it may start
-      // (the wallet chip, the menu's gates, the guest claim — chatBoot.ts).
       markChatBootSettled();
-    })();
-    return () => {
+      return;
+    }
+    let cancelled = false;
+    let reading = false;
+    let misses = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const stop = () => {
       cancelled = true;
+      clearTimeout(timer);
+      window.removeEventListener("online", again);
+      document.removeEventListener("visibilitychange", again);
     };
+    const read = async () => {
+      if (cancelled || reading) return;
+      reading = true;
+      clearTimeout(timer);
+      // Usually already in flight since mount (bootPrefetch.ts).
+      const page = await takeLoungeHistory();
+      reading = false;
+      if (cancelled) return;
+      // The first read has come back, answered or not: the reads that
+      // waited for it may start (the wallet chip, the menu's gates, the
+      // guest claim — chatBoot.ts), as they always did.
+      if (misses === 0) markChatBootSettled();
+      if (page.failed) {
+        // NO ANSWER IS NOT AN EMPTY THREAD: a returning speaker offline
+        // would see the brand-new speaker's hello. The dots stay, and the
+        // history is read again.
+        setUnanswered(true);
+        timer = setTimeout(again, BOOT_RETRY_MS[Math.min(misses, BOOT_RETRY_MS.length - 1)]);
+        misses += 1;
+        return;
+      }
+      stop();
+      announceDiscoveriesFromPersistedMessages(page.messages);
+      setMessages(page.messages);
+      setHasMore(page.has_more);
+      oldestCursorRef.current = page.oldest_cursor;
+      setUnanswered(false);
+      setLoading(false);
+    };
+    // Not while the app is out of view: it reads again as it comes back.
+    function again() {
+      if (document.visibilityState !== "hidden") void read();
+    }
+    window.addEventListener("online", again);
+    document.addEventListener("visibilitychange", again);
+    void read();
+    return stop;
   }, [signedIn]);
 
   const append = useCallback(
@@ -152,14 +198,18 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     [],
   );
 
-  const loadOlder = useCallback(async () => {
+  const loadOlder = useCallback(async (beforePrepend?: () => void) => {
     if (!signedIn || loadingOlder || !hasMore) return;
     const cursor = oldestCursorRef.current;
     if (!cursor) return;
     setLoadingOlder(true);
     try {
       const page = await fetchLoungeHistory({ before: cursor });
+      // No answer says nothing about what is older: the button stays, and
+      // a tap asks again.
+      if (page.failed) return;
       announceDiscoveriesFromPersistedMessages(page.messages);
+      if (page.messages.length > 0) beforePrepend?.();
       // Older page is ASC; prepend ahead of the current window.
       setMessages((prev) => [...page.messages, ...prev]);
       setHasMore(page.has_more);
@@ -216,6 +266,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
   return {
     messages,
     loading,
+    unanswered,
     loadingOlder,
     hasMore,
     append,
