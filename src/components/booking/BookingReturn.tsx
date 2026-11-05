@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { readSession } from "@/lib/supabase/session";
 import { bookingUrl, readBookingReturn } from "@/lib/booking/returnTo";
 
 /** Side-effect only: a person who left the booking page to sign in or sign
@@ -16,8 +17,8 @@ export default function BookingReturn() {
     if (!pending) return;
     const supabase = createClient();
     const go = () => window.location.replace(bookingUrl(pending));
-    void supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.access_token) go();
+    void readSession().then((session) => {
+      if (session?.access_token) go();
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session?.access_token) go();

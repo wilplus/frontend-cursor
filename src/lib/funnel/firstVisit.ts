@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { readSession } from "@/lib/supabase/session";
 
 /* -------------------------------------------------------------------------- */
 /*  firstVisit — where people leave between the landing page and their first */
@@ -45,9 +45,9 @@ export function countFirstVisit(step: FirstVisitStep): void {
 export function countFirstVisitIfGuest(step: FirstVisitStep): void {
   if (typeof window === "undefined") return;
   try {
-    void createClient()
-      .auth.getSession()
-      .then(({ data: { session } }) => {
+    // The one shared read (lib/supabase/session.ts).
+    void readSession()
+      .then((session) => {
         if (!session?.access_token) countFirstVisit(step);
       })
       .catch(() => undefined);

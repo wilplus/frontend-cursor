@@ -1379,6 +1379,8 @@ O2  Never 5 (helper words stay until the speaker picks new ones): words
 picked from an earlier Take are saved on that paragraph, and its old
 in-text span is cleared only after the save succeeds.","O1 -> ""Delete lifts the lock on the paragraph""
 O2 -> ""words from an earlier Take save on the paragraph""",F1 Repair Plan Phase 5: the landing copy was missing these handlers.
+src/components/willab/useWillabFlow.chatBoot.test.tsx,Story,"As a speaker opening the chat, I want my conversation drawn before the menu's side lookups (the wallet, the Life gate, the product discoveries) go out, so that the chat appears fast (founder 2026-10-16, chatBoot.ts).","O1  The menu drawn with the chat while it opens waits for the thread to
+paint, though React runs the menu's effects before the chat's own.","O1 -> ""the menu drawn with the opening chat waits for the thread""",
 src/components/willab/useWillabFlow.test.ts,Story,"As a speaker, I want the app always to go record, then process, then Ideal Text, then the next Take, so that the loop never breaks.","O1  Starting, stopping and finishing processing lead to the readout;
 from there the next Take, a pause, or ""sign up to send"" (and on to
 review) are expected steps.","O1 -> ""is the record → process → Ideal Text loop""",Never 3; audit Q-C4.
@@ -1684,6 +1686,10 @@ O2 -> ""still allows the styles a dependency injects at runtime""",2026-08-04 ou
 src/lib/sse.test.ts,Story,"As a developer, I want processing updates read correctly however the network splits them, so that progress always reaches the speaker.","O1  An update split across several pieces arrives once, whole.",O1 -> buffers frames split across arbitrary chunk boundaries,
 src/lib/supabase/client.test.ts,Guard,Building the site without secrets still works: the sign-in client can be created with no settings.,A change that makes the client throw when its environment settings are missing.,does not throw,If removed: A build with no secrets (preview or sandbox) could fail while prerendering pages.
 src/lib/supabase/retryingFetch.test.ts,Story,"As a speaker signing in on a shaky phone connection, I want the sign-in step retried after a dropped connection, so that sign-in does not fail at random.",O1  After one dropped connection the sign-in step is sent again and its answer is used.,O1 -> resends the code exchange after a dropped connection,
+src/lib/supabase/session.test.ts,Story,"As a speaker opening the app, I want my screens to read my sign-in once between them, not once each in a queue, so that the chat is not held up waiting its turn; and a sign-in or sign-out is still seen at once.","O1  Asks made while a read of the session is out share that one read.
+O2  An ask after the read has answered reads again: a session that
+changed in between (signed out, a new token) is what it gets.","O1 -> ""asks made while a read is out share it""
+O2 -> ""an ask after the answer reads again, so a change is seen""",
 src/lib/willab/additionsAndLock.test.ts,Story,"As a speaker, I want rewording a locked paragraph to keep it the same paragraph but need a new lock, so that a lock always protects my exact words.","O1  After a reword the paragraph keeps its identity, has the new words and is no longer locked.",O1 -> keeps identity but reopens after a reword,
 src/lib/willab/aiGeneratedMark.test.ts,Story,"As a speaker, I want AI-written text marked as AI on every Ideal Text surface and copy, with no score in the label, so that I know what is generated (EU AI Act Art. 50).","O1  The labels say the text is AI-generated and carry no digit, score,
 rating or verdict. Never-1: no score shown to a speaker.

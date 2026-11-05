@@ -33,8 +33,16 @@ export default function DashboardHeader() {
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto flex max-w-4xl min-w-0 items-center justify-between gap-2 px-[15px] py-4 sm:gap-4">
         <div className="flex shrink-0 items-center gap-2">
+          {/* prefetch={false}, as the footer's links (loading audit,
+              2026-11-02): this bar is drawn on every open of /chat, and the
+              viewport prefetch fetched "/" (before the session is read)
+              and then /chat itself, the page already open. Each went
+              through the middleware, "/" with its sign-in round trip to
+              Supabase and a redirect, in the middle of the chat's boot
+              reads. A tap still navigates. */}
           <Link
             href={menu.authState === "signed_in" ? "/chat" : "/"}
+            prefetch={false}
             className="rounded transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-label="WillpowerLab home"
           >

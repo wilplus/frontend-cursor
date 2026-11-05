@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { prefetchChatBoot, prefetchChatsDoor, takeSessionState } from "@/services/api/bootPrefetch";
 import { markChatBootStarted } from "@/lib/chatBoot";
 import { hasParkedReadout } from "./willabParked";
@@ -208,9 +208,22 @@ export interface UseWillabFlowReturn {
   closeLab: () => void;
 }
 
+/** Runs before any passive effect in the same commit; the server runs no
+ *  effect at all (and would warn about a layout one). */
+const useBeforeChildEffects = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 export function useWillabFlow(): UseWillabFlowReturn {
   // Resolve post-mount so SSR and first client render agree (both `null`).
   const [state, setState] = useState<WillabState | null>(null);
+  // The wallet, the menu's gates and the guest claim wait for the thread
+  // instead of joining the boot burst (chatBoot.ts), so the boot is marked
+  // started BEFORE the screens under the flow run their effects. React runs
+  // a child's effects before its parent's: the menu, drawn while the state
+  // resolves, asked afterChatBoot first, found no boot started, and its
+  // reads went out with the boot's own.
+  useBeforeChildEffects(() => {
+    if (readFlag(CONSENT_KEY)) markChatBootStarted();
+  }, []);
   useEffect(() => {
     const consent = readFlag(CONSENT_KEY);
 
@@ -219,10 +232,7 @@ export function useWillabFlow(): UseWillabFlowReturn {
 
     // Past Welcome, the Phase-1 gate and the Lounge thread load next; start
     // their reads now, alongside the session state, instead of in series.
-    // The wallet, the menu's gates and the guest claim wait for the thread
-    // instead of joining this burst (chatBoot.ts).
     prefetchChatBoot();
-    markChatBootStarted();
     if (hasParkedReadout()) { setState("parked"); prefetchChatsDoor(); return; }
 
     // Post-intake active state is BE-owned (seam 8). Fetch once on mount

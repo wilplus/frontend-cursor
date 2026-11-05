@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUserProfile } from "@/components/willab/useUserProfile";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { readSession } from "@/lib/supabase/session";
 import type { LifeMenuEntry, LifeState } from "@/lib/life/types";
 import { useTokenWallet, type TokenWallet } from "@/hooks/useTokenWallet";
 import { TOKENS_COPY, formatTokens } from "@/components/tokens/copy";
@@ -92,9 +93,8 @@ export function useAppMenuData(): AppMenuData {
       // getSession reads the stored session; getUser is a network round trip
       // to Supabase on every screen that mounts the header. The menu only
       // needs who is signed in; the backend verifies the token on every call.
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      // The one shared read (session.ts), not a turn of the lock of its own.
+      const session = await readSession();
       const user = session?.user;
       if (cancelled) return;
       if (!user) {
