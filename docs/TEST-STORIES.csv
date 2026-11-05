@@ -1379,6 +1379,8 @@ O2  Never 5 (helper words stay until the speaker picks new ones): words
 picked from an earlier Take are saved on that paragraph, and its old
 in-text span is cleared only after the save succeeds.","O1 -> ""Delete lifts the lock on the paragraph""
 O2 -> ""words from an earlier Take save on the paragraph""",F1 Repair Plan Phase 5: the landing copy was missing these handlers.
+src/components/willab/useWillabFlow.chatBoot.test.tsx,Story,"As a speaker opening the chat, I want my conversation drawn before the menu's side lookups (the wallet, the Life gate, the product discoveries) go out, so that the chat appears fast (founder 2026-10-16, chatBoot.ts).","O1  The menu drawn with the chat while it opens waits for the thread to
+paint, though React runs the menu's effects before the chat's own.","O1 -> ""the menu drawn with the opening chat waits for the thread""",
 src/components/willab/useWillabFlow.test.ts,Story,"As a speaker, I want the app always to go record, then process, then Ideal Text, then the next Take, so that the loop never breaks.","O1  Starting, stopping and finishing processing lead to the readout;
 from there the next Take, a pause, or ""sign up to send"" (and on to
 review) are expected steps.","O1 -> ""is the record → process → Ideal Text loop""",Never 3; audit Q-C4.
