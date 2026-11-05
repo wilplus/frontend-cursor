@@ -8,7 +8,7 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DumpPullBar from "./DumpPullBar";
 import LoadingState from "./LoadingState";
 import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
-import { isLabOverlay, useWillabFlow, type WillabState } from "./useWillabFlow";
+import { hasAcceptedConsentLocally, isLabOverlay, useWillabFlow, type WillabState } from "./useWillabFlow";
 import { countFirstVisit, type FirstVisitStep } from "@/lib/funnel/firstVisit";
 import { useSignedIn } from "./useSignedIn";
 import { usePendingSendHold } from "./usePendingSendHold";
@@ -40,6 +40,7 @@ import { useChatsDoor } from "./chats/useChatsDoor";
 import { endAnswer, startAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { afterChatBoot } from "@/lib/chatBoot";
+import { warmIdealTextLink } from "@/services/api/idealText";
 import {
   beginSetupDraft,
   beginSetupDraftWithTopic,
@@ -156,6 +157,19 @@ export default function WillabSurface({
     [],
   );
   const userId = useUserId();
+  // The coach's link (?lens= / ?idealArc=): the Ideal Text page's code and
+  // its opening read start now, beside the boot reads, not once the Lounge
+  // has mounted and the code has loaded. The same page opens on the same
+  // read (idealText.ts warmIdealTextLink), only sooner. Past Welcome only:
+  // before it the page does not open. A Take of this project still being
+  // processed on this device holds the page until it lands, and the page
+  // reads then, so nothing is read early for it.
+  useEffect(() => {
+    if (!idealTextArcId || !hasAcceptedConsentLocally()) return;
+    void import("./IdealTextOverlay");
+    if (!userId || readProcessingTake(userId)?.arcId === idealTextArcId) return;
+    warmIdealTextLink(idealTextArcId, idealTextTake ?? null);
+  }, [idealTextArcId, idealTextTake, userId]);
   const userEmail = useUserEmail();
   const founderConsentEligible =
     signedIn === null || userEmail === undefined

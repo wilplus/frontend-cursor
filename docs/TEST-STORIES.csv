@@ -2039,10 +2039,14 @@ O2  A handover between 3 s and 30 s old paints and is marked for
 revalidation behind it.
 O3  A handover past 30 s is not painted: the page reads fresh.
 O4  The two enrichment lanes started at settle are requested once, served
-to whichever surface asks, then consumed.","O1 -> ""paints a trusted handover as-is, without a request""
+to whichever surface asks, then consumed.
+O5  The coach's link starts the page's read, and the marks' lane, as /chat
+opens; the page opens on them without asking again, and the coach's
+own lane is still read for the Take the link names.","O1 -> ""paints a trusted handover as-is, without a request""
 O2 -> ""paints a 3-30 s handover and asks for a revalidation""
 O3 -> ""reads fresh past 30 s, never painting the old handover""
-O4 -> ""serves the two lanes to whichever surface asks, without asking again""","P1 (founder 2026-10-08): the Lounge's read paints the page for up to 30 s, revalidated behind it past the trusted 3 s."
+O4 -> ""serves the two lanes to whichever surface asks, without asking again""
+O5 -> ""the coach's link reads the page as /chat opens, and the page opens on that read""","P1 (founder 2026-10-08): the Lounge's read paints the page for up to 30 s, revalidated behind it past the trusted 3 s. Loading time (2026-11-05): the coach's link waited for the Lounge to mount first."
 src/services/api/idealText.pieces.test.ts,Story,"As a speaker, I want each paragraph placed on a slide only when the server says which one, so that a paragraph never lands on a guessed slide.","O1  A slide number outside the deck means no slide placement at all.
 O2  A paragraph without a slide number falls back to one paragraph per
 slide only when the counts match exactly.","O1, O2 -> ""an out-of-range or missing slide_index kills the explicit mapping""",

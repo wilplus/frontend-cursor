@@ -10,12 +10,17 @@ OUTCOME
   O3  A handover past 30 s is not painted: the page reads fresh.
   O4  The two enrichment lanes started at settle are requested once, served
       to whichever surface asks, then consumed.
+  O5  The coach's link starts the page's read, and the marks' lane, as /chat
+      opens; the page opens on them without asking again, and the coach's
+      own lane is still read for the Take the link names.
 PROVES   O1 -> "paints a trusted handover as-is, without a request"
          O2 -> "paints a 3-30 s handover and asks for a revalidation"
          O3 -> "reads fresh past 30 s, never painting the old handover"
          O4 -> "serves the two lanes to whichever surface asks, without asking again"
+         O5 -> "the coach's link reads the page as /chat opens, and the page opens on that read"
 WHY      P1 (founder 2026-10-08): the Lounge's read paints the page for up to
-         30 s, revalidated behind it past the trusted 3 s.
+         30 s, revalidated behind it past the trusted 3 s. Loading time
+         (2026-11-05): the coach's link waited for the Lounge to mount first.
 */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -26,6 +31,7 @@ import {
   invalidateIdealTextDisplay,
   primeIdealTextDisplay,
   primeIdealTextEnrichmentLanes,
+  warmIdealTextLink,
   type IdealTextResult,
 } from "./idealText";
 import { PROMPT_LANE, SLOW_LANE } from "@/lib/willab/enrichmentSettle";
@@ -108,5 +114,49 @@ describe("the enrichment started at settle", () => {
     // Consumed: the next ask, lane by lane or whole, is a fresh read.
     await fetchIdealTextEnrichment("arc", "snap", SLOW_LANE);
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("the coach's link", () => {
+  it("the coach's link reads the page as /chat opens, and the page opens on that read", async () => {
+    const asked: string[] = [];
+    const fetchMock = vi.fn(async (url: string) => {
+      const u = new URL(url, "http://x");
+      asked.push(`${u.pathname} ${u.searchParams.get("sections") ?? ""} ${u.searchParams.get("take") ?? ""}`.trim());
+      if (u.pathname.endsWith("/ideal-text/core")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            status: "unverified",
+            text: "The coach read this.",
+            version: 3,
+            document_snapshot_id: "snap",
+            document_snapshot_sha256: "a".repeat(64),
+            pieces: [{ piece_key: 0, part_id: "part-1", text: "The coach read this.", slide_index: 0 }],
+            parts: null,
+          }),
+        };
+      }
+      const sections = Object.fromEntries(
+        (u.searchParams.get("sections") ?? "").split(",").map((name) => [name, { status: "ready", data: { name } }]),
+      );
+      return { ok: true, status: 200, json: async () => ({ document_snapshot_id: "snap", sections }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    warmIdealTextLink("arc", "take-7"); // /chat?lens=arc&take=take-7 opens
+    const open = await fetchIdealTextForOpen("arc"); // the page mounts
+    expect(open.result.kind === "single" && open.result.ideal.text).toBe("The coach read this.");
+    await vi.waitFor(() => expect(asked).toHaveLength(2));
+    // The page asks its two lanes: the marks' lane was already on its way;
+    // the coach's lane is read for the Take the link names.
+    await fetchIdealTextEnrichment("arc", "snap", SLOW_LANE);
+    await fetchIdealTextEnrichment("arc", "snap", PROMPT_LANE, "take-7");
+    expect(asked).toEqual([
+      "/api/v2/explore/arc/arc/ideal-text/core",
+      `/api/v2/explore/arc/arc/ideal-text/enrichment ${SLOW_LANE.join(",")}`,
+      `/api/v2/explore/arc/arc/ideal-text/enrichment ${PROMPT_LANE.join(",")} take-7`,
+    ]);
   });
 });
