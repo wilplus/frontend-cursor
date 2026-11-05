@@ -619,6 +619,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-05 · N506 item 3 · T6: a read that fails (no network, a failed request) no longer tells the iPhone app the dump screen is off; the app keeps what it last heard, so offline it still opens and keeps what is said. Was: one failed read switched it off until the next good load · FE (this PR)
 - 2026-11-05 · N517 · T4: a pull down from the top bar of the chat list or Will's chat opens the dump screen, dots only, no words; and the web's side of T6: in the iPhone app the web tells the native screen the switch (ring row, the notebook's Yes, "Open to the dump screen") and shows "Kept" when it closes; nothing changes in an app without it · BE #1757, FE (this PR)
 - 2026-11-04 · N514 · T3: a Yes given on the dump screen writes "Yes" and "Noted." in Will's chat, without "What's on your mind today?" · BE #1753, FE (this PR)
 - 2026-11-04 · N506, N507 · T: the dump screen, built on the web: one screen that only listens, tap, tap, double tap; the notebook's way in, with A5's introduction the first time; "Open to the dump screen" in Settings, off by default; ring 2 · BE #1743, #1745, #1746, FE (this PR)

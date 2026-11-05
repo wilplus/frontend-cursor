@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import DumpScreen from "./DumpScreen";
 import { useRingState } from "@/hooks/useRingState";
+import { EMPTY_RING_STATE } from "@/services/api/rings";
 import { getNotebookState, type NotebookState } from "@/services/api/voiceNotebook";
 import { DUMP_COPY, DUMP_FEATURE, dueToOpen, markShown, setDumpOpener, setOpenFirst } from "@/lib/willab/dumpScreen";
 import { nativeDump, onNativeKept, openNativeDump, syncApp } from "@/lib/phone/dumpScreen";
@@ -31,7 +32,9 @@ export default function DumpScreenHost({ plain }: { plain: boolean }) {
   const [notebook, setNotebook] = useState<NotebookState | null>(null);
   const [open, setOpen] = useState(false);
   const [keptNote, setKeptNote] = useState(false);
-  const ringKnown = ring !== null;
+  // A ring read that failed comes back empty: unknown, not "off", so the
+  // app is not told to switch its screen off (it must work offline).
+  const ringKnown = ring !== null && ring !== EMPTY_RING_STATE && !ring.unavailable;
 
   useEffect(() => {
     if (ringKnown) void syncApp(on);
