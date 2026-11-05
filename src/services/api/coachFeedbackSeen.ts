@@ -1,5 +1,5 @@
 import { bffFetch } from "@/lib/api/bffFetch";
-import { noteFeedbackSeen } from "@/lib/nativePush";
+import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /* -------------------------------------------------------------------------- */
 /*  The Lounge bubble's "new" (build plan D-FW-19; walk lock 2026-10-06, flow  */
@@ -44,8 +44,10 @@ export function onTakeWordWatched(listener: (takeSessionId: string) => void): ()
 export function markCoachFeedbackSeen(shown: CoachFeedbackShown): Promise<boolean> {
   if (!shown.snippetId) for (const listener of [...wordWatchers]) listener(shown.takeSessionId);
   // In the iPhone app, iOS's notification question may now come, on the next
-  // open (backend N385 item 2).
-  noteFeedbackSeen();
+  // open (backend N385 item 2). A flag read on the next open, so it is written
+  // a moment later from its own chunk: the push code stays off every web page
+  // (this file is reached from the root layout through loungeMessages.ts).
+  if (isNativeApp()) void import("@/lib/nativePush").then((m) => m.noteFeedbackSeen());
   const call = sendSeen(shown);
   inFlight.add(call);
   void call.finally(() => inFlight.delete(call));

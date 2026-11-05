@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url";
+
 /* THE SERVICE WORKER'S CACHE NAME, DERIVED (founder 2026-09-18).
  *
  * `public/sw.js` is a static file, so nothing in the build can interpolate
@@ -20,11 +22,20 @@ const nextConfig = {
   env: { NEXT_PUBLIC_BUILD_ID: BUILD_ID },
   // Allow font optimization to fail gracefully
   optimizeFonts: true,
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     // pdfjs-dist (slide-deck rendering) optionally requires Node's `canvas`;
     // the browser build never uses it, so stub it so webpack doesn't try to
     // bundle a native module. Standard pdfjs-in-Next guard.
     config.resolve.alias = { ...config.resolve.alias, canvas: false };
+    // Supabase Storage, which supabase-js builds in its constructor, is never
+    // called from the browser: the browser bundles get a stand-in and every
+    // page's first load about 13 kB less (src/lib/supabase/noBrowserStorage.ts).
+    // Server and edge bundles keep the real one.
+    if (!isServer) {
+      config.resolve.alias["@supabase/storage-js$"] = fileURLToPath(
+        new URL("./src/lib/supabase/noBrowserStorage.ts", import.meta.url),
+      );
+    }
     return config;
   },
   async headers() {
