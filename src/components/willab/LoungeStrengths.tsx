@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { LIFE_GOALS_COPY as LG } from "@/lib/willab/lifeGoals";
+import { askWhenLoungeOpens } from "./loungeOpenAsks";
 import { answerStrengthAsk, decideStrength, getSuggestion, strengthsToday, type Suggestion } from "@/services/api/lifeStrengths";
 import { Closed, DockColumn, EditorDock, LensFrame, script, type Item, type Script, type Ui } from "./LoungeLifeGoals";
 import WalkStage from "./walk/WalkStage";
@@ -140,10 +141,11 @@ function StrengthLens({
 export function useStrengths({ signedIn, reload }: { signedIn: boolean; reload: () => Promise<unknown> }) {
   const [open, setOpen] = useState<{ id: string; nonce: number } | null>(null);
 
-  // The Lounge opened: one kept strength the day before a talk (N4).
+  // The Lounge opened: one kept strength the day before a talk (N4), once
+  // the thread has painted (loungeOpenAsks.ts).
   useEffect(() => {
     if (!signedIn) return;
-    void strengthsToday().then((wrote) => (wrote ? reload() : undefined));
+    return askWhenLoungeOpens(strengthsToday, reload);
     // Once per opening of the Lounge.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn]);

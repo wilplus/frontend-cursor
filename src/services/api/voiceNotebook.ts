@@ -12,9 +12,24 @@ export async function getNotebookState(): Promise<NotebookState> {
   return (await readNotebookState()) ?? OFF;
 }
 
+/** The read in flight. The chat asks this from three places as it opens
+ *  (the dump screen's open-first check, the phone app's sync, the
+ *  notebook in the Lounge), so callers that ask at the same moment share one
+ *  request; once it has answered, the next ask reads again (2026-11-05). */
+let inFlight: Promise<NotebookState | null> | null = null;
+
 /** The notebook's state, or null when it could not be read (no network, a
  *  failed request): "unknown" is not "off". */
-export async function readNotebookState(): Promise<NotebookState | null> {
+export function readNotebookState(): Promise<NotebookState | null> {
+  if (inFlight) return inFlight;
+  const read: Promise<NotebookState | null> = requestNotebookState().finally(() => {
+    if (inFlight === read) inFlight = null;
+  });
+  inFlight = read;
+  return read;
+}
+
+async function requestNotebookState(): Promise<NotebookState | null> {
   try {
     const tz = (() => {
       try {
@@ -43,6 +58,9 @@ async function post(path: string, init: { json?: unknown; body?: BodyInit }): Pr
     return result.kind === "response" && result.ok;
   } catch {
     return false;
+  } finally {
+    // A read asked after a write never shares one that began before it.
+    inFlight = null;
   }
 }
 

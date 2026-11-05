@@ -77,13 +77,18 @@ export function useWhatsAppOffer(inputs: {
   }, []);
   const sentNow = useCallback(() => setSendNow(false), []);
 
+  // Asked only at the end of a Take: the number is read once the thread has
+  // painted, not beside it (chatBoot.ts).
   useEffect(() => {
     let live = true;
-    void fetchWhatsAppPhone().then((p) => {
-      if (live) setPhone(p);
+    const cancel = afterChatBoot(() => {
+      void fetchWhatsAppPhone().then((p) => {
+        if (live) setPhone(p);
+      });
     });
     return () => {
       live = false;
+      cancel();
     };
   }, []);
 

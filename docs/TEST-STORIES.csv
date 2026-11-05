@@ -1060,6 +1060,12 @@ O3  An older bubble of the project, or a project with nothing new, is plain.
 O4  The mark clears when the flag clears.","O1, O2 -> ""the latest bubble wears the mark, with no count""
 O3     -> ""an older bubble, or a project with nothing new, is plain""
 O4     -> ""clears when the flag clears""","Build plan D-FW-19; walk lock 2026-10-06, flow 1; backend 0439."
+src/components/willab/loungeOpenAsks.test.ts,Story,"As a speaker opening the app, I want my chat to come first, so that the day's asks and the notebook's state never queue in front of it.","O1  The day's asks (the quarter due, the day's why, a strength before a
+talk) go out once the thread has painted, and however many of them
+wrote, the thread is read again once.
+O2  The notebook's state is asked once however many parts of the chat ask
+at the same moment; a read asked after a notebook answer is fresh.","O1 -> ""the day's asks wait for the thread, and the thread is read again once""
+O2 -> ""the notebook's state is one request for everyone asking at once""",Loading time (2026-11-05): these went out beside the thread's own read and competed with it.
 src/components/willab/loungeReports.test.ts,Story,"As a speaker whose Ideal Text could not be built, I want one clear message with Retry and ""view feedback"", so that I can recover and still go on.","O1  The message has the exact signed-off sentence, belongs to this Take,
 and offers exactly Retry and view feedback.","O1 -> ""is the exact Take 1 terminal card under the session identity""",
 src/components/willab/loungeScreen.test.ts,Story,"As a speaker, I want Will to answer what sits right above my message in the chat, and my chat to keep the order it shows, so that a reply never misreads my number, my tap or my Take's feedback.","O1  Will reads every bubble in the order the chat draws it: the Take's
