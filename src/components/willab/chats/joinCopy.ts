@@ -7,15 +7,9 @@
 /* -------------------------------------------------------------------------- */
 
 export const ADD_SHEET_TITLE = "Add someone to chat with";
-export const ADD_SHEET_LINE = "Send them your link, in any email or message. Whoever opens it joins you here.";
 export const COPY_MY_LINK = "Copy my link";
 /** The add sheet as redesigned (backend N367 item 3), signed. */
 export const COPIED = "✓ Copied";
-export const ADD_STEPS = [
-  ["1. Paste it", "in an email or a message you send anyway"],
-  ["2. They open it", "and join with their account"],
-  ["3. You chat", "Only the two of you are in it"],
-] as const;
 export const CANCEL = "Cancel";
 
 export const joinTitle = (name: string) => `${name} asks you to join them on WillpowerLab`;
@@ -56,3 +50,33 @@ export const asksYouAbout = (topic: string) => `Asks you about ${topic}`;
 export const askingForWhatYouKnow = (pseudonym: string) =>
   `${pseudonym} is asking for what you know. Your answer starts a knowledge base you build together.`;
 export const itsAbout = (topic: string) => `It's about ${topic.replace(/[.\s]+$/, "")}.`;
+
+/* Your chat on any website (backend N565; all signed, founder 2026-11-05). */
+/** The add sheet's card under its title, with the small switch. */
+export const WEBSITE_SWITCH = "Put this chat on your website";
+export const WEBSITE_LINE =
+  "Customers ask you there, and you answer here. Each answer teaches your chat, so it learns from real questions as they come in.";
+/** Under the code, once the switch is on. */
+export const PASTE_LINE = "Paste this line just before </body> on your website, or send it to whoever builds your site.";
+export const COPY_MY_CODE = "Copy my code";
+/** The one line left of the three tiles; and its twin for the code. */
+export const ONLY_THE_TWO_OF_YOU = "Only the two of you are in it.";
+export const EACH_CUSTOMER = "Each customer has a chat of their own with you.";
+/** The line of code the switch shows: the link's token, on this site's w.js. */
+export const widgetCode = (origin: string, token: string) =>
+  `<script src="${origin}/w.js" data-link="${token}" async></script>`;
+
+/** The widget on someone's site (`/w/<token>`), for a visitor who can only tap. */
+export const askName = (name: string) => `Ask ${name}`;
+export const widgetHello = (name: string) => `Hi, I'm ${name}. Tap to answer, and I'll answer you out loud.`;
+export const widgetConsent = (name: string) => `Your taps go to ${name} through WillpowerLab.`;
+export const PRIVACY = "Privacy";
+export const AGREE_AND_START = "Agree and start";
+export const widgetAsk = (name: string) => `What would you like to ask ${name}?`;
+export const widgetWaits = (name: string) => `${name} answers out loud when there's a moment. Come back here to listen.`;
+export const KEEP_THIS_CHAT = "Keep this chat ›";
+export const WITH_WILLPOWERLAB = "with WillpowerLab";
+export const KEEP_TITLE = "Keep this chat";
+export const keepLine = (name: string) => `Join WillpowerLab to keep it, and hear ${name}'s answers on your phone.`;
+export const CONTINUE_WITH_GOOGLE = "Continue with Google";
+export const NOT_NOW = "Not now";

@@ -37,8 +37,9 @@ OUTCOME
       words, once ready, are closed behind "Read it" under the player, and
       "Hide" closes them again (N331).
   O8  The + on the list opens my own link, with the add sheet's signed
-      words and its three steps, and Copy my link puts the whole link on
-      the clipboard and says "✓ Copied" (N308, N310, N367).
+      words and "Only the two of you are in it." (N565 item 1; was: three
+      steps), and Copy my link puts the whole link on the clipboard and says
+      "✓ Copied" (N308, N310, N367).
   O9  In a chat I joined through someone's link, one line above the
       messages says whose link it was (N496, replacing N335 item 2's), and
       its row in the list keeps that line until the first message (N488); a
@@ -639,10 +640,11 @@ describe("the chats in front of the Lounge", () => {
     await tap(container.querySelector('[data-add-someone][aria-label="Add someone to chat with"]'));
     const sheet = container.querySelector("[data-add-sheet]")!;
     expect(sheet.textContent).toContain("Add someone to chat with");
-    expect(sheet.textContent).toContain("Send them your link, in any email or message. Whoever opens it joins you here.");
+    expect(sheet.textContent).toContain("Put this chat on your website");
     const link = `${window.location.origin}/c/AbCdEfGhIjKlMnOpQrStUvWx`;
     expect(sheet.querySelector("[data-my-link]")?.textContent).toBe(link);
-    expect(sheet.textContent).toContain("1. Paste it");
+    expect(sheet.textContent).toContain("Only the two of you are in it.");
+    expect(sheet.textContent).not.toContain("1. Paste it");
     expect(sheet.textContent).toContain("Cancel");
     await tap(sheet.querySelector("[data-copy-link]"));
     expect(copied).toEqual([link]);
