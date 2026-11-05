@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import DumpScreen from "./DumpScreen";
 import { useRingState } from "@/hooks/useRingState";
 import { EMPTY_RING_STATE } from "@/services/api/rings";
@@ -36,8 +36,16 @@ export default function DumpScreenHost({ plain }: { plain: boolean }) {
   // app is not told to switch its screen off (it must work offline).
   const ringKnown = ring !== null && ring !== EMPTY_RING_STATE && !ring.unavailable;
 
+  // The notebook as last read, so a pull opens at once, with no wait (N517).
+  const known = useRef<NotebookState | null>(null);
+  const sync = () =>
+    void syncApp(on).then((state) => {
+      if (state) known.current = state;
+    });
+
   useEffect(() => {
-    if (ringKnown) void syncApp(on);
+    if (ringKnown) sync();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `sync` reads `on`, listed
   }, [ringKnown, on]);
 
   useEffect(() => onNativeKept(() => setKeptNote(true)), []);
@@ -45,14 +53,17 @@ export default function DumpScreenHost({ plain }: { plain: boolean }) {
   useEffect(() => {
     if (!on) return;
     let live = true;
+    const show = async (state: NotebookState | null) => {
+      if (!live || !state?.enabled) return;
+      if (state.consented && (await openNativeDump())) return;
+      if (!live) return;
+      setNotebook(state);
+      setOpen(true);
+    };
     setDumpOpener(() => {
-      void getNotebookState().then(async (state) => {
-        if (!live || !state?.enabled) return;
-        if (state.consented && (await openNativeDump())) return;
-        if (!live) return;
-        setNotebook(state);
-        setOpen(true);
-      });
+      // Known: open now. Not yet read: read, then open.
+      if (known.current) void show(known.current);
+      else void getNotebookState().then(show);
     });
     return () => {
       live = false;
@@ -98,12 +109,12 @@ export default function DumpScreenHost({ plain }: { plain: boolean }) {
           onClose={(kept) => {
             setOpen(false);
             setKeptNote(kept);
-            void syncApp(on); // after the first Yes, the app's screen takes over
+            sync(); // after the first Yes, the app's screen takes over
           }}
           onDecline={() => {
             setOpenFirst(false);
             setOpen(false);
-            void syncApp(on);
+            sync();
           }}
         />
       ) : null}
