@@ -307,7 +307,7 @@ describe("B10: the Feedback walk opens the walk, never the text", () => {
 });
 
 describe("B10: every door opens the whole Take's walk", () => {
-  it("N539: after its first opening, a bubble in the chat opens the whole walk as a scroll, ending on Close, even with a moment still waiting", async () => {
+  it("N541: opened again from the chat with a moment still waiting, what I did is read only and the step left to do stands at the bottom with its buttons", async () => {
     const at3 = text.indexOf("one more quarter");
     // Paragraph 3's corrected moment, still waiting: its Exercise.
     const waiting = {
@@ -349,19 +349,19 @@ describe("B10: every door opens the whole Take's walk", () => {
     expect(live).not.toBeNull();
     // The whole walk: the answered praise on slide 2, "Results", above, to scroll back to.
     expect(live!.querySelector("[data-walk-mark='Results']")).not.toBeNull();
-    // The Exercise is there, read only: no Practise, no Next (N539, N259).
-    expect(live!.querySelector("[data-testid='walk-screen-exVideo']")).not.toBeNull();
-    expect(live!.querySelector("[data-testid='walk-practise']")).toBeNull();
-    expect(live!.querySelector("[data-testid='walk-to-newest']")).toBeNull();
-    // Close at the bottom: it ends the review and goes back to the chat.
-    const close = live!.querySelector<HTMLElement>("[data-testid='walk-scroll-close']");
-    expect(close).not.toBeNull();
-    await act(async () => {
-      close!.click();
-      await new Promise((r) => setTimeout(r, 0));
-    });
-    const steps = append.mock.calls.map(([draft]) => (draft as { metadata: { step: string } }).metadata.step);
-    expect(steps).toContain("end");
+    // The step left to do, the Exercise, stands live with its Practise;
+    // nothing to close yet, so no Close at the bottom (N541).
+    expect(live!.querySelector("[data-walk-now] [data-testid='walk-screen-exVideo']")).not.toBeNull();
+    expect(live!.querySelector("[data-walk-dock] [data-testid='walk-practise']")).not.toBeNull();
+    expect(live!.querySelector("[data-testid='walk-scroll-close']")).toBeNull();
+    // What the chat hears of it keeps the Take's number, so it is the same
+    // message as before, never a new one at the bottom.
+    const moments = append.mock.calls
+      .map(([draft]) => (draft as { metadata: { step: string; moment: number | null } }).metadata)
+      .filter((m) => m.step === "exVideo")
+      .map((m) => m.moment);
+    expect(moments.length).toBeGreaterThan(0);
+    expect(moments).toEqual(moments.map(() => 1));
   });
 });
 
@@ -425,6 +425,8 @@ describe("N247: a finished walk opened again holds every step as it went", () =>
     expect(steps.filter((step) => step.startsWith("tempo:") || step.includes("others"))).toEqual([]);
     const posts = vi.mocked(fetch).mock.calls.filter(([, init]) => init?.method === "POST");
     expect(posts.map(([url]) => String(url)).filter((url) => url.includes("communities"))).toEqual([]);
+    // Nothing left to do: a scroll ending on Close (N539).
+    expect(live!.querySelector("[data-testid='walk-scroll-close']")).not.toBeNull();
   });
 });
 

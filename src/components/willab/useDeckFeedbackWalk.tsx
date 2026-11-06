@@ -403,23 +403,21 @@ function answeredRun<R>(
   return head;
 }
 
-/** OPENED AGAIN FROM THE CHAT, A SCROLL (founder 2026-11-06, N539: "only
- *  first feedback walk after the processing is the one that is step by
- *  step; the next ones that are openable from the conversational chat
- *  should be scrollable"). The first opening, right after the processing,
- *  names no step; every door from the chat names one, so it is an opening
- *  after the first: the walk as given, read only, with Close at the bottom,
- *  whatever still waits. An unseen coach word keeps its steps, so its
- *  Continue marks it seen; the page's own doors are unchanged. A finished
- *  walk is a scroll from every door (N259). Pure. */
-function opensAsScroll(at: {
-  finished: boolean;
+/** OPENED AGAIN FROM THE CHAT (founder 2026-11-06, N539, N541): only the
+ *  first opening, right after the processing, goes step by step. It names
+ *  no step; every door from the chat names one, so it is an opening after
+ *  the first. Then what is answered is read only, as given, and what is
+ *  left to do (a step never reached, a choice not made, a practise stopped
+ *  midway) stands at the bottom with its own buttons; with nothing left it
+ *  is a scroll ending on Close. An unseen coach word keeps its steps, so
+ *  its Continue marks it seen; the page's own doors are unchanged. Pure. */
+function reopenedFromChat(at: {
   lens: boolean;
   target: WalkStepTarget | null | undefined;
   coachOnly: boolean;
   coachUnseen: boolean;
 }): boolean {
-  return at.finished || (at.lens && Boolean(at.target) && !at.coachOnly && !at.coachUnseen);
+  return at.lens && Boolean(at.target) && !at.coachOnly && !at.coachUnseen;
 }
 
 /** Where the walk as given stands, opened at `at`. A finished walk opened
@@ -1328,6 +1326,15 @@ export function useDeckFeedbackWalk(args: {
   // helper words is no exception (B10, C3): those words opened on their own,
   // before the Take's tries were read, showed them alone (founder
   // 2026-10-28: "it just opens helper words").
+  // Opened again with something left to do (N541): the walk as it stands,
+  // standing on the first thing left, everything before it as given. False
+  // when the Take is finished or nothing is left.
+  const openLeftToDo = useCallback((): boolean => {
+    const whole = !finished && replayReady ? buildWhole(ownAnswers) : null;
+    if (!whole || whole.waitsAt == null) return false;
+    setReplaying(whole);
+    return openAt(whole.waitsAt, false, true, undefined, answeredRun(whole, whole.waitsAt, waitsOn));
+  }, [finished, replayReady, buildWhole, ownAnswers, openAt, waitsOn]);
   const review = useCallback((target?: WalkStepTarget | null, from: "chat" | "page" = "chat"): boolean => {
     if (otherTake(target)) return true;
     setReplaying(null);
@@ -1337,7 +1344,10 @@ export function useDeckFeedbackWalk(args: {
     // still waits, so a word already seen and moments already answered left
     // it empty: it opened and closed at once.
     const coachDoor = !target && coachOnly;
-    const asScroll = opensAsScroll({ finished, lens, target, coachOnly, coachUnseen: live.current.coachUnseen === true });
+    const reopened = reopenedFromChat({ lens, target, coachOnly, coachUnseen: live.current.coachUnseen === true });
+    if (reopened && openLeftToDo()) return true;
+    // Finished, or opened again with nothing left: a scroll (N259, N539).
+    const asScroll = finished || reopened;
     // A finished Take (nothing waits, the coach's word seen) is walked as
     // given: its live model holds only the tail (others, the summary), never
     // the step asked for (founder 2026-10-21).
@@ -1367,7 +1377,7 @@ export function useDeckFeedbackWalk(args: {
     }
     setReplaying(model);
     return openAt(liveAt ?? walkStart(model), false, lens);
-  }, [model, finished, coachOnly, openAt, otherTake, replayReady, buildReplay, buildWhole, waitsOn, ownAnswers, threadEnd]);
+  }, [model, finished, coachOnly, openAt, otherTake, replayReady, buildReplay, buildWhole, waitsOn, ownAnswers, threadEnd, openLeftToDo]);
 
   const openPart = useCallback((partId: string): boolean => review({ part: partId }, "page"), [review]);
 
