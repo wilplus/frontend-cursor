@@ -883,7 +883,11 @@ praised moment:
      bar on the walk's end sheet). Was: "Good job. See you next {day}.",
      tomorrow named by its weekday. A question the plan asks there (its
      own yes, the ratings, a new project's) comes last, under the bar,
-     right above its answers (B16, N537). Under them the bar's middle is "Record
+     right above its answers (B16, N537). While Will's question or its
+     follow-up waits, nothing of this comes under it, whoever asks: the
+     goodbye, the plan's lines and the bar wait until it is answered or
+     skipped (N545; was guarded on the Lounge's call only, and the goodbye
+     could come under the key line). Under them the bar's middle is "Record
      Take N" (B14), which opens the text as its own button does (the
      sharing question first from Take 2, G); after the first Take it
      records the real talk (N449 item 1). The speaker may simply close the
@@ -2309,6 +2313,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-06 · N545 · D4: a question is the last thing; the goodbye, the plan's lines and the progress never come under Will's open question, whoever lets them go (backend `will_question.waits`, `after_take.release`). No new words. What stops: "Good job. See you {day}." and the progress under an unanswered key line · BE N545 (pushed to main), FE (this commit)
 - 2026-11-06 · N544 · E2, E3: Will's key line ("… Say it the way you'll say it.") is said, not typed. While it waits the bar's middle is "Record your answer" with "Not now" under the question; the tap records in the plan's small recording bar in the bar's place, never the recording screens; Stop sends it to `/will-question/voice` (BFF route restored), heard under the processing authorization, and the thread reads again (`useKeyLineHear` in `WillVoiceAnswer.tsx`, `postWillQuestionVoice`, `Lounge.tsx`). No new words. What stops: the box "Type your answer" under the key line · BE N544 (wilplus/backend-cursor#1805), FE (this PR)
 - 2026-11-06 · N543 · H1, the One thing walk's pick: the moments come from untouched slides first. A slide that had helper words when the Take was recorded gives way in every slot (their best, the Clearer version's between, the AI clip's weakest, the next bests) and fills one only when no untouched slide can (backend `moment_pick._untouched_first`, `_rank`). No new words. What stops: a moment on a slide the speaker already worked on winning over an untouched slide because its own words did not hold the helper words · BE N543 (#1804), FE (this PR)
 - 2026-11-06 · N541 · G3, G4: a Take sent to people is never lost silently. From a Take's line a send that fails keeps the screen open, ticked as chosen, and says "Couldn't share this take. Try again." (the community screen's toast), and Continue tries again; chosen before a Take, the send is kept on the phone under its own key (`willab.pendingTakeSends`) until it goes, tried again 5 s and 30 s later, then at the next open, signed in, once the thread has painted, within the choice's six hours, never waited on (`PeopleSendScreen` in `NextTakeShareScreen.tsx`, `applyNextTakeShare` and `retryTakeSends` in `nextTakeShare.ts`, `WillabSurface.tsx`). No new words. What stops: a failed send from the line closing the screen as if the Take had gone, and a failed send before a Take dropping the choice after one try · BE N541 (#1798), FE (this PR)
