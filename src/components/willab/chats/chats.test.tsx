@@ -112,8 +112,8 @@ OUTCOME
       bar's middle sends them. The link's owner reads one card of my
       answers, under "{name} joined through your link.", and their list
       says "{name}'s answers".
-  O24 The first time I add someone (N503), Will's chat opens on his setup,
-      not my link; his question waits with its answers on my side,
+  O24 Before my questions are set, the + shows a note at the bottom, not
+      my link (N503, N534); "Set them" opens Will's chat on his setup; his question waits with its answers on my side,
       "Something else" first, and a tap goes to the backend; the summary
       shows what someone new will see, my name in its top line, with
       "Change it" and "That's right"; "You're set." ends with "Copy my
@@ -633,6 +633,7 @@ describe("the chats in front of the Lounge", () => {
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [ARIEL] }));
     routes.set("GET /api/v2/chats/link", () => ({ token: "AbCdEfGhIjKlMnOpQrStUvWx", path: "/c/AbCdEfGhIjKlMnOpQrStUvWx" }));
+    routes.set("GET /api/v2/chats/join-questions", () => ({ questions: null, set: true }));
     await render();
 
     await tap(container.querySelector('[data-add-someone][aria-label="Add someone to chat with"]'));
@@ -1293,13 +1294,18 @@ describe("the chats in front of the Lounge", () => {
     expect(declined).toEqual(["t1"]);
   });
 
-  it("the first time I add someone, Will's chat opens on his setup, answered by tapping", async () => {
+  it("before my questions are set, the + shows a note, not my link; Set them opens Will's setup, answered by tapping", async () => {
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [] }));
+    routes.set("GET /api/v2/chats/join-questions", () => ({ questions: null, set: false }));
     routes.set("POST /api/v2/chats/join-questions/setup", () => ({ started: true }));
     const reload = vi.spyOn(loungeThread, "reload");
     await render();
     await tap(container.querySelector("[data-add-someone]"));
+    const note = container.querySelector("[data-setup-note]");
+    expect(note?.textContent).toBe("Before you share your link, set the questions for people who join.Set them");
+    expect(container.querySelector("[data-add-sheet]")).toBeNull();
+    await tap(note?.querySelector("button"));
     expect(calls("POST /api/v2/chats/join-questions/setup")).toHaveLength(1);
     expect(reload).toHaveBeenCalled();
     expect(container.querySelector("[data-add-sheet]")).toBeNull();

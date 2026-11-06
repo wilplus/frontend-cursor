@@ -141,9 +141,12 @@ rest is built in.
      link it was sees "{name} joined through your link." and, once the
      answers are in, one card, "{name}'s answers", which is also their
      row's line; never their own questions one by one (N487 item 7).
-   - **Setting them, in Will's chat** (N487 items 2 and 3, N503): the
-     first time "Add someone to chat with" opens (the list's "+" or its
-     row), Will's chat opens instead, on his setup, one question at a time:
+   - **Setting them, in Will's chat** (N487 items 2 and 3, N503, N534):
+     until they are set, "Add someone to chat with" (the list's "+" or its
+     row) opens no link: a note comes up at the bottom, drawn as the bar at
+     the top of Will's chat, "Before you share your link, set the questions
+     for people who join.", with "Set them" and ✕. "Set them" opens Will's
+     chat on his setup, one question at a time:
      "How far ahead do you like to plan?", the languages for someone who
      speaks two, "Anything else practical you'd like to ask?". His answers
      sit on your side ("Something else" first, which opens the box; the
@@ -843,6 +846,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-06 · N534 · C1: until the questions for people who join are set, the "+" shows a note at the bottom, the bar at the top of Will's chat moved down, with "Set them" (Will's setup) and ✕, in place of opening Will's chat; once set, the "+" opens the add sheet as before (`ChatList.tsx`, `joinCopy.ts`, `chats.ts`) · BE (wilplus/backend-cursor, `"set"` on GET join-questions), FE (this change)
 - 2026-11-06 · N535 · C: under "What should change?" Will understands the change however it is put (the model, under the person's processing authorization). Was: only a few fixed phrasings, so "make the choices polish and english and french" got "I couldn't tell what to change" · BE N535 (wilplus/backend-cursor#1791), FE (this PR)
 - 2026-11-06 · N533 · C1: at the end of the join setup, under "You're set." and its two links, Will says "All is set. You can now start practising." (backend `services/join_setup.py` writes it as his own line, `{"step": "say"}`, drawn by `JoinSetup.tsx` as any of his lines); the summary opened again ends at "Saved. …" as before. Was: "You're set." was Will's last line · BE N533 (#1787), BE #1789, FE (this PR)
 - 2026-11-05 · N521 · C1: for whoever may hear speakers, a row right under Will opens their queue; its rules are the coach panel's B1 · BE #1762, FE (this PR)

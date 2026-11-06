@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Link as LinkIcon, Pin, Plus, Share } from "lucide-react";
-import { beginJoinSetup, getMyChatLink, type Chat, type ChatEmoji, type ChatLast } from "@/services/api/chats";
+import { Link as LinkIcon, Pin, Plus, Share, X } from "lucide-react";
+import { beginJoinSetup, getMyChatLink, joinQuestionsSet, type Chat, type ChatEmoji, type ChatLast } from "@/services/api/chats";
 import type { LoungeKind, LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadMaybe } from "../LoungeThreadContext";
 import { chatIsNew, isNewSince, markChatOpened } from "./chatOpened";
 import { listTime, timeOf } from "./chatTime";
-import { ADD_SHEET_LINE, ADD_SHEET_TITLE, ADD_STEPS, CANCEL, COPIED, COPY_MY_LINK, answersOf, asksYouAbout, joinedThanks } from "./joinCopy";
+import { ADD_SHEET_LINE, ADD_SHEET_TITLE, ADD_STEPS, CANCEL, COPIED, COPY_MY_LINK, SETUP_NOTE, SET_THEM, answersOf, asksYouAbout, joinedThanks } from "./joinCopy";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /* -------------------------------------------------------------------------- */
@@ -196,21 +196,58 @@ export function ChatListRow({
   );
 }
 
-/** "Add someone to chat with": the first time, Will's chat opens on his
- *  setup, the questions everyone who joins through your link is asked
- *  (backend N487, N503); after it, or before it can be kept, the add sheet
- *  opens as before. */
-function useAddSomeone(setAdding: (open: boolean) => void, onOpenWill: () => void): () => void {
+/** "Add someone to chat with" (backend N503, N534): until the questions for
+ *  people who join are set, the note at the bottom; once set, or where they
+ *  can't be kept, the add sheet. */
+function useAddSomeone(setAdding: (open: boolean | "note") => void): () => void {
   const thread = useLoungeThreadMaybe();
   return () => {
     if (!thread) return setAdding(true);
+    void joinQuestionsSet().then((set) => setAdding(set ? true : "note"));
+  };
+}
+
+/** The "+"'s note (backend N534): the bar at the top of Will's chat
+ *  (NoticeBar.tsx, N391), at the bottom. "Set them" opens Will's setup in his
+ *  chat; ✕ is Not now. */
+function SetupNote({ onClose, onOpenWill, onLink }: { onClose: () => void; onOpenWill: () => void; onLink: () => void }) {
+  const thread = useLoungeThreadMaybe();
+  const setThem = () => {
+    onClose();
     void beginJoinSetup().then((started) => {
-      if (!started) return setAdding(true);
+      if (!started) return onLink();
       // Will's chat reads its thread again, his first lines at the bottom.
-      void thread.reload().catch(() => undefined);
+      void thread?.reload().catch(() => undefined);
       onOpenWill();
     });
   };
+  return (
+    <div
+      role="status"
+      data-setup-note=""
+      className="absolute inset-x-2.5 bottom-5 z-30 flex items-center gap-1 rounded-2xl border border-border bg-background py-1.5 pl-3 pr-1 shadow-md"
+    >
+      <button type="button" onClick={setThem} className="flex min-h-[52px] flex-1 items-center gap-3 text-left">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-muted">
+          <LinkIcon className="h-5 w-5" aria-hidden />
+        </span>
+        <span className="flex flex-col gap-0.5">
+          <span className="text-[15px] font-semibold leading-snug text-foreground">{SETUP_NOTE}</span>
+          <span className="mt-1 self-start rounded-full bg-primary px-4 py-2 text-[15px] font-semibold text-primary-foreground">
+            {SET_THEM}
+          </span>
+        </span>
+      </button>
+      <button
+        type="button"
+        aria-label="Not now"
+        onClick={onClose}
+        className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground"
+      >
+        <X className="h-[18px] w-[18px]" aria-hidden />
+      </button>
+    </div>
+  );
 }
 
 /** Add someone (backend N308, N310, N328): your own link, to paste into any
@@ -367,8 +404,8 @@ export default function ChatList({
   onOpen: (chat: Chat) => void;
 }) {
   const now = new Date();
-  const [adding, setAdding] = useState(false);
-  const openAdd = useAddSomeone(setAdding, onOpenWill);
+  const [adding, setAdding] = useState<boolean | "note">(false);
+  const openAdd = useAddSomeone(setAdding);
   const first = joined ? chats.find((chat) => chat.id === joined) ?? null : null;
   const will = useWillRow(willOpen, cameFrom === WILL_CHAT);
   const row = (chat: Chat, justJoined = false) => (
@@ -434,7 +471,11 @@ export default function ChatList({
       >
         <Plus className="h-5 w-5" aria-hidden />
       </button>
-      {adding ? <AddSomeoneSheet onClose={() => setAdding(false)} /> : null}
+      {adding === "note" ? (
+        <SetupNote onClose={() => setAdding(false)} onOpenWill={onOpenWill} onLink={() => setAdding(true)} />
+      ) : adding ? (
+        <AddSomeoneSheet onClose={() => setAdding(false)} />
+      ) : null}
     </div>
   );
 }
