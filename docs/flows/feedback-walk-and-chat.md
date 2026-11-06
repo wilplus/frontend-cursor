@@ -481,7 +481,12 @@ step; the loop never waits for a coach.
   slide, and the one fix is chosen from everything else as above (another
   slide, another tool, or none); when the issue came back the same fix may
   be given again; no walk before, or one that cannot be read, and the pick
-  is as it always was. Nothing on screen says so (N359). The server serves
+  is as it always was. Nothing on screen says so (N359). A slide that had
+  helper words when the Take was recorded was worked on: their best, the
+  fix and every next best come from the slides with none first, and a
+  worked slide fills a slot only when nothing untouched can, so a Take never
+  shows fewer moments (N543; was: only a clip whose own words held them gave
+  way). Nothing on screen says so. The server serves
   only these two (backend `take_feedback_policy_v3._one_thing`), so the
   Ideal Text's marks, the coach's queue and "did the fix work" hold the
   same two; the next bests and the second fix are not shown. Was (N289,
@@ -1506,8 +1511,9 @@ before the next recording":
 
   **Step 4 · where the number goes.**
   - The pick (H1): the Take's two highest, one per block; clips of 5 words
-    or more first, and a clip that already holds its slide's helper words
-    after the rest.
+    or more first, then clips on a slide with no helper words when the Take
+    was recorded (N543), and a clip that already holds its slide's helper
+    words after the rest.
   - The praise's opening line (C2): a praised moment's level, by the lower
     bound of each: W10 0.95 · W9 0.88 · W8 0.80 · W7 0.70 · W6 0.65 · W5
     0.60 · W4 0.50 · W3 0.40 · W2 0.30 · W1 below. It goes out as
@@ -2294,6 +2300,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-06 · N543 · H1, the One thing walk's pick: the moments come from untouched slides first. A slide that had helper words when the Take was recorded gives way in every slot (their best, the Clearer version's between, the AI clip's weakest, the next bests) and fills one only when no untouched slide can (backend `moment_pick._untouched_first`, `_rank`). No new words. What stops: a moment on a slide the speaker already worked on winning over an untouched slide because its own words did not hold the helper words · BE N543 (#1804), FE (this PR)
 - 2026-11-06 · N541 · G3, G4: a Take sent to people is never lost silently. From a Take's line a send that fails keeps the screen open, ticked as chosen, and says "Couldn't share this take. Try again." (the community screen's toast), and Continue tries again; chosen before a Take, the send is kept on the phone under its own key (`willab.pendingTakeSends`) until it goes, tried again 5 s and 30 s later, then at the next open, signed in, once the thread has painted, within the choice's six hours, never waited on (`PeopleSendScreen` in `NextTakeShareScreen.tsx`, `applyNextTakeShare` and `retryTakeSends` in `nextTakeShare.ts`, `WillabSurface.tsx`). No new words. What stops: a failed send from the line closing the screen as if the Take had gone, and a failed send before a Take dropping the choice after one try · BE N541 (#1798), FE (this PR)
 - 2026-11-06 · N537 · B16, D4: a question is the last bubble, right above its answers, everywhere; after a Take on a plan its question (the plan's own yes, the ratings, a new project's) comes under the goodbye and the plan's bar, never over them (backend `after_take.end_rows`). No new words. What stops: the plan's yes above "Good job. See you {day}." and the bar, with its buttons far below it · BE N537, FE (this PR)
 - 2026-11-06 · N542 · B9, B10: a walk opened again from the chat keeps what is left to do. What was done is read only, as given; the first step not yet done (never reached, a choice not made, a practise stopped midway) stands at the bottom with its own buttons, the rest above to scroll; Close at the bottom only once nothing is left (`walkAsItStands` returns `waitsAt` in `feedbackWalkModel.ts`; `reopenedFromChat` and `review` in `useDeckFeedbackWalk.tsx`). What stops: N539's read-only scroll while something was left to do · BE N542, FE (this PR)
