@@ -199,6 +199,10 @@ export type WalkStep = WalkScreen & {
   /** A step of the One thing walk (founder 2026-10-31, N309): drawn and
    *  said with its own words; its practise allows two tries. */
   one?: boolean;
+  /** The One thing walk's fix walked with the closest exercise we have: the
+   *  server chose a Clearer version that did not reach the walk (backend
+   *  N536). Its screen says so, and that the coach was asked. */
+  closest?: boolean;
   /** The helper words step: the moment whose paragraph takes them (the
    *  fix's; with no fix and no Sniper, their best's, backend N374). Not
    *  `moment`, so reaching it never settles that moment twice. */
@@ -274,7 +278,8 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
  *  slot whose tool fits (the between's Clearer version first, words come
  *  first, else the weakest's AI clip; the server serves one, N309; a
  *  between with no Clearer version is left out unless it is the plan
- *  level's moment, N381); the Sniper when the server chose it (`oneFix`
+ *  level's moment, N381, or the server chose it, its Clearer version lost
+ *  on the way: then the closest exercise, N536); the Sniper when the server chose it (`oneFix`
  *  "tempo", its step there before its stretch arrives), or, served with no
  *  choice, with no moment to fix and the tempo step offered; a coach's
  *  answer on any other moment, on its own screen; from Take 2 one moment of
@@ -286,19 +291,20 @@ function oneThing(moments: readonly WalkMoment[], input: WalkPlanInput): WalkSte
   const best = moments.find((m) => m.slot === "strongest" && m.praise);
   const fixes = [...moments]
     .filter((m) => (m.slot === "between" || m.slot === "weakest") && isPractiseMoment(m))
-    // The AI clip is the weakest's alone (N381): a between whose Clearer
-    // version did not reach the walk is no fix, unless the plan's level
-    // takes it with its own tool (G7).
-    .filter((m) => m.slot !== "between" || m.clearer || m.level)
     .sort((a, b) => SLOT_ORDER[a.slot ?? "next"] - SLOT_ORDER[b.slot ?? "next"]);
   // The server's choice of the one fix (C2, T: the Sniper and then no
   // moment); with none served, the Sniper when no moment is fixed.
   const served = moments.find((m) => m.oneFix)?.oneFix ?? null;
-  const found = fixes.find((m) => m.clearer) ?? fixes[0];
+  // A between with no Clearer version: on a Take served with no choice it
+  // is no fix (N381), unless the plan's level takes it (G7). When the
+  // server chose it, its Clearer version was lost on the way: it is still
+  // the fix, walked with the closest exercise we have (N536).
+  const drawn = served === "moment" ? fixes : fixes.filter((m) => m.slot !== "between" || m.clearer || m.level);
+  const found = drawn.find((m) => m.clearer) ?? drawn[0];
   const sniper = !input.guest && (served ? served === "tempo" : !found && (input.interventions ?? []).includes("tempo"));
   const fix = sniper ? undefined : found;
   if (best) out.push(momentStep(best, "praise", { one: true }));
-  if (fix) out.push(...oneFix(fix, input.practiceOn));
+  if (fix) out.push(...oneFix(fix, input.practiceOn, fix.slot === "between" && !fix.clearer && !fix.level));
   else if (sniper) out.push({ key: "tempo", one: true });
   for (const m of moments) {
     if (m !== best && m !== fix && m.coach) out.push(momentStep(m, "coach"));
@@ -316,15 +322,17 @@ function oneThing(moments: readonly WalkMoment[], input: WalkPlanInput): WalkSte
 
 /** The fix's screens before its first try: the Clearer version, or the AI
  *  clip after their best (the voice Exercise), then the recorder. With
- *  practice off, the fix alone. */
-function oneFix(m: WalkMoment, practiceOn: boolean): WalkStep[] {
+ *  practice off, the fix alone. `closest`: the Exercise stands in for a
+ *  Clearer version that did not arrive (N536). */
+function oneFix(m: WalkMoment, practiceOn: boolean, closest = false): WalkStep[] {
   if (m.clearer) {
     if (!practiceOn) return [momentStep(m, "clearer", { kind: "accept", one: true })];
     return [momentStep(m, "clearer", { one: true }), momentStep(m, "practise", { kind: "words", attempt: 1, one: true })];
   }
-  if (!practiceOn) return [momentStep(m, "exVideo", { one: true })];
+  const exercise = momentStep(m, "exVideo", { one: true, ...(closest ? { closest } : {}) });
+  if (!practiceOn) return [exercise];
   const kind = m.exercise ? "instruction" : "moment";
-  return [momentStep(m, "exVideo", { one: true }), momentStep(m, "practise", { kind, attempt: 1, one: true })];
+  return [exercise, momentStep(m, "practise", { kind, attempt: 1, one: true })];
 }
 
 /** A Take baked before N289: every praise first, then the practising. */
