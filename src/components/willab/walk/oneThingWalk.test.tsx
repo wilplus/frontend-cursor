@@ -4,7 +4,7 @@ STORY    As a speaker, I want the walk after each Take to show me my best moment
 OUTCOME
   O1  The walk goes in order: "Hi {name}.", my best with "This was your most confident moment." and why it worked, then "And now, one thing to improve:" and one fix; the Clearer version says "Say it straight:" and the sentence, with "Try it" and "Keep mine"; no helper-word picker, no second moment and no summary in the walk.
   O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2), without the sentence's punctuation at either end, as after "Keep mine" (backend N440); with no fix, my best moment's own words are my helper words, saved the same way (backend N374); a Clearer practice still opening when the helper words' short wait runs out gives my best's words, drawn and saved once, whatever it answers later (N374, C3). With the Sniper as the fix, Skip moves the walk on at once, after a try too; its line and scale stay in their one bubble above the tries; ✕ after a try keeps the game for Will and says nothing; opened again, its walk shows the helper words its stretch gave, the bar on the stretch's slide. The Sniper the server chose waits on its stretch with the typing dots at most as long as the fix waits on its clip (N373), then the walk goes on without it; with no stretch there is no "And now, one thing to improve:", in the walk or the chat: my best, my best's helper words and "Lesson done.", the bar on my best's slide.
-  O3  The walk ends on "Lesson done." with Close, which ends the review and takes me back to the chat; no "Record Take N" in the walk.
+  O3  The walk ends on "Lesson done." with Close, which ends the review and takes me back to the chat, also when I open it again before the Take is finished; no "Record Take N" in the walk.
   O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after "Try it", my own after "Keep mine"; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
   O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, each landing on its own behind the dots, the card I chose holding 0.28 s before my answer as my own reply with a tick ("Audio unclear", no card, at once), then "Got it.", and the walk moving on once they have landed; after it the bar names my fix's slide again for the helper words and "Lesson done."; on Take 1 I judge no one.
   O6  My best's clip and the AI clip's fix show my own words above the player, as the prototype draws them; my best played again inside the fix shows none.
@@ -22,7 +22,8 @@ PROVES   O1 -> walks hello, their best and why it worked, then one thing to impr
                the Sniper's walk opened again shows the helper words its stretch gave (C3, B10),
                the Sniper the server chose waits on its stretch with the dots no longer than the fix waits on its clip, then the walk goes on without it (N373),
                a Sniper the server chose with no stretch promises no fix: their best, their helper words, Lesson done, their best's slide in the bar (C2, T, N374)
-         O3 -> Lesson done and Close end the review, back to the chat
+         O3 -> Lesson done and Close end the review, back to the chat,
+               opened again before the Take is finished, with nothing of the walk waiting, Lesson done still has Close
          O7 -> the helper words come on their own and are saved without a pick,
                the Clearer version's sentence is saved from its practice
          O8 -> the helper words come on their own and are saved without a pick,
@@ -75,7 +76,7 @@ vi.mock("@/hooks/useDualCaptureMic", async () => {
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
 import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkRequest } from "./FeedbackWalk";
 import { AI_CLIP_WAIT_MS } from "./WalkAiVoice";
-import { buildFeedbackReplay, buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
+import { buildFeedbackReplay, buildFeedbackWalk, walkAsItStands, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -660,6 +661,19 @@ describe("the One thing walk (N309)", () => {
     expect(props.onClose).toHaveBeenCalledTimes(1);
     // Close goes back to the chat, never onto the page's end.
     expect(props.onEnd).not.toHaveBeenCalled();
+  });
+
+  it("opened again before the Take is finished, with nothing of the walk waiting, Lesson done still has Close", () => {
+    // A mark the One thing walk never shows keeps the Take unfinished; every
+    // step of the walk is answered. Close must still end the review, or
+    // "Continue review" stays in the chat for good (founder 2026-11-06).
+    const whole = buildFeedbackWalk<string>({ items: ITEMS, coachNote: false, practiceOn: true, guest: false });
+    const given = buildFeedbackReplay<string>({ items: ITEMS, coachNote: false, practiceOn: true, answerOf: () => null, helperWordsOf: () => null });
+    const model = walkAsItStands(given, whole, () => false);
+    const props = draw({ seq: 1, at: model.plan.findIndex((s) => s.key === "done") }, { model });
+    expect(now()!.querySelector("[data-walk-done]")!.textContent).toBe(ONE_THING_COPY.lessonDone);
+    click(testId("walk-close"));
+    expect(props.onLessonDone).toHaveBeenCalledTimes(1);
   });
 
   it("from Take 2, one moment of another speaker, of the Take's level, answered as my own reply", async () => {

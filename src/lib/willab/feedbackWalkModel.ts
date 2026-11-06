@@ -581,8 +581,13 @@ export function walkAsItStands<R>(
   // judged moment, its helper words and "Lesson done." with Close (N309),
   // never the finished walk's read-only copies; so is a Sniper not played
   // yet (B10, T).
-  const liveTail = (k: WalkStepKey) => LIVE_TAIL.has(k) || (k === "tempo" && !tempoKept);
-  const tail = drawn.size > 0 ? plan.map((s) => (liveTail(s.key) ? (live.plan.find((l) => l.key === s.key) ?? s) : s)) : plan;
+  // "Lesson done." keeps its Close whatever waits: the walk as it stands is
+  // a Take not finished, and only Close writes its review's end. With no
+  // moment of the walk left waiting (one the walk never shows still holds
+  // its mark), the read-only copy left "Continue review" in the chat for
+  // good (founder 2026-11-06).
+  const liveTail = (k: WalkStepKey) => (drawn.size > 0 && (LIVE_TAIL.has(k) || (k === "tempo" && !tempoKept))) || k === "done";
+  const tail = plan.map((s) => (liveTail(s.key) ? (live.plan.find((l) => l.key === s.key) ?? s) : s));
   return { ...replay, plan: tail, asItStands: true, scroll: false };
 }
 
