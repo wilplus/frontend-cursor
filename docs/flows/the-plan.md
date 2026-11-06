@@ -730,7 +730,7 @@ The plan's own code, guarded by this page (`scripts/flow-pages.txt`):
   `PlanAsk`, the tap answers and the scale in the thread; `usePlanVoice`,
   the recording of a spoken answer; `PlanDock`, the calls' calendar in the
   footer; `WillBarMiddle`, the bar's middle in Will's chat, the one black
-  button: "Record your answer", "Continue review", "Record Take N" for the
+  button: "Record your answer", "Record Take N" for the
   goodbye's next Take or a practice day's (`usePlanLounge` `one` from
   `PlanRows` `newestOneOf`, G6), or "Start your first recording"
   (`usePlanLounge` `startFirst`), N483), the
@@ -797,6 +797,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-06 · N532 · §4: `WillBarMiddle` no longer offers "Continue review"; the bar's one black button is "Record your answer", "Record Take N" or "Start your first recording" · BE N532 (#1786), FE (this PR)
 - 2026-11-05 · — · §4: coming back to the app re-reads the plan only when it was last read more than 30 seconds ago (`usePlanLounge`; a failed read is not counted, `planReadFailed` in `services/api/plan.ts`), so a tab switch and back costs no read. Opening the Lounge and a Take or plan row landing in the thread read it as before. No new words; no rule changes. Was: every return to the tab read the plan · FE (this PR)
 - 2026-11-05 · — · §4: the calls' calendar is no longer part of the chat's first download: its code is fetched once the chat has painted, and `PlanDock` draws it from the first "Book now" or "Book" on, so it opens and slides away as before. The small month grid moves to `plan/MonthGrid.tsx` (still exported by `plan/PlanCalendar.tsx`), so the deadline's sheets and a chat's ready-by sheet load without the calendar. No new words; no rule changes · FE (this PR)
 - 2026-11-04 · N505 · the plan's answers in the chat and the calendar's button keep 8px above, on each side and below (the Feedback walk page's J9); was 20px sides, 30px (answers) and 24px (button) below (`LoungeLifeGoals.tsx`, `plan/PlanCalendar.tsx`) · BE, FE (this PR)

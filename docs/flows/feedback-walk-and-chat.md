@@ -245,10 +245,11 @@ step; the loop never waits for a coach.
     - never on the Ideal Text in the walk's place: it always names where to
       open (fixed 2026-10-26, after a walk paused on its summary, or with no
       part to stand on, had opened the text).
-  - **"Continue review"** is the bar's middle (B14) until every step is
-    answered, the black button with no red dot. It opens the live walk on
-    what waits, through the same door as the Feedback walk (N483 item 2;
-    was above the message box).
+  - **No "Continue review"** (N532): the review is reached from its
+    Feedback walk, which wears the outline while a step waits; the bar
+    never holds the next Take back. Closing the walk, by Close or ✕, leaves
+    "Record Take N" in the bar (B14). Was: "Continue review" as the bar's
+    middle until every step was answered (N483 item 2).
   - **The orange outline:** the Feedback walk of a Take whose walk still
     waits, or whose coach's word changed and is not yet seen, has a full 2px
     orange stroke all the way round, nothing cutting it (J6).
@@ -316,10 +317,11 @@ step; the loop never waits for a coach.
      [`the-plan.md`](the-plan.md) B10): "Record your answer", with "Not
      now" a grey word under his question; "Not now" leaves it until the
      chat is opened again;
-  3. a review is unfinished: "Continue review", with no red dot (B10);
-  4. otherwise "Record Take N" for the newest Take (the goodbye's, a
+  3. otherwise "Record Take N" for the newest Take (the goodbye's, a
      practice day's, else the thread's newest Take), faded while a Take is
-     processed; "Start your first recording" before any Take.
+     processed; "Start your first recording" before any Take. An
+     unfinished review holds nothing back: no "Continue review" (N532,
+     B10).
 
   One black button; the red dot means a tap starts a recording. No mic, and
   no ✕ beside the button or the box. While an answer is said, **the one
@@ -379,7 +381,7 @@ step; the loop never waits for a coach.
   bubble (video or words only; everything the coach sent), then "Continue".
   Only this Take's coach word opens it (2026-10-20, narrowing N48.3 Q11 A):
   an earlier Take's word served in its place stays in the Lounge as the
-  coach's bubble and neither opens Step 0 nor keeps "Continue review" up.
+  coach's bubble and opens no Step 0.
   The coach's own doors (the WhatsApp and email links, the dot card, the
   "Later · from your coach" bubble, and a Feedback walk whose coach's word
   changed, B10) open the walk at the coach's place: Step 0 for
@@ -777,8 +779,8 @@ praised moment:
   replay", 2026-10-13). No other speaker's recording is ever stored in a
   speaker's thread: the moments are read again from the server.
 - **C9 The end** (N309 item 4): "Lesson done." and a Close pill, which
-  writes the review's end (the Take's card under its Feedback walk,
-  "Continue review" goes) and goes back to the chat. No "Record Take N" in
+  writes the review's end (the Take's card under its Feedback walk, its
+  outline goes) and goes back to the chat. No "Record Take N" in
   the walk and no summary inside it: the summary is still written once per
   Take as the walk ends, so the chain after the review runs as before (D4).
   Played again, "Lesson done." alone. Was: the closing summary (D), then
@@ -844,8 +846,8 @@ praised moment:
 
   **Between two Takes** (N244, N251). From the moment the next Take is
   recorded, in any project, the bar's "Record Take N" is the new Take's:
-  faded while it is processed, then "Continue review" until its walk is
-  done (B14). So the chat has one record button, the newest Take's;
+  faded while it is processed, then live at once, whether its walk is done
+  or not (B14, N532). So the chat has one record button, the newest Take's;
   another project is reached through the stack. The stack is held while a
   Take is processed, and the Ideal Text page's own "Record Take N" is
   unchanged
@@ -1776,7 +1778,7 @@ October (backend N111).
   blocked. Allow it for this site in the browser's settings, then try
   again." In code: `TEMPO_COPY`, `src/lib/willab/tempoStep.ts`.
 - **The walk's labels:** "Your coach:", "Continue", "Next", "Good job",
-  "Skip", "Practise", "Practise again", "Stop", "Close", "Continue review",
+  "Skip", "Practise", "Practise again", "Stop", "Close",
   "Slide N", "Slide N · helper words", "Take N", "Other speakers",
   "Other speakers · N of N", "Practise N", "🔒 Take N", "Processing your
   recording", "Later · from your coach", "Updated with your coach's note ·
@@ -2238,6 +2240,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-06 · N532 · B10, B14, C1, C9, K: "Continue review" goes from the bar. Its middle is "Record your answer" when the plan asks to hear you, else "Record Take N" (faded while a Take is processed), else "Start your first recording"; closing the walk by Close or ✕ leaves "Record Take N"; the review is reached from its Feedback walk, which keeps its outline while a step waits (`WillBarMiddle` in `plan/PlanDock.tsx`, `Lounge.tsx`). What stops: "Continue review" in the bar, and an unfinished review holding back the next Take · BE N532 (#1786), FE (this PR)
 - 2026-11-06 · N309 item 4 · C, B10: a bug fix, no new rule. "Lesson done." keeps Close when the walk is opened again before the Take is finished, even with nothing of the walk left waiting (a mark the One thing walk never shows still holds the Take open), so Close writes the review's end and "Continue review" goes (`feedbackWalkModel.ts` `walkAsItStands`). Was: "Lesson done." read only, with no Close; the review's end was never written and "Continue review" stayed in the chat for good, with no way to record the next Take · FE (this PR)
 - 2026-11-04 · N513 · G, J8: on the "Who hears this Take" screen Will's three bubbles are one run in the chats' rhythm, 2px apart with their corners drawn in where they meet (`data-rhythm`), then the list; the Feedback walk keeps its own 16px (J6, N469 item 2). Was: the three bubbles 16px apart, as walk bubbles · BE N513 log, FE (this PR)
 - 2026-11-04 · N505 · J9: one space around every bottom bar, 8px above, on each side and below, as on WhatsApp; the thread stops 8px above the chat's bar; the walk's footer goes from 20px sides and 30px under to 8px (`globals.css` `bar-space`, `Lounge.tsx`, `LoungeLifeGoals.tsx`, `walk/WalkFooter.tsx`, `walk/WalkSheetFrame.tsx`) · BE, FE (this PR)

@@ -810,7 +810,7 @@ function exerciseStepOf(step: string): string {
   return step.startsWith("try:") || ["improved", "encourage", "thanks"].includes(step) ? "exVideo" : step;
 }
 
-/** Where the chat's Feedback walk, and "Continue review" for it, open the
+/** Where the chat's Feedback walk opens the
  *  walk (B10, N192): on the coach's word while it waits (C1); while the
  *  review waits, on the step it waits on; once done, on the walk's newest
  *  part; else on the Take alone, which the page opens live on what waits,
