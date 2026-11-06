@@ -149,8 +149,9 @@ rest is built in.
      sit on your side ("Something else" first, which opens the box; the
      summary's "Change it" and "That's right" have none); typed words
      answer his question, and under "What should change?" the box stays
-     open. The summary shows what someone new will see, your name in its
-     top line, each question with its answers. "That's right" keeps them;
+     open; Will understands the change however it is put (N535). The
+     summary shows what someone new will see, your name in its top line,
+     each question with its answers. "That's right" keeps them;
      "You're set." ends with "Copy my link ›" (then "✓ Copied") and "Your
      questions for people who join ›", which opens the summary again; under
      them Will says "All is set. You can now start practising." and the bar's
@@ -842,6 +843,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-06 · N535 · C: under "What should change?" Will understands the change however it is put (the model, under the person's processing authorization). Was: only a few fixed phrasings, so "make the choices polish and english and french" got "I couldn't tell what to change" · BE N535 (wilplus/backend-cursor#1791), FE (this PR)
 - 2026-11-06 · N533 · C1: at the end of the join setup, under "You're set." and its two links, Will says "All is set. You can now start practising." (backend `services/join_setup.py` writes it as his own line, `{"step": "say"}`, drawn by `JoinSetup.tsx` as any of his lines); the summary opened again ends at "Saved. …" as before. Was: "You're set." was Will's last line · BE N533 (#1787), BE #1789, FE (this PR)
 - 2026-11-05 · N521 · C1: for whoever may hear speakers, a row right under Will opens their queue; its rules are the coach panel's B1 · BE #1762, FE (this PR)
 
