@@ -237,19 +237,31 @@ step; the loop never waits for a coach.
   stay, and clips still play (N259).
   - **Only the first opening goes step by step** (N539): the walk that
     opens by itself when the Take's feedback is ready. Every opening after
-    it from the chat (the Feedback walk bubble, a step's bubble) is the
-    scroll above, whatever still waits; a changed coach word not yet seen
-    still goes step by step from the word, so its Continue marks it seen
-    (D5). The Ideal Text page's own doors are unchanged. Was: a Take not
-    yet finished opened live, with Next (`review` in
-    `useDeckFeedbackWalk.tsx`).
-  - **A scroll ends on Close at the bottom** (N539), with the bar's ✕;
-    both end the review as Close under "Lesson done." does (C9). Was: no
-    button at the bottom, only ✕ (`WalkThread.tsx`).
+    it from the chat (the Feedback walk bubble, a step's bubble) keeps
+    what was done as it was, read only, and what is left to do (N542):
+    - **What was done** is as given: every answered step, every try as
+      made, no Next on any of it.
+    - **What is left to do** can still be done: a step never reached, a
+      choice not made (the Clearer version's Try it or Keep mine, the tempo
+      game, other speakers' moment), a practise stopped before it ended
+      (N458: it opens on the try again). The first of them stands at the
+      bottom with its own buttons, the rest above to scroll, and the walk
+      goes on from there (`walkAsItStands` `waitsAt`).
+    - **Nothing left:** the scroll above.
+    A changed coach word not yet seen still goes step by step from the
+    word, so its Continue marks it seen (D5). The Ideal Text page's own
+    doors are unchanged. Was: the walk stood on the step the bubble named,
+    each answered step reading Next (until N542: the scroll whatever still
+    waited, N539) (`review` in `useDeckFeedbackWalk.tsx`).
+  - **A scroll ends on Close at the bottom** (N539), only once nothing is
+    left (N542), with the bar's ✕; both end the review as Close under
+    "Lesson done." does (C9). While a step is left, its own buttons and
+    the ✕. Was: no button at the bottom, only ✕ (`WalkThread.tsx`).
   - **The Feedback walk** opens:
     - on the coach's word, while a changed one is not yet seen (C1, D5);
     - while the walk runs, live on the step it waits on, from the page;
-      from the chat after its first opening, as a scroll (N539);
+      from the chat after its first opening, on the first thing left to do,
+      what was done above it read only (N542);
     - once the walk is done, on its newest step, as "Review feedback" does.
       Everything the speaker went through is there to scroll, read only, down
       to the summary: the tempo step (T) and the other speakers they judged
@@ -276,7 +288,9 @@ step; the loop never waits for a coach.
     hold, or for its summary, stands on its newest step.
   - **A Take not yet finished:** the same whole walk as it stands, what is
     answered as given and what waits live, each moment under the number the
-    Take's walk gave it, so nothing is posted again as a new bubble.
+    Take's walk gave it, so nothing is posted again as a new bubble. From
+    the chat it stands on the first thing left to do (N542); from the page,
+    on the step the page names.
   - **An older Take's walk** is read only and ends on that Take's Ideal Text.
 
   (Founder 2026-10-20, N89: "THE SAME MECHANISM"; 2026-10-21, N91: "the WALK
@@ -2282,6 +2296,7 @@ One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-06 · N541 · G3, G4: a Take sent to people is never lost silently. From a Take's line a send that fails keeps the screen open, ticked as chosen, and says "Couldn't share this take. Try again." (the community screen's toast), and Continue tries again; chosen before a Take, the send is kept on the phone under its own key (`willab.pendingTakeSends`) until it goes, tried again 5 s and 30 s later, then at the next open, signed in, once the thread has painted, within the choice's six hours, never waited on (`PeopleSendScreen` in `NextTakeShareScreen.tsx`, `applyNextTakeShare` and `retryTakeSends` in `nextTakeShare.ts`, `WillabSurface.tsx`). No new words. What stops: a failed send from the line closing the screen as if the Take had gone, and a failed send before a Take dropping the choice after one try · BE N541 (#1798), FE (this PR)
 - 2026-11-06 · N537 · B16, D4: a question is the last bubble, right above its answers, everywhere; after a Take on a plan its question (the plan's own yes, the ratings, a new project's) comes under the goodbye and the plan's bar, never over them (backend `after_take.end_rows`). No new words. What stops: the plan's yes above "Good job. See you {day}." and the bar, with its buttons far below it · BE N537, FE (this PR)
+- 2026-11-06 · N542 · B9, B10: a walk opened again from the chat keeps what is left to do. What was done is read only, as given; the first step not yet done (never reached, a choice not made, a practise stopped midway) stands at the bottom with its own buttons, the rest above to scroll; Close at the bottom only once nothing is left (`walkAsItStands` returns `waitsAt` in `feedbackWalkModel.ts`; `reopenedFromChat` and `review` in `useDeckFeedbackWalk.tsx`). What stops: N539's read-only scroll while something was left to do · BE N542, FE (this PR)
 - 2026-11-06 · N539 · B9, B10: only the first opening of a Take's walk, right after the processing, goes step by step; every opening from the chat after it is a scroll, as given, read only, whatever still waits, with Close at the bottom; ✕ and Close on a scroll end the review as "Lesson done."'s Close does. An unseen coach word keeps its steps (`review` in `useDeckFeedbackWalk.tsx`, `coachUnseen` from `TranscriptReviewDeck.tsx`, `WalkThread.tsx`). What stops: Next on a walk reopened from the chat, and a scroll with no button at the bottom · BE N539, FE (this PR)
 - 2026-11-06 · N536 · C2, K: the fix the server chose is always walked. A Clearer version that passed but did not reach the walk is the closest exercise (the voice Exercise), saying "We don't have an exercise for exactly this yet, so here's the closest one." and "I've asked your speaking coach to make one just for you." (`oneThing` in `walkPlan.ts`, `OneExerciseBody` in `walk/FeedbackWalk.tsx`, `ONE_THING_COPY.closest` and `.coachAsked`; the server names a lost one in its log, `fix_clearer_not_served`). What stops: a walk of their best and helper words with no fix while the server chose one · BE N536, FE (this PR)
 - 2026-11-06 · N532 · B10, B14, C1, C9, K: "Continue review" goes from the bar. Its middle is "Record your answer" when the plan asks to hear you, else "Record Take N" (faded while a Take is processed), else "Start your first recording"; closing the walk by Close or ✕ leaves "Record Take N"; the review is reached from its Feedback walk, which keeps its outline while a step waits (`WillBarMiddle` in `plan/PlanDock.tsx`, `Lounge.tsx`). What stops: "Continue review" in the bar, and an unfinished review holding back the next Take · BE N532 (#1786), FE (this PR)
