@@ -184,7 +184,10 @@ built and what is still to come.
 1. A plan's first practice and its last practice get two ratings from 1 to
    10: how stressed and how ready the speaker feels. On the first practice
    they come at the end of the questions, before the plan card; on the last
-   practice, after its Take (N148, N151, N178).
+   practice, after its Take (N148, N151, N178). A plan made from Takes (A2)
+   or "Keep practising" (I2) gets its first ones after its first Take, under
+   "Two quick taps before your plan.", and they end on "You're all set.
+   Here's your plan." and the card; the plan is not begun again (N538).
 2. One question at a time: the question in the thread, its scale in the
    thread under it, right side and full width, its shape kept, with the
    Lounge's bar under it (N319 item 1, B10; was in the footer in place of
@@ -469,7 +472,10 @@ built and what is still to come.
 2. A new project asks "Is this for 14 November?" (the plan's deadline),
    after its first Take, not before it (N178). Yes keeps the plan; no starts
    "When is your deadline?" and the questions for a new plan. New slides or a
-   rewrite for the same event keep the plan (N149).
+   rewrite for the same event keep the plan (N149). A plan made from Takes,
+   from "Keep practising" or from the first Take counts the projects of the
+   speaker's earlier Takes as its own, so it asks too; after Yes, the
+   ratings the question came in place of follow, then the plan (N538).
 
 ### I · The plan's end
 
@@ -799,6 +805,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-06 · N538 · D1, H2: on a plan made from Takes or "Keep practising", "Two quick taps before your plan." ends on "You're all set. Here's your plan." and the card, the plan not begun again; a new project's first Take asks "Is this for {date}?" on such a plan and on one read from the first Take, and after its Yes the ratings it came in place of follow, then the plan. Was: nothing after the second tap, and no question, the ratings in its place and never asked after a Yes. No new words · BE N538 (backend `services/plan_flow.py`, guarded by `tests/test_plan_flow.py` O7, O17), FE (this PR)
 - 2026-11-06 · N537 · G13: a question the plan asks after a Take (its own yes, the ratings, a new project's) comes last, under the goodbye and the plan's bar, right above its answers (backend `after_take.end_rows`). No new words. Was: "Some of my questions are personal…" above "Good job. See you {day}." and the bar, its buttons far below it · BE, FE (this PR)
 - 2026-11-06 · N532 · §4: `WillBarMiddle` no longer offers "Continue review"; the bar's one black button is "Record your answer", "Record Take N" or "Start your first recording" · BE N532 (#1786), FE (this PR)
 - 2026-11-05 · — · §4: coming back to the app re-reads the plan only when it was last read more than 30 seconds ago (`usePlanLounge`; a failed read is not counted, `planReadFailed` in `services/api/plan.ts`), so a tab switch and back costs no read. Opening the Lounge and a Take or plan row landing in the thread read it as before. No new words; no rule changes. Was: every return to the tab read the plan · FE (this PR)
