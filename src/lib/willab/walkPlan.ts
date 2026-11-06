@@ -237,6 +237,12 @@ function practiseOpening(m: WalkMoment, practiceOn: boolean): WalkStep[] {
 
 const isPractiseMoment = (m: WalkMoment) => Boolean(m.clearer || m.exercise || m.practise);
 
+/** A between with no Clearer version that is not the plan level's moment:
+ *  no fix on a Take served with no choice (N381); when the server chose it,
+ *  its Clearer version was lost on the way, and the closest exercise stands
+ *  in (N536). */
+const lostClearer = (m: WalkMoment) => m.slot === "between" && !m.clearer && !m.level;
+
 /** The whole walk for one Take, in the locked order. */
 export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
   const moments = [...input.moments].sort((a, b) => a.index - b.index);
@@ -295,16 +301,12 @@ function oneThing(moments: readonly WalkMoment[], input: WalkPlanInput): WalkSte
   // The server's choice of the one fix (C2, T: the Sniper and then no
   // moment); with none served, the Sniper when no moment is fixed.
   const served = moments.find((m) => m.oneFix)?.oneFix ?? null;
-  // A between with no Clearer version: on a Take served with no choice it
-  // is no fix (N381), unless the plan's level takes it (G7). When the
-  // server chose it, its Clearer version was lost on the way: it is still
-  // the fix, walked with the closest exercise we have (N536).
-  const drawn = served === "moment" ? fixes : fixes.filter((m) => m.slot !== "between" || m.clearer || m.level);
+  const drawn = served === "moment" ? fixes : fixes.filter((m) => !lostClearer(m));
   const found = drawn.find((m) => m.clearer) ?? drawn[0];
   const sniper = !input.guest && (served ? served === "tempo" : !found && (input.interventions ?? []).includes("tempo"));
   const fix = sniper ? undefined : found;
   if (best) out.push(momentStep(best, "praise", { one: true }));
-  if (fix) out.push(...oneFix(fix, input.practiceOn, fix.slot === "between" && !fix.clearer && !fix.level));
+  if (fix) out.push(...oneFix(fix, input.practiceOn, lostClearer(fix)));
   else if (sniper) out.push({ key: "tempo", one: true });
   for (const m of moments) {
     if (m !== best && m !== fix && m.coach) out.push(momentStep(m, "coach"));

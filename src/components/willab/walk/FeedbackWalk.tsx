@@ -707,9 +707,8 @@ export default function FeedbackWalk<R = unknown>({
       // The line above it only with their best's clip after it (N377 item 2).
       const like = s.one && fixBest(walk.moments, s.moment) ? [ONE_THING_COPY.likeConfident] : [];
       // The closest exercise says so, and that the coach was asked (N536).
-      const closest = s.closest ? [ONE_THING_COPY.closest] : [];
-      const asked = s.closest ? [ONE_THING_COPY.coachAsked] : [];
-      const body = s.one ? [...closest, ...like, ...(noClip?.lines ?? []), ...asked].join("\n") || null : null;
+      const lines = [...like, ...(noClip?.lines ?? [])];
+      const body = s.one ? (s.closest ? [ONE_THING_COPY.closest, ...lines, ONE_THING_COPY.coachAsked] : lines).join("\n") || null : null;
       shownRef.current?.(s, moment, say, ai, body, ai ? null : (noClip?.tip ?? null), s.one ? (practise.aiVoiceOf(s.moment)?.clip?.phrase ?? null) : null);
     });
   });
