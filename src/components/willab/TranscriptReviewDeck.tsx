@@ -817,6 +817,7 @@ export default function TranscriptReviewDeck({
     answeredOf,
     helperWordsOf,
     finished: walkFinished(deckReady, firstWaiting, coachStep.unseen),
+    coachUnseen: coachStep.unseen,
     feedbackPending,
     onLensClose,
     onEnd: onWalkEnd,
