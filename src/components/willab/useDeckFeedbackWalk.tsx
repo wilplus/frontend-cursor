@@ -403,6 +403,25 @@ function answeredRun<R>(
   return head;
 }
 
+/** OPENED AGAIN FROM THE CHAT, A SCROLL (founder 2026-11-06, N539: "only
+ *  first feedback walk after the processing is the one that is step by
+ *  step; the next ones that are openable from the conversational chat
+ *  should be scrollable"). The first opening, right after the processing,
+ *  names no step; every door from the chat names one, so it is an opening
+ *  after the first: the walk as given, read only, with Close at the bottom,
+ *  whatever still waits. An unseen coach word keeps its steps, so its
+ *  Continue marks it seen; the page's own doors are unchanged. A finished
+ *  walk is a scroll from every door (N259). Pure. */
+function opensAsScroll(at: {
+  finished: boolean;
+  lens: boolean;
+  target: WalkStepTarget | null | undefined;
+  coachOnly: boolean;
+  coachUnseen: boolean;
+}): boolean {
+  return at.finished || (at.lens && Boolean(at.target) && !at.coachOnly && !at.coachUnseen);
+}
+
 /** Where the walk as given stands, opened at `at`. A finished walk opened
  *  from the chat (`lens`) stands on its newest step when it does not hold
  *  the step asked for (the Take alone) or holds it in its tail (the summary,
@@ -896,6 +915,9 @@ export function useDeckFeedbackWalk(args: {
   /** Nothing of this Take waits on the speaker: the walk is finished, and
    *  "Review feedback" under "Record Take N" plays it again. */
   finished?: boolean;
+  /** The Take's coach word changed and is not yet seen: a door from the
+   *  chat still goes step by step from it, so its Continue marks it seen. */
+  coachUnseen?: boolean;
   /** The Take's moments may still land (the readout is not in yet). */
   feedbackPending?: boolean;
 }): {
@@ -1315,24 +1337,25 @@ export function useDeckFeedbackWalk(args: {
     // still waits, so a word already seen and moments already answered left
     // it empty: it opened and closed at once.
     const coachDoor = !target && coachOnly;
+    const asScroll = opensAsScroll({ finished, lens, target, coachOnly, coachUnseen: live.current.coachUnseen === true });
     // A finished Take (nothing waits, the coach's word seen) is walked as
     // given: its live model holds only the tail (others, the summary), never
     // the step asked for (founder 2026-10-21).
-    const liveAt = finished ? null : walkStepAt(model, target);
+    const liveAt = asScroll ? null : walkStepAt(model, target);
     // The whole Take's walk, standing on the step asked for: as given once
     // answered (prototype v31), live while it waits, its buttons in the dock
     // either way, the parts before it there to scroll (founder 2026-10-21).
-    const done = (target || coachDoor) && replayReady ? (finished ? buildReplay(ownAnswers) : buildWhole(ownAnswers)) : null;
+    const done = (target || coachDoor) && replayReady ? (asScroll ? buildReplay(ownAnswers) : buildWhole(ownAnswers)) : null;
     const doneAt = done ? (coachDoor ? walkStart(done) : walkStepAt(done, target)) : null;
     // A door from the chat never shows the text in the walk's place.
-    const standAt = standAtOf(done, doneAt, finished, lens);
+    const standAt = standAtOf(done, doneAt, asScroll, lens);
     if (done && standAt !== null) {
       setReplaying(done);
       // The parts after it too, as far as the walk was walked: on a finished
       // Take its last step, else up to the next step that still waits. The
       // coach's door, while something waits, goes step by step from the
       // word, so its Continue still marks the word seen.
-      return openAt(standAt, false, lens, undefined, finished ? threadEnd(done) : coachDoor ? null : answeredRun(done, standAt, waitsOn));
+      return openAt(standAt, false, lens, undefined, asScroll ? threadEnd(done) : coachDoor ? null : answeredRun(done, standAt, waitsOn));
     }
     if (target?.part && liveAt === null && !lens) return false;
     // Opening marks nothing: only Continue on the coach's word does (N80).
@@ -1602,6 +1625,10 @@ export function useDeckFeedbackWalk(args: {
   // The review's end is written once per Take, also when the walk closes
   // with nothing left to answer, so the review is over (founder 2026-10-14).
   const endedRef = useRef<string | null>(null);
+  // The walk on screen is a scroll (N259, 2026-11-06): its ✕ and Close end
+  // the review.
+  const scrollingRef = useRef(false);
+  scrollingRef.current = replaying?.scroll === true;
   const postEnd = useCallback(() => {
     const { thread: to, take: on } = threadRef.current;
     if (!on || endedRef.current === on) return;
@@ -1646,7 +1673,9 @@ export function useDeckFeedbackWalk(args: {
   const onClose = useCallback(() => {
     // ✕ on a finished walk ends the review as Close does (B11, C9). The
     // coach-only walk is not the review: it ends nothing.
-    const { finished: done, feedbackPending, coachOnly: coachDoor } = live.current;
+    // So do ✕ and Close on a walk opened again as a scroll (2026-11-06).
+    const { finished, feedbackPending, coachOnly: coachDoor } = live.current;
+    const done = finished || scrollingRef.current;
     if (!practisingRef.current && !coachDoor && done && !feedbackPending) {
       postEnd();
       askSummaryAsNewest();

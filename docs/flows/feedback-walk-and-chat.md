@@ -227,7 +227,7 @@ step; the loop never waits for a coach.
   was: never away, as the step was measured by a wrapper with no size);
   the recorder never gives way
   (2026-10-21: "away from", no longer only "back to an answered step"). A
-  walk opened again once done has neither (B10, N259).
+  walk opened as a scroll has neither (B10, N259, N539).
 - **B10** **Every door opens the walk the same way** (one mechanism, N89):
   the whole Take's walk, standing on one step brought to the top, the parts
   before and after it there to scroll. That step has its own buttons in the dock;
@@ -235,9 +235,21 @@ step; the loop never waits for a coach.
   back where the walk was opened from (B11). Once the walk is done, it opens
   as a scroll: no buttons and no Next, on any step; the bar's ✕ and ‹ ›
   stay, and clips still play (N259).
+  - **Only the first opening goes step by step** (N539): the walk that
+    opens by itself when the Take's feedback is ready. Every opening after
+    it from the chat (the Feedback walk bubble, a step's bubble) is the
+    scroll above, whatever still waits; a changed coach word not yet seen
+    still goes step by step from the word, so its Continue marks it seen
+    (D5). The Ideal Text page's own doors are unchanged. Was: a Take not
+    yet finished opened live, with Next (`review` in
+    `useDeckFeedbackWalk.tsx`).
+  - **A scroll ends on Close at the bottom** (N539), with the bar's ✕;
+    both end the review as Close under "Lesson done." does (C9). Was: no
+    button at the bottom, only ✕ (`WalkThread.tsx`).
   - **The Feedback walk** opens:
     - on the coach's word, while a changed one is not yet seen (C1, D5);
-    - while the walk runs, live on the step it waits on;
+    - while the walk runs, live on the step it waits on, from the page;
+      from the chat after its first opening, as a scroll (N539);
     - once the walk is done, on its newest step, as "Review feedback" does.
       Everything the speaker went through is there to scroll, read only, down
       to the summary: the tempo step (T) and the other speakers they judged
@@ -2262,6 +2274,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-06 · N537 · B16, D4: a question is the last bubble, right above its answers, everywhere; after a Take on a plan its question (the plan's own yes, the ratings, a new project's) comes under the goodbye and the plan's bar, never over them (backend `after_take.end_rows`). No new words. What stops: the plan's yes above "Good job. See you {day}." and the bar, with its buttons far below it · BE N537, FE (this PR)
+- 2026-11-06 · N539 · B9, B10: only the first opening of a Take's walk, right after the processing, goes step by step; every opening from the chat after it is a scroll, as given, read only, whatever still waits, with Close at the bottom; ✕ and Close on a scroll end the review as "Lesson done."'s Close does. An unseen coach word keeps its steps (`review` in `useDeckFeedbackWalk.tsx`, `coachUnseen` from `TranscriptReviewDeck.tsx`, `WalkThread.tsx`). What stops: Next on a walk reopened from the chat, and a scroll with no button at the bottom · BE N539, FE (this PR)
 - 2026-11-06 · N536 · C2, K: the fix the server chose is always walked. A Clearer version that passed but did not reach the walk is the closest exercise (the voice Exercise), saying "We don't have an exercise for exactly this yet, so here's the closest one." and "I've asked your speaking coach to make one just for you." (`oneThing` in `walkPlan.ts`, `OneExerciseBody` in `walk/FeedbackWalk.tsx`, `ONE_THING_COPY.closest` and `.coachAsked`; the server names a lost one in its log, `fix_clearer_not_served`). What stops: a walk of their best and helper words with no fix while the server chose one · BE N536, FE (this PR)
 - 2026-11-06 · N532 · B10, B14, C1, C9, K: "Continue review" goes from the bar. Its middle is "Record your answer" when the plan asks to hear you, else "Record Take N" (faded while a Take is processed), else "Start your first recording"; closing the walk by Close or ✕ leaves "Record Take N"; the review is reached from its Feedback walk, which keeps its outline while a step waits (`WillBarMiddle` in `plan/PlanDock.tsx`, `Lounge.tsx`). What stops: "Continue review" in the bar, and an unfinished review holding back the next Take · BE N532 (#1786), FE (this PR)
 - 2026-11-06 · N309 item 4 · C, B10: a bug fix, no new rule. "Lesson done." keeps Close when the walk is opened again before the Take is finished, even with nothing of the walk left waiting (a mark the One thing walk never shows still holds the Take open), so Close writes the review's end and "Continue review" goes (`feedbackWalkModel.ts` `walkAsItStands`). Was: "Lesson done." read only, with no Close; the review's end was never written and "Continue review" stayed in the chat for good, with no way to record the next Take · FE (this PR)

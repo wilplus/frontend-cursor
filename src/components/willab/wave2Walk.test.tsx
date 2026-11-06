@@ -307,7 +307,7 @@ describe("B10: the Feedback walk opens the walk, never the text", () => {
 });
 
 describe("B10: every door opens the whole Take's walk", () => {
-  it("one moment still waiting: its bubble opens the whole walk, the waiting step live, nothing new in the chat", async () => {
+  it("N539: after its first opening, a bubble in the chat opens the whole walk as a scroll, ending on Close, even with a moment still waiting", async () => {
     const at3 = text.indexOf("one more quarter");
     // Paragraph 3's corrected moment, still waiting: its Exercise.
     const waiting = {
@@ -349,17 +349,19 @@ describe("B10: every door opens the whole Take's walk", () => {
     expect(live).not.toBeNull();
     // The whole walk: the answered praise on slide 2, "Results", above, to scroll back to.
     expect(live!.querySelector("[data-walk-mark='Results']")).not.toBeNull();
-    // The Exercise stands live, its Practise in the dock.
-    expect(live!.querySelector("[data-walk-now] [data-testid='walk-screen-exVideo']")).not.toBeNull();
-    expect(live!.querySelector("[data-walk-dock] [data-testid='walk-practise']")).not.toBeNull();
-    // What the chat hears of it keeps the Take's number, so it is the same
-    // message as before, never a new one at the bottom.
-    const moments = append.mock.calls
-      .map(([draft]) => (draft as { metadata: { step: string; moment: number | null } }).metadata)
-      .filter((m) => m.step === "exVideo")
-      .map((m) => m.moment);
-    expect(moments.length).toBeGreaterThan(0);
-    expect(moments).toEqual(moments.map(() => 1));
+    // The Exercise is there, read only: no Practise, no Next (N539, N259).
+    expect(live!.querySelector("[data-testid='walk-screen-exVideo']")).not.toBeNull();
+    expect(live!.querySelector("[data-testid='walk-practise']")).toBeNull();
+    expect(live!.querySelector("[data-testid='walk-to-newest']")).toBeNull();
+    // Close at the bottom: it ends the review and goes back to the chat.
+    const close = live!.querySelector<HTMLElement>("[data-testid='walk-scroll-close']");
+    expect(close).not.toBeNull();
+    await act(async () => {
+      close!.click();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    const steps = append.mock.calls.map(([draft]) => (draft as { metadata: { step: string } }).metadata.step);
+    expect(steps).toContain("end");
   });
 });
 

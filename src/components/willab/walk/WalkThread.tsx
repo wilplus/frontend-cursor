@@ -69,7 +69,10 @@ import WalkFooter from "./WalkFooter";
 /*                                                                            */
 /*  A walk opened again once done is a scroll (founder 2026-10-29, N259: "on */
 /*  the reopened walk there is only a scroll there should be no buttons!"):  */
-/*  with `buttons` off there is no dock and no Next; the bar stays.          */
+/*  with `buttons` off there is no dock and no Next; the bar stays, and      */
+/*  Close at the bottom (founder 2026-11-06). Every opening from the chat     */
+/*  after the walk's first is a scroll; only the first, right after the       */
+/*  processing, goes step by step.                                            */
 /* -------------------------------------------------------------------------- */
 
 type Frame = {
@@ -454,7 +457,8 @@ export default function WalkThread({
    *  change brings that part to the top. */
   current?: number | null;
   /** False: a scroll, with no dock and no Next (N259, a walk opened again
-   *  once done). */
+   *  once done, or opened from the chat after its first opening), only
+   *  Close at the bottom (founder 2026-11-06). */
   buttons?: boolean;
   /** ✕ when the standing part names none. */
   onClose: () => void;
@@ -818,6 +822,13 @@ function LiveThread({
         <div ref={room} data-walk-room aria-hidden="true" className="shrink-0" />
       </div>
       <div ref={setDock} data-walk-dock hidden={back || !buttons} />
+      {/* A scroll ends on Close at the bottom (founder 2026-11-06): the one
+          button it has, as "Lesson done." has, besides the bar's ✕. */}
+      {!buttons ? (
+        <div data-walk-dock-close>
+          <WalkFooter pill={{ label: COPY.pillClose, onClick: () => (close.current ?? onClose)(), testId: "walk-scroll-close" }} />
+        </div>
+      ) : null}
       {back ? (
         <div data-walk-dock-next>
           <WalkFooter
