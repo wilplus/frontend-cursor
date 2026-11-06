@@ -119,6 +119,15 @@ function write(key: string, value: string): void {
 export function openFirst(): boolean {
   return read(KEY_ON) === "1";
 }
+
+/** Opens first now? Switched on, and nothing of the loop on screen: a
+ *  recording, the wait, the Ideal Text or the walk (any overlay open over
+ *  the chat, `backDismissDepth()`), which it would cover (Never 3). Then it
+ *  waits for the next open (backend N540 item 2). A pull still opens it at
+ *  any time. */
+export function opensFirstNow(overlaysOpen: number): boolean {
+  return openFirst() && overlaysOpen === 0;
+}
 export function setOpenFirst(on: boolean): void {
   write(KEY_ON, on ? "1" : "0");
 }
