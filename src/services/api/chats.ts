@@ -123,9 +123,16 @@ export async function answerChatSetup(chatId: string, messageId: string, picked:
   return body && Array.isArray(body.messages) ? (body.messages as ChatMessage[]) : null;
 }
 
-/** The first time "Add someone to chat with" opens (backend N503): Will
- *  asks the setup in his chat. True when he does (open his chat); false
- *  opens the link at once, as before. */
+/** Whether the "+" opens the link (backend N534): the questions for people
+ *  who join are set, none included. A failed read opens the link, as before. */
+export async function joinQuestionsSet(): Promise<boolean> {
+  const body = await call("/api/v2/chats/join-questions", { method: "GET" });
+  return body?.set !== false;
+}
+
+/** "Set them" on the "+"'s note (backend N503, N534): Will asks the setup
+ *  in his chat. True when he does (open his chat); false opens the link at
+ *  once, as before. */
 export async function beginJoinSetup(): Promise<boolean> {
   const body = await call("/api/v2/chats/join-questions/setup", { method: "POST", json: {} });
   return body?.started === true;

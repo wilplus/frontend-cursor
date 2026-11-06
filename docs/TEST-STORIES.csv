@@ -654,8 +654,8 @@ that takes more than one answer fills each one I tap, and Send in the
 bar's middle sends them. The link's owner reads one card of my
 answers, under ""{name} joined through your link."", and their list
 says ""{name}'s answers"".
-O24 The first time I add someone (N503), Will's chat opens on his setup,
-not my link; his question waits with its answers on my side,
+O24 Before my questions are set, the + shows a note at the bottom, not
+my link (N503, N534); ""Set them"" opens Will's chat on his setup; his question waits with its answers on my side,
 ""Something else"" first, and a tap goes to the backend; the summary
 shows what someone new will see, my name in its top line, with
 ""Change it"" and ""That's right""; ""You're set."" ends with ""Copy my
