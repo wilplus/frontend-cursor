@@ -123,7 +123,8 @@ export function openFirst(): boolean {
 /** Opens first now? Switched on, and nothing of the loop on screen: a
  *  recording, the wait, the Ideal Text or the walk (any overlay open over
  *  the chat, `backDismissDepth()`), which it would cover (Never 3). Then it
- *  waits for the next open. A pull still opens it at any time. */
+ *  waits for the next open (backend N540 item 2). A pull still opens it at
+ *  any time. */
 export function opensFirstNow(overlaysOpen: number): boolean {
   return openFirst() && overlaysOpen === 0;
 }

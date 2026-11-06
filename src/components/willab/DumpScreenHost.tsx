@@ -9,8 +9,14 @@ import { DUMP_COPY, DUMP_FEATURE, opensFirstNow, setDumpOpener, setOpenFirst } f
 import { backDismissDepth } from "./useBackDismiss";
 import { nativeDump, onNativeKept, onNativeSent, openNativeDump, syncApp } from "@/lib/phone/dumpScreen";
 import { LOUNGE_THREAD_MERGED_EVENT } from "@/lib/funnel/loungeLocalThread";
+import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /* -------------------------------------------------------------------------- */
+/*  THE IPHONE APP'S ONLY (backend N540 item 1): in a browser, the website   */
+/*  and the website saved to a home screen alike, it never opens: not first, */
+/*  and not by the pull (no opener is registered, so the top bar does not    */
+/*  pull). The notebook itself is unchanged everywhere.                      */
+/*                                                                            */
 /*  When the dump screen opens first (backend N506 item 4, N522): only on a  */
 /*  plain open of the app (no link: `plain` is false when the address names   */
 /*  a Take, a walk or an Ideal Text), only when its ring row and the          */
@@ -18,7 +24,7 @@ import { LOUNGE_THREAD_MERGED_EVENT } from "@/lib/funnel/loungeLocalThread";
 /*  on, and then on every open and every coming back to the app. Will's     */
 /*  chat is underneath, untouched (Never 3). Never over the loop: while a    */
 /*  recording, the wait, the Ideal Text or the walk is open (any overlay),   */
-/*  it waits for the next open (opensFirstNow).                              */
+/*  it waits for the next open (opensFirstNow; backend N540 item 2).         */
 /*                                                                            */
 /*  In the iPhone app with the native screen (N506 item 5) this tells the    */
 /*  app what it knows (each time the chat opens, so a flip of the switch in */
@@ -32,7 +38,7 @@ import { LOUNGE_THREAD_MERGED_EVENT } from "@/lib/funnel/loungeLocalThread";
 
 export default function DumpScreenHost({ plain }: { plain: boolean }) {
   const ring = useRingState();
-  const on = ring?.featuresOn.has(DUMP_FEATURE) === true;
+  const on = ring?.featuresOn.has(DUMP_FEATURE) === true && isNativeApp();
   const [notebook, setNotebook] = useState<NotebookState | null>(null);
   const [open, setOpen] = useState(false);
   const [keptNote, setKeptNote] = useState(false);
