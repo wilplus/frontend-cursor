@@ -462,15 +462,20 @@ step; the loop never waits for a coach.
   shows a voice problem the clip can teach (N425; with none, no AI clip).
   The AI clip is the weakest's alone: a between whose Clearer version does not pass is left
   out, so a Take of two paragraphs can end with their best alone (N381);
-  the fix the server chose is always walked: a Clearer version that passed
-  but was lost on the way (its rewrite row not served) is walked as the
-  closest exercise we have, the voice Exercise (C4), with "We don't have an
-  exercise for exactly this yet, so here's the closest one." after the
-  moment's clip and "I've asked your speaking coach to make one just for
-  you." under the exercise, the coach request rising as it opens (N536;
-  was, 2026-11-03 to 2026-11-06: left out like a Clearer version that did
-  not pass, their best's words as the helper words, the coach hearing one
-  moment of two);
+  a Clearer version that passed but was lost on the way (its rewrite row
+  not served) gives its place to the voice fix: the server serves the
+  Take's weakest, a moment whose own voice shows a problem the AI clip
+  teaches, as the fix, walked with its AI clip after their best (C4); with
+  no such moment, no moment is the fix and the walk is their best and its
+  helper words (N547; backend `take_feedback_policy_v3_service._name_lost_clearer`,
+  the frame's `fix_backup`). Was, 2026-11-06 (N536): the closest exercise on
+  the lost moment, "We don't have an exercise for exactly this yet, so
+  here's the closest one." and "I've asked your speaking coach to make one
+  just for you.", whose AI clip the moment's voice often could not make, so
+  it fell back to their best's clip; before it, 2026-11-03 to 2026-11-06,
+  left out like a Clearer version that did not pass. The walk still draws
+  the closest exercise for a fix the server serves with no tool of its own
+  (`oneThing` in `walkPlan.ts`);
   the Sniper (T) and no
   moment on a pace or pause week whose Take has a stretch, and for
   everyone, with or without a plan, at any level, when rushing is the
@@ -2325,6 +2330,7 @@ One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-06 · N545 · D4: a question is the last thing; the goodbye, the plan's lines and the progress never come under Will's open question, whoever lets them go (backend `will_question.waits`, `after_take.release`). No new words. What stops: "Good job. See you {day}." and the progress under an unanswered key line · BE N545 (pushed to main), FE (this commit)
 - 2026-11-06 · N544 · E2, E3: Will's key line ("… Say it the way you'll say it.") is said, not typed. While it waits the bar's middle is "Record your answer" with "Not now" under the question; the tap records in the plan's small recording bar in the bar's place, never the recording screens; Stop sends it to `/will-question/voice` (BFF route restored), heard under the processing authorization, and the thread reads again (`useKeyLineHear` in `WillVoiceAnswer.tsx`, `postWillQuestionVoice`, `Lounge.tsx`). No new words. What stops: the box "Type your answer" under the key line · BE N544 (wilplus/backend-cursor#1805), FE (this PR)
+- 2026-11-06 · N547 · C2, K: a Clearer version lost on the way gives its place to the voice fix. The server serves the Take's weakest (a moment whose own voice shows a problem the AI clip teaches) as the fix, walked with its AI clip; with none, no fix, their best and its helper words (backend `_name_lost_clearer`, `fix_backup`). No new words. What stops: the closest exercise and its coach request on a lost Clearer version, whose AI clip fell back to their best's clip · BE N547 (wilplus/backend-cursor#1809, #1810), FE (this PR)
 - 2026-11-06 · N546 · H1, the One thing walk's pick: a worked slide gives way unless its moment stands out, and their best and the fix spread over the talk's beginning, middle and ending, within a Take and from the last walk; on a plan the level's moment does the same; what was trained stays skipped (backend `moment_pick.praise_give`, `fix_give`, `part_of`, `take_progress.last_parts`). No new words. What stops: a clearly great or clearly poor moment on a worked slide losing to an ordinary one on an untouched slide, and the praise and the fix landing in the same part of the talk Take after Take · BE N546 (wilplus/backend-cursor#1807), FE (this PR)
 - 2026-11-06 · N543 · H1, the One thing walk's pick: the moments come from untouched slides first. A slide that had helper words when the Take was recorded gives way in every slot (their best, the Clearer version's between, the AI clip's weakest, the next bests) and fills one only when no untouched slide can (backend `moment_pick._untouched_first`, `_rank`). No new words. What stops: a moment on a slide the speaker already worked on winning over an untouched slide because its own words did not hold the helper words · BE N543 (#1804), FE (this PR)
 - 2026-11-06 · N541 · G3, G4: a Take sent to people is never lost silently. From a Take's line a send that fails keeps the screen open, ticked as chosen, and says "Couldn't share this take. Try again." (the community screen's toast), and Continue tries again; chosen before a Take, the send is kept on the phone under its own key (`willab.pendingTakeSends`) until it goes, tried again 5 s and 30 s later, then at the next open, signed in, once the thread has painted, within the choice's six hours, never waited on (`PeopleSendScreen` in `NextTakeShareScreen.tsx`, `applyNextTakeShare` and `retryTakeSends` in `nextTakeShare.ts`, `WillabSurface.tsx`). No new words. What stops: a failed send from the line closing the screen as if the Take had gone, and a failed send before a Take dropping the choice after one try · BE N541 (#1798), FE (this PR)
