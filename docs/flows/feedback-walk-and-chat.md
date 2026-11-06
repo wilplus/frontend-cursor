@@ -340,6 +340,14 @@ step; the loop never waits for a coach.
   the continue tap or an answer to the plan's question, the Lounge lands on
   the newest bubble even when it was scrolled up. Bubbles that arrive on
   their own move it as before.
+- **B16** **A question is the last bubble, right above its answers**
+  (founder 2026-11-06, backend N537), everywhere in the app: when Will
+  asks something with answers to tap (the plan's own yes, the ratings, a
+  new project's question, an ask after a Take), nothing he says comes
+  between the question and its buttons. After a Take on a plan the order
+  is "That's your 15 minutes for today.", the goodbye, the plan's bar,
+  then the question with its answers under it (D4). Was: the plan's yes
+  over the goodbye and the bar, its buttons far below it.
 
 ### C · The walk, in order
 
@@ -428,6 +436,15 @@ step; the loop never waits for a coach.
   shows a voice problem the clip can teach (N425; with none, no AI clip).
   The AI clip is the weakest's alone: a between whose Clearer version does not pass is left
   out, so a Take of two paragraphs can end with their best alone (N381);
+  the fix the server chose is always walked: a Clearer version that passed
+  but was lost on the way (its rewrite row not served) is walked as the
+  closest exercise we have, the voice Exercise (C4), with "We don't have an
+  exercise for exactly this yet, so here's the closest one." after the
+  moment's clip and "I've asked your speaking coach to make one just for
+  you." under the exercise, the coach request rising as it opens (N536;
+  was, 2026-11-03 to 2026-11-06: left out like a Clearer version that did
+  not pass, their best's words as the helper words, the coach hearing one
+  moment of two);
   the Sniper (T) and no
   moment on a pace or pause week whose Take has a stretch, and for
   everyone, with or without a plan, at any level, when rushing is the
@@ -833,7 +850,9 @@ praised moment:
      "next"; `plan.next_day_text`); then Will's grey bubble with the plan's
      bar and "{n} of {total} practices done." (N319 item 7; it replaced the
      bar on the walk's end sheet). Was: "Good job. See you next {day}.",
-     tomorrow named by its weekday. Under them the bar's middle is "Record
+     tomorrow named by its weekday. A question the plan asks there (its
+     own yes, the ratings, a new project's) comes last, under the bar,
+     right above its answers (B16, N537). Under them the bar's middle is "Record
      Take N" (B14), which opens the text as its own button does (the
      sharing question first from Take 2, G); after the first Take it
      records the real talk (N449 item 1). The speaker may simply close the
@@ -1729,7 +1748,9 @@ October (backend N111).
   `paceTip`), "This was your most
   confident moment.", "Why it worked: {the moment's signed cue line}",
   "And now, one thing to improve:", "Say it straight:", "Say this one like
-  your confident moment:", the tip ending ", like this:", "Your
+  your confident moment:", "We don't have an exercise for exactly this
+  yet, so here's the closest one." and "I've asked your speaking coach to
+  make one just for you." (N536), the tip ending ", like this:", "Your
   confident moment" (the chip, N379), "Try it", "Keep mine", "Your words
   it is." (N435), "You rushed here. Let it breathe." (N435), "You slowed
   down here. Keep it moving." (N452), "Skip",
@@ -2240,6 +2261,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-06 · N537 · B16, D4: a question is the last bubble, right above its answers, everywhere; after a Take on a plan its question (the plan's own yes, the ratings, a new project's) comes under the goodbye and the plan's bar, never over them (backend `after_take.end_rows`). No new words. What stops: the plan's yes above "Good job. See you {day}." and the bar, with its buttons far below it · BE N537, FE (this PR)
+- 2026-11-06 · N536 · C2, K: the fix the server chose is always walked. A Clearer version that passed but did not reach the walk is the closest exercise (the voice Exercise), saying "We don't have an exercise for exactly this yet, so here's the closest one." and "I've asked your speaking coach to make one just for you." (`oneThing` in `walkPlan.ts`, `OneExerciseBody` in `walk/FeedbackWalk.tsx`, `ONE_THING_COPY.closest` and `.coachAsked`; the server names a lost one in its log, `fix_clearer_not_served`). What stops: a walk of their best and helper words with no fix while the server chose one · BE N536, FE (this PR)
 - 2026-11-06 · N532 · B10, B14, C1, C9, K: "Continue review" goes from the bar. Its middle is "Record your answer" when the plan asks to hear you, else "Record Take N" (faded while a Take is processed), else "Start your first recording"; closing the walk by Close or ✕ leaves "Record Take N"; the review is reached from its Feedback walk, which keeps its outline while a step waits (`WillBarMiddle` in `plan/PlanDock.tsx`, `Lounge.tsx`). What stops: "Continue review" in the bar, and an unfinished review holding back the next Take · BE N532 (#1786), FE (this PR)
 - 2026-11-06 · N309 item 4 · C, B10: a bug fix, no new rule. "Lesson done." keeps Close when the walk is opened again before the Take is finished, even with nothing of the walk left waiting (a mark the One thing walk never shows still holds the Take open), so Close writes the review's end and "Continue review" goes (`feedbackWalkModel.ts` `walkAsItStands`). Was: "Lesson done." read only, with no Close; the review's end was never written and "Continue review" stayed in the chat for good, with no way to record the next Take · FE (this PR)
 - 2026-11-04 · N513 · G, J8: on the "Who hears this Take" screen Will's three bubbles are one run in the chats' rhythm, 2px apart with their corners drawn in where they meet (`data-rhythm`), then the list; the Feedback walk keeps its own 16px (J6, N469 item 2). Was: the three bubbles 16px apart, as walk bubbles · BE N513 log, FE (this PR)

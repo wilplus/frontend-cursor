@@ -540,6 +540,11 @@ export const ONE_THING_COPY = {
   one: "And now, one thing to improve:",
   /** The Clearer version's lead, then the sentence in bold. */
   sayStraight: "Say it straight:",
+  /** The fix whose Clearer version did not reach the walk (backend N536,
+   *  signed 2026-11-06): above the closest exercise we have, and under it
+   *  the coach's line, the moment's coach request raised as it opens. */
+  closest: "We don't have an exercise for exactly this yet, so here's the closest one.",
+  coachAsked: "I've asked your speaking coach to make one just for you.",
   /** The AI clip after their best played again. */
   likeConfident: "Say this one like your confident moment:",
   yourTurn: "Your turn.",

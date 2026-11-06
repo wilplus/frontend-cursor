@@ -706,7 +706,9 @@ export default function FeedbackWalk<R = unknown>({
       const noClip = s.one ? oneThingNoClip(say, practise.aiVoiceOf(s.moment)?.clip, moment?.exercise) : null;
       // The line above it only with their best's clip after it (N377 item 2).
       const like = s.one && fixBest(walk.moments, s.moment) ? [ONE_THING_COPY.likeConfident] : [];
-      const body = s.one ? [...like, ...(noClip?.lines ?? [])].join("\n") || null : null;
+      // The closest exercise says so, and that the coach was asked (N536).
+      const lines = [...like, ...(noClip?.lines ?? [])];
+      const body = s.one ? (s.closest ? [ONE_THING_COPY.closest, ...lines, ONE_THING_COPY.coachAsked] : lines).join("\n") || null : null;
       shownRef.current?.(s, moment, say, ai, body, ai ? null : (noClip?.tip ?? null), s.one ? (practise.aiVoiceOf(s.moment)?.clip?.phrase ?? null) : null);
     });
   });
@@ -1686,6 +1688,12 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
     <WalkLanding on={lands && part?.now === true} onSettled={noop}>
       <LevelHere key="level" moment={moment} />
       <Clip key="clip" moment={moment} words={saidWords(moment, phrase)} />
+      {/* Its Clearer version did not arrive: the closest exercise (N536). */}
+      {step.closest ? (
+        <WalkMessage key="closest">
+          <span data-walk-closest>{ONE_THING_COPY.closest}</span>
+        </WalkMessage>
+      ) : null}
       {/* The line ends on a colon: only with their best's clip after it (N377 item 2). */}
       {best ? (
         <WalkMessage key="like">
@@ -1718,6 +1726,12 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
           <WalkAiVoice seed={`${seed}-late`} state={state} line="" arrive onPlay={() => ctx.practise.aiVoicePlayed(moment.index)} />
         ) : null}
       </div>
+      {/* Its coach request rose as the Exercise opened (N536). */}
+      {step.closest ? (
+        <WalkMessage key="asked">
+          <span data-walk-coach-asked>{ONE_THING_COPY.coachAsked}</span>
+        </WalkMessage>
+      ) : null}
       <CoachAnswerBubble key="coach" moment={moment} />
     </WalkLanding>
   );
