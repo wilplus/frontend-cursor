@@ -307,7 +307,7 @@ describe("B10: the Feedback walk opens the walk, never the text", () => {
 });
 
 describe("B10: every door opens the whole Take's walk", () => {
-  it("N541: opened again from the chat with a moment still waiting, what I did is read only and the step left to do stands at the bottom with its buttons", async () => {
+  it("N542: opened again from the chat with a moment still waiting, what I did is read only and the step left to do stands at the bottom with its buttons", async () => {
     const at3 = text.indexOf("one more quarter");
     // Paragraph 3's corrected moment, still waiting: its Exercise.
     const waiting = {
@@ -350,7 +350,7 @@ describe("B10: every door opens the whole Take's walk", () => {
     // The whole walk: the answered praise on slide 2, "Results", above, to scroll back to.
     expect(live!.querySelector("[data-walk-mark='Results']")).not.toBeNull();
     // The step left to do, the Exercise, stands live with its Practise;
-    // nothing to close yet, so no Close at the bottom (N541).
+    // nothing to close yet, so no Close at the bottom (N542).
     expect(live!.querySelector("[data-walk-now] [data-testid='walk-screen-exVideo']")).not.toBeNull();
     expect(live!.querySelector("[data-walk-dock] [data-testid='walk-practise']")).not.toBeNull();
     expect(live!.querySelector("[data-testid='walk-scroll-close']")).toBeNull();

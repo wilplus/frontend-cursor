@@ -403,7 +403,7 @@ function answeredRun<R>(
   return head;
 }
 
-/** OPENED AGAIN FROM THE CHAT (founder 2026-11-06, N539, N541): only the
+/** OPENED AGAIN FROM THE CHAT (founder 2026-11-06, N539, N542): only the
  *  first opening, right after the processing, goes step by step. It names
  *  no step; every door from the chat names one, so it is an opening after
  *  the first. Then what is answered is read only, as given, and what is
@@ -1326,7 +1326,7 @@ export function useDeckFeedbackWalk(args: {
   // helper words is no exception (B10, C3): those words opened on their own,
   // before the Take's tries were read, showed them alone (founder
   // 2026-10-28: "it just opens helper words").
-  // Opened again with something left to do (N541): the walk as it stands,
+  // Opened again with something left to do (N542): the walk as it stands,
   // standing on the first thing left, everything before it as given. False
   // when the Take is finished or nothing is left.
   const openLeftToDo = useCallback((): boolean => {

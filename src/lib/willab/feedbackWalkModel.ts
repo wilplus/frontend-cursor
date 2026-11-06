@@ -222,7 +222,7 @@ export type FeedbackWalkModel<R = unknown> = {
   asItStands?: boolean;
   /** On the walk as it stands: its first step not yet done (a moment that
    *  still waits, or a live step of its tail), where a door from the chat
-   *  stands (N541). Null: nothing left to do. */
+   *  stands (N542). Null: nothing left to do. */
   waitsAt?: number | null;
   /** A walk opened again once it is done: a scroll, with no buttons but the
    *  helper words' while they are edited (N259). */
@@ -592,7 +592,7 @@ export function walkAsItStands<R>(
   // good (founder 2026-11-06).
   const liveTail = (k: WalkStepKey) => (drawn.size > 0 && (LIVE_TAIL.has(k) || (k === "tempo" && !tempoKept))) || k === "done";
   const tail = plan.map((s) => (liveTail(s.key) ? (live.plan.find((l) => l.key === s.key) ?? s) : s));
-  // The first step drawn live, not as given: what is left to do (N541).
+  // The first step drawn live, not as given: what is left to do (N542).
   const given = new Set(replay.plan);
   const first = tail.findIndex((s) => s.overlay !== false && !given.has(s));
   return { ...replay, plan: tail, asItStands: true, scroll: false, waitsAt: first >= 0 ? first : null };
