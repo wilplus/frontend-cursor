@@ -141,18 +141,24 @@ rest is built in.
      link it was sees "{name} joined through your link." and, once the
      answers are in, one card, "{name}'s answers", which is also their
      row's line; never their own questions one by one (N487 item 7).
-   - **Setting them, in Will's chat** (N487 items 2 and 3, N503): the
-     first time "Add someone to chat with" opens (the list's "+" or its
-     row), Will's chat opens instead, on his setup, one question at a time:
+   - **Setting them, in Will's chat** (N487 items 2 and 3, N503, N534):
+     until they are set, "Add someone to chat with" (the list's "+" or its
+     row) opens no link: a note comes up at the bottom, drawn as the bar at
+     the top of Will's chat, "Before you share your link, set the questions
+     for people who join.", with "Set them" and ✕. "Set them" opens Will's
+     chat on his setup, one question at a time:
      "How far ahead do you like to plan?", the languages for someone who
      speaks two, "Anything else practical you'd like to ask?". His answers
      sit on your side ("Something else" first, which opens the box; the
      summary's "Change it" and "That's right" have none); typed words
      answer his question, and under "What should change?" the box stays
-     open. The summary shows what someone new will see, your name in its
-     top line, each question with its answers. "That's right" keeps them;
+     open; Will understands the change however it is put (N535). The
+     summary shows what someone new will see, your name in its top line,
+     each question with its answers. "That's right" keeps them;
      "You're set." ends with "Copy my link ›" (then "✓ Copied") and "Your
-     questions for people who join ›", which opens the summary again. After
+     questions for people who join ›", which opens the summary again; under
+     them Will says "All is set. You can now start practising." and the bar's
+     middle is the next recording (N533, N532). After
      the setup, or before the backend can keep questions, the "+" opens the
      add sheet as before (`JoinSetup.tsx`, `Lounge.tsx`, `ChatList.tsx`).
    - **A person's chat**: the WillpowerLab bar goes; the chat's own top bar
@@ -840,6 +846,9 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-06 · N534 · C1: until the questions for people who join are set, the "+" shows a note at the bottom, the bar at the top of Will's chat moved down, with "Set them" (Will's setup) and ✕, in place of opening Will's chat; once set, the "+" opens the add sheet as before (`ChatList.tsx`, `joinCopy.ts`, `chats.ts`) · BE (wilplus/backend-cursor, `"set"` on GET join-questions), FE (this change)
+- 2026-11-06 · N535 · C: under "What should change?" Will understands the change however it is put (the model, under the person's processing authorization). Was: only a few fixed phrasings, so "make the choices polish and english and french" got "I couldn't tell what to change" · BE N535 (wilplus/backend-cursor#1791), FE (this PR)
+- 2026-11-06 · N533 · C1: at the end of the join setup, under "You're set." and its two links, Will says "All is set. You can now start practising." (backend `services/join_setup.py` writes it as his own line, `{"step": "say"}`, drawn by `JoinSetup.tsx` as any of his lines); the summary opened again ends at "Saved. …" as before. Was: "You're set." was Will's last line · BE N533 (#1787), BE #1789, FE (this PR)
 - 2026-11-05 · N521 · C1: for whoever may hear speakers, a row right under Will opens their queue; its rules are the coach panel's B1 · BE #1762, FE (this PR)
 
 - 2026-11-04 · — · C1: the list draws at once: the list this browser last read for the signed-in person shows while the fresh read is on its way, then the fresh one takes its place (`chats/chatsKept.ts`, kept for that person only and gone when nobody is signed in); a failed read keeps the list there is. The backend reads the list's parts side by side (BE `services/chats.py` `list_chats`). The first open on a browser still waits under the loader (N456). Was: the loader every open, about 0.65 s; a failed reload emptied the list · BE #1755, FE (this PR)

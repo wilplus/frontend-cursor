@@ -44,6 +44,9 @@ export const SEND_PICKED = "Send";
  * signed in N502 item 1). Will's own lines come from the backend. */
 /** The summary's line when nothing is asked. */
 export const JOIN_SETUP_NONE = "No questions, just the line above.";
+/** The "+"'s note at the bottom until the questions are set (backend N534). */
+export const SETUP_NOTE = "Before you share your link, set the questions for people who join.";
+export const SET_THEM = "Set them";
 /** Opens the summary again, later. */
 export const YOUR_JOIN_QUESTIONS = "Your questions for people who join";
 
