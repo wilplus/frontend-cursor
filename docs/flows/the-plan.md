@@ -472,7 +472,8 @@ built and what is still to come.
    "When is your deadline?" and the questions for a new plan. New slides or a
    rewrite for the same event keep the plan (N149). A plan made from Takes,
    from "Keep practising" or from the first Take counts the projects of the
-   speaker's earlier Takes as its own, so it asks too (N536).
+   speaker's earlier Takes as its own, so it asks too; after Yes, the
+   ratings the question came in place of follow, then the plan (N536).
 
 ### I · The plan's end
 
@@ -802,7 +803,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-11-06 · N536 · D1, H2: on a plan made from Takes or "Keep practising", "Two quick taps before your plan." ends on "You're all set. Here's your plan." and the card, the plan not begun again; a new project's first Take asks "Is this for {date}?" on such a plan and on one read from the first Take. Was: nothing after the second tap, and no question, the ratings in its place. No new words · BE N536 (backend `services/plan_flow.py`, guarded by `tests/test_plan_flow.py` O7, O17), FE (this PR)
+- 2026-11-06 · N536 · D1, H2: on a plan made from Takes or "Keep practising", "Two quick taps before your plan." ends on "You're all set. Here's your plan." and the card, the plan not begun again; a new project's first Take asks "Is this for {date}?" on such a plan and on one read from the first Take, and after its Yes the ratings it came in place of follow, then the plan. Was: nothing after the second tap, and no question, the ratings in its place and never asked after a Yes. No new words · BE N536 (backend `services/plan_flow.py`, guarded by `tests/test_plan_flow.py` O7, O17), FE (this PR)
 - 2026-11-06 · N532 · §4: `WillBarMiddle` no longer offers "Continue review"; the bar's one black button is "Record your answer", "Record Take N" or "Start your first recording" · BE N532 (#1786), FE (this PR)
 - 2026-11-05 · — · §4: coming back to the app re-reads the plan only when it was last read more than 30 seconds ago (`usePlanLounge`; a failed read is not counted, `planReadFailed` in `services/api/plan.ts`), so a tab switch and back costs no read. Opening the Lounge and a Take or plan row landing in the thread read it as before. No new words; no rule changes. Was: every return to the tab read the plan · FE (this PR)
 - 2026-11-05 · — · §4: the calls' calendar is no longer part of the chat's first download: its code is fetched once the chat has painted, and `PlanDock` draws it from the first "Book now" or "Book" on, so it opens and slides away as before. The small month grid moves to `plan/MonthGrid.tsx` (still exported by `plan/PlanCalendar.tsx`), so the deadline's sheets and a chat's ready-by sheet load without the calendar. No new words; no rule changes · FE (this PR)
