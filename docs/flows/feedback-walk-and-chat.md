@@ -483,10 +483,19 @@ step; the loop never waits for a coach.
   be given again; no walk before, or one that cannot be read, and the pick
   is as it always was. Nothing on screen says so (N359). A slide that had
   helper words when the Take was recorded was worked on: their best, the
-  fix and every next best come from the slides with none first, and a
-  worked slide fills a slot only when nothing untouched can, so a Take never
-  shows fewer moments (N543; was: only a clip whose own words held them gave
-  way). Nothing on screen says so. The server serves
+  fix and every next best count a little less there, so they come from the
+  slides with none first, unless a moment on the worked slide clearly stands
+  out (clearly their best, or clearly the most serious problem), and a Take
+  never shows fewer moments. Their best and the fix spread over the talk:
+  the Take is read in three parts, its beginning, middle and ending, by
+  where each paragraph stands; the fix counts a little less in their best's
+  part, and the part the last walk praised or fixed counts a little less
+  for that slot, unless a moment there clearly stands out. On a plan the
+  level keeps its slot and its moment prefers an untouched slide and
+  another part in the same way. What was trained stays skipped, as above
+  (N546; was, 2026-11-06, N543: a worked slide filled a slot only when no
+  untouched slide could; before it only a clip whose own words held them
+  gave way). Nothing on screen says so. The server serves
   only these two (backend `take_feedback_policy_v3._one_thing`), so the
   Ideal Text's marks, the coach's queue and "did the fix work" hold the
   same two; the next bests and the second fix are not shown. Was (N289,
@@ -1523,9 +1532,10 @@ before the next recording":
 
   **Step 4 · where the number goes.**
   - The pick (H1): the Take's two highest, one per block; clips of 5 words
-    or more first, then clips on a slide with no helper words when the Take
-    was recorded (N543), and a clip that already holds its slide's helper
-    words after the rest.
+    or more first, then a clip that already holds its slide's helper words
+    after the rest, then the willfidence, counted a little less on a slide
+    with helper words when the Take was recorded and in the part of the
+    talk the last walk praised (N546; was N543, untouched slides first).
   - The praise's opening line (C2): a praised moment's level, by the lower
     bound of each: W10 0.95 · W9 0.88 · W8 0.80 · W7 0.70 · W6 0.65 · W5
     0.60 · W4 0.50 · W3 0.40 · W2 0.30 · W1 below. It goes out as
@@ -2315,6 +2325,7 @@ One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-06 · N545 · D4: a question is the last thing; the goodbye, the plan's lines and the progress never come under Will's open question, whoever lets them go (backend `will_question.waits`, `after_take.release`). No new words. What stops: "Good job. See you {day}." and the progress under an unanswered key line · BE N545 (pushed to main), FE (this commit)
 - 2026-11-06 · N544 · E2, E3: Will's key line ("… Say it the way you'll say it.") is said, not typed. While it waits the bar's middle is "Record your answer" with "Not now" under the question; the tap records in the plan's small recording bar in the bar's place, never the recording screens; Stop sends it to `/will-question/voice` (BFF route restored), heard under the processing authorization, and the thread reads again (`useKeyLineHear` in `WillVoiceAnswer.tsx`, `postWillQuestionVoice`, `Lounge.tsx`). No new words. What stops: the box "Type your answer" under the key line · BE N544 (wilplus/backend-cursor#1805), FE (this PR)
+- 2026-11-06 · N546 · H1, the One thing walk's pick: a worked slide gives way unless its moment stands out, and their best and the fix spread over the talk's beginning, middle and ending, within a Take and from the last walk; on a plan the level's moment does the same; what was trained stays skipped (backend `moment_pick.praise_give`, `fix_give`, `part_of`, `take_progress.last_parts`). No new words. What stops: a clearly great or clearly poor moment on a worked slide losing to an ordinary one on an untouched slide, and the praise and the fix landing in the same part of the talk Take after Take · BE N546 (wilplus/backend-cursor#1807), FE (this PR)
 - 2026-11-06 · N543 · H1, the One thing walk's pick: the moments come from untouched slides first. A slide that had helper words when the Take was recorded gives way in every slot (their best, the Clearer version's between, the AI clip's weakest, the next bests) and fills one only when no untouched slide can (backend `moment_pick._untouched_first`, `_rank`). No new words. What stops: a moment on a slide the speaker already worked on winning over an untouched slide because its own words did not hold the helper words · BE N543 (#1804), FE (this PR)
 - 2026-11-06 · N541 · G3, G4: a Take sent to people is never lost silently. From a Take's line a send that fails keeps the screen open, ticked as chosen, and says "Couldn't share this take. Try again." (the community screen's toast), and Continue tries again; chosen before a Take, the send is kept on the phone under its own key (`willab.pendingTakeSends`) until it goes, tried again 5 s and 30 s later, then at the next open, signed in, once the thread has painted, within the choice's six hours, never waited on (`PeopleSendScreen` in `NextTakeShareScreen.tsx`, `applyNextTakeShare` and `retryTakeSends` in `nextTakeShare.ts`, `WillabSurface.tsx`). No new words. What stops: a failed send from the line closing the screen as if the Take had gone, and a failed send before a Take dropping the choice after one try · BE N541 (#1798), FE (this PR)
 - 2026-11-06 · N537 · B16, D4: a question is the last bubble, right above its answers, everywhere; after a Take on a plan its question (the plan's own yes, the ratings, a new project's) comes under the goodbye and the plan's bar, never over them (backend `after_take.end_rows`). No new words. What stops: the plan's yes above "Good job. See you {day}." and the bar, with its buttons far below it · BE N537, FE (this PR)
