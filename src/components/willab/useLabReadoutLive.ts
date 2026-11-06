@@ -30,6 +30,15 @@ import { guestOwnerHeaders } from "@/services/api/projects";
 /*  poll ticked immediately). Consecutive identical envelopes are deduped so   */
 /*  the one-shot, the stream, and reconnect re-sends don't double-fire the     */
 /*  handler.                                                                   */
+/*                                                                            */
+/*  A TERMINAL STATE IS NOT A REASON TO SPIN (6 Nov 2026). The bridge closes   */
+/*  the stream on a terminal state, and a consumer that keeps listening past   */
+/*  one (the Lounge does, for a later Take's `failed_ideal_text_unconfirmed`)  */
+/*  used to reconnect every second until it gave up. It still reconnects, so   */
+/*  a state that changes late (a document landing after the deadline) is      */
+/*  still heard, but each such short stream waits twice as long as the last:   */
+/*  1, 2, 4, 8, 16 s, then every 30 s. A stream that brings anything else, or  */
+/*  that ends at the window, starts the count again.                           */
 /* -------------------------------------------------------------------------- */
 
 const MAX_SSE_ATTEMPTS = 2;
@@ -39,6 +48,36 @@ const RECONNECT_DELAY_MS = 1000;
 // right then is not held back by the delay. A shorter stream is a terminal
 // close or a broken bridge, and still waits, so it can never spin.
 const WINDOW_END_MIN_MS = 10_000;
+// The bridge's TERMINAL_STATES (events/route.ts): it closes the stream on them.
+const TERMINAL_STATES: ReadonlySet<string> = new Set([
+  "ready",
+  "readout_ready",
+  "failed",
+  "failed_ideal_text_unconfirmed",
+]);
+const TERMINAL_BACKOFF_MAX_MS = 30_000;
+
+/** What one stream did, as far as the next connection is concerned. */
+type StreamEnd = {
+  gotEvent: boolean;
+  /** Some status event in it was not a terminal state. */
+  sawOther: boolean;
+  /** Its last status event was a terminal state. */
+  endedTerminal: boolean;
+  lastedMs: number;
+};
+
+/** The wait before the next stream, and the terminal backoff step after it.
+ *  Pure: #1284's two rules, plus the backoff for a short terminal stream. */
+function nextConnect(end: StreamEnd, step: number): { waitMs: number; step: number } {
+  if (end.gotEvent && end.lastedMs >= WINDOW_END_MIN_MS) return { waitMs: 0, step: 0 };
+  const from = end.sawOther ? 0 : step;
+  if (!end.gotEvent || !end.endedTerminal) return { waitMs: RECONNECT_DELAY_MS, step: from };
+  return {
+    waitMs: Math.min(RECONNECT_DELAY_MS * 2 ** from, TERMINAL_BACKOFF_MAX_MS),
+    step: from + 1,
+  };
+}
 
 export function useLabReadoutLive(
   sessionId: string | null,
@@ -78,9 +117,12 @@ export function useLabReadoutLive(
     // Tier 1 — SSE with bounded connect retries, then demote to polling.
     const runSse = async () => {
       let attempts = 0;
+      let step = 0;
       while (active && attempts < MAX_SSE_ATTEMPTS) {
         attempts += 1;
         let gotEvent = false;
+        let sawOther = false;
+        let lastState: string | null = null;
         const openedAt = Date.now();
         try {
           const token = await getAuthToken();
@@ -114,9 +156,12 @@ export function useLabReadoutLive(
               try {
                 const parsed: unknown = JSON.parse(evt.data);
                 if (parsed && typeof parsed === "object") {
-                  deliver(
-                    mapLabReadoutRereadBody(parsed as Record<string, unknown>)
+                  const r = mapLabReadoutRereadBody(
+                    parsed as Record<string, unknown>
                   );
+                  lastState = r.state;
+                  if (!TERMINAL_STATES.has(r.state ?? "")) sawOther = true;
+                  deliver(r);
                 }
               } catch {
                 // A malformed frame is dropped; the next status event (or the
@@ -132,10 +177,18 @@ export function useLabReadoutLive(
         // duration cap (or a terminal close the handler is about to act on),
         // not a failure — reconnect without burning an attempt.
         if (gotEvent) attempts = 0;
-        const endedAtWindow =
-          gotEvent && Date.now() - openedAt >= WINDOW_END_MIN_MS;
-        if (!endedAtWindow) {
-          await new Promise((r) => setTimeout(r, RECONNECT_DELAY_MS));
+        const next = nextConnect(
+          {
+            gotEvent,
+            sawOther,
+            endedTerminal: TERMINAL_STATES.has(lastState ?? ""),
+            lastedMs: Date.now() - openedAt,
+          },
+          step
+        );
+        step = next.step;
+        if (next.waitMs > 0) {
+          await new Promise((r) => setTimeout(r, next.waitMs));
         }
       }
       startPollingFallback();
