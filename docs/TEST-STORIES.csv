@@ -915,6 +915,10 @@ src/components/willab/discardTakeDialog.test.tsx,Story,"As a speaker using a key
 go round the two answers and never behind the dialog.
 O2  Escape keeps the Take, and focus is not left on the ✕ that opened
 it, so the recording screen's next Space turns the slide (N70.1).","O1, O2 -> ""the dialog takes the keyboard, and Escape keeps the Take""","The dialog said it was modal (aria-modal) but focus stayed behind it, Tab reached the screen under it and Escape did nothing."
+src/components/willab/dumpScreenHost.test.tsx,Story,"As a speaker, I want the dump screen only in the iPhone app, so that the website never opens a screen made for the phone app.","H1  In a browser it never opens: not first on an open of the chat, and a
+pull from the top bar opens nothing.
+H2  In the iPhone app, switched on, it is considered on the open and the
+pull opens it.","H1, H2 -> ""the dump screen is the iPhone app's only""","Founder 2026-11-06 (backend N540 item 1): ""the dump screen should work only for the app users; it is not a web feature""."
 src/components/willab/exerciseRenderedAck.test.tsx,Story,"As the founder, I want an exercise counted as shown only once the speaker actually saw it, once per view, silently, so that exercise data is honest.","O1  Nothing goes out on data load; the ack goes out once the card is
 about half visible.
 O2  Once per card per page view, even when the sheet is opened again.
@@ -1773,11 +1777,14 @@ src/lib/willab/dumpScreen.test.ts,Story,"As a speaker, I want to open the app, t
 D2  A double tap on a fresh start closes and throws the start away.
 D3  A double tap while talking stops, keeps and closes.
 D4  The tap that opened the screen, a palm and a swipe do nothing.
-D5  It opens first only when switched on, and then on every open.","D1 -> ""starts at once, then stops and keeps""
+D5  It opens first only when switched on, and then on every open.
+D6  It never opens first over the loop: while a recording, the wait, the
+Ideal Text or the walk is open, it waits for the next open.","D1 -> ""starts at once, then stops and keeps""
 D2 -> ""a double tap on a fresh start closes and undoes the start""
 D3 -> ""a double tap while talking stops, keeps and closes""
 D4 -> ""ignores the opening tap, a palm and a swipe""
-D5 -> ""only when switched on, and then on every open""","Founder 2026-11-04 (backend N506, N507): taps act at once and a double tap undoes the first, so no tap waits; it never opens from a link (Never 3); every open, no hourly limit (N522, 2026-11-05)."
+D5 -> ""only when switched on, and then on every open""
+D6 -> ""never over a screen of the loop""","Founder 2026-11-04 (backend N506, N507): taps act at once and a double tap undoes the first, so no tap waits; it never opens from a link (Never 3); every open, no hourly limit (N522, 2026-11-05)."
 src/lib/willab/enrichmentSettle.test.ts,Story,"As a speaker, I want a feedback placeholder to close when there is nothing to report, so that I don't wait forever on an empty slot.","O1  An empty feedback answer counts as ""nothing more coming"".
 O2  The page keeps asking for late marks until its ninety seconds are up,
 not for a handful of asks (founder 2026-10-20, WIL-76).","O1 -> is false with nothing to report, so an honest empty lane closes

@@ -5,17 +5,26 @@ import DumpScreen from "./DumpScreen";
 import { useRingState } from "@/hooks/useRingState";
 import { EMPTY_RING_STATE } from "@/services/api/rings";
 import { getNotebookState, type NotebookState } from "@/services/api/voiceNotebook";
-import { DUMP_COPY, DUMP_FEATURE, openFirst, setDumpOpener, setOpenFirst } from "@/lib/willab/dumpScreen";
+import { DUMP_COPY, DUMP_FEATURE, opensFirstNow, setDumpOpener, setOpenFirst } from "@/lib/willab/dumpScreen";
+import { backDismissDepth } from "./useBackDismiss";
 import { nativeDump, onNativeKept, onNativeSent, openNativeDump, syncApp } from "@/lib/phone/dumpScreen";
 import { LOUNGE_THREAD_MERGED_EVENT } from "@/lib/funnel/loungeLocalThread";
+import { isNativeApp } from "@/lib/auth/nativeSignIn";
 
 /* -------------------------------------------------------------------------- */
+/*  THE IPHONE APP'S ONLY (backend N540 item 1): in a browser, the website   */
+/*  and the website saved to a home screen alike, it never opens: not first, */
+/*  and not by the pull (no opener is registered, so the top bar does not    */
+/*  pull). The notebook itself is unchanged everywhere.                      */
+/*                                                                            */
 /*  When the dump screen opens first (backend N506 item 4, N522): only on a  */
 /*  plain open of the app (no link: `plain` is false when the address names   */
 /*  a Take, a walk or an Ideal Text), only when its ring row and the          */
 /*  notebook are on, only when the person turned "Open to the dump screen"   */
 /*  on, and then on every open and every coming back to the app. Will's     */
-/*  chat is underneath, untouched (Never 3).                                 */
+/*  chat is underneath, untouched (Never 3). Never over the loop: while a    */
+/*  recording, the wait, the Ideal Text or the walk is open (any overlay),   */
+/*  it waits for the next open (opensFirstNow; backend N540 item 2).         */
 /*                                                                            */
 /*  In the iPhone app with the native screen (N506 item 5) this tells the    */
 /*  app what it knows (each time the chat opens, so a flip of the switch in */
@@ -29,7 +38,7 @@ import { LOUNGE_THREAD_MERGED_EVENT } from "@/lib/funnel/loungeLocalThread";
 
 export default function DumpScreenHost({ plain }: { plain: boolean }) {
   const ring = useRingState();
-  const on = ring?.featuresOn.has(DUMP_FEATURE) === true;
+  const on = ring?.featuresOn.has(DUMP_FEATURE) === true && isNativeApp();
   const [notebook, setNotebook] = useState<NotebookState | null>(null);
   const [open, setOpen] = useState(false);
   const [keptNote, setKeptNote] = useState(false);
@@ -79,9 +88,11 @@ export default function DumpScreenHost({ plain }: { plain: boolean }) {
     if (!on || !plain) return;
     let live = true;
     const consider = () => {
-      if (!openFirst()) return;
+      if (!opensFirstNow(backDismissDepth())) return;
       void getNotebookState().then((state) => {
-        if (!live || !state?.enabled) return;
+        // Asked again as the answer lands: a screen of the loop may have
+        // opened while the notebook was read.
+        if (!live || !state?.enabled || !opensFirstNow(backDismissDepth())) return;
         if (state.consented && nativeDump()) return; // the app's own screen opens first
         setNotebook(state);
         setOpen(true);

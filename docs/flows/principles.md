@@ -529,13 +529,21 @@ The prototypes: <https://claude.ai/artifact/RY5gT9bg8xSpGvKiLVScsW>,
   kept on the device), only on a plain open of /chat, never from a link to
   a Take, a walk or an Ideal Text; then on every open and every coming back
   to the app, online or offline, with no hourly limit (N522). Will's chat is underneath, untouched (Never 3). No menu line.
+  Never first while anything is open over the chat (N540 item 2): not over a
+  recording, the processing wait, the Ideal Text, the walk or any other
+  screen or sheet; it waits for the next open or coming back to the app,
+  not for that screen to close.
   A pull down that starts on the top bar of the chat list or Will's chat
   opens it at any time (N517): the three-dot mark follows the finger, a
   release past 90 px opens it, no words. A pull in the thread still scrolls.
 - **T5 · Who has it (N507 item 3).** Ring rows `dump_screen` and
   `voice_notebook`, both at ring 2 (backend migration 0511).
-- **T6 · The iPhone app (N506 item 5).** The capture screen becomes native
-  there; the web owns the switch. Until then the app shows this web screen.
+- **T6 · The iPhone app (N506 item 5, N540 item 1).** The dump screen is
+  the iPhone app's only (N540): in a browser, the website and the website
+  saved to a home screen alike, it never opens, not first and not by the
+  pull, and Data & consent shows no "Open to the dump screen". The notebook
+  itself is unchanged everywhere. The capture screen becomes native there;
+  the web owns the switch. Until then the app shows this web screen.
 
 ---
 
@@ -620,6 +628,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-06 · N540 · T4, T6: the dump screen is the iPhone app's only: in a browser it never opens (not first, not by the pull) and Data & consent hides its switch; in the app it never opens first while anything is open over the chat (a recording, the wait, the Ideal Text, the walk, any sheet) and waits for the next open. Was: built on the web for every device (N506, N507), opening first over whatever was on screen (N522) · BE N540 (#1797), FE (this PR)
 - 2026-11-05 · N506 item 5 · T6: when the iPhone app's native dump screen has sent a dump, Will's chat reads the thread at once, so "Noted." shows without waiting. Was: it showed at the chat's next reload · FE (this PR)
 - 2026-11-05 · N522 · T4: the dump screen opens first on every open and every coming back to the app, online or offline. Was: at most once an hour. The Settings line is now "First thing when you open the app." (signed, N522 item 3) · BE #1765, FE (this PR)
 - 2026-11-05 · N517 · T4: the pull opens the dump screen at once: the notebook is read when the chat opens, not when the pull is let go. Was: a round trip to the server between letting go and the screen · FE (this PR)
