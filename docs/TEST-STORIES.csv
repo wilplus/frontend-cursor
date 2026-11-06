@@ -1377,6 +1377,10 @@ O4  An answer with no known state and no content: ""unknown"", not recovered.","
 O2 -> ""is unknown, never a verdict, when the server cannot be reached""
 O3 -> ""keeps a Take failed when the server says it failed""
 O4 -> ""is unknown when the answer has no known state and no content""",Founder 2026-09-21 (a red note stayed 9 min over a done Take) and 2026-09-24 (a failure card written without asking the server).
+src/components/willab/useLabReadoutLive.test.tsx,Story,"As a speaker whose Take ended without its Ideal Text, I want the app to stop hammering the server about that Take, and still notice at once if the text lands after all, so that what I see stays exactly as it was and a late Ideal Text still reaches me.","O1  After a terminal state the screen keeps listening to (the Lounge does
+for a later Take's `failed_ideal_text_unconfirmed`), the readout is
+asked a handful of times a minute, not every second; a later change
+(the document landed: `ready`) still arrives, within 30 seconds.","O1 -> ""backs off after a terminal state it keeps hearing, and still hears a late change""","Overnight audit, 6 Nov 2026: the stream closes on a terminal state and the hook reconnected every second for as long as the Lounge listened (up to 8 minutes). Founder: ""Go, fix both"" (6 Nov 2026)."
 src/components/willab/useLoungeThread.test.tsx,Story,"As a speaker, I want my chat to stay on screen when the app cannot reach the server for a moment, so that a weak signal after my walk never blanks my Takes, my Feedback walk or my history.","O1  The chat read again with no answer (the network down, a server
 error) keeps every message on screen; read again with an answer, it
 shows the server's thread.
