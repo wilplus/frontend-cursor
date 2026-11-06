@@ -119,9 +119,10 @@ function firstTicks(people: readonly SendPerson[], choice: SendChoice | null, se
 /*  is ticked, or the last choice; Continue waits only when nobody is.        */
 /*                                                                            */
 /*  Before a Take the choice is kept for the Take about to be recorded and    */
-/*  sent once its upload names it, never waited on (R2); it is stored as the  */
-/*  line under its recording. From that line the people it went to stay      */
-/*  ticked and fixed: people can be added, never removed (N479 item 3).       */
+/*  sent once its upload names it, kept until it has gone, never waited on   */
+/*  (R2, N541); it is stored as the line under its recording. From that line */
+/*  the people it went to stay ticked and fixed: people can be added, never  */
+/*  removed (N479 item 3); a failed send keeps the screen and says so.       */
 /*  ✕ records nothing.                                                        */
 /* -------------------------------------------------------------------------- */
 
@@ -137,7 +138,9 @@ function PeopleSendScreen({
 }: ScreenProps & { people: SendPerson[]; choice: SendChoice | null; sent: PeopleShareMeta | null }) {
   const [ticks, setTicks] = useState<string[]>(() => firstTicks(people, choice, sent));
   const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<{ seq: number; text: string } | null>(null);
   const thread = useLoungeThreadMaybe();
+  const say = (text: string) => setToast((t) => ({ seq: (t?.seq ?? 0) + 1, text }));
   const fixed = sent?.user_ids ?? [];
   const allOn = people.every((p) => ticks.includes(p.userId));
   const ready = ticks.length > 0 && !busy;
@@ -159,16 +162,19 @@ function PeopleSendScreen({
   };
 
   /** From the line: the Take goes to the people added; its line then names
-   *  everyone it went to. Nothing added, or a refusal: the line stays. */
+   *  everyone it went to. Nothing added: the line stays. A refusal keeps
+   *  the screen, ticked as chosen, and says so; Continue tries again (N541). */
   const add = async (take: string, share: PeopleShareMeta) => {
     if (!share.user_ids.some((id) => !fixed.includes(id))) return onDone();
     setBusy(true);
-    const res = await sendTake(take, { all: share.all, userIds: share.user_ids });
+    const res = await sendTake(take, { all: share.all, userIds: share.user_ids }).catch(() => null);
     setBusy(false);
-    if (res) {
-      rememberSeen(people.map((p) => p.userId));
-      await thread?.append(shareLineDraft(peopleLine(share), share, arcId, take)).catch(() => undefined);
+    if (!res) {
+      say(WALK_COPY.shareFailed);
+      return;
     }
+    rememberSeen(people.map((p) => p.userId));
+    await thread?.append(shareLineDraft(peopleLine(share), share, arcId, take)).catch(() => undefined);
     onDone();
   };
 
@@ -249,6 +255,7 @@ function PeopleSendScreen({
           })}
         </div>
       </WalkOverlay>
+      {toast ? <WalkToast key={toast.seq} message={toast.text} onDone={() => setToast(null)} /> : null}
     </div>
   );
 }

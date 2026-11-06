@@ -94,7 +94,8 @@ export function keepNextTakeShare(choice: NextTakeShare | KeptSend | null): void
   }
 }
 
-/** Share the Take just uploaded as the speaker chose, once. */
+/** Share the Take just uploaded as the speaker chose, once; a people send
+ *  is kept until it has gone (`retryTakeSends`, N541). */
 export function applyNextTakeShare(takeSessionId: string | null | undefined): void {
   if (!takeSessionId) return;
   let raw: string | null = null;
@@ -109,9 +110,11 @@ export function applyNextTakeShare(takeSessionId: string | null | undefined): vo
     const kept = JSON.parse(raw) as { general?: unknown; communityIds?: unknown; at?: unknown; kind?: unknown; all?: unknown; userIds?: unknown };
     if (typeof kept.at !== "number" || Date.now() - kept.at > KEEP_MS) return;
     if (kept.kind === "people") {
-      // Sent after the upload, never waited on: a refusal leaves the Take
-      // unsent and the loop goes on (R2); a retry never posts twice.
-      void sendTake(takeSessionId, { all: kept.all === true, userIds: strings(kept.userIds) }).catch(() => null);
+      // Sent after the upload, never waited on (R2), and kept on the phone
+      // until it has gone (N541): a failed send is tried again.
+      const send = { takeSessionId, all: kept.all === true, userIds: strings(kept.userIds), at: kept.at };
+      keepPendingSend(send);
+      deliver(send);
       return;
     }
     const communityIds = Array.isArray(kept.communityIds)
@@ -233,4 +236,92 @@ export function sendDecision(read: { people: SendPerson[]; choice: SendChoice | 
 /** The kept form of a people choice, for the upload. */
 export function keptSendOf(share: PeopleShareMeta): KeptSend {
   return { kind: "people", all: share.all, userIds: share.user_ids };
+}
+
+/* -------------------------------------------------------------------------- */
+/*  A SEND THAT HAS NOT GONE YET (backend N541; rules page G3). Every Take a  */
+/*  speaker sends reaches the people they chose (N470 item 8). A people send  */
+/*  is kept on the phone, under its own key so the next Take's choice never   */
+/*  replaces it, until the server says it went: a failed try is tried again   */
+/*  a few seconds later, then at the next open, within the choice's own time  */
+/*  (`KEEP_MS`, from when it was chosen). Never waited on (R2). A retry never */
+/*  posts twice: the server gives each Take one message per chat (backend     */
+/*  services/take_sends.py `_post_one`). One try at a time per Take.          */
+/* -------------------------------------------------------------------------- */
+
+const PENDING_KEY = "willab.pendingTakeSends";
+
+/** After a failed try, the next one: 5 s, then 30 s; then the next open. */
+const RETRY_AFTER_MS = [5_000, 30_000] as const;
+
+type PendingSend = { takeSessionId: string; all: boolean; userIds: string[]; at: number };
+
+/** The Takes whose send is under way in this page: a try in flight, or the
+ *  wait before the next one. */
+const underWay = new Set<string>();
+
+const inTime = (send: PendingSend) => Date.now() - send.at <= KEEP_MS;
+
+function pendingSends(): PendingSend[] {
+  try {
+    const raw = localStorage.getItem(PENDING_KEY);
+    const list: unknown = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(list)) return [];
+    return list.flatMap((item): PendingSend[] => {
+      const row = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+      if (typeof row.takeSessionId !== "string" || !row.takeSessionId || typeof row.at !== "number") return [];
+      return [{ takeSessionId: row.takeSessionId, all: row.all === true, userIds: strings(row.userIds), at: row.at }];
+    });
+  } catch {
+    return [];
+  }
+}
+
+function writePendingSends(list: readonly PendingSend[]): void {
+  try {
+    if (list.length) localStorage.setItem(PENDING_KEY, JSON.stringify(list));
+    else localStorage.removeItem(PENDING_KEY);
+  } catch {
+    // No storage: the send is still tried again in this page.
+  }
+}
+
+/** The others still in time, without this Take. */
+function othersThan(takeSessionId: string): PendingSend[] {
+  return pendingSends().filter((p) => p.takeSessionId !== takeSessionId && inTime(p));
+}
+
+function keepPendingSend(send: PendingSend): void {
+  writePendingSends([...othersThan(send.takeSessionId), send]);
+}
+
+/** Try the send now; a failure tries again later, and until one goes it
+ *  stays kept. Nothing awaits this. */
+function deliver(send: PendingSend): void {
+  if (underWay.has(send.takeSessionId)) return;
+  underWay.add(send.takeSessionId);
+  const attempt = (tries: number): void => {
+    void sendTake(send.takeSessionId, { all: send.all, userIds: send.userIds })
+      .catch(() => null)
+      .then((sent) => {
+        const wait = RETRY_AFTER_MS[tries];
+        // Gone, or past its time: nothing is kept for it.
+        if (sent || !inTime(send)) writePendingSends(othersThan(send.takeSessionId));
+        if (sent || !inTime(send) || wait === undefined) {
+          underWay.delete(send.takeSessionId);
+          return;
+        }
+        setTimeout(() => attempt(tries + 1), wait);
+      });
+  };
+  attempt(0);
+}
+
+/** At an open, signed in, once the thread has painted (WillabSurface): every
+ *  people send still kept on this phone is tried again, within its time. */
+export function retryTakeSends(): void {
+  const kept = pendingSends();
+  const live = kept.filter(inTime);
+  if (live.length !== kept.length) writePendingSends(live);
+  for (const send of live) deliver(send);
 }

@@ -1150,7 +1150,12 @@ under "Was:" below (R3, R6). On (founder 2026-11-04, N470 (#1702), N479
   newest, it asks for an answer, recorded over its own slides (N493 items 1
   and 3; customer-requests.md C1). The Take is sent after its upload, never waited
   on, and never for an answer (R2, R5; `applyNextTakeShare` sends it,
-  `POST /v2/user/takes/<take>/send`). The crowd stops for new Takes: no
+  `POST /v2/user/takes/<take>/send`), and kept on the phone until it has
+  gone: a failed send is tried again 5 s and 30 s later, then at the next
+  open, signed in, once the thread has painted, within the choice's six
+  hours; the next Take's choice never replaces it, and the server posts one
+  message per Take and chat, so a retry never posts twice (N541 item 2;
+  `retryTakeSends`, `willab.pendingTakeSends`). The crowd stops for new Takes: no
   new Take is shared with other speakers to judge; C8 keeps running on the
   training corpus and on Takes shared before, which stay shared until the
   speaker stops them (N479 item 2).
@@ -1160,8 +1165,10 @@ under "Was:" below (R3, R6). On (founder 2026-11-04, N470 (#1702), N479
   user_ids, names}`), which is the remembered choice. On the speaker's
   latest Take the line opens the same screen with the people it went to
   ticked and fixed: people can be added, and Continue sends it to them; it
-  is never unsent (N470 item 5, N479 item 3). A line of a Take shared with
-  communities before opens today's screen, as it was.
+  is never unsent (N470 item 5, N479 item 3). A send from the line that
+  fails keeps the screen open, ticked as chosen, with "Couldn't share this
+  take. Try again.", and Continue tries again (N541 item 1). A line of a
+  Take shared with communities before opens today's screen, as it was.
 
 Was (until N470 and N479, and still while the switch is off): "Sharing,
 before the next recording":
@@ -2273,6 +2280,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-06 · N541 · G3, G4: a Take sent to people is never lost silently. From a Take's line a send that fails keeps the screen open, ticked as chosen, and says "Couldn't share this take. Try again." (the community screen's toast), and Continue tries again; chosen before a Take, the send is kept on the phone under its own key (`willab.pendingTakeSends`) until it goes, tried again 5 s and 30 s later, then at the next open, signed in, once the thread has painted, within the choice's six hours, never waited on (`PeopleSendScreen` in `NextTakeShareScreen.tsx`, `applyNextTakeShare` and `retryTakeSends` in `nextTakeShare.ts`, `WillabSurface.tsx`). No new words. What stops: a failed send from the line closing the screen as if the Take had gone, and a failed send before a Take dropping the choice after one try · BE N541 (#1798), FE (this PR)
 - 2026-11-06 · N537 · B16, D4: a question is the last bubble, right above its answers, everywhere; after a Take on a plan its question (the plan's own yes, the ratings, a new project's) comes under the goodbye and the plan's bar, never over them (backend `after_take.end_rows`). No new words. What stops: the plan's yes above "Good job. See you {day}." and the bar, with its buttons far below it · BE N537, FE (this PR)
 - 2026-11-06 · N539 · B9, B10: only the first opening of a Take's walk, right after the processing, goes step by step; every opening from the chat after it is a scroll, as given, read only, whatever still waits, with Close at the bottom; ✕ and Close on a scroll end the review as "Lesson done."'s Close does. An unseen coach word keeps its steps (`review` in `useDeckFeedbackWalk.tsx`, `coachUnseen` from `TranscriptReviewDeck.tsx`, `WalkThread.tsx`). What stops: Next on a walk reopened from the chat, and a scroll with no button at the bottom · BE N539, FE (this PR)
 - 2026-11-06 · N536 · C2, K: the fix the server chose is always walked. A Clearer version that passed but did not reach the walk is the closest exercise (the voice Exercise), saying "We don't have an exercise for exactly this yet, so here's the closest one." and "I've asked your speaking coach to make one just for you." (`oneThing` in `walkPlan.ts`, `OneExerciseBody` in `walk/FeedbackWalk.tsx`, `ONE_THING_COPY.closest` and `.coachAsked`; the server names a lost one in its log, `fix_clearer_not_served`). What stops: a walk of their best and helper words with no fix while the server chose one · BE N536, FE (this PR)

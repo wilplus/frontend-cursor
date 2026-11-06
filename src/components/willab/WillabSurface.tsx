@@ -29,6 +29,7 @@ import {
   writeExploreArc,
 } from "@/lib/willab/exploreArc";
 import { readProcessingTake } from "@/lib/willab/processingTake";
+import { retryTakeSends } from "@/lib/willab/nextTakeShare";
 import {
   coachLinkLogin,
   markCoachLinkSent,
@@ -116,6 +117,10 @@ export default function WillabSurface({
   // their own instances when they own the screen.
   const pickerSettle = useDocumentSettle({ enabled: pickedArcId !== null });
   const signedIn = useSignedIn();
+  // A Take sent to people before it was recorded whose send has not gone yet
+  // is tried again at this open, signed in, once the thread has painted
+  // (backend N541; nextTakeShare.ts retryTakeSends).
+  useEffect(() => (signedIn ? afterChatBoot(retryTakeSends) : undefined), [signedIn]);
   // A guest's Take is being handed into the account they just made: the walk
   // opens when that is done, so the chat is not drawn first (founder
   // 2026-10-18, usePendingSendHold).

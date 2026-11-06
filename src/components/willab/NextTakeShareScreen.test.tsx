@@ -28,10 +28,12 @@ OUTCOME
       choice; "Only me" takes it back from every community.
 PROVES   O3 -> "with sending on, everyone is ticked, Select all unticks all, and the one ticked gets the next Take once"
          O4 -> "with sending on, a sent Take's line opens the screen to add people, never to unsend"
+         O5 -> "with sending on, a failed send from a Take's line keeps the screen and says so; Continue again sends it"
          O1 -> "starts with nothing ticked; Continue waits for a choice, Only me counts"
          O2 -> "the latest Take's line opens the screen ticked as it stands, and a change re-stamps that Take"
 WHY      O3, O4: founder 2026-11-04, backend N470 (#1702) and N479
-         (#1704), the prototype "Specialist Side" tab 1. O1, O2 (sending
+         (#1704), the prototype "Specialist Side" tab 1. O5: founder
+         2026-11-06, backend N541 ("Fix both"), for N470 item 8. O1, O2 (sending
          off): founder 2026-10-15 (Privacy 3.6 section 4d). O2: founder
          2026-10-31, backend N309 item 5; G4 (each Take stamped and
          revocable).
@@ -237,4 +239,38 @@ it("with sending on, a sent Take's line opens the screen to add people, never to
   expect(appended.at(-1)?.body).toBe("Artur, Maya Lindqvist");
   expect(appended.at(-1)?.metadata).toMatchObject({ take_session_id: "take-3", share: { kind: "people", user_ids: ["u-artur", "u-maya"] } });
   expect(document.querySelector('[data-testid="share-continue"]')).toBeNull();
+});
+
+it("with sending on, a failed send from a Take's line keeps the screen and says so; Continue again sends it", async () => {
+  const onDone = vi.fn();
+  const sent = { kind: "people" as const, all: false, user_ids: ["u-artur"], names: ["Artur"] };
+  await act(async () => {
+    root.render(
+      createElement(NextTakeShareScreen, {
+        takeCount: 3,
+        arcId: "arc-1",
+        takeSessionId: "take-3",
+        initial: { ticks: [], communityIds: null, people: sent },
+        send: { enabled: true, people: [ARTUR, MAYA, DANIEL], choice: { all: false, userIds: ["u-artur"] } },
+        onDone,
+        onClose: () => {},
+      }),
+    );
+  });
+  await act(async () => option("Maya Lindqvist").click());
+  send.sendTake.mockResolvedValueOnce(null);
+  await act(async () => (host.querySelector('[data-testid="share-continue"]') as HTMLButtonElement).click());
+  // Not gone: the screen stays, ticked as chosen, and says so.
+  expect(onDone).not.toHaveBeenCalled();
+  expect(document.querySelector("[data-walk-toast]")?.textContent).toBe("Couldn't share this take. Try again.");
+  expect([ticked("Artur"), ticked("Maya Lindqvist"), ticked("Daniel Okafor")]).toEqual(["true", "true", "false"]);
+  expect(appended).toEqual([]);
+  expect(continueOn()).toBe(true);
+
+  await act(async () => (host.querySelector('[data-testid="share-continue"]') as HTMLButtonElement).click());
+  expect(send.sendTake).toHaveBeenCalledTimes(2);
+  expect(send.sendTake).toHaveBeenLastCalledWith("take-3", { all: false, userIds: ["u-artur", "u-maya"] });
+  expect(onDone).toHaveBeenCalledTimes(1);
+  expect(appended.map((d) => d.body)).toEqual(["Artur, Maya Lindqvist"]);
+  expect(appended[0].metadata).toMatchObject({ take_session_id: "take-3", share: { kind: "people", user_ids: ["u-artur", "u-maya"] } });
 });

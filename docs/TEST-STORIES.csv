@@ -401,8 +401,9 @@ O2  The line under my latest Take opens the screen with my choice ticked
 now chose, stamped with the words I saw, and its line says the new
 choice; ""Only me"" takes it back from every community.","O3 -> ""with sending on, everyone is ticked, Select all unticks all, and the one ticked gets the next Take once""
 O4 -> ""with sending on, a sent Take's line opens the screen to add people, never to unsend""
+O5 -> ""with sending on, a failed send from a Take's line keeps the screen and says so; Continue again sends it""
 O1 -> ""starts with nothing ticked; Continue waits for a choice, Only me counts""
-O2 -> ""the latest Take's line opens the screen ticked as it stands, and a change re-stamps that Take""","O3, O4: founder 2026-11-04, backend N470 (#1702) and N479 (#1704), the prototype ""Specialist Side"" tab 1. O1, O2 (sending off): founder 2026-10-15 (Privacy 3.6 section 4d). O2: founder 2026-10-31, backend N309 item 5; G4 (each Take stamped and revocable)."
+O2 -> ""the latest Take's line opens the screen ticked as it stands, and a change re-stamps that Take""","O3, O4: founder 2026-11-04, backend N470 (#1702) and N479 (#1704), the prototype ""Specialist Side"" tab 1. O5: founder 2026-11-06, backend N541 (""Fix both""), for N470 item 8. O1, O2 (sending off): founder 2026-10-15 (Privacy 3.6 section 4d). O2: founder 2026-10-31, backend N309 item 5; G4 (each Take stamped and revocable)."
 src/components/willab/NoticeBar.test.tsx,Story,"As a speaker, I want a question or a price the founder sent me, and the WhatsApp ask, to come as a bar at the top of the chat, one at a time, never in the buttons I record with, so that it never competes with my next Take.","O1  The ask comes in the bar with its own words (the WhatsApp ask under
 its opener), once a visit, and is reported shown.
 O2  ✕ closes the bar.
@@ -1846,13 +1847,18 @@ src/lib/willab/markedEditorSerialize.test.ts,Story,"As a speaker, I want opening
 bytes, for every marker grammar (bold, underline, italic, accent,
 moment, paragraphs). Never-5: the Ideal Text stays what the speaker
 said; an unchanged save never rewrites it.","O1 -> ""returns an untouched document byte-for-byte""",FE-1 acceptance: edit-with-no-changes posts back the text received.
-src/lib/willab/nextTakeShare.test.ts,Story,"As a speaker, I want my sharing choice applied once, to my next uploaded Take, with the wording I saw, and ""Only me"" to share nothing, so that I control who hears me; and I want the choice I keep shown under each Take's recording, so that I always see who hears me.","O1  My choice shares the next Take once, with the wording I saw, and not the Take after.
+src/lib/willab/nextTakeShare.test.ts,Story,"As a speaker, I want my sharing choice applied once, to my next uploaded Take, with the wording I saw, and ""Only me"" to share nothing, so that I control who hears me; and I want the choice I keep shown under each Take's recording, so that I always see who hears me; and I want a Take I chose to send to people to reach them even when the first try fails, without ever waiting for it, so that what I send is never lost.","O1  My choice shares the next Take once, with the wording I saw, and not the Take after.
 O2  Choosing Only me shares nothing.
 O3  A Take that kept my choice without asking has the same line under its
 recording, a change from the line replaces that Take's line, and only
-my latest Take's line opens the sharing screen, ticked as it stands.","O1 -> shares the next uploaded Take as chosen, once, with the words the speaker saw
+my latest Take's line opens the sharing screen, ticked as it stands.
+O4  A Take chosen for people whose send fails is kept and tried again
+(5 s, then 30 s later), one try at a time; still not gone, it is tried
+at the next open of the app and goes; the next Take's choice does not
+replace it; once it has gone it is never sent again (N541).","O1 -> shares the next uploaded Take as chosen, once, with the words the speaker saw
 O2 -> Only me shares nothing
-O3 -> says a kept or changed choice as its Take's line, and only the latest Take's line opens the screen","Founder lock 2026-10-12, section 5; O3: founder 2026-10-31, backend N309 item 5 (sharing is asked once; the choice is the line under each Take's recording, which opens the screen to change it)."
+O3 -> says a kept or changed choice as its Take's line, and only the latest Take's line opens the screen
+O4 -> keeps a people send that fails until it goes: tried again, then at the next open, never twice","Founder lock 2026-10-12, section 5; O3: founder 2026-10-31, backend N309 item 5 (sharing is asked once; the choice is the line under each Take's recording, which opens the screen to change it). O4: founder 2026-11-06, backend N541 (""Fix both""), for N470 item 8 (every Take a speaker sends reaches the people they chose) and R2."
 src/lib/willab/pace/paceSignal.test.ts,Story,"As the founder, I want the Pace Circle's ball and rim to follow my voice as the three signed definitions say, so that tuning it on a real voice tunes the right thing.","O1  Speed counts syllables per second of speech, with pauses left out.
 O2  Only gaps of a quarter second or longer count as pause.
 O3  The rim goes green, amber, deep amber, and never further.
