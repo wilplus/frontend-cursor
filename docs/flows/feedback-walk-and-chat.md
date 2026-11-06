@@ -1029,7 +1029,7 @@ praised moment:
   is not known, or the talk is for themself; after a just-answered who,
   the answer, from their side), opened on the
   moment as the others ("We just worked on “…”. "), said as signed, with no
-  tap answers: it is answered by voice (E3). Will says
+  tap answers: it is answered by voice (E3, N544). Will says
   back who the talk is for, "{who}. I'll keep them in mind." (N294 item 5),
   from the speaker's side: "my team" comes back as "Your team. I'll keep
   them in mind.", and a talk to themself ("Myself", "me", "just me") as
@@ -1054,12 +1054,20 @@ praised moment:
   last, opening "Who is it for, then? 👀", N319 item 8). The check
   ("Right?") keeps "Someone else" and its follow-up. No Skip under Will's
   questions (N296 item 2): not answering is allowed, and the stack still
-  opens the projects; their own words in the box answer too. A spoken
-  answer is no longer made (N483 item 7); one already given stays as the
-  speaker's bubble with the words Will heard (N275, `WillVoiceAnswer.tsx`).
-  Was: while Will waited the mic was orange, and a spoken answer was heard
-  under the processing authorization and answered as typed words (N294
-  items 2 and 3, N319 item 1). One
+  opens the projects; their own words in the box answer too. The key line
+  is said, not typed (N544): while it waits the bar's middle is "Record
+  your answer" and "Not now" is the grey word under it; the tap records in
+  the plan's small recording bar (N314: the time, the bin, "Stop") in the
+  bar's place, never the recording screens or slides; Stop sends it to
+  `/will-question/voice`, heard under the processing authorization and
+  answered as typed words, kept as the talk's key line, shown as the
+  speaker's bubble with the words Will heard (N275); the recording is not
+  kept; "Not now" gives the middle back to "Record Take N" until the chat
+  is opened again (`useKeyLineHear` in `WillVoiceAnswer.tsx`, `Lounge.tsx`).
+  Every other question of Will's makes no spoken answer (N483 item 7); one
+  already given stays as the speaker's bubble. Was: while Will waited the
+  mic was orange (N294 items 2 and 3, N319 item 1); then, from N483 until
+  N544, the key line offered only the box "Type your answer". One
   follow-up at most, with no tap answers (N294 item 3). A Take that names its audience twice is checked instead
   ("Sounds like this one's for {the board}. Right? 🎯"; the guess becomes
   the audience only on Yes). How Will knows: one gpt-4o-mini call per Take
@@ -2239,7 +2247,8 @@ Backend (`wilplus/backend-cursor`): `services/moment_pick.py`,
 `services/rewrite_gate.py` (H);
 `services/take_summary.py` (D); `services/after_take.py`,
 `services/will_question.py`, `services/feedback_check.py` (E; the spoken
-answer's route, `/will-question/voice`, is no longer called, N483 item 7);
+answer's route, `/will-question/voice`, is called for the key line only,
+N544);
 `services/take_context.py` (the key line, E4, H1);
 `services/inner_context.py`, `services/verbal_read.py`,
 `services/prompts/verbal_read.py` (the notes, H1);
@@ -2300,6 +2309,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-06 · N544 · E2, E3: Will's key line ("… Say it the way you'll say it.") is said, not typed. While it waits the bar's middle is "Record your answer" with "Not now" under the question; the tap records in the plan's small recording bar in the bar's place, never the recording screens; Stop sends it to `/will-question/voice` (BFF route restored), heard under the processing authorization, and the thread reads again (`useKeyLineHear` in `WillVoiceAnswer.tsx`, `postWillQuestionVoice`, `Lounge.tsx`). No new words. What stops: the box "Type your answer" under the key line · BE N544 (wilplus/backend-cursor#1805), FE (this PR)
 - 2026-11-06 · N543 · H1, the One thing walk's pick: the moments come from untouched slides first. A slide that had helper words when the Take was recorded gives way in every slot (their best, the Clearer version's between, the AI clip's weakest, the next bests) and fills one only when no untouched slide can (backend `moment_pick._untouched_first`, `_rank`). No new words. What stops: a moment on a slide the speaker already worked on winning over an untouched slide because its own words did not hold the helper words · BE N543 (#1804), FE (this PR)
 - 2026-11-06 · N541 · G3, G4: a Take sent to people is never lost silently. From a Take's line a send that fails keeps the screen open, ticked as chosen, and says "Couldn't share this take. Try again." (the community screen's toast), and Continue tries again; chosen before a Take, the send is kept on the phone under its own key (`willab.pendingTakeSends`) until it goes, tried again 5 s and 30 s later, then at the next open, signed in, once the thread has painted, within the choice's six hours, never waited on (`PeopleSendScreen` in `NextTakeShareScreen.tsx`, `applyNextTakeShare` and `retryTakeSends` in `nextTakeShare.ts`, `WillabSurface.tsx`). No new words. What stops: a failed send from the line closing the screen as if the Take had gone, and a failed send before a Take dropping the choice after one try · BE N541 (#1798), FE (this PR)
 - 2026-11-06 · N537 · B16, D4: a question is the last bubble, right above its answers, everywhere; after a Take on a plan its question (the plan's own yes, the ratings, a new project's) comes under the goodbye and the plan's bar, never over them (backend `after_take.end_rows`). No new words. What stops: the plan's yes above "Good job. See you {day}." and the bar, with its buttons far below it · BE N537, FE (this PR)

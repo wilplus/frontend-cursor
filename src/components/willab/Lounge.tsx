@@ -161,7 +161,7 @@ import WillQuestionBubble, {
   willQuestionOf,
   type WillQuestionTarget,
 } from "./WillQuestion";
-import { isWillVoice, WillVoiceBubble } from "./WillVoiceAnswer";
+import { isWillVoice, useKeyLineHear, WillVoiceBubble } from "./WillVoiceAnswer";
 import { WillBarMiddle } from "./plan/PlanDock";
 import { JoinSetupBubble, joinSetupOf, joinSetupWaiting, useJoinSetup, type JoinSetup } from "./chats/JoinSetup";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
@@ -331,6 +331,12 @@ function IdealTextForReader({
   ) : (
     <>{children}</>
   );
+}
+
+/** What "Record your answer" in the bar's middle records: the plan's spoken
+ *  question first, else Will's key line (backend N483 item 2, N544). */
+function firstHear<T>(plan: T | null, keyLine: T | null): T | null {
+  return plan ?? keyLine;
 }
 
 export default function Lounge({
@@ -1491,9 +1497,21 @@ export default function Lounge({
   // and "What should change?" keeps the box open.
   const setupWaits = joinSetupWaiting(shownMessages);
   const joinSetup = useJoinSetup(reload, setBotThinking);
+  // Will's key line asks to be said (backend N544): "Record your answer" in
+  // the bar's middle records it in the small recording bar, no box for it.
+  const keyLine = useKeyLineHear({
+    shown: shownMessages,
+    held: botThinking,
+    onSending: setBotThinking,
+    onSent: async () => {
+      await reload();
+      followAnswer();
+    },
+  });
+  const barDisplay = (base: string) => (keyLine.recording ? "hidden" : plan.composerDisplay(base));
   const words = useWordsBox(
     shownMessages,
-    plan.typingOff,
+    plan.typingOff || keyLine.asks,
     draftText,
     composerRef,
     feedbackCheckTarget([...shownMessages], "missing") !== null || setupWaits?.words === true,
@@ -1944,6 +1962,7 @@ export default function Lounge({
         {/* The plan's answers under Will's question, the after-walk way
             (N319 item 1): tap answers on the right, or the 1 to 10 scale. */}
         {plan.asks}
+        {keyLine.notNow}
 
         {/* While a Take processes (founder lock 2026-10-12, section 1): a
             bubble in the chat with the typing dots (founder 2026-10-20, in
@@ -2120,9 +2139,10 @@ export default function Lounge({
           matches the record CTA. B3 — "Will" persona in the placeholder + aria. */}
       {plan.dock}
       {plan.sheets}
+      {keyLine.bar}
       {/* Hidden whole while the plan's footer stands in for it, so its empty
           wrapper adds no gap under it (founder 2026-10-30). */}
-      <div className={plan.composerDisplay("contents")}>
+      <div className={barDisplay("contents")}>
       <NewProjectAskComposer ask={newProjectAsk}>
       <SlidesAskComposer ask={slidesAsk}>
       <PolicyUpdateComposer>
@@ -2131,7 +2151,7 @@ export default function Lounge({
       <form
         onSubmit={handleSend}
         // 8px from the sides (N505): out of the shell's 16px.
-        className={`${plan.composerDisplay(notebook.composerDisplay)} -mx-2 items-end gap-1`}
+        className={`${barDisplay(notebook.composerDisplay)} -mx-2 items-end gap-1`}
       >
         {/* THE "+" (founder 2026-10-12, WhatsApp-like): it opens the
             projects, where "Start a new project" starts one. It replaced the
@@ -2208,7 +2228,7 @@ export default function Lounge({
         </div>
         ) : (
           <WillBarMiddle
-            hear={plan.hear}
+            hear={firstHear(plan.hear, keyLine.hear)}
             next={goodbye.recordNext ?? restingTake(messages, userId)}
             held={recordBarHeld(takeInFlight, thread)}
             onRecord={recordNext}

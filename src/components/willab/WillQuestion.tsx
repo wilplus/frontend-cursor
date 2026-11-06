@@ -17,10 +17,10 @@ import { LEAVE_WORDS } from "@/lib/willab/leaveWords";
 /*  N319 item 8). While it is the newest bubble the answers sit under it, on  */
 /*  the right; a tap goes to the backend, which writes it and the reply.      */
 /*  Typed words in the message box are an answer too (the backend's chat      */
-/*  reads them), and so is a voice answer: while it waits the mic is orange   */
-/*  (N296 state 2, WillVoiceAnswer.tsx). No Skip (founder 2026-10-31, N296    */
-/*  item 2): not answering is allowed, the "+" still opens the projects; a   */
-/*  follow-up and the key line (N294 item 2) have no taps.                    */
+/*  reads them). The key line (N294 item 2) is said instead: "Record your     */
+/*  answer" in the bar records it in the small recording bar (backend N544,   */
+/*  WillVoiceAnswer.tsx). No Skip (founder 2026-10-31, N296 item 2): not      */
+/*  answering is allowed; a follow-up and the key line have no taps.          */
 /* -------------------------------------------------------------------------- */
 
 export const WILL_QUESTION = "will_question";

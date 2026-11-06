@@ -1587,11 +1587,14 @@ O4 -> opens with the number typed in the chat,
 a full number typed in the chat gets its code at once
 O5 -> a number another account has is refused in words",
 src/components/willab/willVoiceAnswer.test.tsx,Story,"As a speaker in the Lounge, I want the answers I already gave Will out loud to stay in the chat, and after I answer the chat to show the newest bubble, so that I can always see where we are.","O1  A spoken answer to Will, already in the thread, shows on my side
-with the words he heard (N275). Since N483 Will's question is
-answered with a tap or written words, so no new ones are made.
+with the words he heard (N275).
+O3  Will's key line asks me to say it, so the bar gives me ""Record your
+answer"" and records it there, never the box (N544); his other
+questions keep taps and written words (N483).
 O2  After I answer, the chat lands on the newest bubble even when I had
 scrolled up (N319 item 9).","O1 -> ""a spoken answer already given stays as my bubble with its words""
-O2 -> ""after an answer the chat lands on the newest bubble""","N294 items 2 and 3 (the spoken answers kept); 2026-11-01 (N319): ""after the speaker answers, the chat moves to the new bubble""; 2026-11-04 (N483): no mic in any chat."
+O2 -> ""after an answer the chat lands on the newest bubble""
+O3 -> ""the key line is said in the bar; other questions are not""","N294 items 2 and 3 (the spoken answers kept); 2026-11-01 (N319): ""after the speaker answers, the chat moves to the new bubble""; 2026-11-04 (N483): no mic in any chat; 2026-11-06 (N544): ""it asks to say it; but it doesnt give you the recorder""."
 src/components/willab/willabHelpers.test.ts,Story,"As a speaker, I want my slide taps lined up with the recording's clock, so that each word lands on the right slide.","O1  When the recording started later than the tap clock, the correction is positive by exactly that gap.
 O2  When the recording never reported a start, no correction is sent.
 O3  The founder's old weekly note (""Feedback, the last 7 days"") never shows in the chat with Will; Will's own words still do (founder 2026-11-05).","O1 -> is positive when the recorder started after the tap clock's zero
