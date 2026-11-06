@@ -1598,9 +1598,9 @@ export function useDeckFeedbackWalk(args: {
     return ask;
   }, []);
   // A paragraph's practise ends on the page quietly; the review's end tells
-  // the Lounge ("Continue review" leaves it) and lands on the Ideal Text.
+  // the Lounge (the walk's outline leaves it) and lands on the Ideal Text.
   // The review's end is written once per Take, also when the walk closes
-  // with nothing left to answer, so "Continue review" goes (founder 2026-10-14).
+  // with nothing left to answer, so the review is over (founder 2026-10-14).
   const endedRef = useRef<string | null>(null);
   const postEnd = useCallback(() => {
     const { thread: to, take: on } = threadRef.current;
@@ -1655,7 +1655,7 @@ export function useDeckFeedbackWalk(args: {
     live.current.onWalkClose?.();
   }, [postEnd, askSummaryAsNewest]);
   /* "LESSON DONE." AND CLOSE (founder 2026-10-31, N309 item 4): the review's
-     end is written, so "Continue review" goes and the Take's card lands
+     end is written, so the review is over and the Take's card lands
      under its Feedback walk; the walk closes back to the chat. The summary
      is no longer a step of the walk, and is still written once per Take as
      the walk ends, so the chat's chain after the review (its card, the one

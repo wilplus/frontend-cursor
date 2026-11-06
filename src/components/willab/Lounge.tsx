@@ -493,8 +493,10 @@ export default function Lounge({
   // The latest Take's line opens the sharing screen to change it (N309 item 5).
   const shareChange = useMemo(() => latestShareLine(drawnOf(threadItems)), [threadItems]);
   const summaries = useMemo(() => summaryByTake(drawnOf(threadItems)), [threadItems]);
-  // "Continue review" (founder lock 2026-10-12, section 1): the newest walk
-  // step names its project and is not the review's end.
+  // The review that still waits (founder lock 2026-10-12, section 1): the
+  // newest walk step names its project and is not the review's end. Its
+  // Feedback walk wears the outline; the bar offers no "Continue review"
+  // (backend N532).
   const reviewToContinue = useMemo(() => continueReviewArc(threadItems), [threadItems]);
   // One Ideal Text bubble per Take (founder 2026-10-14).
   const drawnItems = useMemo(() => {
@@ -1520,12 +1522,6 @@ export default function Lounge({
     if (state === "insights_ready") void reload();
   }, [state, reload]);
 
-  /** "Continue review": the same door as the waiting Feedback walk's (B10, N192). */
-  function continueReview(arcId: string): void {
-    const walk = walks.filter((w) => w.arcId === arcId).at(-1);
-    openIdealText(arcId, "review", walk ? feedbackWalkDoor(walk, walkWaits(walk), arcId) : null);
-  }
-
   /** "Start your first recording": the plan's first Take when there is a
    *  plan, else a new project (N483 item 2). */
   function startFirst(): void {
@@ -2213,7 +2209,6 @@ export default function Lounge({
         ) : (
           <WillBarMiddle
             hear={plan.hear}
-            review={reviewToContinue ? () => continueReview(reviewToContinue) : null}
             next={goodbye.recordNext ?? restingTake(messages, userId)}
             held={recordBarHeld(takeInFlight, thread)}
             onRecord={recordNext}
@@ -3204,7 +3199,7 @@ function FeedbackWalkBubble({
   older: number | null;
   /** Its steps that wait (the outline); a tap marks them seen. */
   waits: LoungeMessage[];
-  /** The project whose review waits ("Continue review"); null: none. */
+  /** The project whose review waits; null: none. */
   live: string | null;
   /** The Take's Ideal Text card is drawn right under it (N202). */
   paired: boolean;

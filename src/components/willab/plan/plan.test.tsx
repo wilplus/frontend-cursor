@@ -225,7 +225,7 @@ function Lounge({
       {plan.dock}
       <form data-bar="" className={plan.composerDisplay("flex")}>
         <button type="button" aria-label="Your projects" />
-        <WillBarMiddle hear={plan.hear} review={null} next={plan.one} held={false} onRecord={onRecordNext} onFirst={plan.startFirst ?? (() => {})} />
+        <WillBarMiddle hear={plan.hear} next={plan.one} held={false} onRecord={onRecordNext} onFirst={plan.startFirst ?? (() => {})} />
       </form>
     </>
   );

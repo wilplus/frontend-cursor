@@ -220,53 +220,47 @@ export function usePlanVoice({
 
 /** The middle of Will's bar while he asks for no words (backend N483 item
  *  2), the first that holds: Will needs to hear you (the plan's spoken
- *  question), "Record your answer"; a review is unfinished, "Continue
- *  review"; otherwise the next Take, faded while the last one is processed,
- *  or "Start your first recording" before any. One black button; the red dot
- *  when a tap starts a recording. */
+ *  question), "Record your answer"; otherwise the next Take, faded while the
+ *  last one is processed, or "Start your first recording" before any. No
+ *  "Continue review" (backend N532): the review is the Feedback walk
+ *  bubble's, and never holds the next Take back. One black button; the red
+ *  dot when a tap starts a recording. */
 export function WillBarMiddle({
   hear,
-  review,
   next,
   held,
   onRecord,
   onFirst,
 }: {
   hear: { onTap: () => void } | null;
-  review: (() => void) | null;
   next: { arcId: string; takeIndex: number } | null;
   held: boolean;
   onRecord: (arcId: string, takeIndex: number) => void;
   onFirst: () => void;
 }) {
-  const [label, onClick, dot, attr]: [string, () => void, boolean, string] = hear
-    ? [PLAN_COPY.recordAnswer, hear.onTap, true, "data-will-hear"]
-    : review
-      ? ["Continue review", review, false, "data-continue-review"]
-      : next
-        ? [PLAN_COPY.recordTake(next.takeIndex + 1), () => onRecord(next.arcId, next.takeIndex), true, "data-record-next"]
-        : [PLAN_COPY.startFirst, onFirst, true, "data-start-first"];
+  const [label, onClick, attr]: [string, () => void, string] = hear
+    ? [PLAN_COPY.recordAnswer, hear.onTap, "data-will-hear"]
+    : next
+      ? [PLAN_COPY.recordTake(next.takeIndex + 1), () => onRecord(next.arcId, next.takeIndex), "data-record-next"]
+      : [PLAN_COPY.startFirst, onFirst, "data-start-first"];
   return (
     <div className="min-w-0 flex-1">
-      <RecordDockButton label={label} onClick={onClick} dot={dot} disabled={held && !hear && !review} dataAttr={{ [attr]: "" }} />
+      <RecordDockButton label={label} onClick={onClick} disabled={held && !hear} dataAttr={{ [attr]: "" }} />
     </div>
   );
 }
 
 /** The one black button in the middle of Will's bar (backend N483). The red
- *  dot means a tap starts a recording; without it (`dot={false}`, "Continue
- *  review") the tap opens something first. */
+ *  dot means a tap starts a recording, as every one of its taps does. */
 function RecordDockButton({
   label,
   onClick,
   disabled = false,
-  dot = true,
   dataAttr,
 }: {
   label: string;
   onClick: () => void;
   disabled?: boolean;
-  dot?: boolean;
   dataAttr: Record<string, string>;
 }) {
   return (
@@ -277,7 +271,7 @@ function RecordDockButton({
       {...dataAttr}
       className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-foreground text-[15px] font-medium text-background disabled:opacity-45"
     >
-      {dot ? <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden /> : null}
+      <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
       {label}
     </button>
   );
