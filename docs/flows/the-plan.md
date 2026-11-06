@@ -453,7 +453,7 @@ built and what is still to come.
    feedback-walk-and-chat.md D4). "Now go and live it, away
    from the phone." is gone (N319 item 4). A question the plan asks after
    the Take (its own yes, the ratings, a new project's) comes last, under
-   the bar, right above its answers (N534, feedback-walk-and-chat.md B16).
+   the bar, right above its answers (N537, feedback-walk-and-chat.md B16).
 
 ### H · Changing the plan
 
@@ -799,7 +799,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-11-06 · N534 · G13: a question the plan asks after a Take (its own yes, the ratings, a new project's) comes last, under the goodbye and the plan's bar, right above its answers (backend `after_take.end_rows`). No new words. Was: "Some of my questions are personal…" above "Good job. See you {day}." and the bar, its buttons far below it · BE, FE (this PR)
+- 2026-11-06 · N537 · G13: a question the plan asks after a Take (its own yes, the ratings, a new project's) comes last, under the goodbye and the plan's bar, right above its answers (backend `after_take.end_rows`). No new words. Was: "Some of my questions are personal…" above "Good job. See you {day}." and the bar, its buttons far below it · BE, FE (this PR)
 - 2026-11-06 · N532 · §4: `WillBarMiddle` no longer offers "Continue review"; the bar's one black button is "Record your answer", "Record Take N" or "Start your first recording" · BE N532 (#1786), FE (this PR)
 - 2026-11-05 · — · §4: coming back to the app re-reads the plan only when it was last read more than 30 seconds ago (`usePlanLounge`; a failed read is not counted, `planReadFailed` in `services/api/plan.ts`), so a tab switch and back costs no read. Opening the Lounge and a Take or plan row landing in the thread read it as before. No new words; no rule changes. Was: every return to the tab read the plan · FE (this PR)
 - 2026-11-05 · — · §4: the calls' calendar is no longer part of the chat's first download: its code is fetched once the chat has painted, and `PlanDock` draws it from the first "Book now" or "Book" on, so it opens and slides away as before. The small month grid moves to `plan/MonthGrid.tsx` (still exported by `plan/PlanCalendar.tsx`), so the deadline's sheets and a chat's ready-by sheet load without the calendar. No new words; no rule changes · FE (this PR)
