@@ -295,6 +295,9 @@ O3  Signing in on the page that opens on the number: ""Sign in with
 WhatsApp"", the code, then straight in, with no name step (N232).","O1 -> ""signing up: number, code, name, and the number is kept""
 O2 -> ""signing in with an unknown number says so and makes nothing""
 O3 -> ""signing in from the first screen: the code, then in""","Founder 2026-10-27, backend N214; the first screen, 2026-10-28, N232."
+src/components/auth/microsoftSignIn.test.tsx,Story,"As a person signing up or in at work, I want a ""Microsoft"" button beside Google, so that I can use my work account (backend N401 item 6).","O1  Once switched on, ""Microsoft"" sits beside Google under ""or""; tapping
+it starts Supabase's Microsoft (Azure) sign-in, asking for the email,
+and a refused replay restarts it once. Off, it is not there.","O1 -> ""Microsoft sits beside Google once switched on and starts its sign-in; off, it is not there""","Backend N401 items 6 and 7 (founder, 3 November 2026): ""a Microsoft sign-in button beside Google"", the word signed. Hidden until the founder turns the Azure provider on in Supabase (NEXT_PUBLIC_MICROSOFT_SIGNIN=on)."
 src/components/founder/GoldenJudging.test.tsx,Story,"As the founder, I want to judge golden pairs seeing the passage and the coach's final only, so that the golden set measures real answers.","O1  A pair shows the passage and the coach's final, no draft, and sends
 one of three answers.
 O2  A clip surface keeps the coach's instrument, not the pair question.
