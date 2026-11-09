@@ -12,6 +12,7 @@ import {
   setReviewPending,
 } from "./sendStatus";
 import { notifyPendingSendSettled } from "./usePendingSendHold";
+import { whenNoTakeAtRisk } from "./labLeaveGuard";
 import { lensHref } from "@/lib/willab/lensScreen";
 import { countFirstVisit } from "@/lib/funnel/firstVisit";
 
@@ -50,7 +51,12 @@ export default function PendingCoachSend() {
           opened = true;
           // The last step of a first visit (backend N271).
           countFirstVisit("walk");
-          window.location.href = lensHref(pending.projectId, "review");
+          // The send is done; only the page waits while a Take being recorded
+          // here is not yet on the server (backend N560 item 3).
+          const review = lensHref(pending.projectId, "review");
+          whenNoTakeAtRisk(() => {
+            window.location.href = review;
+          });
         }
       } finally {
         inFlightRef.current = false;

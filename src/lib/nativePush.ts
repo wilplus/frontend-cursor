@@ -2,6 +2,7 @@ import { bffFetch } from "@/lib/api/bffFetch";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { sameSitePath } from "@/lib/auth/sameSitePath";
 import { closeNativeDump } from "@/lib/phone/dumpScreen";
+import { whenNoTakeAtRisk } from "@/components/willab/labLeaveGuard";
 
 /* -------------------------------------------------------------------------- */
 /*  Push in the iPhone app (backend N385, N365 item 4): "The feedback from     */
@@ -13,7 +14,8 @@ import { closeNativeDump } from "@/lib/phone/dumpScreen";
 /*  their coach's feedback (N385 item 2), on the next open of the app, so it   */
 /*  never pops over the Feedback walk itself. A no is iOS's to keep; nothing   */
 /*  asks again. Once allowed, every open hands Apple's address to the backend  */
-/*  (it can change), and a tapped push opens the page it names.                */
+/*  (it can change), and a tapped push opens the page it names; while a Take   */
+/*  is not yet on the server, once it is (N560 item 3).                        */
 /* -------------------------------------------------------------------------- */
 
 const FEEDBACK_SEEN = "willab.push.feedbackSeen";
@@ -59,9 +61,11 @@ export async function startNativePush(): Promise<() => void> {
     PushNotifications.addListener("pushNotificationActionPerformed", ({ notification }) => {
       closeNativeDump(); // a tapped notification never lands on the dump screen (N506 item 4)
       const path = sameSitePath(String((notification.data as { path?: unknown })?.path ?? ""));
-      if (path && path !== window.location.pathname + window.location.search) {
-        window.location.assign(path);
-      }
+      if (!path) return;
+      // While a Take is not yet on the server, the page opens once it is (N560 item 3).
+      whenNoTakeAtRisk(() => {
+        if (path !== window.location.pathname + window.location.search) window.location.assign(path);
+      });
     }),
   ]);
   let { receive } = await PushNotifications.checkPermissions();

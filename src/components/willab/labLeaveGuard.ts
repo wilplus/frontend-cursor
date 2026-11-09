@@ -17,8 +17,55 @@ import type { WillabState } from "./useWillabFlow";
 /*  the document, so an in-app route never shows it.                          */
 /* -------------------------------------------------------------------------- */
 
+/* -------------------------------------------------------------------------- */
+/*  A TAP WAITS, THEN GOES (founder 2026-11-09, backend N560 item 3, "Wait,   */
+/*  then go"). The same window, app-wide: a tapped push notification, a       */
+/*  WillpowerLab link opening the app, or a guest's first Take opening its    */
+/*  review once their sign-up finishes loads a new page, which loses a Take   */
+/*  the server does not have yet. While a guard is on, that move waits; once  */
+/*  every guard is off (the server has the Take, it was discarded, or the     */
+/*  screens closed) the latest one goes. Nothing on screen changes.           */
+/* -------------------------------------------------------------------------- */
+
+/** How many guards are on. Each guard counts itself once and its cleanup
+ *  takes it off once, so an unmount never leaves one on. */
+let guardsOn = 0;
+/** The one move that waits: a later tap replaces an earlier one. */
+let waiting: (() => void) | null = null;
+
+/** Whether a Take exists only in this tab right now (N553 item 1's window). */
+export function takeAtRisk(): boolean {
+  return guardsOn > 0;
+}
+
+/** Run `go` (a move that loads a new page) now when no Take is at risk;
+ *  otherwise once none is, replacing any move already waiting. */
+export function whenNoTakeAtRisk(go: () => void): void {
+  if (takeAtRisk()) {
+    waiting = go;
+    return;
+  }
+  waiting = null;
+  go();
+}
+
+function guardOff(): void {
+  guardsOn = Math.max(0, guardsOn - 1);
+  if (guardsOn > 0 || !waiting) return;
+  // After this commit, not inside it: the discard or the server's answer
+  // finishes its own work first (the Take's copy on the device is settled),
+  // and a guard that came straight back on keeps the move waiting.
+  setTimeout(() => {
+    const go = waiting;
+    if (!go || takeAtRisk()) return;
+    waiting = null;
+    go();
+  }, 0);
+}
+
 /** Ask before the page unloads while `active`; never otherwise. Unmounting
- *  always takes the listener away. */
+ *  always takes the listener away. While on, a tap's move waits
+ *  (`whenNoTakeAtRisk`). */
 export function useLeaveGuard(active: boolean): void {
   useEffect(() => {
     if (!active) return;
@@ -28,7 +75,11 @@ export function useLeaveGuard(active: boolean): void {
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", ask);
-    return () => window.removeEventListener("beforeunload", ask);
+    guardsOn += 1;
+    return () => {
+      window.removeEventListener("beforeunload", ask);
+      guardOff();
+    };
   }, [active]);
 }
 
