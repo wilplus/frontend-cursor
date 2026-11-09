@@ -23,9 +23,14 @@ async function sectionFor(userId: string | undefined): Promise<Section | null> {
   return id ? getProfileModels(id) : null;
 }
 
-export default function ProfileModels({ userId }: { userId?: string }) {
+export default function ProfileModels({ userId, mine = true }: {
+  userId?: string;
+  /** Drawn on your own profile only: the other person's carries no id yet. */
+  mine?: boolean;
+}) {
   const [section, setSection] = useState<Section | null>(null);
   useEffect(() => {
+    if (!mine) return;
     let alive = true;
     void sectionFor(userId).then((got) => {
       if (alive) setSection(got);
@@ -33,8 +38,8 @@ export default function ProfileModels({ userId }: { userId?: string }) {
     return () => {
       alive = false;
     };
-  }, [userId]);
-  if (!section) return null;
+  }, [userId, mine]);
+  if (!section || !mine) return null;
   return (
     <div data-profile-models className="bg-white px-[18px] py-3.5">
       <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A]">{section.title}</p>
