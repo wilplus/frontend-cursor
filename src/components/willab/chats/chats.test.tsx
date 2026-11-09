@@ -38,7 +38,7 @@ OUTCOME
       "Hide" closes them again (N331).
   O8  The + on the list opens my own link, with the add sheet's signed
       words and "Only the two of you are in it." (N567 item 1; was: three
-      steps), and Copy my link puts the whole link on the clipboard and says
+      steps), and no website switch for now (N569 item 1), and Copy my link puts the whole link on the clipboard and says
       "✓ Copied" (N308, N310, N367).
   O9  In a chat I joined through someone's link, one line above the
       messages says whose link it was (N496, replacing N335 item 2's), and
@@ -123,6 +123,9 @@ OUTCOME
   O25 While the list (or a chat, or the loader) covers Will's chat, the
       slide previews on his cards wait, so pdf.js and the decks are not
       downloaded behind the list; they draw once his chat is open.
+  O26 A website visitor's answers carry the visitor's name, "Visitor 7's
+      answers", on their row and on the card, never "Widget's answers"
+      (N569 item 6).
 PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read"
          O19 -> "as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar"
          O20 -> "as a developer, a chats row in the rings, on or off, changes nothing"
@@ -148,6 +151,7 @@ PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is 
          O23 -> "the questions of the one who invited me are answered by tapping, and they read one card"
          O24 -> "the first time I add someone, Will's chat opens on his setup, answered by tapping"
          O25 -> "the slides on Will's cards wait while the list covers his chat, and draw once it is open"
+         O26 -> "a website visitor's answers carry the visitor's name, not the word Widget"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -640,7 +644,8 @@ describe("the chats in front of the Lounge", () => {
     await tap(container.querySelector('[data-add-someone][aria-label="Add someone to chat with"]'));
     const sheet = container.querySelector("[data-add-sheet]")!;
     expect(sheet.textContent).toContain("Add someone to chat with");
-    expect(sheet.textContent).toContain("Put this chat on your website");
+    // The website switch is hidden until its new design is signed (N569 item 1).
+    expect(sheet.querySelector("[data-website-switch]")).toBeNull();
     const link = `${window.location.origin}/c/AbCdEfGhIjKlMnOpQrStUvWx`;
     expect(sheet.querySelector("[data-my-link]")?.textContent).toBe(link);
     expect(sheet.textContent).toContain("Only the two of you are in it.");
@@ -717,6 +722,21 @@ describe("the chats in front of the Lounge", () => {
     await tap(row("c-ariel"));
     expect(container.querySelector("[data-chat-joined]")?.textContent).toBe("Ariel joined through your link.");
     expect(container.querySelector("[data-chat-setup-card]")?.textContent).toBe("Ariel's answersDeadline 4 DecemberLanguages Polish, English");
+  });
+
+  it("a website visitor's answers carry the visitor's name, not the word Widget", async () => {
+    backend(["chats"]);
+    const at = "2026-11-09T10:05:00Z";
+    const visitor = { ...ARIEL, id: "c-visitor", title: "Widget / Visitor 7", subtitle: "From invitaheadspa.com",
+      last: { kind: "text", body: "", created_at: at, meta: { setup_card: true } } };
+    const card = { id: "card", mine: false, author: "Widget / Visitor 7", kind: "text", body: "", created_at: at,
+      meta: { setup_card: { rows: [{ k: "What brings you here", v: "Itchy scalp" }] } } };
+    routes.set("GET /api/v2/chats", () => ({ chats: [visitor] }));
+    routes.set("GET /api/v2/chats/c-visitor/messages", () => ({ messages: [card], joined_through: null, joined_by: null }));
+    await render();
+    expect(lastLineOf("c-visitor")).toBe("Visitor 7's answers");
+    await tap(row("c-visitor"));
+    expect(container.querySelector("[data-chat-setup-card]")?.textContent).toBe("Visitor 7's answersWhat brings you here Itchy scalp");
   });
 
   it("after joining, the list opens with Will first and the one who invited me under him, marked new", async () => {

@@ -170,14 +170,13 @@ src/components/AppMenu.test.tsx,Story,"As someone signed in, I want the ☰ menu
 Copy my link, Settings, Tokens with the balance, then Sign out. No
 Lab, no Log out.
 O2  Copy my link opens ""Add someone to chat with"" (N567 item 1; was: it
-copied at once): Copy my link there copies the whole link; its small
-switch, ""Put this chat on your website"", turns it into the line of code
-for a site, with my link's token, and Copy my code copies that.
+copied at once): Copy my link there copies the whole link. The switch
+for the website is hidden until its new design is signed (N569).
 O3  Tokens shows the balance and opens the Tokens page, on the web and in
 the iPhone app alike (N495; in the app that page has no way to buy,
 N365 item 1).
 O4  Signed out (the blog), the menu is Lab and Log in, as before.","O1 -> ""signed in, the menu is me, Copy my link, Settings, Tokens and Sign out""
-O2 -> ""Copy my link opens the sheet, with the link or the line of code""
+O2 -> ""Copy my link opens the sheet, and Copy my link there copies the link""
 O3 -> ""Tokens shows the balance and opens the Tokens page""
 O4 -> ""signed out, the menu is Lab and Log in""",
 src/components/account/AccountSignInCard.test.tsx,Story,"As a speaker, I want to change my email and my password on Data & consent, and get a link when I forgot the password, so that I keep my account when I lose an address or a password (backend N190).","O1  Change email sends the new address and my current password; the card
@@ -604,7 +603,7 @@ words, once ready, are closed behind ""Read it"" under the player, and
 ""Hide"" closes them again (N331).
 O8  The + on the list opens my own link, with the add sheet's signed
 words and ""Only the two of you are in it."" (N567 item 1; was: three
-steps), and Copy my link puts the whole link on the clipboard and says
+steps), and no website switch for now (N569 item 1), and Copy my link puts the whole link on the clipboard and says
 ""✓ Copied"" (N308, N310, N367).
 O9  In a chat I joined through someone's link, one line above the
 messages says whose link it was (N496, replacing N335 item 2's), and
@@ -688,7 +687,10 @@ link ›"" and ""Your questions for people who join ›"". After the setup,
 the + opens my link as before (O8).
 O25 While the list (or a chat, or the loader) covers Will's chat, the
 slide previews on his cards wait, so pdf.js and the decks are not
-downloaded behind the list; they draw once his chat is open.","O1 -> ""as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read""
+downloaded behind the list; they draw once his chat is open.
+O26 A website visitor's answers carry the visitor's name, ""Visitor 7's
+answers"", on their row and on the card, never ""Widget's answers""
+(N569 item 6).","O1 -> ""as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read""
 O19 -> ""as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar""
 O20 -> ""as a developer, a chats row in the rings, on or off, changes nothing""
 O2 -> ""with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back""
@@ -712,7 +714,8 @@ O22 -> ""a Take sent to me opens with its recording and words, and the list says
 O21 -> ""from their profile I block them, the bar says so with Unblock, and Report and block reports with the block""
 O23 -> ""the questions of the one who invited me are answered by tapping, and they read one card""
 O24 -> ""the first time I add someone, Will's chat opens on his setup, answered by tapping""
-O25 -> ""the slides on Will's cards wait while the list covers his chat, and draw once it is open""",
+O25 -> ""the slides on Will's cards wait while the list covers his chat, and draw once it is open""
+O26 -> ""a website visitor's answers carry the visitor's name, not the word Widget""",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.

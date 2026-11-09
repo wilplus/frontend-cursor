@@ -78,7 +78,9 @@ rest is built in.
 7. Sending creates the customer's guest identity and one request row in the
    workspace, and the request lands in the answerer's chat.
 
-**A person's widget** (N567; built). The same widget for one person, made from
+**A person's widget** (N567; built, and hidden since N569: the switch in
+B8 is not shown until the widget's new design, a call back rather than a
+spoken answer, is signed; the rest of B8 to B13 stays as built, unused). The same widget for one person, made from
 their join link: no workspace, no form, a visitor who only taps.
 
 8. **One link, two ways to share it.** "Add someone to chat with" (the list's
@@ -905,6 +907,8 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-11-09 · N569 · B8: the switch "Put this chat on your website" is hidden; the add sheet shows the link alone. B12: a website visitor's answers read "{Visitor n}'s answers" (was "Widget's answers") · BE #1831, FE (this PR)
 
 - 2026-11-09 · N561 · C1: the iPhone app opens on the chats (`appStartPath: "chat"`): signed in, the list at once; signed out, the middleware sends the app, known by its user agent, to the first page (N568, N471 item 4), and a link into a chat through sign-in back to it; the website's /chat is unchanged. And Capacitor's keyboard plugin: no grey bar with arrows and "Done", the page resized to end on the keyboard ("native"), the footer behind the keyboard while it is up. Was (N354 item 1): the app opened on /login; the keyboard covered the text box. Both from the next app build · BE N561, N568, FE (this PR)
 - 2026-11-05 · N567 · B8 to B13: a person's widget. The add sheet's switch, "Put this chat on your website", turns the link into one line of code; the three tiles become one line, "Only the two of you are in it."; Copy my link in the ☰ menu opens the sheet (was: copied at once). `w.js` draws "Ask {name}" on any site and opens `/w/<token>` in an iframe; the visitor taps Agree and start, the owner's questions, one of three questions and the emoji, and hears the answer there; the owner's list has "Widget / Visitor {n}" with "From {site}"; Keep this chat makes it theirs ("Widget / {name}") · BE (this branch), FE (this PR)

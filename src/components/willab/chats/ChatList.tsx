@@ -43,6 +43,10 @@ export const OPEN_TAKE = "Open Take";
 
 /** A person's first name, as "{name} sent you Take {n}" says it. */
 export function firstName(name: string): string {
+  // A website visitor's chat is "Widget / Visitor 7" or, once kept,
+  // "Widget / Anna": their name is what follows (backend N569 item 6).
+  const visitor = /^Widget \/ (.+)$/.exec(name.trim());
+  if (visitor) return visitor[1];
   return name.trim().split(/\s+/)[0] ?? "";
 }
 

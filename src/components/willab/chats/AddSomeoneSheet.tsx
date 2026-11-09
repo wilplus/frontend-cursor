@@ -18,6 +18,10 @@ import {
   widgetCode,
 } from "./joinCopy";
 
+/** The website switch (N567) is hidden until its new design, a call back
+ *  rather than a spoken answer, is signed (backend N569 item 1). */
+const WEBSITE_SWITCH_SHOWN = false;
+
 /** Add someone (backend N308, N310, N328): your own link, to paste into any
  *  email or message; whoever opens it joins you here. The only way anyone
  *  comes into your chats. The list's "+" opens it, so does "Someone else" on
@@ -29,7 +33,8 @@ import {
  *  link with its icon, or the code; one big Copy my link, or Copy my code,
  *  that turns green and closes the sheet; one quiet line, "Only the two of
  *  you are in it." (the three tiles it replaces are gone, N567 item 1), or
- *  "Each customer has a chat of their own with you."; Cancel. `fixed` lays
+ *  "Each customer has a chat of their own with you."; Cancel. The switch is
+ *  hidden for now (N569 item 1): the sheet shows the link alone. `fixed` lays
  *  it over the whole screen (from the ☰ menu); otherwise it needs a
  *  `relative` parent. */
 export function AddSomeoneSheet({ onClose, fixed = false }: { onClose: () => void; fixed?: boolean }) {
@@ -70,6 +75,7 @@ export function AddSomeoneSheet({ onClose, fixed = false }: { onClose: () => voi
       >
         <span aria-hidden className="h-[5px] w-10 self-center rounded-full bg-[#E0E0E0]" />
         <p className="mt-1 text-[21px] font-bold leading-tight text-foreground">{ADD_SHEET_TITLE}</p>
+        {WEBSITE_SWITCH_SHOWN ? (
         <button
           type="button"
           role="switch"
@@ -91,6 +97,7 @@ export function AddSomeoneSheet({ onClose, fixed = false }: { onClose: () => voi
             <span className={`absolute top-[3px] h-[14px] w-[14px] rounded-full bg-white shadow transition-transform ${code ? "left-[15px]" : "left-[3px]"}`} />
           </span>
         </button>
+        ) : null}
         {code ? (
           shown ? (
             <>

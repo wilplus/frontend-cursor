@@ -8,15 +8,14 @@ OUTCOME
       Copy my link, Settings, Tokens with the balance, then Sign out. No
       Lab, no Log out.
   O2  Copy my link opens "Add someone to chat with" (N567 item 1; was: it
-      copied at once): Copy my link there copies the whole link; its small
-      switch, "Put this chat on your website", turns it into the line of code
-      for a site, with my link's token, and Copy my code copies that.
+      copied at once): Copy my link there copies the whole link. The switch
+      for the website is hidden until its new design is signed (N569).
   O3  Tokens shows the balance and opens the Tokens page, on the web and in
       the iPhone app alike (N495; in the app that page has no way to buy,
       N365 item 1).
   O4  Signed out (the blog), the menu is Lab and Log in, as before.
 PROVES   O1 -> "signed in, the menu is me, Copy my link, Settings, Tokens and Sign out"
-         O2 -> "Copy my link opens the sheet, with the link or the line of code"
+         O2 -> "Copy my link opens the sheet, and Copy my link there copies the link"
          O3 -> "Tokens shows the balance and opens the Tokens page"
          O4 -> "signed out, the menu is Lab and Log in"
 */
@@ -81,7 +80,7 @@ describe("the ☰ menu", () => {
     expect(container.querySelector('#app-header-menu a[href="/profile"]')?.textContent).toContain("Tomek Nowak");
   });
 
-  it("Copy my link opens the sheet, with the link or the line of code", async () => {
+  it("Copy my link opens the sheet, and Copy my link there copies the link", async () => {
     const writeText = vi.fn(async () => {});
     vi.stubGlobal("navigator", { clipboard: { writeText } });
     await open(SIGNED_IN);
@@ -92,12 +91,9 @@ describe("the ☰ menu", () => {
     expect(sheet?.textContent).toContain("Only the two of you are in it.");
     const link = `${window.location.origin}/c/AbCdEfGhIjKlMnOpQrStUvWx`;
     expect(container.querySelector("[data-my-link]")?.textContent).toBe(link);
-    await act(async () => (container.querySelector("[data-website-switch]") as HTMLButtonElement).click());
-    const code = `<script src="${window.location.origin}/w.js" data-link="AbCdEfGhIjKlMnOpQrStUvWx" async></script>`;
-    expect(container.querySelector("[data-my-code]")?.textContent).toBe(code);
-    expect(sheet?.textContent).toContain("Each customer has a chat of their own with you.");
+    expect(container.querySelector("[data-website-switch]")).toBeNull();
     await act(async () => (container.querySelector("[data-copy-link]") as HTMLButtonElement).click());
-    expect(writeText).toHaveBeenCalledWith(code);
+    expect(writeText).toHaveBeenCalledWith(link);
     expect(container.textContent).toContain("✓ Copied");
   });
 
