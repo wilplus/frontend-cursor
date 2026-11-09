@@ -8,6 +8,7 @@
     "postinstall": "node scripts/copy-pdf-worker.mjs",
     "start": "next start",
     "lint": "next lint",
+    "check:app-model": "node scripts/check-app-model.mjs",
     "check:bff": "node scripts/check-bff-single-idiom.mjs",
     "check:complexity": "node scripts/check-complexity-ratchet.mjs",
     "check:design-lock": "node scripts/check-design-lock.mjs",
