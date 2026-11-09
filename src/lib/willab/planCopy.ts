@@ -10,11 +10,8 @@ export const PLAN_COPY = {
   pickDate: "Pick a date",
   noDate: "No date yet",
   recordAnswer: "Record your answer",
-  thisWeeksLevel: "This week's level",
   howYouSaidIt: "How you said it",
   planHeading: "Plan",
-  everyDay: "15 minutes every day",
-  threeTimes: (days: string) => `15 minutes, 3 times a week: ${days}`,
   /** The two calls, hidden, not removed (backend N315): shown only while
    *  the ring row "plan_calls" reaches the speaker. */
   kickoffCall: "Kickoff call with your coach",
@@ -35,10 +32,6 @@ export const PLAN_COPY = {
   seeYourPlan: "See your plan",
   yourPlan: "Your plan",
   deadline: "Deadline",
-  practiceDays: "Practice days",
-  pickThree: "Pick 3 days.",
-  closeEveryDay: "Your deadline is close, so you practise every day.",
-  everyDayShort: "Every day",
   newEvent: "I have a new event",
   keepPractising: "Keep practising",
   startFirst: "Start your first recording",

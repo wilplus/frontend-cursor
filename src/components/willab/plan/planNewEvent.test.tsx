@@ -37,9 +37,6 @@ const PLAN = {
   status: "active",
   step: "done",
   deadline: "2026-11-14",
-  days: [1, 3, 5],
-  days_text: "Mon, Wed, Fri",
-  every_day: false,
   level_name: "Let your key line land",
   calls: { kickoff: null, summary: null },
 } as unknown as Plan;
@@ -54,7 +51,6 @@ function changeYourPlan(processing: boolean) {
         plan={PLAN}
         onClose={() => {}}
         onDeadline={() => {}}
-        onDays={() => {}}
         onNewEvent={() => {}}
         newEventHeld={processing}
       />,

@@ -1,16 +1,16 @@
 "use client";
 
-import type { CallWhich, Plan } from "@/services/api/plan";
+import type { CallWhich, Plan, PlanBarData } from "@/services/api/plan";
 import { useRingState } from "@/hooks/useRingState";
 import { PLAN_COPY } from "@/lib/willab/planCopy";
 
-/* The plan card (rules: docs/flows/the-plan.md §1 E; the prototype's card,
-   https://claude.ai/artifact/X4gDmGfHH7ivuoRZ9ufiy9, N319 item 6): the plan
-   only. "Plan", its bar, the practice days, the deadline and "Change your
-   plan". The level shows where it acts (the practice day's hello, "See your
-   plan"), not here. The two calls are hidden, not removed (N315): their lines
-   show only while the ring row "plan_calls" reaches the speaker. One
-   typeface, three sizes; text colours that read on white (N161, N167). */
+/* The plan card (rules: docs/flows/the-plan.md §1 E; the App Model's card,
+   N564, N319 item 6): "Plan", the level's name, its four marks, the talk's
+   date only for someone preparing a talk, and "Change your plan". No
+   practice days (N564 item 2). The two calls are hidden, not removed
+   (N315): their lines show only while the ring row "plan_calls" reaches the
+   speaker. One typeface, three sizes; text colours that read on white
+   (N161, N167). */
 
 /** The rings panel's row for the plan's coach calls (backend
  *  rings.PLAN_CALLS, N315). With no row they are off for everyone. */
@@ -24,15 +24,19 @@ export function usePlanCallsOn(): boolean {
 
 function PlanList({ plan, onBook }: { plan: Plan; onBook?: (which: CallWhich) => void }) {
   const callsOn = usePlanCallsOn();
+  // The talk's date, only for someone preparing a talk (N564 item 6).
+  const date = plan.deadline ? plan.deadline_short : null;
+  if (!callsOn && !date) return null;
   return (
     <ul className="m-0 flex list-disc flex-col gap-1.5 pl-[18px] text-[15px] leading-[1.4] marker:text-[#9A9A9A]">
-      <li>{plan.every_day ? PLAN_COPY.everyDay : PLAN_COPY.threeTimes(plan.days_text)}</li>
       {callsOn ? (
         <CallItem name={PLAN_COPY.kickoffCall} call={plan.calls.kickoff} onBook={onBook && (() => onBook("kickoff"))} />
       ) : null}
-      <li>
-        {PLAN_COPY.yourDeadline}: <span className="font-semibold text-[#C2410C]">{plan.deadline_short}</span>
-      </li>
+      {date ? (
+        <li data-plan-date>
+          {PLAN_COPY.yourDeadline}: <span className="font-semibold text-[#C2410C]">{date}</span>
+        </li>
+      ) : null}
       {callsOn ? (
         <CallItem name={PLAN_COPY.summaryCall} call={plan.calls.summary} onBook={onBook && (() => onBook("summary"))} />
       ) : null}
@@ -64,32 +68,38 @@ function CallItem({ name, call, onBook }: { name: string; call: Plan["calls"]["k
   );
 }
 
-/** One part per practice, filled with what the speaker did, never a measure
- *  of the voice: on the plan card, the practice day's hello, and the chat's
- *  progress bubble after the walk (N319 item 7). */
-export function PlanBar({ plan }: { plan: Pick<Plan, "done" | "total"> }) {
-  const total = Math.max(1, Math.min(plan.total, 24));
+/** The plan's bar (N564 item 3): the level's name and its four marks, the
+ *  done ones filled, on the plan card, the hello and the chat's bubble after
+ *  the walk. What the speaker did, never a measure of the voice, never points,
+ *  a score or a percentage (Never 1). */
+export function PlanBar({ bar }: { bar: PlanBarData | null | undefined }) {
+  if (!bar) return null;
+  const of = Math.max(1, Math.min(bar.of || 4, 4));
+  const done = Math.max(0, Math.min(bar.marks, of));
   return (
-    <div className="flex gap-1" aria-hidden="true" data-plan-bar>
-      {Array.from({ length: total }, (_, i) => (
-        <i
-          key={i}
-          className={`relative h-2 flex-1 overflow-hidden rounded ${i < plan.done ? "bg-[#FF640A]" : "bg-[#EBEBEB]"}`}
-        />
-      ))}
+    <div className="flex flex-col gap-1.5" data-plan-bar>
+      <div className="text-[15px] font-semibold text-[#121212]" data-plan-level>
+        {bar.level_name}
+      </div>
+      <div className="flex gap-1.5" aria-hidden="true" data-plan-marks>
+        {Array.from({ length: of }, (_, i) => (
+          <i
+            key={i}
+            data-on={i < done ? "" : undefined}
+            className={`h-2.5 flex-1 rounded-[5px] ${i < done ? "bg-[#FF640A]" : "bg-[#EBEBEB]"}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
 
 export default function PlanCard({
   plan,
-  levelLabel,
   onBook,
   onChange,
 }: {
   plan: Plan;
-  /** "See your plan" names this week's level above the plan (N319 item 6). */
-  levelLabel?: string;
   onBook?: (which: CallWhich) => void;
   onChange?: () => void;
 }) {
@@ -98,17 +108,8 @@ export default function PlanCard({
       data-plan-card
       className="flex w-full flex-col gap-3 rounded-[18px] border border-[#E6E6E6] bg-white p-4 text-[#121212] shadow-[0_6px_20px_-14px_rgba(0,0,0,0.25)]"
     >
-      {levelLabel && plan.level_name ? (
-        <>
-          <div className="flex flex-col gap-1.5" data-plan-level>
-            <div className="text-[13px] text-[#6B6B6B]">{levelLabel}</div>
-            <div className="text-[15px] font-semibold">{plan.level_name}</div>
-          </div>
-          <hr className="m-0 h-px border-0 bg-[#EDEDED]" />
-        </>
-      ) : null}
-      <div className="text-[15px] font-semibold">{PLAN_COPY.planHeading}</div>
-      <PlanBar plan={plan} />
+      <div className="text-[13px] text-[#6B6B6B]">{PLAN_COPY.planHeading}</div>
+      <PlanBar bar={plan.bar} />
       <PlanList plan={plan} onBook={onBook} />
       {onChange ? (
         <button
