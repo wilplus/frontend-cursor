@@ -1,0 +1,568 @@
+{
+ "list": {
+  "intro": "Each model learns one skill from people who know it well. The ones furthest along are at the top.",
+  "filters": [
+   "For you",
+   "Ready to use",
+   "Still learning"
+  ],
+  "what_do_i_get": "What do I get?",
+  "drafts": [
+   {
+    "id": "pitch",
+    "name": "Pitch Coach",
+    "badge": "Your draft",
+    "line": "You stopped at the scale. Nothing is lost.",
+    "actions": [
+     "Continue"
+    ]
+   }
+  ],
+  "models": [
+   {
+    "id": "job",
+    "name": "Job interview coach",
+    "badge": "Ready to use",
+    "started_by": "Started by Daniel Okafor",
+    "line": "Passed its final exam · 9 teachers",
+    "actions": [
+     "Use it",
+     "Teach it"
+    ]
+   },
+   {
+    "id": "speak",
+    "name": "Speaking confidence",
+    "badge": "Public",
+    "started_by": "Started by Artur",
+    "line": "62% of the way to its first training · 6 teachers",
+    "actions": [
+     "Teach it",
+     "Open"
+    ]
+   }
+  ],
+  "start": "Start your own"
+ },
+ "empty": {
+  "intro": "Each model learns one skill from people who know it well. The ones furthest along are at the top.",
+  "filters": [
+   "For you",
+   "Ready to use",
+   "Still learning"
+  ],
+  "what_do_i_get": "What do I get?",
+  "drafts": [],
+  "models": [],
+  "start": "Start your own",
+  "empty": {
+   "title": "No models here yet.",
+   "line": "Nobody has started a model about this. You could be the first.",
+   "actions": [
+    "Start the first one",
+    "Clear the search"
+   ]
+  }
+ },
+ "page": {
+  "id": "speak",
+  "name": "Speaking confidence",
+  "owner_name": "Artur",
+  "visibility": "public",
+  "status": "learning",
+  "description": "It hears whether a speaker sounds confident, picks an exercise, and explains it the way a coach would.",
+  "field": "speaking coach",
+  "role": "public",
+  "summary": "Speaking confidence is 62% of the way to its first training. Six people teach it.",
+  "percent": 62,
+  "teachers": 6,
+  "actions": [
+   "Teach it",
+   "Try it"
+  ]
+ },
+ "door": {
+  "title": "Before you teach",
+  "lines": [
+   "Everyone who uses this model relies on what it learns from you.",
+   "Teach it only what you know well. If this is not your field, your answers would make it worse for all of us.",
+   "It learns from your ratings and the words of your answers. Your voice recordings stay with WillpowerLab."
+  ],
+  "actions": [
+   "This is my field",
+   "Not now"
+  ]
+ },
+ "what": {
+  "title": "What do I get?",
+  "cards": [
+   {
+    "title": "Teach a model",
+    "line": "Earn a token for every answer that counts, and a share of what the model earns once businesses pay for it."
+   },
+   {
+    "title": "Start a model",
+    "line": "Keep a fixed share from the first day. What you know keeps working while you sleep."
+   },
+   {
+    "title": "Use a model in your business",
+    "line": "Try it free, create a key, and pay only for the answers you use."
+   }
+  ],
+  "back": "Back to the list"
+ },
+ "queue": {
+  "header": "12 examples are waiting. The ones that help most come first.",
+  "models": [
+   {
+    "id": "rasp",
+    "name": "RASP sales replies",
+    "line": "Your company · you joined when Tomek invited the team",
+    "badge": "Private",
+    "waiting": 7,
+    "paused": false,
+    "action": "Pause"
+   },
+   {
+    "id": "speak",
+    "name": "Speaking confidence",
+    "line": "You teach it",
+    "badge": "Public",
+    "waiting": 4,
+    "paused": false,
+    "action": "Pause"
+   },
+   {
+    "id": "pitch",
+    "name": "Pitch Coach",
+    "line": "You started it",
+    "badge": "Private",
+    "waiting": 1,
+    "paused": false,
+    "action": "Pause"
+   }
+  ],
+  "hint": "Pause a model to stop its examples for a while. Tap a model to teach only it.",
+  "actions": [
+   "Start",
+   "Add an example you know well"
+  ],
+  "examples": [
+   {
+    "id": "r0",
+    "model_id": "rasp",
+    "private": true,
+    "source": "business",
+    "content": {
+     "label": "A client writes:",
+     "text": "“Your price is too high for us this year.”"
+    },
+    "kind": null
+   },
+   {
+    "id": "s0",
+    "model_id": "speak",
+    "private": false,
+    "source": "takes",
+    "content": {}
+   },
+   {
+    "id": "p0",
+    "model_id": "pitch",
+    "private": true,
+    "source": "upload",
+    "content": {}
+   },
+   {
+    "id": "r1",
+    "model_id": "rasp",
+    "private": true,
+    "source": "business",
+    "content": {
+     "label": "A client writes:",
+     "text": "“Your price is too high for us this year.”"
+    },
+    "kind": null
+   },
+   {
+    "id": "s1",
+    "model_id": "speak",
+    "private": false,
+    "source": "takes",
+    "content": {}
+   },
+   {
+    "id": "r2",
+    "model_id": "rasp",
+    "private": true,
+    "source": "business",
+    "content": {
+     "label": "A client writes:",
+     "text": "“Your price is too high for us this year.”"
+    },
+    "kind": null
+   },
+   {
+    "id": "s2",
+    "model_id": "speak",
+    "private": false,
+    "source": "takes",
+    "content": {}
+   },
+   {
+    "id": "r3",
+    "model_id": "rasp",
+    "private": true,
+    "source": "business",
+    "content": {
+     "label": "A client writes:",
+     "text": "“Your price is too high for us this year.”"
+    },
+    "kind": null
+   },
+   {
+    "id": "s3",
+    "model_id": "speak",
+    "private": false,
+    "source": "takes",
+    "content": {}
+   },
+   {
+    "id": "r4",
+    "model_id": "rasp",
+    "private": true,
+    "source": "business",
+    "content": {
+     "label": "A client writes:",
+     "text": "“Your price is too high for us this year.”"
+    },
+    "kind": null
+   },
+   {
+    "id": "r5",
+    "model_id": "rasp",
+    "private": true,
+    "source": "business",
+    "content": {
+     "label": "A client writes:",
+     "text": "“Your price is too high for us this year.”"
+    },
+    "kind": null
+   },
+   {
+    "id": "r6",
+    "model_id": "rasp",
+    "private": true,
+    "source": "business",
+    "content": {
+     "label": "A client writes:",
+     "text": "“Your price is too high for us this year.”"
+    },
+    "kind": null
+   }
+  ]
+ },
+ "queueEmpty": {
+  "empty": {
+   "title": "Nothing waits for you.",
+   "line": "Thank you. New examples come when your models need you.",
+   "action": "Back to your chats"
+  },
+  "models": [
+   {
+    "id": "rasp",
+    "name": "RASP sales replies",
+    "line": "Your company",
+    "badge": "Private",
+    "waiting": 0,
+    "paused": false,
+    "action": "Pause"
+   },
+   {
+    "id": "speak",
+    "name": "Speaking confidence",
+    "line": "You teach it",
+    "badge": "Public",
+    "waiting": 0,
+    "paused": false,
+    "action": "Pause"
+   },
+   {
+    "id": "pitch",
+    "name": "Pitch Coach",
+    "line": "You started it",
+    "badge": "Private",
+    "waiting": 0,
+    "paused": false,
+    "action": "Pause"
+   }
+  ],
+  "examples": []
+ },
+ "rows": [
+  {
+   "name": "Your queue",
+   "line": "12 examples wait · 3 models"
+  },
+  {
+   "name": "AI models",
+   "line": "Teach one, or start your own"
+  }
+ ],
+ "rowsNone": [
+  {
+   "name": "AI models",
+   "line": "Teach one, or start your own"
+  }
+ ],
+ "pageRasp": {
+  "id": "rasp",
+  "name": "RASP sales replies",
+  "owner_name": null,
+  "visibility": "private",
+  "status": "learning",
+  "description": null,
+  "field": null,
+  "role": "contributor",
+  "summary": "RASP sales replies is 0% of the way to its first training. No one teach it.",
+  "percent": 0,
+  "teachers": 0,
+  "actions": [
+   "Teach it",
+   "Try it"
+  ],
+  "jars": {},
+  "targets": {
+   "counted_answers": 500,
+   "exam_cases": 100
+  },
+  "recipe": {
+   "input": "text",
+   "steps": [
+    "pick",
+    "words"
+   ],
+   "pick_question": "Which first reply would you send?",
+   "options": [
+    "Ask what they compared us with",
+    "Offer a smaller first order",
+    "Show what the price saves them"
+   ]
+  },
+  "own_part": {}
+ },
+ "pageSpeak": {
+  "id": "speak",
+  "name": "Speaking confidence",
+  "owner_name": "Artur",
+  "visibility": "public",
+  "status": "learning",
+  "description": "It hears whether a speaker sounds confident, picks an exercise, and explains it the way a coach would.",
+  "field": "speaking coach",
+  "role": "contributor",
+  "summary": "Speaking confidence is 62% of the way to its first training. Six people teach it.",
+  "percent": 62,
+  "teachers": 6,
+  "actions": [
+   "Teach it",
+   "Try it"
+  ],
+  "jars": {
+   "counted_answers": 310,
+   "exam_cases": 100
+  },
+  "targets": {
+   "counted_answers": 500,
+   "exam_cases": 100
+  },
+  "recipe": {
+   "input": "voice",
+   "steps": [
+    "rate"
+   ],
+   "question": "Does the speaker sound confident here?",
+   "scale": [
+    "Yes",
+    "In-between",
+    "No"
+   ]
+  },
+  "own_part": {}
+ },
+ "pagePitch": {
+  "id": "pitch",
+  "name": "Pitch Coach",
+  "owner_name": null,
+  "visibility": "private",
+  "status": "learning",
+  "description": null,
+  "field": null,
+  "role": "owner",
+  "summary": "Pitch Coach is 36% of the way to its first training. Three people teach it.",
+  "percent": 36,
+  "teachers": 3,
+  "actions": [
+   "Teach it",
+   "Try it"
+  ],
+  "jars": {
+   "counted_answers": 180,
+   "exam_cases": 100
+  },
+  "targets": {
+   "counted_answers": 500,
+   "exam_cases": 100
+  },
+  "recipe": {
+   "input": "voice",
+   "steps": [
+    "rate"
+   ],
+   "question": "How rushed does it sound?",
+   "scale": [
+    "Calm",
+    "Mostly calm",
+    "Hurried in places",
+    "Rushed",
+    "Racing"
+   ]
+  },
+  "own_part": {},
+  "owner": {}
+ },
+ "answerBoth": {
+  "saved": true,
+  "note": "Counts for Speaking confidence and Interview voice: both ask this question",
+  "follow": [
+   {
+    "model_id": "pitch",
+    "line": "Pitch Coach asks something else about the same clip: how rushed does it sound?",
+    "screen": {
+     "model": "Pitch Coach",
+     "step": "rate",
+     "example": {
+      "id": "s0-pitch"
+     },
+     "source_note": null,
+     "question": "How rushed does it sound?",
+     "answers": [
+      "Calm",
+      "Mostly calm",
+      "Hurried in places",
+      "Rushed",
+      "Racing",
+      "Audio unclear",
+      "Skip"
+     ]
+    }
+   }
+  ],
+  "trust": null
+ },
+ "answerPrivate": {
+  "saved": true,
+  "note": "Your company’s own example: it teaches only RASP sales replies.",
+  "follow": [],
+  "trust": null
+ },
+ "answerPlain": {
+  "saved": true,
+  "note": null,
+  "follow": [],
+  "trust": null
+ },
+ "answerTrust": {
+  "saved": true,
+  "note": null,
+  "follow": [],
+  "trust": {
+   "lines": [
+    "Your answers now count.",
+    "You earn a token for each answer that counts. When businesses start paying to use this model, you also get a share of what it earns."
+   ],
+   "actions": [
+    "Keep teaching",
+    "Back to the list"
+   ]
+  }
+ },
+ "release": {
+  "title": "Version 2 is ready",
+  "line": "Version 2 of Pitch Coach passed its final exam.",
+  "exam": {
+   "intro": "On the 100 exam cases:",
+   "better": 14,
+   "worse": 3,
+   "same": 83,
+   "labels": [
+    "version 2 better",
+    "version 1 better",
+    "the same"
+   ]
+  },
+  "release": true,
+  "verdict": "Version 2 is clearly better: a gap of 14 against 3 is very unlikely to be luck.",
+  "choice": "Releasing it is your choice. Businesses on version 1 keep it until they decide to switch.",
+  "actions": [
+   "Release version 2",
+   "Not yet"
+  ]
+ },
+ "releaseClose": {
+  "title": "Version 2 is ready",
+  "line": "Version 2 of Pitch Coach passed its final exam.",
+  "exam": {
+   "intro": "On the 100 exam cases:",
+   "better": 9,
+   "worse": 6,
+   "same": 85,
+   "labels": [
+    "version 2 better",
+    "version 1 better",
+    "the same"
+   ]
+  },
+  "release": false,
+  "verdict": "Not clearly better yet",
+  "actions": []
+ },
+ "invite": {
+  "lines": [
+   "Kasia invited you to teach Short news cuts with them.",
+   "You said not now. The invite stays here; open it whenever you like."
+  ],
+  "action": "Open"
+ },
+ "profile": {
+  "title": "AI models",
+  "models": [
+   {
+    "name": "Pitch Coach",
+    "badge": "Private",
+    "line": "You started it · 36% of the way · 3 teachers",
+    "actions": [
+     "Make public",
+     "Archive",
+     "Download its data"
+    ]
+   },
+   {
+    "name": "Speaking confidence",
+    "badge": "Public",
+    "line": "You teach it · 86 answers counted this month",
+    "actions": []
+   }
+  ]
+ },
+ "teacherExampleRasp": {
+  "id": "r0",
+  "model_id": "rasp",
+  "private": true,
+  "source": "business",
+  "content": {
+   "label": "A client writes:",
+   "text": "“Your price is too high for us this year.”"
+  },
+  "kind": null
+ }
+}
