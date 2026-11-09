@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { getHost, type Host } from "@/services/api/assistants";
+import { getHost, markOf, type Host, type Mark } from "@/services/api/assistants";
 import type { ChatMessage } from "@/services/api/chats";
 import { AssistantMark } from "./ChatList";
 
@@ -56,6 +56,33 @@ export function AssistantSays({ name, message, children }: { name: string | null
       <span className="mr-auto flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground">
         <AssistantMark label={name} inline />
         {name}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+/** How sure a match is, as a colour, never a number (backend N580 item 3,
+ *  N585 item 2): green sure, yellow in between, red unsure. */
+const MARK_COLOUR: Record<Mark, string> = { green: "#16A34A", yellow: "#EAB308", red: "#DC2626" };
+
+export function MarkDot({ mark }: { mark: Mark | null }) {
+  if (!mark) return null;
+  return <span aria-hidden data-mark={mark} className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: MARK_COLOUR[mark] }} />;
+}
+
+/** One recording sent to everyone who asked the same thing (backend N584
+ *  item 3): in each person's own chat, under their own question quoted,
+ *  with the match's colour. Any other message as it is. */
+export function AnswerQuote({ message, children }: { message: ChatMessage; children: ReactNode }) {
+  const quote = message.meta?.quote as { words?: unknown } | undefined;
+  const words = typeof quote?.words === "string" ? quote.words.trim() : "";
+  if (!words) return <>{children}</>;
+  return (
+    <div data-answer-quote="" className={`flex flex-col gap-1 ${message.mine ? "items-end" : "items-start"}`}>
+      <span className="flex max-w-[85%] items-start gap-2 border-l-2 border-border pl-2 text-[13px] leading-snug text-muted-foreground">
+        <MarkDot mark={markOf(message.meta?.mark)} />
+        <span data-answer-quote-words="">{words}</span>
       </span>
       {children}
     </div>

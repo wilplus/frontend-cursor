@@ -142,3 +142,51 @@ export async function getHost(chatId: string): Promise<Host | null> {
   if (!host || typeof host.assistant !== "string" || !host.assistant) return null;
   return { assistant: host.assistant, about: strings(host.about), questions: questionsOf(host.questions), answerWith: answerWithOf(host.answer_with) };
 }
+
+/* ── One recording answers everyone who asked (backend N584) ──────────── */
+
+/** How sure a match is (N580 item 3): a colour, never a number. */
+export type Mark = "green" | "yellow" | "red";
+export type BundleQuestion = { id: string; words: string; mark: Mark | null; name: string | null; chat: string; sent: boolean };
+/** One bundle in Will's queue: its line in the backend's words ("{n} people
+ *  asked: {question}"), and "Record one answer" while it waits (null once
+ *  answered). */
+export type Bundle = { id: string; line: string; answered: boolean; record: string | null; questions: BundleQuestion[] };
+
+const MARKS: readonly string[] = ["green", "yellow", "red"];
+export const markOf = (value: unknown): Mark | null => (typeof value === "string" && MARKS.includes(value) ? (value as Mark) : null);
+
+/** My bundles, or null: no ring (404), or any failure. */
+export async function getBundles(): Promise<Bundle[] | null> {
+  const body = await call("/api/v2/chats/bundles", { method: "GET" });
+  if (!body || !Array.isArray(body.bundles)) return null;
+  return body.bundles.flatMap((raw) => {
+    const b = raw as Record<string, unknown> | null;
+    if (!b || typeof b.id !== "string" || typeof b.line !== "string") return [];
+    const questions = Array.isArray(b.questions)
+      ? b.questions.flatMap((q) => {
+          const x = q as Record<string, unknown> | null;
+          if (!x || typeof x.id !== "string" || typeof x.words !== "string") return [];
+          return [{
+            id: x.id,
+            words: x.words,
+            mark: markOf(x.mark),
+            name: typeof x.name === "string" && x.name ? x.name : null,
+            chat: String(x.chat ?? ""),
+            sent: x.sent === true,
+          }];
+        })
+      : [];
+    return [{ id: b.id, line: b.line, answered: b.answered === true, record: typeof b.record === "string" && b.record ? b.record : null, questions }];
+  });
+}
+
+/** The host's one recording to everyone in the bundle; how many it reached,
+ *  or null when refused. */
+export async function answerBundle(bundleId: string, take: string, durationMs: number): Promise<number | null> {
+  const body = await call(`/api/v2/chats/bundles/${encodeURIComponent(bundleId)}/answer`, {
+    method: "POST",
+    json: { take, duration_ms: Math.round(durationMs) },
+  });
+  return typeof body?.sent === "number" ? body.sent : null;
+}
