@@ -49,6 +49,18 @@ function walkLine(walk: { take: number | null; summary: string | null }): string
   return walk.summary ? `${line}\n[Inside it, the Take's summary:]\n${walk.summary}` : line;
 }
 
+/** The summary's signed line, as Will reads it: shown when the written
+ *  summary failed (founder 2026-10-20), so Will knows the specifics are
+ *  missing and can add them; while `writing` is true it is "not yet", never
+ *  failed (WILL-07): the backend writes it at once and GPT-4o's words
+ *  replace it in place. Null: not the signed line. */
+function signedSummaryLine(meta: Record<string, unknown>, body: string): ChatHistoryEntry | null {
+  if (meta.summary !== true || meta.written !== false || !body) return null;
+  const take = typeof meta.take_index === "number" ? `Take ${meta.take_index}` : "this Take";
+  const state = meta.writing === true ? "the written summary is not in yet" : "the written summary failed";
+  return { role: "assistant", content: `[The app's fixed message after ${take}; ${state}]\n${body}` };
+}
+
 function lineOf(message: LoungeMessage, facts: ScreenFacts): ChatHistoryEntry | null {
   const meta = message.metadata ?? {};
   const walk = facts.walkOf?.(message);
@@ -66,12 +78,8 @@ function lineOf(message: LoungeMessage, facts: ScreenFacts): ChatHistoryEntry | 
     const title = typeof meta.topic === "string" && meta.topic.trim() ? meta.topic.trim() : null;
     return { role: "assistant", content: cardLine(title, versionOf(meta), facts.coachWaits(message)) };
   }
-  if (meta.summary === true && meta.written === false && body) {
-    // The signed fallback, shown when the written summary failed (founder
-    // 2026-10-20): Will knows the specifics are missing and can add them.
-    const take = typeof meta.take_index === "number" ? `Take ${meta.take_index}` : "this Take";
-    return { role: "assistant", content: `[The app's fixed message after ${take}; the written summary failed]\n${body}` };
-  }
+  const signed = signedSummaryLine(meta, body);
+  if (signed) return signed;
   if (message.kind === "recording_summary") {
     const title = typeof meta.topic === "string" && meta.topic.trim() ? ` of "${meta.topic.trim()}"` : "";
     const take = typeof meta.take_index === "number" ? `, Take ${meta.take_index}` : "";

@@ -1239,7 +1239,8 @@ src/components/willab/loungeReports.test.ts,Story,"As a speaker whose Ideal Text
 and offers exactly Retry and view feedback.","O1 -> ""is the exact Take 1 terminal card under the session identity""",
 src/components/willab/loungeScreen.test.ts,Story,"As a speaker, I want Will to answer what sits right above my message in the chat, and my chat to keep the order it shows, so that a reply never misreads my number, my tap or my Take's feedback.","O1  Will reads every bubble in the order the chat draws it: the Take's
 card in words (with the coach's feedback when its dot is on), the
-summary (marked as the fixed message when the written one failed),
+summary (marked as the fixed message when the written one failed,
+or as not in yet while it is being written, WILL-07),
 the ask, and my own words.
 O2  What the chat adds sorts under the newest bubble on screen, even when
 this device's clock is behind the server's.
