@@ -341,13 +341,23 @@ export function ModelUsageScreen({ modelId, onBack, onClose, onList }: Nav & { m
 
 /* ── Set your price (mod.u-2; MOD-46) ────────────────────────────────────── */
 
-/** The price is saved with each − , + or suggestion, and the backend draws
- *  the split for it ("you can change it at any time"); the uses a month only
- *  read it again. "Use {price}" closes. */
+/** Each − , + , suggestion and the uses a month only preview: the backend
+ *  draws the split for the proposed price (floored to the running cost,
+ *  rounded down to the step) and saves nothing. Only "Use {price}" saves,
+ *  then closes. A preview that fails keeps the last split on screen. */
 function usePrice(modelId: string) {
   const [screen, setScreen] = useState<ModelPrice | null | undefined>(undefined);
   const uses = useRef<number>(PRICE_USES.start);
+  const units = useRef<number | undefined>(undefined);
   const timer = useRef<number | null>(null);
+  const asked = useRef(0);
+  const saving = useRef(false);
+  const preview = () => {
+    const ask = (asked.current += 1);
+    void getModelPrice(modelId, uses.current, units.current).then((got) => {
+      if (got && ask === asked.current) setScreen(got);
+    });
+  };
   useEffect(() => {
     let alive = true;
     void getModelPrice(modelId, uses.current).then((got) => {
@@ -355,23 +365,30 @@ function usePrice(modelId: string) {
     });
     return () => {
       alive = false;
+      asked.current += 1;
       if (timer.current) window.clearTimeout(timer.current);
     };
   }, [modelId]);
-  const set = async (units: number) => {
-    if (!(await setModelPrice(modelId, units))) return;
-    const got = await getModelPrice(modelId, uses.current);
-    if (got) setScreen(got);
+  const set = (next: number) => {
+    units.current = next;
+    preview();
   };
   const setUses = (n: number) => {
     uses.current = n;
     setScreen((was) => (was ? { ...was, uses: n } : was));
     if (timer.current) window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => {
-      void getModelPrice(modelId, n).then((got) => got && setScreen(got));
-    }, 250);
+    timer.current = window.setTimeout(preview, 250);
   };
-  return { screen, set, setUses };
+  /** True once the shown price is the saved one. */
+  const save = async (): Promise<boolean> => {
+    if (!screen || saving.current) return false;
+    if (screen.price_units === screen.saved_units) return true;
+    saving.current = true;
+    const saved = await setModelPrice(modelId, screen.price_units);
+    saving.current = false;
+    return Boolean(saved);
+  };
+  return { screen, set, setUses, save };
 }
 
 function Stepper({ p, onSet }: { p: ModelPrice; onSet: (units: number) => void }) {
@@ -431,11 +448,16 @@ function PriceBody({ p, onSet, onUses }: { p: ModelPrice; onSet: (units: number)
 }
 
 export function ModelPriceScreen({ modelId, onBack, onClose }: Nav & { modelId: string }) {
-  const { screen, set, setUses } = usePrice(modelId);
-  const footer = screen ? <WalkFooter pill={{ label: screen.action, onClick: onBack ?? onClose }} /> : null;
+  const { screen, set, setUses, save } = usePrice(modelId);
+  const use = () => {
+    void save().then((done) => {
+      if (done) (onBack ?? onClose)();
+    });
+  };
+  const footer = screen ? <WalkFooter pill={{ label: screen.action, onClick: use }} /> : null;
   return (
     <WalkOverlay onBack={onBack} backLabel={screen?.title} title={screen?.title} onClose={onClose} footer={footer} testId="model-api-price">
-      {screen ? <PriceBody p={screen} onSet={(u) => void set(u)} onUses={setUses} /> : null}
+      {screen ? <PriceBody p={screen} onSet={set} onUses={setUses} /> : null}
     </WalkOverlay>
   );
 }
