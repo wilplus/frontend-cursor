@@ -69,7 +69,10 @@ const API: Record<string, Answer> = {
   "GET /api/v2/models/pitch/code": A.code,
   "GET /api/v2/models/pitch/use": A.termsOwn,
   "POST /api/v2/models/pitch/keys": A.keyOwn,
-  "GET /api/v2/models/pitch/price": (c: Call) => (c.path.includes("uses=20000") ? A.price20k : A.price),
+  "GET /api/v2/models/pitch/price": (c: Call) => {
+    const uses = c.path.includes("uses=20000") ? A.price20k : A.price;
+    return c.path.includes("units=310") ? { ...A.price310, uses: uses.uses, uses_line: uses.uses_line } : uses;
+  },
   "POST /api/v2/models/pitch/price": A.price310,
   "GET /api/v2/models/pitch/download": (c: Call) => (c.path.includes("rows=1") ? A.downloadRows : A.download),
   "GET /api/v2/models/earnings": A.earnings,
@@ -302,8 +305,11 @@ describe("a model's API and money (MOD-39 to MOD-48, MOD-51)", () => {
     ]);
     expect([...container.querySelectorAll("[data-split]")].map((r) => r.getAttribute("data-split"))).toEqual(["infra", "founder", "teachers"]);
     expect(text()).not.toContain("€");
+    await tap("−");
     await tap("+");
-    expect(sent("POST", "/pitch/price")[0].json).toEqual({ units: 310 });
+    expect(bff.calls.some((c) => c.method === "GET" && c.path.endsWith("/pitch/price?uses=10000&units=310"))).toBe(true);
+    expectAll(["310 tokens", "Use 310 tokens"]);
+    expect(sent("POST", "/pitch/price")).toHaveLength(0);
     const slider = container.querySelector('input[type="range"]') as HTMLInputElement;
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
     await act(async () => {
@@ -312,8 +318,21 @@ describe("a model's API and money (MOD-39 to MOD-48, MOD-51)", () => {
     });
     await act(async () => new Promise((r) => setTimeout(r, 300)));
     await flush();
-    expect(bff.calls.some((c) => c.path.endsWith("/pitch/price?uses=20000"))).toBe(true);
+    expect(bff.calls.some((c) => c.path.endsWith("/pitch/price?uses=20000&units=310"))).toBe(true);
     expect(text()).toContain("If businesses use it 20,000 times a month");
+    expect(sent("POST", "/pitch/price")).toHaveLength(0);
+    await tap("Use 310 tokens");
+    expect(sent("POST", "/pitch/price").map((c) => c.json)).toEqual([{ units: 310 }]);
+  });
+
+  it("MOD-46: when the preview fails, the last split stays and nothing is saved", async () => {
+    serve(API);
+    await open({ at: "price", id: "pitch" } as ModelsScreen);
+    const { "GET /api/v2/models/pitch/price": _preview, ...withoutPreview } = API;
+    serve(withoutPreview);
+    await tap("+");
+    expectAll(["300 tokens", "1,080,000 tokens", "Use 300 tokens"]);
+    expect(sent("POST", "/pitch/price")).toHaveLength(0);
   });
 
   it("MOD-46: \"−\" stops at the running cost", async () => {

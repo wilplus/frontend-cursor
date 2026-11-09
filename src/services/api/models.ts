@@ -269,6 +269,8 @@ export type ModelPrice = {
   month: string;
   split: SplitRow[];
   action: string;
+  /** The price buyers pay now; the screen's price may be a preview. */
+  saved_units?: number | null;
 };
 export type ModelEarnings = { title: string; line: string; rows: LabelRow[]; fixed?: string; minimum?: string; actions: string[] };
 export type ModelDownload = { title: string; refused?: string; lines?: string[]; actions: string[] };
@@ -329,8 +331,11 @@ export async function sendUnsure(keyId: string, on: boolean): Promise<boolean | 
   return typeof body?.on === "boolean" ? body.on : null;
 }
 
-export async function getModelPrice(modelId: string, uses: number = PRICE_USES.start): Promise<ModelPrice | null> {
-  const body = await call(`/api/v2/models/${id(modelId)}/price?uses=${uses}`);
+/** The price screen; with `units` it previews that price and its split,
+ *  saving nothing (only setModelPrice saves). */
+export async function getModelPrice(modelId: string, uses: number = PRICE_USES.start, units?: number): Promise<ModelPrice | null> {
+  const proposed = units === undefined ? "" : `&units=${Math.round(units)}`;
+  const body = await call(`/api/v2/models/${id(modelId)}/price?uses=${uses}${proposed}`);
   return body && Array.isArray(body.split) ? (body as unknown as ModelPrice) : null;
 }
 
