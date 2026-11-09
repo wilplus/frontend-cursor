@@ -451,29 +451,11 @@ export default function FeedbackWalk<R = unknown>({
   }, [seq]);
 
   const plan = walk.plan;
-  // Will's written praise for their best (backend N565), when the
-  // walk_voice ring reaches the speaker: asked as the walk opens, so it is
-  // ready by the time their best is shown.
-  const bestStep = plan.find((s) => s.one && s.key === "praise" && !s.replay);
-  const bestSnippet = bestStep?.moment != null ? (walk.moments[bestStep.moment]?.clip?.snippetId ?? null) : null;
-  const bestSaid = useBestSaid(takeId, bestSnippet, walkVoiceOn);
   const step = plan[at] ?? plan[0];
-  // The moment to try and a good Take's line, asked as the walk opens too;
-  // his reply after a try, asked as the walk reaches it (N565).
-  const fixStep = plan.find((s) => s.one && (s.key === "clearer" || s.key === "exVideo") && !s.replay);
-  const fixSnippet = fixStep?.moment != null ? (walk.moments[fixStep.moment]?.clip?.snippetId ?? null) : null;
-  const fixSaid = useWalkSaid(
-    takeId && fixSnippet && fixStep
-      ? { key: `${takeId}:try:${fixSnippet}`, takeId, step: "try", snippetId: fixSnippet, tool: fixStep.key === "clearer" ? "clearer" : "voice" }
-      : null,
-    walkVoiceOn,
-  );
-  const clearStep = plan.find((s) => s.key === "words" && s.clear && !s.replay);
-  const clearSaid = useWalkSaid(
-    takeId && clearStep && bestSnippet ? { key: `${takeId}:good_take:${bestSnippet}`, takeId, step: "good_take", snippetId: bestSnippet } : null,
-    walkVoiceOn,
-  );
-  const trySaid = useWalkSaid(afterTryRequest(takeId, step, walk.moments), walkVoiceOn);
+  // Will's written lines (backend N565), when the walk_voice ring reaches
+  // the speaker: their best, the moment to try and a good Take's line, asked
+  // as the walk opens; his reply after a try, as the walk reaches it.
+  const { bestSaid, fixSaid, clearSaid, trySaid } = useWalkVoices(takeId, plan, walk.moments, step, walkVoiceOn);
   const scroll = walk.scroll === true;
 
   // `how` is kept for the callers; the thread does not slide (2026-10-20).
@@ -703,24 +685,10 @@ export default function FeedbackWalk<R = unknown>({
       reachedRef.current?.(step, moment);
       return;
     }
-    // Their best waits for Will's words, so the chat says what the walk drew
-    // (N565): his message, or the signed lines when there is none.
-    if (step.one && step.key === "praise" && !step.replay && !bestSaid.settled) return;
-    // His reply after a try, too (N565).
-    const afterTry = step.one && !step.replay && AFTER_TRY[step.key] != null;
-    if (afterTry && !trySaid.settled) return;
-    const line =
-      step.one && step.key === "praise" && !step.replay
-        ? bestSaid.text
-        : afterTry && trySaid.text
-        ? trySaid.text
-        : step.key === "improved"
-        ? improvedLine(plan, at)
-        : step.key === "encourage"
-          ? encourageLine(plan, at)
-          : step.key === "thanks"
-            ? thanksLine(plan, at)
-            : null;
+    // Their best and a reply after a try wait for Will's words, so the chat
+    // says what the walk drew (N565).
+    const line = chatLine(plan, at, bestSaid, trySaid);
+    if (line === WAIT) return;
     // Opened on a moment's helper words (a paragraph that waits, founder
     // 2026-10-20), its praise is just above them: told first, as if the
     // walk had stood on it.
@@ -1390,6 +1358,51 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
       <CoachAnswerBubble moment={moment} />
     </WalkOverlay>
   );
+}
+
+const WAIT = Symbol("wait");
+
+/** The line the chat records for the step at `at` (D-FW-3): Will's written
+ *  words for their best and after a try when he wrote them (N565), WAIT
+ *  while they come, else the signed line of a try's answer, else null. */
+function chatLine(plan: readonly WalkStep[], at: number, bestSaid: WalkVoiceSaid, trySaid: WalkVoiceSaid): string | null | typeof WAIT {
+  const step = plan[at];
+  const written = step?.one && !step.replay && (step.key === "praise" || AFTER_TRY[step.key] != null);
+  const said = step?.key === "praise" ? bestSaid : trySaid;
+  if (written && !said.settled) return WAIT;
+  if (written && (said.text || step.key === "praise")) return said.text;
+  if (step?.key === "improved") return improvedLine(plan, at);
+  if (step?.key === "encourage") return encourageLine(plan, at);
+  if (step?.key === "thanks") return thanksLine(plan, at);
+  return null;
+}
+
+/** The walk's written lines (N565), each settled with null off the ring. */
+function useWalkVoices(
+  takeId: string | null,
+  plan: readonly WalkStep[],
+  moments: readonly FeedbackWalkMoment<unknown>[],
+  step: WalkStep | undefined,
+  voiceOn: boolean | null,
+) {
+  const snippetOf = (s: WalkStep | undefined) => (s?.moment != null ? (moments[s.moment]?.clip?.snippetId ?? null) : null);
+  const bestSnippet = snippetOf(plan.find((s) => s.one && s.key === "praise" && !s.replay));
+  const fixStep = plan.find((s) => s.one && (s.key === "clearer" || s.key === "exVideo") && !s.replay);
+  const fixSnippet = snippetOf(fixStep);
+  const good = plan.some((s) => s.key === "words" && s.clear && !s.replay);
+  const bestSaid = useBestSaid(takeId, bestSnippet, voiceOn);
+  const fixSaid = useWalkSaid(
+    takeId && fixSnippet && fixStep
+      ? { key: `${takeId}:try:${fixSnippet}`, takeId, step: "try", snippetId: fixSnippet, tool: fixStep.key === "clearer" ? "clearer" : "voice" }
+      : null,
+    voiceOn,
+  );
+  const clearSaid = useWalkSaid(
+    takeId && good && bestSnippet ? { key: `${takeId}:good_take:${bestSnippet}`, takeId, step: "good_take", snippetId: bestSnippet } : null,
+    voiceOn,
+  );
+  const trySaid = useWalkSaid(afterTryRequest(takeId, step, moments), voiceOn);
+  return { bestSaid, fixSaid, clearSaid, trySaid };
 }
 
 const AFTER_TRY: Readonly<Record<string, "landed" | "once_more" | "last">> = {
